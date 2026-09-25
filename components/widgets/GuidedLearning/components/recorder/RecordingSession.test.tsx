@@ -9,6 +9,7 @@ import type { GuidedLearningSet } from '@/types';
 import { RecordingSession } from './RecordingSession';
 import type { NameMatcher } from './redaction';
 import type { TourRecording } from './useTourCapture';
+import type { UnmappedQueueEntry } from '@/components/tours/anchorQueue';
 
 const h = vi.hoisted(() => ({
   upload: vi.fn(),
@@ -16,6 +17,7 @@ const h = vi.hoisted(() => ({
   draft: vi.fn(),
   matcher: null as NameMatcher | null,
   recording: null as TourRecording | null,
+  enqueue: vi.fn(),
 }));
 
 vi.mock('@/context/useAuth', () => ({
@@ -34,6 +36,9 @@ vi.mock('@/utils/guidedLearningMedia', () => ({
   prepareImageForUpload: (file: File) => Promise.resolve(file),
 }));
 vi.mock('./draftStepText', () => ({ draftRecordedStepText: h.draft }));
+vi.mock('@/components/tours/anchorQueueStore', () => ({
+  enqueueUnmappedAnchors: h.enqueue,
+}));
 vi.mock('./TourRecorder', () => ({
   TourRecorder: (props: {
     matcher: NameMatcher | null;
@@ -124,6 +129,8 @@ beforeEach(() => {
     { label: 'Clock widget', text: 'Click the clock to add it.' },
     { label: '', text: '' },
   ]);
+  h.enqueue.mockReset();
+  h.enqueue.mockResolvedValue(undefined);
   h.matcher = null;
   h.recording = {
     frames,
@@ -215,6 +222,51 @@ describe('RecordingSession', () => {
     expect(await screen.findByTestId('studio')).toHaveTextContent(
       'Add a clock · 1 drafted'
     );
+  });
+
+  it('queues an untagged click after the set saves, with its fingerprint on the step', async () => {
+    const recording = h.recording as TourRecording;
+    recording.steps[1] = {
+      ...recording.steps[1],
+      tour: { anchor: '', action: 'click' },
+      untagged: true,
+      context: {
+        suggestedId: 'button.start',
+        role: 'button',
+        name: 'start',
+        widgetType: null,
+        pathname: '/',
+        nearestAnchor: null,
+        ancestors: [{ tag: 'button' }],
+        htmlExcerpt: '<button>Start</button>',
+      },
+    };
+    renderSession();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stub finish' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next frame' }));
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Upload and open in Studio' })
+      );
+      await Promise.resolve();
+    });
+    await screen.findByTestId('studio');
+    const saved = h.save.mock.calls[0][0] as GuidedLearningSet;
+    const fingerprint = saved.steps[1].tour?.unmapped;
+    expect(fingerprint).toMatch(/^[0-9a-f]{40}$/);
+    expect(h.enqueue).toHaveBeenCalledTimes(1);
+    const [setId, entries] = h.enqueue.mock.calls[0] as [
+      string,
+      UnmappedQueueEntry[],
+    ];
+    expect(setId).toBe(saved.id);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      fingerprint,
+      occurrences: [{ setId: saved.id, stepId: 'step-1' }],
+    });
+    expect(entries[0].context.widgetType).toBe('time-tool');
   });
 
   it('still opens the Studio when drafting the text fails', async () => {

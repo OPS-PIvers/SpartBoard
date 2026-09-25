@@ -164,7 +164,9 @@ describe('AssignTargetingSection', () => {
     };
     renderSection({ rosters: [noSso] });
     openModifications();
-    expect(screen.getByText(/1 students in these classes/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/1 students have no school sign-in/)
+    ).toBeInTheDocument();
   });
 
   it('distinguishes a checked class with no SSO students from no class at all', () => {

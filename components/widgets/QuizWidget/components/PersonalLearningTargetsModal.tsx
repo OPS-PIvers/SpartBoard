@@ -29,8 +29,7 @@ export const PersonalLearningTargetsModal: React.FC<
     >
       <p className="mb-4 text-xs text-slate-500 leading-relaxed">
         {t('learningTargets.personal.description', {
-          defaultValue:
-            'Targets only you can see. Tag quiz questions with them to track mastery across your own assessments.',
+          defaultValue: 'Only you can see these targets.',
         })}
       </p>
       <LearningTargetsManager

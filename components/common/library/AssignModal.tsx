@@ -158,9 +158,6 @@ export function AssignModal<TOptions>({
             placeholder="e.g. Period 2"
             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
           />
-          <p className="text-xxs text-slate-400 mt-1">
-            Shown in the archive to distinguish assignments.
-          </p>
         </div>
       )}
 
@@ -228,9 +225,11 @@ const ModeCard: React.FC<ModeCardProps> = ({ mode, selected, onSelect }) => {
         <p className="font-black text-sm text-slate-800 leading-tight">
           {mode.label}
         </p>
-        <p className="text-xs text-slate-500 mt-0.5 leading-snug">
-          {mode.description}
-        </p>
+        {mode.description && (
+          <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+            {mode.description}
+          </p>
+        )}
       </div>
     </button>
   );

@@ -190,11 +190,10 @@ describe('PlcIndexHub — PLCs in my building directory', () => {
     expect(screen.getByText('PLCs in my building')).toBeInTheDocument();
     expect(screen.getByText('Neighbor Science')).toBeInTheDocument();
     expect(screen.getByText('4 members')).toBeInTheDocument();
-    expect(screen.getByText('Ask to join')).toBeInTheDocument();
-    // The join hint surfaces the user's email (read-only request affordance).
+    // The join hint surfaces the user's email as a tooltip.
     expect(
-      screen.getByText(`Ask a member to invite ${USER_EMAIL}.`)
-    ).toBeInTheDocument();
+      screen.getByTitle(`Ask a member to invite ${USER_EMAIL}.`)
+    ).toHaveTextContent('Ask to join');
   });
 
   it('shows the directory empty notice when there are no discoverable PLCs', () => {
@@ -238,9 +237,6 @@ describe('PlcIndexHub — PLCs in my building directory', () => {
       />
     );
 
-    expect(screen.getByText('Ask to join')).toBeInTheDocument();
-    expect(
-      screen.queryByText(/Ask a member to invite/)
-    ).not.toBeInTheDocument();
+    expect(screen.getByText('Ask to join')).not.toHaveAttribute('title');
   });
 });

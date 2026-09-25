@@ -153,8 +153,7 @@ export const CommonAssessmentBanner: React.FC<CommonAssessmentBannerProps> = ({
             </p>
             <p className="text-xs text-slate-500 mt-0.5">
               {t('plcDashboard.home.commonAssessment.emptySubtitle', {
-                defaultValue:
-                  'Designate one in Shared Data, then review the pooled results together.',
+                defaultValue: 'Set one in Assessments.',
               })}
             </p>
           </div>
@@ -182,7 +181,7 @@ export const CommonAssessmentBanner: React.FC<CommonAssessmentBannerProps> = ({
     switch (phase) {
       case 'planning':
         return t('plcDashboard.home.commonAssessment.phase.planning', {
-          defaultValue: 'Planning — not run yet',
+          defaultValue: 'Not run yet',
         });
       case 'running':
         return t('plcDashboard.home.commonAssessment.phase.running', {

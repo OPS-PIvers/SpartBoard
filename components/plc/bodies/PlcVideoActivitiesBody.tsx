@@ -484,7 +484,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
             t('plcDashboard.videoActivities.editAutoImported', {
               title: target.title,
               defaultValue:
-                '"{{title}}" added to your library — opening editor.',
+                '"{{title}}" added to your library. Opening the editor.',
             }),
             'info'
           );
@@ -557,7 +557,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
         addToast(
           t('plcDashboard.videoActivities.editSaved', {
             defaultValue:
-              'Video activity saved — teammates will sync automatically.',
+              'Video activity saved. Teammates get the update automatically.',
           }),
           'success'
         );
@@ -854,7 +854,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
     >
       <Plus className="w-3.5 h-3.5" aria-hidden="true" />
       {t('plcDashboard.videoActivities.shareCta.label', {
-        defaultValue: 'Share a video activity with this PLC',
+        defaultValue: 'Share video activity',
       })}
     </button>
   );
@@ -865,10 +865,6 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
         defaultValue: 'Share a video activity with this PLC',
       })}
       subtitle={plc.name}
-      prompt={t('plcDashboard.videoActivities.sharePicker.prompt', {
-        defaultValue:
-          'Pick a video activity from your personal library. Teammates will then be able to import it from this tab.',
-      })}
       emptyMessage={t('plcDashboard.videoActivities.sharePicker.empty', {
         defaultValue:
           'You have no video activities in your personal library yet.',
@@ -886,17 +882,11 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
           <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
             <Film className="w-7 h-7 text-slate-400" aria-hidden="true" />
           </div>
-          <h3 className="text-lg font-bold text-slate-700 mb-2">
+          <h3 className="text-lg font-bold text-slate-700 mb-4">
             {t('plcDashboard.videoActivities.emptyTitle', {
               defaultValue: 'No shared video activities yet',
             })}
           </h3>
-          <p className="text-sm text-slate-500 max-w-md leading-relaxed mb-4">
-            {t('plcDashboard.videoActivities.emptySubtitle', {
-              defaultValue:
-                'Open the Video Activity widget in your dashboard, click the kebab on any activity, and choose "Share with PLC" to add it here.',
-            })}
-          </p>
           {canEdit ? (
             shareCta
           ) : (
@@ -1054,7 +1044,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
                             'plcDashboard.videoActivities.editTooltipAutoImport',
                             {
                               defaultValue:
-                                'Edit collaboratively — adds to your library on first edit',
+                                'Edit together. Adds it to your library on first edit.',
                             }
                           )
                     }
@@ -1126,8 +1116,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
           />
           <p className="text-xs text-amber-800">
             {t('plcDashboard.videoActivities.driveDisconnected', {
-              defaultValue:
-                'Connect Google Drive to import PLC video activities into your personal library.',
+              defaultValue: 'Connect Google Drive to import.',
             })}
           </p>
         </div>

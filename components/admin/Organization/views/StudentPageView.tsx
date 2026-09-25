@@ -33,7 +33,7 @@ export const StudentPageView: React.FC<Props> = ({
     <div>
       <ViewHeader
         title="Student page"
-        blurb="What students see when they sign in. Changes apply immediately to all student accounts in this organization."
+        blurb="What students see when they sign in."
       />
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-5">
         {/* Preview */}
@@ -145,19 +145,16 @@ export const StudentPageView: React.FC<Props> = ({
             </div>
             <SettingRow
               label="Show announcements"
-              description="Latest announcements from teachers and admins."
               checked={config.showAnnouncements}
               onChange={(v) => onUpdate({ showAnnouncements: v })}
             />
             <SettingRow
               label="Show teacher directory"
-              description="Students can look up teacher contact info."
               checked={config.showTeacherDirectory}
               onChange={(v) => onUpdate({ showTeacherDirectory: v })}
             />
             <SettingRow
               label="Show lunch menu"
-              description="Daily lunch menu, synced from your district feed."
               checked={config.showLunchMenu}
               onChange={(v) => onUpdate({ showLunchMenu: v })}
             />
@@ -199,15 +196,11 @@ export const StudentPageView: React.FC<Props> = ({
 
 const SettingRow: React.FC<{
   label: string;
-  description: string;
   checked: boolean;
   onChange: (v: boolean) => void;
-}> = ({ label, description, checked, onChange }) => (
-  <div className="flex items-start justify-between gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
-    <div className="min-w-0">
-      <div className="text-sm font-semibold text-slate-800">{label}</div>
-      <div className="text-xs text-slate-500 mt-0.5">{description}</div>
-    </div>
+}> = ({ label, checked, onChange }) => (
+  <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
+    <div className="min-w-0 text-sm font-semibold text-slate-800">{label}</div>
     <Toggle
       checked={checked}
       onChange={onChange}

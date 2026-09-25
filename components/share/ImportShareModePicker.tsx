@@ -79,19 +79,19 @@ const MODE_COPY: Record<
 > = {
   synced: {
     title: 'Synced',
-    body: "Both of you stay in sync — anything either teacher changes appears on the other's board in real time.",
+    body: 'You both edit the same board.',
     Icon: Cloud,
     primary: 'Import synced board',
   },
   'view-only': {
     title: 'View-Only',
-    body: "The host's edits appear live on your board, but you can't change anything yourself. The board is removed when the host stops sharing or when you leave.",
+    body: "You see the host's changes live but can't edit.",
     Icon: Eye,
     primary: 'Open view-only board',
   },
   copy: {
     title: 'Make a copy',
-    body: 'Take a one-time snapshot. Edits by either of you stay private — your boards drift apart immediately.',
+    body: 'You get your own copy to edit.',
     Icon: Copy,
     primary: 'Import a copy',
   },
@@ -235,7 +235,7 @@ export const ImportShareModePicker: React.FC = () => {
         <ModeOption
           mode="synced"
           title="Synced"
-          body="Both of you stay in sync — anything either teacher changes appears on the other's board in real time."
+          body={MODE_COPY.synced.body}
           Icon={Cloud}
           disabled={driveBacked}
           disabledReason={liveDisabledReason}
@@ -244,7 +244,7 @@ export const ImportShareModePicker: React.FC = () => {
         <ModeOption
           mode="view-only"
           title="View-Only"
-          body="The host's edits appear live on your board, but you can't change anything yourself. Good for sharing a board you're presenting."
+          body={MODE_COPY['view-only'].body}
           Icon={Eye}
           disabled={driveBacked}
           disabledReason={liveDisabledReason}
@@ -253,7 +253,7 @@ export const ImportShareModePicker: React.FC = () => {
         <ModeOption
           mode="copy"
           title="Make a copy"
-          body="Take a one-time snapshot. Edits by either of you stay private — your boards drift apart immediately."
+          body={MODE_COPY.copy.body}
           Icon={Copy}
           onPick={handlePick}
         />

@@ -18,6 +18,7 @@ import {
   CollectionSubstituteShareInput,
   SubstituteShareRoster,
   SharedCollection,
+  TourWidgetLayout,
 } from '@/types';
 import type { RosterCreateMeta } from '@/hooks/useRosters';
 import type { GoogleDriveService } from '@/utils/googleDriveService';
@@ -188,6 +189,15 @@ export interface DashboardContextValue {
   removeWidget: (id: string) => void;
   duplicateWidget: (id: string) => void;
   removeWidgets: (ids: string[]) => void;
+  /** Live tours only: adds an unsaved widget, raised to the front; returns its id. */
+  addTourWidget?: (
+    type: WidgetType,
+    layout?: Omit<TourWidgetLayout, 'slot' | 'type'>
+  ) => string | null;
+  /** Live tours only: keeps tour widgets, so they save like any other widget. */
+  commitTourWidgets?: (ids: readonly string[]) => void;
+  /** Live tours only: removes tour widgets without an undo entry. */
+  discardTourWidgets?: (ids: readonly string[]) => void;
   clearAllStickers: () => void;
   clearAllWidgets: () => void;
   updateWidget: (

@@ -11,7 +11,6 @@ export default defineSettings<MathToolsConfig>({
           key: 'dpiCalibration',
           type: 'number',
           label: 'dpiCalibration',
-          help: 'dpiCalibrationHelp',
           min: 60,
           max: 300,
           readValue: (ctx) => ctx.config.dpiCalibration ?? CSS_PPI,

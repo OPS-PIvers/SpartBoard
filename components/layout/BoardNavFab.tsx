@@ -429,7 +429,6 @@ export const BoardNavFab: FC = () => {
     ? (dashboards.find((d) => d.id === movingBoardId) ?? null)
     : null;
 
-  const activeName = activeDashboard?.name ?? '';
   const boardListLabel = t('boardNav.boardList', {
     defaultValue: 'All boards',
   });
@@ -438,6 +437,7 @@ export const BoardNavFab: FC = () => {
     <div
       ref={containerRef}
       data-screenshot="exclude"
+      data-tour-obstacle=""
       // inert (not aria-disabled on a div) so the faded FAB is unreachable by
       // keyboard too while the pen owns the pointer.
       inert={inkingOwnsPointer}
@@ -684,7 +684,9 @@ export const BoardNavFab: FC = () => {
           })}
           aria-haspopup="menu"
           aria-expanded={isBoardsMenuOpen}
-          title={activeName}
+          title={t('boardNav.selectBoard', {
+            defaultValue: 'Select board',
+          })}
           className={FAB_BASE}
         >
           <LayoutGrid className="w-4 h-4" />

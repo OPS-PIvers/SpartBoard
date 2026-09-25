@@ -229,3 +229,34 @@ describe('leaderCurve', () => {
     expect(leaderCurve(...args)).toEqual(leaderCurve(...args));
   });
 });
+
+describe('placeCallout obstacles', () => {
+  const container = { w: 1200, h: 800 };
+  const box = { w: 300, h: 120 };
+  const target: PxRect = { x: 550, y: 300, w: 100, h: 40 };
+
+  it('prefers below the target with nothing in the way', () => {
+    expect(placeCallout({ box, target, container }).side).toBe('bottom');
+  });
+
+  it('moves off a dock that sits where it would go', () => {
+    const dock: PxRect = { x: 300, y: 350, w: 600, h: 200 };
+    const p = placeCallout({ box, target, container, obstacles: [dock] });
+    expect(p.side).not.toBe('bottom');
+    const rect = { x: p.left, y: p.top, w: p.width, h: box.h };
+    expect(rectOverlapArea(rect, dock)).toBe(0);
+    expect(rectOverlapArea(rect, target)).toBe(0);
+  });
+
+  it('never trades the target for an obstacle', () => {
+    const everywhere: PxRect = { x: 0, y: 0, w: 1200, h: 800 };
+    const p = placeCallout({
+      box,
+      target,
+      container,
+      obstacles: [everywhere],
+    });
+    const rect = { x: p.left, y: p.top, w: p.width, h: box.h };
+    expect(rectOverlapArea(rect, target)).toBe(0);
+  });
+});

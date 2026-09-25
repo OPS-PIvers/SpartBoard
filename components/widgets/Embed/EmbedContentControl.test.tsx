@@ -33,12 +33,9 @@ const CATALOG: Record<string, string> = {
   'widgetSettings.embed.modeUrlOption': 'Website URL',
   'widgetSettings.embed.modeCodeOption': 'Custom Code',
   'widgetSettings.embed.urlLabel': 'Target URL',
-  'widgetSettings.embed.urlHelp': 'Url help',
   'widgetSettings.embed.htmlLabel': 'HTML / CSS / JS',
-  'widgetSettings.embed.htmlHelp': 'Html help',
   'widgetSettings.embed.verifyButton': 'Verify',
   'widgetSettings.embed.openOriginal': 'Open Original',
-  'widgetSettings.embed.verifyTip': 'Verify tip',
 };
 
 const t = (key: string, options?: Record<string, unknown>): string => {

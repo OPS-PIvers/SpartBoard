@@ -16,7 +16,7 @@ const EXPECTED: Record<string, RegExp> = {
   'rc-enabled-defaults': /When thinking time runs out/i,
   'rc-clamped-limit': /Capped at 300s/i,
   'rc-take-limit': /Takes allowed/i,
-  'rc-advisory': /Records up to 2 slots per student/i,
+  'rc-advisory': /Shuffle has no effect/i,
 };
 
 describe('RecordingControlsDevView', () => {
@@ -29,10 +29,10 @@ describe('RecordingControlsDevView', () => {
     const { unmount } = render(
       <RecordingControlsDevView state="rc-enabled-defaults" />
     );
-    expect(screen.queryByText(/Question shuffle has no effect/i)).toBeNull();
+    expect(screen.queryByText(/Shuffle has no effect/i)).toBeNull();
     unmount();
     render(<RecordingControlsDevView state="rc-advisory" />);
-    expect(screen.getByText(/Question shuffle has no effect/i)).toBeTruthy();
+    expect(screen.getByText(/Shuffle has no effect/i)).toBeTruthy();
   });
 
   it('seeds the enabled-defaults fixture on Spoken', () => {

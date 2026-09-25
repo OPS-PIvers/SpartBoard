@@ -382,17 +382,14 @@ export const PlcNewQuizAssignmentModal: React.FC<
         prompt={
           isDriveConnected
             ? t('plcDashboard.newAssignment.quiz.pickPrompt', {
-                defaultValue:
-                  'Pick a quiz from your personal library. The assignment will be created paused so you can review it before going live.',
+                defaultValue: 'It starts paused.',
               })
             : t('plcDashboard.newAssignment.quiz.pickPromptNoDrive', {
-                defaultValue:
-                  'Connect Google Drive in your account to assign quizzes from your personal library.',
+                defaultValue: 'Connect Google Drive to pick a quiz.',
               })
         }
         emptyMessage={t('plcDashboard.newAssignment.quiz.pickEmpty', {
-          defaultValue:
-            "You don't have any quizzes in your personal library yet. Create one in the Quiz widget first.",
+          defaultValue: 'No quizzes yet. Make one in the Quiz widget.',
         })}
         items={pickerItems}
         onPick={handlePick}
@@ -411,13 +408,6 @@ export const PlcNewQuizAssignmentModal: React.FC<
 
   const behavior = getQuizBehavior(pickedQuiz);
   const behaviorSummary = formatBehaviorSummary(behavior);
-
-  const visibleRosterIds = new Set(
-    rosters.filter((r) => !r.loadError).map((r) => r.id)
-  );
-  const effectivePeriodCount = options.picker.rosterIds.filter((id) =>
-    visibleRosterIds.has(id)
-  ).length;
 
   const dateInputValue = splitDueAtToInputs(dueAt, true).date;
 
@@ -468,7 +458,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
           <div>
             <p className="text-sm font-medium text-slate-700 mb-2">
               {t('plcDashboard.newAssignment.quiz.classPickerLabel', {
-                defaultValue: 'Target class periods (optional)',
+                defaultValue: 'Class periods',
               })}
             </p>
             <AssignClassPicker
@@ -524,7 +514,6 @@ export const PlcNewQuizAssignmentModal: React.FC<
           {/* PLC sharing slot (teacher name only — no sheet step) */}
           <PlcNewAssignmentSharingSlot
             plcName={plc.name}
-            effectivePeriodCount={effectivePeriodCount}
             teacherName={options.teacherName}
             onTeacherNameChange={(v) =>
               setOptions((p) => ({ ...p, teacherName: v }))

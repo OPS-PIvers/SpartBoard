@@ -159,7 +159,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
   const handleCreate = async () => {
     if (creating) return;
     if (!entry || !sessionId || !teacherUid) {
-      setError('Pick a wall first — there is nothing to share yet.');
+      setError('Pick a wall first.');
       return;
     }
 
@@ -280,9 +280,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
           }
         />
       ) : (
-        <p className="text-xs text-slate-500">
-          Pick a wall first — there is no link yet.
-        </p>
+        <p className="text-xs text-slate-500">Pick a wall first.</p>
       )}
       {onAddQr && studentUrl && (
         <button
@@ -299,9 +297,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
 
   const galleryPanel = createdUrl ? (
     <div className="px-5 pb-5 pt-4 space-y-4">
-      <p className="text-xs text-slate-600">
-        Anyone with this link can view the gallery, no sign-in required.
-      </p>
+      <p className="text-xs text-slate-600">No sign-in needed.</p>
       <CopyableLink
         url={createdUrl}
         label="Share link URL"
@@ -325,9 +321,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
     </div>
   ) : (
     <div className="px-5 pb-5 pt-4 space-y-3">
-      <p className="text-xs text-slate-600">
-        Anyone with this link can view the gallery, no sign-in required.
-      </p>
+      <p className="text-xs text-slate-600">No sign-in needed.</p>
 
       {existingGalleryUrl && (
         <div className="space-y-1.5">

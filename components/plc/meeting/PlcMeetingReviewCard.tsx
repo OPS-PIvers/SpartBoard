@@ -116,8 +116,7 @@ export const PlcMeetingReviewCard: React.FC<PlcMeetingReviewCardProps> = ({
                 <span
                   className="inline-flex items-center gap-1.5 text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md font-semibold"
                   title={t('plcDashboard.meeting.updatingHint', {
-                    defaultValue:
-                      'New results are still rolling up — numbers refresh shortly.',
+                    defaultValue: 'New results arrive shortly.',
                   })}
                 >
                   <Loader2
@@ -279,8 +278,7 @@ export const PlcMeetingReviewCard: React.FC<PlcMeetingReviewCardProps> = ({
             <div className="lg:col-span-2 flex items-center gap-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
               <Trophy className="w-5 h-5 shrink-0" aria-hidden="true" />
               {t('plcDashboard.meeting.strongAcross', {
-                defaultValue:
-                  'Strong across the board — every question cleared 80%.',
+                defaultValue: 'Every question above 80%.',
               })}
             </div>
           )}

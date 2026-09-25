@@ -23,10 +23,18 @@ import type {
   GuidedLearningPublicStep,
   GuidedLearningSet,
   GuidedLearningStep,
+  TourWidgetLayout,
   WidgetType,
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
+import {
+  clearTourLayoutOverrides,
+  clearTourWidgetPatches,
+  setTourLayoutOverrides,
+  setTourWidgetPatches,
+  type TourWidgetPatch,
+} from '@/context/dashboardCanvasStore';
 import { loadBuildingSet } from '@/hooks/useGuidedLearning';
 import { loadRunnableTour } from './publishedTours';
 import { Z_INDEX } from '@/config/zIndex';
@@ -51,17 +59,24 @@ import {
   type TourStartRequest,
 } from './tourState';
 import {
+  claimSpawns,
   claimTourWidgets,
   hasStepSlide,
   liveTourStepsOf,
   missingSetupWidgets,
+  planTourSetup,
   teacherMustClick,
+  tourLayoutOverridesAt,
   tourWelcome,
   tourWidgetIds,
+  type SpawnWatch,
+  type TourSlots,
   type TourWidgetClaims,
 } from './tourSession';
 import { ANCHOR_SEARCH_MS, useAnchorElement } from './useAnchorElement';
-import { findTourAnchor } from './resolveTourAnchor';
+import { findTourAnchor, isAnchorUsable } from './resolveTourAnchor';
+import { prerequisiteWidgetId, satisfyPrerequisite } from './tourPrerequisites';
+import { TourDialog } from './TourDialog';
 import {
   autoLeadMs,
   autoObserveMs,
@@ -96,12 +111,46 @@ interface ActiveTour {
   steps: GuidedLearningStep[];
   phase: Phase;
   index: number;
+  /** The board setup ran on; claims never match widgets on another board. */
+  boardId?: string;
   beforeIds: ReadonlySet<string>;
   addedTypes: WidgetType[];
-  /** The exact widgets the tour added; teardown removes only these. */
+  /** Tours without recorded layouts: the saved widgets setup added, by type. */
   claims: TourWidgetClaims;
+  /** Unsaved widgets the tour added; Keep saves them, anything else discards them. */
+  tourIds: string[];
+  slots: TourSlots;
+  /** The teacher's widgets the tour moves for now, by slot. */
+  moved: Record<number, TourWidgetLayout>;
+  spawnWatch: SpawnWatch[];
+  /** Minimized widgets a step showed for now; they minimize again when the tour ends. */
+  restored: string[];
   draft?: boolean;
 }
+
+const EMPTY_LAYER = {
+  tourIds: [] as string[],
+  slots: {} as TourSlots,
+  moved: {} as Record<number, TourWidgetLayout>,
+  spawnWatch: [] as SpawnWatch[],
+  restored: [] as string[],
+};
+
+/** A step that opens a widget watches for it from the board it starts on. */
+const watchSpawn = (
+  tour: Pick<ActiveTour, 'steps' | 'slots' | 'spawnWatch'>,
+  index: number,
+  boardIds: readonly string[]
+): SpawnWatch[] => {
+  const layout = tour.steps[index]?.tour?.spawns;
+  if (
+    !layout ||
+    tour.slots[layout.slot] ||
+    tour.spawnWatch.some((w) => w.layout.slot === layout.slot)
+  )
+    return tour.spawnWatch;
+  return [...tour.spawnWatch, { layout, seen: boardIds }];
+};
 
 interface Point {
   x: number;
@@ -122,6 +171,10 @@ interface CursorCue {
 type AutoStage = 'demo' | 'waiting' | 'yourTurn' | 'fallback';
 
 const BOARD_WAIT_MS = 2000;
+/** How often a step re-applies its anchor's prerequisite while the anchor is missing. */
+const PREREQ_RETRY_MS = 400;
+// A board switch this soon after a step's click is that step's own navigation.
+const FOLLOW_BOARD_MS = 3000;
 const CALLOUT_WIDTH = 320;
 /** A plain step's centred card reads wider than a pointing callout. */
 const PLAIN_WIDTH = 400;
@@ -131,6 +184,18 @@ const VIEWPORT_GUTTER = 16;
 
 const nextFrame = () =>
   new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+const readViewport = () =>
+  typeof window === 'undefined'
+    ? { w: 0, h: 0 }
+    : { w: window.innerWidth, h: window.innerHeight };
+
+/** The dock, Sidebar pill and FABs, which the callout keeps clear of. */
+const tourObstacles = () =>
+  Array.from(document.querySelectorAll('[data-tour-obstacle]'))
+    .map((el) => el.getBoundingClientRect())
+    .filter((r) => r.width > 0 && r.height > 0)
+    .map((r) => ({ x: r.x, y: r.y, w: r.width, h: r.height }));
 
 const SHAKE: Keyframe[] = [
   { transform: 'translateX(0)' },
@@ -179,6 +244,7 @@ export const LiveTourRunner: React.FC = () => {
   const [cue, setCue] = useState<CursorCue | null>(null);
   const cueSeq = useRef(0);
   const startingRef = useRef(false);
+  const lastStepClickAt = useRef(0);
   const reducedMotion = usePrefersReducedMotion();
   const [resumeOffer, setResumeOffer] = useState<SavedTour | null>(
     readSavedTour
@@ -191,16 +257,73 @@ export const LiveTourRunner: React.FC = () => {
   latest.current = { dashboard, canAccessFeature, t, uid: user?.uid };
 
   const widgets = activeDashboard?.widgets ?? [];
-  if (tour) {
+  const onTourBoard = !!tour && activeDashboard?.id === tour.boardId;
+  if (tour && onTourBoard) {
     const claims = claimTourWidgets(
       widgets,
       tour.beforeIds,
       tour.addedTypes,
       tour.claims
     );
-    if (claims !== tour.claims) setTour({ ...tour, claims });
+    const setupIds = new Set(Object.values(claims));
+    const spawned = claimSpawns(
+      widgets.filter((w) => !setupIds.has(w.id)),
+      tour.spawnWatch,
+      tour.slots
+    );
+    if (claims !== tour.claims || spawned.bound.length > 0) {
+      const moved = { ...tour.moved };
+      for (const layout of spawned.bound) moved[layout.slot] = layout;
+      setTour({
+        ...tour,
+        claims,
+        slots: spawned.slots,
+        moved,
+        spawnWatch: spawned.watches,
+      });
+    }
   }
-  const added = tour ? tourWidgetIds(widgets, tour.claims) : [];
+  // Saved widgets from a tour without layouts; Remove deletes these.
+  const legacyAdded =
+    tour && onTourBoard ? tourWidgetIds(widgets, tour.claims) : [];
+  const tourAdded = tour
+    ? widgets.filter((w) => w.transient && tour.tourIds.includes(w.id))
+    : [];
+  const added = [...legacyAdded, ...tourAdded.map((w) => w.id)];
+  const tourIdsRef = useRef<string[]>([]);
+  tourIdsRef.current = tour?.tourIds ?? [];
+
+  // Temporary layouts live in the canvas store only while a step is showing.
+  const overrides =
+    tour?.phase === 'running'
+      ? tourLayoutOverridesAt(tour.steps, tour.index, tour.slots, tour.moved)
+      : null;
+  const overridesKey = overrides ? JSON.stringify([...overrides]) : '';
+  const overridesRef = useRef(overrides);
+  overridesRef.current = overrides;
+  useEffect(() => {
+    if (overridesRef.current) setTourLayoutOverrides(overridesRef.current);
+    else clearTourLayoutOverrides();
+  }, [overridesKey]);
+
+  // Undo for each prerequisite a step set up, run when the tour ends.
+  const prereqUndos = useRef(new Map<string, () => void>());
+  const undoPrerequisites = useCallback(() => {
+    const undos = [...prereqUndos.current.values()];
+    prereqUndos.current.clear();
+    undos.forEach((undo) => undo());
+  }, []);
+
+  // Unmounting mid-tour leaves the board as it was.
+  useEffect(
+    () => () => {
+      latest.current.dashboard.discardTourWidgets?.(tourIdsRef.current);
+      clearTourLayoutOverrides();
+      clearTourWidgetPatches();
+      undoPrerequisites();
+    },
+    [undoPrerequisites]
+  );
 
   // A running tour survives a reload as {setId, index, addedIds}.
   const saved: SavedTour | null =
@@ -208,7 +331,8 @@ export const LiveTourRunner: React.FC = () => {
       ? {
           setId: tour.set.id,
           index: tour.index,
-          addedIds: added,
+          // Unsaved tour widgets do not survive a reload, so only saved ones are listed.
+          addedIds: legacyAdded,
           ...(tour.draft ? { draft: true } : {}),
         }
       : null;
@@ -230,7 +354,7 @@ export const LiveTourRunner: React.FC = () => {
     tour?.phase === 'running' ? (tour.steps[tour.index] ?? null) : null;
   const anchor = useAnchorElement(
     step?.tour ?? null,
-    { widgetIds: added },
+    { widgetIds: added, slots: tour?.slots },
     attempt
   );
 
@@ -248,6 +372,89 @@ export const LiveTourRunner: React.FC = () => {
     };
   }, [liftEl]);
 
+  const binding = step?.tour ?? null;
+  const anchorScope = { widgetIds: added, slots: tour?.slots };
+  const stepWidgetId = binding
+    ? prerequisiteWidgetId(binding, widgets, anchorScope)
+    : null;
+
+  // The anchor's widget comes to the front for the step, and restored widgets show; neither is saved.
+  const foundWidgetId =
+    anchor.status === 'found'
+      ? (anchor.element
+          ?.closest('[data-tour-widget]')
+          ?.getAttribute('data-tour-widget') ?? null)
+      : null;
+  const raiseId = foundWidgetId ?? stepWidgetId;
+  const patches = new Map<string, TourWidgetPatch>();
+  if (tour?.phase === 'running') {
+    for (const id of tour.restored) patches.set(id, { restored: true });
+    const raised = raiseId ? widgets.find((w) => w.id === raiseId) : undefined;
+    const top = Math.max(
+      0,
+      ...widgets.filter((w) => w.id !== raiseId).map((w) => w.z ?? 0)
+    );
+    if (raised && (raised.z ?? 0) <= top) {
+      patches.set(raised.id, { ...patches.get(raised.id), z: top + 1 });
+    }
+  }
+  const patchesKey = JSON.stringify([...patches]);
+  const patchesRef = useRef(patches);
+  patchesRef.current = patches;
+  useEffect(() => {
+    if (patchesRef.current.size > 0) setTourWidgetPatches(patchesRef.current);
+    else clearTourWidgetPatches();
+  }, [patchesKey]);
+
+  const satisfy = useEffectEvent(() => {
+    if (!binding) return;
+    // Undo runs at teardown, so each check reads the newest dashboard, not this one.
+    const d = () => latest.current.dashboard;
+    const onBoard = (id: string) =>
+      d().activeDashboard?.widgets.find((w) => w.id === id);
+    const undo = satisfyPrerequisite({
+      binding,
+      scope: anchorScope,
+      widgetId: stepWidgetId,
+      isMinimized: (id) => !!onBoard(id)?.minimized,
+      isSelected: (id) => d().selectedWidgetId === id,
+      select: (id) => d().setSelectedWidgetId(id),
+      restore: (id) =>
+        setTour((t) =>
+          t && !t.restored.includes(id)
+            ? { ...t, restored: [...t.restored, id] }
+            : t
+        ),
+    });
+    if (undo && !prereqUndos.current.has(undo.key)) {
+      prereqUndos.current.set(undo.key, undo.undo);
+    }
+  });
+  // Sets up what the anchor needs before and while it is searched for.
+  // Once the anchor has shown, a teacher who undoes the setup is not overridden until Retry.
+  const prereqStep = tour?.index ?? 0;
+  const prereqKey = `${prereqStep}:${attempt}`;
+  const [prereqDone, setPrereqDone] = useState<string | null>(null);
+  // Missing also ends the retries, so a step that never resolves stops fighting the teacher.
+  const prereqSettled =
+    anchor.status === 'found' || anchor.status === 'missing';
+  if (prereqSettled && prereqDone !== prereqKey) {
+    setPrereqDone(prereqKey);
+  }
+  const needsPrereq =
+    tour?.phase === 'running' &&
+    !!binding &&
+    !paused &&
+    !takenOver &&
+    !prereqSettled &&
+    prereqDone !== prereqKey;
+  useEffect(() => {
+    if (!needsPrereq) return;
+    satisfy();
+    const id = setInterval(() => satisfy(), PREREQ_RETRY_MS);
+    return () => clearInterval(id);
+  }, [needsPrereq, prereqStep, attempt]);
+
   const runSetup = (
     set: GuidedLearningSet,
     steps: GuidedLearningStep[],
@@ -257,9 +464,34 @@ export const LiveTourRunner: React.FC = () => {
     const { dashboard: d } = latest.current;
     const current = d.activeDashboard?.widgets ?? [];
     const claims = claimsFromIds(current, opts.claimIds);
-    const missing = missingSetupWidgets(set, current);
     const beforeIds = new Set(current.map((w) => w.id));
-    missing.forEach((type) => d.addWidget(type));
+    const tourIds: string[] = [];
+    const slots: Record<number, string> = {};
+    const moved: Record<number, TourWidgetLayout> = {};
+    let missing: WidgetType[] = [];
+    if (set.tourSetup?.layouts?.length && d.addTourWidget) {
+      // Recorded layouts: unsaved tour widgets, and the teacher's own moved for now.
+      const plan = planTourSetup(set, steps, current);
+      for (const { layout, widgetId } of plan.bind) {
+        slots[layout.slot] = widgetId;
+        moved[layout.slot] = layout;
+      }
+      for (const layout of plan.add) {
+        const { slot: _slot, type, ...place } = layout;
+        const id = d.addTourWidget(type, place);
+        if (id) {
+          slots[layout.slot] = id;
+          tourIds.push(id);
+        }
+      }
+      for (const type of plan.addTypes) {
+        const id = d.addTourWidget(type);
+        if (id) tourIds.push(id);
+      }
+    } else {
+      missing = missingSetupWidgets(set, current);
+      missing.forEach((type) => d.addWidget(type));
+    }
     const index = Math.min(Math.max(from, 0), steps.length - 1);
     runLog.current?.end({ done: false });
     // Studio test runs of a draft are not field data.
@@ -278,9 +510,18 @@ export const LiveTourRunner: React.FC = () => {
       steps,
       phase: 'running',
       index,
+      boardId: d.activeDashboard?.id,
       beforeIds,
       addedTypes: missing,
       claims,
+      tourIds,
+      slots,
+      moved,
+      spawnWatch: watchSpawn({ steps, slots, spawnWatch: [] }, index, [
+        ...beforeIds,
+        ...tourIds,
+      ]),
+      restored: [],
       draft: opts.draft,
     });
   };
@@ -301,6 +542,7 @@ export const LiveTourRunner: React.FC = () => {
       beforeIds: new Set(),
       addedTypes: [],
       claims: {},
+      ...EMPTY_LAYER,
       draft: opts.draft,
     });
     if (phase === 'welcome') setTour(pending('welcome'));
@@ -390,10 +632,21 @@ export const LiveTourRunner: React.FC = () => {
     setResumeOffer(null);
   };
 
+  // Keep saves the tour's widgets; every other ending discards them.
+  const endTour = (keep = false) => {
+    if (tour) {
+      const d = latest.current.dashboard;
+      if (keep) d.commitTourWidgets?.(tour.tourIds);
+      else d.discardTourWidgets?.(tour.tourIds);
+    }
+    undoPrerequisites();
+    setTour(null);
+  };
+
   // Leaving before the run starts also drops a resumed run's saved state.
   const abandon = () => {
     clearSavedTour();
-    setTour(null);
+    endTour();
   };
 
   const startOnPracticeBoard = async () => {
@@ -441,7 +694,7 @@ export const LiveTourRunner: React.FC = () => {
       setTour({ ...tour, phase: 'teardown' });
       return;
     }
-    setTour(null);
+    endTour();
   };
 
   const goTo = (index: number) => {
@@ -455,7 +708,15 @@ export const LiveTourRunner: React.FC = () => {
     noteMiss();
     runLog.current?.update({ furthest: index });
     setAttempt(0);
-    setTour({ ...tour, index: Math.max(index, 0) });
+    const next = Math.max(index, 0);
+    const boardIds = (
+      latest.current.dashboard.activeDashboard?.widgets ?? []
+    ).map((w) => w.id);
+    setTour({
+      ...tour,
+      index: next,
+      spawnWatch: watchSpawn(tour, next, boardIds),
+    });
   };
 
   const advanceRef = useRef(goTo);
@@ -468,6 +729,7 @@ export const LiveTourRunner: React.FC = () => {
     if (!el || step?.tour?.action !== 'click') return;
     let raf = 0;
     const onClick = () => {
+      lastStepClickAt.current = Date.now();
       // Autopilot's own click waits for the next anchor instead.
       if (autoClicking.current) return;
       raf = requestAnimationFrame(() => advanceRef.current(stepIndex + 1));
@@ -485,14 +747,75 @@ export const LiveTourRunner: React.FC = () => {
     resumeOffer !== null &&
     !!activeDashboard &&
     canAccessFeature('gl-live-tours');
-  const escapable = running || tour?.phase === 'welcome' || offeringResume;
+  const escapable = tour !== null || offeringResume;
   const active = tour !== null;
   useEffect(() => {
     setTourRunning(active);
     return () => setTourRunning(false);
   }, [active]);
+  // Escape never destroys work: Keep on teardown, Cancel on the practice offer.
   const finishRef = useRef(finish);
-  finishRef.current = tour ? () => finish() : () => dismissResume(false);
+  finishRef.current = !tour
+    ? () => dismissResume(false)
+    : tour.phase === 'teardown'
+      ? () => endTour(true)
+      : tour.phase === 'practice-offer'
+        ? abandon
+        : () => finish();
+
+  // Switching boards ends the tour with no prompt; its unsaved widgets go with it.
+  const boardSwitched =
+    !!tour?.boardId &&
+    (tour.phase === 'running' || tour.phase === 'teardown') &&
+    !!activeDashboard &&
+    activeDashboard.id !== tour.boardId;
+  const endOnBoardSwitch = useEffectEvent(() => {
+    const board = latest.current.dashboard.activeDashboard;
+    // A step that teaches board navigation follows the teacher to the new board.
+    if (
+      tour?.phase === 'running' &&
+      board &&
+      Date.now() - lastStepClickAt.current < FOLLOW_BOARD_MS
+    ) {
+      setTour({
+        ...tour,
+        boardId: board.id,
+        beforeIds: new Set(board.widgets.map((w) => w.id)),
+        addedTypes: [],
+      });
+      return;
+    }
+    // Saved widgets from a tour without layouts stay on the old board; say so.
+    if (tour && Object.keys(tour.claims).length > 0) {
+      latest.current.dashboard.addToast(
+        latest.current.t('tours.widgetsLeftBehind'),
+        'info'
+      );
+    }
+    if (tour?.phase === 'running') {
+      noteMiss();
+      runLog.current?.end({ done: false, exit: tour.index });
+      runLog.current = null;
+    }
+    endTour();
+  });
+  useEffect(() => {
+    if (boardSwitched) endOnBoardSwitch();
+  }, [boardSwitched]);
+
+  // The callout re-places itself when the window changes size.
+  const [viewport, setViewport] = useState(readViewport);
+  useEffect(() => {
+    if (!active) return;
+    const onResize = () =>
+      setViewport((prev) => {
+        const next = readViewport();
+        return prev.w === next.w && prev.h === next.h ? prev : next;
+      });
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [active]);
   useEffect(() => {
     if (!escapable) return;
     const onKey = (e: KeyboardEvent) => {
@@ -525,16 +848,13 @@ export const LiveTourRunner: React.FC = () => {
     });
   }, [missingStepId, setId, missingAnchor]);
 
-  const viewport =
-    typeof window === 'undefined'
-      ? { w: 0, h: 0 }
-      : { w: window.innerWidth, h: window.innerHeight };
   const rect = anchor.status === 'found' ? anchor.rect : null;
   const placement = rect
     ? placeCallout({
         box,
         target: { x: rect.x, y: rect.y, w: rect.width, h: rect.height },
         container: viewport,
+        obstacles: tourObstacles(),
       })
     : null;
   const center = rect
@@ -576,15 +896,23 @@ export const LiveTourRunner: React.FC = () => {
   cueRef.current = cue;
   // A glide cut short when the anchor vanished never lands, so start the step over.
   if (autoStage === 'demo' && !found) setAuto(null);
-  // Structured hints after 5s without progress.
+  // Structured hints after 5s without progress; reduced motion gets a still line instead of the glide.
+  const [staticHint, setStaticHint] = useState<string | null>(null);
   useEffect(() => {
     if (!hintOn) return;
-    const id = setTimeout(() => cursorCue(), TRY_HINT_MS);
+    const key = stepKey;
+    const id = setTimeout(() => {
+      if (reducedMotion) setStaticHint(key);
+      else cursorCue();
+    }, TRY_HINT_MS);
     return () => clearTimeout(id);
-  }, [hintOn, stepIndex, attempt]);
+  }, [hintOn, stepKey, reducedMotion]);
+  const staticHintOn = hintOn && staticHint === stepKey;
 
   const latestAdded = useRef(added);
   latestAdded.current = added;
+  const latestSlots = useRef<TourSlots | undefined>(tour?.slots);
+  latestSlots.current = tour?.slots;
 
   // Autopilot clicks the anchor, then waits for the app to show the next step's anchor.
   const autoClick = () => {
@@ -616,7 +944,12 @@ export const LiveTourRunner: React.FC = () => {
     const ctrl = new AbortController();
     autoWait.current = ctrl;
     void waitFor(
-      () => !!findTourAnchor(nextBinding, { widgetIds: latestAdded.current }),
+      () =>
+        !!findTourAnchor(nextBinding, {
+          widgetIds: latestAdded.current,
+          slots: latestSlots.current,
+          accept: isAnchorUsable,
+        }),
       ANCHOR_SEARCH_MS,
       ctrl.signal
     ).then((ok) => {
@@ -630,7 +963,7 @@ export const LiveTourRunner: React.FC = () => {
 
   const startAutoDemo = useEffectEvent(() => {
     setAuto({ key: stepKey, stage: 'demo' });
-    if (cursorAllowed) playCursor(true);
+    if (cursorAllowed && !reducedMotion) playCursor(true);
     else autoClickRef.current();
   });
   useEffect(() => {
@@ -701,13 +1034,13 @@ export const LiveTourRunner: React.FC = () => {
     if (hintOn) playCursor();
   };
 
-  // Observe and plain steps take focus so keyboard and screen reader users land on them.
-  const takesFocus =
-    running && !!step && (!step.tour || step.tour.action !== 'click');
+  // Every step moves focus to its heading so keyboard and screen reader users land on it.
+  const headingRef = useRef<HTMLDivElement | null>(null);
+  const showingStep = running && !!step;
   useEffect(() => {
-    if (!takesFocus) return;
-    calloutRef.current?.focus({ preventScroll: true });
-  }, [takesFocus, stepIndex]);
+    if (!showingStep) return;
+    headingRef.current?.focus({ preventScroll: true });
+  }, [showingStep, stepIndex]);
 
   const canRead = !!step && (!!step.narration?.url || speechAvailable());
   useReadAloud({
@@ -739,28 +1072,15 @@ export const LiveTourRunner: React.FC = () => {
     return null;
   }
 
+  // Keyed by phase so each prompt mounts fresh and takes focus.
   const dialog = (
     title: string,
     body: string,
     actions: React.ReactNode
   ): React.ReactNode => (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="tour-dialog-title"
-      className="fixed inset-0 flex items-center justify-center bg-slate-950/55 p-4"
-      style={{ zIndex: Z_INDEX.tourCallout }}
-    >
-      <div className="w-full max-w-sm rounded-2xl bg-slate-900/95 p-5 text-white shadow-2xl ring-1 ring-white/15 backdrop-blur-xl">
-        <h2 id="tour-dialog-title" className="text-base font-bold">
-          {title}
-        </h2>
-        <p className="mt-2 whitespace-pre-line text-sm text-slate-200">
-          {body}
-        </p>
-        <div className="mt-4 flex justify-end gap-2">{actions}</div>
-      </div>
-    </div>
+    <TourDialog key={tour?.phase ?? 'resume'} title={title} body={body}>
+      {actions}
+    </TourDialog>
   );
 
   const secondaryBtn =
@@ -787,7 +1107,12 @@ export const LiveTourRunner: React.FC = () => {
         >
           {hasAdded ? t('tours.removeAddedWidgets') : t('tours.endTour')}
         </button>
-        <button type="button" className={primaryBtn} onClick={resumeTour}>
+        <button
+          type="button"
+          data-autofocus=""
+          className={primaryBtn}
+          onClick={resumeTour}
+        >
           {t('tours.resumeTour')}
         </button>
       </>
@@ -801,12 +1126,13 @@ export const LiveTourRunner: React.FC = () => {
         <button
           type="button"
           className={secondaryBtn}
-          onClick={() => setTour(null)}
+          onClick={() => endTour()}
         >
           {t('tours.notNow')}
         </button>
         <button
           type="button"
+          data-autofocus=""
           className={primaryBtn}
           onClick={() => begin(set, steps, index, null, { draft })}
         >
@@ -824,6 +1150,7 @@ export const LiveTourRunner: React.FC = () => {
         </button>
         <button
           type="button"
+          data-autofocus=""
           className={primaryBtn}
           onClick={() => void startOnPracticeBoard()}
         >
@@ -840,16 +1167,17 @@ export const LiveTourRunner: React.FC = () => {
           type="button"
           className={secondaryBtn}
           onClick={() => {
-            removeWidgets(added);
-            setTour(null);
+            if (legacyAdded.length > 0) removeWidgets(legacyAdded);
+            endTour();
           }}
         >
           {t('tours.removeWidgets')}
         </button>
         <button
           type="button"
+          data-autofocus=""
           className={primaryBtn}
-          onClick={() => setTour(null)}
+          onClick={() => endTour(true)}
         >
           {t('tours.keepWidgets')}
         </button>
@@ -928,7 +1256,10 @@ export const LiveTourRunner: React.FC = () => {
           <div className="flex items-start justify-between gap-3">
             <div
               id="tour-step-title"
-              className="font-bold tracking-tight text-white"
+              ref={headingRef}
+              tabIndex={-1}
+              data-testid="tour-step-title"
+              className="font-bold tracking-tight text-white rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             >
               {title}
             </div>
@@ -990,6 +1321,16 @@ export const LiveTourRunner: React.FC = () => {
           {anchor.status === 'searching' && (
             <p role="status" className="text-xs text-slate-300">
               {t('tours.looking')}
+            </p>
+          )}
+          {staticHintOn && !autoStatus && (
+            <p
+              role="status"
+              data-testid="tour-static-hint"
+              className="flex items-center gap-1.5 self-start rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-900"
+            >
+              <MousePointerClick className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('tours.yourTurn')}
             </p>
           )}
           {autoStatus && (

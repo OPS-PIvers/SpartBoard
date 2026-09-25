@@ -239,9 +239,7 @@ describe('PaperQuestionTextModal with the shared readers', () => {
     await waitFor(() =>
       expect(screen.getByLabelText('Question 1 text')).toBeInTheDocument()
     );
-    expect(
-      screen.getByText(/No answer was marked, so this still needs one/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/No answer marked/)).toBeInTheDocument();
   });
 
   it('keeps the teacher’s own wording when they edit the box', async () => {

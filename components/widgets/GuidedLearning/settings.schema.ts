@@ -17,7 +17,6 @@ export default defineSettings<GuidedLearningConfig>({
           key: 'view',
           type: 'custom',
           label: 'goToLibrary',
-          help: 'settingsHelp',
           render: renderLibraryButton,
         },
       ],

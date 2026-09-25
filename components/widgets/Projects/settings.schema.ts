@@ -29,7 +29,6 @@ export default defineSettings<ProjectsConfig>({
           key: 'cardColor',
           type: 'surfaceColor',
           label: 'groupRows',
-          help: 'groupRowsHelp',
           opacityKey: 'cardOpacity',
         },
       ],

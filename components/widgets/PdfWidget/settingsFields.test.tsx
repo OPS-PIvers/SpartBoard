@@ -23,9 +23,8 @@ const makeCtx = (
     toolLabel: vi.fn((type: string) => type),
     t: (key: string) =>
       ({
-        'widgetSettings.pdf.none': 'None — library is shown',
+        'widgetSettings.pdf.none': 'None',
         'widgetSettings.pdf.switchDocument': 'Switch to another PDF',
-        'widgetSettings.pdf.storageNote': 'Stored in the cloud library.',
       })[key] ?? key,
     surface: 'drawer',
     updateConfig,

@@ -627,7 +627,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
                 : primaryAction.label
             }
             aria-label={primaryAction.label}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-blue-primary font-bold text-white shadow-sm transition-all hover:bg-brand-blue-dark active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-brand-blue-primary"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-blue-lighter font-semibold text-brand-blue-dark transition-colors hover:bg-brand-blue-primary/15 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-brand-blue-lighter"
             style={{
               paddingInline: 'min(14px, 3.2cqmin)',
               paddingBlock: 'min(6px, 1.6cqmin)',

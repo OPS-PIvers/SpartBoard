@@ -257,10 +257,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
         </SetList>
       </div>
       <p className="text-xs text-slate-500">
-        Help Center activities don&apos;t appear in teachers&apos; Guided
-        Learning libraries. Picking one from your library gives the Help Center
-        its own copy, so later edits happen here, not in your library. A
-        building library activity stays in the building library.
+        Picking one makes a separate Help Center copy.
       </p>
 
       {editing && (

@@ -11,8 +11,9 @@
     },
     "disabled": {
       "title": "Fernsteuerung ist deaktiviert",
-      "hint": "Aktiviere die Fernsteuerung wieder auf der Tafel, um Widgets von diesem Gerät aus zu steuern."
-    }
+      "hint": "Aktiviere die Fernsteuerung auf der Tafel."
+    },
+    "emptyBoard": "Füge deiner Tafel Widgets hinzu, um sie hier zu steuern."
   },
   "common": {
     "cancel": "Abbrechen",
@@ -117,7 +118,6 @@
     },
     "classes": {
       "title": "Meine Klassen",
-      "description": "Verwalte hier deine Klassenlisten. Die aktive Klasse wird für Sitzpläne, Zufallsauswahl, Umfragen und mehr verwendet.",
       "newClass": "Neue Klasse",
       "importClassLink": "ClassLink",
       "myClasses": "Deine Klassen",
@@ -169,9 +169,8 @@
       "pinPlaceholder": "01",
       "addStudent": "+ Schüler hinzufügen",
       "removeStudent": "Schüler entfernen",
-      "bulkPasteTip": "Tipp: Fügen Sie mehrere Namen auf einmal ein, um sie in einem Rutsch hinzuzufügen.",
       "emptyRosterTitle": "Noch keine Schüler",
-      "emptyRosterSubtitle": "Klicken Sie auf + Schüler hinzufügen oder fügen Sie eine Liste von Namen in eine Zeile ein.",
+      "emptyRosterSubtitle": "Fügen Sie eine Namensliste ein, um mehrere auf einmal hinzuzufügen.",
       "manageClasses": "Klassen verwalten",
       "switchTo": "Wechseln zu",
       "noClassSelected": "Keine Klasse ausgewählt",
@@ -188,7 +187,6 @@
       "restrictionsFilter": "Mitschüler/innen suchen…",
       "restrictionsEmptyRoster": "Füge weitere Schüler/innen hinzu, um Einschränkungen festzulegen.",
       "restrictionsNoMatches": "Keine Treffer.",
-      "restrictionsFooter": "Einschränkungen gelten automatisch für beide Schüler/innen.",
       "editorTabsLabel": "Klassenlisten-Editor-Tabs",
       "studentsTab": "Schüler/innen",
       "groupsTab": "Gruppen ({{count}})",
@@ -209,13 +207,12 @@
       "bellPeriod": "Unterrichtsstunde",
       "bellPeriodNone": "Nicht festgelegt",
       "accommodationsTab": "Nachteilsausgleich ({{count}})",
-      "accommodationsHelp": "Diese werden automatisch übernommen, sobald du diesem Schüler/dieser Schülerin eine Aufgabe zuweist. Du kannst sie pro Aufgabe weiterhin anpassen.",
+      "accommodationsHelp": "Diese gelten für jede neue Aufgabe.",
       "emptyAccommodationsTitle": "Noch keine Schüler/innen",
       "emptyAccommodationsSubtitle": "Füge zuerst Schüler/innen hinzu und lege dann ihren dauerhaften Nachteilsausgleich fest."
     },
     "plcs": {
       "title": "Meine PLGs",
-      "description": "Professionelle Lerngemeinschaften ermöglichen dir und deinen Kolleg/innen, an denselben Aufgaben zusammenzuarbeiten und kombinierte Ergebnisse zu sehen.",
       "newPlc": "Neue PLG",
       "newPlcTitle": "Neue PLG",
       "createNewPlc": "Neue PLG erstellen",
@@ -242,13 +239,12 @@
       "inviteLabel": "Per E-Mail einladen",
       "invitePlaceholder": "kolleg/in@schule.de",
       "sendInvite": "Einladen",
-      "inviteHelp": "Deine Kollegin / dein Kollege sieht die Einladung beim nächsten Anmelden in der PLG-Seitenleiste.",
+      "inviteHelp": "Die Einladung erscheint in der PLG-Seitenleiste.",
       "outstandingLabel": "Ausstehende Einladungen",
       "revokeInvite": "Einladung widerrufen",
       "invites": "Einladungen",
       "invitesTitle": "Ausstehende PLG-Einladungen",
       "noInvitesTitle": "Keine ausstehenden Einladungen",
-      "noInvitesSubtitle": "Hier erscheinen Einladungen, sobald eine Kollegin / ein Kollege dich in ihre/seine PLG einlädt.",
       "inviteFrom": "Eingeladen von {{name}}",
       "accept": "Annehmen",
       "decline": "Ablehnen",
@@ -279,26 +275,22 @@
     "settings": {
       "googleDriveIntegration": "Google Drive-Integration",
       "remoteControl": "Fernsteuerung",
-      "googleDriveDescription": "Deine Tafeln und Dateien werden automatisch in deinem \"{{appName}}\"-Ordner in Drive gesichert.",
-      "connectedSynced": "Verbunden & Synchronisiert",
+      "googleDriveDescription": "Deine Tafeln werden in deinem \"{{appName}}\"-Ordner in Drive gesichert.",
+      "connectedSynced": "Verbunden",
       "disconnected": "Getrennt",
       "connect": "Verbinden",
       "disconnect": "Trennen",
       "myBuildings": "Mein(e) Gebäude",
-      "myBuildingsDescription": "Wähle die Gebäude aus, in denen du arbeitest. Widgets wie Unterrichtsroutinen zeigen automatisch Inhalte für deine Klassenstufe an. Wähle mehrere aus, wenn du in verschiedenen Gebäuden arbeitest.",
-      "noBuildingSelected": "Kein Gebäude ausgewählt — Widgets zeigen alle verfügbaren Inhalte.",
+      "noBuildingSelected": "Inhalte für alle Gebäude werden angezeigt.",
       "interfacePreferences": "Oberflächeneinstellungen",
       "disableCloseWarning": "Schließwarnung deaktivieren",
-      "skipConfirmation": "Bestätigungsdialog beim Schließen von Widgets überspringen.",
       "quickAccessWidgets": "Schnellzugriff-Widgets",
-      "quickAccessDescription": "Wähle bis zu 2 Widgets aus, die erscheinen, wenn das Dock minimiert ist.",
       "dockPosition": "Dock-Position",
       "dockPositionDescription": "Wähle, wo das Dock auf deinem Bildschirm erscheint.",
       "dockBottom": "Unten",
       "dockLeft": "Links",
       "dockRight": "Rechts",
       "language": "Oberflächensprache",
-      "languageDescription": "Wähle deine bevorzugte Anzeigesprache für die gesamte Tafel.",
       "saveAllChanges": "Alle Änderungen speichern"
     },
     "confirmClearBoard": "Bist du sicher, dass du ALLE Widget-Fenster schließen möchtest?"
@@ -321,18 +313,17 @@
     }
   },
   "plcDashboard": {
-    "subtitle": "PLG-Dashboard",
     "home": {
       "commonAssessment": {
         "loading": "Gemeinsame Bewertung wird geladen…",
         "emptyTitle": "Noch keine gemeinsame Bewertung",
-        "emptySubtitle": "Legen Sie eine in „Geteilte Daten“ fest und prüfen Sie dann die gebündelten Ergebnisse gemeinsam.",
+        "emptySubtitle": "Lege eine unter Bewertungen fest.",
         "reviewData": "Geteilte Daten ansehen",
         "ranIt": "{{ran}} von {{total}} haben sie durchgeführt",
         "startMeeting": "Besprechung starten",
         "resumeMeeting": "Besprechung fortsetzen",
         "phase": {
-          "planning": "Planung – noch nicht durchgeführt",
+          "planning": "Noch nicht durchgeführt",
           "running": "Läuft",
           "ready": "Bereit zur Überprüfung",
           "reviewing": "Gemeinsame Überprüfung",
@@ -342,7 +333,6 @@
       "actionItems": {
         "heading": "Ihre Aufgaben",
         "empty": "Sie sind auf dem neuesten Stand",
-        "emptySubtitle": "Ihnen zugewiesene Aufgaben erscheinen hier.",
         "loadError": "Ihre Aufgaben konnten nicht geladen werden",
         "toggleFailed": "Diese Aufgabe konnte nicht aktualisiert werden.",
         "markDone": "Als erledigt markieren",
@@ -438,8 +428,7 @@
       "assignFailed": "Klassenauswahl konnte nicht gespeichert werden.",
       "driveRequired": "Verbinde Google Drive in deinem Konto, um PLG-Aufgaben zu übernehmen.",
       "driveDisconnected": "Verbinde Google Drive, um PLG-Aufgaben zu deiner Tafel hinzuzufügen.",
-      "emptyTitle": "Noch keine Aufgabenvorlagen",
-      "emptySubtitle": "Aktiviere „Mit PLG teilen“ bei einer Quiz-Aufgabe – sie erscheint dann hier, damit Teammitglieder sie auf ihre eigene Tafel übernehmen können."
+      "emptyTitle": "Noch keine Aufgabenvorlagen"
     },
     "assignmentsInProgress": {
       "heading": "Live im Team",
@@ -447,13 +436,12 @@
       "count_other": "{{count}} laufen",
       "statusActive": "Aktiv",
       "statusPaused": "Pausiert",
-      "emptyTitle": "Keine laufenden Aufgaben",
-      "emptySubtitle": "Wenn du oder ein Teammitglied eine PLG-Aufgabe startet, erscheint sie hier. Pausiere oder stoppe sie von deiner Tafel, und die Zeile aktualisiert sich in Echtzeit."
+      "emptyTitle": "Keine laufenden Aufgaben"
     },
     "meta": {
       "members_one": "{{count}} Mitglied",
       "members_other": "{{count}} Mitglieder",
-      "youLead": "Du leitest diese PLG"
+      "youLead": "Leitung"
     },
     "members": {
       "heading": "Mitglieder",
@@ -492,7 +480,7 @@
       "pendingSince": "Eingeladen {{when}}",
       "revoke": "Widerrufen",
       "revokeAriaLabel": "Einladung für {{email}} widerrufen",
-      "notManager": "Nur die Leitung oder eine Co-Leitung der PLG kann Mitglieder einladen, entfernen oder ändern."
+      "notManager": "Nur die Leitung kann Mitglieder verwalten."
     },
     "completedAssignments": {
       "heading": "Geteilte Ergebnisse",
@@ -502,27 +490,23 @@
       "openSheet": "Tabelle öffnen",
       "unsafeSheet": "Kein Link",
       "emptyTitle": "Noch keine abgeschlossenen Aufgaben",
-      "emptySubtitle": "Wenn eine PLG-Aufgabe von einer Tafel eines Teammitglieds gestoppt wird, erscheint sie hier mit einem Link zur geteilten Ergebnistabelle."
+      "emptySubtitle": "Beendete Aufgaben erscheinen hier."
     },
     "settings": {
       "heading": "Dashboard-Bereiche",
       "description": "Wähle, welche Bereiche im Dashboard dieser PLG angezeigt werden. Jedes PLG-Mitglied kann diese Einstellungen ändern.",
       "saveFailed": "Einstellungen konnten nicht gespeichert werden",
       "quizzes": {
-        "title": "Quiz-Bibliothek",
-        "description": "Teile Quizze mit der PLG. Mitglieder können Bearbeitungen synchronisieren oder ein Quiz in ihre eigene Bibliothek kopieren."
+        "title": "Quiz-Bibliothek"
       },
       "videoActivities": {
-        "title": "Videoaktivitäten",
-        "description": "Teile videobasierte Aktivitäten und aggregiere Abschlussdaten mit der PLG."
+        "title": "Videoaktivitäten"
       },
       "notes": {
-        "title": "Notizen",
-        "description": "Ein geteiltes Notizbuch für die PLG."
+        "title": "Notizen"
       },
       "sharedBoards": {
-        "title": "Geteilte Tafeln",
-        "description": "Zeigt Tafeln, die mit dieser PLG geteilt wurden."
+        "title": "Geteilte Tafeln"
       },
       "digest": {
         "heading": "Benachrichtigungen",
@@ -591,7 +575,6 @@
         "sharedSheet": {
           "heading": "Geteilte Tabelle",
           "connectedHint": "Aggregierte PLG-Ergebnisse landen in dieser Google-Tabelle. Alle Mitglieder können sie öffnen.",
-          "unsetHint": "Noch keine geteilte Tabelle – sie wird automatisch erstellt, wenn das erste PLG-Quiz durchgeführt wird.",
           "open": "Tabelle öffnen",
           "notReady": "Noch nicht erstellt"
         },
@@ -604,8 +587,6 @@
           "title": "Quiz-Bibliothek",
           "teaser": "Teile Quizze mit deiner PLG.",
           "heading": "Quiz-Bibliothek",
-          "empty": "Keine geteilten Quizze",
-          "emptySubtitle": "Teile ein Quiz über das Menü auf seiner Bibliothekskarte.",
           "questionCount_one": "{{count}} Frage",
           "questionCount_other": "{{count}} Fragen",
           "bySharer": "geteilt von {{name}}",
@@ -631,7 +612,6 @@
       "untitled": "Ohne Titel",
       "empty": "Leere Notiz",
       "emptyTitle": "Noch keine Notizen",
-      "emptySubtitle": "Erstelle die erste, um loszulegen.",
       "titlePlaceholder": "Notiztitel",
       "bodyPlaceholder": "Deine Notizen… (Markdown unterstützt)",
       "deleteNote": "Notiz löschen",
@@ -645,7 +625,7 @@
       "pickOrCreate": "Wähle eine Notiz zum Bearbeiten oder erstelle eine neue.",
       "pickToRead": "Wähle eine Notiz zum Lesen.",
       "conflictTitle": "Diese Notiz hat sich geändert",
-      "conflictMessage": "Ein Teammitglied hat diese Notiz bearbeitet, während du geschrieben hast. Lade neu, um die Änderungen zu sehen — dein ungespeicherter Text bleibt unten erhalten.",
+      "conflictMessage": "Ein Teammitglied hat diese Notiz bearbeitet, während du geschrieben hast. Lade neu, um die Änderungen zu sehen. Dein ungespeicherter Text bleibt unten erhalten.",
       "conflictReload": "Notiz neu laden",
       "meeting": {
         "label": "Meeting-Notizen",
@@ -740,7 +720,7 @@
       "loading": "Bewertungsraster werden geladen…",
       "loadError": "Geteilte Bewertungsraster konnten nicht geladen werden. Bitte versuche es erneut.",
       "empty": "Noch keine geteilten Bewertungsraster",
-      "emptyHint": "Teile ein Bewertungsraster aus deiner Bibliothek, damit dein Team schriftliche Antworten einheitlich bewertet.",
+      "emptyHint": "Teile eine aus deiner Bibliothek.",
       "bySharer": "geteilt von {{name}}",
       "unknownSharer": "einem Teammitglied",
       "criterionCount_one": "{{count}} Kriterium",
@@ -755,7 +735,6 @@
       "alreadySharedToast": "„{{title}}“ ist bereits mit dieser PLG geteilt.",
       "shareFailed": "Bewertungsraster konnte nicht mit dieser PLG geteilt werden.",
       "sharePickerTitle": "Ein Bewertungsraster mit dieser PLG teilen",
-      "sharePickerPrompt": "Wähle ein Bewertungsraster aus deiner Bibliothek.",
       "sharePickerEmpty": "Du hast noch keine Bewertungsraster. Erstelle eines aus einer offenen Frage im Quiz-Editor.",
       "pickerMeta": "{{criteria}} Kriterien · {{points}} Pkt.",
       "unshareAction": "Freigabe aufheben",
@@ -771,7 +750,7 @@
       "loading": "Fragenpools werden geladen…",
       "loadError": "Geteilte Fragenpools konnten nicht geladen werden. Bitte erneut versuchen.",
       "empty": "Noch keine geteilten Fragenpools",
-      "emptyHint": "Teile einen Pool aus deiner Quiz-Bibliothek, damit Kolleg:innen getaggte Fragen in ihre eigenen Quizze ziehen können.",
+      "emptyHint": "Teile eine aus deiner Quiz-Bibliothek.",
       "shareCta": "Pool teilen",
       "driveDisconnected": "Verbinde Google Drive, um einen Fragenpool zu teilen.",
       "driveDisconnectedCopy": "Verbinde Google Drive, um einen Fragenpool zu kopieren.",
@@ -792,7 +771,6 @@
       "unshareConfirm": "„{{title}}“ nicht mehr mit dieser PLG teilen? Quizze von Kolleg:innen, die daraus ziehen, funktionieren dann nicht mehr; Kopien in ihren Bibliotheken bleiben erhalten.",
       "unshareFailed": "Teilen des Fragenpools konnte nicht beendet werden.",
       "sharePickerTitle": "Fragenpool mit dieser PLG teilen",
-      "sharePickerPrompt": "Wähle einen Pool aus deiner Quiz-Bibliothek.",
       "sharePickerEmpty": "Du hast noch keine Fragenpools. Erstelle einen im Tab „Pools“ des Quiz-Widgets.",
       "unshareNotReady": "Deine Fragenpools werden noch geladen. Versuche es gleich noch einmal."
     },
@@ -816,7 +794,6 @@
       "heading": "Aktivität",
       "empty": "Noch keine Aktivität",
       "sinceLastVisit": "Seit deinem letzten Besuch",
-      "sinceSubtitle": "Was passiert ist, während du weg warst",
       "olderHeading": "Früher",
       "caughtUp": "Du bist auf dem neuesten Stand",
       "caughtUpSubtitle": "Keine neue Aktivität seit deinem letzten Besuch.",
@@ -858,11 +835,10 @@
       "delete": "Kommentar löschen",
       "confirmDelete": "Diesen Kommentar löschen?",
       "confirmDeleteTitle": "Kommentar löschen",
-      "mentionHint": "Gib @ ein, um ein Teammitglied zu erwähnen",
       "postFailed": "Dein Kommentar konnte nicht gesendet werden. Versuche es erneut.",
       "deleteFailed": "Der Kommentar konnte nicht gelöscht werden. Versuche es erneut.",
       "loadError": "Kommentare konnten nicht geladen werden.",
-      "viewerReadOnly": "Betrachter können Kommentare lesen, aber nicht schreiben.",
+      "viewerReadOnly": "Nur Ansicht.",
       "threadLabel": "Kommentare zu {{subject}}",
       "mentionNoMatch": "Keine passenden Teammitglieder",
       "mentionListLabel": "Ein Teammitglied erwähnen"
@@ -885,9 +861,9 @@
       "hasRun": "hat sie durchgeführt",
       "notRun": "hat sie noch nicht durchgeführt",
       "noQuestions": "Noch keine Daten auf Fragenebene verfügbar.",
-      "strongAcross": "Durchweg stark — jede Frage über 80 %.",
+      "strongAcross": "Jede Frage über 80 %.",
       "updating": "wird aktualisiert…",
-      "updatingHint": "Neue Ergebnisse werden noch verarbeitet — die Werte aktualisieren sich gleich.",
+      "updatingHint": "Neue Ergebnisse folgen in Kürze.",
       "reviewCardLabel": "Gepoolte Ergebnisse für {{title}}",
       "discussAssessment": "Besprechen",
       "discussQuestion": "Diese Frage in einer Entscheidung besprechen",
@@ -908,19 +884,17 @@
       },
       "pick": {
         "heading": "Was schauen wir uns heute an?",
-        "subtitle": "Wähle die gemeinsame(n) Bewertung(en), die diese Besprechung durchgeht.",
         "emptyTitle": "Noch keine Bewertungsdaten",
         "emptySubtitle": "Wenn das Team eine gemeinsame Bewertung im PLG-Modus durchführt, erscheinen hier die anonymisierten Ergebnisse zur gemeinsamen Durchsicht.",
         "cardMeta": "{{avg}}% Team-Schnitt · {{teachers}} Lehrkräfte · {{students}} Schüler:innen"
       },
       "review": {
         "heading": "Was sagen die Daten?",
-        "subtitle": "Gepoolte, anonymisierte Ergebnisse. Klicke auf eine Frage, um eine Entscheidung dazu festzuhalten.",
-        "none": "Keine Bewertungen ausgewählt — gehe zurück zu Wählen."
+        "subtitle": "Klicke auf eine Frage, um eine Entscheidung festzuhalten.",
+        "none": "Keine Bewertungen ausgewählt. Geh zurück zu Auswählen."
       },
       "decide": {
         "heading": "Was haben wir entschieden?",
-        "subtitle": "Halte die Entscheidungen des Teams fest. Verknüpfe eine mit einer Datenkarte aus „Prüfen“, wenn sie auf ein bestimmtes Ergebnis reagiert.",
         "addLabel": "Entscheidung hinzufügen",
         "placeholder": "z. B. Frage 4 mit dem Flächenmodell vor dem Test erneut behandeln.",
         "add": "Entscheidung hinzufügen",
@@ -931,7 +905,6 @@
       },
       "act": {
         "heading": "Wer macht was?",
-        "subtitle": "Lege Aufgaben an. Beim Speichern wird jede zu einer nachverfolgten PLG-Aufgabe für die zuständige Person.",
         "addLabel": "Aufgabe hinzufügen",
         "placeholder": "z. B. Eine Wiederholungs-Aufwärmübung für Frage 4 erstellen",
         "assignee": "Zuständig",
@@ -945,16 +918,14 @@
       },
       "save": {
         "heading": "Bereit zum Speichern?",
-        "subtitle": "Beim Speichern wird das Besprechungsprotokoll geschrieben, Aufgaben werden zu To-dos und es wird im Team-Aktivitätsfeed protokolliert.",
         "reviewed": "Geprüfte Bewertungen",
         "decisions": "Entscheidungen",
         "actions": "Aufgaben → To-dos",
-        "attendees": "Teilnehmende (aus Anwesenheit)",
+        "attendees": "Teilnehmende",
         "whoAttended": "Wer ist gerade da",
-        "noAttendees": "Gerade ist niemand sonst aktiv — du wirst als Moderator:in erfasst.",
-        "viewerNote": "Betrachter:innen können mitverfolgen, das Protokoll aber nicht speichern.",
+        "noAttendees": "Nur du wirst erfasst.",
+        "viewerNote": "Nur Ansicht. Du kannst diese Besprechung nicht speichern.",
         "doneTitle": "Besprechung gespeichert",
-        "doneSubtitle": "Aufgaben sind jetzt nachverfolgte To-dos für die Zuständigen. Exportiere das Protokoll für deine Unterlagen oder beginne eine neue Besprechung.",
         "viewRecord": "Besprechungsprotokoll ansehen",
         "startNew": "Neue Besprechung beginnen"
       },
@@ -989,7 +960,7 @@
     },
     "trash": {
       "heading": "Papierkorb",
-      "description": "Gelöschte Elemente bleiben 30 Tage hier und werden dann endgültig entfernt.",
+      "description": "Gelöschte Elemente werden nach 30 Tagen entfernt.",
       "empty": "Der Papierkorb ist leer",
       "restore": "Wiederherstellen",
       "restored": "Wiederhergestellt",
@@ -1018,7 +989,7 @@
       "title": "Versionsverlauf",
       "ariaLabel": "Versionsverlauf für {{title}}",
       "close": "Schließen",
-      "intro": "Aktuelle gespeicherte Versionen dieser geteilten Bewertung. Beim Wiederherstellen wird diese Version für alle erneut veröffentlicht – die aktuelle Version bleibt ebenfalls im Verlauf erhalten.",
+      "intro": "Beim Wiederherstellen wird die Kopie aller aktualisiert. Die aktuelle Version bleibt im Verlauf.",
       "loading": "Versionsverlauf wird geladen…",
       "loadError": "Versionsverlauf konnte nicht geladen werden.",
       "retry": "Erneut versuchen",
@@ -1032,13 +1003,13 @@
       "restoreAriaLabel": "Version {{version}} wiederherstellen",
       "restored": "Version {{version}} von „{{title}}“ wiederhergestellt. Teammitglieder synchronisieren beim nächsten Aktualisieren.",
       "restoreFailed": "Diese Version konnte nicht wiederhergestellt werden. Bitte erneut versuchen.",
-      "conflict": "Eine andere Lehrkraft hat gerade eine Aktualisierung veröffentlicht. Wir haben den Versionsverlauf neu geladen – sieh ihn dir an und versuche die Wiederherstellung erneut."
+      "conflict": "Eine andere Lehrkraft hat gerade ein Update veröffentlicht. Prüfe den neu geladenen Verlauf und versuche die Wiederherstellung erneut."
     },
     "sync": {
       "autoPulled": "„{{title}}“ auf die neueste Version deiner Kollegin/deines Kollegen aktualisiert.",
       "autoPullFailed": "Die neueste Version von „{{title}}“ konnte nicht abgerufen werden. Wir versuchen es bei der nächsten Aktualisierung erneut.",
       "conflictTitle": "Synchronisierte Kopie geändert",
-      "conflictBody": "Eine Kollegin/ein Kollege hat eine neue Version von „{{title}}“ veröffentlicht, während du nicht gespeicherte Änderungen hast. Deine Änderungen behalten oder ihre Version abrufen (deine nicht gespeicherten Änderungen werden verworfen)?",
+      "conflictBody": "Ein Teammitglied hat „{{title}}“ während deiner Bearbeitung aktualisiert. Wenn du dessen Version übernimmst, gehen deine ungespeicherten Änderungen verloren.",
       "keepMine": "Deine behalten",
       "pullTheirs": "Ihre abrufen",
       "keptMine": "Deine Änderungen an „{{title}}“ wurden behalten. Du kannst sie veröffentlichen, um sie mit deinem Team zu teilen.",
@@ -1060,7 +1031,7 @@
       "groupBoards": "Tafeln"
     },
     "viewer": {
-      "badge": "Betrachter – nur Lesen",
+      "badge": "Nur ansehen",
       "badgeTooltip": "Sie haben Betrachterzugriff auf diese PLG. Sie können alles lesen, aber Erstellen, Bearbeiten und Löschen sind deaktiviert.",
       "readOnly": "Nur Lesen",
       "assessmentsNote": "Betrachter können geteilte Beurteilungen ansehen, aber nicht teilen, bearbeiten oder zuweisen.",
@@ -1072,7 +1043,7 @@
     },
     "resources": {
       "managerTitle": "PLG-Ressourcen",
-      "managerSubtitle": "Kuratierte Ressourcen (Dokumente, Quizze, Tafeln) an bestimmte oder alle PLGs senden.",
+      "managerSubtitle": "Ressourcen an PLGs senden.",
       "addResource": "Ressource hinzufügen",
       "editFormLabel": "Ressource bearbeiten",
       "createFormLabel": "Ressource erstellen",
@@ -1120,9 +1091,9 @@
       "useSuccess": "„{{title}}“ wurde zu dieser PLG hinzugefügt.",
       "useFailed": "Diese Ressource konnte nicht hinzugefügt werden.",
       "emptyTitle": "Noch keine Ressourcen",
-      "emptySubtitle": "Dein Admin wird hier kuratierte Quizze, Dokumente und Tafeln bereitstellen.",
+      "emptySubtitle": "Dein Admin hat noch keine hinzugefügt.",
       "inboxTitle": "Ressourcen",
-      "inboxSubtitle": "Von deinem Admin kuratiert. Klicke auf „Verwenden“, um sie zu deiner PLG hinzuzufügen.",
+      "inboxSubtitle": "Von deinem Admin.",
       "kind": {
         "quiz": "Quizze",
         "video-activity": "Videoaktivitäten",
@@ -1177,7 +1148,7 @@
       "loading": "Bewertungen werden geladen…",
       "loadError": "Bewertungen konnten nicht geladen werden.",
       "emptyTitle": "Noch keine Bewertungen",
-      "emptySubtitle": "Teile ein Quiz mit dieser PLG und weise es dann zu, um die Ergebnisse des Teams hier zu bündeln.",
+      "emptySubtitle": "Teile ein Quiz, um zu beginnen.",
       "noMatches": "Keine Bewertungen passen zu diesem Filter.",
       "noArchived": "Keine archivierten Quiz.",
       "folders": {
@@ -1202,13 +1173,13 @@
       "teamAverage": "Team-Durchschnitt",
       "notScoredYet": "Noch nicht bewertet",
       "students": "Gezählte Schüler:innen",
-      "studentsHint": "Schüler:innen werden pro Lehrkraft gezählt; wer in den Klassen zweier Lehrkräfte ist, zählt doppelt.",
+      "studentsHint": "Schüler:innen werden pro Lehrkraft gezählt, wer in den Klassen zweier Lehrkräfte ist, zählt also doppelt.",
       "teachers": "Lehrkräfte",
       "teachersOf": "{{count}} von {{total}}",
       "lastComputed": "Zuletzt aktualisiert",
       "neverComputed": "Noch nicht",
       "questionsHeading": "Fragen",
-      "noQuestions": "Noch keine Ergebnisse. Sobald eine Lehrkraft diese Bewertung durchführt und Punkte veröffentlicht, erscheinen die gebündelten Fragen hier.",
+      "noQuestions": "Noch keine Ergebnisse.",
       "correctPercent": "{{percent}} % richtig",
       "averagePointsPercent": "{{percent}} % der Punkte",
       "notScored": "Nicht bewertet",
@@ -1222,12 +1193,11 @@
       "scoreDistribution": "Punkteverteilung",
       "bandCount": "{{count}} Schüler · {{percent}} %",
       "scoredStudents": "{{count}} Schüler bewertet",
-      "distributionPending": "Das Diagramm erscheint nach der nächsten Aktualisierung der Ergebnisse, in wenigen Minuten.",
+      "distributionPending": "Das Diagramm aktualisiert sich in wenigen Minuten.",
       "distributionEmpty": "Das Diagramm füllt sich, sobald Lehrkräfte Ergebnisse veröffentlichen."
     },
     "learningTargets": {
-      "heading": "Lernziele",
-      "description": "Ziele, mit denen die PLG Quizfragen markiert. Alle Mitglieder sehen dieselbe Liste."
+      "heading": "Lernziele"
     }
   },
   "widgetWindow": {
@@ -1241,7 +1211,7 @@
     "screenshotFailed": "Screenshot konnte nicht gespeichert werden",
     "takeScreenshot": "Screenshot aufnehmen",
     "takeScreenshotLongPress": "Screenshot aufnehmen (langer Druck)",
-    "screenshotGestureProTip": "Pro-Tipp: Drücke lange auf ein Widget, um einen Screenshot zu machen!",
+    "screenshotGestureProTip": "Drücke lange auf ein Widget, um einen Screenshot zu machen.",
     "annotate": "Annotieren",
     "duplicate": "Duplizieren",
     "moreActions": "Weitere Aktionen",
@@ -1257,7 +1227,7 @@
     "pin": "Position fixieren",
     "unpin": "Position lösen",
     "pinnedIndicator": "Widget fixiert",
-    "pinnedTooltip": "Fixiert – öffnen Sie die Widget-Symbolleiste und klicken Sie auf die Stecknadel zum Lösen",
+    "pinnedTooltip": "Dieses Widget ist fixiert. Lösen Sie es über die Symbolleiste.",
     "snapLayout": "Layout anpassen",
     "chooseLayout": "Layout wählen",
     "snapTo": "Anpassen an",
@@ -1326,7 +1296,6 @@
     "noGoogleDrive": "Kein Google Drive verbunden. Lokaler Download...",
     "viewLiveSession": "Informationen zur Live-Sitzung anzeigen",
     "liveSession": "Live-Sitzung",
-    "provideCode": "Gib diesen Code deinen Schülerinnen und Schülern.",
     "noAppsSelected": "Standardwerte werden wiederhergestellt…"
   },
   "languages": {
@@ -1355,7 +1324,6 @@
       "launchHomeGroup": "Heimgruppen starten",
       "launchHomeGroupHint": "Zu Heimgruppen zurückkehren",
       "everyoneAbsentTitle": "Alle als abwesend markiert",
-      "everyoneAbsentSubtitle": "Anwesenheit aktualisieren, um Schüler/innen wieder hinzuzufügen.",
       "updateAttendance": "Anwesenheit aktualisieren",
       "stepperDecrease": "{{name}} verringern",
       "stepperIncrease": "{{name}} erhöhen",
@@ -1380,7 +1348,7 @@
         "summary": "{{present}} anwesend · {{absent}} abwesend",
         "buttonLabel": "Abwesende Schüler/innen markieren",
         "clearAll": "Alle löschen (alle anwesend)",
-        "footer": "Abwesenheitsmarkierungen gelten für alle Widgets mit dieser Klasse. Werden automatisch morgen zurückgesetzt.",
+        "footer": "Abwesenheitsmarkierungen werden morgen zurückgesetzt.",
         "emptyRoster": "Diese Klasse hat noch keine Schüler/innen.",
         "unnamedStudent": "Namenloser Schüler / Namenlose Schülerin",
         "ariaLabel": "Anwesenheit öffnen – {{count}} heute als abwesend markiert"
@@ -1415,7 +1383,7 @@
     "onboarding": {
       "title": "Erste Schritte",
       "allDone": "Alles erledigt!",
-      "footer": "Sie sind bereit – schließen Sie dieses Widget jederzeit!",
+      "footer": "Sie können dieses Widget jetzt schließen.",
       "tasks": {
         "addWidget": {
           "label": "Widget aus dem Dock hinzufügen",
@@ -1435,8 +1403,7 @@
       }
     },
     "dashboard": {
-      "emptyBoardHint": "Ziehen Sie Werkzeuge aus dem Dock unten, um zu beginnen",
-      "switchBoardsHint": "Verwenden Sie die Tafelnavigation unten links, um zwischen Tafeln zu wechseln"
+      "emptyBoardHint": "Ziehen Sie Werkzeuge aus dem Dock unten, um zu beginnen"
     },
     "stickers": {
       "collectionTitle": "Sticker-Sammlung",
@@ -1471,11 +1438,8 @@
       "geoNotSupported": "Geolokalisierung wird nicht unterstützt",
       "locationDenied": "Standortzugriff verweigert",
       "prioritizeFeelsLike": "Gefühlte Temperatur bevorzugen",
-      "prioritizeDescription": "Tauscht die Darstellung zwischen tatsächlicher und gefühlter Temperatur.",
       "hideClothing": "Kleidungsvorschläge ausblenden",
-      "hideClothingDescription": "Entfernt den Kleidungs- und Nachrichtenbereich aus dem Widget.",
       "syncBackground": "Hintergrund synchronisieren",
-      "syncBackgroundDescription": "Ändert den Dashboard-Hintergrund automatisch passend zum Wetter.",
       "manual": "Manuell",
       "automatic": "Automatisch",
       "temperature": "Temperatur",
@@ -1484,7 +1448,6 @@
       "managedByAdmin": "Das Wetter wird von deinem Administrator verwaltet.",
       "schoolStation": "Schulstation",
       "stationReady": "Stationsdaten verfügbar",
-      "stationConnectedTo": "Verbunden mit Wetterstation <b>{{name}} ({{id}})</b>.",
       "refreshStation": "Stationsdaten aktualisieren",
       "serviceNotConfiguredAdmin": "Der Wetterdienst ist nicht konfiguriert. Bitte wende dich an deinen Administrator, um den API-Schlüssel einzurichten.",
       "cityZip": "Stadt / Postleitzahl",
@@ -1557,11 +1520,9 @@
       "alertSound": "Benachrichtigungston",
       "numberStyle": "Zahlenstil",
       "timerEndAction": "Aktion bei Timer-Ende",
-      "addExpectationsTip": "Füge ein \"Erwartungen\"-Widget hinzu, um automatische Lautstärke-Änderungen beim Timer-Ende zu aktivieren!",
       "switchToVoiceLevel": "Beim Beenden zu Lautstärkestufe wechseln",
       "level": "Stufe",
       "autoSetTrafficLight": "Ampel automatisch setzen",
-      "addTrafficLightTip": "Füge ein Ampel-Widget hinzu, um automatische Farbwechsel zu aktivieren!",
       "stop": "Stopp",
       "slow": "Langsam",
       "go": "Los",
@@ -1569,19 +1530,15 @@
       "confirmTime": "Zeit bestätigen",
       "closeKeypad": "Tastatur schließen",
       "autoPickRandomStudent": "Automatisch zufälligen Schüler auswählen",
-      "addRandomizerTip": "Füge ein Zufallsgenerator-Widget hinzu, um beim Timer-Ende automatisch den nächsten Schüler auszuwählen.",
       "autoPickNext": "Nächsten automatisch auswählen",
       "triggerRandomizerWhenTimerEnds": "Zufallsgenerator beim Timer-Ende auslösen",
       "autoRotateStations": "Stationen automatisch rotieren",
-      "addStationsTip": "Füge ein Stationen-Widget hinzu, um Schüler automatisch zu rotieren, wenn dieser Timer endet.",
       "rotateStationsClockwise": "Stationen im Uhrzeigersinn rotieren",
       "rotateStationsOnEnd": "Jeden Schüler eine Station weiterrücken, wenn der Timer endet",
       "autoAdvanceNextUpQueue": "Nächste-Warteschlange automatisch vorrücken",
-      "addNextUpTip": "Füge ein \"Nächster\"-Widget hinzu, um beim Timer-Ende automatisch zum nächsten Schüler zu wechseln!",
       "autoAdvanceNext": "Automatisch weiter",
       "advanceQueueOnEnd": "Warteschlange beim Timer-Ende vorrücken",
       "adjustStep": "Schrittweite anpassen",
-      "adjustStepHint": "Tippen, um diese Zeit hinzuzufügen oder abzuziehen. Gedrückt halten für schnelleres Hinzufügen.",
       "adjustStepUnit": "Sekunden",
       "addTime": "Zeit hinzufügen",
       "subtractTime": "Zeit abziehen",
@@ -1616,7 +1573,7 @@
     "rootLabel": "Alle Tafeln (keine Sammlung)",
     "subCollections": "Unter-Sammlungen",
     "boards": "Tafeln",
-    "empty": "Diese Sammlung ist leer – ziehe Tafeln hierher oder erstelle eine neue.",
+    "empty": "Diese Sammlung ist leer. Ziehe Tafeln hierher oder erstelle eine.",
     "selectedCount": "{{count}} ausgewählt",
     "clearSelection": "Auswahl aufheben",
     "pin": "Anheften",
@@ -1676,9 +1633,9 @@
     "subtitle": "{{count}} Tafel(n) aus dieser Sammlung werden geteilt.",
     "mode": "Freigabemodus",
     "copyMode": "Kopieren",
-    "copyModeHint": "Der Empfänger importiert eine vollständige Kopie in sein Konto.",
+    "copyModeHint": "Sie erhalten eine eigene Kopie zum Bearbeiten.",
     "substituteMode": "Vertretung (nur anzeigen)",
-    "substituteModeHint": "Eine Vertretungslehrkraft sieht die Sammlung in /subs für das gewählte Zeitfenster.",
+    "substituteModeHint": "Erscheint für den gewählten Zeitraum im Vertretungsportal.",
     "expiresIn": "Läuft ab in",
     "building": "Gebäude",
     "buildingRequired": "Bitte wähle ein Gebäude aus, bevor du mit einer Vertretung teilst.",
@@ -1697,7 +1654,7 @@
     "notFound": "Geteilte Sammlung nicht gefunden oder abgelaufen",
     "empty": "Geteilte Sammlung ist leer",
     "invalidShareUrl": "Ungültiger Freigabelink – fehlende Freigabe-ID.",
-    "substituteImportRejected": "Vertretungsfreigaben sind nur lesbar. Öffne diesen Link in /subs zum Anzeigen."
+    "substituteImportRejected": "Dieser Link ist für Vertretungen. Öffne ihn im Vertretungsportal."
   },
   "importSharedCollection": {
     "title": "Geteilte Sammlung importieren",
@@ -1707,11 +1664,11 @@
     "boardCount": "{{count}} Tafel(n)",
     "importing": "Wird importiert…",
     "import": "Sammlung importieren",
-    "substituteOnly": "Dies ist eine Vertretungsfreigabe (nur lesen). Öffne sie in /subs."
+    "substituteOnly": "Dieser Link ist für Vertretungen. Öffne ihn im Vertretungsportal."
   },
   "subCollections": {
     "loading": "Geteilte Sammlungen werden geladen…",
-    "loadError": "Geteilte Sammlungen konnten nicht geladen werden – Seite neu laden, um es erneut zu versuchen.",
+    "loadError": "Geteilte Sammlungen konnten nicht geladen werden. Lade die Seite neu.",
     "heading": "Sammlungen",
     "boardCount": "{{count}} Tafel(n)",
     "boardPlaceholder": "Tafel …{{id}}",
@@ -1724,7 +1681,7 @@
   "templatePicker": {
     "title": "Aus Vorlage erstellen",
     "loading": "Vorlagen werden geladen…",
-    "loadError": "Vorlagen konnten nicht geladen werden – Seite neu laden, um es erneut zu versuchen.",
+    "loadError": "Vorlagen konnten nicht geladen werden. Lade die Seite neu.",
     "empty": "Noch keine Vorlagen verfügbar.",
     "kindBoard": "Tafel",
     "kindCollection": "Sammlung · {{count}} Tafel(n)"
@@ -1742,7 +1699,7 @@
     "yours": "Deine",
     "uploads": "Meine Uploads",
     "searchPlaceholder": "Hintergründe suchen…",
-    "emptyFavorites": "Noch keine Favoriten — bewege den Mauszeiger über einen Hintergrund und tippe auf ★",
+    "emptyFavorites": "Noch keine Favoriten. Fahre über einen Hintergrund und tippe auf ★",
     "emptyRecent": "Noch keine aktuellen Hintergründe.",
     "emptyFiltered": "Keine Hintergründe entsprechen deinen Filtern.",
     "uploading": "Hochladen…",
@@ -1801,7 +1758,7 @@
       "saveChanges": "Änderungen speichern",
       "discardChanges": "Änderungen verwerfen",
       "confirmDiscardChanges": "Du hast ungespeicherte Änderungen. Ohne Speichern schließen?",
-      "description": "Hier hochgeladene Sticker erscheinen im Abschnitt Globale Sammlung des Stickerbuch-Widgets jedes Benutzers.",
+      "description": "Wird allen Lehrkräften angezeigt.",
       "dropImages": "Bilder hier ablegen oder zum Durchsuchen klicken",
       "supportedFiles": "PNG, JPG, GIF, WebP, SVG · Mehrere Dateien unterstützt",
       "collectionTitle": "Sticker-Sammlung",
@@ -1821,7 +1778,6 @@
       "recovery": {
         "title": "PLG-Wiederherstellung",
         "subtitle": "Leitung neu zuweisen oder eine verlassene PLG in deiner Organisation auflösen.",
-        "explainer": "Nur PLGs in deiner Organisation können wiederhergestellt werden. Verwende dies, wenn die Leitung einer PLG ausgeschieden ist und die Leitung nicht übertragen kann.",
         "empty": "Keine wiederherstellbaren PLGs in deiner Organisation.",
         "leadLabel": "Leitung",
         "membersLabel_one": "{{count}} Mitglied",
@@ -1840,7 +1796,7 @@
         "cancel": "Abbrechen",
         "confirm": "Bestätigen",
         "members": "Mitglieder",
-        "membersDescription": "Lehrkraft aus Ihrer Organisation hinzufügen, Rolle ändern oder Mitglied entfernen. Die Lehrkraft wird nicht benachrichtigt.",
+        "membersDescription": "Lehrkräfte werden nicht benachrichtigt.",
         "noOtherMembers": "Keine Mitglieder außer der Leitung.",
         "roleLabel": "Rolle",
         "remove": "Entfernen",
@@ -1857,7 +1813,7 @@
     },
     "mediaReview": {
       "title": "Schülermedien",
-      "blurb": "Überprüfe und lösche aufgezeichnete Schülerantworten dauerhaft für alle Lehrkräfte deiner Organisation. Das Löschen einer Antwort entfernt jede Aufnahme dieser Frage aus dem Google Drive der Lehrkraft.",
+      "blurb": "Beim Löschen werden alle Aufnahmen aus dem Drive der Lehrkraft entfernt.",
       "refresh": "Aktualisieren",
       "filterTeacher": "Lehrkraft",
       "allTeachers": "Alle Lehrkräfte",
@@ -1912,24 +1868,21 @@
     "notFoundBody": "Diese PLG existiert nicht oder Sie sind kein Mitglied mehr.",
     "backToBoard": "Zurück zu meiner Tafel",
     "hubTitle": "Meine PLGs",
-    "hubSubtitle": "Öffnen Sie eine professionelle Lerngemeinschaft, um mit Ihrem Team zusammenzuarbeiten.",
     "hubEmptyTitle": "Noch keine PLGs",
-    "hubEmptySubtitle": "Erstellen Sie eine PLG in der Seitenleiste und laden Sie Ihre Kollegen ein.",
+    "hubEmptySubtitle": "Erstelle eine über die Seitenleiste.",
     "leadBadge": "Leitung",
     "memberCount": "{{count}} Mitglied",
     "memberCount_other": "{{count}} Mitglieder"
   },
   "plcDirectory": {
     "heading": "PLGs in meinem Gebäude",
-    "subtitle": "Teams in Ihrem Gebäude, denen Sie beitreten können.",
     "memberCount": "{{count}} Mitglied",
     "memberCount_other": "{{count}} Mitglieder",
     "requestToJoin": "Beitritt anfragen",
     "requestHint": "Bitten Sie ein Mitglied, {{email}} einzuladen.",
     "emptyTitle": "Keine weiteren PLGs vorhanden",
-    "emptySubtitle": "Derzeit gibt es keine weiteren PLGs in Ihrem Gebäude.",
     "noOrgTitle": "Gebäudeverzeichnis nicht verfügbar",
-    "noOrgSubtitle": "Ihr Konto ist noch keiner Schule zugeordnet, daher können wir keine PLGs in der Nähe anzeigen."
+    "noOrgSubtitle": "Dein Konto hat noch keine Schule."
   },
   "assignStudentPicker": {
     "title": "Schüler auswählen",
@@ -1939,13 +1892,10 @@
     "searchPlaceholder": "Schüler suchen…",
     "selectAll": "Alle auswählen",
     "noRosters": "Keine Klassenlisten verfügbar.",
-    "noMatches": "Keine Schüler gefunden.",
     "noMatchesTitle": "Keine Treffer",
     "clearSearch": "Suche zurücksetzen",
-    "selectRoster": "Wähle eine Klassenliste, um Schüler zu sehen.",
     "selectRosterTitle": "Klassenliste auswählen",
     "emptyRosterTitle": "Keine Schüler",
-    "emptyRosterSubtitle": "Diese Klassenliste hat noch keine Schüler.",
     "loadErrorTitle": "Schüler konnten nicht geladen werden",
     "loadErrorSubtitle": "Öffne die Klassenliste erneut, um es noch einmal zu versuchen.",
     "chooseAnotherRoster": "Andere Klasse wählen",
@@ -2001,13 +1951,13 @@
     "showMore": "{{count}} weitere anzeigen",
     "showFewer": "Weniger anzeigen",
     "noClassStudents": "Wähle oben eine Klasse aus, um einzelne Schüler anzupassen.",
-    "skipNotice": "Übersprungene Schüler/innen sehen diese Aufgabe nicht. Alle anderen in diesen Klassen erhalten sie weiterhin.",
+    "skipNotice": "Übersprungene Schüler/innen sehen diese Aufgabe nicht.",
     "sectionLabel": "Einzelne Schüler & Anpassungen",
     "chooseStudents": "Schüler auswählen",
     "editStudents": "Schüler bearbeiten",
     "selectedCount": "{{count}} ausgewählt",
     "revertToClass": "Der ganzen Klasse zuweisen",
-    "noStudentsYet": "Noch keine Schüler ausgewählt — die ganze Klasse bleibt untargetiert.",
+    "noStudentsYet": "Keine Schüler ausgewählt.",
     "unknownStudent": "Unbekannter Schüler",
     "remove": "Entfernen",
     "removeStudent": "{{name}} entfernen",
@@ -2025,19 +1975,19 @@
     "skipStudentNamed": "{{name}} überspringen",
     "summarySkipped": "{{count}} übersprungen",
     "summaryModified": "{{count}} angepasst",
-    "noSignInCount": "{{count}} Schüler/innen in diesen Klassen haben keine Schul-Anmeldung und können nicht einzeln angepasst werden.",
+    "noSignInCount": "{{count}} Schüler/innen haben keine Schul-Anmeldung und können nicht einzeln angepasst werden.",
     "noSignInStudents": "Niemand in den ausgewählten Klassen hat eine Schul-Anmeldung, daher gibt es niemanden, der einzeln angepasst werden kann.",
     "timingNotApplied": "Lehrergesteuerte Sitzungen haben keinen Timer pro Schüler/in, daher gilt die verlängerte Zeit für {{names}} nicht. Andere Anpassungen gelten weiterhin.",
     "clearModifications": "Alle Anpassungen löschen",
     "noLinkedClass": "Diese Aufgabe ist mit keiner Klasse verknüpft, die du hier anpassen kannst.",
-    "timingNotAppliedConfirm": "Lehrergesteuerte Sitzungen haben keinen Timer pro Schüler/in, daher gilt die verlängerte Zeit für {{names}} nicht. Andere Anpassungen gelten weiterhin. Klicke erneut auf Zuweisen, um fortzufahren.",
+    "timingNotAppliedConfirm": "Die verlängerte Zeit für {{names}} gilt nicht im lehrergesteuerten Modus. Klicke erneut auf Zuweisen, um fortzufahren.",
     "pacingBlocked": "Einzelne Schüleranpassungen erfordern den selbstgesteuerten Modus. Stelle die Sitzungseinstellungen unten auf Selbstgesteuert um oder nutze „Alle Anpassungen löschen“ unter „Anpassungen bearbeiten oder hinzufügen“.",
     "periodsLabel": "Unterrichtsstunden",
     "periodModeLabel": "Wie Stunden geöffnet werden",
     "periodModeAssessment": "Prüfung im Unterricht",
     "periodModeAssignment": "Aufgabe",
-    "periodAssessmentHint": "Jede Stunde bleibt geschlossen, bis du sie in der Live-Ansicht startest. Sie schließt mit dem Klingeln zum Stundenende.",
-    "periodUnverified": "Nur PIN, nicht verifiziert: Schüler/innen ohne Schulanmeldung können nicht an einer Prüfung im Unterricht teilnehmen.",
+    "periodAssessmentHint": "Öffnet, wenn du sie startest, und schließt mit dem Klingeln zum Stundenende.",
+    "periodUnverified": "Schüler/innen ohne Schulanmeldung können nicht an Prüfungen im Unterricht teilnehmen.",
     "periodCustomize": "Pro Stunde anpassen",
     "periodTagPrompt": "Welche Stunde ist {{name}}?",
     "periodTagPick": "Stunde auswählen",
@@ -2135,7 +2085,6 @@
     "languageLabel": "Sprache",
     "languageTagLabel": "Sprachcode",
     "languageOther": "Andere…",
-    "languageHelp": "Legt die Stimme fest, mit der dieses Quiz vorgelesen wird.",
     "readQuestion": "Frage vorlesen",
     "readPrompt": "Frage vorlesen",
     "readChoice": "Antwort {{n}} vorlesen",
@@ -2174,7 +2123,7 @@
       "stale": "Veraltet",
       "regenerate_one": "{{count}} veraltete Frage neu übersetzen",
       "regenerate_other": "{{count}} veraltete Fragen neu übersetzen",
-      "servedCount": "{{reviewed}} von {{total}} auf {{language}} freigegeben",
+      "servedCount": "{{reviewed}}/{{total}} geprüft",
       "save": "Übersetzung speichern",
       "english": "Englisch",
       "disabled": {
@@ -2191,11 +2140,10 @@
         },
         "noneReviewed": {
           "title": "Noch nichts geprüft",
-          "body": "Lernende sehen nur Fragen, die du als geprüft markierst. Bitte eine Sprachförderkraft um Unterstützung, wenn du diese Sprache nicht liest."
+          "body": "Lernende sehen nur Fragen, die du als geprüft markierst."
         },
         "pickQuestion": {
-          "title": "Frage auswählen",
-          "body": "Wähle links eine Frage, um Englisch und Übersetzung nebeneinander zu sehen."
+          "title": "Frage auswählen"
         }
       },
       "error": {
@@ -2231,7 +2179,7 @@
       "sectionLabel": "Sprache der Antwort",
       "backTranslating": "Wird übersetzt…",
       "nativeLabel": "Antwort der Schülerin/des Schülers",
-      "translatedRubricNote": "Diese Schülerin/dieser Schüler hat möglicherweise eine übersetzte Bewertungsvorlage gelesen; bewerte anhand der hier gezeigten englischen Vorlage.",
+      "translatedRubricNote": "Bewerte anhand der englischen Bewertungsvorlage.",
       "saveFailed": "Übersetzung wird unten angezeigt, konnte aber nicht gespeichert werden. Sie muss beim nächsten Mal erneut ausgeführt werden.",
       "errors": {
         "failed": "Diese Antwort konnte nicht übersetzt werden. Bitte erneut versuchen.",
@@ -2262,18 +2210,18 @@
       "takeOf": "Take {{n}} of {{total}}",
       "limitHint": "up to {{seconds}} seconds",
       "prepLabel": "Thinking time",
-      "prepBody": "Plan what you want to say. You can start recording as soon as you are ready.",
+      "prepBody": "Plane deine Antwort.",
       "requestingMic": "Asking to use your microphone…",
       "recordingLabel": "Recording",
       "recordingHint": "Recording stops on its own at {{seconds}} seconds.",
-      "wrapUp": "Wrap it up — recording stops at {{seconds}} seconds.",
+      "wrapUp": "Komm zum Schluss. Die Aufnahme stoppt bei {{seconds}} Sekunden.",
       "reviewLabel": "Listen back",
-      "reviewBody": "Nothing has been sent yet. Keep this take, or discard it and record again.",
+      "reviewBody": "Noch nicht gesendet.",
       "playbackPosition": "Playback position",
       "playbackValueText": "{{elapsed}} of {{total}}",
       "windowClosedTitle": "Recording time is over",
-      "windowClosedBody": "The time to record an answer to this question has passed, so there is nothing left to record here. Your teacher will see this question without a recording. Move on when you are ready.",
-      "armedBody": "When you press record you will have {{seconds}} seconds.",
+      "windowClosedBody": "Deine Lehrkraft sieht diese Frage ohne Aufnahme. Mach weiter, wenn du bereit bist.",
+      "armedBody": "Du hast {{seconds}} Sekunden.",
       "record": "Record",
       "recordAgain": "Record again",
       "stop": "Stop recording",
@@ -2292,51 +2240,46 @@
       "submitBlockedBody_one": "The question stays incomplete and the assignment cannot be submitted. Go back and record an answer, then turn it in.",
       "submitBlockedBody_other": "The questions stay incomplete and the assignment cannot be submitted. Go back and record an answer for each one, then turn it in.",
       "submitBlockedJump": "Go to question {{number}}",
-      "notSubmittedPending": "Not yet submitted — your recording is still being sent.",
-      "notSubmittedFailed": "Not yet submitted — sending your recording did not finish. Nothing is retrying on its own; choose Try again.",
-      "notSubmittedFailedFinal": "Not yet submitted — sending your recording did not finish, and it can no longer be sent from this device. Record again to send a new take."
+      "notSubmittedPending": "Noch nicht abgegeben. Deine Aufnahme wird noch gesendet.",
+      "notSubmittedFailed": "Deine Aufnahme wurde nicht gesendet. Wähle Erneut versuchen.",
+      "notSubmittedFailedFinal": "Deine Aufnahme wurde nicht gesendet und kann von diesem Gerät nicht gesendet werden. Nimm erneut auf, um eine neue Aufnahme zu senden."
     },
     "unavailable": {
       "title": "Your microphone did not work",
-      "body": "We could not use a microphone on this device, so there is no recording to send. This question goes to your teacher ungraded, and they will decide what to do about it. Move on to the next question."
+      "body": "Diese Frage geht unbewertet an deine Lehrkraft. Mach mit der nächsten Frage weiter."
     },
     "authoring": {
       "formatLabel": "Format",
       "formatTyped": "Typed",
       "formatSpoken": "Spoken",
       "prepLabel": "Thinking time",
-      "prepHint": "Seconds before the recorder arms. 0 starts them ready to record.",
+      "prepHint": "0 starts recording right away.",
       "limitLabel": "Recording limit",
-      "limitHint": "Hard stop for one take, up to {{max}} seconds.",
-      "limitClamped": "Capped at {{seconds}}s — {{mode}}'s limit.",
+      "limitHint": "Up to {{max}} seconds.",
+      "limitClamped": "Capped at {{seconds}}s for {{mode}}.",
       "limitClampedAction": "Set to {{seconds}}s",
       "secondsUnit": "Sec",
       "expiryLabel": "When thinking time runs out",
       "expiryAutoStart": "Start recording",
-      "expiryAutoStartHint": "The recorder starts on its own.",
       "expiryAutoAdvance": "Move on",
-      "expiryAutoAdvanceHint": "The quiz moves to the next question.",
       "expiryArmed": "Wait for them",
-      "expiryArmedHint": "The record button stays live until the student presses it.",
       "expiryUnanswered": "Mark unanswered",
-      "expiryUnansweredHint": "The slot closes and comes to you ungraded.",
+      "expiryUnansweredHint": "Comes to you ungraded.",
       "takeLimitLabel": "Takes allowed",
       "takeLimitUnlimited": "Unlimited",
       "takeLimitHint": "A take is a recording the student keeps, not one they discard.",
-      "timeLimitDisabledHint": "Disabled — recording questions use their own prep and recording timer instead of the speed bonus.",
+      "timeLimitDisabledHint": "Set by the recording timer.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
       "advisory": {
-        "title": "As authored",
-        "slots_one": "Records up to {{count}} slot per student.",
-        "slots_other": "Records up to {{count}} slots per student.",
-        "deviceBlocked": "If a student's device blocks the microphone, the question comes to you ungraded — you choose whether it's excused, scored zero, or answered another way.",
-        "shuffleNoOp": "Question shuffle has no effect here: shared stimuli group every question into one block."
+        "title": "Heads up",
+        "deviceBlocked": "If a microphone is blocked, the question comes to you ungraded.",
+        "shuffleNoOp": "Shuffle has no effect because every question shares one stimulus."
       }
     },
     "assign": {
       "advisory": {
-        "notSelfPaced": "Spoken answers are collected only in self-paced sessions; live sessions will show these questions as written."
+        "notSelfPaced": "Spoken answers need self-paced mode."
       }
     },
     "grading": {
@@ -2362,7 +2305,7 @@
       "comment": "Overall comment (optional)",
       "substituteNote": "Note (required)",
       "commentPlaceholder": "Feedback for this student…",
-      "excusedNote": "Excused — omitted from the gradebook.",
+      "excusedNote": "Entschuldigt. Nicht im Notenbuch.",
       "save": "Save grade",
       "saveAndNext": "Save & next",
       "prevStudent": "Previous student",
@@ -2398,7 +2341,7 @@
         "count_one": "{{count}} take recorded",
         "count_other": "{{count}} takes recorded",
         "take": "Take {{n}}",
-        "pinNote": "Scoring always uses the last take. Picking an earlier one records which take your comments are about.",
+        "pinNote": "Scores use the last take.",
         "status": {
           "archiving": "Still saving",
           "archive-failed": "Not saved",
@@ -2435,15 +2378,15 @@
         "unplayable": {
           "archiving": {
             "title": "Still saving",
-            "body": "This take is still being saved to your Google Drive. It becomes playable as soon as that finishes — usually within a few minutes."
+            "body": "Wird noch in deinem Google Drive gespeichert. Die Wiedergabe ist danach möglich, meist innerhalb weniger Minuten."
           },
           "archive-failed": {
             "title": "Not saved",
-            "body": "Saving this take to your Google Drive did not finish. It retries automatically every hour; nothing is lost in the meantime."
+            "body": "Das Speichern in deinem Google Drive wurde nicht abgeschlossen. Es wird stündlich wiederholt, und nichts geht verloren."
           },
           "lost": {
             "title": "Lost",
-            "body": "Saving this take to your Google Drive failed too many times, so it is no longer being retried and the recording cannot be recovered. The student's other takes and any grade already given still stand."
+            "body": "Diese Aufnahme konnte nicht gespeichert werden und ist verloren. Die anderen Aufnahmen des Schülers und bereits vergebene Noten bleiben bestehen."
           },
           "deleted": {
             "title": "Deleted",
@@ -2458,12 +2401,12 @@
       "errors": {
         "noIdentifier": "Cannot save: this response is missing its identifier. Reload the quiz results and try again.",
         "chooseOutcome": "Choose Excuse, Blank, or Offline substitute before saving.",
-        "noteRequired": "An offline substitute needs a note — it is the only record of the answer.",
+        "noteRequired": "Füge eine Notiz hinzu. Sie ist der einzige Nachweis der Antwort.",
         "numericScore": "Enter a numeric score.",
         "range": "Score must be between 0 and {{max}}.",
         "saveFailed": "Failed to save grade.",
         "undoFailed": "Failed to undo the excuse.",
-        "emptyAnnotations": "Anmerkungen zu einer leeren Antwort können nicht gespeichert werden — der Schüler hat diese Frage nicht beantwortet."
+        "emptyAnnotations": "Anmerkungen können nicht gespeichert werden: Der Schüler hat diese Frage nicht beantwortet."
       },
       "undoExcuse": "Undo excuse",
       "emptyQuestions": {
@@ -2479,7 +2422,7 @@
       "noTextAnswer": "Der Schüler hat diese Frage nicht beantwortet.",
       "highlights": "Markierungen & Kommentare ({{count}})",
       "highlightsEmpty": "Text auswählen, um ihn zu markieren.",
-      "highlightNoComment": "(noch kein Kommentar — zum Hinzufügen klicken)",
+      "highlightNoComment": "(Noch kein Kommentar. Zum Hinzufügen klicken.)",
       "rubricTags": {
         "label": "Rubrik-Kriterien",
         "add": "Als Beleg für {{name}} markieren",
@@ -2492,7 +2435,7 @@
         "jumpToSuffix": " als Beleg für {{name}}"
       },
       "rubricOverrideNote": "Alternatives Bewertungsraster für diesen Schüler",
-      "pointsOverrideNote": "Nur Punkte für diesen Schüler — Raster außer Kraft gesetzt.",
+      "pointsOverrideNote": "Raster für diesen Schüler außer Kraft gesetzt.",
       "tabSwitches_one": "{{count}} Tabwechsel",
       "tabSwitches_other": "{{count}} Tabwechsel",
       "tabSwitchesTitle_one": "{{count}} Tabwechsel-Warnung während der Prüfung",
@@ -2514,7 +2457,7 @@
       "tooLarge": "This recording is too large to play here. Ask your teacher to play it for you.",
       "error": "Your recording did not load.",
       "retry": "Try again",
-      "provisionalScore": "Provisional — your teacher hasn’t graded your recorded answer yet, so this score will change.",
+      "provisionalScore": "Vorläufig. Diese Punktzahl kann sich nach der Bewertung ändern.",
       "lost": "Your recording could not be saved and can no longer be recovered. Your teacher can see that you recorded an answer.",
       "commentsHint": "Tap a comment to jump to that moment.",
       "scorePending": "Your score is being prepared. Check back soon."
@@ -2537,7 +2480,7 @@
   },
   "glStudio": {
     "conflictTitle": "Anderswo bearbeitet",
-    "conflictBody": "Dieses Set wurde seit dem Öffnen in einem anderen Tab oder auf einem anderen Gerät gespeichert, daher ist das automatische Speichern pausiert. Laden Sie diese Version neu oder überschreiben Sie sie mit Ihrer.",
+    "conflictBody": "Automatisches Speichern ist pausiert.",
     "conflictReload": "Neu laden",
     "conflictOverwrite": "Überschreiben",
     "reloadFailed": "Die neueste Version konnte nicht geladen werden. Versuchen Sie es erneut.",
@@ -2609,7 +2552,7 @@
     "noStepsYet": "Noch keine Schritte. Wähle „Schritt hinzufügen“ und klicke dann auf die Folie.",
     "goToSlideN": "Zu Folie {{n}}",
     "moveStepsTitle": "Die Schritte mitverschieben?",
-    "moveStepsBody": "Schüler sehen die Schritte in Abspielreihenfolge. Verschiebe die Schritte dieser Folie an ihre neue Stelle in dieser Reihenfolge oder lass die Reihenfolge, wie sie ist.",
+    "moveStepsBody": "Schüler sehen die Schritte in Abspielreihenfolge.",
     "moveStepsYes": "Schritte mitverschieben",
     "moveStepsNo": "Reihenfolge beibehalten",
     "stepN": "Schritt {{n}}",
@@ -2643,9 +2586,16 @@
     "tourTeacherMustClickHint": "Geführte Touren zeigen den Klick und warten dann, bis die Lehrkraft ihn ausführt.",
     "tourSetupTitle": "Widgets, die diese Tour hinzufügt",
     "tourSetupHint": "Werden beim Start der Tour zur Tafel der Lehrkraft hinzugefügt und am Ende zum Entfernen angeboten.",
-    "tourSetupNone": "Keine. Die Tour läuft auf der Tafel, wie sie ist.",
+    "tourSetupNone": "Keine",
     "tourSetupAdd": "Widget hinzufügen",
     "tourSetupRemove": "{{widget}} entfernen",
+    "tourLayoutCapture": "Tafel-Layout übernehmen",
+    "tourLayoutCaptureConfirm": "Übernehmen",
+    "tourLayoutConfirm": "Das Widget-Layout der Tour durch diese Tafel ersetzen?",
+    "tourLayoutCount_one": "Layout für 1 Widget gespeichert",
+    "tourLayoutCount_other": "Layout für {{count}} Widgets gespeichert",
+    "tourLayoutNone": "Kein Layout gespeichert",
+    "tourLayoutHint": "Tour-Widgets öffnen dort, wo sie auf dieser Tafel liegen",
     "tourGroup_dock": "Dock",
     "tourGroup_library": "Widget-Bibliothek",
     "tourGroup_widget": "Widget-Fenster",
@@ -2721,7 +2671,7 @@
     "blurApplying": "Wird angewendet…",
     "blurRemove": "Bereich {{n}} entfernen",
     "blurConfirmTitle": "Diese Folie unkenntlich machen?",
-    "blurConfirm": "Das unveränderte Original wird gelöscht, wenn Sie den Editor schließen. Bis dahin holt Rückgängig es zurück. Falls Sie dieses Set früher kopiert haben, verwendet die Kopie noch das Original und verliert diese Folie.",
+    "blurConfirm": "Das unverschwommene Original wird gelöscht, wenn du den Editor schließt. Bis dahin stellt Rückgängig es wieder her. Früher erstellte Kopien dieses Sets verlieren diese Folie.",
     "blurFailed": "Diese Folie konnte nicht unkenntlich gemacht werden. Prüfen Sie Ihre Verbindung und die Google-Drive-Anmeldung und versuchen Sie es erneut.",
     "narration": "Vertonung",
     "narrationNone": "Noch keine Vertonung.",
@@ -2754,7 +2704,7 @@
     "narrationAllFailed_one": "Nach {{count}} Schritt angehalten, weil die Vertonung nicht erzeugt werden konnte. Versuchen Sie es erneut.",
     "narrationAllFailed_other": "Nach {{count}} Schritten angehalten, weil die Vertonung nicht erzeugt werden konnte. Versuchen Sie es erneut.",
     "hubTitle": "Mit einer Folie beginnen",
-    "hubSubtitle": "Jeder Schritt liegt auf einem Screenshot, GIF oder Video. Füge eins hinzu oder ziehe Dateien irgendwo hier hinein.",
+    "hubSubtitle": "Füge einen Screenshot, ein GIF oder Video hinzu oder lege Dateien hier ab.",
     "hubUpload": "Hochladen oder ablegen",
     "hubUploadDesc": "Bilder, GIFs oder Videos von deinem Computer",
     "hubPaste": "Einfügen",
@@ -2812,7 +2762,7 @@
     "mediaTooLarge": "„{{name}}“ ist zu groß. Dateien dürfen bis zu {{max}} MB groß sein.",
     "autoAdvance": "Weiter nach (Sekunden)",
     "autoAdvanceAuto": "Auto",
-    "autoAdvanceHint": "Für den geführten Modus. Leer lassen für Lesezeit; 0 wartet auf Weiter.",
+    "autoAdvanceHint": "Nur im geführten Modus. 0 wartet auf Weiter.",
     "hideMarker": "Markierung immer ausblenden",
     "hideMarkerHint": "Die Lernenden sehen die Markierung nie. Nützlich im Modus Erkunden, wenn sie die Stelle selbst finden sollen.",
     "questionType": "Fragetyp",
@@ -2850,13 +2800,12 @@
     "mode_structured": "Strukturiert",
     "mode_guided": "Geführt",
     "mode_explore": "Erkunden",
-    "modeDesc_structured": "Die Lernenden gehen Schritt für Schritt vor. Ein Klick auf die markierte Stelle oder auf Weiter geht weiter.",
-    "modeDesc_guided": "Der Cursor zeigt jeden Schritt und geht von selbst weiter.",
-    "modeDesc_explore": "Die Lernenden klicken beliebige Schritte in beliebiger Reihenfolge an.",
+    "modeDesc_structured": "Schüler klicken sich Schritt für Schritt durch.",
+    "modeDesc_guided": "Spielt jeden Schritt automatisch ab.",
+    "modeDesc_explore": "Schüler klicken Schritte in beliebiger Reihenfolge an.",
     "watchPace": "Tempo im geführten Modus",
     "pace_standard": "Standard",
     "pace_calm": "Ruhig",
-    "paceDesc_standard": "Jeder Schritt bleibt lange genug zum Lesen stehen.",
     "paceDesc_calm": "Jeder Schritt bleibt etwa ein Drittel länger stehen.",
     "welcomeToggle": "Begrüßungsbildschirm anzeigen",
     "welcomeHint": "Die Lernenden sehen Ihre Nachricht vor dem Start, und die Start-Schaltfläche heißt „Los geht’s“.",
@@ -2872,14 +2821,10 @@
     "pulse_off": "Aus",
     "pulseDesc_consistent": "Markierungen pulsieren die ganze Zeit sanft.",
     "pulseDesc_reminder": "Markierungen wackeln alle paar Sekunden kurz.",
-    "pulseDesc_off": "Markierungen bleiben still.",
     "transition": "Folienübergang",
     "transition_none": "Keiner",
     "transition_slide": "Schieben",
     "transition_fade": "Überblenden",
-    "transitionDesc_none": "Folien wechseln sofort.",
-    "transitionDesc_slide": "Die nächste Folie gleitet von rechts herein.",
-    "transitionDesc_fade": "Folien werden überblendet.",
     "trimStart": "Anfang des Zuschnitts",
     "trimEnd": "Ende des Zuschnitts",
     "trimReset": "Zurücksetzen",
@@ -2893,7 +2838,7 @@
     "canvasKeysHint": "Drücke die Eingabetaste, um einen Schritt in der Mitte hinzuzufügen, und verschiebe ihn mit den Pfeiltasten. Tab wechselt zwischen den Schritten dieser Folie. Drücke ? für alle Tastenkürzel.",
     "shortcutsOpen": "Tastenkürzel (?)",
     "moreActions": "Weitere Aktionen",
-    "smallScreenNote": "Das Studio funktioniert am besten auf einem größeren Bildschirm. Sie können hier trotzdem weiter bearbeiten.",
+    "smallScreenNote": "Funktioniert am besten auf einem größeren Bildschirm.",
     "dismissSmallScreenNote": "Ausblenden",
     "showSlides": "Folien einblenden",
     "hideSlides": "Folien ausblenden",
@@ -2943,7 +2888,7 @@
     "tourAnchorId": "ID:",
     "tourAnchorWidgetType": "Widget:",
     "tourSuggestedId": "Vorgeschlagene ID",
-    "tourCopyFailed": "Kopieren nicht möglich. Die ID ist markiert, drücke Strg+C (Cmd+C auf dem Mac), um sie zu kopieren.",
+    "tourCopyFailed": "Kopieren fehlgeschlagen. Die ID ist markiert, drücke also Strg+C oder ⌘C.",
     "tourFind": {
       "button": "Auf der Tafel finden",
       "found": "Auf der Tafel gefunden.",
@@ -3050,11 +2995,11 @@
     "personal": {
       "title": "Meine Lernziele",
       "button": "Ziele",
-      "description": "Ziele, die nur du siehst. Markiere Quizfragen damit, um den Lernfortschritt über deine eigenen Tests zu verfolgen.",
+      "description": "Nur du siehst diese Ziele.",
       "sourceName": "Meine Lernziele"
     },
     "loading": "Ziele werden geladen…",
-    "empty": "Noch keine Lernziele. Füge eines hinzu, füge eine Liste ein oder importiere eine CSV-Datei.",
+    "empty": "Noch keine Lernziele.",
     "columns": {
       "code": "Code",
       "label": "Ziel",
@@ -3076,13 +3021,13 @@
     "noStandardsMatch": "Keine passenden Standards.",
     "pasteHint": "Ein Ziel pro Zeile. Optionaler Code vor einem senkrechten Strich: LT1 | Ich kann Brüche addieren.",
     "parsedCount": "{{count}} Ziele gefunden",
-    "csvHint": "Kopfzeile mit label (erforderlich); optional code, standards, grades (Werte mit ; trennen) und subject.",
+    "csvHint": "Kopfzeile mit label (erforderlich). Optionale Spalten sind code, standards, grades und subject. Mehrere Werte mit Semikolon trennen.",
     "csvLineError": "Zeile {{line}}: {{message}}",
     "csvUnknownStandards": "Unbekannte Standard-Codes werden übersprungen: {{codes}}",
     "importCount": "{{count}} importieren",
     "masteryCutoffs": {
       "heading": "Schwellenwerte",
-      "description": "Prozent richtig, damit ein Ziel als sicher oder annähernd erreicht gilt.",
+      "description": "Prozent richtig für jede Stufe.",
       "proficient": "Sicher",
       "approaching": "Annähernd",
       "save": "Schwellenwerte speichern"
@@ -3090,25 +3035,21 @@
     "saving": "Wird gespeichert…",
     "saveFailed": "Speichern fehlgeschlagen",
     "anySubject": "Beliebiges Fach",
-    "gradesSubjectHint": "Optional. Klassenstufen und Fach leer lassen, um sie von den verknüpften Standards zu übernehmen.",
+    "gradesSubjectHint": "Leer lassen, um Klassenstufen und Fach der verknüpften Standards zu übernehmen.",
     "csvUnknownSubjects": "Unbekannte Fächer werden übersprungen: {{subjects}}"
   },
   "settings": {
     "profileAndSettings": "Profil & Einstellungen",
     "profile": {
       "title": "Profil",
-      "description": "Wo und was Sie unterrichten. Klassenstufen und Fachbereiche filtern Standards und Lernziele, damit Sie nur sehen, was für Sie gilt.",
       "gradesTaught": "Unterrichtete Klassenstufen",
-      "gradesTaughtDescription": "Beginnt mit Ihren Gebäuden. Wählen Sie Klassenstufen ab, die Sie nicht unterrichten, um Standards, Lernziele und stufenspezifische Widgets einzugrenzen.",
       "resetGrades": "Auf Gebäudestandard zurücksetzen",
-      "noGrades": "Keine Klassenstufen ausgewählt — Standards und Widgets zeigen alle Stufen.",
-      "subjectsTaught": "Unterrichtete Fachbereiche",
-      "subjectsTaughtDescription": "Optional. Wählen Sie Ihre Fachbereiche, damit die Standardauswahl direkt dort öffnet. Leer lassen, um alle Fachbereiche zu sehen."
+      "noGrades": "Alle Klassenstufen werden angezeigt.",
+      "subjectsTaught": "Unterrichtete Fachbereiche (optional)"
     }
   },
   "quizHandRaise": {
-    "label": "Schülern erlauben, sich zu melden",
-    "help": "Schüler erhalten während des Quiz eine Schaltfläche zum Melden."
+    "label": "Schülern erlauben, sich zu melden"
   },
   "quizAdmin": {
     "title": "Quiz-Verwaltung",
@@ -3126,13 +3067,10 @@
     "saveFailed": "Quiz-Konfiguration konnte nicht gespeichert werden.",
     "handRaise": {
       "heading": "Melden",
-      "help": "Legt fest, ob Schüler in dieser Schule während eines Quiz eine Schaltfläche zum Melden sehen.",
       "teacherChoice": "Entscheidung der Lehrkraft",
-      "teacherChoiceHint": "Jede Lehrkraft entscheidet pro Quiz. Standardmäßig aus.",
+      "teacherChoiceHint": "Aus, bis die Lehrkraft es einschaltet.",
       "forceOn": "Immer an",
-      "forceOnHint": "Melden ist in jedem Quiz verfügbar und Lehrkräfte können es nicht deaktivieren.",
-      "forceOff": "Immer aus",
-      "forceOffHint": "Melden ist in jedem Quiz für Schüler ausgeblendet."
+      "forceOff": "Immer aus"
     },
     "noBuildings": "Keine Gebäude konfiguriert",
     "noBuildingsHint": "Fügen Sie unter Organisation ein Gebäude hinzu, bevor Sie eine Standardeinstellung für das Handheben festlegen.",
@@ -3284,7 +3222,7 @@
       "allCorrect": "Alle Antworten waren richtig.",
       "periodClosedBody": "Lass diesen Tab geöffnet. Das Set erscheint hier, sobald deine Lehrkraft deine Klasse freigibt.",
       "periodPausedTitle": "Für deine Klasse pausiert",
-      "periodPausedBody": "Deine Lehrkraft hat dies für deine Klasse pausiert. Dein Fortschritt bleibt auf dieser Seite erhalten. Lass diesen Tab geöffnet, um dort weiterzumachen, wo du aufgehört hast.",
+      "periodPausedBody": "Dein Fortschritt bleibt auf dieser Seite. Lass diesen Tab offen.",
       "notInPeriod": "Du bist in keiner Klasse, der dieses Set zugewiesen wurde. Frage deine Lehrkraft.",
       "seatError": "Du konntest deiner Klasse nicht beitreten. Lade die Seite neu, um es noch einmal zu versuchen."
     }
@@ -3350,6 +3288,8 @@
     "resume": "Fortsetzen",
     "markStep": "Schritt markieren",
     "markStepHint": "Fügt einen Weiter-Schritt für das Element unter dem Zeiger hinzu (Alt+M)",
+    "move": "Werkzeugleiste verschieben",
+    "moveHint": "Zum Verschieben ziehen. Doppelklick setzt sie wieder nach oben.",
     "finish": "Fertig",
     "discard": "Verwerfen",
     "recording_one": "Aufnahme · {{count}} Schritt",
@@ -3364,15 +3304,15 @@
     "startTitle": "Live-Tour aufnehmen",
     "startWhat": "Was zeigt diese Tour?",
     "startWhatPlaceholder": "Ein Widget zur Tafel hinzufügen",
-    "startBlur": "Du nimmst auf deiner eigenen Tafel auf. Namen von Schülerinnen und Schülern aus deinen Klassen sowie Fotos, Videos und Arbeiten von Lernenden werden in jedem Bild beim Aufnehmen unscharf gemacht.",
-    "startReview": "Bevor etwas hochgeladen wird, prüfst du jedes Bild und kannst Übersehenes unscharf machen.",
-    "startTip": "Tipp: Nimm auf einer Tafel auf, deren Klassen aus Testklassen stammen, damit kaum echte Namen zu sehen sind.",
+    "startBlur": "Namen, Fotos und Arbeiten deiner Lernenden werden beim Aufnehmen unscharf gemacht.",
+    "startReview": "Du prüfst jedes Bild, bevor es hochgeladen wird.",
+    "startTip": "Nimm auf einer Tafel mit Testklassen auf.",
     "startUnloaded_one": "{{count}} Klassenliste wurde nicht geladen, daher können ihre Namen nicht automatisch unscharf gemacht werden.",
     "startUnloaded_other": "{{count}} Klassenlisten wurden nicht geladen, daher können ihre Namen nicht automatisch unscharf gemacht werden.",
     "startContinue": "Weiter",
     "cancel": "Abbrechen",
     "reviewTitle": "Prüfe jedes Bild vor dem Hochladen",
-    "reviewBody": "Unscharfe Bereiche sind blau umrandet. Ziehe über alles andere, was Lernende zeigt, und wähle dann Unscharf machen.",
+    "reviewBody": "Ziehe über alles, was Lernende zeigt, und wähle dann Unscharf machen.",
     "reviewFrame": "Bild {{current}} von {{total}}",
     "reviewPrev": "Vorheriges Bild",
     "reviewNext": "Nächstes Bild",
@@ -3387,7 +3327,7 @@
     "reviewDiscard": "Aufnahme verwerfen",
     "reviewDiscardConfirm": "Diese Aufnahme verwerfen? Ihre Bilder werden gelöscht und können nicht wiederhergestellt werden.",
     "untaggedTitle": "Noch nicht im Code markiert",
-    "untaggedBody": "Die Tour findet diesen Schritt über seinen Namen. Markiere ihn im Code mit dieser ID, damit er auch nach einer Namensänderung funktioniert.",
+    "untaggedBody": "Nach Namen gefunden. Markiere diese ID im Code, damit Umbenennungen sie nicht brechen.",
     "untaggedNoId": "Keine vorgeschlagene ID",
     "copyId": "ID kopieren",
     "copied": "Kopiert",
@@ -3408,11 +3348,13 @@
     "saveFailed": "Die Tour konnte nicht gespeichert werden. Deine Aufnahme bleibt erhalten, du kannst es also erneut versuchen.",
     "rerecordPrompt": "Klicke auf das, was dieser Schritt zeigen soll",
     "rerecordSaving": "Neuer Klick wird gespeichert...",
-    "rerecordFailed": "Der neue Klick konnte nicht hochgeladen werden. Versuche es erneut oder verwirf ihn, damit der Schritt unverändert bleibt."
+    "rerecordFailed": "Der neue Klick konnte nicht hochgeladen werden. Versuche es erneut oder verwirf ihn, damit der Schritt unverändert bleibt.",
+    "copyAll": "Alle kopieren"
   },
   "tours": {
     "unavailable": "Diese Tour ist gerade nicht verfügbar.",
     "practiceBoardName": "Tour-Übung",
+    "widgetsLeftBehind": "Die Tour ist beendet. Ihre Widgets sind noch auf deiner anderen Tafel.",
     "readOnlyTitle": "Diese Tafel ist schreibgeschützt",
     "readOnlyBody": "Die Tour muss Widgets hinzufügen und Schaltflächen anklicken. Stattdessen auf einer neuen Übungstafel starten?",
     "cancel": "Abbrechen",
@@ -3451,7 +3393,7 @@
     "notNow": "Nicht jetzt",
     "startTour": "Tour starten",
     "resumeTitle": "Tour fortsetzen?",
-    "resumeBody": "Die Seite wurde mitten in einer Tour neu geladen. Beim aktuellen Schritt weitermachen?",
+    "resumeBody": "Die Tour dort fortsetzen, wo du aufgehört hast?",
     "resumeTour": "Tour fortsetzen",
     "removeAddedWidgets": "Hinzugefügte Widgets entfernen",
     "endTour": "Tour beenden"
@@ -3621,7 +3563,7 @@
     },
     "pausedOverlay": {
       "title": "Für deine Klasse pausiert",
-      "body": "Deine Lehrkraft hat die Aktivität für deine Klasse pausiert. Deine Antworten bleiben auf dieser Seite. Lass diesen Tab geöffnet, um dort weiterzumachen, wo du aufgehört hast."
+      "body": "Lass diesen Tab offen, damit deine Antworten erhalten bleiben."
     }
   },
   "glResults": {
@@ -3630,7 +3572,7 @@
     "backToLibrary": "Zurück zur Bibliothek"
   },
   "glData": {
-    "setTooLarge": "Dieses Set ist zu groß zum Speichern – teile es auf oder entferne Folien.",
+    "setTooLarge": "Dieses Set ist zu groß zum Speichern. Teile es auf oder entferne Folien.",
     "deleteSetTitle": "„{{title}}“ löschen?",
     "deleteWithOpenAssignments_one": "Schüler in {{count}} offenen Aufgabe verlieren den Zugriff.",
     "deleteWithOpenAssignments_other": "Schüler in {{count}} offenen Aufgaben verlieren den Zugriff.",
@@ -3641,7 +3583,7 @@
   },
   "tourHealth": {
     "loading": "Touren werden geladen...",
-    "intro": "Prüft die veröffentlichte Version jeder Tour, also die, die Lehrkräfte ausführen, anhand der Anker-Liste und echter Durchläufe. „Live prüfen“ sucht jeden Anker auf der Tafel hinter diesem Fenster, so wie sie gerade ist.",
+    "intro": "Prüft veröffentlichte Touren anhand des Anker-Verzeichnisses.",
     "recordTour": "Tour aufnehmen",
     "checkLive": "Live prüfen",
     "empty": "Noch kein Guided-Learning-Set hat Live-Tour-Schritte.",
@@ -3676,6 +3618,29 @@
     "found": "Gefunden",
     "notFound": "Nicht gefunden",
     "openInStudio": "Im Studio öffnen",
-    "openInStudioLabel": "Im Studio öffnen: Schritt {{number}} von {{title}}"
+    "openInStudioLabel": "Im Studio öffnen: Schritt {{number}} von {{title}}",
+    "unmapped": {
+      "title": "Nicht zugeordnete Anker",
+      "empty": "Keine nicht zugeordneten Anker.",
+      "loadFailed": "Nicht zugeordnete Anker konnten nicht geladen werden.",
+      "copyAll": "Alle kopieren",
+      "copied": "Kopiert",
+      "noName": "Element ohne Namen",
+      "pullRequest": "Pull-Request",
+      "rebind_one": "{{count}} Schritt neu verknüpfen",
+      "rebind_other": "{{count}} Schritte neu verknüpfen",
+      "rebinding": "Wird neu verknüpft...",
+      "rebindFailed": "Neu verknüpfen fehlgeschlagen. Versuche es erneut.",
+      "needsType": "Diese Schaltfläche gibt es je Widget, also die Schritte im Studio festlegen.",
+      "openLabel": "Im Studio öffnen: {{title}}",
+      "status": {
+        "open": "Offen",
+        "prOpen": "PR offen",
+        "waitingDeploy": "Wartet auf Bereitstellung",
+        "mapped": "Zugeordnet",
+        "rebound": "Neu verknüpft",
+        "needsHuman": "Braucht eine Person"
+      }
+    }
   }
 }

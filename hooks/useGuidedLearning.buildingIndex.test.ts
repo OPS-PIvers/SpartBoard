@@ -144,7 +144,7 @@ describe('useGuidedLearning building-set index', () => {
       SetTooLargeError
     );
     await expect(result.current.saveBuildingSet(huge)).rejects.toThrow(
-      'This set is too large to save — split it or remove slides.'
+      'This set is too large to save. Split it or remove slides.'
     );
     expect(fs.setDoc).not.toHaveBeenCalled();
   });

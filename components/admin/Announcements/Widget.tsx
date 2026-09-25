@@ -87,44 +87,39 @@ function getDefaultSize(type: WidgetType): { w: number; h: number } {
 const DISMISSAL_OPTIONS: {
   value: AnnouncementDismissalType;
   label: string;
-  description: string;
+  description?: string;
 }[] = [
   {
     value: 'user',
     label: 'User Can Dismiss',
-    description: 'Each user can close the announcement themselves.',
   },
   {
     value: 'scheduled',
     label: 'Scheduled Time',
-    description: 'Auto-dismissed at a specific time of day for all users.',
   },
   {
     value: 'duration',
     label: 'After Duration',
-    description: 'Auto-dismissed after a set number of seconds or minutes.',
   },
   {
     value: 'admin',
     label: 'Admin Only',
-    description: 'Only you (admin) can deactivate the announcement.',
+    description: 'Only you can end it.',
   },
 ];
 
 const ACTIVATION_OPTIONS: {
   value: AnnouncementActivationType;
   label: string;
-  description: string;
+  description?: string;
 }[] = [
   {
     value: 'manual',
     label: 'Manual',
-    description: 'You push the announcement by clicking the Activate button.',
   },
   {
     value: 'scheduled',
     label: 'Scheduled Time',
-    description: 'Automatically activates at a specific time of day.',
   },
 ];
 
@@ -319,10 +314,6 @@ const GenericConfigEditor: React.FC<{
         spellCheck={false}
       />
       {jsonError && <p className="mt-1 text-xs text-red-600">{jsonError}</p>}
-      <p className="mt-1 text-xs text-slate-500">
-        Edit the JSON config directly. Use &quot;Reset to defaults&quot; to
-        start fresh.
-      </p>
     </div>
   );
 };
@@ -374,8 +365,7 @@ function renderConfigEditor(
     case 'recessGear':
       return (
         <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-700">
-          This widget type uses its default configuration. No additional setup
-          required.
+          No setup needed.
         </div>
       );
     default:
@@ -1336,9 +1326,11 @@ export const AnnouncementsManager: React.FC = () => {
                       <div className="text-sm font-medium text-slate-700">
                         {opt.label}
                       </div>
-                      <div className="text-xs text-slate-500">
-                        {opt.description}
-                      </div>
+                      {opt.description && (
+                        <div className="text-xs text-slate-500">
+                          {opt.description}
+                        </div>
+                      )}
                     </div>
                   </label>
                 ))}
@@ -1381,9 +1373,7 @@ export const AnnouncementsManager: React.FC = () => {
                   </div>
                   {!form.scheduledActivationDate && (
                     <p className="text-xs text-amber-700">
-                      No start date set — the announcement recurs daily at the
-                      time above (legacy behavior). Pick a date to convert it to
-                      a one-shot schedule.
+                      Repeats daily. Pick a date to run once.
                     </p>
                   )}
                 </>
@@ -1398,14 +1388,8 @@ export const AnnouncementsManager: React.FC = () => {
                     }
                     label="Auto-deactivate at end date/time"
                   />
-                  <div>
-                    <div className="text-sm font-medium text-slate-700">
-                      Auto-deactivate at end date/time
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      The announcement automatically goes inactive after this
-                      moment — no need to remember to turn it off.
-                    </div>
+                  <div className="text-sm font-medium text-slate-700">
+                    Auto-deactivate at end date/time
                   </div>
                 </div>
                 {form.autoDeactivateEnabled && (
@@ -1469,9 +1453,11 @@ export const AnnouncementsManager: React.FC = () => {
                       <div className="text-sm font-medium text-slate-700">
                         {opt.label}
                       </div>
-                      <div className="text-xs text-slate-500">
-                        {opt.description}
-                      </div>
+                      {opt.description && (
+                        <div className="text-xs text-slate-500">
+                          {opt.description}
+                        </div>
+                      )}
                     </div>
                   </label>
                 ))}
@@ -1542,10 +1528,6 @@ export const AnnouncementsManager: React.FC = () => {
               title="Target Buildings"
               icon={<Building2 className="w-4 h-4" />}
             >
-              <p className="text-xs text-slate-500 -mt-1">
-                Select which buildings receive this announcement. Leave all
-                unchecked to broadcast to everyone.
-              </p>
               <div className="space-y-2">
                 {BUILDINGS.map((b) => (
                   <div
@@ -1576,9 +1558,7 @@ export const AnnouncementsManager: React.FC = () => {
               icon={<Users className="w-4 h-4" />}
             >
               <p className="text-xs text-slate-500 -mt-1">
-                Add specific user emails to receive this announcement. When
-                combined with building targeting, users matching either will see
-                it.
+                Adds these users to any building targets.
               </p>
               <div className="flex gap-2">
                 <input
@@ -1624,8 +1604,7 @@ export const AnnouncementsManager: React.FC = () => {
               {form.targetUsers.length === 0 &&
                 form.targetBuildings.length === 0 && (
                   <div className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                    No users or buildings targeted — this announcement will be
-                    sent to everyone.
+                    Sending to everyone.
                   </div>
                 )}
             </FormSection>

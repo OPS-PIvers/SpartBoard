@@ -24,9 +24,7 @@ export default defineSettings<RecessGearConfig>({
           type: 'partnerWidget',
           label: 'sourceWeatherWidget',
           section: 'connections',
-          help: 'smartLinkingHelp',
           partner: 'weather',
-          missingHelp: 'addWeatherTip',
           control: {
             key: 'linkedWeatherWidgetId',
             type: 'custom',
@@ -38,7 +36,6 @@ export default defineSettings<RecessGearConfig>({
           key: 'useFeelsLike',
           type: 'toggle',
           label: 'useFeelsLike',
-          help: 'useFeelsLikeHelp',
           readValue: defaultUseFeelsLike,
         },
       ],

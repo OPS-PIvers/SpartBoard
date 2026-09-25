@@ -61,12 +61,6 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
       </div>
 
       <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-5">
-        <p className="text-xxs text-slate-500 leading-tight">
-          These defaults will pre-configure the QR widget when a teacher in{' '}
-          <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
-          it to their dashboard.
-        </p>
-
         {/* Default URL */}
         <div className="space-y-2">
           <label className="text-xxs font-bold text-slate-700 uppercase flex items-center gap-1.5">
@@ -83,10 +77,6 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
             placeholder="e.g. https://google.com"
             className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary outline-none transition-all"
           />
-          <p className="text-xxs text-slate-400 font-medium">
-            The initial link applied to new QR widgets. Users can still change
-            this in their widget settings.
-          </p>
         </div>
 
         {/* Global Branding (Admin Only) */}
@@ -94,12 +84,11 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
           <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
             <Palette className="w-4 h-4 text-brand-blue-primary" />
             <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest">
-              Branding & Style Locks (Admin Only)
+              Locked colors
             </h4>
           </div>
           <p className="text-xxs text-slate-500 leading-relaxed">
-            These color settings are enforced globally and <b>cannot</b> be
-            changed by standard users. Use these to create branded QR codes.
+            Teachers can&apos;t change these.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

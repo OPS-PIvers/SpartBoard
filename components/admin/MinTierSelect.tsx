@@ -34,6 +34,7 @@ export const MinTierSelect: React.FC<MinTierSelectProps> = ({
     </label>
     <select
       value={value ?? ''}
+      title="Users below this tier are denied (free < org < internal). Admins always bypass."
       onChange={(e) =>
         onChange(
           e.target.value === '' ? undefined : (e.target.value as UserTier)
@@ -47,9 +48,5 @@ export const MinTierSelect: React.FC<MinTierSelectProps> = ({
         </option>
       ))}
     </select>
-    <p className="text-xxs text-slate-400 mt-1 leading-tight">
-      Users below this tier are denied (free &lt; org &lt; internal). Admins
-      always bypass.
-    </p>
   </div>
 );

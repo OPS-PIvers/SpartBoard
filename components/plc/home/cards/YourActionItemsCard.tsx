@@ -126,11 +126,6 @@ export const YourActionItemsCard: React.FC<YourActionItemsCardProps> = ({
                 defaultValue: "You're all caught up",
               })}
             </p>
-            <p className="text-xs text-slate-400 mt-1">
-              {t('plcDashboard.home.actionItems.emptySubtitle', {
-                defaultValue: 'Action items assigned to you will appear here.',
-              })}
-            </p>
           </div>
         ) : (
           <ul className="space-y-1">

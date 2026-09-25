@@ -291,9 +291,6 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
                   <Settings2 className="w-4 h-4 text-indigo-500" /> Available
                   Categories
                 </h4>
-                <p className="text-xs text-slate-500">
-                  Which categories teachers can see in this building.
-                </p>
                 <div className="space-y-2">
                   {(CONTENT_CATEGORIES as readonly ContentCategory[]).map(
                     (cat) => (
@@ -319,9 +316,6 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
                 <h4 className="text-sm font-black text-slate-700 uppercase tracking-widest">
                   Default Enabled Categories
                 </h4>
-                <p className="text-xs text-slate-500">
-                  Pre-selected when a teacher first adds the widget.
-                </p>
                 <div className="space-y-2">
                   {availableCategories.map((cat) => (
                     <label
@@ -358,10 +352,6 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
                     <p className="text-sm font-semibold text-slate-700">
                       Enable AI content generation
                     </p>
-                    <p className="text-xs text-slate-500">
-                      Teachers can type a topic and generate Bloom&apos;s
-                      content with AI.
-                    </p>
                   </div>
                 </label>
               </div>
@@ -374,10 +364,6 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
                   <Settings2 className="w-4 h-4 text-indigo-500" /> Content
                   Editor
                 </h4>
-                <p className="text-xs text-slate-500">
-                  Customize items per level and category. Changes override
-                  defaults.
-                </p>
 
                 {/* Level tabs */}
                 <div className="flex flex-wrap gap-1">

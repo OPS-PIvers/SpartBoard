@@ -58,7 +58,7 @@ describe('TextPopoverInteraction callout style', () => {
         onClose={() => undefined}
       />
     );
-    expect(card().className).toContain('bg-brand-blue-primary');
+    expect(card().className).toContain('bg-[var(--spart-primary,#2d3f89)]');
     expect(screen.getByText(/Line one/).className).toContain('text-white');
   });
 });

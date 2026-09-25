@@ -213,9 +213,8 @@ export const ProjectSetupGroupsModal: React.FC<
 
         {roster && !roster.classlinkClassId && !roster.testClassId && (
           <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            {roster.name} is a hand-built roster, so students here have no
-            district account to sign in with. These groups track as a board you
-            move yourself; use a ClassLink class if you want the student side.
+            {roster.name} has no student sign-in. You can still track groups
+            yourself.
           </p>
         )}
 

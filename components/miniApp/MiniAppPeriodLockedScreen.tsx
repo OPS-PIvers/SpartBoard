@@ -61,8 +61,7 @@ export const MiniAppPeriodPausedOverlay: React.FC = () => (
       Paused for your class
     </h2>
     <p className="text-slate-300 text-sm max-w-sm">
-      Your teacher paused this for your class. Your work is kept on this page.
-      Keep this tab open to pick up where you left off.
+      Your work stays on this page. Keep this tab open.
     </p>
   </div>
 );

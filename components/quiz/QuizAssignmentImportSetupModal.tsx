@@ -190,7 +190,7 @@ export const QuizAssignmentImportSetupModal: React.FC<
         {noRosters ? (
           <p className="text-sm text-slate-600 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3">
             {t('quizAssignmentImportSetupModal.noRostersPrefix', {
-              defaultValue: "You don't have any classes yet. Add a class in ",
+              defaultValue: 'No classes yet. Add one in ',
             })}
             <span className="font-bold">
               {t('quizAssignmentImportSetupModal.myClasses', {
@@ -198,15 +198,14 @@ export const QuizAssignmentImportSetupModal: React.FC<
               })}
             </span>
             {t('quizAssignmentImportSetupModal.noRostersSuffix', {
-              defaultValue: ' first, then come back to assign this quiz.',
+              defaultValue: '.',
             })}
           </p>
         ) : (
           <>
             <p className="text-sm text-slate-600">
               {t('quizAssignmentImportSetupModal.prompt', {
-                defaultValue:
-                  'Pick the classes that should take this quiz. Students will pick their period after entering the join code.',
+                defaultValue: 'Pick the classes taking this quiz.',
               })}
             </p>
             <AssignClassPicker

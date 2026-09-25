@@ -2,6 +2,8 @@
 
 Grilled and settled 2026-09-24; revised the same day after a second grilling (R23–R32). Six stacked PRs to dev-paul, in the order below. Builds on `QUIZ_DOCUMENT_IMPORT.md` (D1–D21), which it amends where noted.
 
+All six PRs shipped 2026-09-24. `QUIZ_EXAMVIEW_IMPORT.md` (2026-09-25) follows up after the ExamView test still read 6 of 19 questions: a decimal option (`357.4`) opened a bogus question 357. That plan amends R5 (E2) and closes the RTF-picture gap (E11).
+
 ## Goal
 
 - A teacher's paper test comes in with every question, every answer choice in its own slot, and the key applied, without AI.
@@ -39,7 +41,7 @@ The browser reader was run on three real files Paul supplied (not committed; pub
 
 ### Parsing questions
 
-- **R5.** An option marker (`a.` `(b)` `C)`) opens a new option mid-line only when it starts a segment, i.e. it follows a column gap. "Vitamin A. is…" inside one segment never splits.
+- **R5.** An option marker (`a.` `(b)` `C)`) opens a new option mid-line only when it starts a segment, i.e. it follows a column gap. "Vitamin A. is…" inside one segment never splits. _Amended by `QUIZ_EXAMVIEW_IMPORT.md` E2: two or more spaces before a marker also count as a gap when every marker on the line forms a valid letter run._
 - **R6.** A question's options are collected in any letter order, then sorted A→F. The set must be contiguous from A with no duplicates. Otherwise the row gets "Answer choices may be out of place — check them", and the letters as read are kept rather than guessed at. The `followsInSequence` in-order requirement goes away for letters seen inside the same question block.
 - **R7.** Sections. A section heading (`Section 2`, `Part II`, a short standalone heading such as "Multiple Choice" or "Short Answer…", or an all-caps line), or a question number dropping back to 1 after ≥2 questions, starts a new section. Questions are numbered 1→N straight through the quiz. Each question keeps `ref: {section, item, part?}` for key matching, and its printed label is kept (R23). Sections that contain no numbered questions (Fluency read-aloud) contribute nothing.
 - **R8.** Spill guards.

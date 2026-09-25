@@ -204,11 +204,6 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
                 >
                   {plc.name}
                 </h2>
-                <span className="hidden md:inline text-xxs uppercase tracking-widest text-white/60">
-                  {t('plcDashboard.subtitle', {
-                    defaultValue: 'PLC Dashboard',
-                  })}
-                </span>
               </div>
             </div>
           </div>
@@ -245,7 +240,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
               <span className="text-slate-300">•</span>
               <span className="font-semibold uppercase tracking-widest text-brand-blue-primary">
                 {t('plcDashboard.meta.youLead', {
-                  defaultValue: 'You lead this PLC',
+                  defaultValue: 'Lead',
                 })}
               </span>
             </>

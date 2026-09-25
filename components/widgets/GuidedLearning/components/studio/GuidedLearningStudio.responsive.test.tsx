@@ -212,7 +212,7 @@ describe('Studio on a small screen', () => {
     screenMatches([COMPACT_HEADER_QUERY, SMALL_SCREEN_QUERY]);
     renderStudio();
     const note = screen.getByTestId('gl-studio-small-screen-note');
-    expect(note).toHaveTextContent(/works best on a larger screen/);
+    expect(note).toHaveTextContent(/works best on a larger screen/i);
     // Non-blocking: the canvas stays usable behind it.
     expect(
       screen.getByRole('application', { name: 'Slide canvas' })

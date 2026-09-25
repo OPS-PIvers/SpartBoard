@@ -139,8 +139,7 @@ export const EmbedConfigurationPanel: React.FC<
             Whitelisted Domains
           </label>
           <p className="text-xxs text-slate-500 leading-tight">
-            Domains listed here will automatically bypass embeddability checks.
-            Enter hostnames like <code>example.com</code>.
+            Skip the embed check for these domains.
           </p>
 
           <div className="flex gap-2">

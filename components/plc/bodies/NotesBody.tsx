@@ -351,7 +351,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
           addToast(
             t('plcDashboard.notes.conflictMessage', {
               defaultValue:
-                'A teammate edited this note while you were writing. Reload to see their changes — your unsaved text is kept below.',
+                'A teammate edited this note while you were writing. Reload to see their changes. Your unsaved text is kept below.',
             }),
             'warning',
             {
@@ -589,11 +589,6 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
               <p className="font-semibold text-slate-600">
                 {t('plcDashboard.notes.emptyTitle', {
                   defaultValue: 'No notes yet',
-                })}
-              </p>
-              <p className="text-xxs text-slate-400 mt-1">
-                {t('plcDashboard.notes.emptySubtitle', {
-                  defaultValue: 'Create the first one to get started.',
                 })}
               </p>
             </div>

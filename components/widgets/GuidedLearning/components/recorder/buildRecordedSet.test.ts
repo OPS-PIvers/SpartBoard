@@ -22,8 +22,8 @@ const step = (
 });
 
 describe('buildRecordedSet', () => {
-  it('makes a v3 building set with one tooltip step per recorded click', () => {
-    const set = buildRecordedSet(
+  it('makes a v3 building set with one tooltip step per recorded click', async () => {
+    const { set, queue } = await buildRecordedSet(
       { steps: [step('a', 0), step('b', 1, true)] },
       {
         id: 'set-9',
@@ -50,9 +50,66 @@ describe('buildRecordedSet', () => {
       region: { shape: 'rect', wPct: 5, hPct: 4 },
       tour: { anchor: '', action: 'click' },
     });
+    // No captured context, so nothing to queue.
+    expect(set.steps[1].tour).not.toHaveProperty('unmapped');
+    expect(queue).toEqual([]);
   });
 
-  it('sets up only the widget types the steps touched on a 12-widget board', () => {
+  it('keeps each untagged step fingerprint and groups queue entries by it', async () => {
+    const context = {
+      suggestedId: 'button.start',
+      role: 'button',
+      name: 'start',
+      widgetType: null,
+      pathname: '/',
+      nearestAnchor: null,
+      ancestors: [{ tag: 'button' }],
+      htmlExcerpt: '<button>Start</button>',
+    };
+    const untagged = (id: string, widgetId?: string): RecordedStep => ({
+      ...step(id, 0, true),
+      context,
+      ...(widgetId ? { widgetId } : {}),
+    });
+    const { set, queue } = await buildRecordedSet(
+      {
+        steps: [
+          untagged('a', 'w-timer'),
+          step('b', 0),
+          untagged('c', 'w-timer'),
+          untagged('d'),
+        ],
+      },
+      {
+        id: 'set-9',
+        title: 'T',
+        imageUrls: ['u0'],
+        widgets: [{ id: 'w-timer', type: 'time-tool' }],
+        startIds: new Set(['w-timer']),
+      }
+    );
+    const [a, b, c, d] = set.steps.map((s) => s.tour?.unmapped);
+    expect(a).toMatch(/^[0-9a-f]{40}$/);
+    expect(b).toBeUndefined();
+    expect(c).toBe(a);
+    // No widget, so a different widget type and fingerprint.
+    expect(d).not.toBe(a);
+    expect(queue).toHaveLength(2);
+    expect(queue[0]).toEqual({
+      fingerprint: a,
+      context: { ...context, widgetType: 'time-tool' },
+      occurrences: [
+        { setId: 'set-9', stepId: 'a' },
+        { setId: 'set-9', stepId: 'c' },
+      ],
+    });
+    expect(queue[1]).toMatchObject({
+      fingerprint: d,
+      occurrences: [{ setId: 'set-9', stepId: 'd' }],
+    });
+  });
+
+  it('sets up only the widget types the steps touched on a 12-widget board', async () => {
     const types: WidgetType[] = [
       'clock',
       'time-tool',
@@ -77,7 +134,7 @@ describe('buildRecordedSet', () => {
       tour: { anchor, action: 'click' },
       ...(widgetId ? { widgetId } : {}),
     });
-    const set = buildRecordedSet(
+    const { set } = await buildRecordedSet(
       {
         steps: [
           touch('a', 'sidebar.boards'),

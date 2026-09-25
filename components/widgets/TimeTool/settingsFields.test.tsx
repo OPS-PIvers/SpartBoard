@@ -143,7 +143,6 @@ describe('nullable timer-end fields', () => {
   it('disables the voice level control inside its partner card when Expectations is absent', () => {
     renderKey('timerEndVoiceLevel', { timerEndVoiceLevel: 2 });
     expect(screen.getByRole('radio', { name: 'Lvl 2' })).toBeDisabled();
-    expect(screen.getByText(leaves.addExpectationsTip)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button'));
     expect(addWidget).toHaveBeenCalledWith('expectations');
   });
@@ -164,7 +163,6 @@ describe('nullable timer-end fields', () => {
   it('disables the traffic color control inside its partner card when Traffic Light is absent', () => {
     renderKey('timerEndTrafficColor', {});
     expect(screen.getByRole('radio', { name: 'Slow' })).toBeDisabled();
-    expect(screen.getByText(leaves.addTrafficLightTip)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button'));
     expect(addWidget).toHaveBeenCalledWith('traffic');
   });

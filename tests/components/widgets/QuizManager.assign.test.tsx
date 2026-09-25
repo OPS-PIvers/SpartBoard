@@ -395,7 +395,7 @@ describe('QuizManager assign modal — recorded-answer advisory', () => {
     // Default behavior is teacher-paced — the advisory should surface once
     // the background quiz-data load resolves.
     expect(
-      await within(dialog).findByText(/collected only in self-paced sessions/i)
+      await within(dialog).findByText(/Spoken answers need self-paced mode/i)
     ).toBeInTheDocument();
   });
 
@@ -413,12 +413,12 @@ describe('QuizManager assign modal — recorded-answer advisory', () => {
     fireEvent.click(
       within(dialog).getByRole('button', { name: /session settings/i })
     );
-    await within(dialog).findByText(/collected only in self-paced sessions/i);
+    await within(dialog).findByText(/Spoken answers need self-paced mode/i);
     fireEvent.click(
       within(dialog).getByRole('button', { name: /^self-paced/i })
     );
     expect(
-      within(dialog).queryByText(/collected only in self-paced sessions/i)
+      within(dialog).queryByText(/Spoken answers need self-paced mode/i)
     ).not.toBeInTheDocument();
   });
 
@@ -451,7 +451,7 @@ describe('QuizManager assign modal — recorded-answer advisory', () => {
     // Give the background load a tick to resolve before asserting absence.
     await within(dialog).findByRole('button', { name: /^teacher-paced/i });
     expect(
-      within(dialog).queryByText(/collected only in self-paced sessions/i)
+      within(dialog).queryByText(/Spoken answers need self-paced mode/i)
     ).not.toBeInTheDocument();
   });
 });
@@ -551,7 +551,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     // First click surfaces the timing warning by name and holds the assign.
     expect(onAssign).not.toHaveBeenCalled();
     expect(await within(dialog).findByRole('status')).toHaveTextContent(
-      /extended time for .*will not apply/i
+      /extended time for .*(will not|won't) apply/i
     );
     // Never an error: a standing default is a pre-existing setting, not a block.
     expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();

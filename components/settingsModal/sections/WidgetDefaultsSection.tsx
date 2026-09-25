@@ -100,10 +100,6 @@ export const WidgetDefaultsSection: React.FC = () => {
         title={t('settings.widgetDefaults.title', {
           defaultValue: 'Widget defaults',
         })}
-        description={t('settings.widgetDefaults.description', {
-          defaultValue:
-            'The look new widgets start with. Save one from a widget’s Style tab. Clearing a default does not change widgets already on your boards.',
-        })}
         scopeLabel={t('settings.scopeAllBoards', {
           defaultValue: 'All boards',
         })}

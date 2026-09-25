@@ -112,13 +112,10 @@ export const QuizAssignmentImportModeModal: React.FC<
       }
     >
       <div className="px-5 pb-5 pt-4 space-y-3">
-        <p className="text-xs text-slate-600">
-          How should this assignment be imported into your library?
-        </p>
         <ModeOption
           mode="sync"
           title="Synced"
-          body="Stay connected to the source quiz. Any teacher in the synced group can edit, and changes show up on everyone's library card with a Sync available pill."
+          body="Stays linked to the source. Edits by anyone in the group reach everyone."
           Icon={Cloud}
           recommended
           onPick={onPick}
@@ -126,7 +123,7 @@ export const QuizAssignmentImportModeModal: React.FC<
         <ModeOption
           mode="copy"
           title="Make a copy"
-          body="Take a frozen snapshot. Future edits by other teachers will not appear in your copy, and your edits stay private."
+          body="A private copy. Edits by others won't reach it."
           Icon={Copy}
           onPick={onPick}
         />

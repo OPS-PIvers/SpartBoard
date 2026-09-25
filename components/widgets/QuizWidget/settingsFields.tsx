@@ -1,14 +1,12 @@
 import React from 'react';
 import { Archive } from 'lucide-react';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
-import type { QuizConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 
 export const QuizManagementField: React.FC<{ ctx: CustomRenderCtx }> = ({
   ctx,
 }) => {
   const { updateWidget } = useDashboard();
-  const config = ctx.config as unknown as QuizConfig;
 
   return (
     <div
@@ -18,9 +16,6 @@ export const QuizManagementField: React.FC<{ ctx: CustomRenderCtx }> = ({
       aria-describedby={ctx.describedBy}
       className="flex flex-col gap-3"
     >
-      <p className="text-xs text-slate-600">
-        {ctx.t('widgetSettings.quiz.managementHelp')}
-      </p>
       <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
         {ctx.t('widgetSettings.quiz.widgetLabel')}
         <input
@@ -62,11 +57,6 @@ export const QuizManagementField: React.FC<{ ctx: CustomRenderCtx }> = ({
       >
         {ctx.t('widgetSettings.quiz.managerView')}
       </button>
-      {config.view !== 'manager' && (
-        <p className="text-xxs font-semibold text-slate-500">
-          {ctx.t('widgetSettings.quiz.currentView', { view: config.view })}
-        </p>
-      )}
     </div>
   );
 };

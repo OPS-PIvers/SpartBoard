@@ -1016,8 +1016,8 @@ const DeleteUserConfirmBody: React.FC<{
       <div className="space-y-3">
         <p>
           <strong className="text-slate-900">{email}</strong> can&apos;t be
-          deleted yet — this content belongs to other people too. Reassign or
-          remove it first:
+          deleted yet because this content belongs to other people too. Reassign
+          or remove it first.
         </p>
         <ul className="rounded-lg bg-amber-50 border border-amber-200 divide-y divide-amber-200">
           {blockers.map((b) => (
@@ -1067,7 +1067,7 @@ const DeleteUserConfirmBody: React.FC<{
       </ul>
       {summary.quizSessionsPreserved > 0 && (
         <p className="text-slate-500">
-          {summary.quizSessionsPreserved} student quiz session(s) stay — student
+          {summary.quizSessionsPreserved} student quiz session(s) stay. Student
           work is a district record and is never deleted with a teacher.
         </p>
       )}
@@ -1184,8 +1184,8 @@ const ManualResetLinkModal: React.FC<{
             role="alert"
             className="text-xs text-brand-red-dark bg-brand-red-primary/10 border border-brand-red-primary/20 rounded-lg px-3 py-2"
           >
-            Couldn&apos;t copy automatically — the link is selected above, press
-            Ctrl/Cmd&nbsp;+&nbsp;C to copy it manually.
+            Couldn&apos;t copy. The link is selected above, so press
+            Ctrl/Cmd&nbsp;+&nbsp;C.
           </p>
         )}
         <p className="text-xs text-slate-500">

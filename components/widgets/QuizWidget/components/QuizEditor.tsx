@@ -56,6 +56,7 @@ import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
 import { WordLimitFields } from './WordLimitFields';
 import { AlternateAnswersEditor, MultiAnswerEditor } from './MultiAnswerEditor';
+import { ChoiceOptionsEditor } from './ChoiceOptionsEditor';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
@@ -88,37 +89,30 @@ interface PaneProps {
 const QUESTION_TYPES: {
   value: QuizQuestionType;
   label: string;
-  hint: string;
 }[] = [
   {
     value: 'MC',
     label: 'Multiple Choice',
-    hint: 'One correct answer and up to 4 incorrect options.',
   },
   {
     value: 'FIB',
     label: 'Fill in the Blank',
-    hint: 'Student types the exact correct word/phrase.',
   },
   {
     value: 'MA',
     label: 'Choose All That Apply',
-    hint: 'Students pick every correct option. With partial credit, each wrong pick takes points away, so choosing everything earns nothing.',
   },
   {
     value: 'Matching',
     label: 'Matching',
-    hint: 'Pair terms with their matching definitions. Add extra distractors to increase difficulty.',
   },
   {
     value: 'Ordering',
     label: 'Ordering',
-    hint: 'List items in the correct sequence. Drag rows or use arrows to reorder.',
   },
   {
     value: 'free-response',
     label: 'Free Response',
-    hint: 'Open-ended answer, typed or spoken. Graded manually.',
   },
 ];
 
@@ -458,8 +452,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
 
         {order.length === 0 ? (
           <div className="text-center text-slate-500 text-sm py-8 border-2 border-dashed border-slate-300 rounded-lg bg-white">
-            No questions yet. Click <strong>Add</strong> to create your first
-            question, or use <strong>Draft with AI</strong>.
+            No questions yet.
           </div>
         ) : (
           <SortableList
@@ -752,6 +745,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   // Fail-closed: no permission record means the controls never mount, so the
   // editor is pixel-identical to today for everyone else.
   const mediaResponseAllowed = canAccessQuizMediaResponse();
+  const choiceEditor = canAccessFeature('quiz-choice-editor');
   const [showRubricBuilder, setShowRubricBuilder] = useState(false);
   // Manual points held aside per question while a rubric owns its points.
   const manualPointsByQuestion = useRef<Map<string, number>>(new Map());
@@ -821,11 +815,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         <h4 className="text-base font-bold text-slate-700 mb-1">
           {questions.length === 0 ? 'No questions yet' : 'Pick a question'}
         </h4>
-        <p className="text-sm max-w-xs">
-          {questions.length === 0
-            ? 'Add a question or draft with AI to start editing.'
-            : 'Click a question in the list to edit it here.'}
-        </p>
+        {questions.length === 0 && (
+          <p className="text-sm max-w-xs">
+            Add a question or draft with AI to start editing.
+          </p>
+        )}
       </div>
     );
   }
@@ -888,9 +882,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               }}
             />
           ) : (
-            <p className="text-xs text-slate-500">
-              No targets. Tag standards or PLC targets to track mastery.
-            </p>
+            <p className="text-xs text-slate-500">No targets.</p>
           )}
           {pickerOpen && (
             <TargetPicker
@@ -912,10 +904,13 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           <div>
             <label className={labelClass}>Type</label>
             <select
-              value={q.type}
+              value={choiceEditor && q.type === 'MA' ? 'MC' : q.type}
               aria-label="Type"
               onChange={(e) => {
                 const nextType = e.target.value as QuizQuestionType;
+                // With the one-list editor, MA is Multiple Choice with a setting on.
+                if (choiceEditor && nextType === 'MC' && q.type === 'MA')
+                  return;
                 const isWritten = isFreeResponseType(nextType);
                 // A rubric only applies to written types, and its Detach button
                 // only renders there — so drop it here, restoring the stashed
@@ -932,6 +927,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   incorrectAnswers:
                     nextType === 'MC' || nextType === 'MA' ? ['', ''] : [],
                   alternateAnswers: undefined,
+                  optionOrder: undefined,
                   correctAnswer: '',
                   matchingDistractors: undefined,
                   // Reset written-specific fields when switching off written types
@@ -955,8 +951,8 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               {QUESTION_TYPES.filter(
                 (t) =>
                   t.value !== 'MA' ||
-                  q.type === 'MA' ||
-                  canAccessFeature('quiz-choose-all')
+                  (!choiceEditor &&
+                    (q.type === 'MA' || canAccessFeature('quiz-choose-all')))
               ).map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
@@ -1073,19 +1069,15 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
 
         {(q.type === 'Matching' ||
           q.type === 'Ordering' ||
-          q.type === 'MA') && (
+          (q.type === 'MA' && !choiceEditor)) && (
           <div className="flex items-start gap-2">
-            <div className="flex-1 flex gap-2 p-2.5 bg-brand-blue-primary text-white rounded-lg shadow-sm">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <p className="text-xs">{typeMeta?.hint}</p>
-            </div>
             <label
               className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg cursor-pointer select-none shrink-0"
               title={
                 q.type === 'Matching'
                   ? 'Award partial points based on the number of correct pairs.'
                   : q.type === 'MA'
-                    ? 'Award partial points for each correct option chosen, minus points for each incorrect option chosen.'
+                    ? 'Each correct pick earns points and each wrong pick takes points away, so choosing everything earns nothing.'
                     : 'Award partial points based on the longest correctly-ordered sequence.'
               }
             >
@@ -1107,7 +1099,25 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         )}
 
         {/* Type-specific answer editor */}
-        {q.type === 'Matching' ? (
+        {choiceEditor && (q.type === 'MC' || q.type === 'MA') ? (
+          <div className="space-y-1">
+            <ChoiceOptionsEditor
+              key={q.id}
+              question={q}
+              allowMulti={canAccessFeature('quiz-choose-all')}
+              onChange={(updates) => updateQuestion(q.id, updates)}
+            />
+            {questionNeedsKey(q) && (
+              <p
+                role="status"
+                className="flex items-center gap-1 text-xxs font-bold text-amber-700"
+              >
+                <AlertCircle className="w-3 h-3" aria-hidden />
+                No answer imported. Add one before assigning.
+              </p>
+            )}
+          </div>
+        ) : q.type === 'Matching' ? (
           <MatchingAnswerEditor
             correctAnswer={q.correctAnswer}
             matchingDistractors={
@@ -1133,8 +1143,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 className="flex items-center gap-1 text-xxs font-bold text-amber-700"
               >
                 <AlertCircle className="w-3 h-3" aria-hidden />
-                The imported document didn&apos;t give an answer for this
-                question. Fill it in before you assign the quiz.
+                No answer imported. Add one before assigning.
               </p>
             )}
           </div>
@@ -1212,8 +1221,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 className="mt-1 flex items-center gap-1 text-xxs font-bold text-amber-700"
               >
                 <AlertCircle className="w-3 h-3" aria-hidden />
-                The imported document didn&apos;t give an answer for this
-                question. Fill it in before you assign the quiz.
+                No answer imported. Add one before assigning.
               </p>
             )}
             {q.type === 'FIB' &&
@@ -1231,7 +1239,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           </div>
         )}
 
-        {q.type === 'MC' && (
+        {q.type === 'MC' && !choiceEditor && (
           <div className="space-y-2">
             <label className="block font-bold text-slate-600 mb-1 text-xs uppercase tracking-wider">
               Distractors (Incorrect Options)
@@ -1299,29 +1307,12 @@ interface AiOverlayProps {
 const QUIZ_TYPE_STEPPER_ROWS: ReadonlyArray<{
   type: QuizGenType;
   label: string;
-  hint: string;
 }> = [
-  { type: 'MC', label: 'Multiple Choice', hint: 'One answer + 3 distractors' },
-  {
-    type: 'FIB',
-    label: 'Fill in the Blank',
-    hint: 'Student types a short answer',
-  },
-  {
-    type: 'Matching',
-    label: 'Matching',
-    hint: 'Pairs of terms and definitions',
-  },
-  {
-    type: 'Ordering',
-    label: 'Ordering',
-    hint: 'Put items in the correct sequence',
-  },
-  {
-    type: 'MA',
-    label: 'Choose All That Apply',
-    hint: 'Several correct options among wrong ones',
-  },
+  { type: 'MC', label: 'Multiple Choice' },
+  { type: 'FIB', label: 'Fill in the Blank' },
+  { type: 'Matching', label: 'Matching' },
+  { type: 'Ordering', label: 'Ordering' },
+  { type: 'MA', label: 'Choose All That Apply' },
 ];
 
 export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
@@ -1347,7 +1338,7 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
       open={showAiPrompt}
       onClose={() => setShowAiPrompt(false)}
       title="Draft with AI"
-      description="Describe the quiz you want to create. Generated questions will be appended to the current list."
+      description="New questions are added to the end."
       generating={aiGenerating}
       canGenerate={!!aiPrompt.trim() && !aiFileExtracting && aiTotalCount > 0}
       onGenerate={() => void runAiGenerate()}
@@ -1380,9 +1371,6 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-bold text-indigo-900">
                     {row.label}
-                  </div>
-                  <div className="text-[11px] text-slate-500 truncate">
-                    {row.hint}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">

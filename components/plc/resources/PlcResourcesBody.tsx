@@ -233,8 +233,7 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
           defaultValue: 'No Resources Yet',
         })}
         subtitle={t('plcDashboard.resources.emptySubtitle', {
-          defaultValue:
-            'Your admin will push curated quizzes, docs, and boards here.',
+          defaultValue: 'Your admin hasn’t added any yet.',
         })}
       />
     );
@@ -259,8 +258,7 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
         </h2>
         <p className="text-sm text-slate-500 mt-0.5">
           {t('plcDashboard.resources.inboxSubtitle', {
-            defaultValue:
-              'Curated by your admin. Click "Use" to add to your PLC.',
+            defaultValue: 'From your admin.',
           })}
         </p>
       </div>

@@ -142,14 +142,6 @@ export const RestrictionsPicker: React.FC<RestrictionsPickerProps> = ({
               </ul>
             )}
           </div>
-          {count > 0 && (
-            <div className="p-2 border-t border-slate-200 text-xxs text-slate-500 italic">
-              {t('sidebar.classes.restrictionsFooter', {
-                defaultValue:
-                  'Restrictions apply to both students automatically.',
-              })}
-            </div>
-          )}
         </div>
       )}
     </div>

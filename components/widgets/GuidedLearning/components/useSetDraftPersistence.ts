@@ -257,6 +257,10 @@ export function useSetDraftPersistence({
 
   const originalWatchPace = set?.watchPace;
   const originalTourSetup = useMemo(() => set?.tourSetup?.widgets ?? [], [set]);
+  const originalTourLayouts = useMemo(
+    () => JSON.stringify(set?.tourSetup?.layouts ?? []),
+    [set]
+  );
 
   const [prevSet, setPrevSet] = useState<GuidedLearningSet | null>(set);
   if (set !== prevSet) {
@@ -294,7 +298,8 @@ export function useSetDraftPersistence({
       !trimsEqual(tracked.videoTrims, originalVideoTrims) ||
       !stepsEqual(tracked.steps, originalSteps) ||
       tracked.watchPace !== originalWatchPace ||
-      !arraysEqual(tracked.tourSetupWidgets, originalTourSetup)
+      !arraysEqual(tracked.tourSetupWidgets, originalTourSetup) ||
+      JSON.stringify(tracked.tourSetupLayouts) !== originalTourLayouts
     );
   }, [
     tracked.title,
@@ -310,6 +315,7 @@ export function useSetDraftPersistence({
     tracked.steps,
     tracked.watchPace,
     tracked.tourSetupWidgets,
+    tracked.tourSetupLayouts,
     originalTitle,
     originalDescription,
     originalMode,
@@ -323,6 +329,7 @@ export function useSetDraftPersistence({
     originalSteps,
     originalWatchPace,
     originalTourSetup,
+    originalTourLayouts,
   ]);
 
   // One-time v1→v2 radius conversion at editor load: convert every spotlight
@@ -429,6 +436,7 @@ export function useSetDraftPersistence({
       tracked.steps,
       tracked.watchPace,
       tracked.tourSetupWidgets,
+      tracked.tourSetupLayouts,
     ],
     [
       tracked.title,
@@ -444,6 +452,7 @@ export function useSetDraftPersistence({
       tracked.steps,
       tracked.watchPace,
       tracked.tourSetupWidgets,
+      tracked.tourSetupLayouts,
     ]
   );
   const draftTokenRef = useRef(draftToken);
@@ -480,6 +489,7 @@ export function useSetDraftPersistence({
       tourSetup: _tourSetup,
       ...carried
     } = set;
+    const { layouts: _layouts, ...tourSetupCarried } = set.tourSetup ?? {};
     const thumbs = editorState.slideThumbnails ?? set.slideThumbnails ?? {};
     const slideThumbnails = Object.fromEntries(
       editorState.imageUrls.flatMap((url) =>
@@ -528,11 +538,16 @@ export function useSetDraftPersistence({
           }
         : {}),
       ...(editorState.watchPace ? { watchPace: editorState.watchPace } : {}),
-      ...(set.tourSetup || editorState.tourSetupWidgets.length > 0
+      ...(set.tourSetup ||
+      editorState.tourSetupWidgets.length > 0 ||
+      editorState.tourSetupLayouts.length > 0
         ? {
             tourSetup: {
-              ...set.tourSetup,
+              ...tourSetupCarried,
               widgets: editorState.tourSetupWidgets,
+              ...(editorState.tourSetupLayouts.length > 0
+                ? { layouts: editorState.tourSetupLayouts }
+                : {}),
             },
           }
         : {}),

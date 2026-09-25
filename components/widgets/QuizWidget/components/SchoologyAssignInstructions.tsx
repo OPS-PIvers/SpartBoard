@@ -81,29 +81,8 @@ export const SchoologyAssignInstructions: React.FC<
     >
       <div className="px-5 pb-5 pt-4 space-y-4">
         <p className="text-sm text-slate-600">
-          Schoology assignments are added from{' '}
-          <span className="font-semibold text-slate-800">inside Schoology</span>
-          , not from here. It only takes a few clicks:
+          Add this quiz from inside Schoology.
         </p>
-
-        {/* Illustrated Add-Materials → SpartBoard diagram (swappable placeholder
-            for a real screenshot). */}
-        <div
-          aria-hidden="true"
-          className="rounded-xl border border-slate-200 bg-slate-50 p-4 flex items-center justify-center gap-3 text-xs font-semibold"
-        >
-          <span className="rounded-lg bg-white border border-slate-300 px-3 py-2 text-slate-700 shadow-sm">
-            + Add Materials
-          </span>
-          <span className="text-slate-400">›</span>
-          <span className="rounded-lg bg-brand-blue-primary/10 border border-brand-blue-primary/30 px-3 py-2 text-brand-blue-dark shadow-sm">
-            SpartBoard
-          </span>
-          <span className="text-slate-400">›</span>
-          <span className="rounded-lg bg-white border border-slate-300 px-3 py-2 text-slate-700 shadow-sm">
-            Pick this quiz
-          </span>
-        </div>
 
         <ol className="space-y-2.5">
           {STEPS.map((s) => (
@@ -119,8 +98,7 @@ export const SchoologyAssignInstructions: React.FC<
         </ol>
 
         <p className="text-xs text-slate-500 leading-relaxed">
-          Students launch the quiz directly in Schoology, and their scores sync
-          back to the Schoology gradebook when you publish results.
+          Scores sync to Schoology when you publish results.
         </p>
 
         <div className="pt-1 flex justify-end">

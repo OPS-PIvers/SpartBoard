@@ -681,7 +681,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
         >
           {t(
             'assignTargeting.noSignInCount',
-            '{{count}} students in these classes have no school sign-in and cannot be individually modified.',
+            '{{count}} students have no school sign-in and can’t be changed individually.',
             { count: unresolvableCount }
           )}
         </p>
@@ -721,7 +721,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
             >
               {t(
                 'assignTargeting.skipNotice',
-                'Skipped students will not see this assignment. Everyone else in these classes still receives it.'
+                'Skipped students won’t see this assignment.'
               )}
             </p>
           )}
@@ -862,10 +862,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
           className={cqScaled ? 'text-slate-500' : 'text-xs text-slate-500'}
           style={scaledFont(cqScaled, 12, 4.5)}
         >
-          {t(
-            'assignTargeting.noStudentsYet',
-            'No students chosen yet — everyone in the class stays untargeted.'
-          )}
+          {t('assignTargeting.noStudentsYet', 'No students chosen.')}
         </p>
       ) : (
         <div className="space-y-2">

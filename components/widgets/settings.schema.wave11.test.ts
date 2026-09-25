@@ -78,7 +78,6 @@ describe('wave 11 settings-drawer widget migrations', () => {
       key: 'autoStartTimer',
       partner: 'time-tool',
       section: 'connections',
-      missingHelp: 'addTimerHelp',
     });
   });
 });

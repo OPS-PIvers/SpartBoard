@@ -16,7 +16,6 @@
  */
 
 import React, { useContext } from 'react';
-import { User, Zap, Clock } from 'lucide-react';
 import type {
   VideoActivityBehaviorSettings,
   VideoActivityScoreVisibility,
@@ -25,6 +24,8 @@ import type {
 import { AssignmentSettingsToggleGroup } from './AssignmentSettingsToggleGroup';
 import { CollapsibleSection } from './CollapsibleSection';
 import type { AssignModeOption } from './types';
+import { SESSION_MODES } from './sessionModes';
+import { PUBLISH_LEVEL_OPTIONS } from './publishScoreLevels';
 import { TabAwayLimitRow, TabWarningThresholdRow } from './TabWarningRows';
 import { AuthContext } from '@/context/AuthContextValue';
 
@@ -38,52 +39,15 @@ export interface VideoActivityBehaviorSettingsPanelProps {
   modeLocked?: boolean;
 }
 
-const MODES_BASE: Omit<AssignModeOption, 'disabled'>[] = [
-  {
-    id: 'teacher',
-    label: 'Teacher-paced',
-    description: 'You control when to move to the next question.',
-    icon: User,
-  },
-  {
-    id: 'auto',
-    label: 'Auto-progress',
-    description: 'Moves automatically once everyone has answered.',
-    icon: Zap,
-  },
-  {
-    id: 'student',
-    label: 'Self-paced',
-    description: 'Students move through questions at their own speed.',
-    icon: Clock,
-  },
-];
-
 const SCORE_VISIBILITY_OPTIONS: {
   value: VideoActivityScoreVisibility;
   label: string;
-  hint: string;
 }[] = [
-  {
-    value: 'none',
-    label: 'Hidden',
-    hint: "Students see 'Submitted' only — no score.",
-  },
-  {
-    value: 'score-only',
-    label: 'Score',
-    hint: 'Students see their final score, no per-question detail.',
-  },
-  {
-    value: 'score-and-responses',
-    label: 'Score + responses',
-    hint: 'Students see their score and which questions they got right/wrong.',
-  },
-  {
-    value: 'score-responses-and-answers',
-    label: 'Full review',
-    hint: 'Students see their score, right/wrong, and the correct answers.',
-  },
+  { value: 'none', label: 'Hidden' },
+  ...PUBLISH_LEVEL_OPTIONS.map((opt) => ({
+    value: opt.id as VideoActivityScoreVisibility,
+    label: opt.title,
+  })),
 ];
 
 export const VideoActivityBehaviorSettingsPanel: React.FC<
@@ -92,7 +56,7 @@ export const VideoActivityBehaviorSettingsPanel: React.FC<
   // Read via context so a provider-less host hides the rows instead of throwing.
   const tabAwayTimerOn =
     useContext(AuthContext)?.canAccessFeature?.('tab-away-timer') === true;
-  const modes: AssignModeOption[] = MODES_BASE.map((m) => ({
+  const modes: AssignModeOption[] = SESSION_MODES.map((m) => ({
     ...m,
     disabled: modeLocked,
   }));
@@ -144,9 +108,11 @@ export const VideoActivityBehaviorSettingsPanel: React.FC<
                   <p className="font-black text-sm text-slate-800 leading-tight">
                     {mode.label}
                   </p>
-                  <p className="text-xs text-slate-500 mt-0.5 leading-snug">
-                    {mode.description}
-                  </p>
+                  {mode.description && (
+                    <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                      {mode.description}
+                    </p>
+                  )}
                 </div>
               </button>
             );
@@ -236,9 +202,6 @@ export const VideoActivityBehaviorSettingsPanel: React.FC<
                       >
                         <p className="text-xs font-bold text-slate-800">
                           {opt.label}
-                        </p>
-                        <p className="text-xxs text-slate-500 mt-0.5">
-                          {opt.hint}
                         </p>
                       </button>
                     );

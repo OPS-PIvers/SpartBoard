@@ -18,13 +18,11 @@ import fr from '@/locales/fr.json';
 
 const REQUIRED_KEYS = [
   'heading',
-  'subtitle',
   'memberCount',
   'memberCount_other',
   'requestToJoin',
   'requestHint',
   'emptyTitle',
-  'emptySubtitle',
   'noOrgTitle',
   'noOrgSubtitle',
 ] as const;

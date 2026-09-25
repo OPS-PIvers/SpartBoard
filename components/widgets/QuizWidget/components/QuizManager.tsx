@@ -148,6 +148,7 @@ import { useQuizHandRaiseMode } from '@/hooks/useQuizHandRaiseMode';
 import { QUIZ_TRANSLATION_FEATURE } from '@/config/quizTranslation';
 import { useDialog } from '@/context/useDialog';
 import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
+import { needsKeyMessage } from '@/utils/quizNeedsKey';
 import { countRecordingSlots } from '@/utils/quizRecordingModes';
 import {
   splitDueAtToInputs,
@@ -555,10 +556,7 @@ const quizNeedsKeyCount = (quiz: QuizMetadata): number =>
   quiz.needsKeyCount ?? 0;
 
 /** Why Assign is off, named so the tooltip says what to do about it. */
-const needsKeyAssignReason = (count: number): string =>
-  count === 1
-    ? '1 question still needs an answer. Open the quiz and fill it in before you assign.'
-    : `${count} questions still need an answer. Open the quiz and fill them in before you assign.`;
+const needsKeyAssignReason = needsKeyMessage;
 
 // Title + the question-text blob written on save (see QuizMetadata.searchText)
 // so search matches question content, not just titles.
@@ -2121,6 +2119,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         plcs={plcs}
         shell={{
           widgetLabel: 'Quiz',
+          widgetType: 'quiz',
           tab: managerTab,
           onTabChange: (t) => onTabChange?.(t),
           counts: tabCounts,
@@ -2144,6 +2143,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     return (
       <LibraryShell
         widgetLabel="Quiz"
+        widgetType="quiz"
         tab={managerTab}
         onTabChange={(t) => onTabChange?.(t)}
         counts={tabCounts}
@@ -2205,6 +2205,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const shell = (
     <LibraryShell
       widgetLabel="Quiz"
+      widgetType="quiz"
       tab={managerTab}
       onTabChange={(t) => onTabChange?.(t)}
       counts={tabCounts}
@@ -2264,8 +2265,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           }
           emptySub={
             isViewOnly
-              ? 'Share a quiz from the Library tab to create a viewable link for students.'
-              : 'Assign a quiz from the Library tab to get started. Active and paused assignments appear here.'
+              ? 'Share a quiz from the Library tab.'
+              : 'Assign a quiz from the Library tab.'
           }
         />
       )}
@@ -2283,7 +2284,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           emptySub={
             isViewOnly
               ? 'Ended share links will appear here.'
-              : 'Ended assignments are moved here so you can review results and share them.'
+              : 'Ended assignments appear here.'
           }
         />
       )}
@@ -2402,7 +2403,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                 >
                   {t('assignTargeting.timingNotAppliedConfirm', {
                     defaultValue:
-                      'Teacher-paced sessions have no per-student timer, so extended time for {{names}} will not apply. Other accommodations still apply. Click Assign again to continue.',
+                      "Extended time for {{names}} won't apply in teacher-paced mode. Click Assign again to continue.",
                     names: targetingTimingWarning.join(', '),
                   })}
                 </p>
@@ -2425,8 +2426,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   }
                 >
                   <p className="text-xxs text-slate-400">
-                    Pre-filled from the quiz&rsquo;s saved settings. Changes
-                    apply to this assignment only.
+                    Applies to this assignment only.
                   </p>
                   <QuizBehaviorSettingsPanel
                     value={assignBehavior}
@@ -2454,10 +2454,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               options={assignOptions}
               onChange={setAssignOptions}
               plcs={plcs}
-              effectivePeriodCount={
-                resolveEffectivePeriodNames(assignOptions.picker, rosters)
-                  .length
-              }
             />
           }
           onAssign={() => handleAssignConfirm()}
@@ -2591,7 +2587,7 @@ const LibraryTabContent: React.FC<{
       <ScaledEmptyState
         icon={FileUp}
         title="No Quizzes Yet"
-        subtitle="Import a CSV or Google Sheet to build your library."
+        subtitle="Create or import a quiz."
         iconClassName="text-brand-blue-primary"
         titleClassName="text-brand-blue-primary"
         subtitleClassName="text-brand-blue-primary/60"
@@ -2783,16 +2779,6 @@ const QuizPreviewPaneContent: React.FC<{ quiz: QuizMetadata }> = ({ quiz }) => {
         {updated && <Stat label="Last updated" value={updated} />}
         {quiz.sync && <Stat label="Sync group" value="Active" />}
       </div>
-      <p
-        className="text-slate-500 leading-relaxed"
-        style={{
-          fontSize: 'min(10px, 3.5cqmin)',
-          marginTop: 'min(4px, 1cqmin)',
-        }}
-      >
-        Open the editor to see questions, or use “Full preview” to walk through
-        this quiz the way students will.
-      </p>
     </div>
   );
 };
@@ -3172,9 +3158,7 @@ const AssignPlcSlot: React.FC<{
   onChange: (next: QuizAssignOptions) => void;
   /** Teacher's PLC memberships (parent derives the effective id the same way). */
   plcs: readonly Plc[];
-  /** Class periods the picker contributes; drives the period-picker hint. */
-  effectivePeriodCount: number;
-}> = ({ options, onChange, plcs, effectivePeriodCount }) => {
+}> = ({ options, onChange, plcs }) => {
   const update = <K extends keyof QuizAssignOptions>(
     key: K,
     value: QuizAssignOptions[K]
@@ -3211,16 +3195,7 @@ const AssignPlcSlot: React.FC<{
         />
       </div>
       <p className="text-xxs text-slate-500 -mt-1">
-        Completed, scored results pool with your team on the PLC page. No
-        student names are shared.{' '}
-        {effectivePeriodCount > 1 ? (
-          <>Students will see a class-period picker after entering their PIN.</>
-        ) : (
-          <>
-            Pick two or more classes above to give students a period picker when
-            they join.
-          </>
-        )}
+        Results pool on the PLC page without student names.
       </p>
 
       {options.plcMode && plcs.length > 1 && (
@@ -3244,11 +3219,6 @@ const AssignPlcSlot: React.FC<{
               </option>
             ))}
           </select>
-          {!selectedPlc && (
-            <p className="text-xxs text-slate-500 mt-0.5">
-              Pick a PLC so results pool with the right team.
-            </p>
-          )}
         </div>
       )}
     </>

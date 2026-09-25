@@ -87,6 +87,9 @@ export {
 } from './glBuildingIndex';
 // Published live-tour snapshots: set deletes and the one-time publish of existing tours.
 export { glTourSnapshots } from './glTours';
+export { tourAnchorApi } from './tourAnchorApi';
+export { tourAnchorBatchTrigger } from './tourAnchorBatchTrigger';
+export { tourAnchorSweep } from './tourAnchorSweep';
 
 // ── Student identity (ClassLink-via-Google SSO) + PIN→SSO unification ───────
 export {

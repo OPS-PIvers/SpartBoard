@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TourRecorder } from './TourRecorder';
+import { RECORDER_POS_KEY, TourRecorder } from './TourRecorder';
 import { buildNameMatcher, type NameMatcher } from './redaction';
 import type { TourRecording } from './useTourCapture';
 
@@ -400,5 +400,87 @@ describe('TourRecorder', () => {
     expect(recording.frames).toEqual([REDACTED]);
     expect(recording.steps[0].tour.anchor).toBe('sidebar.boards');
     expect(stopTrack).toHaveBeenCalled();
+  });
+
+  describe('position', () => {
+    const pillRect = (x: number, y: number) =>
+      ({ x, y, left: x, top: y, width: 300, height: 40 }) as DOMRect;
+
+    beforeEach(() => {
+      localStorage.clear();
+      vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(1000);
+      vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(800);
+    });
+
+    const grip = () => screen.getByRole('button', { name: 'Move toolbar' });
+    const pill = () => screen.getByTestId('tour-recorder');
+
+    it('starts at the top centre, clear of the dock', () => {
+      renderRecorder();
+      expect(pill().className).toContain('left-1/2');
+      expect(pill().className).not.toContain('bottom-4');
+      expect(pill().style.top).toContain('1rem');
+    });
+
+    it('drags by the grip, clamps to the viewport and remembers the spot', () => {
+      renderRecorder();
+      vi.spyOn(pill(), 'getBoundingClientRect').mockReturnValue(
+        pillRect(350, 16)
+      );
+      fireEvent.pointerDown(grip(), { button: 0, clientX: 360, clientY: 30 });
+      fireEvent.pointerMove(grip(), { clientX: 2000, clientY: 500 });
+      expect(pill().style.left).toBe('700px');
+      expect(pill().style.top).toBe('486px');
+      expect(localStorage.getItem(RECORDER_POS_KEY)).toBeNull();
+
+      fireEvent.pointerUp(grip(), { clientX: -50, clientY: -50 });
+      expect(pill().style.left).toBe('0px');
+      expect(pill().style.top).toBe('0px');
+      expect(JSON.parse(localStorage.getItem(RECORDER_POS_KEY) ?? '')).toEqual({
+        x: 0,
+        y: 0,
+      });
+    });
+
+    it('opens where it was left and double-click puts it back', () => {
+      localStorage.setItem(
+        RECORDER_POS_KEY,
+        JSON.stringify({ x: 120, y: 300 })
+      );
+      renderRecorder();
+      expect(pill().style.left).toBe('120px');
+      expect(pill().style.top).toBe('300px');
+      expect(pill().className).not.toContain('left-1/2');
+
+      fireEvent.doubleClick(grip());
+      expect(pill().className).toContain('left-1/2');
+      expect(localStorage.getItem(RECORDER_POS_KEY)).toBeNull();
+    });
+
+    it('moves with the arrow keys', () => {
+      renderRecorder();
+      vi.spyOn(pill(), 'getBoundingClientRect').mockReturnValue(
+        pillRect(350, 16)
+      );
+      fireEvent.keyDown(grip(), { key: 'ArrowDown' });
+      expect(pill().style.top).toBe('36px');
+      expect(pill().style.left).toBe('350px');
+    });
+
+    it('ignores a corrupt saved position', () => {
+      localStorage.setItem(RECORDER_POS_KEY, '{nope');
+      renderRecorder();
+      expect(pill().className).toContain('left-1/2');
+    });
+
+    it('never records a grip drag as a step', async () => {
+      renderRecorder();
+      await startRecording();
+      fireEvent.pointerDown(grip(), { button: 0, clientX: 10, clientY: 10 });
+      fireEvent.pointerUp(grip(), { clientX: 10, clientY: 10 });
+      await settle();
+      expect(h.grabFrame).not.toHaveBeenCalled();
+      expect(screen.getByText('Recording · 0 steps')).toBeInTheDocument();
+    });
   });
 });

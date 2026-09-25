@@ -5,7 +5,7 @@
  * responsive layout. NOT a draggable grid — just cards.
  *
  * Layout:
- *   - Header: title/subtitle (left) + members cluster (right), with a
+ *   - Header: title (left) + members cluster (right), with a
  *     quick-create button bar directly beneath.
  *   - lg+: two columns filling the full content width — Attention (wider)
  *          and Recent Docs (narrower). Columns flow independently, so there
@@ -18,7 +18,6 @@
  */
 
 import React, { useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import type { Plc } from '@/types';
 import type { PlcSectionId } from '@/components/plc/sections';
 import { usePlcActivity } from '@/context/usePlcContext';
@@ -39,8 +38,6 @@ interface PlcHomeProps {
 }
 
 export const PlcHome: React.FC<PlcHomeProps> = ({ plc, onNavigate }) => {
-  const { t } = useTranslation();
-
   // The provider already runs the bounded activity listener — pass it through so
   // usePlcUnread reads the cursor only (no second activity listener), per its
   // contract (T3).
@@ -77,18 +74,13 @@ export const PlcHome: React.FC<PlcHomeProps> = ({ plc, onNavigate }) => {
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      {/* Page header — title/subtitle + members, then a quick-create bar */}
+      {/* Page header — title + members, then a quick-create bar */}
       <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-white/50 backdrop-blur-sm">
         <div className="flex items-end justify-between gap-4">
           <div className="min-w-0">
             <h2 className="text-xl font-bold text-slate-900 truncate">
               {plc.name}
             </h2>
-            <p className="text-sm text-slate-500 mt-0.5">
-              {t('plcDashboard.home.subtitle', {
-                defaultValue: 'Your collaborative space',
-              })}
-            </p>
           </div>
           <MembersHeaderCluster plc={plc} onNavigate={onNavigate} />
         </div>

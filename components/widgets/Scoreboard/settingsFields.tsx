@@ -376,11 +376,6 @@ export const ScoreboardSettings: React.FC<{
             {t('widgetSettings.scoreboard.importGroups')}
           </Button>
         </div>
-        {!randomWidget && (
-          <div className="text-xxs text-indigo-400 font-medium">
-            {t('widgetSettings.scoreboard.importTip')}
-          </div>
-        )}
       </div>
 
       {rosterGroupsEnabled && rosterGroups.length > 0 && (

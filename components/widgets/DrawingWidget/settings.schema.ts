@@ -65,7 +65,6 @@ export default defineSettings<DrawingConfig>({
           key: 'shapeFill',
           type: 'toggle',
           label: 'shapeFill',
-          help: 'shapeFillHelp',
         },
       ],
     },

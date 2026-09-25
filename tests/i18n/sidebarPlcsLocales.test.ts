@@ -23,7 +23,6 @@ import fr from '@/locales/fr.json';
 /** All sidebar.plcs keys the current codebase references via t(). */
 const REQUIRED_PLCS_KEYS = [
   'title',
-  'description',
   'newPlc',
   'newPlcTitle',
   'createNewPlc',
@@ -56,7 +55,6 @@ const REQUIRED_PLCS_KEYS = [
   'invites',
   'invitesTitle',
   'noInvitesTitle',
-  'noInvitesSubtitle',
   'inviteFrom',
   'accept',
   'decline',

@@ -36,12 +36,8 @@ const ATTEMPT_OPTIONS: AttemptOption[] = [
 export interface AttemptLimitRowProps {
   value: number | null;
   onChange: (v: number | null) => void;
-  /**
-   * Override the default helper text. Useful when the widget's reset
-   * affordance differs (e.g. VA doesn't have a per-student reset on
-   * the live monitor).
-   */
-  hint?: string;
+  /** Tooltip on the row label. Defaults to the attempt-reset instruction. */
+  tooltip?: string;
   /** Visible row label. Defaults to the assignment-settings wording. */
   label?: string;
   /** Accessible name for the button group. Defaults to the visible label. */
@@ -53,14 +49,16 @@ export interface AttemptLimitRowProps {
 export const AttemptLimitRow: React.FC<AttemptLimitRowProps> = ({
   value,
   onChange,
-  hint = 'Remove a student from the live monitor to reset their attempt.',
+  tooltip = 'Remove a student from the live monitor to reset their attempt.',
   label = 'Attempts Allowed',
   ariaLabel,
   unlimitedLabel,
 }) => (
   <div>
     <div className="flex items-center justify-between gap-3">
-      <span className="text-sm font-bold text-brand-blue-dark">{label}</span>
+      <span className="text-sm font-bold text-brand-blue-dark" title={tooltip}>
+        {label}
+      </span>
       <div
         role="group"
         aria-label={ariaLabel ?? 'Attempts allowed'}
@@ -89,7 +87,6 @@ export const AttemptLimitRow: React.FC<AttemptLimitRowProps> = ({
         })}
       </div>
     </div>
-    {hint && <p className="text-xxs text-slate-500 mt-0.5">{hint}</p>}
   </div>
 );
 
@@ -179,8 +176,6 @@ export interface AssignmentSettingsToggleGroupProps {
    */
   attemptLimit?: number | null;
   onAttemptLimitChange?: (next: number | null) => void;
-  /** Override the AttemptLimitRow helper text. */
-  attemptLimitHint?: string;
   /**
    * Header label for the integrity section. Defaults to "Quiz Integrity"
    * for backwards compat; widgets that aren't Quiz should pass a more
@@ -194,7 +189,7 @@ export interface AssignmentSettingsToggleGroupProps {
   modeLocked?: boolean;
   /**
    * When false, the "Shuffle Questions" toggle is rendered disabled with a
-   * hint about self-paced mode. Quiz passes false for teacher/auto modes;
+   * self-paced-only hint. Quiz passes false for teacher/auto modes;
    * VA always passes true. Defaults to true.
    */
   shuffleQuestionsAvailable?: boolean;
@@ -234,7 +229,6 @@ export const AssignmentSettingsToggleGroup: React.FC<
   onOptionsChange,
   attemptLimit,
   onAttemptLimitChange,
-  attemptLimitHint,
   modeLocked = false,
   shuffleQuestionsAvailable = true,
   excludeSections,
@@ -274,14 +268,12 @@ export const AssignmentSettingsToggleGroup: React.FC<
             <AttemptLimitRow
               value={attemptLimit ?? null}
               onChange={onAttemptLimitChange}
-              hint={attemptLimitHint}
             />
           )}
           <ToggleRow
             label="Focus mode"
             checked={options.tabWarningsEnabled ?? true}
             onChange={(v) => update('tabWarningsEnabled', v)}
-            hint="Students can leave the tab, but it's detected and logged"
           />
           {afterTabWarningsSlot}
           {showCopyPasteToggle && (
@@ -289,7 +281,6 @@ export const AssignmentSettingsToggleGroup: React.FC<
               label="Block Copy & Paste"
               checked={options.blockCopyPaste ?? false}
               onChange={(v) => update('blockCopyPaste', v)}
-              hint="Stops students pasting answers from other tabs"
             />
           )}
         </>
@@ -303,18 +294,13 @@ export const AssignmentSettingsToggleGroup: React.FC<
             checked={options.shuffleQuestions ?? false}
             onChange={(v) => update('shuffleQuestions', v)}
             disabled={!shuffleQuestionsAvailable}
-            hint={
-              shuffleQuestionsAvailable
-                ? 'Each student gets a fresh question order on every attempt (self-paced mode)'
-                : 'Available in self-paced mode only.'
-            }
+            hint={shuffleQuestionsAvailable ? undefined : 'Self-paced only.'}
           />
           <ToggleRow
             compact
             label="Shuffle Answer Options"
             checked={options.shuffleAnswerOptions ?? true}
             onChange={(v) => update('shuffleAnswerOptions', v)}
-            hint="Randomize MC choices, matching pairs, and ordering items per student per attempt"
           />
         </CollapsibleSection>
       )}
@@ -326,7 +312,6 @@ export const AssignmentSettingsToggleGroup: React.FC<
             label="Show right/wrong to students"
             checked={options.showResultToStudent ?? false}
             onChange={(v) => update('showResultToStudent', v)}
-            hint="Students see ✓ or ✗ after submitting"
           />
           <ToggleRow
             compact
@@ -334,14 +319,12 @@ export const AssignmentSettingsToggleGroup: React.FC<
             checked={options.showCorrectAnswerToStudent ?? false}
             onChange={(v) => update('showCorrectAnswerToStudent', v)}
             disabled={!options.showResultToStudent}
-            hint="Also show what the correct answer was"
           />
           <ToggleRow
             compact
             label="Show correct answer on board"
             checked={options.showCorrectOnBoard ?? false}
             onChange={(v) => update('showCorrectOnBoard', v)}
-            hint="Display correct answer on the projected screen"
           />
           {showLearningTargetsToggle && (
             <ToggleRow
@@ -349,7 +332,6 @@ export const AssignmentSettingsToggleGroup: React.FC<
               label="Group results by learning target"
               checked={options.showLearningTargets ?? false}
               onChange={(v) => update('showLearningTargets', v)}
-              hint="Show learning-target headings with published answer feedback"
             />
           )}
         </CollapsibleSection>

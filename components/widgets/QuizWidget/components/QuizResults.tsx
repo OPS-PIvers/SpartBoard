@@ -1300,7 +1300,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         prev?.kind === 'schemaMismatch' ? { ...prev, recoveryUrl: url } : prev
       );
       addToast(
-        'Exported to a personal sheet — open it to copy rows into the shared sheet manually.',
+        'Exported to your own sheet. Copy rows into the PLC sheet.',
         'success'
       );
     } catch (err) {
@@ -1887,8 +1887,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           style={{ fontSize: 'min(11px, 3.5cqmin)' }}
         >
           <div className="font-bold text-center">
-            Exported to a personal sheet. Open and copy rows into the shared PLC
-            sheet manually.
+            Exported to your own sheet. Copy rows into the PLC sheet.
           </div>
           <div className="mt-2 flex items-center justify-center gap-3">
             <a
@@ -1987,7 +1986,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                     className="font-sans font-semibold text-amber-800"
                     style={{ fontSize: 'min(11px, 3.8cqmin)' }}
                   >
-                    Provisional — written responses still need grading
+                    Provisional. Written answers need grading.
                   </p>
                 )}
               </div>
@@ -3721,7 +3720,7 @@ const StudentsScreen: React.FC<{
                         {awaitingGrade && (
                           <span
                             className="mt-0.5 inline-flex"
-                            title="Provisional — a written response is still ungraded, so this total will change once you grade it."
+                            title="Provisional. This total changes once you grade the written response."
                           >
                             <SessionBadge tone="warn" label="Provisional" />
                           </span>

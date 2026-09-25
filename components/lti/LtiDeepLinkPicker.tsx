@@ -86,6 +86,7 @@ import { quizMaxPoints } from '@/utils/quizMaxPoints';
 import { videoActivityMaxPoints } from '@/utils/videoActivityGrading';
 import { logError } from '@/utils/logError';
 import { isGoogleSession } from '@/utils/googleSession';
+import { needsKeyMessage } from '@/utils/quizNeedsKey';
 import {
   AddonShell,
   AddonHeader,
@@ -590,6 +591,10 @@ const LtiDeepLinkFlow: React.FC = () => {
     async (returnUrl: string): Promise<void> => {
       // The "Add" button is disabled until a quiz is selected — defensive guard.
       if (!selectedQuiz) return;
+      if ((selectedQuiz.needsKeyCount ?? 0) > 0) {
+        setErrorMsg(needsKeyMessage(selectedQuiz.needsKeyCount ?? 0));
+        return;
+      }
 
       // Reuse a previously-created assignment for this quiz on retry, so a failed
       // sign / POST never spawns a SECOND orphaned session + join code. The create
@@ -1007,7 +1012,7 @@ const LtiDeepLinkFlow: React.FC = () => {
       <AddonHeader
         icon={ClipboardList}
         title="Add a SpartBoard activity"
-        subtitle="Pick a quiz or video activity from your library. Students complete it inside Schoology and their score posts back to the gradebook."
+        subtitle="Scores post to the Schoology gradebook."
       />
 
       {phase === 'error' ? (
@@ -1153,9 +1158,7 @@ const LtiDeepLinkFlow: React.FC = () => {
                   className="mb-1.5 block text-sm font-medium text-slate-700"
                 >
                   Your name{' '}
-                  <span className="font-normal text-slate-500">
-                    (optional — shown on shared PLC results)
-                  </span>
+                  <span className="font-normal text-slate-500">(optional)</span>
                 </label>
                 <input
                   id={teacherNameId}
@@ -1177,9 +1180,7 @@ const LtiDeepLinkFlow: React.FC = () => {
                   className="mb-1.5 block text-sm font-medium text-slate-700"
                 >
                   Due date{' '}
-                  <span className="font-normal text-slate-500">
-                    (optional — also set in Schoology)
-                  </span>
+                  <span className="font-normal text-slate-500">(optional)</span>
                 </label>
                 <input
                   id={dueDateId}

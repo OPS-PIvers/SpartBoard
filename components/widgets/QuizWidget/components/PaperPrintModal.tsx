@@ -671,8 +671,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           </h2>
           <p className="text-sm text-slate-700">
             {pdfPick.file.name} has {pdfPick.pages.pageCount} page
-            {pdfPick.pages.pageCount === 1 ? '' : 's'}. One page goes on the
-            answer sheet, as a picture.
+            {pdfPick.pages.pageCount === 1 ? '' : 's'}.
           </p>
           <div className="flex max-h-64 flex-wrap gap-2 overflow-y-auto">
             {Array.from({ length: listed }, (_, i) => (
@@ -735,8 +734,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             {shareSheetImagesPrompt(sharing.unshared)}
           </p>
           <p className="text-sm text-slate-700">
-            Sharing lets anyone with the link open them, which is what a
-            teammate printing your test needs. Your own copies print either way.
+            Anyone with the link can open them, so teammates can print your
+            test.
           </p>
         </div>
       </Modal>
@@ -779,8 +778,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               </h2>
               <p className="mt-1 text-sm text-slate-600">
                 {printedBatch.sheetLayout === 'questions'
-                  ? 'The questions are printed on the sheets. Print the test paper too if any question was too long to fit beside its bubbles.'
-                  : 'Now print the test paper. Its choices are lettered to match these sheets, so hand out this copy rather than one written by hand — the import reads each bubble through that order.'}
+                  ? 'If a question was too long to fit beside its bubbles, print the test paper too.'
+                  : 'Now print the test paper and hand out that copy, because its choices are lettered to match these sheets.'}
               </p>
             </div>
           </div>
@@ -866,7 +865,6 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 </p>
                 <p className="mt-1 text-xs text-amber-800">
                   Only multiple-choice and true/false questions can be bubbled.
-                  These stay unscored unless students answer them in SpartBoard.
                 </p>
                 <ul className="mt-2 space-y-0.5 text-xs text-amber-800">
                   {analysis.exclusions.slice(0, 5).map((ex, i) => (
@@ -912,9 +910,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                     </p>
                     <p className="mt-0.5 text-xs text-slate-600">
                       {readDoc.questions.length} question
-                      {readDoc.questions.length === 1 ? '' : 's'} read. Results
-                      will name the question a student missed, not just its
-                      number.{readDoc.note ? ` ${readDoc.note}` : ''}
+                      {readDoc.questions.length === 1 ? '' : 's'} read.
+                      {readDoc.note ? ` ${readDoc.note}` : ''}
                     </p>
                   </div>
                   <button
@@ -953,27 +950,21 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 )}
               </div>
             ) : (
-              <div className="space-y-2">
-                <TestAndKeyUploader
-                  pickFromDrive={pickDocument}
-                  submitLabel="Read the test"
-                  busy={readingDoc}
-                  busyLabel="Reading the test…"
-                  onSubmit={(selection) => void readQuestionsFrom(selection)}
-                >
-                  {canUseAi && (
-                    <AiReaderToggle
-                      checked={useAi}
-                      onChange={setUseAi}
-                      disabled={readingDoc}
-                    />
-                  )}
-                </TestAndKeyUploader>
-                <p className="text-xs text-slate-500">
-                  The questions and answer choices come from your file. Students
-                  still answer on the bubble sheet.
-                </p>
-              </div>
+              <TestAndKeyUploader
+                pickFromDrive={pickDocument}
+                submitLabel="Read the test"
+                busy={readingDoc}
+                busyLabel="Reading the test…"
+                onSubmit={(selection) => void readQuestionsFrom(selection)}
+              >
+                {canUseAi && (
+                  <AiReaderToggle
+                    checked={useAi}
+                    onChange={setUseAi}
+                    disabled={readingDoc}
+                  />
+                )}
+              </TestAndKeyUploader>
             )}
           </div>
         )}
@@ -1033,11 +1024,10 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
 
         {analysis.shortRows.length > 0 && (
           <p className="text-xs text-slate-500">
-            Every row prints {choiceCount} bubbles. Question
-            {analysis.shortRows.length === 1 ? ' ' : 's '}
+            Question{analysis.shortRows.length === 1 ? ' ' : 's '}
             {analysis.shortRows.join(', ')}{' '}
-            {analysis.shortRows.length === 1 ? 'has' : 'have'} fewer choices —
-            tell students to leave the extra bubbles blank.
+            {analysis.shortRows.length === 1 ? 'has' : 'have'} fewer than{' '}
+            {choiceCount} choices, so students leave the extra bubbles blank.
           </p>
         )}
 
@@ -1048,8 +1038,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           <div className="mt-2 max-h-56 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-2">
             {rosters.length === 0 && (
               <p className="px-2 py-3 text-xs text-slate-500">
-                No classes yet — add a roster to print personalized sheets, or
-                print spares below.
+                No classes yet. Print spares below.
               </p>
             )}
             {rosters.map((roster) => {
@@ -1179,11 +1168,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm text-slate-700">Include question text</p>
-              <p className="text-xs text-slate-500">
-                {sheetStimuli.length > 0
-                  ? 'Not available while the sheet has images or templates on it.'
-                  : 'Prints each question with its choices listed underneath, each beside its own bubble. Fits 5 questions per page.'}
-              </p>
+              {sheetStimuli.length > 0 && (
+                <p className="text-xs text-slate-500">
+                  Not available while the sheet has images or templates on it.
+                </p>
+              )}
             </div>
             <Toggle
               checked={questionTextLayout}
@@ -1196,16 +1185,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         )}
 
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm text-slate-700">
-              Include an answer key sheet
-            </p>
-            <p className="text-xs text-slate-500">
-              {isStub
-                ? 'Bubble the correct answers on it — that sheet sets the key when you import the scan.'
-                : 'This quiz already has an answer key, so a key sheet is optional.'}
-            </p>
-          </div>
+          <p className="text-sm text-slate-700">Include an answer key sheet</p>
           <Toggle
             checked={includeKeySheet}
             onChange={setIncludeKeySheet}

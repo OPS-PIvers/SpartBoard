@@ -27,14 +27,14 @@ export interface QuizLanguagesPaneProps {
 }
 
 /** Empty-state card shared by both no-language and nothing-reviewed states. */
-const EmptyState: React.FC<{ title: string; body: string }> = ({
+const EmptyState: React.FC<{ title: string; body?: string }> = ({
   title,
   body,
 }) => (
   <div className="flex h-full flex-col items-center justify-center px-8 text-center text-slate-500">
     <Languages className="mb-3 h-8 w-8 text-slate-400" aria-hidden />
     <p className="text-sm font-bold text-slate-700">{title}</p>
-    <p className="mt-1 max-w-sm text-xs">{body}</p>
+    {body && <p className="mt-1 max-w-sm text-xs">{body}</p>}
   </div>
 );
 
@@ -145,7 +145,6 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                     {t('quizTranslation.editor.servedCount', {
                       reviewed: servedCount(language.code),
                       total: rows.length,
-                      language: language.nativeLabel,
                     })}
                   </span>
                 </button>
@@ -320,7 +319,6 @@ export const QuizLanguagesDetailPane: React.FC<QuizLanguagesPaneProps> = ({
     return (
       <EmptyState
         title={t('quizTranslation.editor.empty.pickQuestion.title')}
-        body={t('quizTranslation.editor.empty.pickQuestion.body')}
       />
     );
   }

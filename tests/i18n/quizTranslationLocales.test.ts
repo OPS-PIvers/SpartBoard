@@ -26,7 +26,6 @@ const REQUIRED_KEYS = [
   'editor.empty.noneReviewed.title',
   'editor.empty.noneReviewed.body',
   'editor.empty.pickQuestion.title',
-  'editor.empty.pickQuestion.body',
   'authoring.advisory.stimulusText_one',
   'authoring.advisory.stimulusText_other',
   'assign.generate',
@@ -79,7 +78,6 @@ describe('quizTranslation locale keys', () => {
       const served = lookup(bundle, 'editor.servedCount') as string;
       expect(served, name).toContain('{{reviewed}}');
       expect(served, name).toContain('{{total}}');
-      expect(served, name).toContain('{{language}}');
       for (const suffix of ['_one', '_other']) {
         const missing = lookup(
           bundle,

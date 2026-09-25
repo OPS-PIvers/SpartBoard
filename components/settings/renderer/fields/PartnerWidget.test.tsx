@@ -36,7 +36,6 @@ const field: PartnerWidgetField<string> = {
   key: 'autoRotate',
   label: 'autoRotate',
   partner: 'stations',
-  missingHelp: 'Add a Stations widget to rotate automatically.',
   control: { type: 'toggle', key: 'autoRotate', label: 'Auto-rotate' },
 };
 
@@ -80,10 +79,9 @@ describe('PartnerWidget', () => {
     expect(screen.getByRole('group', { name: 'Stations' })).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Auto-rotate' })).toBeEnabled();
     expect(screen.queryByRole('button')).toBeNull();
-    expect(screen.queryByText(field.missingHelp)).not.toBeInTheDocument();
   });
 
-  it('disables the control, explains, and adds the partner on tap while it is missing', () => {
+  it('disables the control and adds the partner on tap while it is missing', () => {
     const updateConfig = vi.fn();
     render(
       <FieldRenderer
@@ -96,7 +94,6 @@ describe('PartnerWidget', () => {
     const toggle = screen.getByRole('switch', { name: 'Auto-rotate' });
     expect(toggle).toBeDisabled();
     expect(toggle).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByText(field.missingHelp)).toBeInTheDocument();
     fireEvent.click(
       screen.getByRole('button', { name: 'Add Stations widget' })
     );

@@ -169,8 +169,8 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
       title={tab === 'archive' ? 'Nothing ended yet' : 'Nothing assigned yet'}
       subtitle={
         tab === 'archive'
-          ? 'Assignments you end show up here, so you can reopen or delete them.'
-          : 'Assign a set to a ClassLink class and it appears here until you end it.'
+          ? 'Assignments you end show up here.'
+          : 'Assign a set to a ClassLink class to see it here.'
       }
     />
   ) : (
@@ -269,6 +269,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
     <>
       <LibraryShell
         widgetLabel="Flashcards"
+        widgetType="flashcards"
         tab={tab}
         onTabChange={onTabChange}
         visibleTabs={['library', 'active', 'archive']}

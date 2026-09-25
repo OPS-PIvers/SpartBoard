@@ -277,6 +277,7 @@ export const FeatureConfigurationPanel: React.FC<
                           },
                         })
                       }
+                      title="Each teacher fetches weather directly. Uses more API calls."
                       className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
                         config.fetchingStrategy === 'client' ||
                         !config.fetchingStrategy
@@ -295,6 +296,7 @@ export const FeatureConfigurationPanel: React.FC<
                           },
                         })
                       }
+                      title="Fetched once for all teachers. Saves API calls."
                       className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
                         config.fetchingStrategy === 'admin_proxy'
                           ? 'bg-brand-blue-primary text-white shadow-sm'
@@ -304,13 +306,6 @@ export const FeatureConfigurationPanel: React.FC<
                       Admin Proxy
                     </button>
                   </div>
-                  <p className="text-xxs text-slate-400 mt-1">
-                    <strong>Client:</strong> Each user fetches data directly
-                    (higher API usage).
-                    <br />
-                    <strong>Admin Proxy:</strong> Admin fetches data, users sync
-                    from database (saves API calls).
-                  </p>
                 </div>
 
                 {config.fetchingStrategy === 'admin_proxy' && (
@@ -643,7 +638,7 @@ export const FeatureConfigurationPanel: React.FC<
             Global Mini App Library
           </p>
           <p className="text-xxs text-slate-400 max-w-[200px] mx-auto">
-            Settings and global apps are managed in the dedicated Library modal.
+            Managed in the Library.
           </p>
         </div>
       )}
@@ -700,12 +695,7 @@ export const FeatureConfigurationPanel: React.FC<
         ...Object.keys(BUILDING_CONFIG_PANELS),
       ].includes(tool.type) && (
         <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
-          <p className="text-sm font-bold text-slate-500 mb-2">
-            No global settings available for this widget.
-          </p>
-          <p className="text-xs text-slate-400">
-            All settings are controlled at the user widget settings level.
-          </p>
+          <p className="text-sm font-bold text-slate-500">No admin settings.</p>
         </div>
       )}
     </div>

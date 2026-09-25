@@ -80,14 +80,7 @@ export const SubjectsPanel: React.FC = () => {
         <div className="w-10 h-10 rounded-lg bg-brand-blue-lighter/40 text-brand-blue-primary flex items-center justify-center">
           <Library className="w-5 h-5" />
         </div>
-        <div>
-          <h2 className="text-lg font-bold text-slate-900">Content areas</h2>
-          <p className="text-xs text-slate-600">
-            Subjects teachers can mark as taught in their profile. Archived
-            subjects stay on existing profiles and targets but can no longer be
-            picked. Subjects with a standards catalog cannot be archived.
-          </p>
-        </div>
+        <h2 className="text-lg font-bold text-slate-900">Content areas</h2>
       </div>
 
       {loading ? (

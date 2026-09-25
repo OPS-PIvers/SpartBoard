@@ -131,7 +131,7 @@ export const ImportSharedCollectionModal: FC<
             <p className="text-sm text-amber-600">
               {t('importSharedCollection.substituteOnly', {
                 defaultValue:
-                  'This is a substitute (view-only) share. Open it in /subs.',
+                  'This link is for substitutes. Open it in the Substitute Portal.',
               })}
             </p>
           )}

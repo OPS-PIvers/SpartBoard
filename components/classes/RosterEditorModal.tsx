@@ -371,12 +371,6 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                       })}
                 </button>
               </div>
-              <p className="text-xs text-slate-400 italic">
-                {t('sidebar.classes.bulkPasteTip', {
-                  defaultValue:
-                    'Tip: paste multiple names at once to add in bulk.',
-                })}
-              </p>
             </div>
 
             {duplicatePins.size > 0 && (
@@ -397,7 +391,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                   })}
                   subtitle={t('sidebar.classes.emptyRosterSubtitle', {
                     defaultValue:
-                      'Click + Add Student or paste a list of names into a row.',
+                      'Paste a list of names to add several at once.',
                   })}
                   addLabel={t('sidebar.classes.addStudent', {
                     defaultValue: '+ Add Student',
@@ -984,8 +978,7 @@ const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
         <div className="p-3 flex flex-col gap-2">
           <p className="text-xs text-slate-500">
             {t('sidebar.classes.accommodationsHelp', {
-              defaultValue:
-                'These apply automatically each time you assign work to this student. You can still change them per assignment.',
+              defaultValue: 'These apply to every new assignment.',
             })}
           </p>
           {students.map((s) => {

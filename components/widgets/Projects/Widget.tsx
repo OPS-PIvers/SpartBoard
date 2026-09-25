@@ -44,13 +44,7 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
     updateWidget(widget.id, { config: { ...config, ...updates } });
 
   if (!enabled) {
-    return (
-      <ScaledEmptyState
-        icon={ClipboardList}
-        title="Projects is off"
-        subtitle="An admin turns this on under Rollouts."
-      />
-    );
+    return <ScaledEmptyState icon={ClipboardList} title="Projects is off" />;
   }
 
   // In a sub share the library is the substitute's own, and there is nothing in
@@ -167,7 +161,7 @@ const SetupGroupsHost: React.FC<{
     // A hand-built roster resolves no one, which is a tracker, not a failure.
     addToast(
       result.membersResolved === 0
-        ? `Added ${result.groupsWritten} groups as a tracker you move yourself — these students have no district account to sign in with.`
+        ? `Added ${result.groupsWritten} groups. These students have no sign-in, so you track them yourself.`
         : `Added ${result.groupsWritten} groups, ${result.membersResolved} students.`,
       result.membersResolved === 0 ? 'info' : 'success'
     );

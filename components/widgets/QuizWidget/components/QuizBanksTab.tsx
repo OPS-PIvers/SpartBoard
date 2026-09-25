@@ -49,7 +49,12 @@ export interface QuizBanksTabProps {
   plcs: readonly Plc[];
   shell: Pick<
     LibraryShellProps,
-    'tab' | 'onTabChange' | 'counts' | 'tabLabels' | 'widgetLabel'
+    | 'tab'
+    | 'onTabChange'
+    | 'counts'
+    | 'tabLabels'
+    | 'widgetLabel'
+    | 'widgetType'
   >;
   onNewBank: () => void;
   /** Opens the CSV / Google Sheet import wizard for a new bank. */

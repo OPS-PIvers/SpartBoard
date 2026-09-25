@@ -481,7 +481,7 @@ const DeleteFolderModal: React.FC<{
           >
             Delete folder and subfolders
             <span className="block text-xxs font-normal text-slate-500 mt-0.5">
-              Items inside are still preserved and re-homed to the parent.
+              Items inside move to the parent folder.
             </span>
           </button>
         </div>

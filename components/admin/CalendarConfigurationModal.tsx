@@ -382,8 +382,7 @@ export const CalendarConfigurationModal: React.FC<
                     <RefreshCw className="w-4 h-4" /> Managed Proxy Sync
                   </h3>
                   <p className="text-xxs text-blue-600/70 font-medium mt-1 uppercase tracking-wider">
-                    Pull events centrally so users don&apos;t need individual
-                    auth
+                    Sync once for all teachers
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -477,7 +476,7 @@ export const CalendarConfigurationModal: React.FC<
                     <Ban className="w-4 h-4" /> District Blocked Dates
                   </h3>
                   <p className="text-xxs text-red-600/70 font-medium mt-1 uppercase tracking-wider">
-                    Hidden from ALL teacher widgets district-wide
+                    Hidden district-wide
                   </p>
                 </div>
                 <button

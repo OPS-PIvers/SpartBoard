@@ -36,7 +36,7 @@ import {
   type SharedSource,
   useSharedSubscription,
 } from './useSharedSubscription';
-import { isAnswerCorrect } from './useGuidedLearningSession';
+import { dedupeStepsById, isAnswerCorrect } from './useGuidedLearningSession';
 import {
   GL_CONTENT_COLLECTION,
   GL_CONTENT_DOC,
@@ -480,12 +480,14 @@ export const useGuidedLearningAssignments = (
       // Index steps by id for O(1) grading lookups. `glData.steps` is the
       // canonical set loaded by the caller — `session.publicSteps` strips
       // answer keys for student safety, so we can't grade off the session.
+      // Dedupe first-wins (matches createSession) — last-wins can grade against a duplicate's differing correctAnswer.
+      const dedupedSteps = dedupeStepsById(glData.steps);
       const stepsById = new Map<string, GuidedLearningStep>();
-      for (const s of glData.steps) {
+      for (const s of dedupedSteps) {
         stepsById.set(s.id, s);
       }
       const gradableStepIds = new Set<string>();
-      for (const s of glData.steps) {
+      for (const s of dedupedSteps) {
         if (s.question) gradableStepIds.add(s.id);
       }
 
@@ -576,7 +578,8 @@ export const useGuidedLearningAssignments = (
       };
       if (visibility === 'score-responses-and-answers') {
         const revealedAnswers: Record<string, string> = {};
-        for (const s of glData.steps) {
+        // First-wins, matching the grading dedup above — the revealed answer must match what the student was graded against.
+        for (const s of dedupedSteps) {
           const formatted = formatCanonicalAnswer(s);
           if (formatted !== null) revealedAnswers[s.id] = formatted;
         }

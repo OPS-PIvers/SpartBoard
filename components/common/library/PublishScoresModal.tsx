@@ -190,9 +190,6 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
       }
     >
       <div className="px-5 pb-5 pt-4 space-y-3">
-        <p className="text-xs text-slate-600">
-          Choose what students will see on their Completed list:
-        </p>
         <div
           role="radiogroup"
           aria-label="Score visibility"
@@ -245,9 +242,6 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
                     <h3 className="font-bold text-slate-900 text-sm">
                       {opt.title}
                     </h3>
-                    <p className="mt-1 text-xs text-slate-600 leading-relaxed">
-                      {opt.body}
-                    </p>
                   </div>
                 </div>
               </button>
@@ -278,8 +272,7 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
                   Watermark
                 </span>
                 <span className="block text-xs text-slate-600 leading-relaxed">
-                  Overlay each result page with the student&apos;s name and the
-                  publish timestamp to discourage screenshots.
+                  Adds the student&apos;s name and publish time to each page.
                 </span>
               </span>
             </label>
@@ -296,8 +289,7 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
                   Tab-switch warning
                 </span>
                 <span className="block text-xs text-slate-600 leading-relaxed">
-                  Warn students when they leave the results tab; lock access
-                  after the threshold is reached.
+                  Locks the results after the set number of warnings.
                 </span>
               </span>
             </label>

@@ -628,7 +628,7 @@ export const VideoActivityAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
       open={showAiPrompt}
       onClose={() => setShowAiPrompt(false)}
       title="Draft with AI"
-      description="Gemini will watch the video and append questions to the current list."
+      description="Adds questions to the end of the list."
       generating={aiGenerating}
       canGenerate={!!youtubeUrl.trim() && aiTotalCount > 0}
       onGenerate={() => void runAiGenerate()}
@@ -907,8 +907,7 @@ const MaSubForm: React.FC<MaSubFormProps> = ({ question, onUpdate }) => {
         </div>
         {hasPipeInOption && (
           <p className="text-xxs text-amber-600 font-medium pl-9">
-            Option text contains a pipe (<code>|</code>) character, which is
-            reserved as the wire format separator. Replace it before saving.
+            Remove the <code>|</code> character from this option before saving.
           </p>
         )}
       </div>

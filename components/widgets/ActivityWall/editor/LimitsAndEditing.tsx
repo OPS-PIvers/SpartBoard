@@ -98,16 +98,15 @@ export const LimitsAndEditing: React.FC<LimitsAndEditingProps> = ({
 
       <ToggleRow
         label="Students may edit their posts"
-        hint="Only while the wall is open."
         checked={allowStudentEdit}
         onChange={(next) => onChange({ allowStudentEdit: next })}
       />
       <ToggleRow
         label="Students may delete their posts"
-        hint="Only while the wall is open."
         checked={allowStudentDelete}
         onChange={(next) => onChange({ allowStudentDelete: next })}
       />
+      <p className="text-xs text-slate-600">Only while the wall is open.</p>
     </div>
   );
 };

@@ -280,8 +280,7 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
           </p>
           <p className="mt-1 text-xs text-slate-500">
             {t('plcDashboard.bankLibrary.emptyHint', {
-              defaultValue:
-                'Share a bank from your quiz library so teammates can draw tagged questions into their own quizzes.',
+              defaultValue: 'Share one from your quiz library.',
             })}
           </p>
         </div>
@@ -410,9 +409,6 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
             defaultValue: 'Share a question bank with this PLC',
           })}
           subtitle={plc.name}
-          prompt={t('plcDashboard.bankLibrary.sharePickerPrompt', {
-            defaultValue: 'Pick a bank from your quiz library.',
-          })}
           emptyMessage={t('plcDashboard.bankLibrary.sharePickerEmpty', {
             defaultValue:
               'You don’t have any question banks yet. Build one in the Quiz widget’s Banks tab.',

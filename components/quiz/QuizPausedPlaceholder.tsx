@@ -31,10 +31,7 @@ export const QuizPausedPlaceholder: React.FC<QuizPausedPlaceholderProps> = ({
         ? session.pauseMessage
         : 'Your answers are saved.'}
     </p>
-    <p className="text-white/60 text-sm mb-8 max-w-sm">
-      {session.quizTitle} will pick up where you left off when your teacher
-      opens it again. Keep this tab open — your place is held.
-    </p>
+    <p className="text-white/60 text-sm mb-8 max-w-sm">Keep this tab open.</p>
     {pin && (
       <p className="text-brand-blue-lighter text-sm">
         Joined as PIN{' '}

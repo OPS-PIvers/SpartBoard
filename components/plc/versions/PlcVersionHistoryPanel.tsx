@@ -160,7 +160,7 @@ export const PlcVersionHistoryPanel: React.FC<PlcVersionHistoryPanelProps> = ({
           addToast(
             t('plcDashboard.versions.conflict', {
               defaultValue:
-                'Another teacher just published an update. We reloaded the version history — review it and try the restore again.',
+                'Another teacher just published an update. Review the reloaded history and try the restore again.',
             }),
             'warning'
           );
@@ -255,7 +255,7 @@ export const PlcVersionHistoryPanel: React.FC<PlcVersionHistoryPanelProps> = ({
         <p className="text-xs text-slate-600 mb-3">
           {t('plcDashboard.versions.intro', {
             defaultValue:
-              'Recent saved versions of this shared assessment. Restoring re-publishes that version to everyone — the current version is kept in history too.',
+              'Restoring updates everyone’s copy. The current version stays in history.',
           })}
         </p>
 

@@ -1874,9 +1874,7 @@ export const AnalyticsManager: React.FC = () => {
           <div>
             <h3 className="font-semibold mb-0.5">Partial data</h3>
             <p className="text-sm">
-              Some user data couldn&apos;t be loaded during the last compute.
-              Counts may be lower than actual. The next scheduled refresh should
-              clear this.
+              Some user data didn&apos;t load. Counts may be low.
             </p>
           </div>
         </div>

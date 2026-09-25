@@ -19,7 +19,7 @@
 
 import type React from 'react';
 import type { LucideIcon } from 'lucide-react';
-import type { ClassRoster } from '@/types';
+import type { ClassRoster, WidgetType } from '@/types';
 import type { UploadedDocument } from '@/utils/quizDocumentImport/uploadIntake';
 
 /* ─── Shared enums / tokens ───────────────────────────────────────────────── */
@@ -241,6 +241,8 @@ export interface LibraryShellProps {
   onFolderPanelModeChange?: (mode: LibraryFolderPanelSetting) => void;
   /** Tab-specific content. Consumer decides what to render per tab. */
   children: React.ReactNode;
+  /** Tints the header in this widget's colour and puts its dock icon on the Library tab. */
+  widgetType?: WidgetType;
 }
 
 /* ─── LibraryToolbar (search / sort / filter / view-mode) ─────────────────── */
@@ -475,7 +477,7 @@ export interface AssignmentArchiveCardProps<TAssignment> {
 export interface AssignModeOption {
   id: string;
   label: string;
-  description: string;
+  description?: string;
   icon?: React.ComponentType<{
     size?: number;
     className?: string;

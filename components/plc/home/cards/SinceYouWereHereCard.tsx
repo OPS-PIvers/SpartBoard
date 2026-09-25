@@ -94,11 +94,6 @@ export const SinceYouWereHereCard: React.FC<SinceYouWereHereCardProps> = ({
       <div className="flex-1 px-4 pb-4">
         {hasSince ? (
           <>
-            <p className="px-3 pb-1 text-xs text-slate-400">
-              {t('plcDashboard.activity.sinceSubtitle', {
-                defaultValue: 'What happened while you were away',
-              })}
-            </p>
             <ul
               className="space-y-0.5"
               aria-label={t('plcDashboard.activity.sinceLastVisit', {
@@ -123,11 +118,6 @@ export const SinceYouWereHereCard: React.FC<SinceYouWereHereCardProps> = ({
             <p className="text-sm font-semibold text-slate-500">
               {t('plcDashboard.activity.caughtUp', {
                 defaultValue: 'You’re all caught up',
-              })}
-            </p>
-            <p className="text-xs text-slate-400 mt-1">
-              {t('plcDashboard.activity.caughtUpSubtitle', {
-                defaultValue: 'No new activity since your last visit.',
               })}
             </p>
           </div>

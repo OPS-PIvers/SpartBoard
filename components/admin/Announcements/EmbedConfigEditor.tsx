@@ -285,18 +285,12 @@ export const EmbedConfigEditor: React.FC<{
               </button>
             </div>
           )}
-          <p className="text-xs text-slate-500">
-            Paste any YouTube, Google Drive, Docs, Slides, Sheets, or Forms link
-            — it will be converted automatically.
-          </p>
           {isDriveUrl && (
             <div className="flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
               <Info className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
               <p className="text-xs text-amber-800">
-                For Drive videos, set sharing to{' '}
-                <strong>&quot;Anyone with the link can view&quot;</strong>.
-                Otherwise teachers may see a blank loader due to browser
-                third-party cookie restrictions.
+                Set Drive sharing to{' '}
+                <strong>&quot;Anyone with the link&quot;</strong>.
               </p>
             </div>
           )}
@@ -328,10 +322,6 @@ export const EmbedConfigEditor: React.FC<{
                 />
                 <span className="text-xs text-slate-500">sec</span>
               </div>
-              <p className="text-xs text-slate-500">
-                The video will begin at this offset. Only YouTube videos support
-                a start time — Drive videos will ignore it.
-              </p>
             </div>
           )}
         </div>
@@ -394,10 +384,6 @@ export const EmbedConfigEditor: React.FC<{
       {/* Record tab */}
       {activeTab === 'record' && (
         <div className="space-y-3">
-          <p className="text-xs text-slate-600">
-            Record your screen or a browser tab, then upload directly to Google
-            Drive. Students will see the video inside the announcement.
-          </p>
           {!driveService && (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
               Sign in with Google to enable recording uploads.
@@ -438,7 +424,7 @@ export const EmbedConfigEditor: React.FC<{
             {recordingUploadState === 'done' && (
               <div className="flex items-center gap-2 text-sm text-emerald-700 font-semibold">
                 <Check className="w-4 h-4" />
-                Recording saved — video is ready in the embed!
+                Recording saved to the embed.
               </div>
             )}
             {recordingUploadState === 'error' && (
@@ -463,21 +449,11 @@ export const EmbedConfigEditor: React.FC<{
       {/* Live Meeting tab */}
       {activeTab === 'live' && (
         <div className="space-y-3">
-          <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <Tv className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
-            <p className="text-xs text-blue-800">
-              Stream live from <strong>Google Meet</strong> using your Google
-              Workspace for Education Plus account. The live feed appears inside
-              the announcement window — no third-party tools required.
-            </p>
-          </div>
-
-          {/* Step-by-step instructions */}
-          <div className="space-y-1.5">
-            <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
+          <details>
+            <summary className="cursor-pointer text-xs font-semibold text-slate-700 uppercase tracking-wide">
               How to start a live stream
-            </p>
-            <ol className="space-y-1.5">
+            </summary>
+            <ol className="space-y-1.5 mt-1.5">
               {[
                 'Open Google Meet and start your meeting.',
                 <>
@@ -499,7 +475,7 @@ export const EmbedConfigEditor: React.FC<{
                 </li>
               ))}
             </ol>
-          </div>
+          </details>
 
           {/* URL input */}
           <div className="space-y-2">
@@ -514,11 +490,6 @@ export const EmbedConfigEditor: React.FC<{
               placeholder="https://www.youtube.com/live/…"
               className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
             />
-            {wasConverted && (
-              <p className="text-xs text-emerald-600">
-                ✓ Converted to embed URL automatically
-              </p>
-            )}
           </div>
 
           <p className="text-xs text-slate-400">
@@ -547,11 +518,7 @@ export const EmbedConfigEditor: React.FC<{
           <div className="text-sm font-medium text-slate-700">
             Auto-play video
           </div>
-          <div className="text-xs text-slate-500">
-            YouTube videos will play automatically when this announcement
-            activates. Google Drive videos require a click to play — Drive
-            doesn&apos;t support autoplay in embedded iframes.
-          </div>
+          <div className="text-xs text-slate-500">YouTube only.</div>
         </div>
       </div>
     </div>

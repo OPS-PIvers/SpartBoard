@@ -341,17 +341,11 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
         <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
           <ClipboardList className="w-7 h-7 text-slate-400" />
         </div>
-        <h3 className="text-lg font-bold text-slate-700 mb-2">
+        <h3 className="text-lg font-bold text-slate-700">
           {t('plcDashboard.assignmentsInProgress.emptyTitle', {
             defaultValue: 'No assignments in progress',
           })}
         </h3>
-        <p className="text-sm text-slate-500 max-w-md leading-relaxed">
-          {t('plcDashboard.assignmentsInProgress.emptySubtitle', {
-            defaultValue:
-              'When you or a teammate starts a PLC-mode assignment, it shows up here. Pause or stop it from your board and the row updates live.',
-          })}
-        </p>
       </div>
     );
   }

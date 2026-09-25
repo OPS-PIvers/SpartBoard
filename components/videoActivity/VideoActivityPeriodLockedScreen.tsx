@@ -57,7 +57,7 @@ export const VideoActivityPeriodLockedScreen: React.FC<
           </h1>
           <p className="text-slate-600 text-sm">
             {started
-              ? 'Your teacher paused this for your class. Your answers are saved. Keep this tab open to pick up where you left off.'
+              ? 'Your answers are saved. Keep this tab open.'
               : 'Keep this tab open. The video appears here as soon as your class is let in.'}
           </p>
         </div>
@@ -77,8 +77,7 @@ export const VideoActivityPeriodPausedOverlay: React.FC = () => (
       Paused for your class
     </h2>
     <p className="text-slate-200 text-sm max-w-sm">
-      Your teacher paused this for your class. Your answers are saved. It picks
-      up where you left off when your class opens again.
+      Your answers are saved. It resumes when your class opens again.
     </p>
   </div>
 );

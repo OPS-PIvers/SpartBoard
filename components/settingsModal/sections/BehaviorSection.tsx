@@ -25,10 +25,6 @@ export const BehaviorSection: React.FC = () => {
       <SettingsSectionHeader
         icon={<SlidersHorizontal className="w-4 h-4" />}
         title={t('sidebar.nav.preferences', { defaultValue: 'Behavior' })}
-        description={t('sidebar.settings.preferencesDescription', {
-          defaultValue:
-            'Customize how your boards behave. These settings apply to your account across all boards.',
-        })}
         scopeLabel={t('settings.scopeAllBoards', {
           defaultValue: 'All boards',
         })}
@@ -57,12 +53,6 @@ export const BehaviorSection: React.FC = () => {
                 }
               />
             </div>
-            <p className="text-xxs text-slate-500 mt-1 leading-relaxed pr-2">
-              {t('sidebar.settings.skipConfirmation', {
-                defaultValue:
-                  'Skip the confirmation dialog when closing widgets.',
-              })}
-            </p>
           </div>
         </Card>
 
@@ -88,26 +78,8 @@ export const BehaviorSection: React.FC = () => {
                 }
               />
             </div>
-            <p className="text-xxs text-slate-500 mt-1 leading-relaxed pr-2">
-              {t('sidebar.settings.remoteControlDescription', {
-                defaultValue:
-                  'Allow controlling your boards remotely from another device.',
-              })}
-            </p>
           </div>
         </Card>
-      </div>
-
-      <div className="px-3 py-3 bg-brand-blue-lighter/30 rounded-xl border border-brand-blue-lighter">
-        <p className="text-xxs text-brand-blue-primary leading-relaxed">
-          <span className="font-bold">
-            {t('sidebar.settings.tip', { defaultValue: 'Tip:' })}
-          </span>{' '}
-          {t('sidebar.settings.preferencesTip', {
-            defaultValue:
-              'These preferences are saved to your account and apply to all your boards.',
-          })}
-        </p>
       </div>
     </div>
   );

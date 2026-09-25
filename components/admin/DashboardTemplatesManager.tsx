@@ -265,16 +265,9 @@ export const DashboardTemplatesManager: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-slate-800">
-            Dashboard Templates
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Manage templates available to users in the Boards sidebar. Use the
-            &ldquo;Save as Template&rdquo; button on any board card to capture a
-            board&apos;s layout.
-          </p>
-        </div>
+        <h2 className="text-lg font-bold text-slate-800">
+          Dashboard Templates
+        </h2>
         <button
           onClick={() => setShowForm((v) => !v)}
           className="flex items-center gap-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl font-bold text-sm hover:bg-brand-blue-dark transition-colors shrink-0"
@@ -291,11 +284,6 @@ export const DashboardTemplatesManager: React.FC = () => {
             <LayoutTemplate className="w-4 h-4 text-brand-blue-primary" />
             Create Empty Template Shell
           </h3>
-          <p className="text-xs text-slate-500">
-            Creates a template with no widgets. Use the &ldquo;Save as
-            Template&rdquo; button on a board card to populate it with a real
-            board layout.
-          </p>
 
           <div className="space-y-1">
             <label className="text-xxs font-bold text-slate-500 uppercase tracking-widest">
@@ -359,7 +347,7 @@ export const DashboardTemplatesManager: React.FC = () => {
         </div>
       ) : errored ? (
         <p className="text-sm text-rose-300/80 italic mb-3">
-          Couldn&apos;t load templates — refresh to retry.
+          Couldn&apos;t load templates. Refresh to try again.
         </p>
       ) : templates.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-3">

@@ -2255,7 +2255,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       tabIndex={0}
       data-widget-id={widget.id}
       data-draggable-window=""
-      {...tourAttr('widget.window', widget.id)}
+      {...tourAttr('widget.window', widget.id, widget.type)}
       onPointerDown={handlePointerDown}
       onClick={handleWidgetClick}
       onKeyDown={handleKeyDown}
@@ -2897,7 +2897,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     : t('widgetWindow.settings')
                 }
                 data-settings-opener={widget.id}
-                {...tourAttr('widget.settings-opener', widget.id)}
+                {...tourAttr('widget.settings-opener', widget.id, widget.type)}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (isLocked) return;
@@ -2964,7 +2964,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             <IconButton
               icon={<MoreVertical className="w-6 h-6" />}
               label={t('widgetWindow.moreActions')}
-              {...tourAttr('widget.more-actions', widget.id)}
+              {...tourAttr('widget.more-actions', widget.id, widget.type)}
               onClick={(e) => {
                 e.stopPropagation();
                 if (!showMaxMenu)
@@ -2981,7 +2981,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             <IconButton
               icon={<Minimize2 className="w-6 h-6" />}
               label={t('widgetWindow.restore')}
-              {...tourAttr('widget.restore', widget.id)}
+              {...tourAttr('widget.restore', widget.id, widget.type)}
               onClick={(e) => {
                 e.stopPropagation();
                 handleMaximizeToggle();
@@ -3035,7 +3035,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           <div
             ref={menuRef}
             data-settings-exclude
-            {...tourAttr('widget.toolbar', widget.id)}
+            {...tourAttr('widget.toolbar', widget.id, widget.type)}
             style={menuStyle}
             className={`flex items-center gap-1.5 p-1.5 bg-white/40 backdrop-blur-xl rounded-full border border-white/50 shadow-2xl font-${globalStyle.fontFamily}`}
             onClick={(e) => e.stopPropagation()}
@@ -3071,7 +3071,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 <div className="flex items-center gap-1">
                   <div
                     className="flex items-center gap-2 group/title cursor-text px-2"
-                    {...tourAttr('widget.title', widget.id)}
+                    {...tourAttr('widget.title', widget.id, widget.type)}
                     onClick={() => {
                       if (isLocked) return;
                       setTempTitle(widget.customTitle ?? title);
@@ -3086,7 +3086,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   <div className="flex items-center gap-1 -mr-1">
                     <IconButton
                       data-settings-opener={widget.id}
-                      {...tourAttr('widget.settings-opener', widget.id)}
+                      {...tourAttr(
+                        'widget.settings-opener',
+                        widget.id,
+                        widget.type
+                      )}
                       onClick={() => {
                         if (isLocked) return;
                         if (!widget.flipped)
@@ -3128,7 +3132,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     handleCloseTools();
                   }}
                   icon={<Pin className="w-3.5 h-3.5" />}
-                  {...tourAttr('widget.pin', widget.id)}
+                  {...tourAttr('widget.pin', widget.id, widget.type)}
                   label={
                     isPinned
                       ? `${t('widgetWindow.unpin')} (Alt+P)`
@@ -3190,7 +3194,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   }}
                   icon={<Highlighter className="w-3.5 h-3.5" />}
                   label={`${t('widgetWindow.annotate')} (Alt+D)`}
-                  {...tourAttr('widget.annotate', widget.id)}
+                  {...tourAttr('widget.annotate', widget.id, widget.type)}
                   size="sm"
                   variant="glass"
                   active={isAnnotating}
@@ -3208,7 +3212,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   }}
                   icon={<Copy className="w-3.5 h-3.5" />}
                   label={t('widgetWindow.duplicate')}
-                  {...tourAttr('widget.duplicate', widget.id)}
+                  {...tourAttr('widget.duplicate', widget.id, widget.type)}
                   size="sm"
                   variant="glass"
                   disabled={isLocked}
@@ -3253,7 +3257,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     }}
                     icon={<LayoutTemplate className="w-3.5 h-3.5" />}
                     label={t('widgetWindow.snapLayout')}
-                    {...tourAttr('widget.snap-layout', widget.id)}
+                    {...tourAttr('widget.snap-layout', widget.id, widget.type)}
                     size="sm"
                     variant="glass"
                     active={showSnapMenu}
@@ -3473,7 +3477,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     }}
                     icon={<X className="w-3.5 h-3.5" />}
                     label={t('widgetWindow.close')}
-                    {...tourAttr('widget.close', widget.id)}
+                    {...tourAttr('widget.close', widget.id, widget.type)}
                     size="sm"
                     variant="danger"
                     className="hover:!bg-red-500/20"

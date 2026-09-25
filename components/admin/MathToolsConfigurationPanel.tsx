@@ -81,15 +81,9 @@ export const MathToolsConfigurationPanel: React.FC<
     <div className="space-y-6">
       {/* Header */}
       <div className="p-4 bg-purple-50 border border-purple-100 rounded-2xl">
-        <h3 className="text-xs font-black text-purple-900 uppercase tracking-wider mb-1">
+        <h3 className="text-xs font-black text-purple-900 uppercase tracking-wider">
           Per-Tool Grade Level Control
         </h3>
-        <p className="text-xxs text-purple-700 leading-relaxed">
-          Configure which grade band each individual math manipulative is
-          visible to in the Math Tools palette. Teachers will only see tools
-          enabled for their selected grade level. Changes apply immediately
-          after saving.
-        </p>
       </div>
 
       {/* Global DPI */}
@@ -97,10 +91,7 @@ export const MathToolsConfigurationPanel: React.FC<
         <SettingsLabel htmlFor={dpiCalibrationId}>
           Building-Wide DPI Calibration (px / inch)
         </SettingsLabel>
-        <p className="text-xxs text-slate-400">
-          CSS 1 in = 96 px (default). Override for IFPs with non-standard pixel
-          density. Teachers can still fine-tune per widget.
-        </p>
+        <p className="text-xxs text-slate-400">Default 96.</p>
         <div className="flex items-center gap-2">
           <input
             id={dpiCalibrationId}

@@ -9,11 +9,11 @@ interface SubmissionTypesTogglesProps {
   onChange: (value: AllowedTypes) => void;
 }
 
-const TYPE_ROWS: { key: keyof AllowedTypes; label: string; hint: string }[] = [
-  { key: 'photo', label: 'Photo', hint: 'Camera roll or a photo they take.' },
-  { key: 'link', label: 'Link', hint: 'A web address with a preview card.' },
+const TYPE_ROWS: { key: keyof AllowedTypes; label: string; hint?: string }[] = [
+  { key: 'photo', label: 'Photo' },
+  { key: 'link', label: 'Link' },
   { key: 'file', label: 'File', hint: 'PDF or an Office document.' },
-  { key: 'video', label: 'Video', hint: 'A video file up to 200 MB.' },
+  { key: 'video', label: 'Video', hint: 'Up to 200 MB.' },
 ];
 
 /** Per-wall submission kinds. Text is always on and is not a toggle. */
@@ -22,9 +22,7 @@ export const SubmissionTypesToggles: React.FC<SubmissionTypesTogglesProps> = ({
   onChange,
 }) => (
   <div className="space-y-2">
-    <p className="text-xs text-slate-600">
-      Text is always allowed. Turn on anything else students may add.
-    </p>
+    <p className="text-xs text-slate-600">Text is always on.</p>
     {TYPE_ROWS.map((row) => (
       <ToggleRow
         key={row.key}

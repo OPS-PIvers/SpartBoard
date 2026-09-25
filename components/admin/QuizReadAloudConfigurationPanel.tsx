@@ -218,15 +218,7 @@ export const QuizReadAloudConfigurationPanel: React.FC<
         <div className="w-10 h-10 rounded-lg bg-brand-blue-lighter/40 text-brand-blue-primary flex items-center justify-center">
           <Volume2 className="w-5 h-5" />
         </div>
-        <div>
-          <h2 className="text-lg font-bold text-slate-900">Quiz languages</h2>
-          <p className="text-xs text-slate-600">
-            Voices used when a quiz is read aloud to signed-in students, and the
-            languages teachers may translate a quiz into. The Standard voice
-            takes over once the month&apos;s premium (Neural2 or WaveNet)
-            characters reach the cap.
-          </p>
-        </div>
+        <h2 className="text-lg font-bold text-slate-900">Quiz languages</h2>
       </div>
 
       {!seeded ? (

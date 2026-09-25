@@ -17,7 +17,6 @@ export default defineSettings<SoundConfig>({
           type: 'partnerWidget',
           label: 'syncExpectations',
           partner: 'expectations',
-          missingHelp: 'addExpectationsHelp',
           control: {
             key: 'syncExpectations',
             type: 'toggle',
@@ -38,7 +37,6 @@ export default defineSettings<SoundConfig>({
           type: 'partnerWidget',
           label: 'autoTrafficLight',
           partner: 'traffic',
-          missingHelp: 'addTrafficHelp',
           control: {
             key: 'autoTrafficLight',
             type: 'toggle',

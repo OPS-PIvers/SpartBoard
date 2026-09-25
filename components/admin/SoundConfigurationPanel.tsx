@@ -76,13 +76,6 @@ export const SoundConfigurationPanel: React.FC<
       </div>
 
       <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-4">
-        <p className="text-xxs text-slate-500 leading-tight">
-          These defaults will pre-configure the Sound Meter widget when a
-          teacher in{' '}
-          <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
-          it to their dashboard.
-        </p>
-
         {/* Default Visual Style */}
         <div>
           <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block">
@@ -121,8 +114,7 @@ export const SoundConfigurationPanel: React.FC<
             Default Sensitivity ({sensitivity.toFixed(1)}x)
           </label>
           <p className="text-xxs text-slate-400 mb-2 leading-tight">
-            Calibrate to match the acoustic environment of each building&apos;s
-            issued devices. Higher = more sensitive to quieter sounds.
+            Higher picks up quieter sounds.
           </p>
           <input
             type="range"

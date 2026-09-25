@@ -510,10 +510,7 @@ export const CatalystConfigurationModal: React.FC<
                 />
               )}
               <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-500">
-                  Catalyst allows up to 4 sets of routines. Select a set to edit
-                  its title, image, and manage the routines inside it.
-                </p>
+                <p className="text-sm text-slate-500">Up to 4 sets.</p>
                 {sets.length < 4 && (
                   <button
                     onClick={openNewSetEditor}

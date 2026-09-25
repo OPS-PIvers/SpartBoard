@@ -39,6 +39,6 @@ describe('assertGuidedLearningDocFits', () => {
     ).toThrow(SetTooLargeError);
     expect(() =>
       assertGuidedLearningDocFits('building_guided_learning/s1', big)
-    ).toThrow('This set is too large to save — split it or remove slides.');
+    ).toThrow(/too large to save/);
   });
 });

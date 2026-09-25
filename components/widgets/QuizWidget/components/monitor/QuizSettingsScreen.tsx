@@ -12,7 +12,7 @@ interface QuizSettingsScreenProps {
 
 const SettingRow: React.FC<{
   label: string;
-  description: string;
+  description?: string;
   on: boolean;
   onToggle: () => void;
 }> = ({ label, description, on, onToggle }) => (
@@ -30,12 +30,14 @@ const SettingRow: React.FC<{
       >
         {label}
       </p>
-      <p
-        className="text-brand-gray-primary"
-        style={{ fontSize: 'min(11px, 3.8cqmin)' }}
-      >
-        {description}
-      </p>
+      {description && (
+        <p
+          className="text-brand-gray-primary"
+          style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+        >
+          {description}
+        </p>
+      )}
     </div>
     <button
       role="switch"
@@ -74,7 +76,7 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
   <div className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
     <SettingRow
       label="Board view"
-      description="Show only counts for raised hands and idle students. Turn off to see names when the board isn't projected."
+      description="Hides student names."
       on={config.monitorBoardView ?? true}
       onToggle={() =>
         onUpdateConfig({
@@ -84,7 +86,6 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
     />
     <SettingRow
       label="Tab warnings"
-      description="Flag students who leave the quiz tab."
       on={session.tabWarningsEnabled !== false}
       onToggle={() =>
         onUpdateSession({
@@ -94,7 +95,6 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
     />
     <SettingRow
       label="Podium between questions"
-      description="Show a leaderboard podium during review."
       on={session.showPodiumBetweenQuestions ?? false}
       onToggle={() =>
         onUpdateSession({
@@ -106,7 +106,6 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
     />
     <SettingRow
       label="Answer reveal on board"
-      description="Allow revealing the correct answer to the class."
       on={session.showCorrectOnBoard ?? false}
       onToggle={() =>
         onUpdateSession({
@@ -118,7 +117,6 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
       <>
         <SettingRow
           label="Sync to scoreboard widget"
-          description="Publish live scores to a board scoreboard."
           on={config.liveScoreboardEnabled ?? false}
           onToggle={() =>
             onUpdateConfig(

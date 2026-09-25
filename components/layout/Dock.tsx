@@ -92,6 +92,10 @@ import {
   isDockItemVisible as isDockItemVisibleHelper,
 } from './dock/folderPermissions';
 import { tourAttr } from '@/config/tourAnchors';
+import {
+  TOUR_DOCK_EVENT,
+  type TourDockRequest,
+} from '@/components/tours/tourPrerequisites';
 
 export const Dock: React.FC = () => {
   const { t } = useTranslation();
@@ -346,6 +350,13 @@ export const Dock: React.FC = () => {
 
   const { session } = useLiveSession(user?.uid, 'teacher');
   const [isExpanded, setIsExpanded] = useState(false);
+  // A live tour opens the dock for a step and closes it again on teardown.
+  useEffect(() => {
+    const onTourDock = (e: Event) =>
+      setIsExpanded((e as CustomEvent<TourDockRequest>).detail.expanded);
+    window.addEventListener(TOUR_DOCK_EVENT, onTourDock);
+    return () => window.removeEventListener(TOUR_DOCK_EVENT, onTourDock);
+  }, []);
   const [showRosterMenu, setShowRosterMenu] = useState(false);
   const [showRemoteMenu, setShowRemoteMenu] = useState(false);
   const [showLiveInfo, setShowLiveInfo] = useState(false);
@@ -835,6 +846,8 @@ export const Dock: React.FC = () => {
       data-role="dock"
       data-testid="dock"
       data-screenshot="exclude"
+      data-tour-obstacle=""
+      data-dock-expanded={isExpanded ? 'true' : 'false'}
       // inert (not aria-disabled on a div) so the faded dock is unreachable by
       // keyboard too while the pen owns the pointer.
       inert={inkingOwnsPointer}
@@ -1470,9 +1483,6 @@ export const Dock: React.FC = () => {
                         </div>
                         <div className="text-xxs text-slate-600 bg-white/50 px-2 py-1 rounded border border-white/30">
                           {getJoinUrl()}
-                        </div>
-                        <div className="text-xxs text-slate-500 mt-2">
-                          {t('dock.provideCode')}
                         </div>
                       </div>
                       <div className="p-2 border-t border-white/30">

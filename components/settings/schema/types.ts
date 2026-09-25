@@ -227,8 +227,6 @@ export type PartnerWidgetField<K extends string> = FieldBase<K> & {
   type: 'partnerWidget';
   partner: WidgetType;
   control: RowField<K> | CustomField<K>;
-  /** Explanation shown (with the add button) while the partner is missing. */
-  missingHelp: string;
 };
 
 export type Field<K extends string = string, Row = Record<string, unknown>> =

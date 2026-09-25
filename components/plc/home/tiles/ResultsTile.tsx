@@ -154,22 +154,13 @@ const FallbackHint: React.FC<{
   if (rollup.mode === 'targets' || rollup.mode === 'empty') return null;
   return (
     <p className="mt-2 text-xs text-slate-500">
-      {rollup.mode === 'standards'
-        ? t('plcDashboard.home.results.hintStandards', {
-            defaultValue:
-              'Showing standards. Tag questions with learning targets to see them here.',
-          })
-        : t('plcDashboard.home.results.hintQuestions', {
-            defaultValue:
-              'Showing the hardest questions. Tag questions with learning targets to track mastery.',
-          })}{' '}
       <button
         type="button"
         onClick={onOpenTargets}
         className="font-semibold text-brand-blue-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 rounded"
       >
         {t('plcDashboard.home.results.openTargets', {
-          defaultValue: 'Learning Targets',
+          defaultValue: 'Tag questions with learning targets',
         })}
       </button>
     </p>
@@ -235,11 +226,10 @@ const RollupView: React.FC<{
         {hero
           ? rollup.mode === 'targets'
             ? t('plcDashboard.home.results.allTargets', {
-                defaultValue:
-                  'Every learning target this school year, weakest first',
+                defaultValue: 'This year, weakest first',
               })
             : t('plcDashboard.home.results.allStandards', {
-                defaultValue: 'Every standard this school year, weakest first',
+                defaultValue: 'This year, weakest first',
               })
           : rollup.mode === 'targets'
             ? t('plcDashboard.home.results.weakestTargets', {

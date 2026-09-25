@@ -28,8 +28,7 @@ export const JoinCodeScreen: React.FC<{ session: QuizSession }> = ({
           padding: 'min(16px, 4cqmin)',
         }}
       >
-        This session has no join code — students join through their assignments
-        page.
+        No join code. Students join from their assignments.
       </p>
     );
   }

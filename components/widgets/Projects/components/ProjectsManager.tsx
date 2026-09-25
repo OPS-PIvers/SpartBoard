@@ -657,6 +657,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
   const shell = (
     <LibraryShell
       widgetLabel="Projects"
+      widgetType="projects"
       tab={tab}
       onTabChange={setTab}
       counts={{
@@ -801,7 +802,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
                   }
                   subtitle={
                     libraryProjects.length === 0
-                      ? 'Click "New project" to lay out the steps your groups will work through.'
+                      ? 'Click "New project" to start one.'
                       : 'Try a different search, folder, or filter.'
                   }
                 />

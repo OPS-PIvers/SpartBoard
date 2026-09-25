@@ -350,8 +350,8 @@ const EditModal: React.FC<EditModalProps> = ({ link, onClose, onSaved }) => {
         </div>
 
         <p className="text-xs text-slate-500">
-          The slug <code className="font-mono">{link.code}</code> can&apos;t be
-          changed — editing it would break any URL already shared.
+          The short code <code className="font-mono">{link.code}</code>{' '}
+          can&apos;t be changed.
         </p>
 
         {error && (
@@ -469,8 +469,7 @@ export const LinkShortenerManager: React.FC = () => {
           <h2 className="text-lg font-bold text-slate-800">Link Shortener</h2>
         </div>
         <p className="text-sm text-slate-600">
-          Paste a long URL to get a short, copyable link on this domain. Edit
-          the destination later without changing the short URL.
+          You can change the destination later.
         </p>
       </div>
 

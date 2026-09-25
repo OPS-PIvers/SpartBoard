@@ -226,8 +226,7 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
         </p>
         <p className="text-sm text-slate-500 max-w-md">
           {t('plcDashboard.assignmentSession.notFoundBody', {
-            defaultValue:
-              'This assignment is no longer in your archive — it may have been deleted.',
+            defaultValue: 'It may have been deleted.',
           })}
         </p>
       </div>

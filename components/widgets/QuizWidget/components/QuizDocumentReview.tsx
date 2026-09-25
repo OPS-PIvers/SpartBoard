@@ -188,9 +188,8 @@ const ReviewTable: React.FC<
           No questions could be read from this document.
         </p>
         <p className="max-w-sm text-xs text-slate-500">
-          The reader looks for numbered questions like &ldquo;1.&rdquo; with
-          lettered choices under them. Check that the document uses that layout,
-          or go back and try a different file.
+          Use numbered questions (&ldquo;1.&rdquo;) with lettered choices, or
+          try a different file.
         </p>
       </div>
     );

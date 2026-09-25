@@ -11,6 +11,8 @@ export interface FlashcardImportResult {
   cards: FlashcardCard[];
   warnings: string[];
   detectedSeparator: string;
+  /** A neutral status line (e.g. a stripped header row), shown plainly rather than as a warning. */
+  note?: string;
 }
 
 interface ParseOptions {
@@ -129,6 +131,15 @@ export function flashcardsFromRows(
     DEFINITION_HEADERS.has((first[1] ?? '').toLowerCase());
   const dataRows = hasHeader ? rows.slice(1) : rows;
 
+  // Header-sniffing is lexical and can false-positive on a genuine first card,
+  // but a real header (this file's primary supported case) is by far the common
+  // outcome — surface it as a neutral `note`, not an amber `warnings` alert, so a
+  // routine strip doesn't read as something going wrong on every import.
+  const note =
+    hasHeader && first != null
+      ? `The first row ("${first[0] ?? ''}" / "${first[1] ?? ''}") looked like a column header and was not imported as a card. If that was meant to be a card, add it back manually.`
+      : undefined;
+
   let incompleteRows = 0;
   let extraColumnRows = 0;
   let truncatedTerms = 0;
@@ -182,7 +193,7 @@ export function flashcardsFromRows(
     );
   }
 
-  return { cards, warnings };
+  return { cards, warnings, note };
 }
 
 export function parseFlashcardText(

@@ -57,8 +57,7 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
             marginTop: 'min(4px, 1cqmin)',
           }}
         >
-          {doneCount} of {total} students finished. Full results are in the
-          archive.
+          {doneCount} of {total} finished.
         </p>
       </div>
     );
@@ -174,6 +173,7 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
         <CollapsibleStimuli
           stimuli={resolveStimuli(currentQ.stimulusIds, session.stimuli)}
           light
+          cqScaled
         />
       )}
       {session.revealedAnswers?.[currentQ.id] && (

@@ -137,6 +137,6 @@ describe('QuizLanguagesContextPane curated languages', () => {
   it('counts the served questions over the translatable subset (1 of 1, not 1 of 2)', () => {
     enabledCodes.current = ['es'];
     renderPane();
-    expect(screen.getByText(/1 of 1/)).toBeInTheDocument();
+    expect(screen.getByText(/1\/1 reviewed/)).toBeInTheDocument();
   });
 });

@@ -16,7 +16,6 @@ import type {
 } from '@/components/admin/Organization/types';
 import { CAPABILITY_GROUPS } from '@/config/organizationCapabilities';
 import {
-  Badge,
   Btn,
   ViewHeader,
   Field,
@@ -127,7 +126,7 @@ export const RolesView: React.FC<Props> = ({
     <div>
       <ViewHeader
         title="Roles & permissions"
-        blurb="Define what each role can do. Click editable cells to cycle through Full, Own-building, and No access."
+        blurb="Click a cell to change access."
         actions={
           <>
             <Btn
@@ -447,10 +446,7 @@ const CreateRoleModal: React.FC<{
             autoFocus
           />
         </Field>
-        <Field
-          label="Description"
-          hint="Shown under the role name — one short sentence."
-        >
+        <Field label="Description" hint="One short sentence.">
           <Textarea
             rows={3}
             value={blurb}
@@ -459,11 +455,7 @@ const CreateRoleModal: React.FC<{
           />
         </Field>
         <div className="p-3 rounded-lg bg-brand-blue-lighter/50 border border-brand-blue-lighter text-xs text-slate-700">
-          <Badge color="indigo">Tip</Badge>
-          <span className="ml-2">
-            New roles start with <strong>No access</strong> everywhere. Grant
-            capabilities from the matrix once the role is created.
-          </span>
+          New roles start with <strong>No access</strong> everywhere.
         </div>
       </div>
     </LocalModal>

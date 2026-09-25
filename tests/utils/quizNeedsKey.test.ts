@@ -8,6 +8,8 @@ import type { QuizData, QuizQuestion } from '@/types';
 import {
   clearSatisfiedNeedsKey,
   countQuestionsNeedingKey,
+  flagMissingKeys,
+  missingKeyNumbers,
   questionNeedsKey,
 } from '@/utils/quizNeedsKey';
 
@@ -99,5 +101,38 @@ describe('clearSatisfiedNeedsKey', () => {
   it('returns the same object when nothing changed', () => {
     const original = quiz([question()]);
     expect(clearSatisfiedNeedsKey(original)).toBe(original);
+  });
+});
+
+describe('flagMissingKeys', () => {
+  it('flags keyless graded questions and leaves the rest alone', () => {
+    const keyed = question();
+    const written = question({
+      id: 'q2',
+      type: 'free-response',
+      correctAnswer: '',
+      incorrectAnswers: [],
+    });
+    const blankMa = question({ id: 'q3', type: 'MA', correctAnswer: '' });
+    const blankMc = question({ id: 'q4', correctAnswer: ' ' });
+    const result = flagMissingKeys(quiz([keyed, written, blankMa, blankMc]));
+    expect(result.questions.map((q) => q.needsKey)).toEqual([
+      undefined,
+      undefined,
+      true,
+      true,
+    ]);
+    expect(countQuestionsNeedingKey(result.questions)).toBe(2);
+  });
+
+  it('returns the same quiz when nothing is missing', () => {
+    const q = quiz([question()]);
+    expect(flagMissingKeys(q)).toBe(q);
+  });
+
+  it('numbers the keyless questions from 1', () => {
+    expect(
+      missingKeyNumbers([question(), question({ correctAnswer: '' })])
+    ).toEqual([2]);
   });
 });

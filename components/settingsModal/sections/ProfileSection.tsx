@@ -23,9 +23,8 @@ const chipClass = (selected: boolean) =>
 const GroupHeading: React.FC<{
   icon: React.ReactNode;
   title: string;
-  description: string;
   action?: React.ReactNode;
-}> = ({ icon, title, description, action }) => (
+}> = ({ icon, title, action }) => (
   <div className="flex items-start gap-2.5">
     <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 flex-shrink-0">
       {icon}
@@ -35,9 +34,6 @@ const GroupHeading: React.FC<{
         <h3 className="text-xs font-bold text-slate-700">{title}</h3>
         {action}
       </div>
-      <p className="text-xxs text-slate-500 mt-0.5 leading-relaxed">
-        {description}
-      </p>
     </div>
   </div>
 );
@@ -81,10 +77,6 @@ export const ProfileSection: React.FC = () => {
       <SettingsSectionHeader
         icon={<UserCircle className="w-4 h-4" />}
         title={t('settings.profile.title', { defaultValue: 'Profile' })}
-        description={t('settings.profile.description', {
-          defaultValue:
-            'Where and what you teach. Grades and content areas filter standards and learning targets so you only see what applies to you.',
-        })}
         scopeLabel={t('settings.scopeAllBoards', {
           defaultValue: 'All boards',
         })}
@@ -95,10 +87,6 @@ export const ProfileSection: React.FC = () => {
           icon={<Building2 className="w-4 h-4" />}
           title={t('sidebar.settings.myBuildings', {
             defaultValue: 'My Building(s)',
-          })}
-          description={t('sidebar.settings.myBuildingsDescription', {
-            defaultValue:
-              'Select the building(s) you work in. Widgets like Instructional Routines will automatically show content for your grade level. Select multiple if you work across buildings.',
           })}
         />
         <div className="flex flex-col gap-2">
@@ -135,7 +123,7 @@ export const ProfileSection: React.FC = () => {
         {selectedBuildings.length === 0 && (
           <p className="text-xxs text-slate-500 px-1 italic">
             {t('sidebar.settings.noBuildingSelected', {
-              defaultValue: 'No building selected yet.',
+              defaultValue: 'Showing content for all buildings.',
             })}
           </p>
         )}
@@ -146,10 +134,6 @@ export const ProfileSection: React.FC = () => {
           icon={<GraduationCap className="w-4 h-4" />}
           title={t('settings.profile.gradesTaught', {
             defaultValue: 'Grades taught',
-          })}
-          description={t('settings.profile.gradesTaughtDescription', {
-            defaultValue:
-              'Starts from your building(s). Deselect grades you do not teach to narrow standards, learning targets and grade-specific widgets.',
           })}
           action={
             gradesTaught !== null && (
@@ -192,8 +176,7 @@ export const ProfileSection: React.FC = () => {
         {effectiveGrades.length === 0 && (
           <p className="text-xxs text-slate-500 px-1 italic">
             {t('settings.profile.noGrades', {
-              defaultValue:
-                'No grades selected — standards and widgets show every grade.',
+              defaultValue: 'Showing all grades.',
             })}
           </p>
         )}
@@ -203,17 +186,13 @@ export const ProfileSection: React.FC = () => {
         <GroupHeading
           icon={<Library className="w-4 h-4" />}
           title={t('settings.profile.subjectsTaught', {
-            defaultValue: 'Content areas taught',
-          })}
-          description={t('settings.profile.subjectsTaughtDescription', {
-            defaultValue:
-              'Optional. Pick the content areas you teach to open the standards picker on them. Leave empty to see every content area.',
+            defaultValue: 'Content areas taught (optional)',
           })}
         />
         <div
           role="group"
           aria-label={t('settings.profile.subjectsTaught', {
-            defaultValue: 'Content areas taught',
+            defaultValue: 'Content areas taught (optional)',
           })}
           className="flex flex-wrap gap-1.5"
         >

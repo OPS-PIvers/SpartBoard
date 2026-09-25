@@ -133,10 +133,6 @@ export const RevealGridConfigurationPanel: React.FC<
               </button>
             ))}
           </div>
-          <p className="mt-2 text-xs text-slate-500">
-            Memory mode turns new grids into a matching game with cards hidden
-            and shuffled.
-          </p>
         </div>
 
         {/* Font Family */}

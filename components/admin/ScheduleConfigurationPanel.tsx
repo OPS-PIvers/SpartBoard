@@ -224,8 +224,7 @@ const SpecialDaysCard: React.FC<SpecialDaysCardProps> = ({
           <CalendarDays className="w-3.5 h-3.5" /> Special days
         </h5>
         <p className="text-xxs text-slate-500 leading-tight">
-          On these dates the chosen schedule runs instead of the weekday one,
-          and per-period assignment windows follow its bell times.
+          Overrides the weekday schedule on these dates.
         </p>
       </div>
       {entries.map(([date, scheduleId]) => (
@@ -678,17 +677,9 @@ export const ScheduleConfigurationPanel: React.FC<
           not while editing a specific schedule's items. */}
       {!activeScheduleId && (
         <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-4">
-          <div>
-            <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2 mb-1">
-              <LayoutGrid className="w-3.5 h-3.5" /> Appearance &amp; Behaviour
-            </h5>
-            <p className="text-xxs text-slate-500 leading-tight">
-              These defaults pre-populate the Schedule widget when a teacher in{' '}
-              <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b>{' '}
-              adds it to their dashboard. Teachers can still override them
-              per-instance from the widget&apos;s Appearance and Options tabs.
-            </p>
-          </div>
+          <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+            <LayoutGrid className="w-3.5 h-3.5" /> Appearance &amp; Behaviour
+          </h5>
 
           {/* Default Font Family */}
           <div>

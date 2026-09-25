@@ -67,7 +67,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
           {t('plcRoute.backToBoard', { defaultValue: 'Back to my board' })}
         </button>
 
-        <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center gap-3 mb-8">
           <div className="w-10 h-10 rounded-xl bg-brand-blue-lighter flex items-center justify-center">
             <Users2 className="w-5 h-5 text-brand-blue-primary" />
           </div>
@@ -75,12 +75,6 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
             {t('plcRoute.hubTitle', { defaultValue: 'My PLCs' })}
           </h1>
         </div>
-        <p className="text-sm text-slate-500 mb-8">
-          {t('plcRoute.hubSubtitle', {
-            defaultValue:
-              'Open a Professional Learning Community to collaborate with your team.',
-          })}
-        </p>
 
         {/* --- Section 1: Your PLCs --- */}
         {loading ? (
@@ -97,8 +91,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
             </p>
             <p className="text-xs text-slate-500">
               {t('plcRoute.hubEmptySubtitle', {
-                defaultValue:
-                  'Create a PLC from the sidebar and invite your colleagues.',
+                defaultValue: 'Create one from the sidebar.',
               })}
             </p>
           </div>
@@ -167,17 +160,12 @@ const PlcBuildingDirectorySection: React.FC<{ userEmail: string | null }> = ({
 
   return (
     <section className="mt-12">
-      <div className="flex items-center gap-2 mb-1">
+      <div className="flex items-center gap-2 mb-4">
         <Building2 className="w-4 h-4 text-slate-400" aria-hidden="true" />
         <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">
           {t('plcDirectory.heading', { defaultValue: 'PLCs in my building' })}
         </h2>
       </div>
-      <p className="text-xs text-slate-500 mb-4">
-        {t('plcDirectory.subtitle', {
-          defaultValue: 'Teams in your building you can ask to join.',
-        })}
-      </p>
 
       {!orgId ? (
         <DirectoryNotice
@@ -185,8 +173,7 @@ const PlcBuildingDirectorySection: React.FC<{ userEmail: string | null }> = ({
             defaultValue: 'Building directory unavailable',
           })}
           subtitle={t('plcDirectory.noOrgSubtitle', {
-            defaultValue:
-              "Your account isn't linked to a school yet, so we can't list nearby PLCs.",
+            defaultValue: 'Your account has no school yet.',
           })}
         />
       ) : loading ? (
@@ -197,10 +184,6 @@ const PlcBuildingDirectorySection: React.FC<{ userEmail: string | null }> = ({
         <DirectoryNotice
           title={t('plcDirectory.emptyTitle', {
             defaultValue: 'No other PLCs to show',
-          })}
-          subtitle={t('plcDirectory.emptySubtitle', {
-            defaultValue:
-              "There aren't any other PLCs in your building right now.",
           })}
         />
       ) : (
@@ -226,20 +209,22 @@ const PlcBuildingDirectorySection: React.FC<{ userEmail: string | null }> = ({
                 </span>
               </div>
               <div className="shrink-0 flex flex-col items-end gap-1">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-500 text-xs font-bold">
+                <span
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-500 text-xs font-bold"
+                  title={
+                    userEmail
+                      ? t('plcDirectory.requestHint', {
+                          defaultValue: 'Ask a member to invite {{email}}.',
+                          email: userEmail,
+                        })
+                      : undefined
+                  }
+                >
                   <MailPlus className="w-3.5 h-3.5" aria-hidden="true" />
                   {t('plcDirectory.requestToJoin', {
                     defaultValue: 'Ask to join',
                   })}
                 </span>
-                {userEmail && (
-                  <span className="text-xxs text-slate-500 max-w-[12rem] text-right leading-tight">
-                    {t('plcDirectory.requestHint', {
-                      defaultValue: 'Ask a member to invite {{email}}.',
-                      email: userEmail,
-                    })}
-                  </span>
-                )}
               </div>
             </li>
           ))}
@@ -249,7 +234,7 @@ const PlcBuildingDirectorySection: React.FC<{ userEmail: string | null }> = ({
   );
 };
 
-const DirectoryNotice: React.FC<{ title: string; subtitle: string }> = ({
+const DirectoryNotice: React.FC<{ title: string; subtitle?: string }> = ({
   title,
   subtitle,
 }) => (
@@ -258,6 +243,6 @@ const DirectoryNotice: React.FC<{ title: string; subtitle: string }> = ({
       <Building2 className="w-5 h-5 text-slate-300" aria-hidden="true" />
     </div>
     <p className="text-sm font-bold text-slate-600">{title}</p>
-    <p className="text-xs text-slate-500 max-w-sm">{subtitle}</p>
+    {subtitle && <p className="text-xs text-slate-500 max-w-sm">{subtitle}</p>}
   </div>
 );

@@ -23,7 +23,7 @@ describe('learningTargets locale parity', () => {
 
   it('EN defines the namespace', () => {
     expect(enTop.length).toBeGreaterThan(20);
-    expect(enPlc).toEqual(['heading', 'description']);
+    expect(enPlc).toEqual(['heading']);
     expect(((en as Tree).plcDashboard as Tree).tabs).toHaveProperty('targets');
   });
 

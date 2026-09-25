@@ -45,14 +45,11 @@ const EXPIRY_ORDER: RecordingPrepExpiry[] = [
 
 const EXPIRY_KEYS: Record<
   RecordingPrepExpiry,
-  { label: string; hint: string }
+  { label: string; hint?: string }
 > = {
-  armed: { label: 'expiryArmed', hint: 'expiryArmedHint' },
-  'auto-start': { label: 'expiryAutoStart', hint: 'expiryAutoStartHint' },
-  'auto-advance': {
-    label: 'expiryAutoAdvance',
-    hint: 'expiryAutoAdvanceHint',
-  },
+  armed: { label: 'expiryArmed' },
+  'auto-start': { label: 'expiryAutoStart' },
+  'auto-advance': { label: 'expiryAutoAdvance' },
   unanswered: { label: 'expiryUnanswered', hint: 'expiryUnansweredHint' },
 };
 
@@ -110,7 +107,7 @@ export const ResponseFormatControl: React.FC<ResponseFormatSectionProps> = ({
   ];
 
   return (
-    <div>
+    <div title={recording ? tk('advisory.deviceBlocked') : undefined}>
       <span className={labelClass}>{tk('formatLabel')}</span>
       <SegmentedControl
         value={spoken}
@@ -242,6 +239,7 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
         >
           {EXPIRY_ORDER.map((value) => {
             const active = recording.prepExpiry === value;
+            const hintKey = EXPIRY_KEYS[value].hint;
             return (
               <button
                 key={value}
@@ -258,9 +256,11 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
                 <span className="block font-bold">
                   {tk(EXPIRY_KEYS[value].label)}
                 </span>
-                <span className="block text-xxs text-slate-500">
-                  {tk(EXPIRY_KEYS[value].hint)}
-                </span>
+                {hintKey && (
+                  <span className="block text-xxs text-slate-500">
+                    {tk(hintKey)}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -273,7 +273,7 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
         label={tk('takeLimitLabel')}
         ariaLabel={tk('takeLimitLabel')}
         unlimitedLabel={tk('takeLimitUnlimited')}
-        hint={tk('takeLimitHint')}
+        tooltip={tk('takeLimitHint')}
       />
     </div>
   );

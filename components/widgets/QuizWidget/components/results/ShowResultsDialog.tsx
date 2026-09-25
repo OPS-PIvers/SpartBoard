@@ -116,9 +116,6 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
                   <span className="block text-sm font-bold text-slate-900">
                     {opt.title}
                   </span>
-                  <span className="block mt-0.5 text-xs text-slate-600 leading-relaxed">
-                    {opt.body}
-                  </span>
                 </span>
               </label>
             );

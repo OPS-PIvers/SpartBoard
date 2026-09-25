@@ -10,7 +10,18 @@ export interface TourAnchorDef {
   destructive?: true;
   /** Shown only once a menu, the dock or another panel is open. */
   panel?: true;
+  /** State the runner sets up before it looks for the anchor. */
+  requires?: TourAnchorPrerequisite;
 }
+
+export const TOUR_ANCHOR_PREREQUISITES = [
+  'dock-expanded',
+  'widget-selected',
+  'widget-restored',
+  'in-view',
+] as const;
+
+export type TourAnchorPrerequisite = (typeof TOUR_ANCHOR_PREREQUISITES)[number];
 
 export const TOUR_ANCHORS = {
   'dock.open-tools': { label: 'Open Tools button in the collapsed dock' },
@@ -18,10 +29,12 @@ export const TOUR_ANCHORS = {
     label: 'Widget button in the dock',
     perWidgetType: true,
     panel: true,
+    requires: 'dock-expanded',
   },
   'dock.more-widgets': {
     label: 'More button that opens the widget library',
     panel: true,
+    requires: 'dock-expanded',
   },
   'library.root': { label: 'Widget library window', panel: true },
   'library.search': { label: 'Widget library search box', panel: true },
@@ -29,25 +42,56 @@ export const TOUR_ANCHORS = {
     label: 'Widget tile in the widget library',
     perWidgetType: true,
     panel: true,
+    requires: 'in-view',
   },
   'library.edit': { label: 'Edit button in the widget library', panel: true },
   'library.close': { label: 'Close button in the widget library', panel: true },
 
-  'widget.window': { label: 'Widget window', perWidget: true },
-  'widget.toolbar': { label: 'Widget toolbar', perWidget: true },
-  'widget.title': { label: 'Widget title in the toolbar', perWidget: true },
+  'widget.window': {
+    label: 'Widget window',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'widget.toolbar': {
+    label: 'Widget toolbar',
+    perWidget: true,
+    requires: 'widget-selected',
+  },
+  'widget.title': {
+    label: 'Widget title in the toolbar',
+    perWidget: true,
+    requires: 'widget-selected',
+  },
   'widget.settings-opener': {
     label: 'Widget settings button',
     perWidget: true,
+    requires: 'widget-selected',
   },
-  'widget.pin': { label: 'Pin widget button', perWidget: true },
-  'widget.annotate': { label: 'Annotate widget button', perWidget: true },
-  'widget.duplicate': { label: 'Duplicate widget button', perWidget: true },
-  'widget.snap-layout': { label: 'Snap layout button', perWidget: true },
+  'widget.pin': {
+    label: 'Pin widget button',
+    perWidget: true,
+    requires: 'widget-selected',
+  },
+  'widget.annotate': {
+    label: 'Annotate widget button',
+    perWidget: true,
+    requires: 'widget-selected',
+  },
+  'widget.duplicate': {
+    label: 'Duplicate widget button',
+    perWidget: true,
+    requires: 'widget-selected',
+  },
+  'widget.snap-layout': {
+    label: 'Snap layout button',
+    perWidget: true,
+    requires: 'widget-selected',
+  },
   'widget.close': {
     label: 'Close widget button',
     perWidget: true,
     destructive: true,
+    requires: 'widget-selected',
   },
   'widget.more-actions': {
     label: 'More actions button on a maximized widget',
@@ -109,9 +153,15 @@ export type TourAnchorId = keyof typeof TOUR_ANCHORS;
 export const isTourAnchorId = (id: string): id is TourAnchorId =>
   Object.prototype.hasOwnProperty.call(TOUR_ANCHORS, id);
 
-export const tourAttr = (id: TourAnchorId, widgetId?: string) => ({
+// Widget-scoped anchors also carry the type, so a recording saves `id:type`.
+export const tourAttr = (
+  id: TourAnchorId,
+  widgetId?: string,
+  widgetType?: string
+) => ({
   'data-tour': id,
   ...(widgetId ? { 'data-tour-widget': widgetId } : {}),
+  ...(widgetType ? { 'data-tour-widget-type': widgetType } : {}),
 });
 
 export const tourTypeAttr = (id: TourAnchorId, widgetType: string) => ({
@@ -130,6 +180,16 @@ export const parseTourAnchorRef = (
   return sep === -1
     ? { id: ref }
     : { id: ref.slice(0, sep), widgetType: ref.slice(sep + 1) };
+};
+
+/** The state a step's anchor needs before it can be found, if any. */
+export const anchorPrerequisite = (
+  ref: string
+): TourAnchorPrerequisite | undefined => {
+  const { id } = parseTourAnchorRef(ref);
+  if (!isTourAnchorId(id)) return undefined;
+  const def: TourAnchorDef = TOUR_ANCHORS[id];
+  return def.requires;
 };
 
 /** Whether a step's anchor ref points at an anchor registered as destructive. */

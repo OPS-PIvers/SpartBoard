@@ -88,17 +88,6 @@ export const WorkSymbolsConfigurationPanel: React.FC<
       </div>
 
       <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-4">
-        <p className="text-xxs text-slate-500 leading-tight">
-          These appearance defaults pre-populate the Work Symbols widget when a
-          teacher in{' '}
-          <b>
-            {BUILDINGS.find((b) => b.id === selectedBuildingId)?.name ??
-              'this building'}
-          </b>{' '}
-          adds it to their dashboard. Teachers can still override them
-          per-instance from the widget&apos;s Appearance tab.
-        </p>
-
         {/* Default Font Family */}
         <div>
           <label

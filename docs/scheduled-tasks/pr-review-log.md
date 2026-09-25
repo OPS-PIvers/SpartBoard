@@ -4311,3 +4311,23 @@ rather than "no data") is also still open.
   - `gh` is absent and `/mnt/skills/user/` does not exist again. GitHub access went through MCP, and the standards came from `.claude/skills/`.
   - Per CLAUDE.md, no full lint, type-check or test runs were made; none were needed since nothing was pushed.
   - `scheduled-tasks` still heads open PR #3322, so this log commit lands on it. It is Markdown-only, which `pr-validation.yml` ignores.
+
+## 2026-09-24
+- PRs reviewed: none. No PRs were open when this run started. The most recent ones (#3367–#3370, and #3328 from yesterday's list) were closed earlier today.
+- Comments processed: 0 total — 0 fixed, 0 explained
+- Fixes pushed: none
+- Reviews posted: 0
+- Notes:
+  - `gh` is absent again, so GitHub access went through MCP. Open PRs were listed with `state: open`, and a `state: all` listing confirmed the call works and the queue is empty.
+  - No lint, type-check or test runs were made because nothing was changed.
+
+## 2026-09-25
+- PRs reviewed (2): #3435 fix(types): remove dead appearance fields from StickerBookConfig and TalkingToolConfig; #3433 D2: GL Studio accent callout leader-line color tracks admin theme
+- Comments processed: 2 total — 0 fixed, 0 explained. Both were clean bot summaries on the PR conversation, with no review threads and nothing asked for, so no reply was posted.
+- Fixes pushed: #3435 (`scheduled-tasks`): collapsed the two multi-line comments that PR added to `types.ts` into one line each (CLAUDE.md one-line comment rule). This was found in review, not from a comment, and it rides along with this log commit.
+- Reviews posted: 2
+- Merge readiness: #3435 Ready. #3433 Ready with minor notes: the accent leader line now follows `--spart-primary`, but the accent card and swatch stay fixed `bg-brand-blue-primary`, so a board with a custom primary colour shows a line and card in different colours.
+- Notes:
+  - CI was green on both heads before review.
+  - `gh` is absent and `/mnt/skills/user/` does not exist again. GitHub access went through MCP, and the standards came from `.claude/skills/`.
+  - Per CLAUDE.md, no full lint, type-check or test runs were made. The only code change is to comments, and the pre-commit hook lints it.

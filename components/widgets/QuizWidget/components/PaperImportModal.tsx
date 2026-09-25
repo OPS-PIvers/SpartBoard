@@ -484,8 +484,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     <div className="space-y-4 px-5 pb-5 pt-4">
       {batches.length === 0 ? (
         <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-          No response sheets have been printed for this quiz yet. Print a batch
-          first — the scan is matched to it by the marker on every page.
+          Print response sheets before importing a scan.
         </p>
       ) : (
         <>
@@ -529,8 +528,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
               ))}
             </select>
             <span className="mt-1 block text-xs text-slate-500">
-              Attach to an existing administration to put paper make-ups beside
-              digital responses.
+              Pick an existing one to add paper make-ups to it.
             </span>
           </label>
           {resumable && (
@@ -541,8 +539,8 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
               </p>
               <p className="mt-0.5 text-xs text-slate-600">
                 {resumable.sheets.length} sheet
-                {resumable.sheets.length === 1 ? '' : 's'} were read and not yet
-                imported. Pick up where you left off, or scan again.
+                {resumable.sheets.length === 1 ? ' was' : 's were'} read but not
+                imported.
               </p>
               <div className="mt-2 flex gap-2">
                 <button
@@ -599,8 +597,8 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             </button>
           )}
           <p className="text-xs text-slate-500">
-            Pages can be in any order, upside down, or split across scans. The
-            file is read on this computer and never uploaded.
+            Pages can be in any order or upside down, and the file never leaves
+            this computer.
           </p>
         </>
       )}
@@ -613,8 +611,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       return (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           <AlertTriangle className="mr-1 inline h-4 w-4" />
-          The ANSWER KEY sheet was not in this scan. This paper test has no
-          answers yet, so scan the key sheet before importing.
+          The ANSWER KEY sheet was not in this scan. Scan it before importing.
         </div>
       );
     }
@@ -623,8 +620,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       <section className="rounded-xl border border-slate-200 p-3">
         <p className="text-sm font-bold text-slate-900">Answer key</p>
         <p className="mt-0.5 text-xs text-slate-500">
-          Read from the ANSWER KEY sheet. Check every row before confirming — it
-          grades the whole stack.
+          Check every row, because this key grades the whole stack.
         </p>
         <ol className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
           {rowIds.map((id, i) => (
@@ -669,12 +665,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
   const renderTargets = () => (
     <section className="rounded-xl border border-slate-200 p-3">
       <div className="flex items-center justify-between gap-2">
-        <div>
-          <p className="text-sm font-bold text-slate-900">Learning targets</p>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Tag questions now and every result rolls up by standard.
-          </p>
-        </div>
+        <p className="text-sm font-bold text-slate-900">Learning targets</p>
         <button
           type="button"
           onClick={() => setPicker({ all: true })}
@@ -754,7 +745,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
               }}
               className={fieldClass}
             >
-              <option value="">Not assigned — skip this sheet</option>
+              <option value="">Not assigned (skip this sheet)</option>
               {rosters.map((r) =>
                 r.students.map((s) => (
                   <option key={`${r.id}/${s.id}`} value={`${r.id}/${s.id}`}>
@@ -767,14 +758,14 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         )}
         {sheet.missingPages.length > 0 && (
           <p className="mt-2 text-xs text-amber-800">
-            Page {sheet.missingPages.join(', ')} not found in the scan — those
-            questions import as unanswered until it is rescanned.
+            Page {sheet.missingPages.join(', ')} not found in the scan, so those
+            questions import blank.
           </p>
         )}
         {sheet.flags.includes('duplicate-conflict') && (
           <p className="mt-2 text-xs text-amber-800">
-            This sheet was scanned more than once with different answers; the
-            later scan is shown.
+            This sheet was scanned twice with different answers, so the later
+            scan is shown.
           </p>
         )}
         {doubtful.length > 0 && (
@@ -909,8 +900,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
               {result.written.length === 1 ? '' : 's'} imported
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              Grade and publish them from Results, like any other
-              administration.
+              Grade and publish them in Results.
             </p>
           </div>
         </div>
@@ -924,8 +914,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
               a response here
             </p>
             <p className="mt-0.5 text-xs text-amber-800">
-              Tick a sheet to replace the existing response with the paper one;
-              leave it to keep what is there.
+              Tick a sheet to replace that response with the paper one.
             </p>
             <ul className="mt-2 space-y-1">
               {result.collisions.map((c) => {

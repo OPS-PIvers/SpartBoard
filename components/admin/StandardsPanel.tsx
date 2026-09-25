@@ -141,8 +141,7 @@ export const StandardsPanel: React.FC = () => (
           Standards
         </h4>
         <p className="text-xxs text-slate-500 mt-0.5">
-          Seed the standards catalog from the bundled sets. Re-seeding adds and
-          updates benchmarks; nothing is deleted.
+          Re-seeding never deletes.
         </p>
       </div>
     </div>

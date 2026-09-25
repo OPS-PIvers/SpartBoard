@@ -70,13 +70,6 @@ export const RandomConfigurationPanel: React.FC<
       </div>
 
       <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-4">
-        <p className="text-xxs text-slate-500 leading-tight">
-          These defaults will pre-configure the Random Picker widget when a
-          teacher in{' '}
-          <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
-          it to their dashboard.
-        </p>
-
         {/* Default Visual Style */}
         <div>
           <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block">
@@ -116,14 +109,9 @@ export const RandomConfigurationPanel: React.FC<
           padding="sm"
           className="flex items-center justify-between shadow-none"
         >
-          <div>
-            <span className="text-xxs font-bold text-slate-700 block">
-              Sound Effects
-            </span>
-            <span className="text-xxs text-slate-400">
-              Play audio during the random selection animation
-            </span>
-          </div>
+          <span className="text-xxs font-bold text-slate-700 block">
+            Sound Effects
+          </span>
           <Toggle
             label="Sound Effects"
             checked={currentBuildingConfig.soundEnabled ?? true}

@@ -726,9 +726,6 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
                   Publish scores
                 </AddonButton>
               </div>
-              <p className="mt-1.5 text-xs text-slate-500">
-                Students see their results when they reopen the assignment.
-              </p>
             </div>
 
             {session?.ltiAttachment && (
@@ -741,10 +738,6 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
                 >
                   Push grades to Schoology
                 </AddonButton>
-                <p className="mt-1.5 text-xs text-slate-500">
-                  Sends each student’s score to the Schoology gradebook for this
-                  assignment.
-                </p>
               </div>
             )}
 
@@ -759,8 +752,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
                   Push grades to Classroom
                 </AddonButton>
                 <p className="mt-1.5 text-xs text-slate-500">
-                  Sends each student a draft grade. Open the assignment in
-                  Classroom to review and Return them.
+                  Sent as drafts. Return them in Classroom.
                 </p>
               </div>
             )}

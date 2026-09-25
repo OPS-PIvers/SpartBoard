@@ -230,7 +230,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       ref={panelRef}
       data-widget-portal=""
       data-widget-id={widget.id}
-      {...tourAttr('settings.root', widget.id)}
+      {...tourAttr('settings.root', widget.id, widget.type)}
       className={`font-${globalStyle.fontFamily}`}
       style={{
         position: 'fixed',
@@ -271,7 +271,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               onClick={onClose}
               icon={<X className="w-4 h-4" />}
               label="Close settings"
-              {...tourAttr('settings.close', widget.id)}
+              {...tourAttr('settings.close', widget.id, widget.type)}
               title="Close settings (Esc)"
               variant="ghost"
               size="sm"
@@ -286,7 +286,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('settings')}
-            {...tourAttr('settings.tab-settings', widget.id)}
+            {...tourAttr('settings.tab-settings', widget.id, widget.type)}
             className={`flex-1 py-1.5 text-xxs font-black uppercase tracking-widest rounded-lg transition-[color,background-color,box-shadow] ${
               activeTab === 'settings'
                 ? 'bg-white shadow-sm text-slate-800'
@@ -298,7 +298,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('style')}
-            {...tourAttr('settings.tab-style', widget.id)}
+            {...tourAttr('settings.tab-style', widget.id, widget.type)}
             className={`flex-1 py-1.5 text-xxs font-black uppercase tracking-widest rounded-lg transition-[color,background-color,box-shadow] ${
               activeTab === 'style'
                 ? 'bg-white shadow-sm text-slate-800'

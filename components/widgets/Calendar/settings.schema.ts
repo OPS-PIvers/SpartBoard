@@ -76,7 +76,6 @@ export default defineSettings<CalendarConfig>({
           key: 'daysVisible',
           type: 'number',
           label: 'daysVisible',
-          help: 'daysVisibleHelp',
           min: 1,
           max: 30,
           step: 1,

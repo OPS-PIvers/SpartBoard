@@ -255,6 +255,7 @@ export const Sidebar: React.FC = () => {
       <GlassCard
         globalStyle={activeDashboard?.globalStyle}
         data-screenshot="exclude"
+        data-tour-obstacle=""
         className="fixed flex items-center gap-2 p-2 rounded-full"
         style={{
           top: 'calc(1.5rem + env(safe-area-inset-top, 0px))',

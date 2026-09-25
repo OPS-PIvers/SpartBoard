@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { GuidedLearningTourBinding } from '@/types';
 import {
   findTourAnchor,
-  isAnchorVisible,
+  isAnchorUsable,
   type TourAnchorScope,
 } from './resolveTourAnchor';
 
@@ -57,13 +57,18 @@ const isTourUi = (node: Node) =>
 
 /** Finds a tour anchor, waiting for it to appear, and tracks its viewport rect. */
 export function useAnchorElement(
-  binding: Pick<GuidedLearningTourBinding, 'anchor' | 'fallback'> | null,
+  binding: Pick<
+    GuidedLearningTourBinding,
+    'anchor' | 'fallback' | 'slot'
+  > | null,
   scope: TourAnchorScope,
   attempt = 0
 ): AnchorState {
   const anchor = binding?.anchor ?? null;
   const fallbackRole = binding?.fallback?.role;
   const fallbackName = binding?.fallback?.name;
+  const slot = binding?.slot;
+  const boundId = slot === undefined ? undefined : scope.slots?.[slot];
   const scopeKey = (scope.widgetIds ?? []).join(',');
   // An empty anchor goes straight to the role/name fallback.
   const searchable = !!anchor || !!(fallbackRole && fallbackName);
@@ -72,6 +77,7 @@ export function useAnchorElement(
     fallbackRole,
     fallbackName,
     scopeKey,
+    boundId,
     attempt,
   ].join('|');
   const [state, setState] = useState<AnchorState & { key: string }>({
@@ -88,8 +94,10 @@ export function useAnchorElement(
         fallbackRole && fallbackName
           ? { role: fallbackRole, name: fallbackName }
           : undefined,
+      slot: boundId ? 0 : undefined,
     };
     const widgetIds = scopeKey ? scopeKey.split(',') : [];
+    const slots = boundId ? { 0: boundId } : undefined;
     let cancelled = false;
     let element: HTMLElement | null = null;
     let lastRect: DOMRect | null = null;
@@ -128,7 +136,8 @@ export function useAnchorElement(
       raf = 0;
       const el = element;
       if (cancelled || !el) return;
-      if (!el.isConnected || !isAnchorVisible(el)) {
+      // Faded, click-through or off-screen reads as searching, not found.
+      if (!el.isConnected || !isAnchorUsable(el)) {
         lose();
         return;
       }
@@ -159,7 +168,11 @@ export function useAnchorElement(
       searchTimer = undefined;
       if (cancelled || element) return;
       lastSearch = Date.now();
-      const found = findTourAnchor(target, { widgetIds });
+      const found = findTourAnchor(target, {
+        widgetIds,
+        slots,
+        accept: isAnchorUsable,
+      });
       if (found) track(found);
     };
 
@@ -211,7 +224,10 @@ export function useAnchorElement(
       attributeFilter: WATCHED_ATTRS,
     });
 
-    const onViewport = () => schedule();
+    const onViewport = () => {
+      if (element) schedule();
+      else requestSearch();
+    };
     const onMotionStart = (e: Event) => {
       if (!element) return;
       if (e.target instanceof Node && e.target.contains(element)) {
@@ -255,7 +271,15 @@ export function useAnchorElement(
         document.removeEventListener(t, onMotionEnd, true)
       );
     };
-  }, [searchable, anchor, fallbackRole, fallbackName, scopeKey, requestKey]);
+  }, [
+    searchable,
+    anchor,
+    fallbackRole,
+    fallbackName,
+    scopeKey,
+    boundId,
+    requestKey,
+  ]);
 
   if (!searchable) return IDLE;
   if (state.key !== requestKey) {

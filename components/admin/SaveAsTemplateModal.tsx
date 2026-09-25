@@ -382,7 +382,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
             </div>
           ) : loadError ? (
             <p className="text-sm text-rose-500 italic">
-              Couldn&apos;t load existing templates — check your connection.
+              Couldn&apos;t load existing templates. Check your connection.
             </p>
           ) : templates.length === 0 ? (
             <p className="text-sm text-slate-400 italic">

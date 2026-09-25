@@ -472,7 +472,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
             <p className="text-xs text-slate-600">
               {t('shareLinkCreatorModal.substitute.readyBlurb', {
                 defaultValue:
-                  'Your sub board is live. Subs in this building can open it from the Substitute Portal at the link below.',
+                  'Your sub board is live in the Substitute Portal.',
               })}
             </p>
           ) : (
@@ -508,8 +508,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
               )}
               {subEmails.length === 0 && (
                 <div className="text-slate-500">
-                  No sub emails listed — the randomizer will fall back to its
-                  manual-mode names.
+                  No subs listed, so the randomizer uses its custom names.
                 </div>
               )}
             </div>
@@ -559,12 +558,6 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
         </div>
       ) : (
         <div className="px-5 pb-5 pt-4 space-y-3">
-          <p className="text-xs text-slate-600">
-            {t('shareLinkCreatorModal.prompt', {
-              defaultValue:
-                'How should the people you share with receive this board?',
-            })}
-          </p>
           <ModeOption
             mode="synced"
             selected={mode === 'synced'}
@@ -572,8 +565,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
               defaultValue: 'Synced',
             })}
             body={t('shareLinkCreatorModal.modes.synced.body', {
-              defaultValue:
-                "Both of you stay in sync — anything either teacher changes appears on the other's board in real time.",
+              defaultValue: 'You both edit the same board.',
             })}
             Icon={Cloud}
             onPick={setMode}
@@ -585,8 +577,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
               defaultValue: 'View-Only',
             })}
             body={t('shareLinkCreatorModal.modes.viewOnly.body', {
-              defaultValue:
-                "They see your live edits but can't change anything. Their copy is removed when you stop sharing.",
+              defaultValue: "They see your changes live but can't edit.",
             })}
             Icon={Eye}
             onPick={setMode}
@@ -598,8 +589,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
               defaultValue: 'Make a copy',
             })}
             body={t('shareLinkCreatorModal.modes.copy.body', {
-              defaultValue:
-                'They get a one-time snapshot. Edits stay private — your boards drift apart immediately.',
+              defaultValue: 'They get their own copy to edit.',
             })}
             Icon={Copy}
             onPick={setMode}
@@ -613,7 +603,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
               })}
               body={t('shareLinkCreatorModal.modes.substitute.body', {
                 defaultValue:
-                  "Hand off a frozen snapshot to a sub. They can start timers, shuffle the randomizer, and use widgets — but can't move or change them. Expires automatically.",
+                  "Subs can use widgets but can't move or edit them.",
               })}
               Icon={GraduationCap}
               onPick={setMode}
@@ -653,8 +643,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                 />
                 <p className="mt-1 text-[10px] text-slate-500">
                   {t('shareLinkCreatorModal.substitute.expiresHint', {
-                    defaultValue:
-                      'Defaults to 48 hours from now. Maximum 14 days.',
+                    defaultValue: 'Up to 14 days.',
                   })}
                 </p>
               </div>
@@ -690,12 +679,6 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                     </option>
                   ))}
                 </select>
-                <p className="mt-1 text-[10px] text-slate-500">
-                  {t('shareLinkCreatorModal.substitute.buildingHint', {
-                    defaultValue:
-                      'Pre-filled from your "My Buildings" setting. Subs filter by building when they sign in.',
-                  })}
-                </p>
               </div>
 
               <div>
@@ -712,7 +695,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                 <p className="text-[10px] text-slate-500 mb-2 leading-relaxed">
                   {t('shareLinkCreatorModal.substitute.emailsHint', {
                     defaultValue:
-                      'Listed subs get read-only Google Drive access to your rosters until expiration. Auto-revoked then. Must be @orono.k12.mn.us.',
+                      'Listed subs get read-only Drive access to your roster until the share ends. They need an @orono.k12.mn.us account.',
                   })}
                 </p>
 
@@ -849,8 +832,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
               </label>
               <p className="text-[11px] text-slate-500 leading-relaxed">
                 {t('shareLinkCreatorModal.plcScope.description', {
-                  defaultValue:
-                    "Tags this share so it shows up on the picked PLC's Shared Boards tab in addition to whoever you send the link to.",
+                  defaultValue: "It also shows on the PLC's Shared Boards tab.",
                 })}
               </p>
               <select

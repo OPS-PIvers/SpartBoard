@@ -227,8 +227,7 @@ export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({ plc }) => {
               <p className="text-sm text-slate-500 max-w-xs">
                 {canEdit
                   ? t('plcDashboard.docs.emptySubtitle', {
-                      defaultValue:
-                        'Paste a Google Doc link to embed it here for the whole PLC.',
+                      defaultValue: 'Paste a Google Doc link.',
                     })
                   : t('plcDashboard.docs.emptySubtitleViewer', {
                       defaultValue:
@@ -271,8 +270,7 @@ export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({ plc }) => {
                 <AlertCircle className="w-4 h-4 shrink-0 text-amber-500" />
                 <span>
                   {t('plcDashboard.docs.nonGoogleHint', {
-                    defaultValue:
-                      "This doesn't look like a Google Doc URL — it may not embed correctly.",
+                    defaultValue: 'Not a Google Doc link. It may not embed.',
                   })}
                 </span>
                 <a

@@ -638,11 +638,7 @@ export const Results: React.FC<ResultsProps> = ({
             </div>
 
             {totalStudents === 0 && (
-              <ScaledEmptyState
-                icon={Users}
-                title="No students yet"
-                subtitle="No students have joined this session yet."
-              />
+              <ScaledEmptyState icon={Users} title="No students yet" />
             )}
           </div>
         )}
@@ -660,11 +656,9 @@ export const Results: React.FC<ResultsProps> = ({
                     : 'No questions'
               }
               subtitle={
-                keyLoading
-                  ? undefined
-                  : keyFailed
-                    ? 'Reload to try again. Scores stay hidden until it loads.'
-                    : 'This activity has no questions.'
+                keyFailed && !keyLoading
+                  ? 'Reload to try again. Scores stay hidden until it loads.'
+                  : undefined
               }
             />
           ) : (
@@ -733,11 +727,7 @@ export const Results: React.FC<ResultsProps> = ({
         {/* Students tab */}
         {activeTab === 'students' &&
           (responses.length === 0 ? (
-            <ScaledEmptyState
-              icon={Users}
-              title="No students yet"
-              subtitle="No students have joined this session yet."
-            />
+            <ScaledEmptyState icon={Users} title="No students yet" />
           ) : (
             <div className="bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm overflow-hidden">
               {responses

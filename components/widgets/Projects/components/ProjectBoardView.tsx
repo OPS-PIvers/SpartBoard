@@ -346,7 +346,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
       <ScaledEmptyState
         icon={ClipboardList}
         title="Pick a class"
-        subtitle="This board shows the groups in whichever class is active."
+        subtitle="Shows groups for the active class."
       />
     );
   }
@@ -463,8 +463,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
           className="shrink-0 text-slate-500"
           style={{ fontSize: 'min(11px, 3.4cqmin)' }}
         >
-          {visibleGroups.length} groups × {steps.length} steps — showing counts
-          instead of the grid.
+          Showing counts.
         </p>
       )}
 

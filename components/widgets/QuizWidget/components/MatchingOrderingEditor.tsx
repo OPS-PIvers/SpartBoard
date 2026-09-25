@@ -411,26 +411,19 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
             className="mt-2 p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold"
           >
             <AlertCircle className="w-4 h-4 shrink-0" />
-            Duplicate terms found. Give each row a unique term — students
-            can&apos;t tell repeated terms apart, and only one will be scored.
+            Duplicate terms found. Give each row a unique term.
           </div>
         )}
       </div>
 
       <details className="bg-white/50 border border-brand-blue-primary/10 rounded-xl px-3 py-2">
         <summary className="cursor-pointer font-bold text-brand-blue-dark text-xs">
-          Extra distractor definitions{' '}
+          Extra definitions{' '}
           <span className="font-normal text-brand-blue-primary/60">
-            (optional — increase difficulty)
+            (optional)
           </span>
         </summary>
         <div className="mt-2 space-y-1.5">
-          {distractors.length === 0 && (
-            <p className="text-xxs text-brand-blue-primary/50 italic">
-              Add unmatched options that appear in the student&apos;s word bank
-              but don&apos;t match any term.
-            </p>
-          )}
           {distractors.map((d, i) => (
             <div key={i} className="flex items-center gap-2">
               <input

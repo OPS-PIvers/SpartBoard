@@ -213,7 +213,7 @@ export const AssignPeriodAccessSection: React.FC<{
           <p className="text-xs text-slate-500">
             {t(
               'assignTargeting.periodAssessmentHint',
-              'Every period stays closed until you start it from the monitor. It closes at the end bell.'
+              'Opens when you start it and closes at the end bell.'
             )}
           </p>
           {rosters.map((roster) => {
@@ -231,7 +231,7 @@ export const AssignPeriodAccessSection: React.FC<{
                   <p className="text-xs text-slate-600">
                     {t(
                       'assignTargeting.periodUnverified',
-                      'PIN only, not verified: students without a school sign-in can’t join an in-class assessment.'
+                      'Students without a school sign-in can’t join in-class assessments.'
                     )}
                   </p>
                 )}

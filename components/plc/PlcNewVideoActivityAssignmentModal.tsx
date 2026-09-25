@@ -235,7 +235,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
               ? err.message
               : t('plcDashboard.newAssignment.video.sheetAutoCreateFailed', {
                   defaultValue:
-                    'Could not create the shared PLC sheet — the assignment will be created without one.',
+                    'Could not create the shared PLC sheet. The assignment will be created without one.',
                 }),
             'error'
           );
@@ -419,17 +419,15 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
         prompt={
           isDriveConnected
             ? t('plcDashboard.newAssignment.video.pickPrompt', {
-                defaultValue:
-                  'Pick a video activity from your personal library. The assignment will be created paused so you can review it before going live.',
+                defaultValue: 'It starts paused.',
               })
             : t('plcDashboard.newAssignment.video.pickPromptNoDrive', {
-                defaultValue:
-                  'Connect Google Drive in your account to assign video activities from your personal library.',
+                defaultValue: 'Connect Google Drive to pick a video activity.',
               })
         }
         emptyMessage={t('plcDashboard.newAssignment.video.pickEmpty', {
           defaultValue:
-            "You don't have any video activities in your personal library yet. Create one in the Video Activity widget first.",
+            'No video activities yet. Make one in the Video Activity widget.',
         })}
         items={pickerItems}
         onPick={handlePick}
@@ -441,13 +439,6 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
   if (!pickedActivity) {
     return null;
   }
-
-  const visibleRosterIds = new Set(
-    rosters.filter((r) => !r.loadError).map((r) => r.id)
-  );
-  const effectivePeriodCount = options.picker.rosterIds.filter((id) =>
-    visibleRosterIds.has(id)
-  ).length;
 
   // Source behavior from the picked activity for the read-only summary.
   const behavior = getVideoActivityBehavior(pickedActivity);
@@ -545,7 +536,6 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
       plcSlot={
         <PlcNewAssignmentSharingSlot
           plcName={plc.name}
-          effectivePeriodCount={effectivePeriodCount}
           teacherName={options.teacherName}
           onTeacherNameChange={(v) =>
             setOptions((p) => ({ ...p, teacherName: v }))

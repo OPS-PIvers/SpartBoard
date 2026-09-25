@@ -48,7 +48,7 @@ import {
   useRef,
   useSyncExternalStore,
 } from 'react';
-import type { Dashboard, GlobalStyle } from '@/types';
+import type { Dashboard, GlobalStyle, TourLayoutKeyframe } from '@/types';
 import { DEFAULT_GLOBAL_STYLE } from '@/types';
 import {
   DashboardContext,
@@ -149,6 +149,9 @@ export type DashboardActions = Pick<
   | 'setSelectedWidgetIds'
   | 'setGroupBuildMode'
   | 'setZoom'
+  | 'addTourWidget'
+  | 'commitTourWidgets'
+  | 'discardTourWidgets'
 >;
 
 /** Mount-stable actions surface provided by DashboardProvider. */
@@ -314,4 +317,141 @@ export function useDashboardCanvasStateGetter(): () => DashboardCanvasState {
       throw new Error('useDashboard must be used within DashboardProvider');
     return sliceFromLegacy(legacyForFallback);
   }, [store, legacyForFallback]);
+}
+
+/** A live tour's temporary place for one of the teacher's widgets. */
+export type TourLayoutOverride = Omit<TourLayoutKeyframe, 'slot'> & {
+  aspectRatio?: number;
+};
+
+type TourOverrides = ReadonlyMap<string, TourLayoutOverride>;
+
+let tourOverrides: TourOverrides = new Map();
+const tourOverrideListeners = new Set<() => void>();
+
+const sameOverride = (a?: TourLayoutOverride, b?: TourLayoutOverride) =>
+  a === b ||
+  (!!a &&
+    !!b &&
+    a.xProp === b.xProp &&
+    a.yProp === b.yProp &&
+    a.wProp === b.wProp &&
+    a.hProp === b.hProp &&
+    a.aspectRatio === b.aspectRatio);
+
+/** Replaces every tour layout override; render-only, never persisted. */
+export function setTourLayoutOverrides(
+  next: ReadonlyMap<string, TourLayoutOverride>
+): void {
+  // Unchanged entries keep their identity so only moved widgets re-render.
+  const merged = new Map<string, TourLayoutOverride>();
+  let changed = next.size !== tourOverrides.size;
+  for (const [id, value] of next) {
+    const prev = tourOverrides.get(id);
+    if (prev && sameOverride(prev, value)) merged.set(id, prev);
+    else {
+      merged.set(id, value);
+      changed = true;
+    }
+  }
+  if (!changed) return;
+  tourOverrides = merged;
+  tourOverrideListeners.forEach((l) => l());
+}
+
+/** Drops every tour layout override, putting the teacher's widgets back. */
+export function clearTourLayoutOverrides(): void {
+  setTourLayoutOverrides(new Map());
+}
+
+export const getTourLayoutOverrides = (): TourOverrides => tourOverrides;
+
+const subscribeTourOverrides = (listener: () => void) => {
+  tourOverrideListeners.add(listener);
+  return () => {
+    tourOverrideListeners.delete(listener);
+  };
+};
+
+/** The tour's temporary layout for one widget, if a tour is moving it. */
+export function useTourLayoutOverride(
+  widgetId: string
+): TourLayoutOverride | undefined {
+  return useSyncExternalStore(
+    subscribeTourOverrides,
+    () => tourOverrides.get(widgetId),
+    () => undefined
+  );
+}
+
+/** A live tour's temporary stacking and restore for one widget; never persisted. */
+export interface TourWidgetPatch {
+  z?: number;
+  restored?: true;
+}
+
+type TourPatches = ReadonlyMap<string, TourWidgetPatch>;
+
+let tourPatches: TourPatches = new Map();
+const tourPatchListeners = new Set<() => void>();
+
+const samePatch = (a?: TourWidgetPatch, b?: TourWidgetPatch) =>
+  a === b || (!!a && !!b && a.z === b.z && a.restored === b.restored);
+
+// Widgets the teacher minimized during the tour; the tour stops un-minimizing them.
+let releasedRestores = new Set<string>();
+
+/** Replaces every tour widget patch; unchanged entries keep their identity. */
+export function setTourWidgetPatches(
+  next: ReadonlyMap<string, TourWidgetPatch>
+): void {
+  const merged = new Map<string, TourWidgetPatch>();
+  let changed = next.size !== tourPatches.size;
+  for (const [id, raw] of next) {
+    const value =
+      raw.restored && releasedRestores.has(id)
+        ? { ...(raw.z === undefined ? {} : { z: raw.z }) }
+        : raw;
+    const prev = tourPatches.get(id);
+    if (prev && samePatch(prev, value)) merged.set(id, prev);
+    else {
+      merged.set(id, value);
+      changed = true;
+    }
+  }
+  if (!changed) return;
+  tourPatches = merged;
+  tourPatchListeners.forEach((l) => l());
+}
+
+export function clearTourWidgetPatches(): void {
+  releasedRestores = new Set();
+  setTourWidgetPatches(new Map());
+}
+
+/** The teacher minimized a widget the tour had restored; let it stay minimized. */
+export function releaseTourRestore(widgetId: string): void {
+  if (!tourPatches.get(widgetId)?.restored) return;
+  releasedRestores = new Set(releasedRestores).add(widgetId);
+  setTourWidgetPatches(tourPatches);
+}
+
+export const getTourWidgetPatches = (): TourPatches => tourPatches;
+
+const subscribeTourPatches = (listener: () => void) => {
+  tourPatchListeners.add(listener);
+  return () => {
+    tourPatchListeners.delete(listener);
+  };
+};
+
+/** The tour's temporary z or restore for one widget, if any. */
+export function useTourWidgetPatch(
+  widgetId: string
+): TourWidgetPatch | undefined {
+  return useSyncExternalStore(
+    subscribeTourPatches,
+    () => tourPatches.get(widgetId),
+    () => undefined
+  );
 }

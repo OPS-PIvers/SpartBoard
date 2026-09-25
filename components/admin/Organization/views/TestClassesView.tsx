@@ -60,7 +60,7 @@ export const TestClassesView: React.FC<Props> = ({
     <div>
       <ViewHeader
         title="Test classes"
-        blurb="Admin-managed mock classes for PII-free student SSO testing. Listed students can sign in via /join without going through ClassLink, and teachers see these classes with a TEST badge in their sidebar."
+        blurb="Mock classes for testing student sign-in."
         actions={
           <Btn
             variant="primary"
@@ -269,7 +269,7 @@ const TestClassModal: React.FC<ModalProps> = ({
         {mode === 'add' && (
           <Field
             label="Class ID"
-            hint="Optional. Leave blank to auto-generate from the title. Used as the Firestore doc ID and in student PINs."
+            hint="Optional. Used in student PINs."
             htmlFor="test-class-id"
           >
             <Input
@@ -300,7 +300,7 @@ const TestClassModal: React.FC<ModalProps> = ({
         <Field
           label="Member emails"
           required
-          hint="One per line or comma-separated. Emails are lowercased and deduplicated on save."
+          hint="One per line or comma-separated."
           htmlFor="test-class-emails"
         >
           <Textarea
