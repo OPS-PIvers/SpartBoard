@@ -286,6 +286,7 @@ const batchWrite = (writes: Writes) =>
   writes.sets.find((w) => w.path.includes('/paper_batches/'));
 
 beforeEach(() => {
+  vi.clearAllMocks();
   joinSyncGroup.mockReset();
   joinSyncGroup.mockResolvedValue({
     groupId: GROUP_ID,
@@ -634,6 +635,137 @@ describe('createTeammatePaperBatchV1 — no Drive grant (D19)', () => {
     expect(result.batch.spareSeats).toHaveLength(5);
     expect(result.batch.rosterIds).toEqual([ROSTER_ID]);
     expect(result.sheets.every((s) => s.student === null)).toBe(true);
+  });
+});
+
+describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', () => {
+  const WRITTEN_QUESTIONS = [
+    QUESTIONS[0],
+    {
+      id: 'q-essay',
+      type: 'free-response',
+      text: 'Explain why',
+      correctAnswer: '',
+      paperBoxSize: 'S',
+    },
+    QUESTIONS[1],
+  ];
+  const writtenState = (quiz: Record<string, unknown> = {}) =>
+    baseState({
+      docs: {
+        [`synced_quizzes/${GROUP_ID}`]: {
+          title: 'Unit 3 Common Assessment',
+          questions: WRITTEN_QUESTIONS,
+          version: 2,
+          ...quiz,
+        },
+      },
+    });
+  const granted = vi.fn(() => Promise.resolve(true));
+  const writtenDeps = (over: Partial<TeammatePrintWriteDeps> = {}) =>
+    deps({
+      readDriveJson: (_t: string, fileId: string) =>
+        Promise.resolve(fileId === ROSTER_FILE_ID ? ROSTER_FILE : null),
+      isFeatureGranted: granted,
+      ...over,
+    });
+  const WRITTEN_INPUT = { ...INPUT, written: true };
+
+  it('stamps page maps when the caller has the feature and asked for it', async () => {
+    const { run, writes } = create(
+      writtenState(),
+      writtenDeps(),
+      WRITTEN_INPUT
+    );
+    const result = await run();
+    expect(granted).toHaveBeenCalledWith(
+      'paper-handwritten-responses',
+      null,
+      CALLER_UID
+    );
+    expect(result.batch.layoutVersion).toBe(2);
+    expect(result.batch.pageMaps).toHaveLength(1);
+    expect(result.batch.pagesPerSheet).toBe(1);
+    expect(result.batch.questionCount).toBe(2);
+    const items = result.batch.pageMaps?.[0].items ?? [];
+    expect(items.map((i) => [i.kind, i.label])).toEqual([
+      ['mc', '1'],
+      ['written', '2'],
+      ['mc', '3'],
+    ]);
+    expect(batchWrite(writes)?.data.pageMaps).toEqual(result.batch.pageMaps);
+    expect(result.testPaper).toEqual([
+      expect.objectContaining({ row: 1 }),
+      { row: 2, text: 'Explain why', choices: [], written: true },
+      expect.objectContaining({ row: 3 }),
+    ]);
+  });
+
+  it('prints exactly as before without the opt-in', async () => {
+    const { run } = create(writtenState(), writtenDeps(), INPUT);
+    const result = await run();
+    expect(granted).not.toHaveBeenCalled();
+    expect('layoutVersion' in result.batch).toBe(false);
+    expect('pageMaps' in result.batch).toBe(false);
+    expect(result.testPaper.map((r) => r.row)).toEqual([1, 2]);
+  });
+
+  it('prints exactly as before when the caller does not have the feature', async () => {
+    const { run } = create(
+      writtenState(),
+      writtenDeps({ isFeatureGranted: () => Promise.resolve(false) }),
+      WRITTEN_INPUT
+    );
+    const result = await run();
+    expect('layoutVersion' in result.batch).toBe(false);
+  });
+
+  it('keeps an MC-only quiz on the classic layout even with the feature', async () => {
+    const { run } = create(baseState(), writtenDeps(), WRITTEN_INPUT);
+    const result = await run();
+    expect('layoutVersion' in result.batch).toBe(false);
+  });
+
+  it('prints a written-only quiz', async () => {
+    const { run } = create(
+      writtenState({ questions: [WRITTEN_QUESTIONS[1]] }),
+      writtenDeps(),
+      WRITTEN_INPUT
+    );
+    const result = await run();
+    expect(result.batch.questionCount).toBe(0);
+    expect(result.batch.layoutVersion).toBe(2);
+  });
+
+  it('refuses a written question inside an "answer any" section', async () => {
+    const { run, writes } = create(
+      writtenState({
+        sections: [{ id: 'sec', title: 'Pick one', chooseCount: 1 }],
+        order: [
+          { kind: 'question', id: 'q1' },
+          { kind: 'section', id: 'sec' },
+          { kind: 'question', id: 'q-essay' },
+          { kind: 'question', id: 'q2' },
+        ],
+      }),
+      writtenDeps(),
+      WRITTEN_INPUT
+    );
+    await expect(run()).rejects.toMatchObject({
+      code: 'failed-precondition',
+    });
+    expect(writes.sets).toEqual([]);
+  });
+
+  it('uses the one-column grid when the quiz prints sheet stimuli', async () => {
+    const { run } = create(
+      writtenState({ paperSheetStimuli: [{ id: 'st1' }] }),
+      writtenDeps(),
+      WRITTEN_INPUT
+    );
+    const result = await run();
+    expect(result.batch.columnsPerPage).toBe(1);
+    expect(result.batch.pageMaps?.[0].grid).toBe(1);
   });
 });
 
