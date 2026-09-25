@@ -134,7 +134,7 @@ export interface GuidedLearningStageRuntimeProps {
   showCalloutFit?: boolean;
 }
 
-export const GuidedLearningStage: React.FC<
+const StageBody: React.FC<
   GuidedLearningStageProps & GuidedLearningStageRuntimeProps
 > = ({
   set,
@@ -962,6 +962,7 @@ export const GuidedLearningStage: React.FC<
             loop
             autoPlay
             playsInline
+            draggable={false}
             className="absolute inset-0 w-full h-full object-contain pointer-events-none"
             onError={slideLoading ? () => markSlide('error') : undefined}
             onLoadedMetadata={(e) => {
@@ -1364,3 +1365,16 @@ export const GuidedLearningStage: React.FC<
     </div>
   );
 };
+
+type StageAllProps = GuidedLearningStageProps & GuidedLearningStageRuntimeProps;
+// An explicit compare keeps React off its simple-memo path, which leaves useEffectEvent stale.
+const sameStageProps = (a: StageAllProps, b: StageAllProps) => {
+  const keys = Object.keys(a) as (keyof StageAllProps)[];
+  return (
+    keys.length === Object.keys(b).length &&
+    keys.every((k) => Object.is(a[k], b[k]))
+  );
+};
+
+/** Memoised so a Studio render that leaves the stage props alone skips the stage. */
+export const GuidedLearningStage = React.memo(StageBody, sameStageProps);

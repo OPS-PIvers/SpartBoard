@@ -49,9 +49,15 @@ export const SpotlightInteraction: React.FC<Props> = ({
             {/* White = visible, black = hidden  */}
             <rect width="100%" height="100%" fill="white" />
             {path ? (
-              <path d={path} fill="black" />
+              <path data-gl-spot={step.id} d={path} fill="black" />
             ) : (
-              <circle cx={cx} cy={cy} r={radius} fill="black" />
+              <circle
+                data-gl-spot={step.id}
+                cx={cx}
+                cy={cy}
+                r={radius}
+                fill="black"
+              />
             )}
           </mask>
         </defs>
@@ -66,6 +72,7 @@ export const SpotlightInteraction: React.FC<Props> = ({
         {path ? (
           <path
             data-testid="gl-spotlight-rim"
+            data-gl-spot={step.id}
             d={path}
             fill="none"
             stroke="rgba(255,255,255,0.3)"
@@ -74,6 +81,7 @@ export const SpotlightInteraction: React.FC<Props> = ({
         ) : (
           <circle
             data-testid="gl-spotlight-rim"
+            data-gl-spot={step.id}
             cx={cx}
             cy={cy}
             r={radius}
@@ -87,6 +95,7 @@ export const SpotlightInteraction: React.FC<Props> = ({
       {(!!step.label || !!editor) && (
         <div
           data-gl-callout={step.id}
+          data-gl-overlay={step.id}
           className={`absolute z-20 pointer-events-none text-white font-bold text-center ${
             editor ? '' : 'whitespace-nowrap'
           }`}
