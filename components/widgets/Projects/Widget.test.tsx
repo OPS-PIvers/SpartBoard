@@ -29,7 +29,7 @@ vi.mock('./components/ProjectsManager', () => ({
 }));
 
 const setStepState = vi.fn().mockResolvedValue(undefined);
-const setNeedsSupport = vi.fn().mockResolvedValue(undefined);
+const setPeerVisibility = vi.fn().mockResolvedValue(undefined);
 const updateWidget = vi.fn();
 
 const run: ProjectRun = {
@@ -55,8 +55,6 @@ const group = (overrides: Partial<ProjectGroup> = {}): ProjectGroup => ({
   memberUids: [],
   order: 0,
   stepStates: { 'step-1': 'done', 'step-2': 'notStarted' },
-  needsSupport: false,
-  workLinks: [],
   updatedAt: 1,
   ...overrides,
 });
@@ -80,10 +78,8 @@ const mockRun = (overrides: Record<string, unknown> = {}) =>
     loading: false,
     error: null,
     setStepState,
-    setNeedsSupport,
+    setPeerVisibility,
     ensureRun: vi.fn(),
-    addWorkLink: vi.fn(),
-    removeWorkLink: vi.fn(),
     updateRun: vi.fn(),
     importGroups: vi.fn(),
     ...overrides,
@@ -180,18 +176,24 @@ describe('ProjectsWidget', () => {
     }
   });
 
-  it('marks a group needing help with a chip, never an edge border', () => {
-    mockRun({ groups: [group({ needsSupport: true })] });
+  it('has no help flag on the board (D38)', () => {
     render(<ProjectsWidget widget={widget()} />);
-    const row = screen
-      .getByRole('rowheader', { name: /Group 1/ })
-      .closest('tr');
-    expect(row).not.toBeNull();
-    expect(row?.className).not.toMatch(/border-l/);
-    expect(row?.getAttribute('style') ?? '').not.toMatch(/border-left/i);
+    expect(screen.getByRole('rowheader', { name: /Group 1/ })).toBeTruthy();
     expect(
-      screen.getByRole('button', { name: 'Clear the help flag for Group 1' })
-    ).toBeInTheDocument();
+      screen.queryByRole('button', { name: /help flag/i })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Help')).not.toBeInTheDocument();
+  });
+
+  it('toggles whether students see other groups from the actions menu', async () => {
+    render(<ProjectsWidget widget={widget()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions' }));
+    fireEvent.click(
+      await screen.findByRole('menuitem', {
+        name: /Students see other groups: on/,
+      })
+    );
+    await waitFor(() => expect(setPeerVisibility).toHaveBeenCalledWith(false));
   });
 
   it('shows only the groups in the active class', () => {
@@ -206,20 +208,16 @@ describe('ProjectsWidget', () => {
     expect(screen.queryByText('Group 2')).not.toBeInTheDocument();
   });
 
-  it('floats a group asking for help to the top', () => {
+  it('keeps the groups in the teacher’s order', () => {
     mockRun({
-      groups: [
-        group(),
-        group({ id: 'g2', name: 'Group 2', order: 1, needsSupport: true }),
-      ],
+      groups: [group({ id: 'g2', name: 'Group 2', order: 1 }), group()],
     });
     render(<ProjectsWidget widget={widget()} />);
     const names = screen.getAllByText(/^Group \d$/).map((el) => el.textContent);
-    expect(names[0]).toBe('Group 2');
+    expect(names).toEqual(['Group 1', 'Group 2']);
   });
 
-  it('lets the teacher cycle a step and clear a help flag', async () => {
-    mockRun({ groups: [group({ needsSupport: true })] });
+  it('lets the teacher cycle a step', async () => {
     render(<ProjectsWidget widget={widget()} />);
 
     fireEvent.click(
@@ -232,13 +230,6 @@ describe('ProjectsWidget', () => {
         'inProgress',
         'teacher'
       )
-    );
-
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Clear the help flag for Group 1' })
-    );
-    await waitFor(() =>
-      expect(setNeedsSupport).toHaveBeenCalledWith('g1', false, 'teacher')
     );
   });
 
@@ -380,7 +371,6 @@ describe('ProjectsWidget', () => {
           classId: 'class-a',
           order: 0,
           stepStates: { 'step-1': 'done', 'step-2': 'notStarted' },
-          needsSupport: true,
         },
       ],
     };
@@ -415,10 +405,6 @@ describe('ProjectsWidget', () => {
       expect(
         screen.queryByRole('button', { name: 'Group 1, Research, Done' })
       ).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole('button', { name: /Clear the help flag/ })
-      ).not.toBeInTheDocument();
-      expect(screen.getByText('Help')).toBeInTheDocument();
     });
 
     // Each of these writes the teacher's board or their run, which a

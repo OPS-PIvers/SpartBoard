@@ -5651,25 +5651,29 @@ service cloud.firestore {
       allow delete: if pjTeacher() && existing().teacherUid == authUid();
 
       match /groups/{groupId} {
-        // A3: student reads gate on the group's own classId, never a get() of
+        // A3: student reads gate on the group's own fields, never a get() of
         // the parent run — that would cost a document read per group per render.
-        // Which keys a member may touch, and what may go in them. CEL cannot walk
-        // `workLinks` to validate each entry, so the list is capped and typed here
-        // and its contents stay the client's business.
+        // Which keys a member may touch. Work links moved to `private/work` (D40).
         function pjStudentEditableFields() {
           let after = incoming();
           return after.diff(existing()).affectedKeys().hasOnly([
-                   'stepStates', 'needsSupport', 'workLinks', 'lastStepChange', 'updatedAt'
+                   'stepStates', 'lastStepChange', 'updatedAt'
                  ])
-                 && after.get('needsSupport', false) is bool
-                 && after.get('workLinks', []) is list
-                 && after.get('workLinks', []).size() <= 20
                  && after.get('updatedAt', 0) is int
                  && after.get('lastStepChange', {}).get('at', 0) is int;
         }
-        // Enforces the per-step approval ceiling (D2/D3). CEL cannot walk a map
-        // applying a per-key rule, so a student write declares the one step it
-        // moved and the rule checks that claim against the real diff.
+        // Positive membership, never a helper that passes every non-student.
+        function pjGroupMember() {
+          return request.auth != null
+                 && authUid() in get(
+                      /databases/$(database)/documents/project_runs/$(runId)/groups/$(groupId)
+                    ).data.get('memberUids', []);
+        }
+        // Enforces the per-step approval ceiling (D2/D3), and D41: an approved
+        // step is locked, so a student can neither move into nor out of done.
+        // CEL cannot walk a map applying a per-key rule, so a student write
+        // declares the one step it moved and the rule checks that claim
+        // against the real diff.
         function pjStudentStepWrite() {
           let before = existing().get('stepStates', {});
           let after = incoming().get('stepStates', {});
@@ -5682,15 +5686,19 @@ service cloud.firestore {
                      && after.get(sid, '') in
                         ['notStarted', 'inProgress', 'readyForReview', 'done']
                      && (!(sid in pjRun().get('approvalStepIds', []))
-                         || after.get(sid, '') != 'done'));
+                         || (after.get(sid, '') != 'done'
+                             && before.get(sid, '') != 'done')));
         }
 
-        allow get: if request.auth != null
-                   && (pjIsRunTeacher()
-                       || studentRoleCanAccessClass(existing().get('classId', '')));
-        allow list: if request.auth != null
-                    && (pjIsRunTeacher()
-                        || studentRoleCanAccessClass(existing().get('classId', '')));
+        // D39: a member always; a classmate only while the teacher's
+        // denormalized `peerVisible` is on. Both are provable from the two
+        // student query shapes (memberUids array-contains, classId in +
+        // peerVisible ==).
+        allow read: if request.auth != null
+                    && (authUid() in existing().get('memberUids', [])
+                        || (studentRoleCanAccessClass(existing().get('classId', ''))
+                            && existing().get('peerVisible', false) == true)
+                        || pjIsRunTeacher());
         allow update: if request.auth != null
                       && (pjIsRunTeacher()
                           || (authUid() in existing().get('memberUids', [])
@@ -5711,7 +5719,7 @@ service cloud.firestore {
                         && incoming().actorRole
                            == (pjIsRunTeacher() ? 'teacher' : 'student')
                         && incoming().kind in [
-                             'stepState', 'needsSupport', 'workLink', 'upload', 'membership'
+                             'stepState', 'workLink', 'upload', 'membership'
                            ]
                         && (pjIsRunTeacher()
                             || authUid() in get(
@@ -5720,20 +5728,28 @@ service cloud.firestore {
           allow update, delete: if false;
         }
 
+        // D40: work links are the group's own, like uploads. One doc, `work`.
+        // CEL cannot walk the list to validate each entry, so it is capped
+        // and typed here and its contents stay the client's business.
+        match /private/{docId} {
+          allow read: if pjIsRunTeacher() || pjGroupMember();
+          allow create, update: if docId == 'work'
+                                && incoming().keys().hasOnly(['workLinks', 'updatedAt'])
+                                && isList('workLinks')
+                                && incoming().workLinks.size() <= 20
+                                && isInt('updatedAt')
+                                && (pjIsRunTeacher()
+                                    || (pjGroupMember()
+                                        && pjRun().acceptingUpdates == true));
+          allow delete: if pjIsRunTeacher();
+        }
+
         // D20 — uploads are a transit record: the client creates one, the
         // archive trigger (admin, rules-exempt) moves it to Drive and clears
         // `storagePath`. Reads are the run teacher and the group's own members
-        // only. Unlike `workLinks`, which sit on the class-readable group doc,
-        // a file is the group's work product, not a pointer it published.
+        // only.
         match /uploads/{uploadId} {
-          // Positive membership, never a helper that passes every non-student.
-          function pjUploadMember() {
-            return request.auth != null
-                   && authUid() in get(
-                        /databases/$(database)/documents/project_runs/$(runId)/groups/$(groupId)
-                      ).data.get('memberUids', []);
-          }
-          allow read: if pjIsRunTeacher() || pjUploadMember();
+          allow read: if pjIsRunTeacher() || pjGroupMember();
           allow create: if request.auth != null
                         && incoming().uploadedByUid == authUid()
                         && incoming().id == uploadId
@@ -5747,11 +5763,11 @@ service cloud.firestore {
                         && isInt('sizeBytes')
                         && isInt('uploadedAt')
                         && (pjIsRunTeacher()
-                            || (pjUploadMember() && pjRun().acceptingUpdates == true));
+                            || (pjGroupMember() && pjRun().acceptingUpdates == true));
           // The archive trigger writes as admin and bypasses rules, so no
           // client ever needs to move an upload's archive state along.
           allow update: if pjIsRunTeacher();
-          allow delete: if pjIsRunTeacher() || pjUploadMember();
+          allow delete: if pjIsRunTeacher() || pjGroupMember();
         }
       }
 

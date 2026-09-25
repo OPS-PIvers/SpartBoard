@@ -89,8 +89,7 @@ const group = (overrides: Record<string, unknown> = {}) => ({
   memberUids: [MEMBER_UID],
   order: 0,
   stepStates: { 'step-1': 'notStarted', 'step-2': 'notStarted' },
-  needsSupport: false,
-  workLinks: [],
+  peerVisible: true,
   updatedAt: 1,
   ...overrides,
 });
@@ -245,13 +244,51 @@ describe('run document', () => {
 });
 
 describe('the student project page groups query', () => {
+  // D39 — the peer shape the student page issues while the run shows peers.
   const groupsIn = (db: ReturnType<typeof asStudent>, classIds: string[]) =>
     getDocs(
       query(
         collection(db, `project_runs/${RUN_ID}/groups`),
-        where('classId', 'in', classIds)
+        where('classId', 'in', classIds),
+        where('peerVisible', '==', true)
       )
     );
+  const ownGroups = (db: ReturnType<typeof asStudent>, uid: string) =>
+    getDocs(
+      query(
+        collection(db, `project_runs/${RUN_ID}/groups`),
+        where('memberUids', 'array-contains', uid)
+      )
+    );
+
+  it('lets a member list their own group by membership, peers hidden or not', async () => {
+    await seed({}, { peerVisible: false });
+    await assertSucceeds(
+      ownGroups(asStudent(MEMBER_UID, [CLASS_ID]), MEMBER_UID)
+    );
+  });
+
+  it('refuses a membership query aimed at someone else', async () => {
+    await seed({}, { peerVisible: false });
+    await assertFails(
+      ownGroups(asStudent(OUTSIDER_UID, [CLASS_ID]), MEMBER_UID)
+    );
+  });
+
+  it('refuses a classmate the classId listing without the peerVisible filter', async () => {
+    await seed();
+    await assertFails(
+      getDocs(
+        query(
+          collection(
+            asStudent(OUTSIDER_UID, [CLASS_ID]),
+            `project_runs/${RUN_ID}/groups`
+          ),
+          where('classId', 'in', [CLASS_ID])
+        )
+      )
+    );
+  });
 
   it('lets a student in the class list its groups by classId', async () => {
     await seed();
@@ -333,6 +370,48 @@ describe('group document', () => {
     );
   });
 
+  it('locks an approved step: a member cannot move it out of done (D41)', async () => {
+    await seed(
+      {},
+      { stepStates: { 'step-1': 'notStarted', 'step-2': 'done' } }
+    );
+    await assertFails(
+      updateDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), GROUP_PATH), {
+        stepStates: { 'step-1': 'notStarted', 'step-2': 'readyForReview' },
+        lastStepChange: { stepId: 'step-2', at: 2 },
+        updatedAt: 2,
+      })
+    );
+    // Only the approval step is locked; the member keeps moving the others.
+    await assertSucceeds(
+      updateDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), GROUP_PATH), {
+        stepStates: { 'step-1': 'inProgress', 'step-2': 'done' },
+        lastStepChange: { stepId: 'step-1', at: 3 },
+        updatedAt: 3,
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(TEACHER_UID), GROUP_PATH), {
+        stepStates: { 'step-1': 'inProgress', 'step-2': 'inProgress' },
+        updatedAt: 4,
+      })
+    );
+  });
+
+  it('lets a member move a non-approval step back out of done', async () => {
+    await seed(
+      {},
+      { stepStates: { 'step-1': 'done', 'step-2': 'notStarted' } }
+    );
+    await assertSucceeds(
+      updateDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), GROUP_PATH), {
+        stepStates: { 'step-1': 'inProgress', 'step-2': 'notStarted' },
+        lastStepChange: { stepId: 'step-1', at: 2 },
+        updatedAt: 2,
+      })
+    );
+  });
+
   it('lets the teacher set done on an approval step', async () => {
     await seed();
     await assertSucceeds(
@@ -346,24 +425,26 @@ describe('group document', () => {
   it('constrains the values a member may write, not just the keys', async () => {
     await seed();
     const db = asStudent(MEMBER_UID, [CLASS_ID]);
-    // The client sanitizes work links, but the client is not the boundary.
+    // D38/D40 — the help flag is gone and links moved to private/work.
     await assertFails(
-      updateDoc(doc(db, GROUP_PATH), { needsSupport: 'yes please' })
+      updateDoc(doc(db, GROUP_PATH), { needsSupport: true, updatedAt: 3 })
     );
     await assertFails(
       updateDoc(doc(db, GROUP_PATH), {
-        workLinks: Array.from({ length: 21 }, (_, i) => ({
-          id: `w${i}`,
-          url: 'https://example.com',
-          addedByUid: MEMBER_UID,
-          addedAt: 1,
-        })),
+        workLinks: [
+          {
+            id: 'w1',
+            url: 'https://example.com',
+            addedByUid: MEMBER_UID,
+            addedAt: 1,
+          },
+        ],
+        updatedAt: 3,
       })
     );
+    await assertFails(updateDoc(doc(db, GROUP_PATH), { peerVisible: false }));
     await assertFails(updateDoc(doc(db, GROUP_PATH), { updatedAt: 'now' }));
-    await assertSucceeds(
-      updateDoc(doc(db, GROUP_PATH), { needsSupport: true, updatedAt: 3 })
-    );
+    await assertSucceeds(updateDoc(doc(db, GROUP_PATH), { updatedAt: 3 }));
   });
 
   it('denies a member editing membership, name or class', async () => {
@@ -383,15 +464,47 @@ describe('group document', () => {
     await assertFails(getDoc(doc(asTeacher(OTHER_TEACHER_UID), GROUP_PATH)));
   });
 
-  it('denies a classmate who is not in the group', async () => {
+  it('denies a classmate who is not in the group any write', async () => {
     await seed();
     await assertSucceeds(
       getDoc(doc(asStudent(OUTSIDER_UID, [CLASS_ID]), GROUP_PATH))
     );
     await assertFails(
       updateDoc(doc(asStudent(OUTSIDER_UID, [CLASS_ID]), GROUP_PATH), {
-        needsSupport: true,
+        stepStates: { 'step-1': 'inProgress', 'step-2': 'notStarted' },
+        lastStepChange: { stepId: 'step-1', at: 2 },
         updatedAt: 2,
+      })
+    );
+  });
+
+  // D39 — peer reads are enforced, not just hidden by the client.
+  it('hides a group from a classmate while peerVisible is off', async () => {
+    await seed({ showStatusToStudents: false }, { peerVisible: false });
+    await assertFails(
+      getDoc(doc(asStudent(OUTSIDER_UID, [CLASS_ID]), GROUP_PATH))
+    );
+    await assertSucceeds(
+      getDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), GROUP_PATH))
+    );
+    await assertSucceeds(getDoc(doc(asTeacher(TEACHER_UID), GROUP_PATH)));
+  });
+
+  it('never shows a group to a student outside its class, even with peers on', async () => {
+    await seed();
+    await assertFails(
+      getDoc(doc(asStudent(OUTSIDER_UID, [OTHER_CLASS_ID]), GROUP_PATH))
+    );
+  });
+
+  it('lets the teacher flip peerVisible on a group', async () => {
+    await seed();
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(TEACHER_UID), GROUP_PATH), { peerVisible: false })
+    );
+    await assertFails(
+      updateDoc(doc(asTeacher(OTHER_TEACHER_UID), GROUP_PATH), {
+        peerVisible: true,
       })
     );
   });
@@ -400,13 +513,14 @@ describe('group document', () => {
     await seed({ acceptingUpdates: false });
     await assertFails(
       updateDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), GROUP_PATH), {
-        needsSupport: true,
+        stepStates: { 'step-1': 'inProgress', 'step-2': 'notStarted' },
+        lastStepChange: { stepId: 'step-1', at: 2 },
         updatedAt: 2,
       })
     );
     await assertSucceeds(
       updateDoc(doc(asTeacher(TEACHER_UID), GROUP_PATH), {
-        needsSupport: true,
+        stepStates: { 'step-1': 'inProgress', 'step-2': 'notStarted' },
         updatedAt: 2,
       })
     );
@@ -470,6 +584,76 @@ describe('event log', () => {
       getDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), eventPath))
     );
     await assertSucceeds(getDoc(doc(asTeacher(TEACHER_UID), eventPath)));
+  });
+});
+
+// D40 — work links live on a members-and-teacher doc beside the group.
+describe('group work links', () => {
+  const workPath = `${GROUP_PATH}/private/work`;
+  const links = (count: number) =>
+    Array.from({ length: count }, (_, i) => ({
+      id: `w${i}`,
+      url: 'https://example.com',
+      addedByUid: MEMBER_UID,
+      addedAt: 1,
+    }));
+  const work = (count = 1) => ({ workLinks: links(count), updatedAt: 2 });
+
+  it('lets a member write and read their own group\u2019s links', async () => {
+    await seed();
+    const db = asStudent(MEMBER_UID, [CLASS_ID]);
+    await assertSucceeds(setDoc(doc(db, workPath), work()));
+    await assertSucceeds(getDoc(doc(db, workPath)));
+  });
+
+  it('keeps them from a classmate, even with peers visible', async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), workPath), work());
+    });
+    const db = asStudent(OUTSIDER_UID, [CLASS_ID]);
+    await assertFails(getDoc(doc(db, workPath)));
+    await assertFails(setDoc(doc(db, workPath), work()));
+  });
+
+  it('lets the run teacher read and write, and nobody else', async () => {
+    await seed();
+    await assertSucceeds(setDoc(doc(asTeacher(TEACHER_UID), workPath), work()));
+    await assertSucceeds(getDoc(doc(asTeacher(TEACHER_UID), workPath)));
+    await assertFails(getDoc(doc(asTeacher(OTHER_TEACHER_UID), workPath)));
+    await assertFails(
+      setDoc(doc(asTeacher(OTHER_TEACHER_UID), workPath), work())
+    );
+  });
+
+  it('caps the list at 20 and allows no other keys', async () => {
+    await seed();
+    const db = asStudent(MEMBER_UID, [CLASS_ID]);
+    await assertFails(setDoc(doc(db, workPath), work(21)));
+    await assertFails(
+      setDoc(doc(db, workPath), { ...work(), memberUids: [OUTSIDER_UID] })
+    );
+    await assertFails(
+      setDoc(doc(db, workPath), { workLinks: 'nope', updatedAt: 1 })
+    );
+  });
+
+  it('accepts only the one doc id', async () => {
+    await seed();
+    await assertFails(
+      setDoc(
+        doc(asStudent(MEMBER_UID, [CLASS_ID]), `${GROUP_PATH}/private/other`),
+        work()
+      )
+    );
+  });
+
+  it('freezes member writes once the run is closed', async () => {
+    await seed({ acceptingUpdates: false });
+    await assertFails(
+      setDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), workPath), work())
+    );
+    await assertSucceeds(setDoc(doc(asTeacher(TEACHER_UID), workPath), work()));
   });
 });
 

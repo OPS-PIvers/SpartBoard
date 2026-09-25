@@ -8,6 +8,7 @@ import React, {
 import { AlertCircle, AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { useStudentAuth } from '@/context/useStudentAuth';
 import {
+  isClosedProjectRun,
   useStudentAssignments,
   type AssignmentSummary,
 } from '@/hooks/useStudentAssignments';
@@ -211,7 +212,9 @@ const MyAssignmentsPage: React.FC = () => {
     // countdown (Design Contract §4).
     const nowMs = getServerNow();
     for (const a of assignments) {
-      const completion = completionMap[`${a.kind}:${a.sessionId}`] ?? 'unknown';
+      const completion = isClosedProjectRun(a)
+        ? 'completed'
+        : (completionMap[`${a.kind}:${a.sessionId}`] ?? 'unknown');
       if (completion === 'completed') {
         completed.push(a);
         continue;

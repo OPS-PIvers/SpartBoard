@@ -14,22 +14,32 @@ import { logError } from '@/utils/logError';
 import {
   RUNS_COLLECTION,
   removeWorkLinkWrite,
-  writeNeedsSupport,
   writeStepState,
   writeWorkLink,
 } from '@/utils/projectRunWrites';
+import { useProjectGroupWork } from './useProjectGroupWork';
+
+type GroupDocs = ProjectGroup[];
+
+const groupsFrom = (docs: { id: string; data: () => unknown }[]): GroupDocs =>
+  docs.map((snapshotDoc) => ({
+    ...(snapshotDoc.data() as Omit<ProjectGroup, 'id'>),
+    id: snapshotDoc.id,
+  }));
 
 interface UseStudentProjectRunResult {
   run: ProjectRun | null;
+  /** The caller's own group, plus classmates' groups while the run shows them (D39). */
   groups: ProjectGroup[];
   /** The caller's own group, the only one they may write to. */
   myGroup: ProjectGroup | null;
+  /** D40 — `private/work`, or the legacy group-doc field until it is backfilled. */
+  workLinks: ProjectWorkLink[];
   /** Null until the teacher releases it — an unreleased grade is unreadable. */
   grade: ProjectGroupGrade | null;
   loading: boolean;
   error: string | null;
   setStepState: (stepId: string, state: ProjectStepState) => Promise<void>;
-  setNeedsSupport: (needsSupport: boolean) => Promise<void>;
   addWorkLink: (link: ProjectWorkLink) => Promise<void>;
   removeWorkLink: (link: ProjectWorkLink) => Promise<void>;
 }
@@ -40,7 +50,8 @@ export function useStudentProjectRun(
   classIds: readonly string[]
 ): UseStudentProjectRunResult {
   const [run, setRun] = useState<ProjectRun | null>(null);
-  const [groups, setGroups] = useState<ProjectGroup[]>([]);
+  const [ownGroups, setOwnGroups] = useState<GroupDocs>([]);
+  const [peerGroups, setPeerGroups] = useState<GroupDocs>([]);
   const [grade, setGrade] = useState<ProjectGroupGrade | null>(null);
   const [loading, setLoading] = useState(Boolean(runId));
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +60,8 @@ export function useStudentProjectRun(
   if (previousRunId !== runId) {
     setPreviousRunId(runId);
     setRun(null);
-    setGroups([]);
+    setOwnGroups([]);
+    setPeerGroups([]);
     setGrade(null);
     setLoading(Boolean(runId));
     setError(null);
@@ -76,39 +88,60 @@ export function useStudentProjectRun(
     );
   }, [runId]);
 
-  // The group read rule gates each doc on its classId, so an unfiltered listing is always denied.
+  // D39 — the read rule admits a member, or a classmate only while `peerVisible`
+  // is on, so each query below matches exactly one of those shapes.
+  useEffect(() => {
+    if (!runId || !uid) return undefined;
+    return onSnapshot(
+      query(
+        collection(db, RUNS_COLLECTION, runId, 'groups'),
+        where('memberUids', 'array-contains', uid)
+      ),
+      (snapshot) => setOwnGroups(groupsFrom(snapshot.docs)),
+      (snapshotError) => {
+        logError('useStudentProjectRun.ownGroup', snapshotError, { runId });
+        setError('Group progress could not be loaded.');
+      }
+    );
+  }, [runId, uid]);
+
   const classIdsKey = useMemo(
     () => Array.from(new Set(classIds)).sort().slice(0, 30).join('|'),
     [classIds]
   );
+  const showPeers = run?.showStatusToStudents === true;
 
   useEffect(() => {
-    if (!runId || !classIdsKey) return undefined;
+    if (!runId || !classIdsKey || !showPeers) return undefined;
     return onSnapshot(
       query(
         collection(db, RUNS_COLLECTION, runId, 'groups'),
-        where('classId', 'in', classIdsKey.split('|'))
+        where('classId', 'in', classIdsKey.split('|')),
+        where('peerVisible', '==', true)
       ),
-      (snapshot) =>
-        setGroups(
-          snapshot.docs.map((snapshotDoc) => ({
-            ...(snapshotDoc.data() as Omit<ProjectGroup, 'id'>),
-            id: snapshotDoc.id,
-          }))
-        ),
+      (snapshot) => setPeerGroups(groupsFrom(snapshot.docs)),
+      // Peers are optional context; losing them never blocks the student's own group.
       (snapshotError) => {
-        logError('useStudentProjectRun.groups', snapshotError, { runId });
-        setError('Group progress could not be loaded.');
+        logError('useStudentProjectRun.peerGroups', snapshotError, { runId });
+        setPeerGroups([]);
       }
     );
-  }, [classIdsKey, runId]);
+  }, [classIdsKey, runId, showPeers]);
+
+  const groups = useMemo(() => {
+    const byId = new Map<string, ProjectGroup>();
+    if (showPeers) for (const group of peerGroups) byId.set(group.id, group);
+    for (const group of ownGroups) byId.set(group.id, group);
+    return Array.from(byId.values());
+  }, [ownGroups, peerGroups, showPeers]);
 
   const myGroup = useMemo(
     () =>
-      uid ? (groups.find((g) => g.memberUids?.includes(uid)) ?? null) : null,
-    [groups, uid]
+      uid ? (ownGroups.find((g) => g.memberUids?.includes(uid)) ?? null) : null,
+    [ownGroups, uid]
   );
   const myGroupId = myGroup?.id ?? null;
+  const work = useProjectGroupWork(runId, myGroupId, myGroup?.workLinks);
 
   // Clearing on a group change is a render-time adjustment, not an effect:
   // an effect that calls setState costs an extra render pass and would leave
@@ -161,45 +194,46 @@ export function useStudentProjectRun(
     [actor, guard, myGroup?.stepStates]
   );
 
-  const setNeedsSupport = useCallback(
-    async (needsSupport: boolean) => {
-      const target = guard();
-      await writeNeedsSupport(
-        db,
-        target.runId,
-        target.groupId,
-        needsSupport,
-        actor
-      );
-    },
-    [actor, guard]
-  );
+  const legacySeed = work.legacySeed;
 
   const addWorkLink = useCallback(
     async (link: ProjectWorkLink) => {
       const target = guard();
-      await writeWorkLink(db, target.runId, target.groupId, link, actor);
+      await writeWorkLink(
+        db,
+        target.runId,
+        target.groupId,
+        link,
+        actor,
+        legacySeed
+      );
     },
-    [actor, guard]
+    [actor, guard, legacySeed]
   );
 
   const removeWorkLink = useCallback(
     async (link: ProjectWorkLink) => {
       const target = guard();
-      await removeWorkLinkWrite(db, target.runId, target.groupId, link);
+      await removeWorkLinkWrite(
+        db,
+        target.runId,
+        target.groupId,
+        link,
+        legacySeed
+      );
     },
-    [guard]
+    [guard, legacySeed]
   );
 
   return {
     run,
     groups,
     myGroup,
+    workLinks: work.workLinks,
     grade,
     loading,
     error,
     setStepState,
-    setNeedsSupport,
     addWorkLink,
     removeWorkLink,
   };

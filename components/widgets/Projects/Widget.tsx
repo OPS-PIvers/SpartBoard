@@ -20,6 +20,7 @@ import { ProjectBoardView } from './components/ProjectBoardView';
 import { ProjectSetupGroupsModal } from './components/ProjectSetupGroupsModal';
 import { ProjectGrader } from './components/ProjectGrader';
 import { ProjectGroupsManager } from './components/ProjectGroupsManager';
+import { classNamesForEntries } from './projectSteps';
 
 /**
  * R1 — a widget placed before the manager landed carries a `projectId` and no
@@ -154,7 +155,11 @@ const SetupGroupsHost: React.FC<{
     await ensureRun(project, {
       showStatusToStudents: buildingDefaults.defaultShowStatusToStudents,
     });
-    const result = await importGroups(entries);
+    const result = await importGroups(
+      entries,
+      undefined,
+      classNamesForEntries(entries, rosters)
+    );
     if (config.pendingImport) {
       updateWidget(widget.id, { config: { ...config, pendingImport: null } });
     }
@@ -205,7 +210,7 @@ const GroupsManagerHost: React.FC<{
   if (loading || !title) return null;
 
   const handleSave = async (
-    _classId: string,
+    classId: string,
     entries: ProjectGroupImportEntry[],
     deleteGroupIds: string[]
   ): Promise<void> => {
@@ -216,7 +221,11 @@ const GroupsManagerHost: React.FC<{
         showStatusToStudents: buildingDefaults.defaultShowStatusToStudents,
       });
     }
-    await importGroups(entries, deleteGroupIds);
+    await importGroups(
+      entries,
+      deleteGroupIds,
+      classNamesForEntries([{ classId }, ...entries], rosters)
+    );
     addToast('Groups saved.', 'success');
     onSaved(projectId);
   };

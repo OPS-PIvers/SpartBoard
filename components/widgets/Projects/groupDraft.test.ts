@@ -9,6 +9,7 @@ import {
   unassignedStudents,
   type GroupDraftContext,
 } from './groupDraft';
+import { defaultGroupColor } from './projectSteps';
 
 const student = (id: string, sourcedId?: string): Student => ({
   id,
@@ -45,7 +46,6 @@ const stored = (
   memberUids,
   order,
   stepStates: {},
-  needsSupport: false,
   workLinks: [],
   updatedAt: 1,
 });
@@ -82,6 +82,7 @@ describe('group draft', () => {
         name: 'Group 1',
         classId: 'class-a',
         order: 0,
+        color: defaultGroupColor(0),
         classLinkSourcedIds: [],
       },
       {
@@ -89,6 +90,7 @@ describe('group draft', () => {
         name: 'Group 2',
         classId: 'class-a',
         order: 1,
+        color: defaultGroupColor(1),
         classLinkSourcedIds: ['sid-bo', 'sid-ada'],
         keepMemberUids: ['uid-ghost'],
       },
@@ -121,6 +123,19 @@ describe('group draft', () => {
     ]);
   });
 
+  it('sends a recolored group and keeps a stored color', () => {
+    const colored = draftFromGroups([
+      { ...stored('g1', [], 0), color: 'bg-rose-500' },
+    ]);
+    expect(colored[0].color).toBe('bg-rose-500');
+    const draft = original.map((g) =>
+      g.id === 'g1' ? { ...g, color: 'bg-teal-600' } : g
+    );
+    expect(buildGroupCommit(original, draft, 'class-a', ctx).entries).toEqual([
+      expect.objectContaining({ id: 'g1', color: 'bg-teal-600' }),
+    ]);
+  });
+
   it('writes a new empty group', () => {
     const draft = [
       ...original,
@@ -132,6 +147,7 @@ describe('group draft', () => {
         name: 'Group 3',
         classId: 'class-a',
         order: 2,
+        color: defaultGroupColor(2),
         classLinkSourcedIds: [],
       },
     ]);

@@ -436,6 +436,7 @@ describe('bundleSubShareContent', () => {
       title: 'Ecosystem poster',
       steps: [{ id: 's1', title: 'Research' }],
       classIds: ['class-a'],
+      classNames: { 'class-a': 'Period 1' },
       approvalStepIds: [],
       rubric: { criteria: [] },
       dueAt: 123,
@@ -450,7 +451,8 @@ describe('bundleSubShareContent', () => {
       classId: 'class-a',
       order: 0,
       stepStates: { s1: 'done' },
-      needsSupport: true,
+      color: 'bg-sky-500',
+      peerVisible: true,
       memberUids: ['student-uid-1'],
       workLinks: [
         { id: 'l1', url: 'https://docs/x', addedByUid: 'student-uid-1' },
@@ -477,6 +479,7 @@ describe('bundleSubShareContent', () => {
           projectId: 'p-1',
           title: 'Ecosystem poster',
           steps: [{ id: 's1', title: 'Research' }],
+          classNames: { 'class-a': 'Period 1' },
         },
         groups: [
           {
@@ -485,7 +488,7 @@ describe('bundleSubShareContent', () => {
             classId: 'class-a',
             order: 0,
             stepStates: { s1: 'done' },
-            needsSupport: true,
+            color: 'bg-sky-500',
           },
         ],
       });
@@ -515,6 +518,7 @@ describe('bundleSubShareContent', () => {
         groups: object[];
       };
       expect(Object.keys(payload.run).sort()).toEqual([
+        'classNames',
         'id',
         'projectId',
         'steps',
@@ -522,9 +526,9 @@ describe('bundleSubShareContent', () => {
       ]);
       expect(Object.keys(payload.groups[0]).sort()).toEqual([
         'classId',
+        'color',
         'id',
         'name',
-        'needsSupport',
         'order',
         'stepStates',
       ]);

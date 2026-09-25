@@ -21,6 +21,8 @@ interface CommitProjectGroupEntry {
   name: string;
   classId: string;
   order: number;
+  /** D33 — optional; absent leaves a stored group's color alone. */
+  color?: string;
   classLinkSourcedIds: string[];
   testEmails: string[];
   /** Current members to keep as-is; only uids already on the stored group survive. */
@@ -37,6 +39,24 @@ const isDocumentId = (v: string): boolean =>
   v !== '.' &&
   v !== '..' &&
   !/^__.*__$/.test(v);
+
+/** A palette class like `bg-sky-500`; anything else is dropped rather than stored. */
+const asColor = (v: unknown): string | undefined =>
+  typeof v === 'string' && /^[a-z0-9-]{1,40}$/.test(v) ? v : undefined;
+
+const MAX_CLASS_NAME = 200;
+
+/** D43 — `{ classId: name }` from the client; bad entries are dropped, not thrown on. */
+function parseClassNames(raw: unknown): Record<string, string> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
+  const names: Record<string, string> = {};
+  for (const [classId, name] of Object.entries(raw).slice(0, MAX_GROUPS)) {
+    if (!classId || classId.length > 1500 || typeof name !== 'string') continue;
+    const trimmed = name.trim().slice(0, MAX_CLASS_NAME);
+    if (trimmed) names[classId] = trimmed;
+  }
+  return names;
+}
 
 const stringList = (v: unknown): string[] =>
   Array.isArray(v)
@@ -126,11 +146,13 @@ function parseGroups(
         `groups[${index}] exceeds ${MAX_MEMBERS_PER_GROUP} members.`
       );
     }
+    const color = asColor(e.color);
     return {
       id,
       name,
       classId,
       order: typeof e.order === 'number' ? e.order : index,
+      ...(color ? { color } : {}),
       classLinkSourcedIds: Array.from(new Set(sourcedIds)),
       testEmails: Array.from(new Set(testEmails)),
       keepMemberUids,
@@ -198,6 +220,7 @@ export const commitProjectGroupsV1 = onCall(
       runId?: unknown;
       groups?: unknown;
       deleteGroupIds?: unknown;
+      classNames?: unknown;
     };
     const runId = asString(rawData.runId);
     if (!runId) {
@@ -207,6 +230,7 @@ export const commitProjectGroupsV1 = onCall(
       throw new HttpsError('invalid-argument', 'runId is not a document id.');
     }
     const deleteGroupIds = parseDeleteIds(rawData.deleteGroupIds);
+    const incomingClassNames = parseClassNames(rawData.classNames);
     const groups = parseGroups(rawData.groups, deleteGroupIds.length > 0);
     if (groups.some((g) => deleteGroupIds.includes(g.id))) {
       throw new HttpsError(
@@ -237,6 +261,8 @@ export const commitProjectGroupsV1 = onCall(
     }
 
     const now = Date.now();
+    // D39 — groups carry the run's peer toggle so the read rule never get()s the run.
+    const peerVisible = runSnap.data()?.showStatusToStudents === true;
     const existing =
       groups.length > 0
         ? await db.getAll(
@@ -285,6 +311,8 @@ export const commitProjectGroupsV1 = onCall(
           classId: group.classId,
           memberUids,
           order: group.order,
+          ...(group.color ? { color: group.color } : {}),
+          peerVisible,
           updatedAt: now,
         });
       } else {
@@ -294,23 +322,37 @@ export const commitProjectGroupsV1 = onCall(
           classId: group.classId,
           memberUids,
           order: group.order,
+          ...(group.color ? { color: group.color } : {}),
           stepStates,
-          needsSupport: false,
-          workLinks: [],
+          peerVisible,
           updatedAt: now,
         });
       }
     }
 
-    const classIds = Array.from(
-      new Set([
-        ...((runSnap.data()?.classIds ?? []) as unknown[]).filter(
-          (c): c is string => typeof c === 'string'
-        ),
-        ...groups.map((g) => g.classId),
-      ])
-    );
-    batch.update(runRef, { classIds, updatedAt: now });
+    // D44 — classIds is exactly the classes that still have a group after this commit.
+    const written = new Map(groups.map((g) => [g.id, g.classId]));
+    const deleted = new Set(deleteGroupIds);
+    const stored = await runRef.collection('groups').select('classId').get();
+    const remaining = new Set<string>(written.values());
+    for (const snap of stored.docs) {
+      if (deleted.has(snap.id) || written.has(snap.id)) continue;
+      const classId = asString(snap.get('classId'));
+      if (classId) remaining.add(classId);
+    }
+    const classIds = Array.from(remaining);
+
+    // D43 — merge the new names over the stored ones, keeping only live classes.
+    const storedNames: unknown = runSnap.data()?.classNames;
+    const mergedNames = {
+      ...parseClassNames(storedNames),
+      ...incomingClassNames,
+    };
+    const classNames: Record<string, string> = {};
+    for (const classId of classIds) {
+      if (mergedNames[classId]) classNames[classId] = mergedNames[classId];
+    }
+    batch.update(runRef, { classIds, classNames, updatedAt: now });
     for (const groupId of deleteGroupIds) {
       batch.delete(runRef.collection('grades').doc(groupId));
     }

@@ -1,11 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  AlertCircle,
-  ClipboardList,
-  Hand,
-  Loader2,
-  ScrollText,
-} from 'lucide-react';
+import { AlertCircle, ClipboardList, Loader2, ScrollText } from 'lucide-react';
 import type { ProjectStep, ProjectStepState } from '@/types';
 import { useStudentAuth } from '@/context/useStudentAuth';
 import { useStudentProjectRun } from '@/hooks/useStudentProjectRun';
@@ -38,6 +32,10 @@ const SEGMENT_COLORS: Record<ProjectStepState, string> = {
   done: 'bg-emerald-500',
 };
 
+/** D41 — the rules lock an approved step, so a student cannot move it out of done. */
+const isApprovedLock = (step: ProjectStep, state: ProjectStepState): boolean =>
+  step.requiresApproval === true && state === 'done';
+
 const Centered: React.FC<{
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   title: string;
@@ -59,11 +57,11 @@ export const ProjectStudentPage: React.FC = () => {
     run,
     groups,
     myGroup,
+    workLinks,
     grade,
     loading,
     error,
     setStepState,
-    setNeedsSupport,
     addWorkLink,
     removeWorkLink,
   } = useStudentProjectRun(runId, pseudonymUid, classIds);
@@ -106,10 +104,9 @@ export const ProjectStudentPage: React.FC = () => {
 
   const cycleStep = async (step: ProjectStep) => {
     if (!canEdit || busyStepId) return;
+    if (myGroup && isApprovedLock(step, stepStateOf(myGroup, step.id))) return;
     const options = studentStateOptions(step);
     const current = myGroup ? stepStateOf(myGroup, step.id) : 'notStarted';
-    // A student sitting on a teacher-set `done` has nowhere in their own
-    // options to go, so the cycle restarts rather than jamming.
     const index = options.indexOf(current);
     const next = options[(index + 1) % options.length];
     setBusyStepId(step.id);
@@ -184,20 +181,6 @@ export const ProjectStudentPage: React.FC = () => {
                 done
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => void setNeedsSupport(!myGroup.needsSupport)}
-              disabled={!canEdit}
-              aria-pressed={myGroup.needsSupport}
-              className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition disabled:opacity-50 ${
-                myGroup.needsSupport
-                  ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-                  : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              <Hand className="h-4 w-4" strokeWidth={2.25} />
-              {myGroup.needsSupport ? 'Help is on the way' : 'Ask for help'}
-            </button>
           </div>
 
           {steps.length === 0 ? (
@@ -208,13 +191,13 @@ export const ProjectStudentPage: React.FC = () => {
             <ul className="mt-3 space-y-1.5">
               {steps.map((step) => {
                 const state = stepStateOf(myGroup, step.id);
-                const locked = step.requiresApproval && state === 'done';
+                const locked = isApprovedLock(step, state);
                 return (
                   <li key={step.id}>
                     <button
                       type="button"
                       onClick={() => void cycleStep(step)}
-                      disabled={!canEdit || busyStepId === step.id}
+                      disabled={!canEdit || locked || busyStepId === step.id}
                       className="flex w-full items-center gap-3 rounded-xl border border-slate-200 px-3 py-2 text-left transition hover:bg-slate-50 disabled:cursor-default disabled:hover:bg-white"
                     >
                       <span className="min-w-0 flex-1">
@@ -263,7 +246,7 @@ export const ProjectStudentPage: React.FC = () => {
 
         <ProjectGroupWork
           steps={steps}
-          workLinks={myGroup.workLinks ?? []}
+          workLinks={workLinks}
           uploads={uploads}
           uploadsLoading={uploadsLoading}
           canEdit={canEdit}
@@ -302,12 +285,6 @@ export const ProjectStudentPage: React.FC = () => {
                 <li
                   key={group.id}
                   className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2"
-                  style={{
-                    borderLeftWidth: 4,
-                    borderLeftColor: group.needsSupport
-                      ? '#f59e0b'
-                      : 'transparent',
-                  }}
                 >
                   <span className="w-28 shrink-0 truncate text-sm font-semibold text-slate-800">
                     {group.name}

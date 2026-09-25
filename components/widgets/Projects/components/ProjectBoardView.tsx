@@ -1,12 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import type { LucideIcon } from 'lucide-react';
 import {
-  Check,
   ChevronLeft,
   ClipboardList,
-  Ellipsis,
-  Flag,
-  Hand,
+  Eye,
+  EyeOff,
   Loader2,
   SquarePen,
   Users,
@@ -38,26 +35,8 @@ import {
   stepStateOf,
   studentStateOptions,
 } from '../projectSteps';
-
-/** Purposeful colour, one hue per state, each with a mark so colour is never the only cue. */
-const STATE_STYLES: Record<
-  ProjectStepState,
-  { tone: string; Mark: LucideIcon | null }
-> = {
-  notStarted: { tone: 'bg-slate-300/70', Mark: null },
-  inProgress: { tone: 'bg-brand-blue-primary text-white', Mark: Ellipsis },
-  readyForReview: { tone: 'bg-amber-400 text-amber-950', Mark: Flag },
-  done: { tone: 'bg-emerald-600 text-white', Mark: Check },
-};
-
-const StateMark: React.FC<{ state: ProjectStepState; size: string }> = ({
-  state,
-  size,
-}) => {
-  const Mark = STATE_STYLES[state].Mark;
-  if (!Mark) return null;
-  return <Mark aria-hidden style={{ width: size, height: size }} />;
-};
+import { STATE_STYLES } from '../stepVisuals';
+import { StateMark } from '../StateMark';
 
 const nextState = (
   step: ProjectStep,
@@ -83,16 +62,7 @@ const GroupRow: React.FC<{
   readOnly: boolean;
   busyKeys: ReadonlySet<string>;
   onCycleStep: (stepId: string, state: ProjectStepState) => void;
-  onClearSupport: () => void;
-}> = ({
-  group,
-  steps,
-  showStatus,
-  readOnly,
-  busyKeys,
-  onCycleStep,
-  onClearSupport,
-}) => (
+}> = ({ group, steps, showStatus, readOnly, busyKeys, onCycleStep }) => (
   <tr>
     <th
       scope="row"
@@ -112,48 +82,6 @@ const GroupRow: React.FC<{
         >
           {group.name}
         </span>
-        {group.needsSupport &&
-          (readOnly ? (
-            <span
-              className="shrink-0 flex items-center rounded-full bg-amber-100 text-amber-800 font-semibold"
-              style={{
-                gap: 'min(4px, 1cqmin)',
-                padding: 'min(3px, 0.7cqmin) min(8px, 1.8cqmin)',
-                fontSize: 'min(12px, 3.6cqmin)',
-              }}
-            >
-              <Hand
-                aria-hidden
-                style={{
-                  width: 'min(13px, 3.4cqmin)',
-                  height: 'min(13px, 3.4cqmin)',
-                }}
-              />
-              Help
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={onClearSupport}
-              disabled={busyKeys.has(`${group.id}:support`)}
-              className="shrink-0 flex items-center rounded-full bg-amber-100 text-amber-800 font-semibold disabled:opacity-50"
-              style={{
-                gap: 'min(4px, 1cqmin)',
-                padding: 'min(3px, 0.7cqmin) min(8px, 1.8cqmin)',
-                fontSize: 'min(12px, 3.6cqmin)',
-              }}
-              aria-label={`Clear the help flag for ${group.name}`}
-            >
-              <Hand
-                aria-hidden
-                style={{
-                  width: 'min(13px, 3.4cqmin)',
-                  height: 'min(13px, 3.4cqmin)',
-                }}
-              />
-              Help
-            </button>
-          ))}
       </span>
     </th>
 
@@ -243,10 +171,11 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
     readOnly ? undefined : projectId,
     user?.uid
   );
-  const { setStepState, setNeedsSupport } = live;
+  const { setStepState, setPeerVisibility } = live;
   const run = readOnly ? shared.run : live.run;
   const groups = readOnly ? shared.groups : live.groups;
   const loading = readOnly ? shared.loading : live.loading;
+  const peersVisible = live.run?.showStatusToStudents === true;
 
   // A set, not a scalar: two rows can be in flight at once and each owns its key.
   const [busyKeys, setBusyKeys] = useState<ReadonlySet<string>>(
@@ -451,6 +380,19 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
                     icon: Users,
                     onClick: onManageGroups,
                   },
+                  {
+                    id: 'peer-visibility',
+                    label: peersVisible
+                      ? 'Students see other groups: on'
+                      : 'Students see other groups: off',
+                    icon: peersVisible ? Eye : EyeOff,
+                    disabled: busyKeys.has('peer-visibility'),
+                    onClick: () =>
+                      void runAction(
+                        setPeerVisibility(!peersVisible),
+                        'peer-visibility'
+                      ),
+                  },
                 ]}
               />
             </>
@@ -548,12 +490,6 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
                     `${group.id}:${stepId}`
                   );
                 }}
-                onClearSupport={() =>
-                  void runAction(
-                    setNeedsSupport(group.id, false, 'teacher'),
-                    `${group.id}:support`
-                  )
-                }
               />
             ))}
           </tbody>

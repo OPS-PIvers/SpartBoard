@@ -51,6 +51,10 @@ describe('widget access defaults', () => {
     expect(getWidgetDefaultAccessLevel('flashcards')).toBe('admin');
   });
 
+  it('keeps Projects admin-only until a permission doc overrides it', () => {
+    expect(getWidgetDefaultAccessLevel('projects')).toBe('admin');
+  });
+
   it('preserves the historical public default for other widgets', () => {
     expect(getWidgetDefaultAccessLevel('clock')).toBe('public');
   });

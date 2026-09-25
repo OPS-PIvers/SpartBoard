@@ -19,7 +19,14 @@ import type {
 } from '@/types';
 import { Modal } from '@/components/common/Modal';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
-import { groupsForClass, projectClassIdFor } from '../projectSteps';
+import {
+  NO_STUDENT_SIGN_IN_WARNING,
+  defaultGroupColor,
+  groupsForClass,
+  nextGroupColor,
+  projectClassIdFor,
+  rosterHasStudentSignIn,
+} from '../projectSteps';
 import {
   buildGroupCommit,
   canJoinGroup,
@@ -132,11 +139,15 @@ export const ProjectGroupsManager: React.FC<ProjectGroupsManagerProps> = ({
                   )}
                   {rosters.map((r) => {
                     const count = groupCountByRoster.get(r.id) ?? 0;
+                    const base =
+                      count > 0
+                        ? `${r.name} (${count} group${count === 1 ? '' : 's'})`
+                        : r.name;
                     return (
                       <option key={r.id} value={r.id}>
-                        {count > 0
-                          ? `${r.name} (${count} group${count === 1 ? '' : 's'})`
-                          : r.name}
+                        {rosterHasStudentSignIn(r)
+                          ? base
+                          : `${base}, no student sign-in`}
                       </option>
                     );
                   })}
@@ -277,11 +288,21 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
       {
         id: crypto.randomUUID(),
         name: nextGroupName(current),
+        color: defaultGroupColor(current.length),
         members: [],
         isNew: true,
       },
     ]);
   };
+
+  const recolorGroup = (groupId: string, index: number): void =>
+    setDraft((current) =>
+      current.map((g) =>
+        g.id === groupId
+          ? { ...g, color: nextGroupColor(g.color ?? defaultGroupColor(index)) }
+          : g
+      )
+    );
 
   const renameGroup = (groupId: string, name: string): void =>
     setDraft((current) =>
@@ -378,10 +399,12 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
   return (
     <>
       {classPicker(isDirty)}
-      {!hasSignIn && (
-        <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          {roster.name} has no student sign-in. You can still track groups
-          yourself.
+      {!rosterHasStudentSignIn(roster) && (
+        <p
+          role="note"
+          className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800"
+        >
+          {NO_STUDENT_SIGN_IN_WARNING}
         </p>
       )}
 
@@ -438,6 +461,15 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
                 className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3"
               >
                 <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => recolorGroup(group.id, index)}
+                    aria-label={`Change the color of ${name}`}
+                    title="Change color"
+                    className={`h-5 w-5 shrink-0 rounded-full border-2 border-white shadow ring-1 ring-slate-300 ${
+                      group.color ?? defaultGroupColor(index)
+                    }`}
+                  />
                   <input
                     value={group.name}
                     onChange={(e) => renameGroup(group.id, e.target.value)}

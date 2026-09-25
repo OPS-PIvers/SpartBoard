@@ -103,7 +103,7 @@ export interface AssignmentSummary {
   dueAt?: number;
   /** This student's accommodation override, from their own pointer doc (M17 C1). */
   override?: StudentOverride;
-  /** Activity Wall only — whether the wall is currently accepting new posts (P3-2). */
+  /** Activity Wall: accepting new posts (P3-2). Projects: the run's `acceptingUpdates` (D42). */
   acceptingResponses?: boolean;
   /** Activity Wall only — true when a view-only gallery share exists (P3-2). */
   publiclyShared?: boolean;
@@ -373,6 +373,14 @@ export const SESSION_KINDS: readonly SessionKind[] = [
 
 // ---------------------------------------------------------------------------
 
+const acceptingFlag = (value: unknown): boolean | undefined =>
+  typeof value === 'boolean' ? value : undefined;
+
+/** D42 — a project run the teacher closed belongs under Completed. */
+export const isClosedProjectRun = (
+  a: Pick<AssignmentSummary, 'kind' | 'acceptingResponses'>
+): boolean => a.kind === 'projects' && a.acceptingResponses === false;
+
 /**
  * Build an `AssignmentSummary` from a session doc. Hoisted to module scope
  * (rather than a closure inside the subscription effect) so the fan-out
@@ -423,10 +431,9 @@ function buildAssignmentSummary(
     openAt: typeof record.openAt === 'number' ? record.openAt : undefined,
     closeAt: typeof record.closeAt === 'number' ? record.closeAt : undefined,
     dueAt: typeof record.dueAt === 'number' ? record.dueAt : undefined,
-    acceptingResponses:
-      typeof record.acceptingResponses === 'boolean'
-        ? record.acceptingResponses
-        : undefined,
+    acceptingResponses: acceptingFlag(
+      kind === 'projects' ? record.acceptingUpdates : record.acceptingResponses
+    ),
     publiclyShared:
       typeof record.publiclyShared === 'boolean'
         ? record.publiclyShared
