@@ -480,11 +480,7 @@ export const useGuidedLearningAssignments = (
       // Index steps by id for O(1) grading lookups. `glData.steps` is the
       // canonical set loaded by the caller — `session.publicSteps` strips
       // answer keys for student safety, so we can't grade off the session.
-      // Dedupe first-wins (matches createSession's `dedupeStepsById`) — a
-      // Drive-sync/arrayUnion race can write the same step id twice with
-      // differing content, and the student was served the FIRST occurrence,
-      // so grading must resolve the same one. Mirrors the identical fix in
-      // `useQuizAssignments.buildResponseGradingContext` (#3327).
+      // Dedupe first-wins (matches createSession) — last-wins can grade against a duplicate's differing correctAnswer.
       const dedupedSteps = dedupeStepsById(glData.steps);
       const stepsById = new Map<string, GuidedLearningStep>();
       for (const s of dedupedSteps) {
@@ -582,8 +578,7 @@ export const useGuidedLearningAssignments = (
       };
       if (visibility === 'score-responses-and-answers') {
         const revealedAnswers: Record<string, string> = {};
-        // First-wins, matching the grading dedup above — the revealed answer
-        // must match what the student was graded against.
+        // First-wins, matching the grading dedup above — the revealed answer must match what the student was graded against.
         for (const s of dedupedSteps) {
           const formatted = formatCanonicalAnswer(s);
           if (formatted !== null) revealedAnswers[s.id] = formatted;
