@@ -44,7 +44,10 @@ describe('validateGlSet schema versions', () => {
   it('accepts 2 and 3 and rejects anything else', () => {
     ok(set([step()], { schemaVersion: 2 }));
     ok(set([step()]));
-    bad(set([step()], { schemaVersion: 5 }), /schemaVersion must be 2, 3 or 4/);
+    bad(
+      set([step()], { schemaVersion: 6 }),
+      /schemaVersion must be 2, 3, 4 or 5/
+    );
     bad(set([step()], { schemaVersion: undefined }), /schemaVersion/);
   });
 
@@ -204,6 +207,30 @@ describe('validateGlSet callouts, narration and tours', () => {
     ok(set([styled], { schemaVersion: 4 }));
     bad(set([styled]), /schemaVersion must be 4/);
     bad(set([step()], { schemaVersion: 4 }), /schemaVersion must be 3/);
+  });
+
+  it('checks a callout box and ties it to schemaVersion 5', () => {
+    const box = { xPct: -10, yPct: 20, wPct: 40, hPct: 15 };
+    const v5 = (over: Record<string, unknown>) =>
+      set([step({ interactionType: 'text-popover', ...over })], {
+        schemaVersion: 5,
+      });
+    ok(v5({ calloutBox: box }));
+    ok(v5({ calloutBox: box, calloutTone: 'light' }));
+    bad(v5({ calloutBox: { ...box, wPct: 0 } }), /calloutBox\.wPct/);
+    bad(v5({ calloutBox: { ...box, xPct: 'a' } }), /calloutBox\.xPct/);
+    bad(v5({ calloutBox: box, calloutPin: { xPct: 1, yPct: 1 } }), /omit it/);
+    bad(v5({ interactionType: 'question', calloutBox: box }), /only applies/);
+    bad(
+      set([step({ interactionType: 'tooltip', calloutBox: box })], {
+        schemaVersion: 4,
+      }),
+      /schemaVersion must be 5/
+    );
+    bad(
+      set([step()], { schemaVersion: 5 }),
+      /only when a step sets calloutBox/
+    );
   });
 
   it('rejects narration, which lives in Storage', () => {

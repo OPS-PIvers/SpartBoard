@@ -21,6 +21,7 @@ import { ProjectSetupGroupsModal } from './components/ProjectSetupGroupsModal';
 import { ProjectGrader } from './components/ProjectGrader';
 import { ProjectGroupsManager } from './components/ProjectGroupsManager';
 import { classNamesForEntries } from './projectSteps';
+import { resolveBoardClassId, rosterForClass } from './boardHelpers';
 
 /**
  * R1 — a widget placed before the manager landed carries a `projectId` and no
@@ -61,8 +62,13 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
   }
 
   const view = inShare ? 'board' : resolveView(config);
-  const openBoard = (projectId: string): void =>
-    update({ view: 'board', projectId });
+  // Landing on the board after editing a class shows that class.
+  const openBoard = (projectId: string, classId?: string): void =>
+    update({
+      view: 'board',
+      projectId,
+      ...(classId ? { boardClassId: classId } : {}),
+    });
   // A Group Maker push still lands through the import dialog; everything else is the group manager.
   const openGroups = (projectId: string): void =>
     config.pendingImport
@@ -131,7 +137,7 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
 const SetupGroupsHost: React.FC<{
   widget: WidgetData;
   projectId: string;
-  onDone: (projectId: string) => void;
+  onDone: (projectId: string, classId?: string) => void;
   onClose: () => void;
 }> = ({ widget, projectId, onDone, onClose }) => {
   const config = widget.config as ProjectsConfig;
@@ -170,7 +176,7 @@ const SetupGroupsHost: React.FC<{
         : `Added ${result.groupsWritten} groups, ${result.membersResolved} students.`,
       result.membersResolved === 0 ? 'info' : 'success'
     );
-    onDone(projectId);
+    onDone(projectId, entries[0]?.classId);
     return result;
   };
 
@@ -181,7 +187,9 @@ const SetupGroupsHost: React.FC<{
       rosters={rosters}
       existingGroups={groups}
       pendingImport={config.pendingImport}
-      defaultRosterId={activeRosterId}
+      defaultRosterId={
+        rosterForClass(rosters, config.boardClassId)?.id ?? activeRosterId
+      }
       onCommit={handleCommit}
       onClose={onClose}
     />
@@ -193,8 +201,9 @@ const GroupsManagerHost: React.FC<{
   widget: WidgetData;
   projectId: string;
   onClose: () => void;
-  onSaved: (projectId: string) => void;
+  onSaved: (projectId: string, classId: string) => void;
 }> = ({ widget, projectId, onClose, onSaved }) => {
+  const config = widget.config as ProjectsConfig;
   const { user, orgId } = useAuth();
   const { rosters, activeRosterId, addToast } = useDashboard();
   const buildingId = useWidgetBuildingId(widget);
@@ -227,7 +236,7 @@ const GroupsManagerHost: React.FC<{
       classNamesForEntries([{ classId }, ...entries], rosters)
     );
     addToast('Groups saved.', 'success');
-    onSaved(projectId);
+    onSaved(projectId, classId);
   };
 
   return (
@@ -238,7 +247,12 @@ const GroupsManagerHost: React.FC<{
       orgId={orgId}
       rosters={rosters}
       groups={groups}
-      initialRosterId={activeRosterId}
+      initialRosterId={
+        rosterForClass(
+          rosters,
+          resolveBoardClassId(config.boardClassId, run?.classIds ?? [])
+        )?.id ?? activeRosterId
+      }
       onSave={handleSave}
       onClose={onClose}
     />

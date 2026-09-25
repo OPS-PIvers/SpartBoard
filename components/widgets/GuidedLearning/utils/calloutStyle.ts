@@ -1,9 +1,24 @@
-import type { GuidedLearningCalloutTone, GuidedLearningStep } from '@/types';
+import type {
+  GuidedLearningCalloutBox,
+  GuidedLearningCalloutTone,
+  GuidedLearningStep,
+} from '@/types';
+import type { PctPoint, PxRect } from '../types/stage';
 
 export const CALLOUT_WIDTH_PCT_MIN = 10;
 export const CALLOUT_WIDTH_PCT_MAX = 95;
 export const CALLOUT_SCALE_MIN = 0.75;
 export const CALLOUT_SCALE_MAX = 2;
+/** Box size bounds in image-%; wide enough for a portrait screenshot on a landscape stage. */
+export const CALLOUT_BOX_SIZE_MIN = 1;
+export const CALLOUT_BOX_SIZE_MAX = 500;
+/** Box top-left bounds in image-%; the render clamp keeps it on the visible stage. */
+export const CALLOUT_BOX_POS_MIN = -500;
+export const CALLOUT_BOX_POS_MAX = 500;
+/** Auto-fit body size range in px; the floor is the readable minimum (G10). */
+export const CALLOUT_TEXT_FLOOR_PX = 12;
+export const CALLOUT_TEXT_CAP_PX = 36;
+export const CALLOUT_TITLE_RATIO = 1.2;
 export const CALLOUT_TONES: readonly GuidedLearningCalloutTone[] = [
   'dark',
   'light',
@@ -43,6 +58,70 @@ export const clampCalloutScale = (scale: number): number =>
 
 export const isCalloutTone = (v: unknown): v is GuidedLearningCalloutTone =>
   CALLOUT_TONES.includes(v as GuidedLearningCalloutTone);
+
+const inRange = (v: unknown, lo: number, hi: number): v is number =>
+  isNum(v) && v >= lo && v <= hi;
+
+export function clampCalloutBox(
+  box: GuidedLearningCalloutBox
+): GuidedLearningCalloutBox {
+  return {
+    xPct: clamp(box.xPct, CALLOUT_BOX_POS_MIN, CALLOUT_BOX_POS_MAX),
+    yPct: clamp(box.yPct, CALLOUT_BOX_POS_MIN, CALLOUT_BOX_POS_MAX),
+    wPct: clamp(box.wPct, CALLOUT_BOX_SIZE_MIN, CALLOUT_BOX_SIZE_MAX),
+    hPct: clamp(box.hPct, CALLOUT_BOX_SIZE_MIN, CALLOUT_BOX_SIZE_MAX),
+  };
+}
+
+/** Import check: an absent box passes; a present one needs four in-range numbers. */
+export function isValidCalloutBox(box: unknown): boolean {
+  if (box === undefined) return true;
+  if (typeof box !== 'object' || box === null) return false;
+  const b = box as Record<string, unknown>;
+  return (
+    inRange(b.xPct, CALLOUT_BOX_POS_MIN, CALLOUT_BOX_POS_MAX) &&
+    inRange(b.yPct, CALLOUT_BOX_POS_MIN, CALLOUT_BOX_POS_MAX) &&
+    inRange(b.wPct, CALLOUT_BOX_SIZE_MIN, CALLOUT_BOX_SIZE_MAX) &&
+    inRange(b.hPct, CALLOUT_BOX_SIZE_MIN, CALLOUT_BOX_SIZE_MAX)
+  );
+}
+
+/** Stored box clamped for rendering; undefined = automatic placement (G13). */
+export function calloutBoxOf(
+  step: Pick<GuidedLearningStep, 'calloutBox'>
+): GuidedLearningCalloutBox | undefined {
+  const b = step.calloutBox;
+  if (!b || ![b.xPct, b.yPct, b.wPct, b.hPct].every(isNum)) return undefined;
+  return clampCalloutBox(b);
+}
+
+/** True when a callout step renders an explicit box, which needs schema v5. */
+export function stepUsesCalloutBox(
+  step: Pick<
+    GuidedLearningStep,
+    'calloutBox' | 'interactionType' | 'showOverlay'
+  >
+): boolean {
+  return stepHasCallout(step) && calloutBoxOf(step) !== undefined;
+}
+
+/** Box in container px, shifted (and capped) so it never leaves the visible stage (G12). */
+export function calloutBoxRectPx(
+  box: GuidedLearningCalloutBox,
+  toPx: (p: PctPoint) => { x: number; y: number },
+  container: { w: number; h: number }
+): PxRect {
+  const a = toPx({ xPct: box.xPct, yPct: box.yPct });
+  const b = toPx({ xPct: box.xPct + box.wPct, yPct: box.yPct + box.hPct });
+  const w = Math.min(Math.abs(b.x - a.x), container.w);
+  const h = Math.min(Math.abs(b.y - a.y), container.h);
+  return {
+    x: clamp(Math.min(a.x, b.x), 0, container.w - w),
+    y: clamp(Math.min(a.y, b.y), 0, container.h - h),
+    w,
+    h,
+  };
+}
 
 /** Stored width clamped for rendering; undefined = auto width. */
 export function calloutWidthPctOf(

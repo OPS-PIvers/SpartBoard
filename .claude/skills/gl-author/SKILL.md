@@ -113,7 +113,7 @@ Required fields:
   "mode": "structured", // "structured" | "guided" | "explore"
   "createdAt": 0, // ms epoch; regenerated on import
   "updatedAt": 0,
-  "schemaVersion": 3, // 4 only when a step uses callout size or colour
+  "schemaVersion": 3, // 4 for callout size or colour, 5 for a callout box
 }
 ```
 
@@ -125,12 +125,13 @@ video), `hotspotPulse` (`"consistent"|"reminder"|"off"`), `imageTransition`
 
 `schemaVersion` is **required**. Write `3`, or `4` when a step that draws a
 callout (see Callout size and colour) sets `calloutWidthPct`, `calloutScale`
-or a `light`/`accent` `calloutTone`. This is the app's own stamping rule, and
+or a `light`/`accent` `calloutTone`, or `5` when a callout step sets a
+`calloutBox` (with or without a tone). This is the app's own stamping rule, and
 the validator rejects a mismatch either way. It version-gates renderer behavior: 2 and above use the
 image-relative coordinate model this doc describes (omitting it would make
 spotlights render with legacy container-relative semantics), 3 adds
-`region`, `calloutPin` and `cursor`, and 4 adds the callout size and colour
-fields. A file stays at 3 when it doesn't need 4, so older app versions can
+`region`, `calloutPin` and `cursor`, 4 adds the callout size and colour
+fields, and 5 adds `calloutBox`. A file stays at the lowest version it needs, so older app versions can
 still import it. The validator also accepts `2`, for editing older exports.
 
 Do NOT include: `imagePaths`, `isBuilding`, `authorUid` (all
@@ -197,7 +198,7 @@ one, the pin button is the only target, as in older files.
 - `calloutPin: { "xPct", "yPct" }` fixes the callout's centre in image-%.
   Omit it: auto placement keeps the callout off the region. Pin only when
   the verification render shows auto placement is clearly wrong.
-- Callout size and colour, below, are schemaVersion 4 fields.
+- Callout size and colour, below, are schemaVersion 4 fields; `calloutBox` is schemaVersion 5.
 - Never write `narration` (audio lives in Storage and is made in the Studio)
   or `tour` (live-tour bindings are made by the recorder).
 
@@ -220,6 +221,22 @@ pan-zoom and spotlight steps; the validator rejects them anywhere else.
 - `light` is a white card with dark text, `accent` a brand-blue card with
   white text. A tooltip's leader line takes the card's colour. There is no
   free colour, and dark is written by leaving the field out.
+
+### Callout box (schemaVersion 5)
+
+`calloutBox: { "xPct", "yPct", "wPct", "hPct" }` gives a callout a fixed box,
+all four in image-%: `xPct`/`yPct` is the top-left corner, `wPct`/`hPct` the
+size. It applies to the same steps as callout size and colour.
+
+- `xPct`/`yPct` may fall outside 0–100 (−500 to 500) so a box can sit in the
+  area around the screenshot; `wPct`/`hPct` are 1–500.
+- Text size is automatic: it fills the box, with the title at 1.2× the body.
+  If the text can't fit at the smallest readable size, the box grows downward.
+- A box replaces `calloutPin`, `calloutWidthPct`, `calloutScale`,
+  `tooltipPosition` and `tooltipOffset`; omit those on a step with a box.
+  `calloutTone` still applies.
+- Leave it out unless a callout needs an exact spot and size; auto placement
+  fits most steps and keeps the file at a lower `schemaVersion`.
 
 ### Questions
 
@@ -253,9 +270,10 @@ multiple-choice `correctAnswer` must appear verbatim in `choices`;
 matching/sorting arrays must be non-empty; `schemaVersion` must be `3`
 (or `2` for an older export; the importer passes it through, and without it
 spotlights render with legacy container-relative semantics), or `4` when a
-step uses `calloutWidthPct`, `calloutScale` or `calloutTone`. The importer
-refuses a file with `schemaVersion` above 4 and one whose `region`,
-`calloutPin`, callout width, scale or tone is out of range.
+step uses `calloutWidthPct`, `calloutScale` or `calloutTone`, or `5` when a
+step uses `calloutBox`. The importer refuses a file with `schemaVersion` above
+5 and one whose `region`, `calloutPin`, `calloutBox`, callout width, scale or
+tone is out of range.
 
 The validator also decodes every embedded image and prints its byte count.
 Large base64 strings are often shortened by file previews, so judge

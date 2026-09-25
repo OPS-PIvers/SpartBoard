@@ -1,6 +1,6 @@
 /** View and edit one class's groups on a project: rename, add, delete, and move students between them. */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRightLeft,
@@ -18,12 +18,13 @@ import type {
   Student,
 } from '@/types';
 import { Modal } from '@/components/common/Modal';
+import { SCOREBOARD_COLORS } from '@/config/scoreboard';
+import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import {
   NO_STUDENT_SIGN_IN_WARNING,
   defaultGroupColor,
   groupsForClass,
-  nextGroupColor,
   projectClassIdFor,
   rosterHasStudentSignIn,
 } from '../projectSteps';
@@ -189,6 +190,64 @@ interface ClassGroupsEditorProps {
   onClose: () => void;
 }
 
+/** D33 — a small palette under the swatch; Escape or an outside tap closes it. */
+const GroupColorPicker: React.FC<{
+  name: string;
+  color: string;
+  onPick: (color: string) => void;
+}> = ({ name, color, onPick }) => {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  useClickOutside(wrapperRef, () => setOpen(false));
+  return (
+    <div ref={wrapperRef} className="relative shrink-0">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label={`Change the color of ${name}`}
+        aria-haspopup="true"
+        aria-expanded={open}
+        title="Change color"
+        className={`block h-5 w-5 rounded-full border-2 border-white shadow ring-1 ring-slate-300 ${color}`}
+      />
+      {open && (
+        <div
+          role="group"
+          aria-label={`Colors for ${name}`}
+          onKeyDown={(e) => {
+            if (e.key !== 'Escape') return;
+            e.stopPropagation();
+            setOpen(false);
+            triggerRef.current?.focus();
+          }}
+          className="absolute left-0 top-7 z-20 grid w-44 grid-cols-6 gap-1.5 rounded-xl border border-slate-200 bg-white p-2 shadow-lg"
+        >
+          {SCOREBOARD_COLORS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-label={option.replace(/^bg-/, '').replace(/-\d+$/, '')}
+              aria-pressed={option === color}
+              onClick={() => {
+                onPick(option);
+                setOpen(false);
+                triggerRef.current?.focus();
+              }}
+              className={`h-5 w-5 rounded-full ${option} ${
+                option === color
+                  ? 'ring-2 ring-slate-900 ring-offset-1'
+                  : 'hover:scale-110'
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const studentName = (student: Student): string =>
   `${student.firstName} ${student.lastName}`.trim() || 'Unnamed student';
 
@@ -295,13 +354,9 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
     ]);
   };
 
-  const recolorGroup = (groupId: string, index: number): void =>
+  const recolorGroup = (groupId: string, color: string): void =>
     setDraft((current) =>
-      current.map((g) =>
-        g.id === groupId
-          ? { ...g, color: nextGroupColor(g.color ?? defaultGroupColor(index)) }
-          : g
-      )
+      current.map((g) => (g.id === groupId ? { ...g, color } : g))
     );
 
   const renameGroup = (groupId: string, name: string): void =>
@@ -461,14 +516,10 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
                 className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3"
               >
                 <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => recolorGroup(group.id, index)}
-                    aria-label={`Change the color of ${name}`}
-                    title="Change color"
-                    className={`h-5 w-5 shrink-0 rounded-full border-2 border-white shadow ring-1 ring-slate-300 ${
-                      group.color ?? defaultGroupColor(index)
-                    }`}
+                  <GroupColorPicker
+                    name={name}
+                    color={group.color ?? defaultGroupColor(index)}
+                    onPick={(color) => recolorGroup(group.id, color)}
                   />
                   <input
                     value={group.name}

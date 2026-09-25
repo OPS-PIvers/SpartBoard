@@ -6,8 +6,6 @@ import { useStudentProjectRun } from '@/hooks/useStudentProjectRun';
 import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
 import { useProjectUploads } from '@/hooks/useProjectUploads';
 import {
-  STEP_STATE_LABELS,
-  completedStepCount,
   sortGroupsForBoard,
   stepStateOf,
   studentStateOptions,
@@ -15,26 +13,10 @@ import {
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import { StudentPageShell } from './StudentPageShell';
 import { ProjectGroupWork } from './project/ProjectGroupWork';
+import { ProjectOwnGroupSteps } from './project/ProjectOwnGroupSteps';
+import { ProjectPeerGrid } from './project/ProjectPeerGrid';
 import { ProjectRubricSheet } from './project/ProjectRubricSheet';
 import { parseProjectRunId } from './project/projectRoute';
-
-const STATE_CHIP: Record<ProjectStepState, string> = {
-  notStarted: 'bg-slate-100 text-slate-600',
-  inProgress: 'bg-brand-blue-primary/10 text-brand-blue-dark',
-  readyForReview: 'bg-amber-100 text-amber-800',
-  done: 'bg-emerald-100 text-emerald-800',
-};
-
-const SEGMENT_COLORS: Record<ProjectStepState, string> = {
-  notStarted: 'bg-slate-200',
-  inProgress: 'bg-brand-blue-primary',
-  readyForReview: 'bg-amber-400',
-  done: 'bg-emerald-500',
-};
-
-/** D41 — the rules lock an approved step, so a student cannot move it out of done. */
-const isApprovedLock = (step: ProjectStep, state: ProjectStepState): boolean =>
-  step.requiresApproval === true && state === 'done';
 
 const Centered: React.FC<{
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -85,6 +67,7 @@ export const ProjectStudentPage: React.FC = () => {
   const [notice, setNotice] = useState<string | null>(null);
   const [rubricOpen, setRubricOpen] = useState(false);
   const [busyStepId, setBusyStepId] = useState<string | null>(null);
+  const [openStepId, setOpenStepId] = useState<string | null>(null);
 
   const steps: ProjectStep[] = run?.steps ?? [];
   const canEdit = Boolean(myGroup) && run?.acceptingUpdates === true;
@@ -102,13 +85,13 @@ export const ProjectStudentPage: React.FC = () => {
     ? grade?.overridesByUid?.[pseudonymUid]
     : undefined;
 
-  const cycleStep = async (step: ProjectStep) => {
-    if (!canEdit || busyStepId) return;
-    if (myGroup && isApprovedLock(step, stepStateOf(myGroup, step.id))) return;
-    const options = studentStateOptions(step);
-    const current = myGroup ? stepStateOf(myGroup, step.id) : 'notStarted';
-    const index = options.indexOf(current);
-    const next = options[(index + 1) % options.length];
+  const pickState = async (step: ProjectStep, next: ProjectStepState) => {
+    setOpenStepId(null);
+    if (!canEdit || busyStepId || !myGroup) return;
+    const current = stepStateOf(myGroup, step.id);
+    // D41 — an approved step is locked, and students never set an approval step to done.
+    if (step.requiresApproval && current === 'done') return;
+    if (!studentStateOptions(step).includes(next) || next === current) return;
     setBusyStepId(step.id);
     try {
       await setStepState(step.id, next);
@@ -171,61 +154,15 @@ export const ProjectStudentPage: React.FC = () => {
     return (
       <div className="space-y-6">
         <section className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="truncate text-base font-bold text-slate-900">
-                {myGroup.name}
-              </h2>
-              <p className="text-sm text-slate-500">
-                {completedStepCount(myGroup, steps)} of {steps.length} steps
-                done
-              </p>
-            </div>
-          </div>
-
-          {steps.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-500">
-              Your teacher has not added the steps yet.
-            </p>
-          ) : (
-            <ul className="mt-3 space-y-1.5">
-              {steps.map((step) => {
-                const state = stepStateOf(myGroup, step.id);
-                const locked = isApprovedLock(step, state);
-                return (
-                  <li key={step.id}>
-                    <button
-                      type="button"
-                      onClick={() => void cycleStep(step)}
-                      disabled={!canEdit || locked || busyStepId === step.id}
-                      className="flex w-full items-center gap-3 rounded-xl border border-slate-200 px-3 py-2 text-left transition hover:bg-slate-50 disabled:cursor-default disabled:hover:bg-white"
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold text-slate-800">
-                          {step.title}
-                        </span>
-                        {step.description && (
-                          <span className="block truncate text-xs text-slate-500">
-                            {step.description}
-                          </span>
-                        )}
-                      </span>
-                      <span
-                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${STATE_CHIP[state]}`}
-                      >
-                        {STEP_STATE_LABELS[state]}
-                      </span>
-                    </button>
-                    {step.requiresApproval && !locked && (
-                      <p className="px-3 pt-1 text-xs text-slate-400">
-                        Your teacher marks this one done.
-                      </p>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+          <ProjectOwnGroupSteps
+            group={myGroup}
+            steps={steps}
+            canEdit={canEdit}
+            busyStepId={busyStepId}
+            openStepId={openStepId}
+            onOpenStep={setOpenStepId}
+            onPick={(step, state) => void pickState(step, state)}
+          />
 
           {!canEdit && myGroup && (
             <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
@@ -277,40 +214,11 @@ export const ProjectStudentPage: React.FC = () => {
           </section>
         )}
 
-        {run.showStatusToStudents && otherGroups.length > 0 && (
-          <section>
-            <h3 className="text-sm font-bold text-slate-900">Everyone else</h3>
-            <ul className="mt-2 space-y-1.5">
-              {otherGroups.map((group) => (
-                <li
-                  key={group.id}
-                  className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2"
-                >
-                  <span className="w-28 shrink-0 truncate text-sm font-semibold text-slate-800">
-                    {group.name}
-                  </span>
-                  <span
-                    className="flex min-w-0 flex-1 gap-1"
-                    role="img"
-                    aria-label={`${group.name}: ${completedStepCount(
-                      group,
-                      steps
-                    )} of ${steps.length} steps done`}
-                  >
-                    {steps.map((step) => (
-                      <span
-                        key={step.id}
-                        className={`h-2.5 flex-1 rounded-full ${
-                          SEGMENT_COLORS[stepStateOf(group, step.id)]
-                        }`}
-                      />
-                    ))}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        {run.showStatusToStudents &&
+          otherGroups.length > 0 &&
+          steps.length > 0 && (
+            <ProjectPeerGrid groups={otherGroups} steps={steps} />
+          )}
       </div>
     );
   };

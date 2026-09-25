@@ -706,7 +706,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     config: {
       view: 'manager',
       managerTab: 'library',
-      showStatus: true,
+      boardCollapsed: false,
       libraryViewMode: 'list',
       fontFamily: 'global',
       cardColor: '#ffffff',

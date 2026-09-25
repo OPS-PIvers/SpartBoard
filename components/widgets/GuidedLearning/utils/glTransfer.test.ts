@@ -301,8 +301,32 @@ describe('parseGuidedLearningJson', () => {
 
   it('refuses a file from a newer schema version', () => {
     expect(() =>
-      parseGuidedLearningJson(JSON.stringify(makeSet({ schemaVersion: 5 })))
+      parseGuidedLearningJson(JSON.stringify(makeSet({ schemaVersion: 6 })))
     ).toThrow(/newer version/);
+  });
+
+  it('accepts a v5 file with a callout box', () => {
+    const calloutBox = { xPct: -5, yPct: 20, wPct: 40, hPct: 25 };
+    const { set } = parseGuidedLearningJson(
+      JSON.stringify(
+        makeSet({
+          schemaVersion: 5,
+          steps: [
+            {
+              id: 's1',
+              xPct: 50,
+              yPct: 50,
+              imageIndex: 0,
+              interactionType: 'text-popover',
+              text: 'Hi',
+              calloutBox,
+            },
+          ],
+        })
+      )
+    );
+    expect(set.schemaVersion).toBe(5);
+    expect(set.steps[0].calloutBox).toEqual(calloutBox);
   });
 
   it('accepts a v4 file with callout styling', () => {

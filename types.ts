@@ -7119,6 +7119,8 @@ export interface GuidedLearningStep {
   calloutScale?: number;
   /** Callout colour preset. Absent = 'dark'. */
   calloutTone?: GuidedLearningCalloutTone;
+  /** Explicit callout box in image-%, top-left origin; overrides pin, width, scale and tooltip position. */
+  calloutBox?: GuidedLearningCalloutBox;
   /** Watch-mode demonstration override; absent = cursor goes to region centre. */
   cursor?: GuidedLearningStepCursor;
   /** Narration track: generated TTS or the author's recorded voice. */
@@ -7143,6 +7145,14 @@ export interface GuidedLearningRegion {
 export interface GuidedLearningCalloutPin {
   xPct: number;
   yPct: number;
+}
+
+/** All four fields are image-%; x/y may fall outside 0-100 so a box can sit in the letterbox. */
+export interface GuidedLearningCalloutBox {
+  xPct: number;
+  yPct: number;
+  wPct: number;
+  hPct: number;
 }
 
 /** Callout colour presets; stored as an enum, never a free colour. */
@@ -7384,6 +7394,7 @@ export interface GuidedLearningPublicStep {
   calloutWidthPct?: number;
   calloutScale?: number;
   calloutTone?: GuidedLearningCalloutTone;
+  calloutBox?: GuidedLearningCalloutBox;
   cursor?: GuidedLearningStepCursor;
   narration?: GuidedLearningPublicNarration;
 }
@@ -8052,8 +8063,12 @@ export interface ProjectsConfig {
   managerTab?: 'library' | 'active' | 'archive';
   /** The project open in board view. Not a binding — the manager retargets it. */
   projectId?: string;
-  /** D27 — the teacher's show/hide status toggle on the board face. */
+  /** Legacy D27 toggle; `false` still reads as collapsed until `boardCollapsed` is written. */
   showStatus?: boolean;
+  /** D37 — board drawn as one segmented bar per group. Per board, not an appearance key. */
+  boardCollapsed?: boolean;
+  /** D32 — the run class this board shows. Per board, not an appearance key. */
+  boardClassId?: string;
   pendingImport?: ProjectsPendingImport | null;
   /** Persisted library grid/list toggle. */
   libraryViewMode?: 'grid' | 'list';
