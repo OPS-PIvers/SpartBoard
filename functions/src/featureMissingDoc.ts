@@ -27,6 +27,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-grader-v2',
   'gl-callout-editing',
   'plc-notes-rich-editor',
+  'paper-handwritten-responses',
 ];
 
 /** Plan D7: admins pass a preview flag that has no saved doc yet. */
