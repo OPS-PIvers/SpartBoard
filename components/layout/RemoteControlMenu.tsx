@@ -113,13 +113,8 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
 
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm font-semibold text-slate-700">
-              Enable Remote
-            </div>
-            <div className="text-xs text-slate-500 mt-0.5 pr-4">
-              Allow mobile devices to control this board.
-            </div>
+          <div className="text-sm font-semibold text-slate-700">
+            Enable Remote
           </div>
           <Toggle
             checked={enabled}

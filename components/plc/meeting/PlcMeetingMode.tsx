@@ -680,7 +680,7 @@ const SaveStep: React.FC<{
         />
         <SummaryStat
           label={t('plcDashboard.meeting.save.attendees', {
-            defaultValue: 'Attendees (from presence)',
+            defaultValue: 'Attendees',
           })}
           value={`${attendeePreview.length}`}
         />
