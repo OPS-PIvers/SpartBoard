@@ -19,6 +19,7 @@ import {
   nearestEdge,
   resizeBox,
   setCalloutPin,
+  setCalloutWidthPct,
   setVertex,
   stepBox,
   stepWithBox,
@@ -342,7 +343,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
     });
   };
 
-  // Writes the gesture's result as one document change and one undo entry.
+  // Writes the gesture's fields onto the step as it is now (an undo mid-drag may have changed it).
   const commit = (next: GuidedLearningStep | null) => {
     previewRef.current?.restore();
     previewRef.current = null;
@@ -350,9 +351,16 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
     calloutShiftRef.current = null;
     setDraft(null);
     setCalloutShift(null);
-    if (!next) return;
+    const current = next && steps.find((s) => s.id === next.id);
+    if (!next || !current) return;
+    const merged: GuidedLearningStep = { ...current };
+    for (const key of GESTURE_FIELDS) {
+      if (next[key] === undefined)
+        delete (merged as Partial<GuidedLearningStep>)[key];
+      else Object.assign(merged, { [key]: next[key] });
+    }
     beginGesture();
-    onChange(next);
+    onChange(merged);
     endGesture();
   };
 
@@ -361,8 +369,16 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
     if (gesture.kind === 'callout') {
       if (!gesture.active || !calloutShiftRef.current) return null;
       const { box, dx, dy } = calloutShiftRef.current;
+      const step = gesture.step;
+      // A squeezed auto tooltip keeps the width it shows, or pinning would widen it.
+      const keepWidth =
+        !step.calloutPin &&
+        step.calloutWidthPct === undefined &&
+        isTooltipCallout(step);
       return setCalloutPin(
-        gesture.step,
+        keepWidth
+          ? setCalloutWidthPct(step, (box.w / g.containerSize.w) * 100)
+          : step,
         g.containerPxToImagePct(box.x + box.w / 2 + dx, box.y + box.h / 2 + dy)
       );
     }
@@ -391,6 +407,8 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
       return;
     }
     if (e.button !== 0) return;
+    // A gesture whose release never arrived ends here, before the next one starts.
+    if (gestureRef.current) cancelGesture();
     draggedRef.current = false;
     const client = { x: e.clientX, y: e.clientY };
     const p = g.clientToImagePct(client.x, client.y);
@@ -801,6 +819,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
       onPointerMove={onPointerMove}
       onPointerUp={(e) => finish(e, false)}
       onPointerCancel={(e) => finish(e, true)}
+      onLostPointerCapture={(e) => finish(e, true)}
       onPointerLeave={() => {
         if (!gestureRef.current) dropMove();
         setHoverId(null);
@@ -1094,6 +1113,15 @@ const clampPct = (p: PctPoint): PctPoint => ({
 });
 
 const dist = (a: Client, b: Client) => Math.hypot(a.x - b.x, a.y - b.y);
+
+// What a Studio gesture may change; everything else keeps its value at release.
+const GESTURE_FIELDS = [
+  'xPct',
+  'yPct',
+  'region',
+  'calloutPin',
+  'calloutWidthPct',
+] as const satisfies readonly (keyof GuidedLearningStep)[];
 
 const clampRange = (n: number, lo: number, hi: number) =>
   hi < lo ? lo : Math.min(Math.max(n, lo), hi);

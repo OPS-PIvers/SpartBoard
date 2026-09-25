@@ -9,7 +9,7 @@ export interface GesturePreview {
 }
 
 interface PreviewOptions {
-  /** `card` moves the callout card alone; `overlay` also moves a tooltip's line and anchor. */
+  /** `card` moves the callout card alone; `overlay` moves what is placed off the target (tooltip, spotlight label). */
   callout: 'card' | 'overlay' | null;
   /** The spotlight hole and rim move with the step. */
   spot: boolean;
@@ -31,13 +31,11 @@ export function createGesturePreview(
   const shifted: Styled[] = [];
   const shapes: Element[] = [];
   if (stage) {
-    if (callout) {
-      const overlays =
-        callout === 'overlay' ? byAttr(stage, 'data-gl-overlay', stepId) : [];
-      const cards = byAttr(stage, 'data-gl-callout', stepId).filter(
-        (el) => !overlays.some((o) => o.contains(el))
-      );
-      shifted.push(...([...overlays, ...cards] as Styled[]));
+    // Only callouts placed off the target follow it; a popover card stays where placement puts it.
+    if (callout === 'overlay') {
+      shifted.push(...(byAttr(stage, 'data-gl-overlay', stepId) as Styled[]));
+    } else if (callout === 'card') {
+      shifted.push(...(byAttr(stage, 'data-gl-callout', stepId) as Styled[]));
     }
     if (spot) {
       const spots = byAttr(stage, 'data-gl-spot', stepId);

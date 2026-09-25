@@ -542,6 +542,18 @@ describe('Studio edit layer', () => {
     expect(stepById('rect-1').calloutPin).toBeDefined();
   });
 
+  it('keeps an undo pressed mid-drag when the drag is released', () => {
+    act(() => editor().updateStep({ ...stepById('rect-1'), text: 'Edited' }));
+    click([18, 18]);
+    down([18, 18]);
+    moveTo([28, 22], { ctrlKey: true });
+    frames.step();
+    act(() => editor().undo());
+    up([28, 22], { ctrlKey: true });
+    expect(stepById('rect-1').text).toBe('First');
+    expect(stepById('rect-1').xPct).toBeCloseTo(35);
+  });
+
   it('flushes a move still waiting for its frame on pointerup', () => {
     click([18, 18]);
     down([18, 18]);

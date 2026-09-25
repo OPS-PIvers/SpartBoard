@@ -95,6 +95,7 @@ export const SpotlightInteraction: React.FC<Props> = ({
       {(!!step.label || !!editor) && (
         <div
           data-gl-callout={step.id}
+          data-gl-overlay={step.id}
           className={`absolute z-20 pointer-events-none text-white font-bold text-center ${
             editor ? '' : 'whitespace-nowrap'
           }`}
