@@ -84,6 +84,7 @@ Reference example: Grade 4, Module 1, Reading Comprehension Assessment 1, which 
   - A section shows as its own intro screen with the heading and directions.
   - Each question under it shows a breadcrumb such as "Section 2 · Show What You Know", which reopens the directions.
   - Sections work with bank slots in `order` as they do today.
+  - _Amended 2026-09-25:_ `QUIZ_EXAMVIEW_IMPORT.md` PR 4 builds this section core under the `quiz-sections` flag. It covers the order entry, the record, the intro screen, the breadcrumb and an editor row, and adds `chooseCount` ("answer any N of these M", E12–E15). PR 2 below adds `notScored`, `awardPoints`, `waitForTeacher`, D11–D14 and formatting on top of it.
 - **D10.** A not-scored section has these rules:
   - Its questions need no key and show no correct/incorrect marks.
   - Its questions add nothing to the total.
@@ -141,7 +142,7 @@ Reference example: Grade 4, Module 1, Reading Comprehension Assessment 1, which 
 ### General non-AI import (PR 7)
 
 - **D26.** The non-AI reader learns general patterns:
-  - `Section N | Title` headings and `Directions:` blocks become sections.
+  - `Section N | Title` headings and `Directions:` blocks become sections. They reuse the heading → section step from `QUIZ_EXAMVIEW_IMPORT.md` E16.
   - "STOP / wait for your teacher" sets the section gate.
   - `Part A:` / `Part B:` become a linked group.
   - Numbered paragraphs with subheadings become a structured passage.
@@ -176,18 +177,18 @@ Reference example: Grade 4, Module 1, Reading Comprehension Assessment 1, which 
 
 ## PR sequence
 
-| PR  | Phase | Scope                                                                                                               | Flag                        |
-| --- | ----- | ------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| 1   | 1     | Auto-score override, key-edit rescore warning, PLC applies overrides (D4–D7)                                        | none                        |
-| 2   | 1     | Inline formatting, sections, numbering, not-scored award, subtotals, unscored tally, wait-for-teacher gate (D8–D14) | `quiz-sections`             |
-| 3   | 1     | Part A/B groups, gated scoring, "each correct part" mode, MA choose-exactly-N (D15–D18)                             | `quiz-multi-part-items`     |
-| 4   | 1     | Categorize type (D19–D20)                                                                                           | `quiz-categorize`           |
-| 5   | 1     | Structured passages, excerpt references, passage read-aloud setting (D21–D23)                                       | `quiz-structured-passages`  |
-| 6   | 1     | Teacher-scored item, grading-queue entry without an answer, class score grid (D24–D25)                              | `quiz-teacher-scored-items` |
-| 7   | 1     | General non-AI import detectors (D26)                                                                               | `quiz-import-structure`     |
-| 8   | 2     | A&L answer-key profile (D27)                                                                                        | behind PR 7's flag          |
-| 9   | 2     | Admin assessment library (D28–D29)                                                                                  | `admin-assessment-library`  |
-| 10  | 2     | A&L validation run (D30)                                                                                            | —                           |
+| PR  | Phase | Scope                                                                                                                                               | Flag                                                |
+| --- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| 1   | 1     | Auto-score override, key-edit rescore warning, PLC applies overrides (D4–D7)                                                                        | none                                                |
+| 2   | 1     | Inline formatting, section extras on the ExamView-plan core, numbering, not-scored award, subtotals, unscored tally, wait-for-teacher gate (D8–D14) | `quiz-sections` (added by the ExamView plan's PR 4) |
+| 3   | 1     | Part A/B groups, gated scoring, "each correct part" mode, MA choose-exactly-N (D15–D18)                                                             | `quiz-multi-part-items`                             |
+| 4   | 1     | Categorize type (D19–D20)                                                                                                                           | `quiz-categorize`                                   |
+| 5   | 1     | Structured passages, excerpt references, passage read-aloud setting (D21–D23)                                                                       | `quiz-structured-passages`                          |
+| 6   | 1     | Teacher-scored item, grading-queue entry without an answer, class score grid (D24–D25)                                                              | `quiz-teacher-scored-items`                         |
+| 7   | 1     | General non-AI import detectors (D26)                                                                                                               | `quiz-import-structure`                             |
+| 8   | 2     | A&L answer-key profile (D27)                                                                                                                        | behind PR 7's flag                                  |
+| 9   | 2     | Admin assessment library (D28–D29)                                                                                                                  | `admin-assessment-library`                          |
+| 10  | 2     | A&L validation run (D30)                                                                                                                            | —                                                   |
 
 The flag ids are proposals; rename them in the PR that adds each one. Each PR description names its flag, its starting access level, and the path to open it: Admin Settings > Access > Global Settings > set to Public.
 
