@@ -93,6 +93,11 @@ const TEACHER_EMAIL = 'teacher@orono.k12.mn.us';
 // Site-wide super admin (legacy admin_settings/user_roles.superAdmins path).
 const SUPER_ADMIN_UID = 'super-admin-uid';
 const SUPER_ADMIN_EMAIL = 'super@orono.k12.mn.us';
+// A super admin ONLY via the legacy admin_settings/user_roles.superAdmins[]
+// array — no /admins/{email} doc and no org membership doc at all. Mirrors a
+// real super admin who predates organizationMembersSync's mirroring.
+const LEGACY_ONLY_SUPER_ADMIN_UID = 'legacy-only-super-admin-uid';
+const LEGACY_ONLY_SUPER_ADMIN_EMAIL = 'legacy-only-super@orono.k12.mn.us';
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -125,6 +130,13 @@ const asSuperAdmin = () =>
   testEnv
     .authenticatedContext(SUPER_ADMIN_UID, {
       email: SUPER_ADMIN_EMAIL,
+      email_verified: true,
+    })
+    .firestore();
+const asLegacyOnlySuperAdmin = () =>
+  testEnv
+    .authenticatedContext(LEGACY_ONLY_SUPER_ADMIN_UID, {
+      email: LEGACY_ONLY_SUPER_ADMIN_EMAIL,
       email_verified: true,
     })
     .firestore();
@@ -176,14 +188,14 @@ beforeEach(async () => {
     );
     // Legacy isSuperAdmin() path — site-wide, not org-scoped.
     await setDoc(doc(db, 'admin_settings/user_roles'), {
-      superAdmins: [SUPER_ADMIN_EMAIL],
+      superAdmins: [SUPER_ADMIN_EMAIL, LEGACY_ONLY_SUPER_ADMIN_EMAIL],
     });
     // A real super admin is also an /admins doc in production (a member-org
     // super_admin role is mirrored the same as building_admin — see
-    // functions/src/organizationMembersSync.ts's ADMIN_ROLES); the writable
-    // announcement rules require isAdmin() (any admin at all) in addition to
-    // the fine-grained scoping, matching help_resources' isAdmin() +
-    // helpScopeOk() idiom.
+    // functions/src/organizationMembersSync.ts's ADMIN_ROLES). SUPER_ADMIN
+    // has both; LEGACY_ONLY_SUPER_ADMIN deliberately has neither (no /admins
+    // doc, no org membership) to pin that isSuperAdmin() alone is sufficient
+    // for the write rules below, matching their read access.
     await setDoc(doc(db, `admins/${SUPER_ADMIN_EMAIL}`), {});
 
     await setDoc(
@@ -369,6 +381,42 @@ describe('announcements/{id} write — cross-org admin scoping', () => {
         isActive: false,
         updatedAt: 2,
       })
+    );
+  });
+
+  // REGRESSION: a real super admin with no /admins doc (legacy
+  // admin_settings/user_roles.superAdmins[]-only) used to be blocked by the
+  // outer isAdmin() conjunct even though they can read every announcement —
+  // write access was narrower than read access for the same role.
+  it('a legacy-only super admin (no /admins doc) CAN update a foreign org-scoped announcement', async () => {
+    await assertSucceeds(
+      updateDoc(
+        doc(asLegacyOnlySuperAdmin(), `announcements/${ORG_ANNOUNCEMENT_ID}`),
+        { isActive: false, updatedAt: 2 }
+      )
+    );
+  });
+
+  it('a legacy-only super admin (no /admins doc) CAN create a global (orgId:null) announcement', async () => {
+    await assertSucceeds(
+      setDoc(doc(asLegacyOnlySuperAdmin(), `announcements/new-legacy-global`), {
+        name: 'Global',
+        orgId: null,
+        isActive: false,
+        createdAt: 1,
+        updatedAt: 1,
+      })
+    );
+  });
+
+  it('a legacy-only super admin (no /admins doc) CAN delete a foreign org-scoped announcement', async () => {
+    await assertSucceeds(
+      deleteDoc(
+        doc(
+          asLegacyOnlySuperAdmin(),
+          `announcements/${OTHER_ORG_ANNOUNCEMENT_ID}`
+        )
+      )
     );
   });
 });

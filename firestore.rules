@@ -4249,12 +4249,19 @@ service cloud.firestore {
           ? (isOrgMember(d.orgId) || isSuperAdmin())
           : isSuperAdmin();
       }
-      allow create: if isAdmin() && announcementWriteScopeOk(incoming());
+      // isAdmin() alone misses a legacy super admin (admin_settings/user_roles
+      // .superAdmins[] with no /admins/{email} doc) — isSuperAdmin() already
+      // reads them for the read rule above, so the write gate must accept the
+      // same proof or their write access is narrower than their read access.
+      allow create: if (isAdmin() || isSuperAdmin())
+        && announcementWriteScopeOk(incoming());
       // orgId is immutable through this path — a same-org admin editing their
       // own announcement can't re-home it to another org or to global.
-      allow update: if isAdmin() && announcementWriteScopeOk(existing())
+      allow update: if (isAdmin() || isSuperAdmin())
+        && announcementWriteScopeOk(existing())
         && incoming().get('orgId', null) == existing().get('orgId', null);
-      allow delete: if isAdmin() && announcementWriteScopeOk(existing());
+      allow delete: if (isAdmin() || isSuperAdmin())
+        && announcementWriteScopeOk(existing());
 
       // Poll votes subcollection - authed users read live tallies and cast votes.
       // Value-locked to exactly what PollWidget's setDoc({count: increment(1)}, {merge:true})
@@ -4367,11 +4374,15 @@ service cloud.firestore {
           && (existing().orgId == null || isOrgMember(existing().orgId) || isSuperAdmin());
       }
       allow read: if helpReaderOk();
-      allow create: if isAdmin() && helpShapeOk(incoming())
+      // isAdmin() alone misses a legacy super admin (admin_settings/user_roles
+      // .superAdmins[] with no /admins/{email} doc) — isSuperAdmin() already
+      // reads them for helpReaderOk() above, so the write gate must accept the
+      // same proof or their write access is narrower than their read access.
+      allow create: if (isAdmin() || isSuperAdmin()) && helpShapeOk(incoming())
         && helpScopeOk(incoming())
         && incoming().createdBy == authUid()
         && incoming().openCount == 0;
-      allow update: if (isAdmin() && helpShapeOk(incoming())
+      allow update: if ((isAdmin() || isSuperAdmin()) && helpShapeOk(incoming())
         && helpScopeOk(existing())
         && unchanged('orgId')
         && unchanged('createdBy')
@@ -4379,7 +4390,7 @@ service cloud.firestore {
         || (helpReaderOk()
         && changedOnly(['openCount'])
         && incoming().openCount == existing().openCount + 1);
-      allow delete: if isAdmin() && helpScopeOk(existing());
+      allow delete: if (isAdmin() || isSuperAdmin()) && helpScopeOk(existing());
     }
 
     // Global PDFs - all authenticated users can read, only admins can write
