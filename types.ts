@@ -3254,12 +3254,7 @@ export interface StickerBookConfig {
   uploadedUrls?: string[];
   favorites?: string[];
   stickerOrder?: string[];
-  // NOTE: The sticker book face renders entirely with fixed Tailwind
-  // classes and reads no appearance config — cardColor/cardOpacity/
-  // fontFamily/fontColor previously declared here were dead. If a
-  // Surface or Typography control is ever wired to the widget, declare
-  // the supporting field here at that time rather than leaving dead
-  // config fields that imply unsupported customization.
+  // No appearance fields: the sticker face reads no Surface or Typography config.
 }
 
 export interface GlobalSticker {
@@ -6519,11 +6514,7 @@ export interface VideoActivityAttemptLedger {
 export interface TalkingToolConfig {
   cardColor?: string;
   cardOpacity?: number;
-  // NOTE: fontFamily/fontColor are not declared here — Widget.tsx never
-  // reads them, so the widget has no Typography appearance surface. If
-  // one is ever wired up, declare the supporting field here at that time
-  // rather than leaving dead config fields that imply unsupported
-  // customization.
+  // No fontFamily/fontColor: Widget.tsx reads only the surface keys.
 }
 
 export interface NextUpQueueItem {
