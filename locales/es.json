@@ -2282,6 +2282,16 @@
         "notSelfPaced": "Spoken answers need self-paced mode."
       }
     },
+    "paperReview": {
+      "handwriting": "Tu letra",
+      "cropAlt": "Tu respuesta escrita a mano, pregunta {{number}}",
+      "loading": "Cargando escritura",
+      "unavailable": "Escritura no disponible",
+      "reload": "Reintentar",
+      "transcribing": "Transcribiendo",
+      "blank": "En blanco",
+      "comments": "Comentarios del maestro"
+    },
     "grading": {
       "title": "Calificar respuestas libres",
       "close": "Close",

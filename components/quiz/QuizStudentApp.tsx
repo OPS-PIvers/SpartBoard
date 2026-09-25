@@ -59,6 +59,7 @@ import {
   ChevronDown,
   ChevronRight,
   ListChecks,
+  FileScan,
 } from 'lucide-react';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import {
@@ -104,7 +105,9 @@ import {
 import {
   QuizSession,
   QuizPublicQuestion,
+  WrittenAnswerAnnotation,
   WrittenAnswerGrade,
+  WrittenReturnMode,
   Rubric,
   StudentOverride,
   TabExit,
@@ -185,6 +188,18 @@ import { isValidDraw, orderServedQuestions } from '@/utils/questionBanks';
 import { chooseServedDraw } from '@/utils/quizBankDraw';
 import { groupQuestionsByTargets } from '@/utils/quizTargetStats';
 import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
+import {
+  DEFAULT_WRITTEN_RETURN_MODE,
+  isPaperWrittenAnswer,
+  paperWrittenView,
+  type PaperWrittenPlaceholder,
+  type PaperWrittenView,
+} from '@/utils/paperWritten';
+import {
+  StudentPaperCrop,
+  type StudentPaperCropProps,
+} from './paper/StudentPaperCrop';
+import type { GetPaperWrittenCropCall } from '@/utils/paperCropFetch';
 import {
   countAnsweredQuestions,
   listOpenQuestions,
@@ -4608,6 +4623,8 @@ export const PublishedScoreReview: React.FC<{
   override?: StudentOverride;
   /** This attempt's bank draw; wins over `override.questionIds` when set. */
   drawIds?: string[];
+  /** Test seam for the handwriting crop callable. */
+  loadPaperCrop?: GetPaperWrittenCropCall;
 }> = ({
   session,
   myResponse,
@@ -4619,6 +4636,7 @@ export const PublishedScoreReview: React.FC<{
   watermarkNameOverride,
   override,
   drawIds,
+  loadPaperCrop,
 }) => {
   const { t } = useTranslation();
   // Async / self-paced assignments (e.g. a Google Classroom attachment) review
@@ -4733,6 +4751,33 @@ export const PublishedScoreReview: React.FC<{
       publicQuestions.map((q) => q.id),
       myResponse.artifactArchive
     );
+
+  const writtenMode = session.writtenReturnMode ?? DEFAULT_WRITTEN_RETURN_MODE;
+  // Client mirror of the callable's D38 check, so a denied request is never sent.
+  const mayRequestCrop = showResponses && writtenMode !== 'typed';
+  const paperReviewFor = (
+    ans: (typeof myResponse.answers)[number] | undefined,
+    questionNumber: number
+  ): WrittenAnswerPaperProps | undefined => {
+    if (!ans || !isPaperWrittenAnswer(ans)) return undefined;
+    const view = paperWrittenView(ans, null, writtenMode);
+    const key = myResponse._responseKey;
+    return {
+      view,
+      mode: writtenMode,
+      crop:
+        mayRequestCrop && view.showCrop && view.crop && key
+          ? {
+              sessionId: session.id,
+              responseKey: key,
+              questionId: ans.questionId,
+              artifactId: view.crop.id,
+              questionNumber,
+              ...(loadPaperCrop ? { loadCrop: loadPaperCrop } : {}),
+            }
+          : undefined,
+    };
+  };
 
   // Watermark overlay — rendered above content via fixed positioning, below
   // any future modal dialogs (z-50, well below `Z_INDEX.modal`/`Z_INDEX.toast`
@@ -5074,6 +5119,7 @@ export const PublishedScoreReview: React.FC<{
                               rubricSnapshot={q.rubricSnapshot}
                               light={light}
                               hideEmptyResponse={hasRecordedTake}
+                              paper={paperReviewFor(ans, idx + 1)}
                             />
                           ) : (
                             <>
@@ -5307,6 +5353,102 @@ const ScoredRubricDisplay: React.FC<{
   );
 };
 
+export interface WrittenAnswerPaperProps {
+  view: PaperWrittenView;
+  mode: WrittenReturnMode;
+  /** Present only when this student may be served the crop (D38). */
+  crop?: Omit<StudentPaperCropProps, 'light'>;
+}
+
+const PaperPlaceholderLabel: React.FC<{
+  placeholder: PaperWrittenPlaceholder;
+  light: boolean;
+}> = ({ placeholder, light }) => {
+  const { t } = useTranslation();
+  return (
+    <p
+      className={`inline-flex items-center gap-1 text-xs font-semibold ${
+        light ? 'text-slate-500' : 'text-slate-300'
+      }`}
+    >
+      {placeholder === 'transcribing' && (
+        <Loader2 aria-hidden className="h-3.5 w-3.5 animate-spin" />
+      )}
+      {t(`quizMediaResponse.paperReview.${placeholder}`)}
+    </p>
+  );
+};
+
+/** Handwriting crop, plus the teacher's highlight comments when no typed text shows. */
+const PaperAnswerReview: React.FC<{
+  paper: WrittenAnswerPaperProps;
+  annotations: WrittenAnswerAnnotation[];
+  light: boolean;
+}> = ({ paper, annotations, light }) => {
+  const { t } = useTranslation();
+  const comments = annotations.filter(
+    (a) => Boolean(a.comment?.trim()) || (a.rubricCriteria?.length ?? 0) > 0
+  );
+  const labelCls = `text-[10px] font-bold uppercase tracking-wider ${
+    light ? 'text-slate-500' : 'text-slate-300'
+  }`;
+  return (
+    <>
+      {paper.view.showCrop && paper.crop ? (
+        <section
+          aria-label={t('quizMediaResponse.paperReview.handwriting')}
+          className="space-y-1"
+        >
+          <p className={labelCls}>
+            {t('quizMediaResponse.paperReview.handwriting')}
+          </p>
+          <StudentPaperCrop {...paper.crop} light={light} />
+        </section>
+      ) : paper.view.cropUnavailable ? (
+        <p
+          className={`inline-flex items-center gap-1 text-xs font-semibold ${
+            light ? 'text-slate-500' : 'text-slate-300'
+          }`}
+        >
+          <FileScan aria-hidden className="h-3.5 w-3.5" />
+          {t('quizMediaResponse.paperReview.unavailable')}
+        </p>
+      ) : null}
+      {comments.length > 0 && (
+        <section
+          aria-label={t('quizMediaResponse.paperReview.comments')}
+          className="space-y-1"
+        >
+          <p className={labelCls}>
+            {t('quizMediaResponse.paperReview.comments')}
+          </p>
+          <ul className="space-y-1.5">
+            {comments.map((a) => (
+              <li
+                key={a.id}
+                className={`rounded-lg border px-3 py-2 text-sm ${
+                  light
+                    ? 'border-slate-200 bg-white text-slate-800'
+                    : 'border-slate-700 bg-slate-800 text-slate-100'
+                }`}
+              >
+                {a.comment?.trim() && (
+                  <p className="whitespace-pre-wrap">{a.comment}</p>
+                )}
+                {(a.rubricCriteria?.length ?? 0) > 0 && (
+                  <p className={labelCls}>
+                    {a.rubricCriteria?.map((c) => c.name).join(', ')}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </>
+  );
+};
+
 export const WrittenAnswerReview: React.FC<{
   studentAnswer: string;
   grade: WrittenAnswerGrade | undefined;
@@ -5318,6 +5460,8 @@ export const WrittenAnswerReview: React.FC<{
   light?: boolean;
   /** Set when a recorded take is the response, so "no response" would lie. */
   hideEmptyResponse?: boolean;
+  /** A handwritten paper answer, rendered per the session's return mode. */
+  paper?: WrittenAnswerPaperProps;
 }> = ({
   studentAnswer,
   grade,
@@ -5326,6 +5470,7 @@ export const WrittenAnswerReview: React.FC<{
   rubricSnapshot,
   light = false,
   hideEmptyResponse = false,
+  paper,
 }) => {
   if (!showResponse) {
     return null;
@@ -5335,17 +5480,34 @@ export const WrittenAnswerReview: React.FC<{
   // card renders those. Anchoring them here would highlight arbitrary spans.
   const annotations =
     grade?.annotationUnit === 'ms' ? [] : (grade?.annotations ?? []);
-  const snapshot =
-    grade?.gradingSnapshot ??
-    (studentAnswer ? sanitizeQuizResponse(studentAnswer) : '');
-  const showingLiveAnswer = !hasGrade && !!studentAnswer;
+  const typedAnswer = paper ? (paper.view.transcript ?? '') : studentAnswer;
+  const showTyped = !paper || paper.mode !== 'handwriting';
+  const snapshot = !showTyped
+    ? ''
+    : paper?.view.placeholder
+      ? ''
+      : (grade?.gradingSnapshot ??
+        (typedAnswer ? sanitizeQuizResponse(typedAnswer) : ''));
+  const showingLiveAnswer = !hasGrade && (!!typedAnswer || !!paper);
   return (
     <div className="space-y-3">
-      {snapshot ? (
+      {paper && (
+        <PaperAnswerReview
+          paper={paper}
+          annotations={showTyped ? [] : annotations}
+          light={light}
+        />
+      )}
+      {!showTyped ? null : snapshot ? (
         <AnnotatedResponseView
           mode="read"
           snapshot={snapshot}
           annotations={annotations}
+          light={light}
+        />
+      ) : paper?.view.placeholder ? (
+        <PaperPlaceholderLabel
+          placeholder={paper.view.placeholder}
           light={light}
         />
       ) : hideEmptyResponse ? null : (
