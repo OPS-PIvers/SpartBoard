@@ -68,6 +68,7 @@ export const PenColorSwatches: React.FC<PenColorSwatchesProps> = ({
   const [editIndex, setEditIndex] = useState<number | null>(null);
   // Mirrors editIndex so a long-press and contextmenu firing together open one editor.
   const editIndexRef = useRef<number | null>(null);
+  const editContainerRef = useRef<HTMLDivElement>(null);
   const customInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -114,15 +115,27 @@ export const PenColorSwatches: React.FC<PenColorSwatchesProps> = ({
 
   // Touch long-press never focuses the group, so a local onKeyDown can't see
   // Escape; capture it on window instead, before it falls through and minimizes the widget.
+  // Paired with an outside-pointerdown dismiss (mirroring DraggableWindow's showMaxMenu
+  // effect) so the editor can't be left open indefinitely — with no such dismissal, this
+  // listener would keep intercepting every later Escape anywhere in the app.
   useEffect(() => {
     if (editIndex === null) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!editContainerRef.current?.contains(e.target as Node)) {
+        stopEditing();
+      }
+    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || isEscapeFromWidgetInput(e)) return;
       e.stopPropagation();
       stopEditing();
     };
+    window.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKey, true);
+    };
   }, [editIndex]);
 
   const hiddenInputs = (
@@ -155,7 +168,12 @@ export const PenColorSwatches: React.FC<PenColorSwatchesProps> = ({
   if (editIndex !== null) {
     const index = editIndex;
     return (
-      <div role="group" aria-label={t('penColors.group')} className={className}>
+      <div
+        ref={editContainerRef}
+        role="group"
+        aria-label={t('penColors.group')}
+        className={className}
+      >
         {hiddenInputs}
         <div className="flex items-center gap-2">
           <button

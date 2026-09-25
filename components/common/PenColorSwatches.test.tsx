@@ -133,6 +133,62 @@ describe('PenColorSwatches', () => {
     }
   });
 
+  it('dismisses an editor opened via touch long-press on an outside pointerdown', () => {
+    vi.useFakeTimers();
+    try {
+      renderSwatches();
+      const swatch = screen.getByLabelText('Pen color 4');
+      fireEvent.pointerDown(swatch, { pointerType: 'touch' });
+      act(() => {
+        vi.advanceTimersByTime(600);
+      });
+      expect(
+        screen.getByRole('button', { name: 'Change color 4' })
+      ).toBeInTheDocument();
+
+      // Tapping anything other than "Done" (e.g. the drawing canvas behind this
+      // toolbar) should close the small editor instead of leaving it open forever.
+      fireEvent.pointerDown(document.body);
+
+      expect(
+        screen.queryByRole('button', { name: 'Change color 4' })
+      ).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Pen color 4')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("doesn't leave a stale window Escape listener that hijacks a later, unrelated Escape", () => {
+    vi.useFakeTimers();
+    try {
+      renderSwatches();
+      const swatch = screen.getByLabelText('Pen color 4');
+      fireEvent.pointerDown(swatch, { pointerType: 'touch' });
+      act(() => {
+        vi.advanceTimersByTime(600);
+      });
+      // Abandon the editor without pressing "Done" or Escape — the outside
+      // pointerdown above closes it and must also tear down the capture-phase
+      // window Escape listener, or it would keep intercepting Escape forever.
+      fireEvent.pointerDown(document.body);
+      expect(
+        screen.queryByRole('button', { name: 'Change color 4' })
+      ).not.toBeInTheDocument();
+
+      const bubbleListener = vi.fn();
+      window.addEventListener('keydown', bubbleListener);
+      try {
+        fireEvent.keyDown(document.body, { key: 'Escape' });
+        expect(bubbleListener).toHaveBeenCalledTimes(1);
+      } finally {
+        window.removeEventListener('keydown', bubbleListener);
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('falls back to the default presets without an AuthProvider and cannot edit', () => {
     render(
       <PenColorSwatches value="#000000" onSelect={onSelect} variant="window" />
