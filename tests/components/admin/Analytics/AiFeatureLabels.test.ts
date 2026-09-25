@@ -25,6 +25,7 @@ const GEMINI_SPECIFIC_FEATURES = [
   'widget-explainer',
   'tts',
   'translation',
+  'paper-handwritten-responses',
 ] as const;
 
 describe('AI_FEATURE_LABELS', () => {

@@ -11,6 +11,10 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 import { useAuth } from '@/context/useAuth';
 import { logError } from '@/utils/logError';
+import {
+  PAPER_HANDWRITTEN_DEFAULT_DAILY_LIMIT,
+  PAPER_HANDWRITTEN_FEATURE,
+} from '@/utils/paperWritten';
 import type { GlobalFeature, GlobalFeaturePermission } from '@/types';
 
 /** Features with an AI daily usage limit. */
@@ -20,10 +24,21 @@ export const GEMINI_FEATURES: GlobalFeature[] = [
   'embed-mini-app',
   'video-activity-audio-transcription',
   'ai-file-context',
+  PAPER_HANDWRITTEN_FEATURE,
 ];
 
-export const defaultDailyLimit = (featureId: GlobalFeature): number =>
-  featureId === 'video-activity-audio-transcription' ? 5 : 20;
+/** Features whose admin card picks the Gemini model tier. */
+export const MODEL_TIER_FEATURES: GlobalFeature[] = [PAPER_HANDWRITTEN_FEATURE];
+
+export type AiModelTier = 'standard' | 'advanced';
+export const DEFAULT_MODEL_TIER: AiModelTier = 'standard';
+
+export const defaultDailyLimit = (featureId: GlobalFeature): number => {
+  if (featureId === 'video-activity-audio-transcription') return 5;
+  if (featureId === PAPER_HANDWRITTEN_FEATURE)
+    return PAPER_HANDWRITTEN_DEFAULT_DAILY_LIMIT;
+  return 20;
+};
 
 export type AdminMessage = { type: 'success' | 'error'; text: string };
 
@@ -90,6 +105,9 @@ export const useGlobalPermissionsEditor = () => {
             ? {
                 dailyLimit: defaultDailyLimit(featureId),
                 dailyLimitEnabled: true,
+                ...(MODEL_TIER_FEATURES.includes(featureId)
+                  ? { modelTier: DEFAULT_MODEL_TIER }
+                  : {}),
               }
             : {},
         }
