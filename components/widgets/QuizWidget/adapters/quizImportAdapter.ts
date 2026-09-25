@@ -33,6 +33,7 @@ import {
 import { readTestAndKey } from '@/utils/quizDocumentImport/readTestAndKey';
 import { QuizDocumentReview } from '../components/QuizDocumentReview';
 import { QuizDriveService } from '@/utils/quizDriveService';
+import { flagMissingKeys, missingKeyNumbers } from '@/utils/quizNeedsKey';
 
 export interface QuizImportAdapterDeps {
   /** Wizard copy label; defaults to 'Quiz'. */
@@ -337,6 +338,24 @@ function withoutChooseAll(
   };
 }
 
+/** A sheet or CSV row with no answer saves flagged, like a document import, rather than blocking the save. */
+function withKeysFlagged(result: { data: QuizData; warnings: string[] }): {
+  data: QuizData;
+  warnings: string[];
+} {
+  const missing = missingKeyNumbers(result.data.questions);
+  if (missing.length === 0) return result;
+  return {
+    data: flagMissingKeys(result.data),
+    warnings: [
+      ...result.warnings,
+      missing.length === 1
+        ? `Question ${missing[0]} has no correct answer.`
+        : `Questions ${missing.join(', ')} have no correct answer.`,
+    ],
+  };
+}
+
 export function createQuizImportAdapter(
   deps: QuizImportAdapterDeps
 ): ImportAdapter<QuizData> {
@@ -406,11 +425,11 @@ export function createQuizImportAdapter(
           PLACEHOLDER_TITLE,
           token
         );
-        return withoutChooseAll(data, multiAnswer);
+        return withKeysFlagged(withoutChooseAll(data, multiAnswer));
       }
       if (source.kind === 'csv') {
         const data = await deps.importFromCSV(source.text, PLACEHOLDER_TITLE);
-        return withoutChooseAll(data, multiAnswer);
+        return withKeysFlagged(withoutChooseAll(data, multiAnswer));
       }
       if (source.kind === 'document') {
         const extracted = await readTestAndKey(
@@ -448,12 +467,6 @@ export function createQuizImportAdapter(
         if (!q.text?.trim()) {
           errors.push(`Question ${i + 1} is missing text.`);
         }
-        if (!q.correctAnswer?.trim() && q.type !== 'FIB' && !q.needsKey) {
-          // FIB without correctAnswer is unusual but not structurally invalid,
-          // and `needsKey` is a document import saying so on purpose (D7) —
-          // Assign, live start and PLC share are that question's gate.
-          errors.push(`Question ${i + 1} is missing a correct answer.`);
-        }
       }
       return { ok: errors.length === 0, errors };
     },
@@ -484,9 +497,11 @@ export function createQuizImportAdapter(
       const now = Date.now();
       // Pictures become real stimuli only now, once the teacher has settled
       // which questions they are keeping.
+      // A missing key never blocks the save; Assign, live start and PLC share gate on the flag.
+      const flagged = flagMissingKeys(data);
       const withImages = deps.attachDocumentImages
-        ? await deps.attachDocumentImages(data)
-        : data;
+        ? await deps.attachDocumentImages(flagged)
+        : flagged;
       await deps.saveQuiz({
         ...withImages,
         title: finalTitle,
