@@ -149,7 +149,7 @@ export const CALLOUT_TONE_STYLES: Record<
     title: 'text-white',
     body: 'text-white',
     closeButton: 'text-white/80 hover:text-white',
-    line: '#2d3f89',
+    line: 'var(--spart-primary, #2d3f89)',
     halo: 'rgba(255,255,255,0.85)',
     swatch: 'bg-brand-blue-primary border border-white/40',
     labelKey: 'glStudio.calloutToneAccent',
