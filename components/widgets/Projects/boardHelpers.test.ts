@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { ProjectGroup } from '@/types';
 import {
   boardClassIds,
   boardClassOptions,
@@ -92,8 +93,8 @@ describe('groupColorOf', () => {
 
 describe('reviewCells', () => {
   it('lists ready-for-review cells in row then step order', () => {
-    const groups = [
-      { id: 'g1', stepStates: { s2: 'readyForReview' as const } },
+    const groups: Pick<ProjectGroup, 'id' | 'stepStates'>[] = [
+      { id: 'g1', stepStates: { s2: 'readyForReview' } },
       {
         id: 'g2',
         stepStates: {
