@@ -429,7 +429,6 @@ export const BoardNavFab: FC = () => {
     ? (dashboards.find((d) => d.id === movingBoardId) ?? null)
     : null;
 
-  const activeName = activeDashboard?.name ?? '';
   const boardListLabel = t('boardNav.boardList', {
     defaultValue: 'All boards',
   });
@@ -684,7 +683,9 @@ export const BoardNavFab: FC = () => {
           })}
           aria-haspopup="menu"
           aria-expanded={isBoardsMenuOpen}
-          title={activeName}
+          title={t('boardNav.selectBoard', {
+            defaultValue: 'Select board',
+          })}
           className={FAB_BASE}
         >
           <LayoutGrid className="w-4 h-4" />
