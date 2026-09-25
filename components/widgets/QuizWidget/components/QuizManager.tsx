@@ -2425,8 +2425,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   }
                 >
                   <p className="text-xxs text-slate-400">
-                    Pre-filled from the quiz&rsquo;s saved settings. Changes
-                    apply to this assignment only.
+                    Applies to this assignment only.
                   </p>
                   <QuizBehaviorSettingsPanel
                     value={assignBehavior}
@@ -2454,10 +2453,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               options={assignOptions}
               onChange={setAssignOptions}
               plcs={plcs}
-              effectivePeriodCount={
-                resolveEffectivePeriodNames(assignOptions.picker, rosters)
-                  .length
-              }
             />
           }
           onAssign={() => handleAssignConfirm()}
@@ -2783,16 +2778,6 @@ const QuizPreviewPaneContent: React.FC<{ quiz: QuizMetadata }> = ({ quiz }) => {
         {updated && <Stat label="Last updated" value={updated} />}
         {quiz.sync && <Stat label="Sync group" value="Active" />}
       </div>
-      <p
-        className="text-slate-500 leading-relaxed"
-        style={{
-          fontSize: 'min(10px, 3.5cqmin)',
-          marginTop: 'min(4px, 1cqmin)',
-        }}
-      >
-        Open the editor to see questions, or use “Full preview” to walk through
-        this quiz the way students will.
-      </p>
     </div>
   );
 };
@@ -3172,9 +3157,7 @@ const AssignPlcSlot: React.FC<{
   onChange: (next: QuizAssignOptions) => void;
   /** Teacher's PLC memberships (parent derives the effective id the same way). */
   plcs: readonly Plc[];
-  /** Class periods the picker contributes; drives the period-picker hint. */
-  effectivePeriodCount: number;
-}> = ({ options, onChange, plcs, effectivePeriodCount }) => {
+}> = ({ options, onChange, plcs }) => {
   const update = <K extends keyof QuizAssignOptions>(
     key: K,
     value: QuizAssignOptions[K]
@@ -3211,16 +3194,7 @@ const AssignPlcSlot: React.FC<{
         />
       </div>
       <p className="text-xxs text-slate-500 -mt-1">
-        Completed, scored results pool with your team on the PLC page. No
-        student names are shared.{' '}
-        {effectivePeriodCount > 1 ? (
-          <>Students will see a class-period picker after entering their PIN.</>
-        ) : (
-          <>
-            Pick two or more classes above to give students a period picker when
-            they join.
-          </>
-        )}
+        Results pool on the PLC page without student names.
       </p>
 
       {options.plcMode && plcs.length > 1 && (
@@ -3244,11 +3218,6 @@ const AssignPlcSlot: React.FC<{
               </option>
             ))}
           </select>
-          {!selectedPlc && (
-            <p className="text-xxs text-slate-500 mt-0.5">
-              Pick a PLC so results pool with the right team.
-            </p>
-          )}
         </div>
       )}
     </>

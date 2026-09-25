@@ -18,9 +18,6 @@ export const QuizManagementField: React.FC<{ ctx: CustomRenderCtx }> = ({
       aria-describedby={ctx.describedBy}
       className="flex flex-col gap-3"
     >
-      <p className="text-xs text-slate-600">
-        {ctx.t('widgetSettings.quiz.managementHelp')}
-      </p>
       <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
         {ctx.t('widgetSettings.quiz.widgetLabel')}
         <input

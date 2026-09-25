@@ -145,7 +145,6 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                     {t('quizTranslation.editor.servedCount', {
                       reviewed: servedCount(language.code),
                       total: rows.length,
-                      language: language.nativeLabel,
                     })}
                   </span>
                 </button>

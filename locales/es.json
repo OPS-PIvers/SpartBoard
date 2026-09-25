@@ -2135,7 +2135,6 @@
     "languageLabel": "Idioma",
     "languageTagLabel": "Código de idioma",
     "languageOther": "Otro…",
-    "languageHelp": "Elige la voz que se usa al leer este cuestionario en voz alta.",
     "readQuestion": "Leer pregunta",
     "readPrompt": "Leer la pregunta en voz alta",
     "readChoice": "Leer la opción {{n}} en voz alta",
@@ -2174,7 +2173,7 @@
       "stale": "Desactualizada",
       "regenerate_one": "Regenerar {{count}} pregunta desactualizada",
       "regenerate_other": "Regenerar {{count}} preguntas desactualizadas",
-      "servedCount": "{{reviewed}} de {{total}} disponibles en {{language}}",
+      "servedCount": "{{reviewed}}/{{total}} revisadas",
       "save": "Guardar traducción",
       "english": "Inglés",
       "disabled": {
@@ -2191,11 +2190,11 @@
         },
         "noneReviewed": {
           "title": "Nada revisado todavía",
-          "body": "El alumnado solo ve las preguntas que marcas como revisadas. Pide ayuda a un especialista en idiomas si no lees este idioma."
+          "body": "El alumnado solo ve las preguntas que marcas como revisadas."
         },
         "pickQuestion": {
           "title": "Elige una pregunta",
-          "body": "Selecciona una pregunta a la izquierda para ver el inglés y la traducción lado a lado."
+          "body": "Elige una pregunta para comparar."
         }
       },
       "error": {
@@ -2231,7 +2230,7 @@
       "sectionLabel": "Idioma de la respuesta",
       "backTranslating": "Traduciendo…",
       "nativeLabel": "Respuesta del estudiante",
-      "translatedRubricNote": "Es posible que este estudiante haya leído una rúbrica traducida; califica con la rúbrica en inglés que se muestra aquí.",
+      "translatedRubricNote": "Califica con la rúbrica en inglés.",
       "saveFailed": "La traducción se muestra abajo, pero no se pudo guardar. Deberá volver a generarse la próxima vez.",
       "errors": {
         "failed": "No se pudo traducir esta respuesta. Inténtalo de nuevo.",
@@ -2305,38 +2304,35 @@
       "formatTyped": "Typed",
       "formatSpoken": "Spoken",
       "prepLabel": "Thinking time",
-      "prepHint": "Seconds before the recorder arms. 0 starts them ready to record.",
+      "prepHint": "0 starts recording right away.",
       "limitLabel": "Recording limit",
-      "limitHint": "Hard stop for one take, up to {{max}} seconds.",
-      "limitClamped": "Capped at {{seconds}}s — {{mode}}'s limit.",
+      "limitHint": "Up to {{max}} seconds.",
+      "limitClamped": "Capped at {{seconds}}s for {{mode}}.",
       "limitClampedAction": "Set to {{seconds}}s",
       "secondsUnit": "Sec",
       "expiryLabel": "When thinking time runs out",
       "expiryAutoStart": "Start recording",
-      "expiryAutoStartHint": "The recorder starts on its own.",
       "expiryAutoAdvance": "Move on",
-      "expiryAutoAdvanceHint": "The quiz moves to the next question.",
       "expiryArmed": "Wait for them",
-      "expiryArmedHint": "The record button stays live until the student presses it.",
       "expiryUnanswered": "Mark unanswered",
-      "expiryUnansweredHint": "The slot closes and comes to you ungraded.",
+      "expiryUnansweredHint": "Comes to you ungraded.",
       "takeLimitLabel": "Takes allowed",
       "takeLimitUnlimited": "Unlimited",
       "takeLimitHint": "A take is a recording the student keeps, not one they discard.",
-      "timeLimitDisabledHint": "Disabled — recording questions use their own prep and recording timer instead of the speed bonus.",
+      "timeLimitDisabledHint": "Set by the recording timer.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
       "advisory": {
-        "title": "As authored",
+        "title": "Heads up",
         "slots_one": "Records up to {{count}} slot per student.",
         "slots_other": "Records up to {{count}} slots per student.",
-        "deviceBlocked": "If a student's device blocks the microphone, the question comes to you ungraded — you choose whether it's excused, scored zero, or answered another way.",
-        "shuffleNoOp": "Question shuffle has no effect here: shared stimuli group every question into one block."
+        "deviceBlocked": "If a microphone is blocked, the question comes to you ungraded.",
+        "shuffleNoOp": "Shuffle has no effect because every question shares one stimulus."
       }
     },
     "assign": {
       "advisory": {
-        "notSelfPaced": "Spoken answers are collected only in self-paced sessions; live sessions will show these questions as written."
+        "notSelfPaced": "Spoken answers need self-paced mode."
       }
     },
     "grading": {
@@ -2398,7 +2394,7 @@
         "count_one": "{{count}} take recorded",
         "count_other": "{{count}} takes recorded",
         "take": "Take {{n}}",
-        "pinNote": "Scoring always uses the last take. Picking an earlier one records which take your comments are about.",
+        "pinNote": "Scores use the last take.",
         "status": {
           "archiving": "Still saving",
           "archive-failed": "Not saved",
@@ -3050,7 +3046,7 @@
     "personal": {
       "title": "Mis objetivos de aprendizaje",
       "button": "Objetivos",
-      "description": "Objetivos que solo tú puedes ver. Etiqueta preguntas con ellos para seguir el dominio en tus propias evaluaciones.",
+      "description": "Solo tú puedes ver estos objetivos.",
       "sourceName": "Mis objetivos de aprendizaje"
     },
     "loading": "Cargando objetivos…",

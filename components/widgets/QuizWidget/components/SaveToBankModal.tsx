@@ -96,7 +96,7 @@ export const SaveToBankModal: React.FC<SaveToBankModalProps> = ({
 
         <div className="flex-1 overflow-y-auto custom-scrollbar px-4 py-3 space-y-3">
           <p className="text-xs text-slate-600">
-            Copies go into the bank; the questions here stay as they are.
+            Questions are copied to the bank.
           </p>
           {personal.length > 0 && (
             <div>

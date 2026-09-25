@@ -483,7 +483,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
         {isStale && (
           <div className="flex gap-2 p-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <p>Library copy has changed — re-attach to update.</p>
+            <p>Library copy changed. Re-attach to update.</p>
           </div>
         )}
 
@@ -946,8 +946,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                 Drop a CSV here, or click to choose a file
               </button>
               <p className="text-[11px] text-slate-600 text-center">
-                One row per criterion, 2–6 levels — the template shows the
-                format.
+                One row per criterion, 2 to 6 levels.
               </p>
             </div>
           </div>

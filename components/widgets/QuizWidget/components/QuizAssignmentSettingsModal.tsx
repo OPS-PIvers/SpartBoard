@@ -189,17 +189,11 @@ export const QuizAssignmentSettingsModal: React.FC<
       onAssign={handleAssign}
       extraSlot={
         <>
-          <div>
-            <AssignClassPicker
-              rosters={rosters}
-              value={options.picker}
-              onChange={(picker) => setOptions((prev) => ({ ...prev, picker }))}
-            />
-            <p className="text-xxs text-slate-400 mt-0.5">
-              Select class periods for this assignment. Students will choose
-              their class when joining.
-            </p>
-          </div>
+          <AssignClassPicker
+            rosters={rosters}
+            value={options.picker}
+            onChange={(picker) => setOptions((prev) => ({ ...prev, picker }))}
+          />
 
           {/* Due date + time */}
           <div>
@@ -235,10 +229,6 @@ export const QuizAssignmentSettingsModal: React.FC<
                 className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
-            <p className="text-xxs text-slate-400 mt-0.5">
-              Uses your local time. Synced to Google Classroom when assigned
-              there.
-            </p>
           </div>
 
           {/* Read-only behavior summary — freeze-live: behavior is frozen at

@@ -298,9 +298,7 @@ describe('QuizResults — PLC schema mismatch recovery', () => {
     expect(
       screen.queryByRole('button', { name: /export to my own sheet/i })
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByText(/exported to a personal sheet/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/exported to your own sheet/i)).toBeInTheDocument();
 
     // Assignment doc's PLC export URL stays untouched.
     expect(onExportUrlSaved).not.toHaveBeenCalled();
