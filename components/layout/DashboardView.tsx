@@ -1681,9 +1681,6 @@ export const DashboardView: React.FC = () => {
               <p className="text-white font-black uppercase tracking-widest text-base">
                 {t('widgets.dashboard.emptyBoardHint')}
               </p>
-              <p className="text-white/80 text-sm">
-                {t('widgets.dashboard.switchBoardsHint')}
-              </p>
             </div>
           </div>
         )}

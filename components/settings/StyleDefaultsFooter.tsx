@@ -4,7 +4,6 @@ import type { StyleDefaultsState } from './styleDefaults';
 
 export type StyleDefaultsFooterProps = {
   state: StyleDefaultsState;
-  widgetName: string;
   onSave: () => void;
   onReset: () => void;
   t: TranslateFn;
@@ -16,7 +15,6 @@ const buttonClass =
 // Explicit "my default" controls at the foot of the Style tab (D28).
 export const StyleDefaultsFooter: React.FC<StyleDefaultsFooterProps> = ({
   state,
-  widgetName,
   onSave,
   onReset,
   t,
@@ -29,8 +27,8 @@ export const StyleDefaultsFooter: React.FC<StyleDefaultsFooterProps> = ({
     >
       <p role="status" className="text-xs text-slate-700">
         {state.differs
-          ? t('widgetSettings.common.defaults.differs', { name: widgetName })
-          : t('widgetSettings.common.defaults.matches', { name: widgetName })}
+          ? t('widgetSettings.common.defaults.differs')
+          : t('widgetSettings.common.defaults.matches')}
       </p>
       <div className="flex flex-wrap gap-2">
         <button

@@ -386,24 +386,20 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     >
       {!createdUrl && (
         <div className="space-y-4">
-          <p className="text-sm text-slate-600">
-            {target.kind === 'board'
-              ? t('shareWithSub.boardSummary', {
-                  defaultValue:
-                    'Your sub sees this board exactly as you set it up.',
-                })
-              : t('shareWithSub.collectionSummary', {
-                  boards: tree.boards.length,
-                  sections: sectionCount,
-                  defaultValue:
-                    'Your sub clicks through {{boards}} boards, grouped the way you group them ({{sections}} groups).',
-                })}
-          </p>
+          {target.kind !== 'board' && (
+            <p className="text-sm text-slate-600">
+              {t('shareWithSub.collectionSummary', {
+                boards: tree.boards.length,
+                sections: sectionCount,
+                defaultValue: '{{boards}} boards in {{sections}} groups.',
+              })}
+            </p>
+          )}
           {existing && (
             <p className="rounded-lg bg-brand-blue-lighter/30 px-3 py-2 text-xs text-slate-700">
               {t('shareWithSub.updatingHint', {
                 defaultValue:
-                  'You already share this with a sub. Saving replaces what they see — same link, same end time unless you change it.',
+                  'Saving updates what your sub sees. The link stays the same.',
               })}
             </p>
           )}
@@ -453,8 +449,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
             />
             <p className="text-[10px] text-slate-500">
               {t('shareWithSub.endsAtHint', {
-                defaultValue:
-                  'Defaults to two days from now. Fourteen days is the most a sub share can run.',
+                defaultValue: 'Up to 14 days.',
               })}
             </p>
           </div>
@@ -466,7 +461,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
             <p className="text-[10px] text-slate-500 leading-relaxed">
               {t('shareWithSub.subsHint', {
                 defaultValue:
-                  'These subs get your class lists for as long as the share runs, and the access is withdrawn when it ends. Anyone else in the building still sees the boards, without student names.',
+                  'Listed subs see student names. Others in the building see the boards without names.',
               })}
             </p>
             {presetEmails.length > 0 && (

@@ -4536,7 +4536,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const meta = result.meta;
       if (meta.intendedMode === 'substitute') {
         addToast(
-          'Substitute shares are view-only. Open this link in /subs to view.',
+          'This link is for substitutes. Open it in the Substitute Portal.',
           'error'
         );
         return null;
