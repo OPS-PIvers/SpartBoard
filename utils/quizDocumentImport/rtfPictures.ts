@@ -45,6 +45,7 @@ export function wmfBitmap(bytes: Uint8Array): Uint8Array | null {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   // A placeable metafile starts with its own 22-byte header.
   const start = view.getUint32(0, true) === 0x9ac6cdd7 ? 22 : 0;
+  if (start + 6 > bytes.length) return null;
   const headerWords = view.getUint16(start + 2, true);
   let offset = start + headerWords * 2;
   let dib: Uint8Array | null = null;
@@ -110,7 +111,9 @@ export function dibToBmp(dib: Uint8Array): Uint8Array | null {
   if (dib.length < 12) return null;
   const view = new DataView(dib.buffer, dib.byteOffset, dib.byteLength);
   const headerSize = view.getUint32(0, true);
-  if (headerSize < 12 || headerSize > dib.length) return null;
+  // Every real DIB header is 12 bytes or 40 and up.
+  if ((headerSize !== 12 && headerSize < 40) || headerSize > dib.length)
+    return null;
   let colors = 0;
   let masks = 0;
   if (headerSize === 12) {
@@ -180,7 +183,8 @@ export async function rtfPictureImages(
   const images: ExtractedImage[] = [];
   const unreadable = new Set<string>();
   for (const picture of pictures) {
-    const image = await pictureImage(picture, toPng);
+    // A damaged picture costs its own question a warning, never the whole read.
+    const image = await pictureImage(picture, toPng).catch(() => null);
     if (image) images.push(image);
     else unreadable.add(picture.id);
   }

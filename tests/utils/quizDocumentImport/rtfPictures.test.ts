@@ -68,6 +68,15 @@ describe('metafile unwrapping', () => {
     expect(wmfBitmap(wmf('vector'))).toBeNull();
   });
 
+  it('returns null for truncated data instead of throwing', () => {
+    const placeable = new Uint8Array(20);
+    new DataView(placeable.buffer).setUint32(0, 0x9ac6cdd7, true);
+    expect(wmfBitmap(placeable)).toBeNull();
+    const short = new Uint8Array(14);
+    new DataView(short.buffer).setUint32(0, 14, true);
+    expect(dibToBmp(short)).toBeNull();
+  });
+
   it('puts a BMP file header with the pixel offset in front of a DIB', () => {
     const bmp = dibToBmp(dib()) ?? new Uint8Array(14);
     const v = new DataView(bmp.buffer);
@@ -117,6 +126,16 @@ describe('parseRtfDocument pictures', () => {
     expect(lines[1]).toMatchObject({ imageIds: ['rtf-img-1'] });
   });
 
+  it('gets a \\bin picture’s bytes back from the Windows-1252 decode', () => {
+    const bytes = Uint8Array.from([0x80, 0x81, 0x92, 0x9f, 0xff, 0x00]);
+    const rtf =
+      `${HEADER}\\pard x{\\pict\\pngblip\\bin6 ` +
+      new TextDecoder('windows-1252').decode(bytes) +
+      `}\\par}`;
+    const { pictures } = parseRtfDocument(rtf);
+    expect(Array.from(pictures[0].bytes)).toEqual(Array.from(bytes));
+  });
+
   it('reads Word’s shppict picture and skips its nonshppict fallback', () => {
     const { pictures } = parseRtfDocument(
       `${HEADER}\\pard x{\\*\\shppict{\\pict{\\*\\picprop}\\pngblip 89504e47}}{\\nonshppict{\\pict\\wmetafile8 0100}}\\par}`
@@ -147,6 +166,18 @@ describe('readQuizDocument — RTF pictures', () => {
     expect(quiz.questions[0].imageIds).toEqual([quiz.images[0].id]);
     expect(quiz.questions[1].imageIds).toEqual([]);
     expect(quiz.warnings.join(' ')).not.toMatch(/picture/i);
+  });
+
+  it('keeps reading when a picture’s data is damaged', async () => {
+    const placeable = new Uint8Array(20);
+    new DataView(placeable.buffer).setUint32(0, 0x9ac6cdd7, true);
+    const quiz = await readQuizDocument(file(hex(placeable)), {
+      bmpToPng: () => Promise.reject(new Error('unused')),
+    });
+    expect(quiz.questions).toHaveLength(2);
+    expect(quiz.warnings).toContain(
+      'Question 1’s picture couldn’t be read — add it in the editor.'
+    );
   });
 
   it('names the question whose picture is a vector drawing', async () => {

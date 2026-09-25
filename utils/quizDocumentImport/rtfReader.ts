@@ -77,6 +77,16 @@ const CP1252_HIGH: Record<number, string> = {
   0x9f: 'Ÿ',
 };
 
+/** The byte each Windows-1252 character came from, to undo the decode for `in` data. */
+const CP1252_BYTE = new Map(
+  Object.entries(CP1252_HIGH).map(([byte, char]) => [
+    char.charCodeAt(0),
+    Number(byte),
+  ])
+);
+const rawByte = (code: number): number =>
+  code < 0x100 ? code : (CP1252_BYTE.get(code) ?? 0x3f);
+
 /** WHATWG labels for the double-byte codepages `\ansicpg` can name. */
 const DBCS_LABELS: Record<number, string> = {
   932: 'shift_jis',
@@ -355,7 +365,7 @@ export function parseRtfDocument(rtf: string): {
         if (word in PICTURE_KINDS) pict.kind = PICTURE_KINDS[word];
         else if (word === 'bin' && param && param > 0) {
           for (let b = 0; b < param && i + b < rtf.length; b += 1)
-            pict.binary.push(rtf.charCodeAt(i + b) & 0xff);
+            pict.binary.push(rawByte(rtf.charCodeAt(i + b)));
           i += param;
         }
         continue;
