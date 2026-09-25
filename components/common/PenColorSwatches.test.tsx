@@ -107,6 +107,32 @@ describe('PenColorSwatches', () => {
     }
   });
 
+  it('Escape closes an editor opened via touch long-press even though focus never moved into it', () => {
+    vi.useFakeTimers();
+    try {
+      renderSwatches();
+      const swatch = screen.getByLabelText('Pen color 4');
+      fireEvent.pointerDown(swatch, { pointerType: 'touch' });
+      act(() => {
+        vi.advanceTimersByTime(600);
+      });
+      expect(
+        screen.getByRole('button', { name: 'Change color 4' })
+      ).toBeInTheDocument();
+
+      // Focus was never moved into the group (only the keyboard-menu path does
+      // that), so Escape lands on document.body, not on any element inside it.
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+
+      expect(
+        screen.queryByRole('button', { name: 'Change color 4' })
+      ).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Pen color 4')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('falls back to the default presets without an AuthProvider and cannot edit', () => {
     render(
       <PenColorSwatches value="#000000" onSelect={onSelect} variant="window" />

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Check, Plus, RotateCcw } from 'lucide-react';
 import { usePenColors } from '@/hooks/usePenColors';
 import { toPenHex } from '@/utils/penColors';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 const LONG_PRESS_MS = 500;
 
@@ -111,6 +112,19 @@ export const PenColorSwatches: React.FC<PenColorSwatchesProps> = ({
     setEditIndex(null);
   };
 
+  // Touch long-press never focuses the group, so a local onKeyDown can't see
+  // Escape; capture it on window instead, before it falls through and minimizes the widget.
+  useEffect(() => {
+    if (editIndex === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || isEscapeFromWidgetInput(e)) return;
+      e.stopPropagation();
+      stopEditing();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [editIndex]);
+
   const hiddenInputs = (
     <>
       <input
@@ -141,16 +155,7 @@ export const PenColorSwatches: React.FC<PenColorSwatchesProps> = ({
   if (editIndex !== null) {
     const index = editIndex;
     return (
-      <div
-        role="group"
-        aria-label={t('penColors.group')}
-        className={className}
-        onKeyDown={(e) => {
-          if (e.key !== 'Escape') return;
-          e.stopPropagation();
-          stopEditing();
-        }}
-      >
+      <div role="group" aria-label={t('penColors.group')} className={className}>
         {hiddenInputs}
         <div className="flex items-center gap-2">
           <button
