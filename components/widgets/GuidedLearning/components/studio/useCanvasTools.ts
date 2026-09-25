@@ -22,7 +22,7 @@ import {
 } from './calloutHandles';
 import { safeLinkUrl, wrapSelection } from './inlineText';
 import type { RedactMode, RedactRect } from '../../utils/redactImage';
-import { stepHasCallout } from '../../utils/calloutStyle';
+import { calloutBoxRectPx, stepHasCallout } from '../../utils/calloutStyle';
 
 /** Arrow nudge in image-%. */
 export const NUDGE_PCT = 0.25;
@@ -204,6 +204,19 @@ export function useCanvasTools(
     []
   );
 
+  // A box as the player would draw it, so keys never push it past the stage edge.
+  const onStage = useCallback(
+    (box: GuidedLearningCalloutBox): GuidedLearningCalloutBox => {
+      const g = geometryRef.current;
+      if (!g) return box;
+      return containerRectToBox(
+        g,
+        calloutBoxRectPx(box, g.imagePctToContainerPx, g.containerSize)
+      );
+    },
+    []
+  );
+
   const nudge = useCallback(
     (dx: number, dy: number) => {
       if (!selected) return;
@@ -214,14 +227,13 @@ export function useCanvasTools(
       const box = calloutBoxNow(selected);
       if (!box) return;
       updateStep(
-        withCalloutBox(selected, {
-          ...box,
-          xPct: box.xPct + dx,
-          yPct: box.yPct + dy,
-        })
+        withCalloutBox(
+          selected,
+          onStage({ ...box, xPct: box.xPct + dx, yPct: box.yPct + dy })
+        )
       );
     },
-    [selected, calloutFocused, updateStep, calloutBoxNow]
+    [selected, calloutFocused, updateStep, calloutBoxNow, onStage]
   );
 
   /** Alt+arrows: ←/→ change the width, ↑/↓ both sides, by one image-% point. */
@@ -236,9 +248,9 @@ export function useCanvasTools(
       );
       // Larger and smaller keep the box's shape.
       const hPct = axis === 'scale' ? (box.hPct * wPct) / box.wPct : box.hPct;
-      updateStep(withCalloutBox(selected, { ...box, wPct, hPct }));
+      updateStep(withCalloutBox(selected, onStage({ ...box, wPct, hPct })));
     },
-    [selected, updateStep, calloutBoxNow]
+    [selected, updateStep, calloutBoxNow, onStage]
   );
 
   const selectedSlideIndex = slideSteps.findIndex(

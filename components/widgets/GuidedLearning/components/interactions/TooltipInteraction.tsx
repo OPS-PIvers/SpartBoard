@@ -74,6 +74,8 @@ export const TooltipInteraction: React.FC<Props> = ({
     const el = cardRef.current;
     if (!el) return;
     const read = () => {
+      // A Studio resize preview sizes the card itself; placement waits for the release.
+      if (el.hasAttribute('data-gl-previewing')) return;
       const size = { w: el.offsetWidth, h: el.offsetHeight };
       setRendered((prev) =>
         prev.w === size.w && prev.h === size.h ? prev : size
@@ -145,6 +147,10 @@ export const TooltipInteraction: React.FC<Props> = ({
     h: rendered.h || cardH,
   };
   const arrow = connectorFor(arrowRect, keepOut);
+  const keepOutCentre = {
+    x: keepOut.x + keepOut.w / 2,
+    y: keepOut.y + keepOut.h / 2,
+  };
 
   const tone = CALLOUT_TONE_STYLES[calloutToneOf(step)];
   const overflowing = showFit && fit?.overflow === true;
@@ -161,7 +167,7 @@ export const TooltipInteraction: React.FC<Props> = ({
       data-gl-overlay={step.id}
       className="absolute inset-0 pointer-events-none z-20"
     >
-      {arrow && (
+      {arrow ? (
         <CalloutArrow
           stepId={step.id}
           from={arrow.from}
@@ -170,6 +176,17 @@ export const TooltipInteraction: React.FC<Props> = ({
           color={tone.line}
           halo={tone.halo}
         />
+      ) : (
+        showFit && (
+          <CalloutArrow
+            stepId={step.id}
+            from={keepOutCentre}
+            to={keepOutCentre}
+            color={tone.line}
+            halo={tone.halo}
+            hidden
+          />
+        )
       )}
       {/* Anchor dot on the pin — ringed so it reads on light screenshots too. */}
       {showAnchor && (

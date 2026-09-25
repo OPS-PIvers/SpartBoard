@@ -490,12 +490,48 @@ describe('Studio callout editing (gl-callout-editing)', () => {
     moveTo([70, 25], { ctrlKey: true });
     frames.step();
     expect(card?.style.translate ?? '').toBe('');
-    expect(dot?.style.translate).toBe(`${-10 * 7.2}px ${5 * 5.2}px`);
+    const [dx, dy] = (dot?.style.translate ?? '').split(' ').map(parseFloat);
+    expect(dx).toBeCloseTo(-72);
+    expect(dy).toBeCloseTo(26);
     expect(line()?.getAttribute('d')).not.toBe(before);
     up([70, 25], { ctrlKey: true });
     expect(dot?.style.translate ?? '').toBe('');
     expect(stepById('pin-1').calloutBox?.xPct).toBeCloseTo(100 / 7.2);
     expect(stepById('pin-1').xPct).toBeCloseTo(70);
+  });
+
+  it('keeps the grab offset on a handle and ignores a jittery tap', () => {
+    selectCallout();
+    // Grabbed 6px outside the east edge: the edge moves with the pointer, not to it.
+    dragHandle('e', [706, 430], [716, 430]);
+    expectBox('rect-1', { x: 600, y: 400, w: 110, h: 60 });
+    act(() => editor().undo());
+    selectCallout();
+    dragHandle('e', [700, 430], [702, 431]);
+    expect(stepById('rect-1').calloutBox).toBeUndefined();
+  });
+
+  it('stops arrow-key nudges at the stage edge', () => {
+    act(() =>
+      editor().updateStep({
+        ...stepById('rect-1'),
+        calloutBox: {
+          xPct: 600 / 7.2,
+          yPct: 400 / 5.2,
+          wPct: 100 / 7.2,
+          hPct: 60 / 5.2,
+        },
+      })
+    );
+    selectCallout();
+    canvas()?.dispatchEvent(new Event('focus'));
+    for (let i = 0; i < 20; i++) {
+      fireEvent.keyDown(canvas() as Element, { key: 'ArrowRight' });
+    }
+    // 620px is the last x that keeps a 100px box on a 720px stage.
+    expect(pxBox('rect-1').x).toBeCloseTo(620);
+    fireEvent.keyDown(canvas() as Element, { key: 'ArrowLeft' });
+    expect(pxBox('rect-1').x).toBeLessThan(620);
   });
 
   it('sizes with Alt+arrows', () => {

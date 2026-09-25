@@ -34,7 +34,7 @@ import {
   type SnapGuides,
 } from './snapping';
 import { findCallout, screenScale } from './canvasScale';
-import { stepHasCallout } from '../../utils/calloutStyle';
+import { calloutBoxRectPx, stepHasCallout } from '../../utils/calloutStyle';
 import { createGesturePreview, type GesturePreview } from './gesturePreview';
 import {
   CALLOUT_HANDLES,
@@ -114,6 +114,8 @@ type Gesture =
       kind: 'resize';
       step: GuidedLearningStep;
       handle: ResizeHandle;
+      /** Pointer minus the handle point, in image %, so the edge never jumps to the pointer. */
+      grab: PctPoint;
       active: boolean;
     }
   | {
@@ -128,6 +130,9 @@ type Gesture =
       handle: CalloutHandle;
       /** The card's rendered box at pointerdown, in container px. */
       box: PxRect;
+      /** Pointer minus the handle point, in container px. */
+      grab: { x: number; y: number };
+      client: Client;
       active: boolean;
     }
   | {
@@ -314,9 +319,15 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
   const targets = () => snapTargets(slideSteps, selected?.id ?? null);
   const boxTargets = (id: string) => calloutSnapTargets(slideSteps, id);
 
+  // A stored box starts from its own height, not one grown to fit overflowing text.
+  const startBox = (step: GuidedLearningStep, rendered: PxRect): PxRect =>
+    step.calloutBox
+      ? calloutBoxRectPx(step.calloutBox, toPx, g.containerSize)
+      : rendered;
+
   // Shows a callout drag or resize in this layer and on the card in the same frame.
   const showCallout = (
-    gesture: { step: GuidedLearningStep; box: PxRect },
+    gesture: { kind: string; step: GuidedLearningStep; box: PxRect },
     rect: PxRect,
     nextGuides: SnapGuides
   ) => {
@@ -328,8 +339,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
     });
     const preview = previewFor(gesture.step, 'card');
     preview.shift(rect.x - gesture.box.x, rect.y - gesture.box.y);
-    if (rect.w !== gesture.box.w || rect.h !== gesture.box.h)
-      preview.size(rect.w, rect.h);
+    if (gesture.kind === 'callout-size') preview.size(rect.w, rect.h);
     preview.route(rect, regionRect(g.regionFor(gesture.step)));
   };
 
@@ -339,11 +349,9 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
     step: GuidedLearningStep,
     next: GuidedLearningStep
   ) => {
-    const { w, h } = g.containerSize;
-    preview.anchor(
-      ((next.xPct - step.xPct) / 100) * w,
-      ((next.yPct - step.yPct) / 100) * h
-    );
+    const a = toPx(step);
+    const b = toPx(next);
+    preview.anchor(b.x - a.x, b.y - a.y);
     const box = calloutBox?.id === step.id ? calloutBox.box : null;
     if (box) preview.route(box, regionRect(g.regionFor(next)));
   };
@@ -471,7 +479,13 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
         kind: 'callout-size',
         step: selected,
         handle: sizeHandle,
-        box: selBox,
+        box: startBox(selected, selBox),
+        grab: (() => {
+          const at = handlePoint(startBox(selected, selBox), sizeHandle);
+          const px = toPx(p);
+          return { x: px.x - at.x, y: px.y - at.y };
+        })(),
+        client,
         active: false,
       };
       return;
@@ -496,6 +510,14 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
               kind: 'resize',
               step: selected,
               handle: handle as ResizeHandle,
+              grab: (() => {
+                const b = stepBox(selected);
+                const at = handlePoint(
+                  { x: b.l, y: b.t, w: b.r - b.l, h: b.b - b.t },
+                  handle as ResizeHandle
+                );
+                return { xPct: p.xPct - at.x, yPct: p.yPct - at.y };
+              })(),
               active: false,
             };
       return;
@@ -528,13 +550,18 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
     }
 
     const callout = selected ? calloutRectOf(selected.id) : null;
-    if (selected && callout && inRect(callout, client)) {
+    if (
+      selected &&
+      stepHasCallout(selected) &&
+      callout &&
+      inRect(callout, client)
+    ) {
       e.currentTarget.setPointerCapture?.(e.pointerId);
       onCalloutFocus(true);
       gestureRef.current = {
         kind: 'callout',
         step: selected,
-        box: clientRectToContainer(g, callout),
+        box: startBox(selected, clientRectToContainer(g, callout)),
         client,
         active: false,
       };
@@ -640,12 +667,16 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
       }
       case 'resize': {
         const h = gesture.handle;
+        const held = {
+          xPct: p.xPct - gesture.grab.xPct,
+          yPct: p.yPct - gesture.grab.yPct,
+        };
         const at = snap
-          ? snapPoint(p, targets(), limit, {
+          ? snapPoint(held, targets(), limit, {
               x: h.includes('e') || h.includes('w'),
               y: h.includes('n') || h.includes('s'),
             })
-          : { ...p, guides: NO_GUIDES };
+          : { ...held, guides: NO_GUIDES };
         const region = gesture.step.region;
         if (region?.shape !== 'rect' && region?.shape !== 'ellipse') return;
         gesture.active = true;
@@ -673,14 +704,22 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
         return;
       }
       case 'callout-size': {
+        if (!gesture.active) {
+          if (dist(gesture.client, client) <= CALLOUT_PX) return;
+          gesture.active = true;
+        }
         const h = gesture.handle;
+        const px = toPx(p);
+        const held = g.containerPxToImagePct(
+          px.x - gesture.grab.x,
+          px.y - gesture.grab.y
+        );
         const at = snap
-          ? snapPoint(p, boxTargets(gesture.step.id), limit, {
+          ? snapPoint(held, boxTargets(gesture.step.id), limit, {
               x: h.includes('e') || h.includes('w'),
               y: h.includes('n') || h.includes('s'),
             })
-          : { ...p, guides: NO_GUIDES };
-        gesture.active = true;
+          : { ...held, guides: NO_GUIDES };
         const rect = resizeCalloutBox(gesture.box, h, toPx(at), {
           keepAspect: e.shiftKey,
           fromCentre: e.altKey,
@@ -816,6 +855,9 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
   // Hit areas stay the same size on screen at any zoom: 24px for a mouse, 44px for touch (G6).
   const hitSize =
     (coarsePointer() ? MIN_PIN_HIT_PX : HANDLE_HIT_PX) / scale.screenPerPx;
+  // On a small box the hit areas shrink so the middle still drags.
+  const hitFor = (r: { w: number; h: number }) =>
+    Math.max(handleSize, Math.min(hitSize, r.w / 3, r.h / 3));
   const stroke = 2 / scale.screenPerPx;
   const hover =
     !adding && hoverId && hoverId !== selected?.id
@@ -954,10 +996,10 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
                   data-gl-handle={h}
                   className="absolute flex items-center justify-center"
                   style={{
-                    left: selRect.x + x * selRect.w - hitSize / 2,
-                    top: selRect.y + y * selRect.h - hitSize / 2,
-                    width: hitSize,
-                    height: hitSize,
+                    left: selRect.x + x * selRect.w - hitFor(selRect) / 2,
+                    top: selRect.y + y * selRect.h - hitFor(selRect) / 2,
+                    width: hitFor(selRect),
+                    height: hitFor(selRect),
                     cursor: `${h}-resize`,
                   }}
                 >
@@ -1052,7 +1094,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
         CALLOUT_HANDLES.map((h) => {
           const x = h.includes('w') ? 0 : h.includes('e') ? 1 : 0.5;
           const y = h.includes('n') ? 0 : h.includes('s') ? 1 : 0.5;
-          const hit = hitSize;
+          const hit = hitFor(selBox);
           return (
             <div
               key={h}
@@ -1156,6 +1198,15 @@ const CALLOUT_FIELDS = [
   'tooltipPosition',
   'tooltipOffset',
 ] as const satisfies readonly (keyof GuidedLearningStep)[];
+
+// Where a resize handle sits on a rect: corner, edge midpoint.
+const handlePoint = (
+  r: { x: number; y: number; w: number; h: number },
+  h: ResizeHandle
+) => ({
+  x: h.includes('w') ? r.x : h.includes('e') ? r.x + r.w : r.x + r.w / 2,
+  y: h.includes('n') ? r.y : h.includes('s') ? r.y + r.h : r.y + r.h / 2,
+});
 
 const fieldsOf = (gesture: { kind: string }) =>
   gesture.kind === 'callout' || gesture.kind === 'callout-size'

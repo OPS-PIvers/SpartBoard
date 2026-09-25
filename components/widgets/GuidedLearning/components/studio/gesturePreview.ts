@@ -92,6 +92,7 @@ export function createGesturePreview(
     },
     size: (w, h) =>
       cards.forEach((el) => {
+        el.setAttribute('data-gl-previewing', '');
         el.style.width = `${w}px`;
         el.style.minHeight = `${h}px`;
         el.style.maxWidth = 'none';
@@ -115,7 +116,10 @@ export function createGesturePreview(
       lines.forEach((el, i) => setAttr(el, 'd', lineDs[i]));
       heads.forEach((el, i) => setAttr(el, 'points', headPoints[i]));
       shifted.forEach((el, i) => (el.style.translate = translates[i]));
-      cards.forEach((el, i) => Object.assign(el.style, sizes[i]));
+      cards.forEach((el, i) => {
+        Object.assign(el.style, sizes[i]);
+        el.removeAttribute('data-gl-previewing');
+      });
       shapes.forEach((el, i) => setAttr(el, 'd', paths[i]));
     },
   };

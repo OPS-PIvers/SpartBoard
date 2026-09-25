@@ -10,6 +10,8 @@ interface Props {
   halo?: string;
   /** Step id, so a Studio drag preview can find and rewrite this connector. */
   stepId?: string;
+  /** Renders an empty, hidden connector that a Studio drag preview can fill in. */
+  hidden?: boolean;
 }
 
 export interface CalloutArrowPaths {
@@ -50,15 +52,18 @@ export const CalloutArrow: React.FC<Props> = ({
   color = 'rgba(255,255,255,0.85)',
   halo = 'rgba(15,23,42,0.55)',
   stepId,
+  hidden = false,
 }) => {
-  const paths = calloutArrowPaths(from, to, normal);
-  if (!paths) return null;
-  const { d, head } = paths;
+  const paths = hidden ? null : calloutArrowPaths(from, to, normal);
+  if (!paths && !hidden) return null;
+  const d = paths?.d ?? '';
+  const head = paths?.head ?? '';
   return (
     <svg
       aria-hidden="true"
-      data-testid="gl-callout-arrow"
+      data-testid={hidden ? undefined : 'gl-callout-arrow'}
       data-gl-connector={stepId}
+      style={hidden ? { display: 'none' } : undefined}
       className="absolute inset-0 w-full h-full overflow-visible pointer-events-none"
     >
       <path
