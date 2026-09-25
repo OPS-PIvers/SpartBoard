@@ -2500,17 +2500,31 @@ service cloud.firestore {
           // removal only (exactly-one-lead invariant, Decision 1.2).
           && plcBroadMembersOk()
         )
-        || isAcceptingPlcInvite(plcId)
-        || isLeavingPlc()
-        || isTransferringPlcLead()
-        || isChangingMemberRole()
+        // Each branch below sits behind a cheap condition it already requires, because a
+        // function's `let` bindings run even when its first check fails and every branch
+        // shares one 1,000-expression budget per request.
+        || (
+          !(request.auth.uid in resource.data.memberUids)
+          && request.auth.uid in request.resource.data.memberUids
+          && isAcceptingPlcInvite(plcId)
+        )
+        || (
+          request.auth.uid in resource.data.memberUids
+          && !(request.auth.uid in request.resource.data.memberUids)
+          && isLeavingPlc()
+        )
+        || (request.resource.data.leadUid != resource.data.leadUid && isTransferringPlcLead())
+        || (request.resource.data.get('roleChangeUid', '') != '' && isChangingMemberRole())
         || isSettingPlcSharedSheetUrl()
         || isUpdatingPlcFeatures()
         || isUpdatingPlcDigestOptIn()
         || isUpdatingPlcMeetingCadence()
         || isUpdatingPlcNormingLabels()
-        || isAdminManagingPlc()
-        || isAdminEditingPlcMembers()
+        || (
+          request.resource.data.get('leadUid', '') != resource.data.get('leadUid', '')
+          && isAdminManagingPlc()
+        )
+        || (request.resource.data.get('adminMemberUid', '') != '' && isAdminEditingPlcMembers())
       );
 
       // The lead can dissolve the PLC; an in-org SITE ADMIN can also dissolve an

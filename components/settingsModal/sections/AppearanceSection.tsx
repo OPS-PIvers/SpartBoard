@@ -244,8 +244,7 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
       <div className="space-y-4 pt-2 border-t border-slate-100">
         <p className="text-xxs text-slate-400 px-1 leading-relaxed pt-2">
           {t('style.colorsDescription', {
-            defaultValue:
-              'Set custom brand colors for this dashboard. These are injected as CSS variables and used throughout the interface.',
+            defaultValue: 'Set custom brand colors for this dashboard.',
           })}
         </p>
 

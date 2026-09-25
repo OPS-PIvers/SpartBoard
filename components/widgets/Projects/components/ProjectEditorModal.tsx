@@ -482,7 +482,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
           className={inputClass}
         />
         <p className="mt-1 text-xs text-slate-500">
-          Shown to the group. It does not lock the step (A7).
+          The group sees this date, and the step stays open after it.
         </p>
       </div>
 
