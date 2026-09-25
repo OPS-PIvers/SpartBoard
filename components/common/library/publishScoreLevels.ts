@@ -1,6 +1,7 @@
 import type React from 'react';
 import { CheckCircle2, ListChecks, Trophy } from 'lucide-react';
 import type { PublishScoresVisibility } from './PublishScoresModal';
+import type { WrittenReturnMode } from '@/types';
 
 export interface VisibilityOption {
   id: PublishScoresVisibility;
@@ -25,4 +26,14 @@ export const PUBLISH_LEVEL_OPTIONS: VisibilityOption[] = [
     title: 'Score, Responses, & Answers',
     Icon: CheckCircle2,
   },
+];
+
+/** Quiz-only choice for how handwritten paper answers return to students (D37). */
+export const WRITTEN_RETURN_OPTIONS: ReadonlyArray<{
+  id: WrittenReturnMode;
+  title: string;
+}> = [
+  { id: 'handwriting', title: 'Handwriting' },
+  { id: 'typed', title: 'Typed' },
+  { id: 'both', title: 'Both' },
 ];
