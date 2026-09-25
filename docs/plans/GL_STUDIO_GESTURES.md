@@ -113,6 +113,7 @@ Five stacked PRs to `dev-paul`, in order. Each branch starts from the previous o
 - `GuidedLearningStage` owns its container-query box, so `cqmin` resolves identically on every surface.
 - Blurred letterbox (G17): a background layer of the same image, `object-cover`, blurred and dimmed, behind the contained media. Video steps use the poster frame. It must not add a network request (reuse the loaded URL).
 - Tests: a parity test rendering one step in the Studio frame and the player shell at the same preset and comparing the stage box and a callout's computed font size.
+- Built (2026-09-25): the container-query box is the shell root, not the stage, because that is the box every shipped surface already uses, so students see no size change. The Studio frame renders the same shell, so the stage matches to the pixel.
 
 ### PR 5: retire the classic editor
 
