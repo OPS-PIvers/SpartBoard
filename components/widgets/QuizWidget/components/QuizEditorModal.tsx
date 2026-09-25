@@ -642,6 +642,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               titleSlot={bankTargetsStrip}
               titlePlaceholder={isBank ? 'Bank title' : undefined}
               inheritedTargets={isBank ? bankTargets : undefined}
+              allowSections={!isBank}
               onAddAnswerKey={
                 answerKeyFill && !isBank ? openKeyFill : undefined
               }

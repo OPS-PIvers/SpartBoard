@@ -298,11 +298,15 @@ export function overAnsweredSections(
 }
 
 /** "Answer any 2 of these 3 questions.", or null for a section students answer in full. */
-export function chooseLineFor(section: QuizSessionSection): string | null {
-  const count = effectiveChooseCount(section);
+export function chooseLineFor(
+  section: QuizSessionSection,
+  servedIds?: readonly string[]
+): string | null {
+  const count = effectiveChooseCount(section, servedIds);
+  const total = servedSectionQuestionIds(section, servedIds).length;
   return count === undefined
     ? null
-    : `Answer any ${count} of these ${section.questionIds.length} questions.`;
+    : `Answer any ${count} of these ${total} questions.`;
 }
 
 /** Shuffles questions inside each section and leaves sectionless runs to shuffle among themselves. */

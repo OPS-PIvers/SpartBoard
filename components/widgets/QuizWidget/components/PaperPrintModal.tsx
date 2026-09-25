@@ -626,6 +626,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     if (!printedBatch) return;
     try {
       const sections = sessionSectionsFor(quiz);
+      // Paper prints only MC rows, so the choose line counts only those.
+      const printedIds = analysis.rows.map((r) => r.questionId);
       const headed = new Set<string>();
       printTest({
         quizTitle: quiz.title,
@@ -645,8 +647,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                   ...(section.directions
                     ? { directions: section.directions }
                     : {}),
-                  ...(chooseLineFor(section)
-                    ? { chooseLine: chooseLineFor(section) ?? undefined }
+                  ...(chooseLineFor(section, printedIds)
+                    ? { chooseLine: chooseLineFor(section, printedIds) ?? undefined }
                     : {}),
                 }
               : undefined;
