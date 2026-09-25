@@ -61,7 +61,11 @@ const buildingSets = [
 
 const renderManager = (
   isAdmin: boolean,
-  onOpenAIAuthoring: (library: 'personal' | 'building') => void = vi.fn()
+  onOpenAIAuthoring: (library: 'personal' | 'building') => void = vi.fn(),
+  onSetBuildingHelpCenter: (
+    setId: string,
+    helpCenter: boolean
+  ) => void = vi.fn()
 ) =>
   render(
     <AuthContext.Provider
@@ -87,6 +91,7 @@ const renderManager = (
         onAssign={vi.fn()}
         onDeletePersonal={vi.fn()}
         onDeleteBuilding={vi.fn()}
+        onSetBuildingHelpCenter={onSetBuildingHelpCenter}
         onCreateNewPersonal={vi.fn()}
         onCreateNewBuilding={vi.fn()}
         onOpenAIAuthoring={onOpenAIAuthoring}
@@ -137,6 +142,56 @@ describe('GuidedLearningManager — Help Center activities', () => {
     });
     expect(await screen.findByText('Building Lesson')).toBeInTheDocument();
     expect(screen.queryByText('Flagged Help Guide')).not.toBeInTheDocument();
+  });
+});
+
+const cardMenu = async (title: string) => {
+  let card: HTMLElement | null = await screen.findByText(title);
+  while (card && !within(card).queryByRole('button', { name: 'More actions' }))
+    card = card.parentElement;
+  if (!card) throw new Error(`No menu for ${title}`);
+  fireEvent.click(within(card).getByRole('button', { name: 'More actions' }));
+};
+
+describe('GuidedLearningManager — moving building sets to and from the Help Center', () => {
+  it('lets an admin move a library building set to the Help Center', async () => {
+    const onMove = vi.fn();
+    renderManager(true, vi.fn(), onMove);
+    await cardMenu('Building Lesson');
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: /Move to Help Center/ })
+    );
+    expect(onMove).toHaveBeenCalledWith('b-1', true);
+  });
+
+  it('lets an admin move a Help Center set back to the library', async () => {
+    const onMove = vi.fn();
+    renderManager(true, vi.fn(), onMove);
+    await screen.findByText('Personal Set');
+    fireEvent.change(screen.getByLabelText('Source'), {
+      target: { value: 'help' },
+    });
+    await cardMenu('Flagged Help Guide');
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: /Move to library/ })
+    );
+    expect(onMove).toHaveBeenCalledWith('h-1', false);
+  });
+
+  it('offers the move only to admins', async () => {
+    renderManager(false);
+    await screen.findByText('Building Lesson');
+    expect(
+      screen.queryByRole('menuitem', { name: /Move to Help Center/ })
+    ).toBeNull();
+    for (const more of screen.queryAllByRole('button', {
+      name: 'More actions',
+    })) {
+      fireEvent.click(more);
+    }
+    expect(
+      screen.queryByRole('menuitem', { name: /Move to Help Center/ })
+    ).toBeNull();
   });
 });
 

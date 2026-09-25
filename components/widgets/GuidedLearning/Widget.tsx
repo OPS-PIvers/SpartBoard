@@ -28,7 +28,11 @@ import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareGuidedLearningWidget } from './SubShareWidget';
 import { useDialog } from '@/context/useDialog';
 import { useAuth } from '@/context/useAuth';
-import { loadBuildingSet, useGuidedLearning } from '@/hooks/useGuidedLearning';
+import {
+  loadBuildingSet,
+  setHelpCenterFlag,
+  useGuidedLearning,
+} from '@/hooks/useGuidedLearning';
 import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useFolders } from '@/hooks/useFolders';
@@ -1346,6 +1350,22 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   isDuplicatingBuilding={buildingDuplicateBusy.isBusy}
                   onDeleteBuilding={(setId) => {
                     void handleDeleteBuilding(setId);
+                  }}
+                  onSetBuildingHelpCenter={async (setId, helpCenter) => {
+                    try {
+                      await setHelpCenterFlag(setId, helpCenter);
+                      addToast(
+                        helpCenter
+                          ? 'Moved to Help Center.'
+                          : 'Moved to library.',
+                        'success'
+                      );
+                    } catch (err) {
+                      addToast(
+                        err instanceof Error ? err.message : 'Move failed',
+                        'error'
+                      );
+                    }
                   }}
                   onCreateNewPersonal={handleCreateNew}
                   onCreateNewBuilding={handleCreateNewBuilding}

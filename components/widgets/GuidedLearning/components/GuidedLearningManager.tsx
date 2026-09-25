@@ -48,6 +48,8 @@ import {
   Upload,
   Circle,
   Footprints,
+  LifeBuoy,
+  Library,
 } from 'lucide-react';
 import type {
   AssignmentMode,
@@ -219,6 +221,11 @@ export interface GuidedLearningManagerProps {
   /** Busy-state probe for the building-set Duplicate kebab. */
   isDuplicatingBuilding?: (setId: string) => boolean;
   onDeleteBuilding: (setId: string) => void | Promise<void>;
+  /** Admin-only: moves a building set into (true) or out of (false) the Help Center. */
+  onSetBuildingHelpCenter?: (
+    setId: string,
+    helpCenter: boolean
+  ) => void | Promise<void>;
   /** Export a set to a self-contained .gl.json file. Same routing as onPlay. */
   onExport?: (
     setId: string,
@@ -432,6 +439,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onDuplicateBuilding,
   isDuplicatingBuilding,
   onDeleteBuilding,
+  onSetBuildingHelpCenter,
   onExport,
   onImport,
   importFocusCounter = 0,
@@ -914,6 +922,16 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
           }
         )
       );
+    }
+
+    if (isBuildingEntry && isAdmin && onSetBuildingHelpCenter) {
+      const toHelp = !entry.helpCenter;
+      secondary.push({
+        id: 'help-center',
+        label: toHelp ? 'Move to Help Center' : 'Move to library',
+        icon: toHelp ? LifeBuoy : Library,
+        onClick: () => void onSetBuildingHelpCenter(rawId, toHelp),
+      });
     }
 
     if (canDelete) {

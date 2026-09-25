@@ -584,6 +584,13 @@ export const loadBuildingSet = async (
   return normalizeGuidedLearningSet(snap.data() as GuidedLearningSet);
 };
 
+// Moves one building set between the Guided Learning library and the Help Center.
+export const setHelpCenterFlag = (
+  setId: string,
+  helpCenter: boolean
+): Promise<void> =>
+  updateDoc(doc(db, BUILDING_GL_COLLECTION, setId), { helpCenter });
+
 // Moves building sets out of the Guided Learning library and into the Help Center only.
 export const markHelpCenterSets = async (
   setIds: readonly string[]
