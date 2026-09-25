@@ -399,6 +399,8 @@ export const WIDGET_DEFAULT_ACCESS_LEVEL: Partial<
   Record<WidgetType, AccessLevel>
 > = {
   flashcards: 'admin',
+  // D46 — off the teacher dock until an admin opens it.
+  projects: 'admin',
 };
 
 export const getWidgetDefaultAccessLevel = (

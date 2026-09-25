@@ -17,17 +17,14 @@ import type {
   ProjectGroupImportEntry,
   ProjectRun,
   ProjectStepState,
-  ProjectWorkLink,
 } from '@/types';
 import { logError } from '@/utils/logError';
 import { approvalStepIdsFrom } from '@/components/widgets/Projects/projectSteps';
 import {
   RUNS_COLLECTION,
-  removeWorkLinkWrite,
   runIdFor,
-  writeNeedsSupport,
+  setPeerVisibility as writePeerVisibility,
   writeStepState,
-  writeWorkLink,
 } from '@/utils/projectRunWrites';
 
 export { RUNS_COLLECTION, runIdFor };
@@ -55,24 +52,17 @@ interface UseProjectRunResult {
     state: ProjectStepState,
     actorRole: 'student' | 'teacher'
   ) => Promise<void>;
-  setNeedsSupport: (
-    groupId: string,
-    needsSupport: boolean,
-    actorRole: 'student' | 'teacher'
-  ) => Promise<void>;
-  addWorkLink: (
-    groupId: string,
-    link: ProjectWorkLink,
-    actorRole: 'student' | 'teacher'
-  ) => Promise<void>;
-  removeWorkLink: (groupId: string, link: ProjectWorkLink) => Promise<void>;
+  /** D39 — "Students see other groups": the run flag and every group's `peerVisible`. */
+  setPeerVisibility: (value: boolean) => Promise<void>;
   updateRun: (
     updates: Partial<ProjectRun>,
     clearFields?: (keyof ProjectRun)[]
   ) => Promise<void>;
+  /** `classNames` (D43) is merged onto the run for the classes that keep groups. */
   importGroups: (
     groups: ProjectGroupImportEntry[],
-    deleteGroupIds?: string[]
+    deleteGroupIds?: string[],
+    classNames?: Record<string, string>
   ) => Promise<CommitProjectGroupsResult>;
 }
 
@@ -158,6 +148,7 @@ export function useProjectRun(
         showStatusToStudents:
           run?.showStatusToStudents ?? seed?.showStatusToStudents ?? true,
         acceptingUpdates: run?.acceptingUpdates ?? true,
+        createdAt: run?.createdAt ?? Date.now(),
         updatedAt: Date.now(),
       };
       if (project.rubric) next.rubric = project.rubric;
@@ -184,6 +175,7 @@ export function useProjectRun(
     [
       run?.acceptingUpdates,
       run?.classIds,
+      run?.createdAt,
       run?.dueAt,
       run?.rubric,
       run?.rubricMaxPoints,
@@ -214,42 +206,12 @@ export function useProjectRun(
     [actorUid, groups, runId]
   );
 
-  const setNeedsSupport = useCallback(
-    async (
-      groupId: string,
-      needsSupport: boolean,
-      actorRole: 'student' | 'teacher'
-    ) => {
+  const setPeerVisibility = useCallback(
+    async (value: boolean) => {
       if (!runId) throw new Error('No project is running.');
-      await writeNeedsSupport(db, runId, groupId, needsSupport, {
-        uid: actorUid,
-        role: actorRole,
-      });
+      await writePeerVisibility(db, runId, groups, value);
     },
-    [actorUid, runId]
-  );
-
-  const addWorkLink = useCallback(
-    async (
-      groupId: string,
-      link: ProjectWorkLink,
-      actorRole: 'student' | 'teacher'
-    ) => {
-      if (!runId) throw new Error('No project is running.');
-      await writeWorkLink(db, runId, groupId, link, {
-        uid: actorUid,
-        role: actorRole,
-      });
-    },
-    [actorUid, runId]
-  );
-
-  const removeWorkLink = useCallback(
-    async (groupId: string, link: ProjectWorkLink) => {
-      if (!runId) throw new Error('No project is running.');
-      await removeWorkLinkWrite(db, runId, groupId, link);
-    },
-    [runId]
+    [groups, runId]
   );
 
   const updateRun = useCallback(
@@ -270,13 +232,18 @@ export function useProjectRun(
   );
 
   const importGroups = useCallback(
-    async (entries: ProjectGroupImportEntry[], deleteGroupIds?: string[]) => {
+    async (
+      entries: ProjectGroupImportEntry[],
+      deleteGroupIds?: string[],
+      classNames?: Record<string, string>
+    ) => {
       if (!runId) throw new Error('No project is running.');
       const callable = httpsCallable<
         {
           runId: string;
           groups: ProjectGroupImportEntry[];
           deleteGroupIds?: string[];
+          classNames?: Record<string, string>;
         },
         CommitProjectGroupsResult
       >(functions, 'commitProjectGroupsV1');
@@ -284,6 +251,9 @@ export function useProjectRun(
         runId,
         groups: entries,
         ...(deleteGroupIds?.length ? { deleteGroupIds } : {}),
+        ...(classNames && Object.keys(classNames).length > 0
+          ? { classNames }
+          : {}),
       });
       return result.data;
     },
@@ -297,9 +267,7 @@ export function useProjectRun(
     error,
     ensureRun,
     setStepState,
-    setNeedsSupport,
-    addWorkLink,
-    removeWorkLink,
+    setPeerVisibility,
     updateRun,
     importGroups,
   };

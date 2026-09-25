@@ -6,6 +6,7 @@ import { db, functions } from '@/config/firebase';
 import {
   KIND_CONFIG,
   applyResultsOverride,
+  isClosedProjectRun,
   type AssignmentSummary,
 } from '@/hooks/useStudentAssignments';
 import type { QuizResultsOverride } from '@/types';
@@ -162,7 +163,12 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   pendingVerification,
   windowState = 'open',
 }) => {
-  const [completion, setCompletion] = useState<CompletionState>('unknown');
+  const [checkedCompletion, setCompletion] =
+    useState<CompletionState>('unknown');
+  // D42 — a closed project run has no per-student doc; the run flag is the answer.
+  const completion: CompletionState = isClosedProjectRun(assignment)
+    ? 'completed'
+    : checkedCompletion;
   // Only the quiz kind has `resultsLockedOut` on its response doc. Other
   // assignment kinds don't carry this field — strict equality below means a
   // missing/undefined field never trips the locked state.

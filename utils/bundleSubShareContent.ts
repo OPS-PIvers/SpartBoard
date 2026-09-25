@@ -247,7 +247,7 @@ async function bundleProject(
       classId: group.classId ?? '',
       order: group.order ?? 0,
       stepStates: group.stepStates ?? {},
-      needsSupport: group.needsSupport === true,
+      ...(typeof group.color === 'string' ? { color: group.color } : {}),
     };
   });
   return {
@@ -256,6 +256,9 @@ async function bundleProject(
       projectId: (data.projectId as string) ?? projectId,
       title: (data.title as string) ?? 'Project',
       steps: (data.steps as ProjectRun['steps']) ?? [],
+      ...(data.classNames && typeof data.classNames === 'object'
+        ? { classNames: data.classNames as Record<string, string> }
+        : {}),
     },
     groups,
   };

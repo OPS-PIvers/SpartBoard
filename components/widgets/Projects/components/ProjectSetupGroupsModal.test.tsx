@@ -7,6 +7,7 @@ import type {
   ProjectsPendingImport,
 } from '@/types';
 import { ProjectSetupGroupsModal } from './ProjectSetupGroupsModal';
+import { defaultGroupColor } from '../projectSteps';
 
 const project: ProjectDefinition = {
   id: 'project-1',
@@ -158,7 +159,47 @@ describe('ProjectSetupGroupsModal', () => {
     fireEvent.change(screen.getByLabelText('Class'), {
       target: { value: 'roster-2' },
     });
-    expect(screen.getByText(/has no student sign-in/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Students can't open this project/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('option', { name: 'Robotics Club, no student sign-in' })
+    ).toBeInTheDocument();
+    // Warn and allow: the teacher can still build a tracker (D45).
+    expect(
+      screen.getByRole('button', { name: /Add \d+ groups/ })
+    ).not.toBeDisabled();
+  });
+
+  it('deals a palette color to each new group by order (D33)', async () => {
+    const onCommit = renderModal();
+    fireEvent.change(screen.getByLabelText('How many groups?'), {
+      target: { value: '2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add 2 groups' }));
+    await waitFor(() => expect(onCommit).toHaveBeenCalledOnce());
+    expect(committed(onCommit).map((e) => e.color)).toEqual([
+      defaultGroupColor(0),
+      defaultGroupColor(1),
+    ]);
+  });
+
+  it('carries a Group Maker color across on import (D33)', async () => {
+    const onCommit = renderModal({
+      pendingImport: {
+        ...pending,
+        groups: [
+          { ...pending.groups[0], color: 'bg-rose-500' },
+          pending.groups[1],
+        ],
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add 2 groups' }));
+    await waitFor(() => expect(onCommit).toHaveBeenCalledOnce());
+    expect(committed(onCommit).map((e) => e.color)).toEqual([
+      'bg-rose-500',
+      defaultGroupColor(1),
+    ]);
   });
 
   // D9 — a re-import lands alongside tracked work, never on top of it.

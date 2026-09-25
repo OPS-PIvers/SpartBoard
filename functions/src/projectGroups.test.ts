@@ -76,6 +76,17 @@ vi.mock('firebase-admin', () => {
   });
   const collRef = (path: string): any => ({
     doc: (id: string) => docRef(`${path}/${id}`),
+    select: () => ({
+      get: async () => ({
+        docs: [...h.docStore.keys()]
+          .filter(
+            (key) =>
+              key.startsWith(`${path}/`) &&
+              !key.slice(path.length + 1).includes('/')
+          )
+          .map((key) => snapFor(key)),
+      }),
+    }),
   });
   // The org lookup behind the test-class gate: domain '@school.org' → 'org-1'.
   const domainsQuery = (domain: string): any => ({
@@ -305,6 +316,63 @@ describe('commitProjectGroupsV1 writes', () => {
     expect(result.classIds).toEqual(['class-a', 'class-b']);
   });
 
+  it('writes an optional color and drops one that is not a palette class', async () => {
+    await call({
+      runId: RUN_ID,
+      groups: [
+        groupEntry({ color: 'bg-sky-500' }),
+        groupEntry({ id: 'g2', color: 'url(javascript:alert(1))' }),
+      ],
+    });
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).color).toBe('bg-sky-500');
+    expect(h.docStore.get(`${RUN_PATH}/groups/g2`)).not.toHaveProperty('color');
+  });
+
+  it('stamps peerVisible from the run on new and edited groups', async () => {
+    h.docStore.set(RUN_PATH, {
+      ...h.docStore.get(RUN_PATH),
+      showStatusToStudents: true,
+    });
+    h.docStore.set(`${RUN_PATH}/groups/g1`, {
+      id: 'g1',
+      classId: 'class-a',
+      memberUids: [],
+      stepStates: {},
+      peerVisible: false,
+    });
+    await call({
+      runId: RUN_ID,
+      groups: [groupEntry(), groupEntry({ id: 'g2' })],
+    });
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).peerVisible).toBe(true);
+    expect(h.docStore.get(`${RUN_PATH}/groups/g2`).peerVisible).toBe(true);
+  });
+
+  it('writes peerVisible false when the run hides other groups', async () => {
+    h.docStore.set(RUN_PATH, {
+      ...h.docStore.get(RUN_PATH),
+      showStatusToStudents: false,
+    });
+    await call({ runId: RUN_ID, groups: [groupEntry()] });
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).peerVisible).toBe(false);
+  });
+
+  it('merges class names onto the run for classes that have groups', async () => {
+    h.docStore.set(RUN_PATH, {
+      ...h.docStore.get(RUN_PATH),
+      classNames: { 'class-a': 'Old name', 'class-z': 'Gone' },
+    });
+    await call({
+      runId: RUN_ID,
+      groups: [groupEntry(), groupEntry({ id: 'g2', classId: 'class-b' })],
+      classNames: { 'class-b': ' Period 2 ', 'class-c': 'No groups' },
+    });
+    expect(h.docStore.get(RUN_PATH).classNames).toEqual({
+      'class-a': 'Old name',
+      'class-b': 'Period 2',
+    });
+  });
+
   it('moves membership on a re-import without touching tracked progress', async () => {
     h.docStore.set(`${RUN_PATH}/groups/g1`, {
       id: 'g1',
@@ -313,7 +381,7 @@ describe('commitProjectGroupsV1 writes', () => {
       memberUids: [expectedUid('SID-1')],
       order: 0,
       stepStates: { 'step-1': 'done', 'step-2': 'readyForReview' },
-      needsSupport: true,
+      color: 'bg-rose-500',
       workLinks: [{ id: 'l1', url: 'https://example.com' }],
       updatedAt: 1,
     });
@@ -326,7 +394,7 @@ describe('commitProjectGroupsV1 writes', () => {
     const written = h.writes.find((w) => w.path.endsWith('/groups/g1'));
     expect(written?.type).toBe('update');
     expect(written?.data).not.toHaveProperty('stepStates');
-    expect(written?.data).not.toHaveProperty('needsSupport');
+    expect(written?.data).not.toHaveProperty('color');
     expect(written?.data).not.toHaveProperty('workLinks');
 
     const after = h.docStore.get(`${RUN_PATH}/groups/g1`);
@@ -338,7 +406,7 @@ describe('commitProjectGroupsV1 writes', () => {
       'step-1': 'done',
       'step-2': 'readyForReview',
     });
-    expect(after.needsSupport).toBe(true);
+    expect(after.color).toBe('bg-rose-500');
     expect(after.workLinks).toHaveLength(1);
     expect(result.groupsCreated).toBe(0);
   });
@@ -437,8 +505,6 @@ describe('commitProjectGroupsV1 edits and deletes', () => {
       memberUids,
       order: 0,
       stepStates: { 'step-1': 'done' },
-      needsSupport: false,
-      workLinks: [],
       updatedAt: 1,
     });
 
@@ -503,6 +569,45 @@ describe('commitProjectGroupsV1 edits and deletes', () => {
     expect(h.docStore.has(`${RUN_PATH}/groups/g1/uploads/up1`)).toBe(false);
     expect(h.docStore.has(`${RUN_PATH}/grades/g1`)).toBe(false);
     expect(h.docStore.has(`${RUN_PATH}/groups/g2`)).toBe(true);
+  });
+
+  it('drops a class from the run with its last group', async () => {
+    h.docStore.set(RUN_PATH, {
+      ...h.docStore.get(RUN_PATH),
+      classIds: ['class-a', 'class-b'],
+      classNames: { 'class-a': 'Period 1', 'class-b': 'Period 2' },
+    });
+    seedGroup('g1', ['u1']);
+    h.docStore.set(`${RUN_PATH}/groups/g2`, {
+      id: 'g2',
+      classId: 'class-b',
+      memberUids: [],
+    });
+
+    const result = await call({
+      runId: RUN_ID,
+      groups: [],
+      deleteGroupIds: ['g2'],
+    });
+
+    expect(result.classIds).toEqual(['class-a']);
+    expect(h.docStore.get(RUN_PATH).classIds).toEqual(['class-a']);
+    expect(h.docStore.get(RUN_PATH).classNames).toEqual({
+      'class-a': 'Period 1',
+    });
+  });
+
+  it('moves a class off the run when its only group changes class', async () => {
+    h.docStore.set(RUN_PATH, {
+      ...h.docStore.get(RUN_PATH),
+      classIds: ['class-a'],
+    });
+    seedGroup('g1', []);
+    const result = await call({
+      runId: RUN_ID,
+      groups: [groupEntry({ classId: 'class-b', classLinkSourcedIds: [] })],
+    });
+    expect(result.classIds).toEqual(['class-b']);
   });
 
   it('refuses a delete from someone other than the run teacher', async () => {

@@ -1,6 +1,7 @@
 /** Pure edit model behind the group manager: a draft of one class's groups and the commit it becomes. */
 
 import type { ProjectGroup, ProjectGroupImportEntry, Student } from '@/types';
+import { defaultGroupColor } from './projectSteps';
 
 /** A group member: a roster student, or a stored uid the client has not (yet) named. */
 export interface DraftMember {
@@ -11,6 +12,8 @@ export interface DraftMember {
 export interface DraftGroup {
   id: string;
   name: string;
+  /** D33 — absent on a stored group made before colors; the commit deals one by order. */
+  color?: string;
   members: DraftMember[];
   isNew: boolean;
 }
@@ -48,6 +51,7 @@ export function draftFromGroups(groups: ProjectGroup[]): DraftGroup[] {
     .map((group) => ({
       id: group.id,
       name: group.name,
+      ...(group.color ? { color: group.color } : {}),
       members: (group.memberUids ?? []).map((uid) => ({ uid })),
       isNew: false,
     }));
@@ -140,6 +144,7 @@ export function buildGroupCommit(
     const unchanged =
       before &&
       before.name === name &&
+      before.color === group.color &&
       beforeOrder === order &&
       keysOf(before) === keysOf(group);
     if (unchanged) return;
@@ -163,6 +168,7 @@ export function buildGroupCommit(
       name,
       classId,
       order,
+      color: group.color ?? defaultGroupColor(order),
       classLinkSourcedIds: sourcedIds,
       ...(testEmails.length > 0 ? { testEmails } : {}),
       ...(keepMemberUids.length > 0 ? { keepMemberUids } : {}),

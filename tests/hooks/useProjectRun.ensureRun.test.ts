@@ -154,4 +154,30 @@ describe('useProjectRun — ensureRun clearing an already-imported rubric/dueAt'
     expect(payload.rubricMaxPoints).toBe(4);
     expect(payload.dueAt).toBe(2000);
   });
+
+  it('stamps createdAt on a new run and keeps it on an existing one (D42)', async () => {
+    const { result } = renderHook(() =>
+      useProjectRun(TEACHER_UID, PROJECT_ID, TEACHER_UID)
+    );
+    await act(async () => {
+      await result.current.ensureRun(baseProject);
+    });
+    expect(
+      (mockSetDoc.mock.calls[0][1] as Record<string, unknown>).createdAt
+    ).toEqual(expect.any(Number));
+
+    act(() => {
+      runDocListener?.({
+        exists: () => true,
+        id: RUN_ID,
+        data: () => ({ id: RUN_ID, classIds: [], createdAt: 42 }),
+      });
+    });
+    await act(async () => {
+      await result.current.ensureRun(baseProject);
+    });
+    expect(
+      (mockSetDoc.mock.calls[1][1] as Record<string, unknown>).createdAt
+    ).toBe(42);
+  });
 });

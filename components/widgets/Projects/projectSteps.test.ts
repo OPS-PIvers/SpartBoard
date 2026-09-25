@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import type { ProjectGroup, ProjectStep } from '@/types';
+import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 import {
   approvalStepIdsFrom,
+  classNamesForEntries,
   completedStepCount,
+  defaultGroupColor,
   groupsForClass,
   makeWorkLink,
+  nextGroupColor,
   normalizeWorkLinkUrl,
   parseStepLines,
   projectClassIdFor,
+  rosterHasStudentSignIn,
   sortGroupsForBoard,
   stepLinesFrom,
   studentStateOptions,
@@ -20,7 +25,6 @@ const group = (overrides: Partial<ProjectGroup> = {}): ProjectGroup => ({
   memberUids: [],
   order: 0,
   stepStates: {},
-  needsSupport: false,
   workLinks: [],
   updatedAt: 0,
   ...overrides,
@@ -99,13 +103,74 @@ describe('completedStepCount', () => {
 });
 
 describe('sortGroupsForBoard', () => {
-  it('floats help-flagged groups to the top without touching the rest', () => {
+  it('keeps the teacher order, then sorts ties by name', () => {
     const sorted = sortGroupsForBoard([
+      group({ id: 'c', name: 'C', order: 2 }),
+      group({ id: 'b', name: 'B', order: 0 }),
       group({ id: 'a', name: 'A', order: 0 }),
-      group({ id: 'b', name: 'B', order: 1 }),
-      group({ id: 'c', name: 'C', order: 2, needsSupport: true }),
     ]);
-    expect(sorted.map((g) => g.id)).toEqual(['c', 'a', 'b']);
+    expect(sorted.map((g) => g.id)).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('defaultGroupColor', () => {
+  it('deals palette colors by order and wraps around', () => {
+    expect(defaultGroupColor(0)).toBe(SCOREBOARD_COLORS[0]);
+    expect(defaultGroupColor(SCOREBOARD_COLORS.length)).toBe(
+      SCOREBOARD_COLORS[0]
+    );
+    expect(nextGroupColor(SCOREBOARD_COLORS[0])).toBe(SCOREBOARD_COLORS[1]);
+    expect(nextGroupColor(undefined)).toBe(SCOREBOARD_COLORS[0]);
+  });
+});
+
+describe('classNamesForEntries', () => {
+  it('names only the classes the import touches', () => {
+    expect(
+      classNamesForEntries(
+        [{ classId: 'sec-1' }],
+        [
+          { id: 'r1', name: 'Period 1', classlinkClassId: 'sec-1' },
+          { id: 'r2', name: 'Period 2', classlinkClassId: 'sec-2' },
+        ]
+      )
+    ).toEqual({ 'sec-1': 'Period 1' });
+  });
+});
+
+describe('rosterHasStudentSignIn', () => {
+  const student = (overrides: Record<string, string> = {}) => ({
+    ...overrides,
+  });
+  it('is false for a hand-built roster', () => {
+    expect(rosterHasStudentSignIn({ id: 'r1', students: [student()] })).toBe(
+      false
+    );
+  });
+  it('is false for a linked roster whose students have no sign-in', () => {
+    expect(
+      rosterHasStudentSignIn({
+        id: 'r1',
+        classlinkClassId: 'sec-1',
+        students: [student()],
+      })
+    ).toBe(false);
+  });
+  it('is true once a student can sign in', () => {
+    expect(
+      rosterHasStudentSignIn({
+        id: 'r1',
+        classlinkClassId: 'sec-1',
+        students: [student({ classLinkSourcedId: 'SID-1' })],
+      })
+    ).toBe(true);
+    expect(
+      rosterHasStudentSignIn({
+        id: 'r1',
+        testClassId: 'mock-class',
+        students: [student({ email: 'kid@school.org' })],
+      })
+    ).toBe(true);
   });
 });
 

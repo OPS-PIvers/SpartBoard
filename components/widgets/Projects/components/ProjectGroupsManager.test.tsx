@@ -50,7 +50,6 @@ const group = (
   memberUids,
   order,
   stepStates: {},
-  needsSupport: false,
   workLinks: [],
   updatedAt: 1,
 });

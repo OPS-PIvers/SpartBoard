@@ -310,14 +310,21 @@ export const RandomSendToProjectsField: React.FC<{
         pendingImport: {
           rosterId: activeRosterId,
           at: Date.now(),
-          groups: groups.map(({ group, index }) => ({
-            name: resolveRandomGroupName(
-              group,
-              index,
-              activeDashboard?.sharedGroups
-            ),
-            studentIds: group.studentIds ?? [],
-          })),
+          groups: groups.map(({ group, index }) => {
+            // D33 — a shared group's color travels with it to the project board.
+            const color = activeDashboard?.sharedGroups?.find(
+              (shared) => shared.id === group.id
+            )?.color;
+            return {
+              name: resolveRandomGroupName(
+                group,
+                index,
+                activeDashboard?.sharedGroups
+              ),
+              studentIds: group.studentIds ?? [],
+              ...(color ? { color } : {}),
+            };
+          }),
         },
       },
     });

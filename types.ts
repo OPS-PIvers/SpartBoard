@@ -7842,7 +7842,7 @@ export interface FlashcardsConfig {
 
 /**
  * Per-step progress (D1/D2). A group's board position is derived from its step
- * states, so raising a help flag never costs it its place on the bar.
+ * states.
  */
 export type ProjectStepState =
   | 'notStarted'
@@ -7887,16 +7887,21 @@ export interface ProjectRun {
   rubric?: Rubric;
   rubricMaxPoints?: number;
   dueAt?: number;
-  /** Every ClassLink sourcedId with at least one group in this run. */
+  /** Every ClassLink sourcedId with at least one group in this run (D44). */
   classIds: string[];
+  /** D43 — display name per class id, so the board picker works with no rosters loaded. */
+  classNames?: Record<string, string>;
   /**
    * Ids of the steps carrying `requiresApproval`, denormalized off `steps`.
    * `firestore.rules` needs the approval set without walking a nested list,
    * which CEL cannot do — see the student step-write gate in `project_runs`.
    */
   approvalStepIds: string[];
+  /** D39 — mirrored onto every group as `peerVisible`, which is what the rules read. */
   showStatusToStudents: boolean;
   acceptingUpdates: boolean;
+  /** D42 — absent on runs made before the field existed. */
+  createdAt?: number;
   updatedAt: number;
 }
 
@@ -7908,9 +7913,13 @@ export interface ProjectGroup {
   classId: string;
   memberUids: string[];
   order: number;
+  /** D33 — a `SCOREBOARD_COLORS` class; absent on groups made before colors. */
+  color?: string;
   stepStates: Record<string, ProjectStepState>;
-  needsSupport: boolean;
-  workLinks: ProjectWorkLink[];
+  /** D39 — denormalized `run.showStatusToStudents`; classmates may read the doc only when true. */
+  peerVisible?: boolean;
+  /** Legacy (D40): links now live on `private/work`; read only as a fallback until backfilled. */
+  workLinks?: ProjectWorkLink[];
   /** Populated once the teacher's session archives uploads to Drive (D20). */
   driveFolderId?: string;
   /**
@@ -7919,6 +7928,12 @@ export interface ProjectGroup {
    * that is what makes the per-step approval ceiling enforceable.
    */
   lastStepChange?: { stepId: string; at: number };
+  updatedAt: number;
+}
+
+/** `/project_runs/{runId}/groups/{groupId}/private/work` — run teacher and members only (D40). */
+export interface ProjectGroupWork {
+  workLinks: ProjectWorkLink[];
   updatedAt: number;
 }
 
@@ -7963,7 +7978,7 @@ export interface ProjectGroupEvent {
   at: number;
   actorUid: string;
   actorRole: 'student' | 'teacher';
-  kind: 'stepState' | 'needsSupport' | 'workLink' | 'upload' | 'membership';
+  kind: 'stepState' | 'workLink' | 'upload' | 'membership';
   stepId?: string;
   from?: ProjectStepState;
   to?: ProjectStepState;
@@ -7994,6 +8009,8 @@ export interface ProjectGroupImportEntry {
   name: string;
   classId: string;
   order: number;
+  /** D33 — a `SCOREBOARD_COLORS` class; omitted leaves a stored group's color alone. */
+  color?: string;
   classLinkSourcedIds: string[];
   /** Test-class members, who have no sourcedId; the server checks each against its test class. */
   testEmails?: string[];
@@ -8009,17 +8026,11 @@ export interface ProjectGroupImportEntry {
 export interface ProjectsPendingImport {
   rosterId: string;
   at: number;
-  groups: { name: string; studentIds: string[] }[];
+  groups: { name: string; studentIds: string[]; color?: string }[];
 }
 
 export interface BuildingProjectsDefaults {
   buildingId: string;
-  /**
-   * Whether teachers in this building may open the student side at all. Off
-   * leaves the teacher-only tracker (D6), which is the honest default for a
-   * building with no ClassLink-sourced rosters.
-   */
-  studentAccessEnabled?: boolean;
   /** Seeds `ProjectRun.showStatusToStudents` on a new project (D30). */
   defaultShowStatusToStudents?: boolean;
 }
@@ -10270,10 +10281,10 @@ export interface SubShareCustomWidgetPayload {
   doc: SubShareCustomWidgetView;
 }
 
-/** Only what the read-only tracker draws: no rubric, due date or class list. */
+/** Only what the read-only tracker draws: no rubric or due date; class names feed the picker (D43). */
 export type SubShareProjectRunView = Pick<
   ProjectRun,
-  'id' | 'projectId' | 'title' | 'steps'
+  'id' | 'projectId' | 'title' | 'steps' | 'classNames'
 >;
 
 /**
@@ -10283,7 +10294,7 @@ export type SubShareProjectRunView = Pick<
  */
 export type SubShareProjectGroupView = Pick<
   ProjectGroup,
-  'id' | 'name' | 'classId' | 'order' | 'stepStates' | 'needsSupport'
+  'id' | 'name' | 'classId' | 'order' | 'stepStates' | 'color'
 >;
 
 /** A project's tracker as it stood at share time. */

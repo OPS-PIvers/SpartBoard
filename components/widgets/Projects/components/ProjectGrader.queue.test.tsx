@@ -67,7 +67,6 @@ const group = (id: string, name: string, order: number): ProjectGroup =>
     memberUids: [],
     order,
     stepStates: {},
-    needsSupport: false,
     workLinks: [],
     updatedAt: 1,
   }) as ProjectGroup;
