@@ -286,7 +286,7 @@ describe('extractNormingContent', () => {
     expect(out).toEqual({
       kind: 'text',
       questionIndex: 1,
-      questionText: expect.any(String),
+      questionText: 'Explain photosynthesis.',
       answerText: '<p>Plants need light.</p>',
       truncated: false,
     });
