@@ -46,6 +46,20 @@ describe('paperSheetMarker', () => {
     }
   });
 
+  it('round-trips the page-map flag alone (0b10) and with the key flag (0b11)', () => {
+    for (const isKeySheet of [false, true]) {
+      const p = payload({ seat: 12, page: 4, isKeySheet, readByMap: true });
+      expect(decodePaperMarker(encodePaperMarker(p))).toEqual(p);
+      const turned = [...encodePaperMarker(p)].reverse();
+      expect(decodePaperMarker(turned)).toEqual(p);
+    }
+  });
+
+  it('leaves readByMap off a sheet printed without a page map', () => {
+    const decoded = decodePaperMarker(encodePaperMarker(payload()));
+    expect(decoded).not.toHaveProperty('readByMap');
+  });
+
   it('decodes a sheet fed upside down', () => {
     const p = payload({ seat: 99, page: 2 });
     const rotated = [...encodePaperMarker(p)].reverse();

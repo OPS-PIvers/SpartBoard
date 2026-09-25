@@ -36,6 +36,8 @@ export const MAX_PAGE = (1 << PAGE_BITS) - 1;
 export const BATCH_TAG_MASK = (1 << BATCH_TAG_BITS) - 1;
 
 const FLAG_KEY_SHEET = 0b01;
+/** Set on pages laid out by a v2 page map; the reader must not fall back to arithmetic. */
+const FLAG_PAGE_MAP = 0b10;
 
 export interface PaperMarkerPayload {
   /** 20-bit digest of the batch id — see `paperBatchTag`. */
@@ -46,6 +48,8 @@ export interface PaperMarkerPayload {
   page: number;
   /** Set on the bubbled ANSWER KEY sheet that rides in the same stack (Q16). */
   isKeySheet: boolean;
+  /** The page was printed from `PaperBatch.pageMaps` (layoutVersion 2); absent on older sheets. */
+  readByMap?: true;
 }
 
 /**
@@ -115,7 +119,12 @@ export function encodePaperMarker(payload: PaperMarkerPayload): boolean[] {
   pushBits(bits, payload.batchTag & BATCH_TAG_MASK, BATCH_TAG_BITS);
   pushBits(bits, payload.seat, SEAT_BITS);
   pushBits(bits, payload.page, PAGE_BITS);
-  pushBits(bits, payload.isKeySheet ? FLAG_KEY_SHEET : 0, FLAG_BITS);
+  pushBits(
+    bits,
+    (payload.isKeySheet ? FLAG_KEY_SHEET : 0) |
+      (payload.readByMap ? FLAG_PAGE_MAP : 0),
+    FLAG_BITS
+  );
   pushBits(bits, 0, RESERVED_BITS);
   pushBits(bits, crc8(bits), CRC_BITS);
   return bits;
@@ -134,7 +143,13 @@ function decodeOriented(bits: readonly boolean[]): PaperMarkerPayload | null {
   at += PAGE_BITS;
   const flags = readBits(bits, at, FLAG_BITS);
   if (seat < 1 || page < 1) return null;
-  return { batchTag, seat, page, isKeySheet: (flags & FLAG_KEY_SHEET) !== 0 };
+  return {
+    batchTag,
+    seat,
+    page,
+    isKeySheet: (flags & FLAG_KEY_SHEET) !== 0,
+    ...((flags & FLAG_PAGE_MAP) !== 0 ? { readByMap: true as const } : {}),
+  };
 }
 
 /**
