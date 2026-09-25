@@ -108,9 +108,6 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
           {renderWidgetIcon(meta.icon, 'text-blue-300', 20)}
           <span className="text-xs text-slate-300">{selectedIconLabel}</span>
         </div>
-        <p className="text-xs text-slate-500 mb-2">
-          Use a Lucide icon so your widget matches the rest of SPART.
-        </p>
         <div className="grid grid-cols-4 gap-2">
           {CUSTOM_WIDGET_ICON_OPTIONS.map((option) => {
             const active = option.key === meta.icon;
@@ -215,7 +212,7 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
         {meta.accessLevel === 'beta' && (
           <div className="mt-2 space-y-1">
             <label className="block text-xs text-slate-400">
-              Beta User Emails (one per line)
+              Beta User Emails
             </label>
             <textarea
               value={meta.betaUsers.join('\n')}
@@ -228,7 +225,7 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
                 })
               }
               rows={3}
-              placeholder="teacher@school.edu"
+              placeholder={'One per line\nteacher@school.edu'}
               className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 placeholder-slate-500 resize-none focus:outline-none focus:border-blue-500 font-mono"
             />
           </div>
@@ -237,9 +234,12 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
 
       <div>
         <label className="block text-xs text-slate-400 mb-1">
-          Available In (leave empty for all buildings)
+          Available In
         </label>
-        <div className="space-y-1 max-h-36 overflow-y-auto">
+        <div
+          className="space-y-1 max-h-36 overflow-y-auto"
+          title="Leave empty for all buildings"
+        >
           {BUILDINGS.map((building) => (
             <label
               key={building.id}

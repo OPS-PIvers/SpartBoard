@@ -881,8 +881,7 @@ export const BackgroundManager: React.FC = () => {
               </button>
             </div>
             <p className="text-xxs text-slate-400 mt-2">
-              Categories are created by assigning a name to any background in
-              the list below.
+              Name a background&apos;s category to add one.
             </p>
           </div>
         )}
@@ -1072,14 +1071,9 @@ export const BackgroundManager: React.FC = () => {
         <div className="fixed inset-0 z-modal-nested flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold text-slate-800">
-                  Select Image from Google Drive
-                </h3>
-                <p className="text-sm text-slate-500">
-                  Only images from your drive are shown
-                </p>
-              </div>
+              <h3 className="text-xl font-bold text-slate-800">
+                Select Image from Google Drive
+              </h3>
               <button
                 onClick={() => setShowDrivePicker(false)}
                 className="p-2 hover:bg-slate-100 rounded-full transition-colors"

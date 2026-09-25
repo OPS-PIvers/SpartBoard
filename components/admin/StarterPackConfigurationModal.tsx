@@ -799,7 +799,7 @@ export const StarterPackConfigurationModal: React.FC<
                       description: e.target.value,
                     }))
                   }
-                  placeholder="Brief description of the pack"
+                  placeholder="Description"
                   className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors text-sm"
                 />
               </div>
@@ -1111,9 +1111,6 @@ export const StarterPackConfigurationModal: React.FC<
               <div className="flex flex-col items-center justify-center py-8 text-slate-400 text-center gap-2 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
                 <LayoutGrid className="w-8 h-8 opacity-40" />
                 <p className="text-sm font-medium">No widgets yet</p>
-                <p className="text-xs">
-                  Capture your current board or add widgets individually below
-                </p>
               </div>
             )}
 

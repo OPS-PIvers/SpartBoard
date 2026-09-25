@@ -260,13 +260,6 @@ export const PlcRecoveryPanel: React.FC = () => {
         </div>
       </div>
 
-      <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-        {t('admin.plc.recovery.explainer', {
-          defaultValue:
-            "Only PLCs in your organization are recoverable. Use this when a PLC's lead has left and can't transfer leadership.",
-        })}
-      </p>
-
       {loading ? (
         <p className="text-sm text-slate-400 italic py-2">
           {t('plcDashboard.resources.loadingPlcs', {

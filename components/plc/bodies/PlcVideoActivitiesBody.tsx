@@ -854,7 +854,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
     >
       <Plus className="w-3.5 h-3.5" aria-hidden="true" />
       {t('plcDashboard.videoActivities.shareCta.label', {
-        defaultValue: 'Share a video activity with this PLC',
+        defaultValue: 'Share video activity',
       })}
     </button>
   );
@@ -1122,8 +1122,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
           />
           <p className="text-xs text-amber-800">
             {t('plcDashboard.videoActivities.driveDisconnected', {
-              defaultValue:
-                'Connect Google Drive to import PLC video activities into your personal library.',
+              defaultValue: 'Connect Google Drive to import.',
             })}
           </p>
         </div>

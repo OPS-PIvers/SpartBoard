@@ -3,7 +3,7 @@
  * in non-English locales.
  *
  * These keys are rendered in teacher-facing UI:
- *   - dock.liveSession, dock.provideCode, dock.viewLiveSession, dock.noAppsSelected
+ *   - dock.liveSession, dock.viewLiveSession, dock.noAppsSelected
  *     are used in Dock.tsx for the live-session panel and the dock restoration UI.
  *     None of them use i18next `defaultValue` fallbacks, so missing translations
  *     render as raw EN strings for German, Spanish, and French teachers.
@@ -37,7 +37,6 @@ const NON_EN = [
 /** dock keys used in Dock.tsx for the live-session panel. */
 const DOCK_LIVE_KEYS = [
   'liveSession',
-  'provideCode',
   'viewLiveSession',
   'noAppsSelected',
 ] as const;

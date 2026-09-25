@@ -652,8 +652,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
       {!isManager && (
         <p className="text-xxs text-slate-500 italic">
           {t('plcDashboard.members.notManager', {
-            defaultValue:
-              'Only the PLC lead or a co-lead can invite, remove, or change members.',
+            defaultValue: 'Only leads can manage members.',
           })}
         </p>
       )}

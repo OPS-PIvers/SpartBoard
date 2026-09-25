@@ -117,7 +117,6 @@
     },
     "classes": {
       "title": "Meine Klassen",
-      "description": "Verwalte hier deine Klassenlisten. Die aktive Klasse wird für Sitzpläne, Zufallsauswahl, Umfragen und mehr verwendet.",
       "newClass": "Neue Klasse",
       "importClassLink": "ClassLink",
       "myClasses": "Deine Klassen",
@@ -169,9 +168,8 @@
       "pinPlaceholder": "01",
       "addStudent": "+ Schüler hinzufügen",
       "removeStudent": "Schüler entfernen",
-      "bulkPasteTip": "Tipp: Fügen Sie mehrere Namen auf einmal ein, um sie in einem Rutsch hinzuzufügen.",
       "emptyRosterTitle": "Noch keine Schüler",
-      "emptyRosterSubtitle": "Klicken Sie auf + Schüler hinzufügen oder fügen Sie eine Liste von Namen in eine Zeile ein.",
+      "emptyRosterSubtitle": "Fügen Sie eine Namensliste ein, um mehrere auf einmal hinzuzufügen.",
       "manageClasses": "Klassen verwalten",
       "switchTo": "Wechseln zu",
       "noClassSelected": "Keine Klasse ausgewählt",
@@ -188,7 +186,6 @@
       "restrictionsFilter": "Mitschüler/innen suchen…",
       "restrictionsEmptyRoster": "Füge weitere Schüler/innen hinzu, um Einschränkungen festzulegen.",
       "restrictionsNoMatches": "Keine Treffer.",
-      "restrictionsFooter": "Einschränkungen gelten automatisch für beide Schüler/innen.",
       "editorTabsLabel": "Klassenlisten-Editor-Tabs",
       "studentsTab": "Schüler/innen",
       "groupsTab": "Gruppen ({{count}})",
@@ -209,13 +206,12 @@
       "bellPeriod": "Unterrichtsstunde",
       "bellPeriodNone": "Nicht festgelegt",
       "accommodationsTab": "Nachteilsausgleich ({{count}})",
-      "accommodationsHelp": "Diese werden automatisch übernommen, sobald du diesem Schüler/dieser Schülerin eine Aufgabe zuweist. Du kannst sie pro Aufgabe weiterhin anpassen.",
+      "accommodationsHelp": "Diese gelten für jede neue Aufgabe.",
       "emptyAccommodationsTitle": "Noch keine Schüler/innen",
       "emptyAccommodationsSubtitle": "Füge zuerst Schüler/innen hinzu und lege dann ihren dauerhaften Nachteilsausgleich fest."
     },
     "plcs": {
       "title": "Meine PLGs",
-      "description": "Professionelle Lerngemeinschaften ermöglichen dir und deinen Kolleg/innen, an denselben Aufgaben zusammenzuarbeiten und kombinierte Ergebnisse zu sehen.",
       "newPlc": "Neue PLG",
       "newPlcTitle": "Neue PLG",
       "createNewPlc": "Neue PLG erstellen",
@@ -242,7 +238,7 @@
       "inviteLabel": "Per E-Mail einladen",
       "invitePlaceholder": "kolleg/in@schule.de",
       "sendInvite": "Einladen",
-      "inviteHelp": "Deine Kollegin / dein Kollege sieht die Einladung beim nächsten Anmelden in der PLG-Seitenleiste.",
+      "inviteHelp": "Die Einladung erscheint in der PLG-Seitenleiste.",
       "outstandingLabel": "Ausstehende Einladungen",
       "revokeInvite": "Einladung widerrufen",
       "invites": "Einladungen",
@@ -279,17 +275,15 @@
     "settings": {
       "googleDriveIntegration": "Google Drive-Integration",
       "remoteControl": "Fernsteuerung",
-      "googleDriveDescription": "Deine Tafeln und Dateien werden automatisch in deinem \"{{appName}}\"-Ordner in Drive gesichert.",
-      "connectedSynced": "Verbunden & Synchronisiert",
+      "googleDriveDescription": "Deine Tafeln werden in deinem \"{{appName}}\"-Ordner in Drive gesichert.",
+      "connectedSynced": "Verbunden",
       "disconnected": "Getrennt",
       "connect": "Verbinden",
       "disconnect": "Trennen",
       "myBuildings": "Mein(e) Gebäude",
-      "myBuildingsDescription": "Wähle die Gebäude aus, in denen du arbeitest. Widgets wie Unterrichtsroutinen zeigen automatisch Inhalte für deine Klassenstufe an. Wähle mehrere aus, wenn du in verschiedenen Gebäuden arbeitest.",
-      "noBuildingSelected": "Kein Gebäude ausgewählt — Widgets zeigen alle verfügbaren Inhalte.",
+      "noBuildingSelected": "Inhalte für alle Gebäude werden angezeigt.",
       "interfacePreferences": "Oberflächeneinstellungen",
       "disableCloseWarning": "Schließwarnung deaktivieren",
-      "skipConfirmation": "Bestätigungsdialog beim Schließen von Widgets überspringen.",
       "quickAccessWidgets": "Schnellzugriff-Widgets",
       "dockPosition": "Dock-Position",
       "dockPositionDescription": "Wähle, wo das Dock auf deinem Bildschirm erscheint.",
@@ -319,7 +313,6 @@
     }
   },
   "plcDashboard": {
-    "subtitle": "PLG-Dashboard",
     "home": {
       "commonAssessment": {
         "loading": "Gemeinsame Bewertung wird geladen…",
@@ -330,7 +323,7 @@
         "startMeeting": "Besprechung starten",
         "resumeMeeting": "Besprechung fortsetzen",
         "phase": {
-          "planning": "Planung – noch nicht durchgeführt",
+          "planning": "Noch nicht durchgeführt",
           "running": "Läuft",
           "ready": "Bereit zur Überprüfung",
           "reviewing": "Gemeinsame Überprüfung",
@@ -451,7 +444,7 @@
     "meta": {
       "members_one": "{{count}} Mitglied",
       "members_other": "{{count}} Mitglieder",
-      "youLead": "Du leitest diese PLG"
+      "youLead": "Leitung"
     },
     "members": {
       "heading": "Mitglieder",
@@ -490,7 +483,7 @@
       "pendingSince": "Eingeladen {{when}}",
       "revoke": "Widerrufen",
       "revokeAriaLabel": "Einladung für {{email}} widerrufen",
-      "notManager": "Nur die Leitung oder eine Co-Leitung der PLG kann Mitglieder einladen, entfernen oder ändern."
+      "notManager": "Nur die Leitung kann Mitglieder verwalten."
     },
     "completedAssignments": {
       "heading": "Geteilte Ergebnisse",
@@ -806,7 +799,6 @@
       "heading": "Aktivität",
       "empty": "Noch keine Aktivität",
       "sinceLastVisit": "Seit deinem letzten Besuch",
-      "sinceSubtitle": "Was passiert ist, während du weg warst",
       "olderHeading": "Früher",
       "caughtUp": "Du bist auf dem neuesten Stand",
       "caughtUpSubtitle": "Keine neue Aktivität seit deinem letzten Besuch.",
@@ -848,11 +840,10 @@
       "delete": "Kommentar löschen",
       "confirmDelete": "Diesen Kommentar löschen?",
       "confirmDeleteTitle": "Kommentar löschen",
-      "mentionHint": "Gib @ ein, um ein Teammitglied zu erwähnen",
       "postFailed": "Dein Kommentar konnte nicht gesendet werden. Versuche es erneut.",
       "deleteFailed": "Der Kommentar konnte nicht gelöscht werden. Versuche es erneut.",
       "loadError": "Kommentare konnten nicht geladen werden.",
-      "viewerReadOnly": "Betrachter können Kommentare lesen, aber nicht schreiben.",
+      "viewerReadOnly": "Nur Ansicht.",
       "threadLabel": "Kommentare zu {{subject}}",
       "mentionNoMatch": "Keine passenden Teammitglieder",
       "mentionListLabel": "Ein Teammitglied erwähnen"
@@ -875,9 +866,9 @@
       "hasRun": "hat sie durchgeführt",
       "notRun": "hat sie noch nicht durchgeführt",
       "noQuestions": "Noch keine Daten auf Fragenebene verfügbar.",
-      "strongAcross": "Durchweg stark — jede Frage über 80 %.",
+      "strongAcross": "Jede Frage über 80 %.",
       "updating": "wird aktualisiert…",
-      "updatingHint": "Neue Ergebnisse werden noch verarbeitet — die Werte aktualisieren sich gleich.",
+      "updatingHint": "Neue Ergebnisse folgen in Kürze.",
       "reviewCardLabel": "Gepoolte Ergebnisse für {{title}}",
       "discussAssessment": "Besprechen",
       "discussQuestion": "Diese Frage in einer Entscheidung besprechen",
@@ -898,19 +889,17 @@
       },
       "pick": {
         "heading": "Was schauen wir uns heute an?",
-        "subtitle": "Wähle die gemeinsame(n) Bewertung(en), die diese Besprechung durchgeht.",
         "emptyTitle": "Noch keine Bewertungsdaten",
         "emptySubtitle": "Wenn das Team eine gemeinsame Bewertung im PLG-Modus durchführt, erscheinen hier die anonymisierten Ergebnisse zur gemeinsamen Durchsicht.",
         "cardMeta": "{{avg}}% Team-Schnitt · {{teachers}} Lehrkräfte · {{students}} Schüler:innen"
       },
       "review": {
         "heading": "Was sagen die Daten?",
-        "subtitle": "Gepoolte, anonymisierte Ergebnisse. Klicke auf eine Frage, um eine Entscheidung dazu festzuhalten.",
+        "subtitle": "Klicke auf eine Frage, um eine Entscheidung festzuhalten.",
         "none": "Keine Bewertungen ausgewählt — gehe zurück zu Wählen."
       },
       "decide": {
         "heading": "Was haben wir entschieden?",
-        "subtitle": "Halte die Entscheidungen des Teams fest. Verknüpfe eine mit einer Datenkarte aus „Prüfen“, wenn sie auf ein bestimmtes Ergebnis reagiert.",
         "addLabel": "Entscheidung hinzufügen",
         "placeholder": "z. B. Frage 4 mit dem Flächenmodell vor dem Test erneut behandeln.",
         "add": "Entscheidung hinzufügen",
@@ -921,7 +910,6 @@
       },
       "act": {
         "heading": "Wer macht was?",
-        "subtitle": "Lege Aufgaben an. Beim Speichern wird jede zu einer nachverfolgten PLG-Aufgabe für die zuständige Person.",
         "addLabel": "Aufgabe hinzufügen",
         "placeholder": "z. B. Eine Wiederholungs-Aufwärmübung für Frage 4 erstellen",
         "assignee": "Zuständig",
@@ -935,16 +923,14 @@
       },
       "save": {
         "heading": "Bereit zum Speichern?",
-        "subtitle": "Beim Speichern wird das Besprechungsprotokoll geschrieben, Aufgaben werden zu To-dos und es wird im Team-Aktivitätsfeed protokolliert.",
         "reviewed": "Geprüfte Bewertungen",
         "decisions": "Entscheidungen",
         "actions": "Aufgaben → To-dos",
         "attendees": "Teilnehmende",
         "whoAttended": "Wer ist gerade da",
-        "noAttendees": "Gerade ist niemand sonst aktiv — du wirst als Moderator:in erfasst.",
-        "viewerNote": "Betrachter:innen können mitverfolgen, das Protokoll aber nicht speichern.",
+        "noAttendees": "Nur du wirst erfasst.",
+        "viewerNote": "Nur Ansicht. Du kannst diese Besprechung nicht speichern.",
         "doneTitle": "Besprechung gespeichert",
-        "doneSubtitle": "Aufgaben sind jetzt nachverfolgte To-dos für die Zuständigen. Exportiere das Protokoll für deine Unterlagen oder beginne eine neue Besprechung.",
         "viewRecord": "Besprechungsprotokoll ansehen",
         "startNew": "Neue Besprechung beginnen"
       },
@@ -979,7 +965,7 @@
     },
     "trash": {
       "heading": "Papierkorb",
-      "description": "Gelöschte Elemente bleiben 30 Tage hier und werden dann endgültig entfernt.",
+      "description": "Gelöschte Elemente werden nach 30 Tagen entfernt.",
       "empty": "Der Papierkorb ist leer",
       "restore": "Wiederherstellen",
       "restored": "Wiederhergestellt",
@@ -1008,7 +994,7 @@
       "title": "Versionsverlauf",
       "ariaLabel": "Versionsverlauf für {{title}}",
       "close": "Schließen",
-      "intro": "Aktuelle gespeicherte Versionen dieser geteilten Bewertung. Beim Wiederherstellen wird diese Version für alle erneut veröffentlicht – die aktuelle Version bleibt ebenfalls im Verlauf erhalten.",
+      "intro": "Beim Wiederherstellen wird die Kopie aller aktualisiert. Die aktuelle Version bleibt im Verlauf.",
       "loading": "Versionsverlauf wird geladen…",
       "loadError": "Versionsverlauf konnte nicht geladen werden.",
       "retry": "Erneut versuchen",
@@ -1062,7 +1048,7 @@
     },
     "resources": {
       "managerTitle": "PLG-Ressourcen",
-      "managerSubtitle": "Kuratierte Ressourcen (Dokumente, Quizze, Tafeln) an bestimmte oder alle PLGs senden.",
+      "managerSubtitle": "Ressourcen an PLGs senden.",
       "addResource": "Ressource hinzufügen",
       "editFormLabel": "Ressource bearbeiten",
       "createFormLabel": "Ressource erstellen",
@@ -1112,7 +1098,7 @@
       "emptyTitle": "Noch keine Ressourcen",
       "emptySubtitle": "Dein Admin wird hier kuratierte Quizze, Dokumente und Tafeln bereitstellen.",
       "inboxTitle": "Ressourcen",
-      "inboxSubtitle": "Von deinem Admin kuratiert. Klicke auf „Verwenden“, um sie zu deiner PLG hinzuzufügen.",
+      "inboxSubtitle": "Von deinem Admin.",
       "kind": {
         "quiz": "Quizze",
         "video-activity": "Videoaktivitäten",
@@ -1192,7 +1178,7 @@
       "teamAverage": "Team-Durchschnitt",
       "notScoredYet": "Noch nicht bewertet",
       "students": "Gezählte Schüler:innen",
-      "studentsHint": "Schüler:innen werden pro Lehrkraft gezählt; wer in den Klassen zweier Lehrkräfte ist, zählt doppelt.",
+      "studentsHint": "Schüler:innen werden pro Lehrkraft gezählt, wer in den Klassen zweier Lehrkräfte ist, zählt also doppelt.",
       "teachers": "Lehrkräfte",
       "teachersOf": "{{count}} von {{total}}",
       "lastComputed": "Zuletzt aktualisiert",
@@ -1212,12 +1198,11 @@
       "scoreDistribution": "Punkteverteilung",
       "bandCount": "{{count}} Schüler · {{percent}} %",
       "scoredStudents": "{{count}} Schüler bewertet",
-      "distributionPending": "Das Diagramm erscheint nach der nächsten Aktualisierung der Ergebnisse, in wenigen Minuten.",
+      "distributionPending": "Das Diagramm aktualisiert sich in wenigen Minuten.",
       "distributionEmpty": "Das Diagramm füllt sich, sobald Lehrkräfte Ergebnisse veröffentlichen."
     },
     "learningTargets": {
-      "heading": "Lernziele",
-      "description": "Ziele, mit denen die PLG Quizfragen markiert. Alle Mitglieder sehen dieselbe Liste."
+      "heading": "Lernziele"
     }
   },
   "widgetWindow": {
@@ -1231,7 +1216,7 @@
     "screenshotFailed": "Screenshot konnte nicht gespeichert werden",
     "takeScreenshot": "Screenshot aufnehmen",
     "takeScreenshotLongPress": "Screenshot aufnehmen (langer Druck)",
-    "screenshotGestureProTip": "Pro-Tipp: Drücke lange auf ein Widget, um einen Screenshot zu machen!",
+    "screenshotGestureProTip": "Drücke lange auf ein Widget, um einen Screenshot zu machen.",
     "annotate": "Annotieren",
     "duplicate": "Duplizieren",
     "moreActions": "Weitere Aktionen",
@@ -1247,7 +1232,7 @@
     "pin": "Position fixieren",
     "unpin": "Position lösen",
     "pinnedIndicator": "Widget fixiert",
-    "pinnedTooltip": "Fixiert – öffnen Sie die Widget-Symbolleiste und klicken Sie auf die Stecknadel zum Lösen",
+    "pinnedTooltip": "Dieses Widget ist fixiert. Lösen Sie es über die Symbolleiste.",
     "snapLayout": "Layout anpassen",
     "chooseLayout": "Layout wählen",
     "snapTo": "Anpassen an",
@@ -1316,7 +1301,6 @@
     "noGoogleDrive": "Kein Google Drive verbunden. Lokaler Download...",
     "viewLiveSession": "Informationen zur Live-Sitzung anzeigen",
     "liveSession": "Live-Sitzung",
-    "provideCode": "Gib diesen Code deinen Schülerinnen und Schülern.",
     "noAppsSelected": "Standardwerte werden wiederhergestellt…"
   },
   "languages": {
@@ -1370,7 +1354,7 @@
         "summary": "{{present}} anwesend · {{absent}} abwesend",
         "buttonLabel": "Abwesende Schüler/innen markieren",
         "clearAll": "Alle löschen (alle anwesend)",
-        "footer": "Abwesenheitsmarkierungen gelten für alle Widgets mit dieser Klasse. Werden automatisch morgen zurückgesetzt.",
+        "footer": "Abwesenheitsmarkierungen werden morgen zurückgesetzt.",
         "emptyRoster": "Diese Klasse hat noch keine Schüler/innen.",
         "unnamedStudent": "Namenloser Schüler / Namenlose Schülerin",
         "ariaLabel": "Anwesenheit öffnen – {{count}} heute als abwesend markiert"
@@ -1405,7 +1389,7 @@
     "onboarding": {
       "title": "Erste Schritte",
       "allDone": "Alles erledigt!",
-      "footer": "Sie sind bereit – schließen Sie dieses Widget jederzeit!",
+      "footer": "Sie können dieses Widget jetzt schließen.",
       "tasks": {
         "addWidget": {
           "label": "Widget aus dem Dock hinzufügen",
@@ -1425,8 +1409,7 @@
       }
     },
     "dashboard": {
-      "emptyBoardHint": "Ziehen Sie Werkzeuge aus dem Dock unten, um zu beginnen",
-      "switchBoardsHint": "Verwenden Sie die Tafelnavigation unten links, um zwischen Tafeln zu wechseln"
+      "emptyBoardHint": "Ziehen Sie Werkzeuge aus dem Dock unten, um zu beginnen"
     },
     "stickers": {
       "collectionTitle": "Sticker-Sammlung",
@@ -1656,9 +1639,9 @@
     "subtitle": "{{count}} Tafel(n) aus dieser Sammlung werden geteilt.",
     "mode": "Freigabemodus",
     "copyMode": "Kopieren",
-    "copyModeHint": "Der Empfänger importiert eine vollständige Kopie in sein Konto.",
+    "copyModeHint": "Sie erhalten eine eigene Kopie zum Bearbeiten.",
     "substituteMode": "Vertretung (nur anzeigen)",
-    "substituteModeHint": "Eine Vertretungslehrkraft sieht die Sammlung in /subs für das gewählte Zeitfenster.",
+    "substituteModeHint": "Erscheint für den gewählten Zeitraum im Vertretungsportal.",
     "expiresIn": "Läuft ab in",
     "building": "Gebäude",
     "buildingRequired": "Bitte wähle ein Gebäude aus, bevor du mit einer Vertretung teilst.",
@@ -1677,7 +1660,7 @@
     "notFound": "Geteilte Sammlung nicht gefunden oder abgelaufen",
     "empty": "Geteilte Sammlung ist leer",
     "invalidShareUrl": "Ungültiger Freigabelink – fehlende Freigabe-ID.",
-    "substituteImportRejected": "Vertretungsfreigaben sind nur lesbar. Öffne diesen Link in /subs zum Anzeigen."
+    "substituteImportRejected": "Dieser Link ist für Vertretungen. Öffne ihn im Vertretungsportal."
   },
   "importSharedCollection": {
     "title": "Geteilte Sammlung importieren",
@@ -1687,7 +1670,7 @@
     "boardCount": "{{count}} Tafel(n)",
     "importing": "Wird importiert…",
     "import": "Sammlung importieren",
-    "substituteOnly": "Dies ist eine Vertretungsfreigabe (nur lesen). Öffne sie in /subs."
+    "substituteOnly": "Dieser Link ist für Vertretungen. Öffne ihn im Vertretungsportal."
   },
   "subCollections": {
     "loading": "Geteilte Sammlungen werden geladen…",
@@ -1781,7 +1764,7 @@
       "saveChanges": "Änderungen speichern",
       "discardChanges": "Änderungen verwerfen",
       "confirmDiscardChanges": "Du hast ungespeicherte Änderungen. Ohne Speichern schließen?",
-      "description": "Hier hochgeladene Sticker erscheinen im Abschnitt Globale Sammlung des Stickerbuch-Widgets jedes Benutzers.",
+      "description": "Wird allen Lehrkräften angezeigt.",
       "dropImages": "Bilder hier ablegen oder zum Durchsuchen klicken",
       "supportedFiles": "PNG, JPG, GIF, WebP, SVG · Mehrere Dateien unterstützt",
       "collectionTitle": "Sticker-Sammlung",
@@ -1801,7 +1784,6 @@
       "recovery": {
         "title": "PLG-Wiederherstellung",
         "subtitle": "Leitung neu zuweisen oder eine verlassene PLG in deiner Organisation auflösen.",
-        "explainer": "Nur PLGs in deiner Organisation können wiederhergestellt werden. Verwende dies, wenn die Leitung einer PLG ausgeschieden ist und die Leitung nicht übertragen kann.",
         "empty": "Keine wiederherstellbaren PLGs in deiner Organisation.",
         "leadLabel": "Leitung",
         "membersLabel_one": "{{count}} Mitglied",
@@ -1820,7 +1802,7 @@
         "cancel": "Abbrechen",
         "confirm": "Bestätigen",
         "members": "Mitglieder",
-        "membersDescription": "Lehrkraft aus Ihrer Organisation hinzufügen, Rolle ändern oder Mitglied entfernen. Die Lehrkraft wird nicht benachrichtigt.",
+        "membersDescription": "Lehrkräfte werden nicht benachrichtigt.",
         "noOtherMembers": "Keine Mitglieder außer der Leitung.",
         "roleLabel": "Rolle",
         "remove": "Entfernen",
@@ -1892,7 +1874,6 @@
     "notFoundBody": "Diese PLG existiert nicht oder Sie sind kein Mitglied mehr.",
     "backToBoard": "Zurück zu meiner Tafel",
     "hubTitle": "Meine PLGs",
-    "hubSubtitle": "Öffnen Sie eine professionelle Lerngemeinschaft, um mit Ihrem Team zusammenzuarbeiten.",
     "hubEmptyTitle": "Noch keine PLGs",
     "hubEmptySubtitle": "Erstellen Sie eine PLG in der Seitenleiste und laden Sie Ihre Kollegen ein.",
     "leadBadge": "Leitung",
@@ -1901,7 +1882,6 @@
   },
   "plcDirectory": {
     "heading": "PLGs in meinem Gebäude",
-    "subtitle": "Teams in Ihrem Gebäude, denen Sie beitreten können.",
     "memberCount": "{{count}} Mitglied",
     "memberCount_other": "{{count}} Mitglieder",
     "requestToJoin": "Beitritt anfragen",
@@ -1981,13 +1961,13 @@
     "showMore": "{{count}} weitere anzeigen",
     "showFewer": "Weniger anzeigen",
     "noClassStudents": "Wähle oben eine Klasse aus, um einzelne Schüler anzupassen.",
-    "skipNotice": "Übersprungene Schüler/innen sehen diese Aufgabe nicht. Alle anderen in diesen Klassen erhalten sie weiterhin.",
+    "skipNotice": "Übersprungene Schüler/innen sehen diese Aufgabe nicht.",
     "sectionLabel": "Einzelne Schüler & Anpassungen",
     "chooseStudents": "Schüler auswählen",
     "editStudents": "Schüler bearbeiten",
     "selectedCount": "{{count}} ausgewählt",
     "revertToClass": "Der ganzen Klasse zuweisen",
-    "noStudentsYet": "Noch keine Schüler ausgewählt — die ganze Klasse bleibt untargetiert.",
+    "noStudentsYet": "Keine Schüler ausgewählt.",
     "unknownStudent": "Unbekannter Schüler",
     "remove": "Entfernen",
     "removeStudent": "{{name}} entfernen",
@@ -2005,7 +1985,7 @@
     "skipStudentNamed": "{{name}} überspringen",
     "summarySkipped": "{{count}} übersprungen",
     "summaryModified": "{{count}} angepasst",
-    "noSignInCount": "{{count}} Schüler/innen in diesen Klassen haben keine Schul-Anmeldung und können nicht einzeln angepasst werden.",
+    "noSignInCount": "{{count}} Schüler/innen haben keine Schul-Anmeldung und können nicht einzeln angepasst werden.",
     "noSignInStudents": "Niemand in den ausgewählten Klassen hat eine Schul-Anmeldung, daher gibt es niemanden, der einzeln angepasst werden kann.",
     "timingNotApplied": "Lehrergesteuerte Sitzungen haben keinen Timer pro Schüler/in, daher gilt die verlängerte Zeit für {{names}} nicht. Andere Anpassungen gelten weiterhin.",
     "clearModifications": "Alle Anpassungen löschen",
@@ -2016,8 +1996,8 @@
     "periodModeLabel": "Wie Stunden geöffnet werden",
     "periodModeAssessment": "Prüfung im Unterricht",
     "periodModeAssignment": "Aufgabe",
-    "periodAssessmentHint": "Jede Stunde bleibt geschlossen, bis du sie in der Live-Ansicht startest. Sie schließt mit dem Klingeln zum Stundenende.",
-    "periodUnverified": "Nur PIN, nicht verifiziert: Schüler/innen ohne Schulanmeldung können nicht an einer Prüfung im Unterricht teilnehmen.",
+    "periodAssessmentHint": "Öffnet, wenn du sie startest, und schließt mit dem Klingeln zum Stundenende.",
+    "periodUnverified": "Schüler/innen ohne Schulanmeldung können nicht an Prüfungen im Unterricht teilnehmen.",
     "periodCustomize": "Pro Stunde anpassen",
     "periodTagPrompt": "Welche Stunde ist {{name}}?",
     "periodTagPick": "Stunde auswählen",
@@ -2115,7 +2095,6 @@
     "languageLabel": "Sprache",
     "languageTagLabel": "Sprachcode",
     "languageOther": "Andere…",
-    "languageHelp": "Legt die Stimme fest, mit der dieses Quiz vorgelesen wird.",
     "readQuestion": "Frage vorlesen",
     "readPrompt": "Frage vorlesen",
     "readChoice": "Antwort {{n}} vorlesen",
@@ -2154,7 +2133,7 @@
       "stale": "Veraltet",
       "regenerate_one": "{{count}} veraltete Frage neu übersetzen",
       "regenerate_other": "{{count}} veraltete Fragen neu übersetzen",
-      "servedCount": "{{reviewed}} von {{total}} auf {{language}} freigegeben",
+      "servedCount": "{{reviewed}}/{{total}} geprüft",
       "save": "Übersetzung speichern",
       "english": "Englisch",
       "disabled": {
@@ -2171,11 +2150,11 @@
         },
         "noneReviewed": {
           "title": "Noch nichts geprüft",
-          "body": "Lernende sehen nur Fragen, die du als geprüft markierst. Bitte eine Sprachförderkraft um Unterstützung, wenn du diese Sprache nicht liest."
+          "body": "Lernende sehen nur Fragen, die du als geprüft markierst."
         },
         "pickQuestion": {
           "title": "Frage auswählen",
-          "body": "Wähle links eine Frage, um Englisch und Übersetzung nebeneinander zu sehen."
+          "body": "Wähle eine Frage zum Vergleichen."
         }
       },
       "error": {
@@ -2211,7 +2190,7 @@
       "sectionLabel": "Sprache der Antwort",
       "backTranslating": "Wird übersetzt…",
       "nativeLabel": "Antwort der Schülerin/des Schülers",
-      "translatedRubricNote": "Diese Schülerin/dieser Schüler hat möglicherweise eine übersetzte Bewertungsvorlage gelesen; bewerte anhand der hier gezeigten englischen Vorlage.",
+      "translatedRubricNote": "Bewerte anhand der englischen Bewertungsvorlage.",
       "saveFailed": "Übersetzung wird unten angezeigt, konnte aber nicht gespeichert werden. Sie muss beim nächsten Mal erneut ausgeführt werden.",
       "errors": {
         "failed": "Diese Antwort konnte nicht übersetzt werden. Bitte erneut versuchen.",
@@ -2285,38 +2264,35 @@
       "formatTyped": "Typed",
       "formatSpoken": "Spoken",
       "prepLabel": "Thinking time",
-      "prepHint": "Seconds before the recorder arms. 0 starts them ready to record.",
+      "prepHint": "0 starts recording right away.",
       "limitLabel": "Recording limit",
-      "limitHint": "Hard stop for one take, up to {{max}} seconds.",
-      "limitClamped": "Capped at {{seconds}}s — {{mode}}'s limit.",
+      "limitHint": "Up to {{max}} seconds.",
+      "limitClamped": "Capped at {{seconds}}s for {{mode}}.",
       "limitClampedAction": "Set to {{seconds}}s",
       "secondsUnit": "Sec",
       "expiryLabel": "When thinking time runs out",
       "expiryAutoStart": "Start recording",
-      "expiryAutoStartHint": "The recorder starts on its own.",
       "expiryAutoAdvance": "Move on",
-      "expiryAutoAdvanceHint": "The quiz moves to the next question.",
       "expiryArmed": "Wait for them",
-      "expiryArmedHint": "The record button stays live until the student presses it.",
       "expiryUnanswered": "Mark unanswered",
-      "expiryUnansweredHint": "The slot closes and comes to you ungraded.",
+      "expiryUnansweredHint": "Comes to you ungraded.",
       "takeLimitLabel": "Takes allowed",
       "takeLimitUnlimited": "Unlimited",
       "takeLimitHint": "A take is a recording the student keeps, not one they discard.",
-      "timeLimitDisabledHint": "Disabled — recording questions use their own prep and recording timer instead of the speed bonus.",
+      "timeLimitDisabledHint": "Set by the recording timer.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
       "advisory": {
-        "title": "As authored",
+        "title": "Heads up",
         "slots_one": "Records up to {{count}} slot per student.",
         "slots_other": "Records up to {{count}} slots per student.",
-        "deviceBlocked": "If a student's device blocks the microphone, the question comes to you ungraded — you choose whether it's excused, scored zero, or answered another way.",
-        "shuffleNoOp": "Question shuffle has no effect here: shared stimuli group every question into one block."
+        "deviceBlocked": "If a microphone is blocked, the question comes to you ungraded.",
+        "shuffleNoOp": "Shuffle has no effect because every question shares one stimulus."
       }
     },
     "assign": {
       "advisory": {
-        "notSelfPaced": "Spoken answers are collected only in self-paced sessions; live sessions will show these questions as written."
+        "notSelfPaced": "Spoken answers need self-paced mode."
       }
     },
     "grading": {
@@ -2378,7 +2354,7 @@
         "count_one": "{{count}} take recorded",
         "count_other": "{{count}} takes recorded",
         "take": "Take {{n}}",
-        "pinNote": "Scoring always uses the last take. Picking an earlier one records which take your comments are about.",
+        "pinNote": "Scores use the last take.",
         "status": {
           "archiving": "Still saving",
           "archive-failed": "Not saved",
@@ -3025,7 +3001,7 @@
     "personal": {
       "title": "Meine Lernziele",
       "button": "Ziele",
-      "description": "Ziele, die nur du siehst. Markiere Quizfragen damit, um den Lernfortschritt über deine eigenen Tests zu verfolgen.",
+      "description": "Nur du siehst diese Ziele.",
       "sourceName": "Meine Lernziele"
     },
     "loading": "Ziele werden geladen…",
@@ -3051,13 +3027,13 @@
     "noStandardsMatch": "Keine passenden Standards.",
     "pasteHint": "Ein Ziel pro Zeile. Optionaler Code vor einem senkrechten Strich: LT1 | Ich kann Brüche addieren.",
     "parsedCount": "{{count}} Ziele gefunden",
-    "csvHint": "Kopfzeile mit label (erforderlich); optional code, standards, grades (Werte mit ; trennen) und subject.",
+    "csvHint": "Kopfzeile mit label (erforderlich). Optionale Spalten sind code, standards, grades und subject. Mehrere Werte mit Semikolon trennen.",
     "csvLineError": "Zeile {{line}}: {{message}}",
     "csvUnknownStandards": "Unbekannte Standard-Codes werden übersprungen: {{codes}}",
     "importCount": "{{count}} importieren",
     "masteryCutoffs": {
       "heading": "Schwellenwerte",
-      "description": "Prozent richtig, damit ein Ziel als sicher oder annähernd erreicht gilt.",
+      "description": "Prozent richtig für jede Stufe.",
       "proficient": "Sicher",
       "approaching": "Annähernd",
       "save": "Schwellenwerte speichern"
@@ -3065,7 +3041,7 @@
     "saving": "Wird gespeichert…",
     "saveFailed": "Speichern fehlgeschlagen",
     "anySubject": "Beliebiges Fach",
-    "gradesSubjectHint": "Optional. Klassenstufen und Fach leer lassen, um sie von den verknüpften Standards zu übernehmen.",
+    "gradesSubjectHint": "Leer lassen, um Klassenstufen und Fach der verknüpften Standards zu übernehmen.",
     "csvUnknownSubjects": "Unbekannte Fächer werden übersprungen: {{subjects}}"
   },
   "settings": {
@@ -3073,11 +3049,9 @@
     "profile": {
       "title": "Profil",
       "gradesTaught": "Unterrichtete Klassenstufen",
-      "gradesTaughtDescription": "Beginnt mit Ihren Gebäuden. Wählen Sie Klassenstufen ab, die Sie nicht unterrichten, um Standards, Lernziele und stufenspezifische Widgets einzugrenzen.",
       "resetGrades": "Auf Gebäudestandard zurücksetzen",
-      "noGrades": "Keine Klassenstufen ausgewählt — Standards und Widgets zeigen alle Stufen.",
-      "subjectsTaught": "Unterrichtete Fachbereiche",
-      "subjectsTaughtDescription": "Optional. Wählen Sie Ihre Fachbereiche, damit die Standardauswahl direkt dort öffnet. Leer lassen, um alle Fachbereiche zu sehen."
+      "noGrades": "Alle Klassenstufen werden angezeigt.",
+      "subjectsTaught": "Unterrichtete Fachbereiche (optional)"
     }
   },
   "quizHandRaise": {
@@ -3099,13 +3073,10 @@
     "saveFailed": "Quiz-Konfiguration konnte nicht gespeichert werden.",
     "handRaise": {
       "heading": "Melden",
-      "help": "Legt fest, ob Schüler in dieser Schule während eines Quiz eine Schaltfläche zum Melden sehen.",
       "teacherChoice": "Entscheidung der Lehrkraft",
-      "teacherChoiceHint": "Jede Lehrkraft entscheidet pro Quiz. Standardmäßig aus.",
+      "teacherChoiceHint": "Aus, bis die Lehrkraft es einschaltet.",
       "forceOn": "Immer an",
-      "forceOnHint": "Melden ist in jedem Quiz verfügbar und Lehrkräfte können es nicht deaktivieren.",
-      "forceOff": "Immer aus",
-      "forceOffHint": "Melden ist in jedem Quiz für Schüler ausgeblendet."
+      "forceOff": "Immer aus"
     },
     "noBuildings": "Keine Gebäude konfiguriert",
     "noBuildingsHint": "Fügen Sie unter Organisation ein Gebäude hinzu, bevor Sie eine Standardeinstellung für das Handheben festlegen.",
@@ -3337,15 +3308,15 @@
     "startTitle": "Live-Tour aufnehmen",
     "startWhat": "Was zeigt diese Tour?",
     "startWhatPlaceholder": "Ein Widget zur Tafel hinzufügen",
-    "startBlur": "Du nimmst auf deiner eigenen Tafel auf. Namen von Schülerinnen und Schülern aus deinen Klassen sowie Fotos, Videos und Arbeiten von Lernenden werden in jedem Bild beim Aufnehmen unscharf gemacht.",
-    "startReview": "Bevor etwas hochgeladen wird, prüfst du jedes Bild und kannst Übersehenes unscharf machen.",
-    "startTip": "Tipp: Nimm auf einer Tafel auf, deren Klassen aus Testklassen stammen, damit kaum echte Namen zu sehen sind.",
+    "startBlur": "Namen, Fotos und Arbeiten deiner Lernenden werden beim Aufnehmen unscharf gemacht.",
+    "startReview": "Du prüfst jedes Bild, bevor es hochgeladen wird.",
+    "startTip": "Nimm auf einer Tafel mit Testklassen auf.",
     "startUnloaded_one": "{{count}} Klassenliste wurde nicht geladen, daher können ihre Namen nicht automatisch unscharf gemacht werden.",
     "startUnloaded_other": "{{count}} Klassenlisten wurden nicht geladen, daher können ihre Namen nicht automatisch unscharf gemacht werden.",
     "startContinue": "Weiter",
     "cancel": "Abbrechen",
     "reviewTitle": "Prüfe jedes Bild vor dem Hochladen",
-    "reviewBody": "Unscharfe Bereiche sind blau umrandet. Ziehe über alles andere, was Lernende zeigt, und wähle dann Unscharf machen.",
+    "reviewBody": "Ziehe über alles, was Lernende zeigt, und wähle dann Unscharf machen.",
     "reviewFrame": "Bild {{current}} von {{total}}",
     "reviewPrev": "Vorheriges Bild",
     "reviewNext": "Nächstes Bild",
@@ -3614,7 +3585,7 @@
   },
   "tourHealth": {
     "loading": "Touren werden geladen...",
-    "intro": "Prüft die veröffentlichte Version jeder Tour, also die, die Lehrkräfte ausführen, anhand der Anker-Liste und echter Durchläufe. „Live prüfen“ sucht jeden Anker auf der Tafel hinter diesem Fenster, so wie sie gerade ist.",
+    "intro": "Prüft veröffentlichte Touren anhand des Anker-Verzeichnisses.",
     "recordTour": "Tour aufnehmen",
     "checkLive": "Live prüfen",
     "empty": "Noch kein Guided-Learning-Set hat Live-Tour-Schritte.",

@@ -459,8 +459,7 @@ const PlcMeetingLiveFlow: React.FC<{
                 </h2>
                 <p className="text-base text-slate-600 mt-1">
                   {t('plcDashboard.meeting.review.subtitle', {
-                    defaultValue:
-                      'Pooled, anonymized results. Click a question to capture a decision about it.',
+                    defaultValue: 'Click a question to log a decision.',
                   })}
                 </p>
               </header>
@@ -610,12 +609,6 @@ const SaveStep: React.FC<{
               defaultValue: 'Meeting saved',
             })}
           </h2>
-          <p className="text-base text-slate-600 mt-1.5 max-w-md mx-auto">
-            {t('plcDashboard.meeting.save.doneSubtitle', {
-              defaultValue:
-                'Action items are now tracked to-dos for their assignees. Export the record for your accountability files, or start a new meeting.',
-            })}
-          </p>
           <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
             <button
               type="button"
@@ -651,12 +644,6 @@ const SaveStep: React.FC<{
             defaultValue: 'Ready to save?',
           })}
         </h2>
-        <p className="text-base text-slate-600 mt-1">
-          {t('plcDashboard.meeting.save.subtitle', {
-            defaultValue:
-              'Saving writes the meeting record, turns action items into to-dos, and logs it to the team activity feed.',
-          })}
-        </p>
       </header>
 
       <dl className="grid gap-3 sm:grid-cols-2">
@@ -699,8 +686,7 @@ const SaveStep: React.FC<{
         {attendeePreview.length === 0 ? (
           <p className="text-sm text-slate-500 mt-1.5">
             {t('plcDashboard.meeting.save.noAttendees', {
-              defaultValue:
-                'No one else is active right now — you’ll be recorded as the facilitator.',
+              defaultValue: 'Only you will be recorded.',
             })}
           </p>
         ) : (
@@ -720,8 +706,7 @@ const SaveStep: React.FC<{
       {!canEdit && (
         <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
           {t('plcDashboard.meeting.save.viewerNote', {
-            defaultValue:
-              'Viewers can follow along but can’t save the meeting record.',
+            defaultValue: 'View only. You can’t save this meeting.',
           })}
         </p>
       )}

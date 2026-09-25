@@ -262,16 +262,13 @@ export const PlcMeetingCadenceSection: React.FC<{ plc: Plc }> = ({ plc }) => {
           defaultValue: 'Meeting schedule',
         })}
       </h3>
-      <p className="mt-1 text-xs leading-relaxed text-slate-500">
-        {canEdit
-          ? t('plcDashboard.meetingCadence.leadDescription', {
-              defaultValue:
-                'Set when this PLC meets. Home shows the next meeting, and you can move or skip one from there.',
-            })
-          : t('plcDashboard.meetingCadence.memberDescription', {
-              defaultValue: 'The lead and co-leads set when this PLC meets.',
-            })}
-      </p>
+      {!canEdit && (
+        <p className="mt-1 text-xs leading-relaxed text-slate-500">
+          {t('plcDashboard.meetingCadence.memberDescription', {
+            defaultValue: 'Set by the lead.',
+          })}
+        </p>
+      )}
       <p className="mt-2 text-sm font-semibold text-slate-700">{summary}</p>
       {canEdit && (
         <CadenceEditor key={JSON.stringify(cadence ?? null)} plc={plc} />

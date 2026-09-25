@@ -52,12 +52,7 @@ export const WidgetBuilderManager: React.FC = () => {
     <div className="flex flex-col gap-5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-base font-bold text-white">Widget Builder</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Create and manage custom widgets for your dashboard.
-          </p>
-        </div>
+        <h2 className="text-base font-bold text-white">Widget Builder</h2>
         <button
           onClick={handleNew}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"

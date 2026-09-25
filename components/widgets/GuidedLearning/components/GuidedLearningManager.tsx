@@ -1442,6 +1442,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const shell = (
     <LibraryShell
       widgetLabel="Guided Learning"
+      widgetType="guided-learning"
       tab={tab}
       onTabChange={setTab}
       counts={{

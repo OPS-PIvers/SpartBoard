@@ -1283,6 +1283,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   const shell = (
     <LibraryShell
       widgetLabel="Mini App"
+      widgetType="miniApp"
       tab={tab}
       onTabChange={onTabChange}
       counts={{

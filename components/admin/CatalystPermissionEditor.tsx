@@ -11,11 +11,7 @@ export const CatalystPermissionEditor: React.FC = () => {
     <div className="flex flex-col items-center justify-center h-full p-6 text-center text-slate-500">
       <Settings2 className="w-12 h-12 mb-4 text-slate-300" />
       <h3 className="font-bold text-lg text-slate-700 mb-2">Admin Managed</h3>
-      <p className="text-sm">
-        Catalyst routines are managed in the dedicated Catalyst Configuration
-        modal. Click the gear icon next to &quot;Catalyst&quot; in the Feature
-        Permissions list to manage routines.
-      </p>
+      <p className="text-sm">Use the Catalyst gear to manage routines.</p>
     </div>
   );
 };

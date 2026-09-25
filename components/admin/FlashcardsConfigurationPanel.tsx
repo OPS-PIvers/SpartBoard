@@ -20,15 +20,9 @@ export const FlashcardsConfigurationPanel: React.FC<
       <div className="rounded-xl bg-rose-100 p-2 text-rose-700">
         <Layers className="h-5 w-5" aria-hidden="true" />
       </div>
-      <div>
-        <h3 className="text-sm font-black uppercase tracking-widest text-slate-700">
-          Teacher-owned libraries
-        </h3>
-        <p className="mt-1 text-xs leading-relaxed text-slate-500">
-          Flashcard sets and folders are private to each teacher. Use the
-          permission controls outside this panel to manage the staged rollout.
-        </p>
-      </div>
+      <h3 className="text-sm font-black uppercase tracking-widest text-slate-700">
+        Teacher-owned libraries
+      </h3>
     </div>
   </section>
 );

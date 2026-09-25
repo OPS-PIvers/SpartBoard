@@ -149,9 +149,7 @@ describe('QuizEditorModal Format row', () => {
     });
     expect(timeLimit.disabled).toBe(true);
     expect(timeLimit.value).toBe('0');
-    expect(
-      detail().getByText(/use their own prep and recording timer/i)
-    ).toBeTruthy();
+    expect(detail().getByText(/Set by the recording timer/i)).toBeTruthy();
     expect(
       context().getByText('Records up to 1 slot per student.')
     ).toBeTruthy();
@@ -220,7 +218,7 @@ describe('QuizEditorModal Format row', () => {
     open();
     fireEvent.click(spokenTab());
     const advisory = context()
-      .getByText('As authored')
+      .getByText('Heads up')
       .closest('[role="status"]') as HTMLElement;
     expect(advisory).toBeTruthy();
     expect(advisory.className).not.toMatch(/brand-red/);

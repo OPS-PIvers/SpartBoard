@@ -209,16 +209,6 @@ const EmbedVerifyControlImpl: React.FC<Props> = ({
           </p>
         </div>
       )}
-
-      <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg flex gap-3">
-        <AlertCircle
-          className="w-4 h-4 text-slate-400 shrink-0 mt-0.5"
-          aria-hidden="true"
-        />
-        <p className="text-xxs text-slate-500 leading-relaxed">
-          {label('verifyTip')}
-        </p>
-      </div>
     </div>
   );
 };

@@ -56,13 +56,9 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
 
       <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-6">
         <div>
-          <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest mb-1">
+          <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest mb-4">
             Default Node Dimensions
           </h3>
-          <p className="text-xs text-slate-500 mb-4 font-bold">
-            Set the default width and height (as a percentage of the widget) for
-            new nodes created in this building.
-          </p>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 uppercase mb-2">
@@ -108,12 +104,9 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
         </div>
 
         <div>
-          <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest mb-1">
+          <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest mb-4">
             Default Font Family
           </h3>
-          <p className="text-xs text-slate-500 mb-4 font-bold">
-            Set the default font style for text inside nodes.
-          </p>
           <select
             value={buildingConfig.fontFamily ?? 'global'}
             onChange={(e) => {
@@ -136,14 +129,9 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
         </div>
 
         <div className="border-t border-slate-200 pt-5">
-          <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest mb-1">
+          <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest mb-4">
             Appearance Defaults
           </h3>
-          <p className="text-xs text-slate-500 mb-4 font-bold">
-            Set the default node surface colour and opacity for new Concept Web
-            widgets in this building. Teachers can still change these per
-            widget.
-          </p>
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 uppercase mb-2">

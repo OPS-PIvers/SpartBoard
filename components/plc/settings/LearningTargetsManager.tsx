@@ -612,7 +612,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
               <p className="text-xxs text-slate-500">
                 {t('learningTargets.gradesSubjectHint', {
                   defaultValue:
-                    'Optional. Leave grades and subject empty to inherit them from the linked standards.',
+                    "Leave blank to use the linked standards' grades and subject.",
                 })}
               </p>
               <div className="flex justify-end">
@@ -667,12 +667,6 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
 
           {panel === 'csv' && (
             <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xxs text-slate-500">
-                {t('learningTargets.csvHint', {
-                  defaultValue:
-                    'Header row with label (required); optional code, standards, grades (separate values with ;) and subject.',
-                })}
-              </p>
               <button
                 type="button"
                 onClick={() =>
@@ -694,6 +688,10 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                 accept=".csv,text/csv"
                 onChange={(e) => handleCsvFile(e.target.files?.[0])}
                 className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-700"
+                title={t('learningTargets.csvHint', {
+                  defaultValue:
+                    'Header row with label (required). Optional columns are code, standards, grades and subject. Separate multiple values with a semicolon.',
+                })}
                 aria-label={t('learningTargets.importCsv', {
                   defaultValue: 'Import CSV',
                 })}
@@ -831,8 +829,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
           </div>
           <p className="mt-0.5 text-xxs text-slate-500">
             {t('learningTargets.masteryCutoffs.description', {
-              defaultValue:
-                'Percent correct needed for a target to count as proficient or approaching.',
+              defaultValue: 'Percent correct for each level.',
             })}
           </p>
           <div className="mt-2 flex flex-wrap items-end gap-3">

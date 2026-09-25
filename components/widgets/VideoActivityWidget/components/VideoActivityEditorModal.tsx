@@ -361,10 +361,7 @@ export const VideoActivityEditorModal: React.FC<
           <VideoActivityEditorDetailPane state={editorState} />
         ) : (
           <div className="flex items-center justify-center h-full text-slate-400 text-sm px-8 text-center">
-            <p>
-              Settings saved with the activity. They become the default when you
-              assign it.
-            </p>
+            <p>Defaults for new assignments.</p>
           </div>
         )
       }

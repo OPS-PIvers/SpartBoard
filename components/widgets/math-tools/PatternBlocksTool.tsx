@@ -202,10 +202,6 @@ export const PatternBlocksTool: React.FC = () => {
           )}
         </svg>
       </div>
-      <p className="text-xxs text-slate-400 text-center">
-        Click shapes to select · Click again to deselect · Rotate or remove with
-        controls above
-      </p>
     </div>
   );
 };

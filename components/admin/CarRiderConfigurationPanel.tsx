@@ -26,10 +26,6 @@ export const CarRiderConfigurationPanel: React.FC<
           placeholder="https://carriderpro.com/login/your-district"
           className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
         />
-        <p className="text-xxs text-slate-400 mt-1">
-          Enter the global district login URL for the Car Rider Pro dismissal
-          widget. This URL will be used for all classrooms.
-        </p>
       </div>
     </div>
   );

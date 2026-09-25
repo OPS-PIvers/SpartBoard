@@ -11,7 +11,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  AlertCircle,
   ChevronDown,
   ChevronRight,
   FileText,
@@ -256,16 +255,6 @@ export const StimulusManagerPanel: React.FC<{
 
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 px-5 py-4 space-y-4">
-      <div className="flex gap-2 p-2.5 bg-brand-blue-primary text-white rounded-lg shadow-sm">
-        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-        <p className="text-xs">
-          Stimuli are images, PDFs, audio, video, YouTube, or Doc/Slides embeds
-          students see while answering. Attach one to a single question, a group
-          of questions, or the whole quiz. Grouped questions stay together when
-          question shuffle is on.
-        </p>
-      </div>
-
       <div className="space-y-2">
         <input
           ref={fileInputRef}
@@ -571,8 +560,7 @@ const StimulusCard: React.FC<{
           )}
           {s.type === 'gdoc-embed' && !s.driveFileId && (
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
-              Make sure this doc is shared as &ldquo;anyone with the link can
-              view&rdquo; — SpartBoard can&apos;t verify pasted doc links.
+              Share this doc as &ldquo;Anyone with the link can view.&rdquo;
             </p>
           )}
           {readAloudAvailable && (s.type === 'image' || s.type === 'pdf') && (

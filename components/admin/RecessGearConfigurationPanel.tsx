@@ -206,8 +206,7 @@ export const RecessGearConfigurationPanel: React.FC<
               className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-brand-blue-primary"
             />
             <p className="text-xxs text-slate-400 mt-1">
-              How often the backend fetches new weather data. Default: 15. Min:
-              5.
+              Default 15, minimum 5.
             </p>
           </div>
         </div>

@@ -160,7 +160,7 @@ export const SubBoardScreenContent: React.FC<SubBoardScreenContentProps> = ({
         />
         <div className="hidden md:flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/15 px-3 py-1.5 text-[11px] text-white/80 pointer-events-none">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          Substitute view — widgets are locked in place
+          Substitute view. Widgets are locked.
         </div>
       </div>
 

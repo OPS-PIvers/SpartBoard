@@ -1391,6 +1391,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const shell = (
     <LibraryShell
       widgetLabel="Video Activity"
+      widgetType="video-activity"
       tab={tab}
       onTabChange={setTab}
       counts={tabCounts}

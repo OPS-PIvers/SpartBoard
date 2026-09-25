@@ -361,10 +361,7 @@ export const MusicManager: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500">
-          Teachers see these stations in the Music Widget settings panel.
-        </p>
+      <div className="flex items-center justify-end">
         <Button
           onClick={handleAddStation}
           className="bg-indigo-600 hover:bg-indigo-700 text-white"

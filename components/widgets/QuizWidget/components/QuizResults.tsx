@@ -1887,8 +1887,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           style={{ fontSize: 'min(11px, 3.5cqmin)' }}
         >
           <div className="font-bold text-center">
-            Exported to a personal sheet. Open and copy rows into the shared PLC
-            sheet manually.
+            Exported to your own sheet. Copy rows into the PLC sheet.
           </div>
           <div className="mt-2 flex items-center justify-center gap-3">
             <a
@@ -1987,7 +1986,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                     className="font-sans font-semibold text-amber-800"
                     style={{ fontSize: 'min(11px, 3.8cqmin)' }}
                   >
-                    Provisional — written responses still need grading
+                    Provisional. Written answers need grading.
                   </p>
                 )}
               </div>

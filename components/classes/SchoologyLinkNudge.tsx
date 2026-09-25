@@ -93,10 +93,6 @@ export const SchoologyLinkNudge: React.FC = () => {
                   ? '1 Schoology section to link'
                   : `${pending.length} Schoology sections to link`}
               </p>
-              <p className="text-xs text-slate-500 mt-0.5 leading-snug">
-                Link them to a class for the right name, roster targeting, and
-                grade sync.
-              </p>
               <button
                 onClick={() => setModalOpen(true)}
                 className="mt-2 text-xs font-bold text-brand-blue-primary hover:underline"

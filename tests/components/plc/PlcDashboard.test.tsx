@@ -9,7 +9,7 @@
  * isolate the shell's own logic we mock:
  *   - react-i18next (t returns defaultValue, with {{count}} interpolation +
  *     plural selection so the member-count sub-header is assertable).
- *   - @/context/useAuth (controllable user, drives the "You lead this PLC" badge).
+ *   - @/context/useAuth (controllable user, drives the "Lead" badge).
  *   - @/utils/plcPath (so `spaNavigate` is observable without a real history).
  *   - PlcDashboardRail (lightweight sentinel exposing one button per section so
  *     a section switch can be driven without ambiguity vs. the mobile list).
@@ -20,7 +20,7 @@
  *   (2) renders the section named by the `activeSection` prop (home + settings)
  *   (3) clicking a rail item navigates (spaNavigate) to that section's path
  *   (4) the member-count sub-header reflects plc.memberUids.length
- *   (5) "You lead this PLC" shows iff plc.leadUid === user.uid
+ *   (5) "Lead" shows iff plc.leadUid === user.uid
  *   (6) Escape key fires onClose
  *   (7) the close button calls onClose; the mobile back button does not
  */
@@ -400,22 +400,22 @@ describe('PlcDashboard (Wave 1 — pathname-driven render/smoke)', () => {
     expect(screen.getByText('1 Member')).toBeInTheDocument();
   });
 
-  it("shows 'You lead this PLC' when the user is the lead", () => {
+  it("shows 'Lead' when the user is the lead", () => {
     setUser('uid-a'); // === plc.leadUid
     render(
       <PlcDashboard plc={fakePlc} activeSection="home" onClose={vi.fn()} />
     );
 
-    expect(screen.getByText('You lead this PLC')).toBeInTheDocument();
+    expect(screen.getByText('Lead')).toBeInTheDocument();
   });
 
-  it("hides 'You lead this PLC' when the user is not the lead", () => {
+  it("hides 'Lead' when the user is not the lead", () => {
     setUser('uid-b'); // not the lead
     render(
       <PlcDashboard plc={fakePlc} activeSection="home" onClose={vi.fn()} />
     );
 
-    expect(screen.queryByText('You lead this PLC')).not.toBeInTheDocument();
+    expect(screen.queryByText('Lead')).not.toBeInTheDocument();
   });
 
   it('fires onClose when Escape is pressed', () => {

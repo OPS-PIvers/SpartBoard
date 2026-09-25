@@ -50,11 +50,6 @@ const AFFECTED_KEYS: Array<{ path: string; expectedFr: string }> = [
       'Lorsque l’équipe fait passer une évaluation commune en mode CAP, les résultats anonymisés apparaissent ici, prêts à être examinés ensemble.',
   },
   {
-    path: 'plcDashboard.meeting.act.subtitle',
-    expectedFr:
-      'Créez des actions. À l’enregistrement, chacune devient une tâche CAP suivie pour la personne responsable.',
-  },
-  {
     path: 'plcDashboard.viewer.badgeTooltip',
     expectedFr:
       'Vous avez un accès observateur à cette CAP. Vous pouvez tout lire, mais la création, la modification et la suppression sont désactivées.',

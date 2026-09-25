@@ -28,8 +28,7 @@ export const BlendingBoardConfigurationPanel: React.FC<
           className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-violet-500 outline-none text-sm"
         />
         <p className="text-xxs text-slate-400 mt-1">
-          Enter the URL of the website to embed in the Blending Board widget.
-          Must be served over HTTPS and allow being embedded in an iframe.
+          Must be an https link that allows embedding.
         </p>
       </div>
     </div>

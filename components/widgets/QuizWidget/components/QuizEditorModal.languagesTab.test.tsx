@@ -245,7 +245,7 @@ describe('QuizEditorModal Languages tab', () => {
     // Site 4: the Languages empty state, not the Settings blurb.
     expect(detail.textContent).toContain('No language chosen');
     expect(detail.textContent).not.toContain(
-      'Settings saved with the quiz are the defaults'
+      'Defaults for new sessions and assignments'
     );
   });
 
@@ -316,7 +316,7 @@ describe('QuizEditorModal Languages tab — saved sidecars', () => {
     );
     openTab('Languages');
     expect(screen.getByTestId('context-pane').textContent).toContain(
-      '1 of 1 served'
+      '1/1 reviewed'
     );
   });
 
@@ -333,7 +333,7 @@ describe('QuizEditorModal Languages tab — saved sidecars', () => {
     );
     openTab('Languages');
     expect(screen.getByTestId('context-pane').textContent).toContain(
-      '1 of 1 served'
+      '1/1 reviewed'
     );
   });
 

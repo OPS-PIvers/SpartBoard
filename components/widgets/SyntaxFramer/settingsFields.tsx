@@ -56,9 +56,6 @@ export const SyntaxTokenEditorField: React.FC<{
         aria-labelledby={ctx.labelId}
         className="w-full rounded-lg border border-slate-200 bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
-      <p className="text-xxs text-slate-500">
-        {t(mode === 'text' ? 'contentHelpText' : 'contentHelpMath')}
-      </p>
     </div>
   );
 };

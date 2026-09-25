@@ -82,8 +82,7 @@ export const FlashcardPublishScoresModal: React.FC<
       }
     >
       <p className="text-sm text-slate-600">
-        Choose what students see for “{assignmentTitle}”. You can hide scores
-        again at any time.
+        Choose what students see for “{assignmentTitle}”.
       </p>
       <div className="mt-4 flex flex-col gap-2">
         {OPTIONS.map((option) => (

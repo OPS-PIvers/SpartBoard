@@ -29,6 +29,8 @@ interface SegmentedTabsProps<K extends string = string> {
   panelIdPrefix?: string;
   /** Render for a dark (brand-blue) header surface instead of the light one. */
   onDark?: boolean;
+  /** Colours the selected tab's text and count badge instead of brand blue. */
+  accentColor?: string;
 }
 
 /**
@@ -43,6 +45,7 @@ export function SegmentedTabs<K extends string = string>({
   ariaLabel,
   panelIdPrefix,
   onDark = false,
+  accentColor,
 }: SegmentedTabsProps<K>): React.ReactElement {
   // WAI-ARIA 1.2 § 3.23 tablist keyboard pattern — select-follows-focus model:
   // arrow keys move focus AND selection simultaneously so tabIndex=0 always
@@ -124,6 +127,7 @@ export function SegmentedTabs<K extends string = string>({
                   : 'text-slate-500 hover:text-slate-800'
             }`}
             style={{
+              ...(selected && accentColor ? { color: accentColor } : {}),
               gap: 'min(6px, 1.5cqmin)',
               paddingInline: 'min(12px, 2.8cqmin)',
               paddingBlock: 'min(6px, 1.5cqmin)',
@@ -151,6 +155,9 @@ export function SegmentedTabs<K extends string = string>({
                       : 'bg-slate-200/70 text-slate-600'
                 }`}
                 style={{
+                  ...(selected && accentColor
+                    ? { backgroundColor: accentColor }
+                    : {}),
                   paddingInline: 'min(7px, 1.8cqmin)',
                   paddingBlock: 'min(2px, 0.5cqmin)',
                   fontSize: 'min(10px, 3cqmin)',

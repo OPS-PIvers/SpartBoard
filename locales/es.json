@@ -117,7 +117,6 @@
     },
     "classes": {
       "title": "Mis Clases",
-      "description": "Administra tus listas de clase aquí. La clase activa se usa en los planos de asientos, selección aleatoria, encuestas y más.",
       "newClass": "Nueva Clase",
       "importClassLink": "ClassLink",
       "myClasses": "Tus Clases",
@@ -169,9 +168,8 @@
       "pinPlaceholder": "01",
       "addStudent": "+ Agregar estudiante",
       "removeStudent": "Quitar estudiante",
-      "bulkPasteTip": "Consejo: pega varios nombres a la vez para añadirlos en bloque.",
       "emptyRosterTitle": "Aún no hay estudiantes",
-      "emptyRosterSubtitle": "Haz clic en + Agregar estudiante o pega una lista de nombres en una fila.",
+      "emptyRosterSubtitle": "Pega una lista de nombres para añadir varios a la vez.",
       "manageClasses": "Gestionar clases",
       "switchTo": "Cambiar a",
       "noClassSelected": "Sin clase seleccionada",
@@ -188,7 +186,6 @@
       "restrictionsFilter": "Buscar compañeros…",
       "restrictionsEmptyRoster": "Agrega más estudiantes para establecer restricciones.",
       "restrictionsNoMatches": "Sin coincidencias.",
-      "restrictionsFooter": "Las restricciones se aplican a ambos estudiantes automáticamente.",
       "editorTabsLabel": "Pestañas del editor de clase",
       "studentsTab": "Estudiantes",
       "groupsTab": "Grupos ({{count}})",
@@ -209,13 +206,12 @@
       "bellPeriod": "Período de clase",
       "bellPeriodNone": "Sin asignar",
       "accommodationsTab": "Adaptaciones ({{count}})",
-      "accommodationsHelp": "Se aplican automáticamente cada vez que asignes trabajo a este estudiante. Aún puedes cambiarlas para cada tarea.",
+      "accommodationsHelp": "Se aplican a cada nueva tarea.",
       "emptyAccommodationsTitle": "Todavía no hay estudiantes",
       "emptyAccommodationsSubtitle": "Agrega estudiantes primero y luego define sus adaptaciones permanentes."
     },
     "plcs": {
       "title": "Mis Comunidades",
-      "description": "Las Comunidades de Aprendizaje Profesional te permiten a ti y a tus colegas colaborar en las mismas tareas y ver resultados combinados.",
       "newPlc": "Nueva Comunidad",
       "newPlcTitle": "Nueva Comunidad",
       "createNewPlc": "Crear Nueva Comunidad",
@@ -242,7 +238,7 @@
       "inviteLabel": "Invitar por Correo",
       "invitePlaceholder": "colega@escuela.edu",
       "sendInvite": "Invitar",
-      "inviteHelp": "Tu colega verá la invitación en su barra lateral de Comunidades la próxima vez que inicie sesión.",
+      "inviteHelp": "Verán la invitación en su barra lateral de Comunidades.",
       "outstandingLabel": "Invitaciones Pendientes",
       "revokeInvite": "Revocar Invitación",
       "invites": "Invitaciones",
@@ -279,17 +275,15 @@
     "settings": {
       "googleDriveIntegration": "Integración Google Drive",
       "remoteControl": "Control Remoto",
-      "googleDriveDescription": "Tus tableros y recursos se guardan automáticamente en tu carpeta \"{{appName}}\" en Drive.",
-      "connectedSynced": "Conectado y Sincronizado",
+      "googleDriveDescription": "Tus tableros se guardan en tu carpeta \"{{appName}}\" en Drive.",
+      "connectedSynced": "Conectado",
       "disconnected": "Desconectado",
       "connect": "Conectar",
       "disconnect": "Desconectar",
       "myBuildings": "Mi(s) Edificio(s)",
-      "myBuildingsDescription": "Selecciona el o los edificios donde trabajas. Los widgets como Rutinas de Instrucción mostrarán automáticamente contenido para tu nivel de grado. Selecciona varios si trabajas en distintos edificios.",
-      "noBuildingSelected": "Sin edificio seleccionado — los widgets mostrarán todo el contenido disponible.",
+      "noBuildingSelected": "Se muestra contenido de todos los edificios.",
       "interfacePreferences": "Preferencias de Interfaz",
       "disableCloseWarning": "Desactivar Aviso de Cierre",
-      "skipConfirmation": "Omitir la confirmación al cerrar widgets.",
       "quickAccessWidgets": "Widgets de Acceso Rápido",
       "dockPosition": "Posición del Dock",
       "dockPositionDescription": "Elige dónde aparece el dock en tu pantalla.",
@@ -319,7 +313,6 @@
     }
   },
   "plcDashboard": {
-    "subtitle": "Panel de la Comunidad",
     "home": {
       "commonAssessment": {
         "loading": "Cargando tu evaluación común…",
@@ -330,7 +323,7 @@
         "startMeeting": "Iniciar reunión",
         "resumeMeeting": "Reanudar reunión",
         "phase": {
-          "planning": "Planificación: aún no realizada",
+          "planning": "Aún no realizada",
           "running": "En curso",
           "ready": "Lista para revisar",
           "reviewing": "Revisando en equipo",
@@ -451,7 +444,7 @@
     "meta": {
       "members_one": "{{count}} Miembro",
       "members_other": "{{count}} Miembros",
-      "youLead": "Tú lideras esta Comunidad"
+      "youLead": "Líder"
     },
     "members": {
       "heading": "Miembros",
@@ -490,7 +483,7 @@
       "pendingSince": "Invitado {{when}}",
       "revoke": "Revocar",
       "revokeAriaLabel": "Revocar invitación para {{email}}",
-      "notManager": "Solo el líder o un co-líder de la Comunidad puede invitar, quitar o cambiar miembros."
+      "notManager": "Solo los líderes pueden gestionar miembros."
     },
     "completedAssignments": {
       "heading": "Resultados Compartidos",
@@ -806,7 +799,6 @@
       "heading": "Actividad",
       "empty": "Aún no hay actividad",
       "sinceLastVisit": "Desde tu última visita",
-      "sinceSubtitle": "Lo que pasó mientras no estabas",
       "olderHeading": "Antes",
       "caughtUp": "Estás al día",
       "caughtUpSubtitle": "No hay actividad nueva desde tu última visita.",
@@ -848,11 +840,10 @@
       "delete": "Eliminar comentario",
       "confirmDelete": "¿Eliminar este comentario?",
       "confirmDeleteTitle": "Eliminar comentario",
-      "mentionHint": "Escribe @ para mencionar a un compañero",
       "postFailed": "No se pudo publicar tu comentario. Inténtalo de nuevo.",
       "deleteFailed": "No se pudo eliminar ese comentario. Inténtalo de nuevo.",
       "loadError": "No se pudieron cargar los comentarios.",
-      "viewerReadOnly": "Los espectadores pueden leer los comentarios, pero no publicar.",
+      "viewerReadOnly": "Solo lectura.",
       "threadLabel": "Comentarios sobre {{subject}}",
       "mentionNoMatch": "Ningún compañero coincide",
       "mentionListLabel": "Mencionar a un compañero"
@@ -875,9 +866,9 @@
       "hasRun": "la aplicó",
       "notRun": "aún no la aplicó",
       "noQuestions": "Aún no hay datos por pregunta disponibles.",
-      "strongAcross": "Sólido en todo — cada pregunta superó el 80 %.",
+      "strongAcross": "Cada pregunta por encima del 80 %.",
       "updating": "actualizando…",
-      "updatingHint": "Los nuevos resultados aún se están procesando — los datos se actualizarán en breve.",
+      "updatingHint": "Los nuevos resultados llegan en breve.",
       "reviewCardLabel": "Resultados combinados de {{title}}",
       "discussAssessment": "Comentar esto",
       "discussQuestion": "Comentar esta pregunta en una decisión",
@@ -898,19 +889,17 @@
       },
       "pick": {
         "heading": "¿Qué vamos a revisar hoy?",
-        "subtitle": "Elige la evaluación común (o evaluaciones) que revisará esta reunión.",
         "emptyTitle": "Aún no hay datos de evaluación",
         "emptySubtitle": "Cuando el equipo aplique una evaluación común en modo Comunidad, los resultados anonimizados aparecerán aquí, listos para revisarlos juntos.",
         "cardMeta": "{{avg}}% prom. del equipo · {{teachers}} docentes · {{students}} estudiantes"
       },
       "review": {
         "heading": "¿Qué dicen los datos?",
-        "subtitle": "Resultados combinados y anonimizados. Haz clic en una pregunta para capturar una decisión sobre ella.",
+        "subtitle": "Haz clic en una pregunta para anotar una decisión.",
         "none": "No hay evaluaciones seleccionadas — vuelve a Elegir."
       },
       "decide": {
         "heading": "¿Qué decidimos?",
-        "subtitle": "Captura las decisiones del equipo. Vincula una a una tarjeta de datos de Revisar cuando responda a un resultado concreto.",
         "addLabel": "Añadir una decisión",
         "placeholder": "p. ej. Reenseñar la pregunta 4 con el modelo de área antes del examen.",
         "add": "Añadir decisión",
@@ -921,7 +910,6 @@
       },
       "act": {
         "heading": "¿Quién hace qué?",
-        "subtitle": "Crea elementos de acción. Al guardar, cada uno se convierte en una tarea seguida de la Comunidad para su responsable.",
         "addLabel": "Añadir un elemento de acción",
         "placeholder": "p. ej. Crear un calentamiento de refuerzo para la pregunta 4",
         "assignee": "Responsable",
@@ -935,16 +923,14 @@
       },
       "save": {
         "heading": "¿Listo para guardar?",
-        "subtitle": "Al guardar se escribe el registro de la reunión, los elementos de acción se convierten en tareas y se registra en el feed de actividad del equipo.",
         "reviewed": "Evaluaciones revisadas",
         "decisions": "Decisiones",
         "actions": "Acciones → tareas",
         "attendees": "Asistentes",
         "whoAttended": "Quién está ahora",
-        "noAttendees": "Ahora mismo no hay nadie más activo — se te registrará como facilitador.",
-        "viewerNote": "Los observadores pueden seguir la reunión pero no guardar el registro.",
+        "noAttendees": "Solo se te registrará a ti.",
+        "viewerNote": "Solo lectura. No puedes guardar esta reunión.",
         "doneTitle": "Reunión guardada",
-        "doneSubtitle": "Los elementos de acción ahora son tareas seguidas para sus responsables. Exporta el registro para tus archivos o empieza una nueva reunión.",
         "viewRecord": "Ver registro de la reunión",
         "startNew": "Empezar una nueva reunión"
       },
@@ -979,7 +965,7 @@
     },
     "trash": {
       "heading": "Papelera",
-      "description": "Los elementos eliminados permanecen aquí 30 días y luego se eliminan de forma permanente.",
+      "description": "Los elementos eliminados se borran después de 30 días.",
       "empty": "La papelera está vacía",
       "restore": "Restaurar",
       "restored": "Restaurado",
@@ -1008,7 +994,7 @@
       "title": "Historial de versiones",
       "ariaLabel": "Historial de versiones de {{title}}",
       "close": "Cerrar",
-      "intro": "Versiones guardadas recientes de esta evaluación compartida. Al restaurar se vuelve a publicar esa versión para todos; la versión actual también se conserva en el historial.",
+      "intro": "Al restaurar se actualiza la copia de todos. La versión actual se queda en el historial.",
       "loading": "Cargando historial de versiones…",
       "loadError": "No se pudo cargar el historial de versiones.",
       "retry": "Intentar de nuevo",
@@ -1062,7 +1048,7 @@
     },
     "resources": {
       "managerTitle": "Recursos de la Comunidad",
-      "managerSubtitle": "Envía recursos curados (documentos, cuestionarios, tableros) a Comunidades específicas o a todas.",
+      "managerSubtitle": "Envía recursos a las Comunidades.",
       "addResource": "Agregar recurso",
       "editFormLabel": "Editar recurso",
       "createFormLabel": "Crear recurso",
@@ -1112,7 +1098,7 @@
       "emptyTitle": "Aún no hay recursos",
       "emptySubtitle": "Tu administrador enviará aquí cuestionarios, documentos y tableros curados.",
       "inboxTitle": "Recursos",
-      "inboxSubtitle": "Curado por tu administrador. Haz clic en «Usar» para agregarlo a tu Comunidad.",
+      "inboxSubtitle": "De tu administrador.",
       "kind": {
         "quiz": "Cuestionarios",
         "video-activity": "Actividades de video",
@@ -1192,7 +1178,7 @@
       "teamAverage": "Promedio del equipo",
       "notScoredYet": "Aún sin calificar",
       "students": "Estudiantes contados",
-      "studentsHint": "Los estudiantes se cuentan por docente; quien está en las clases de dos docentes cuenta dos veces.",
+      "studentsHint": "Los estudiantes se cuentan por docente, así que quien está en las clases de dos docentes cuenta dos veces.",
       "teachers": "Docentes",
       "teachersOf": "{{count}} de {{total}}",
       "lastComputed": "Última actualización",
@@ -1212,12 +1198,11 @@
       "scoreDistribution": "Distribución de puntuaciones",
       "bandCount": "{{count}} estudiantes · {{percent}} %",
       "scoredStudents": "{{count}} estudiantes calificados",
-      "distributionPending": "El gráfico aparece tras la próxima actualización de resultados, en unos minutos.",
+      "distributionPending": "El gráfico se actualiza en unos minutos.",
       "distributionEmpty": "El gráfico se completa cuando los docentes publican las puntuaciones."
     },
     "learningTargets": {
-      "heading": "Objetivos de aprendizaje",
-      "description": "Objetivos con los que la comunidad etiqueta las preguntas de los cuestionarios. Todos los miembros ven la misma lista."
+      "heading": "Objetivos de aprendizaje"
     }
   },
   "widgetWindow": {
@@ -1231,7 +1216,7 @@
     "screenshotFailed": "Error al guardar la captura",
     "takeScreenshot": "Tomar Captura",
     "takeScreenshotLongPress": "Tomar captura (mantener presionado)",
-    "screenshotGestureProTip": "Consejo: ¡Mantén presionado un widget para tomar una captura de pantalla!",
+    "screenshotGestureProTip": "Mantén presionado un widget para hacer una captura.",
     "annotate": "Anotar",
     "duplicate": "Duplicar",
     "moreActions": "Más acciones",
@@ -1247,7 +1232,7 @@
     "pin": "Fijar posición",
     "unpin": "Soltar posición",
     "pinnedIndicator": "Widget fijado",
-    "pinnedTooltip": "Fijado: abre la barra de herramientas del widget y haz clic en el alfiler para soltar",
+    "pinnedTooltip": "Este widget está fijado. Suéltalo desde la barra de herramientas.",
     "snapLayout": "Ajustar Diseño",
     "chooseLayout": "Elegir Diseño",
     "snapTo": "Ajustar a",
@@ -1316,7 +1301,6 @@
     "noGoogleDrive": "Sin Google Drive conectado. Descargando localmente...",
     "viewLiveSession": "Ver información de la sesión en vivo",
     "liveSession": "Sesión en vivo",
-    "provideCode": "Proporciona este código a tus alumnos.",
     "noAppsSelected": "Restaurando valores predeterminados…"
   },
   "languages": {
@@ -1370,7 +1354,7 @@
         "summary": "{{present}} presentes · {{absent}} ausentes",
         "buttonLabel": "Marcar estudiantes ausentes",
         "clearAll": "Limpiar todo (todos presentes)",
-        "footer": "Las ausencias se aplican a todos los widgets que usan esta clase. Se restablecen automáticamente mañana.",
+        "footer": "Las ausencias se borran mañana.",
         "emptyRoster": "Esta clase aún no tiene estudiantes.",
         "unnamedStudent": "Estudiante sin nombre",
         "ariaLabel": "Abrir asistencia — {{count}} marcados ausentes hoy"
@@ -1535,7 +1519,7 @@
     "onboarding": {
       "title": "Primeros Pasos",
       "allDone": "¡Todo listo!",
-      "footer": "Ya estás listo. ¡Cierra este widget en cualquier momento!",
+      "footer": "Ya puedes cerrar este widget.",
       "tasks": {
         "addWidget": {
           "label": "Añade un widget desde el Dock",
@@ -1555,8 +1539,7 @@
       }
     },
     "dashboard": {
-      "emptyBoardHint": "Arrastra herramientas desde el Dock para empezar",
-      "switchBoardsHint": "Usa los controles de navegación en la parte inferior izquierda para cambiar de tablero"
+      "emptyBoardHint": "Arrastra herramientas desde el Dock para empezar"
     },
     "seatingChart": {
       "emptyStateAssignTitle": "Aula vacía",
@@ -1656,9 +1639,9 @@
     "subtitle": "Compartiendo {{count}} tablero(s) de esta colección.",
     "mode": "Modo de compartición",
     "copyMode": "Copiar",
-    "copyModeHint": "El destinatario importa una copia completa a su cuenta.",
+    "copyModeHint": "Reciben su propia copia para editar.",
     "substituteMode": "Sustituto (solo lectura)",
-    "substituteModeHint": "Un profesor sustituto ve la colección en /subs durante el período que elijas.",
+    "substituteModeHint": "Aparece en el Portal de sustitutos durante el tiempo que elijas.",
     "expiresIn": "Expira en",
     "building": "Edificio",
     "buildingRequired": "Selecciona un edificio antes de compartir con un sustituto.",
@@ -1677,7 +1660,7 @@
     "notFound": "Colección compartida no encontrada o expirada",
     "empty": "La Colección compartida está vacía",
     "invalidShareUrl": "Enlace de compartición inválido — falta el ID de recurso compartido.",
-    "substituteImportRejected": "Los recursos compartidos para sustitutos son de solo lectura. Abre este enlace en /subs para verlo."
+    "substituteImportRejected": "Este enlace es para sustitutos. Ábrelo en el Portal de sustitutos."
   },
   "importSharedCollection": {
     "title": "Importar Colección compartida",
@@ -1687,7 +1670,7 @@
     "boardCount": "{{count}} tablero(s)",
     "importing": "Importando…",
     "import": "Importar Colección",
-    "substituteOnly": "Este es un recurso compartido para sustitutos (solo lectura). Ábrelo en /subs."
+    "substituteOnly": "Este enlace es para sustitutos. Ábrelo en el Portal de sustitutos."
   },
   "subCollections": {
     "loading": "Cargando Colecciones compartidas…",
@@ -1781,7 +1764,7 @@
       "saveChanges": "Guardar cambios",
       "discardChanges": "Descartar cambios",
       "confirmDiscardChanges": "Tienes cambios sin guardar. ¿Cerrar sin guardar?",
-      "description": "Las pegatinas subidas aquí aparecen en la sección «Colección global» del widget Libro de pegatinas de cada usuario.",
+      "description": "Visible para todos los docentes.",
       "dropImages": "Suelta imágenes aquí o haz clic para explorar",
       "supportedFiles": "PNG, JPG, GIF, WebP, SVG · Se admiten varios archivos",
       "collectionTitle": "Colección de pegatinas",
@@ -1801,7 +1784,6 @@
       "recovery": {
         "title": "Recuperación de Comunidades",
         "subtitle": "Reasigna el líder o disuelve una Comunidad abandonada en tu organización.",
-        "explainer": "Solo se pueden recuperar las Comunidades de tu organización. Úsalo cuando el líder de una Comunidad se haya marchado y no pueda transferir el liderazgo.",
         "empty": "No hay Comunidades recuperables en tu organización.",
         "leadLabel": "Líder",
         "membersLabel_one": "{{count}} miembro",
@@ -1820,7 +1802,7 @@
         "cancel": "Cancelar",
         "confirm": "Confirmar",
         "members": "Miembros",
-        "membersDescription": "Agrega un docente de tu organización, cambia un rol o elimina un miembro. El docente no recibe notificación.",
+        "membersDescription": "No se notifica a los docentes.",
         "noOtherMembers": "No hay miembros aparte del líder.",
         "roleLabel": "Rol",
         "remove": "Quitar",
@@ -1892,7 +1874,6 @@
     "notFoundBody": "Esta Comunidad no existe o ya no eres miembro de ella.",
     "backToBoard": "Volver a mi tablero",
     "hubTitle": "Mis Comunidades",
-    "hubSubtitle": "Abre una Comunidad de Aprendizaje Profesional para colaborar con tu equipo.",
     "hubEmptyTitle": "Aún no hay Comunidades",
     "hubEmptySubtitle": "Crea una Comunidad desde la barra lateral e invita a tus colegas.",
     "leadBadge": "Líder",
@@ -1901,7 +1882,6 @@
   },
   "plcDirectory": {
     "heading": "Comunidades en mi edificio",
-    "subtitle": "Equipos de tu edificio a los que puedes pedir unirte.",
     "memberCount": "{{count}} miembro",
     "memberCount_other": "{{count}} miembros",
     "requestToJoin": "Pedir unirse",
@@ -1981,13 +1961,13 @@
     "showMore": "Mostrar {{count}} más",
     "showFewer": "Mostrar menos",
     "noClassStudents": "Marca una clase arriba para adaptar a estudiantes concretos.",
-    "skipNotice": "Los estudiantes omitidos no verán esta asignación. El resto de estas clases la sigue recibiendo.",
+    "skipNotice": "Los estudiantes omitidos no verán esta asignación.",
     "sectionLabel": "Estudiantes individuales y adaptaciones",
     "chooseStudents": "Elegir estudiantes",
     "editStudents": "Editar estudiantes",
     "selectedCount": "{{count}} seleccionados",
     "revertToClass": "Asignar a toda la clase",
-    "noStudentsYet": "Aún no se han elegido estudiantes — toda la clase permanece sin segmentar.",
+    "noStudentsYet": "No se han elegido estudiantes.",
     "unknownStudent": "Estudiante desconocido",
     "remove": "Quitar",
     "removeStudent": "Quitar a {{name}}",
@@ -2005,7 +1985,7 @@
     "skipStudentNamed": "Omitir a {{name}}",
     "summarySkipped": "{{count}} omitidos",
     "summaryModified": "{{count}} adaptados",
-    "noSignInCount": "{{count}} estudiantes de estas clases no tienen inicio de sesión escolar y no se pueden adaptar de forma individual.",
+    "noSignInCount": "{{count}} estudiantes no tienen inicio de sesión escolar y no se pueden adaptar de forma individual.",
     "noSignInStudents": "Nadie en las clases seleccionadas tiene inicio de sesión escolar, así que no hay a quién adaptar de forma individual.",
     "timingNotApplied": "Las sesiones dirigidas por el profesor no tienen temporizador por estudiante, así que el tiempo extra de {{names}} no se aplicará. Las demás adaptaciones sí se aplican.",
     "clearModifications": "Borrar todas las modificaciones",
@@ -2016,8 +1996,8 @@
     "periodModeLabel": "Cómo se abren los períodos",
     "periodModeAssessment": "Evaluación en clase",
     "periodModeAssignment": "Tarea",
-    "periodAssessmentHint": "Cada período permanece cerrado hasta que lo inicies desde el monitor. Se cierra con el timbre final.",
-    "periodUnverified": "Solo PIN, sin verificar: los estudiantes sin inicio de sesión escolar no pueden unirse a una evaluación en clase.",
+    "periodAssessmentHint": "Se abre cuando lo inicias y se cierra con el timbre final.",
+    "periodUnverified": "Los estudiantes sin inicio de sesión escolar no pueden unirse a evaluaciones en clase.",
     "periodCustomize": "Personalizar por período",
     "periodTagPrompt": "¿Qué período es {{name}}?",
     "periodTagPick": "Elige un período",
@@ -2115,7 +2095,6 @@
     "languageLabel": "Idioma",
     "languageTagLabel": "Código de idioma",
     "languageOther": "Otro…",
-    "languageHelp": "Elige la voz que se usa al leer este cuestionario en voz alta.",
     "readQuestion": "Leer pregunta",
     "readPrompt": "Leer la pregunta en voz alta",
     "readChoice": "Leer la opción {{n}} en voz alta",
@@ -2154,7 +2133,7 @@
       "stale": "Desactualizada",
       "regenerate_one": "Regenerar {{count}} pregunta desactualizada",
       "regenerate_other": "Regenerar {{count}} preguntas desactualizadas",
-      "servedCount": "{{reviewed}} de {{total}} disponibles en {{language}}",
+      "servedCount": "{{reviewed}}/{{total}} revisadas",
       "save": "Guardar traducción",
       "english": "Inglés",
       "disabled": {
@@ -2171,11 +2150,11 @@
         },
         "noneReviewed": {
           "title": "Nada revisado todavía",
-          "body": "El alumnado solo ve las preguntas que marcas como revisadas. Pide ayuda a un especialista en idiomas si no lees este idioma."
+          "body": "El alumnado solo ve las preguntas que marcas como revisadas."
         },
         "pickQuestion": {
           "title": "Elige una pregunta",
-          "body": "Selecciona una pregunta a la izquierda para ver el inglés y la traducción lado a lado."
+          "body": "Elige una pregunta para comparar."
         }
       },
       "error": {
@@ -2211,7 +2190,7 @@
       "sectionLabel": "Idioma de la respuesta",
       "backTranslating": "Traduciendo…",
       "nativeLabel": "Respuesta del estudiante",
-      "translatedRubricNote": "Es posible que este estudiante haya leído una rúbrica traducida; califica con la rúbrica en inglés que se muestra aquí.",
+      "translatedRubricNote": "Califica con la rúbrica en inglés.",
       "saveFailed": "La traducción se muestra abajo, pero no se pudo guardar. Deberá volver a generarse la próxima vez.",
       "errors": {
         "failed": "No se pudo traducir esta respuesta. Inténtalo de nuevo.",
@@ -2285,38 +2264,35 @@
       "formatTyped": "Typed",
       "formatSpoken": "Spoken",
       "prepLabel": "Thinking time",
-      "prepHint": "Seconds before the recorder arms. 0 starts them ready to record.",
+      "prepHint": "0 starts recording right away.",
       "limitLabel": "Recording limit",
-      "limitHint": "Hard stop for one take, up to {{max}} seconds.",
-      "limitClamped": "Capped at {{seconds}}s — {{mode}}'s limit.",
+      "limitHint": "Up to {{max}} seconds.",
+      "limitClamped": "Capped at {{seconds}}s for {{mode}}.",
       "limitClampedAction": "Set to {{seconds}}s",
       "secondsUnit": "Sec",
       "expiryLabel": "When thinking time runs out",
       "expiryAutoStart": "Start recording",
-      "expiryAutoStartHint": "The recorder starts on its own.",
       "expiryAutoAdvance": "Move on",
-      "expiryAutoAdvanceHint": "The quiz moves to the next question.",
       "expiryArmed": "Wait for them",
-      "expiryArmedHint": "The record button stays live until the student presses it.",
       "expiryUnanswered": "Mark unanswered",
-      "expiryUnansweredHint": "The slot closes and comes to you ungraded.",
+      "expiryUnansweredHint": "Comes to you ungraded.",
       "takeLimitLabel": "Takes allowed",
       "takeLimitUnlimited": "Unlimited",
       "takeLimitHint": "A take is a recording the student keeps, not one they discard.",
-      "timeLimitDisabledHint": "Disabled — recording questions use their own prep and recording timer instead of the speed bonus.",
+      "timeLimitDisabledHint": "Set by the recording timer.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
       "advisory": {
-        "title": "As authored",
+        "title": "Heads up",
         "slots_one": "Records up to {{count}} slot per student.",
         "slots_other": "Records up to {{count}} slots per student.",
-        "deviceBlocked": "If a student's device blocks the microphone, the question comes to you ungraded — you choose whether it's excused, scored zero, or answered another way.",
-        "shuffleNoOp": "Question shuffle has no effect here: shared stimuli group every question into one block."
+        "deviceBlocked": "If a microphone is blocked, the question comes to you ungraded.",
+        "shuffleNoOp": "Shuffle has no effect because every question shares one stimulus."
       }
     },
     "assign": {
       "advisory": {
-        "notSelfPaced": "Spoken answers are collected only in self-paced sessions; live sessions will show these questions as written."
+        "notSelfPaced": "Spoken answers need self-paced mode."
       }
     },
     "grading": {
@@ -2378,7 +2354,7 @@
         "count_one": "{{count}} take recorded",
         "count_other": "{{count}} takes recorded",
         "take": "Take {{n}}",
-        "pinNote": "Scoring always uses the last take. Picking an earlier one records which take your comments are about.",
+        "pinNote": "Scores use the last take.",
         "status": {
           "archiving": "Still saving",
           "archive-failed": "Not saved",
@@ -3025,7 +3001,7 @@
     "personal": {
       "title": "Mis objetivos de aprendizaje",
       "button": "Objetivos",
-      "description": "Objetivos que solo tú puedes ver. Etiqueta preguntas con ellos para seguir el dominio en tus propias evaluaciones.",
+      "description": "Solo tú puedes ver estos objetivos.",
       "sourceName": "Mis objetivos de aprendizaje"
     },
     "loading": "Cargando objetivos…",
@@ -3051,13 +3027,13 @@
     "noStandardsMatch": "Ningún estándar coincide.",
     "pasteHint": "Un objetivo por línea. Código opcional antes de una barra vertical: LT1 | Puedo sumar fracciones.",
     "parsedCount": "{{count}} objetivos encontrados",
-    "csvHint": "Fila de encabezado con label (obligatorio); opcionales code, standards, grades (separa valores con ;) y subject.",
+    "csvHint": "Fila de encabezado con label (obligatorio). Las columnas opcionales son code, standards, grades y subject. Separa varios valores con punto y coma.",
     "csvLineError": "Línea {{line}}: {{message}}",
     "csvUnknownStandards": "Se omitirán los códigos de estándar desconocidos: {{codes}}",
     "importCount": "Importar {{count}}",
     "masteryCutoffs": {
       "heading": "Umbrales de dominio",
-      "description": "Porcentaje de aciertos necesario para que un objetivo cuente como competente o en progreso.",
+      "description": "Porcentaje de aciertos para cada nivel.",
       "proficient": "Competente",
       "approaching": "En progreso",
       "save": "Guardar umbrales"
@@ -3065,7 +3041,7 @@
     "saving": "Guardando…",
     "saveFailed": "Error al guardar",
     "anySubject": "Cualquier materia",
-    "gradesSubjectHint": "Opcional. Deja grados y materia vacíos para heredarlos de los estándares vinculados.",
+    "gradesSubjectHint": "Déjalo vacío para usar los grados y la materia de los estándares vinculados.",
     "csvUnknownSubjects": "Las materias desconocidas se omitirán: {{subjects}}"
   },
   "settings": {
@@ -3073,11 +3049,9 @@
     "profile": {
       "title": "Perfil",
       "gradesTaught": "Grados que enseñas",
-      "gradesTaughtDescription": "Parte de tus edificios. Desmarca los grados que no enseñas para acotar estándares, objetivos de aprendizaje y widgets por grado.",
       "resetGrades": "Restablecer al valor del edificio",
-      "noGrades": "Sin grados seleccionados — los estándares y widgets muestran todos los grados.",
-      "subjectsTaught": "Áreas de contenido que enseñas",
-      "subjectsTaughtDescription": "Opcional. Elige las áreas de contenido que enseñas para abrir el selector de estándares en ellas. Déjalo vacío para ver todas las áreas."
+      "noGrades": "Se muestran todos los grados.",
+      "subjectsTaught": "Áreas de contenido que enseñas (opcional)"
     }
   },
   "quizHandRaise": {
@@ -3099,13 +3073,10 @@
     "saveFailed": "No se pudo guardar la configuración del cuestionario.",
     "handRaise": {
       "heading": "Levantar la mano",
-      "help": "Controla si los estudiantes de esta escuela ven un botón para levantar la mano durante un cuestionario.",
       "teacherChoice": "Decisión del docente",
-      "teacherChoiceHint": "Cada docente decide en cada cuestionario. Desactivado salvo que lo active.",
+      "teacherChoiceHint": "Desactivado hasta que el docente lo active.",
       "forceOn": "Siempre activado",
-      "forceOnHint": "Levantar la mano está disponible en todos los cuestionarios y los docentes no pueden desactivarlo.",
-      "forceOff": "Siempre desactivado",
-      "forceOffHint": "Levantar la mano está oculto para los estudiantes en todos los cuestionarios."
+      "forceOff": "Siempre desactivado"
     },
     "noBuildings": "No hay edificios configurados",
     "noBuildingsHint": "Agregue un edificio en Organización antes de establecer un valor predeterminado para levantar la mano.",
@@ -3337,15 +3308,15 @@
     "startTitle": "Grabar un recorrido en vivo",
     "startWhat": "¿Qué muestra este recorrido?",
     "startWhatPlaceholder": "Agregar un widget a tu tablero",
-    "startBlur": "Grabas en tu propio tablero. Los nombres de los estudiantes de tus clases, y las fotos, videos y trabajos de estudiantes, se difuminan en cada imagen al capturarla.",
-    "startReview": "Antes de subir nada, revisas cada imagen y puedes difuminar lo que se haya pasado por alto.",
-    "startTip": "Consejo: graba en un tablero cuyas clases vengan de clases de prueba, para que haya pocos nombres reales en pantalla.",
+    "startBlur": "Los nombres, fotos y trabajos de tus estudiantes se difuminan mientras grabas.",
+    "startReview": "Revisas cada imagen antes de que se suba.",
+    "startTip": "Graba en un tablero que use clases de prueba.",
     "startUnloaded_one": "{{count}} lista de clase no se cargó, así que sus nombres no se pueden difuminar automáticamente.",
     "startUnloaded_other": "{{count}} listas de clase no se cargaron, así que sus nombres no se pueden difuminar automáticamente.",
     "startContinue": "Continuar",
     "cancel": "Cancelar",
     "reviewTitle": "Revisa cada imagen antes de subirla",
-    "reviewBody": "Las áreas difuminadas tienen un contorno azul. Arrastra sobre cualquier otra cosa que muestre a un estudiante y elige Difuminar.",
+    "reviewBody": "Arrastra sobre cualquier cosa que muestre a un estudiante y elige Difuminar.",
     "reviewFrame": "Imagen {{current}} de {{total}}",
     "reviewPrev": "Imagen anterior",
     "reviewNext": "Imagen siguiente",
@@ -3614,7 +3585,7 @@
   },
   "tourHealth": {
     "loading": "Cargando recorridos...",
-    "intro": "Comprueba la versión publicada de cada recorrido, la que usan los docentes, con el registro de anclas y los recorridos reales. «Comprobar en vivo» busca cada ancla en la pizarra detrás de esta ventana tal como está ahora.",
+    "intro": "Compara los recorridos publicados con el registro de anclajes.",
     "recordTour": "Grabar un recorrido",
     "checkLive": "Comprobar en vivo",
     "empty": "Ningún conjunto de Guided Learning tiene pasos de recorrido en vivo todavía.",

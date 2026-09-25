@@ -160,8 +160,7 @@ export const PlcNormingSection: React.FC<PlcNormingSectionProps> = ({
         </h3>
         <p className="mt-0.5 text-xs text-slate-500">
           {t('plcNorming.section.description', {
-            defaultValue:
-              'Answers teammates flagged from their grader, shared without student names. Bring them to your next meeting.',
+            defaultValue: 'Flagged answers, shared without student names.',
           })}
         </p>
       </div>

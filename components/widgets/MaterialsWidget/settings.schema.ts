@@ -40,7 +40,6 @@ export default defineSettings<MaterialsConfig>({
             'selectAll',
             'deselectAll',
             'hiddenMaterials',
-            'selectionTip',
           ],
           render: renderCatalog,
         },

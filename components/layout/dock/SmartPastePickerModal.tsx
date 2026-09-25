@@ -36,9 +36,6 @@ export const SmartPastePickerModal: React.FC<SmartPastePickerModalProps> = ({
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-800">
               How should this be pasted?
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5 font-bold">
-              Pick a widget type for this text
-            </p>
           </div>
           <button
             onClick={onClose}
@@ -72,9 +69,6 @@ export const SmartPastePickerModal: React.FC<SmartPastePickerModalProps> = ({
               <p className="text-xs font-black uppercase tracking-widest text-amber-800">
                 Text Widget
               </p>
-              <p className="text-xxs text-amber-600 font-bold mt-0.5 leading-tight">
-                Rich text note on the board
-              </p>
             </div>
           </button>
 
@@ -90,7 +84,7 @@ export const SmartPastePickerModal: React.FC<SmartPastePickerModalProps> = ({
                 Checklist
               </p>
               <p className="text-xxs text-emerald-600 font-bold mt-0.5 leading-tight">
-                Each line becomes a task item
+                Each line becomes a task
               </p>
             </div>
           </button>

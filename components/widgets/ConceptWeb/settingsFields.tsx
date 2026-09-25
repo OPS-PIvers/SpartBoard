@@ -44,7 +44,6 @@ export const ConceptWebCanvasField: React.FC<{ ctx: CustomRenderCtx }> = ({
           />
         </div>
       </div>
-      <p className="text-xxs text-slate-600">{t('dimensionsHelp')}</p>
       <Button
         type="button"
         variant="danger"

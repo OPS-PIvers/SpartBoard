@@ -533,9 +533,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
           </button>
         )}
       </div>
-      <p className="text-xxs text-slate-500">
-        Every question in this bank inherits these targets.
-      </p>
+      <p className="text-xxs text-slate-500">Applies to every question.</p>
     </div>
   ) : undefined;
 
@@ -674,21 +672,9 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
             selectedQuestionId={selectedTranslationQuestionId}
             onSelectQuestion={setSelectedTranslationQuestionId}
           />
-        ) : activeTab === 'stimuli' ? (
+        ) : activeTab === 'stimuli' ? null : (
           <div className="flex items-center justify-center h-full text-slate-400 text-sm px-8 text-center">
-            <p>
-              Stimuli save with the quiz. Students see them beside the questions
-              you assign them to — doc-shaped stimuli open in a side panel,
-              media renders above the question.
-            </p>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center h-full text-slate-400 text-sm px-8 text-center">
-            <p>
-              Settings saved with the quiz are the defaults for live sessions
-              and new assignments — you can adjust them per assignment in the
-              Assign dialog.
-            </p>
+            <p>Defaults for new sessions and assignments.</p>
           </div>
         )
       }

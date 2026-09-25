@@ -126,8 +126,7 @@ export const SharePlcResultsModal: React.FC<SharePlcResultsModalProps> = ({
         {step === 'plc' && (
           <>
             <p className="text-xs text-slate-600">
-              Pick which PLC should pool this assignment&apos;s results. No
-              student names are shared.
+              No student names are shared.
             </p>
             <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar -mx-1 px-1">
               {plcs.map((plc) => (
@@ -182,8 +181,7 @@ export const SharePlcResultsModal: React.FC<SharePlcResultsModalProps> = ({
         {step === 'pool' && selectedPlc && (
           <>
             <p className="text-xs text-slate-600">
-              Choose which {selectedPlc.name} assessment these results belong
-              to. Teammates running the same quiz should share one pool.
+              Teammates giving the same quiz should share one pool.
             </p>
             {loading ? (
               <div
@@ -256,9 +254,6 @@ export const SharePlcResultsModal: React.FC<SharePlcResultsModalProps> = ({
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-bold text-slate-800 truncate">
                         Create new pool: {assignment.quizTitle}
-                      </div>
-                      <div className="text-xxs text-slate-500">
-                        Start a fresh assessment for this quiz
                       </div>
                     </div>
                   </label>

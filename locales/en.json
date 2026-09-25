@@ -117,7 +117,6 @@
     },
     "classes": {
       "title": "My Classes",
-      "description": "Manage your class rosters here. The active class is used by seating charts, random picker, polls, and more.",
       "newClass": "New Class",
       "importClassLink": "ClassLink",
       "myClasses": "Your Classes",
@@ -169,9 +168,8 @@
       "pinPlaceholder": "01",
       "addStudent": "+ Add Student",
       "removeStudent": "Remove student",
-      "bulkPasteTip": "Tip: paste multiple names at once to add in bulk.",
       "emptyRosterTitle": "No students yet",
-      "emptyRosterSubtitle": "Click + Add Student or paste a list of names into a row.",
+      "emptyRosterSubtitle": "Paste a list of names to add several at once.",
       "manageClasses": "Manage Classes",
       "switchTo": "Switch To",
       "noClassSelected": "No Class Selected",
@@ -188,7 +186,6 @@
       "restrictionsFilter": "Search classmates…",
       "restrictionsEmptyRoster": "Add more students to set restrictions.",
       "restrictionsNoMatches": "No matches.",
-      "restrictionsFooter": "Restrictions apply to both students automatically.",
       "editorTabsLabel": "Roster editor tabs",
       "studentsTab": "Students",
       "groupsTab": "Groups ({{count}})",
@@ -209,13 +206,12 @@
       "bellPeriod": "Bell period",
       "bellPeriodNone": "Not set",
       "accommodationsTab": "Accommodations ({{count}})",
-      "accommodationsHelp": "These apply automatically each time you assign work to this student. You can still change them per assignment.",
+      "accommodationsHelp": "These apply to every new assignment.",
       "emptyAccommodationsTitle": "No students yet",
       "emptyAccommodationsSubtitle": "Add students first, then set their standing accommodations."
     },
     "plcs": {
       "title": "My PLCs",
-      "description": "Professional Learning Communities let you and your colleagues collaborate on the same assignments and see combined results.",
       "newPlc": "New PLC",
       "newPlcTitle": "New PLC",
       "createNewPlc": "Create New PLC",
@@ -242,7 +238,7 @@
       "inviteLabel": "Invite by Email",
       "invitePlaceholder": "colleague@school.edu",
       "sendInvite": "Invite",
-      "inviteHelp": "Your colleague will see the invitation in their PLC sidebar the next time they sign in.",
+      "inviteHelp": "They'll see the invite in their PLC sidebar.",
       "outstandingLabel": "Pending Invitations",
       "revokeInvite": "Revoke Invitation",
       "invites": "Invites",
@@ -279,17 +275,15 @@
     "settings": {
       "googleDriveIntegration": "Google Drive Integration",
       "remoteControl": "Remote Control",
-      "googleDriveDescription": "Your boards and assets are automatically backed up to your \"{{appName}}\" folder in Drive.",
-      "connectedSynced": "Connected & Synced",
+      "googleDriveDescription": "Your boards back up to your \"{{appName}}\" folder in Drive.",
+      "connectedSynced": "Connected",
       "disconnected": "Disconnected",
       "connect": "Connect",
       "disconnect": "Disconnect",
       "myBuildings": "My Building(s)",
-      "myBuildingsDescription": "Select the building(s) you work in. Widgets like Instructional Routines will automatically show content for your grade level. Select multiple if you work across buildings.",
-      "noBuildingSelected": "No building selected — widgets will show all available content.",
+      "noBuildingSelected": "Showing content for all buildings.",
       "interfacePreferences": "Interface Preferences",
       "disableCloseWarning": "Disable Close Warning",
-      "skipConfirmation": "Skip the confirmation prompt when closing widgets.",
       "quickAccessWidgets": "Quick Access Widgets",
       "dockPosition": "Dock Position",
       "dockPositionDescription": "Choose where the dock appears on your screen.",
@@ -319,7 +313,6 @@
     }
   },
   "plcDashboard": {
-    "subtitle": "PLC Dashboard",
     "home": {
       "commonAssessment": {
         "loading": "Loading your common assessment…",
@@ -330,7 +323,7 @@
         "startMeeting": "Start Meeting",
         "resumeMeeting": "Resume Meeting",
         "phase": {
-          "planning": "Planning — not run yet",
+          "planning": "Not run yet",
           "running": "In progress",
           "ready": "Ready to review",
           "reviewing": "Reviewing together",
@@ -451,7 +444,7 @@
     "meta": {
       "members_one": "{{count}} Member",
       "members_other": "{{count}} Members",
-      "youLead": "You lead this PLC"
+      "youLead": "Lead"
     },
     "members": {
       "heading": "Members",
@@ -490,7 +483,7 @@
       "pendingSince": "Invited {{when}}",
       "revoke": "Revoke",
       "revokeAriaLabel": "Revoke invite for {{email}}",
-      "notManager": "Only the PLC lead or a co-lead can invite, remove, or change members."
+      "notManager": "Only leads can manage members."
     },
     "completedAssignments": {
       "heading": "Shared Results",
@@ -806,7 +799,6 @@
       "heading": "Activity",
       "empty": "No activity yet",
       "sinceLastVisit": "Since you were here",
-      "sinceSubtitle": "What happened while you were away",
       "olderHeading": "Earlier",
       "caughtUp": "You’re all caught up",
       "caughtUpSubtitle": "No new activity since your last visit.",
@@ -848,11 +840,10 @@
       "delete": "Delete comment",
       "confirmDelete": "Delete this comment?",
       "confirmDeleteTitle": "Delete comment",
-      "mentionHint": "Type @ to mention a teammate",
       "postFailed": "Couldn’t post your comment. Try again.",
       "deleteFailed": "Couldn’t delete that comment. Try again.",
       "loadError": "Couldn’t load comments.",
-      "viewerReadOnly": "Viewers can read comments but not post.",
+      "viewerReadOnly": "View only.",
       "threadLabel": "Comments on {{subject}}",
       "mentionNoMatch": "No teammates match",
       "mentionListLabel": "Mention a teammate"
@@ -875,9 +866,9 @@
       "hasRun": "has run it",
       "notRun": "has not run it yet",
       "noQuestions": "No question-level data available yet.",
-      "strongAcross": "Strong across the board — every question cleared 80%.",
+      "strongAcross": "Every question above 80%.",
       "updating": "updating…",
-      "updatingHint": "New results are still rolling up — numbers refresh shortly.",
+      "updatingHint": "New results arrive shortly.",
       "reviewCardLabel": "Pooled results for {{title}}",
       "discussAssessment": "Discuss this",
       "discussQuestion": "Discuss this question in a decision",
@@ -898,19 +889,17 @@
       },
       "pick": {
         "heading": "What are we looking at today?",
-        "subtitle": "Choose the common assessment (or assessments) this meeting reviews.",
         "emptyTitle": "No assessment data yet",
         "emptySubtitle": "When the team runs a common assessment in PLC mode, the anonymized results appear here, ready to review together.",
         "cardMeta": "{{avg}}% team avg · {{teachers}} teachers · {{students}} students"
       },
       "review": {
         "heading": "What does the data say?",
-        "subtitle": "Pooled, anonymized results. Click a question to capture a decision about it.",
+        "subtitle": "Click a question to log a decision.",
         "none": "No assessments selected — go back to Pick."
       },
       "decide": {
         "heading": "What did we decide?",
-        "subtitle": "Capture the team’s decisions. Link one to a data card from Review when it responds to a specific result.",
         "addLabel": "Add a decision",
         "placeholder": "e.g. Reteach question 4 using the area model before the unit test.",
         "add": "Add decision",
@@ -921,7 +910,6 @@
       },
       "act": {
         "heading": "Who’s doing what?",
-        "subtitle": "Spin up action items. On save, each becomes a tracked PLC to-do for its assignee.",
         "addLabel": "Add an action item",
         "placeholder": "e.g. Build a reteach warm-up for question 4",
         "assignee": "Assignee",
@@ -935,16 +923,14 @@
       },
       "save": {
         "heading": "Ready to save?",
-        "subtitle": "Saving writes the meeting record, turns action items into to-dos, and logs it to the team activity feed.",
         "reviewed": "Assessments reviewed",
         "decisions": "Decisions",
         "actions": "Action items → to-dos",
         "attendees": "Attendees",
         "whoAttended": "Who’s here now",
-        "noAttendees": "No one else is active right now — you’ll be recorded as the facilitator.",
-        "viewerNote": "Viewers can follow along but can’t save the meeting record.",
+        "noAttendees": "Only you will be recorded.",
+        "viewerNote": "View only. You can’t save this meeting.",
         "doneTitle": "Meeting saved",
-        "doneSubtitle": "Action items are now tracked to-dos for their assignees. Export the record for your accountability files, or start a new meeting.",
         "viewRecord": "View meeting record",
         "startNew": "Start a new meeting"
       },
@@ -979,7 +965,7 @@
     },
     "trash": {
       "heading": "Trash",
-      "description": "Deleted items stay here for 30 days, then are removed permanently.",
+      "description": "Deleted items are removed after 30 days.",
       "empty": "Trash is empty",
       "restore": "Restore",
       "restored": "Restored",
@@ -1008,7 +994,7 @@
       "title": "Version history",
       "ariaLabel": "Version history for {{title}}",
       "close": "Close",
-      "intro": "Recent saved versions of this shared assessment. Restoring re-publishes that version to everyone — the current version is kept in history too.",
+      "intro": "Restoring updates everyone’s copy. The current version stays in history.",
       "loading": "Loading version history…",
       "loadError": "Couldn’t load version history.",
       "retry": "Try again",
@@ -1062,7 +1048,7 @@
     },
     "resources": {
       "managerTitle": "PLC Resources",
-      "managerSubtitle": "Push curated resources (docs, quizzes, boards) to specific or all PLCs.",
+      "managerSubtitle": "Send resources to PLCs.",
       "addResource": "Add Resource",
       "editFormLabel": "Edit resource",
       "createFormLabel": "Create resource",
@@ -1112,7 +1098,7 @@
       "emptyTitle": "No Resources Yet",
       "emptySubtitle": "Your admin will push curated quizzes, docs, and boards here.",
       "inboxTitle": "Resources",
-      "inboxSubtitle": "Curated by your admin. Click \"Use\" to add to your PLC.",
+      "inboxSubtitle": "From your admin.",
       "kind": {
         "quiz": "Quizzes",
         "video-activity": "Video Activities",
@@ -1192,7 +1178,7 @@
       "teamAverage": "Team average",
       "notScoredYet": "Not scored yet",
       "students": "Students counted",
-      "studentsHint": "Students are counted per teacher; a student in two teachers’ classes counts twice.",
+      "studentsHint": "Students are counted per teacher, so a student in two teachers’ classes counts twice.",
       "teachers": "Teachers",
       "teachersOf": "{{count}} of {{total}}",
       "lastComputed": "Last updated",
@@ -1212,12 +1198,11 @@
       "scoreDistribution": "Score distribution",
       "bandCount": "{{count}} students · {{percent}}%",
       "scoredStudents": "{{count}} students scored",
-      "distributionPending": "The chart appears after the next results refresh, within a few minutes.",
+      "distributionPending": "Chart updates in a few minutes.",
       "distributionEmpty": "The chart fills in once teachers publish scores."
     },
     "learningTargets": {
-      "heading": "Learning targets",
-      "description": "Targets the PLC tags quiz questions with. Every member sees the same list."
+      "heading": "Learning targets"
     }
   },
   "widgetSettings": {
@@ -1225,7 +1210,7 @@
       "destinationUrl": "Destination URL",
       "linkRepeater": "Link repeater",
       "syncWithTextWidget": "Sync with Text widget",
-      "syncHelp": "Automatically update the QR code from the first Text widget on the board.",
+      "syncHelp": "Uses the first Text widget on the board.",
       "noTextWidget": "No Text Widget found. Add one to the board to start syncing.",
       "showUrl": "Show URL"
     },
@@ -1245,7 +1230,6 @@
       "scoresReset": "All scores reset to 0",
       "addRandomizerFirst": "Add a Randomizer widget first",
       "importGroups": "Import Groups",
-      "importTip": "Tip: Add a Randomizer widget and create groups to import them here.",
       "teamsCount": "Teams ({{count}})",
       "confirmReset": "Sure?",
       "yes": "Yes",
@@ -1323,7 +1307,6 @@
       "hideMaterial": "Hide {{label}}",
       "showMaterial": "Show {{label}}",
       "materialCap": "You can create up to {{count}} custom materials.",
-      "selectionTip": "Select materials here, then activate them from the widget face.",
       "deleteMaterialQuestion": "Delete “{{label}}”?",
       "deleteMaterialTitle": "Delete material",
       "delete": "Delete",
@@ -1399,12 +1382,11 @@
     },
     "pdf": {
       "currentDocument": "Current document",
-      "none": "None — library is shown",
+      "none": "None",
       "switchDocument": "Switch to another PDF"
     },
     "quiz": {
       "management": "Quiz management",
-      "managementHelp": "Import, edit, preview, and run live sessions from the Quiz widget. These shortcuts change the view shown there.",
       "widgetLabel": "Widget label",
       "widgetLabelPlaceholder": "Quiz",
       "assignmentArchive": "View assignment archive",
@@ -1509,8 +1491,7 @@
       "personalSpotify": "Personal Spotify",
       "connections": "Connections",
       "syncWithTimeTool": "Sync with Time Tool",
-      "syncHelp": "Music will automatically play and pause with your active Time Tool.",
-      "syncSpotifyHelp": "Auto-sync is only available for YouTube stations because Spotify does not expose the same browser controls.",
+      "syncSpotifyHelp": "Not available for Spotify.",
       "background": "Background",
       "textColor": "Text color",
       "spotifyChecking": "Checking Spotify connection…",
@@ -1590,23 +1571,21 @@
       "stopToChangeOptions": "Stop voting to change options",
       "selectClass": "Select a class in the Classes widget",
       "importNamedClass": "Import {{name}}",
-      "importTip": "Tip: Select a class in the Classes widget to import student names.",
-      "studentPrivacy": "Imported student names are visible to anyone holding the join code while voting is open.",
+      "studentPrivacy": "Anyone with the join code can see imported names.",
       "questionAdded": "Question added.",
       "aiPlaceholder": "e.g. Photosynthesis, Civil War, 3rd Grade Math...",
-      "aiHelp": "Adds one new question to the end of this poll.",
       "stopToEdit": "Stop voting to add, remove, or edit questions.",
       "editQuestion": "Edit question {{count}}",
       "editQuestionShowing": "Edit question {{count}} (showing on the board)",
+      "showingMarkerHelp": "The green dot marks the question on the board.",
       "questionNumber": "Question {{count}}",
       "addQuestion": "Add question",
       "questionLimit": "A poll can hold up to {{count}} questions",
-      "showingMarkerHelp": "The green dot marks the question showing on the board.",
       "questionPlaceholder": "Enter your question...",
       "removeOption": "Remove Option",
       "addOption": "Add Option",
       "actions": "Actions",
-      "liveVotingHelp": "Let students vote from their own devices. The board shows live results and a join code while voting is open.",
+      "liveVotingHelp": "Students vote from their own devices.",
       "votingOpen": "Voting open",
       "notStarted": "Not started",
       "copied": "Copied",
@@ -1752,8 +1731,6 @@
       "content": "Content",
       "contentPlaceholderText": "Enter a sentence...",
       "contentPlaceholderMath": "Enter an equation (e.g. 2x + 3 = 7)",
-      "contentHelpText": "Words are automatically converted to draggable blocks.",
-      "contentHelpMath": "Numbers and math operators are separated into blocks.",
       "mode": "Mode",
       "text": "Text",
       "math": "Math",
@@ -1768,7 +1745,7 @@
       "light": "Light",
       "dark": "Dark",
       "glass": "Glass",
-      "clickToAddPin": "Click on the image to add a new pin.",
+      "clickToAddPin": "Click the image to add a pin.",
       "baseImageAlt": "Hotspot base image",
       "uploadImage": "Upload image",
       "replaceImage": "Replace image",
@@ -1800,9 +1777,8 @@
     },
     "concept-web": {
       "canvasActions": "Canvas actions",
-      "defaultNodeWidth": "Default node width",
-      "defaultNodeHeight": "Default node height",
-      "dimensionsHelp": "These dimensions apply to new nodes. You can still resize nodes individually!",
+      "defaultNodeWidth": "New node width",
+      "defaultNodeHeight": "New node height",
       "previewLabel": "Node size preview",
       "previewText": "Idea...",
       "clearAll": "Clear all nodes and edges"
@@ -1810,13 +1786,13 @@
     "starter-pack": {
       "packName": "Pack name",
       "packNamePlaceholder": "e.g. Reading Time",
-      "description": "Captures all open widgets — their types, positions, and sizes — as a reusable starter pack. The background is not included.",
+      "description": "Saves the open widgets and their layout, but not the background.",
       "capturedWorkspace": "Captured workspace",
       "saving": "Saving…",
       "savePersonal": "Save to My Collection",
-      "savePersonalHint": "Private — only visible to you",
+      "savePersonalHint": "Only you",
       "saveGlobal": "Save globally",
-      "saveGlobalHint": "Building-wide — visible to all teachers",
+      "saveGlobalHint": "All teachers in your building",
       "savedPersonal": "Saved to your personal collection!",
       "savedGlobal": "Saved to building-wide starter packs!"
     },
@@ -1865,7 +1841,6 @@
     },
     "blooms-taxonomy": {
       "contentCategories": "Content categories",
-      "contentCategoriesHelp": "Choose which categories appear when you click a level.",
       "questionStems": "Question stems",
       "actionVerbs": "Action verbs",
       "activityTypes": "Activity types",
@@ -1901,7 +1876,6 @@
       "stationList": "Stations",
       "addStation": "Add station",
       "noStations": "No stations yet.",
-      "addStationHint": "Add a station to get started.",
       "classGroups": "Class groups",
       "noGroups": "Save a group for this class in My Classes to use it here.",
       "keepTogether": "Keep together when shuffling",
@@ -2073,8 +2047,8 @@
         "add": "Add {{name}} widget"
       },
       "defaults": {
-        "matches": "Matches your default for new {{name}} widgets.",
-        "differs": "Differs from your default for new {{name}} widgets.",
+        "matches": "Matches your default",
+        "differs": "Differs from your default",
         "save": "Save as my default",
         "reset": "Reset to my default"
       }
@@ -2124,8 +2098,7 @@
       }
     },
     "embed": {
-      "flaggedNotice": "This site is currently flagged as non-embeddable. A \"New Tab\" button will be shown to users instead.",
-      "htmlHelp": "You can paste a full single-file mini-app here. Scripts are allowed but run in a secure sandbox.",
+      "flaggedNotice": "This site can't be embedded, so it opens in a new tab.",
       "htmlLabel": "HTML / CSS / JS",
       "modeCodeOption": "Custom Code",
       "modeLabel": "Embed Type",
@@ -2138,15 +2111,13 @@
       "refresh5Min": "Every 5 Minutes",
       "refreshDisabled": "Disabled",
       "refreshIntervalLabel": "Auto-Refresh",
-      "urlHelp": "Pro-tip: Links from YouTube, Google Docs, Slides, and Sheets are automatically formatted.",
       "urlLabel": "Target URL",
       "verifyBlockedFallback": "Embedding is blocked by this site.",
-      "verifyBlockedFallbackNote": "Fallback mode will be used.",
+      "verifyBlockedFallbackNote": "It will open in a new tab.",
       "verifyBlockedTitle": "Embedding Blocked",
       "verifyButton": "Verify",
       "verifyErrorGeneric": "Could not verify link compatibility.",
-      "verifySuccess": "Compatible with embedding!",
-      "verifyTip": "Some websites prevent embedding for security. Use the Verify button above to check compatibility."
+      "verifySuccess": "Compatible with embedding!"
     },
     "time-tool": {
       "mode": "Mode",
@@ -2236,7 +2207,7 @@
     },
     "expectations": {
       "soundSync": "Sound meter sync",
-      "soundSyncHelp": "Adjust Sound Meter sensitivity from the selected voice level.",
+      "soundSyncHelp": "Match the Sound Meter to the voice level.",
       "autoAdjustSoundMeter": "Auto-adjust Sound Meter"
     },
     "random": {
@@ -2348,7 +2319,7 @@
     "screenshotFailed": "Failed to save screenshot",
     "takeScreenshot": "Take Screenshot",
     "takeScreenshotLongPress": "Take Screenshot (long press)",
-    "screenshotGestureProTip": "Pro-tip: Long-press on a widget to take a screenshot!",
+    "screenshotGestureProTip": "Long-press a widget to screenshot it.",
     "annotate": "Annotate",
     "duplicate": "Duplicate",
     "moreActions": "More actions",
@@ -2364,7 +2335,7 @@
     "pin": "Pin Position",
     "unpin": "Unpin Position",
     "pinnedIndicator": "Widget pinned",
-    "pinnedTooltip": "Pinned — open the widget toolbar and click the pin to unpin",
+    "pinnedTooltip": "This widget is pinned. Unpin it from the toolbar.",
     "snapLayout": "Snap Layout",
     "chooseLayout": "Choose Layout",
     "snapTo": "Snap to",
@@ -2433,7 +2404,6 @@
     "noGoogleDrive": "No Google Drive connected. Downloading locally...",
     "viewLiveSession": "View live session information",
     "liveSession": "Live Session",
-    "provideCode": "Provide this code to your students.",
     "noAppsSelected": "Restoring defaults…"
   },
   "languages": {
@@ -2522,7 +2492,7 @@
         "clearAll": "Clear all (everyone present)",
         "emptyRoster": "This class has no students yet.",
         "unnamedStudent": "Unnamed student",
-        "footer": "Absent marks apply to every widget using this class. Resets automatically tomorrow."
+        "footer": "Absent marks clear tomorrow."
       },
       "everyoneAbsentTitle": "Everyone is marked absent",
       "everyoneAbsentSubtitle": "Update attendance to bring students back into the pool.",
@@ -2663,7 +2633,7 @@
     "onboarding": {
       "title": "Getting Started",
       "allDone": "All done!",
-      "footer": "You're all set — close this widget anytime!",
+      "footer": "You can close this widget now.",
       "tasks": {
         "addWidget": {
           "label": "Add a widget from the Dock",
@@ -2683,8 +2653,7 @@
       }
     },
     "dashboard": {
-      "emptyBoardHint": "Drag tools from the Dock below to start",
-      "switchBoardsHint": "Use the board navigation controls in the bottom-left to switch boards"
+      "emptyBoardHint": "Drag tools from the Dock below to start"
     }
   },
   "boardBreadcrumb": {
@@ -2773,9 +2742,9 @@
     "subtitle": "Sharing {{count}} board(s) from this Collection.",
     "mode": "Share Mode",
     "copyMode": "Copy",
-    "copyModeHint": "Recipient imports a full copy into their account.",
+    "copyModeHint": "They get their own copy to edit.",
     "substituteMode": "Substitute (view-only)",
-    "substituteModeHint": "A sub teacher sees the Collection in /subs for the window you choose.",
+    "substituteModeHint": "Shows in the Substitute Portal for the time you set.",
     "expiresIn": "Expires in",
     "building": "Building",
     "buildingRequired": "Select a building before sharing with a sub.",
@@ -2794,7 +2763,7 @@
     "notFound": "Shared Collection not found or expired",
     "empty": "Shared Collection is empty",
     "invalidShareUrl": "Invalid share link — missing share id.",
-    "substituteImportRejected": "Substitute shares are view-only. Open this link in /subs to view."
+    "substituteImportRejected": "This link is for substitutes. Open it in the Substitute Portal."
   },
   "importSharedCollection": {
     "title": "Import shared Collection",
@@ -2804,7 +2773,7 @@
     "boardCount": "{{count}} board(s)",
     "importing": "Importing…",
     "import": "Import Collection",
-    "substituteOnly": "This is a substitute (view-only) share. Open it in /subs."
+    "substituteOnly": "This link is for substitutes. Open it in the Substitute Portal."
   },
   "subCollections": {
     "loading": "Loading shared Collections…",
@@ -2833,7 +2802,7 @@
       "saveChanges": "Save Changes",
       "discardChanges": "Discard Changes",
       "confirmDiscardChanges": "You have unsaved changes. Close without saving?",
-      "description": "Stickers uploaded here appear in the Global Collection section of every user's Sticker Book widget.",
+      "description": "Shown to every teacher.",
       "dropImages": "Drop images here or click to browse",
       "supportedFiles": "PNG, JPG, GIF, WebP, SVG · Multiple files supported",
       "collectionTitle": "Sticker Collection",
@@ -2853,7 +2822,6 @@
       "recovery": {
         "title": "PLC Recovery",
         "subtitle": "Reassign the lead or dissolve an abandoned PLC in your organization.",
-        "explainer": "Only PLCs in your organization are recoverable. Use this when a PLC's lead has left and can't transfer leadership.",
         "empty": "No recoverable PLCs in your organization.",
         "leadLabel": "Lead",
         "membersLabel_one": "{{count}} member",
@@ -2872,7 +2840,7 @@
         "cancel": "Cancel",
         "confirm": "Confirm",
         "members": "Members",
-        "membersDescription": "Add a teacher from your organization, change a role, or remove a member. The teacher is not notified.",
+        "membersDescription": "Teachers aren't notified.",
         "noOtherMembers": "No members besides the lead.",
         "roleLabel": "Role",
         "remove": "Remove",
@@ -3009,7 +2977,6 @@
     "notFoundBody": "This PLC doesn't exist or you're no longer a member of it.",
     "backToBoard": "Back to my board",
     "hubTitle": "My PLCs",
-    "hubSubtitle": "Open a Professional Learning Community to collaborate with your team.",
     "hubEmptyTitle": "No PLCs yet",
     "hubEmptySubtitle": "Create a PLC from the sidebar and invite your colleagues.",
     "leadBadge": "Lead",
@@ -3018,7 +2985,6 @@
   },
   "plcDirectory": {
     "heading": "PLCs in my building",
-    "subtitle": "Teams in your building you can ask to join.",
     "memberCount": "{{count}} member",
     "memberCount_other": "{{count}} members",
     "requestToJoin": "Ask to join",
@@ -3098,13 +3064,13 @@
     "showMore": "Show {{count}} more",
     "showFewer": "Show fewer",
     "noClassStudents": "Check a class above to modify individual students.",
-    "skipNotice": "Skipped students will not see this assignment. Everyone else in these classes still receives it.",
+    "skipNotice": "Skipped students won’t see this assignment.",
     "sectionLabel": "Individual students & overrides",
     "chooseStudents": "Choose students",
     "editStudents": "Edit students",
     "selectedCount": "{{count}} selected",
     "revertToClass": "Assign to whole class",
-    "noStudentsYet": "No students chosen yet — everyone in the class stays untargeted.",
+    "noStudentsYet": "No students chosen.",
     "unknownStudent": "Unknown student",
     "remove": "Remove",
     "removeStudent": "Remove {{name}}",
@@ -3122,7 +3088,7 @@
     "skipStudentNamed": "Skip {{name}}",
     "summarySkipped": "{{count}} skipped",
     "summaryModified": "{{count}} modified",
-    "noSignInCount": "{{count}} students in these classes have no school sign-in and cannot be individually modified.",
+    "noSignInCount": "{{count}} students have no school sign-in and can’t be changed individually.",
     "noSignInStudents": "No one in the checked classes has a school sign-in, so there is nobody to modify individually.",
     "timingNotApplied": "Teacher-paced sessions have no per-student timer, so extended time for {{names}} will not apply. Other accommodations still apply.",
     "clearModifications": "Clear all modifications",
@@ -3133,8 +3099,8 @@
     "periodModeLabel": "How periods open",
     "periodModeAssessment": "In-class assessment",
     "periodModeAssignment": "Assignment",
-    "periodAssessmentHint": "Every period stays closed until you start it from the monitor. It closes at the end bell.",
-    "periodUnverified": "PIN only, not verified: students without a school sign-in can’t join an in-class assessment.",
+    "periodAssessmentHint": "Opens when you start it and closes at the end bell.",
+    "periodUnverified": "Students without a school sign-in can’t join in-class assessments.",
     "periodCustomize": "Customize per period",
     "periodTagPrompt": "Which period is {{name}}?",
     "periodTagPick": "Pick a period",
@@ -3232,7 +3198,6 @@
     "languageLabel": "Language",
     "languageTagLabel": "Language tag",
     "languageOther": "Other…",
-    "languageHelp": "Picks the voice used when this quiz is read aloud.",
     "readQuestion": "Read question",
     "readPrompt": "Read question aloud",
     "readChoice": "Read choice {{n}} aloud",
@@ -3271,7 +3236,7 @@
       "stale": "Stale",
       "regenerate_one": "Regenerate {{count}} stale question",
       "regenerate_other": "Regenerate {{count}} stale questions",
-      "servedCount": "{{reviewed}} of {{total}} served in {{language}}",
+      "servedCount": "{{reviewed}}/{{total}} reviewed",
       "save": "Save translation",
       "english": "English",
       "disabled": {
@@ -3288,11 +3253,11 @@
         },
         "noneReviewed": {
           "title": "Nothing reviewed yet",
-          "body": "Students only ever see questions you mark reviewed. Ask an EL specialist to check them if you don't read this language."
+          "body": "Students only see questions you mark reviewed."
         },
         "pickQuestion": {
           "title": "Pick a question",
-          "body": "Choose a question on the left to see English and the translation side by side."
+          "body": "Pick a question to compare."
         }
       },
       "error": {
@@ -3328,7 +3293,7 @@
       "sectionLabel": "Response language",
       "backTranslating": "Translating…",
       "nativeLabel": "Student's response",
-      "translatedRubricNote": "This student may have read a translated rubric; grade against the English rubric shown here.",
+      "translatedRubricNote": "Grade against the English rubric.",
       "saveFailed": "Translation shown below, but it couldn't be saved. It will need to be re-run next time.",
       "errors": {
         "failed": "Couldn't translate this response. Try again.",
@@ -3402,38 +3367,35 @@
       "formatTyped": "Typed",
       "formatSpoken": "Spoken",
       "prepLabel": "Thinking time",
-      "prepHint": "Seconds before the recorder arms. 0 starts them ready to record.",
+      "prepHint": "0 starts recording right away.",
       "limitLabel": "Recording limit",
-      "limitHint": "Hard stop for one take, up to {{max}} seconds.",
-      "limitClamped": "Capped at {{seconds}}s — {{mode}}'s limit.",
+      "limitHint": "Up to {{max}} seconds.",
+      "limitClamped": "Capped at {{seconds}}s for {{mode}}.",
       "limitClampedAction": "Set to {{seconds}}s",
       "secondsUnit": "Sec",
       "expiryLabel": "When thinking time runs out",
       "expiryAutoStart": "Start recording",
-      "expiryAutoStartHint": "The recorder starts on its own.",
       "expiryAutoAdvance": "Move on",
-      "expiryAutoAdvanceHint": "The quiz moves to the next question.",
       "expiryArmed": "Wait for them",
-      "expiryArmedHint": "The record button stays live until the student presses it.",
       "expiryUnanswered": "Mark unanswered",
-      "expiryUnansweredHint": "The slot closes and comes to you ungraded.",
+      "expiryUnansweredHint": "Comes to you ungraded.",
       "takeLimitLabel": "Takes allowed",
       "takeLimitUnlimited": "Unlimited",
       "takeLimitHint": "A take is a recording the student keeps, not one they discard.",
-      "timeLimitDisabledHint": "Disabled — recording questions use their own prep and recording timer instead of the speed bonus.",
+      "timeLimitDisabledHint": "Set by the recording timer.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
       "advisory": {
-        "title": "As authored",
+        "title": "Heads up",
         "slots_one": "Records up to {{count}} slot per student.",
         "slots_other": "Records up to {{count}} slots per student.",
-        "deviceBlocked": "If a student's device blocks the microphone, the question comes to you ungraded — you choose whether it's excused, scored zero, or answered another way.",
-        "shuffleNoOp": "Question shuffle has no effect here: shared stimuli group every question into one block."
+        "deviceBlocked": "If a microphone is blocked, the question comes to you ungraded.",
+        "shuffleNoOp": "Shuffle has no effect because every question shares one stimulus."
       }
     },
     "assign": {
       "advisory": {
-        "notSelfPaced": "Spoken answers are collected only in self-paced sessions; live sessions will show these questions as written."
+        "notSelfPaced": "Spoken answers need self-paced mode."
       }
     },
     "grading": {
@@ -3495,7 +3457,7 @@
         "count_one": "{{count}} take recorded",
         "count_other": "{{count}} takes recorded",
         "take": "Take {{n}}",
-        "pinNote": "Scoring always uses the last take. Picking an earlier one records which take your comments are about.",
+        "pinNote": "Scores use the last take.",
         "status": {
           "archiving": "Still saving",
           "archive-failed": "Not saved",
@@ -4146,7 +4108,7 @@
     "personal": {
       "title": "My learning targets",
       "button": "Targets",
-      "description": "Targets only you can see. Tag quiz questions with them to track mastery across your own assessments.",
+      "description": "Only you can see these targets.",
       "sourceName": "My learning targets"
     },
     "loading": "Loading targets…",
@@ -4172,13 +4134,13 @@
     "noStandardsMatch": "No standards match.",
     "pasteHint": "One target per line. Optional code before a pipe: LT1 | I can add fractions.",
     "parsedCount": "{{count}} targets found",
-    "csvHint": "Header row with label (required); optional code, standards, grades (separate values with ;) and subject.",
+    "csvHint": "Header row with label (required). Optional columns are code, standards, grades and subject. Separate multiple values with a semicolon.",
     "csvLineError": "Line {{line}}: {{message}}",
     "csvUnknownStandards": "Unknown standard codes will be skipped: {{codes}}",
     "importCount": "Import {{count}}",
     "masteryCutoffs": {
       "heading": "Mastery cutoffs",
-      "description": "Percent correct needed for a target to count as proficient or approaching.",
+      "description": "Percent correct for each level.",
       "proficient": "Proficient",
       "approaching": "Approaching",
       "save": "Save cutoffs"
@@ -4186,7 +4148,7 @@
     "saving": "Saving…",
     "saveFailed": "Save failed",
     "anySubject": "Any subject",
-    "gradesSubjectHint": "Optional. Leave grades and subject empty to inherit them from the linked standards.",
+    "gradesSubjectHint": "Leave blank to use the linked standards' grades and subject.",
     "csvUnknownSubjects": "Unknown subjects will be skipped: {{subjects}}"
   },
   "settings": {
@@ -4194,11 +4156,9 @@
     "profile": {
       "title": "Profile",
       "gradesTaught": "Grades taught",
-      "gradesTaughtDescription": "Starts from your building(s). Deselect grades you do not teach to narrow standards, learning targets and grade-specific widgets.",
       "resetGrades": "Reset to building default",
-      "noGrades": "No grades selected — standards and widgets show every grade.",
-      "subjectsTaught": "Content areas taught",
-      "subjectsTaughtDescription": "Optional. Pick the content areas you teach to open the standards picker on them. Leave empty to see every content area."
+      "noGrades": "Showing all grades.",
+      "subjectsTaught": "Content areas taught (optional)"
     },
     "widgetDefaults": {
       "title": "Widget defaults",
@@ -4227,13 +4187,10 @@
     "saveFailed": "Failed to save quiz configuration.",
     "handRaise": {
       "heading": "Raise hand",
-      "help": "Controls whether students see a Raise hand button while taking a quiz in this building.",
       "teacherChoice": "Teacher's choice",
-      "teacherChoiceHint": "Each teacher decides per quiz. Off unless they turn it on.",
+      "teacherChoiceHint": "Off unless the teacher turns it on.",
       "forceOn": "Always on",
-      "forceOnHint": "Raise hand is available in every quiz and teachers cannot turn it off.",
-      "forceOff": "Always off",
-      "forceOffHint": "Raise hand is hidden from students in every quiz."
+      "forceOff": "Always off"
     },
     "noBuildings": "No buildings configured",
     "noBuildingsHint": "Add a building under Organization before setting a raise-hand default.",
@@ -4397,16 +4354,15 @@
   "shareWithSub": {
     "title": "Share with a sub",
     "updateTitle": "Update what your sub sees",
-    "boardSummary": "Your sub sees this board exactly as you set it up.",
-    "collectionSummary": "Your sub clicks through {{boards}} boards, grouped the way you group them ({{sections}} groups).",
-    "updatingHint": "You already share this with a sub. Saving replaces what they see — same link, same end time unless you change it.",
+    "collectionSummary": "{{boards}} boards in {{sections}} groups.",
+    "updatingHint": "Saving updates what your sub sees. The link stays the same.",
     "building": "Building",
     "noBuildings": "No buildings available",
     "buildingRequired": "Pick the building your sub signs in at.",
     "endsAt": "Ends",
-    "endsAtHint": "Defaults to two days from now. Fourteen days is the most a sub share can run.",
+    "endsAtHint": "Up to 14 days.",
     "subs": "Who is covering",
-    "subsHint": "These subs get your class lists for as long as the share runs, and the access is withdrawn when it ends. Anyone else in the building still sees the boards, without student names.",
+    "subsHint": "Listed subs get your class lists until the share ends. Others in the building see the boards without names.",
     "noBoards": "There are no boards in this collection to share.",
     "expiryPast": "Pick an end time in the future.",
     "expiryTooFar": "A sub share can run for at most 14 days.",
@@ -4483,15 +4439,15 @@
     "startTitle": "Record a live tour",
     "startWhat": "What does this tour show?",
     "startWhatPlaceholder": "Add a widget to your board",
-    "startBlur": "You record on your own board. Student names from your classes, and student photos, video and work, are blurred in every frame as it is captured.",
-    "startReview": "Before anything uploads, you check every frame and can blur anything that was missed.",
-    "startTip": "Tip: record on a board whose classes come from test classes, so few real names are on screen.",
+    "startBlur": "Your students' names, photos and work are blurred as you record.",
+    "startReview": "You review every frame before it uploads.",
+    "startTip": "Record on a board that uses test classes.",
     "startUnloaded_one": "{{count}} class list didn't load, so its names can't be blurred automatically.",
     "startUnloaded_other": "{{count}} class lists didn't load, so their names can't be blurred automatically.",
     "startContinue": "Continue",
     "cancel": "Cancel",
     "reviewTitle": "Check every frame before it uploads",
-    "reviewBody": "Blurred areas are outlined in blue. Drag over anything else that shows a student, then choose Blur.",
+    "reviewBody": "Drag over anything that shows a student, then choose Blur.",
     "reviewFrame": "Frame {{current}} of {{total}}",
     "reviewPrev": "Previous frame",
     "reviewNext": "Next frame",
@@ -4760,7 +4716,7 @@
   },
   "tourHealth": {
     "loading": "Loading tours...",
-    "intro": "Checks the published version of each tour, the one teachers run, against the anchor registry and real runs. Check live looks for each anchor on the board behind this window as it is now.",
+    "intro": "Checks published tours against the anchor registry.",
     "recordTour": "Record a tour",
     "checkLive": "Check live",
     "empty": "No Guided Learning set has live-tour steps yet.",

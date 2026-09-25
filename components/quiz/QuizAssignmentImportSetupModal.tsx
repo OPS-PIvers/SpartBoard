@@ -205,8 +205,7 @@ export const QuizAssignmentImportSetupModal: React.FC<
           <>
             <p className="text-sm text-slate-600">
               {t('quizAssignmentImportSetupModal.prompt', {
-                defaultValue:
-                  'Pick the classes that should take this quiz. Students will pick their period after entering the join code.',
+                defaultValue: 'Pick the classes taking this quiz.',
               })}
             </p>
             <AssignClassPicker

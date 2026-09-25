@@ -19,7 +19,6 @@ import fr from '@/locales/fr.json';
 
 /** Top-level sub-sections that must exist under plcDashboard. */
 const REQUIRED_TOP_LEVEL_SECTIONS = [
-  'subtitle',
   'backToMenu',
   'close',
   'tabs',
@@ -263,7 +262,6 @@ const REQUIRED_ACTIVITY_KEYS = [
   'heading',
   'empty',
   'sinceLastVisit',
-  'sinceSubtitle',
   'olderHeading',
   'caughtUp',
   'caughtUpSubtitle',
@@ -407,7 +405,6 @@ const REQUIRED_MEETING_STEPS_KEYS = [
 /** plcDashboard.meeting.pick */
 const REQUIRED_MEETING_PICK_KEYS = [
   'heading',
-  'subtitle',
   'emptyTitle',
   'emptySubtitle',
   'cardMeta',
@@ -419,7 +416,6 @@ const REQUIRED_MEETING_REVIEW_KEYS = ['heading', 'subtitle', 'none'] as const;
 /** plcDashboard.meeting.decide */
 const REQUIRED_MEETING_DECIDE_KEYS = [
   'heading',
-  'subtitle',
   'addLabel',
   'placeholder',
   'add',
@@ -432,7 +428,6 @@ const REQUIRED_MEETING_DECIDE_KEYS = [
 /** plcDashboard.meeting.act */
 const REQUIRED_MEETING_ACT_KEYS = [
   'heading',
-  'subtitle',
   'addLabel',
   'placeholder',
   'assignee',
@@ -448,7 +443,6 @@ const REQUIRED_MEETING_ACT_KEYS = [
 /** plcDashboard.meeting.save */
 const REQUIRED_MEETING_SAVE_KEYS = [
   'heading',
-  'subtitle',
   'reviewed',
   'decisions',
   'actions',
@@ -457,7 +451,6 @@ const REQUIRED_MEETING_SAVE_KEYS = [
   'noAttendees',
   'viewerNote',
   'doneTitle',
-  'doneSubtitle',
   'viewRecord',
   'startNew',
 ] as const;

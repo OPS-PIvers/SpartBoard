@@ -22,9 +22,7 @@ export const SubmissionTypesToggles: React.FC<SubmissionTypesTogglesProps> = ({
   onChange,
 }) => (
   <div className="space-y-2">
-    <p className="text-xs text-slate-600">
-      Text is always allowed. Turn on anything else students may add.
-    </p>
+    <p className="text-xs text-slate-600">Text is always on.</p>
     {TYPE_ROWS.map((row) => (
       <ToggleRow
         key={row.key}

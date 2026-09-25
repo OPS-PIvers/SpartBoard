@@ -334,12 +334,6 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                   {t('sidebar.plcs.title', { defaultValue: 'My PLCs' })}
                 </h2>
               </div>
-              <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-                {t('sidebar.plcs.description', {
-                  defaultValue:
-                    'Professional Learning Communities let you and your colleagues collaborate on the same assignments and see combined results.',
-                })}
-              </p>
             </div>
 
             {/* Top CTAs */}

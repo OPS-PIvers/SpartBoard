@@ -1007,7 +1007,7 @@ const LtiDeepLinkFlow: React.FC = () => {
       <AddonHeader
         icon={ClipboardList}
         title="Add a SpartBoard activity"
-        subtitle="Pick a quiz or video activity from your library. Students complete it inside Schoology and their score posts back to the gradebook."
+        subtitle="Scores post to the Schoology gradebook."
       />
 
       {phase === 'error' ? (
@@ -1153,9 +1153,7 @@ const LtiDeepLinkFlow: React.FC = () => {
                   className="mb-1.5 block text-sm font-medium text-slate-700"
                 >
                   Your name{' '}
-                  <span className="font-normal text-slate-500">
-                    (optional — shown on shared PLC results)
-                  </span>
+                  <span className="font-normal text-slate-500">(optional)</span>
                 </label>
                 <input
                   id={teacherNameId}
@@ -1177,9 +1175,7 @@ const LtiDeepLinkFlow: React.FC = () => {
                   className="mb-1.5 block text-sm font-medium text-slate-700"
                 >
                   Due date{' '}
-                  <span className="font-normal text-slate-500">
-                    (optional — also set in Schoology)
-                  </span>
+                  <span className="font-normal text-slate-500">(optional)</span>
                 </label>
                 <input
                   id={dueDateId}

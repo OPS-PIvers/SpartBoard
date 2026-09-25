@@ -355,9 +355,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
               {content && mode === 'random' && (
                 <div className="space-y-4">
                   <p className="text-xs text-slate-600">
-                    Each student gets a fresh random set from this bank. The
-                    bank is frozen when you assign, so later edits don&apos;t
-                    change a running assignment.
+                    Each student gets a different random set.
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>

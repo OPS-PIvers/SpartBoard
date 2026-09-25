@@ -316,9 +316,7 @@ describe('ProjectsWidget', () => {
       ),
     });
     render(<ProjectsWidget widget={widget()} />);
-    expect(
-      screen.getByText(/showing\s+counts instead of the grid/)
-    ).toBeInTheDocument();
+    expect(screen.getByText('Showing counts.')).toBeInTheDocument();
     expect(screen.getAllByText('1 of 2 done')).toHaveLength(9);
   });
 

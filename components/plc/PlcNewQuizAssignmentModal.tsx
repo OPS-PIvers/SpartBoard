@@ -412,13 +412,6 @@ export const PlcNewQuizAssignmentModal: React.FC<
   const behavior = getQuizBehavior(pickedQuiz);
   const behaviorSummary = formatBehaviorSummary(behavior);
 
-  const visibleRosterIds = new Set(
-    rosters.filter((r) => !r.loadError).map((r) => r.id)
-  );
-  const effectivePeriodCount = options.picker.rosterIds.filter((id) =>
-    visibleRosterIds.has(id)
-  ).length;
-
   const dateInputValue = splitDueAtToInputs(dueAt, true).date;
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -468,7 +461,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
           <div>
             <p className="text-sm font-medium text-slate-700 mb-2">
               {t('plcDashboard.newAssignment.quiz.classPickerLabel', {
-                defaultValue: 'Target class periods (optional)',
+                defaultValue: 'Class periods',
               })}
             </p>
             <AssignClassPicker
@@ -524,7 +517,6 @@ export const PlcNewQuizAssignmentModal: React.FC<
           {/* PLC sharing slot (teacher name only — no sheet step) */}
           <PlcNewAssignmentSharingSlot
             plcName={plc.name}
-            effectivePeriodCount={effectivePeriodCount}
             teacherName={options.teacherName}
             onTeacherNameChange={(v) =>
               setOptions((p) => ({ ...p, teacherName: v }))

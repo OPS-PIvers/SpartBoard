@@ -113,10 +113,7 @@ export const SeatingChartConfigurationPanel: React.FC<
                   <line x1="12" x2="12.01" y1="16" y2="16" />
                 </svg>
                 <p className="text-xs leading-relaxed">
-                  <strong>Privacy Note:</strong> Default custom roster names
-                  cannot be configured globally to prevent exposing Personally
-                  Identifiable Information (PII) to unauthorized users. Teachers
-                  will start with a blank list and enter names manually.
+                  Teachers enter names on their own board.
                 </p>
               </div>
             )}

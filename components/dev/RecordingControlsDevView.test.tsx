@@ -29,10 +29,10 @@ describe('RecordingControlsDevView', () => {
     const { unmount } = render(
       <RecordingControlsDevView state="rc-enabled-defaults" />
     );
-    expect(screen.queryByText(/Question shuffle has no effect/i)).toBeNull();
+    expect(screen.queryByText(/Shuffle has no effect/i)).toBeNull();
     unmount();
     render(<RecordingControlsDevView state="rc-advisory" />);
-    expect(screen.getByText(/Question shuffle has no effect/i)).toBeTruthy();
+    expect(screen.getByText(/Shuffle has no effect/i)).toBeTruthy();
   });
 
   it('seeds the enabled-defaults fixture on Spoken', () => {

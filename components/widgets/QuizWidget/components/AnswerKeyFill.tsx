@@ -220,8 +220,7 @@ export const AnswerKeyFillModal: React.FC<AnswerKeyFillModalProps> = ({
       {step === 'setup' && (
         <div className="space-y-4 px-5 pb-5 pt-4">
           <p className="text-sm text-slate-700">
-            Add the answer key and the questions that still need an answer will
-            be filled in. Questions that already have one are never changed.
+            Only questions without an answer are filled in.
           </p>
           <TestAndKeyUploader
             zones="key"

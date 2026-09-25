@@ -363,10 +363,7 @@ export const PaperSheetStimuliSection: React.FC<
       {open && (
         <div className="space-y-3 border-t border-slate-100 px-3 pb-3 pt-3">
           <p className="text-xs text-slate-600">
-            Images print beside the bubbles, so students have the reference on
-            the same page. A page of a PDF works too. A sheet with anything here
-            carries 25 questions a page instead of 50. Nothing students draw on
-            one is read back.
+            Adding anything here drops the sheet to 25 questions a page.
           </p>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -575,11 +572,9 @@ export const PaperSheetStimuliSection: React.FC<
           {unshared.length > 0 && (
             <p className="text-xs text-slate-600">
               {unshared.map((s) => s.label).join(', ')}{' '}
-              {unshared.length === 1 ? 'is' : 'are'} only visible to you. Your
-              PLC prints{' '}
-              {unshared.length === 1 ? 'an empty box' : 'empty boxes'} there
-              until you share {unshared.length === 1 ? 'it' : 'them'} on your
-              next print.
+              {unshared.length === 1 ? 'is' : 'are'} only visible to you. Share{' '}
+              {unshared.length === 1 ? 'it' : 'them'} when you print so your PLC
+              sees {unshared.length === 1 ? 'it' : 'them'}.
             </p>
           )}
           {offTheEnd.length > 0 && (
@@ -592,8 +587,8 @@ export const PaperSheetStimuliSection: React.FC<
           )}
           {overCap && (
             <p className="text-xs font-semibold text-amber-800">
-              A page prints at most {MAX_STIMULI_PER_PAGE} of these. Anything
-              past that is not drawn — pin some to another page.
+              A page prints at most {MAX_STIMULI_PER_PAGE} of these, so move
+              some to another page.
             </p>
           )}
         </div>
