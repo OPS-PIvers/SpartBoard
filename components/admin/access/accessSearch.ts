@@ -6,15 +6,15 @@ import {
 import { ROLLOUT_SWITCHES, type RolloutSwitch } from '@/config/rolloutSwitches';
 import type { GlobalFeature } from '@/types';
 
-export type AccessTabId = 'features' | 'global' | 'previews';
+export type AccessTabId = 'widgets' | 'features' | 'previews';
 
 export const ACCESS_TAB_LABELS: Record<AccessTabId, string> = {
-  features: 'Feature Permissions',
-  global: 'Global Settings',
+  widgets: 'Widgets',
+  features: 'Features',
   previews: 'Previews',
 };
 
-export const GLOBAL_SETTINGS_FEATURES = ALL_GLOBAL_FEATURES.filter(
+export const FEATURES_TAB_FEATURES = ALL_GLOBAL_FEATURES.filter(
   (id) =>
     FEATURE_DEFAULTS[id].stage === 'permanent' && !FEATURE_DEFAULTS[id].home
 );
@@ -58,8 +58,11 @@ export const matchesSearch = (
 
 const ROWS: Record<AccessTabId, readonly (readonly (string | undefined)[])[]> =
   {
-    features: TOOLS.map((t) => [t.label, t.type, ...(t.keywords ?? [])]),
-    global: GLOBAL_SETTINGS_FEATURES.map(featureSearchFields),
+    widgets: TOOLS.map((t) => [t.label, t.type, ...(t.keywords ?? [])]),
+    features: [
+      ...FEATURES_TAB_FEATURES.map(featureSearchFields),
+      ['Gemini models', 'model overrides', 'AI'],
+    ],
     previews: [
       ...PREVIEW_FEATURES.map(featureSearchFields),
       ...ROLLOUT_ONLY_SWITCHES.map(rolloutSearchFields),
@@ -70,7 +73,7 @@ const ROWS: Record<AccessTabId, readonly (readonly (string | undefined)[])[]> =
 export const countAccessMatches = (
   query: string
 ): Record<AccessTabId, number> => ({
+  widgets: ROWS.widgets.filter((f) => matchesSearch(query, f)).length,
   features: ROWS.features.filter((f) => matchesSearch(query, f)).length,
-  global: ROWS.global.filter((f) => matchesSearch(query, f)).length,
   previews: ROWS.previews.filter((f) => matchesSearch(query, f)).length,
 });

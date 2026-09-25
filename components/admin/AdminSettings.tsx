@@ -25,7 +25,7 @@ import {
 import { useAuth } from '@/context/useAuth';
 import { FeaturePermissionsManager } from './FeaturePermissionsManager';
 import { BackgroundManager } from './BackgroundManager';
-import { GlobalPermissionsManager } from './GlobalPermissionsManager';
+import { FeaturesPanel } from './access/FeaturesPanel';
 import { PreviewsPanel } from './access/PreviewsPanel';
 import { AnnouncementsManager } from './Announcements';
 import { OrganizationPanel } from './Organization/OrganizationPanel';
@@ -52,16 +52,16 @@ const TAB_GROUPS = [
     label: 'Access',
     tabs: [
       {
-        id: 'features',
-        label: 'Feature Permissions',
+        id: 'widgets',
+        label: 'Widgets',
         icon: Shield,
         component: FeaturePermissionsManager,
       },
       {
-        id: 'global',
-        label: 'Global Settings',
+        id: 'features',
+        label: 'Features',
         icon: Zap,
-        component: GlobalPermissionsManager,
+        component: FeaturesPanel,
       },
       {
         id: 'previews',
@@ -176,6 +176,20 @@ const TABS: readonly TabConfig[] = TAB_GROUPS.flatMap<TabConfig>(
   (group) => group.tabs
 );
 
+const LAST_TAB_KEY = 'spart.adminSettings.lastTab';
+
+/** Reopen on the last-used tab (plan D15), falling back to Widgets. */
+const readLastTab = (): TabId => {
+  try {
+    const stored = window.localStorage.getItem(LAST_TAB_KEY);
+    const match = TABS.find((t) => t.id === stored);
+    if (match) return match.id;
+  } catch {
+    // Storage can be blocked; use the default.
+  }
+  return 'widgets';
+};
+
 // One nav entry in the dark vertical rail (desktop). Collapses to icon-only
 // when the rail is narrow (md → lg): the label is hidden and the icon centers,
 // with `title` carrying the accessible name via tooltip.
@@ -207,7 +221,15 @@ const RailTab: React.FC<{
 
 export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
   const { isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabId>('features');
+  const [activeTab, setActiveTabState] = useState<TabId>(readLastTab);
+  const setActiveTab = (tab: TabId) => {
+    setActiveTabState(tab);
+    try {
+      window.localStorage.setItem(LAST_TAB_KEY, tab);
+    } catch {
+      // Storage can be blocked; the tab still switches.
+    }
+  };
   // Mobile only: the drill-in list (true) vs. the selected panel (false).
   // The desktop rail is always visible, so this flag is inert there.
   const [showMobileMenu, setShowMobileMenu] = useState(true);

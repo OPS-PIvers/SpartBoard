@@ -422,7 +422,7 @@ export const FeaturePermissionsManager: React.FC = () => {
         />
       )}
 
-      <AdminSearchField tab="features" placeholder="Search widgets" />
+      <AdminSearchField tab="widgets" placeholder="Search widgets" />
 
       {/* Filters */}
       <div className="bg-slate-50 border border-slate-200 rounded-xl mb-2">
@@ -507,7 +507,7 @@ export const FeaturePermissionsManager: React.FC = () => {
       <>
         {filteredTools.length === 0 && (
           <AccessSearchEmpty
-            tab="features"
+            tab="widgets"
             fallback="No widgets match the current filters."
           />
         )}

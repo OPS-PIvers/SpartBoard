@@ -12,12 +12,12 @@ describe('matchesSearch', () => {
 describe('countAccessMatches', () => {
   it('counts matches on each Access tab without mounting it', () => {
     const counts = countAccessMatches('paper answer');
-    expect(counts.global).toBe(0);
+    expect(counts.features).toBe(0);
     expect(counts.previews).toBeGreaterThan(0);
   });
 
   it('finds Record on the widget tab, not Global Settings', () => {
     const counts = countAccessMatches('record');
-    expect(counts.features).toBeGreaterThan(0);
+    expect(counts.widgets).toBeGreaterThan(0);
   });
 });
