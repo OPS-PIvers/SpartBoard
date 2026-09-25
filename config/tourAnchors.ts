@@ -109,9 +109,15 @@ export type TourAnchorId = keyof typeof TOUR_ANCHORS;
 export const isTourAnchorId = (id: string): id is TourAnchorId =>
   Object.prototype.hasOwnProperty.call(TOUR_ANCHORS, id);
 
-export const tourAttr = (id: TourAnchorId, widgetId?: string) => ({
+// Widget-scoped anchors also carry the type, so a recording saves `id:type`.
+export const tourAttr = (
+  id: TourAnchorId,
+  widgetId?: string,
+  widgetType?: string
+) => ({
   'data-tour': id,
   ...(widgetId ? { 'data-tour-widget': widgetId } : {}),
+  ...(widgetType ? { 'data-tour-widget-type': widgetType } : {}),
 });
 
 export const tourTypeAttr = (id: TourAnchorId, widgetType: string) => ({

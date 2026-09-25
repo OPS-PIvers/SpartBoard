@@ -4,6 +4,7 @@ import type {
   GuidedLearningStep,
   GuidedLearningVideoTrim,
   GuidedLearningWatchPace,
+  TourWidgetLayout,
   WidgetType,
 } from '@/types';
 import type { GuidedLearningMediaKind } from '@/utils/guidedLearningMedia';
@@ -24,6 +25,8 @@ export interface EditorDocument {
   watchPace: GuidedLearningWatchPace | undefined;
   /** Live tours: widget types the tour adds to the board before it starts. */
   tourSetupWidgets: WidgetType[];
+  /** Live tours: recorded widget layouts the tour opens with. */
+  tourSetupLayouts: TourWidgetLayout[];
 }
 
 /** A file to delete once the set is saved and the editor closes. */
@@ -105,6 +108,7 @@ export function documentFromSet(set: GuidedLearningSet | null): EditorDocument {
     welcomeMessage: set?.welcomeMessage ?? '',
     watchPace: set?.watchPace,
     tourSetupWidgets: set?.tourSetup?.widgets ?? [],
+    tourSetupLayouts: set?.tourSetup?.layouts ?? [],
   };
 }
 

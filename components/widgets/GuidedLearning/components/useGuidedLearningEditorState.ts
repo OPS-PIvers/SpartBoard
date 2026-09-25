@@ -16,6 +16,7 @@ import {
   GuidedLearningVideoTrim,
   GuidedLearningWatchPace,
   LibraryFolder,
+  TourWidgetLayout,
   WidgetType,
 } from '@/types';
 import type { StepRecapture } from './recorder/recordingHandoff';
@@ -132,6 +133,9 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   /** Live tours: widget types the tour adds; each change is one undo entry. */
   tourSetupWidgets: WidgetType[];
   setTourSetupWidgets: (next: WidgetType[]) => void;
+  /** Live tours: recorded widget layouts; replaced whole, one undo entry. */
+  tourSetupLayouts: TourWidgetLayout[];
+  setTourSetupLayouts: (next: TourWidgetLayout[]) => void;
   /** Swaps in a re-recorded click as one undo entry; a slide other steps share is kept. */
   recaptureStep: (capture: StepRecapture) => boolean;
   // Slides (images, GIFs, and uploaded/recorded videos)
@@ -281,6 +285,7 @@ export function useGuidedLearningEditorState({
     welcomeMessage,
     watchPace,
     tourSetupWidgets,
+    tourSetupLayouts,
   } = history.present;
 
   const applyDoc = useCallback(
@@ -337,6 +342,10 @@ export function useGuidedLearningEditorState({
   );
   const setTourSetupWidgets = useCallback(
     (next: WidgetType[]) => setField('tourSetupWidgets', next),
+    [setField]
+  );
+  const setTourSetupLayouts = useCallback(
+    (next: TourWidgetLayout[]) => setField('tourSetupLayouts', next),
     [setField]
   );
   const setSteps = useCallback<
@@ -1188,6 +1197,8 @@ export function useGuidedLearningEditorState({
     setWatchPace,
     tourSetupWidgets,
     setTourSetupWidgets,
+    tourSetupLayouts,
+    setTourSetupLayouts,
     recaptureStep,
     imageUrls,
     imageKinds,

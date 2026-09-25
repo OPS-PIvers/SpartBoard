@@ -13,10 +13,14 @@ import {
 import { ANCHOR_SEARCH_MS } from './useAnchorElement';
 import { tourHealthOf } from './tourHealth';
 import { SAVED_TOUR_KEY } from './tourResume';
+import {
+  clearTourLayoutOverrides,
+  getTourLayoutOverrides,
+} from '@/context/dashboardCanvasStore';
 import { Z_INDEX } from '@/config/zIndex';
 
 const h = vi.hoisted(() => {
-  type Widget = { id: string; type: string };
+  type Widget = { id: string; type: string; z?: number; transient?: boolean };
   const board = {
     id: 'board-1',
     widgets: [] as Widget[],
@@ -36,6 +40,24 @@ const h = vi.hoisted(() => {
     }),
     removeWidgets: vi.fn((ids: string[]) => {
       board.widgets = board.widgets.filter((w) => !ids.includes(w.id));
+      emit();
+    }),
+    addTourWidget: vi.fn((type: string, _layout?: object) => {
+      const id = `t${++n}`;
+      board.widgets = [...board.widgets, { id, type, transient: true }];
+      emit();
+      return id;
+    }),
+    commitTourWidgets: vi.fn((ids: readonly string[]) => {
+      board.widgets = board.widgets.map((w) =>
+        ids.includes(w.id) ? { id: w.id, type: w.type } : w
+      );
+      emit();
+    }),
+    discardTourWidgets: vi.fn((ids: readonly string[]) => {
+      board.widgets = board.widgets.filter(
+        (w) => !(w.transient && ids.includes(w.id))
+      );
       emit();
     }),
     addToast: vi.fn(),
@@ -160,7 +182,7 @@ const Fixture: React.FC = () => {
       <button>Elsewhere</button>
       {widgets.map((w) => (
         <div key={w.id} {...tourAttr('widget.window', w.id)}>
-          <button {...tourAttr('widget.settings-opener', w.id)}>
+          <button {...tourAttr('widget.settings-opener', w.id, w.type)}>
             Settings {w.id}
           </button>
           <button {...tourAttr('widget.close', w.id)}>Close {w.id}</button>
@@ -1596,5 +1618,174 @@ describe('LiveTourRunner run stats', () => {
     await start(published([{ anchor: 'sidebar.boards', action: 'observe' }]));
     window.dispatchEvent(new Event('pagehide'));
     expect(h.runLog.flush).toHaveBeenCalled();
+  });
+});
+
+describe('LiveTourRunner recorded layouts', () => {
+  const place = (xProp: number) => ({
+    xProp,
+    yProp: 0.1,
+    wProp: 0.2,
+    hProp: 0.3,
+  });
+  const layoutSet = (
+    steps: (Binding & Record<string, unknown>)[],
+    layouts: object[],
+    setupWidgets: WidgetType[] = []
+  ): GuidedLearningSet =>
+    ({
+      ...makeSet(steps, setupWidgets),
+      tourSetup: { widgets: setupWidgets, layouts },
+    }) as unknown as GuidedLearningSet;
+  const clockAt = (slot: number, xProp: number) => ({
+    slot,
+    type: 'clock',
+    ...place(xProp),
+  });
+  const overrideOf = (id: string) => getTourLayoutOverrides().get(id);
+
+  afterEach(() => clearTourLayoutOverrides());
+
+  it('adds a missing slot as an unsaved tour widget at its layout', async () => {
+    await start(
+      layoutSet(
+        [{ anchor: 'sidebar.boards', action: 'observe' }],
+        [clockAt(0, 0.4)],
+        ['clock']
+      )
+    );
+    expect(h.actions.addWidget).not.toHaveBeenCalled();
+    expect(h.actions.addTourWidget).toHaveBeenCalledWith('clock', place(0.4));
+    fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove them' }));
+    expect(h.actions.discardTourWidgets).toHaveBeenCalledWith(['t1']);
+    expect(h.actions.removeWidgets).not.toHaveBeenCalled();
+    expect(h.board.widgets).toEqual([]);
+  });
+
+  it('Keep saves the tour widgets', async () => {
+    await start(
+      layoutSet(
+        [{ anchor: 'sidebar.boards', action: 'observe' }],
+        [clockAt(0, 0.4)],
+        ['clock']
+      )
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Keep them' }));
+    expect(h.actions.commitTourWidgets).toHaveBeenCalledWith(['t1']);
+    expect(h.actions.discardTourWidgets).not.toHaveBeenCalled();
+    expect(h.board.widgets).toEqual([{ id: 't1', type: 'clock' }]);
+  });
+
+  it('discards the tour widgets when the runner unmounts mid-tour', async () => {
+    h.loadTour.mockResolvedValue(
+      layoutSet(
+        [{ anchor: 'sidebar.boards', action: 'observe' }],
+        [clockAt(0, 0.4)],
+        ['clock']
+      )
+    );
+    const view = render(
+      <>
+        <Fixture />
+        <LiveTourRunner />
+      </>
+    );
+    act(() => requestStartTour({ setId: 'set-1' }));
+    await frames();
+    expect(h.board.widgets.map((w) => w.id)).toEqual(['t1']);
+    view.unmount();
+    expect(h.actions.discardTourWidgets).toHaveBeenCalledWith(['t1']);
+    expect(h.board.widgets).toEqual([]);
+    expect(sessionStorage.getItem(SAVED_TOUR_KEY)).toContain('"addedIds":[]');
+  });
+
+  it("moves the teacher's widget for the tour without writing it, then puts it back", async () => {
+    h.board.widgets = [{ id: 'mine', type: 'clock', z: 1 }];
+    await start(
+      layoutSet(
+        [{ anchor: 'sidebar.boards', action: 'observe' }],
+        [clockAt(0, 0.4)],
+        ['clock']
+      )
+    );
+    expect(h.actions.addTourWidget).not.toHaveBeenCalled();
+    expect(overrideOf('mine')).toEqual(place(0.4));
+    expect(h.board.widgets).toEqual([{ id: 'mine', type: 'clock', z: 1 }]);
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    await frames();
+    expect(screen.queryByText("Keep the tour's widgets?")).toBeNull();
+    expect(getTourLayoutOverrides().size).toBe(0);
+  });
+
+  it('binds each slot to its own widget when the board has two of a type', async () => {
+    h.board.widgets = [
+      { id: 'front', type: 'clock', z: 5 },
+      { id: 'back', type: 'clock', z: 1 },
+    ];
+    await start(
+      layoutSet(
+        [{ anchor: 'widget.settings-opener:clock', action: 'click', slot: 1 }],
+        [clockAt(0, 0.1), clockAt(1, 0.6)],
+        ['clock']
+      )
+    );
+    expect(overrideOf('back')?.xProp).toBe(0.1);
+    expect(overrideOf('front')?.xProp).toBe(0.6);
+    fireEvent.click(screen.getByText('Settings back'));
+    await frames();
+    expect(screen.getByTestId('tour-callout')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Settings front'));
+    await frames();
+    expect(screen.queryByTestId('tour-callout')).toBeNull();
+  });
+
+  it('applies keyframes when their step starts, and undoes them going back', async () => {
+    h.board.widgets = [{ id: 'mine', type: 'clock', z: 1 }];
+    await start(
+      layoutSet(
+        [
+          { anchor: 'sidebar.boards', action: 'observe' },
+          {
+            anchor: 'sidebar.boards',
+            action: 'observe',
+            layoutKeyframes: [{ slot: 0, ...place(0.8) }],
+          },
+        ],
+        [clockAt(0, 0.4)],
+        ['clock']
+      )
+    );
+    expect(overrideOf('mine')?.xProp).toBe(0.4);
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames();
+    expect(overrideOf('mine')?.xProp).toBe(0.8);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await frames();
+    expect(overrideOf('mine')?.xProp).toBe(0.4);
+  });
+
+  it('moves a widget the step opens to its recorded layout', async () => {
+    await start(
+      layoutSet(
+        [
+          {
+            anchor: 'dock.item:dice',
+            action: 'click',
+            spawns: { slot: 1, type: 'dice', ...place(0.7) },
+          },
+          { anchor: 'sidebar.boards', action: 'observe' },
+        ],
+        [clockAt(0, 0.4)]
+      )
+    );
+    act(() => h.actions.addWidget('dice'));
+    await frames();
+    expect(overrideOf('w1')).toEqual(place(0.7));
+    fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
+    await frames();
+    expect(getTourLayoutOverrides().size).toBe(0);
+    expect(h.board.widgets.map((w) => w.id)).toEqual(['w1']);
   });
 });

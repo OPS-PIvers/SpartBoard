@@ -4,6 +4,8 @@ import { parseTourAnchorRef } from '@/config/tourAnchors';
 export interface TourAnchorScope {
   /** Widgets the tour added; per-widget anchors prefer these. */
   widgetIds?: readonly string[];
+  /** Tour slot to widget id; a step with a bound slot matches only that widget. */
+  slots?: Readonly<Record<number, string>>;
 }
 
 const quote = (value: string) => `"${value.replace(/["\\]/g, '\\$&')}"`;
@@ -72,10 +74,12 @@ const FALLBACK_CANDIDATES = '[role], button, a[href], input, select, textarea';
 
 /** Finds a tour step's element: `data-tour` first, then role plus accessible name. */
 export function findTourAnchor(
-  binding: Pick<GuidedLearningTourBinding, 'anchor' | 'fallback'>,
+  binding: Pick<GuidedLearningTourBinding, 'anchor' | 'fallback' | 'slot'>,
   scope: TourAnchorScope = {},
   root: ParentNode = document
 ): HTMLElement | null {
+  const boundId =
+    binding.slot === undefined ? undefined : scope.slots?.[binding.slot];
   const { id, widgetType } = parseTourAnchorRef(binding.anchor);
   const selector =
     `[data-tour=${quote(id)}]` +
@@ -83,6 +87,12 @@ export function findTourAnchor(
   const tagged = id
     ? Array.from(root.querySelectorAll<HTMLElement>(selector)).filter(usable)
     : [];
+  if (boundId && id) {
+    return (
+      tagged.find((el) => el.getAttribute('data-tour-widget') === boundId) ??
+      null
+    );
+  }
   if (tagged.length > 0) {
     const scoped = scope.widgetIds?.length
       ? tagged.find((el) =>

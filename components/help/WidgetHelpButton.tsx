@@ -53,7 +53,7 @@ export const WidgetHelpButton: React.FC<WidgetHelpButtonProps> = ({
         onClick={() => (liveSetId ? setOpen((v) => !v) : openGuides())}
         icon={<CircleHelp className="w-4 h-4" />}
         label={t('helpCenter.widgetHelp')}
-        {...tourAttr('settings.help', widget.id)}
+        {...tourAttr('settings.help', widget.id, widget.type)}
         title={t('helpCenter.widgetHelp')}
         aria-haspopup={liveSetId ? 'menu' : undefined}
         aria-expanded={liveSetId ? open : undefined}

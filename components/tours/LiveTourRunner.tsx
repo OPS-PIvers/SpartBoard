@@ -23,10 +23,15 @@ import type {
   GuidedLearningPublicStep,
   GuidedLearningSet,
   GuidedLearningStep,
+  TourWidgetLayout,
   WidgetType,
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
+import {
+  clearTourLayoutOverrides,
+  setTourLayoutOverrides,
+} from '@/context/dashboardCanvasStore';
 import { loadBuildingSet } from '@/hooks/useGuidedLearning';
 import { loadRunnableTour } from './publishedTours';
 import { Z_INDEX } from '@/config/zIndex';
@@ -51,13 +56,18 @@ import {
   type TourStartRequest,
 } from './tourState';
 import {
+  claimSpawns,
   claimTourWidgets,
   hasStepSlide,
   liveTourStepsOf,
   missingSetupWidgets,
+  planTourSetup,
   teacherMustClick,
+  tourLayoutOverridesAt,
   tourWelcome,
   tourWidgetIds,
+  type SpawnWatch,
+  type TourSlots,
   type TourWidgetClaims,
 } from './tourSession';
 import { ANCHOR_SEARCH_MS, useAnchorElement } from './useAnchorElement';
@@ -96,12 +106,43 @@ interface ActiveTour {
   steps: GuidedLearningStep[];
   phase: Phase;
   index: number;
+  /** The board setup ran on; claims never match widgets on another board. */
+  boardId?: string;
   beforeIds: ReadonlySet<string>;
   addedTypes: WidgetType[];
-  /** The exact widgets the tour added; teardown removes only these. */
+  /** Tours without recorded layouts: the saved widgets setup added, by type. */
   claims: TourWidgetClaims;
+  /** Unsaved widgets the tour added; Keep saves them, anything else discards them. */
+  tourIds: string[];
+  slots: TourSlots;
+  /** The teacher's widgets the tour moves for now, by slot. */
+  moved: Record<number, TourWidgetLayout>;
+  spawnWatch: SpawnWatch[];
   draft?: boolean;
 }
+
+const EMPTY_LAYER = {
+  tourIds: [] as string[],
+  slots: {} as TourSlots,
+  moved: {} as Record<number, TourWidgetLayout>,
+  spawnWatch: [] as SpawnWatch[],
+};
+
+/** A step that opens a widget watches for it from the board it starts on. */
+const watchSpawn = (
+  tour: Pick<ActiveTour, 'steps' | 'slots' | 'spawnWatch'>,
+  index: number,
+  boardIds: readonly string[]
+): SpawnWatch[] => {
+  const layout = tour.steps[index]?.tour?.spawns;
+  if (
+    !layout ||
+    tour.slots[layout.slot] ||
+    tour.spawnWatch.some((w) => w.layout.slot === layout.slot)
+  )
+    return tour.spawnWatch;
+  return [...tour.spawnWatch, { layout, seen: boardIds }];
+};
 
 interface Point {
   x: number;
@@ -191,16 +232,63 @@ export const LiveTourRunner: React.FC = () => {
   latest.current = { dashboard, canAccessFeature, t, uid: user?.uid };
 
   const widgets = activeDashboard?.widgets ?? [];
-  if (tour) {
+  const onTourBoard = !!tour && activeDashboard?.id === tour.boardId;
+  if (tour && onTourBoard) {
     const claims = claimTourWidgets(
       widgets,
       tour.beforeIds,
       tour.addedTypes,
       tour.claims
     );
-    if (claims !== tour.claims) setTour({ ...tour, claims });
+    const setupIds = new Set(Object.values(claims));
+    const spawned = claimSpawns(
+      widgets.filter((w) => !setupIds.has(w.id)),
+      tour.spawnWatch,
+      tour.slots
+    );
+    if (claims !== tour.claims || spawned.bound.length > 0) {
+      const moved = { ...tour.moved };
+      for (const layout of spawned.bound) moved[layout.slot] = layout;
+      setTour({
+        ...tour,
+        claims,
+        slots: spawned.slots,
+        moved,
+        spawnWatch: spawned.watches,
+      });
+    }
   }
-  const added = tour ? tourWidgetIds(widgets, tour.claims) : [];
+  // Saved widgets from a tour without layouts; Remove deletes these.
+  const legacyAdded =
+    tour && onTourBoard ? tourWidgetIds(widgets, tour.claims) : [];
+  const tourAdded = tour
+    ? widgets.filter((w) => w.transient && tour.tourIds.includes(w.id))
+    : [];
+  const added = [...legacyAdded, ...tourAdded.map((w) => w.id)];
+  const tourIdsRef = useRef<string[]>([]);
+  tourIdsRef.current = tour?.tourIds ?? [];
+
+  // Temporary layouts live in the canvas store only while a step is showing.
+  const overrides =
+    tour?.phase === 'running'
+      ? tourLayoutOverridesAt(tour.steps, tour.index, tour.slots, tour.moved)
+      : null;
+  const overridesKey = overrides ? JSON.stringify([...overrides]) : '';
+  const overridesRef = useRef(overrides);
+  overridesRef.current = overrides;
+  useEffect(() => {
+    if (overridesRef.current) setTourLayoutOverrides(overridesRef.current);
+    else clearTourLayoutOverrides();
+  }, [overridesKey]);
+
+  // Unmounting mid-tour leaves the board as it was.
+  useEffect(
+    () => () => {
+      latest.current.dashboard.discardTourWidgets?.(tourIdsRef.current);
+      clearTourLayoutOverrides();
+    },
+    []
+  );
 
   // A running tour survives a reload as {setId, index, addedIds}.
   const saved: SavedTour | null =
@@ -208,7 +296,8 @@ export const LiveTourRunner: React.FC = () => {
       ? {
           setId: tour.set.id,
           index: tour.index,
-          addedIds: added,
+          // Unsaved tour widgets do not survive a reload, so only saved ones are listed.
+          addedIds: legacyAdded,
           ...(tour.draft ? { draft: true } : {}),
         }
       : null;
@@ -230,7 +319,7 @@ export const LiveTourRunner: React.FC = () => {
     tour?.phase === 'running' ? (tour.steps[tour.index] ?? null) : null;
   const anchor = useAnchorElement(
     step?.tour ?? null,
-    { widgetIds: added },
+    { widgetIds: added, slots: tour?.slots },
     attempt
   );
 
@@ -257,9 +346,34 @@ export const LiveTourRunner: React.FC = () => {
     const { dashboard: d } = latest.current;
     const current = d.activeDashboard?.widgets ?? [];
     const claims = claimsFromIds(current, opts.claimIds);
-    const missing = missingSetupWidgets(set, current);
     const beforeIds = new Set(current.map((w) => w.id));
-    missing.forEach((type) => d.addWidget(type));
+    const tourIds: string[] = [];
+    const slots: Record<number, string> = {};
+    const moved: Record<number, TourWidgetLayout> = {};
+    let missing: WidgetType[] = [];
+    if (set.tourSetup?.layouts?.length && d.addTourWidget) {
+      // Recorded layouts: unsaved tour widgets, and the teacher's own moved for now.
+      const plan = planTourSetup(set, steps, current);
+      for (const { layout, widgetId } of plan.bind) {
+        slots[layout.slot] = widgetId;
+        moved[layout.slot] = layout;
+      }
+      for (const layout of plan.add) {
+        const { slot: _slot, type, ...place } = layout;
+        const id = d.addTourWidget(type, place);
+        if (id) {
+          slots[layout.slot] = id;
+          tourIds.push(id);
+        }
+      }
+      for (const type of plan.addTypes) {
+        const id = d.addTourWidget(type);
+        if (id) tourIds.push(id);
+      }
+    } else {
+      missing = missingSetupWidgets(set, current);
+      missing.forEach((type) => d.addWidget(type));
+    }
     const index = Math.min(Math.max(from, 0), steps.length - 1);
     runLog.current?.end({ done: false });
     // Studio test runs of a draft are not field data.
@@ -278,9 +392,17 @@ export const LiveTourRunner: React.FC = () => {
       steps,
       phase: 'running',
       index,
+      boardId: d.activeDashboard?.id,
       beforeIds,
       addedTypes: missing,
       claims,
+      tourIds,
+      slots,
+      moved,
+      spawnWatch: watchSpawn({ steps, slots, spawnWatch: [] }, index, [
+        ...beforeIds,
+        ...tourIds,
+      ]),
       draft: opts.draft,
     });
   };
@@ -301,6 +423,7 @@ export const LiveTourRunner: React.FC = () => {
       beforeIds: new Set(),
       addedTypes: [],
       claims: {},
+      ...EMPTY_LAYER,
       draft: opts.draft,
     });
     if (phase === 'welcome') setTour(pending('welcome'));
@@ -390,10 +513,20 @@ export const LiveTourRunner: React.FC = () => {
     setResumeOffer(null);
   };
 
+  // Keep saves the tour's widgets; every other ending discards them.
+  const endTour = (keep = false) => {
+    if (tour) {
+      const d = latest.current.dashboard;
+      if (keep) d.commitTourWidgets?.(tour.tourIds);
+      else d.discardTourWidgets?.(tour.tourIds);
+    }
+    setTour(null);
+  };
+
   // Leaving before the run starts also drops a resumed run's saved state.
   const abandon = () => {
     clearSavedTour();
-    setTour(null);
+    endTour();
   };
 
   const startOnPracticeBoard = async () => {
@@ -441,7 +574,7 @@ export const LiveTourRunner: React.FC = () => {
       setTour({ ...tour, phase: 'teardown' });
       return;
     }
-    setTour(null);
+    endTour();
   };
 
   const goTo = (index: number) => {
@@ -455,7 +588,15 @@ export const LiveTourRunner: React.FC = () => {
     noteMiss();
     runLog.current?.update({ furthest: index });
     setAttempt(0);
-    setTour({ ...tour, index: Math.max(index, 0) });
+    const next = Math.max(index, 0);
+    const boardIds = (
+      latest.current.dashboard.activeDashboard?.widgets ?? []
+    ).map((w) => w.id);
+    setTour({
+      ...tour,
+      index: next,
+      spawnWatch: watchSpawn(tour, next, boardIds),
+    });
   };
 
   const advanceRef = useRef(goTo);
@@ -585,6 +726,8 @@ export const LiveTourRunner: React.FC = () => {
 
   const latestAdded = useRef(added);
   latestAdded.current = added;
+  const latestSlots = useRef<TourSlots | undefined>(tour?.slots);
+  latestSlots.current = tour?.slots;
 
   // Autopilot clicks the anchor, then waits for the app to show the next step's anchor.
   const autoClick = () => {
@@ -616,7 +759,11 @@ export const LiveTourRunner: React.FC = () => {
     const ctrl = new AbortController();
     autoWait.current = ctrl;
     void waitFor(
-      () => !!findTourAnchor(nextBinding, { widgetIds: latestAdded.current }),
+      () =>
+        !!findTourAnchor(nextBinding, {
+          widgetIds: latestAdded.current,
+          slots: latestSlots.current,
+        }),
       ANCHOR_SEARCH_MS,
       ctrl.signal
     ).then((ok) => {
@@ -801,7 +948,7 @@ export const LiveTourRunner: React.FC = () => {
         <button
           type="button"
           className={secondaryBtn}
-          onClick={() => setTour(null)}
+          onClick={() => endTour()}
         >
           {t('tours.notNow')}
         </button>
@@ -840,8 +987,8 @@ export const LiveTourRunner: React.FC = () => {
           type="button"
           className={secondaryBtn}
           onClick={() => {
-            removeWidgets(added);
-            setTour(null);
+            if (legacyAdded.length > 0) removeWidgets(legacyAdded);
+            endTour();
           }}
         >
           {t('tours.removeWidgets')}
@@ -849,7 +996,7 @@ export const LiveTourRunner: React.FC = () => {
         <button
           type="button"
           className={primaryBtn}
-          onClick={() => setTour(null)}
+          onClick={() => endTour(true)}
         >
           {t('tours.keepWidgets')}
         </button>

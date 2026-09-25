@@ -1,4 +1,9 @@
-import type { GuidedLearningSet, WidgetData, WidgetType } from '@/types';
+import type {
+  GuidedLearningSet,
+  GuidedLearningTourBinding,
+  WidgetData,
+  WidgetType,
+} from '@/types';
 import {
   TOUR_ANCHORS,
   isTourAnchorId,
@@ -6,6 +11,11 @@ import {
   type TourAnchorDef,
 } from '@/config/tourAnchors';
 import type { RecordedStep, TourRecording } from './useTourCapture';
+import {
+  buildRecordedLayouts,
+  type RecordedBoardWidget,
+  type RecordedStepLayout,
+} from './recordedLayouts';
 
 type BoardWidget = Pick<WidgetData, 'id' | 'type'>;
 
@@ -48,8 +58,34 @@ interface BuildOptions {
   widgets: readonly BoardWidget[];
   /** Ids of the widgets on the board when recording started. */
   startIds: ReadonlySet<string>;
+  /** Widget layouts at record start; absent = no recorded layout. */
+  startBoard?: readonly RecordedBoardWidget[];
+  /** Widget layouts when recording finished, to catch a widget the last step opened. */
+  endBoard?: readonly RecordedBoardWidget[];
   now?: number;
 }
+
+/** A widget-scoped anchor names its widget's type and slot, so the runner picks the right one of several. */
+const bindWidget = (
+  tour: GuidedLearningTourBinding,
+  widgetId: string | undefined,
+  typeOf: ReadonlyMap<string, WidgetType>,
+  slotOf: ReadonlyMap<string, number>,
+  layout: RecordedStepLayout
+): GuidedLearningTourBinding => {
+  const next: GuidedLearningTourBinding = { ...tour, ...layout };
+  const { id, widgetType } = parseTourAnchorRef(tour.anchor);
+  if (!widgetId || !isTourAnchorId(id)) return next;
+  const def: TourAnchorDef = TOUR_ANCHORS[id];
+  if (!def.perWidget && !def.perWidgetType) return next;
+  const type = widgetType ?? typeOf.get(widgetId);
+  const slot = slotOf.get(widgetId);
+  return {
+    ...next,
+    ...(type ? { anchor: `${id}:${type}` } : {}),
+    ...(slot === undefined ? {} : { slot }),
+  };
+};
 
 /** A v3 building set from a recording: one slide per frame, one tooltip step per click. */
 export function buildRecordedSet(
@@ -57,6 +93,25 @@ export function buildRecordedSet(
   opts: BuildOptions
 ): GuidedLearningSet {
   const now = opts.now ?? Date.now();
+  const recorded = opts.startBoard
+    ? buildRecordedLayouts(
+        opts.startBoard,
+        recording.steps.map((s) => s.board),
+        opts.endBoard
+      )
+    : null;
+  const typeOf = new Map<string, WidgetType>([
+    ...opts.widgets.map((w) => [w.id, w.type] as const),
+    ...(opts.startBoard ?? []).map((w) => [w.id, w.type] as const),
+    ...recording.steps.flatMap((s) =>
+      (s.board ?? []).map((w) => [w.id, w.type] as const)
+    ),
+  ]);
+  const setupWidgets = touchedWidgetTypes(
+    recording.steps,
+    opts.widgets,
+    opts.startIds
+  );
   return {
     id: opts.id,
     schemaVersion: 3,
@@ -66,7 +121,7 @@ export function buildRecordedSet(
     ...(opts.slideThumbnails && Object.keys(opts.slideThumbnails).length > 0
       ? { slideThumbnails: opts.slideThumbnails }
       : {}),
-    steps: recording.steps.map((s) => ({
+    steps: recording.steps.map((s, i) => ({
       id: s.id,
       xPct: s.xPct,
       yPct: s.yPct,
@@ -75,14 +130,25 @@ export function buildRecordedSet(
       interactionType: 'tooltip',
       showOverlay: 'tooltip',
       region: s.region,
-      tour: s.tour,
+      tour: recorded
+        ? bindWidget(
+            s.tour,
+            s.widgetId,
+            typeOf,
+            recorded.slotOf,
+            recorded.steps[i]
+          )
+        : s.tour,
     })),
     mode: 'structured',
     createdAt: now,
     updatedAt: now,
     isBuilding: true,
     tourSetup: {
-      widgets: touchedWidgetTypes(recording.steps, opts.widgets, opts.startIds),
+      widgets: setupWidgets,
+      ...(recorded && recorded.layouts.length > 0
+        ? { layouts: recorded.layouts }
+        : {}),
     },
     hasLiveTour: recording.steps.length > 0,
   };

@@ -17,6 +17,7 @@ import { buildRecordedSet } from './buildRecordedSet';
 import { draftRecordedStepText } from './draftStepText';
 import type { TourRecording } from './useTourCapture';
 import { uploadFramesOnce, type UploadedFrame } from './recordingHandoff';
+import { boardLayoutOf, type RecordedBoardWidget } from './recordedLayouts';
 
 const GuidedLearningStudio = lazy(() =>
   import('../studio/GuidedLearningStudio').then((m) => ({
@@ -26,10 +27,17 @@ const GuidedLearningStudio = lazy(() =>
 
 type BoardWidget = Pick<WidgetData, 'id' | 'type'>;
 
+interface Boards {
+  widgets: BoardWidget[];
+  /** Widget layouts when recording started and when it finished. */
+  startBoard: RecordedBoardWidget[];
+  endBoard?: RecordedBoardWidget[];
+}
+
 type Phase =
   | { kind: 'intro' }
-  | { kind: 'recording'; matcher: NameMatcher | null; widgets: BoardWidget[] }
-  | { kind: 'review'; recording: TourRecording; widgets: BoardWidget[] }
+  | ({ kind: 'recording'; matcher: NameMatcher | null } & Boards)
+  | ({ kind: 'review'; recording: TourRecording } & Boards)
   | { kind: 'studio'; set: GuidedLearningSet };
 
 const newId = () =>
@@ -62,14 +70,21 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
 
   const rosters = dashboard?.rosters ?? [];
   const unloaded = rosters.filter((r) => r.loadError).length;
+  const boardRef = useRef<WidgetData[]>([]);
+  boardRef.current = dashboard?.activeDashboard?.widgets ?? [];
+  const snapshot = () => boardLayoutOf(boardRef.current);
 
   const begin = () => {
     // Built once, before recording starts; the roster names never leave this matcher.
     const matcher = buildNameMatcher(rosters.flatMap((r) => r.students));
-    const widgets = (dashboard?.activeDashboard?.widgets ?? []).map(
-      ({ id, type }) => ({ id, type })
-    );
-    setPhase({ kind: 'recording', matcher, widgets });
+    const board = dashboard?.activeDashboard?.widgets ?? [];
+    const widgets = board.map(({ id, type }) => ({ id, type }));
+    setPhase({
+      kind: 'recording',
+      matcher,
+      widgets,
+      startBoard: boardLayoutOf(board),
+    });
   };
 
   // The Studio opens only on a saved set; a failed save keeps the recording for Retry.
@@ -89,7 +104,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
 
   const upload = async (
     recording: TourRecording,
-    widgets: BoardWidget[],
+    { widgets, startBoard, endBoard }: Boards,
     frames: Blob[]
   ) => {
     if (!user) return;
@@ -146,6 +161,8 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
         // Widgets opened mid-recording still resolve to a type.
         widgets: [...widgets, ...(dashboard?.activeDashboard?.widgets ?? [])],
         startIds: new Set(widgets.map((w) => w.id)),
+        startBoard,
+        endBoard,
       });
       const set: GuidedLearningSet = {
         ...base,
@@ -167,13 +184,20 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
   };
 
   if (phase.kind === 'recording') {
-    const { widgets } = phase;
+    const { widgets, startBoard } = phase;
     return (
       <TourRecorder
         matcher={phase.matcher}
+        snapshot={snapshot}
         onFinish={(recording) =>
           recording.frames.length > 0
-            ? setPhase({ kind: 'review', recording, widgets })
+            ? setPhase({
+                kind: 'review',
+                recording,
+                widgets,
+                startBoard,
+                endBoard: snapshot(),
+              })
             : onEnd()
         }
         onDiscard={onEnd}
@@ -182,13 +206,13 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
   }
 
   if (phase.kind === 'review') {
-    const { recording, widgets } = phase;
+    const { recording, ...boards } = phase;
     return (
       <FrameReview
         recording={recording}
         busy={busy}
         error={error}
-        onUpload={(reviewed) => void upload(reviewed, widgets, reviewed.frames)}
+        onUpload={(reviewed) => void upload(reviewed, boards, reviewed.frames)}
         onDiscard={() =>
           void showConfirm(t('glRecorder.reviewDiscardConfirm'), {
             title: t('glRecorder.reviewDiscard'),
