@@ -107,7 +107,7 @@ export const ResponseFormatControl: React.FC<ResponseFormatSectionProps> = ({
   ];
 
   return (
-    <div>
+    <div title={recording ? tk('advisory.deviceBlocked') : undefined}>
       <span className={labelClass}>{tk('formatLabel')}</span>
       <SegmentedControl
         value={spoken}

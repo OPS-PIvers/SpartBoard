@@ -16,7 +16,7 @@ const EXPECTED: Record<string, RegExp> = {
   'rc-enabled-defaults': /When thinking time runs out/i,
   'rc-clamped-limit': /Capped at 300s/i,
   'rc-take-limit': /Takes allowed/i,
-  'rc-advisory': /Records up to 2 slots per student/i,
+  'rc-advisory': /Shuffle has no effect/i,
 };
 
 describe('RecordingControlsDevView', () => {

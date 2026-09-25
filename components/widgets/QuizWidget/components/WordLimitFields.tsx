@@ -105,7 +105,10 @@ export const WordLimitFields: React.FC<Props> = ({ question, onChange }) => {
         </p>
       )}
       {hasBound && (
-        <div className="mt-3 flex items-start gap-3">
+        <div
+          className="mt-3 flex items-center gap-3"
+          title="Students can't submit outside this range."
+        >
           <Toggle
             checked={question.enforceWordLimit === true}
             onChange={(checked) =>
@@ -114,16 +117,10 @@ export const WordLimitFields: React.FC<Props> = ({ question, onChange }) => {
             size="sm"
             showLabels={false}
             label="Enforce limit"
-            aria-describedby="word-limit-enforce-hint"
           />
-          <div>
-            <p className="text-sm font-bold text-slate-700" aria-hidden>
-              Enforce limit
-            </p>
-            <p id="word-limit-enforce-hint" className="text-xs text-slate-500">
-              Students can&apos;t submit outside this range
-            </p>
-          </div>
+          <p className="text-sm font-bold text-slate-700" aria-hidden>
+            Enforce limit
+          </p>
         </div>
       )}
     </div>

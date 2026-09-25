@@ -151,9 +151,6 @@ describe('QuizEditorModal Format row', () => {
     expect(timeLimit.value).toBe('0');
     expect(detail().getByText(/Set by the recording timer/i)).toBeTruthy();
     expect(
-      context().getByText('Records up to 1 slot per student.')
-    ).toBeTruthy();
-    expect(
       detail().queryByPlaceholderText(
         'e.g. Cite at least two pieces of evidence.'
       )
@@ -213,14 +210,10 @@ describe('QuizEditorModal Format row', () => {
     expect(detail().queryByText('Format')).toBeNull();
   });
 
-  it('keeps the advisory out of the save-error banner', () => {
+  it('shows no advisory banner for a spoken question', () => {
     gate.mockReturnValue(true);
     open();
     fireEvent.click(spokenTab());
-    const advisory = context()
-      .getByText('Heads up')
-      .closest('[role="status"]') as HTMLElement;
-    expect(advisory).toBeTruthy();
-    expect(advisory.className).not.toMatch(/brand-red/);
+    expect(context().queryByText('Heads up')).toBeNull();
   });
 });
