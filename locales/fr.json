@@ -2299,7 +2299,11 @@
         "scored": "Graded",
         "awaiting-grade": "Ungraded",
         "not-attempted": "No answer",
-        "excused": "Excused"
+        "excused": "Excused",
+        "paper-pending": "Transcription",
+        "paper-failed": "Échec",
+        "paper-over-quota": "Limite quotidienne",
+        "paper-blank": "Vide"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -2440,7 +2444,41 @@
       "tabSwitches_other": "{{count}} changements d'onglet",
       "tabSwitchesTitle_one": "{{count}} avertissement de changement d'onglet pendant l'évaluation",
       "tabSwitchesTitle_other": "{{count}} avertissements de changement d'onglet pendant l'évaluation",
-      "noAnswersOnQuestion": "Pas encore de réponse à cette question."
+      "noAnswersOnQuestion": "Pas encore de réponse à cette question.",
+      "paper": {
+        "badge": "Papier",
+        "handwriting": "Écriture manuscrite",
+        "cropAlt": "Réponse manuscrite, question {{number}}",
+        "zoomIn": "Zoom avant",
+        "zoomOut": "Zoom arrière",
+        "zoomFit": "Ajuster",
+        "loading": "Chargement de l'écriture",
+        "unavailable": "Écriture indisponible",
+        "reload": "Réessayer",
+        "checkTranscript": "Vérifier la transcription",
+        "retry": "Réessayer",
+        "transcribeBlank": "Pas vide ? Transcrire",
+        "useNewScan": "Utiliser le nouveau scan",
+        "awaitingDrive": "Pas encore dans Drive",
+        "connectDrive": "Connecter Drive",
+        "edit": "Modifier la transcription",
+        "save": "Enregistrer la transcription",
+        "cancel": "Annuler",
+        "transcriptLabel": "Transcription",
+        "confirmRewrite": "Modifier efface les surlignages de cette réponse. Continuer ?",
+        "state": {
+          "pending": "Transcription",
+          "failed": "Échec",
+          "over-quota": "Limite quotidienne",
+          "blank": "Vide",
+          "edited": "Modifiée"
+        },
+        "errors": {
+          "superseded": "Un scan plus récent a remplacé cette réponse.",
+          "actionFailed": "Cela n'a pas fonctionné. Réessayez.",
+          "busy": "La transcription est en cours. Réessayez dans un instant."
+        }
+      }
     },
     "results": {
       "gradeButton": "Noter les réponses libres"

@@ -28,6 +28,7 @@ import {
   Trash2,
   RefreshCw,
   Lock,
+  FileScan,
   GraduationCap,
   Paperclip,
   Send,
@@ -122,6 +123,17 @@ import {
   type QuestionDrilldown,
 } from '@/utils/quizQuestionDrilldown';
 import { createDriveTakeUrlResolver } from '@/utils/quizMediaPlayback';
+import {
+  PAPER_CROP_CALLABLE,
+  PAPER_WRITTEN_CALLABLES,
+  createPaperCropResolver,
+  type GetPaperWrittenCropRequest,
+  type GetPaperWrittenCropResponse,
+  type PaperWrittenActions,
+} from '@/utils/paperCropFetch';
+import { isPaperWrittenAnswer } from '@/utils/paperWritten';
+import { usePaperPrivateAnswers } from '@/hooks/usePaperPrivateAnswers';
+import { requestAndExchangeAuthCode } from '@/utils/googleOAuthRefresh';
 import { deleteField, doc, updateDoc, FieldPath } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
@@ -508,6 +520,11 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       return r;
     });
   }, [rawResponses, classIdToPeriodName]);
+  const paperPrivate = usePaperPrivateAnswers(
+    session?.id,
+    responses,
+    showGrader
+  );
 
   const completed = responses.filter((r) => r.status === 'completed');
 
@@ -576,6 +593,56 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       }),
     [googleAccessToken, refreshGoogleToken]
   );
+
+  const resolvePaperCrop = useMemo(
+    () =>
+      createPaperCropResolver({
+        resolveDriveFile: resolveTakeUrl,
+        callCrop: async (req) =>
+          (
+            await httpsCallable<
+              GetPaperWrittenCropRequest,
+              GetPaperWrittenCropResponse
+            >(
+              functions,
+              PAPER_CROP_CALLABLE
+            )(req)
+          ).data,
+      }),
+    [resolveTakeUrl]
+  );
+
+  const paperActions = useMemo<PaperWrittenActions>(() => {
+    const call =
+      <Req, Res>(name: string) =>
+      async (req: Req): Promise<Res> =>
+        (await httpsCallable<Req, Res>(functions, name)(req)).data;
+    return {
+      updateTranscript: call(PAPER_WRITTEN_CALLABLES.updateTranscript),
+      applyNewerScan: call(PAPER_WRITTEN_CALLABLES.applyNewerScan),
+      transcribeBlank: call(PAPER_WRITTEN_CALLABLES.transcribeBlank),
+      retry: call(PAPER_WRITTEN_CALLABLES.retry),
+    };
+  }, []);
+
+  const connectDrive = useCallback(async () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
+      | string
+      | undefined;
+    if (!clientId) {
+      addToast('Google Drive sign-in is not configured.', 'error');
+      return;
+    }
+    const outcome = await requestAndExchangeAuthCode(
+      clientId,
+      user?.email ?? undefined
+    );
+    if (outcome.kind === 'success') {
+      addToast('Google Drive connected.', 'success');
+    } else if (outcome.kind !== 'cancelled') {
+      addToast('Could not connect Google Drive.', 'error');
+    }
+  }, [addToast, user?.email]);
 
   // Build a display-name lookup keyed by the response's deterministic
   // doc key so the grader can show a real student name in its header
@@ -2308,6 +2375,11 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           }
           teacherUid={user.uid}
           resolveTakeUrl={showMediaGrading ? resolveTakeUrl : undefined}
+          sessionId={session.id}
+          paperPrivate={paperPrivate}
+          resolvePaperCrop={resolvePaperCrop}
+          paperActions={paperActions}
+          onConnectDrive={() => void connectDrive()}
           onSaveGrade={saveWrittenGrade}
           onSaveBackTranslation={saveBackTranslation}
           onClearGrade={clearWrittenGrade}
@@ -3375,6 +3447,7 @@ const StudentsScreen: React.FC<{
   focusKey,
   onFocused,
 }) => {
+  const { t } = useTranslation();
   const selection = useStudentResultsSelection();
   const resultsActions = selection ? studentResultsActions : undefined;
   const classVisibility = session?.scoreVisibility ?? 'none';
@@ -3655,6 +3728,15 @@ const StudentsScreen: React.FC<{
                   </button>
                   {resultsActions && (
                     <ResultsOverrideBadge override={r.resultsOverride} />
+                  )}
+                  {r.answers?.some((a) => isPaperWrittenAnswer(a)) && (
+                    <span className="shrink-0">
+                      <SessionBadge
+                        tone="neutral"
+                        icon={FileScan}
+                        label={t('quizMediaResponse.grading.paper.badge')}
+                      />
+                    </span>
                   )}
                   {tabWarningsEnabled && warnings > 0 && (
                     <TabExitsPopover

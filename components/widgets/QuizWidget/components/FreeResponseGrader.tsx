@@ -26,6 +26,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  FileScan,
   Loader2,
   Mic,
   PanelLeftClose,
@@ -37,6 +38,8 @@ import {
 } from 'lucide-react';
 import {
   type ArtifactSlot,
+  type PaperPrivateAnswer,
+  type PaperPrivateStatus,
   type QuizData,
   type QuizQuestion,
   type QuizResponse,
@@ -98,6 +101,16 @@ import { BackTranslationPanel } from './BackTranslationPanel';
 import { AudioAnnotatedResponseView } from './AudioAnnotatedResponseView';
 import { RubricScoringPanel } from './RubricScoringPanel';
 import { RubricStrandPills } from './RubricStrandChips';
+import { PaperCropPanel } from '@/components/quiz/paper/PaperCropPanel';
+import {
+  handwritingArtifact,
+  isPaperWrittenAnswer,
+} from '@/utils/paperWritten';
+import {
+  paperPrivateKey,
+  type PaperCropResolver,
+  type PaperWrittenActions,
+} from '@/utils/paperCropFetch';
 
 export const ADVANCE_DELAY_MS = 900;
 export const POINTS_IDLE_MS = 1500;
@@ -170,6 +183,13 @@ export interface FreeResponseGraderProps {
     slot: ArtifactSlot;
     isAudio: boolean;
   }) => React.ReactNode;
+  /** Paper written answers: teacher-only transcription records keyed by `paperPrivateKey`. */
+  paperPrivate?: ReadonlyMap<string, PaperPrivateAnswer>;
+  /** Loads handwriting crops; paper answers show no crop when omitted. */
+  resolvePaperCrop?: PaperCropResolver;
+  paperActions?: PaperWrittenActions;
+  onConnectDrive?: () => void;
+  sessionId?: string;
   onClose: () => void;
 }
 
@@ -181,10 +201,11 @@ const targetSlot = (target: GradeTarget): ArtifactSlot =>
 const targetGrade = (target: GradeTarget): WrittenAnswerGrade | undefined =>
   target.kind === 'media' ? target.slot.grade : target.grade;
 
-/** Graded means a grade exists and no rubric criterion is still open. */
+/** Graded means a grade exists and no rubric criterion is still open; a blank paper box is a 0. */
 const targetIsGraded = (question: QuizQuestion, target: GradeTarget) => {
   const grade = targetGrade(target);
-  if (!grade) return false;
+  if (!grade)
+    return target.kind === 'text' && target.entry.paperTranscript === 'blank';
   return !isWrittenAnswerAwaitingGrade(question, '', grade);
 };
 
@@ -207,14 +228,31 @@ const writeRailCollapsed = (collapsed: boolean): void => {
   }
 };
 
+const PAPER_CHIP: Record<Exclude<PaperPrivateStatus, 'done'>, string> = {
+  pending: 'bg-slate-200 text-slate-700',
+  failed: 'bg-brand-red-lighter/50 text-brand-red-dark',
+  'over-quota': 'bg-amber-100 text-amber-800',
+  blank: 'bg-slate-200 text-slate-700',
+};
+
 const targetVocabulary = (
-  target: GradeTarget | undefined
+  target: GradeTarget | undefined,
+  paperStatus?: PaperPrivateStatus
 ): { key: string; chip: string } => {
   if (target?.kind === 'media' && isSlotExcused(target.slot)) {
     return {
       key: 'quizMediaResponse.grading.state.excused',
       chip: 'bg-slate-200 text-slate-700',
     };
+  }
+  if (target?.kind === 'text' && !target.grade) {
+    const status = paperStatus ?? target.entry.paperTranscript;
+    if (status && status !== 'done') {
+      return {
+        key: `quizMediaResponse.grading.state.paper-${status}`,
+        chip: PAPER_CHIP[status],
+      };
+    }
   }
   const state = !target
     ? 'not-attempted'
@@ -325,7 +363,11 @@ function buildQueue(
         (a) => a.questionId === question.id && !a.unresponded
       );
       const grade = response.grading?.[question.id];
-      const answered = !!entry && hasSubmittedContent(entry.answer ?? '');
+      // A paper box is owed a look even before its transcript lands (D32).
+      const answered =
+        !!entry &&
+        (hasSubmittedContent(entry.answer ?? '') ||
+          isPaperWrittenAnswer(entry));
       targets =
         answered || grade
           ? [
@@ -399,6 +441,11 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   onAutoAdvanceChange,
   initialTarget,
   renderNormingFlag,
+  paperPrivate,
+  resolvePaperCrop,
+  paperActions,
+  onConnectDrive,
+  sessionId,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -609,8 +656,13 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     : null;
 
   const targetKey = `${responseKey ?? ''}::${target?.key ?? ''}`;
-  if (targetKey !== hydrationKey) {
-    setHydrationKey(targetKey);
+  const isPaperAnswer = !!textEntry && isPaperWrittenAnswer(textEntry);
+  // A landed or edited transcript rewrites the snapshot server-side; rehydrate so stale highlights never save back.
+  const hydrateKey = isPaperAnswer
+    ? `${targetKey}::${textEntry?.paperScanId ?? ''}::${textEntry?.paperTranscript ?? ''}::${textEntry?.answer ?? ''}`
+    : targetKey;
+  if (hydrateKey !== hydrationKey) {
+    setHydrationKey(hydrateKey);
     const hydrated = draftFromGrade(savedGrade);
     setPointsInput(hydrated.pointsInput);
     setComment(hydrated.comment);
@@ -1120,7 +1172,17 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
 
   const isMedia = target?.kind === 'media';
   const slotExcused = !!slot && isSlotExcused(slot);
-  const headerVocabulary = targetVocabulary(target);
+  const paperDocFor = (key: string | undefined): PaperPrivateAnswer | null =>
+    key ? (paperPrivate?.get(paperPrivateKey(key, question.id)) ?? null) : null;
+  const privateDoc = isPaperAnswer ? paperDocFor(responseKey) : null;
+  const paperCrop = textEntry ? handwritingArtifact(textEntry) : null;
+  const headerVocabulary = targetVocabulary(target, privateDoc?.status);
+  const paperBadge = (
+    <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-slate-200 px-1 py-0.5 text-xxs font-bold uppercase tracking-wider text-slate-700">
+      <FileScan aria-hidden className="h-3 w-3" />
+      {tg('paper.badge')}
+    </span>
+  );
   const unplayable =
     isMedia && !isUnavailable ? takeUnplayableReason(activeTake) : null;
   const studentAnswer = textEntry?.answer ?? '';
@@ -1185,6 +1247,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         )}
         {t(headerVocabulary.key)}
       </span>
+      {isPaperAnswer && paperBadge}
       {tabSwitches > 0 && (
         <span
           className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700"
@@ -1214,6 +1277,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         )}
         {t(headerVocabulary.key)}
       </span>
+      {isPaperAnswer && paperBadge}
       {railCollapsed && tabSwitches > 0 && (
         <span
           className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700"
@@ -1365,11 +1429,22 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       entryRow?.targets.find(
         (x) => x.kind === 'media' && x.slot.slot === slotName
       ) ?? entryRow?.targets[0];
-    return { entry, vocabulary: targetVocabulary(entryTarget) };
+    const paper =
+      entryTarget?.kind === 'text' && isPaperWrittenAnswer(entryTarget.entry);
+    return {
+      entry,
+      paper,
+      vocabulary: targetVocabulary(
+        entryTarget,
+        paper ? paperDocFor(entryRow?.responseKey)?.status : undefined
+      ),
+    };
   });
   const gradedCount = railRows.filter(
     ({ vocabulary }) =>
-      vocabulary.key.endsWith('.scored') || vocabulary.key.endsWith('.excused')
+      vocabulary.key.endsWith('.scored') ||
+      vocabulary.key.endsWith('.excused') ||
+      vocabulary.key.endsWith('.paper-blank')
   ).length;
   const gradedCountLabel = tg('gradedCountLabel', {
     graded: gradedCount,
@@ -1479,7 +1554,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
               </button>
             </div>
             <ul>
-              {railRows.map(({ entry, vocabulary }, idx) => {
+              {railRows.map(({ entry, paper, vocabulary }, idx) => {
                 const entryTabSwitches = entry.response.tabSwitchWarnings ?? 0;
                 return (
                   <li key={entry.responseKey ?? idx}>
@@ -1510,6 +1585,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                           </span>
                         </span>
                       )}
+                      {paper && paperBadge}
                       <span
                         className={`shrink-0 rounded px-1.5 py-0.5 text-xxs uppercase tracking-wider ${vocabulary.chip}`}
                       >
@@ -1614,25 +1690,54 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
 
             {target && !isMedia && (
               <>
-                <div className="-mt-2 flex flex-wrap items-baseline gap-2">
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    {tg('responseLabel')}
-                  </h4>
-                  <span
-                    className={`font-mono text-xs ${outsideWordRange ? 'text-amber-700' : 'text-slate-500'}`}
-                  >
-                    {wordCounterLabel(answerWordCount, question)}
-                  </span>
-                  {graderV2 && textEntry?.timedOutUnderMinimum && (
-                    <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700">
-                      <Clock aria-hidden className="h-3 w-3" />
-                      {tg('timedOutUnderMinimum')}
-                    </span>
+                {isPaperAnswer &&
+                  textEntry &&
+                  resolvePaperCrop &&
+                  sessionId &&
+                  responseKey && (
+                    <PaperCropPanel
+                      key={`${targetKey}::${textEntry.paperScanId ?? ''}`}
+                      questionNumber={
+                        quiz.questions.findIndex((q) => q.id === question.id) +
+                        1
+                      }
+                      sessionId={sessionId}
+                      responseKey={responseKey}
+                      questionId={question.id}
+                      answer={textEntry}
+                      privateDoc={privateDoc}
+                      archive={
+                        paperCrop
+                          ? response?.artifactArchive?.[paperCrop.id]
+                          : undefined
+                      }
+                      hasSnapshot={!!savedGrade?.gradingSnapshot}
+                      resolveCrop={resolvePaperCrop}
+                      actions={paperActions}
+                      onConnectDrive={onConnectDrive}
+                    />
                   )}
-                </div>
+                {(studentAnswer || !isPaperAnswer) && (
+                  <div className="-mt-2 flex flex-wrap items-baseline gap-2">
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      {tg('responseLabel')}
+                    </h4>
+                    <span
+                      className={`font-mono text-xs ${outsideWordRange ? 'text-amber-700' : 'text-slate-500'}`}
+                    >
+                      {wordCounterLabel(answerWordCount, question)}
+                    </span>
+                    {graderV2 && textEntry?.timedOutUnderMinimum && (
+                      <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700">
+                        <Clock aria-hidden className="h-3 w-3" />
+                        {tg('timedOutUnderMinimum')}
+                      </span>
+                    )}
+                  </div>
+                )}
                 {studentAnswer ? (
                   <AnnotatedResponseView
-                    key={targetKey}
+                    key={hydrateKey}
                     mode="edit"
                     snapshot={snapshotForList}
                     annotations={draftAnnotations}
@@ -1643,7 +1748,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                     rubric={taggableRubric}
                     autoTagSingleStrand={graderV2}
                   />
-                ) : (
+                ) : isPaperAnswer ? null : (
                   <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm italic text-slate-500">
                     {tg('noTextAnswer')}
                   </div>
