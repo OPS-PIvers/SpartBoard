@@ -39,7 +39,9 @@ export const CalloutToolbar: React.FC<CalloutToolbarProps> = ({
   const tooltip = isTooltipCallout(step);
   const tone = step.calloutTone ?? 'dark';
   const sized =
-    step.calloutWidthPct !== undefined || step.calloutScale !== undefined;
+    !!step.calloutBox ||
+    step.calloutWidthPct !== undefined ||
+    step.calloutScale !== undefined;
   const kindLabel = tooltip
     ? t('glStudio.calloutToPopover')
     : t('glStudio.calloutToTooltip');
@@ -69,7 +71,7 @@ export const CalloutToolbar: React.FC<CalloutToolbarProps> = ({
       <button
         type="button"
         onClick={() => onChange(clearCalloutPin(step))}
-        disabled={!step.calloutPin}
+        disabled={!step.calloutPin && !step.calloutBox}
         aria-label={t('glStudio.calloutResetPosition')}
         title={t('glStudio.calloutResetPosition')}
         className={buttonClass}

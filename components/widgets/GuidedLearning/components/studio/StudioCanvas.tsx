@@ -287,6 +287,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
               renderCalloutEditor={renderCalloutEditor}
               renderEditLayer={renderEditLayer}
               onGeometry={onGeometry}
+              showCalloutFit
               onPinClick={setSelectedStepId}
               onAdvance={noop}
               onDismiss={noop}

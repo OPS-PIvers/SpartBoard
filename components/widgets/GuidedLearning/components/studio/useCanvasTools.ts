@@ -1,22 +1,24 @@
 import { useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DialogContext } from '@/context/DialogContextValue';
-import type { GuidedLearningRegion } from '@/types';
+import type {
+  GuidedLearningCalloutBox,
+  GuidedLearningRegion,
+  GuidedLearningStep,
+} from '@/types';
 import type { DevicePreset, PctPoint, StageGeometry } from '../../types/stage';
 import { polygonBBox } from '../../utils/regionGeometry';
 import type { GuidedLearningEditorController } from '../useGuidedLearningEditorState';
 import type { StudioShortcut } from './useStudioShortcuts';
 import type { DrawShape } from './StudioEditLayer';
-import { moveStep, removeVertex, setCalloutPin } from './regionEdits';
+import { moveStep, removeVertex, withCalloutBox } from './regionEdits';
 import { useCanvasViewport } from './useCanvasViewport';
 import { fitScale } from './deviceFrameContext';
 import { findCallout } from './canvasScale';
 import {
-  CALLOUT_SCALE_STEP,
-  CALLOUT_WIDTH_STEP,
+  CALLOUT_NUDGE_PCT,
   clientRectToContainer,
-  scaleCalloutCorner,
-  withCalloutSize,
+  containerRectToBox,
 } from './calloutHandles';
 import { safeLinkUrl, wrapSelection } from './inlineText';
 import type { RedactMode, RedactRect } from '../../utils/redactImage';
@@ -187,6 +189,21 @@ export function useCanvasTools(
     [addStepAt]
   );
 
+  // The selected callout's box: stored, else its rendered rect converted on first touch (G13).
+  const calloutBoxNow = useCallback(
+    (step: GuidedLearningStep): GuidedLearningCalloutBox | null => {
+      if (step.calloutBox) return step.calloutBox;
+      const g = geometryRef.current;
+      const el = findCallout(document.querySelector(CANVAS_SELECTOR), step.id);
+      if (!g || !el) return null;
+      return containerRectToBox(
+        g,
+        clientRectToContainer(g, el.getBoundingClientRect())
+      );
+    },
+    []
+  );
+
   const nudge = useCallback(
     (dx: number, dy: number) => {
       if (!selected) return;
@@ -194,63 +211,34 @@ export function useCanvasTools(
         updateStep(moveStep(selected, dx, dy));
         return;
       }
-      let from = selected.calloutPin ?? null;
-      const g = geometryRef.current;
-      if (!from && g) {
-        const r = findCallout(
-          document.querySelector(CANVAS_SELECTOR),
-          selected.id
-        )?.getBoundingClientRect();
-        if (r)
-          from = g.clientToImagePct(r.left + r.width / 2, r.top + r.height / 2);
-      }
-      if (!from) return;
+      const box = calloutBoxNow(selected);
+      if (!box) return;
       updateStep(
-        setCalloutPin(selected, { xPct: from.xPct + dx, yPct: from.yPct + dy })
+        withCalloutBox(selected, {
+          ...box,
+          xPct: box.xPct + dx,
+          yPct: box.yPct + dy,
+        })
       );
     },
-    [selected, calloutFocused, updateStep]
+    [selected, calloutFocused, updateStep, calloutBoxNow]
   );
 
-  /** Alt+arrows: width by 2 stage-% points, scale by 0.05, as the handles would. */
+  /** Alt+arrows: ←/→ change the width, ↑/↓ both sides, by one image-% point. */
   const sizeCallout = useCallback(
     (axis: 'width' | 'scale', dir: 1 | -1) => {
       if (!selected) return;
-      const step = selected;
-      const g = geometryRef.current;
-      const el = findCallout(
-        document.querySelector(CANVAS_SELECTOR),
-        selected.id
+      const box = calloutBoxNow(selected);
+      if (!box) return;
+      const wPct = Math.max(
+        box.wPct + dir * CALLOUT_NUDGE_PCT,
+        CALLOUT_NUDGE_PCT
       );
-      if (axis === 'width') {
-        let widthPct = step.calloutWidthPct;
-        if (widthPct === undefined && g && el) {
-          const box = clientRectToContainer(g, el.getBoundingClientRect());
-          widthPct = (box.w / Math.max(g.containerSize.w, 1)) * 100;
-        }
-        if (widthPct === undefined) return;
-        updateStep(
-          withCalloutSize(step, {
-            widthPct: Math.round(widthPct) + dir * CALLOUT_WIDTH_STEP,
-          })
-        );
-        return;
-      }
-      const from = step.calloutScale ?? 1;
-      const unit = { x: 0, y: 0, w: 1, h: 1 };
-      // The se corner of a unit box, moved to the target ratio, reuses the corner maths.
-      const ratio = (from + dir * CALLOUT_SCALE_STEP) / from;
-      const edit = scaleCalloutCorner(
-        unit,
-        'se',
-        { x: ratio, y: ratio },
-        from,
-        step.calloutWidthPct,
-        false
-      );
-      updateStep(withCalloutSize(step, edit));
+      // Larger and smaller keep the box's shape.
+      const hPct = axis === 'scale' ? (box.hPct * wPct) / box.wPct : box.hPct;
+      updateStep(withCalloutBox(selected, { ...box, wPct, hPct }));
     },
-    [selected, updateStep]
+    [selected, updateStep, calloutBoxNow]
   );
 
   const selectedSlideIndex = slideSteps.findIndex(
