@@ -268,7 +268,7 @@ describe('Studio edit layer', () => {
     expect(moved.xPct).toBeCloseTo(75);
   });
 
-  it('pins the callout where it is dragged and Reset returns it to auto', () => {
+  it('turns the callout into a box where it is dragged and Reset returns it to auto', () => {
     click([18, 18]);
     expect(editor().selectedStepId).toBe('rect-1');
     fireEvent.pointerDown(layer(), {
@@ -279,24 +279,34 @@ describe('Studio edit layer', () => {
     });
     fireEvent.pointerMove(layer(), {
       pointerId: 1,
+      ctrlKey: true,
       clientX: 625,
       clientY: 425,
     });
     fireEvent.pointerMove(layer(), {
       pointerId: 1,
+      ctrlKey: true,
       clientX: 628,
       clientY: 430,
     });
-    fireEvent.pointerUp(layer(), { pointerId: 1, clientX: 628, clientY: 430 });
-    const pin = stepById('rect-1').calloutPin;
-    // The callout centre (650, 430) plus the 8×10px drag.
-    expect(pin?.xPct).toBeCloseTo(658 / 7.2);
-    expect(pin?.yPct).toBeCloseTo(440 / 5.2);
-    fireEvent.click(screen.getByRole('button', { name: 'Reset to auto' }));
+    fireEvent.pointerUp(layer(), {
+      pointerId: 1,
+      ctrlKey: true,
+      clientX: 628,
+      clientY: 430,
+    });
+    const box = stepById('rect-1').calloutBox;
+    // The callout box (600, 400, 100×60) plus the 8×10px drag.
+    expect(box?.xPct).toBeCloseTo(608 / 7.2);
+    expect(box?.yPct).toBeCloseTo(410 / 5.2);
+    expect(box?.wPct).toBeCloseTo(100 / 7.2);
+    expect(box?.hPct).toBeCloseTo(60 / 5.2);
     expect(stepById('rect-1').calloutPin).toBeUndefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to auto' }));
+    expect(stepById('rect-1').calloutBox).toBeUndefined();
   });
 
-  it('keeps the grab offset and stops the card where the player would clamp it', () => {
+  it('keeps the grab offset and stops the card at the stage edge', () => {
     click([18, 18]);
     fireEvent.pointerDown(layer(), {
       button: 0,
@@ -306,6 +316,7 @@ describe('Studio edit layer', () => {
     });
     fireEvent.pointerMove(layer(), {
       pointerId: 1,
+      ctrlKey: true,
       clientX: 600,
       clientY: 380,
     });
@@ -315,20 +326,26 @@ describe('Studio edit layer', () => {
     );
     // The card keeps the grab offset; the document is untouched mid-drag.
     expect(card?.style.translate).toBe('-20px -40px');
-    expect(stepById('rect-1').calloutPin).toBeUndefined();
-    // Far past the right edge: the card stops 12px inside the stage.
+    expect(stepById('rect-1').calloutBox).toBeUndefined();
+    // Far past the right edge: the card stops flush with the stage.
     fireEvent.pointerMove(layer(), {
       pointerId: 1,
+      ctrlKey: true,
       clientX: 900,
       clientY: 420,
     });
     frames.step();
     const [x, y] = (card?.style.translate ?? '').split(' ').map(parseFloat);
-    expect(x).toBeCloseTo(8);
+    expect(x).toBeCloseTo(20);
     expect(y).toBeCloseTo(0);
-    fireEvent.pointerUp(layer(), { pointerId: 1, clientX: 900, clientY: 420 });
+    fireEvent.pointerUp(layer(), {
+      pointerId: 1,
+      ctrlKey: true,
+      clientX: 900,
+      clientY: 420,
+    });
     expect(card?.style.translate).toBe('');
-    expect(stepById('rect-1').calloutPin?.xPct).toBeCloseTo(658 / 7.2);
+    expect(stepById('rect-1').calloutBox?.xPct).toBeCloseTo(620 / 7.2);
   });
 
   it('never opens editing from the double-click a drag ends with', () => {
@@ -539,7 +556,7 @@ describe('Studio edit layer', () => {
     );
     expect(counts).toEqual([0, 0, 0, 0, 0, 0]);
     expect(stepById('rect-1').xPct).not.toBe(25);
-    expect(stepById('rect-1').calloutPin).toBeDefined();
+    expect(stepById('rect-1').calloutBox).toBeDefined();
   });
 
   it('keeps an undo pressed mid-drag when the drag is released', () => {

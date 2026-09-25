@@ -1,34 +1,28 @@
-import type { GuidedLearningStep } from '@/types';
+import type { GuidedLearningCalloutBox, GuidedLearningStep } from '@/types';
 import type { PxRect, StageGeometry } from '../../types/stage';
 import type { Point } from '../../utils/calloutPlacement';
-import {
-  clampCalloutScale,
-  clampCalloutWidthPct,
-} from '../../utils/calloutStyle';
-import { setCalloutScale, setCalloutWidthPct } from './regionEdits';
+import type { ResizeHandle } from './regionEdits';
 
-/** Side handles set the width; corner handles scale the whole card. Height fits the content, so no top or bottom handle. */
-export type CalloutHandle = 'nw' | 'ne' | 'e' | 'se' | 'sw' | 'w';
+/** Eight handles: corners and edge midpoints (G6). */
+export type CalloutHandle = ResizeHandle;
 export const CALLOUT_HANDLES: readonly CalloutHandle[] = [
   'nw',
+  'n',
   'ne',
   'e',
   'se',
+  's',
   'sw',
   'w',
 ];
 
-/** Keyboard steps: Alt+←/→ width in stage-%, Alt+↑/↓ scale. */
-export const CALLOUT_WIDTH_STEP = 2;
-export const CALLOUT_SCALE_STEP = 0.05;
+/** Smallest box a handle drag may leave, in container px. */
+export const CALLOUT_MIN_PX = { w: 48, h: 28 };
+/** Alt+arrows grow or shrink the box by this many image-% per press. */
+export const CALLOUT_NUDGE_PCT = 1;
 
 const clamp = (n: number, lo: number, hi: number): number =>
-  Math.min(Math.max(n, lo), hi);
-const round = (n: number, places: number): number =>
-  Math.round(n * 10 ** places) / 10 ** places;
-
-const clampWidthPct = (n: number): number => round(clampCalloutWidthPct(n), 2);
-const clampScale = (n: number): number => round(clampCalloutScale(n), 3);
+  hi < lo ? lo : Math.min(Math.max(n, lo), hi);
 
 const OVERLAY_TYPES = new Set(['pan-zoom', 'pan-zoom-spotlight', 'spotlight']);
 
@@ -40,7 +34,7 @@ export function isTooltipCallout(step: GuidedLearningStep): boolean {
   );
 }
 
-/** Tooltip ⇄ popover, keeping label, text, pin, size and tone. */
+/** Tooltip ⇄ popover, keeping label, text, box and tone. */
 export function toggleCalloutKind(
   step: GuidedLearningStep
 ): GuidedLearningStep {
@@ -56,100 +50,96 @@ export function toggleCalloutKind(
   };
 }
 
-/** Result of a handle drag: the fields to write, and the new pinned centre in container px (null = leave the pin alone). */
-export interface CalloutSizeEdit {
-  widthPct?: number;
-  scale?: number;
-  centre: Point | null;
+export interface BoxResizeOptions {
+  /** Shift: keep the starting aspect ratio. */
+  keepAspect: boolean;
+  /** Alt: resize about the box centre. */
+  fromCentre: boolean;
+  container: { w: number; h: number };
 }
 
-/** Side handle: the width follows the pointer; a pinned box keeps its opposite edge, an auto-placed one grows about its centre. */
-export function resizeCalloutSide(
+/** A handle drag on a callout box, in container px; the box never leaves the stage. */
+export function resizeCalloutBox(
   start: PxRect,
-  handle: 'e' | 'w',
-  pointerX: number,
-  stageW: number,
-  pinned: boolean
-): CalloutSizeEdit {
+  handle: CalloutHandle,
+  at: Point,
+  { keepAspect, fromCentre, container }: BoxResizeOptions
+): PxRect {
+  const horiz = handle.includes('e') || handle.includes('w');
+  const vert = handle.includes('n') || handle.includes('s');
   const cx = start.x + start.w / 2;
-  const anchor = handle === 'e' ? start.x : start.x + start.w;
-  const rawW = pinned
-    ? handle === 'e'
-      ? pointerX - anchor
-      : anchor - pointerX
-    : 2 * Math.abs(pointerX - cx);
-  const widthPct = clampWidthPct((rawW / Math.max(stageW, 1)) * 100);
-  if (!pinned) return { widthPct, centre: null };
-  const w = (widthPct / 100) * stageW;
+  const cy = start.y + start.h / 2;
+  let w = start.w;
+  let h = start.h;
+  if (horiz) {
+    const edge = at.x;
+    w = fromCentre
+      ? 2 * Math.abs(edge - cx)
+      : handle.includes('e')
+        ? edge - start.x
+        : start.x + start.w - edge;
+  }
+  if (vert) {
+    h = fromCentre
+      ? 2 * Math.abs(at.y - cy)
+      : handle.includes('s')
+        ? at.y - start.y
+        : start.y + start.h - at.y;
+  }
+  w = Math.max(w, CALLOUT_MIN_PX.w);
+  h = Math.max(h, CALLOUT_MIN_PX.h);
+  if (keepAspect && start.w > 0 && start.h > 0) {
+    const aspect = start.w / start.h;
+    if (horiz && vert) {
+      const k = Math.max(w / start.w, h / start.h);
+      w = start.w * k;
+      h = start.h * k;
+    } else if (horiz) {
+      h = w / aspect;
+    } else {
+      w = h * aspect;
+    }
+    // The aspect can drag the other side under its floor; grow both back to it.
+    const up = Math.max(1, CALLOUT_MIN_PX.w / w, CALLOUT_MIN_PX.h / h);
+    w *= up;
+    h *= up;
+  }
+  w = Math.min(w, container.w);
+  h = Math.min(h, container.h);
+  // The edge opposite the handle stays put, or the centre with Alt; an untouched axis stays centred.
+  const x =
+    fromCentre || !horiz
+      ? cx - w / 2
+      : handle.includes('e')
+        ? start.x
+        : start.x + start.w - w;
+  const y =
+    fromCentre || !vert
+      ? cy - h / 2
+      : handle.includes('s')
+        ? start.y
+        : start.y + start.h - h;
   return {
-    widthPct,
-    centre: {
-      x: handle === 'e' ? anchor + w / 2 : anchor - w / 2,
-      y: start.y + start.h / 2,
-    },
+    x: clamp(x, 0, container.w - w),
+    y: clamp(y, 0, container.h - h),
+    w,
+    h,
   };
 }
 
-const OPPOSITE: Record<'nw' | 'ne' | 'se' | 'sw', 'nw' | 'ne' | 'se' | 'sw'> = {
-  nw: 'se',
-  ne: 'sw',
-  se: 'nw',
-  sw: 'ne',
-};
-
-function corner(r: PxRect, c: 'nw' | 'ne' | 'se' | 'sw'): Point {
+/** A container-px rect as an image-% callout box. */
+export function containerRectToBox(
+  g: StageGeometry,
+  r: PxRect
+): GuidedLearningCalloutBox {
+  const a = g.containerPxToImagePct(r.x, r.y);
+  const b = g.containerPxToImagePct(r.x + r.w, r.y + r.h);
   return {
-    x: c.includes('w') ? r.x : r.x + r.w,
-    y: c.includes('n') ? r.y : r.y + r.h,
+    xPct: a.xPct,
+    yPct: a.yPct,
+    wPct: b.xPct - a.xPct,
+    hPct: b.yPct - a.yPct,
   };
-}
-
-/** Corner handle: scales text, padding and any set width together, anchored at the opposite corner. */
-export function scaleCalloutCorner(
-  start: PxRect,
-  handle: 'nw' | 'ne' | 'se' | 'sw',
-  pointer: Point,
-  startScale: number,
-  startWidthPct: number | undefined,
-  pinned: boolean
-): CalloutSizeEdit {
-  const o = corner(start, OPPOSITE[handle]);
-  const c = corner(start, handle);
-  const vx = c.x - o.x;
-  const vy = c.y - o.y;
-  const len2 = vx * vx + vy * vy;
-  const ratio =
-    len2 === 0 ? 1 : ((pointer.x - o.x) * vx + (pointer.y - o.y) * vy) / len2;
-  const scale = clampScale(startScale * ratio);
-  const r = scale / startScale;
-  const edit: CalloutSizeEdit = { scale, centre: null };
-  if (startWidthPct !== undefined) {
-    edit.widthPct = clampWidthPct(startWidthPct * r);
-  }
-  if (pinned) {
-    edit.centre = {
-      x: o.x + (start.x + start.w / 2 - o.x) * r,
-      y: o.y + (start.y + start.h / 2 - o.y) * r,
-    };
-  }
-  return edit;
-}
-
-/** Writes width and scale, dropping either when it returns to its default. */
-export function withCalloutSize(
-  step: GuidedLearningStep,
-  size: { widthPct?: number; scale?: number }
-): GuidedLearningStep {
-  let next = step;
-  if (size.widthPct !== undefined) {
-    next = setCalloutWidthPct(next, clampWidthPct(size.widthPct));
-  }
-  if (size.scale !== undefined) {
-    const s = clampScale(size.scale);
-    next = setCalloutScale(next, s);
-    if (s === 1) delete next.calloutScale;
-  }
-  return next;
 }
 
 /** A client rect in stage container px, through the stage's own pointer conversion. */

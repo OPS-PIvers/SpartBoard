@@ -59,7 +59,11 @@ export const TextPopoverInteraction: React.FC<Props> = ({
   useLayoutEffect(() => {
     const el = cardRef.current;
     if (!el) return;
-    const read = () => setBox({ w: el.offsetWidth, h: el.offsetHeight });
+    const read = () => {
+      // A Studio resize preview sizes the card itself; placement waits for the release.
+      if (el.hasAttribute('data-gl-previewing')) return;
+      setBox({ w: el.offsetWidth, h: el.offsetHeight });
+    };
     read();
     if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(read);

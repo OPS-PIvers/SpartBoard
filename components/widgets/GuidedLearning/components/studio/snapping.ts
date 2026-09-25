@@ -95,3 +95,20 @@ export function snapPoint(
     guides: { x: x?.at ?? null, y: y?.at ?? null },
   };
 }
+
+/** Callout box targets: image edges and centre lines, every hotspot (its own too) and the other boxes. */
+export function calloutSnapTargets(
+  steps: GuidedLearningStep[],
+  stepId: string
+): SnapTargets {
+  const { xs, ys } = snapTargets(steps, null);
+  xs.push(0, 100);
+  ys.push(0, 100);
+  for (const s of steps) {
+    const b = s.calloutBox;
+    if (s.id === stepId || !b) continue;
+    xs.push(b.xPct, b.xPct + b.wPct);
+    ys.push(b.yPct, b.yPct + b.hPct);
+  }
+  return { xs, ys };
+}

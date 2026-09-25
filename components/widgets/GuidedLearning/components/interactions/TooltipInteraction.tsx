@@ -3,7 +3,7 @@ import { GuidedLearningPublicStep } from '@/types';
 import type { PxRect, Side } from '../../types/stage';
 import {
   CALLOUT_PADDING,
-  arrowBetween,
+  connectorFor,
   placeCallout,
   type Point,
 } from '../../utils/calloutPlacement';
@@ -66,14 +66,22 @@ export const TooltipInteraction: React.FC<Props> = ({
   const [measured, setMeasured] = useState({ w: 0, h: 0 });
   // Width the card is squeezed to; natural size is only measured while unsqueezed.
   const squeezedRef = useRef(false);
+  // Always-current rendered size, read even while squeezed, so the connector routes from the real rect.
+  const [rendered, setRendered] = useState({ w: 0, h: 0 });
 
   // Card size drives placement; ResizeObserver keeps it current as text wraps.
   useLayoutEffect(() => {
     const el = cardRef.current;
     if (!el) return;
     const read = () => {
+      // A Studio resize preview sizes the card itself; placement waits for the release.
+      if (el.hasAttribute('data-gl-previewing')) return;
+      const size = { w: el.offsetWidth, h: el.offsetHeight };
+      setRendered((prev) =>
+        prev.w === size.w && prev.h === size.h ? prev : size
+      );
       if (squeezedRef.current) return;
-      setMeasured({ w: el.offsetWidth, h: el.offsetHeight });
+      setMeasured(size);
     };
     read();
     if (typeof ResizeObserver === 'undefined') return;
@@ -127,12 +135,22 @@ export const TooltipInteraction: React.FC<Props> = ({
         top: boxRect.y,
         width: boxRect.w,
         side: undefined,
-        arrow: arrowBetween(boxRect, keepOut),
       }
     : auto;
   const squeezed = !boxRect && placement.width < cardW - 0.5;
   // eslint-disable-next-line react-hooks/refs
   squeezedRef.current = squeezed;
+  const arrowRect: PxRect = boxRect ?? {
+    x: placement.left,
+    y: placement.top,
+    w: squeezed ? placement.width : rendered.w || placement.width,
+    h: rendered.h || cardH,
+  };
+  const arrow = connectorFor(arrowRect, keepOut);
+  const keepOutCentre = {
+    x: keepOut.x + keepOut.w / 2,
+    y: keepOut.y + keepOut.h / 2,
+  };
 
   const tone = CALLOUT_TONE_STYLES[calloutToneOf(step)];
   const overflowing = showFit && fit?.overflow === true;
@@ -149,17 +167,32 @@ export const TooltipInteraction: React.FC<Props> = ({
       data-gl-overlay={step.id}
       className="absolute inset-0 pointer-events-none z-20"
     >
-      <CalloutArrow
-        from={placement.arrow.from}
-        to={placement.arrow.to}
-        normal={placement.arrow.normal}
-        color={tone.line}
-        halo={tone.halo}
-      />
+      {arrow ? (
+        <CalloutArrow
+          stepId={step.id}
+          from={arrow.from}
+          to={arrow.to}
+          normal={arrow.normal}
+          color={tone.line}
+          halo={tone.halo}
+        />
+      ) : (
+        showFit && (
+          <CalloutArrow
+            stepId={step.id}
+            from={keepOutCentre}
+            to={keepOutCentre}
+            color={tone.line}
+            halo={tone.halo}
+            hidden
+          />
+        )
+      )}
       {/* Anchor dot on the pin — ringed so it reads on light screenshots too. */}
       {showAnchor && (
         <span
           aria-hidden="true"
+          data-gl-anchor={step.id}
           className="absolute rounded-full bg-white border-2 border-slate-900/80 shadow-md"
           style={{
             left: x,

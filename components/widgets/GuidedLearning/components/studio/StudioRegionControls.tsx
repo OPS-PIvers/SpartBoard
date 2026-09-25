@@ -41,26 +41,35 @@ export const StudioRegionControls: React.FC<StudioRegionControlsProps> = ({
   const current: StudioShape = step.region?.shape ?? 'point';
   const legacySide = LEGACY_SIDES.find((s) => s === step.tooltipPosition);
   const legacy = !!legacySide || step.tooltipOffset !== undefined;
-  const placement = step.calloutPin
-    ? t('glStudio.calloutPinned')
-    : legacySide
-      ? t('glStudio.calloutPrefers', {
-          side: t(`glStudio.calloutSide_${legacySide}`),
-        })
-      : t('glStudio.calloutAuto');
+  const placement =
+    (step.calloutPin ?? step.calloutBox)
+      ? t('glStudio.calloutPinned')
+      : legacySide
+        ? t('glStudio.calloutPrefers', {
+            side: t(`glStudio.calloutSide_${legacySide}`),
+          })
+        : t('glStudio.calloutAuto');
   const styled = calloutEditing && stepHasCallout(step);
+  const box = step.calloutBox;
   const sized =
-    step.calloutWidthPct !== undefined || step.calloutScale !== undefined;
+    !!box ||
+    step.calloutWidthPct !== undefined ||
+    step.calloutScale !== undefined;
+  const widthPct = box?.wPct ?? step.calloutWidthPct;
   const summary = [
-    step.calloutWidthPct !== undefined
-      ? t('glStudio.calloutWidthPct', { pct: Math.round(step.calloutWidthPct) })
+    widthPct !== undefined
+      ? t('glStudio.calloutWidthPct', { pct: Math.round(widthPct) })
       : t('glStudio.calloutWidthAuto'),
-    t('glStudio.calloutScaleX', {
-      scale: Number((step.calloutScale ?? 1).toFixed(2)),
-    }),
+    ...(box
+      ? []
+      : [
+          t('glStudio.calloutScaleX', {
+            scale: Number((step.calloutScale ?? 1).toFixed(2)),
+          }),
+        ]),
     t(CALLOUT_TONE_STYLES[calloutToneOf(step)].labelKey),
   ].join(' · ');
-  const canReset = !!step.calloutPin || legacy || (styled && sized);
+  const canReset = !!step.calloutPin || !!box || legacy || (styled && sized);
   return (
     <div
       className="flex flex-col gap-4"

@@ -1,6 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { TooltipInteraction } from './TooltipInteraction';
+import { calloutArrowPaths } from './CalloutArrow';
+import { arrowBetween } from '../../utils/calloutPlacement';
 import type { GuidedLearningPublicStep } from '@/types';
 
 const baseStep: GuidedLearningPublicStep = {
@@ -239,5 +241,131 @@ describe('TooltipInteraction explicit box', () => {
         .querySelector('path')
         ?.getAttribute('d') ?? '';
     expect(d.startsWith('M 240 120')).toBe(true);
+  });
+});
+
+describe('TooltipInteraction connector', () => {
+  const target = { x: 380, y: 180, w: 40, h: 40 };
+  const lineStart = () => {
+    const m = /^M ([\d.-]+) ([\d.-]+) /.exec(
+      screen.getByTestId('gl-callout-arrow-line').getAttribute('d') ?? ''
+    );
+    return { x: Number(m?.[1]), y: Number(m?.[2]) };
+  };
+  const boxes = [
+    ['above', { x: 300, y: 20, w: 200, h: 90 }],
+    ['below', { x: 300, y: 280, w: 200, h: 90 }],
+    ['left', { x: 40, y: 150, w: 200, h: 90 }],
+    ['right', { x: 560, y: 150, w: 200, h: 90 }],
+  ] as const;
+
+  it.each(boxes)(
+    'starts the line on the box edge when the box is %s the hotspot',
+    (_, box) => {
+      render(
+        <TooltipInteraction
+          step={{ ...baseStep, xPct: 50, yPct: 50 }}
+          containerWidth={800}
+          containerHeight={400}
+          target={target}
+          box={box}
+        />
+      );
+      const p = lineStart();
+      const onVertical = p.x === box.x || p.x === box.x + box.w;
+      const onHorizontal = p.y === box.y || p.y === box.y + box.h;
+      expect(onVertical || onHorizontal).toBe(true);
+      expect(p.x).toBeGreaterThanOrEqual(box.x);
+      expect(p.x).toBeLessThanOrEqual(box.x + box.w);
+      expect(p.y).toBeGreaterThanOrEqual(box.y);
+      expect(p.y).toBeLessThanOrEqual(box.y + box.h);
+    }
+  );
+
+  it('hides the connector when an explicit box covers the hotspot', () => {
+    render(
+      <TooltipInteraction
+        step={{ ...baseStep, xPct: 50, yPct: 50 }}
+        containerWidth={800}
+        containerHeight={400}
+        target={target}
+        box={{ x: 300, y: 150, w: 200, h: 90 }}
+      />
+    );
+    expect(screen.queryByTestId('gl-callout-arrow')).toBeNull();
+  });
+
+  it('hides the connector when a pinned card covers the hotspot', () => {
+    render(
+      <TooltipInteraction
+        step={{ ...baseStep, xPct: 50, yPct: 50 }}
+        containerWidth={800}
+        containerHeight={400}
+        pinned={{ x: 400, y: 200 }}
+      />
+    );
+    expect(screen.queryByTestId('gl-callout-arrow')).toBeNull();
+  });
+
+  it('renders the same paths calloutArrowPaths computes', () => {
+    const box = { x: 40, y: 30, w: 200, h: 90 };
+    render(
+      <TooltipInteraction
+        step={{ ...baseStep, xPct: 50, yPct: 50 }}
+        containerWidth={800}
+        containerHeight={400}
+        target={target}
+        box={box}
+      />
+    );
+    const a = arrowBetween(box, target);
+    const expected = calloutArrowPaths(a.from, a.to, a.normal);
+    const svg = screen.getByTestId('gl-callout-arrow');
+    const lines = svg.querySelectorAll('[data-gl-connector-line]');
+    const heads = svg.querySelectorAll('[data-gl-connector-head]');
+    expect(lines).toHaveLength(2);
+    expect(heads).toHaveLength(2);
+    lines.forEach((l) => expect(l.getAttribute('d')).toBe(expected?.d));
+    heads.forEach((h) => expect(h.getAttribute('points')).toBe(expected?.head));
+  });
+
+  it('marks the connector and anchor with the step id', () => {
+    render(
+      <TooltipInteraction
+        step={{ ...baseStep, xPct: 50, yPct: 20 }}
+        containerWidth={800}
+        containerHeight={400}
+      />
+    );
+    expect(
+      screen.getByTestId('gl-callout-arrow').getAttribute('data-gl-connector')
+    ).toBe('s1');
+    expect(document.querySelector('[data-gl-anchor="s1"]')).not.toBeNull();
+  });
+
+  it('routes an auto card from its rendered height, not the estimate', () => {
+    const spy = vi
+      .spyOn(HTMLElement.prototype, 'offsetHeight', 'get')
+      .mockReturnValue(200);
+    try {
+      render(
+        <TooltipInteraction
+          step={{ ...baseStep, xPct: 50, yPct: 20, tooltipPosition: 'above' }}
+          containerWidth={800}
+          containerHeight={400}
+          target={{ x: 390, y: 300, w: 20, h: 20 }}
+        />
+      );
+      const top = parseFloat(card().style.top);
+      expect(lineStart().y).toBe(top + 200);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
+describe('calloutArrowPaths', () => {
+  it('is null for a line shorter than 3px', () => {
+    expect(calloutArrowPaths({ x: 0, y: 0 }, { x: 1, y: 1 })).toBeNull();
   });
 });
