@@ -192,6 +192,13 @@ This PR takes the section core of `QUIZ_STRUCTURED_ASSESSMENTS.md` D9. Structure
   - When the source numbers straight through (ExamView 1–19), the numbering-restart setting (D11) is turned off for the quiz, so the student sees the printed numbers.
   - Without the flag, sections stay import-internal (`ref` only, as today), and a choose-N heading adds a review note: "Students choose 2 of these 3; turn on sections to enforce it."
   - This delivers D26's "headings become sections" line. D26's `Section N | Title` and `Directions:` detectors reuse it.
+- **As built (PR 5).**
+  - The reader stays flag-free. It records each heading's directions paragraph on the question's `ref`. `extractedToQuizData(…, { sections })` builds the section records and `order`, and the adapter passes `canAccessFeature('quiz-sections')`.
+  - Directions come from the heading line itself (`PICK TWO (2) QUESTIONS TO ANSWER`) and from the paragraph under it, joined by a line break.
+  - A count only sets `chooseCount` when it is below the section's item count. "Select one answer" and "Choose the best answer" set nothing.
+  - The review table shows each section's heading above its first row. Unticking every row of a section drops that section, and ticking a row back returns it to its own section.
+  - Honors Bio's RTF and PDF each import as Multiple Choice (15, with ExamView's stock directions), Graphing Problem (1) and Short Answer (answer any 2 of 3). The corpus records each section's count.
+  - The numbering-restart setting (D11) isn't built yet, so nothing is turned off. Quiz numbers already run 1–N straight through, as ExamView prints them.
 
 ### Tests and corpus
 

@@ -39,7 +39,18 @@ export function parseChooseSections(raw: unknown): ChooseSection[] {
 
 // Unlike the client mirror, recordings don't count: PLC math drops `artifacts` and never scores media.
 const hasContent = (a: SectionAnswer): boolean =>
-  !a.unresponded && (a.answer ?? '').replace(/<[^>]*>/g, '').trim().length > 0;
+  !a.unresponded && stripTags(a.answer ?? '').trim().length > 0;
+
+// Repeats until stable so a tag split by another tag can't survive one pass.
+function stripTags(html: string): string {
+  let text = html;
+  let prev;
+  do {
+    prev = text;
+    text = text.replace(/<[^>]*>/g, '');
+  } while (text !== prev);
+  return text;
+}
 
 /** Question ids this student left out of a choose-N section. */
 export function notChosenIds(

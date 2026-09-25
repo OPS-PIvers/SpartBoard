@@ -2943,10 +2943,13 @@ export const useQuizAssignments = (
       );
       const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId);
 
-      const assignmentSnap = await getDoc(assignmentRef);
+      const [assignmentSnap, sections] = await Promise.all([
+        getDoc(assignmentRef),
+        readSessionSections(assignmentId),
+      ]);
       const ctx: ResponseGradingContext = {
         ...buildResponseGradingContext(quizData, assignmentSnap.data()),
-        sections: await readSessionSections(assignmentId),
+        sections,
       };
       const answerKey =
         visibility === 'score-responses-and-answers'
@@ -3098,12 +3101,15 @@ export const useQuizAssignments = (
       const keys = Array.from(new Set(responseKeys));
       if (keys.length === 0) return { responsesUpdated: 0, skipped: 0 };
       const now = Date.now();
-      const assignmentSnap = await getDoc(
-        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
-      );
+      const [assignmentSnap, sections] = await Promise.all([
+        getDoc(
+          doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
+        ),
+        readSessionSections(assignmentId),
+      ]);
       const ctx: ResponseGradingContext = {
         ...buildResponseGradingContext(quizData, assignmentSnap.data()),
-        sections: await readSessionSections(assignmentId),
+        sections,
       };
       const revealedAnswers =
         visibility === 'score-responses-and-answers'

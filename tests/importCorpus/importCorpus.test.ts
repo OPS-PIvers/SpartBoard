@@ -10,6 +10,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import {
   documentKind,
+  importSections,
   readAnswerKeyFile,
   readQuizDocument,
 } from '@/utils/quizDocumentImport';
@@ -36,6 +37,8 @@ interface TestCounts {
   types: string[];
   /** Printed numbers of questions with a picture, when any have one (E11). */
   picturesOn?: string[];
+  /** Each imported section's "answer any N", when a heading set one (E16). */
+  chooseCounts?: (number | null)[];
 }
 
 interface KeyCounts {
@@ -74,6 +77,9 @@ async function countsFor(name: string, bytes: Buffer): Promise<Counts> {
   const picturesOn = quiz.questions
     .filter((q) => q.imageIds.length > 0)
     .map((q) => q.sourceLabel ?? String(q.number));
+  const chooseCounts = importSections(quiz.questions).map(
+    (s) => s.chooseCount ?? null
+  );
   const sections = new Set(
     quiz.questions.map(
       (q) => (q as { ref?: { section?: number } }).ref?.section ?? 'none'
@@ -88,6 +94,7 @@ async function countsFor(name: string, bytes: Buffer): Promise<Counts> {
     flagged: quiz.questions.filter((q) => q.warnings.length > 0).length,
     types: quiz.questions.map((q) => q.type),
     ...(picturesOn.length > 0 ? { picturesOn } : {}),
+    ...(chooseCounts.some((n) => n !== null) ? { chooseCounts } : {}),
   };
 }
 

@@ -6,6 +6,7 @@
 
 import type {
   QuizData,
+  QuizOrderEntry,
   QuizResponseAnswer,
   QuizSection,
   QuizSessionBankSlot,
@@ -186,7 +187,8 @@ export function withNotChosen<
   responses: readonly R[],
   sections: readonly QuizSessionSection[] | undefined
 ): R[] {
-  if (!sections?.some((s) => s.chooseCount)) return [...responses];
+  // Same array when nothing is stamped, so reference-equality consumers stay stable.
+  if (!sections?.some((s) => s.chooseCount)) return responses as R[];
   return responses.map((r) => {
     const ids = notChosenQuestionIds(r, sections);
     return ids.length > 0 ? { ...r, _notChosen: ids } : r;
@@ -297,11 +299,15 @@ export function overAnsweredSections(
 }
 
 /** "Answer any 2 of these 3 questions.", or null for a section students answer in full. */
-export function chooseLineFor(section: QuizSessionSection): string | null {
-  const count = effectiveChooseCount(section);
+export function chooseLineFor(
+  section: QuizSessionSection,
+  servedIds?: readonly string[]
+): string | null {
+  const count = effectiveChooseCount(section, servedIds);
+  const total = servedSectionQuestionIds(section, servedIds).length;
   return count === undefined
     ? null
-    : `Answer any ${count} of these ${section.questionIds.length} questions.`;
+    : `Answer any ${count} of these ${total} questions.`;
 }
 
 /** Shuffles questions inside each section and leaves sectionless runs to shuffle among themselves. */
@@ -338,4 +344,35 @@ export function sectionQuestionCounts(
     }
   }
   return counts;
+}
+
+/** `order` and `sections` cut down to the questions kept, dropping a section left with none. */
+export function sectionsForQuestions(
+  quiz: Pick<QuizData, 'questions' | 'order' | 'sections'>
+): Pick<QuizData, 'order' | 'sections'> {
+  if (!quiz.sections?.length || !quiz.order) {
+    return { order: quiz.order, sections: quiz.sections };
+  }
+  const kept = new Set(quiz.questions.map((q) => q.id));
+  const order: QuizOrderEntry[] = [];
+  let heading: QuizOrderEntry | null = null;
+  for (const entry of quiz.order) {
+    if (entry.kind === 'section') heading = entry;
+    else if (entry.kind === 'slot' || kept.has(entry.id)) {
+      if (heading) order.push(heading);
+      heading = null;
+      order.push(entry);
+    }
+  }
+  const placed = new Set(
+    order.filter((e) => e.kind === 'section').map((e) => e.id)
+  );
+  const sections = quiz.sections.filter((s) => placed.has(s.id));
+  return {
+    order:
+      sections.length > 0 || order.some((e) => e.kind === 'slot')
+        ? order
+        : undefined,
+    sections: sections.length > 0 ? sections : undefined,
+  };
 }

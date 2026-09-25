@@ -91,6 +91,7 @@ export {
   type AiExtractedQuiz,
 } from './aiReader';
 export { attachDocumentImages, type StimulusUploader } from './attachImages';
+export { importSections, unenforcedChooseNotes } from './importSections';
 export {
   driveStimulusUploader,
   STIMULUS_FOLDER,
