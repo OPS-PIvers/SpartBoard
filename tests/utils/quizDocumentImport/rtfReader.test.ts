@@ -195,9 +195,9 @@ describe('readQuizDocument — .rtf', () => {
     expect(quiz.questions.map((q) => q.number)).toEqual([1, 2]);
   });
 
-  it('says pictures are not brought in', async () => {
+  it('has no picture warning when the file has no pictures', async () => {
     const quiz = await readQuizDocument(rtfFile(TEST));
     expect(quiz.images).toEqual([]);
-    expect(quiz.warnings.join(' ')).toMatch(/Pictures in a rich text file/i);
+    expect(quiz.warnings.join(' ')).not.toMatch(/picture/i);
   });
 });

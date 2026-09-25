@@ -129,6 +129,11 @@ Paul's Honors Bio Ecology test was run through the browser reader on dev-paul at
   - Pictures are anchored to their paragraph as DOCX pictures are (`imageIds` on the line). From there they follow the existing `attachImages` → Drive stimulus path (D13, D14).
   - A vector-only metafile keeps a warning, now naming its question: "Question 8's picture couldn't be read — add it in the editor."
   - Duplicate `\nonshppict` fallbacks are skipped.
+- **As built (PR 3).**
+  - `rtfPictures.ts` unwraps the bitmap and adds a BMP file header, then the browser re-encodes it as PNG through `createImageBitmap` and a canvas. Only pictures a question uses are converted.
+  - A metafile counts as "one bitmap" when every other record only sets drawing state. Any line, shape or text record makes it vector art.
+  - Honors Bio's RTF now attaches its 5 pictures to Q8, Q11, Q12, Q13 and Q16. The corpus records which questions carry a picture.
+  - Not yet: a picture inside an embedded object's `\result` is still skipped along with the object.
 
 ### Sections with choose-N (PR 4)
 
