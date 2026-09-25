@@ -242,12 +242,40 @@ describe('createQuizImportAdapter — drive.file token threading', () => {
       questions: [{ ...SAMPLE_QUIZ.questions[0], ...question }],
     });
 
-    it('rejects a keyless question nothing flagged', () => {
+    it('accepts a keyless question nothing flagged', () => {
       const adapter = createQuizImportAdapter(makeDeps());
       const result = adapter.validate(quizWith({ correctAnswer: '' }));
-      expect(result.ok).toBe(false);
-      expect(result.errors).toContain(
-        'Question 1 is missing a correct answer.'
+      expect(result).toEqual({ ok: true, errors: [] });
+    });
+
+    it('saves a keyless question flagged, so Assign stays shut', async () => {
+      const deps = makeDeps();
+      const adapter = createQuizImportAdapter(deps);
+      await adapter.save(quizWith({ correctAnswer: '' }), 'Bio Test');
+      const saved = vi.mocked(deps.saveQuiz).mock.calls[0][0];
+      expect(saved.questions[0].needsKey).toBe(true);
+    });
+
+    it('flags keyless CSV rows and lists them as a warning', async () => {
+      const deps = makeDeps({
+        importFromCSV: vi.fn().mockResolvedValue({
+          ...SAMPLE_QUIZ,
+          questions: [
+            SAMPLE_QUIZ.questions[0],
+            { ...SAMPLE_QUIZ.questions[0], id: 'k2', correctAnswer: '' },
+            { ...SAMPLE_QUIZ.questions[0], id: 'k3', correctAnswer: '' },
+          ],
+        }),
+      });
+      const adapter = createQuizImportAdapter(deps);
+      const result = await adapter.parse({ kind: 'csv', text: 'x' });
+      expect(result.data.questions.map((q) => q.needsKey)).toEqual([
+        undefined,
+        true,
+        true,
+      ]);
+      expect(result.warnings).toContain(
+        'Questions 2, 3 have no correct answer.'
       );
     });
 

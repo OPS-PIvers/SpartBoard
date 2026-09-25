@@ -15,11 +15,33 @@ import { multiAnswerCorrectOptions } from './quizMultiAnswer';
  * `needsKey: true` left on a filled-in question can't block a teacher.
  */
 export function questionNeedsKey(q: QuizQuestion): boolean {
-  if (!q.needsKey) return false;
+  return !!q.needsKey && isMissingKey(q);
+}
+
+/** True when a question that is graded against a key has none, flagged or not. */
+function isMissingKey(q: QuizQuestion): boolean {
   if (isFreeResponseType(q.type)) return false;
   if (q.type === 'MA')
     return multiAnswerCorrectOptions(q.correctAnswer).length === 0;
   return !q.correctAnswer?.trim();
+}
+
+/** Flags every keyless question so an import saves and Assign stays shut until it is filled. */
+export function flagMissingKeys(quiz: QuizData): QuizData {
+  let changed = false;
+  const questions = quiz.questions.map((q) => {
+    if (q.needsKey || !isMissingKey(q)) return q;
+    changed = true;
+    return { ...q, needsKey: true };
+  });
+  return changed ? { ...quiz, questions } : quiz;
+}
+
+/** The 1-based numbers of questions with no key, for an import warning. */
+export function missingKeyNumbers(
+  questions: readonly QuizQuestion[]
+): number[] {
+  return questions.flatMap((q, i) => (isMissingKey(q) ? [i + 1] : []));
 }
 
 /** How many of these questions still need a key. */
