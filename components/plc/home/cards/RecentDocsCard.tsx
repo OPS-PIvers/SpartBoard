@@ -101,11 +101,6 @@ export const RecentDocsCard: React.FC<RecentDocsCardProps> = ({
                 defaultValue: 'No shared docs yet',
               })}
             </p>
-            <p className="text-xs text-slate-400 mt-1">
-              {t('plcDashboard.home.recentDocs.emptySubtitle', {
-                defaultValue: 'Add a Google Doc to collaborate with your PLC.',
-              })}
-            </p>
           </div>
         ) : (
           <ul className="space-y-1">

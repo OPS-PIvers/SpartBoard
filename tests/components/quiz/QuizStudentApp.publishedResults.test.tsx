@@ -504,7 +504,7 @@ describe('QuizStudentApp — recorded-answer playback on published results', () 
     render(<QuizStudentApp />);
 
     expect(await screen.findByText('Your Results')).toBeInTheDocument();
-    expect(screen.getByText(/^Provisional —/)).toBeInTheDocument();
+    expect(screen.getByText(/^Provisional\b/)).toBeInTheDocument();
   });
 
   it('drops the provisional marker once the recording is graded', async () => {
@@ -520,7 +520,7 @@ describe('QuizStudentApp — recorded-answer playback on published results', () 
     render(<QuizStudentApp />);
 
     expect(await screen.findByText('Your Results')).toBeInTheDocument();
-    expect(screen.queryByText(/^Provisional —/)).toBeNull();
+    expect(screen.queryByText(/^Provisional\b/)).toBeNull();
   });
 
   // INT-B1: the archive map is authoritative; a swept-up take is a real take.

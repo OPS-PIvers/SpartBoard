@@ -485,7 +485,7 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
           </div>
         ) : submissions.length === 0 ? (
           <div className="flex h-full items-center justify-center px-6 text-center text-slate-300">
-            No submissions yet — check back soon!
+            No submissions yet.
           </div>
         ) : (
           <div className="relative flex h-full flex-col">

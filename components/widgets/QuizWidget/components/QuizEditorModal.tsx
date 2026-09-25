@@ -482,7 +482,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
             className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xxs font-bold uppercase tracking-wider text-amber-800"
           >
             <AlertTriangle className="h-3 w-3" aria-hidden="true" />
-            Over {QUESTION_BANK_SIZE_WARN} — consider splitting this bank
+            Over {QUESTION_BANK_SIZE_WARN}. Consider splitting this bank.
           </span>
         )}
       </span>

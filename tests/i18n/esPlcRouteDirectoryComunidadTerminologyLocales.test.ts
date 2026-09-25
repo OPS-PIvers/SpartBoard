@@ -49,8 +49,7 @@ const AFFECTED_KEYS: Array<{ path: string; expectedEs: string }> = [
   { path: 'plcRoute.hubEmptyTitle', expectedEs: 'Aún no hay Comunidades' },
   {
     path: 'plcRoute.hubEmptySubtitle',
-    expectedEs:
-      'Crea una Comunidad desde la barra lateral e invita a tus colegas.',
+    expectedEs: 'Crea una Comunidad desde la barra lateral.',
   },
   {
     path: 'plcDirectory.heading',
@@ -61,13 +60,8 @@ const AFFECTED_KEYS: Array<{ path: string; expectedEs: string }> = [
     expectedEs: 'No hay otras Comunidades para mostrar',
   },
   {
-    path: 'plcDirectory.emptySubtitle',
-    expectedEs: 'Ahora mismo no hay otras Comunidades en tu edificio.',
-  },
-  {
     path: 'plcDirectory.noOrgSubtitle',
-    expectedEs:
-      'Tu cuenta aún no está vinculada a una escuela, por lo que no podemos mostrar Comunidades cercanas.',
+    expectedEs: 'Tu cuenta aún no tiene escuela.',
   },
 ];
 

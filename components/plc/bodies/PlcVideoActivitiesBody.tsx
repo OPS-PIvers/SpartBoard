@@ -484,7 +484,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
             t('plcDashboard.videoActivities.editAutoImported', {
               title: target.title,
               defaultValue:
-                '"{{title}}" added to your library — opening editor.',
+                '"{{title}}" added to your library. Opening the editor.',
             }),
             'info'
           );
@@ -557,7 +557,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
         addToast(
           t('plcDashboard.videoActivities.editSaved', {
             defaultValue:
-              'Video activity saved — teammates will sync automatically.',
+              'Video activity saved. Teammates get the update automatically.',
           }),
           'success'
         );
@@ -882,17 +882,11 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
           <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
             <Film className="w-7 h-7 text-slate-400" aria-hidden="true" />
           </div>
-          <h3 className="text-lg font-bold text-slate-700 mb-2">
+          <h3 className="text-lg font-bold text-slate-700 mb-4">
             {t('plcDashboard.videoActivities.emptyTitle', {
               defaultValue: 'No shared video activities yet',
             })}
           </h3>
-          <p className="text-sm text-slate-500 max-w-md leading-relaxed mb-4">
-            {t('plcDashboard.videoActivities.emptySubtitle', {
-              defaultValue:
-                'Choose "Share with PLC" from an activity\'s menu in the Video Activity widget.',
-            })}
-          </p>
           {canEdit ? (
             shareCta
           ) : (
@@ -1050,7 +1044,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
                             'plcDashboard.videoActivities.editTooltipAutoImport',
                             {
                               defaultValue:
-                                'Edit collaboratively — adds to your library on first edit',
+                                'Edit together. Adds it to your library on first edit.',
                             }
                           )
                     }

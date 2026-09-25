@@ -426,7 +426,7 @@ export const MusicManager: React.FC = () => {
                     />
                     {extractYouTubeId(editForm.url ?? '') && (
                       <p className="text-xs text-emerald-600 mt-1">
-                        YouTube video detected — thumbnail auto-fetched.
+                        YouTube thumbnail added.
                       </p>
                     )}
                   </div>

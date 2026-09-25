@@ -1,6 +1,6 @@
 # Always-visible copy cleanup
 
-Status: audit done 2026-09-25. Paul approved the phases and took the recommended option on all four decisions the same day, so implementation can start with Phase 1.
+Status: all six phases done 2026-09-25 (#3428, #3432, the Phase 3-5 PRs and Phase 6). `tests/copyGuard.test.ts` now blocks new long copy. The visual findings below are not started.
 
 Paul asked for a full audit of the helper text, hints, tips, subtitles and notices that sit permanently on screen, because earlier Claude models wrote long sentences to say simple, objective things. This doc is the plan. The per-area findings, with every string, its location and a proposed replacement, are in [`copy-audit/`](copy-audit/).
 

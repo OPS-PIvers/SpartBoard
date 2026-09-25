@@ -346,7 +346,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
       <ScaledEmptyState
         icon={ClipboardList}
         title="Pick a class"
-        subtitle="This board shows the groups in whichever class is active."
+        subtitle="Shows groups for the active class."
       />
     );
   }

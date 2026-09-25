@@ -191,7 +191,7 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
             subtitle={
               adminConfig?.fetchingStrategy === 'admin_proxy'
                 ? 'Waiting for admin weather data...'
-                : 'Add a Weather widget to automatically see required recess gear.'
+                : 'Add a Weather widget to see recess gear.'
             }
           />
         }
@@ -324,7 +324,7 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
             <ScaledEmptyState
               icon={CloudSun}
               title="Perfect Weather"
-              subtitle="No specific gear recommended for the current conditions."
+              subtitle="No gear needed."
             />
           )}
         </div>

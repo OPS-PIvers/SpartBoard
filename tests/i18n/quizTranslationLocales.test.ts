@@ -26,7 +26,6 @@ const REQUIRED_KEYS = [
   'editor.empty.noneReviewed.title',
   'editor.empty.noneReviewed.body',
   'editor.empty.pickQuestion.title',
-  'editor.empty.pickQuestion.body',
   'authoring.advisory.stimulusText_one',
   'authoring.advisory.stimulusText_other',
   'assign.generate',

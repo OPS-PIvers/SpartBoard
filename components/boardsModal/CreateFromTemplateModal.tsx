@@ -216,7 +216,7 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
         {!loading && errored && (
           <p className="text-sm text-rose-300/80 italic">
             {t('templatePicker.loadError', {
-              defaultValue: "Couldn't load templates — refresh to retry.",
+              defaultValue: "Couldn't load templates. Refresh to try again.",
             })}
           </p>
         )}

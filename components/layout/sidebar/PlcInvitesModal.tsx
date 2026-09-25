@@ -84,12 +84,6 @@ export const PlcInvitesModal: React.FC<PlcInvitesModalProps> = ({
                 defaultValue: 'No pending invitations',
               })}
             </p>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {t('sidebar.plcs.noInvitesSubtitle', {
-                defaultValue:
-                  'You\u2019ll see invitations here when a colleague invites you to their PLC.',
-              })}
-            </p>
           </div>
         </div>
       ) : (

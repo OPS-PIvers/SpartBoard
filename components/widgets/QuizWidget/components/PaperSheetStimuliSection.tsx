@@ -519,7 +519,7 @@ export const PaperSheetStimuliSection: React.FC<
                     </div>
                     {failedIds.has(stimulus.id) && (
                       <p className="mt-1 text-xs font-semibold text-rose-700">
-                        Could not load this image — it will not print.
+                        Could not load this image, so it will not print.
                       </p>
                     )}
                     {stimulus.template && (

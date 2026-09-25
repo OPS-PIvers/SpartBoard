@@ -91,8 +91,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
             </p>
             <p className="text-xs text-slate-500">
               {t('plcRoute.hubEmptySubtitle', {
-                defaultValue:
-                  'Create a PLC from the sidebar and invite your colleagues.',
+                defaultValue: 'Create one from the sidebar.',
               })}
             </p>
           </div>
@@ -174,8 +173,7 @@ const PlcBuildingDirectorySection: React.FC<{ userEmail: string | null }> = ({
             defaultValue: 'Building directory unavailable',
           })}
           subtitle={t('plcDirectory.noOrgSubtitle', {
-            defaultValue:
-              "Your account isn't linked to a school yet, so we can't list nearby PLCs.",
+            defaultValue: 'Your account has no school yet.',
           })}
         />
       ) : loading ? (
@@ -186,10 +184,6 @@ const PlcBuildingDirectorySection: React.FC<{ userEmail: string | null }> = ({
         <DirectoryNotice
           title={t('plcDirectory.emptyTitle', {
             defaultValue: 'No other PLCs to show',
-          })}
-          subtitle={t('plcDirectory.emptySubtitle', {
-            defaultValue:
-              "There aren't any other PLCs in your building right now.",
           })}
         />
       ) : (
@@ -240,7 +234,7 @@ const PlcBuildingDirectorySection: React.FC<{ userEmail: string | null }> = ({
   );
 };
 
-const DirectoryNotice: React.FC<{ title: string; subtitle: string }> = ({
+const DirectoryNotice: React.FC<{ title: string; subtitle?: string }> = ({
   title,
   subtitle,
 }) => (
@@ -249,6 +243,6 @@ const DirectoryNotice: React.FC<{ title: string; subtitle: string }> = ({
       <Building2 className="w-5 h-5 text-slate-300" aria-hidden="true" />
     </div>
     <p className="text-sm font-bold text-slate-600">{title}</p>
-    <p className="text-xs text-slate-500 max-w-sm">{subtitle}</p>
+    {subtitle && <p className="text-xs text-slate-500 max-w-sm">{subtitle}</p>}
   </div>
 );

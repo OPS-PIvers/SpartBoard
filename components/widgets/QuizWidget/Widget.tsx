@@ -1337,7 +1337,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       <ScaledEmptyState
         icon={AlertTriangle}
         title="Drive access needed"
-        subtitle="Sign out and sign in again to grant Google Drive and Sheets access for quiz storage."
+        subtitle="Sign out and back in to allow Google Drive access."
       />
     );
   }
@@ -1566,15 +1566,13 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             className="font-bold text-white"
             style={{ fontSize: 'min(14px, 5cqmin)' }}
           >
-            View-only share — no submissions to monitor
+            View-only share
           </p>
           <p
             className="text-slate-400 max-w-md"
             style={{ fontSize: 'min(12px, 4cqmin)' }}
           >
-            Students opened this share as a view-only link, so there are no
-            responses to live-monitor. URL open counts appear in the Shared
-            archive.
+            Open counts are in the Shared archive.
           </p>
           <button
             type="button"

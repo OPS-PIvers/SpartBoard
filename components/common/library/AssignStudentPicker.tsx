@@ -628,12 +628,8 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                     title={t('assignStudentPicker.noMatchesTitle', {
                       defaultValue: 'No matches',
                     })}
-                    subtitle={t('assignStudentPicker.noMatches', {
-                      defaultValue: 'No students match your search.',
-                    })}
                     iconClassName="text-slate-300"
                     titleClassName="text-slate-700"
-                    subtitleClassName="text-slate-500"
                     action={
                       <button
                         type="button"
@@ -652,12 +648,8 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                     title={t('assignStudentPicker.emptyRosterTitle', {
                       defaultValue: 'No students',
                     })}
-                    subtitle={t('assignStudentPicker.emptyRosterSubtitle', {
-                      defaultValue: 'This roster has no students yet.',
-                    })}
                     iconClassName="text-slate-300"
                     titleClassName="text-slate-700"
-                    subtitleClassName="text-slate-500"
                     action={
                       <button
                         type="button"
@@ -685,12 +677,8 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                   title={t('assignStudentPicker.selectRosterTitle', {
                     defaultValue: 'Select a roster',
                   })}
-                  subtitle={t('assignStudentPicker.selectRoster', {
-                    defaultValue: 'Select a roster to see its students.',
-                  })}
                   iconClassName="text-slate-300"
                   titleClassName="text-slate-700"
-                  subtitleClassName="text-slate-500"
                 />
               </div>
             )}

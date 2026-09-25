@@ -235,8 +235,7 @@ export const PlcVideoSessionContent: React.FC<PlcVideoSessionContentProps> = ({
         </p>
         <p className="text-sm text-slate-500 max-w-md">
           {t('plcDashboard.assignmentSession.notFoundBody', {
-            defaultValue:
-              'This assignment is no longer in your archive — it may have been deleted.',
+            defaultValue: 'It may have been deleted.',
           })}
         </p>
       </div>
@@ -264,7 +263,7 @@ export const PlcVideoSessionContent: React.FC<PlcVideoSessionContentProps> = ({
         <p className="text-sm text-slate-500 max-w-md">
           {t('plcDashboard.assignmentSession.videoSessionUnavailableBody', {
             defaultValue:
-              'This assignment has no live session — it may not have been started yet.',
+              'This assignment has no live session. It may not have started yet.',
           })}
         </p>
       </div>

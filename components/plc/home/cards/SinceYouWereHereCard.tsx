@@ -120,11 +120,6 @@ export const SinceYouWereHereCard: React.FC<SinceYouWereHereCardProps> = ({
                 defaultValue: 'You’re all caught up',
               })}
             </p>
-            <p className="text-xs text-slate-400 mt-1">
-              {t('plcDashboard.activity.caughtUpSubtitle', {
-                defaultValue: 'No new activity since your last visit.',
-              })}
-            </p>
           </div>
         )}
 

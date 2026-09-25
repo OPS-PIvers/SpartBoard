@@ -127,7 +127,7 @@ describe('useGuidedLearningSessionTeacher.createSession — size guard', () => {
       ],
     };
     await expect(result.current.createSession(huge)).rejects.toThrow(
-      'This set is too large to save — split it or remove slides.'
+      /too large to save/
     );
     expect(mockSetDoc).not.toHaveBeenCalled();
   });

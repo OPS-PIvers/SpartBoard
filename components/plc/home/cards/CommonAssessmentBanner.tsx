@@ -153,8 +153,7 @@ export const CommonAssessmentBanner: React.FC<CommonAssessmentBannerProps> = ({
             </p>
             <p className="text-xs text-slate-500 mt-0.5">
               {t('plcDashboard.home.commonAssessment.emptySubtitle', {
-                defaultValue:
-                  'Designate one in Assessments, then review the pooled results together.',
+                defaultValue: 'Set one in Assessments.',
               })}
             </p>
           </div>

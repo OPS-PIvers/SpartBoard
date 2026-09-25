@@ -347,7 +347,7 @@ export const DashboardTemplatesManager: React.FC = () => {
         </div>
       ) : errored ? (
         <p className="text-sm text-rose-300/80 italic mb-3">
-          Couldn&apos;t load templates — refresh to retry.
+          Couldn&apos;t load templates. Refresh to try again.
         </p>
       ) : templates.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-3">

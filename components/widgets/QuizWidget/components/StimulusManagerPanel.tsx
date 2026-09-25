@@ -294,8 +294,7 @@ export const StimulusManagerPanel: React.FC<{
 
       {stimuli.length === 0 ? (
         <div className="text-center text-slate-500 text-sm py-6 border-2 border-dashed border-slate-300 rounded-lg bg-white">
-          No stimuli yet. Upload a file, paste a URL or add a passage to get
-          started.
+          No stimuli yet.
         </div>
       ) : (
         <div className="space-y-2">
@@ -682,8 +681,7 @@ export const QuestionStimulusSection: React.FC<{
         <div className="px-3 pb-3 space-y-2 border-t border-slate-100 pt-2">
           {stimuli.length === 0 ? (
             <p className="text-xs text-slate-500">
-              No stimuli in this quiz yet. Add one below, or manage the full
-              list in the <strong>Stimuli</strong> tab.
+              No stimuli yet. Add one below.
             </p>
           ) : (
             <ul className="space-y-1">

@@ -219,8 +219,7 @@ export const SettingsDefEditor: React.FC<SettingsDefEditorProps> = ({
       {/* Existing settings */}
       {settingsDefs.length === 0 && !isAdding && (
         <p className="text-xs text-slate-500 italic">
-          No settings defined. Optional — add settings to make this widget
-          configurable by admins.
+          No settings defined. Add some to let admins configure this widget.
         </p>
       )}
 

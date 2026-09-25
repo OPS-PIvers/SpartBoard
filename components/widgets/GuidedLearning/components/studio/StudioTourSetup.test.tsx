@@ -49,9 +49,7 @@ describe('StudioTourSetup', () => {
 
   it('adds a widget, offering only ones not already listed', () => {
     const last = renderSetup([]);
-    expect(
-      screen.getByText('None. The tour runs on the board as it is.')
-    ).toBeInTheDocument();
+    expect(screen.getByText(/^None/)).toBeInTheDocument();
     const add = screen.getByRole('combobox', { name: 'Add a widget' });
     fireEvent.change(add, { target: { value: 'dice' } });
     expect(last()).toEqual(['dice']);

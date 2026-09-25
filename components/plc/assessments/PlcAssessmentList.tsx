@@ -1053,8 +1053,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
             </p>
             <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
               {t('plcDashboard.assessmentList.emptySubtitle', {
-                defaultValue:
-                  'Share a quiz with this PLC, then assign it to pool the team’s results here.',
+                defaultValue: 'Share a quiz to get started.',
               })}
             </p>
             <div className="mt-4 flex justify-center">{shareButton}</div>

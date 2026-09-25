@@ -186,7 +186,7 @@ describe('QuizStudentApp — mid-attempt window close', () => {
       expect(mockCompleteQuiz).toHaveBeenCalledTimes(1);
     });
     expect(
-      screen.getByText(/window closed.*submitted automatically/i)
+      screen.getByText(/assignment closed\. Your answers were submitted/i)
     ).toBeInTheDocument();
   });
 
@@ -198,7 +198,7 @@ describe('QuizStudentApp — mid-attempt window close', () => {
     expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
     expect(mockCompleteQuiz).not.toHaveBeenCalled();
     expect(
-      screen.queryByText(/window closed.*submitted automatically/i)
+      screen.queryByText(/assignment closed\. Your answers were submitted/i)
     ).not.toBeInTheDocument();
   });
 
@@ -228,10 +228,10 @@ describe('QuizStudentApp — mid-attempt window close', () => {
     });
 
     expect(
-      await screen.findByText(/couldn.t submit automatically/i)
+      await screen.findByText(/couldn.t submit\. Check your connection/i)
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/window closed.*submitted automatically/i)
+      screen.queryByText(/assignment closed\. Your answers were submitted/i)
     ).not.toBeInTheDocument();
 
     // The trigger ref must be reset on failure so a retry can succeed.
@@ -243,10 +243,12 @@ describe('QuizStudentApp — mid-attempt window close', () => {
       expect(mockCompleteQuiz).toHaveBeenCalledTimes(2);
     });
     expect(
-      await screen.findByText(/window closed.*submitted automatically/i)
+      await screen.findByText(
+        /assignment closed\. Your answers were submitted/i
+      )
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/couldn.t submit automatically/i)
+      screen.queryByText(/couldn.t submit\. Check your connection/i)
     ).not.toBeInTheDocument();
   });
 
@@ -266,13 +268,13 @@ describe('QuizStudentApp — mid-attempt window close', () => {
     });
 
     expect(
-      await screen.findByText(/couldn.t submit automatically/i)
+      await screen.findByText(/couldn.t submit\. Check your connection/i)
     ).toBeInTheDocument();
     // Honest copy: work is not submitted, and points to the existing
     // teacher-unlock/extension flow rather than implying success.
     expect(screen.getByText(/ask your teacher/i)).toBeInTheDocument();
     expect(
-      screen.queryByText(/window closed.*submitted automatically/i)
+      screen.queryByText(/assignment closed\. Your answers were submitted/i)
     ).not.toBeInTheDocument();
   });
 });
@@ -303,7 +305,7 @@ describe('QuizStudentApp — per-student window shift', () => {
     expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
     expect(mockCompleteQuiz).not.toHaveBeenCalled();
     expect(
-      screen.queryByText(/window closed.*submitted automatically/i)
+      screen.queryByText(/assignment closed\. Your answers were submitted/i)
     ).not.toBeInTheDocument();
   });
 
@@ -318,7 +320,7 @@ describe('QuizStudentApp — per-student window shift', () => {
       expect(mockCompleteQuiz).toHaveBeenCalledTimes(1);
     });
     expect(
-      screen.getByText(/window closed.*submitted automatically/i)
+      screen.getByText(/assignment closed\. Your answers were submitted/i)
     ).toBeInTheDocument();
   });
 });

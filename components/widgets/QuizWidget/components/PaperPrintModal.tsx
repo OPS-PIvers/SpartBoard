@@ -1038,8 +1038,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           <div className="mt-2 max-h-56 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-2">
             {rosters.length === 0 && (
               <p className="px-2 py-3 text-xs text-slate-500">
-                No classes yet — add a roster to print personalized sheets, or
-                print spares below.
+                No classes yet. Print spares below.
               </p>
             )}
             {rosters.map((roster) => {

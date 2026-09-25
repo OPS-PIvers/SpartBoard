@@ -244,13 +244,13 @@ describe('QuizResults — results print', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Print results' }));
     const d = within(dialog());
     expect(
-      d.getByText(/2 students have written answers not graded yet/)
+      d.getByText(/2 students have ungraded written answers/)
     ).toBeInTheDocument();
     expect(d.getByText(/2 students have no roster name/)).toBeInTheDocument();
     expect(d.queryByText(/printed keys may circulate/)).toBeNull();
     fireEvent.click(d.getByRole('radio', { name: 'Missed only' }));
     expect(
-      d.getByText("1 student hasn't finished — printed keys may circulate.")
+      d.getByText("1 student hasn't finished, so printed keys may circulate.")
     ).toBeInTheDocument();
   });
 
@@ -360,8 +360,8 @@ describe('QuizResults — results print', () => {
         name: 'Bubble sheet',
       })
     );
-    // No "sheet record is gone" while the batch is still loading.
-    expect(d.queryByText(/sheet record is gone/)).toBeNull();
+    // No "sheet record missing" while the batch is still loading.
+    expect(d.queryByText(/sheet record missing/i)).toBeNull();
     expect(
       d.getByText('1 student took this online and will get the report.')
     ).toBeInTheDocument();

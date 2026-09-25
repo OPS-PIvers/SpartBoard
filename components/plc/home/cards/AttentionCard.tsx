@@ -146,11 +146,6 @@ export const AttentionCard: React.FC<AttentionCardProps> = ({
                 defaultValue: 'No active assignments',
               })}
             </p>
-            <p className="text-xs text-slate-400 mt-1">
-              {t('plcDashboard.home.attention.emptySubtitle', {
-                defaultValue: 'Live PLC assignments will appear here.',
-              })}
-            </p>
           </div>
         ) : (
           <ul className="space-y-1.5">

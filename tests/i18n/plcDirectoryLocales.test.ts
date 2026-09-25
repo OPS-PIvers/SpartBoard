@@ -23,7 +23,6 @@ const REQUIRED_KEYS = [
   'requestToJoin',
   'requestHint',
   'emptyTitle',
-  'emptySubtitle',
   'noOrgTitle',
   'noOrgSubtitle',
 ] as const;

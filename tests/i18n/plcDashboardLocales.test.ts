@@ -124,7 +124,6 @@ const REQUIRED_NOTES_KEYS = [
   'untitled',
   'empty',
   'emptyTitle',
-  'emptySubtitle',
   'titlePlaceholder',
   'bodyPlaceholder',
   'deleteNote',
@@ -514,7 +513,6 @@ const REQUIRED_HOME_COMMON_ASSESSMENT_PHASE_KEYS = [
 const REQUIRED_HOME_ACTION_ITEMS_KEYS = [
   'heading',
   'empty',
-  'emptySubtitle',
   'loadError',
   'toggleFailed',
   'markDone',

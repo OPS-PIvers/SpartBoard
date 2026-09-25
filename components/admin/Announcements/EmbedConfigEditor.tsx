@@ -424,7 +424,7 @@ export const EmbedConfigEditor: React.FC<{
             {recordingUploadState === 'done' && (
               <div className="flex items-center gap-2 text-sm text-emerald-700 font-semibold">
                 <Check className="w-4 h-4" />
-                Recording saved — video is ready in the embed!
+                Recording saved to the embed.
               </div>
             )}
             {recordingUploadState === 'error' && (

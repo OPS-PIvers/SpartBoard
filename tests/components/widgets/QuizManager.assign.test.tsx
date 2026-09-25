@@ -551,7 +551,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     // First click surfaces the timing warning by name and holds the assign.
     expect(onAssign).not.toHaveBeenCalled();
     expect(await within(dialog).findByRole('status')).toHaveTextContent(
-      /extended time for .*will not apply/i
+      /extended time for .*(will not|won't) apply/i
     );
     // Never an error: a standing default is a pre-existing setting, not a block.
     expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();

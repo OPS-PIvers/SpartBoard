@@ -55,7 +55,6 @@ const REQUIRED_PLCS_KEYS = [
   'invites',
   'invitesTitle',
   'noInvitesTitle',
-  'noInvitesSubtitle',
   'inviteFrom',
   'accept',
   'decline',

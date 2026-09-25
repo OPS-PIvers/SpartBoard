@@ -411,8 +411,7 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
             className="mt-2 p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold"
           >
             <AlertCircle className="w-4 h-4 shrink-0" />
-            Duplicate terms found. Give each row a unique term — students
-            can&apos;t tell repeated terms apart, and only one will be scored.
+            Duplicate terms found. Give each row a unique term.
           </div>
         )}
       </div>

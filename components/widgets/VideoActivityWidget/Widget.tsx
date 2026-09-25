@@ -367,13 +367,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   // ─── Guards ────────────────────────────────────────────────────────────────
 
   if (!user) {
-    return (
-      <ScaledEmptyState
-        icon={LogIn}
-        title="Sign in required"
-        subtitle="Sign in with Google to use Video Activities."
-      />
-    );
+    return <ScaledEmptyState icon={LogIn} title="Sign in required" />;
   }
 
   if (!isDriveConnected && !googleAccessToken) {

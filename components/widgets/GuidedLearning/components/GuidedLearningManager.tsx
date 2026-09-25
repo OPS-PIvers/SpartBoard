@@ -1234,9 +1234,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
                 fontSize: 'min(12px, 4cqmin)',
               }}
             >
-              Your personal sets are saved to Google Drive. Sign out and sign
-              back in to grant Drive access. Building sets are still available
-              below.
+              Sign out and back in to allow Drive access for your sets.
             </div>
           )}
 
@@ -1274,12 +1272,12 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
                 title="No sets yet"
                 subtitle={
                   isHelpCenterFiltered
-                    ? 'Help Center activities are created in Admin Settings > Help Center.'
+                    ? 'Add them in Admin Settings > Help Center.'
                     : isBuildingFiltered
                       ? isAdmin
-                        ? 'Use "New Building Set" or "AI" to add a building-level experience.'
-                        : 'No building sets have been created yet.'
-                      : 'Click "New Set" to create your first guided experience.'
+                        ? 'Use New Building Set or AI to add one.'
+                        : undefined
+                      : 'Click New Set to make one.'
                 }
               />
             }
@@ -1699,7 +1697,7 @@ const GuidedLearningPreviewPane: React.FC<{
                     fontSize: 'min(11px, 4cqmin)',
                   }}
                 >
-                  Updated — reload preview
+                  Updated. Reload preview
                 </button>
               </div>
             )}

@@ -1300,7 +1300,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         prev?.kind === 'schemaMismatch' ? { ...prev, recoveryUrl: url } : prev
       );
       addToast(
-        'Exported to a personal sheet — open it to copy rows into the shared sheet manually.',
+        'Exported to your own sheet. Copy rows into the PLC sheet.',
         'success'
       );
     } catch (err) {
@@ -3720,7 +3720,7 @@ const StudentsScreen: React.FC<{
                         {awaitingGrade && (
                           <span
                             className="mt-0.5 inline-flex"
-                            title="Provisional — a written response is still ungraded, so this total will change once you grade it."
+                            title="Provisional. This total changes once you grade the written response."
                           >
                             <SessionBadge tone="warn" label="Provisional" />
                           </span>

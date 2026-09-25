@@ -688,8 +688,7 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
         {questions.length === 0 ? (
           <p className="text-sm text-slate-500 bg-white border border-slate-200 rounded-2xl px-4 py-6 text-center">
             {t('plcDashboard.assessmentDetail.noQuestions', {
-              defaultValue:
-                'No results yet. Once a teacher runs this assessment and publishes scores, the pooled questions appear here.',
+              defaultValue: 'No results yet.',
             })}
           </p>
         ) : (

@@ -595,9 +595,7 @@ describe('ActivityWallGalleryView', () => {
     });
 
     await waitFor(() =>
-      expect(
-        screen.getByText(/no submissions yet — check back soon/i)
-      ).toBeInTheDocument()
+      expect(screen.getByText(/no submissions yet/i)).toBeInTheDocument()
     );
   });
 

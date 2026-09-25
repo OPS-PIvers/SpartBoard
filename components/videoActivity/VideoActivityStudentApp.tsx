@@ -983,13 +983,11 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
             Attempt Unlocked
           </h2>
           <p className="text-emerald-100 text-lg max-w-md mb-2">
-            Your teacher reopened your attempt. Your previous answers are still
-            here — pick up where you left off.
+            Your teacher reopened this. Your answers are saved.
           </p>
           <p className="text-amber-200 text-sm max-w-md mb-8">
-            ⚠ The next time you leave this tab or open the activity in another
-            window, your work will be submitted automatically. No further
-            warnings.
+            If you leave this tab or open another window again, your work
+            submits automatically.
           </p>
           <button
             onClick={() => setShowResumeModal(false)}

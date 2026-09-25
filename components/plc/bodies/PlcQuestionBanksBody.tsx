@@ -280,8 +280,7 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
           </p>
           <p className="mt-1 text-xs text-slate-500">
             {t('plcDashboard.bankLibrary.emptyHint', {
-              defaultValue:
-                'Share a bank from your quiz library so teammates can draw tagged questions into their own quizzes.',
+              defaultValue: 'Share one from your quiz library.',
             })}
           </p>
         </div>

@@ -2267,8 +2267,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           }
           emptySub={
             isViewOnly
-              ? 'Share a quiz from the Library tab to create a viewable link for students.'
-              : 'Assign a quiz from the Library tab to get started. Active and paused assignments appear here.'
+              ? 'Share a quiz from the Library tab.'
+              : 'Assign a quiz from the Library tab.'
           }
         />
       )}
@@ -2286,7 +2286,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           emptySub={
             isViewOnly
               ? 'Ended share links will appear here.'
-              : 'Ended assignments are moved here so you can review results and share them.'
+              : 'Ended assignments appear here.'
           }
         />
       )}
@@ -2405,7 +2405,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                 >
                   {t('assignTargeting.timingNotAppliedConfirm', {
                     defaultValue:
-                      'Teacher-paced sessions have no per-student timer, so extended time for {{names}} will not apply. Other accommodations still apply. Click Assign again to continue.',
+                      "Extended time for {{names}} won't apply in teacher-paced mode. Click Assign again to continue.",
                     names: targetingTimingWarning.join(', '),
                   })}
                 </p>
@@ -2589,7 +2589,7 @@ const LibraryTabContent: React.FC<{
       <ScaledEmptyState
         icon={FileUp}
         title="No Quizzes Yet"
-        subtitle="Import a CSV or Google Sheet to build your library."
+        subtitle="Create or import a quiz."
         iconClassName="text-brand-blue-primary"
         titleClassName="text-brand-blue-primary"
         subtitleClassName="text-brand-blue-primary/60"
