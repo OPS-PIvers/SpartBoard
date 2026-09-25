@@ -2755,11 +2755,26 @@ const ActiveQuiz: React.FC<{
   // RR-A2 sub-decision 1 — an open recording slot blocks the submit. A slot
   // prep expiry closed, or one a dead microphone marked capture-unavailable,
   // is resolved rather than open and never blocks (RR-07).
+  // A recording question locked out of a choose-N section can't be answered, so it never blocks.
+  const recordingServedIds =
+    drawIds || override?.questionIds
+      ? servedPublicQuestions.map((q) => q.id)
+      : undefined;
   const recordingQuestionEntries =
     session.mediaResponseEnabled === true
       ? orderedPublicQuestions
           .map((q, index) => ({ q, index }))
-          .filter(({ q }) => q.recording && isFreeResponseType(q.type))
+          .filter(
+            ({ q }) =>
+              q.recording &&
+              isFreeResponseType(q.type) &&
+              !isLockedByChooseCount(
+                session.sections,
+                myResponse?.answers ?? [],
+                q.id,
+                recordingServedIds
+              )
+          )
       : [];
   const openRecordingIds = new Set(
     listOpenQuestions(
