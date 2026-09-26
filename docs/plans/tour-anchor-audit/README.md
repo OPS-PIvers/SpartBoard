@@ -9,6 +9,7 @@ Unanchored interactive elements, with proposed `config/tourAnchors.ts` ids. Noth
 5. [Widget settings S–Z](05-widget-settings-s-z.md)
 
 Recommendations:
+
 - Add one generic anchor in the schema settings renderer (widget type + field key) instead of tagging each schema field.
 - Tag Profile & Settings first; it has no anchors at all.
 - Delete `components/layout/sidebar/SidebarBoardsActive.tsx` (dead code).
