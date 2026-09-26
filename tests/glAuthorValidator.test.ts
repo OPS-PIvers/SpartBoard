@@ -1,12 +1,13 @@
-// Fixtures for the gl-author validator's v3 rules (GL Studio plan P1-7).
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+// Fixtures for the gl-author validator (GL Studio plan P1-7, live-tour refs).
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  readTourAnchorIds,
+  loadTourAnchors,
+  readWidgetTypes,
   validateGlSet,
 } from '../.claude/skills/gl-author/scripts/validate_gl_json.mjs';
+import { TOOLS } from '@/config/tools';
+import { parseTourAnchorRef, TOUR_ANCHORS } from '@/config/tourAnchors';
 
 // 1×1 transparent PNG.
 const PNG =
@@ -35,10 +36,13 @@ const set = (steps: unknown[], over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-const ok = (s: unknown, opts?: { tourAnchorIds: Set<string> | null }) =>
-  expect(() => validateGlSet(s, opts)).not.toThrow();
+// The CLI imports the registry at runtime; Vitest hands it the same module.
+const tourAnchors = { TOUR_ANCHORS, parseTourAnchorRef };
+const widgetTypes = readWidgetTypes();
+const opts = { tourAnchors, widgetTypes };
+const ok = (s: unknown) => validateGlSet(s, opts).warnings;
 const bad = (s: unknown, match: RegExp) =>
-  expect(() => validateGlSet(s)).toThrow(match);
+  expect(() => validateGlSet(s, opts)).toThrow(match);
 
 describe('validateGlSet schema versions', () => {
   it('accepts 2 and 3 and rejects anything else', () => {
@@ -233,68 +237,186 @@ describe('validateGlSet callouts, narration and tours', () => {
     );
   });
 
-  it('rejects narration, which lives in Storage', () => {
+  it('passes generated narration through with a warning and rejects recorded takes', () => {
+    const narration = {
+      source: 'generated',
+      url: 'https://x',
+      storagePath: 'p',
+      durationMs: 1,
+    };
+    expect(ok(set([step({ narration })]))).toEqual([
+      expect.stringMatching(/regenerate it in the Studio/),
+    ]);
     bad(
+      set([step({ narration: { ...narration, source: 'recorded' } })]),
+      /recorded takes are dropped/
+    );
+    bad(
+      set([step({ narration: { source: 'generated' } })]),
+      /url, storagePath and durationMs/
+    );
+  });
+
+  it('counts visible words, not markup, and rejects line breaks', () => {
+    const link = '[the district guide](https://example.com/a-very-long-path)';
+    ok(
       set([
         step({
-          narration: {
-            source: 'generated',
-            url: 'https://x',
-            storagePath: 'p',
-            durationMs: 1,
-          },
+          text: `Open ${link} and find **Save** before you close this window today, then check the saved copy in your library.`,
         }),
-      ]),
-      /narration is not importable/
+      ])
     );
+    bad(set([step({ text: 'One.\nTwo.' })]), /one paragraph/);
+    expect(ok(set([step({ text: '**Save** then **Close**.' })]))).toEqual([
+      expect.stringMatching(/more than one term/),
+    ]);
   });
 
-  it('rejects any tour before the anchor registry exists', () => {
+  it('checks video trims against video slides', () => {
+    const video = { imageUrls: [PNG, 'https://example.com/v.mp4'] };
+    ok(
+      set([step()], {
+        ...video,
+        imageKinds: ['image', 'video'],
+        videoTrims: [null, { start: 1, end: 4 }],
+      })
+    );
     bad(
-      set([step({ tour: { anchor: 'dock.open-tools', action: 'click' } })]),
-      /tour anchor registry does not exist/
+      set([step()], {
+        ...video,
+        imageKinds: ['image', 'video'],
+        videoTrims: [null, { start: 4, end: 1 }],
+      }),
+      /start < end/
+    );
+    bad(
+      set([step()], { videoTrims: [{ start: 0, end: 1 }] }),
+      /null on an image slide/
     );
   });
 
-  it('accepts only registered anchors once the registry exists', () => {
-    const ids = new Set(['dock.open-tools']);
-    ok(set([step({ tour: { anchor: 'dock.open-tools', action: 'click' } })]), {
-      tourAnchorIds: ids,
-    });
-    expect(() =>
-      validateGlSet(
-        set([step({ tour: { anchor: 'dock.nope', action: 'click' } })]),
-        { tourAnchorIds: ids }
-      )
-    ).toThrow(/registered tour anchor/);
+  it('rejects importer-owned set fields', () => {
+    bad(set([step()], { hasLiveTour: true }), /hasLiveTour/);
+    bad(set([step()], { driveFileIds: [] }), /driveFileIds/);
   });
 });
 
-describe('readTourAnchorIds', () => {
-  it('reads the real registry in config/tourAnchors.ts', () => {
-    const ids = readTourAnchorIds(join(process.cwd(), 'config/tourAnchors.ts'));
-    expect(ids?.has('dock.open-tools')).toBe(true);
-    expect(ids?.has('widget.settings-opener')).toBe(true);
+describe('validateGlSet tours', () => {
+  const tour = (anchor: string, over: Record<string, unknown> = {}) =>
+    step({ tour: { anchor, action: 'click', ...over } });
+  const layout = (slot: number, type: string) => ({
+    slot,
+    type,
+    xProp: 0.1,
+    yProp: 0.1,
+    wProp: 0.3,
+    hProp: 0.4,
   });
 
-  it('returns null without a registry and the keys of TOUR_ANCHORS with one', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'gl-anchors-'));
-    expect(readTourAnchorIds(join(dir, 'missing.ts'))).toBeNull();
-    const file = join(dir, 'tourAnchors.ts');
-    writeFileSync(
-      file,
-      [
-        'export const TOUR_ANCHORS = {',
-        "  'dock.open-tools': { label: 'Open Tools' },",
-        "  'widget.settings-opener': {",
-        "    label: 'Widget settings',",
-        '    perWidget: true,',
-        '  },',
-        '} as const;',
-      ].join('\n')
+  it('accepts chrome, per-type and per-field refs', () => {
+    ok(set([tour('dock.open-tools')]));
+    ok(set([tour('dock.item:clock')]));
+    ok(set([tour('settings.field:clock#format24')]));
+  });
+
+  it('applies the anchorProblem rules', () => {
+    bad(set([tour('dock.nope')]), /not a registered anchor/);
+    bad(set([tour('dock.item')]), /needs a widget type/);
+    bad(set([tour('settings.field:clock')]), /needs a field key/);
+    bad(set([tour('dock.open-tools:clock')]), /does not take/);
+    bad(set([tour('dock.item:nope')]), /unknown widget type/);
+  });
+
+  it('checks action, fallback and unknown keys', () => {
+    bad(set([tour('dock.open-tools', { action: 'tap' })]), /click or observe/);
+    bad(
+      set([tour('dock.open-tools', { fallback: { role: 'button' } })]),
+      /role and a name/
     );
-    expect(readTourAnchorIds(file)).toEqual(
-      new Set(['dock.open-tools', 'widget.settings-opener'])
+    bad(set([tour('dock.open-tools', { unmapped: 'x' })]), /recorder-only/);
+    bad(set([tour('dock.open-tools', { route: '/' })]), /not a tour field/);
+  });
+
+  it('binds slots to setup layouts and earlier spawns', () => {
+    const setup = {
+      tourSetup: { widgets: ['clock'], layouts: [layout(0, 'clock')] },
+    };
+    expect(
+      ok(set([tour('widget.settings-opener:clock', { slot: 0 })], setup))
+    ).toEqual([]);
+    bad(
+      set([tour('widget.settings-opener:clock', { slot: 1 })], setup),
+      /has no layout/
     );
+    bad(
+      set([tour('widget.settings-opener:time-tool', { slot: 0 })], {
+        tourSetup: { widgets: ['clock'], layouts: [layout(0, 'clock')] },
+      }),
+      /holds a clock/
+    );
+    ok(
+      set([
+        tour('library.item:clock', { spawns: layout(2, 'clock') }),
+        {
+          ...tour('widget.settings-opener', {
+            slot: 2,
+            layoutKeyframes: [
+              { slot: 2, xProp: 0.5, yProp: 0.1, wProp: 0.3, hProp: 0.3 },
+            ],
+          }),
+          id: 's2',
+        },
+      ])
+    );
+    bad(
+      set([
+        tour('library.item:clock', {
+          action: 'observe',
+          spawns: layout(2, 'clock'),
+        }),
+      ]),
+      /needs action click/
+    );
+  });
+
+  it('checks layout proportions and recorder-only fields', () => {
+    const withLayout = (over: Record<string, unknown>) =>
+      set([tour('dock.open-tools')], {
+        tourSetup: {
+          widgets: ['clock'],
+          layouts: [{ ...layout(0, 'clock'), ...over }],
+        },
+      });
+    bad(withLayout({ xProp: 1.5 }), /xProp/);
+    bad(withLayout({ wProp: 0 }), /wProp/);
+    bad(withLayout({ xProp: 0.8, wProp: 0.4 }), /past the board/);
+    bad(withLayout({ appearance: {} }), /recorder-only/);
+    bad(
+      set([step()], { tourSetup: { widgets: [] } }),
+      /only for a set with tour steps/
+    );
+  });
+
+  it('warns on slotless per-widget, positional and autopilot-destructive refs', () => {
+    expect(ok(set([tour('widget.settings-opener:clock')]))).toEqual([
+      expect.stringMatching(/without a slot/),
+    ]);
+    expect(ok(set([tour('settings.field:schedule#items.2.task')]))).toEqual([
+      expect.stringMatching(/positional/),
+    ]);
+    expect(
+      ok(
+        set([
+          tour('widget.close', { teacherMustClick: false, slot: undefined }),
+        ])
+      ).some((w) => /destructive/.test(w))
+    ).toBe(true);
+  });
+});
+
+describe('validator registry readers', () => {
+  it('reads every widget type in TOOLS and skips a missing registry', async () => {
+    expect(await loadTourAnchors(join(process.cwd(), 'missing.ts'))).toBeNull();
+    expect(widgetTypes).toEqual(new Set(TOOLS.map((tool) => tool.type)));
   });
 });

@@ -187,6 +187,16 @@ export async function rehostImportedSetImages(
   return { set: rehosted, warnings, driveFileIds };
 }
 
+export type ImportDestination = 'personal' | 'building';
+
+export const hasTourBindings = (set: Pick<GuidedLearningSet, 'steps'>) =>
+  set.steps.some((s) => !!s.tour);
+
+// Live tours only run from building sets, so a file with tour steps defaults there.
+export const defaultImportDestination = (
+  set: Pick<GuidedLearningSet, 'steps'>
+): ImportDestination => (hasTourBindings(set) ? 'building' : 'personal');
+
 // Mint fresh identity; schemaVersion passes through so legacy files keep legacy semantics.
 export function prepareImportedSet(
   set: GuidedLearningSet,
@@ -201,6 +211,7 @@ export function prepareImportedSet(
     authorUid,
   };
   delete prepared.isBuilding;
+  delete prepared.hasLiveTour;
   delete prepared.helpCenter;
   delete prepared.driveFileIds;
   delete prepared.slideThumbnails;

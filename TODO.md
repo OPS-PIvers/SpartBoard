@@ -291,6 +291,10 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 ### Ready for an agent
 
+#### Guided Learning AI generator (`functions/src/aiGeneration.ts` `generateGuidedLearning`)
+
+- [ ] Bring the Gemini prompt and response schema up to the gl-author skill: emit `region` for click targets, banners, callout boxes and audio/video steps where they fit, and teach `**bold**` key terms. Today every AI-drafted step is a pin-only target. Flag it as a behaviour change. (M/MED)
+
 #### `docs/plans/AI_RESPONSIBLE_USE_WIDGET.md`
 
 - [ ] Implement widget types/registration: types.ts WidgetType, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts, WidgetRegistry.ts for ai-responsible-use and ai-responsible-use-card. (L)
