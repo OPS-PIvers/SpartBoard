@@ -1,5 +1,5 @@
 /**
- * One-shot (docs/plans/ADMIN_ACCESS_PAGES.md D3): copy the retired global flags
+ * One-shot (docs/plans/shipped/ADMIN_ACCESS_PAGES.md D3): copy the retired global flags
  * `screen-recording`, `magic-layout` and `remote-control` onto the Widgets-page
  * docs `feature_permissions/{record,magic,remote}`, which the Dock now reads.
  *

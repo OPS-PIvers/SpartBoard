@@ -42,11 +42,11 @@ Legend: effort S/M/L, risk LOW/MED/HIGH. Sections ordered: human-gated first.
 
 Each item names the plan it came from; the plan holds the detail.
 
-#### `docs/plans/ACTIVITY_WALL_REDESIGN.md`
+#### `docs/plans/shipped/ACTIVITY_WALL_REDESIGN.md`
 
 - [ ] P3-3: delete archiveActivityWallPhoto callable, activity_wall_photos Storage rule block, ?data= decoder remnants, and deprecated mode/identificationMode writes (functions/src/driveArchive.ts, functions/src/index.ts, storage.rules, types.ts, components/widgets/ActivityWall/\*). (S)
 
-#### `docs/plans/ADMIN_ACCESS_PAGES.md`
+#### `docs/plans/shipped/ADMIN_ACCESS_PAGES.md`
 
 - [ ] Run scripts/migrate-internal-tool-permissions.mjs --project dev then --project prod (dry-run first, then --apply). (S)
 - [ ] Check each 'keep' row against prod global_permissions for already-Public flags ('Ready to graduate'). (S)
@@ -78,7 +78,7 @@ Each item names the plan it came from; the plan holds the detail.
 
 - [ ] Flip 'gl-callout-editing' flag to Public in Admin Settings once Paul has used it in prod (per plan's release section). (S)
 
-#### `docs/plans/GL_STUDIO_GESTURES.md`
+#### `docs/plans/shipped/GL_STUDIO_GESTURES.md`
 
 - [ ] PR 5: remove gl-studio gate and classic GuidedLearningEditor/GuidedLearningEditorModal fallback from Widget.tsx once Paul confirms new gestures in prod. (M)
 
@@ -131,7 +131,7 @@ Each item names the plan it came from; the plan holds the detail.
 
 - [ ] Flip feature flag to Public. (S)
 
-#### `docs/plans/QUIZ_JOIN_CODE_LOOKUP.md`
+#### `docs/plans/shipped/QUIZ_JOIN_CODE_LOOKUP.md`
 
 - [ ] Run scripts/backfill-quiz-join-codes.mjs --all --apply against production. (S)
 - [ ] Tighten quiz_sessions rules to get/scoped-list matching the other four collections. (S)
@@ -178,7 +178,7 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] Real-Chromebook test of short (5s-range) auto-submit timers for false positives from focus-loss/iframe blur, per §4. (S)
 - [ ] Flip 'tab-away-timer' flag to Public in Admin Settings > Access > Previews once Paul has tested in prod, then add the public changelog entry. (S)
 
-#### `docs/plans/WIDGET_SETTINGS_DRAWER.md`
+#### `docs/plans/shipped/WIDGET_SETTINGS_DRAWER.md`
 
 - [ ] Flip settings-drawer flag to public default and delete components/common/SettingsPanel.tsx (wave 4). (M)
 
@@ -330,7 +330,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 - [ ] Confirm Phase 1.5 (QuizResults.tsx visual alignment to monitor shell language) reached full parity with monitor toggle/sort/filter conventions. (S)
 - [ ] Move ephemeral view-state (tab clicks, view-mode toggles) out of Firestore config into local state per Phase 3 item 2 — not verified as done. (M)
 
-#### `docs/plans/QUIZ_JOIN_CODE_LOOKUP.md`
+#### `docs/plans/shipped/QUIZ_JOIN_CODE_LOOKUP.md`
 
 - [ ] Set LEGACY_CODE_QUERY_ENABLED = false and delete sessionsByLegacyQuery in utils/quizJoinCodes.ts. (S)
 
@@ -349,7 +349,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 - [ ] PR 2: per-widget-class flag, controlled ActiveClassChip, rosterId on 5 live-roster widget configs, Dashboard.defaultRosterId, switch-all toast, class-switch reset, migration stamp. (L)
 - [ ] PR 3: import-class dropdowns (Poll/NextUp/Scoreboard), sub-share bundling of all board classes, Projects board-default hookup. (M)
 
-#### `docs/plans/WIDGET_SETTINGS_DRAWER.md`
+#### `docs/plans/shipped/WIDGET_SETTINGS_DRAWER.md`
 
 - [ ] Confirm remaining ~17 widget types without settings.schema.ts either have no settings panel or are intentionally deferred. (S)
 
@@ -422,7 +422,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 ### Blocked on another item
 
-#### `docs/plans/ADMIN_ACCESS_PAGES.md`
+#### `docs/plans/shipped/ADMIN_ACCESS_PAGES.md`
 
 - [ ] After migration, delete LEGACY_TOOL_FEATURES fallback and the three retired GlobalFeature ids one release later. (S)
 - [ ] Deferred: collapse rollout switches into their paired flag (one gate instead of two). (L)
@@ -440,7 +440,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 - [ ] Carry `sections` into substitute launch (subLaunchAssignment) and PLC-synced quiz copies (synced_quizzes). (M)
 - [ ] Print the choose-N count on the physical answer sheet bubble grid (currently test-paper only). (S)
 
-#### `docs/plans/QUIZ_JOIN_CODE_LOOKUP.md`
+#### `docs/plans/shipped/QUIZ_JOIN_CODE_LOOKUP.md`
 
 - [ ] Flip sessionListScoping.test.ts quiz_sessions case to assertFails. (S)
 
@@ -449,7 +449,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 - [ ] PR2: formatting, section extras (not-scored award, subtotals, wait-for-teacher) on top of ExamView's quiz-sections core (D8-D14). (L)
 - [ ] PR8: A&L answer-key profile in non-AI key reader (D27). (M)
 
-#### `docs/plans/WIDGET_SETTINGS_DRAWER.md`
+#### `docs/plans/shipped/WIDGET_SETTINGS_DRAWER.md`
 
 - [ ] Delete components/settings/legacy/LegacySettingsSlot.tsx and related fallback plumbing (wave 10). (S)
 

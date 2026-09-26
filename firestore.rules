@@ -3752,7 +3752,7 @@ service cloud.firestore {
       // waits on every production browser reaching the new join path and on the
       // live sessions being backfilled, because a merge to a dev-* branch ships
       // these rules to production while the client only reaches a preview channel.
-      // Sequence: docs/plans/QUIZ_JOIN_CODE_LOOKUP.md.
+      // Sequence: docs/plans/shipped/QUIZ_JOIN_CODE_LOOKUP.md.
       // Only the teacher (session owner) can create/update/delete the session document.
       // Ownership is carried on the `teacherUid` field (no longer the doc id).
       // PLC pooling link (docs/plans/shipped/PLC_ASSESSMENT_DATA.md §4): a session may

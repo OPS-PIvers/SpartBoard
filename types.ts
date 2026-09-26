@@ -1884,7 +1884,7 @@ export interface ActivityWallAppearance {
   value: string;
 }
 
-/** Default appearance for a newly-created wall (see docs/plans/ACTIVITY_WALL_REDESIGN.md). */
+/** Default appearance for a newly-created wall (see docs/plans/shipped/ACTIVITY_WALL_REDESIGN.md). */
 export const ACTIVITY_WALL_DEFAULT_APPEARANCE: ActivityWallAppearance = {
   kind: 'gradient',
   value: 'bg-gradient-to-br from-slate-900 to-slate-700',

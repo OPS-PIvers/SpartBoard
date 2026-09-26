@@ -10,7 +10,7 @@
  * code into the document path, where knowing it is provable by construction.
  *
  * Every join path goes through `findQuizSessionsByCode` so they resolve a code the
- * same way. See docs/plans/QUIZ_JOIN_CODE_LOOKUP.md for the rollout.
+ * same way. See docs/plans/shipped/QUIZ_JOIN_CODE_LOOKUP.md for the rollout.
  */
 
 import {
@@ -36,7 +36,7 @@ const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
  * pointer, so their codes resolve only through the legacy query — including the
  * older sessions a student reaches from the review screen after a code was
  * recycled. Flip to false (and drop the legacy branch) once the backfill has run
- * and `quiz_sessions` list is scoped; see docs/plans/QUIZ_JOIN_CODE_LOOKUP.md.
+ * and `quiz_sessions` list is scoped; see docs/plans/shipped/QUIZ_JOIN_CODE_LOOKUP.md.
  */
 export const LEGACY_CODE_QUERY_ENABLED = true;
 
