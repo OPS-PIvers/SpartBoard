@@ -4331,3 +4331,18 @@ rather than "no data") is also still open.
   - CI was green on both heads before review.
   - `gh` is absent and `/mnt/skills/user/` does not exist again. GitHub access went through MCP, and the standards came from `.claude/skills/`.
   - Per CLAUDE.md, no full lint, type-check or test runs were made. The only code change is to comments, and the pre-commit hook lints it.
+
+## 2026-09-26
+- PRs reviewed (3): #3507 audit(saturday): daily journal updates + as→satisfies fix; #3506 D3 Settings Labels: exclusive-choice radiogroup for GL Studio callout colour picker; #3499 docs(plans): AI Responsible Use widget implementation plan
+- Comments processed: 3 total — 0 fixed, 0 explained. All three were clean bot summaries on the PR conversation, with no review threads and nothing asked for, so no reply was posted.
+- Fixes pushed: none
+- Reviews posted: 3
+- Merge readiness: #3507 Ready. #3506 Ready: arrow keys on a focused colour radio don't trigger the canvas nudge/resize shortcuts, because `onCanvas` excludes buttons. #3499 Ready with minor notes:
+  - `GlobalFeature` registration omits `stage`/`afterLaunch`/`featureMissingDoc.ts`.
+  - The admin path names don't match the Widgets/Previews tabs.
+  - Rotation writes `featuredQuestionId` to Firestore on a timer.
+  - It targets `main` rather than `dev-paul`.
+- Notes:
+  - CI was green on the #3506 and #3507 heads.
+  - `gh` is absent and `/mnt/skills/user/` does not exist again. GitHub access went through MCP, and the standards came from `.claude/skills/` and CLAUDE.md.
+  - No lint, type-check or test runs were made because no code was changed.
