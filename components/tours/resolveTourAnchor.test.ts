@@ -117,6 +117,22 @@ describe('findTourAnchor', () => {
     ).toBeNull();
   });
 
+  it('combines widget-id scoping with a per-field ref', () => {
+    mount(`
+      <button data-tour="scoreboard.add-point" data-tour-widget-type="scoreboard" data-tour-field="team-1" data-tour-widget="a">A1</button>
+      <button data-tour="scoreboard.add-point" data-tour-widget-type="scoreboard" data-tour-field="team-1" data-tour-widget="b">B1</button>`);
+    expect(
+      findTourAnchor(
+        { anchor: 'scoreboard.add-point:scoreboard#team-1' },
+        { widgetIds: ['b'] }
+      )?.textContent
+    ).toBe('B1');
+    expect(
+      findTourAnchor({ anchor: 'scoreboard.add-point:scoreboard#team-1' })
+        ?.textContent
+    ).toBe('A1');
+  });
+
   it('skips anything inside data-tour-ignore', () => {
     mount(`
       <div data-tour-ignore><button data-tour="sidebar.boards">Copy</button></div>

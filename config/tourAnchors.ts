@@ -531,6 +531,14 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'scoreboard.add-point': {
+    label: 'Add a point for a team in Scoreboard',
+    perField: true,
+  },
+  'scoreboard.remove-point': {
+    label: 'Remove a point for a team in Scoreboard',
+    perField: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;
