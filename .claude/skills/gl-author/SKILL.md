@@ -21,13 +21,18 @@ Read the one closest to the request before starting.
 1. **Get the images.** For app walkthroughs and live tours, read
    [references/app-walkthrough.md](references/app-walkthrough.md) and capture
    screenshots with Playwright. For diagrams, read the supplied image at full
-   resolution. When starting from an exported file, decode each `imageUrls`
-   entry and overlay its existing pins so you can see what the author meant.
-2. **Plan steps.** One hotspot per thing the audience must notice. 4–8 steps
-   per slide and 4–10 for a single diagram; up to ~16 for an app
-   walkthrough. Spread steps across slides in teaching order rather than
-   piling them on the first. Add pins for controls the story needs (a Save
-   button, a toggle) even if the author skipped them.
+   resolution. With no image supplied, draw a flat SVG with no text labels
+   (the steps are the labels), render it to PNG with Playwright's Chromium
+   (launch notes in the app-walkthrough reference), and keep the geometry in
+   one script so pins are computed, not eyeballed. When starting from an
+   exported file, decode each `imageUrls` entry and overlay its existing
+   pins so you can see what the author meant.
+2. **Plan steps.** One hotspot per thing the audience must notice: 4–8
+   teaching steps per slide and 4–10 for a single diagram, up to ~16 for an
+   app walkthrough, plus any question and media steps. Spread steps across
+   slides in teaching order rather than piling them on the first. Add pins
+   for controls the story needs (a Save button, a toggle) even if the
+   author skipped them.
 3. **Place coordinates.** `xPct`/`yPct` are percentages (0–100) **of the
    image itself**: `xPct = 100 * x_pixels / image_width`. Measure on the
    full-resolution image, never a thumbnail; aim at the center of the
@@ -35,17 +40,25 @@ Read the one closest to the request before starting.
    element bounds (see Regions): the exact box beats an estimated centre.
 4. **Verify placement.** Render each slide with the pins or regions and the
    callouts overlaid and look at it. Every target is covered before you move
-   on; estimated pins miss small icons about half the time. Leave callouts on
-   auto placement and add a `calloutPin` only when auto placement clearly
-   covers something the learner needs. Leave callout width, scale and tone
-   out too unless a callout needs them (see Callout size and colour).
+   on; estimated pins miss small icons about half the time. For callout
+   positions, import `placeCallout`, `placePopover` and `placeBanner` from
+   `components/widgets/GuidedLearning/utils/calloutPlacement.ts` into the
+   render script (Node strips the types) rather than guessing: a tooltip
+   tries below, above, right, then left of the target; a popover is centred
+   unless that covers the target; a banner goes below a target in the top
+   40% of the slide and above otherwise. Leave callouts on auto placement
+   and add a `calloutPin` only when auto placement covers something the
+   learner needs for that step. Leave callout width, scale and tone out too
+   unless a callout needs them (see Callout size and colour).
 5. **Choose the interaction per step** (see Interaction choice) and write
    the text (see Writing rules). Every step gets a `label`.
 6. **Bind live-tour steps** when the request is a tour of the real app:
    read [references/live-tour.md](references/live-tour.md).
 7. **Embed images.** Convert each image to a base64 data URI
    (`data:image/png;base64,…` or `image/jpeg`), in `imageUrls` in slide
-   order. The importer re-hosts data URIs to Drive or Storage.
+   order. The importer re-hosts data URIs to Drive or Storage. Keep each
+   image lean: flat diagrams as indexed (8-bit palette) PNG, photos and
+   busy screenshots as JPEG at quality 80–85.
 8. **Validate** against the rules below and run
    `node .claude/skills/gl-author/scripts/validate_gl_json.mjs <file>`. Fix
    every error and read every warning, then save as
@@ -93,6 +106,9 @@ plain.
   so it has to make sense on its own: `Nucleus`, not `This part`.
 - `text`: 1–2 sentences, 25 words max. State what the thing is or what to
   do. One idea per step; split anything longer into two steps.
+- Audio and video steps show text differently: an audio card shows `text`
+  as one plain line cut off after about 40 characters (no markup), and a
+  video step shows only its `label`, so put nothing in its `text`.
 - Imperative voice for actions (`Click Import.`), declarative for concepts
   (`The nucleus stores DNA.`).
 - Formatting: `**bold**` for the one key term a step teaches, at most one
@@ -132,14 +148,21 @@ plain.
   (information) or `neutral`. A banner is one short line pinned above or
   below the target, not a place for a paragraph.
 - **Narrated or demonstrated moments**: an `audio` or `video` step plays
-  linked media over the slide and, in Watch, holds until it ends (YouTube,
-  an uploaded file, or a direct video file URL). A **video slide**
+  linked media over the slide and, in Watch, holds until it ends. `audioUrl`
+  is a direct https audio file (MP3 or M4A; iPads cannot play Ogg, and
+  Wikimedia Commons offers an `.ogg.mp3` transcode). `videoUrl` is YouTube,
+  an uploaded file, or a direct video file URL. A long video holds Watch for
+  its whole length, so a set with one usually wants `structured`. A **video slide**
   (`imageKinds[i]: "video"`) is different: the whole slide is a looping
   muted screen recording, with optional `videoTrims[i]` to loop part of it.
   Use a video slide to show motion the learner watches, a video step to
   play a clip with sound.
 - **Checks for understanding**: `question` steps (see Questions). Place one
   after the steps that teach its answer, not at the start.
+- **Steps with no target** (question, audio, video) still need `xPct`,
+  `yPct` and `imageIndex`, and their pin still shows. Put the pin on an
+  empty part of the slide the step belongs to and set
+  `cursor: { "hide": true }` so Watch doesn't glide to nothing.
 - While a step is live the player hides its numbered pin; the tooltip's
   anchor dot and the `label` under the spotlight are the only markers.
 
@@ -200,8 +223,9 @@ marks a building set for the Help Center in the Studio afterwards.
 
 - `structured` — student clicks through steps in order (Try). Default choice.
 - `guided` — the set plays itself (Watch); a live tour runs on autopilot.
-- `explore` — all hotspots visible at once; student clicks any pin. Best for
-  labeled-diagram exploration.
+- `explore` — all hotspots visible at once; student clicks any pin in any
+  order. Best for a labeled diagram of standalone parts with no questions or
+  media; a diagram lesson that builds up to questions wants `structured`.
 
 ### GuidedLearningStep
 
@@ -260,7 +284,10 @@ are fine on touch screens: the player pads every target to at least 44 px.
 - The box `xPct ± wPct/2`, `yPct ± hPct/2` must stay inside 0–100.
 - Polygons (irregular map regions, diagram parts) add `points`: 3–24
   `{ "x", "y" }` vertices in image-%. Set `xPct`/`yPct` to the centre of the
-  points' bounding box and `wPct`/`hPct` to its size.
+  points' bounding box and `wPct`/`hPct` to its size. The pin and the zoom
+  centre sit at that bounding-box centre, which can fall outside a concave
+  shape (a crescent, an L), so trace an outline whose centre lands on the
+  part, or use an ellipse.
 - `calloutPin: { "xPct", "yPct" }` fixes the callout's centre in image-%.
   Omit it: auto placement tries each side of the region in turn and keeps
   the callout off it. Pin only when the verification render shows auto
@@ -326,7 +353,9 @@ diagram or in the margin beside a screenshot.
 Matching uses `matchingPairs: [{ "left": "...", "right": "..." }]`; sorting
 uses `sortingItems: ["first", "second", …]` in the correct order. These are
 the only three types; there are no points, hints or multiple correct
-answers. Give multiple choice 3–4 choices of similar length.
+answers. Every question needs `text`. Give multiple choice 3–4 unique
+choices of similar length, and matching and sorting at least 2 items
+(3–5 reads best).
 
 ## Validation rules (the importer enforces these)
 
@@ -346,15 +375,20 @@ which the validator enforces: multiple-choice `correctAnswer` must appear
 verbatim in `choices`; matching/sorting arrays must be non-empty;
 `schemaVersion` must be `3` (or `2` for an older export), or `4` when a step
 uses `calloutWidthPct`, `calloutScale` or `calloutTone`, or `5` when a step
-uses `calloutBox`; `videoTrims` must match the video slides; step text has
-no line breaks; `tour` bindings resolve against `config/tourAnchors.ts` (see
+uses `calloutBox`; `videoTrims` must match the video slides; every step
+has a `label`; `showOverlay`, `bannerTone` and `tooltipPosition` use their
+listed values; `panZoomScale` is 1.5–6 and `spotlightRadius` 5–50 (the
+Studio's ranges); audio and video steps have https URLs; questions have
+text and enough items; step text has no line breaks; `tour` bindings resolve against `config/tourAnchors.ts` (see
 the live-tour reference). The importer refuses a file with `schemaVersion`
 above 5 and one whose `region`, `calloutPin`, `calloutBox`, callout width,
 scale or tone is out of range.
 
 The validator prints warnings for things that import but may play badly:
-more than one bold term, generated narration on edited text, and tour refs
-that depend on the teacher's board. Resolve each one or say why it stays.
+more than one bold term, banned words and rhetorical questions, audio text
+that will be cut off, text on a video step, Ogg audio, multiple choice
+without 3–4 choices, generated narration on edited text, and tour refs that
+depend on the teacher's board. Resolve each one or say why it stays.
 
 The validator also decodes every embedded image and prints its byte count.
 Large base64 strings are often shortened by file previews, so judge

@@ -70,11 +70,15 @@ Use `browser_resize`, `browser_click`, `browser_type`,
 
 Use the repository's installed `@playwright/test` package from a local Node
 script (an `.mjs` file under `.playwright-mcp/`, which git ignores). Cloud
-sessions ship Chromium at `/opt/pw-browsers` and set
-`PLAYWRIGHT_BROWSERS_PATH`, so `chromium.launch()` finds it; never run
-`playwright install` there. If the installed Playwright wants a different
-browser build, pass `executablePath: '/opt/pw-browsers/chromium'` (or the
-`chrome` binary inside that folder).
+sessions ship Chromium at `/opt/pw-browsers`, but its build number rarely
+matches the one the installed Playwright looks for, so launch it
+explicitly and never run `playwright install` there:
+
+```js
+const browser = await chromium.launch({
+  executablePath: '/opt/pw-browsers/chromium',
+});
+```
 
 Only when no browser exists at all, install a headless Chromium package in
 a temporary directory so `package.json` and `pnpm-lock.yaml` stay untouched:

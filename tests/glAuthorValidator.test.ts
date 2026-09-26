@@ -420,3 +420,86 @@ describe('validator registry readers', () => {
     expect(widgetTypes).toEqual(new Set(TOOLS.map((tool) => tool.type)));
   });
 });
+
+describe('validateGlSet step content', () => {
+  it('requires a label on every step', () => {
+    bad(set([step({ label: undefined })]), /label must be a non-empty string/);
+  });
+
+  it('checks overlay, banner tone and Studio ranges', () => {
+    bad(set([step({ showOverlay: 'modal' })]), /showOverlay/);
+    bad(set([step({ bannerTone: 'red' })]), /bannerTone/);
+    ok(set([step({ showOverlay: 'banner', bannerTone: 'red' })]));
+    bad(set([step({ panZoomScale: 8 })]), /panZoomScale/);
+    bad(set([step({ spotlightRadius: 2 })]), /spotlightRadius/);
+  });
+
+  it('checks media URLs and how their text shows', () => {
+    const audio = (over: Record<string, unknown>) =>
+      step({ interactionType: 'audio', text: 'Sounds like KLOR.', ...over });
+    bad(set([audio({ audioUrl: undefined })]), /audioUrl/);
+    expect(ok(set([audio({ audioUrl: 'https://x/a.mp3' })]))).toEqual([]);
+    expect(ok(set([audio({ audioUrl: 'https://x/a.ogg' })]))).toEqual([
+      expect.stringMatching(/iPads/),
+    ]);
+    const video = step({
+      interactionType: 'video',
+      videoUrl: 'https://www.youtube.com/watch?v=abc',
+      text: 'Watch this.',
+    });
+    expect(ok(set([video]))).toEqual([
+      expect.stringMatching(/not shown on a video step/),
+    ]);
+  });
+
+  it('checks question shape', () => {
+    const q = (question: Record<string, unknown>) =>
+      set([step({ interactionType: 'question', text: undefined, question })]);
+    ok(
+      q({
+        type: 'multiple-choice',
+        text: 'Which one?',
+        choices: ['A', 'B', 'C'],
+        correctAnswer: 'B',
+      })
+    );
+    bad(
+      q({ type: 'multiple-choice', text: '', choices: ['A', 'B'] }),
+      /question\.text/
+    );
+    bad(
+      q({
+        type: 'multiple-choice',
+        text: 'Q',
+        choices: ['A', 'A', 'B'],
+        correctAnswer: 'A',
+      }),
+      /unique/
+    );
+    bad(
+      q({ type: 'sorting', text: 'Q', sortingItems: ['one'] }),
+      /at least two/
+    );
+    bad(
+      q({
+        type: 'matching',
+        text: 'Q',
+        matchingPairs: [
+          { left: 'a', right: '' },
+          { left: 'b', right: 'c' },
+        ],
+      }),
+      /left and a right/
+    );
+    bad(q({ type: 'essay', text: 'Q' }), /question\.type/);
+  });
+
+  it('warns on banned words and rhetorical questions', () => {
+    expect(ok(set([step({ text: 'Simply click Save.' })]))).toEqual([
+      expect.stringMatching(/writing rules/),
+    ]);
+    expect(ok(set([step({ text: 'Why click Save?' })]))).toEqual([
+      expect.stringMatching(/asks a question/),
+    ]);
+  });
+});

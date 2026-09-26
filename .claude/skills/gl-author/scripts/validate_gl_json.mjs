@@ -356,6 +356,111 @@ function validateNarration(step, path, warn) {
   );
 }
 
+// Studio slider ranges (StudioStepFields.tsx).
+const PAN_ZOOM_RANGE = [1.5, 6];
+const SPOTLIGHT_RANGE = [5, 50];
+const OVERLAYS = ['none', 'popover', 'tooltip', 'banner'];
+const TOOLTIP_POSITIONS = ['above', 'below', 'left', 'right', 'auto'];
+// Writing rules in SKILL.md; warnings, since a few can be legitimate.
+const BANNED = [
+  /\blet's\b/i,
+  /\bsimply\b/i,
+  /\bjust\b/i,
+  /\bnow that\b/i,
+  /\bnext, we'll\b/i,
+  /\bnotice how\b/i,
+  /\bfeel free\b/i,
+  /\bkeep in mind\b/i,
+  /\bit's worth noting\b/i,
+  /\bpowerful\b/i,
+  /\bseamless/i,
+  /\bintuitive\b/i,
+  /\bdive in\b/i,
+  /\bexplore\b/i,
+  /\bjourney\b/i,
+  /!/,
+  /\u2014/,
+];
+
+function checkWriting(step, path, warn) {
+  for (const key of ['label', 'text']) {
+    const value = step[key];
+    if (typeof value !== 'string') continue;
+    const hit = BANNED.find((re) => re.test(value.replace(/\[[^\]]*\]\([^)]*\)/g, '')));
+    if (hit) warn(`${path}.${key} breaks the writing rules (${hit.source})`);
+    if (key === 'text' && step.interactionType !== 'question' && /\?/.test(value)) {
+      warn(`${path}.text asks a question: state it instead`);
+    }
+  }
+}
+
+function validateMediaStep(step, path, warn) {
+  if (step.interactionType === 'audio') {
+    if (typeof step.audioUrl !== 'string' || !/^https:\/\//.test(step.audioUrl)) {
+      fail(`${path}.audioUrl must be an https URL of an audio file`);
+    }
+    if (/\.(ogg|oga)(\?|$)/i.test(step.audioUrl)) {
+      warn(`${path}.audioUrl is Ogg, which iPads cannot play: use MP3 or M4A`);
+    }
+    if (typeof step.text === 'string' && (/\*\*|\]\(/.test(step.text) || step.text.length > 40)) {
+      warn(`${path}.text shows as one plain truncated line on an audio card: 40 characters, no markup`);
+    }
+  }
+  if (step.interactionType === 'video') {
+    if (typeof step.videoUrl !== 'string' || !/^https:\/\//.test(step.videoUrl)) {
+      fail(`${path}.videoUrl must be a YouTube or https video URL`);
+    }
+    if (step.text) warn(`${path}.text is not shown on a video step: put it in the label`);
+  }
+}
+
+function validateQuestion(step, path, warn) {
+  const q = step.question;
+  if (!isObject(q)) fail(`${path}.question must be an object`);
+  if (!['multiple-choice', 'matching', 'sorting'].includes(q.type)) {
+    fail(`${path}.question.type must be multiple-choice, matching or sorting`);
+  }
+  if (typeof q.text !== 'string' || !q.text.trim()) {
+    fail(`${path}.question.text must be a non-empty string`);
+  }
+  if (q.type === 'multiple-choice') {
+    if (
+      !Array.isArray(q.choices) ||
+      q.choices.length < 2 ||
+      q.choices.some((c) => typeof c !== 'string' || !c.trim())
+    ) {
+      fail(`${path}.question.choices must be at least two non-empty strings`);
+    }
+    if (new Set(q.choices).size !== q.choices.length) {
+      fail(`${path}.question.choices must be unique`);
+    }
+    if (!q.choices.includes(q.correctAnswer)) {
+      fail(`${path}.question.correctAnswer must appear in choices`);
+    }
+    if (q.choices.length > 4 || q.choices.length < 3) {
+      warn(`${path}.question has ${q.choices.length} choices: use 3 or 4`);
+    }
+  }
+  if (
+    q.type === 'matching' &&
+    (!Array.isArray(q.matchingPairs) ||
+      q.matchingPairs.length < 2 ||
+      q.matchingPairs.some(
+        (p) => !isObject(p) || typeof p.left !== 'string' || typeof p.right !== 'string' || !p.left.trim() || !p.right.trim()
+      ))
+  ) {
+    fail(`${path}.question.matchingPairs must be at least two pairs with a left and a right`);
+  }
+  if (
+    q.type === 'sorting' &&
+    (!Array.isArray(q.sortingItems) ||
+      q.sortingItems.length < 2 ||
+      q.sortingItems.some((item) => typeof item !== 'string' || !item.trim()))
+  ) {
+    fail(`${path}.question.sortingItems must be at least two non-empty strings`);
+  }
+}
+
 // Markup the player renders: **bold** and [label](https://...) count as their visible words.
 const plainText = (text) =>
   text
@@ -519,12 +624,11 @@ export function validateGlSet(set, { tourAnchors = null, widgetTypes = null } = 
       fail(`${path}.interactionType is invalid`);
     }
 
-    if (step.label !== undefined) {
-      if (typeof step.label !== 'string' || !step.label.trim()) {
-        fail(`${path}.label must be a non-empty string when present`);
-      }
-      const labelWords = step.label.trim().split(/\s+/).length;
-      if (labelWords > 4) fail(`${path}.label exceeds four words`);
+    if (typeof step.label !== 'string' || !step.label.trim()) {
+      fail(`${path}.label must be a non-empty string: it is the alt text`);
+    }
+    if (step.label.trim().split(/\s+/).length > 4) {
+      fail(`${path}.label exceeds four words`);
     }
 
     if (typeof step.text === 'string') {
@@ -564,31 +668,30 @@ export function validateGlSet(set, { tourAnchors = null, widgetTypes = null } = 
     if (step.narration !== undefined) validateNarration(step, path, ctx.warn);
     if (step.tour !== undefined) validateTour(step, path, ctx);
 
-    if (step.interactionType === 'question') {
-      if (!isObject(step.question)) fail(`${path}.question must be an object`);
-      if (step.question.type === 'multiple-choice') {
-        if (!Array.isArray(step.question.choices)) {
-          fail(`${path}.question.choices must be an array`);
-        }
-        if (!step.question.choices.includes(step.question.correctAnswer)) {
-          fail(`${path}.question.correctAnswer must appear in choices`);
-        }
-      }
-      if (
-        step.question.type === 'matching' &&
-        (!Array.isArray(step.question.matchingPairs) ||
-          step.question.matchingPairs.length === 0)
-      ) {
-        fail(`${path}.question.matchingPairs must not be empty`);
-      }
-      if (
-        step.question.type === 'sorting' &&
-        (!Array.isArray(step.question.sortingItems) ||
-          step.question.sortingItems.length === 0)
-      ) {
-        fail(`${path}.question.sortingItems must not be empty`);
-      }
+    if (step.showOverlay !== undefined && !OVERLAYS.includes(step.showOverlay)) {
+      fail(`${path}.showOverlay must be none, popover, tooltip or banner`);
     }
+    if (
+      step.bannerTone !== undefined &&
+      (step.showOverlay !== 'banner' || !['blue', 'red', 'neutral'].includes(step.bannerTone))
+    ) {
+      fail(`${path}.bannerTone must be blue, red or neutral on a banner overlay`);
+    }
+    if (
+      step.tooltipPosition !== undefined &&
+      !TOOLTIP_POSITIONS.includes(step.tooltipPosition)
+    ) {
+      fail(`${path}.tooltipPosition must be above, below, left, right or auto`);
+    }
+    if (step.panZoomScale !== undefined && !inRange(step.panZoomScale, ...PAN_ZOOM_RANGE)) {
+      fail(`${path}.panZoomScale must be a number from 1.5 to 6`);
+    }
+    if (step.spotlightRadius !== undefined && !inRange(step.spotlightRadius, ...SPOTLIGHT_RANGE)) {
+      fail(`${path}.spotlightRadius must be a number from 5 to 50`);
+    }
+    checkWriting(step, path, ctx.warn);
+    validateMediaStep(step, path, ctx.warn);
+    if (step.interactionType === 'question') validateQuestion(step, path, ctx.warn);
   });
   if (usesCalloutBox && set.schemaVersion !== 5) {
     fail('schemaVersion must be 5 when a step sets calloutBox');
