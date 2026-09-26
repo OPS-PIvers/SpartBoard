@@ -32,12 +32,14 @@ export const LanguageSection: React.FC = () => {
         })}
       />
 
-      <div className="grid grid-cols-2 gap-2.5">
+      <div
+        {...tourAttr('language.options')}
+        className="grid grid-cols-2 gap-2.5"
+      >
         {SUPPORTED_LANGUAGES.map((lang) => {
           const isActive = language === lang.code;
           return (
             <button
-              {...tourAttr('language.option')}
               key={lang.code}
               onClick={() => handleLanguageChange(lang.code)}
               className={`relative flex flex-col items-center justify-center p-3.5 rounded-xl border-2 transition-all ${

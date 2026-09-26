@@ -64,6 +64,7 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
           </span>
         </div>
         <div
+          {...tourAttr('dock.position')}
           role="radiogroup"
           aria-label={t('sidebar.settings.dockPosition', {
             defaultValue: 'Dock Position',
@@ -74,7 +75,6 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
             const active = dockPosition === option.value;
             return (
               <button
-                {...tourAttr('dock.position-option')}
                 key={option.value}
                 type="button"
                 role="radio"
@@ -129,7 +129,10 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
         <h3 className="text-xxs font-bold text-slate-400 uppercase tracking-widest px-1">
           {t('style.corners', { defaultValue: 'Corners' })}
         </h3>
-        <div className="flex bg-slate-100 p-0.5 rounded-lg">
+        <div
+          {...tourAttr('dock.corners')}
+          className="flex bg-slate-100 p-0.5 rounded-lg"
+        >
           {[
             {
               id: 'none',
@@ -149,7 +152,6 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
             },
           ].map((r) => (
             <button
-              {...tourAttr('dock.corner-option')}
               key={r.id}
               onClick={() =>
                 setField(

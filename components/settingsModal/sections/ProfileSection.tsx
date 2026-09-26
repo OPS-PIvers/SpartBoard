@@ -90,7 +90,7 @@ export const ProfileSection: React.FC = () => {
             defaultValue: 'My Building(s)',
           })}
         />
-        <div className="flex flex-col gap-2">
+        <div {...tourAttr('profile.buildings')} className="flex flex-col gap-2">
           {buildings.map((building) => {
             const isSelected = selectedBuildings.includes(building.id);
             return (
@@ -98,7 +98,6 @@ export const ProfileSection: React.FC = () => {
                 key={building.id}
                 type="button"
                 aria-pressed={isSelected}
-                {...tourAttr('profile.building-toggle')}
                 onClick={() => toggleBuilding(building.id)}
                 className={`flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all text-left ${
                   isSelected
@@ -155,6 +154,7 @@ export const ProfileSection: React.FC = () => {
           }
         />
         <div
+          {...tourAttr('profile.grades')}
           role="group"
           aria-label={t('settings.profile.gradesTaught', {
             defaultValue: 'Grades taught',
@@ -168,7 +168,6 @@ export const ProfileSection: React.FC = () => {
                 key={grade}
                 type="button"
                 aria-pressed={selected}
-                {...tourAttr('profile.grade-chip')}
                 onClick={() => toggleGrade(grade)}
                 className={chipClass(selected)}
               >
@@ -194,6 +193,7 @@ export const ProfileSection: React.FC = () => {
           })}
         />
         <div
+          {...tourAttr('profile.subjects')}
           role="group"
           aria-label={t('settings.profile.subjectsTaught', {
             defaultValue: 'Content areas taught (optional)',
@@ -207,7 +207,6 @@ export const ProfileSection: React.FC = () => {
                 key={subject.id}
                 type="button"
                 aria-pressed={selected}
-                {...tourAttr('profile.subject-chip')}
                 onClick={() => toggleSubject(subject.id)}
                 className={chipClass(selected)}
               >

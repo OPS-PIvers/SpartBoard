@@ -188,52 +188,44 @@ export const TOUR_ANCHORS = {
     label: 'Language tab in Profile & Settings',
     panel: true,
   },
-  'profile.building-toggle': {
-    label: 'Building button in the Profile tab',
+  'profile.buildings': {
+    label: 'Building choices in the Profile tab',
     panel: true,
   },
   'profile.reset-grades': {
     label: 'Reset grades to building default',
     panel: true,
   },
-  'profile.grade-chip': {
-    label: 'Grade button in the Profile tab',
-    panel: true,
-  },
-  'profile.subject-chip': {
-    label: 'Content area button in the Profile tab',
+  'profile.grades': { label: 'Grade choices in the Profile tab', panel: true },
+  'profile.subjects': {
+    label: 'Content area choices in the Profile tab',
     panel: true,
   },
   'appearance.font-toggle': { label: 'Change font button', panel: true },
   'appearance.font-selector': { label: 'Font picker', panel: true },
-  'appearance.font-option': {
-    label: 'Font choice in the font picker',
+  'appearance.font-list': {
+    label: 'Font choices in the font picker',
     panel: true,
   },
   'appearance.transparency-slider': {
     label: 'Window transparency slider',
     panel: true,
   },
-  'appearance.corner-option': {
-    label: 'Window corner style choice',
-    panel: true,
-  },
-  'appearance.color-picker': { label: 'Window color picker', panel: true },
-  'appearance.color-reset': {
-    label: 'Reset button for a window color',
-    panel: true,
-  },
+  'appearance.corners': { label: 'Window corner style choices', panel: true },
+  'appearance.primary-color': { label: 'Primary color picker', panel: true },
+  'appearance.accent-color': { label: 'Accent color picker', panel: true },
+  'appearance.title-color': { label: 'Window title color picker', panel: true },
   'appearance.reset-all-colors': {
     label: 'Reset all colors to default',
     panel: true,
     destructive: true,
   },
-  'dock.position-option': { label: 'Dock position choice', panel: true },
+  'dock.position': { label: 'Dock position choices', panel: true },
   'dock.transparency-slider': {
     label: 'Dock transparency slider',
     panel: true,
   },
-  'dock.corner-option': { label: 'Dock corner style choice', panel: true },
+  'dock.corners': { label: 'Dock corner style choices', panel: true },
   'dock.text-color': { label: 'Dock text color picker', panel: true },
   'dock.text-shadow-toggle': { label: 'Dock text shadow button', panel: true },
   'behavior.close-warning-toggle': {
@@ -244,14 +236,16 @@ export const TOUR_ANCHORS = {
     label: 'Remote control switch',
     panel: true,
   },
-  'language.option': { label: 'Language choice', panel: true },
+  'language.options': { label: 'Language choices', panel: true },
   'widget-defaults.clear-type': {
     label: "Clear a widget's saved defaults",
+    perWidgetType: true,
     panel: true,
     destructive: true,
   },
   'widget-defaults.remove-key': {
     label: 'Remove one saved widget default',
+    perWidgetType: true,
     panel: true,
     destructive: true,
   },

@@ -39,6 +39,7 @@ interface ColorRowProps {
   hex: string;
   onChange: (hex: string) => void;
   onReset: () => void;
+  anchor: ReturnType<typeof tourAttr>;
 }
 
 const ColorRow: React.FC<ColorRowProps> = ({
@@ -46,6 +47,7 @@ const ColorRow: React.FC<ColorRowProps> = ({
   hex,
   onChange,
   onReset,
+  anchor,
 }) => {
   const { t } = useTranslation();
   return (
@@ -55,7 +57,6 @@ const ColorRow: React.FC<ColorRowProps> = ({
           {title}
         </h3>
         <button
-          {...tourAttr('appearance.color-reset')}
           onClick={onReset}
           className="text-xxs font-bold uppercase text-slate-400 hover:text-brand-blue-primary flex items-center gap-1"
           title={t('style.resetToDefault', {
@@ -70,7 +71,7 @@ const ColorRow: React.FC<ColorRowProps> = ({
         <input
           type="color"
           value={hex}
-          {...tourAttr('appearance.color-picker')}
+          {...anchor}
           onChange={(e) => onChange(e.target.value)}
           className="w-8 h-8 rounded-md border border-slate-200 bg-white cursor-pointer"
         />
@@ -147,10 +148,12 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
               isFontMenuOpen ? 'max-h-96 mt-2' : 'max-h-0'
             }`}
           >
-            <div className="grid grid-cols-1 gap-1 p-1 bg-slate-50 rounded-xl border border-slate-200">
+            <div
+              {...tourAttr('appearance.font-list')}
+              className="grid grid-cols-1 gap-1 p-1 bg-slate-50 rounded-xl border border-slate-200"
+            >
               {FONT_OPTIONS.map((f) => (
                 <button
-                  {...tourAttr('appearance.font-option')}
                   key={f.id}
                   onClick={() => {
                     setField('fontFamily', f.id);
@@ -204,7 +207,10 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
         <h3 className="text-xxs font-bold text-slate-400 uppercase tracking-widest px-1">
           {t('style.corners', { defaultValue: 'Corners' })}
         </h3>
-        <div className="flex bg-slate-100 p-0.5 rounded-lg">
+        <div
+          {...tourAttr('appearance.corners')}
+          className="flex bg-slate-100 p-0.5 rounded-lg"
+        >
           {[
             {
               id: 'none',
@@ -224,7 +230,6 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
             },
           ].map((r) => (
             <button
-              {...tourAttr('appearance.corner-option')}
               key={r.id}
               onClick={() =>
                 setField(
@@ -254,17 +259,20 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
 
         <ColorRow
           title={t('style.primaryColor', { defaultValue: 'Primary Color' })}
+          anchor={tourAttr('appearance.primary-color')}
           hex={currentStyle.primaryColor ?? DEFAULT_PRIMARY_COLOR}
           onChange={(hex) => setField('primaryColor', hex)}
           onReset={() => setField('primaryColor', undefined)}
         />
         <ColorRow
           title={t('style.accentColor', { defaultValue: 'Accent Color' })}
+          anchor={tourAttr('appearance.accent-color')}
           hex={currentStyle.accentColor ?? DEFAULT_ACCENT_COLOR}
           onChange={(hex) => setField('accentColor', hex)}
           onReset={() => setField('accentColor', undefined)}
         />
         <ColorRow
+          anchor={tourAttr('appearance.title-color')}
           title={t('style.windowTitleColor', {
             defaultValue: 'Window Title Color',
           })}
