@@ -36,7 +36,7 @@ const normalizeConfig = (raw: unknown): WorkSymbolsGlobalConfig => {
     // symbol.buildings may hold a legacy long-form id that would never match building.id's canonical form.
     symbols: (config?.symbols ?? []).map((s) => ({
       ...s,
-      buildings: canonicalizeBuildingIds(s.buildings),
+      buildings: canonicalizeBuildingIds(s.buildings ?? []),
     })),
     buildingDefaults: config?.buildingDefaults ?? {},
   };
