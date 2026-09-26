@@ -280,6 +280,8 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
               ariaLabel={`${widgetLabel} library tabs`}
               onDark
               accentColor={accent}
+              tourId="library-shell.tab"
+              tourScope={widgetType ?? 'library'}
             />
           ) : (
             <div className="min-w-0" />
@@ -324,6 +326,8 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                       ariaLabel="More ways to create"
                       triggerIcon={ChevronDown}
                       stretch
+                      tourId="library-shell.new-menu-item"
+                      tourScope={widgetType ?? 'library'}
                       triggerClassName={
                         accent
                           ? 'rounded-r-xl border-l border-slate-200 bg-white text-[color:var(--library-accent)] shadow-sm hover:bg-slate-100'

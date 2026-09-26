@@ -1430,6 +1430,17 @@ export const TOUR_ANCHORS = {
     label: 'Minimize button in the widget toolbar',
     perWidget: true,
   },
+  'modal.close': { label: 'Close button in a dialog header', panel: true },
+  'library-shell.tab': {
+    label: 'Tab in a library shell header',
+    perField: true,
+    panel: true,
+  },
+  'library-shell.new-menu-item': {
+    label: 'Item in the library shell primary split-button menu',
+    perField: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

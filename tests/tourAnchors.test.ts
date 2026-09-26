@@ -20,7 +20,7 @@ interface SourceFile {
 
 // Every anchor use in source: tourAttr('id'…, tourTypeAttr('id'…, tourFieldAttr('id'…, or a data-tour="id" literal.
 const ANCHOR_USE =
-  /(?:\btourAttr\(\s*|\btourTypeAttr\(\s*|\btourFieldAttr\(\s*|\bdata-tour=\{?\s*)(['"`])([^'"`]+)\1/g;
+  /(?:\btourAttr\(\s*|\btourTypeAttr\(\s*|\btourFieldAttr\(\s*|\bdata-tour=\{?\s*|\b\w*[tT]ourId\s*=\s*\{?\s*)(['"`])([^'"`]+)\1/g;
 
 const findAnchorProblems = (
   registry: readonly string[],

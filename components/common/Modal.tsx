@@ -7,6 +7,11 @@ import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
 import { FullscreenToggleButton } from './FullscreenToggleButton';
 import { useModalFullscreenEnabled } from '@/hooks/useModalFullscreenEnabled';
+import {
+  tourAttr,
+  tourFieldAttr,
+  type TourAnchorId,
+} from '@/config/tourAnchors';
 
 interface ModalProps {
   variant?: 'default' | 'bare';
@@ -35,6 +40,14 @@ interface ModalProps {
   /** Controlled full-screen state, for callers that render their own header toggle. */
   fullscreen?: boolean;
   onFullscreenChange?: (next: boolean) => void;
+  /**
+   * Anchor id for the header close button. Defaults to the shared `modal.close`
+   * id — usually only one modal is open at a time, so a plain shared id is
+   * fine; pass `tourScope` when two modals of the same kind can stack.
+   */
+  closeTourId?: TourAnchorId;
+  /** Scopes `closeTourId` (e.g. the modal's title) when a bare shared id would be ambiguous. */
+  tourScope?: string;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -57,6 +70,8 @@ export const Modal: React.FC<ModalProps> = ({
   allowFullscreen = false,
   fullscreen: fullscreenProp,
   onFullscreenChange,
+  closeTourId = 'modal.close',
+  tourScope,
 }) => {
   const fullscreenEnabled = useModalFullscreenEnabled();
   const [fullscreenState, setFullscreenState] = useState(false);
@@ -164,6 +179,9 @@ export const Modal: React.FC<ModalProps> = ({
               )}
               <button
                 onClick={onClose}
+                {...(tourScope
+                  ? tourFieldAttr(closeTourId, tourScope, 'close')
+                  : tourAttr(closeTourId))}
                 className={`p-1 hover:bg-slate-100 rounded-full text-slate-400 transition-colors ${showHeaderToggle ? '' : 'ml-auto'}`}
                 aria-label="Close"
               >
