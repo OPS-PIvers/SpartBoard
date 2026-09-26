@@ -8,8 +8,8 @@ deleted planning docs (see PR that introduced this file; git history preserves a
 
 **Living references kept alongside this file:**
 
-- Feature specs (the plan-of-record for large items): `docs/specs/` (LO12, M12, M13, M16)
-- Roadmaps / design docs: `docs/PLC_ROADMAP.md`, `docs/nexus.md`, `docs/wide-distro-plan.md` (referenced from code comments), `docs/written-response-quiz-questions.md`
+- Feature specs (the plan-of-record for large items): `docs/specs/` (LO12, M13, M16)
+- Roadmaps / design docs: `docs/PLC_ROADMAP.md`, `docs/nexus.md`, `docs/wide-distro-plan.md` (referenced from code comments), `docs/plans/shipped/written-response-quiz-questions.md`
 - Shipped plans kept as the decision record cited by code comments: `docs/plans/shipped/`
 - References / runbooks: `docs/admin_settings_widget_configs.md`, `docs/external-availability-oauth-runbook.md`, `docs/external-availability-legal-review.md`, `docs/external-availability-journal.md`, `docs/assign-from-spartboard-to-lms-feasibility.md`, setup docs (`ADMIN_SETUP`, `DEV_WORKFLOW`, `LINTING_SETUP`, `DEPLOY_CHECK`)
 
@@ -30,7 +30,7 @@ Legend: effort S/M/L, risk LOW/MED/HIGH. Sections ordered: human-gated first.
 
 ### Spec decisions blocking feature work
 
-- [x] **M12 (rubrics)**: OD-1/2/3 resolved 2026-08-27 (slide-over builder; auto-fill editable; full PLC integration now) plus six further decisions — see spec §3a. `docs/specs/M12-written-response-rubrics-spec.md`.
+- [x] **M12 (rubrics)**: OD-1/2/3 resolved 2026-08-27 (slide-over builder; auto-fill editable; full PLC integration now) plus six further decisions — see spec §3a. `docs/plans/shipped/specs/M12-written-response-rubrics-spec.md`.
 - [ ] **M13 (student landing)**: Decision A (buildingIds vs classlinkClassIds teacher-directory scoping). See `docs/specs/M13-student-landing-overhaul-spec.md`.
 - [ ] **M16 (PLC Phases 7–8)**: share-action integration point for Mini-Apps, mini-app sync content model, GL/Drive coupling during import. See `docs/specs/M16-plc-phases-7-8-spec.md`.
 - [ ] **LO12 (Nexus connections)**: sign off deferral of Candidates 6/9 and rejection of 11. See `docs/specs/LO12-nexus-widget-connections-spec.md`.
@@ -221,7 +221,7 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] Enable the `quiz-media-response` global permission to actually turn on audio capture for admin/beta testing. (S)
 - [ ] Run RR-B3's whiteboard grading-time prototype (30 responses, stopwatch) to validate the 180s/600s take-limit assumption before committing to the B-track grading surface. (M)
 
-#### `docs/rich-response/IMPLEMENTATION.md`
+#### `docs/plans/shipped/rich-response/IMPLEMENTATION.md`
 
 - [ ] Create the 'quiz-media-response' global_permissions Firestore record to actually enable audio capture (doc says 'no record exists yet'). (S)
 - [ ] Video capture and B track (whiteboard) remain deferred/unscheduled by design, not unshipped scope of this doc. (L)
@@ -380,7 +380,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 - [ ] Announcements + TeacherDirectory sections on student landing, StudentPageView section-order reorder UI. (M)
 - [ ] i18n keys across locales/en,de,es,fr.json. (S)
 
-#### `docs/specs/M17-individual-assignments-spec.md`
+#### `docs/plans/shipped/specs/M17-individual-assignments-spec.md`
 
 - [ ] Spec's own non-goals (per-student server-side window enforcement, automatic reduction presets, cross-assignment profiles) remain explicitly out of scope — not gaps, by design. (S)
 
@@ -408,7 +408,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 - [ ] File the 'shipped inconsistencies' the map found (Drive sharing-type mismatch, anonymously-readable global_pdfs, VA answer-key exposure, Matching/Ordering re-randomization bug, VA shuffleAnswerOptions no-op, transcription flag missingDocPublic mismatch) as tracked issues. (S)
 
-#### `docs/rich-response/IMPLEMENTATION.md`
+#### `docs/plans/shipped/rich-response/IMPLEMENTATION.md`
 
 - [ ] Verify follow-up issues #2735, #2749-#2755, #2750, #2751 (sweep retry cap, pluralisation, and integration-review fixes) actually merged, not just referenced in the doc. (S)
 

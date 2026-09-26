@@ -4,12 +4,12 @@ These are **design-first implementation specs**, not built features. Each was pr
 
 They come from the backlog burndown of `docs/remaining-todos-audit.md` (since consolidated into the root [`TODO.md`](../../TODO.md)) — the Cluster-3 (large/needs-design) items, which were intentionally specced rather than built in the async run.
 
-| Spec                                          | Backlog item | What it covers                                                                                                     |
-| --------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------ |
-| [M12](M12-written-response-rubrics-spec.md)   | M12          | Written-response Phase 3 — rubric-based grading (types, builder UI, `/rubrics`, CSV, PLC sharing)                  |
-| [M13](M13-student-landing-overhaul-spec.md)   | M13          | Student-landing overhaul (teacherDirectory CF, `StudentPageConfig.sectionOrder`, section components, ResultsModal) |
-| [M16](M16-plc-phases-7-8-spec.md)             | M16          | PLC roadmap Phases 7–8 — Mini-Apps + Guided Learning sharing (mirrors existing PLC quiz/VA architecture)           |
-| [LO12](LO12-nexus-widget-connections-spec.md) | LO12         | Widget-connection (Nexus) architecture + evaluation of the 9 candidates, with a tracer recommendation              |
+| Spec                                                               | Backlog item | What it covers                                                                                                     |
+| ------------------------------------------------------------------ | ------------ | ------------------------------------------------------------------------------------------------------------------ |
+| [M12](../plans/shipped/specs/M12-written-response-rubrics-spec.md) | M12          | Written-response Phase 3 — rubric-based grading (types, builder UI, `/rubrics`, CSV, PLC sharing)                  |
+| [M13](M13-student-landing-overhaul-spec.md)                        | M13          | Student-landing overhaul (teacherDirectory CF, `StudentPageConfig.sectionOrder`, section components, ResultsModal) |
+| [M16](M16-plc-phases-7-8-spec.md)                                  | M16          | PLC roadmap Phases 7–8 — Mini-Apps + Guided Learning sharing (mirrors existing PLC quiz/VA architecture)           |
+| [LO12](LO12-nexus-widget-connections-spec.md)                      | LO12         | Widget-connection (Nexus) architecture + evaluation of the 9 candidates, with a tracer recommendation              |
 
 ## How to use these
 

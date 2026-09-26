@@ -17,7 +17,7 @@
 > rollout), #2751 (index wait script). Run conventions and glossary: `briefs/`.
 
 Execution plan for the locked spec in
-[`docs/rich-response-wayfinder.md`](../rich-response-wayfinder.md). Decided with
+[`docs/rich-response-wayfinder.md`](../../../rich-response-wayfinder.md). Decided with
 Paul 2026-08-27. The map is the source of truth for every design decision; this
 doc only orders the build. One GitHub issue exists per slice, under the
 **Rich Response** milestone.

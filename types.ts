@@ -5688,7 +5688,7 @@ export interface PlcLinkage {
 // === M17 — Individual assignment targeting (A1) ===
 // Shared per-student targeting/window/override model, added to all four
 // assignment docs (quiz/VA/GL/mini-app) and their paired session docs. See
-// docs/specs/M17-individual-assignments-spec.md §2/§2a for the fan-out
+// docs/plans/shipped/specs/M17-individual-assignments-spec.md §2/§2a for the fan-out
 // architecture (Cloud Function `setAssignmentTargetsV1`, `/student_assignments`).
 
 /** A student a teacher can individually target. sourcedId is PII-adjacent — see spec §2a. */

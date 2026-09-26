@@ -1,4 +1,4 @@
-// CSV import/export for M12 written-response rubrics (see docs/specs/M12-written-response-rubrics-spec.md §7).
+// CSV import/export for M12 written-response rubrics (see docs/plans/shipped/specs/M12-written-response-rubrics-spec.md §7).
 // The RFC-4180 tokenizer below is duplicated from utils/csvImport.ts on purpose — see the cross-reference comment there.
 
 import type { Rubric, RubricCriterion, RubricLevel } from '@/types';

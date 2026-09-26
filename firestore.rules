@@ -3933,7 +3933,7 @@ service cloud.firestore {
            // whitelist. The teacher branch above is unrestricted, so teachers write
            // `grading.<questionId>` via dotted field paths; any student write touching
            // `grading.*` is rejected by this hasOnly([...]). See
-           // docs/written-response-quiz-questions.md section 9.
+           // docs/plans/shipped/written-response-quiz-questions.md section 9.
            // `backTranslations` is excluded for the same reason: the teacher-owner
            // path writes machine back-translations of a student's own answer, and a
            // student must never be able to forge or edit one.
