@@ -11,6 +11,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Z_INDEX } from '@/config/zIndex';
 import { useCloseOnHostResize } from '../useCloseOnHostResize';
+import { tourFieldAttr, type TourAnchorId } from '@/config/tourAnchors';
 
 export interface OverflowMenuItem {
   label: string;
@@ -36,6 +37,10 @@ interface OverflowMenuProps {
   triggerClassName?: string;
   /** Stretches the trigger to its flex parent's height, e.g. beside a split-button primary. */
   stretch?: boolean;
+  /** Registered anchor id to tag each menu item with, keyed by item id/label index. */
+  tourId?: TourAnchorId;
+  /** Widget type / pseudo-type scope for `tourId`. Required to tag when `tourId` is set. */
+  tourScope?: string;
 }
 
 /**
@@ -54,6 +59,8 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   triggerIcon: TriggerIcon = MoreHorizontal,
   triggerClassName = 'rounded-xl text-slate-500 hover:bg-white/70 hover:text-brand-blue-primary',
   stretch = false,
+  tourId,
+  tourScope,
 }) => {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(
@@ -169,7 +176,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
             }}
             className="min-w-[176px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
           >
-            {items.map((item) => {
+            {items.map((item, i) => {
               const Icon = item.icon;
               return (
                 <button
@@ -178,6 +185,13 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
                   type="button"
                   role="menuitem"
                   aria-disabled={!!item.disabled || !!item.loading || undefined}
+                  {...(tourId && tourScope
+                    ? tourFieldAttr(
+                        tourId,
+                        tourScope,
+                        item.id ?? `item-${i + 1}`
+                      )
+                    : {})}
                   onClick={() => {
                     // aria-disabled (not the native attribute) keeps the item
                     // focusable + announced; guard activation here instead.

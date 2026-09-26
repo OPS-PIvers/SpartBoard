@@ -21,6 +21,7 @@ import { logError } from '@/utils/logError';
 import { useAuth } from '@/context/useAuth';
 import { requestStartTour } from '@/components/tours/tourState';
 import { useFirstRunnableTour } from '@/components/tours/useTourOffers';
+import { tourAttr } from '@/config/tourAnchors';
 
 // Lazy so the Help modal never pulls the Guided Learning player for teachers who only read embeds.
 const GuidedLearningPlayer = lazy(() =>
@@ -117,6 +118,7 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
           type="button"
           onClick={() => requestStartTour({ setId })}
           className="flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-blue-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+          {...tourAttr('help-center.viewer.show-live')}
         >
           <Footprints className="w-4 h-4" aria-hidden="true" />
           {t('tours.showMeLive')}
@@ -222,6 +224,7 @@ export const HelpResourceViewer: React.FC<HelpResourceViewerProps> = ({
           ref={backRef}
           onClick={onBack}
           className="flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+          {...tourAttr('help-center.viewer.back')}
         >
           <ArrowLeft className="w-4 h-4" />
           {t('helpCenter.guides.back')}
@@ -231,6 +234,7 @@ export const HelpResourceViewer: React.FC<HelpResourceViewerProps> = ({
             type="button"
             onClick={toggleFullscreen}
             className="ml-auto flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+            {...tourAttr('help-center.viewer.fullscreen')}
           >
             <Maximize2 className="w-4 h-4" />
             {t('helpCenter.guides.fullscreen')}
@@ -284,6 +288,7 @@ export const HelpResourceViewer: React.FC<HelpResourceViewerProps> = ({
             type="button"
             onClick={toggleFullscreen}
             className="absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-full bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm hover:bg-slate-900/90 transition-colors"
+            {...tourAttr('help-center.viewer.fullscreen')}
           >
             <Minimize2 className="w-3.5 h-3.5" />
             {t('helpCenter.guides.exitFullscreen')}

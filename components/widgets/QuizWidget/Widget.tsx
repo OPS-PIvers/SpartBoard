@@ -1642,6 +1642,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
     return (
       <QuizLiveMonitor
+        widgetId={widget.id}
         session={liveSession}
         responses={responses}
         quizData={loadedQuizData}
@@ -1727,6 +1728,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     <>
       <QuizManager
         userId={user?.uid}
+        widgetId={widget.id}
         periodAccess={assignPeriodCtx}
         defaultTeacherName={user?.displayName ?? undefined}
         assignmentMode={quizAssignmentMode}

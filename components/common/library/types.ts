@@ -266,6 +266,8 @@ export interface LibraryToolbarProps {
 
   /** Optional right-aligned extras (e.g. "5 of 20 items"). */
   rightSlot?: React.ReactNode;
+  /** Owner widget type for live-tour anchors. Defaults to a generic 'library' scope. */
+  widgetType?: string;
 }
 
 /* ─── LibraryItemCard (sortable card) ─────────────────────────────────────── */
@@ -336,6 +338,10 @@ export interface LibraryItemCardProps<TMeta = unknown> {
   selected?: boolean;
   /** Fired when the user toggles the card's checkbox (or clicks the row in selection mode). */
   onSelectionToggle?: () => void;
+  /** 0-based position in the caller's list, for live-tour row anchors. Omit to skip tagging. */
+  tourIndex?: number;
+  /** Owner widget type for live-tour row anchors. Defaults to a generic 'library' scope. */
+  tourWidgetType?: string;
 }
 
 /* ─── LibraryGrid (dnd-kit SortableContext wrapper) ───────────────────────── */
@@ -469,6 +475,10 @@ export interface AssignmentArchiveCardProps<TAssignment> {
   title: string;
   /** Optional small-text subtitle, e.g. className, period name. */
   subtitle?: React.ReactNode;
+  /** 0-based position in the caller's list, for live-tour row anchors. Omit to skip tagging. */
+  tourIndex?: number;
+  /** Owner widget type for live-tour row anchors. Defaults to a generic 'library' scope. */
+  tourWidgetType?: string;
 }
 
 /* ─── AssignModal (shared assign chrome + widget slots) ───────────────────── */

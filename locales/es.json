@@ -2627,6 +2627,9 @@
     "tourUntagged": "Encontrado por su nombre (aún sin etiqueta en el código)",
     "tourWidget": "Qué widget",
     "tourWidgetPick": "Elige un widget",
+    "tourField": "Qué ajuste",
+    "tourFieldPick": "Elige un ajuste",
+    "tourFieldPlaceholder": "Clave del ajuste",
     "tourAction": "Cuando el recorrido llegue a este paso",
     "tourAction_click": "Esperar el clic",
     "tourAction_observe": "Mostrarlo y luego Siguiente",
@@ -2935,6 +2938,7 @@
     "reopenFailed": "No se pudo volver a abrir el recorrido en el Studio.",
     "tourAnchorId": "Id:",
     "tourAnchorWidgetType": "Widget:",
+    "tourAnchorFieldKey": "Ajuste:",
     "tourSuggestedId": "Id sugerido",
     "tourCopyFailed": "No se pudo copiar. El id está seleccionado, así que pulsa Ctrl+C o ⌘C.",
     "tourFind": {
@@ -3654,6 +3658,7 @@
     "reason": {
       "unknownAnchor": "No está en el registro de anclas",
       "needsWidgetType": "Le falta el tipo de widget",
+      "needsFieldKey": "Falta el ajuste o la fila de destino",
       "unexpectedWidgetType": "Tiene un tipo de widget que esta ancla no admite",
       "unknownWidgetType": "Nombra un tipo de widget que no existe",
       "fieldMisses": "No se encontró en {{misses}} de {{runs}} recorridos reales",

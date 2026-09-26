@@ -10,6 +10,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { SUPPORTED_LANGUAGES } from '@/i18n';
 import { SettingsSectionHeader } from '@/components/settingsModal/SettingsSectionHeader';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const LanguageSection: React.FC = () => {
   const { t } = useTranslation();
@@ -31,7 +32,10 @@ export const LanguageSection: React.FC = () => {
         })}
       />
 
-      <div className="grid grid-cols-2 gap-2.5">
+      <div
+        {...tourAttr('language.options')}
+        className="grid grid-cols-2 gap-2.5"
+      >
         {SUPPORTED_LANGUAGES.map((lang) => {
           const isActive = language === lang.code;
           return (

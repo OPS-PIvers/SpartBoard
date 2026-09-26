@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { tourFieldAttr, type TourAnchorId } from '@/config/tourAnchors';
 
 export interface SegmentedTab<K extends string = string> {
   key: K;
@@ -31,6 +32,10 @@ interface SegmentedTabsProps<K extends string = string> {
   onDark?: boolean;
   /** Colours the selected tab's text and count badge instead of brand blue. */
   accentColor?: string;
+  /** Registered anchor id to tag each tab button with, keyed by tab key. */
+  tourId?: TourAnchorId;
+  /** Widget type / pseudo-type scope for `tourId`. Required to tag when `tourId` is set. */
+  tourScope?: string;
 }
 
 /**
@@ -46,6 +51,8 @@ export function SegmentedTabs<K extends string = string>({
   panelIdPrefix,
   onDark = false,
   accentColor,
+  tourId,
+  tourScope,
 }: SegmentedTabsProps<K>): React.ReactElement {
   // WAI-ARIA 1.2 § 3.23 tablist keyboard pattern — select-follows-focus model:
   // arrow keys move focus AND selection simultaneously so tabIndex=0 always
@@ -115,6 +122,9 @@ export function SegmentedTabs<K extends string = string>({
             aria-label={labelsHidden ? label : undefined}
             title={labelsHidden ? label : undefined}
             onClick={() => onChange(key)}
+            {...(tourId && tourScope
+              ? tourFieldAttr(tourId, tourScope, key)
+              : {})}
             className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-lg font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
               onDark
                 ? 'focus-visible:ring-white'

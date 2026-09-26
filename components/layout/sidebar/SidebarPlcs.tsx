@@ -20,6 +20,7 @@ import { getPlcMembers, getPlcRole } from '@/utils/plc';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { PlcEditModal } from './PlcEditModal';
 import { PlcInvitesModal } from './PlcInvitesModal';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface SidebarPlcsProps {
   isVisible: boolean;
@@ -40,6 +41,7 @@ interface PlcRowProps {
   isLead: boolean;
   /** Gate the per-row unread listeners to while the sidebar drawer is open. */
   unreadEnabled: boolean;
+  rowKey: string;
   onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -62,6 +64,7 @@ const PlcRow: React.FC<PlcRowProps> = ({
   plc,
   isLead,
   unreadEnabled,
+  rowKey,
   onOpen,
   onEdit,
   onDelete,
@@ -110,6 +113,7 @@ const PlcRow: React.FC<PlcRowProps> = ({
       <button
         type="button"
         onClick={onOpen}
+        {...tourFieldAttr('plcs.open-plc', 'plcs', rowKey)}
         className="absolute inset-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
         aria-label={t('sidebar.plcs.openDashboard', {
           defaultValue: 'Open {{name}} dashboard',
@@ -174,6 +178,7 @@ const PlcRow: React.FC<PlcRowProps> = ({
             e.stopPropagation();
             setMenuOpen((prev) => !prev);
           }}
+          {...tourFieldAttr('plcs.actions-menu', 'plcs', rowKey)}
           className="p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
           aria-haspopup="menu"
           aria-expanded={menuOpen}
@@ -198,6 +203,7 @@ const PlcRow: React.FC<PlcRowProps> = ({
               type="button"
               role="menuitem"
               onClick={(e) => handleMenuClick(e, onEdit)}
+              {...tourFieldAttr('plcs.edit-plc', 'plcs', rowKey)}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors text-left"
             >
               <Pencil className="w-3.5 h-3.5 text-slate-500" />
@@ -210,6 +216,7 @@ const PlcRow: React.FC<PlcRowProps> = ({
                 type="button"
                 role="menuitem"
                 onClick={(e) => handleMenuClick(e, onDelete)}
+                {...tourFieldAttr('plcs.delete-plc', 'plcs', rowKey)}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left border-t border-slate-100"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -220,6 +227,7 @@ const PlcRow: React.FC<PlcRowProps> = ({
                 type="button"
                 role="menuitem"
                 onClick={(e) => handleMenuClick(e, onLeave)}
+                {...tourFieldAttr('plcs.leave-plc', 'plcs', rowKey)}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left border-t border-slate-100"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -340,6 +348,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
             <div className="grid gap-2 grid-cols-2">
               <button
                 onClick={() => setIsCreating(true)}
+                {...tourAttr('plcs.new-plc')}
                 className="flex flex-col items-center justify-center gap-1.5 p-3 bg-brand-blue-primary text-white rounded-xl shadow-sm hover:bg-brand-blue-dark transition-all"
               >
                 <Plus className="w-4 h-4" />
@@ -349,6 +358,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
               </button>
               <button
                 onClick={() => setShowInvites(true)}
+                {...tourAttr('plcs.invites')}
                 className="relative flex flex-col items-center justify-center gap-1.5 p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:border-brand-blue-primary hover:text-brand-blue-primary transition-all"
               >
                 <Mail className="w-4 h-4" />
@@ -408,8 +418,11 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                     defaultValue: 'Your PLCs',
                   })}
                 </h3>
-                <div className="flex flex-col gap-2">
-                  {plcs.map((plc) => {
+                <div
+                  className="flex flex-col gap-2"
+                  {...tourAttr('plcs.plc-list')}
+                >
+                  {plcs.map((plc, plcIndex) => {
                     const isLead = user?.uid
                       ? getPlcRole(plc, user.uid) === 'lead'
                       : false;
@@ -419,6 +432,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                         plc={plc}
                         isLead={isLead}
                         unreadEnabled={isVisible}
+                        rowKey={`row-${plcIndex + 1}`}
                         onOpen={() => onOpenDashboard(plc.id)}
                         onEdit={() => setEditingPlcId(plc.id)}
                         onDelete={() => void handleDelete(plc)}

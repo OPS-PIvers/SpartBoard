@@ -1,4 +1,5 @@
 import React, { useId } from 'react';
+import type { tourAttr } from '@/config/tourAnchors';
 
 interface ToggleRowProps {
   label: string;
@@ -6,6 +7,8 @@ interface ToggleRowProps {
   checked: boolean;
   disabled?: boolean;
   onChange: (next: boolean) => void;
+  /** Live-tour anchor attrs from `tourAttr`. */
+  anchor?: ReturnType<typeof tourAttr>;
 }
 
 /** Shared checkbox row for the wall editor's grouped settings sections. */
@@ -15,6 +18,7 @@ export const ToggleRow: React.FC<ToggleRowProps> = ({
   checked,
   disabled = false,
   onChange,
+  anchor,
 }) => {
   const hintId = useId();
   return (
@@ -30,6 +34,7 @@ export const ToggleRow: React.FC<ToggleRowProps> = ({
         )}
       </span>
       <input
+        {...anchor}
         type="checkbox"
         checked={checked}
         disabled={disabled}

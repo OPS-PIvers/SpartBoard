@@ -3744,6 +3744,9 @@
     "tourUntagged": "Found by its name (not tagged in code yet)",
     "tourWidget": "Which widget",
     "tourWidgetPick": "Choose a widget",
+    "tourField": "Which setting",
+    "tourFieldPick": "Choose a setting",
+    "tourFieldPlaceholder": "Setting key",
     "tourAction": "When the tour reaches this step",
     "tourAction_click": "Wait for the click",
     "tourAction_observe": "Show it, then Next",
@@ -4052,6 +4055,7 @@
     "reopenFailed": "Couldn't reopen the tour in the Studio.",
     "tourAnchorId": "Id:",
     "tourAnchorWidgetType": "Widget:",
+    "tourAnchorFieldKey": "Setting:",
     "tourSuggestedId": "Suggested id",
     "tourCopyFailed": "Couldn't copy. The id is selected, so press Ctrl+C or ⌘C.",
     "tourFind": {
@@ -4795,6 +4799,7 @@
     "reason": {
       "unknownAnchor": "Not in the anchor registry",
       "needsWidgetType": "Missing its widget type",
+      "needsFieldKey": "Missing which setting or row it points at",
       "unexpectedWidgetType": "Has a widget type this anchor does not take",
       "unknownWidgetType": "Names a widget type that does not exist",
       "fieldMisses": "Not found in {{misses}} of {{runs}} real runs",

@@ -82,6 +82,7 @@ import { ShuffleList } from './ShuffleList';
 
 import { WidgetLayout } from '../WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface ModeCycleEntry {
   id: string;
@@ -1849,6 +1850,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               </div>
               {mode === 'single' && (
                 <button
+                  {...tourAttr('random.reset', widget.id, widget.type)}
                   onClick={handleReset}
                   disabled={
                     isSpinning ||
@@ -2066,6 +2068,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 variant="hero"
                 size="md"
                 shape="pill"
+                {...tourAttr('random.pick', widget.id, widget.type)}
                 onClick={handlePick}
                 disabled={isSpinning}
                 className="flex-shrink-0"
@@ -2225,6 +2228,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 variant="hero"
                 size="md"
                 shape="pill"
+                {...tourAttr('random.pick', widget.id, widget.type)}
                 onClick={handlePick}
                 disabled={isSpinning}
                 className={`flex-shrink-0${mode === 'groups' && Array.isArray(displayResult) && displayResult.length > 1 ? '' : ' ml-auto'}`}

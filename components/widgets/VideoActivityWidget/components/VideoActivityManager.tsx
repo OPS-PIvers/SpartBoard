@@ -343,6 +343,7 @@ interface VideoActivityArchiveRowProps {
     assignment: VideoActivityAssignment
   ) => void | Promise<void>;
   onArchiveResults?: (assignment: VideoActivityAssignment) => void;
+  tourIndex?: number;
 }
 
 /**
@@ -357,6 +358,7 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
   onArchiveCopyUrl,
   onArchiveMonitor,
   onArchiveResults,
+  tourIndex,
 }) => {
   const assignmentIsViewOnly = assignment.mode === 'view-only';
   const status = statusToBadge(assignment.status, assignmentIsViewOnly);
@@ -436,6 +438,8 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
           : undefined
       }
       secondaryActions={secondaryActions}
+      tourIndex={tourIndex}
+      tourWidgetType="video-activity"
     />
   );
 };
@@ -916,7 +920,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           layout={libraryView.state.viewMode}
           emptyState={libraryEmptyState}
           useExternalDndContext={useExternalDnd}
-          renderCard={(activity) => {
+          renderCard={(activity, index) => {
             const secondaryActions: LibraryMenuAction[] = [
               {
                 id: 'edit',
@@ -1018,6 +1022,8 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
                 selectionMode={selectionMode}
                 selected={selection.isSelected(activity.id)}
                 onSelectionToggle={() => selection.toggle(activity.id)}
+                tourIndex={index}
+                tourWidgetType="video-activity"
               />
             );
           }}
@@ -1099,7 +1105,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
 
     return (
       <div className="flex flex-col">
-        {list.map((assignment) => (
+        {list.map((assignment, index) => (
           <VideoActivityArchiveRow
             key={assignment.id}
             assignment={assignment}
@@ -1108,6 +1114,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
             onArchiveCopyUrl={onArchiveCopyUrl}
             onArchiveMonitor={onArchiveMonitor}
             onArchiveResults={onArchiveResults}
+            tourIndex={index}
           />
         ))}
       </div>
@@ -1286,6 +1293,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       <LibraryToolbar
         {...libraryView.toolbarProps}
         searchPlaceholder="Search activities…"
+        widgetType="video-activity"
         sortOptions={[
           {
             key: 'manual',

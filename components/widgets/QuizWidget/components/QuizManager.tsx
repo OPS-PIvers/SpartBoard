@@ -25,6 +25,7 @@ import React, {
 } from 'react';
 import { useQuizTranslations } from '@/hooks/useQuizTranslations';
 import { useTranslation } from 'react-i18next';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   Plus,
   FileUp,
@@ -259,6 +260,8 @@ export type QuizManagerTab = 'library' | 'banks' | 'active' | 'archive';
 interface QuizManagerProps {
   /** Teacher's Firebase UID — used to scope the folders subcollection. */
   userId?: string;
+  /** This widget instance's id, for live-tour anchor scoping. */
+  widgetId?: string;
   /** Per-period start and windows in the assign modal; absent while the flag is off. */
   periodAccess?: AssignPeriodAccessContext;
   quizzes: QuizMetadata[];
@@ -615,6 +618,7 @@ const SpinningRefreshIcon: React.ComponentType<{
 
 export const QuizManager: React.FC<QuizManagerProps> = ({
   userId,
+  widgetId,
   periodAccess,
   quizzes,
   loading,
@@ -2034,12 +2038,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         {...libraryView.toolbarProps}
         searchPlaceholder="Search quizzes…"
         sortOptions={SORT_OPTIONS}
+        widgetType="quiz"
         rightSlot={
           userId ? (
             <>
               <button
                 type="button"
                 onClick={() => setTargetsModalOpen(true)}
+                {...tourAttr('quiz.personal-targets', widgetId, 'quiz')}
                 className="inline-flex items-center rounded-lg bg-white/70 font-bold uppercase tracking-wider text-slate-600 transition-colors hover:bg-white hover:text-slate-800"
                 style={{
                   gap: 'min(6px, 1.5cqmin)',
@@ -2071,6 +2077,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                     setSelectionMode(true);
                   }
                 }}
+                {...tourAttr('quiz.select-mode', widgetId, 'quiz')}
                 className={`inline-flex items-center rounded-lg font-bold uppercase tracking-wider transition-colors ${
                   selectionMode
                     ? 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'
@@ -2678,11 +2685,13 @@ const LibraryTabContent: React.FC<{
           layout={viewMode}
           emptyState={emptyState}
           useExternalDndContext={enableCardDrag}
-          renderCard={(quiz) => (
+          renderCard={(quiz, index) => (
             <LibraryItemCard<QuizMetadata>
               key={quiz.id}
               id={quiz.id}
               title={quiz.title}
+              tourIndex={index}
+              tourWidgetType="quiz"
               subtitle={renderSubtitle(quiz)}
               primaryAction={{
                 label: primaryActionLabel,
@@ -2877,7 +2886,7 @@ const AssignmentsList: React.FC<{
 
   return (
     <div className="flex flex-col">
-      {assignments.map((a) => (
+      {assignments.map((a, index) => (
         <QuizArchiveRow
           key={a.id}
           assignment={a}
@@ -2885,6 +2894,7 @@ const AssignmentsList: React.FC<{
           buildActions={buildActions}
           syncedGroups={syncedGroups}
           skippedTargets={skippedTargetsByAssignmentId?.[a.id]}
+          tourIndex={index}
         />
       ))}
     </div>
@@ -2917,6 +2927,7 @@ interface QuizArchiveRowProps {
   syncedGroups?: Map<string, SyncedQuizGroup>;
   /** M17 skipped-ref row marker (spec §5 B3) — see `skippedTargetsByAssignmentId`. */
   skippedTargets?: { ref: StudentTargetRef; reason: string }[];
+  tourIndex?: number;
 }
 
 /**
@@ -2931,6 +2942,7 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   buildActions,
   syncedGroups,
   skippedTargets,
+  tourIndex,
 }) => {
   const assignmentIsViewOnly = a.mode === 'view-only';
   // Skipped-ref durability (canonical rule) — prefer the in-memory names
@@ -3109,6 +3121,8 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
           : undefined
       }
       secondaryActions={secondaries}
+      tourIndex={tourIndex}
+      tourWidgetType="quiz"
     />
   );
 };

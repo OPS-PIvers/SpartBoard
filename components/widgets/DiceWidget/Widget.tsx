@@ -8,6 +8,7 @@ import { RefreshCw } from 'lucide-react';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { DiceFace } from './components/DiceFace';
 import { getDiceAudioCtx, playRollSound } from './utils/audio';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const globalStyle = useGlobalStyle();
@@ -150,6 +151,7 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }}
         >
           <button
+            {...tourAttr('dice.roll', widget.id, widget.type)}
             onClick={roll}
             disabled={isRolling}
             className={`

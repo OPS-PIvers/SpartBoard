@@ -796,7 +796,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   /* ─── Rendering helpers ─────────────────────────────────────────────────── */
 
-  const renderLibraryCard = (entry: LibraryEntry): React.ReactElement => {
+  const renderLibraryCard = (
+    entry: LibraryEntry,
+    index?: number
+  ): React.ReactElement => {
     const badges: LibraryBadge[] = [
       { label: MODE_LABELS[entry.mode], tone: 'info' },
     ];
@@ -1021,6 +1024,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         onSelectionToggle={
           selectable ? () => selection.toggle(entry.id) : undefined
         }
+        tourIndex={index}
+        tourWidgetType="guided-learning"
       />
     );
   };
@@ -1029,7 +1034,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   const renderAssignmentCard = (
     a: GuidedLearningAssignment,
-    mode: 'active' | 'archive'
+    mode: 'active' | 'archive',
+    index?: number
   ): React.ReactElement => {
     // Matches the path form produced by useGuidedLearningSession.createSession
     // (App.tsx routes the student app on pathname.startsWith('/guided-learning/')).
@@ -1216,6 +1222,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         onClick={
           assignmentIsViewOnly ? undefined : () => onAssignmentOpenResults(a)
         }
+        tourIndex={index}
+        tourWidgetType="guided-learning"
       />
     );
   };
@@ -1377,7 +1385,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     }
     return (
       <div className="flex flex-col">
-        {list.map((a) => renderAssignmentCard(a, mode))}
+        {list.map((a, index) => renderAssignmentCard(a, mode, index))}
         {showOlderButton}
       </div>
     );
@@ -1475,6 +1483,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
             sortOptions={SORT_OPTIONS}
             filters={[sourceFilter]}
             searchPlaceholder="Search sets…"
+            widgetType="guided-learning"
             rightSlot={
               <span
                 className="flex items-center"

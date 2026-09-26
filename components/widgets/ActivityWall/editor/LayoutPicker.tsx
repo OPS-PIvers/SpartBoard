@@ -1,20 +1,26 @@
 import React from 'react';
 import type { ActivityWallLayout } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 import { LAYOUT_OPTIONS } from './layoutOptions';
 
 interface LayoutPickerProps {
   value: ActivityWallLayout | null;
   onSelect: (layout: ActivityWallLayout) => void;
+  widgetId: string;
+  widgetType: string;
 }
 
 /** Step 1 of the wall editor: pick the layout from a visual card grid. */
 export const LayoutPicker: React.FC<LayoutPickerProps> = ({
   value,
   onSelect,
+  widgetId,
+  widgetType,
 }) => (
   <div
     role="group"
     aria-label="Wall layout"
+    {...tourAttr('activity-wall-editor.layout-picker', widgetId, widgetType)}
     className="grid grid-cols-2 gap-3 sm:grid-cols-3"
   >
     {LAYOUT_OPTIONS.map((option) => {

@@ -12,6 +12,7 @@ import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useSubjects } from '@/hooks/useSubjects';
 import { ALL_GRADES } from '@/utils/gradeMatch';
 import { SettingsSectionHeader } from '@/components/settingsModal/SettingsSectionHeader';
+import { tourAttr } from '@/config/tourAnchors';
 
 const chipClass = (selected: boolean) =>
   `min-w-[2.5rem] px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
@@ -89,7 +90,7 @@ export const ProfileSection: React.FC = () => {
             defaultValue: 'My Building(s)',
           })}
         />
-        <div className="flex flex-col gap-2">
+        <div {...tourAttr('profile.buildings')} className="flex flex-col gap-2">
           {buildings.map((building) => {
             const isSelected = selectedBuildings.includes(building.id);
             return (
@@ -139,6 +140,7 @@ export const ProfileSection: React.FC = () => {
             gradesTaught !== null && (
               <button
                 type="button"
+                {...tourAttr('profile.reset-grades')}
                 onClick={() =>
                   void updateTeachingProfile({ gradesTaught: null })
                 }
@@ -152,6 +154,7 @@ export const ProfileSection: React.FC = () => {
           }
         />
         <div
+          {...tourAttr('profile.grades')}
           role="group"
           aria-label={t('settings.profile.gradesTaught', {
             defaultValue: 'Grades taught',
@@ -190,6 +193,7 @@ export const ProfileSection: React.FC = () => {
           })}
         />
         <div
+          {...tourAttr('profile.subjects')}
           role="group"
           aria-label={t('settings.profile.subjectsTaught', {
             defaultValue: 'Content areas taught (optional)',

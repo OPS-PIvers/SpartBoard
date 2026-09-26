@@ -11,6 +11,7 @@ import { Toggle } from '@/components/common/Toggle';
 import { Card } from '@/components/common/Card';
 import { useAuth } from '@/context/useAuth';
 import { SettingsSectionHeader } from '@/components/settingsModal/SettingsSectionHeader';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const BehaviorSection: React.FC = () => {
   const { t } = useTranslation();
@@ -45,6 +46,7 @@ export const BehaviorSection: React.FC = () => {
               </span>
               <Toggle
                 size="sm"
+                anchor={tourAttr('behavior.close-warning-toggle')}
                 checked={disableCloseConfirmation}
                 onChange={(checked) =>
                   void updateAccountPreferences({
@@ -70,6 +72,7 @@ export const BehaviorSection: React.FC = () => {
               </span>
               <Toggle
                 size="sm"
+                anchor={tourAttr('behavior.remote-control-toggle')}
                 checked={remoteControlEnabled}
                 onChange={(checked) =>
                   void updateAccountPreferences({

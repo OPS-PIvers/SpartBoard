@@ -6,6 +6,7 @@ import { useAuth } from '@/context/useAuth';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import type { CalendarConfig, CalendarGlobalConfig } from '@/types';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { extractCalendarId } from './constants';
 
 export const CalendarBuildingSyncField: React.FC<{
@@ -63,6 +64,11 @@ export const CalendarBuildingSyncField: React.FC<{
         onChange={(checked) =>
           ctx.updateConfig({ isBuildingSyncEnabled: checked })
         }
+        anchor={tourAttr(
+          'widget-settings.calendar.building-sync',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       />
     </div>
   );
@@ -114,6 +120,11 @@ export const CalendarPersonalCalendarsField: React.FC<{
         type="button"
         onClick={() => setShowInstructions((visible) => !visible)}
         className="flex items-center gap-1 text-xxs font-black uppercase tracking-tight text-blue-600 hover:text-blue-700"
+        {...tourAttr(
+          'widget-settings.calendar.instructions',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       >
         <HelpCircle className="h-3 w-3" />
         {ctx.t('widgetSettings.calendar.instructions')}
@@ -137,6 +148,11 @@ export const CalendarPersonalCalendarsField: React.FC<{
           type="button"
           onClick={() => void connect()}
           className="w-full rounded-xl border-2 border-dashed border-slate-200 bg-white py-2.5 text-xs font-black text-slate-500 hover:border-blue-400 hover:text-blue-600"
+          {...tourAttr(
+            'widget-settings.calendar.connect-google',
+            ctx.widget.id,
+            ctx.widget.type
+          )}
         >
           {ctx.t('widgetSettings.calendar.connectGoogle')}
         </button>
@@ -157,12 +173,17 @@ export const CalendarPersonalCalendarsField: React.FC<{
               onClick={addCalendar}
               disabled={!input}
               className="rounded-lg bg-blue-600 px-4 text-xs font-black uppercase text-white disabled:opacity-50"
+              {...tourAttr(
+                'widget-settings.calendar.add-calendar',
+                ctx.widget.id,
+                ctx.widget.type
+              )}
             >
               {ctx.t('widgetSettings.calendar.add')}
             </button>
           </div>
           <div className="space-y-1.5">
-            {personalIds.map((id) => (
+            {personalIds.map((id, calendarIndex) => (
               <div
                 key={id}
                 className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 bg-white px-3 py-2 shadow-sm"
@@ -180,6 +201,12 @@ export const CalendarPersonalCalendarsField: React.FC<{
                     })
                   }
                   aria-label={ctx.t('widgetSettings.calendar.removeCalendar')}
+                  {...tourFieldAttr(
+                    'widget-settings.calendar.remove-calendar',
+                    ctx.widget.type,
+                    `row-${calendarIndex + 1}`
+                  )}
+                  data-tour-widget={ctx.widget.id}
                   className="p-1 text-slate-300 hover:text-red-500"
                 >
                   <Trash2 className="h-3.5 w-3.5" />

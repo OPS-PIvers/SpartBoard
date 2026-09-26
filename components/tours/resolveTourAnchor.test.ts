@@ -51,6 +51,17 @@ describe('tour anchor refs', () => {
       id: 'sidebar.boards',
     });
   });
+
+  it('round-trips per-field refs', () => {
+    expect(tourAnchorRef('settings.field', 'poll', 'question')).toBe(
+      'settings.field:poll#question'
+    );
+    expect(parseTourAnchorRef('settings.field:poll#question')).toEqual({
+      id: 'settings.field',
+      widgetType: 'poll',
+      fieldKey: 'question',
+    });
+  });
 });
 
 describe('findTourAnchor', () => {
@@ -92,6 +103,34 @@ describe('findTourAnchor', () => {
       'Dice'
     );
     expect(findTourAnchor({ anchor: 'dock.item:poll' })).toBeNull();
+  });
+
+  it('matches a per-field ref on widget type and field key', () => {
+    mount(`
+      <div data-tour="settings.field" data-tour-widget-type="poll" data-tour-field="question">Q</div>
+      <div data-tour="settings.field" data-tour-widget-type="poll" data-tour-field="options">O</div>`);
+    expect(
+      findTourAnchor({ anchor: 'settings.field:poll#question' })?.textContent
+    ).toBe('Q');
+    expect(
+      findTourAnchor({ anchor: 'settings.field:poll#missing' })
+    ).toBeNull();
+  });
+
+  it('combines widget-id scoping with a per-field ref', () => {
+    mount(`
+      <button data-tour="scoreboard.add-point" data-tour-widget-type="scoreboard" data-tour-field="team-1" data-tour-widget="a">A1</button>
+      <button data-tour="scoreboard.add-point" data-tour-widget-type="scoreboard" data-tour-field="team-1" data-tour-widget="b">B1</button>`);
+    expect(
+      findTourAnchor(
+        { anchor: 'scoreboard.add-point:scoreboard#team-1' },
+        { widgetIds: ['b'] }
+      )?.textContent
+    ).toBe('B1');
+    expect(
+      findTourAnchor({ anchor: 'scoreboard.add-point:scoreboard#team-1' })
+        ?.textContent
+    ).toBe('A1');
   });
 
   it('skips anything inside data-tour-ignore', () => {
