@@ -505,6 +505,8 @@ interface QuizManagerProps {
    * library order remains fixed for the current session.
    */
   onReorderQuizzes?: (orderedIds: string[]) => Promise<void> | void;
+  /** Surfaces a failed folder move (drag or bulk) as a toast. */
+  onError?: (message: string) => void;
 }
 
 /* ─── Status resolver for archive cards ───────────────────────────────────── */
@@ -681,6 +683,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onCreateViewOnlyShare,
   activeAssignmentLockedCount = 0,
   onReorderQuizzes,
+  onError,
 }) => {
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
@@ -1802,11 +1805,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       if (!userId) return;
       try {
         await moveItem(itemId, folderId);
-      } catch (err) {
-        console.error('[QuizManager] moveItem failed:', err);
+      } catch {
+        onError?.('That quiz could not be moved.');
       }
     },
-    [userId, moveItem]
+    [userId, moveItem, onError]
   );
 
   // ─── Card-to-card reorder drop handler ───────────────────────────────────
@@ -1829,22 +1832,19 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         const results = await Promise.allSettled(
           ids.map((id) => moveItem(id, folderId))
         );
-        results.forEach((result, idx) => {
-          if (result.status === 'rejected') {
-            console.error(
-              '[QuizManager] bulk move failed for',
-              ids[idx],
-              result.reason
-            );
-          }
-        });
+        const failed = results.filter((r) => r.status === 'rejected').length;
+        if (failed > 0) {
+          onError?.(
+            `${failed} quiz${failed === 1 ? '' : 'zes'} failed to move.`
+          );
+        }
         selection.clear();
         setSelectionMode(false);
       } finally {
         setBulkBusy(false);
       }
     },
-    [userId, selection, moveItem]
+    [userId, selection, moveItem, onError]
   );
 
   const handleBulkDelete = useCallback(async (): Promise<void> => {
@@ -2134,6 +2134,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onShareBankWithPlc={onShareBankWithPlc}
         onUnshareBankFromPlc={onUnshareBankFromPlc}
         onPreviewSharedBank={onPreviewSharedBank}
+        onError={onError}
       />
     );
   }

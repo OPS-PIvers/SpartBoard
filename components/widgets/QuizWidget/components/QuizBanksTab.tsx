@@ -70,6 +70,8 @@ export interface QuizBanksTabProps {
     plcId: string
   ) => void | Promise<void>;
   onPreviewSharedBank?: (source: BankSource) => void;
+  /** Surfaces a failed folder move (drag or bulk) as a toast. */
+  onError?: (message: string) => void;
 }
 
 const SORT_OPTIONS: LibrarySortOption[] = [
@@ -132,6 +134,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   onShareBankWithPlc,
   onUnshareBankFromPlc,
   onPreviewSharedBank,
+  onError,
 }) => {
   const { showConfirm } = useDialog();
   const plcNameById = useMemo(
@@ -191,11 +194,11 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       if (!userId) return;
       try {
         await moveItem(itemId, folderId);
-      } catch (err) {
-        console.error('[QuizBanksTab] moveItem failed:', err);
+      } catch {
+        onError?.('That question bank could not be moved.');
       }
     },
-    [userId, moveItem]
+    [userId, moveItem, onError]
   );
   const handleReorderDrop = useCallback(
     async (nextOrderedIds: string[]): Promise<void> => {
@@ -214,21 +217,17 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
         const results = await Promise.allSettled(
           ids.map((id) => moveItem(id, folderId))
         );
-        results.forEach((r, i) => {
-          if (r.status === 'rejected')
-            console.error(
-              '[QuizBanksTab] bulk move failed for',
-              ids[i],
-              r.reason
-            );
-        });
+        const failed = results.filter((r) => r.status === 'rejected').length;
+        if (failed > 0) {
+          onError?.(`${failed} bank${failed === 1 ? '' : 's'} failed to move.`);
+        }
         selection.clear();
         setSelectionMode(false);
       } finally {
         setBulkBusy(false);
       }
     },
-    [userId, selection, moveItem]
+    [userId, selection, moveItem, onError]
   );
 
   const handleBulkDelete = useCallback(async (): Promise<void> => {

@@ -1734,6 +1734,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         loading={quizzesLoading}
         error={quizzesError ?? dataError}
         onReorderQuizzes={user?.uid ? handleReorderQuizzes : undefined}
+        onError={(message) => addToast(message, 'error')}
         onLoadQuizData={loadQuizQuietly}
         skippedTargetsByAssignmentId={assignSkippedByAssignmentId}
         onNew={() => {
