@@ -13,12 +13,13 @@ import type { TourRun } from './tourRuns';
 export type AnchorProblem =
   | 'unknown-anchor'
   | 'needs-widget-type'
+  | 'needs-field-key'
   | 'unexpected-widget-type'
   | 'unknown-widget-type';
 
 /** What is wrong with a step's anchor ref against the registry, or null when it is fine. */
 export function anchorProblem(ref: string): AnchorProblem | null {
-  const { id, widgetType } = parseTourAnchorRef(ref);
+  const { id, widgetType, fieldKey } = parseTourAnchorRef(ref);
   if (!isTourAnchorId(id)) return 'unknown-anchor';
   const def: TourAnchorDef = TOUR_ANCHORS[id];
   // Per-widget anchors may name a type too; the recorder writes one and the runner matches it.
@@ -26,6 +27,8 @@ export function anchorProblem(ref: string): AnchorProblem | null {
     return widgetType ? 'unexpected-widget-type' : null;
   }
   if (!widgetType) return 'needs-widget-type';
+  // Per-field scopes may be pseudo types such as 'classes', so only the key is required.
+  if (def.perField) return fieldKey ? null : 'needs-field-key';
   return TOOLS.some((tool) => tool.type === widgetType)
     ? null
     : 'unknown-widget-type';

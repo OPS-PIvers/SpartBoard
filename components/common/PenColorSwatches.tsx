@@ -4,6 +4,7 @@ import { Check, Plus, RotateCcw } from 'lucide-react';
 import { usePenColors } from '@/hooks/usePenColors';
 import { toPenHex } from '@/utils/penColors';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 const LONG_PRESS_MS = 500;
 
@@ -233,6 +234,11 @@ export const PenColorSwatches: React.FC<PenColorSwatchesProps> = ({
             key={index}
             type="button"
             aria-pressed={currentHex === c}
+            {...tourFieldAttr(
+              'annotate.pen-color',
+              'pen',
+              `color-${index + 1}`
+            )}
             onPointerDown={(e) => {
               suppressClickRef.current = false;
               if (!canEdit || e.pointerType === 'mouse') return;

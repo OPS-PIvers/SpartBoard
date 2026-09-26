@@ -3654,6 +3654,7 @@
     "reason": {
       "unknownAnchor": "No está en el registro de anclas",
       "needsWidgetType": "Le falta el tipo de widget",
+      "needsFieldKey": "Falta el ajuste o la fila de destino",
       "unexpectedWidgetType": "Tiene un tipo de widget que esta ancla no admite",
       "unknownWidgetType": "Nombra un tipo de widget que no existe",
       "fieldMisses": "No se encontró en {{misses}} de {{runs}} recorridos reales",

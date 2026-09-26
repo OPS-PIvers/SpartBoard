@@ -897,6 +897,58 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'annotate.pen-color': {
+    label: 'Pen color preset swatch in the pen color picker',
+    perField: true,
+    panel: true,
+  },
+  'roster-editor.name': {
+    label: 'Class name input in the roster editor',
+    panel: true,
+  },
+  'roster-editor.add-student': {
+    label: 'Add Student button in the roster editor',
+    panel: true,
+  },
+  'roster-editor.save': {
+    label: 'Save button in the roster editor',
+    panel: true,
+  },
+  'roster-editor.row': {
+    label: 'A student row in the roster editor',
+    perField: true,
+    panel: true,
+  },
+  'roster-editor.remove-student': {
+    label: 'Remove student button on a roster editor row',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'classlink-import.class-row': {
+    label: 'A ClassLink class row in the ClassLink import dialog',
+    perField: true,
+    panel: true,
+  },
+  'classlink-import.import': {
+    label: 'Import/Merge button on a ClassLink class row',
+    perField: true,
+    panel: true,
+  },
+  'schoology-link.section-row': {
+    label: 'A Schoology section row in the Link Schoology dialog',
+    perField: true,
+    panel: true,
+  },
+  'schoology-link.link': {
+    label: 'Link button on a Schoology section row',
+    perField: true,
+    panel: true,
+  },
+  'schoology-link.cancel': {
+    label: 'Done/close button in the Link Schoology dialog',
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

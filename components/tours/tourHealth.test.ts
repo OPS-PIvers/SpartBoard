@@ -20,6 +20,7 @@ describe('anchorProblem', () => {
   it('accepts per-field anchors with a widget type and needs one without', () => {
     expect(anchorProblem('settings.field:poll#question')).toBeNull();
     expect(anchorProblem('settings.field')).toBe('needs-widget-type');
+    expect(anchorProblem('settings.field:poll')).toBe('needs-field-key');
   });
 
   it('accepts per-widget anchors with or without a widget type', () => {

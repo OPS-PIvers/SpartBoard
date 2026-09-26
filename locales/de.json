@@ -3654,6 +3654,7 @@
     "reason": {
       "unknownAnchor": "Nicht in der Anker-Liste",
       "needsWidgetType": "Widget-Typ fehlt",
+      "needsFieldKey": "Ziel-Einstellung oder -Zeile fehlt",
       "unexpectedWidgetType": "Hat einen Widget-Typ, den dieser Anker nicht annimmt",
       "unknownWidgetType": "Nennt einen Widget-Typ, den es nicht gibt",
       "fieldMisses": "In {{misses}} von {{runs}} echten Durchläufen nicht gefunden",

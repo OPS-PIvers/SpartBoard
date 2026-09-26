@@ -3654,6 +3654,7 @@
     "reason": {
       "unknownAnchor": "Absente du registre des ancres",
       "needsWidgetType": "Type de widget manquant",
+      "needsFieldKey": "Réglage ou ligne cible manquant",
       "unexpectedWidgetType": "A un type de widget que cette ancre n'accepte pas",
       "unknownWidgetType": "Nomme un type de widget qui n'existe pas",
       "fieldMisses": "Introuvable dans {{misses}} passages réels sur {{runs}}",

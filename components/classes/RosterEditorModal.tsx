@@ -20,6 +20,7 @@ import type { BuildingBellPeriodOption } from '@/utils/bellSchedule';
 import { makeRestrictedGroupsByCount } from '@/components/widgets/random/groupMaker';
 import { Modal } from '@/components/common/Modal';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { useRosterRowsState, DraftRow } from './useRosterRowsState';
 import {
   RestrictionsPicker,
@@ -202,6 +203,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoFocus
+            {...tourAttr('roster-editor.name')}
           />
           {bellPeriodOptions && bellChoices.length > 0 && (
             <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
@@ -238,6 +240,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
           <button
             onClick={handleSave}
             disabled={!name.trim() || saving}
+            {...tourAttr('roster-editor.save')}
             className="bg-brand-blue-primary text-white px-5 py-2 rounded-xl flex gap-1.5 items-center text-sm font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save size={16} /> {t('common.save', { defaultValue: 'Save' })}
@@ -397,6 +400,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                     defaultValue: '+ Add Student',
                   })}
                   onAdd={addRow}
+                  anchorProps={tourAttr('roster-editor.add-student')}
                 />
               ) : (
                 <>
@@ -480,6 +484,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                   <div className="p-3 sticky bottom-0 bg-slate-50/80 backdrop-blur-sm border-t border-slate-200">
                     <button
                       onClick={addRow}
+                      {...tourAttr('roster-editor.add-student')}
                       className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors"
                     >
                       <Plus size={16} />
@@ -607,6 +612,11 @@ const RosterRow: React.FC<RosterRowProps> = ({
   return (
     <li
       className="grid items-center gap-3 px-3 py-2 hover:bg-white transition-colors"
+      {...tourFieldAttr(
+        'roster-editor.row',
+        'roster-editor',
+        `row-${index + 1}`
+      )}
       style={{
         gridTemplateColumns: buildGridTemplate(
           showLastNames,
@@ -670,6 +680,11 @@ const RosterRow: React.FC<RosterRowProps> = ({
         onClick={onDelete}
         aria-label={removeLabel}
         title={removeLabel}
+        {...tourFieldAttr(
+          'roster-editor.remove-student',
+          'roster-editor',
+          `row-${index + 1}`
+        )}
         className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors justify-self-end"
       >
         <X size={16} />
@@ -1019,6 +1034,7 @@ interface RosterEmptyStateProps {
   subtitle: string;
   addLabel: string;
   onAdd: () => void;
+  anchorProps?: Record<string, string>;
 }
 
 const RosterEmptyState: React.FC<RosterEmptyStateProps> = ({
@@ -1026,6 +1042,7 @@ const RosterEmptyState: React.FC<RosterEmptyStateProps> = ({
   subtitle,
   addLabel,
   onAdd,
+  anchorProps,
 }) => (
   <div className="flex flex-col items-center justify-center h-full w-full text-center px-6 py-10 gap-3 select-none">
     <div className="p-3 bg-slate-100 rounded-full text-slate-400">
@@ -1039,6 +1056,7 @@ const RosterEmptyState: React.FC<RosterEmptyStateProps> = ({
     </div>
     <button
       onClick={onAdd}
+      {...anchorProps}
       className="mt-2 flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-brand-blue-primary rounded-lg hover:bg-brand-blue-dark transition-colors"
     >
       <Plus size={16} /> {addLabel}

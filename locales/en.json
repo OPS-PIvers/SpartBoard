@@ -4799,6 +4799,7 @@
     "reason": {
       "unknownAnchor": "Not in the anchor registry",
       "needsWidgetType": "Missing its widget type",
+      "needsFieldKey": "Missing which setting or row it points at",
       "unexpectedWidgetType": "Has a widget type this anchor does not take",
       "unknownWidgetType": "Names a widget type that does not exist",
       "fieldMisses": "Not found in {{misses}} of {{runs}} real runs",

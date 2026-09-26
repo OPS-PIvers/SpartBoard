@@ -11,6 +11,7 @@ import { withTestSuffix } from '@/utils/testClassSuffix';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { mergeClassLinkStudents } from './mergeClassLinkStudents';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 const TEST_PREFIX = 'test:';
 
@@ -402,7 +403,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
                   mode.kind === 'merge' && cls.sourcedId.startsWith(TEST_PREFIX)
                 )
             )
-            .map((cls) => {
+            .map((cls, i) => {
               const isTestClass = cls.sourcedId.startsWith(TEST_PREFIX);
               const count = isTestClass
                 ? (testEmailsByClass[cls.sourcedId]?.length ?? 0)
@@ -411,6 +412,11 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
               return (
                 <div
                   key={cls.sourcedId}
+                  {...tourFieldAttr(
+                    'classlink-import.class-row',
+                    'classlink-import',
+                    `row-${i + 1}`
+                  )}
                   className="flex items-center justify-between gap-3 p-3 border border-slate-200 rounded-xl bg-white hover:border-brand-blue-primary hover:shadow-sm transition-all"
                 >
                   <div className="min-w-0 flex-1">
@@ -442,6 +448,11 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
                         : void handleMergeInto(cls)
                     }
                     disabled={isPending}
+                    {...tourFieldAttr(
+                      'classlink-import.import',
+                      'classlink-import',
+                      `row-${i + 1}`
+                    )}
                     className="shrink-0 bg-brand-blue-primary text-white px-3 py-2 rounded-xl text-xxs font-bold uppercase tracking-wider hover:bg-brand-blue-dark transition-colors disabled:opacity-50 flex items-center gap-1.5"
                   >
                     {isPending ? (
