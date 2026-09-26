@@ -1055,6 +1055,81 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'activity-wall-editor.layout-picker': {
+    label: 'Layout picker in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.submission-types': {
+    label: 'Submission types group in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.appearance': {
+    label: 'Appearance picker in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.moderation': {
+    label: 'Require moderation toggle in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.guests': {
+    label: 'Allow guests toggle in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.show-names': {
+    label: 'Show names toggle in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.student-view': {
+    label: 'Students can see posts toggle in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.likes': {
+    label: 'Allow likes toggle in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.comments': {
+    label: 'Allow comments toggle in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.replies': {
+    label: 'Allow comment replies toggle in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.max-posts': {
+    label: 'Max posts per student group in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.allow-edit': {
+    label: 'Students may edit their posts toggle in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.allow-delete': {
+    label: 'Students may delete their posts toggle in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.save': {
+    label: 'Save wall button in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.cancel': {
+    label: 'Cancel button in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

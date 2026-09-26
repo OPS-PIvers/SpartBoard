@@ -770,6 +770,8 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         <WallEditorModal
           open
           entry={editorEntry}
+          widgetId={widget.id}
+          widgetType={widget.type}
           onClose={() => setEditorEntry(undefined)}
           onSaved={(entry) => {
             setEditorEntry(undefined);

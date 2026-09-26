@@ -24,10 +24,13 @@ import { SubmissionTypesToggles } from './SubmissionTypesToggles';
 import { ModerationAndAccess } from './ModerationAndAccess';
 import { LimitsAndEditing } from './LimitsAndEditing';
 import { EngagementSettings } from './EngagementSettings';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface WallEditorModalProps {
   open: boolean;
   entry: ActivityWallLibraryEntry | null;
+  widgetId: string;
+  widgetType: string;
   onClose: () => void;
   onSaved: (entry: ActivityWallLibraryEntry) => void;
 }
@@ -53,6 +56,8 @@ const layoutLabel = (layout: ActivityWallLayout): string =>
 export const WallEditorModal: React.FC<WallEditorModalProps> = ({
   open,
   entry,
+  widgetId,
+  widgetType,
   onClose,
   onSaved,
 }) => {
@@ -280,6 +285,11 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
               <button
                 type="button"
                 onClick={requestClose}
+                {...tourAttr(
+                  'activity-wall-editor.cancel',
+                  widgetId,
+                  widgetType
+                )}
                 className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
               >
                 Cancel
@@ -288,6 +298,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
                 type="button"
                 disabled={saving}
                 onClick={() => void handleSave()}
+                {...tourAttr('activity-wall-editor.save', widgetId, widgetType)}
                 className="rounded-xl bg-brand-blue-primary px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-blue-dark disabled:opacity-60"
               >
                 {saving ? 'Saving…' : 'Save wall'}
@@ -299,6 +310,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
             <button
               type="button"
               onClick={requestClose}
+              {...tourAttr('activity-wall-editor.cancel', widgetId, widgetType)}
               className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
               Cancel
@@ -314,7 +326,12 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
       )}
       {step === 1 ? (
         <div className="pb-2">
-          <LayoutPicker value={draft.layout ?? null} onSelect={chooseLayout} />
+          <LayoutPicker
+            value={draft.layout ?? null}
+            onSelect={chooseLayout}
+            widgetId={widgetId}
+            widgetType={widgetType}
+          />
         </div>
       ) : (
         <div className="space-y-4 pb-2">
@@ -383,6 +400,8 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
                   }
                 }
                 onChange={(allowedTypes) => patch({ allowedTypes })}
+                widgetId={widgetId}
+                widgetType={widgetType}
               />
             </CollapsibleSection>
           )}
@@ -396,6 +415,8 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
                 }
               }
               onChange={(appearance) => patch({ appearance })}
+              widgetId={widgetId}
+              widgetType={widgetType}
             />
           </CollapsibleSection>
 
@@ -407,6 +428,8 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
               studentsCanSeePosts={draft.studentsCanSeePosts ?? true}
               classIds={draft.classIds ?? []}
               classes={classes}
+              widgetId={widgetId}
+              widgetType={widgetType}
               onChange={(next) => patch(next)}
             />
           </CollapsibleSection>
@@ -416,6 +439,8 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
               allowLikes={draft.allowLikes ?? false}
               allowComments={draft.allowComments ?? false}
               allowCommentResponses={draft.allowCommentResponses ?? false}
+              widgetId={widgetId}
+              widgetType={widgetType}
               onChange={(next) => patch(next)}
             />
           </CollapsibleSection>
@@ -425,6 +450,8 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
               maxPostsPerStudent={draft.maxPostsPerStudent ?? 0}
               allowStudentEdit={draft.allowStudentEdit ?? false}
               allowStudentDelete={draft.allowStudentDelete ?? false}
+              widgetId={widgetId}
+              widgetType={widgetType}
               onChange={(next) => patch(next)}
             />
           </CollapsibleSection>

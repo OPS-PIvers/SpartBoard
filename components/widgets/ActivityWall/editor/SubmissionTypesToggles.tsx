@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ActivityWallLibraryEntry } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 import { ToggleRow } from './ToggleRow';
 
 type AllowedTypes = NonNullable<ActivityWallLibraryEntry['allowedTypes']>;
@@ -7,6 +8,8 @@ type AllowedTypes = NonNullable<ActivityWallLibraryEntry['allowedTypes']>;
 interface SubmissionTypesTogglesProps {
   value: AllowedTypes;
   onChange: (value: AllowedTypes) => void;
+  widgetId: string;
+  widgetType: string;
 }
 
 const TYPE_ROWS: { key: keyof AllowedTypes; label: string; hint?: string }[] = [
@@ -20,8 +23,13 @@ const TYPE_ROWS: { key: keyof AllowedTypes; label: string; hint?: string }[] = [
 export const SubmissionTypesToggles: React.FC<SubmissionTypesTogglesProps> = ({
   value,
   onChange,
+  widgetId,
+  widgetType,
 }) => (
-  <div className="space-y-2">
+  <div
+    {...tourAttr('activity-wall-editor.submission-types', widgetId, widgetType)}
+    className="space-y-2"
+  >
     <p className="text-xs text-slate-600">Text is always on.</p>
     {TYPE_ROWS.map((row) => (
       <ToggleRow

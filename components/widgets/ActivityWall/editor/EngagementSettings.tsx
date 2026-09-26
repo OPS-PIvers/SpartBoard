@@ -1,10 +1,13 @@
 import React from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { ToggleRow } from './ToggleRow';
 
 interface EngagementSettingsProps {
   allowLikes: boolean;
   allowComments: boolean;
   allowCommentResponses: boolean;
+  widgetId: string;
+  widgetType: string;
   onChange: (patch: {
     allowLikes?: boolean;
     allowComments?: boolean;
@@ -17,6 +20,8 @@ export const EngagementSettings: React.FC<EngagementSettingsProps> = ({
   allowLikes,
   allowComments,
   allowCommentResponses,
+  widgetId,
+  widgetType,
   onChange,
 }) => (
   <div className="space-y-2">
@@ -24,6 +29,7 @@ export const EngagementSettings: React.FC<EngagementSettingsProps> = ({
       label="Allow likes"
       checked={allowLikes}
       onChange={(next) => onChange({ allowLikes: next })}
+      anchor={tourAttr('activity-wall-editor.likes', widgetId, widgetType)}
     />
     <ToggleRow
       label="Allow comments"
@@ -36,12 +42,14 @@ export const EngagementSettings: React.FC<EngagementSettingsProps> = ({
             : { allowComments: false, allowCommentResponses: false }
         )
       }
+      anchor={tourAttr('activity-wall-editor.comments', widgetId, widgetType)}
     />
     <ToggleRow
       label="Allow comment replies"
       checked={allowComments && allowCommentResponses}
       disabled={!allowComments}
       onChange={(next) => onChange({ allowCommentResponses: next })}
+      anchor={tourAttr('activity-wall-editor.replies', widgetId, widgetType)}
     />
   </div>
 );
