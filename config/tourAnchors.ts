@@ -1441,6 +1441,65 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'settings.help-menu.show-live': {
+    label: 'Show me live in the widget help menu',
+    perWidget: true,
+    panel: true,
+  },
+  'settings.help-menu.open-guides': {
+    label: 'Open guides in the widget help menu',
+    perWidget: true,
+    panel: true,
+  },
+  'help-center.search': { label: 'Search box in the Help Center', panel: true },
+  'help-center.close': {
+    label: 'Close button in the Help Center',
+    panel: true,
+  },
+  'help-center.tab': {
+    label: 'Shortcuts/Guides tab in the Help Center',
+    perField: true,
+    panel: true,
+  },
+  'help-center.tab-select': {
+    label: 'Mobile tab select in the Help Center',
+    panel: true,
+  },
+  'help-center.guides.category': {
+    label: 'Category button in the Guides tab',
+    perField: true,
+    panel: true,
+  },
+  'help-center.guides.category-select': {
+    label: 'Category select (mobile) in the Guides tab',
+    panel: true,
+  },
+  'help-center.guides.kind-filter': {
+    label: 'Kind filter chip in the Guides tab',
+    perField: true,
+    panel: true,
+  },
+  'help-center.guides.clear-widget-filter': {
+    label: 'Clear widget filter button in the Guides tab',
+    panel: true,
+  },
+  'help-center.guides.item': {
+    label: 'Guide card in the Guides tab',
+    perField: true,
+    panel: true,
+  },
+  'help-center.viewer.show-live': {
+    label: 'Show me live button in the resource viewer',
+    panel: true,
+  },
+  'help-center.viewer.back': {
+    label: 'Back button in the resource viewer',
+    panel: true,
+  },
+  'help-center.viewer.fullscreen': {
+    label: 'Fullscreen toggle button in the resource viewer',
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

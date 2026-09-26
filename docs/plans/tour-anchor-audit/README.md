@@ -15,11 +15,9 @@ Done:
 - Profile & Settings, My Classes, PLCs, roster/ClassLink/Schoology dialogs.
 - Widget body controls for the main widgets, Quiz, Scoreboard, Activity Wall editor, shared library shell and cards, pen colours.
 - Schema settings fields through one generic `settings.field` anchor (`settings.field:<type>#<key>`, list rows `#<list>.<n>.<field>`), plus custom settings controls.
+- Widget window chrome, Help Center, dialog close (`modal.close`), library tabs and split-menu items.
 - Repeated rows use `perField` anchors keyed `row-<n>` (1-based position).
 
 Still open:
 
-- Widget window chrome and Help Center items in 01.
-- `SegmentedTabs` tab buttons and `OverflowMenu` items, which don't pass through tour attributes.
-- The shared `Modal` header close button.
 - `SidebarBoardsActive.tsx` is dead code; delete it rather than anchor it.
