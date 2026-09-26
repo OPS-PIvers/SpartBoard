@@ -420,7 +420,7 @@ export const tourAnchorRef = (
   widgetType?: string,
   fieldKey?: string
 ) =>
-  fieldKey
+  fieldKey && widgetType
     ? `${id}:${widgetType}#${fieldKey}`
     : widgetType
       ? `${id}:${widgetType}`
