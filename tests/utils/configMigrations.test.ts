@@ -32,6 +32,7 @@ describe('WIDGET_CONFIG_MIGRATIONS', () => {
     expect(targetConfigVersion('clock')).toBe(0);
   });
 
+  // ~60 sequential dynamic imports; can exceed vitest's 5000ms default under CPU contention (measured).
   it('every schema configVersion matches its migration-table length', async () => {
     for (const [type, load] of Object.entries(WIDGET_SETTINGS_SCHEMAS)) {
       if (!load) continue;
@@ -40,7 +41,7 @@ describe('WIDGET_CONFIG_MIGRATIONS', () => {
         targetConfigVersion(type as WidgetType)
       );
     }
-  });
+  }, 20000);
 
   it('stamps configVersion and is idempotent', () => {
     const once = migrateWidget(widget({}));
