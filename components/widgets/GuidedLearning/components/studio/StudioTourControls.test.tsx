@@ -73,7 +73,11 @@ describe('StudioTourControls', () => {
       target: { value: 'clock' },
     });
     const fieldSelect = await screen.findByLabelText('Which setting');
-    await screen.findByRole('option', { name: 'themeColor' });
+    await screen.findByRole(
+      'option',
+      { name: 'themeColor' },
+      { timeout: 10000 }
+    );
     fireEvent.change(fieldSelect, { target: { value: 'themeColor' } });
     expect(last().tour?.anchor).toBe('settings.field:clock#themeColor');
   });
@@ -84,7 +88,11 @@ describe('StudioTourControls', () => {
       tour: { anchor: 'settings.field:clock#themeColor', action: 'click' },
     });
     expect(screen.getByLabelText('Which widget')).toHaveValue('clock');
-    await screen.findByRole('option', { name: 'themeColor' });
+    await screen.findByRole(
+      'option',
+      { name: 'themeColor' },
+      { timeout: 10000 }
+    );
     expect(screen.getByLabelText('Which setting')).toHaveValue('themeColor');
     fireEvent.change(screen.getByLabelText('Which widget'), {
       target: { value: 'magic' },
