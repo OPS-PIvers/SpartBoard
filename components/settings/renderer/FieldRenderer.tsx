@@ -18,6 +18,8 @@ export type FieldRendererProps = {
   defaults?: Record<string, unknown>;
   /** Set by a PartnerWidget card while its partner is off the board. */
   forceDisabled?: boolean;
+  /** Tour field key for list rows, e.g. `urls.2.url`; defaults to the field key. */
+  tourKey?: string;
 };
 
 // Control roots that are not native labelable elements; they take aria-labelledby instead of <label for>.
@@ -45,6 +47,7 @@ export const FieldRenderer: React.FC<FieldRendererProps> = ({
   updateConfig,
   defaults,
   forceDisabled = false,
+  tourKey,
 }) => {
   const uid = useId();
   const id = `${uid}${widget.id}-${field.key}`;
@@ -106,6 +109,7 @@ export const FieldRenderer: React.FC<FieldRendererProps> = ({
               <FieldRenderer
                 key={rowField.key}
                 field={rowField}
+                tourKey={`${field.key}.${rowIndex + 1}.${rowField.key}`}
                 widget={widget}
                 ctx={{ ...ctx, config: row }}
                 updateConfig={(patch) => onRowChange({ ...row, ...patch })}
@@ -181,7 +185,7 @@ export const FieldRenderer: React.FC<FieldRendererProps> = ({
     <div
       data-layout={inline ? 'inline' : 'stacked'}
       data-field-key={field.key}
-      {...tourFieldAttr('settings.field', widget.type, field.key)}
+      {...tourFieldAttr('settings.field', widget.type, tourKey ?? field.key)}
       className={
         inline
           ? 'flex items-start justify-between gap-3 py-2'
