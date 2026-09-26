@@ -121,6 +121,7 @@ allowlist fails toward a cosmetic annoyance.
 
 ## CI and conventions
 
+- **Every PR targets `dev-paul`, never `main`**, including cloud-session PRs. A session branch can start from `main`, so before the first push run `git rebase --onto origin/dev-paul $(git merge-base HEAD origin/main)` if `git log origin/dev-paul..HEAD` shows commits that are not yours. Only Paul's promotion PRs go into `main`.
 - Pushes to `dev-*` deploy to `spartboard-dev`; pushes to `main` deploy production. See "Firebase projects" above.
 - `pr-validation.yml` has a `preflight` job: if `firebase-dev-deploy.yml` already passed on the PR's head SHA, everything except E2E is skipped.
 - **Release notes**: `public/changelog.json` is read by teachers, not developers. Never name a feature flag, a Firestore path or an internal mechanism in it, and check every claim against what admin settings actually enable rather than what the code defines. See [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md#how-to-write-a-release-note).
