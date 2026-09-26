@@ -252,7 +252,7 @@ export const TOUR_ANCHORS = {
   },
   'widget-defaults.remove-key': {
     label: 'Remove one saved widget default',
-    perWidgetType: true,
+    perField: true,
     panel: true,
     destructive: true,
   },
