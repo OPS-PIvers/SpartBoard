@@ -1,7 +1,7 @@
 /**
  * useSubShares — the teacher's live sub shares and the four things they do with
  * one: copy the link, push the current boards, add a week, end it now
- * (docs/plans/SUB_SHARE_COLLECTIONS.md §3.7).
+ * (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md §3.7).
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';

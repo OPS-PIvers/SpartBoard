@@ -1,6 +1,6 @@
 /**
  * Roster-group helpers shared by the class pickers
- * (docs/plans/ROSTER_GROUPS_INTEGRATION.md D8/D16).
+ * (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D8/D16).
  */
 import type { ClassRoster } from '@/types';
 

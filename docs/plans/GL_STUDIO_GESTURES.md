@@ -2,7 +2,7 @@
 
 Makes dragging and resizing in the Studio feel like Canva or Figma: the element stays under the cursor, the selection frame never separates from it, a callout is a free box whose text auto-fits, the tooltip's line always touches its box, and the Studio preview matches the student player to the pixel.
 
-Grilled with Paul on 2026-09-25, from a screen recording of a callout drag. It **supersedes** the resize model, size basis and flag in [GL_CALLOUT_EDITING.md](GL_CALLOUT_EDITING.md) (the rows "Resize model", "Text scale range", "Size basis", "Size vs position" and "Flag"). Everything else in that plan stands: the toolbar, the colour presets, the curved leader line, Enter handling while editing and the schema stamping rule. It builds on [GUIDED_LEARNING_STUDIO.md](GUIDED_LEARNING_STUDIO.md) P1-5 (the canvas editing layer) and P1-10 (retiring the classic editor).
+Grilled with Paul on 2026-09-25, from a screen recording of a callout drag. It **supersedes** the resize model, size basis and flag in [GL_CALLOUT_EDITING.md](shipped/GL_CALLOUT_EDITING.md) (the rows "Resize model", "Text scale range", "Size basis", "Size vs position" and "Flag"). Everything else in that plan stands: the toolbar, the colour presets, the curved leader line, Enter handling while editing and the schema stamping rule. It builds on [GUIDED_LEARNING_STUDIO.md](shipped/GUIDED_LEARNING_STUDIO.md) P1-5 (the canvas editing layer) and P1-10 (retiring the classic editor).
 
 **Code references** were taken at `dev-paul` `f456827af`. Symbol names are authoritative and line numbers are hints. `GL/` means `components/widgets/GuidedLearning/` and `studio/` means `GL/components/studio/`.
 

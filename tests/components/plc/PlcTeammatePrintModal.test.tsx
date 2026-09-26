@@ -1,5 +1,5 @@
 // PlcTeammatePrintModal — the teammate picker, the "what would print" preview
-// and the print itself (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md §6).
+// and the print itself (docs/plans/shipped/PLC_DELEGATED_PAPER_PRINTING.md §6).
 //
 // What matters here is that the browser sends SELECTIONS and prints the seat
 // map it is handed back (D16): it never plans a batch of its own.

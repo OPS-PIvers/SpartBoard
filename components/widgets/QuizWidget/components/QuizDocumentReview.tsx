@@ -1,6 +1,6 @@
 /**
  * The review table shown after a test document is read
- * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D10).
+ * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D10).
  *
  * A reader is never certain, so nothing is created until the teacher has seen
  * what it made of their test. Every row can be unticked, its text corrected,

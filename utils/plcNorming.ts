@@ -1,4 +1,4 @@
-// PLC norming flags: level labels, copy parsing and grouping (docs/plans/PLC_NORMING_FLAGS.md).
+// PLC norming flags: level labels, copy parsing and grouping (docs/plans/shipped/PLC_NORMING_FLAGS.md).
 import type {
   PlcNormingCopy,
   PlcNormingLevel,

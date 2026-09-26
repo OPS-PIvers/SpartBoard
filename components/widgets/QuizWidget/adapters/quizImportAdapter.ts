@@ -79,7 +79,7 @@ export interface QuizImportAdapterDeps {
   /**
    * Opens the Google Picker to choose a printed test from Drive, returning its
    * bytes. A Google Doc arrives already exported as .docx so it takes the Word
-   * path (docs/plans/QUIZ_DOCUMENT_IMPORT.md D4). Omitted when the teacher
+   * path (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D4). Omitted when the teacher
    * can't use the feature, which also hides the Drive button.
    */
   pickDocument?: () => Promise<{ file: Blob; fileName: string } | null>;

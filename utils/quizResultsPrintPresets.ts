@@ -29,7 +29,7 @@ const base: QuizResultsPrintOptions = {
   layout: 'report',
 };
 
-/** The table in docs/plans/QUIZ_RESULTS_PRINT.md D8. */
+/** The table in docs/plans/shipped/QUIZ_RESULTS_PRINT.md D8. */
 export const RESULTS_PRINT_PRESETS: readonly ResultsPrintPreset[] = [
   { id: 'student-copy', label: 'Student copy', options: base },
   {

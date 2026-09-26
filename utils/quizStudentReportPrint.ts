@@ -140,7 +140,7 @@ export function printStudentReport(
   );
 }
 
-// ─── Multi-student results print (docs/plans/QUIZ_RESULTS_PRINT.md) ─────────
+// ─── Multi-student results print (docs/plans/shipped/QUIZ_RESULTS_PRINT.md) ─────────
 
 export type ResultsKeyMode = 'off' | 'missed' | 'all';
 export type ResultsPrintLayout = 'report' | 'sheet' | 'both';
@@ -184,7 +184,7 @@ export interface ResultsPrintStudent {
   lettered: boolean;
   /** Paper work whose batch still exists: the sheet can be redrawn (D21). */
   sheet?: SheetReprint;
-  /** Handwritten paper answers by question id (docs/plans/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md D41). */
+  /** Handwritten paper answers by question id (docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md D41). */
   paperWritten?: Readonly<Record<string, PaperWrittenPrint>>;
 }
 

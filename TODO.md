@@ -10,6 +10,7 @@ deleted planning docs (see PR that introduced this file; git history preserves a
 
 - Feature specs (the plan-of-record for large items): `docs/specs/` (LO12, M12, M13, M16)
 - Roadmaps / design docs: `docs/PLC_ROADMAP.md`, `docs/nexus.md`, `docs/wide-distro-plan.md` (referenced from code comments), `docs/written-response-quiz-questions.md`
+- Shipped plans kept as the decision record cited by code comments: `docs/plans/shipped/`
 - References / runbooks: `docs/admin_settings_widget_configs.md`, `docs/external-availability-oauth-runbook.md`, `docs/external-availability-legal-review.md`, `docs/external-availability-journal.md`, `docs/assign-from-spartboard-to-lms-feasibility.md`, setup docs (`ADMIN_SETUP`, `DEV_WORKFLOW`, `LINTING_SETUP`, `DEPLOY_CHECK`)
 
 Legend: effort S/M/L, risk LOW/MED/HIGH. Sections ordered: human-gated first.
@@ -57,23 +58,23 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] Confirm placeholder task-group headers (Writing/Projects/Learning support/etc.) with district since original export drops group headers. (S)
 - [ ] Paul testing in prod and eventual Public flag flip / district sign-off. (S)
 
-#### `docs/plans/ALWAYS_VISIBLE_COPY.md`
+#### `docs/plans/shipped/ALWAYS_VISIBLE_COPY.md`
 
 - [ ] Decorative accent strips (Analytics KPI cards, LinksPanel, WhatsNewModal, TalkingTool) — cosmetic cleanup, never scheduled. (S)
 - [ ] Colour-only status indicators (Drive sidebar dot, class-row dot, Poll/Video Activity markers, PLC switches missing role=switch). (S)
 - [ ] Static help styled as solid-blue alert boxes (QuizEditor, StimulusManagerPanel). (S)
 
-#### `docs/plans/DEV_FIREBASE_PROJECT.md`
+#### `docs/plans/shipped/DEV_FIREBASE_PROJECT.md`
 
 - [ ] Follow-up (explicitly out of scope): enable Firestore delete protection + PITR + daily backup schedule on prod. (S)
 - [ ] Follow-up (explicitly out of scope): move prod CI to WIF and delete the prod JSON key. (M)
 - [ ] Follow-up (explicitly out of scope): ClassLink/Spotify/LTI dev registrations when a feature needs them. (M)
 
-#### `docs/plans/FLASHCARDS.md`
+#### `docs/plans/shipped/FLASHCARDS.md`
 
 - [ ] Flip feature_permissions/flashcards from admin to beta (world-language teachers) after Paul's prod check, per Q47. (S)
 
-#### `docs/plans/GL_CALLOUT_EDITING.md`
+#### `docs/plans/shipped/GL_CALLOUT_EDITING.md`
 
 - [ ] Flip 'gl-callout-editing' flag to Public in Admin Settings once Paul has used it in prod (per plan's release section). (S)
 
@@ -81,28 +82,28 @@ Each item names the plan it came from; the plan holds the detail.
 
 - [ ] PR 5: remove gl-studio gate and classic GuidedLearningEditor/GuidedLearningEditorModal fallback from Widget.tsx once Paul confirms new gestures in prod. (M)
 
-#### `docs/plans/GUIDED_LEARNING_STUDIO.md`
+#### `docs/plans/shipped/GUIDED_LEARNING_STUDIO.md`
 
 - [ ] Paul plays each surface (widget, Manager preview, Help viewer, student app) end to end on prod and flips gl-player-v2, gl-live-tours, gl-studio from admin to Public in Admin Settings > Access. (S)
 - [ ] Write public/changelog.json entries once each flag opens (per CLAUDE.md, not at merge). (S)
 
-#### `docs/plans/LIVE_TOURS_V2.md`
+#### `docs/plans/shipped/LIVE_TOURS_V2.md`
 
 - [ ] Paul flips gl-live-tours flag to Public after prod testing. (S)
 
-#### `docs/plans/PER_PERIOD_ASSIGNMENT_ACCESS.md`
+#### `docs/plans/shipped/PER_PERIOD_ASSIGNMENT_ACCESS.md`
 
 - [ ] Paul runs a real class through per-period access in prod on his own account, then flips 'per-period-access' from admin to Public in Admin Settings > Access > Global Settings. (S)
 
-#### `docs/plans/PLC_DELEGATED_PAPER_PRINTING.md`
+#### `docs/plans/shipped/PLC_DELEGATED_PAPER_PRINTING.md`
 
 - [ ] Flip admin_settings/plc_delegated_printing (Rollouts switch) to Public in prod after Paul tests it live, per the flag-release convention. (S)
 
-#### `docs/plans/PLC_HOME_V2.md`
+#### `docs/plans/shipped/PLC_HOME_V2.md`
 
 - [ ] Flip plc-home-v2 GlobalFeature to Public after Paul runs it in prod (Admin Settings > Access > Previews). (S)
 
-#### `docs/plans/PLC_NORMING_FLAGS.md`
+#### `docs/plans/shipped/PLC_NORMING_FLAGS.md`
 
 - [ ] Paul tests the feature in prod on his own account and flips 'plc-norming-flags' from admin/preview to Public in Admin Settings > Access > Previews. (S)
 - [ ] Once Public, per afterLaunch:'retire', delete the feature gate and registry entry and add the changelog note. (S)
@@ -111,22 +112,22 @@ Each item names the plan it came from; the plan holds the detail.
 
 - [ ] Hold grilling session with Paul to settle scope/wording (teacher-side Quiz widget rename? video activities/rubrics as kinds under Assessments? student-facing copy?). (S)
 
-#### `docs/plans/PROJECTS_WIDGET.md`
+#### `docs/plans/shipped/PROJECTS_WIDGET.md`
 
 - [ ] Flip admin_settings/projects_widget and widget access level to Public once Paul is satisfied. (S)
 
-#### `docs/plans/QUIZ_ACCOMMODATIONS_HANDRAISE_TTS.md`
+#### `docs/plans/shipped/QUIZ_ACCOMMODATIONS_HANDRAISE_TTS.md`
 
 - [ ] Browser-verify the four flows on dev-paul (assign with skip, hub edit, Spanish read-aloud, FIB translation review+grading, admin modal + raise hand). (S)
 - [ ] Release notes must flag raise-hand default OFF for existing quizzes, written without naming internal flags. (S)
 - [ ] Check TTS cost after first Spanish class uses read-aloud. (S)
 - [ ] Flip admin_settings/feature_permissions flags to Public on prod after Paul's testing. (S)
 
-#### `docs/plans/QUIZ_EXAMVIEW_IMPORT.md`
+#### `docs/plans/shipped/QUIZ_EXAMVIEW_IMPORT.md`
 
 - [ ] Paul flips 'quiz-sections' flag to Public in Admin Settings after prod testing. (S)
 
-#### `docs/plans/QUIZ_IMPORT_RELIABILITY.md`
+#### `docs/plans/shipped/QUIZ_IMPORT_RELIABILITY.md`
 
 - [ ] Flip feature flag to Public. (S)
 
@@ -135,20 +136,20 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] Run scripts/backfill-quiz-join-codes.mjs --all --apply against production. (S)
 - [ ] Tighten quiz_sessions rules to get/scoped-list matching the other four collections. (S)
 
-#### `docs/plans/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md`
+#### `docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md`
 
 - [ ] Flip GlobalFeature 'paper-handwritten-responses' to Public after district privacy review (D7). (S)
 
-#### `docs/plans/QUIZ_PAPER_SHEET_STIMULI.md`
+#### `docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md`
 
 - [ ] Real print-and-scan of a single-column sheet with a dark photo and coordinate grid on the actual copier to empirically confirm the post-fit Otsu exclusion (D4) on real toner/scan artifacts. (S)
 
-#### `docs/plans/QUIZ_READ_ALOUD.md`
+#### `docs/plans/shipped/QUIZ_READ_ALOUD.md`
 
 - [ ] Flip 'quiz-read-aloud' from admin to beta/public in Admin Settings once Paul has tested it in prod on his own account. (S)
 - [ ] Out-of-scope items explicitly deferred by the plan itself (word-level sync, per-student usage logging for IEP docs, per-question pronunciation overrides, Drive tiering, OCR beyond 4 pages) remain unbuilt by design (§9), not oversight. (M)
 
-#### `docs/plans/QUIZ_RESULTS_PRINT.md`
+#### `docs/plans/shipped/QUIZ_RESULTS_PRINT.md`
 
 - [ ] Flag 'quiz-results-print' is still admin-only (stage: 'preview'); opening to all teachers requires Paul to test in prod and flip Admin Settings > Access > Global Settings to Public. (S)
 - [ ] Changelog entry for teachers has not been written (correctly deferred until the flag opens per repo convention). (S)
@@ -159,7 +160,7 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] PR10: A&L validation run against gathered assessments (D30). (S)
 - [ ] Flag flips to Public for all 6 new GlobalFeatures once each PR is tested by Paul. (S)
 
-#### `docs/plans/ROSTER_GROUPS_INTEGRATION.md`
+#### `docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md`
 
 - [ ] Paul verifies privacy behavior in browser (group names never render on front face) and flips admin_settings/roster_groups_integration to Public in prod after using it himself. (S)
 
@@ -167,12 +168,12 @@ Each item names the plan it came from; the plan holds the detail.
 
 - [ ] PR 4: remove star UI, activeRosterId/setActiveRoster, localStorage key, Classes widget catalog entry — only after Paul opens the flag to Public. (S)
 
-#### `docs/plans/SUB_SHARE_COLLECTIONS.md`
+#### `docs/plans/shipped/SUB_SHARE_COLLECTIONS.md`
 
 - [ ] Flip admin_settings/sub_launch_as_teacher to enabled in spartboard-dev for Paul's testing, then to Public in prod after he validates on his real account. (S)
 - [ ] Confirm no residual gaps in the amended v1 launch scope (class-wide targeting only, no roster/group-targeted launch, no translated locales/read-aloud/media responses/learning targets/banked questions in sub-launched runs) match current product expectations. (S)
 
-#### `docs/plans/TAB_AWAY_TIMER.md`
+#### `docs/plans/shipped/TAB_AWAY_TIMER.md`
 
 - [ ] Real-Chromebook test of short (5s-range) auto-submit timers for false positives from focus-loss/iframe blur, per §4. (S)
 - [ ] Flip 'tab-away-timer' flag to Public in Admin Settings > Access > Previews once Paul has tested in prod, then add the public changelog entry. (S)
@@ -305,7 +306,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 - [ ] Append-only in-progress stroke redraw fast path in useDrawingCanvas plus tests/perf benchmark asserting no clearRect after first frame. (M)
 - [ ] Full AnnotationOverlay.test.tsx coverage for the new pass-through/selection/pen-capture behaviors, then pnpm run validate before push. (S)
 
-#### `docs/plans/PLC_ASSESSMENT_DATA.md`
+#### `docs/plans/shipped/PLC_ASSESSMENT_DATA.md`
 
 - [ ] D3/showPerTeacher per-teacher gated view was superseded by a later decision (PR #3400) to remove per-teacher breakdown entirely -- not simply implemented as planned. (S)
 
@@ -315,15 +316,15 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 - [ ] Update help center content and changelog entry. (S)
 - [ ] Run i18n tests and screenshot the PLC page in all four locales for verification. (S)
 
-#### `docs/plans/PROJECTS_WIDGET.md`
+#### `docs/plans/shipped/PROJECTS_WIDGET.md`
 
 - [ ] Section 10.4 follow-up plan (audit widgets on global starred class) never started. (M)
 
-#### `docs/plans/QUIZ_ACCOMMODATIONS_HANDRAISE_TTS.md`
+#### `docs/plans/shipped/QUIZ_ACCOMMODATIONS_HANDRAISE_TTS.md`
 
 - [ ] Excluded-student count on assignment cards (still open per doc, not implemented). (S)
 
-#### `docs/plans/QUIZ_INTERFACE_REDESIGN.md`
+#### `docs/plans/shipped/QUIZ_INTERFACE_REDESIGN.md`
 
 - [ ] Remove dead 'editor' member from QuizConfig.view union in types.ts (Phase 3 cleanup). (S)
 - [ ] Confirm Phase 1.5 (QuizResults.tsx visual alignment to monitor shell language) reached full parity with monitor toggle/sort/filter conventions. (S)
@@ -426,15 +427,15 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 - [ ] After migration, delete LEGACY_TOOL_FEATURES fallback and the three retired GlobalFeature ids one release later. (S)
 - [ ] Deferred: collapse rollout switches into their paired flag (one gate instead of two). (L)
 
-#### `docs/plans/FLASHCARDS.md`
+#### `docs/plans/shipped/FLASHCARDS.md`
 
 - [ ] v2 scope: matching test type, PLC shared library ('copy into my library'), Speak mode. (L)
 
-#### `docs/plans/PLC_HOME_V2.md`
+#### `docs/plans/shipped/PLC_HOME_V2.md`
 
 - [ ] §7 removals: delete QuickCreateBar/CommonAssessmentBanner/AttentionCard/SinceYouWereHereCard/YourActionItemsCard/RecentDocsCard, old PlcHome.tsx path, MembersHeaderCluster merge, and the Assessments-header flag check, once the flag is Public. (M)
 
-#### `docs/plans/QUIZ_EXAMVIEW_IMPORT.md`
+#### `docs/plans/shipped/QUIZ_EXAMVIEW_IMPORT.md`
 
 - [ ] Carry `sections` into substitute launch (subLaunchAssignment) and PLC-synced quiz copies (synced_quizzes). (M)
 - [ ] Print the choose-N count on the physical answer sheet bubble grid (currently test-paper only). (S)

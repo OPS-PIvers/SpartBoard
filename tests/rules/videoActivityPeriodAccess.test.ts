@@ -1,5 +1,5 @@
 // Firestore security-rules tests for per-period access on video activity
-// sessions (docs/plans/PER_PERIOD_ASSIGNMENT_ACCESS.md): the join rules, the
+// sessions (docs/plans/shipped/PER_PERIOD_ASSIGNMENT_ACCESS.md): the join rules, the
 // periodOpen / studentLetIn gate on response writes, and the hidden content
 // and seats docs. Requires a running Firestore emulator; invoke via
 // `pnpm run test:rules`.

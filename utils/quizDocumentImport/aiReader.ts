@@ -1,5 +1,5 @@
 /**
- * The AI reader's client half (docs/plans/QUIZ_DOCUMENT_IMPORT.md D1, D3).
+ * The AI reader's client half (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D1, D3).
  *
  * The Cloud Function does the reading; this maps what comes back onto the
  * same `ExtractedQuiz` the browser reader produces, so the review table and

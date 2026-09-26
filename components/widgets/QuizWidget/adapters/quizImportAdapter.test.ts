@@ -233,7 +233,7 @@ describe('createQuizImportAdapter — drive.file token threading', () => {
     });
   });
 
-  // docs/plans/QUIZ_DOCUMENT_IMPORT.md D5/D7: a document import that read the
+  // docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D5/D7: a document import that read the
   // question but not its key must still reach the editor.
   describe('validate — questions imported without an answer key', () => {
     const quizWith = (
@@ -299,7 +299,7 @@ describe('createQuizImportAdapter — drive.file token threading', () => {
   });
 });
 
-/* ─── Test documents (docs/plans/QUIZ_DOCUMENT_IMPORT.md D9, D10, D11) ────── */
+/* ─── Test documents (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D9, D10, D11) ────── */
 
 describe('createQuizImportAdapter — test document source', () => {
   beforeEach(() => {

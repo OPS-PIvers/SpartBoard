@@ -872,7 +872,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     [resultsTools, plcView]
   );
 
-  // Printing to hand back (docs/plans/QUIZ_RESULTS_PRINT.md); never for PLC teammates (D7).
+  // Printing to hand back (docs/plans/shipped/QUIZ_RESULTS_PRINT.md); never for PLC teammates (D7).
   const canPrintResults =
     (canAccessFeature('quiz-results-print') || resultsTools) && !plcView;
 

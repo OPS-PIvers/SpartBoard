@@ -15,7 +15,7 @@ interface RosterGroupSelectProps {
 
 /**
  * Pool picker for widgets with no class chip to hang a submenu off
- * (docs/plans/ROSTER_GROUPS_INTEGRATION.md D8/D22).
+ * (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D8/D22).
  *
  * A teacher-only surface, so the group name is shown; the widget's front face
  * must still show a count instead. Renders nothing when the class has no

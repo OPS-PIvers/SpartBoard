@@ -1,6 +1,6 @@
 /**
  * The browser reader: a PDF, Word file, rich text file, LMS export or
- * exported Google Doc in, an `ExtractedQuiz` out (docs/plans/QUIZ_DOCUMENT_IMPORT.md D1, D2, D11, D18).
+ * exported Google Doc in, an `ExtractedQuiz` out (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D1, D2, D11, D18).
  *
  * The AI reader (PR 2) returns the same shape, so the review table and the
  * create step never learn which one ran.

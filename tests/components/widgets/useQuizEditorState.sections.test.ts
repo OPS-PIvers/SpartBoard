@@ -1,4 +1,4 @@
-/** Section rows in the quiz editor (docs/plans/QUIZ_EXAMVIEW_IMPORT.md E12). */
+/** Section rows in the quiz editor (docs/plans/shipped/QUIZ_EXAMVIEW_IMPORT.md E12). */
 import { describe, it, expect } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { QuizData, QuizQuestion } from '@/types';

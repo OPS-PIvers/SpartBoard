@@ -1,6 +1,6 @@
 /**
  * Locale parity for the Scoreboard's class-group controls
- * (docs/plans/ROSTER_GROUPS_INTEGRATION.md D17/D20).
+ * (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D17/D20).
  *
  * `widgetSettings.scoreboard` existed only in EN before this feature, so the
  * easy mistake here is to add the new strings to EN alone and let i18next's

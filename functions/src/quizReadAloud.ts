@@ -1,5 +1,5 @@
 /**
- * Quiz read-aloud (docs/plans/QUIZ_READ_ALOUD.md §4). Two callables share one
+ * Quiz read-aloud (docs/plans/shipped/QUIZ_READ_ALOUD.md §4). Two callables share one
  * synthesis core:
  *
  *   - `prepareQuizReadAloudV1` (teacher): synthesizes every part of a session

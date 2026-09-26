@@ -1,4 +1,4 @@
-// Client wrappers for the read-aloud callables (docs/plans/QUIZ_READ_ALOUD.md §4).
+// Client wrappers for the read-aloud callables (docs/plans/shipped/QUIZ_READ_ALOUD.md §4).
 import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { functions, storage } from '@/config/firebase';

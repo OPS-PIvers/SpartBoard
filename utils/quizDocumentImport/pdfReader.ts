@@ -1,5 +1,5 @@
 /**
- * Reads a PDF into lines, text layer first (docs/plans/QUIZ_DOCUMENT_IMPORT.md
+ * Reads a PDF into lines, text layer first (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md
  * D2). Most tests teachers hand us were printed from Word and carry a perfect
  * text layer; only a page that was genuinely scanned needs OCR, which is slow
  * and guesses at characters. `utils/paperQuestionOcr.ts`'s caller rasters and

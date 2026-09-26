@@ -1,6 +1,6 @@
 /**
  * Resolves a quiz's paper sheet stimuli to printable `<img>` sources
- * (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D16).
+ * (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md D16).
  *
  * Runs as the list changes rather than at print time, so the teacher sees a
  * stimulus they cannot load while they are still editing, and the print button

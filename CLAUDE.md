@@ -48,7 +48,7 @@ Do not duplicate that locally.
 | `dev-*` | `spartboard-dev` | hosting, Firestore rules, indexes, Storage rules, functions | https://spartboard-dev.web.app |
 | `main`  | `spartboard`     | the same, and nothing else writes to prod                   | https://spartboard.web.app     |
 
-Since 2026-09-21 a push to `dev-paul` never touches production. Plan and decisions: `docs/plans/DEV_FIREBASE_PROJECT.md`.
+Since 2026-09-21 a push to `dev-paul` never touches production. Plan and decisions: `docs/plans/shipped/DEV_FIREBASE_PROJECT.md`.
 
 - **Compatibility is a release-time rule now, not a per-merge rule.** Merges into `dev-paul` no longer need gating on a marker only the new client writes. At a `main` release, rules and function changes still have to tolerate a teacher's already-open tab running the previous client, and read-rule tightening still needs that marker.
 - **CLI and MCP default to prod.** `.firebaserc` `default` (and the Firebase MCP's active project) is `spartboard`. Pass `--project dev` for any ad-hoc deploy, rules release, log read or data change, and never deploy to prod by hand unless Paul asks.
@@ -129,6 +129,10 @@ allowlist fails toward a cosmetic annoyance.
 - Widgets are not virtualized — keep dashboards to about 20 widgets.
 
 ### Editing a plan in `docs/plans/`
+
+`docs/plans/` holds only live plans. `docs/plans/shipped/` is the read-only decision record for
+shipped plans that code comments cite (e.g. "D3"); don't revise those, and move a plan there once
+it ships and something cites it.
 
 **Before rewriting or substantially revising any `docs/plans/*.md`, list open PRs that touch that
 file and rebase onto them instead of rewriting from the version on `main`.** These docs get multiple

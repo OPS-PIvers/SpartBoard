@@ -1,6 +1,6 @@
 /**
  * Filling answers from a key into a quiz that is already saved
- * (docs/plans/QUIZ_IMPORT_RELIABILITY.md R17, R26).
+ * (docs/plans/shipped/QUIZ_IMPORT_RELIABILITY.md R17, R26).
  *
  * Only questions still marked `needsKey` are filled. On those, every option
  * sits in `incorrectAnswers` in printed order (see `toQuizData`), so letter n

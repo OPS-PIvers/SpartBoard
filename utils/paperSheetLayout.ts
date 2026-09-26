@@ -2,7 +2,7 @@
  * Geometry for printed paper answer sheets, in millimetres from the page's
  * top-left corner. Single source of truth: the printer draws from these
  * numbers and the scan reader recovers bubble positions from them, so the two
- * halves can never drift. See docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md §4-§5.
+ * halves can never drift. See docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md §4-§5.
  */
 
 import type { PaperBatch, PaperColumns, PaperGrid } from '@/types';
@@ -109,7 +109,7 @@ export function questionsPerPage(
 
 /**
  * Right-half band a single-column sheet prints stimuli in
- * (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D3). `paperSheetLayout.test.ts`
+ * (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md D3). `paperSheetLayout.test.ts`
  * proves it clears the left column, the header, the marker grid, the reader's
  * corner search windows and the footer, so moving any of those fails the test.
  */

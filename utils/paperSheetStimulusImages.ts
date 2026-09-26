@@ -1,6 +1,6 @@
 /**
  * Turns a quiz's paper sheet stimuli into `<img>` sources the print document
- * can draw (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D16).
+ * can draw (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md D16).
  *
  * Nothing waits for the network inside the print window: every image is
  * resolved here first, and a stimulus that cannot be fetched is named back to

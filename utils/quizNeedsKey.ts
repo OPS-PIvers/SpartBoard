@@ -1,6 +1,6 @@
 /**
  * The single answer to "is this question still missing its key?"
- * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D5–D7). Import validation, the editor's
+ * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D5–D7). Import validation, the editor's
  * save, the library badge and the Assign/live/PLC gates all read it here so
  * they cannot drift into disagreeing about which quizzes are incomplete.
  */

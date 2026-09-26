@@ -8,7 +8,7 @@ import type {
   WrittenReturnMode,
 } from '@/types';
 
-/** Contracts for handwritten paper answers; see docs/plans/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md §3. */
+/** Contracts for handwritten paper answers; see docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md §3. */
 export const PAPER_HANDWRITTEN_FEATURE = 'paper-handwritten-responses';
 
 /** Written lines ruled in each fixed box size; a line is one 8 mm grid row. */

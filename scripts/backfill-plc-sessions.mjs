@@ -1,5 +1,5 @@
 /**
- * Backfill PLC linkage onto existing quiz sessions (docs/plans/PLC_ASSESSMENT_DATA.md §6).
+ * Backfill PLC linkage onto existing quiz sessions (docs/plans/shipped/PLC_ASSESSMENT_DATA.md §6).
  *
  * Finds every member's quiz assignment that was assigned through the PLC
  * (raw `plc.id`, legacy flat `plcId`, or a `sync.groupId` that belongs to the

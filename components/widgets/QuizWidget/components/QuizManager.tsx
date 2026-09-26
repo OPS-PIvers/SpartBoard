@@ -550,7 +550,7 @@ const SORT_OPTIONS: LibrarySortOption[] = [
 
 /**
  * How many of a quiz's questions still need an answer key
- * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D6). Read from the metadata so the
+ * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D6). Read from the metadata so the
  * library never loads the quiz body from Drive to answer it; absent on
  * quizzes saved before the field existed, which is correctly "none".
  */

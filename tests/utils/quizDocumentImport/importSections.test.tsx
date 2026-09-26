@@ -1,4 +1,4 @@
-/** Printed headings become quiz sections (docs/plans/QUIZ_EXAMVIEW_IMPORT.md E16). */
+/** Printed headings become quiz sections (docs/plans/shipped/QUIZ_EXAMVIEW_IMPORT.md E16). */
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';

@@ -3497,7 +3497,7 @@ export interface QuizStimulus {
   driveFileId?: string;
   /**
    * text only: the passage students read
-   * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D16). A text stimulus has no file, so
+   * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D16). A text stimulus has no file, so
    * `url` is empty and this carries the content.
    */
   text?: string;
@@ -3536,7 +3536,7 @@ export interface QuizQuestion {
   optionOrder?: number[];
   /**
    * Set by a document import that read the question but not its key
-   * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D5). The question saves and prints
+   * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D5). The question saves and prints
    * with `correctAnswer: ''`; assigning, starting live and sharing to a PLC
    * stay blocked until a teacher fills it in.
    */
@@ -3597,7 +3597,7 @@ export interface QuizQuestion {
   /**
    * Learning-target tags (standards, PLC targets, personal targets). Frozen
    * snapshots like `rubricSnapshot`: rollups key on `id`, display survives
-   * renames. Absent = untagged. See docs/plans/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md §4.1.
+   * renames. Absent = untagged. See docs/plans/shipped/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md §4.1.
    */
   targets?: QuestionTargetTag[];
 }
@@ -3874,7 +3874,7 @@ export type GradeState = 'scored' | 'awaiting-grade' | 'not-attempted';
 
 /**
  * A blank drawn at print time rather than stored as a file, so it is always
- * sharp and needs no Drive (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D9).
+ * sharp and needs no Drive (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md D9).
  */
 export type PaperSheetTemplate =
   | {
@@ -3892,7 +3892,7 @@ export type PaperSheetTemplate =
 
 /**
  * One item printed in the right-hand band of a single-column answer sheet
- * (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md). Nothing a student draws on one is
+ * (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md). Nothing a student draws on one is
  * ever read back: the scan import still reads bubbles only.
  */
 export interface PaperSheetStimulus {
@@ -3921,7 +3921,7 @@ export interface QuizData {
   /**
    * Items printed beside the bubbles on a paper answer sheet. Their presence
    * is what makes a sheet single-column; absent or empty prints as it always
-   * did (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D14).
+   * did (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md D14).
    */
   paperSheetStimuli?: PaperSheetStimulus[];
   /** BCP-47 tag that picks the read-aloud voice. Absent = 'en-US'. */
@@ -4225,7 +4225,7 @@ export interface QuizLeaderboardEntry {
 
 /**
  * Stamped on both docs a substitute's launch writes — the session and the
- * teacher's own assignment record (docs/plans/SUB_SHARE_COLLECTIONS.md §3.6,
+ * teacher's own assignment record (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md §3.6,
  * D7). Written only by `launchSubAssignmentV1`; the run itself belongs to the
  * teacher, and the session rules pin all three fields against a client write.
  */
@@ -4238,7 +4238,7 @@ export interface SubLaunchedSessionFields {
   subMonitorUntil?: number;
 }
 
-/** Per-period gate state (docs/plans/PER_PERIOD_ASSIGNMENT_ACCESS.md). */
+/** Per-period gate state (docs/plans/shipped/PER_PERIOD_ASSIGNMENT_ACCESS.md). */
 export type PeriodAccessState = 'closed' | 'open' | 'paused';
 
 /** One targeted class's gate, keyed by the class id its roster contributes. */
@@ -4279,7 +4279,7 @@ export interface QuizSession
   quizId: string;
   quizTitle: string;
   teacherUid: string;
-  /** PLC that pools this session's results (docs/plans/PLC_ASSESSMENT_DATA.md §3.1). */
+  /** PLC that pools this session's results (docs/plans/shipped/PLC_ASSESSMENT_DATA.md §3.1). */
   plcId?: string;
   /** Pooling key across teachers: synced group id, or the quiz id when un-synced. */
   syncGroupId?: string;
@@ -4334,7 +4334,7 @@ export interface QuizSession
   /** Written by `prepareQuizReadAloudV1`; absent on pre-feature sessions (plan §3). */
   readAloud?: QuizReadAloudManifest;
   /**
-   * Frozen bank slots (docs/plans/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md §4.4).
+   * Frozen bank slots (docs/plans/shipped/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md §4.4).
    * `publicQuestions` then holds fixed questions plus every pool question and
    * `totalQuestions` counts fixed + Σ count. Absent on quizzes without banks.
    */
@@ -4811,7 +4811,7 @@ export type TabExitOutcome =
   | 'auto-submitted'
   | 'session-ended';
 
-/** One time a student left a quiz or video activity (docs/plans/TAB_AWAY_TIMER.md §3.1). */
+/** One time a student left a quiz or video activity (docs/plans/shipped/TAB_AWAY_TIMER.md §3.1). */
 export interface TabExit {
   /** Epoch ms on the student's clock. */
   leftAt: number;
@@ -5097,7 +5097,7 @@ export interface PaperSeatAssignment {
  *
  * Deliberately PII-free, like the roster doc it mirrors: seats hold opaque ids
  * and names are resolved from the Drive roster at print and import time.
- * See docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md §3.
+ * See docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md §3.
  */
 /** Answer columns a printed sheet carries; one column frees its right half. */
 export type PaperColumns = 1 | 2;
@@ -5171,7 +5171,7 @@ export interface PaperBatch {
    * Answer columns each page printed; absent = 2, which is every batch printed
    * before sheet stimuli existed. Recorded here rather than derived from the
    * quiz, because the teacher can add or remove stimuli after the stack is on
-   * desks (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D2).
+   * desks (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md D2).
    */
   columnsPerPage?: PaperColumns;
   /** Set when each row printed with its question text beside the bubbles; overrides `columnsPerPage`. */
@@ -5185,7 +5185,7 @@ export interface PaperBatch {
   pendingReview?: PaperPendingReview;
   /**
    * Set only when a PLC teammate printed this stack for the owner
-   * (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md D21). Their absence is what
+   * (docs/plans/shipped/PLC_DELEGATED_PAPER_PRINTING.md D21). Their absence is what
    * makes a batch self-printed. Still no student names, still no PINs.
    */
   printedByUid?: string;
@@ -8015,7 +8015,7 @@ export interface FlashcardsConfig {
   lastRosterIdsBySetId?: Record<string, string[]>;
 }
 
-// --- PROJECTS WIDGET TYPES (docs/plans/PROJECTS_WIDGET.md) ---
+// --- PROJECTS WIDGET TYPES (docs/plans/shipped/PROJECTS_WIDGET.md) ---
 
 /**
  * Per-step progress (D1/D2). A group's board position is derived from its step
@@ -8989,8 +8989,8 @@ export interface QuizTranslationSettings {
   updatedBy: string;
 }
 
-/** `admin_settings/quiz_read_aloud` — voice mapping for quiz read-aloud (docs/plans/QUIZ_READ_ALOUD.md §3). */
-/** One spoken unit of a question (docs/plans/QUIZ_READ_ALOUD.md §4.1). */
+/** `admin_settings/quiz_read_aloud` — voice mapping for quiz read-aloud (docs/plans/shipped/QUIZ_READ_ALOUD.md §3). */
+/** One spoken unit of a question (docs/plans/shipped/QUIZ_READ_ALOUD.md §4.1). */
 export type QuizReadAloudPart =
   | { kind: 'question' }
   | { kind: 'choice'; index: number }
@@ -10252,7 +10252,7 @@ export type SharedCollectionImportMode = 'copy' | 'substitute';
 /**
  * Whether a share carries one Board or a whole Collection. New sub shares of a
  * single Board are written as a one-board Collection share so bundling, names,
- * update and end-now are built once (docs/plans/SUB_SHARE_COLLECTIONS.md A1).
+ * update and end-now are built once (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md A1).
  * Absent on shares written before that change: read as 'collection'.
  */
 export type SharedCollectionKind = 'board' | 'collection';

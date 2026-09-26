@@ -1,6 +1,6 @@
 /**
  * Locale parity for the pool controls on Checklist and Poll
- * (docs/plans/ROSTER_GROUPS_INTEGRATION.md D21/D22).
+ * (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D21/D22).
  *
  * `widgetSettings.checklist` and `widgetSettings.poll` were English-only
  * before this feature, so the easy mistake is to add the new strings to EN
