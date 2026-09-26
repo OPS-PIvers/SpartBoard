@@ -18,14 +18,16 @@ import {
 } from '@/config/scoreboard';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useTranslation } from 'react-i18next';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
-const TeamNameInput: React.FC<{
-  value: string;
-  onUpdate: (val: string) => void;
-  placeholder?: string;
-  className?: string;
-}> = ({ value, onUpdate, placeholder, className }) => {
+const TeamNameInput: React.FC<
+  {
+    value: string;
+    onUpdate: (val: string) => void;
+    placeholder?: string;
+    className?: string;
+  } & React.InputHTMLAttributes<HTMLInputElement>
+> = ({ value, onUpdate, placeholder, className, ...rest }) => {
   const [localValue, setLocalValue] = React.useState(value);
   const [prevValue, setPrevValue] = React.useState(value);
   const debouncedValue = useDebounce(localValue, 500);
@@ -49,6 +51,7 @@ const TeamNameInput: React.FC<{
       onChange={(e) => setLocalValue(e.target.value)}
       className={className}
       placeholder={placeholder}
+      {...rest}
     />
   );
 };
@@ -486,7 +489,7 @@ export const ScoreboardSettings: React.FC<{
         </div>
 
         <div className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
-          {teams.map((team) => (
+          {teams.map((team, teamIndex) => (
             <div
               key={team.id}
               className="flex gap-2 items-center bg-white p-2 rounded-xl border border-slate-200"
@@ -499,6 +502,12 @@ export const ScoreboardSettings: React.FC<{
                 onUpdate={(val) => updateTeamName(team.id, val)}
                 className="flex-1 text-xs font-bold text-slate-700 bg-transparent outline-none"
                 placeholder={t('widgetSettings.scoreboard.teamNamePlaceholder')}
+                {...tourFieldAttr(
+                  'widget-settings.scoreboard.team-name',
+                  widget.type,
+                  `team-${teamIndex + 1}`
+                )}
+                data-tour-widget={widget.id}
               />
               {team.linkedRosterGroupId && (
                 <span
@@ -515,6 +524,12 @@ export const ScoreboardSettings: React.FC<{
               <button
                 onClick={() => removeTeam(team.id)}
                 className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                {...tourFieldAttr(
+                  'widget-settings.scoreboard.delete-team',
+                  widget.type,
+                  `team-${teamIndex + 1}`
+                )}
+                data-tour-widget={widget.id}
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>

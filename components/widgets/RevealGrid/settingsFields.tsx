@@ -17,7 +17,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const inputClass =
   'w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500';
@@ -443,6 +443,12 @@ export const RevealGridCardsField: React.FC<{
                   setExpandedId(expandedId === card.id ? null : card.id)
                 }
                 className="p-1 text-slate-400"
+                {...tourFieldAttr(
+                  'widget-settings.reveal-grid.toggle-card',
+                  ctx.widget.type,
+                  `card-${index + 1}`
+                )}
+                data-tour-widget={ctx.widget.id}
               >
                 {expandedId === card.id ? (
                   <ChevronUp size={14} />
@@ -455,6 +461,12 @@ export const RevealGridCardsField: React.FC<{
                 aria-label={t('removeCard')}
                 onClick={() => deleteCard(card.id)}
                 className="p-1 text-slate-300 hover:text-red-500"
+                {...tourFieldAttr(
+                  'widget-settings.reveal-grid.delete-card',
+                  ctx.widget.type,
+                  `card-${index + 1}`
+                )}
+                data-tour-widget={ctx.widget.id}
               >
                 <Trash2 size={14} />
               </button>
@@ -481,6 +493,12 @@ export const RevealGridCardsField: React.FC<{
                     }
                     placeholder={t('frontPlaceholder')}
                     className={inputClass}
+                    {...tourFieldAttr(
+                      'widget-settings.reveal-grid.front',
+                      ctx.widget.type,
+                      `card-${index + 1}`
+                    )}
+                    data-tour-widget={ctx.widget.id}
                   />
                 </div>
                 <div>
@@ -503,6 +521,12 @@ export const RevealGridCardsField: React.FC<{
                     }
                     placeholder={t('backPlaceholder')}
                     className={inputClass}
+                    {...tourFieldAttr(
+                      'widget-settings.reveal-grid.back',
+                      ctx.widget.type,
+                      `card-${index + 1}`
+                    )}
+                    data-tour-widget={ctx.widget.id}
                   />
                 </div>
               </div>

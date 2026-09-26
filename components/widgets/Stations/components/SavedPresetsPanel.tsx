@@ -5,15 +5,20 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { useStorage } from '@/hooks/useStorage';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface SavedPresetsPanelProps {
   stations: Station[];
   onLoad: (stations: Station[]) => void;
+  widgetId?: string;
+  widgetType?: string;
 }
 
 export const SavedPresetsPanel: React.FC<SavedPresetsPanelProps> = ({
   stations,
   onLoad,
+  widgetId,
+  widgetType,
 }) => {
   const { savedWidgetPresets, saveWidgetPreset } = useAuth();
   const { addToast } = useDashboard();
@@ -146,7 +151,7 @@ export const SavedPresetsPanel: React.FC<SavedPresetsPanelProps> = ({
         </div>
       ) : (
         <div className="space-y-2">
-          {savedLibrary.map((preset) => (
+          {savedLibrary.map((preset, presetIndex) => (
             <div
               key={preset.id}
               className="flex items-center gap-2 p-2.5 bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors"
@@ -165,6 +170,14 @@ export const SavedPresetsPanel: React.FC<SavedPresetsPanelProps> = ({
                 type="button"
                 onClick={() => handleLoad(preset)}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-emerald-100 hover:text-emerald-700 text-slate-600 text-xxs font-bold uppercase tracking-widest transition-colors"
+                {...(widgetType
+                  ? tourFieldAttr(
+                      'widget-settings.stations.load-preset',
+                      widgetType,
+                      `preset-${presetIndex + 1}`
+                    )
+                  : {})}
+                data-tour-widget={widgetId}
               >
                 <Download size={11} />
                 Load

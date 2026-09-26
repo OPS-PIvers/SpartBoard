@@ -9,6 +9,7 @@ import {
   parseScheduleTimeSeconds,
 } from '@/components/widgets/Schedule/utils';
 import { Z_INDEX } from '@/config/zIndex';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 /** Upper bound for the minutes field on a timer-mode duration input. */
 const MAX_TIMER_MINUTES = 180;
@@ -37,6 +38,9 @@ const AVAILABLE_WIDGETS: { type: WidgetType; label: string }[] = [
 
 interface SortableScheduleItemProps {
   item: ScheduleItem & { id: string };
+  rowIndex?: number;
+  widgetId?: string;
+  widgetType?: string;
   onUpdate: (itemId: string, updates: Partial<ScheduleItem>) => void;
   onDelete: (itemId: string) => void;
   isExpanded: boolean;
@@ -47,7 +51,16 @@ interface SortableScheduleItemProps {
 
 export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
   React.memo((props) => {
-    const { item, onUpdate, onDelete, isExpanded, onToggleExpand } = props;
+    const {
+      item,
+      rowIndex,
+      widgetId,
+      widgetType,
+      onUpdate,
+      onDelete,
+      isExpanded,
+      onToggleExpand,
+    } = props;
     const {
       attributes,
       listeners,
@@ -140,6 +153,14 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
             onClick={() => onDelete(item.id)}
             className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors shrink-0"
             aria-label="Delete event"
+            {...(widgetType
+              ? tourFieldAttr(
+                  'widget-settings.schedule.delete-event',
+                  widgetType,
+                  `event-${(rowIndex ?? 0) + 1}`
+                )
+              : {})}
+            data-tour-widget={widgetId}
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>

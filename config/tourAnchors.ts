@@ -949,6 +949,112 @@ export const TOUR_ANCHORS = {
     label: 'Done/close button in the Link Schoology dialog',
     panel: true,
   },
+  'widget-settings.poll.delete-option': {
+    label: 'Delete an option in Poll settings',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.reveal-grid.toggle-card': {
+    label: 'Expand/collapse a card row in Reveal Grid settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.reveal-grid.delete-card': {
+    label: 'Delete a card in Reveal Grid settings',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.reveal-grid.front': {
+    label: 'Front content input for a card in Reveal Grid settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.reveal-grid.back': {
+    label: 'Back content input for a card in Reveal Grid settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.schedule.copy-building-schedule': {
+    label: 'Copy a building schedule to my schedules in Schedule settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.schedule.delete-event': {
+    label: 'Delete an event row in Schedule settings',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.scoreboard.team-name': {
+    label: 'Team name input in Scoreboard settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.scoreboard.delete-team': {
+    label: 'Delete a team in Scoreboard settings',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.specialist-schedule.select-activity': {
+    label: 'Preset activity chip in Specialist Schedule settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.specialist-schedule.select-cycle-day': {
+    label: 'Cycle day picker button in Specialist Schedule settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.specialist-schedule.edit-item': {
+    label: 'Edit an item row in Specialist Schedule settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.specialist-schedule.delete-item': {
+    label: 'Delete an item row in Specialist Schedule settings',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.stations.move-up': {
+    label: 'Move a station up in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.move-down': {
+    label: 'Move a station down in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.edit-station': {
+    label: 'Expand/collapse a station editor in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.delete-station': {
+    label: 'Delete a station in Stations settings',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.stations.load-preset': {
+    label: 'Load a saved station preset in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.toggle-lock-group': {
+    label: 'Keep a class group together checkbox in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.soundboard.toggle-sound': {
+    label: 'Toggle a sound on or off in Soundboard settings',
+    perField: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

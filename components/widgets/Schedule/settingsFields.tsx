@@ -46,7 +46,7 @@ import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 import { getTodayStr } from './utils';
 import { SortableScheduleItem } from './components/SortableScheduleItem';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const DAYS = [
   { id: 0, label: 'Su', name: 'sunday' },
@@ -636,10 +636,13 @@ export const ScheduleListField: React.FC<{
                     items={selectedItems.map((item) => item.id)}
                     strategy={verticalListSortingStrategy}
                   >
-                    {selectedItems.map((item) => (
+                    {selectedItems.map((item, itemIndex) => (
                       <SortableScheduleItem
                         key={item.id}
                         item={item}
+                        rowIndex={itemIndex}
+                        widgetId={ctx.widget.id}
+                        widgetType={ctx.widget.type}
                         onUpdate={(itemId, updates) =>
                           handleUpdateItem(selectedSchedule.id, itemId, updates)
                         }
@@ -739,7 +742,7 @@ export const ScheduleListField: React.FC<{
         </button>
         {showBuildingSchedules && (
           <div className="mt-3 flex flex-col gap-2">
-            {buildingSchedules.map((schedule) => (
+            {buildingSchedules.map((schedule, buildingScheduleIndex) => (
               <div
                 key={schedule.id}
                 className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3"
@@ -787,6 +790,12 @@ export const ScheduleListField: React.FC<{
                   className="rounded p-1.5 text-brand-blue-primary hover:bg-blue-100"
                   aria-label={translate(ctx, 'copyToMySchedules')}
                   title={translate(ctx, 'copyToMySchedules')}
+                  {...tourFieldAttr(
+                    'widget-settings.schedule.copy-building-schedule',
+                    ctx.widget.type,
+                    `schedule-${buildingScheduleIndex + 1}`
+                  )}
+                  data-tour-widget={ctx.widget.id}
                 >
                   <Copy className="h-5 w-5" aria-hidden="true" />
                 </button>

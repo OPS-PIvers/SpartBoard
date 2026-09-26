@@ -53,7 +53,7 @@ import {
 
 import { OptionInput } from './components/OptionInput';
 import { useTranslation } from 'react-i18next';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export const PollSettings: React.FC<{
   widget: WidgetData;
@@ -628,6 +628,12 @@ export const PollSettings: React.FC<{
                       onClick={() => removeOption(idx)}
                       className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                       title={t('widgetSettings.poll.removeOption')}
+                      {...tourFieldAttr(
+                        'widget-settings.poll.delete-option',
+                        widget.type,
+                        `option-${idx + 1}`
+                      )}
+                      data-tour-widget={widget.id}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

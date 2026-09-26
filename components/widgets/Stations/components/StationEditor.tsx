@@ -10,11 +10,14 @@ import {
 import { WIDGET_PALETTE } from '@/config/colors';
 import { renderCatalystIcon } from '@/components/widgets/Catalyst/catalystHelpers';
 import { IconOrImageInput } from './IconOrImageInput';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface StationEditorProps {
   station: Station;
   index: number;
   total: number;
+  widgetId?: string;
+  widgetType?: string;
   onChange: (updates: Partial<Station>) => void;
   onDelete: () => void;
   onMoveUp: () => void;
@@ -25,11 +28,21 @@ export const StationEditor: React.FC<StationEditorProps> = ({
   station,
   index,
   total,
+  widgetId,
+  widgetType,
   onChange,
   onDelete,
   onMoveUp,
   onMoveDown,
 }) => {
+  const fieldKey = `station-${index + 1}`;
+  const rowAttrs = (id: Parameters<typeof tourFieldAttr>[0]) =>
+    widgetType
+      ? {
+          ...tourFieldAttr(id, widgetType, fieldKey),
+          'data-tour-widget': widgetId,
+        }
+      : {};
   const [expanded, setExpanded] = useState(true);
   const iconSource = station.imageUrl?.trim()
     ? station.imageUrl
@@ -70,6 +83,7 @@ export const StationEditor: React.FC<StationEditorProps> = ({
           disabled={index === 0}
           className="p-1.5 rounded-md text-slate-400 enabled:hover:text-slate-700 enabled:hover:bg-slate-100 disabled:opacity-30 transition-colors"
           aria-label="Move up"
+          {...rowAttrs('widget-settings.stations.move-up')}
         >
           <ArrowUp size={14} />
         </button>
@@ -79,6 +93,7 @@ export const StationEditor: React.FC<StationEditorProps> = ({
           disabled={index === total - 1}
           className="p-1.5 rounded-md text-slate-400 enabled:hover:text-slate-700 enabled:hover:bg-slate-100 disabled:opacity-30 transition-colors"
           aria-label="Move down"
+          {...rowAttrs('widget-settings.stations.move-down')}
         >
           <ArrowDown size={14} />
         </button>
@@ -87,6 +102,7 @@ export const StationEditor: React.FC<StationEditorProps> = ({
           onClick={() => setExpanded((v) => !v)}
           className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           aria-label={expanded ? 'Collapse' : 'Expand'}
+          {...rowAttrs('widget-settings.stations.edit-station')}
         >
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
@@ -95,6 +111,7 @@ export const StationEditor: React.FC<StationEditorProps> = ({
           onClick={onDelete}
           className="p-1.5 rounded-md text-slate-400 hover:text-brand-red-primary hover:bg-red-50 transition-colors"
           aria-label="Delete station"
+          {...rowAttrs('widget-settings.stations.delete-station')}
         >
           <Trash2 size={14} />
         </button>

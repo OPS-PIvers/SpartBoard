@@ -5,6 +5,7 @@ import { useAuth } from '@/context/useAuth';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import type { SoundboardConfig, SoundboardGlobalConfig } from '@/types';
 import { getAvailableSoundboardSounds } from '@/utils/soundboardConfig';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 export const SoundboardSoundPickerField: React.FC<{
   ctx: CustomRenderCtx;
@@ -45,7 +46,7 @@ export const SoundboardSoundPickerField: React.FC<{
           {ctx.t('widgetSettings.soundboard.noSounds')}
         </p>
       ) : (
-        availableSounds.map((sound) => {
+        availableSounds.map((sound, soundIndex) => {
           const selected = selectedSoundIds.includes(sound.id);
           return (
             <div
@@ -67,6 +68,14 @@ export const SoundboardSoundPickerField: React.FC<{
                 onChange={(checked) => toggleSound(sound.id, checked)}
                 label={sound.label}
                 showLabels={false}
+                anchor={{
+                  ...tourFieldAttr(
+                    'widget-settings.soundboard.toggle-sound',
+                    ctx.widget.type,
+                    `sound-${soundIndex + 1}`
+                  ),
+                  'data-tour-widget': ctx.widget.id,
+                }}
               />
             </div>
           );

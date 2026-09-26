@@ -8,7 +8,7 @@ import type {
   SpecialistScheduleRecurringItem,
   SpecialistScheduleGlobalConfig,
 } from '@/types';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const DAYS_OF_WEEK = [
   'sunday',
@@ -84,7 +84,7 @@ const SpecialistScheduleItemEditor: React.FC<{
           role="radiogroup"
           aria-label={t('activity')}
         >
-          {specialistOptions.map((option) => (
+          {specialistOptions.map((option, optionIndex) => (
             <button
               key={option}
               type="button"
@@ -96,6 +96,12 @@ const SpecialistScheduleItemEditor: React.FC<{
                   ? 'border-teal-600 bg-teal-600 text-white'
                   : 'border-slate-200 bg-white text-slate-600'
               }`}
+              {...tourFieldAttr(
+                'widget-settings.specialist-schedule.select-activity',
+                ctx.widget.type,
+                `activity-${optionIndex + 1}`
+              )}
+              data-tour-widget={ctx.widget.id}
             >
               {option}
             </button>
@@ -279,6 +285,12 @@ export const SpecialistScheduleCycleDaysField: React.FC<{
                     ? 'border-teal-600 bg-teal-50 text-teal-700'
                     : 'border-slate-200 bg-white text-slate-500'
                 }`}
+                {...tourFieldAttr(
+                  'widget-settings.specialist-schedule.select-cycle-day',
+                  ctx.widget.type,
+                  `cycle-day-${dayNumber}`
+                )}
+                data-tour-widget={ctx.widget.id}
               >
                 {customName ?? `${dayLabel} ${dayNumber}`}
               </button>
@@ -325,6 +337,12 @@ export const SpecialistScheduleCycleDaysField: React.FC<{
                   type="button"
                   onClick={() => startEdit(index)}
                   className={smallButtonClass}
+                  {...tourFieldAttr(
+                    'widget-settings.specialist-schedule.edit-item',
+                    ctx.widget.type,
+                    `cycle-item-${index + 1}`
+                  )}
+                  data-tour-widget={ctx.widget.id}
                 >
                   {t('editItem')}
                 </button>
@@ -332,6 +350,12 @@ export const SpecialistScheduleCycleDaysField: React.FC<{
                   type="button"
                   onClick={() => remove(index)}
                   className="rounded-lg px-2 py-1 text-xxs font-semibold text-red-600 hover:bg-red-50"
+                  {...tourFieldAttr(
+                    'widget-settings.specialist-schedule.delete-item',
+                    ctx.widget.type,
+                    `cycle-item-${index + 1}`
+                  )}
+                  data-tour-widget={ctx.widget.id}
                 >
                   {t('deleteItem')}
                 </button>
@@ -487,6 +511,12 @@ export const SpecialistScheduleRecurringItemsField: React.FC<{
                     type="button"
                     onClick={() => startEdit(index)}
                     className={smallButtonClass}
+                    {...tourFieldAttr(
+                      'widget-settings.specialist-schedule.edit-item',
+                      ctx.widget.type,
+                      `daily-${index + 1}`
+                    )}
+                    data-tour-widget={ctx.widget.id}
                   >
                     {t('editItem')}
                   </button>
@@ -494,6 +524,12 @@ export const SpecialistScheduleRecurringItemsField: React.FC<{
                     type="button"
                     onClick={() => remove(index)}
                     className="rounded-lg px-2 py-1 text-xxs font-semibold text-red-600 hover:bg-red-50"
+                    {...tourFieldAttr(
+                      'widget-settings.specialist-schedule.delete-item',
+                      ctx.widget.type,
+                      `daily-${index + 1}`
+                    )}
+                    data-tour-widget={ctx.widget.id}
                   >
                     {t('deleteItem')}
                   </button>
@@ -536,6 +572,12 @@ export const SpecialistScheduleRecurringItemsField: React.FC<{
                     type="button"
                     onClick={() => startEdit(index)}
                     className={smallButtonClass}
+                    {...tourFieldAttr(
+                      'widget-settings.specialist-schedule.edit-item',
+                      ctx.widget.type,
+                      `weekly-${index + 1}`
+                    )}
+                    data-tour-widget={ctx.widget.id}
                   >
                     {t('editItem')}
                   </button>
@@ -543,6 +585,12 @@ export const SpecialistScheduleRecurringItemsField: React.FC<{
                     type="button"
                     onClick={() => remove(index)}
                     className="rounded-lg px-2 py-1 text-xxs font-semibold text-red-600 hover:bg-red-50"
+                    {...tourFieldAttr(
+                      'widget-settings.specialist-schedule.delete-item',
+                      ctx.widget.type,
+                      `weekly-${index + 1}`
+                    )}
+                    data-tour-widget={ctx.widget.id}
                   >
                     {t('deleteItem')}
                   </button>

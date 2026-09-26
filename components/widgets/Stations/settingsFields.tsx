@@ -11,7 +11,7 @@ import { countRosterGroupMembers } from '@/utils/rosterGroups';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { StationEditor } from './components/StationEditor';
 import { SavedPresetsPanel } from './components/SavedPresetsPanel';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const DEFAULT_STATION_COLORS = WIDGET_PALETTE;
 
@@ -289,6 +289,8 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
                 station={station}
                 index={index}
                 total={stations.length}
+                widgetId={ctx.widget.id}
+                widgetType={ctx.widget.type}
                 onChange={(updates) => handleStationChange(station.id, updates)}
                 onDelete={() => void handleStationDelete(station.id)}
                 onMoveUp={() => handleMove(station.id, -1)}
@@ -316,7 +318,7 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
                   {translate(ctx, 'keepTogether')}
                 </p>
                 <div className="flex flex-col gap-1">
-                  {rosterGroups.map((group) => (
+                  {rosterGroups.map((group, groupIndex) => (
                     <label
                       key={group.id}
                       className="flex cursor-pointer items-center gap-2 text-sm text-slate-700"
@@ -326,6 +328,12 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
                         checked={lockedGroupIds.includes(group.id)}
                         onChange={() => toggleLockedGroup(group.id)}
                         className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+                        {...tourFieldAttr(
+                          'widget-settings.stations.toggle-lock-group',
+                          ctx.widget.type,
+                          `group-${groupIndex + 1}`
+                        )}
+                        data-tour-widget={ctx.widget.id}
                       />
                       <Lock className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                       <span className="truncate">{group.name}</span>
@@ -369,7 +377,12 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
       )}
 
       <div className="border-t border-slate-100 pt-4">
-        <SavedPresetsPanel stations={stations} onLoad={handleLoadPreset} />
+        <SavedPresetsPanel
+          stations={stations}
+          onLoad={handleLoadPreset}
+          widgetId={ctx.widget.id}
+          widgetType={ctx.widget.type}
+        />
       </div>
     </FieldRoot>
   );
