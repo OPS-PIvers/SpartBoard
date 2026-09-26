@@ -9,6 +9,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { OverflowMenu } from '@/components/common/sessionViews/OverflowMenu';
+import { tourAttr, tourTypeAttr, tourFieldAttr } from '@/config/tourAnchors';
 import type {
   LibraryShellProps,
   LibraryTab,
@@ -71,7 +72,8 @@ const renderActionButton = (
   labelsHidden: boolean,
   key?: string,
   extraClass = '',
-  accented = false
+  accented = false,
+  tourProps: Record<string, string> = {}
 ): React.ReactElement => {
   const Icon = action.icon;
   const base =
@@ -98,6 +100,7 @@ const renderActionButton = (
             : undefined
       }
       aria-label={action.label}
+      {...tourProps}
       className={`${base} ${variantClass} ${extraClass}`}
       style={{
         paddingInline: labelsHidden ? '0' : 'min(14px, 3cqmin)',
@@ -292,7 +295,14 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                   action,
                   'secondary',
                   labelsHidden,
-                  `secondary-${i}`
+                  `secondary-${i}`,
+                  '',
+                  false,
+                  tourFieldAttr(
+                    'library-shell.secondary-action',
+                    widgetType ?? 'library',
+                    `row-${i + 1}`
+                  )
                 )
               )}
               {primaryAction &&
@@ -304,7 +314,10 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                       labelsHidden,
                       undefined,
                       'rounded-r-none',
-                      accent != null
+                      accent != null,
+                      widgetType
+                        ? tourTypeAttr('library-shell.new', widgetType)
+                        : tourAttr('library-shell.new')
                     )}
                     <OverflowMenu
                       items={primaryAction.menuItems}
@@ -325,7 +338,10 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                     labelsHidden,
                     undefined,
                     '',
-                    accent != null
+                    accent != null,
+                    widgetType
+                      ? tourTypeAttr('library-shell.new', widgetType)
+                      : tourAttr('library-shell.new')
                   )
                 ))}
             </div>

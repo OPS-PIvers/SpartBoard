@@ -1130,6 +1130,64 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'library-shell.new': {
+    label: 'Primary create/import button in a library shell header',
+    perWidgetType: true,
+  },
+  'library-shell.secondary-action': {
+    label: 'Secondary header action button in a library shell',
+    perField: true,
+  },
+  'library-shell.search': {
+    label: 'Search box in a library toolbar',
+    perWidgetType: true,
+  },
+  'library-shell.sort': {
+    label: 'Sort dropdown trigger in a library toolbar',
+    perWidgetType: true,
+  },
+  'library-shell.filter': {
+    label: 'Filter dropdown in a library toolbar',
+    perField: true,
+  },
+  'library-shell.card-open': {
+    label: 'Library item card body (open)',
+    perField: true,
+  },
+  'library-shell.card-primary-action': {
+    label: 'Primary action button on a library item card',
+    perField: true,
+  },
+  'library-shell.card-secondary-action': {
+    label: 'Secondary primary action button on a library item card',
+    perField: true,
+  },
+  'library-shell.card-icon-action': {
+    label: 'Icon-only quick action button on a library item card',
+    perField: true,
+  },
+  'library-shell.card-menu': {
+    label: 'Kebab menu button on a library item card',
+    perField: true,
+  },
+  'library-shell.card-menu-item': {
+    label: 'Item inside a library item card kebab menu',
+    perField: true,
+    panel: true,
+  },
+  'library-shell.archive-primary-action': {
+    label: 'Primary action button on an assignment archive row',
+    perField: true,
+  },
+  'library-shell.archive-menu': {
+    label: 'Kebab menu button on an assignment archive row',
+    perField: true,
+  },
+  'library-shell.archive-menu-item': {
+    label: 'Item inside an assignment archive row kebab menu',
+    perField: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

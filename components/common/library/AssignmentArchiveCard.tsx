@@ -29,6 +29,7 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { Z_INDEX } from '@/config/zIndex';
 import { useCloseOnHostResize } from '../useCloseOnHostResize';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import type {
   AssignmentArchiveCardProps,
   LibraryBadgeTone,
@@ -81,9 +82,15 @@ const TONE_STYLES: Record<LibraryBadgeTone, ToneStyles> = {
 
 interface OverflowMenuProps {
   actions: LibraryMenuAction[];
+  rowKey?: string;
+  widgetType: string;
 }
 
-const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
+const OverflowMenu: React.FC<OverflowMenuProps> = ({
+  actions,
+  rowKey,
+  widgetType,
+}) => {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(
     null
@@ -153,6 +160,9 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
         ref={buttonRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
+        {...(rowKey
+          ? tourFieldAttr('library-shell.archive-menu', widgetType, rowKey)
+          : {})}
         className="flex items-center justify-center rounded-lg text-brand-blue-dark/60 hover:text-brand-blue-dark hover:bg-brand-blue-lighter/30 transition-colors"
         style={{
           width: 'min(30px, 8cqmin)',
@@ -184,7 +194,7 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
             }}
             className="min-w-[160px] bg-white rounded-lg shadow-lg border border-brand-blue-primary/15 py-1"
           >
-            {orderedActions.map((item) => {
+            {orderedActions.map((item, i) => {
               const Icon = item.icon;
               return (
                 <button
@@ -198,6 +208,13 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
                   }}
                   disabled={item.disabled}
                   title={item.disabled ? item.disabledReason : undefined}
+                  {...(rowKey
+                    ? tourFieldAttr(
+                        'library-shell.archive-menu-item',
+                        widgetType,
+                        `${rowKey}-item-${i + 1}`
+                      )
+                    : {})}
                   className={`w-full flex items-center gap-2 text-left px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                     item.destructive
                       ? 'text-brand-red-dark hover:bg-brand-red-lighter/30'
@@ -226,9 +243,13 @@ export function AssignmentArchiveCard<TAssignment>({
   meta,
   title,
   subtitle,
+  tourIndex,
+  tourWidgetType,
 }: AssignmentArchiveCardProps<TAssignment>): React.ReactElement {
   const tone = TONE_STYLES[status.tone];
   const isArchive = mode === 'archive';
+  const tourRowKey = tourIndex != null ? `row-${tourIndex + 1}` : undefined;
+  const tourWidgetTypeResolved = tourWidgetType ?? 'library';
 
   const PrimaryIcon = primaryAction?.icon;
 
@@ -338,6 +359,13 @@ export function AssignmentArchiveCard<TAssignment>({
                   ? primaryAction.disabledReason
                   : undefined
               }
+              {...(tourRowKey
+                ? tourFieldAttr(
+                    'library-shell.archive-primary-action',
+                    tourWidgetTypeResolved,
+                    tourRowKey
+                  )
+                : {})}
               className="flex w-full items-center justify-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 gap: 'min(6px, 1.5cqmin)',
@@ -387,7 +415,11 @@ export function AssignmentArchiveCard<TAssignment>({
             no kebab so the primary-action column stays vertically aligned
             with sibling rows that do. */}
         {secondaryActions && secondaryActions.length > 0 ? (
-          <OverflowMenu actions={secondaryActions} />
+          <OverflowMenu
+            actions={secondaryActions}
+            rowKey={tourRowKey}
+            widgetType={tourWidgetTypeResolved}
+          />
         ) : (
           <div
             aria-hidden="true"
