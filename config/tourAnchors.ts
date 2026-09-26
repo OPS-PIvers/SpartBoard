@@ -539,6 +539,363 @@ export const TOUR_ANCHORS = {
     label: 'Remove a point for a team in Scoreboard',
     perField: true,
   },
+  'widget-settings.pdf.switch-document': {
+    label: 'Switch document button in PDF settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.projects.library': {
+    label: 'Go to library button in Projects settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.qr.url': {
+    label: 'Destination URL input in QR settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.qr.sync-text': {
+    label: 'Sync with Text widget toggle in QR settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.recess-gear.linked-weather': {
+    label: 'Linked Weather widget select in Recess Gear settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.import-roster': {
+    label: 'Import from roster button in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.ai-draft': {
+    label: 'AI draft section in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.delete-question': {
+    label: 'Delete question button in Poll settings',
+    perWidget: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.poll.add-question': {
+    label: 'Add question button in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.select-question': {
+    label: 'Question chip list in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.question-text': {
+    label: 'Question text input in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.add-option': {
+    label: 'Add option button in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.reset': {
+    label: 'Reset poll button in Poll settings',
+    perWidget: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.poll.export-csv': {
+    label: 'Export CSV button in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.copy-link': {
+    label: 'Copy link button in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.stop-voting': {
+    label: 'Stop voting button in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.start-voting': {
+    label: 'Start voting button in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.resume': {
+    label: 'Resume voting button in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.start-fresh': {
+    label: 'Start fresh button in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.reveal-grid.save-drive': {
+    label: 'Save to Drive button in Reveal Grid settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.reveal-grid.share': {
+    label: 'Share URL button in Reveal Grid settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.reveal-grid.load-set': {
+    label: 'Load existing set select in Reveal Grid settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.reveal-grid.paste': {
+    label: 'Paste from sheet button in Reveal Grid settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.reveal-grid.upload-csv': {
+    label: 'Upload CSV button in Reveal Grid settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.reveal-grid.generator': {
+    label: 'Generator button in Reveal Grid settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.reveal-grid.add-pasted': {
+    label: 'Add pasted cards button in Reveal Grid settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.reveal-grid.add-card': {
+    label: 'Add card button in Reveal Grid settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.schedule.import-calendar': {
+    label: "Import today's events button in Schedule settings",
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.schedule.add-schedule': {
+    label: 'Add schedule button in Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.schedule.select-schedule': {
+    label: 'Schedule tab list in Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.schedule.schedule-name': {
+    label: 'Schedule name input in Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.schedule.new-schedule': {
+    label: 'New schedule button in Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.schedule.delete-schedule': {
+    label: 'Delete schedule button in Schedule settings',
+    perWidget: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.schedule.select-day': {
+    label: 'Day picker in Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.schedule.sort-events': {
+    label: 'Sort events button in Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.schedule.add-event': {
+    label: 'Add event button in Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.schedule.add-event-today': {
+    label: 'Add today-only event button in Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.schedule.building-schedules': {
+    label: 'Building schedules toggle in Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.scoreboard.layout': {
+    label: 'Layout choice in Scoreboard settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.scoreboard.import-random-groups': {
+    label: 'Import random groups button in Scoreboard settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.scoreboard.use-group-names': {
+    label: 'Use group names checkbox in Scoreboard settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.scoreboard.import-class-groups': {
+    label: 'Import class groups button in Scoreboard settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.scoreboard.resync-members': {
+    label: 'Resync members button in Scoreboard settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.scoreboard.add-team': {
+    label: 'Add team button in Scoreboard settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.scoreboard.reset-scores': {
+    label: 'Reset all scores button in Scoreboard settings',
+    perWidget: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.seating-chart.clear-assignments': {
+    label: 'Clear assignments button in Seating Chart settings',
+    perWidget: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.seating-chart.clear-furniture': {
+    label: 'Clear furniture button in Seating Chart settings',
+    perWidget: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.specialist-schedule.cancel-edit': {
+    label: 'Cancel edit button in Specialist Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.specialist-schedule.activity-input': {
+    label: 'Activity text input in Specialist Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.specialist-schedule.start-time': {
+    label: 'Start time input in Specialist Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.specialist-schedule.end-time': {
+    label: 'End time input in Specialist Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.specialist-schedule.save-item': {
+    label: 'Save item button in Specialist Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.specialist-schedule.add-item': {
+    label: 'Add item button in Specialist Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.starter-pack.pack-name': {
+    label: 'Pack name input in Starter Pack settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.starter-pack.save-personal': {
+    label: 'Save personal pack button in Starter Pack settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.starter-pack.save-global': {
+    label: 'Save global pack button in Starter Pack settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.stations.add-station': {
+    label: 'Add station button in Stations settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.stations.import-class-groups': {
+    label: 'Import class groups button in Stations settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.syntax-framer.content': {
+    label: 'Content textarea in Syntax Framer settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.time-tool.mode': {
+    label: 'Timer/stopwatch mode picker in Time Tool settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.time-tool.voice-level': {
+    label: 'Voice level picker in Time Tool settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.time-tool.traffic-color': {
+    label: 'Traffic color picker in Time Tool settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.weather.show-feels-like': {
+    label: 'Show feels-like toggle in Weather settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.weather.sync-station': {
+    label: 'Sync station button in Weather settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.weather.sync-city': {
+    label: 'Sync city button in Weather settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.random.group-count': {
+    label: 'Group count slider in Random Picker settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.random.import-class': {
+    label: 'Import class button in Random Picker settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.random.clear-names': {
+    label: 'Clear names button in Random Picker settings',
+    perWidget: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.random.send-stations': {
+    label: 'Send to Stations button in Random Picker settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.random.send-projects': {
+    label: 'Send to Projects button in Random Picker settings',
+    perWidget: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

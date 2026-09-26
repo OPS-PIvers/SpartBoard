@@ -4,6 +4,7 @@ import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { resolveLabel } from '@/components/settings/renderer/resolveLabel';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { TIME_TOOL_MODES, type TimeToolMode } from '@/config/timeTool';
+import { tourAttr } from '@/config/tourAnchors';
 
 export type CustomFieldProps = { ctx: CustomRenderCtx };
 
@@ -18,6 +19,7 @@ type RadioGroupProps<V> = {
   onSelect: (value: V) => void;
   selectedClass?: (value: V) => string;
   disabled?: boolean;
+  anchor?: ReturnType<typeof tourAttr>;
 };
 
 // Segmented-style radiogroup for Custom fields; labelId (from FieldRenderer) names it, falling back to aria-label only when no labelId arrives.
@@ -30,6 +32,7 @@ function TimeToolRadioGroup<V extends string | number | null>({
   onSelect,
   selectedClass,
   disabled = false,
+  anchor,
 }: RadioGroupProps<V>) {
   const values = options.map((option) => option.value);
   const selectedIndex = values.indexOf(value);
@@ -45,6 +48,7 @@ function TimeToolRadioGroup<V extends string | number | null>({
         handleRadioGroupKeyDown(e, values, onSelect);
       }}
       className="flex flex-wrap gap-1 bg-slate-100 rounded-lg p-1"
+      {...anchor}
     >
       {options.map((option, index) => {
         const selected = option.value === value;
@@ -118,6 +122,11 @@ export const TimeToolModeField: React.FC<CustomFieldProps> = ({ ctx }) => {
       }))}
       value={mode}
       onSelect={select}
+      anchor={tourAttr(
+        'widget-settings.time-tool.mode',
+        ctx.widget.id,
+        ctx.widget.type
+      )}
     />
   );
 };
@@ -145,6 +154,11 @@ export const TimeToolVoiceLevelField: React.FC<CustomFieldProps> = ({
       ]}
       value={value}
       onSelect={(level) => ctx.updateConfig({ timerEndVoiceLevel: level })}
+      anchor={tourAttr(
+        'widget-settings.time-tool.voice-level',
+        ctx.widget.id,
+        ctx.widget.type
+      )}
     />
   );
 };
@@ -192,6 +206,11 @@ export const TimeToolTrafficColorField: React.FC<CustomFieldProps> = ({
       value={value}
       onSelect={(color) => ctx.updateConfig({ timerEndTrafficColor: color })}
       selectedClass={trafficSelectedClass}
+      anchor={tourAttr(
+        'widget-settings.time-tool.traffic-color',
+        ctx.widget.id,
+        ctx.widget.type
+      )}
     />
   );
 };

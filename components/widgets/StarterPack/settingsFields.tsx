@@ -7,6 +7,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { createBoardSnapshot } from '@/utils/widgetHelpers';
+import { tourAttr } from '@/config/tourAnchors';
 
 const appId =
   String(import.meta.env.VITE_FIREBASE_APP_ID ?? '') ||
@@ -102,6 +103,11 @@ export const StarterPackField: React.FC<{ ctx: CustomRenderCtx }> = ({
         placeholder={t('packNamePlaceholder')}
         aria-label={t('packName')}
         className="w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-xs transition-colors focus:border-brand-blue-primary focus:outline-none"
+        {...tourAttr(
+          'widget-settings.starter-pack.pack-name',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       />
       <p className="text-xxs leading-relaxed text-slate-600">
         {t('description')}
@@ -112,6 +118,11 @@ export const StarterPackField: React.FC<{ ctx: CustomRenderCtx }> = ({
           onClick={() => void handleSavePersonal()}
           disabled={disabled}
           className="flex w-full flex-col items-center gap-1.5 rounded-xl bg-brand-blue-primary px-4 py-3 font-bold text-white shadow-sm transition-colors hover:bg-brand-blue-dark disabled:opacity-50"
+          {...tourAttr(
+            'widget-settings.starter-pack.save-personal',
+            ctx.widget.id,
+            ctx.widget.type
+          )}
         >
           <Save className="h-5 w-5" aria-hidden="true" />
           <span>{saving ? t('saving') : t('savePersonal')}</span>
@@ -125,6 +136,11 @@ export const StarterPackField: React.FC<{ ctx: CustomRenderCtx }> = ({
             onClick={() => void handleSaveGlobal()}
             disabled={disabled}
             className="flex w-full flex-col items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:opacity-50"
+            {...tourAttr(
+              'widget-settings.starter-pack.save-global',
+              ctx.widget.id,
+              ctx.widget.type
+            )}
           >
             <Globe className="h-5 w-5" aria-hidden="true" />
             <span>{saving ? t('saving') : t('saveGlobal')}</span>

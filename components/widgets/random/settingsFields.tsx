@@ -18,6 +18,7 @@ import { getLocalIsoDate } from '@/utils/localDate';
 import { countRosterGroupMembers } from '@/utils/rosterGroups';
 import { combineRosterNames } from '@/utils/rosterNameLists';
 import { useRosterGroupsIntegrationSettings } from '@/hooks/useRosterGroupsIntegrationSettings';
+import { tourAttr } from '@/config/tourAnchors';
 
 function useStudentCount(config: RandomConfig): number {
   const { rosters, activeRosterId } = useDashboard();
@@ -64,6 +65,11 @@ export const RandomGroupCountField: React.FC<{
       aria-labelledby={ctx.labelId}
       aria-describedby={ctx.describedBy}
       className="flex items-center gap-3"
+      {...tourAttr(
+        'widget-settings.random.group-count',
+        ctx.widget.id,
+        ctx.widget.type
+      )}
     >
       <input
         type="range"
@@ -135,6 +141,11 @@ export const RandomRosterActionsField: React.FC<{
         disabled={!activeRoster}
         onClick={importRoster}
         className="rounded-lg bg-brand-blue-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"
+        {...tourAttr(
+          'widget-settings.random.import-class',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       >
         {ctx.t('widgetSettings.random.importClass')}
       </button>
@@ -142,6 +153,11 @@ export const RandomRosterActionsField: React.FC<{
         type="button"
         onClick={() => void clearNames()}
         className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
+        {...tourAttr(
+          'widget-settings.random.clear-names',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       >
         {ctx.t('widgetSettings.random.clearNames')}
       </button>
@@ -242,6 +258,11 @@ export const RandomSendToStationsField: React.FC<{
       disabled={!stationsWidget}
       onClick={() => void send()}
       className="w-full rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-40"
+      {...tourAttr(
+        'widget-settings.random.send-stations',
+        ctx.widget.id,
+        ctx.widget.type
+      )}
     >
       {ctx.t('widgetSettings.random.sendToStations')}
     </button>
@@ -345,6 +366,11 @@ export const RandomSendToProjectsField: React.FC<{
       disabled={!projectsWidget}
       onClick={() => void send()}
       className="w-full rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-40"
+      {...tourAttr(
+        'widget-settings.random.send-projects',
+        ctx.widget.id,
+        ctx.widget.type
+      )}
     >
       {ctx.t('widgetSettings.random.sendToProjects')}
     </button>

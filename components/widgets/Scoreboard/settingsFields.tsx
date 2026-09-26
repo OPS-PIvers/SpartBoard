@@ -18,6 +18,7 @@ import {
 } from '@/config/scoreboard';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useTranslation } from 'react-i18next';
+import { tourAttr } from '@/config/tourAnchors';
 
 const TeamNameInput: React.FC<{
   value: string;
@@ -319,6 +320,11 @@ export const ScoreboardSettings: React.FC<{
             className="flex items-center bg-slate-200/80 rounded-lg p-0.5"
             role="radiogroup"
             aria-labelledby={layoutLabelId}
+            {...tourAttr(
+              'widget-settings.scoreboard.layout',
+              widget.id,
+              widget.type
+            )}
           >
             <button
               type="button"
@@ -366,6 +372,11 @@ export const ScoreboardSettings: React.FC<{
             onClick={importFromRandom}
             disabled={!randomWidget}
             data-testid="import-groups-btn"
+            {...tourAttr(
+              'widget-settings.scoreboard.import-random-groups',
+              widget.id,
+              widget.type
+            )}
             title={
               !randomWidget
                 ? t('widgetSettings.scoreboard.addRandomizerFirst')
@@ -392,6 +403,11 @@ export const ScoreboardSettings: React.FC<{
               checked={useGroupNames}
               onChange={(e) => setUseGroupNames(e.target.checked)}
               className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+              {...tourAttr(
+                'widget-settings.scoreboard.use-group-names',
+                widget.id,
+                widget.type
+              )}
             />
             <span>{t('widgetSettings.scoreboard.useGroupNames')}</span>
           </label>
@@ -400,6 +416,11 @@ export const ScoreboardSettings: React.FC<{
             variant="secondary"
             onClick={() => void importClassGroups()}
             icon={<Plus className="w-3 h-3" />}
+            {...tourAttr(
+              'widget-settings.scoreboard.import-class-groups',
+              widget.id,
+              widget.type
+            )}
           >
             {t('widgetSettings.scoreboard.importClassGroups', {
               count: rosterGroups.length,
@@ -411,6 +432,11 @@ export const ScoreboardSettings: React.FC<{
               variant="ghost"
               onClick={resyncMembers}
               icon={<RefreshCw className="w-3 h-3" />}
+              {...tourAttr(
+                'widget-settings.scoreboard.resync-members',
+                widget.id,
+                widget.type
+              )}
             >
               {t('widgetSettings.scoreboard.resyncMembers')}
             </Button>
@@ -448,6 +474,11 @@ export const ScoreboardSettings: React.FC<{
             <button
               onClick={() => setShowResetConfirm(true)}
               className="text-xxs font-bold text-red-500 hover:text-red-600 underline"
+              {...tourAttr(
+                'widget-settings.scoreboard.reset-scores',
+                widget.id,
+                widget.type
+              )}
             >
               {t('widgetSettings.scoreboard.resetScores')}
             </button>
@@ -496,6 +527,11 @@ export const ScoreboardSettings: React.FC<{
           className="w-full py-3 border-2 border-dashed border-slate-200 text-slate-400 hover:border-brand-blue-primary hover:text-brand-blue-primary"
           variant="ghost"
           icon={<Plus className="w-4 h-4" />}
+          {...tourAttr(
+            'widget-settings.scoreboard.add-team',
+            widget.id,
+            widget.type
+          )}
         >
           {t('widgetSettings.scoreboard.addTeam')}
         </Button>

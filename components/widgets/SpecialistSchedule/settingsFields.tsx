@@ -8,6 +8,7 @@ import type {
   SpecialistScheduleRecurringItem,
   SpecialistScheduleGlobalConfig,
 } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 const DAYS_OF_WEEK = [
   'sunday',
@@ -67,6 +68,11 @@ const SpecialistScheduleItemEditor: React.FC<{
           type="button"
           onClick={onCancel}
           className="text-xs font-semibold text-slate-500 hover:text-slate-800"
+          {...tourAttr(
+            'widget-settings.specialist-schedule.cancel-edit',
+            ctx.widget.id,
+            ctx.widget.type
+          )}
         >
           {t('cancel')}
         </button>
@@ -111,6 +117,11 @@ const SpecialistScheduleItemEditor: React.FC<{
           onChange={(event) => onChange({ task: event.target.value })}
           placeholder={t('activityPlaceholder')}
           className={inputClass}
+          {...tourAttr(
+            'widget-settings.specialist-schedule.activity-input',
+            ctx.widget.id,
+            ctx.widget.type
+          )}
         />
       </div>
 
@@ -128,6 +139,11 @@ const SpecialistScheduleItemEditor: React.FC<{
             value={draft.startTime}
             onChange={(event) => onChange({ startTime: event.target.value })}
             className={inputClass}
+            {...tourAttr(
+              'widget-settings.specialist-schedule.start-time',
+              ctx.widget.id,
+              ctx.widget.type
+            )}
           />
         </div>
         <div>
@@ -143,6 +159,11 @@ const SpecialistScheduleItemEditor: React.FC<{
             value={draft.endTime ?? ''}
             onChange={(event) => onChange({ endTime: event.target.value })}
             className={inputClass}
+            {...tourAttr(
+              'widget-settings.specialist-schedule.end-time',
+              ctx.widget.id,
+              ctx.widget.type
+            )}
           />
         </div>
       </div>
@@ -152,6 +173,11 @@ const SpecialistScheduleItemEditor: React.FC<{
         onClick={onSave}
         disabled={!draft.task.trim() || !draft.startTime}
         className="w-full rounded-lg bg-teal-600 px-3 py-2 text-xs font-bold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+        {...tourAttr(
+          'widget-settings.specialist-schedule.save-item',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       >
         {t('saveItem')}
       </button>
@@ -271,6 +297,11 @@ export const SpecialistScheduleCycleDaysField: React.FC<{
               type="button"
               onClick={startAdd}
               className={smallButtonClass}
+              {...tourAttr(
+                'widget-settings.specialist-schedule.add-item',
+                ctx.widget.id,
+                ctx.widget.type
+              )}
             >
               {t('addItem')}
             </button>
@@ -533,6 +564,11 @@ export const SpecialistScheduleRecurringItemsField: React.FC<{
                 setDraft(null);
               }}
               className="text-xs font-semibold text-slate-500 hover:text-slate-800"
+              {...tourAttr(
+                'widget-settings.specialist-schedule.cancel-edit',
+                ctx.widget.id,
+                ctx.widget.type
+              )}
             >
               {t('cancel')}
             </button>
@@ -583,6 +619,11 @@ export const SpecialistScheduleRecurringItemsField: React.FC<{
               }
               placeholder={t('activityPlaceholder')}
               className={inputClass}
+              {...tourAttr(
+                'widget-settings.specialist-schedule.activity-input',
+                ctx.widget.id,
+                ctx.widget.type
+              )}
             />
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -605,6 +646,11 @@ export const SpecialistScheduleRecurringItemsField: React.FC<{
                   )
                 }
                 className={inputClass}
+                {...tourAttr(
+                  'widget-settings.specialist-schedule.start-time',
+                  ctx.widget.id,
+                  ctx.widget.type
+                )}
               />
             </div>
             <div>
@@ -626,6 +672,11 @@ export const SpecialistScheduleRecurringItemsField: React.FC<{
                   )
                 }
                 className={inputClass}
+                {...tourAttr(
+                  'widget-settings.specialist-schedule.end-time',
+                  ctx.widget.id,
+                  ctx.widget.type
+                )}
               />
             </div>
           </div>
@@ -634,6 +685,11 @@ export const SpecialistScheduleRecurringItemsField: React.FC<{
             onClick={save}
             disabled={!draft?.task.trim() || !draft.startTime}
             className="w-full rounded-lg bg-teal-600 px-3 py-2 text-xs font-bold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+            {...tourAttr(
+              'widget-settings.specialist-schedule.save-item',
+              ctx.widget.id,
+              ctx.widget.type
+            )}
           >
             {t('saveItem')}
           </button>

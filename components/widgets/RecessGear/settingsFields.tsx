@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import type { RecessGearConfig, WeatherConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const RecessWeatherSourceField: React.FC<{
   ctx: CustomRenderCtx;
@@ -32,6 +33,11 @@ export const RecessWeatherSourceField: React.FC<{
           })
         }
         className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500"
+        {...tourAttr(
+          'widget-settings.recess-gear.linked-weather',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       >
         <option value="">
           {ctx.t('widgetSettings.recessGear.autoSelect')}
