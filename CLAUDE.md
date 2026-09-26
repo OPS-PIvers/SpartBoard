@@ -132,8 +132,8 @@ allowlist fails toward a cosmetic annoyance.
 ### Editing a plan in `docs/plans/`
 
 `docs/plans/` holds only live plans. `docs/plans/shipped/` is the read-only decision record for
-shipped plans that code comments cite (e.g. "D3"); don't revise those, and move a plan there once
-it ships and something cites it.
+shipped plans that code comments cite (e.g. "D3"); don't revise those. Move a plan there once its
+feature is built, even if a flag flip or cleanup step remains; track that step in `TODO.md`.
 
 **Before rewriting or substantially revising any `docs/plans/*.md`, list open PRs that touch that
 file and rebase onto them instead of rewriting from the version on `main`.** These docs get multiple
