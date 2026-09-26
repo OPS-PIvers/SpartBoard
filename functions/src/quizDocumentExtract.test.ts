@@ -1,6 +1,6 @@
 /**
  * The AI reader for quiz document import
- * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D3, D18, D19, D20).
+ * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D3, D18, D19, D20).
  *
  * The rule the whole feature rests on is "extract, never invent": a wrong
  * answer key gets marked on a student's paper, so anything the model was not

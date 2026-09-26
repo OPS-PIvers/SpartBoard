@@ -1,6 +1,6 @@
 /**
  * Two equal drop zones, Test questions and Answer key, shared by every screen
- * that reads a teacher's test (docs/plans/QUIZ_IMPORT_RELIABILITY.md R14–R17,
+ * that reads a teacher's test (docs/plans/shipped/QUIZ_IMPORT_RELIABILITY.md R14–R17,
  * R30–R32). A zone holds one document or several photos of its pages.
  */
 

@@ -1,6 +1,6 @@
 /**
  * A test and its optional answer key file, read the same way from every
- * screen that has the two drop zones (docs/plans/QUIZ_IMPORT_RELIABILITY.md R14).
+ * screen that has the two drop zones (docs/plans/shipped/QUIZ_IMPORT_RELIABILITY.md R14).
  */
 
 import { mergeAnswerKey, readAnswerKeyFile } from './index';

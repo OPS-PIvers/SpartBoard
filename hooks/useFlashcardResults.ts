@@ -1,6 +1,6 @@
 /**
  * useFlashcardResults — teacher-side view of one flashcard assignment
- * (docs/plans/FLASHCARDS.md §6 "Teacher results"). Subscribes to the session
+ * (docs/plans/shipped/FLASHCARDS.md §6 "Teacher results"). Subscribes to the session
  * doc and its `progress` subcollection while a results view is open.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';

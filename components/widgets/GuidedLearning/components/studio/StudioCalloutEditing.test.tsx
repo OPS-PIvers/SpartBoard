@@ -567,6 +567,8 @@ describe('Studio callout editing (gl-callout-editing)', () => {
     const toolbar = () => screen.getByTestId('gl-callout-toolbar');
     const button = (name: string) =>
       within(toolbar()).getByRole('button', { name });
+    const colourRadio = (name: string) =>
+      within(toolbar()).getByRole('radio', { name });
 
     it('shows over a selected callout and leaves the canvas gesture alone', () => {
       selectCallout();
@@ -614,11 +616,11 @@ describe('Studio callout editing (gl-callout-editing)', () => {
 
     it('picks a colour and marks the one in use', () => {
       selectCallout();
-      expect(button('Dark')).toHaveAttribute('aria-pressed', 'true');
-      fireEvent.click(button('Accent'));
+      expect(colourRadio('Dark')).toHaveAttribute('aria-checked', 'true');
+      fireEvent.click(colourRadio('Accent'));
       expect(stepById('rect-1').calloutTone).toBe('accent');
-      expect(button('Accent')).toHaveAttribute('aria-pressed', 'true');
-      fireEvent.click(button('Dark'));
+      expect(colourRadio('Accent')).toHaveAttribute('aria-checked', 'true');
+      fireEvent.click(colourRadio('Dark'));
       expect(stepById('rect-1').calloutTone).toBeUndefined();
     });
 

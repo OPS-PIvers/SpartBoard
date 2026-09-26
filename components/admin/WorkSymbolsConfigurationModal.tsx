@@ -8,6 +8,7 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { canonicalizeBuildingIds } from '@/config/buildings';
 import {
   FeaturePermission,
   WorkSymbol,
@@ -32,7 +33,11 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const normalizeConfig = (raw: unknown): WorkSymbolsGlobalConfig => {
   const config = raw as WorkSymbolsGlobalConfig | undefined;
   return {
-    symbols: config?.symbols ?? [],
+    // symbol.buildings may hold a legacy long-form id that would never match building.id's canonical form.
+    symbols: (config?.symbols ?? []).map((s) => ({
+      ...s,
+      buildings: canonicalizeBuildingIds(s.buildings),
+    })),
     buildingDefaults: config?.buildingDefaults ?? {},
   };
 };

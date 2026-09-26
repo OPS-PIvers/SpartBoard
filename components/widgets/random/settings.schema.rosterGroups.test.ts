@@ -1,6 +1,6 @@
 /**
  * Both roster-groups settings cards are gated on the `roster-groups`
- * permission (docs/plans/ROSTER_GROUPS_INTEGRATION.md D23).
+ * permission (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D23).
  *
  * The lock card shipped without that check in a first pass while its sibling
  * had it, so a teacher without the permission saw a working-looking control

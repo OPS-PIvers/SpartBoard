@@ -1,5 +1,5 @@
 // Firestore security-rules tests for per-period access on quiz sessions
-// (docs/plans/PER_PERIOD_ASSIGNMENT_ACCESS.md): the periodOpen / studentLetIn
+// (docs/plans/shipped/PER_PERIOD_ASSIGNMENT_ACCESS.md): the periodOpen / studentLetIn
 // gate on response writes, the rules-enforced global pause, the join rules for
 // per-period sessions, and the hidden content/questions doc. Requires a running
 // Firestore emulator; invoke via `pnpm run test:rules`.

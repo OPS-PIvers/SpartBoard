@@ -1,5 +1,5 @@
 /**
- * extractStimulusReadAloudText (docs/plans/QUIZ_READ_ALOUD.md §4.2): text layer
+ * extractStimulusReadAloudText (docs/plans/shipped/QUIZ_READ_ALOUD.md §4.2): text layer
  * vs OCR fallback vs needs-manual, plus the OCR quota charge.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';

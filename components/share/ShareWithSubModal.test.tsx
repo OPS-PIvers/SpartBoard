@@ -10,7 +10,7 @@ import {
 } from '@testing-library/react';
 
 // Ported from ShareLinkCreatorModal.test.tsx when substitute mode moved into
-// this dialog (docs/plans/SUB_SHARE_COLLECTIONS.md §3.2). The sub-email
+// this dialog (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md §3.2). The sub-email
 // regressions guarded there are this component's now: every other "add an
 // email" call site in the app lowercases before storing and de-duping, because
 // `.includes()` and Firestore array membership are case-sensitive, and the

@@ -1,7 +1,7 @@
 /**
  * SubSharesPanel — what the teacher currently has out with a substitute, and
  * the four things they do with it: copy the link, push the current boards,
- * add a week, or end it now (docs/plans/SUB_SHARE_COLLECTIONS.md §3.7).
+ * add a week, or end it now (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md §3.7).
  *
  * Renders nothing when nothing is shared, so it stays out of the way.
  */

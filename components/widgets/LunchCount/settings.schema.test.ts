@@ -61,7 +61,7 @@ describe('lunchCount settings schema', () => {
 });
 
 describe('lunchCount config migration', () => {
-  // Pre-migration fixture from docs/plans/widget-settings-inventory.md ("## lunchCount").
+  // Pre-migration fixture from docs/plans/shipped/widget-settings-inventory.md ("## lunchCount").
   const fixture: WidgetData = {
     id: 'w1',
     type: 'lunchCount',

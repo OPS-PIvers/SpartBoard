@@ -353,7 +353,7 @@ export const RandomSendToProjectsField: React.FC<{
 
 /**
  * "Keep these groups together" — the Lock role
- * (docs/plans/ROSTER_GROUPS_INTEGRATION.md D6/D7).
+ * (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D6/D7).
  *
  * Deliberately separate from the pool control in the class picker: one
  * checkbox meaning "include" or "keep together" depending on what else is
@@ -436,7 +436,7 @@ export const RandomLockedGroupsField: React.FC<{ ctx: CustomRenderCtx }> = ({
 
 /**
  * "Save as class groups" — the write-back half of the two-way link
- * (docs/plans/ROSTER_GROUPS_INTEGRATION.md D3/D18).
+ * (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D3/D18).
  *
  * Always creates; it never edits a saved group in place, so a teacher can't
  * lose a hand-built group to a stray randomize. Saves `studentIds` rather

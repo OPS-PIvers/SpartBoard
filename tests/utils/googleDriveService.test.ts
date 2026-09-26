@@ -562,7 +562,7 @@ describe('GoogleDriveService', () => {
     });
   });
 
-  // docs/plans/QUIZ_DOCUMENT_IMPORT.md D4: one path for all three file types.
+  // docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D4: one path for all three file types.
   describe('downloadDocumentAsBlob', () => {
     const DOCX =
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document';

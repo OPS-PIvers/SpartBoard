@@ -73,7 +73,7 @@ export const sanitizeBoardForRecipient = (board: Dashboard): Dashboard =>
  * Snapshot for a substitute share. Same scrub as `sanitizeBoardForRecipient`,
  * but keeps the host's pen annotations and share groups: a sub is looking at
  * the teacher's own board for the day, not starting from its design
- * (docs/plans/SUB_SHARE_COLLECTIONS.md D4).
+ * (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md D4).
  */
 export const sanitizeBoardForSubShare = (board: Dashboard): Dashboard => {
   const cleaned = sanitizeBoardForRecipient(board);

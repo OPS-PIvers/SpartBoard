@@ -648,7 +648,7 @@ which means only the orchestrator edits that file after agents finish: `types.ts
 `context/DashboardContext.tsx`, `context/DashboardContextValue.ts`,
 `scripts/test-count-baseline.json`, `tests/components/settings/legacySnapshots.test.tsx`,
 `tests/components/widgets/legacyRegistryFreeze.test.ts`, and
-`docs/plans/widget-settings-inventory.md`. Snapshot retirement, freeze-list shrink, burndown
+`docs/plans/shipped/widget-settings-inventory.md`. Snapshot retirement, freeze-list shrink, burndown
 rows and the test-count baseline are applied **once per wave by the orchestrator** after agents
 finish; agents report their widget name only. Any wave that deletes tests or retires snapshots
 updates `scripts/test-count-baseline.json` in the orchestrator's commit, or `pnpm run
@@ -662,7 +662,7 @@ commits, pushes, opens a draft PR, and only then starts the next wave.
   into §6 and commit. If analytics is empty, keep the provisional list and say so.
 - **0.2** Inventory every settings component for: config keys written, controls used, `t()` vs
   hardcoded labels, duplicate-of-Style controls, keys missing from `WIDGET_DEFAULTS`. Output
-  `docs/plans/widget-settings-inventory.md` (table: widget · key · control · group guess ·
+  `docs/plans/shipped/widget-settings-inventory.md` (table: widget · key · control · group guess ·
   keep/remove/rename · in-defaults?). Input for every migration item and for wave 1a's backfill.
 - **0.3** String count (D20): from the 0.2 inventory, count label/help strings per widget and
   write the totals into §6 (column "Strings"). This sizes the deferred translation follow-up;
@@ -771,7 +771,7 @@ Same item template as wave 2, ten widgets per wave (nine in the last), ordered b
 ranking continued past #10. Each wave carries its `en.json` key item and retires its 0.4
 snapshots. Widgets whose settings open an editor modal (Quiz, VideoActivity, GuidedLearning)
 wrap the "open editor" button as a `Custom` field with a `// schema-gap:` note and do not inline
-the editor. Keep a burndown table in `docs/plans/widget-settings-inventory.md` (widget · wave ·
+the editor. Keep a burndown table in `docs/plans/shipped/widget-settings-inventory.md` (widget · wave ·
 PR · done) updated by every wave's orchestrator.
 
 Old-key deletion steps for renames made in waves 5–9 are registered in wave 10, one release

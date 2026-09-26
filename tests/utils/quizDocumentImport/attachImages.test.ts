@@ -1,6 +1,6 @@
 /**
  * Pictures from a Word test becoming quiz stimuli
- * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D13, D14). The ids a question carries
+ * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D13, D14). The ids a question carries
  * between the read and the save are the reader's own, so the thing under test
  * is that every one of them is either swapped for a real stimulus or dropped.
  */

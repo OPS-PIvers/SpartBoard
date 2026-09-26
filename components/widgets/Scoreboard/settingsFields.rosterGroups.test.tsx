@@ -1,6 +1,6 @@
 /**
  * Scoreboard × saved class groups
- * (docs/plans/ROSTER_GROUPS_INTEGRATION.md D17/D20).
+ * (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D17/D20).
  *
  * Seed-once-then-independent is the whole point of the design, so the two
  * assertions that matter are that an import never projects a group's private

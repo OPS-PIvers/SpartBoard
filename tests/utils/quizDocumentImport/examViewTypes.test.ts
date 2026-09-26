@@ -1,6 +1,6 @@
 /**
  * Every ExamView question type, keys, points and metadata
- * (docs/plans/QUIZ_EXAMVIEW_IMPORT.md E5–E10, E17). The fixture copies
+ * (docs/plans/shipped/QUIZ_EXAMVIEW_IMPORT.md E5–E10, E17). The fixture copies
  * ExamView's RTF layout: answer blanks and option letters in their own
  * table cells, and the Answer Section at the back.
  */

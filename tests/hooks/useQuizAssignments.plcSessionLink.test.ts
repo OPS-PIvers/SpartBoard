@@ -1,5 +1,5 @@
 /**
- * PR 1 of docs/plans/PLC_ASSESSMENT_DATA.md: a PLC-linked assignment stamps
+ * PR 1 of docs/plans/shipped/PLC_ASSESSMENT_DATA.md: a PLC-linked assignment stamps
  * the SESSION doc with `plcId` / `syncGroupId` / `plcLinkedAt` so the server
  * can pool results without reading the teacher's private assignment doc.
  */

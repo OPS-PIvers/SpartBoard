@@ -1,6 +1,6 @@
 /**
  * Client view of the delegated-printing callables
- * (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md §5).
+ * (docs/plans/shipped/PLC_DELEGATED_PAPER_PRINTING.md §5).
  *
  * Every field is server-derived, including membership and the seat map — the
  * picker renders what it is handed and sends back selections, never a batch.

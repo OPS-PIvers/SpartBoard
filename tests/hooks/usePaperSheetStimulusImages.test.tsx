@@ -1,6 +1,6 @@
 /**
  * usePaperSheetStimulusImages — what makes it go back to Drive, and what does
- * not (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D16).
+ * not (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md D16).
  */
 
 import React from 'react';

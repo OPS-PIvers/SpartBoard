@@ -1,6 +1,6 @@
 /**
  * getTeammatePrintContextV1 — everything the "print for a teammate" picker
- * needs, read-only (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md §5.1).
+ * needs, read-only (docs/plans/shipped/PLC_DELEGATED_PAPER_PRINTING.md §5.1).
  *
  * Increment 1 of the delegated-printing stack. It answers "what WOULD print
  * for this colleague" and writes nothing, anywhere — the batch-creating half

@@ -1,6 +1,6 @@
 /**
  * The AI reader's questions go through the same ExamView steps when the
- * document is ExamView (docs/plans/QUIZ_EXAMVIEW_IMPORT.md E17), and key
+ * document is ExamView (docs/plans/shipped/QUIZ_EXAMVIEW_IMPORT.md E17), and key
  * standards match the catalog exactly or not at all (E10).
  */
 import { describe, it, expect, vi } from 'vitest';

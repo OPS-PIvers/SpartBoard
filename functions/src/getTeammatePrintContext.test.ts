@@ -1,5 +1,5 @@
 // Unit tests for the delegated paper-print read path
-// (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md §5.1).
+// (docs/plans/shipped/PLC_DELEGATED_PAPER_PRINTING.md §5.1).
 //
 // Two things are worth pinning here and nothing else is: the §4 authorization
 // ladder — this is the app's first act-for-another-teacher path, so each of the

@@ -90,7 +90,7 @@ interface ResultsProps {
   /**
    * PLC linkage for this assignment, if any. Unused at render time — kept
    * on the props shape so callers don't have to drop the prop. VA session
-   * pooling is out of scope for PR 1 of docs/plans/PLC_ASSESSMENT_DATA.md.
+   * pooling is out of scope for PR 1 of docs/plans/shipped/PLC_ASSESSMENT_DATA.md.
    */
   plc?: PlcLinkage;
 }

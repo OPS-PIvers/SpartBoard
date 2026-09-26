@@ -1,5 +1,5 @@
 // Firestore security-rules tests for per-period access on mini-app sessions
-// (docs/plans/PER_PERIOD_ASSIGNMENT_ACCESS.md): the seat that names the
+// (docs/plans/shipped/PER_PERIOD_ASSIGNMENT_ACCESS.md): the seat that names the
 // student's period, the maOpen gate on submissions, the teacher's gate writes
 // and the hidden content doc. Requires a running Firestore emulator; invoke
 // via `pnpm run test:rules`.

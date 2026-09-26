@@ -1,6 +1,6 @@
 /**
  * Regression tests for the answer-key failures measured on real teacher files
- * (docs/plans/QUIZ_IMPORT_RELIABILITY.md "What fails today", R10–R13, R26,
+ * (docs/plans/shipped/QUIZ_IMPORT_RELIABILITY.md "What fails today", R10–R13, R26,
  * R29). Fixtures are synthetic and copy only the layout.
  */
 import { describe, it, expect } from 'vitest';

@@ -131,4 +131,4 @@ Per GUIDED_LEARNING_STUDIO.md P1-10: remove the `gl-studio` gate and the classic
 
 ## Release
 
-No flag (G19). A `public/changelog.json` entry for teachers goes in with the `main` release that carries PR 2, written by the rules in [docs/DEV_WORKFLOW.md](../DEV_WORKFLOW.md#how-to-write-a-release-note).
+No flag (G19). A `public/changelog.json` entry for teachers goes in with the `main` release that carries PR 2, written by the rules in [docs/DEV_WORKFLOW.md](../../DEV_WORKFLOW.md#how-to-write-a-release-note).

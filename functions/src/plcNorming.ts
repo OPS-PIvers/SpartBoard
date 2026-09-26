@@ -1,4 +1,4 @@
-// PLC norming flags: anonymized copies of flagged answers for PLC norming (docs/plans/PLC_NORMING_FLAGS.md).
+// PLC norming flags: anonymized copies of flagged answers for PLC norming (docs/plans/shipped/PLC_NORMING_FLAGS.md).
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import {
   onDocumentDeleted,

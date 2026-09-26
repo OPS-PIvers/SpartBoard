@@ -4,7 +4,7 @@ import { mergeWidgetConfig } from '@/utils/widgetConfigPersistence';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import type { TextConfig, WidgetData } from '@/types';
 
-// Pre-migration fixture from docs/plans/widget-settings-inventory.md ("## text").
+// Pre-migration fixture from docs/plans/shipped/widget-settings-inventory.md ("## text").
 const PRE_MIGRATION_CONFIG: TextConfig = {
   content: '<p>Hello class!</p>',
   bgColor: '#fef9c3',

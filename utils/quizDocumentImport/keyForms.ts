@@ -1,6 +1,6 @@
 /**
  * The answer-key shapes a key file can take beyond a plain numbered list
- * (docs/plans/QUIZ_IMPORT_RELIABILITY.md R11, R12): publisher item blocks
+ * (docs/plans/shipped/QUIZ_IMPORT_RELIABILITY.md R11, R12): publisher item blocks
  * (`ITEM 3 … Correct Answer: c`) read from their own table column, and
  * header-aware key tables (`# | Answer | Vocabulary word`).
  */

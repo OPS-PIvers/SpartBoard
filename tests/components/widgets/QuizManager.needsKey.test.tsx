@@ -1,6 +1,6 @@
 /**
  * The Assign gate for quizzes imported without a full answer key
- * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D6). The count comes off
+ * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D6). The count comes off
  * `QuizMetadata.needsKeyCount`, which is written on save, so the library
  * answers this without loading the quiz body from Drive.
  *

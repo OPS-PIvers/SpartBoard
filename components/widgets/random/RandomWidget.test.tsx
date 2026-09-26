@@ -742,7 +742,7 @@ describe('RandomWidget', () => {
   });
 });
 
-// ─── Roster groups (docs/plans/ROSTER_GROUPS_INTEGRATION.md D5/D10-D14) ───────
+// ─── Roster groups (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D5/D10-D14) ───────
 
 describe('RandomWidget — class groups', () => {
   const student = (id: string, first: string) => ({

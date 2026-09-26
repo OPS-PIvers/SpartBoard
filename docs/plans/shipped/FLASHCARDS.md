@@ -295,7 +295,7 @@ Uppercase comes from Shift or ⇧, except ß.
 - Library view: `LibraryShell` with New set, Import, folders, and a per-set menu (Edit, Present, Share link, Assign, Assignments).
 - Editor: full-height panel with title, two language selects, the row editor, and a Paste import drawer.
 - Present view: `FlashcardPlayer` in Flashcards mode with a `MemoryAdapter`, plus a back-to-library control.
-- Settings follow the schema settings drawer pattern (`docs/plans/WIDGET_SETTINGS_DRAWER.md`).
+- Settings follow the schema settings drawer pattern (`docs/plans/shipped/WIDGET_SETTINGS_DRAWER.md`).
 
 **Assign modal**: `AssignModal` + `AssignClassPicker` + targeting, and the "Collect a submission" toggle.
 

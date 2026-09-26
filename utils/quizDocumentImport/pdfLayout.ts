@@ -1,5 +1,5 @@
 /**
- * Page layout for the PDF reader (docs/plans/QUIZ_IMPORT_RELIABILITY.md R2–R4):
+ * Page layout for the PDF reader (docs/plans/shipped/QUIZ_IMPORT_RELIABILITY.md R2–R4):
  * fragments into lines with column-gap segments, two-column pages read left
  * then right, and running headers and footers dropped. OCR words come through
  * the same code as positioned fragments, so a scanned page reads the same way.

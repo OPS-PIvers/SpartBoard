@@ -38,7 +38,7 @@ interface UseFlashcardSetsResult {
 
 const SETS_COLLECTION = 'flashcard_sets';
 
-// Study assignments stay live (docs/plans/FLASHCARDS.md Q46); Check stays frozen.
+// Study assignments stay live (docs/plans/shipped/FLASHCARDS.md Q46); Check stays frozen.
 const rewriteOpenStudySessions = async (
   userId: string,
   set: FlashcardSet

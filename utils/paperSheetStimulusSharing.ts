@@ -1,6 +1,6 @@
 /**
  * Whether a quiz's sheet images can be opened by a PLC teammate, and the ask
- * that changes that (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D6).
+ * that changes that (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md D6).
  *
  * Sheet images are uploaded unshared, because `drive.file` lets the owner read
  * their own file with their own token and nobody else read it at all. A

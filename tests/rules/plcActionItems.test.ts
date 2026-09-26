@@ -1,5 +1,5 @@
 // Firestore security rules regression coverage for PLC meeting-note action
-// items (Decision 3.5/7.4, docs/plans/PLC_ASSESSMENT_DATA.md §3.5 / §7.4):
+// items (Decision 3.5/7.4, docs/plans/shipped/PLC_ASSESSMENT_DATA.md §3.5 / §7.4):
 //   - notes accept the new optional `actionItems` list (capped at 200).
 //   - todos are legacy: create is now denied, and update accepts ONLY the
 //     `deletedAt` tombstone (archiving an imported to-do).

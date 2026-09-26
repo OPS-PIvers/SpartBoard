@@ -259,7 +259,7 @@ export interface LockedCohortResult extends GroupMakerResult {
 
 /**
  * Group students while keeping saved cohorts intact
- * (docs/plans/ROSTER_GROUPS_INTEGRATION.md D10–D13).
+ * (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D10–D13).
  *
  * Each cohort becomes one output group verbatim and is exempt from the sizing
  * control, which governs the remainder only — silently splitting a cohort to

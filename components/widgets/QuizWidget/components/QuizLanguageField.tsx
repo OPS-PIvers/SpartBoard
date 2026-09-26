@@ -1,4 +1,4 @@
-// Read-aloud language picker for the quiz editor's Settings tab (docs/plans/QUIZ_READ_ALOUD.md §6.1).
+// Read-aloud language picker for the quiz editor's Settings tab (docs/plans/shipped/QUIZ_READ_ALOUD.md §6.1).
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {

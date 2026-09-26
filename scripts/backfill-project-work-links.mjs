@@ -1,5 +1,5 @@
 /**
- * Projects redesign PR B backfill (docs/plans/PROJECTS_WIDGET.md D39, D40, D42).
+ * Projects redesign PR B backfill (docs/plans/shipped/PROJECTS_WIDGET.md D39, D40, D42).
  *
  * For every project run:
  *   - sets `createdAt` when missing (from `updatedAt`, else now);

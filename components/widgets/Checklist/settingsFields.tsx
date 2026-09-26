@@ -151,7 +151,7 @@ export const ChecklistImportActionsField: React.FC<{
 };
 
 /**
- * Pool picker (docs/plans/ROSTER_GROUPS_INTEGRATION.md D22). Checklist has no
+ * Pool picker (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D22). Checklist has no
  * class chip to hang the group submenu off, so the pool lives here instead —
  * the one deviation from D8's "class-picker submenu" placement.
  */

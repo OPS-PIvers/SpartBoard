@@ -1,6 +1,6 @@
 /**
  * ShareWithSubModal — hand a substitute a board or a whole collection for the
- * day (docs/plans/SUB_SHARE_COLLECTIONS.md §3.2). One dialog for both, because
+ * day (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md §3.2). One dialog for both, because
  * a single-board sub share is written as a one-board collection share.
  *
  * The sub sees the boards as the teacher set them up and clicks through them in
