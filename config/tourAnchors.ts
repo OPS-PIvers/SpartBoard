@@ -113,6 +113,7 @@ export const TOUR_ANCHORS = {
   'settings.field': {
     label: 'A single settings field row, by widget type and field key',
     perField: true,
+    panel: true,
   },
 
   'sidebar.open-menu': { label: 'Menu button in the top bar' },
