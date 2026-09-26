@@ -1352,6 +1352,84 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
+  'widget.close-confirm.cancel': {
+    label: 'Cancel button in the close-widget confirm',
+    perWidget: true,
+    panel: true,
+  },
+  'widget.close-confirm.confirm': {
+    label: 'Close button in the close-widget confirm',
+    perWidget: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget.annotate-toolbar.eraser': {
+    label: 'Eraser button in the widget annotate toolbar',
+    perWidget: true,
+    panel: true,
+  },
+  'widget.annotate-toolbar.undo': {
+    label: 'Undo button in the widget annotate toolbar',
+    perWidget: true,
+    panel: true,
+  },
+  'widget.annotate-toolbar.clear-all': {
+    label: 'Clear all button in the widget annotate toolbar',
+    perWidget: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget.annotate-toolbar.done': {
+    label: 'Done button in the widget annotate toolbar',
+    perWidget: true,
+    panel: true,
+  },
+  'widget.max-menu.screenshot': {
+    label: 'Screenshot button in the maximized widget menu',
+    perWidget: true,
+    panel: true,
+  },
+  'widget.max-menu.annotate': {
+    label: 'Annotate button in the maximized widget menu',
+    perWidget: true,
+    panel: true,
+  },
+  'widget.max-menu.record': {
+    label: 'Record screen button in the maximized widget menu',
+    perWidget: true,
+    panel: true,
+  },
+  'widget.title-input': { label: 'Widget title rename input', perWidget: true },
+  'widget.screenshot': {
+    label: 'Screenshot button in the widget toolbar',
+    perWidget: true,
+  },
+  'widget.ungroup': {
+    label: 'Ungroup button in the widget toolbar',
+    perWidget: true,
+  },
+  'widget.group-with': {
+    label: 'Group with button in the widget toolbar',
+    perWidget: true,
+  },
+  'widget.snap-layout.option': {
+    label: 'Snap zone option in the widget snap layout popover',
+    perField: true,
+    panel: true,
+  },
+  'widget.snap-layout.custom-grid': {
+    label: 'Custom-size drag grid in the widget snap layout popover',
+    perWidget: true,
+    panel: true,
+  },
+  'widget.maximize': {
+    label: 'Maximize/restore button in the widget toolbar',
+    perWidget: true,
+  },
+  'widget.minimize': {
+    label: 'Minimize button in the widget toolbar',
+    perWidget: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

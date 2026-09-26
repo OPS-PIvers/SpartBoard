@@ -75,7 +75,7 @@ import { IconButton } from '@/components/common/IconButton';
 import { PenColorSwatches } from '@/components/common/PenColorSwatches';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { Z_INDEX } from '@/config/zIndex';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 // Widgets that cannot be snapshotted due to CORS/Technical limitations
 const SCREENSHOT_BLACKLIST: WidgetType[] = ['webcam', 'embed'];
@@ -2399,6 +2399,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             </p>
             <div className="flex gap-2">
               <button
+                {...tourAttr(
+                  'widget.close-confirm.cancel',
+                  widget.id,
+                  widget.type
+                )}
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowConfirm(false);
@@ -2408,6 +2413,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 {t('common.cancel')}
               </button>
               <button
+                {...tourAttr(
+                  'widget.close-confirm.confirm',
+                  widget.id,
+                  widget.type
+                )}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (!isLocked) closeWidget();
@@ -2551,6 +2561,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 />
                 <div className="w-px h-4 bg-slate-300 mx-1" />
                 <IconButton
+                  {...tourAttr(
+                    'widget.annotate-toolbar.eraser',
+                    widget.id,
+                    widget.type
+                  )}
                   onClick={(e) => {
                     e.stopPropagation();
                     setAnnotationColor('eraser');
@@ -2562,6 +2577,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   active={annotationColor === 'eraser'}
                 />
                 <IconButton
+                  {...tourAttr(
+                    'widget.annotate-toolbar.undo',
+                    widget.id,
+                    widget.type
+                  )}
                   onClick={(e) => {
                     e.stopPropagation();
                     const paths = widget.annotation?.paths ?? [];
@@ -2581,6 +2601,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   variant="ghost"
                 />
                 <IconButton
+                  {...tourAttr(
+                    'widget.annotate-toolbar.clear-all',
+                    widget.id,
+                    widget.type
+                  )}
                   onClick={(e) => {
                     e.stopPropagation();
                     updateWidget(widget.id, {
@@ -2599,6 +2624,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 />
                 <div className="w-px h-4 bg-slate-300 mx-1" />
                 <button
+                  {...tourAttr(
+                    'widget.annotate-toolbar.done',
+                    widget.id,
+                    widget.type
+                  )}
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsAnnotating(false);
@@ -2912,6 +2942,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               />
               {canScreenshot && (
                 <IconButton
+                  {...tourAttr(
+                    'widget.max-menu.screenshot',
+                    widget.id,
+                    widget.type
+                  )}
                   icon={<Camera className="w-4 h-4" />}
                   label={t('widgetWindow.takeScreenshotLongPress')}
                   onClick={(e) => {
@@ -2925,6 +2960,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 />
               )}
               <IconButton
+                {...tourAttr(
+                  'widget.max-menu.annotate',
+                  widget.id,
+                  widget.type
+                )}
                 icon={<Highlighter className="w-4 h-4" />}
                 label={t('widgetWindow.annotate')}
                 onClick={(e) => {
@@ -2938,6 +2978,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 disabled={isLocked}
               />
               <IconButton
+                {...tourAttr('widget.max-menu.record', widget.id, widget.type)}
                 icon={<Video className="w-4 h-4" />}
                 label={
                   isScreenRecording
@@ -3046,6 +3087,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 <input
                   autoFocus
                   data-widget-portal=""
+                  {...tourAttr('widget.title-input', widget.id, widget.type)}
                   type="text"
                   value={tempTitle}
                   onChange={(e) => setTempTitle(e.target.value)}
@@ -3151,6 +3193,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 )}
                 {canScreenshot && (
                   <IconButton
+                    {...tourAttr('widget.screenshot', widget.id, widget.type)}
                     onClick={() => {
                       void takeScreenshot();
                       let shownTips: string[] = [];
@@ -3223,6 +3266,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   !isPinned &&
                   (widget.groupId ? (
                     <IconButton
+                      {...tourAttr('widget.ungroup', widget.id, widget.type)}
                       onClick={() => {
                         if (widget.groupId) ungroupWidgets(widget.groupId);
                         handleCloseTools();
@@ -3235,6 +3279,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     />
                   ) : (
                     <IconButton
+                      {...tourAttr('widget.group-with', widget.id, widget.type)}
                       onClick={() => {
                         setSelectedWidgetIds([widget.id]);
                         setGroupBuildMode(true);
@@ -3290,6 +3335,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                                 {layout.zones.map((zone) => (
                                   <button
                                     key={zone.id}
+                                    {...tourFieldAttr(
+                                      'widget.snap-layout.option',
+                                      widget.type,
+                                      `${layout.id}-${zone.id}`
+                                    )}
+                                    data-tour-widget={widget.id}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleSnapToZone(zone);
@@ -3331,6 +3382,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                         </div>
 
                         <div
+                          {...tourAttr(
+                            'widget.snap-layout.custom-grid',
+                            widget.id,
+                            widget.type
+                          )}
                           className="rounded-lg overflow-hidden select-none touch-none cursor-crosshair"
                           style={{
                             display: 'grid',
@@ -3425,6 +3481,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     )}
                 </div>
                 <IconButton
+                  {...tourAttr('widget.maximize', widget.id, widget.type)}
                   onClick={handleMaximizeToggle}
                   icon={
                     isMaximized ? (
@@ -3443,6 +3500,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   disabled={isLocked || (isPinned && !isMaximized)}
                 />
                 <IconButton
+                  {...tourAttr('widget.minimize', widget.id, widget.type)}
                   onClick={() => {
                     if (isLocked) return;
                     updateWidget(widget.id, {
