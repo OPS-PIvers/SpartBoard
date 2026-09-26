@@ -465,3 +465,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 #### `docs/rich-response/README.md`
 
 - [ ] Integration follow-ups listed in IMPLEMENTATION.md (PRs #2750-#2755): LTI origin handling, index wait script, lost archive states, ffmpeg guard, transit path keying. (L)
+
+#### `docs/plans/shipped/tour-anchor-audit/README.md`
+
+- [ ] Delete dead `components/layout/sidebar/SidebarBoardsActive.tsx` (only its own test imports it). (S)
