@@ -248,6 +248,18 @@ describe('AuthContext — canAccessFeature buildings check', () => {
     expect(getCtx().canAccessFeature('personal-spotify')).toBe(true);
   });
 
+  it('canonicalizes legacy permission.buildings entries against canonical selections', async () => {
+    // Legacy admin write keyed by `orono-high-school` must match the
+    // canonical `high` selection, same as the dockDefaults gate.
+    await mountAs({
+      email: 'teacher@example.com',
+      isAdmin: false,
+      selectedBuildings: ['high'],
+      perms: [{ ...baseFeature, buildings: ['orono-high-school'] }],
+    });
+    expect(getCtx().canAccessFeature('personal-spotify')).toBe(true);
+  });
+
   it('disabled wins over a passing building match', async () => {
     await mountAs({
       email: 'teacher@example.com',
