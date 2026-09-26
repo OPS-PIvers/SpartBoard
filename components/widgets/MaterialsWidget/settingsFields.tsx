@@ -18,6 +18,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   MAX_TEACHER_MATERIALS,
   buildMaterialSnapshots,
@@ -138,6 +139,11 @@ export const MaterialsTitleField: React.FC<{
       aria-labelledby={ctx.labelId}
       aria-describedby={ctx.describedBy}
       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+      {...tourAttr(
+        'widget-settings.materials.title',
+        ctx.widget.id,
+        ctx.widget.type
+      )}
     />
   );
 };
@@ -384,6 +390,11 @@ export const MaterialsCatalogField: React.FC<{
                 type="button"
                 onClick={() => setForm({ mode: 'create' })}
                 className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline"
+                {...tourAttr(
+                  'widget-settings.materials.add-material',
+                  ctx.widget.id,
+                  ctx.widget.type
+                )}
               >
                 <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                 {translate(ctx, 'addMaterial')}
@@ -393,6 +404,11 @@ export const MaterialsCatalogField: React.FC<{
               type="button"
               onClick={toggleAll}
               className="text-xs font-bold text-blue-600 hover:underline"
+              {...tourAttr(
+                'widget-settings.materials.toggle-all',
+                ctx.widget.id,
+                ctx.widget.type
+              )}
             >
               {translate(ctx, isAllSelected ? 'deselectAll' : 'selectAll')}
             </button>
@@ -480,6 +496,11 @@ export const MaterialsCatalogField: React.FC<{
                 onClick={() => setShowHidden((previous) => !previous)}
                 aria-expanded={showHidden}
                 className="flex items-center gap-1 text-xs font-bold text-slate-600 hover:underline"
+                {...tourAttr(
+                  'widget-settings.materials.show-hidden',
+                  ctx.widget.id,
+                  ctx.widget.type
+                )}
               >
                 {showHidden ? (
                   <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />

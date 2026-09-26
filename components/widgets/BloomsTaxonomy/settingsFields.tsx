@@ -7,6 +7,7 @@ import type {
   BloomsTaxonomyGlobalConfig,
 } from '@/types';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
+import { tourAttr } from '@/config/tourAnchors';
 import { CONTENT_CATEGORIES, type ContentCategory } from './constants';
 
 export const BloomsCategoriesField: React.FC<{ ctx: CustomRenderCtx }> = ({
@@ -51,6 +52,11 @@ export const BloomsCategoriesField: React.FC<{ ctx: CustomRenderCtx }> = ({
       aria-labelledby={ctx.labelId}
       aria-describedby={ctx.describedBy}
       className="flex flex-col gap-2"
+      {...tourAttr(
+        'widget-settings.blooms.category',
+        ctx.widget.id,
+        ctx.widget.type
+      )}
     >
       {displayCategories.map((category) => (
         <label

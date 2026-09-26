@@ -2,6 +2,7 @@ import React from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import type { InstructionalRoutinesConfig } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const SwitchRoutineField: React.FC<{ ctx: CustomRenderCtx }> = ({
   ctx,
@@ -24,6 +25,11 @@ export const SwitchRoutineField: React.FC<{ ctx: CustomRenderCtx }> = ({
         })
       }
       className="w-full rounded-xl bg-brand-blue-lighter py-2.5 text-xxs font-semibold uppercase tracking-widest text-brand-blue-primary transition-colors hover:bg-brand-blue-light/20"
+      {...tourAttr(
+        'widget-settings.instructional-routines.switch-routine',
+        ctx.widget.id,
+        ctx.widget.type
+      )}
     >
       {ctx.t('widgetSettings.instructionalRoutines.switchRoutine')}
     </button>

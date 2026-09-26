@@ -425,6 +425,112 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'widget-settings.blooms.category': {
+    label: 'Category checkboxes in Blooms Taxonomy settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.calendar.building-sync': {
+    label: 'Building sync toggle in Calendar settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.calendar.instructions': {
+    label: 'Instructions help button in Calendar settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.calendar.connect-google': {
+    label: 'Connect Google button in Calendar settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.calendar.add-calendar': {
+    label: 'Add calendar button in Calendar settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.checklist.paste': {
+    label: 'Add pasted tasks button in Checklist settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.checklist.import-routine': {
+    label: 'Import routine button in Checklist settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.checklist.import-text': {
+    label: 'Import text button in Checklist settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.concept-web.clear-all': {
+    label: 'Clear all button in Concept Web settings',
+    perWidget: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.custom-widget.save-settings': {
+    label: 'Save settings button in Custom Widget settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.expectations.sound-sync': {
+    label: 'Sync with Sound widget toggle in Expectations settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.graphic-organizer.template': {
+    label: 'Template selector in Graphic Organizer settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.guided-learning.library': {
+    label: 'Go to library button in Guided Learning settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.hotspot-image.upload': {
+    label: 'Upload/replace image button in Hotspot Image settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.hotspot-image.save-library': {
+    label: 'Save to library button in Hotspot Image settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.instructional-routines.switch-routine': {
+    label: 'Switch routine button in Instructional Routines settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.materials.title': {
+    label: 'Title input in Materials settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.materials.add-material': {
+    label: 'Add material button in Materials settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.materials.toggle-all': {
+    label: 'Select/deselect all button in Materials settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.materials.show-hidden': {
+    label: 'Show hidden materials button in Materials settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.music.sync-time-tool': {
+    label: 'Sync with Time Tool toggle in Music settings',
+    perWidget: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;
