@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from '@/components/common/Button';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import type { ConceptWebConfig } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const ConceptWebCanvasField: React.FC<{ ctx: CustomRenderCtx }> = ({
   ctx,
@@ -50,6 +51,11 @@ export const ConceptWebCanvasField: React.FC<{ ctx: CustomRenderCtx }> = ({
         disabled={!hasContent}
         onClick={() => ctx.updateConfig({ nodes: [], edges: [] })}
         className="w-full"
+        {...tourAttr(
+          'widget-settings.concept-web.clear-all',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       >
         {t('clearAll')}
       </Button>

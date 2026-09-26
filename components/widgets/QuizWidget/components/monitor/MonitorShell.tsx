@@ -64,8 +64,11 @@ import { hasPeriodAccess } from '@/utils/periodAccess';
 import { QuestionResults, QuestionDetail } from './QuestionResults';
 import { JoinCodeScreen } from './JoinCodeScreen';
 import { QuizSettingsScreen } from './QuizSettingsScreen';
+import { tourAttr } from '@/config/tourAnchors';
 
 export interface QuizLiveMonitorProps {
+  /** This widget instance's id, for live-tour anchor scoping. */
+  widgetId?: string;
   session: QuizSession;
   responses: QuizResponse[];
   quizData: QuizData;
@@ -121,6 +124,7 @@ const SCREEN_TITLES: Record<
 
 export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const {
+    widgetId,
     session,
     responses,
     quizData,
@@ -694,6 +698,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               total={data.totalStudents}
               doneCount={data.counts.done}
               onAdvance={onAdvance}
+              widgetId={widgetId}
             />
             <StatusBuckets
               counts={data.counts}
@@ -800,6 +805,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               <button
                 onClick={handleTogglePause}
                 disabled={toggling}
+                {...tourAttr('quiz.pause-resume', widgetId, 'quiz')}
                 className="inline-flex items-center bg-brand-blue-primary hover:bg-brand-blue-light text-white font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
                 style={{
                   gap: 'min(6px, 1.5cqmin)',
@@ -836,6 +842,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           <button
             onClick={handleEnd}
             disabled={ending}
+            {...tourAttr('quiz.end-quiz', widgetId, 'quiz')}
             className="inline-flex items-center bg-white border border-brand-gray-lighter hover:border-brand-red-light text-brand-red-primary font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
             style={{
               gap: 'min(6px, 1.5cqmin)',
@@ -866,6 +873,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="More actions"
               aria-expanded={menuOpen}
+              {...tourAttr('quiz.more-actions', widgetId, 'quiz')}
               className="rounded-md border border-brand-gray-lighter text-brand-gray-dark hover:border-brand-blue-light transition-colors"
               style={{ padding: 'min(8px, 2cqmin)' }}
             >
@@ -895,6 +903,10 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                         setMenuOpen(false);
                         item.onClick();
                       }}
+                      {...(item.label === 'Reveal answer to class' ||
+                      item.label === 'Hide revealed answer'
+                        ? tourAttr('quiz.reveal-answer', widgetId, 'quiz')
+                        : {})}
                       className="flex items-center w-full text-left font-sans text-brand-gray-dark hover:bg-brand-blue-lighter transition-colors"
                       style={{
                         gap: 'min(8px, 2cqmin)',

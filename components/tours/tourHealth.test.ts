@@ -17,6 +17,11 @@ describe('anchorProblem', () => {
     expect(anchorProblem('dock.item:clock')).toBeNull();
   });
 
+  it('accepts per-field anchors with a widget type and needs one without', () => {
+    expect(anchorProblem('settings.field:poll#question')).toBeNull();
+    expect(anchorProblem('settings.field')).toBe('needs-widget-type');
+  });
+
   it('accepts per-widget anchors with or without a widget type', () => {
     expect(anchorProblem('widget.window')).toBeNull();
     expect(anchorProblem('widget.settings-opener:schedule')).toBeNull();

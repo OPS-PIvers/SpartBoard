@@ -6,6 +6,7 @@ import { Modal } from '@/components/common/Modal';
 import { useDialog } from '@/context/useDialog';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { PlcInvitation } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface PlcInvitesModalProps {
   isOpen: boolean;
@@ -87,7 +88,7 @@ export const PlcInvitesModal: React.FC<PlcInvitesModalProps> = ({
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2" {...tourAttr('plc-invites.list')}>
           {pendingInvites.map((invite) => {
             const busy = busyId === invite.id;
             return (

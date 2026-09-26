@@ -8,6 +8,7 @@ import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WidgetLayout } from '../WidgetLayout';
 import { ChecklistCard } from './components/ChecklistCard';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -268,6 +269,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
             }}
           >
             <button
+              {...tourAttr('checklist.reset-checks', widget.id, widget.type)}
               onClick={resetToday}
               title="Reset Checks"
               className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-indigo-600 uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 shadow-indigo-500/5"
@@ -280,6 +282,11 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
             </button>
             {mode === 'manual' && (
               <button
+                {...tourAttr(
+                  'checklist.remove-completed',
+                  widget.id,
+                  widget.type
+                )}
                 onClick={removeCompleted}
                 title="Remove Completed"
                 className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-rose-500 uppercase tracking-wider hover:bg-rose-50 transition-all active:scale-95"

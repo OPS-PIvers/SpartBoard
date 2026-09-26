@@ -4,6 +4,7 @@ import { WidgetLayout } from '../WidgetLayout';
 import { BreathingVisuals } from './BreathingVisuals';
 import { useBreathing } from './useBreathing';
 import { Play, Pause, RotateCcw } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const BreathingWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -80,6 +81,7 @@ export const BreathingWidget: React.FC<{ widget: WidgetData }> = ({
             }}
           >
             <button
+              {...tourAttr('breathing.start-pause', widget.id, widget.type)}
               onClick={toggleActive}
               className={`flex items-center justify-center rounded-2xl transition-all shadow-md active:scale-95 ${
                 isActive
@@ -112,6 +114,7 @@ export const BreathingWidget: React.FC<{ widget: WidgetData }> = ({
               )}
             </button>
             <button
+              {...tourAttr('breathing.reset', widget.id, widget.type)}
               onClick={reset}
               disabled={!isActive && phase === 'ready'}
               className="flex items-center justify-center rounded-2xl bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"

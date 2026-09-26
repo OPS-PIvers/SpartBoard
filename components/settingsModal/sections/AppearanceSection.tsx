@@ -13,6 +13,7 @@ import { CheckSquare, ChevronRight, Palette, RotateCcw } from 'lucide-react';
 import { GlobalFontFamily, GlobalStyle, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { GlobalStyleEditor } from '@/hooks/useGlobalStyleEditor';
 import { SettingsSectionHeader } from '@/components/settingsModal/SettingsSectionHeader';
+import { tourAttr } from '@/config/tourAnchors';
 
 const FONT_OPTIONS: { id: GlobalFontFamily; label: string; font: string }[] = [
   { id: 'sans', label: 'Modern Sans', font: 'font-sans' },
@@ -38,6 +39,7 @@ interface ColorRowProps {
   hex: string;
   onChange: (hex: string) => void;
   onReset: () => void;
+  anchor: ReturnType<typeof tourAttr>;
 }
 
 const ColorRow: React.FC<ColorRowProps> = ({
@@ -45,6 +47,7 @@ const ColorRow: React.FC<ColorRowProps> = ({
   hex,
   onChange,
   onReset,
+  anchor,
 }) => {
   const { t } = useTranslation();
   return (
@@ -68,6 +71,7 @@ const ColorRow: React.FC<ColorRowProps> = ({
         <input
           type="color"
           value={hex}
+          {...anchor}
           onChange={(e) => onChange(e.target.value)}
           className="w-8 h-8 rounded-md border border-slate-200 bg-white cursor-pointer"
         />
@@ -110,6 +114,7 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
             {t('style.typography', { defaultValue: 'Typography' })}
           </h3>
           <button
+            {...tourAttr('appearance.font-toggle')}
             onClick={() => setIsFontMenuOpen(!isFontMenuOpen)}
             className="text-xxs font-bold uppercase text-brand-blue-primary"
           >
@@ -121,6 +126,7 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
 
         <div className="relative">
           <button
+            {...tourAttr('appearance.font-selector')}
             onClick={() => setIsFontMenuOpen(!isFontMenuOpen)}
             className="w-full flex items-center justify-between p-3 rounded-lg border bg-white border-slate-200 text-slate-800"
           >
@@ -142,7 +148,10 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
               isFontMenuOpen ? 'max-h-96 mt-2' : 'max-h-0'
             }`}
           >
-            <div className="grid grid-cols-1 gap-1 p-1 bg-slate-50 rounded-xl border border-slate-200">
+            <div
+              {...tourAttr('appearance.font-list')}
+              className="grid grid-cols-1 gap-1 p-1 bg-slate-50 rounded-xl border border-slate-200"
+            >
               {FONT_OPTIONS.map((f) => (
                 <button
                   key={f.id}
@@ -185,6 +194,7 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
           max="1"
           step="0.05"
           value={windowTransparency.value}
+          {...tourAttr('appearance.transparency-slider')}
           onChange={(e) =>
             windowTransparency.onChange(parseFloat(e.target.value))
           }
@@ -197,7 +207,10 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
         <h3 className="text-xxs font-bold text-slate-400 uppercase tracking-widest px-1">
           {t('style.corners', { defaultValue: 'Corners' })}
         </h3>
-        <div className="flex bg-slate-100 p-0.5 rounded-lg">
+        <div
+          {...tourAttr('appearance.corners')}
+          className="flex bg-slate-100 p-0.5 rounded-lg"
+        >
           {[
             {
               id: 'none',
@@ -246,17 +259,20 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
 
         <ColorRow
           title={t('style.primaryColor', { defaultValue: 'Primary Color' })}
+          anchor={tourAttr('appearance.primary-color')}
           hex={currentStyle.primaryColor ?? DEFAULT_PRIMARY_COLOR}
           onChange={(hex) => setField('primaryColor', hex)}
           onReset={() => setField('primaryColor', undefined)}
         />
         <ColorRow
           title={t('style.accentColor', { defaultValue: 'Accent Color' })}
+          anchor={tourAttr('appearance.accent-color')}
           hex={currentStyle.accentColor ?? DEFAULT_ACCENT_COLOR}
           onChange={(hex) => setField('accentColor', hex)}
           onReset={() => setField('accentColor', undefined)}
         />
         <ColorRow
+          anchor={tourAttr('appearance.title-color')}
           title={t('style.windowTitleColor', {
             defaultValue: 'Window Title Color',
           })}
@@ -266,6 +282,7 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
         />
 
         <button
+          {...tourAttr('appearance.reset-all-colors')}
           onClick={() =>
             commit({
               primaryColor: undefined,

@@ -19,6 +19,7 @@ import type {
   ImageHotspot,
 } from '@/types';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 const ICON_OPTIONS: ReadonlyArray<{
   value: ImageHotspot['icon'];
@@ -182,6 +183,11 @@ const HotspotBaseImageField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
           className="flex w-full items-center justify-center gap-2"
+          {...tourAttr(
+            'widget-settings.hotspot-image.upload',
+            ctx.widget.id,
+            ctx.widget.type
+          )}
         >
           {uploading ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -244,6 +250,11 @@ const HotspotBaseImageField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
             variant="secondary"
             onClick={handleSaveToLibrary}
             className="w-full text-xs"
+            {...tourAttr(
+              'widget-settings.hotspot-image.save-library',
+              ctx.widget.id,
+              ctx.widget.type
+            )}
           >
             {t('saveCurrentToLibrary')}
           </Button>

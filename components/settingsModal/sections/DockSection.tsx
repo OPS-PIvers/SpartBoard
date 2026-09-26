@@ -15,6 +15,7 @@ import { DockPosition, GlobalStyle } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { GlobalStyleEditor } from '@/hooks/useGlobalStyleEditor';
 import { SettingsSectionHeader } from '@/components/settingsModal/SettingsSectionHeader';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface DockSectionProps {
   editor: GlobalStyleEditor;
@@ -63,6 +64,7 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
           </span>
         </div>
         <div
+          {...tourAttr('dock.position')}
           role="radiogroup"
           aria-label={t('sidebar.settings.dockPosition', {
             defaultValue: 'Dock Position',
@@ -114,6 +116,7 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
           max="1"
           step="0.05"
           value={editor.dockTransparency.value}
+          {...tourAttr('dock.transparency-slider')}
           onChange={(e) =>
             editor.dockTransparency.onChange(parseFloat(e.target.value))
           }
@@ -126,7 +129,10 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
         <h3 className="text-xxs font-bold text-slate-400 uppercase tracking-widest px-1">
           {t('style.corners', { defaultValue: 'Corners' })}
         </h3>
-        <div className="flex bg-slate-100 p-0.5 rounded-lg">
+        <div
+          {...tourAttr('dock.corners')}
+          className="flex bg-slate-100 p-0.5 rounded-lg"
+        >
           {[
             {
               id: 'none',
@@ -175,6 +181,7 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
             <input
               type="color"
               value={currentStyle.dockTextColor}
+              {...tourAttr('dock.text-color')}
               onChange={(e) => setField('dockTextColor', e.target.value)}
               className="w-8 h-8 rounded-md border border-slate-200 bg-white cursor-pointer"
             />
@@ -184,6 +191,7 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
           </div>
 
           <button
+            {...tourAttr('dock.text-shadow-toggle')}
             onClick={() =>
               setField('dockTextShadow', !currentStyle.dockTextShadow)
             }

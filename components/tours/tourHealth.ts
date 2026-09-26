@@ -22,7 +22,7 @@ export function anchorProblem(ref: string): AnchorProblem | null {
   if (!isTourAnchorId(id)) return 'unknown-anchor';
   const def: TourAnchorDef = TOUR_ANCHORS[id];
   // Per-widget anchors may name a type too; the recorder writes one and the runner matches it.
-  if (!def.perWidgetType && !(def.perWidget && widgetType)) {
+  if (!def.perWidgetType && !def.perField && !(def.perWidget && widgetType)) {
     return widgetType ? 'unexpected-widget-type' : null;
   }
   if (!widgetType) return 'needs-widget-type';

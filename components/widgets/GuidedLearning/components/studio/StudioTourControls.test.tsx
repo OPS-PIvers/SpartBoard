@@ -65,6 +65,36 @@ describe('StudioTourControls', () => {
     expect(last().tour?.anchor).toBe('dock.item:time-tool');
   });
 
+  it('asks for a widget and a setting key for a perField button, from that widget schema', async () => {
+    const { last } = renderControls();
+    fireEvent.change(anchorSelect(), { target: { value: 'settings.field' } });
+    expect(screen.queryByLabelText('Which setting')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Which widget'), {
+      target: { value: 'clock' },
+    });
+    const fieldSelect = await screen.findByLabelText('Which setting');
+    await screen.findByRole('option', { name: 'themeColor' });
+    fireEvent.change(fieldSelect, { target: { value: 'themeColor' } });
+    expect(last().tour?.anchor).toBe('settings.field:clock#themeColor');
+  });
+
+  it('round-trips an existing perField ref and falls back to a text input with no schema', async () => {
+    const { last } = renderControls({
+      ...baseStep,
+      tour: { anchor: 'settings.field:clock#themeColor', action: 'click' },
+    });
+    expect(screen.getByLabelText('Which widget')).toHaveValue('clock');
+    await screen.findByRole('option', { name: 'themeColor' });
+    expect(screen.getByLabelText('Which setting')).toHaveValue('themeColor');
+    fireEvent.change(screen.getByLabelText('Which widget'), {
+      target: { value: 'magic' },
+    });
+    const fallback = await screen.findByLabelText('Which setting');
+    expect(fallback.tagName).toBe('INPUT');
+    fireEvent.change(fallback, { target: { value: 'custom-key' } });
+    expect(last().tour?.anchor).toBe('settings.field:magic#custom-key');
+  });
+
   it('unlinks the step', () => {
     const { last } = renderControls({
       ...baseStep,

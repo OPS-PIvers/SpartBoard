@@ -61,6 +61,7 @@ import { ActivityWallShareModal } from './ShareModal';
 import { useActivityWallSession } from './hooks/useActivityWallSession';
 import { useSubShareActivityWall } from './useSubShareActivityWall';
 import { useLegacyActivityWallMigration } from './hooks/useLegacyActivityWallMigration';
+import { tourAttr } from '@/config/tourAnchors';
 
 /** Name stamped on teacher posts; falls back to the email handle. */
 const EMPTY_POSTS: ActivityWallSubmission[] = [];
@@ -470,6 +471,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         >
           <button
             type="button"
+            {...tourAttr('activity-wall.toggle-open', widget.id, widget.type)}
             onClick={toggleOpenClosed}
             disabled={isActiveBoardReadOnly}
             aria-pressed={isOpenWall}
@@ -512,6 +514,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           {activeEntry.moderationEnabled && (
             <button
               type="button"
+              {...tourAttr('activity-wall.moderate', widget.id, widget.type)}
               onClick={() => setModerationOpen(true)}
               aria-label={`Moderate posts, ${pendingCount} pending`}
               className={`${toolbarButtonClass} relative`}
@@ -558,6 +561,19 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                       key={action.label}
                       type="button"
                       role="menuitem"
+                      {...(action.label === 'Share'
+                        ? tourAttr(
+                            'activity-wall.share',
+                            widget.id,
+                            widget.type
+                          )
+                        : action.label === 'Open wall library'
+                          ? tourAttr(
+                              'activity-wall.library',
+                              widget.id,
+                              widget.type
+                            )
+                          : {})}
                       disabled={action.disabled}
                       onClick={() => {
                         setToolbarMenuOpen(false);
@@ -588,6 +604,11 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
               <button
                 key={action.label}
                 type="button"
+                {...(action.label === 'Share'
+                  ? tourAttr('activity-wall.share', widget.id, widget.type)
+                  : action.label === 'Open wall library'
+                    ? tourAttr('activity-wall.library', widget.id, widget.type)
+                    : {})}
                 onClick={action.run}
                 disabled={action.disabled}
                 aria-label={action.label}

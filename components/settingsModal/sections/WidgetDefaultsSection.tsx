@@ -20,6 +20,7 @@ import { pickAppearanceKeys } from '@/utils/widgetConfigPersistence';
 import { resolveLabel } from '@/components/settings/renderer/resolveLabel';
 import { SettingsSectionHeader } from '@/components/settingsModal/SettingsSectionHeader';
 import type { WidgetConfig, WidgetType } from '@/types';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
@@ -135,6 +136,7 @@ export const WidgetDefaultsSection: React.FC = () => {
                   </h3>
                   <button
                     type="button"
+                    {...tourTypeAttr('widget-defaults.clear-type', type)}
                     onClick={() => saveWidgetDefault(type, {})}
                     aria-label={t('settings.widgetDefaults.clearLabel', {
                       defaultValue: 'Clear {{name}} default',
@@ -172,6 +174,10 @@ export const WidgetDefaultsSection: React.FC = () => {
                           <span>{text}</span>
                           <button
                             type="button"
+                            {...tourTypeAttr(
+                              'widget-defaults.remove-key',
+                              type
+                            )}
                             onClick={() => removeKey(type, config, key)}
                             aria-label={t('settings.widgetDefaults.remove', {
                               defaultValue: 'Remove {{setting}} from {{name}}',

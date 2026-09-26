@@ -17,6 +17,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 
 const inputClass =
   'w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500';
@@ -284,6 +285,11 @@ export const RevealGridCardsField: React.FC<{
             onClick={handleSaveToDrive}
             disabled={isLoadingDrive || !driveService}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-50 py-2 text-xs font-bold text-blue-600 disabled:opacity-50"
+            {...tourAttr(
+              'widget-settings.reveal-grid.save-drive',
+              ctx.widget.id,
+              ctx.widget.type
+            )}
           >
             {isLoadingDrive ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -297,6 +303,11 @@ export const RevealGridCardsField: React.FC<{
             onClick={() => void handleShareUrl()}
             disabled={!config.activeDriveFileId || isLoadingDrive}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-100 py-2 text-xs font-bold text-slate-600 disabled:opacity-50"
+            {...tourAttr(
+              'widget-settings.reveal-grid.share',
+              ctx.widget.id,
+              ctx.widget.type
+            )}
           >
             <Share2 className="h-4 w-4" />
             {t('shareUrl')}
@@ -315,6 +326,11 @@ export const RevealGridCardsField: React.FC<{
               value=""
               onChange={(event) => void handleLoadFromDrive(event.target.value)}
               className={inputClass}
+              {...tourAttr(
+                'widget-settings.reveal-grid.load-set',
+                ctx.widget.id,
+                ctx.widget.type
+              )}
             >
               <option value="" disabled>
                 {t('selectSavedSet')}
@@ -334,10 +350,22 @@ export const RevealGridCardsField: React.FC<{
           type="button"
           onClick={() => setIsPasting((current) => !current)}
           className="flex items-center justify-center gap-2 rounded-xl bg-slate-100 py-2 text-xs font-bold text-slate-600"
+          {...tourAttr(
+            'widget-settings.reveal-grid.paste',
+            ctx.widget.id,
+            ctx.widget.type
+          )}
         >
           <ClipboardType className="h-4 w-4" /> {t('pasteFromSheet')}
         </button>
-        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-slate-100 py-2 text-xs font-bold text-slate-600">
+        <label
+          className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-slate-100 py-2 text-xs font-bold text-slate-600"
+          {...tourAttr(
+            'widget-settings.reveal-grid.upload-csv',
+            ctx.widget.id,
+            ctx.widget.type
+          )}
+        >
           <Upload className="h-4 w-4" /> {t('uploadCsv')}
           <input
             type="file"
@@ -350,6 +378,11 @@ export const RevealGridCardsField: React.FC<{
           type="button"
           onClick={() => addToast(t('generatorComingSoon'), 'info')}
           className="col-span-2 flex items-center justify-center gap-2 rounded-xl bg-purple-50 py-2 text-xs font-bold text-purple-600"
+          {...tourAttr(
+            'widget-settings.reveal-grid.generator',
+            ctx.widget.id,
+            ctx.widget.type
+          )}
         >
           <Sparkles className="h-4 w-4" /> {t('generator')}
         </button>
@@ -375,6 +408,11 @@ export const RevealGridCardsField: React.FC<{
             type="button"
             onClick={handlePasteData}
             className="mt-2 w-full rounded bg-blue-500 py-2 text-xs font-bold text-white"
+            {...tourAttr(
+              'widget-settings.reveal-grid.add-pasted',
+              ctx.widget.id,
+              ctx.widget.type
+            )}
           >
             {t('addCards')}
           </button>
@@ -475,6 +513,11 @@ export const RevealGridCardsField: React.FC<{
           type="button"
           onClick={addCard}
           className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-3 text-xxs font-bold uppercase text-slate-400 hover:border-blue-400 hover:text-blue-500"
+          {...tourAttr(
+            'widget-settings.reveal-grid.add-card',
+            ctx.widget.id,
+            ctx.widget.type
+          )}
         >
           <Plus className="h-4 w-4" /> {t('addCard')}
         </button>

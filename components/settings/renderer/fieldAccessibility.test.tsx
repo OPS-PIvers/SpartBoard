@@ -272,6 +272,28 @@ describe('List row editing', () => {
     expect(after).toHaveFocus();
     expect(after).toHaveValue('ab');
   });
+
+  it('gives each list row field its own tour field key', () => {
+    const field: Field = {
+      type: 'list',
+      key: 'items',
+      label: 'label',
+      row: {
+        fields: [{ type: 'text', key: 'text', label: 'label' }],
+        createRow: () => ({ text: '' }),
+      },
+    };
+    const { container } = render(
+      <StatefulHost
+        field={field}
+        initial={{ items: [{ text: 'a' }, { text: 'b' }] }}
+      />
+    );
+    const keys = [...container.querySelectorAll('[data-tour-field]')].map(
+      (el) => el.getAttribute('data-tour-field')
+    );
+    expect(keys).toEqual(['items', 'items.1.text', 'items.2.text']);
+  });
 });
 
 describe('NumberField draft', () => {

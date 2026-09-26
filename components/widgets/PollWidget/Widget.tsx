@@ -29,6 +29,7 @@ import { buildPollJoinUrl } from '@/utils/pollCode';
 import { withPollQuestions, withQuestionAt } from '@/utils/pollQuestions';
 import { usePollSession } from '@/hooks/usePollSession';
 import { useInSubShare } from '@/hooks/useShareContent';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget } = useDashboardActions();
@@ -219,6 +220,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             </div>
             {showNavigation && (
               <button
+                {...tourAttr('poll.next-question', widget.id, widget.type)}
                 onClick={() => goToQuestion(currentQuestionIndex + 1)}
                 disabled={!canGoNext}
                 aria-label="Next question"
@@ -397,6 +399,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             }}
           >
             <button
+              {...tourAttr('poll.reset', widget.id, widget.type)}
               onClick={handleReset}
               className="w-full flex items-center justify-center font-black uppercase text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
               style={{

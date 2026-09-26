@@ -53,6 +53,7 @@ import {
 
 import { OptionInput } from './components/OptionInput';
 import { useTranslation } from 'react-i18next';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const PollSettings: React.FC<{
   widget: WidgetData;
@@ -391,6 +392,11 @@ export const PollSettings: React.FC<{
                 variant="secondary"
                 onClick={importFromRoster}
                 disabled={!activeRoster || isLive}
+                {...tourAttr(
+                  'widget-settings.poll.import-roster',
+                  widget.id,
+                  widget.type
+                )}
                 title={
                   isLive
                     ? t('widgetSettings.poll.stopToChangeOptions')
@@ -426,6 +432,11 @@ export const PollSettings: React.FC<{
               disabled={isLive || atQuestionLimit}
               aria-labelledby={`pollwidget-ai-draft-label-${widget.id}`}
               className="min-w-0 m-0 border-0 p-0 disabled:opacity-50"
+              {...tourAttr(
+                'widget-settings.poll.ai-draft',
+                widget.id,
+                widget.type
+              )}
             >
               <SettingsLabel
                 as="span"
@@ -492,6 +503,11 @@ export const PollSettings: React.FC<{
                   title={t('widgetSettings.poll.deleteQuestionNumber', {
                     count: editIndex + 1,
                   })}
+                  {...tourAttr(
+                    'widget-settings.poll.delete-question',
+                    widget.id,
+                    widget.type
+                  )}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -502,7 +518,14 @@ export const PollSettings: React.FC<{
                 {t('widgetSettings.poll.stopToEdit')}
               </p>
             )}
-            <div className="flex flex-wrap gap-1.5">
+            <div
+              className="flex flex-wrap gap-1.5"
+              {...tourAttr(
+                'widget-settings.poll.select-question',
+                widget.id,
+                widget.type
+              )}
+            >
               {questions.map((q, idx) => (
                 <button
                   key={q.id}
@@ -537,6 +560,11 @@ export const PollSettings: React.FC<{
                 onClick={addQuestion}
                 disabled={atQuestionLimit}
                 aria-label={t('widgetSettings.poll.addQuestion')}
+                {...tourAttr(
+                  'widget-settings.poll.add-question',
+                  widget.id,
+                  widget.type
+                )}
                 title={
                   atQuestionLimit
                     ? t('widgetSettings.poll.questionLimit', {
@@ -568,6 +596,11 @@ export const PollSettings: React.FC<{
                 onBlur={saveQuestion}
                 className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder={t('widgetSettings.poll.questionPlaceholder')}
+                {...tourAttr(
+                  'widget-settings.poll.question-text',
+                  widget.id,
+                  widget.type
+                )}
               />
             </div>
 
@@ -604,6 +637,11 @@ export const PollSettings: React.FC<{
               <button
                 onClick={addOption}
                 className="mt-3 w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-slate-500 border border-dashed border-slate-300 rounded-lg hover:border-indigo-500 hover:text-indigo-600 transition-all"
+                {...tourAttr(
+                  'widget-settings.poll.add-option',
+                  widget.id,
+                  widget.type
+                )}
               >
                 <Plus className="w-3.5 h-3.5" />
                 {t('widgetSettings.poll.addOption')}
@@ -628,12 +666,22 @@ export const PollSettings: React.FC<{
                 variant="secondary"
                 onClick={handleReset}
                 icon={<RotateCcw className="w-3.5 h-3.5" />}
+                {...tourAttr(
+                  'widget-settings.poll.reset',
+                  widget.id,
+                  widget.type
+                )}
               >
                 {t('widgetSettings.poll.reset')}
               </Button>
               <Button
                 onClick={handleExport}
                 icon={<Download className="w-3.5 h-3.5" />}
+                {...tourAttr(
+                  'widget-settings.poll.export-csv',
+                  widget.id,
+                  widget.type
+                )}
               >
                 {t('widgetSettings.poll.exportCsv')}
               </Button>
@@ -676,6 +724,11 @@ export const PollSettings: React.FC<{
                 size="sm"
                 variant="secondary"
                 onClick={handleCopy}
+                {...tourAttr(
+                  'widget-settings.poll.copy-link',
+                  widget.id,
+                  widget.type
+                )}
                 icon={
                   copied ? (
                     <Check className="w-3 h-3" />
@@ -698,6 +751,11 @@ export const PollSettings: React.FC<{
               variant="secondary"
               onClick={() => void handleStopClick()}
               icon={<Square className="w-3.5 h-3.5" />}
+              {...tourAttr(
+                'widget-settings.poll.stop-voting',
+                widget.id,
+                widget.type
+              )}
             >
               {t('widgetSettings.poll.stopVoting')}
             </Button>
@@ -713,10 +771,22 @@ export const PollSettings: React.FC<{
                 <Button
                   variant="secondary"
                   onClick={() => void beginSession('resume')}
+                  {...tourAttr(
+                    'widget-settings.poll.resume',
+                    widget.id,
+                    widget.type
+                  )}
                 >
                   {t('widgetSettings.poll.resumeVoting')}
                 </Button>
-                <Button onClick={() => void beginSession('fresh')}>
+                <Button
+                  onClick={() => void beginSession('fresh')}
+                  {...tourAttr(
+                    'widget-settings.poll.start-fresh',
+                    widget.id,
+                    widget.type
+                  )}
+                >
                   {t('widgetSettings.poll.startFresh')}
                 </Button>
               </div>
@@ -731,6 +801,11 @@ export const PollSettings: React.FC<{
             <Button
               onClick={handleStartClick}
               icon={<Radio className="w-3.5 h-3.5" />}
+              {...tourAttr(
+                'widget-settings.poll.start-voting',
+                widget.id,
+                widget.type
+              )}
             >
               {t('widgetSettings.poll.startVoting')}
             </Button>

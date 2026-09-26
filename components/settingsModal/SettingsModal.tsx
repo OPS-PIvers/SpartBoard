@@ -36,6 +36,7 @@ import { BehaviorSection } from './sections/BehaviorSection';
 import { LanguageSection } from './sections/LanguageSection';
 import { WidgetDefaultsSection } from './sections/WidgetDefaultsSection';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { tourAttr } from '@/config/tourAnchors';
 
 export type SettingsSectionId =
   | 'profile'
@@ -58,36 +59,48 @@ interface SectionConfig {
   labelKey: string;
   fallback: string;
   icon: typeof Palette;
+  tour: ReturnType<typeof tourAttr>;
 }
 
 const SECTIONS: readonly SectionConfig[] = [
   {
     id: 'profile',
+    tour: tourAttr('profile.tab-profile'),
     labelKey: 'settings.profile.title',
     fallback: 'Profile',
     icon: UserCircle,
   },
   {
     id: 'appearance',
+    tour: tourAttr('profile.tab-appearance'),
     labelKey: 'sidebar.nav.globalStyle',
     fallback: 'Appearance',
     icon: Palette,
   },
-  { id: 'dock', labelKey: 'style.dock', fallback: 'Dock', icon: PanelBottom },
+  {
+    id: 'dock',
+    tour: tourAttr('profile.tab-dock'),
+    labelKey: 'style.dock',
+    fallback: 'Dock',
+    icon: PanelBottom,
+  },
   {
     id: 'behavior',
+    tour: tourAttr('profile.tab-behavior'),
     labelKey: 'sidebar.nav.preferences',
     fallback: 'Behavior',
     icon: SlidersHorizontal,
   },
   {
     id: 'widgetDefaults',
+    tour: tourAttr('profile.tab-widget-defaults'),
     labelKey: 'settings.widgetDefaults.title',
     fallback: 'Widget defaults',
     icon: Shapes,
   },
   {
     id: 'language',
+    tour: tourAttr('profile.tab-language'),
     labelKey: 'sidebar.settings.language',
     fallback: 'Language',
     icon: Globe,
@@ -102,8 +115,10 @@ const RailTab: React.FC<{
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
-}> = ({ id, isActive, onClick, icon, label }) => (
+  tour: ReturnType<typeof tourAttr>;
+}> = ({ id, isActive, onClick, icon, label, tour }) => (
   <button
+    {...tour}
     id={`settings-tab-${id}`}
     role="tab"
     aria-selected={isActive}
@@ -193,6 +208,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="flex items-center gap-2 overflow-hidden min-w-0">
             {!showMobileMenu && (
               <button
+                {...tourAttr('profile.mobile-back')}
                 onClick={() => setShowMobileMenu(true)}
                 className="md:hidden p-2 hover:bg-slate-100 rounded-lg transition-colors shrink-0 -ml-2 text-slate-600"
                 aria-label={t('sidebar.header.back', { defaultValue: 'Back' })}
@@ -215,6 +231,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           <button
+            {...tourAttr('profile.close')}
             onClick={onClose}
             className="p-2 md:p-1.5 hover:bg-slate-100 rounded-lg transition-colors shrink-0 -mr-2 md:mr-0 text-slate-500"
             aria-label={t('sidebar.header.closeMenu', {
@@ -243,6 +260,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onClick={() => setActiveSection(section.id)}
                 icon={<section.icon className="w-5 h-5 shrink-0" />}
                 label={label(section)}
+                tour={section.tour}
               />
             ))}
           </nav>
@@ -255,6 +273,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {sections.map((section) => (
                   <button
                     key={section.id}
+                    {...section.tour}
                     onClick={() => {
                       setActiveSection(section.id);
                       setShowMobileMenu(false);

@@ -3,6 +3,7 @@ import { ScoreboardTeam } from '@/types';
 import { Plus, Minus } from 'lucide-react';
 
 import { ScoreboardColor, normalizeScoreboardColor } from '@/config/scoreboard';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 // Per-color text class used for the +/- button icons on white chips.
 // The row body itself now uses the solid team color as background with
@@ -35,12 +36,15 @@ export const ScoreboardRowItem = React.memo(
   ({
     team,
     rank,
+    widgetId,
     onUpdateScore,
   }: {
     team: ScoreboardTeam;
     rank: number;
+    widgetId?: string;
     onUpdateScore: (id: string, delta: number) => void;
   }) => {
+    const fieldKey = `team-${rank}`;
     // Normalize the persisted color through the known-palette set before
     // it lands in className — an unknown value would interpolate into
     // `bg-something-500` that Tailwind has no rule for, leaving white
@@ -96,6 +100,12 @@ export const ScoreboardRowItem = React.memo(
           <button
             onClick={() => onUpdateScore(team.id, -1)}
             aria-label="Decrease score"
+            {...tourFieldAttr(
+              'scoreboard.remove-point',
+              'scoreboard',
+              fieldKey
+            )}
+            data-tour-widget={widgetId}
             className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all`}
             style={{
               padding: 'min(4px, 1cqmin)',
@@ -111,6 +121,8 @@ export const ScoreboardRowItem = React.memo(
           <button
             onClick={() => onUpdateScore(team.id, 1)}
             aria-label="Increase score"
+            {...tourFieldAttr('scoreboard.add-point', 'scoreboard', fieldKey)}
+            data-tour-widget={widgetId}
             className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all`}
             style={{
               padding: 'min(4px, 1cqmin)',
@@ -131,6 +143,7 @@ export const ScoreboardRowItem = React.memo(
     return (
       prevProps.onUpdateScore === nextProps.onUpdateScore &&
       prevProps.rank === nextProps.rank &&
+      prevProps.widgetId === nextProps.widgetId &&
       prevProps.team.id === nextProps.team.id &&
       prevProps.team.name === nextProps.team.name &&
       prevProps.team.score === nextProps.team.score &&

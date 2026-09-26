@@ -6,6 +6,7 @@ import {
   retokenizeSyntax,
   syntaxTokensToText,
 } from './settingsUtils';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const SyntaxTokenEditorField: React.FC<{
   ctx: CustomRenderCtx;
@@ -55,6 +56,11 @@ export const SyntaxTokenEditorField: React.FC<{
         rows={3}
         aria-labelledby={ctx.labelId}
         className="w-full rounded-lg border border-slate-200 bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        {...tourAttr(
+          'widget-settings.syntax-framer.content',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       />
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { CustomWidgetConfig, CustomWidgetSettingDef } from '@/types';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { useCustomWidgets } from '@/context/useCustomWidgets';
+import { tourAttr } from '@/config/tourAnchors';
 
 type SettingValue = string | number | boolean;
 
@@ -135,6 +136,11 @@ const CustomWidgetSettingsForm: React.FC<SettingsFormProps> = ({
             type="button"
             onClick={() => ctx.updateConfig({ adminSettings: localValues })}
             className="self-start rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-light"
+            {...tourAttr(
+              'widget-settings.custom-widget.save-settings',
+              ctx.widget.id,
+              ctx.widget.type
+            )}
           >
             {label('saveSettings')}
           </button>

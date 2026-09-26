@@ -1,4 +1,5 @@
 import React from 'react';
+import type { tourAttr } from '@/config/tourAnchors';
 
 export interface ToggleProps {
   checked: boolean;
@@ -27,6 +28,8 @@ export interface ToggleProps {
    * 'transparent' - Semi-transparent background for dark containers
    */
   variant?: 'standard' | 'transparent';
+  /** Live-tour anchor attrs from `tourAttr`. */
+  anchor?: ReturnType<typeof tourAttr>;
 }
 
 export const Toggle: React.FC<ToggleProps> = ({
@@ -39,6 +42,7 @@ export const Toggle: React.FC<ToggleProps> = ({
   activeColor = 'bg-brand-blue-primary',
   showLabels = true,
   variant = 'standard',
+  anchor,
 }) => {
   const sizes = {
     xs: {
@@ -67,6 +71,7 @@ export const Toggle: React.FC<ToggleProps> = ({
 
   return (
     <button
+      {...anchor}
       type="button"
       role="switch"
       aria-checked={checked}

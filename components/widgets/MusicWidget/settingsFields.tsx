@@ -5,6 +5,7 @@ import type { MusicConfig, MusicSource } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { useMusicStations } from '@/hooks/useMusicStations';
+import { tourAttr } from '@/config/tourAnchors';
 import { PersonalSpotifyPanel } from './PersonalSpotifyPanel';
 import { buildSpotifyEmbedUrl } from './utils';
 import { canUsePersonal } from './canUsePersonal';
@@ -239,6 +240,11 @@ export const MusicSyncField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
           }
           disabled={spotifySource}
           size="sm"
+          anchor={tourAttr(
+            'widget-settings.music.sync-time-tool',
+            ctx.widget.id,
+            ctx.widget.type
+          )}
         />
       </div>
       {spotifySource && (

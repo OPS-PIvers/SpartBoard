@@ -156,10 +156,12 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
                 padding: 'min(16px, 3.5cqmin)',
               }}
             >
-              {teams.map((team) => (
+              {teams.map((team, index) => (
                 <ScoreboardItem
                   key={team.id}
                   team={team}
+                  teamPosition={index + 1}
+                  widgetId={widget.id}
                   onUpdateScore={handleUpdateScore}
                 />
               ))}
@@ -177,6 +179,7 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
                   key={team.id}
                   team={team}
                   rank={index + 1}
+                  widgetId={widget.id}
                   onUpdateScore={handleUpdateScore}
                 />
               ))}

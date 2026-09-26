@@ -46,6 +46,7 @@ import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 import { getTodayStr } from './utils';
 import { SortableScheduleItem } from './components/SortableScheduleItem';
+import { tourAttr } from '@/config/tourAnchors';
 
 const DAYS = [
   { id: 0, label: 'Su', name: 'sunday' },
@@ -200,6 +201,11 @@ export const ScheduleCalendarImportField: React.FC<{
         onClick={handleImport}
         disabled={!selectedId || !calendar}
         className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-indigo-200 px-3 py-2 text-xs font-semibold text-indigo-600 transition-colors hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
+        {...tourAttr(
+          'widget-settings.schedule.import-calendar',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       >
         <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
         {translate(ctx, 'importToday')}
@@ -470,6 +476,11 @@ export const ScheduleListField: React.FC<{
             type="button"
             onClick={handleAddSchedule}
             className="text-blue-500 hover:underline"
+            {...tourAttr(
+              'widget-settings.schedule.add-schedule',
+              ctx.widget.id,
+              ctx.widget.type
+            )}
           >
             {translate(ctx, 'addSchedule')}
           </button>
@@ -477,7 +488,14 @@ export const ScheduleListField: React.FC<{
       ) : (
         <>
           {schedules.length > 1 && (
-            <div className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-0.5">
+            <div
+              className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-0.5"
+              {...tourAttr(
+                'widget-settings.schedule.select-schedule',
+                ctx.widget.id,
+                ctx.widget.type
+              )}
+            >
               {schedules.map((schedule) => (
                 <button
                   key={schedule.id}
@@ -508,6 +526,11 @@ export const ScheduleListField: React.FC<{
                     }
                     className="min-w-0 flex-1 border-none bg-transparent p-0 text-sm font-bold text-slate-700 outline-none focus:ring-0"
                     placeholder={translate(ctx, 'scheduleNamePlaceholder')}
+                    {...tourAttr(
+                      'widget-settings.schedule.schedule-name',
+                      ctx.widget.id,
+                      ctx.widget.type
+                    )}
                   />
                   <button
                     type="button"
@@ -515,6 +538,11 @@ export const ScheduleListField: React.FC<{
                     className="shrink-0 rounded p-1 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
                     aria-label={translate(ctx, 'newSchedule')}
                     title={translate(ctx, 'newSchedule')}
+                    {...tourAttr(
+                      'widget-settings.schedule.new-schedule',
+                      ctx.widget.id,
+                      ctx.widget.type
+                    )}
                   >
                     <FolderPlus className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
@@ -526,12 +554,24 @@ export const ScheduleListField: React.FC<{
                     className="shrink-0 rounded p-1 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500"
                     aria-label={translate(ctx, 'deleteSchedule')}
                     title={translate(ctx, 'deleteSchedule')}
+                    {...tourAttr(
+                      'widget-settings.schedule.delete-schedule',
+                      ctx.widget.id,
+                      ctx.widget.type
+                    )}
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
                 </div>
                 {schedules.length > 1 && (
-                  <div className="mt-2 flex gap-1">
+                  <div
+                    className="mt-2 flex gap-1"
+                    {...tourAttr(
+                      'widget-settings.schedule.select-day',
+                      ctx.widget.id,
+                      ctx.widget.type
+                    )}
+                  >
                     {DAYS.map((day) => {
                       const selected = selectedSchedule.days.includes(day.id);
                       return (
@@ -572,6 +612,11 @@ export const ScheduleListField: React.FC<{
                     )
                   }
                   className="flex items-center gap-1 text-xxs font-medium text-slate-500 hover:text-slate-700"
+                  {...tourAttr(
+                    'widget-settings.schedule.sort-events',
+                    ctx.widget.id,
+                    ctx.widget.type
+                  )}
                 >
                   <ArrowUpDown className="h-3 w-3" aria-hidden="true" />
                   {translate(ctx, 'sort')}
@@ -622,6 +667,11 @@ export const ScheduleListField: React.FC<{
                       type="button"
                       onClick={() => handleAddItem(selectedSchedule.id)}
                       className="mt-1 text-xxs text-blue-500 hover:underline"
+                      {...tourAttr(
+                        'widget-settings.schedule.add-event',
+                        ctx.widget.id,
+                        ctx.widget.type
+                      )}
                     >
                       {translate(ctx, 'addFirstEvent')}
                     </button>
@@ -632,6 +682,11 @@ export const ScheduleListField: React.FC<{
                       type="button"
                       onClick={() => handleAddItem(selectedSchedule.id)}
                       className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-dashed border-blue-200 py-2 text-xs font-semibold text-blue-600 transition-colors hover:border-blue-300 hover:bg-blue-50"
+                      {...tourAttr(
+                        'widget-settings.schedule.add-event',
+                        ctx.widget.id,
+                        ctx.widget.type
+                      )}
                     >
                       <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                       {translate(ctx, 'addEvent')}
@@ -640,6 +695,11 @@ export const ScheduleListField: React.FC<{
                       type="button"
                       onClick={() => handleAddItem(selectedSchedule.id, true)}
                       className="flex shrink-0 items-center gap-1.5 rounded-lg border border-dashed border-amber-200 px-3 py-2 text-xxs font-semibold text-amber-600 transition-colors hover:bg-amber-50"
+                      {...tourAttr(
+                        'widget-settings.schedule.add-event-today',
+                        ctx.widget.id,
+                        ctx.widget.type
+                      )}
                     >
                       <CalendarPlus
                         className="h-3.5 w-3.5"
@@ -660,6 +720,11 @@ export const ScheduleListField: React.FC<{
           onClick={() => setShowBuildingSchedules((previous) => !previous)}
           className="flex w-full items-center justify-between text-xxs font-semibold uppercase tracking-widest text-slate-500"
           aria-expanded={showBuildingSchedules}
+          {...tourAttr(
+            'widget-settings.schedule.building-schedules',
+            ctx.widget.id,
+            ctx.widget.type
+          )}
         >
           <span className="flex items-center gap-1.5">
             <Link className="h-3 w-3" aria-hidden="true" />

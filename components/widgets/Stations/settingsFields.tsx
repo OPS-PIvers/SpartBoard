@@ -11,6 +11,7 @@ import { countRosterGroupMembers } from '@/utils/rosterGroups';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { StationEditor } from './components/StationEditor';
 import { SavedPresetsPanel } from './components/SavedPresetsPanel';
+import { tourAttr } from '@/config/tourAnchors';
 
 const DEFAULT_STATION_COLORS = WIDGET_PALETTE;
 
@@ -263,6 +264,11 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
             type="button"
             onClick={handleAddStation}
             className="flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xxs font-black uppercase tracking-widest text-white shadow-sm hover:bg-brand-blue-dark"
+            {...tourAttr(
+              'widget-settings.stations.add-station',
+              ctx.widget.id,
+              ctx.widget.type
+            )}
           >
             <Plus size={12} />
             {translate(ctx, 'addStation')}
@@ -346,6 +352,11 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
                   type="button"
                   onClick={() => void handleImportGroupsAsStations()}
                   className="w-full rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-sm font-bold text-brand-blue-primary transition-colors hover:border-brand-blue-primary hover:bg-brand-blue-lighter"
+                  {...tourAttr(
+                    'widget-settings.stations.import-class-groups',
+                    ctx.widget.id,
+                    ctx.widget.type
+                  )}
                 >
                   {translate(ctx, 'makeFromGroups', {
                     count: rosterGroups.length,

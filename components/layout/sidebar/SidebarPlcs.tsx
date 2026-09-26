@@ -20,6 +20,7 @@ import { getPlcMembers, getPlcRole } from '@/utils/plc';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { PlcEditModal } from './PlcEditModal';
 import { PlcInvitesModal } from './PlcInvitesModal';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface SidebarPlcsProps {
   isVisible: boolean;
@@ -340,6 +341,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
             <div className="grid gap-2 grid-cols-2">
               <button
                 onClick={() => setIsCreating(true)}
+                {...tourAttr('plcs.new-plc')}
                 className="flex flex-col items-center justify-center gap-1.5 p-3 bg-brand-blue-primary text-white rounded-xl shadow-sm hover:bg-brand-blue-dark transition-all"
               >
                 <Plus className="w-4 h-4" />
@@ -349,6 +351,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
               </button>
               <button
                 onClick={() => setShowInvites(true)}
+                {...tourAttr('plcs.invites')}
                 className="relative flex flex-col items-center justify-center gap-1.5 p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:border-brand-blue-primary hover:text-brand-blue-primary transition-all"
               >
                 <Mail className="w-4 h-4" />
@@ -408,7 +411,10 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                     defaultValue: 'Your PLCs',
                   })}
                 </h3>
-                <div className="flex flex-col gap-2">
+                <div
+                  className="flex flex-col gap-2"
+                  {...tourAttr('plcs.plc-list')}
+                >
                   {plcs.map((plc) => {
                     const isLead = user?.uid
                       ? getPlcRole(plc, user.uid) === 'lead'
