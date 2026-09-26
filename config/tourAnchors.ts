@@ -1188,6 +1188,170 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'widget-settings.calendar.remove-calendar': {
+    label: 'Remove a personal calendar in Calendar settings',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.hotspot-image.load-library-item': {
+    label: 'Load a saved hotspot set from the library',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.hotspot-image.delete-library-item': {
+    label: 'Delete a saved hotspot set from the library',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.hotspot-image.delete-hotspot': {
+    label: 'Delete a hotspot pin in Hotspot Image settings',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.hotspot-image.pin-title': {
+    label: 'Pin title input for a hotspot in Hotspot Image settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.hotspot-image.detail-text': {
+    label: 'Detail text input for a hotspot in Hotspot Image settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.hotspot-image.icon': {
+    label: 'Icon radio group for a hotspot in Hotspot Image settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.materials.title-font': {
+    label: 'Title font option in Materials settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.materials.select-item': {
+    label: 'Select a material in Materials settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.materials.edit-item': {
+    label: 'Edit a teacher-created material in Materials settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.materials.hide-item': {
+    label: 'Hide a material in Materials settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.materials.unhide-item': {
+    label: 'Show a hidden material again in Materials settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.music.source': {
+    label: 'Source option (curated or Spotify) in Music settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.music.station': {
+    label: 'Station choice in Music settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.custom-widget.definition-input': {
+    label: 'One admin-defined setting input in Custom Widget settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.random.locked-group': {
+    label: 'Locked-group checkbox in Random Picker settings',
+    perField: true,
+    panel: true,
+  },
+  'classes.set-active': {
+    label: 'Set active class star in My Classes',
+    perField: true,
+    panel: true,
+  },
+  'classes.edit-roster': {
+    label: 'Edit class button in My Classes',
+    perField: true,
+    panel: true,
+  },
+  'classes.sync-classlink': {
+    label: 'Sync with ClassLink button in My Classes',
+    perField: true,
+    panel: true,
+  },
+  'classes.link-classroom': {
+    label: 'Link to Google Classroom button in My Classes',
+    perField: true,
+    panel: true,
+  },
+  'classes.delete-roster': {
+    label: 'Delete class button in My Classes',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'classes.classroom-course-row': {
+    label: 'Course row in the Link to Google Classroom modal',
+    perField: true,
+    panel: true,
+  },
+  'plcs.open-plc': {
+    label: 'Open a PLC card in My PLCs',
+    perField: true,
+    panel: true,
+  },
+  'plcs.actions-menu': {
+    label: 'PLC actions kebab in My PLCs',
+    perField: true,
+    panel: true,
+  },
+  'plcs.edit-plc': {
+    label: 'Edit/View PLC action in the PLC actions menu',
+    perField: true,
+    panel: true,
+  },
+  'plcs.delete-plc': {
+    label: 'Delete PLC action in the PLC actions menu',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'plcs.leave-plc': {
+    label: 'Leave PLC action in the PLC actions menu',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'plc-edit.remove-member': {
+    label: 'Remove member button in the PLC edit modal',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'plc-edit.revoke-invite': {
+    label: 'Revoke invite button in the PLC edit modal',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'plc-invites.accept': {
+    label: 'Accept button in the PLC invites modal',
+    perField: true,
+    panel: true,
+  },
+  'plc-invites.decline': {
+    label: 'Decline button in the PLC invites modal',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

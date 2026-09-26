@@ -18,7 +18,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   MAX_TEACHER_MATERIALS,
   buildMaterialSnapshots,
@@ -82,7 +82,7 @@ export const MaterialsTitleFontField: React.FC<{
       }
       className="grid grid-cols-4 gap-2"
     >
-      {TITLE_FONTS.map((font) => {
+      {TITLE_FONTS.map((font, fontIndex) => {
         const isSelected = selected === font.id;
         return (
           <button
@@ -92,6 +92,12 @@ export const MaterialsTitleFontField: React.FC<{
             aria-checked={isSelected}
             tabIndex={isSelected ? 0 : -1}
             onClick={() => selectTitleFont(font.id)}
+            {...tourFieldAttr(
+              'widget-settings.materials.title-font',
+              ctx.widget.type,
+              `row-${fontIndex + 1}`
+            )}
+            data-tour-widget={ctx.widget.id}
             className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all ${
               isSelected
                 ? 'border-blue-500 bg-blue-50 shadow-sm'
@@ -419,9 +425,10 @@ export const MaterialsCatalogField: React.FC<{
                 {translate(ctx, 'everyMaterialHidden')}
               </p>
             )}
-            {visibleCatalog.map((item) => {
+            {visibleCatalog.map((item, itemIndex) => {
               const isSelected = selectedSet.has(item.id);
               const isEditable = teacherMaterialIds.has(item.id);
+              const rowKey = `row-${itemIndex + 1}`;
               return (
                 <div
                   key={item.id}
@@ -434,6 +441,12 @@ export const MaterialsCatalogField: React.FC<{
                   <button
                     type="button"
                     onClick={() => toggleItem(item.id)}
+                    {...tourFieldAttr(
+                      'widget-settings.materials.select-item',
+                      ctx.widget.type,
+                      rowKey
+                    )}
+                    data-tour-widget={ctx.widget.id}
                     className="flex min-w-0 flex-1 items-center gap-3 p-2 text-left"
                   >
                     <span
@@ -470,6 +483,12 @@ export const MaterialsCatalogField: React.FC<{
                       aria-label={translate(ctx, 'editMaterial', {
                         label: item.label,
                       })}
+                      {...tourFieldAttr(
+                        'widget-settings.materials.edit-item',
+                        ctx.widget.type,
+                        rowKey
+                      )}
+                      data-tour-widget={ctx.widget.id}
                       className="shrink-0 rounded-md p-2 text-slate-500 transition-colors hover:bg-white hover:text-blue-600"
                     >
                       <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
@@ -481,6 +500,12 @@ export const MaterialsCatalogField: React.FC<{
                     aria-label={translate(ctx, 'hideMaterial', {
                       label: item.label,
                     })}
+                    {...tourFieldAttr(
+                      'widget-settings.materials.hide-item',
+                      ctx.widget.type,
+                      rowKey
+                    )}
+                    data-tour-widget={ctx.widget.id}
                     className="mr-0.5 shrink-0 rounded-md p-2 text-slate-500 transition-colors hover:bg-white hover:text-slate-800"
                   >
                     <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
@@ -516,7 +541,7 @@ export const MaterialsCatalogField: React.FC<{
                   className="flex flex-col gap-2"
                   aria-label={translate(ctx, 'hiddenMaterialsLabel')}
                 >
-                  {hiddenCatalog.map((item) => (
+                  {hiddenCatalog.map((item, hiddenIndex) => (
                     <li
                       key={item.id}
                       className="flex items-center gap-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-2"
@@ -531,6 +556,12 @@ export const MaterialsCatalogField: React.FC<{
                         aria-label={translate(ctx, 'showMaterial', {
                           label: item.label,
                         })}
+                        {...tourFieldAttr(
+                          'widget-settings.materials.unhide-item',
+                          ctx.widget.type,
+                          `row-${hiddenIndex + 1}`
+                        )}
+                        data-tour-widget={ctx.widget.id}
                         className="shrink-0 rounded-md p-2 text-slate-500 transition-colors hover:bg-white hover:text-blue-600"
                       >
                         <Eye className="h-3.5 w-3.5" aria-hidden="true" />

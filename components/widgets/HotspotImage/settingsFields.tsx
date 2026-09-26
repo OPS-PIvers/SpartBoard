@@ -19,7 +19,7 @@ import type {
   ImageHotspot,
 } from '@/types';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const ICON_OPTIONS: ReadonlyArray<{
   value: ImageHotspot['icon'];
@@ -216,28 +216,43 @@ const HotspotBaseImageField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
         </p>
         {savedLibrary.length > 0 ? (
           <div className="max-h-40 space-y-2 overflow-y-auto pr-2">
-            {savedLibrary.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 p-2"
-              >
-                <button
-                  type="button"
-                  onClick={() => handleLoadFromLibrary(item)}
-                  className="mr-2 min-w-0 flex-1 truncate text-left text-xs font-medium text-slate-700 hover:text-brand-blue-primary"
+            {savedLibrary.map((item, libraryIndex) => {
+              const rowKey = `row-${libraryIndex + 1}`;
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 p-2"
                 >
-                  {item.name}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteFromLibrary(item.id)}
-                  className="p-1 text-slate-600 hover:text-brand-red-primary"
-                  aria-label={t('deleteSavedHotspot')}
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </div>
-            ))}
+                  <button
+                    type="button"
+                    onClick={() => handleLoadFromLibrary(item)}
+                    {...tourFieldAttr(
+                      'widget-settings.hotspot-image.load-library-item',
+                      ctx.widget.type,
+                      rowKey
+                    )}
+                    data-tour-widget={ctx.widget.id}
+                    className="mr-2 min-w-0 flex-1 truncate text-left text-xs font-medium text-slate-700 hover:text-brand-blue-primary"
+                  >
+                    {item.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteFromLibrary(item.id)}
+                    {...tourFieldAttr(
+                      'widget-settings.hotspot-image.delete-library-item',
+                      ctx.widget.type,
+                      rowKey
+                    )}
+                    data-tour-widget={ctx.widget.id}
+                    className="p-1 text-slate-600 hover:text-brand-red-primary"
+                    aria-label={t('deleteSavedHotspot')}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <p className="text-xxs italic text-slate-600">
@@ -297,89 +312,116 @@ export const HotspotImagePinsField: React.FC<{ ctx: CustomRenderCtx }> = ({
       aria-describedby={ctx.describedBy}
       className="flex max-h-96 flex-col gap-3 overflow-y-auto pr-1"
     >
-      {hotspots.map((hotspot, index) => (
-        <div
-          key={hotspot.id}
-          className="relative space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3"
-        >
-          <button
-            type="button"
-            aria-label={t('deleteHotspot').replace(
-              '{{count}}',
-              String(index + 1)
-            )}
-            onClick={() => deleteHotspot(hotspot.id)}
-            className="absolute right-3 top-3 text-slate-600 hover:text-brand-red-primary"
-          >
-            <Trash2 className="h-4 w-4" aria-hidden="true" />
-          </button>
-          <label
-            htmlFor={`${ctx.id}-title-${hotspot.id}`}
-            className="block text-xxs font-semibold uppercase tracking-wider text-slate-600"
-          >
-            {t('pinTitle').replace('{{count}}', String(index + 1))}
-          </label>
-          <input
-            id={`${ctx.id}-title-${hotspot.id}`}
-            type="text"
-            value={hotspot.title}
-            onChange={(event) =>
-              updateHotspot(hotspot.id, { title: event.target.value })
-            }
-            className={inputClass}
-            placeholder={t('pinTitlePlaceholder')}
-          />
-          <label
-            htmlFor={`${ctx.id}-detail-${hotspot.id}`}
-            className="block text-xxs font-semibold uppercase tracking-wider text-slate-600"
-          >
-            {t('detailText')}
-          </label>
-          <textarea
-            id={`${ctx.id}-detail-${hotspot.id}`}
-            value={hotspot.detailText}
-            onChange={(event) =>
-              updateHotspot(hotspot.id, { detailText: event.target.value })
-            }
-            className={`${inputClass} min-h-20`}
-            placeholder={t('detailPlaceholder')}
-          />
-          <span className="block text-xxs font-semibold uppercase tracking-wider text-slate-600">
-            {t('icon')}
-          </span>
+      {hotspots.map((hotspot, index) => {
+        const rowKey = `row-${index + 1}`;
+        return (
           <div
-            role="radiogroup"
-            aria-label={t('icon')}
-            className="flex gap-2"
-            onKeyDown={(event) =>
-              handleRadioGroupKeyDown(event, ICON_OPTIONS, (option) =>
-                updateHotspot(hotspot.id, { icon: option.value })
-              )
-            }
+            key={hotspot.id}
+            className="relative space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3"
           >
-            {ICON_OPTIONS.map((option) => {
-              const Icon = option.icon;
-              const selected = hotspot.icon === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  tabIndex={selected ? 0 : -1}
-                  aria-label={t(option.label)}
-                  onClick={() =>
-                    updateHotspot(hotspot.id, { icon: option.value })
-                  }
-                  className={`rounded-md border p-2 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary ${selected ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'}`}
-                >
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                </button>
-              );
-            })}
+            <button
+              type="button"
+              aria-label={t('deleteHotspot').replace(
+                '{{count}}',
+                String(index + 1)
+              )}
+              onClick={() => deleteHotspot(hotspot.id)}
+              {...tourFieldAttr(
+                'widget-settings.hotspot-image.delete-hotspot',
+                ctx.widget.type,
+                rowKey
+              )}
+              data-tour-widget={ctx.widget.id}
+              className="absolute right-3 top-3 text-slate-600 hover:text-brand-red-primary"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <label
+              htmlFor={`${ctx.id}-title-${hotspot.id}`}
+              className="block text-xxs font-semibold uppercase tracking-wider text-slate-600"
+            >
+              {t('pinTitle').replace('{{count}}', String(index + 1))}
+            </label>
+            <input
+              id={`${ctx.id}-title-${hotspot.id}`}
+              type="text"
+              value={hotspot.title}
+              onChange={(event) =>
+                updateHotspot(hotspot.id, { title: event.target.value })
+              }
+              {...tourFieldAttr(
+                'widget-settings.hotspot-image.pin-title',
+                ctx.widget.type,
+                rowKey
+              )}
+              data-tour-widget={ctx.widget.id}
+              className={inputClass}
+              placeholder={t('pinTitlePlaceholder')}
+            />
+            <label
+              htmlFor={`${ctx.id}-detail-${hotspot.id}`}
+              className="block text-xxs font-semibold uppercase tracking-wider text-slate-600"
+            >
+              {t('detailText')}
+            </label>
+            <textarea
+              id={`${ctx.id}-detail-${hotspot.id}`}
+              value={hotspot.detailText}
+              onChange={(event) =>
+                updateHotspot(hotspot.id, { detailText: event.target.value })
+              }
+              {...tourFieldAttr(
+                'widget-settings.hotspot-image.detail-text',
+                ctx.widget.type,
+                rowKey
+              )}
+              data-tour-widget={ctx.widget.id}
+              className={`${inputClass} min-h-20`}
+              placeholder={t('detailPlaceholder')}
+            />
+            <span className="block text-xxs font-semibold uppercase tracking-wider text-slate-600">
+              {t('icon')}
+            </span>
+            <div
+              role="radiogroup"
+              aria-label={t('icon')}
+              {...tourFieldAttr(
+                'widget-settings.hotspot-image.icon',
+                ctx.widget.type,
+                rowKey
+              )}
+              data-tour-widget={ctx.widget.id}
+              className="flex gap-2"
+              onKeyDown={(event) =>
+                handleRadioGroupKeyDown(event, ICON_OPTIONS, (option) =>
+                  updateHotspot(hotspot.id, { icon: option.value })
+                )
+              }
+            >
+              {ICON_OPTIONS.map((option) => {
+                const Icon = option.icon;
+                const selected = hotspot.icon === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    tabIndex={selected ? 0 : -1}
+                    aria-label={t(option.label)}
+                    onClick={() =>
+                      updateHotspot(hotspot.id, { icon: option.value })
+                    }
+                    className={`rounded-md border p-2 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary ${selected ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'}`}
+                  >
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
       {hotspots.length === 0 && (
         <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 py-4 text-center text-xs text-slate-600">
           {t('clickToAddPin')}

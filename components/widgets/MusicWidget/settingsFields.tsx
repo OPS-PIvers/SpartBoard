@@ -5,7 +5,7 @@ import type { MusicConfig, MusicSource } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { useMusicStations } from '@/hooks/useMusicStations';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { PersonalSpotifyPanel } from './PersonalSpotifyPanel';
 import { buildSpotifyEmbedUrl } from './utils';
 import { canUsePersonal } from './canUsePersonal';
@@ -60,7 +60,7 @@ export const MusicSourceField: React.FC<{ ctx: CustomRenderCtx }> = ({
       }
       className="grid grid-cols-2 gap-2"
     >
-      {SOURCE_OPTIONS.map((option) => {
+      {SOURCE_OPTIONS.map((option, optionIndex) => {
         const active = selected === option.value;
         const Icon = option.icon;
         return (
@@ -72,6 +72,12 @@ export const MusicSourceField: React.FC<{ ctx: CustomRenderCtx }> = ({
             tabIndex={active ? 0 : -1}
             title={label(option.help)}
             onClick={() => selectSource(option.value)}
+            {...tourFieldAttr(
+              'widget-settings.music.source',
+              ctx.widget.type,
+              `row-${optionIndex + 1}`
+            )}
+            data-tour-widget={ctx.widget.id}
             className={`flex items-center gap-2 rounded-xl border-2 p-3 text-left transition-all ${
               active
                 ? 'border-green-500 bg-green-50 shadow-sm'
@@ -162,7 +168,7 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
       }
       className="grid max-h-48 grid-cols-2 gap-2 overflow-y-auto pr-1"
     >
-      {stations.map((station) => {
+      {stations.map((station, stationIndex) => {
         const active = config.stationId === station.id;
         return (
           <button
@@ -182,6 +188,12 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
                   : {}),
               })
             }
+            {...tourFieldAttr(
+              'widget-settings.music.station',
+              ctx.widget.type,
+              `row-${stationIndex + 1}`
+            )}
+            data-tour-widget={ctx.widget.id}
             className={`flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 text-center transition-all ${
               active
                 ? 'border-indigo-500 bg-indigo-50 shadow-sm'

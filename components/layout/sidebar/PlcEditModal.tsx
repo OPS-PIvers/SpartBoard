@@ -9,7 +9,7 @@ import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { Plc } from '@/types';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcEditModalProps {
   isOpen: boolean;
@@ -209,7 +209,8 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
               </span>
             </div>
             <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-48 overflow-y-auto custom-scrollbar">
-              {memberList.map((m) => {
+              {memberList.map((m, memberIndex) => {
+                const rowKey = `row-${memberIndex + 1}`;
                 const uid = m.uid;
                 const email = m.email;
                 const isMe = uid === user?.uid;
@@ -242,6 +243,11 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
                     {isLead && !isMemberLead && (
                       <button
                         onClick={() => void handleRemoveMember(uid, label)}
+                        {...tourFieldAttr(
+                          'plc-edit.remove-member',
+                          'plc-edit',
+                          rowKey
+                        )}
                         className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                         title={t('sidebar.plcs.removeMember', {
                           defaultValue: 'Remove Member',
@@ -309,7 +315,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
               })}
             </label>
             <div className="border border-slate-200 rounded-xl divide-y divide-slate-100">
-              {outstanding.map((inv) => (
+              {outstanding.map((inv, inviteIndex) => (
                 <div
                   key={inv.id}
                   className="flex items-center gap-2 px-3 py-2 text-sm"
@@ -320,6 +326,11 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
                   </div>
                   <button
                     onClick={() => void handleRevokeInvite(inv)}
+                    {...tourFieldAttr(
+                      'plc-edit.revoke-invite',
+                      'plc-edit',
+                      `row-${inviteIndex + 1}`
+                    )}
                     className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                     title={t('sidebar.plcs.revokeInvite', {
                       defaultValue: 'Revoke Invitation',

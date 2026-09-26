@@ -18,7 +18,7 @@ import { getLocalIsoDate } from '@/utils/localDate';
 import { countRosterGroupMembers } from '@/utils/rosterGroups';
 import { combineRosterNames } from '@/utils/rosterNameLists';
 import { useRosterGroupsIntegrationSettings } from '@/hooks/useRosterGroupsIntegrationSettings';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 function useStudentCount(config: RandomConfig): number {
   const { rosters, activeRosterId } = useDashboard();
@@ -435,7 +435,7 @@ export const RandomLockedGroupsField: React.FC<{ ctx: CustomRenderCtx }> = ({
       aria-describedby={ctx.describedBy}
       className="flex flex-col gap-1"
     >
-      {groups.map((g) => {
+      {groups.map((g, groupIndex) => {
         const size = countRosterGroupMembers(activeRoster, g.id) ?? 0;
         return (
           <label
@@ -446,6 +446,12 @@ export const RandomLockedGroupsField: React.FC<{ ctx: CustomRenderCtx }> = ({
               type="checkbox"
               checked={locked.includes(g.id)}
               onChange={() => toggle(g.id)}
+              {...tourFieldAttr(
+                'widget-settings.random.locked-group',
+                ctx.widget.type,
+                `row-${groupIndex + 1}`
+              )}
+              data-tour-widget={ctx.widget.id}
               className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
             />
             <Lock size={14} className="text-slate-400 shrink-0" />

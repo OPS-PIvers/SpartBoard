@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { CustomWidgetConfig, CustomWidgetSettingDef } from '@/types';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { useCustomWidgets } from '@/context/useCustomWidgets';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 type SettingValue = string | number | boolean;
 
@@ -78,6 +78,12 @@ const CustomWidgetSettingsForm: React.FC<SettingsFormProps> = ({
                       onChange={(event) =>
                         change(definition.key, event.target.checked)
                       }
+                      {...tourFieldAttr(
+                        'widget-settings.custom-widget.definition-input',
+                        ctx.widget.type,
+                        definition.key
+                      )}
+                      data-tour-widget={ctx.widget.id}
                       className="h-4 w-4 accent-brand-blue-primary"
                     />
                     <span className="text-xs text-slate-600">
@@ -97,6 +103,12 @@ const CustomWidgetSettingsForm: React.FC<SettingsFormProps> = ({
                           : event.target.valueAsNumber
                       )
                     }
+                    {...tourFieldAttr(
+                      'widget-settings.custom-widget.definition-input',
+                      ctx.widget.type,
+                      definition.key
+                    )}
+                    data-tour-widget={ctx.widget.id}
                     className="rounded-lg border-2 border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-brand-blue-primary"
                   />
                 ) : definition.type === 'select' ? (
@@ -110,6 +122,12 @@ const CustomWidgetSettingsForm: React.FC<SettingsFormProps> = ({
                     onChange={(event) =>
                       change(definition.key, event.target.value)
                     }
+                    {...tourFieldAttr(
+                      'widget-settings.custom-widget.definition-input',
+                      ctx.widget.type,
+                      definition.key
+                    )}
+                    data-tour-widget={ctx.widget.id}
                     className="rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-brand-blue-primary"
                   >
                     {(definition.options ?? []).map((option) => (
@@ -126,6 +144,12 @@ const CustomWidgetSettingsForm: React.FC<SettingsFormProps> = ({
                     onChange={(event) =>
                       change(definition.key, event.target.value)
                     }
+                    {...tourFieldAttr(
+                      'widget-settings.custom-widget.definition-input',
+                      ctx.widget.type,
+                      definition.key
+                    )}
+                    data-tour-widget={ctx.widget.id}
                     className="rounded-lg border-2 border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-brand-blue-primary"
                   />
                 )}

@@ -1,6 +1,6 @@
 # Live-tour anchor audit (2026-09-26)
 
-Unanchored interactive elements, with proposed `config/tourAnchors.ts` ids. Nothing here is tagged yet.
+Audit of unanchored interactive elements, with the ids proposed at the time. Most are now tagged on this branch; the files below are the original findings.
 
 1. [Widget window chrome and help](01-widget-chrome.md)
 2. [Sidebar, Profile & Settings, settings drawer](02-user-settings.md)
@@ -8,10 +8,18 @@ Unanchored interactive elements, with proposed `config/tourAnchors.ts` ids. Noth
 4. [Widget settings H–R](04-widget-settings-h-r.md)
 5. [Widget settings S–Z](05-widget-settings-s-z.md)
 
-Recommendations:
+## Status
 
-- Add one generic anchor in the schema settings renderer (widget type + field key) instead of tagging each schema field.
-- Tag Profile & Settings first; it has no anchors at all.
-- Delete `components/layout/sidebar/SidebarBoardsActive.tsx` (dead code).
+Done:
 
-Open follow-ups: widget-body controls for most widgets; roster editor, ClassLink import and Link Schoology dialogs; `PenColorSwatches`; line numbers marked `~`.
+- Profile & Settings, My Classes, PLCs, roster/ClassLink/Schoology dialogs.
+- Widget body controls for the main widgets, Quiz, Scoreboard, Activity Wall editor, shared library shell and cards, pen colours.
+- Schema settings fields through one generic `settings.field` anchor (`settings.field:<type>#<key>`, list rows `#<list>.<n>.<field>`), plus custom settings controls.
+- Repeated rows use `perField` anchors keyed `row-<n>` (1-based position).
+
+Still open:
+
+- Widget window chrome and Help Center items in 01.
+- `SegmentedTabs` tab buttons and `OverflowMenu` items, which don't pass through tour attributes.
+- The shared `Modal` header close button.
+- `SidebarBoardsActive.tsx` is dead code; delete it rather than anchor it.

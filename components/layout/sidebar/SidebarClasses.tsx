@@ -40,7 +40,7 @@ import {
 } from '@/components/classes/ClassLinkImportDialog';
 import { LinkSchoologyModal } from '@/components/classes/LinkSchoologyModal';
 import { useSchoologySeenSections } from '@/hooks/useSchoologySeenSections';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 /** Google Classroom OAuth scope for read-only course listing. */
 const CLASSROOM_COURSES_READONLY_SCOPE =
@@ -554,8 +554,9 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                   className="flex flex-col gap-2"
                   {...tourAttr('classes.roster-list')}
                 >
-                  {rosters.map((r) => {
+                  {rosters.map((r, rosterIndex) => {
                     const isActive = activeRosterId === r.id;
+                    const rowKey = `row-${rosterIndex + 1}`;
                     return (
                       <div
                         key={r.id}
@@ -569,6 +570,11 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                           onClick={() =>
                             setActiveRoster(isActive ? null : r.id)
                           }
+                          {...tourFieldAttr(
+                            'classes.set-active',
+                            'classes',
+                            rowKey
+                          )}
                           className={`shrink-0 p-1.5 rounded-lg transition-colors ${
                             isActive
                               ? 'text-amber-500 hover:bg-amber-50'
@@ -626,6 +632,11 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                         <div className="flex items-center gap-0.5 shrink-0">
                           <button
                             onClick={() => setEditingRosterId(r.id)}
+                            {...tourFieldAttr(
+                              'classes.edit-roster',
+                              'classes',
+                              rowKey
+                            )}
                             className="p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
                             title={t('sidebar.classes.edit', {
                               defaultValue: 'Edit Class',
@@ -679,6 +690,11 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                                         rosterName: r.name,
                                       })
                                     }
+                                    {...tourFieldAttr(
+                                      'classes.sync-classlink',
+                                      'classes',
+                                      rowKey
+                                    )}
                                     className="relative p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
                                     title={syncLabel}
                                     aria-label={syncLabel}
@@ -693,6 +709,11 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                                   </button>
                                   <button
                                     onClick={() => setLinkingRoster(r)}
+                                    {...tourFieldAttr(
+                                      'classes.link-classroom',
+                                      'classes',
+                                      rowKey
+                                    )}
                                     className={`relative p-1.5 rounded-lg transition-colors ${
                                       r.googleClassroomCourseId
                                         ? 'text-emerald-600 hover:bg-emerald-50'
@@ -708,6 +729,11 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                             })()}
                           <button
                             onClick={() => void handleDelete(r)}
+                            {...tourFieldAttr(
+                              'classes.delete-roster',
+                              'classes',
+                              rowKey
+                            )}
                             className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                             title={t('sidebar.classes.delete', {
                               defaultValue: 'Delete Class',
@@ -882,12 +908,17 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
 
             {courseLoadState === 'loaded' && courses.length > 0 && (
               <div className="flex flex-col gap-2 max-h-80 overflow-y-auto custom-scrollbar -mx-1 px-1">
-                {courses.map((course) => {
+                {courses.map((course, courseIndex) => {
                   const isSelected = selectedCourseId === course.id;
                   return (
                     <button
                       key={course.id}
                       onClick={() => setSelectedCourseId(course.id)}
+                      {...tourFieldAttr(
+                        'classes.classroom-course-row',
+                        'classes',
+                        `row-${courseIndex + 1}`
+                      )}
                       className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
                         isSelected
                           ? 'border-brand-blue-primary bg-brand-blue-lighter ring-1 ring-brand-blue-primary/20'

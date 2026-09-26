@@ -6,7 +6,7 @@ import { Modal } from '@/components/common/Modal';
 import { useDialog } from '@/context/useDialog';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { PlcInvitation } from '@/types';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcInvitesModalProps {
   isOpen: boolean;
@@ -89,8 +89,9 @@ export const PlcInvitesModal: React.FC<PlcInvitesModalProps> = ({
         </div>
       ) : (
         <div className="flex flex-col gap-2" {...tourAttr('plc-invites.list')}>
-          {pendingInvites.map((invite) => {
+          {pendingInvites.map((invite, inviteIndex) => {
             const busy = busyId === invite.id;
+            const rowKey = `row-${inviteIndex + 1}`;
             return (
               <div
                 key={invite.id}
@@ -114,6 +115,11 @@ export const PlcInvitesModal: React.FC<PlcInvitesModalProps> = ({
                   <button
                     onClick={() => void handleDecline(invite)}
                     disabled={busy}
+                    {...tourFieldAttr(
+                      'plc-invites.decline',
+                      'plc-invites',
+                      rowKey
+                    )}
                     className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     title={t('sidebar.plcs.decline', {
                       defaultValue: 'Decline',
@@ -127,6 +133,11 @@ export const PlcInvitesModal: React.FC<PlcInvitesModalProps> = ({
                   <button
                     onClick={() => void handleAccept(invite)}
                     disabled={busy}
+                    {...tourFieldAttr(
+                      'plc-invites.accept',
+                      'plc-invites',
+                      rowKey
+                    )}
                     className="p-1.5 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     title={t('sidebar.plcs.accept', {
                       defaultValue: 'Accept',

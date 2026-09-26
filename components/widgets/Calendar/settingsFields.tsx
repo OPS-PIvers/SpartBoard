@@ -6,7 +6,7 @@ import { useAuth } from '@/context/useAuth';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import type { CalendarConfig, CalendarGlobalConfig } from '@/types';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { extractCalendarId } from './constants';
 
 export const CalendarBuildingSyncField: React.FC<{
@@ -183,7 +183,7 @@ export const CalendarPersonalCalendarsField: React.FC<{
             </button>
           </div>
           <div className="space-y-1.5">
-            {personalIds.map((id) => (
+            {personalIds.map((id, calendarIndex) => (
               <div
                 key={id}
                 className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 bg-white px-3 py-2 shadow-sm"
@@ -201,6 +201,12 @@ export const CalendarPersonalCalendarsField: React.FC<{
                     })
                   }
                   aria-label={ctx.t('widgetSettings.calendar.removeCalendar')}
+                  {...tourFieldAttr(
+                    'widget-settings.calendar.remove-calendar',
+                    ctx.widget.type,
+                    `row-${calendarIndex + 1}`
+                  )}
+                  data-tour-widget={ctx.widget.id}
                   className="p-1 text-slate-300 hover:text-red-500"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
