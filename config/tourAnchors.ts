@@ -379,6 +379,52 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'quiz.start': { label: 'Start quiz session button in Quiz', perWidget: true },
+  'quiz.next-question': {
+    label: 'Next/Finish question button in Quiz',
+    perWidget: true,
+  },
+  'quiz.pause-resume': {
+    label: 'Pause or resume button in the Quiz monitor',
+    perWidget: true,
+  },
+  'quiz.end-quiz': {
+    label: 'End assignment button in the Quiz monitor',
+    perWidget: true,
+    destructive: true,
+  },
+  'quiz.more-actions': {
+    label: 'More actions button in the Quiz monitor',
+    perWidget: true,
+  },
+  'quiz.reveal-answer': {
+    label: 'Reveal/hide answer to class item in the Quiz monitor menu',
+    perWidget: true,
+    panel: true,
+  },
+  'quiz.personal-targets': {
+    label: 'My learning targets button in the Quiz library',
+    perWidget: true,
+  },
+  'quiz.select-mode': {
+    label: 'Select mode toggle in the Quiz library',
+    perWidget: true,
+  },
+  'quiz-settings.widget-label': {
+    label: 'Widget label input in Quiz settings',
+    perWidget: true,
+    panel: true,
+  },
+  'quiz-settings.assignment-archive': {
+    label: 'Assignment archive button in Quiz settings',
+    perWidget: true,
+    panel: true,
+  },
+  'quiz-settings.manager-view': {
+    label: 'Manager view button in Quiz settings',
+    perWidget: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

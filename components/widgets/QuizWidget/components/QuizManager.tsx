@@ -25,6 +25,7 @@ import React, {
 } from 'react';
 import { useQuizTranslations } from '@/hooks/useQuizTranslations';
 import { useTranslation } from 'react-i18next';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   Plus,
   FileUp,
@@ -259,6 +260,8 @@ export type QuizManagerTab = 'library' | 'banks' | 'active' | 'archive';
 interface QuizManagerProps {
   /** Teacher's Firebase UID — used to scope the folders subcollection. */
   userId?: string;
+  /** This widget instance's id, for live-tour anchor scoping. */
+  widgetId?: string;
   /** Per-period start and windows in the assign modal; absent while the flag is off. */
   periodAccess?: AssignPeriodAccessContext;
   quizzes: QuizMetadata[];
@@ -615,6 +618,7 @@ const SpinningRefreshIcon: React.ComponentType<{
 
 export const QuizManager: React.FC<QuizManagerProps> = ({
   userId,
+  widgetId,
   periodAccess,
   quizzes,
   loading,
@@ -2040,6 +2044,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               <button
                 type="button"
                 onClick={() => setTargetsModalOpen(true)}
+                {...tourAttr('quiz.personal-targets', widgetId, 'quiz')}
                 className="inline-flex items-center rounded-lg bg-white/70 font-bold uppercase tracking-wider text-slate-600 transition-colors hover:bg-white hover:text-slate-800"
                 style={{
                   gap: 'min(6px, 1.5cqmin)',
@@ -2071,6 +2076,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                     setSelectionMode(true);
                   }
                 }}
+                {...tourAttr('quiz.select-mode', widgetId, 'quiz')}
                 className={`inline-flex items-center rounded-lg font-bold uppercase tracking-wider transition-colors ${
                   selectionMode
                     ? 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'

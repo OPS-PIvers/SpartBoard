@@ -4,6 +4,7 @@ import { QuizSession, QuizQuestion } from '@/types';
 import { resolveStimuli } from '@/utils/quizStimuli';
 import { CollapsibleStimuli } from '@/components/quiz/QuizStimulusView';
 import { formatRevealedAnswer } from '@/utils/quizFibAlternates';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface CurrentQuestionCardProps {
   session: QuizSession;
@@ -12,6 +13,8 @@ interface CurrentQuestionCardProps {
   total: number;
   doneCount: number;
   onAdvance: () => Promise<void>;
+  /** This widget instance's id, for live-tour anchor scoping. */
+  widgetId?: string;
 }
 
 // Blue Lighter panel per the approved design — flat fill, no accent stripes.
@@ -22,6 +25,7 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
   total,
   doneCount,
   onAdvance,
+  widgetId,
 }) => {
   const [advancing, setAdvancing] = useState(false);
   const handleAdvance = async () => {
@@ -84,6 +88,7 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
         <button
           onClick={handleAdvance}
           disabled={advancing}
+          {...tourAttr('quiz.start', widgetId, 'quiz')}
           className="self-start inline-flex items-center bg-brand-blue-primary hover:bg-brand-blue-light text-white font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
           style={{
             gap: 'min(6px, 1.5cqmin)',
@@ -203,6 +208,7 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
           <button
             onClick={handleAdvance}
             disabled={advancing}
+            {...tourAttr('quiz.next-question', widgetId, 'quiz')}
             className="inline-flex items-center bg-brand-blue-primary hover:bg-brand-blue-light text-white font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
             style={{
               gap: 'min(6px, 1.5cqmin)',
