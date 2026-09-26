@@ -45,8 +45,9 @@ export function resolveRecordedAnchor(target: Element): RecordedAnchor | null {
   if (tagged) {
     const id = tagged.getAttribute('data-tour') ?? '';
     const type = tagged.getAttribute('data-tour-widget-type');
+    const field = tagged.getAttribute('data-tour-field');
     return {
-      anchor: type ? `${id}:${type}` : id,
+      anchor: type ? `${id}:${type}${field ? `#${field}` : ''}` : id,
       fallback: fallbackOf(tagged),
       untagged: false,
       element: tagged,

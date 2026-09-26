@@ -81,7 +81,9 @@ describe('tour anchor registry', () => {
   it('gives every anchor a label and at most one scope', () => {
     for (const [id, def] of Object.entries(TOUR_ANCHORS)) {
       expect(def.label.trim(), id).not.toBe('');
-      const scopes = ['perWidget', 'perWidgetType'].filter((k) => k in def);
+      const scopes = ['perWidget', 'perWidgetType', 'perField'].filter(
+        (k) => k in def
+      );
       expect(scopes.length, id).toBeLessThanOrEqual(1);
     }
   });

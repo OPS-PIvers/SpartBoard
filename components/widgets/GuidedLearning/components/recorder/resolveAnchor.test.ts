@@ -44,6 +44,15 @@ describe('resolveRecordedAnchor', () => {
     );
   });
 
+  it('adds the field key for per-field anchors', () => {
+    const root = dom(
+      '<div data-tour="settings.field" data-tour-widget-type="poll" data-tour-field="question"><input /></div>'
+    );
+    expect(resolveRecordedAnchor(pick(root, 'input'))?.anchor).toBe(
+      'settings.field:poll#question'
+    );
+  });
+
   it('falls back to role and name for untagged controls, with a suggested id', () => {
     const root = dom(
       '<div><button><span class="u">Add a class</span></button></div>'
