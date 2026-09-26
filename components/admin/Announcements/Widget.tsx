@@ -39,6 +39,7 @@ import {
   PollConfig,
 } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { canonicalizeBuildingIds } from '@/config/buildings';
 import { isSuperAdminActor } from '@/utils/superAdmin';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { Toggle } from '@/components/common/Toggle';
@@ -698,9 +699,14 @@ export const AnnouncementsManager: React.FC = () => {
       q,
       (snap) => {
         const items: Announcement[] = [];
-        snap.forEach((d) =>
-          items.push({ id: d.id, ...d.data() } as Announcement)
-        );
+        snap.forEach((d) => {
+          const a = { id: d.id, ...d.data() } as Announcement;
+          // targetBuildings may hold a legacy long-form id that would never match building.id's canonical form.
+          items.push({
+            ...a,
+            targetBuildings: canonicalizeBuildingIds(a.targetBuildings ?? []),
+          });
+        });
         items.sort((a, b) => b.createdAt - a.createdAt);
         setAnnouncements(items);
         setLoading(false);
