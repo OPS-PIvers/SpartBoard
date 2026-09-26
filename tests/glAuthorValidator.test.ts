@@ -379,6 +379,20 @@ describe('validateGlSet tours', () => {
     );
   });
 
+  it('rejects a slot on per-type and per-field anchors', () => {
+    const setup = {
+      tourSetup: { widgets: ['clock'], layouts: [layout(0, 'clock')] },
+    };
+    bad(
+      set([tour('settings.field:clock#format24', { slot: 0 })], setup),
+      /only binds per-widget anchors/
+    );
+    bad(
+      set([tour('dock.item:clock', { slot: 0 })], setup),
+      /only binds per-widget/
+    );
+  });
+
   it('checks layout proportions and recorder-only fields', () => {
     const withLayout = (over: Record<string, unknown>) =>
       set([tour('dock.open-tools')], {

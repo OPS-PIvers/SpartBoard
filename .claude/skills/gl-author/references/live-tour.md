@@ -42,11 +42,11 @@ another app is an ordinary set.
 
 ```jsonc
 "tour": {
-  "anchor": "settings.field:clock#format24", // ref, see below
+  "anchor": "widget.settings-opener:clock", // ref, see below
   "action": "click",            // or "observe"
-  "fallback": { "role": "switch", "name": "24-hour time" }, // optional
+  "fallback": { "role": "button", "name": "Settings (Alt+S)" }, // optional
   "teacherMustClick": true,     // optional; defaults from the anchor
-  "slot": 0,                    // widget-scoped anchors, see Slots
+  "slot": 0,                    // per-widget anchors only, see Slots
   "spawns": { … },              // this click opens a widget, see Slots
   "layoutKeyframes": [ … ]      // widgets move before this step, see Slots
 }
@@ -55,9 +55,17 @@ another app is an ordinary set.
 - `action: "click"` when the step is "press this": the tour advances when
   the teacher (or autopilot) clicks it. `"observe"` when the step points at
   something to read or notice: the teacher presses Next.
-- `fallback` is the element's ARIA role and accessible name, used when the
-  `data-tour` tag is not found. Add it for click steps; read both from the
-  element during capture.
+- Autopilot clicks the anchor element itself, so a click step's anchor must
+  be the control, not a row or panel around it. A settings field anchor is
+  the whole row, so a field step is `observe` ("Turn on 24H Format, then
+  click Next").
+- Use `observe` for any toggle or checkbox whose starting state you can't
+  know: a click flips it, so on a board where it is already on, the tour
+  would switch it off. Widget defaults and building settings vary.
+- `fallback` is the element's ARIA role and accessible name, matched when
+  the `data-tour` tag is not found. Add it for click steps, and take it from
+  `fallbackFor(locator)` in `scripts/tour_anchor.mjs`, which reads them the
+  way the runner does (an icon button's name is often its `title`).
 - `teacherMustClick`: anchors registered `destructive` (closing a widget,
   clearing a board, making a new board) are never clicked by autopilot;
   it demonstrates and waits. Leave the field out to keep that default. Set
@@ -94,6 +102,11 @@ exist.
 - **Panels are not.** An anchor marked `panel` without `requires` (a menu
   item, a library tab) is only visible after something opens it, so an
   earlier step must open it with `action: "click"`.
+- **Some chrome only exists in one state.** `dock.open-tools` shows only
+  while the dock is collapsed, and dock items far along the dock sit
+  outside its scroller at laptop widths. Start the tour from the state its
+  first step needs, and let `checkAnchor` at 1440×900 decide what is
+  reachable.
 - **Positional refs** (`row-<n>`, and list fields such as
   `#items.2.task`) point at whatever sits in that position on the
   teacher's board. Use one only on a row the tour itself creates or sets
@@ -102,8 +115,12 @@ exist.
 
 ## Slots: widgets the tour sets up
 
-A widget-scoped anchor needs to know which widget it means. Give the set
-a `tourSetup`, and give each step that points into a widget a `slot`.
+A per-widget anchor (`perWidget` in the registry: a widget's window,
+toolbar and settings panel controls) needs to know which widget it means.
+Give the set a `tourSetup` or an earlier `spawns`, and give each step on a
+per-widget anchor a `slot`. Never put a slot on a per-type or per-field
+anchor: those elements carry no widget id, so a slot makes the step
+unresolvable; they already match by widget type. The validator rejects it.
 
 ```jsonc
 "tourSetup": {
@@ -124,7 +141,11 @@ a `tourSetup`, and give each step that points into a widget a `slot`.
   that type, or adds one, and moves it to the layout for the tour.
 - A step whose click opens a new widget (a dock or library item) carries
   `spawns`: a layout with a new slot. Later steps can point into it with
-  that slot.
+  that slot. Leave that widget type out of `tourSetup.widgets`, or the
+  runner adds one at the start and the click adds a second. A tour whose
+  only widget is spawned has `"tourSetup": { "widgets": [] }` or none.
+  The Help Center's tour health panel doesn't read `spawns` yet and may
+  report its later steps as needing a widget; the tour itself runs.
 - `layoutKeyframes` on a step moves or resizes slotted widgets
   (`{ slot, xProp, yProp, wProp, hProp }`) before it starts, for a step
   that needs the widget somewhere else.

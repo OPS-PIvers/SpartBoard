@@ -53,7 +53,10 @@ VITE_AUTH_BYPASS=true pnpm exec vite \
   --host 127.0.0.1 --port 56300 --strictPort
 ```
 
-Wait for the server readiness message before opening the page. The bypass
+Wait for the server readiness message before opening the page. Without a
+`.env.local` the app renders a blank page; for capture, export placeholder
+`VITE_FIREBASE_*` values in that shell (project id `demo-spartboard`) rather
+than writing a file, so nothing talks to prod or dev. The bypass
 user is a mock admin, so admin-only previews such as live tours and the
 calmer player are on. It does not bypass Firestore rules: anything that
 must be saved server-side needs a harness.
@@ -105,13 +108,18 @@ directory after capture.
 4. Open menus and dialogs through user-visible controls. Capture the states the
    guide describes, such as class selection, attendance, settings, and each
    completed widget mode.
-5. Wait for semantic completion instead of sleeping. After randomization, wait
+5. Close first-run toasts ("Welcome! Board created") before a screenshot;
+   they can sit over the settings panel. Freeze time-based widgets with
+   `page.clock.setFixedTime(...)` so every slide shows the same time.
+   Dock items are drag handles that report `aria-disabled` outside edit
+   mode, so click them with `{ force: true }`.
+6. Wait for semantic completion instead of sleeping. After randomization, wait
    for generated student rows, group cards, or enabled result controls, not the
    button that started the operation. Placeholder containers can appear before
    results are populated.
-6. Keep timed UI visible by overriding long `window.setTimeout` delays before
+7. Keep timed UI visible by overriding long `window.setTimeout` delays before
    triggering it, when necessary.
-7. Save numbered PNGs under `.playwright-mcp/shots/` in slide order.
+8. Save numbered PNGs under `.playwright-mcp/shots/` in slide order.
 
 ## 6. Measure and verify hotspots
 
@@ -141,23 +149,17 @@ step's screenshot:
 ```js
 import {
   checkAnchor,
+  fallbackFor,
   measureWidgetLayout,
   refFor,
 } from '../.claude/skills/gl-author/scripts/tour_anchor.mjs';
 
 const ref = await refFor(locator); // e.g. settings.field:clock#format24
 const { box } = await checkAnchor(page, ref); // fails if the runner could not use it
-const fallback = {
-  role: await locator.evaluate(
-    (el) => el.getAttribute('role') ?? el.tagName.toLowerCase()
-  ),
-  name:
-    (await locator.getAttribute('aria-label')) ?? (await locator.innerText()),
-};
+const fallback = await fallbackFor(locator); // { role, name } or null
 ```
 
-Check `fallback.role` against the element's real role (`button` for a
-`<button>`, `switch` for a toggle) before writing it. Measure each tour
+Leave `fallback` out when it returns null. Measure each tour
 widget with `measureWidgetLayout(page, 'clock', 0)` once it sits where the
 screenshots show it. See [live-tour.md](live-tour.md) for what to do with
 them.

@@ -43,6 +43,53 @@ export async function refFor(locator) {
     : `${tag.id}:${tag.widgetType}`;
 }
 
+/** The fallback { role, name } the runner would match, per roleOf() and accessibleName(). */
+export async function fallbackFor(locator) {
+  return locator.evaluate((el) => {
+    const inputRoles = {
+      checkbox: 'checkbox',
+      radio: 'radio',
+      range: 'slider',
+      button: 'button',
+      submit: 'button',
+      reset: 'button',
+      search: 'searchbox',
+    };
+    const roleOf = (n) => {
+      const explicit = n.getAttribute('role');
+      if (explicit) return explicit.split(/\s+/)[0];
+      if (n.tagName === 'BUTTON') return 'button';
+      if (n.tagName === 'A') return n.hasAttribute('href') ? 'link' : null;
+      if (n.tagName === 'SELECT') return 'combobox';
+      if (n.tagName === 'TEXTAREA') return 'textbox';
+      if (n.tagName === 'INPUT') return inputRoles[n.type] ?? 'textbox';
+      return null;
+    };
+    const tidy = (t) => t.replace(/\s+/g, ' ').trim();
+    const nameOf = (n) => {
+      const label = n.getAttribute('aria-label');
+      if (label) return tidy(label);
+      const by = n.getAttribute('aria-labelledby');
+      if (by) {
+        const text = by
+          .split(/\s+/)
+          .map((id) => document.getElementById(id)?.textContent ?? '')
+          .join(' ');
+        if (text.trim()) return tidy(text);
+      }
+      return tidy(
+        n.getAttribute('title') ??
+          n.getAttribute('placeholder') ??
+          n.textContent ??
+          ''
+      );
+    };
+    const role = roleOf(el);
+    const name = nameOf(el);
+    return role && name ? { role, name } : null;
+  });
+}
+
 /** Fails unless the ref resolves to a visible, clickable, on-screen element; returns its box. */
 export async function checkAnchor(page, ref, { widgetId } = {}) {
   const selector = await tourSelector(ref);

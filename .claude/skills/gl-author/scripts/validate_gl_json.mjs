@@ -287,6 +287,12 @@ function validateTour(step, path, ctx) {
   const def = TOUR_ANCHORS[id];
   if (tour.slot !== undefined) {
     if (!isSlot(tour.slot)) fail(`${path}.tour.slot must be an integer from 0`);
+    // findTourAnchor matches a bound slot on data-tour-widget, which only per-widget anchors carry.
+    if (!def.perWidget) {
+      fail(
+        `${path}.tour.slot only binds per-widget anchors; "${id}" has no widget id, so the step would never resolve`
+      );
+    }
     if (!ctx.slots.has(tour.slot)) {
       fail(
         `${path}.tour.slot ${tour.slot} has no layout in tourSetup.layouts or an earlier step's spawns`
