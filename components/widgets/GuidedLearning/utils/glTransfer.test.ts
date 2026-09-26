@@ -3,6 +3,7 @@ import type { GuidedLearningSet } from '@/types';
 import {
   buildGlExportFilename,
   blobToDataUri,
+  defaultImportDestination,
   embedSetImages,
   extensionForMime,
   GlExportBudgetExceededError,
@@ -271,11 +272,42 @@ describe('prepareImportedSet', () => {
     expect(out.createdAt).toBeGreaterThan(2);
   });
 
+  it('keeps tour bindings but drops the building-only live-tour stamp', () => {
+    const tour = { anchor: 'dock.open-tools', action: 'click' as const };
+    const base = makeSet();
+    const out = prepareImportedSet({
+      ...base,
+      hasLiveTour: true,
+      steps: [{ ...base.steps[0], tour }],
+    });
+    expect(out.steps[0].tour).toEqual(tour);
+    expect(out.hasLiveTour).toBeUndefined();
+  });
+
   it('leaves schemaVersion absent for legacy files', () => {
     const out = prepareImportedSet(makeSet());
     expect('schemaVersion' in out && out.schemaVersion !== undefined).toBe(
       false
     );
+  });
+});
+
+describe('defaultImportDestination', () => {
+  it('sends a file with tour steps to the building library', () => {
+    const base = makeSet();
+    expect(defaultImportDestination(base)).toBe('personal');
+    expect(
+      defaultImportDestination({
+        steps: [
+          ...base.steps,
+          {
+            ...base.steps[0],
+            id: 's2',
+            tour: { anchor: 'dock.open-tools', action: 'observe' },
+          },
+        ],
+      })
+    ).toBe('building');
   });
 });
 

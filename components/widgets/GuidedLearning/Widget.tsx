@@ -64,15 +64,19 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { normalizeGuidedLearningSet } from './utils/setMigration';
-import { useStorage } from '@/hooks/useStorage';
+import { useStorage, type GuidedLearningMediaHome } from '@/hooks/useStorage';
 import { ImportWizard } from '@/components/common/library/importer/ImportWizard';
 import { createGuidedLearningImportAdapter } from './adapters/guidedLearningImportAdapter';
 import {
   buildGlExportFilename,
+  defaultImportDestination,
   embedSetImages,
+  hasTourBindings,
   prepareImportedSet,
   rehostImportedSetImages,
+  type ImportDestination,
 } from './utils/glTransfer';
+import { ImportDestinationPicker } from './components/ImportDestinationPicker';
 import {
   pickThumbnailUrl,
   prepareImageForUpload,
@@ -1070,6 +1074,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // Caches the rehosted set so a retry reuses uploads; `complete` gates reuse so a mid-way failure isn't treated as done.
   const importRehostCacheRef = useRef<{
     source: GuidedLearningSet;
+    home: GuidedLearningMediaHome;
     rehosted: GuidedLearningSet;
     driveFileIds: string[];
     complete: boolean;
@@ -1077,6 +1082,21 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // Guards against onClose deleting uploads while a save is still in flight.
   const importSaveInFlightRef = useRef(false);
   const importWizardClosedRef = useRef(false);
+  // Admins with live tours can import straight into the building library; null follows the file.
+  const canImportToBuilding =
+    isAdmin === true && canAccessFeature('gl-live-tours');
+  const [importDestination, setImportDestination] =
+    useState<ImportDestination | null>(null);
+  const importDestinationFor = (set: GuidedLearningSet): ImportDestination =>
+    canImportToBuilding
+      ? (importDestination ?? defaultImportDestination(set))
+      : 'personal';
+  const lastImportDestinationRef = useRef<ImportDestination>('personal');
+  const openImportWizard = () => {
+    importWizardClosedRef.current = false;
+    setImportDestination(null);
+    setShowImportWizard(true);
+  };
 
   // Best-effort deletion of uploads whose save never succeeded.
   const discardRehostedUploads = (cached: {
@@ -1141,13 +1161,22 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const importAdapter = createGuidedLearningImportAdapter({
     save: async (set, title) => {
       if (!user?.uid) throw new Error('Not authenticated');
-      if (!isDriveConnected) {
+      const destination = importDestinationFor(set);
+      const toBuilding = destination === 'building';
+      if (!toBuilding && !isDriveConnected) {
         throw new Error('Connect Google Drive to import activities.');
       }
       const uid = user.uid;
+      // Building sets keep slide media in Storage; personal sets use Drive.
+      const home: GuidedLearningMediaHome = toBuilding ? 'storage' : 'drive';
       const cached = importRehostCacheRef.current;
       let rehosted: GuidedLearningSet;
-      if (cached && cached.source === set && cached.complete) {
+      if (
+        cached &&
+        cached.source === set &&
+        cached.home === home &&
+        cached.complete
+      ) {
         rehosted = cached.rehosted;
       } else {
         // Any superseded cache (incomplete, or complete for a different source) is abandoned; clean up its orphans first.
@@ -1157,11 +1186,12 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         const driveFileIds: string[] = [];
         importRehostCacheRef.current = {
           source: set,
+          home,
           rehosted: partial,
           driveFileIds,
           complete: false,
         };
-        // Image slides go to Drive (the app's primary media store); video stays in Storage.
+        // Image slides go to the set's media home; video stays in Storage.
         const result = await rehostImportedSetImages(
           set,
           async (blob, fileName) => {
@@ -1171,7 +1201,12 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
             const prepared = await prepareImageForUpload(
               new File([blob], fileName, { type: blob.type })
             );
-            return uploadGuidedLearningImage(uid, prepared, prepared.name);
+            return uploadGuidedLearningImage(
+              uid,
+              prepared,
+              prepared.name,
+              home
+            );
           },
           (storagePath, driveFileId) => {
             partial.imagePaths = [...(partial.imagePaths ?? []), storagePath];
@@ -1181,6 +1216,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         rehosted = result.set;
         importRehostCacheRef.current = {
           source: set,
+          home,
           rehosted,
           driveFileIds: result.driveFileIds,
           complete: true,
@@ -1192,7 +1228,16 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       );
       importSaveInFlightRef.current = true;
       try {
-        await saveSet(prepared);
+        if (toBuilding) {
+          await saveBuildingSet({
+            ...prepared,
+            isBuilding: true,
+            hasLiveTour: hasTourBindings(prepared),
+          });
+        } else {
+          await saveSet(prepared);
+        }
+        lastImportDestinationRef.current = destination;
         importRehostCacheRef.current = null;
       } catch (err) {
         // Wizard already closed: its onClose skipped cleanup, so run it now.
@@ -1205,29 +1250,38 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     renderPreview: (set) => {
       const thumb = pickThumbnailUrl(set);
       return (
-        <div className="flex items-center gap-3">
-          <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center">
-            {thumb ? (
-              <img
-                src={thumb}
-                alt=""
-                aria-hidden="true"
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <span className="text-xs text-slate-400">No image</span>
-            )}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center">
+              {thumb ? (
+                <img
+                  src={thumb}
+                  alt=""
+                  aria-hidden="true"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="text-xs text-slate-400">No image</span>
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-slate-800">
+                {set.title || 'Untitled activity'}
+              </p>
+              <p className="text-xs text-slate-500">
+                {set.imageUrls.length} slide
+                {set.imageUrls.length === 1 ? '' : 's'} · {set.steps.length}{' '}
+                step
+                {set.steps.length === 1 ? '' : 's'} · {set.mode}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-slate-800">
-              {set.title || 'Untitled activity'}
-            </p>
-            <p className="text-xs text-slate-500">
-              {set.imageUrls.length} slide
-              {set.imageUrls.length === 1 ? '' : 's'} · {set.steps.length} step
-              {set.steps.length === 1 ? '' : 's'} · {set.mode}
-            </p>
-          </div>
+          <ImportDestinationPicker
+            canChoose={canImportToBuilding}
+            destination={importDestinationFor(set)}
+            hasTour={hasTourBindings(set)}
+            onChange={setImportDestination}
+          />
         </div>
       );
     },
@@ -1412,10 +1466,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   onExport={(setId, driveFileId, buildingEntry) => {
                     void handleExport(setId, driveFileId, buildingEntry);
                   }}
-                  onImport={() => {
-                    importWizardClosedRef.current = false;
-                    setShowImportWizard(true);
-                  }}
+                  onImport={openImportWizard}
                   importFocusCounter={importFocusCounter}
                   assignmentMode={assignmentMode}
                   onError={(message) => addToast(message, 'error')}
@@ -1575,14 +1626,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               onFolderChange={handleEditorFolderChange}
               onClose={closeEditor}
               onSave={handleSave}
-              onImport={
-                isDriveConnected
-                  ? () => {
-                      importWizardClosedRef.current = false;
-                      setShowImportWizard(true);
-                    }
-                  : undefined
-              }
+              onImport={isDriveConnected ? openImportWizard : undefined}
               onOpenClassic={(latest) => {
                 setEditingSet(latest);
                 setClassicEditor(true);
@@ -1644,7 +1688,10 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         }}
         adapter={importAdapter}
         onSaved={(title) => {
-          addToast(`"${title}" imported to your personal library.`, 'success');
+          addToast(
+            `"${title}" imported to your ${lastImportDestinationRef.current === 'building' ? 'building' : 'personal'} library.`,
+            'success'
+          );
           setImportFocusCounter((c) => c + 1);
         }}
       />
