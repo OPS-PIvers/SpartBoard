@@ -10,6 +10,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { SUPPORTED_LANGUAGES } from '@/i18n';
 import { SettingsSectionHeader } from '@/components/settingsModal/SettingsSectionHeader';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const LanguageSection: React.FC = () => {
   const { t } = useTranslation();
@@ -36,6 +37,7 @@ export const LanguageSection: React.FC = () => {
           const isActive = language === lang.code;
           return (
             <button
+              {...tourAttr('language.option')}
               key={lang.code}
               onClick={() => handleLanguageChange(lang.code)}
               className={`relative flex flex-col items-center justify-center p-3.5 rounded-xl border-2 transition-all ${

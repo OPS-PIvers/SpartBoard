@@ -13,6 +13,7 @@ import { CheckSquare, ChevronRight, Palette, RotateCcw } from 'lucide-react';
 import { GlobalFontFamily, GlobalStyle, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { GlobalStyleEditor } from '@/hooks/useGlobalStyleEditor';
 import { SettingsSectionHeader } from '@/components/settingsModal/SettingsSectionHeader';
+import { tourAttr } from '@/config/tourAnchors';
 
 const FONT_OPTIONS: { id: GlobalFontFamily; label: string; font: string }[] = [
   { id: 'sans', label: 'Modern Sans', font: 'font-sans' },
@@ -54,6 +55,7 @@ const ColorRow: React.FC<ColorRowProps> = ({
           {title}
         </h3>
         <button
+          {...tourAttr('appearance.color-reset')}
           onClick={onReset}
           className="text-xxs font-bold uppercase text-slate-400 hover:text-brand-blue-primary flex items-center gap-1"
           title={t('style.resetToDefault', {
@@ -68,6 +70,7 @@ const ColorRow: React.FC<ColorRowProps> = ({
         <input
           type="color"
           value={hex}
+          {...tourAttr('appearance.color-picker')}
           onChange={(e) => onChange(e.target.value)}
           className="w-8 h-8 rounded-md border border-slate-200 bg-white cursor-pointer"
         />
@@ -110,6 +113,7 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
             {t('style.typography', { defaultValue: 'Typography' })}
           </h3>
           <button
+            {...tourAttr('appearance.font-toggle')}
             onClick={() => setIsFontMenuOpen(!isFontMenuOpen)}
             className="text-xxs font-bold uppercase text-brand-blue-primary"
           >
@@ -121,6 +125,7 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
 
         <div className="relative">
           <button
+            {...tourAttr('appearance.font-selector')}
             onClick={() => setIsFontMenuOpen(!isFontMenuOpen)}
             className="w-full flex items-center justify-between p-3 rounded-lg border bg-white border-slate-200 text-slate-800"
           >
@@ -145,6 +150,7 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
             <div className="grid grid-cols-1 gap-1 p-1 bg-slate-50 rounded-xl border border-slate-200">
               {FONT_OPTIONS.map((f) => (
                 <button
+                  {...tourAttr('appearance.font-option')}
                   key={f.id}
                   onClick={() => {
                     setField('fontFamily', f.id);
@@ -185,6 +191,7 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
           max="1"
           step="0.05"
           value={windowTransparency.value}
+          {...tourAttr('appearance.transparency-slider')}
           onChange={(e) =>
             windowTransparency.onChange(parseFloat(e.target.value))
           }
@@ -217,6 +224,7 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
             },
           ].map((r) => (
             <button
+              {...tourAttr('appearance.corner-option')}
               key={r.id}
               onClick={() =>
                 setField(
@@ -266,6 +274,7 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
         />
 
         <button
+          {...tourAttr('appearance.reset-all-colors')}
           onClick={() =>
             commit({
               primaryColor: undefined,

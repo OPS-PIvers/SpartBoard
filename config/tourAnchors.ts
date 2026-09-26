@@ -162,6 +162,99 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'profile.close': { label: 'Close button in Profile & Settings', panel: true },
+  'profile.mobile-back': {
+    label: 'Back button in Profile & Settings on phones',
+    panel: true,
+  },
+  'profile.tab-profile': {
+    label: 'Profile tab in Profile & Settings',
+    panel: true,
+  },
+  'profile.tab-appearance': {
+    label: 'Appearance tab in Profile & Settings',
+    panel: true,
+  },
+  'profile.tab-dock': { label: 'Dock tab in Profile & Settings', panel: true },
+  'profile.tab-behavior': {
+    label: 'Behavior tab in Profile & Settings',
+    panel: true,
+  },
+  'profile.tab-widget-defaults': {
+    label: 'Widget defaults tab in Profile & Settings',
+    panel: true,
+  },
+  'profile.tab-language': {
+    label: 'Language tab in Profile & Settings',
+    panel: true,
+  },
+  'profile.building-toggle': {
+    label: 'Building button in the Profile tab',
+    panel: true,
+  },
+  'profile.reset-grades': {
+    label: 'Reset grades to building default',
+    panel: true,
+  },
+  'profile.grade-chip': {
+    label: 'Grade button in the Profile tab',
+    panel: true,
+  },
+  'profile.subject-chip': {
+    label: 'Content area button in the Profile tab',
+    panel: true,
+  },
+  'appearance.font-toggle': { label: 'Change font button', panel: true },
+  'appearance.font-selector': { label: 'Font picker', panel: true },
+  'appearance.font-option': {
+    label: 'Font choice in the font picker',
+    panel: true,
+  },
+  'appearance.transparency-slider': {
+    label: 'Window transparency slider',
+    panel: true,
+  },
+  'appearance.corner-option': {
+    label: 'Window corner style choice',
+    panel: true,
+  },
+  'appearance.color-picker': { label: 'Window color picker', panel: true },
+  'appearance.color-reset': {
+    label: 'Reset button for a window color',
+    panel: true,
+  },
+  'appearance.reset-all-colors': {
+    label: 'Reset all colors to default',
+    panel: true,
+    destructive: true,
+  },
+  'dock.position-option': { label: 'Dock position choice', panel: true },
+  'dock.transparency-slider': {
+    label: 'Dock transparency slider',
+    panel: true,
+  },
+  'dock.corner-option': { label: 'Dock corner style choice', panel: true },
+  'dock.text-color': { label: 'Dock text color picker', panel: true },
+  'dock.text-shadow-toggle': { label: 'Dock text shadow button', panel: true },
+  'behavior.close-warning-toggle': {
+    label: 'Disable close warning switch',
+    panel: true,
+  },
+  'behavior.remote-control-toggle': {
+    label: 'Remote control switch',
+    panel: true,
+  },
+  'language.option': { label: 'Language choice', panel: true },
+  'widget-defaults.clear-type': {
+    label: "Clear a widget's saved defaults",
+    panel: true,
+    destructive: true,
+  },
+  'widget-defaults.remove-key': {
+    label: 'Remove one saved widget default',
+    panel: true,
+    destructive: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

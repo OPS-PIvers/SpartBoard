@@ -12,6 +12,7 @@ import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useSubjects } from '@/hooks/useSubjects';
 import { ALL_GRADES } from '@/utils/gradeMatch';
 import { SettingsSectionHeader } from '@/components/settingsModal/SettingsSectionHeader';
+import { tourAttr } from '@/config/tourAnchors';
 
 const chipClass = (selected: boolean) =>
   `min-w-[2.5rem] px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
@@ -97,6 +98,7 @@ export const ProfileSection: React.FC = () => {
                 key={building.id}
                 type="button"
                 aria-pressed={isSelected}
+                {...tourAttr('profile.building-toggle')}
                 onClick={() => toggleBuilding(building.id)}
                 className={`flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all text-left ${
                   isSelected
@@ -139,6 +141,7 @@ export const ProfileSection: React.FC = () => {
             gradesTaught !== null && (
               <button
                 type="button"
+                {...tourAttr('profile.reset-grades')}
                 onClick={() =>
                   void updateTeachingProfile({ gradesTaught: null })
                 }
@@ -165,6 +168,7 @@ export const ProfileSection: React.FC = () => {
                 key={grade}
                 type="button"
                 aria-pressed={selected}
+                {...tourAttr('profile.grade-chip')}
                 onClick={() => toggleGrade(grade)}
                 className={chipClass(selected)}
               >
@@ -203,6 +207,7 @@ export const ProfileSection: React.FC = () => {
                 key={subject.id}
                 type="button"
                 aria-pressed={selected}
+                {...tourAttr('profile.subject-chip')}
                 onClick={() => toggleSubject(subject.id)}
                 className={chipClass(selected)}
               >

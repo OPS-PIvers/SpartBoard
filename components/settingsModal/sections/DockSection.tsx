@@ -15,6 +15,7 @@ import { DockPosition, GlobalStyle } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { GlobalStyleEditor } from '@/hooks/useGlobalStyleEditor';
 import { SettingsSectionHeader } from '@/components/settingsModal/SettingsSectionHeader';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface DockSectionProps {
   editor: GlobalStyleEditor;
@@ -73,6 +74,7 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
             const active = dockPosition === option.value;
             return (
               <button
+                {...tourAttr('dock.position-option')}
                 key={option.value}
                 type="button"
                 role="radio"
@@ -114,6 +116,7 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
           max="1"
           step="0.05"
           value={editor.dockTransparency.value}
+          {...tourAttr('dock.transparency-slider')}
           onChange={(e) =>
             editor.dockTransparency.onChange(parseFloat(e.target.value))
           }
@@ -146,6 +149,7 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
             },
           ].map((r) => (
             <button
+              {...tourAttr('dock.corner-option')}
               key={r.id}
               onClick={() =>
                 setField(
@@ -175,6 +179,7 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
             <input
               type="color"
               value={currentStyle.dockTextColor}
+              {...tourAttr('dock.text-color')}
               onChange={(e) => setField('dockTextColor', e.target.value)}
               className="w-8 h-8 rounded-md border border-slate-200 bg-white cursor-pointer"
             />
@@ -184,6 +189,7 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
           </div>
 
           <button
+            {...tourAttr('dock.text-shadow-toggle')}
             onClick={() =>
               setField('dockTextShadow', !currentStyle.dockTextShadow)
             }
