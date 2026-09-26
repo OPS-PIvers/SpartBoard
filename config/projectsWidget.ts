@@ -6,7 +6,7 @@ export interface ProjectsWidgetSettings {
   /**
    * Group project tracking on the board face, plus the student project page.
    * Ships OFF: the student side depends on ClassLink-sourced rosters
-   * (docs/plans/PROJECTS_WIDGET.md §2), so the identity path has to be verified
+   * (docs/plans/shipped/PROJECTS_WIDGET.md §2), so the identity path has to be verified
    * against a real class before any teacher sees it, and flipping it back is
    * the kill switch.
    */

@@ -1917,7 +1917,7 @@ const ActiveQuiz: React.FC<{
       ? activeLocale
       : undefined;
 
-  // Read-aloud (docs/plans/QUIZ_READ_ALOUD.md §6.2): self-paced light shell only.
+  // Read-aloud (docs/plans/shipped/QUIZ_READ_ALOUD.md §6.2): self-paced light shell only.
   const readAloud = useQuizReadAloud({
     enabled:
       readAloudRequested === true &&

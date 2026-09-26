@@ -4,7 +4,7 @@
  *
  * Used by the QuizWidget assign flow, the Classroom add-on, the LTI picker
  * and the PLC page so every call site builds the same shape. Pooled results
- * never depend on a Google Sheet (docs/plans/PLC_ASSESSMENT_DATA.md D2), so
+ * never depend on a Google Sheet (docs/plans/shipped/PLC_ASSESSMENT_DATA.md D2), so
  * no sheet is created here; the Results screen offers the export on demand.
  */
 

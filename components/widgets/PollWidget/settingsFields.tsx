@@ -179,7 +179,7 @@ export const PollSettings: React.FC<{
     [rosters, activeRosterId]
   );
 
-  // Group-scoped import (docs/plans/ROSTER_GROUPS_INTEGRATION.md D21). The
+  // Group-scoped import (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D21). The
   // scope is a one-shot import choice, not saved config — the list stays a
   // hand-editable snapshot rather than becoming a live class binding.
   const rosterGroupsEnabled = useRosterGroupsGate();

@@ -72,7 +72,7 @@ export const ScoreboardSettings: React.FC<{
   const teams = Array.isArray(config.teams) ? config.teams : [];
   const layout = config.layout ?? 'cards';
 
-  // --- Class groups (docs/plans/ROSTER_GROUPS_INTEGRATION.md D17/D20) ---
+  // --- Class groups (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D17/D20) ---
   const rosterGroupsEnabled = useRosterGroupsGate();
   const activeRoster = useMemo(
     () => rosters.find((r) => r.id === activeRosterId) ?? rosters[0],

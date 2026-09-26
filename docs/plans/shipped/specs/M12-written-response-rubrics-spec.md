@@ -2,7 +2,7 @@
 
 **Status:** SHIPPED to dev-paul 2026-08-28 — all phases 3-A..3-I merged (PRs #2614–#2619, #2628–#2630); decisions locked 2026-08-27 (see §3a)  
 **Author:** Architect review of dev-paul codebase  
-**Scope:** Phase 3 of docs/written-response-quiz-questions.md — rubric data model, builder UI, grader integration, Firestore collection + rules, CSV export of rubric scores, and PLC sharing of rubrics  
+**Scope:** Phase 3 of docs/plans/shipped/written-response-quiz-questions.md — rubric data model, builder UI, grader integration, Firestore collection + rules, CSV export of rubric scores, and PLC sharing of rubrics  
 **Date:** 2026-06-25
 
 ---

@@ -552,7 +552,7 @@ export type ImportSourcePayload =
       pages?: Blob[];
       /**
        * The optional answer key picked beside the test
-       * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D8). Absent when the teacher
+       * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D8). Absent when the teacher
        * attached none, which is the common case.
        */
       keyFile?: UploadedDocument;
@@ -624,7 +624,7 @@ export interface ImportAdapter<TData> {
    * Optional editable preview. When present the wizard renders this instead
    * of `renderPreview` and adopts whatever the adapter hands back, so a
    * review step can let the teacher correct what was read before anything is
-   * saved (docs/plans/QUIZ_DOCUMENT_IMPORT.md D10). Adapters that omit it are
+   * saved (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D10). Adapters that omit it are
    * unaffected and keep the read-only preview.
    */
   renderReview?: (

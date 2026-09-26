@@ -1,4 +1,4 @@
-/** Printed section headings as quiz sections (docs/plans/QUIZ_EXAMVIEW_IMPORT.md E16). */
+/** Printed section headings as quiz sections (docs/plans/shipped/QUIZ_EXAMVIEW_IMPORT.md E16). */
 
 import type { ExtractedQuestion } from './types';
 

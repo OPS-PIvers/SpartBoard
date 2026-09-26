@@ -78,7 +78,7 @@ vi.mock('@/components/common/MagicInput', () => ({
   ),
 }));
 // Class groups default OFF here, so these suites keep asserting the
-// pre-feature behaviour (docs/plans/ROSTER_GROUPS_INTEGRATION.md D23).
+// pre-feature behaviour (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D23).
 // Flip `gate.enabled` inside a test to exercise the feature.
 const gate = vi.hoisted(() => ({ enabled: false }));
 vi.mock('@/hooks/useRosterGroupsGate', () => ({
@@ -1164,7 +1164,7 @@ describe('PollSettings', () => {
 });
 
 /**
- * Group-scoped snapshot import (docs/plans/ROSTER_GROUPS_INTEGRATION.md D21).
+ * Group-scoped snapshot import (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D21).
  *
  * Poll stays a hand-editable snapshot — the group only narrows what the one
  * import pulls in, and the choice is deliberately not saved to config so the

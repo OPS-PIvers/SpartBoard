@@ -1,5 +1,5 @@
 /**
- * Tab-away limit (docs/plans/TAB_AWAY_TIMER.md §2.3-2.4). A session carries
+ * Tab-away limit (docs/plans/shipped/TAB_AWAY_TIMER.md §2.3-2.4). A session carries
  * `tabAwayLimitSeconds` only when the teacher had the tab-away-timer flag at
  * assign time; without it the student sees today's plain warning.
  * Precedence: per-student override > session value > default.

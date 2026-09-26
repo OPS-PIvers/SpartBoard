@@ -8,7 +8,7 @@ const read = (p: string): string =>
 
 describe('GL/types/stage.ts', () => {
   it('matches the frozen block in the plan verbatim', () => {
-    const plan = read('docs/plans/GUIDED_LEARNING_STUDIO.md');
+    const plan = read('docs/plans/shipped/GUIDED_LEARNING_STUDIO.md');
     const match = /```ts\n\/\/ GL\/types\/stage\.ts\n([\s\S]*?)```/.exec(plan);
     expect(match).not.toBeNull();
     const source = read('components/widgets/GuidedLearning/types/stage.ts');

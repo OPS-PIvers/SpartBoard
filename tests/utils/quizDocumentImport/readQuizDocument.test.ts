@@ -1,5 +1,5 @@
 /**
- * The reader's front door (docs/plans/QUIZ_DOCUMENT_IMPORT.md D1, D11, D15,
+ * The reader's front door (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D1, D11, D15,
  * D18): what it accepts, what it names the quiz, and what it tells the
  * teacher it couldn't do.
  */

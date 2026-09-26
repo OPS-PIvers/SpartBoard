@@ -1,5 +1,5 @@
 /**
- * Draws the answer sheet's templates (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md
+ * Draws the answer sheet's templates (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md
  * D9). A template is a spec rather than a file, so it is rendered as SVG at
  * print time: always sharp at any size, and nothing to fetch or share.
  *

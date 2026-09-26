@@ -1,5 +1,5 @@
 /**
- * The private regression corpus (docs/plans/QUIZ_IMPORT_RELIABILITY.md R27).
+ * The private regression corpus (docs/plans/shipped/QUIZ_IMPORT_RELIABILITY.md R27).
  * Real teacher files live only in the gitignored folder below; the committed
  * expectations hold file hashes and counts, never content. Run it with
  * `pnpm run test:import-corpus`; record new files with UPDATE_IMPORT_CORPUS=1.

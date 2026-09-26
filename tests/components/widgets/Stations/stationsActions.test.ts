@@ -228,7 +228,7 @@ describe('resetStation', () => {
 });
 
 /**
- * Constraint-aware shuffle (docs/plans/ROSTER_GROUPS_INTEGRATION.md D15).
+ * Constraint-aware shuffle (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D15).
  * Before this, `shuffleStudentsIntoStations` was a plain Fisher-Yates that
  * honoured neither a locked class group nor the roster's own
  * `restrictedStudentIds` — the latter had been ignored since Stations shipped.

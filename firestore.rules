@@ -160,7 +160,7 @@ service cloud.firestore {
              request.time.toMillis() >= s.openAt - 120000;
     }
 
-    // Per-period gate (docs/plans/PER_PERIOD_ASSIGNMENT_ACCESS.md), keyed by the
+    // Per-period gate (docs/plans/shipped/PER_PERIOD_ASSIGNMENT_ACCESS.md), keyed by the
     // class id each targeted roster contributes. A no-op on sessions without
     // periodAccess. Each period's window reuses the M17 helpers and their grace.
     function periodOpen(s, classId) {
@@ -761,7 +761,7 @@ service cloud.firestore {
       allow read, write: if ownsUser(userId);
     }
 
-    // Question-bank metadata (docs/plans/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md §4.2).
+    // Question-bank metadata (docs/plans/shipped/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md §4.2).
     // Content is Drive JSON like quizzes; PLC shares publish to /synced_question_banks.
     match /users/{userId}/question_banks/{bankId} {
       allow read, write: if ownsUser(userId);
@@ -3755,7 +3755,7 @@ service cloud.firestore {
       // Sequence: docs/plans/QUIZ_JOIN_CODE_LOOKUP.md.
       // Only the teacher (session owner) can create/update/delete the session document.
       // Ownership is carried on the `teacherUid` field (no longer the doc id).
-      // PLC pooling link (docs/plans/PLC_ASSESSMENT_DATA.md §4): a session may
+      // PLC pooling link (docs/plans/shipped/PLC_ASSESSMENT_DATA.md §4): a session may
       // carry plcId + syncGroupId only for a PLC the caller belongs to. Writes are
       // already owner-only, so set/clear of plcId stays teacher-only. `.get()`
       // everywhere so a missing field denies instead of throwing.
@@ -3933,7 +3933,7 @@ service cloud.firestore {
            // whitelist. The teacher branch above is unrestricted, so teachers write
            // `grading.<questionId>` via dotted field paths; any student write touching
            // `grading.*` is rejected by this hasOnly([...]). See
-           // docs/written-response-quiz-questions.md section 9.
+           // docs/plans/shipped/written-response-quiz-questions.md section 9.
            // `backTranslations` is excluded for the same reason: the teacher-owner
            // path writes machine back-translations of a student's own answer, and a
            // student must never be able to forge or edit one.
@@ -5586,7 +5586,7 @@ service cloud.firestore {
                     && isInt('updatedAt');
     }
 
-    // Projects runs (docs/plans/PROJECTS_WIDGET.md §5.2). One doc per group is
+    // Projects runs (docs/plans/shipped/PROJECTS_WIDGET.md §5.2). One doc per group is
     // required, not preferred: rules cannot gate a partial write to an array
     // inside a single run doc, so "edit only my group" is unenforceable in a
     // one-doc design.

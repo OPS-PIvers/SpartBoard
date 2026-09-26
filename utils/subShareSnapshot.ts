@@ -1,5 +1,5 @@
 /**
- * Shaping a Collection into a substitute share (docs/plans/SUB_SHARE_COLLECTIONS.md §3.1).
+ * Shaping a Collection into a substitute share (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md §3.1).
  *
  * A sub share carries the boards a teacher would click through, grouped the way
  * the teacher groups them and walked in the same order, plus the rosters those

@@ -1,5 +1,5 @@
 /**
- * Reads an .rtf into lines, per docs/plans/QUIZ_DOCUMENT_IMPORT.md D2.
+ * Reads an .rtf into lines, per docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D2.
  *
  * RTF is plain text with the formatting written inline, so unlike a PDF there
  * is nothing to guess about where a paragraph ends — and unlike a Word file

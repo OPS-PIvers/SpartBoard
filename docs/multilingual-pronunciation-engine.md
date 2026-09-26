@@ -13,7 +13,7 @@
 **Status:** Superseded as a work queue — retained as grounding reference
 **Author:** ops-pivers + Claude
 **Branch:** `claude/multilingual-pronunciation-engine-whug9x`
-**Source spec:** [`multilingual-pronunciation-engine-spec.md`](./multilingual-pronunciation-engine-spec.md)
+**Source spec:** [`multilingual-pronunciation-engine-spec.md`](multilingual-pronunciation-engine-spec.md)
 — the original specification this document evaluates, including the product
 rationale, the `PhonemeAlignmentEngine` reference implementation, threshold
 profiles, and I/O schemas. References to "the spec" below point there.

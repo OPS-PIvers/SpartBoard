@@ -31,7 +31,7 @@ vi.mock('lucide-react', () => ({
   Palette: () => <div data-testid="palette" />,
 }));
 // Class groups default OFF here, so these suites keep asserting the
-// pre-feature behaviour (docs/plans/ROSTER_GROUPS_INTEGRATION.md D23).
+// pre-feature behaviour (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D23).
 // Flip `gate.enabled` inside a test to exercise the feature.
 const gate = vi.hoisted(() => ({ enabled: false }));
 vi.mock('@/hooks/useRosterGroupsGate', () => ({
@@ -452,7 +452,7 @@ describe('ChecklistSettings Nexus Connection', () => {
 });
 
 /**
- * Pool filter (docs/plans/ROSTER_GROUPS_INTEGRATION.md D22).
+ * Pool filter (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D22).
  *
  * Checklist has no class chip, so the pool is chosen in the settings drawer —
  * but the behaviour that matters is the same as every other pooled widget:

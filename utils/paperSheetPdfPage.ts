@@ -1,6 +1,6 @@
 /**
  * One page of a PDF, turned into a PNG the answer sheet can print
- * (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D7).
+ * (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md D7).
  *
  * Rendering happens here, once, when the teacher picks the page, so printing
  * never loads pdf.js: by the time a sheet goes out, the stimulus is an

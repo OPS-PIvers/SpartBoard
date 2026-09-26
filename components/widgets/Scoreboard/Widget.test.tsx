@@ -24,7 +24,7 @@ import {
 vi.mock('@/context/useDashboard');
 vi.mock('@/context/dashboardCanvasStore');
 // Both halves of the class-groups gate default OFF here, so these suites keep
-// asserting the pre-feature panel (docs/plans/ROSTER_GROUPS_INTEGRATION.md D23).
+// asserting the pre-feature panel (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D23).
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ canAccessFeature: () => false }),
 }));

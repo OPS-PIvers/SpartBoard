@@ -1,5 +1,5 @@
 // launchSubAssignmentV1 — a substitute starts an activity in the teacher's own
-// account (docs/plans/SUB_SHARE_COLLECTIONS.md §3.6, D7, D14). The substitute
+// account (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md §3.6, D7, D14). The substitute
 // cannot write `users/{hostUid}/*` and the session must carry
 // `teacherUid = host`, so the write runs here as admin once the caller is
 // proven. Everything students can read is derived here from the answer key the

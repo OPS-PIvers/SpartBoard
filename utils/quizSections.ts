@@ -1,5 +1,5 @@
 /**
- * Quiz sections and "answer any N of these M" (docs/plans/QUIZ_EXAMVIEW_IMPORT.md
+ * Quiz sections and "answer any N of these M" (docs/plans/shipped/QUIZ_EXAMVIEW_IMPORT.md
  * E12–E14). A section owns the order entries after it; a session freezes that
  * into question ids so the player and scoring never need the quiz's `order`.
  */

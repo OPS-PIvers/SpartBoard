@@ -1,5 +1,5 @@
 /**
- * Finds and applies an answer key (docs/plans/QUIZ_DOCUMENT_IMPORT.md D2, D8).
+ * Finds and applies an answer key (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D2, D8).
  *
  * Teachers rarely mark the answer on the question; they print a key at the
  * back. The hard part is that a key entry ("1. B") is written exactly like a

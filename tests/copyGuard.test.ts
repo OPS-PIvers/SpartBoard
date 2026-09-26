@@ -4,7 +4,7 @@ import { join, relative, resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import ts from 'typescript';
 
-// Blocks new long or slop-marked on-screen copy (docs/plans/ALWAYS_VISIBLE_COPY.md, Phase 6).
+// Blocks new long or slop-marked on-screen copy (docs/plans/shipped/ALWAYS_VISIBLE_COPY.md, Phase 6).
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BASELINE_PATH = join(repoRoot, 'tests/fixtures/copyGuardBaseline.json');
 const SCAN_ROOTS = ['components', 'App.tsx'];

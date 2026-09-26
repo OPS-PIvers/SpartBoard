@@ -1,4 +1,4 @@
-// PLC Home v2: a tile dashboard with one optional hero tile (docs/plans/PLC_HOME_V2.md).
+// PLC Home v2: a tile dashboard with one optional hero tile (docs/plans/shipped/PLC_HOME_V2.md).
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';

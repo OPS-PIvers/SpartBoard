@@ -1,6 +1,6 @@
 /**
  * The review table a teacher sees before a read test document becomes a quiz
- * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D10). Nothing here is cosmetic: what it
+ * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D10). Nothing here is cosmetic: what it
  * emits is exactly what gets created.
  */
 

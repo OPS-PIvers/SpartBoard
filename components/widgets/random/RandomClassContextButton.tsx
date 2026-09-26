@@ -33,7 +33,7 @@ interface RandomClassContextButtonProps {
    */
   onOpenAbsentModal: () => void;
   /**
-   * Pool selection (docs/plans/ROSTER_GROUPS_INTEGRATION.md D8). Omitted when
+   * Pool selection (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D8). Omitted when
    * the rollout switch or the `roster-groups` permission is off, which leaves
    * the popover exactly as it was.
    */

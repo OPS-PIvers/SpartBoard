@@ -1,5 +1,5 @@
 /**
- * The ExamView profile (docs/plans/QUIZ_EXAMVIEW_IMPORT.md E4–E10): how a
+ * The ExamView profile (docs/plans/shipped/QUIZ_EXAMVIEW_IMPORT.md E4–E10): how a
  * test ExamView printed or exported is recognised, and what its section
  * headings do to the items under them. Both readers run the same steps (E17).
  */

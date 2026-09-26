@@ -1,5 +1,5 @@
 // Unit tests for the delegated paper-print WRITE path
-// (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md §5.2, §5.3).
+// (docs/plans/shipped/PLC_DELEGATED_PAPER_PRINTING.md §5.2, §5.3).
 //
 // This is the half that writes into a colleague's account, so what is pinned
 // here is what that write may and may not be: seats derived from their real

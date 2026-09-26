@@ -1,4 +1,4 @@
-// Private quiz import corpus (docs/plans/QUIZ_IMPORT_RELIABILITY.md R27); run by `pnpm run test:import-corpus`, never in CI.
+// Private quiz import corpus (docs/plans/shipped/QUIZ_IMPORT_RELIABILITY.md R27); run by `pnpm run test:import-corpus`, never in CI.
 import { defineConfig, mergeConfig } from 'vitest/config';
 import viteConfig from './vite.config';
 

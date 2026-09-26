@@ -1,5 +1,5 @@
 /**
- * What the reader will take on (docs/plans/QUIZ_DOCUMENT_IMPORT.md D18).
+ * What the reader will take on (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D18).
  * Its own module so the PDF reader can refuse an over-long document the
  * moment it knows the page count, without importing the front door.
  */
