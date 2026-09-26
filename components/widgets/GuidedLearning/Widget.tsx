@@ -1418,6 +1418,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   }}
                   importFocusCounter={importFocusCounter}
                   assignmentMode={assignmentMode}
+                  onError={(message) => addToast(message, 'error')}
                 />
               </Suspense>
             )}

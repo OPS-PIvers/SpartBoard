@@ -246,6 +246,8 @@ export interface VideoActivityManagerProps {
   /** Org-wide assignment mode. Drives Assign-vs-Share button labels and the
    *  In-Progress-vs-Shared tab label. Defaults to `'submissions'`. */
   assignmentMode?: AssignmentMode;
+  /** Surfaces a failed folder move (drag or bulk) as a toast. */
+  onError?: (message: string) => void;
 }
 
 /* ─── Library hook option constants (module-level for referential stability) ─
@@ -475,6 +477,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   lastClassIdsByActivityId,
   lastClassIdByActivityId,
   assignmentMode = 'submissions',
+  onError,
 }) => {
   const { showConfirm } = useDialog();
   const isViewOnly = assignmentMode === 'view-only';
@@ -643,11 +646,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       if (!userId) return;
       try {
         await moveItem(itemId, folderId);
-      } catch (err) {
-        console.error('[VideoActivityManager] moveItem failed:', err);
+      } catch {
+        onError?.('That activity could not be moved.');
       }
     },
-    [userId, moveItem]
+    [userId, moveItem, onError]
   );
 
   /* ─── Bulk handlers (Step 8) ──────────────────────────────────────────── */
@@ -660,22 +663,19 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         const results = await Promise.allSettled(
           ids.map((id) => moveItem(id, folderId))
         );
-        results.forEach((result, idx) => {
-          if (result.status === 'rejected') {
-            console.error(
-              '[VideoActivityManager] bulk move failed for',
-              ids[idx],
-              result.reason
-            );
-          }
-        });
+        const failed = results.filter((r) => r.status === 'rejected').length;
+        if (failed > 0) {
+          onError?.(
+            `${failed} activit${failed === 1 ? 'y' : 'ies'} failed to move.`
+          );
+        }
         selection.clear();
         setSelectionMode(false);
       } finally {
         setBulkBusy(false);
       }
     },
-    [userId, selection, moveItem]
+    [userId, selection, moveItem, onError]
   );
 
   const handleBulkDelete = useCallback(async (): Promise<void> => {
