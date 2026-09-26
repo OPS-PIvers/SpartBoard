@@ -40,6 +40,7 @@ import {
 } from '@/components/classes/ClassLinkImportDialog';
 import { LinkSchoologyModal } from '@/components/classes/LinkSchoologyModal';
 import { useSchoologySeenSections } from '@/hooks/useSchoologySeenSections';
+import { tourAttr } from '@/config/tourAnchors';
 
 /** Google Classroom OAuth scope for read-only course listing. */
 const CLASSROOM_COURSES_READONLY_SCOPE =
@@ -468,6 +469,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
             >
               <button
                 onClick={() => setEditingRosterId('new')}
+                {...tourAttr('classes.new-class')}
                 className="flex flex-col items-center justify-center gap-1.5 p-3 bg-brand-blue-primary text-white rounded-xl shadow-sm hover:bg-brand-blue-dark transition-all"
               >
                 <Plus className="w-4 h-4" />
@@ -480,6 +482,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
               {classLinkEnabled && (
                 <button
                   onClick={() => setClassLinkMode({ kind: 'new' })}
+                  {...tourAttr('classes.import-classlink')}
                   className="flex flex-col items-center justify-center gap-1.5 p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:border-brand-blue-primary hover:text-brand-blue-primary transition-all"
                 >
                   <Download className="w-4 h-4" />
@@ -498,6 +501,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
             {unlinkedSchoologyCount > 0 && (
               <button
                 onClick={() => setShowLinkSchoology(true)}
+                {...tourAttr('classes.link-schoology')}
                 className="w-full flex items-center justify-center gap-2 p-2.5 bg-white border border-brand-blue-primary/30 text-brand-blue-primary rounded-xl hover:border-brand-blue-primary hover:bg-brand-blue-lighter/30 transition-all"
               >
                 <GraduationCap className="w-4 h-4" />
@@ -546,7 +550,10 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                     defaultValue: 'Your Classes',
                   })}
                 </h3>
-                <div className="flex flex-col gap-2">
+                <div
+                  className="flex flex-col gap-2"
+                  {...tourAttr('classes.roster-list')}
+                >
                   {rosters.map((r) => {
                     const isActive = activeRosterId === r.id;
                     return (
@@ -770,6 +777,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                   <button
                     onClick={() => void handleUnlink()}
                     disabled={isSaving || isUnlinking}
+                    {...tourAttr('classes.classroom-unlink')}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isUnlinking && (
@@ -785,6 +793,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                 <button
                   onClick={closeLinkModal}
                   disabled={isSaving || isUnlinking}
+                  {...tourAttr('classes.classroom-cancel')}
                   className="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50"
                 >
                   {t('common.cancel', { defaultValue: 'Cancel' })}
@@ -792,6 +801,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                 <button
                   onClick={() => void handleConfirmLink()}
                   disabled={!selectedCourseId || isSaving || isUnlinking}
+                  {...tourAttr('classes.classroom-confirm')}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -841,6 +851,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                 </div>
                 <button
                   onClick={() => void loadCourses()}
+                  {...tourAttr('classes.classroom-retry')}
                   className="mt-1 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xxs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors"
                 >
                   {t('common.retry', { defaultValue: 'Try Again' })}

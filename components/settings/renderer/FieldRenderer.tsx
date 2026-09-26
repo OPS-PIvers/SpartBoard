@@ -8,6 +8,7 @@ import {
 } from '@/components/settings/schema/types';
 import { FIELD_COMPONENTS } from './fields';
 import { resolveLabel } from './resolveLabel';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 export type FieldRendererProps = {
   field: Field;
@@ -180,6 +181,7 @@ export const FieldRenderer: React.FC<FieldRendererProps> = ({
     <div
       data-layout={inline ? 'inline' : 'stacked'}
       data-field-key={field.key}
+      {...tourFieldAttr('settings.field', widget.type, field.key)}
       className={
         inline
           ? 'flex items-start justify-between gap-3 py-2'

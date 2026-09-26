@@ -6,6 +6,8 @@ export interface TourAnchorDef {
   perWidget?: true;
   /** One element per widget type, scoped by `data-tour-widget-type`. */
   perWidgetType?: true;
+  /** One element per schema field, scoped by `data-tour-field` plus widget type. Ref: `id:type#fieldKey`. */
+  perField?: true;
   /** Autopilot never clicks it for the teacher by default. */
   destructive?: true;
   /** Shown only once a menu, the dock or another panel is open. */
@@ -108,6 +110,10 @@ export const TOUR_ANCHORS = {
   'settings.tab-settings': { label: 'Settings tab', perWidget: true },
   'settings.tab-style': { label: 'Style tab', perWidget: true },
   'settings.search': { label: 'Find a setting box', perWidget: true },
+  'settings.field': {
+    label: 'A single settings field row, by widget type and field key',
+    perField: true,
+  },
 
   'sidebar.open-menu': { label: 'Menu button in the top bar' },
   'sidebar.admin-settings': { label: 'Admin settings button in the top bar' },
@@ -249,6 +255,130 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
+  'classes.new-class': { label: 'New Class button in My Classes', panel: true },
+  'classes.import-classlink': {
+    label: 'ClassLink import button in My Classes',
+    panel: true,
+  },
+  'classes.link-schoology': {
+    label: 'Link Schoology sections button in My Classes',
+    panel: true,
+  },
+  'classes.roster-list': { label: 'Roster list in My Classes', panel: true },
+  'classes.classroom-unlink': {
+    label: 'Unlink button in the Link to Google Classroom modal',
+    panel: true,
+    destructive: true,
+  },
+  'classes.classroom-cancel': {
+    label: 'Cancel button in the Link to Google Classroom modal',
+    panel: true,
+  },
+  'classes.classroom-confirm': {
+    label: 'Link Class confirm button in the Link to Google Classroom modal',
+    panel: true,
+  },
+  'classes.classroom-retry': {
+    label: 'Try again button in the Link to Google Classroom modal',
+    panel: true,
+  },
+  'plcs.new-plc': { label: 'New PLC button in My PLCs', panel: true },
+  'plcs.invites': { label: 'Invites button in My PLCs', panel: true },
+  'plcs.plc-list': { label: 'PLC list in My PLCs', panel: true },
+  'plc-edit.name': {
+    label: 'PLC name input in the PLC edit modal',
+    panel: true,
+  },
+  'plc-edit.invite-email': {
+    label: 'Invite email input in the PLC edit modal',
+    panel: true,
+  },
+  'plc-edit.send-invite': {
+    label: 'Invite button in the PLC edit modal',
+    panel: true,
+  },
+  'plc-edit.cancel': {
+    label: 'Cancel button in the PLC edit modal',
+    panel: true,
+  },
+  'plc-edit.save': {
+    label: 'Save/Create button in the PLC edit modal',
+    panel: true,
+  },
+  'plc-invites.list': {
+    label: 'Pending invites list in the PLC invites modal',
+    panel: true,
+  },
+  'breathing.start-pause': {
+    label: 'Start or pause button in Breathing',
+    perWidget: true,
+  },
+  'breathing.reset': {
+    label: 'Reset button in Breathing',
+    perWidget: true,
+    destructive: true,
+  },
+  'activity-wall.toggle-open': {
+    label: 'Open/Closed toggle in Activity Wall',
+    perWidget: true,
+  },
+  'activity-wall.moderate': {
+    label: 'Moderate posts button in Activity Wall',
+    perWidget: true,
+  },
+  'activity-wall.share': {
+    label: 'Share button in Activity Wall',
+    perWidget: true,
+  },
+  'activity-wall.library': {
+    label: 'Open wall library button in Activity Wall',
+    perWidget: true,
+  },
+  'time-tool.start-pause': {
+    label: 'Start or pause button in Timer/Stopwatch',
+    perWidget: true,
+  },
+  'time-tool.reset': {
+    label: 'Reset button in Timer/Stopwatch',
+    perWidget: true,
+    destructive: true,
+  },
+  'dice.roll': { label: 'Roll Dice button', perWidget: true },
+  'random.pick': {
+    label: 'Randomize/Pick button in Random Picker',
+    perWidget: true,
+  },
+  'random.reset': {
+    label: 'Reset student pool button in Random Picker',
+    perWidget: true,
+    destructive: true,
+  },
+  'poll.next-question': {
+    label: 'Next question button in Poll',
+    perWidget: true,
+  },
+  'poll.reset': {
+    label: 'Reset Poll button',
+    perWidget: true,
+    destructive: true,
+  },
+  'stations.shuffle': { label: 'Shuffle button in Stations', perWidget: true },
+  'stations.rotate': { label: 'Rotate button in Stations', perWidget: true },
+  'stations.reset-all': {
+    label: 'Reset all button in Stations',
+    perWidget: true,
+    destructive: true,
+  },
+  'checklist.reset-checks': {
+    label: 'Reset checked items button in Checklist',
+    perWidget: true,
+    destructive: true,
+  },
+  'checklist.remove-completed': {
+    label: 'Remove completed items button in Checklist',
+    perWidget: true,
+    destructive: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;
@@ -272,17 +402,40 @@ export const tourTypeAttr = (id: TourAnchorId, widgetType: string) => ({
   'data-tour-widget-type': widgetType,
 });
 
-// A tour step's anchor ref: the registry id, plus `:<widgetType>` for per-type anchors.
-export const tourAnchorRef = (id: TourAnchorId, widgetType?: string) =>
-  widgetType ? `${id}:${widgetType}` : id;
+// Schema-rendered field rows: one tag in the shared renderer covers every field.
+export const tourFieldAttr = (
+  id: TourAnchorId,
+  widgetType: string,
+  fieldKey: string
+) => ({
+  'data-tour': id,
+  'data-tour-widget-type': widgetType,
+  'data-tour-field': fieldKey,
+});
+
+// A tour step's anchor ref: the registry id, plus `:<widgetType>` for per-type anchors
+// and `#<fieldKey>` for a single field of that widget type.
+export const tourAnchorRef = (
+  id: TourAnchorId,
+  widgetType?: string,
+  fieldKey?: string
+) =>
+  fieldKey
+    ? `${id}:${widgetType}#${fieldKey}`
+    : widgetType
+      ? `${id}:${widgetType}`
+      : id;
 
 export const parseTourAnchorRef = (
   ref: string
-): { id: string; widgetType?: string } => {
-  const sep = ref.indexOf(':');
+): { id: string; widgetType?: string; fieldKey?: string } => {
+  const hash = ref.indexOf('#');
+  const head = hash === -1 ? ref : ref.slice(0, hash);
+  const fieldKey = hash === -1 ? undefined : ref.slice(hash + 1);
+  const sep = head.indexOf(':');
   return sep === -1
-    ? { id: ref }
-    : { id: ref.slice(0, sep), widgetType: ref.slice(sep + 1) };
+    ? { id: head, fieldKey }
+    : { id: head.slice(0, sep), widgetType: head.slice(sep + 1), fieldKey };
 };
 
 /** The state a step's anchor needs before it can be found, if any. */

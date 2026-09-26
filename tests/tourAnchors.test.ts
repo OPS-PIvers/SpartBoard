@@ -18,9 +18,9 @@ interface SourceFile {
   text: string;
 }
 
-// Every anchor use in source: tourAttr('id'…, tourTypeAttr('id'…, or a data-tour="id" literal.
+// Every anchor use in source: tourAttr('id'…, tourTypeAttr('id'…, tourFieldAttr('id'…, or a data-tour="id" literal.
 const ANCHOR_USE =
-  /(?:\btourAttr\(\s*|\btourTypeAttr\(\s*|\bdata-tour=\{?\s*)(['"`])([^'"`]+)\1/g;
+  /(?:\btourAttr\(\s*|\btourTypeAttr\(\s*|\btourFieldAttr\(\s*|\bdata-tour=\{?\s*)(['"`])([^'"`]+)\1/g;
 
 const findAnchorProblems = (
   registry: readonly string[],
@@ -125,11 +125,11 @@ describe('findAnchorProblems', () => {
     });
   });
 
-  it('counts tourTypeAttr and braced data-tour literals as uses', () => {
+  it('counts tourTypeAttr, tourFieldAttr and braced data-tour literals as uses', () => {
     const files = [
       {
         path: 'a.tsx',
-        text: `<b {...tourTypeAttr('dock.open-tools', tool.type)} /><b data-tour={'widget.close'} />`,
+        text: `<b {...tourTypeAttr('dock.open-tools', tool.type)} /><b {...tourFieldAttr('widget.close', type, key)} /><b data-tour={'widget.close'} />`,
       },
     ];
     expect(findAnchorProblems(registry, files).missing).toEqual([]);

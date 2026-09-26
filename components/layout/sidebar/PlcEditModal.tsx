@@ -9,6 +9,7 @@ import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { Plc } from '@/types';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface PlcEditModalProps {
   isOpen: boolean;
@@ -192,6 +193,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
             onChange={(e) => setName(e.target.value)}
             disabled={!isCreate && !isLead}
             autoFocus={isCreate}
+            {...tourAttr('plc-edit.name')}
           />
         </div>
 
@@ -276,10 +278,12 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 disabled={busy}
+                {...tourAttr('plc-edit.invite-email')}
               />
               <button
                 type="submit"
                 disabled={busy || !inviteEmail.trim()}
+                {...tourAttr('plc-edit.send-invite')}
                 className="bg-brand-blue-primary text-white px-3.5 py-2 rounded-xl flex gap-1.5 items-center text-xs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Mail className="w-3.5 h-3.5" />
@@ -338,6 +342,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
             <button
               onClick={onClose}
               disabled={busy}
+              {...tourAttr('plc-edit.cancel')}
               className="px-4 py-2 text-sm font-bold text-slate-600 hover:text-slate-800 transition-colors disabled:opacity-50"
             >
               {t('common.cancel', { defaultValue: 'Cancel' })}
@@ -345,6 +350,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
             <button
               onClick={() => void handleSave()}
               disabled={busy || !name.trim()}
+              {...tourAttr('plc-edit.save')}
               className="bg-brand-blue-primary text-white px-5 py-2 rounded-xl flex gap-1.5 items-center text-sm font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save className="w-4 h-4" />

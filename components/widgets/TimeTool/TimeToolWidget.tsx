@@ -16,6 +16,7 @@ import {
 import { STANDARD_COLORS } from '@/config/colors';
 import { TIME_TOOL_MAX_DURATION_SECONDS } from '@/config/timeTool';
 import { WidgetLayout } from '../WidgetLayout';
+import { tourAttr } from '@/config/tourAnchors';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -594,6 +595,11 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                       />
                     )}
                     <button
+                      {...tourAttr(
+                        'time-tool.start-pause',
+                        widget.id,
+                        widget.type
+                      )}
                       onClick={
                         isRunning
                           ? () => handleStop()
@@ -631,6 +637,7 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                       )}
                     </button>
                     <button
+                      {...tourAttr('time-tool.reset', widget.id, widget.type)}
                       onClick={handleReset}
                       className="flex items-center justify-center rounded-xl bg-slate-200/60 text-slate-400 hover:bg-slate-300/70 hover:text-brand-blue-primary transition-all select-none active:scale-95 shadow-sm"
                       style={{

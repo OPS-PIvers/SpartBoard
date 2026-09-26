@@ -51,6 +51,17 @@ describe('tour anchor refs', () => {
       id: 'sidebar.boards',
     });
   });
+
+  it('round-trips per-field refs', () => {
+    expect(tourAnchorRef('settings.field', 'poll', 'question')).toBe(
+      'settings.field:poll#question'
+    );
+    expect(parseTourAnchorRef('settings.field:poll#question')).toEqual({
+      id: 'settings.field',
+      widgetType: 'poll',
+      fieldKey: 'question',
+    });
+  });
 });
 
 describe('findTourAnchor', () => {
@@ -92,6 +103,18 @@ describe('findTourAnchor', () => {
       'Dice'
     );
     expect(findTourAnchor({ anchor: 'dock.item:poll' })).toBeNull();
+  });
+
+  it('matches a per-field ref on widget type and field key', () => {
+    mount(`
+      <div data-tour="settings.field" data-tour-widget-type="poll" data-tour-field="question">Q</div>
+      <div data-tour="settings.field" data-tour-widget-type="poll" data-tour-field="options">O</div>`);
+    expect(
+      findTourAnchor({ anchor: 'settings.field:poll#question' })?.textContent
+    ).toBe('Q');
+    expect(
+      findTourAnchor({ anchor: 'settings.field:poll#missing' })
+    ).toBeNull();
   });
 
   it('skips anything inside data-tour-ignore', () => {

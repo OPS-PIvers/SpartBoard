@@ -103,10 +103,11 @@ export function findTourAnchor(
     binding.slot === undefined ? undefined : scope.slots?.[binding.slot];
   const usable = (el: Element) =>
     !ignored(el) && isAnchorVisible(el) && (scope.accept?.(el) ?? true);
-  const { id, widgetType } = parseTourAnchorRef(binding.anchor);
+  const { id, widgetType, fieldKey } = parseTourAnchorRef(binding.anchor);
   const selector =
     `[data-tour=${quote(id)}]` +
-    (widgetType ? `[data-tour-widget-type=${quote(widgetType)}]` : '');
+    (widgetType ? `[data-tour-widget-type=${quote(widgetType)}]` : '') +
+    (fieldKey ? `[data-tour-field=${quote(fieldKey)}]` : '');
   const tagged = id
     ? Array.from(root.querySelectorAll<HTMLElement>(selector)).filter(usable)
     : [];
