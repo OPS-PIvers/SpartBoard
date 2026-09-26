@@ -337,7 +337,8 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
 
   const renderCard = (
     bank: QuestionBankMetadata,
-    overlay = false
+    overlay = false,
+    index?: number
   ): React.ReactElement => (
     <LibraryItemCard<QuestionBankMetadata>
       key={bank.id}
@@ -359,6 +360,8 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       selectionMode={!overlay && selectionMode}
       selected={!overlay && selection.isSelected(bank.id)}
       onSelectionToggle={() => selection.toggle(bank.id)}
+      tourIndex={index}
+      tourWidgetType="quiz"
     />
   );
 
@@ -388,6 +391,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       {...libraryView.toolbarProps}
       searchPlaceholder="Search banks…"
       sortOptions={SORT_OPTIONS}
+      widgetType="quiz"
       rightSlot={
         userId ? (
           <button
@@ -473,7 +477,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
         layout="list"
         emptyState={emptyState}
         useExternalDndContext={enableCardDrag}
-        renderCard={(bank) => renderCard(bank)}
+        renderCard={(bank, index) => renderCard(bank, false, index)}
       />
       {sharedBankSources.length > 0 && (
         <section
@@ -526,6 +530,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   const shellEl = (
     <LibraryShell
       {...shell}
+      widgetType="quiz"
       primaryAction={{ label: 'New bank', icon: Plus, onClick: onNewBank }}
       secondaryActions={
         onImportBank

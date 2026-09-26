@@ -2038,6 +2038,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         {...libraryView.toolbarProps}
         searchPlaceholder="Search quizzes…"
         sortOptions={SORT_OPTIONS}
+        widgetType="quiz"
         rightSlot={
           userId ? (
             <>
@@ -2684,11 +2685,13 @@ const LibraryTabContent: React.FC<{
           layout={viewMode}
           emptyState={emptyState}
           useExternalDndContext={enableCardDrag}
-          renderCard={(quiz) => (
+          renderCard={(quiz, index) => (
             <LibraryItemCard<QuizMetadata>
               key={quiz.id}
               id={quiz.id}
               title={quiz.title}
+              tourIndex={index}
+              tourWidgetType="quiz"
               subtitle={renderSubtitle(quiz)}
               primaryAction={{
                 label: primaryActionLabel,
@@ -2883,7 +2886,7 @@ const AssignmentsList: React.FC<{
 
   return (
     <div className="flex flex-col">
-      {assignments.map((a) => (
+      {assignments.map((a, index) => (
         <QuizArchiveRow
           key={a.id}
           assignment={a}
@@ -2891,6 +2894,7 @@ const AssignmentsList: React.FC<{
           buildActions={buildActions}
           syncedGroups={syncedGroups}
           skippedTargets={skippedTargetsByAssignmentId?.[a.id]}
+          tourIndex={index}
         />
       ))}
     </div>
@@ -2923,6 +2927,7 @@ interface QuizArchiveRowProps {
   syncedGroups?: Map<string, SyncedQuizGroup>;
   /** M17 skipped-ref row marker (spec §5 B3) — see `skippedTargetsByAssignmentId`. */
   skippedTargets?: { ref: StudentTargetRef; reason: string }[];
+  tourIndex?: number;
 }
 
 /**
@@ -2937,6 +2942,7 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   buildActions,
   syncedGroups,
   skippedTargets,
+  tourIndex,
 }) => {
   const assignmentIsViewOnly = a.mode === 'view-only';
   // Skipped-ref durability (canonical rule) — prefer the in-memory names
@@ -3115,6 +3121,8 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
           : undefined
       }
       secondaryActions={secondaries}
+      tourIndex={tourIndex}
+      tourWidgetType="quiz"
     />
   );
 };

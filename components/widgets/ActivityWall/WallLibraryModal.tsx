@@ -227,6 +227,7 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
             search={search}
             onSearchChange={setSearch}
             searchPlaceholder="Search walls…"
+            widgetType="activity-wall"
             sort={sort}
             sortOptions={[
               { key: 'recent', label: 'Recently updated', defaultDir: 'desc' },
@@ -266,11 +267,13 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
               </p>
             )
           }
-          renderCard={(entry) => (
+          renderCard={(entry, index) => (
             <LibraryItemCard
               key={entry.id}
               id={entry.id}
               title={entry.title || 'Untitled wall'}
+              tourIndex={index}
+              tourWidgetType="activity-wall"
               subtitle={`${layoutLabel(entry)} · ${
                 counts[entry.id] ?? 0
               } post${counts[entry.id] === 1 ? '' : 's'}`}

@@ -249,7 +249,15 @@ const MiniAppArchiveRow: React.FC<{
   status: AssignmentStatusBadge;
   primaryAction?: LibraryPrimaryAction;
   secondaryActions: LibraryMenuAction[];
-}> = ({ assignment, mode, status, primaryAction, secondaryActions }) => {
+  tourIndex?: number;
+}> = ({
+  assignment,
+  mode,
+  status,
+  primaryAction,
+  secondaryActions,
+  tourIndex,
+}) => {
   const isViewOnly = assignment.mode === 'view-only';
   // Admin-only by default — view-count display fires one Firestore
   // aggregation per visible card on every dashboard tab-focus, so we gate
@@ -285,6 +293,8 @@ const MiniAppArchiveRow: React.FC<{
       }
       primaryAction={primaryAction}
       secondaryActions={secondaryActions}
+      tourIndex={tourIndex}
+      tourWidgetType="miniApp"
     />
   );
 };
@@ -589,7 +599,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
 
   /* ── Card builders ────────────────────────────────────────────────────── */
 
-  function renderPersonalCard(row: UnifiedRow & { kind: 'personal' }) {
+  function renderPersonalCard(
+    row: UnifiedRow & { kind: 'personal' },
+    index?: number
+  ) {
     const app = row.item;
     // View-only mode: Run is the dominant action — teachers nearly always
     // want to *run* a mini-app on the dashboard before they share it. Pair
@@ -748,11 +761,16 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         selectionMode={selectionMode}
         selected={selection.isSelected(getRowId(row))}
         onSelectionToggle={() => selection.toggle(getRowId(row))}
+        tourIndex={index}
+        tourWidgetType="miniApp"
       />
     );
   }
 
-  function renderGlobalCard(row: UnifiedRow & { kind: 'global' }) {
+  function renderGlobalCard(
+    row: UnifiedRow & { kind: 'global' },
+    index?: number
+  ) {
     const app = row.item;
     const saving = savingGlobalId === app.id;
     const secondary: LibraryMenuAction[] = isViewOnly
@@ -854,13 +872,15 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         onClick={() => setPreviewRowId(getRowId(row))}
         sortable={false}
         viewMode={view.state.viewMode}
+        tourIndex={index}
+        tourWidgetType="miniApp"
       />
     );
   }
 
-  function renderCard(row: UnifiedRow): React.ReactElement {
-    if (row.kind === 'personal') return renderPersonalCard(row);
-    return renderGlobalCard(row);
+  function renderCard(row: UnifiedRow, index?: number): React.ReactElement {
+    if (row.kind === 'personal') return renderPersonalCard(row, index);
+    return renderGlobalCard(row, index);
   }
 
   /* ── Empty states ─────────────────────────────────────────────────────── */
@@ -1047,7 +1067,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     } else {
       tabContent = (
         <div className="flex flex-col">
-          {activeAssignments.map((a) => (
+          {activeAssignments.map((a, index) => (
             <MiniAppArchiveRow
               key={a.id}
               assignment={a}
@@ -1059,6 +1079,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
                 onClick: () => onArchiveCopyUrl(a),
               }}
               secondaryActions={assignmentSecondary(a, 'active')}
+              tourIndex={index}
             />
           ))}
         </div>
@@ -1085,7 +1106,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     } else {
       tabContent = (
         <div className="flex flex-col">
-          {archivedAssignments.map((a) => {
+          {archivedAssignments.map((a, index) => {
             // Archived view-only shares have a dead URL — Firestore rules
             // (and the student app guard) reject access once `status ==
             // 'ended'`. Surfacing a Copy-link button there would mislead
@@ -1108,6 +1129,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
                       }
                 }
                 secondaryActions={assignmentSecondary(a, 'archive')}
+                tourIndex={index}
               />
             );
           })}
@@ -1231,6 +1253,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         search={view.toolbarProps.search}
         onSearchChange={view.toolbarProps.onSearchChange}
         searchPlaceholder="Search mini-apps…"
+        widgetType="miniApp"
         sort={view.toolbarProps.sort}
         sortOptions={SORT_OPTIONS}
         onSortChange={view.toolbarProps.onSortChange}

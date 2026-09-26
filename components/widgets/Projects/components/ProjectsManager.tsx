@@ -429,7 +429,8 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
   );
 
   const renderProjectCard = (
-    project: ProjectDefinition
+    project: ProjectDefinition,
+    index?: number
   ): React.ReactElement => {
     const run = runByProjectId.get(project.id);
     const stepLabel = `${project.steps.length} step${project.steps.length === 1 ? '' : 's'}`;
@@ -521,6 +522,8 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
         selected={selection.isSelected(project.id)}
         onSelectionToggle={() => selection.toggle(project.id)}
         onClick={() => setEditingId(project.id)}
+        tourIndex={index}
+        tourWidgetType="projects"
       />
     );
   };
@@ -544,7 +547,8 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
 
   const renderRunCard = (
     entry: RunEntry,
-    mode: 'active' | 'archive'
+    mode: 'active' | 'archive',
+    index?: number
   ): React.ReactElement => {
     const { run, project } = entry;
     const secondary: LibraryMenuAction[] = [];
@@ -628,6 +632,8 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
         secondaryActions={secondary}
         sortable={false}
         viewMode="list"
+        tourIndex={index}
+        tourWidgetType="projects"
       />
     );
   };
@@ -684,6 +690,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
             {...view.toolbarProps}
             sortOptions={SORT_OPTIONS}
             searchPlaceholder="Search projects…"
+            widgetType="projects"
             rightSlot={
               userId ? (
                 <button
@@ -822,7 +829,9 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
           />
         ) : (
           <div className="flex flex-col">
-            {activeRuns.map((entry) => renderRunCard(entry, 'active'))}
+            {activeRuns.map((entry, index) =>
+              renderRunCard(entry, 'active', index)
+            )}
           </div>
         ))}
 
@@ -837,7 +846,9 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
           />
         ) : (
           <div className="flex flex-col">
-            {archiveEntries.map((entry) => renderRunCard(entry, 'archive'))}
+            {archiveEntries.map((entry, index) =>
+              renderRunCard(entry, 'archive', index)
+            )}
           </div>
         ))}
     </LibraryShell>
