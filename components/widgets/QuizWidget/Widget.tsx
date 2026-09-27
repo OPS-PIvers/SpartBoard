@@ -3537,6 +3537,12 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           )}
           onCreateAssignment={async () => {
             const behavior = getQuizBehavior(paperImport.meta);
+            // Pool with the PLC the quiz syncs from, as the assign dialog pre-selects it.
+            const groupId = paperImport.meta.sync?.groupId;
+            const groupPlcId = groupId
+              ? syncedGroups.get(groupId)?.plcId
+              : undefined;
+            const plc = buildPlcLinkage(plcs.find((p) => p.id === groupPlcId));
             const { id } = await createAssignment(
               {
                 id: paperImport.meta.id,
@@ -3558,10 +3564,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   tabWarningsEnabled: false,
                 },
                 attemptLimit: 1,
+                ...(plc && groupId ? { plc } : {}),
               },
               // No classIds and paused: never a live door for students.
               // publishPaperResultsV1 ends it once results go out (Q34).
-              { initialStatus: 'paused' }
+              {
+                initialStatus: 'paused',
+                ...(plc && groupId ? { plcPoolSyncGroupId: groupId } : {}),
+              }
             );
             return id;
           }}
