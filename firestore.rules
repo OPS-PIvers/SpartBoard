@@ -5396,6 +5396,17 @@ service cloud.firestore {
       allow read, write: if ownsUserTeacher(userId);
     }
 
+    // === Claude connector (docs/plans/CLAUDE_CONNECTOR.md): server-written, owner-readable ===
+    match /users/{userId}/mcp_grants/{grantId} {
+      allow read: if ownsUserTeacher(userId);
+    }
+    match /users/{userId}/claude_activity/{entryId} {
+      allow read: if ownsUserTeacher(userId);
+    }
+    match /users/{userId}/claude_revisions/{revisionId} {
+      allow read: if ownsUserTeacher(userId);
+    }
+
     // === Flashcards (PR 1: teacher-owned authoring library) ===
     match /users/{userId}/flashcard_sets/{setId} {
       allow read, write: if ownsUserTeacher(userId);

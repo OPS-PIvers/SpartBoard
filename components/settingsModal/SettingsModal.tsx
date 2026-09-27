@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Globe,
   PanelBottom,
+  Plug,
   Palette,
   Settings,
   Shapes,
@@ -35,6 +36,7 @@ import { DockSection } from './sections/DockSection';
 import { BehaviorSection } from './sections/BehaviorSection';
 import { LanguageSection } from './sections/LanguageSection';
 import { WidgetDefaultsSection } from './sections/WidgetDefaultsSection';
+import { ConnectedAppsSection } from './sections/ConnectedAppsSection';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { tourAttr } from '@/config/tourAnchors';
 
@@ -44,7 +46,8 @@ export type SettingsSectionId =
   | 'dock'
   | 'behavior'
   | 'widgetDefaults'
-  | 'language';
+  | 'language'
+  | 'connectedApps';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -105,6 +108,13 @@ const SECTIONS: readonly SectionConfig[] = [
     fallback: 'Language',
     icon: Globe,
   },
+  {
+    id: 'connectedApps',
+    tour: tourAttr('profile.tab-connected-apps'),
+    labelKey: 'settings.connectedApps.title',
+    fallback: 'Connected apps',
+    icon: Plug,
+  },
 ];
 
 // One nav entry in the light vertical rail. Collapses to icon-only between md
@@ -145,9 +155,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const editor = useGlobalStyleEditor();
   const { canAccessFeature } = useAuth();
   // Explicit widget defaults ship with the settings drawer (D28).
-  const sections = canAccessFeature('settings-drawer')
-    ? SECTIONS
-    : SECTIONS.filter((s) => s.id !== 'widgetDefaults');
+  const sections = SECTIONS.filter(
+    (s) =>
+      (s.id !== 'widgetDefaults' || canAccessFeature('settings-drawer')) &&
+      (s.id !== 'connectedApps' || canAccessFeature('claude-connector'))
+  );
   const [activeSection, setActiveSection] = useState<SectionId>(initialSection);
   // Mobile only: the drill-in list (true) vs. the selected panel (false). The
   // rail is always visible on md+, so this flag is inert there.
@@ -187,6 +199,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         return <WidgetDefaultsSection />;
       case 'language':
         return <LanguageSection />;
+      case 'connectedApps':
+        return <ConnectedAppsSection />;
     }
   };
 
