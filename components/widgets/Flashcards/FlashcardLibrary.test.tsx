@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { FlashcardAssignment, FlashcardSet } from '@/types';
 import type { UseFoldersResult } from '@/hooks/useFolders';
 import { FlashcardLibrary } from './FlashcardLibrary';
@@ -237,5 +237,63 @@ describe('FlashcardLibrary set-library grid card identity', () => {
     );
 
     expect(screen.queryByRole('menu')).toBeNull();
+  });
+});
+
+describe('FlashcardLibrary folder move error handling', () => {
+  const set: FlashcardSet = {
+    id: 'set-1',
+    title: 'Spanish verbs',
+    termLanguage: 'es',
+    definitionLanguage: 'en',
+    cards: [],
+    createdAt: 1,
+    updatedAt: 1,
+  };
+
+  it('reports a failed folder move instead of leaving it unhandled', async () => {
+    const onError = vi.fn();
+    const failingFolders: UseFoldersResult = {
+      ...folders,
+      moveItem: vi.fn().mockRejectedValue(new Error('permission-denied')),
+    };
+
+    render(
+      <FlashcardLibrary
+        sets={[set]}
+        loading={false}
+        error={null}
+        folders={failingFolders}
+        assignments={[]}
+        assignmentsLoading={false}
+        tab="library"
+        onNew={vi.fn()}
+        onImport={vi.fn()}
+        onEdit={vi.fn()}
+        onPresent={vi.fn()}
+        onShare={vi.fn()}
+        onAssign={vi.fn()}
+        onDelete={vi.fn()}
+        onAssignmentResults={vi.fn()}
+        onAssignmentPublishScores={vi.fn()}
+        onAssignmentUnpublishScores={vi.fn()}
+        onAssignmentCopyLink={vi.fn()}
+        onAssignmentEnd={vi.fn()}
+        onAssignmentReopen={vi.fn()}
+        onAssignmentDelete={vi.fn()}
+        onTabChange={vi.fn()}
+        onError={onError}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Move to folder…' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'All items (no folder)' })
+    );
+
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith('That set could not be moved.')
+    );
   });
 });

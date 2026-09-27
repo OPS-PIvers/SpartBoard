@@ -216,8 +216,10 @@ export const archiveActivityWallPhoto = onCall(
     const driveVisibility: unknown = (
       (sessionSnap.data() ?? {}) as Record<string, unknown>
     ).driveVisibility;
+    // Unverified email is self-reportable and resolveDrivePermission trusts its domain.
     const teacherEmail =
-      typeof request.auth.token?.email === 'string'
+      request.auth.token?.email_verified === true &&
+      typeof request.auth.token.email === 'string'
         ? request.auth.token.email
         : null;
 

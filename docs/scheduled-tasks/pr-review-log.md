@@ -4346,3 +4346,28 @@ rather than "no data") is also still open.
   - CI was green on the #3506 and #3507 heads.
   - `gh` is absent and `/mnt/skills/user/` does not exist again. GitHub access went through MCP, and the standards came from `.claude/skills/` and CLAUDE.md.
   - No lint, type-check or test runs were made because no code was changed.
+
+## 2026-09-27
+- PRs reviewed (8):
+  - #3526 Nightly debugger log: run 82
+  - #3525 SECURITY: require verified email for Activity Wall / Project upload Drive-share domain
+  - #3524 i18n: add widgetSettings.weather translations for de/es/fr
+  - #3523 Canonicalize legacy building ids in Music widget station filter
+  - #3522 Fix Dock crash when a folder being renamed is deleted mid-edit
+  - #3521 Fix unhandled folder-move rejection in Flashcards library
+  - #3520 Admin building config: ActivityWall appearance/behavior defaults + weekly audit journals
+  - #3519 D3 Settings Labels: exclusive-choice radiogroup for PLC norming flag picker
+- Comments processed: 7 total — 0 fixed, 0 explained. All seven were clean claude[bot] summaries on the PR conversation, with no inline review threads and nothing asked for, so no reply was posted.
+- Fixes pushed: none
+- Reviews posted: 8
+- Merge readiness:
+  - Ready: #3526, #3525, #3523.
+  - Ready with minor notes:
+    - #3524: the new test opens with a 17-line docblock, which breaks the CLAUDE.md one-line comment rule.
+    - #3522: the `renamingFolderId` check is redundant, and a stale id could reopen the modal if the folder comes back.
+    - #3521: the handler name `handleDropOnFolder` is misleading, and the toast string is English-only.
+    - #3520: the text-colour fallback swatch is `#f8fafc`, but the widget default is `#ffffff`.
+    - #3519: each arrow key commits a server write and the popover then closes, so keyboard navigation stops after one step.
+- Notes:
+  - `gh` is absent and `/mnt/skills/user/` does not exist again. GitHub access went through MCP, and the standards came from CLAUDE.md.
+  - No lint, type-check or test runs were made because no code was changed.

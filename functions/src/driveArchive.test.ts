@@ -102,11 +102,14 @@ const submissionRef = {
 import { archiveActivityWallPhoto } from './driveArchive';
 
 const callableHandler = archiveActivityWallPhoto as unknown as (request: {
-  auth: { uid: string; token?: { email?: string } };
+  auth: { uid: string; token?: { email?: string; email_verified?: boolean } };
   data: Bag;
 }) => Promise<Bag>;
 
-const AUTH = { uid: 'teacher-1', token: { email: 'teacher@school.org' } };
+const AUTH = {
+  uid: 'teacher-1',
+  token: { email: 'teacher@school.org', email_verified: true },
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -164,7 +167,10 @@ describe('archiveActivityWallPhoto resume path', () => {
       type: 'video',
     };
     const result = await callableHandler({
-      auth: { uid: 'teacher-1', token: { email: 'teacher@gmail.com' } },
+      auth: {
+        uid: 'teacher-1',
+        token: { email: 'teacher@gmail.com', email_verified: true },
+      },
       data: {
         accessToken: 'tok',
         sessionId: SESSION_ID,
@@ -201,6 +207,28 @@ describe('archiveActivityWallPhoto resume path', () => {
 
     expect(submissionState?.archiveStatus).toBe('failed');
     expect(submissionState?.driveFileId).toBe('drive-existing');
+  });
+
+  // SECURITY: same trust boundary as the fresh-upload path below — resuming
+  // a stranded submission must not let an unverified self-reported email
+  // pick the Drive-sharing domain either.
+  it('refuses a domain share for an unverified caller email', async () => {
+    await expect(
+      callableHandler({
+        auth: {
+          uid: 'teacher-1',
+          token: { email: 'teacher@school.org', email_verified: false },
+        },
+        data: {
+          accessToken: 'tok',
+          sessionId: SESSION_ID,
+          submissionId: SUBMISSION_ID,
+          activityId: 'wall-abc123456',
+        },
+      })
+    ).rejects.toThrow(/resolve the teacher email domain/);
+    expect(submissionState?.archiveStatus).toBe('failed');
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 });
 
@@ -251,7 +279,10 @@ describe('archiveActivityWallPhoto fresh upload path', () => {
 
   it('applies no permission for a public webmail teacher', async () => {
     await callableHandler({
-      auth: { uid: 'teacher-1', token: { email: 'teacher@gmail.com' } },
+      auth: {
+        uid: 'teacher-1',
+        token: { email: 'teacher@gmail.com', email_verified: true },
+      },
       data: {
         accessToken: 'tok',
         sessionId: SESSION_ID,
@@ -260,6 +291,33 @@ describe('archiveActivityWallPhoto fresh upload path', () => {
       },
     });
     expect(submissionState?.drivePermission).toBe('private');
+    const calls = (global.fetch as unknown as { mock: { calls: unknown[][] } })
+      .mock.calls;
+    expect(
+      calls.filter((c) => String(c[0]).includes('/permissions'))
+    ).toHaveLength(0);
+  });
+
+  // SECURITY: email/password sign-in lets a caller self-report any address.
+  // An unverified email must never pick the Drive-sharing domain, or a
+  // forged domain could open this teacher's own students' submissions to
+  // an unrelated real Workspace domain the caller doesn't belong to.
+  it('refuses a domain share for an unverified caller email', async () => {
+    await expect(
+      callableHandler({
+        auth: {
+          uid: 'teacher-1',
+          token: { email: 'teacher@school.org', email_verified: false },
+        },
+        data: {
+          accessToken: 'tok',
+          sessionId: SESSION_ID,
+          submissionId: SUBMISSION_ID,
+          activityId: 'wall-abc123456',
+        },
+      })
+    ).rejects.toThrow(/resolve the teacher email domain/);
+    expect(submissionState?.archiveStatus).toBe('failed');
     const calls = (global.fetch as unknown as { mock: { calls: unknown[][] } })
       .mock.calls;
     expect(

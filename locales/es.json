@@ -3332,6 +3332,31 @@
       "importScope": "Importar de",
       "importWholeClass": "Toda la clase",
       "importGroupEmpty": "Ese grupo de la clase no tiene a nadie en la lista."
+    },
+    "weather": {
+      "weatherMode": "Modo del clima",
+      "manual": "Manual",
+      "automatic": "Automático",
+      "temperature": "Temperatura (°F)",
+      "condition": "Condición",
+      "sunny": "Soleado",
+      "cloudy": "Nublado",
+      "rainy": "Lluvioso",
+      "snowy": "Nevado",
+      "windy": "Ventoso",
+      "automaticWeather": "Clima automático",
+      "weatherSource": "Fuente del clima",
+      "openWeather": "OpenWeather",
+      "cityZip": "Ciudad o código postal",
+      "useLocation": "Usar ubicación actual",
+      "refreshWeather": "Actualizar clima",
+      "refreshCity": "Actualizar ciudad",
+      "showFeelsLike": "Priorizar la sensación térmica",
+      "hideClothing": "Ocultar sugerencias de ropa",
+      "syncBackground": "Sincronizar el fondo del tablero con el clima",
+      "secondaryColor": "Color del texto secundario",
+      "matchText": "Igual que el texto",
+      "clothingCard": "Tarjeta de ropa"
     }
   },
   "glRecorder": {

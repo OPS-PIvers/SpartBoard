@@ -4,6 +4,7 @@ import { db } from '@/config/firebase';
 import { MusicStation } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { extractYouTubeId } from '@/utils/youtube';
+import { canonicalizeBuildingIds } from '@/config/buildings';
 
 export const useMusicStations = () => {
   const [rawStations, setRawStations] = useState<MusicStation[]>([]);
@@ -56,8 +57,14 @@ export const useMusicStations = () => {
           if (!s.buildingIds || s.buildingIds.length === 0) return true;
           // User has no building selected → show all stations (empty selection = show all content)
           if (selectedBuildings.length === 0) return true;
+          // buildingIds may still hold a legacy long-form id; canonicalize before comparing against selectedBuildings (always canonical).
+          const canonicalStationBuildings = canonicalizeBuildingIds(
+            s.buildingIds
+          );
           // Show if any of the user's buildings match the station's buildings
-          return s.buildingIds.some((id) => selectedBuildings.includes(id));
+          return canonicalStationBuildings.some((id) =>
+            selectedBuildings.includes(id)
+          );
         })
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
     [rawStations, selectedBuildings]

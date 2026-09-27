@@ -54,9 +54,11 @@ vi.mock('./secrets', () => ({
   GOOGLE_OAUTH_CLIENT_ID: { value: () => 'secret:gid' },
 }));
 
+import * as admin from 'firebase-admin';
 import {
   archiveActivityWallMediaCore,
   buildArchiveFileName,
+  buildDefaultWallArchiveDeps,
   buildDriveUrl,
   resolveDrivePermission,
   buildWallFolderPath,
@@ -352,6 +354,39 @@ describe('pure helpers', () => {
       true
     );
     expect(isNeedsConsentError(new Error('boom'))).toBe(false);
+  });
+});
+
+// SECURITY: `resolveDrivePermission` trusts its `teacherEmail` argument's
+// domain for a "domain" share, so the default deps' `getUserEmail` must never
+// hand it an unverified, self-reported address (email/password sign-in lets a
+// caller set that to anything) — that could open this teacher's own students'
+// submissions to an unrelated real Workspace domain the caller doesn't belong to.
+describe('buildDefaultWallArchiveDeps getUserEmail', () => {
+  it('returns the email only when the auth record has it verified', async () => {
+    const getUser = vi.fn().mockResolvedValue({
+      email: 'teacher@school.org',
+      emailVerified: true,
+    });
+    vi.mocked(admin.auth).mockReturnValue({
+      getUser,
+    } as unknown as ReturnType<typeof admin.auth>);
+    const deps = buildDefaultWallArchiveDeps();
+    await expect(deps.getUserEmail(TEACHER_UID)).resolves.toBe(
+      'teacher@school.org'
+    );
+  });
+
+  it('returns null for an unverified email instead of trusting it', async () => {
+    const getUser = vi.fn().mockResolvedValue({
+      email: 'teacher@school.org',
+      emailVerified: false,
+    });
+    vi.mocked(admin.auth).mockReturnValue({
+      getUser,
+    } as unknown as ReturnType<typeof admin.auth>);
+    const deps = buildDefaultWallArchiveDeps();
+    await expect(deps.getUserEmail(TEACHER_UID)).resolves.toBeNull();
   });
 });
 

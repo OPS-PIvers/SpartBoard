@@ -5,6 +5,7 @@ import { Flag } from 'lucide-react';
 import type { PlcNormingLevel, PlcNormingLevelLabels } from '@/types';
 import { PLC_NORMING_LEVELS, normingLabelFor } from '@/utils/plcNorming';
 import { callSetPlcNormingFlag } from '@/hooks/usePlcNorming';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { NormingLevelSymbol } from './NormingLevelSymbol';
 
 export interface PlcNormingFlagControlProps {
@@ -42,9 +43,9 @@ export const PlcNormingFlagControl: React.FC<PlcNormingFlagControlProps> = ({
 
   const labelFor = (l: PlcNormingLevel) => normingLabelFor(l, labels);
 
-  const pick = async (next: PlcNormingLevel) => {
-    if (busy) return;
-    const target = shown === next ? null : next;
+  // The write itself; target is the exact level to store (or null to clear).
+  const write = async (target: PlcNormingLevel | null): Promise<boolean> => {
+    if (busy) return false;
     setBusy(true);
     setOptimistic({ from: level, to: target });
     try {
@@ -55,7 +56,7 @@ export const PlcNormingFlagControl: React.FC<PlcNormingFlagControlProps> = ({
         slot,
         level: target,
       });
-      setOpen(false);
+      return true;
     } catch (err) {
       setOptimistic(null);
       onError?.(
@@ -65,9 +66,22 @@ export const PlcNormingFlagControl: React.FC<PlcNormingFlagControlProps> = ({
               defaultValue: 'Could not update the norming flag.',
             })
       );
+      return false;
     } finally {
       setBusy(false);
     }
+  };
+
+  // Click / Space / Enter: toggle off if already active, else select; then close.
+  const pick = async (next: PlcNormingLevel) => {
+    const target = shown === next ? null : next;
+    if (await write(target)) setOpen(false);
+  };
+
+  // Arrow/Home/End: always selects (never toggles off) and never closes, since
+  // Home/End can land back on the already-checked option with no real move.
+  const pickViaKeyNav = (next: PlcNormingLevel) => {
+    if (shown !== next) void write(next);
   };
 
   const flagLabel = shown
@@ -100,21 +114,27 @@ export const PlcNormingFlagControl: React.FC<PlcNormingFlagControlProps> = ({
       {open && (
         <div className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white p-2 shadow-sm max-w-xs">
           <div
-            role="group"
+            role="radiogroup"
             aria-label={t('plcNorming.flag.pickLevel', {
               defaultValue: 'Norming level',
             })}
             className="flex items-center gap-1"
+            onKeyDown={(e) =>
+              handleRadioGroupKeyDown(e, PLC_NORMING_LEVELS, pickViaKeyNav)
+            }
           >
-            {PLC_NORMING_LEVELS.map((l) => {
+            {PLC_NORMING_LEVELS.map((l, idx) => {
               const active = shown === l;
+              const tabbable = active || (shown === null && idx === 0);
               return (
                 <button
                   key={l}
                   type="button"
                   disabled={busy}
                   onClick={() => void pick(l)}
-                  aria-pressed={active}
+                  role="radio"
+                  aria-checked={active}
+                  tabIndex={tabbable ? 0 : -1}
                   aria-label={labelFor(l)}
                   title={labelFor(l)}
                   className={`inline-flex h-7 min-w-[2rem] items-center justify-center rounded-md border px-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-50 ${

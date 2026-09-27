@@ -1,23 +1,39 @@
 import React from 'react';
 import { BuildingSelector } from './BuildingSelector';
+import { HexColorField } from './HexColorField';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import {
   canonicalBuildingId,
   canonicalizeBuildingKeyedRecord,
 } from '@/config/buildings';
+import { FONTS } from '@/config/fonts';
 import {
   ActivityWallGlobalConfig,
   ActivityWallBuildingConfig,
   ActivityWallMode,
   ActivityWallIdentificationMode,
   ActivityWallLayout,
+  BuildingActivityWallDefaults,
 } from '@/types';
+
+// Both defaults surfaces share one buildingDefaults[buildingId] record.
+type ActivityWallBuildingRecord = ActivityWallBuildingConfig &
+  Partial<BuildingActivityWallDefaults>;
 
 interface ActivityWallConfigurationPanelProps {
   config: Record<string, unknown>;
   onChange: (newConfig: Record<string, unknown>) => void;
 }
+
+const IMAGE_SIZE_OPTIONS: {
+  value: NonNullable<BuildingActivityWallDefaults['imageSize']>;
+  label: string;
+}[] = [
+  { value: 'small', label: 'Small' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'large', label: 'Large' },
+];
 
 export const ActivityWallConfigurationPanel: React.FC<
   ActivityWallConfigurationPanelProps
@@ -26,12 +42,15 @@ export const ActivityWallConfigurationPanel: React.FC<
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
 
-  const globalConfig = config as unknown as ActivityWallGlobalConfig;
+  const globalConfig = config as unknown as Omit<
+    ActivityWallGlobalConfig,
+    'buildingDefaults'
+  > & { buildingDefaults?: Record<string, ActivityWallBuildingRecord> };
   const canonicalId = canonicalBuildingId(selectedBuildingId);
   const buildingDefaults = canonicalizeBuildingKeyedRecord(
     globalConfig.buildingDefaults ?? {}
   );
-  const currentBuildingConfig: ActivityWallBuildingConfig = buildingDefaults[
+  const currentBuildingConfig: ActivityWallBuildingRecord = buildingDefaults[
     canonicalId
   ] ?? {
     defaultMode: 'text',
@@ -40,7 +59,7 @@ export const ActivityWallConfigurationPanel: React.FC<
   };
 
   const handleUpdateBuilding = (
-    updates: Partial<ActivityWallBuildingConfig>
+    updates: Partial<ActivityWallBuildingRecord>
   ) => {
     onChange({
       ...globalConfig,
@@ -237,6 +256,128 @@ export const ActivityWallConfigurationPanel: React.FC<
               </option>
             ))}
           </select>
+        </div>
+      </div>
+
+      <div className="border-t border-slate-200 pt-6">
+        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">
+          Appearance Defaults
+        </h4>
+        <p className="text-xs text-slate-500 font-bold mb-3">
+          Pre-populates new Activity Wall widgets in this building. Teachers can
+          still change these per widget.
+        </p>
+        <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+          <div className="space-y-1">
+            <label
+              className="block text-sm font-bold text-slate-700"
+              htmlFor={`aw-font-${selectedBuildingId}`}
+            >
+              Default Font Family
+            </label>
+            <select
+              id={`aw-font-${selectedBuildingId}`}
+              value={currentBuildingConfig.fontFamily ?? 'global'}
+              onChange={(event) => {
+                const selected = event.target.value;
+                handleUpdateBuilding({
+                  fontFamily: selected === 'global' ? undefined : selected,
+                });
+              }}
+              className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+            >
+              {FONTS.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.id === 'global'
+                    ? 'Global (Dashboard default)'
+                    : `${f.label} (${f.icon})`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label
+              className="block text-sm font-bold text-slate-700"
+              htmlFor={`aw-font-color-${selectedBuildingId}`}
+            >
+              Default Text Colour
+            </label>
+            <HexColorField
+              id={`aw-font-color-${selectedBuildingId}`}
+              value={currentBuildingConfig.fontColor}
+              onChange={(fontColor) => handleUpdateBuilding({ fontColor })}
+              fallback="#ffffff"
+              ariaLabel="Pick default Activity Wall text colour"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label
+              className="block text-sm font-bold text-slate-700"
+              htmlFor={`aw-card-color-${selectedBuildingId}`}
+            >
+              Default Surface Colour
+            </label>
+            <HexColorField
+              id={`aw-card-color-${selectedBuildingId}`}
+              value={currentBuildingConfig.cardColor}
+              onChange={(cardColor) => handleUpdateBuilding({ cardColor })}
+              fallback="#0f172a"
+              ariaLabel="Pick default Activity Wall surface colour"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label
+              className="block text-sm font-bold text-slate-700"
+              htmlFor={`aw-opacity-${selectedBuildingId}`}
+            >
+              Default Surface Opacity (
+              {Math.round((currentBuildingConfig.cardOpacity ?? 0.7) * 100)}%)
+            </label>
+            <input
+              id={`aw-opacity-${selectedBuildingId}`}
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={currentBuildingConfig.cardOpacity ?? 0.7}
+              onChange={(event) =>
+                handleUpdateBuilding({
+                  cardOpacity: parseFloat(event.target.value),
+                })
+              }
+              className="w-full accent-brand-blue-primary"
+              aria-label="Default Activity Wall surface opacity"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label
+              className="block text-sm font-bold text-slate-700"
+              htmlFor={`aw-image-size-${selectedBuildingId}`}
+            >
+              Default Photo Size
+            </label>
+            <select
+              id={`aw-image-size-${selectedBuildingId}`}
+              value={currentBuildingConfig.imageSize ?? 'medium'}
+              onChange={(event) =>
+                handleUpdateBuilding({
+                  imageSize: event.target
+                    .value as BuildingActivityWallDefaults['imageSize'],
+                })
+              }
+              className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+            >
+              {IMAGE_SIZE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
     </div>

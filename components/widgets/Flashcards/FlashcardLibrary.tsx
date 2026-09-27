@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   BarChart3,
   BookOpen,
@@ -57,6 +57,8 @@ interface FlashcardLibraryProps {
   onAssignmentEnd: (assignment: FlashcardAssignment) => void;
   onAssignmentReopen: (assignment: FlashcardAssignment) => void;
   onAssignmentDelete: (assignment: FlashcardAssignment) => void;
+  /** Surfaces a failed folder move as a toast. */
+  onError?: (message: string) => void;
 }
 
 const assignmentSubtitle = (assignment: FlashcardAssignment): string =>
@@ -116,6 +118,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onAssignmentEnd,
   onAssignmentReopen,
   onAssignmentDelete,
+  onError,
 }) => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [folderTarget, setFolderTarget] = useState<FlashcardSet | null>(null);
@@ -137,6 +140,17 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
       title: titleComparator,
     },
   });
+  const { moveItem } = folders;
+  const handleDropOnFolder = useCallback(
+    async (itemId: string, folderId: string | null): Promise<void> => {
+      try {
+        await moveItem(itemId, folderId);
+      } catch {
+        onError?.('That set could not be moved.');
+      }
+    },
+    [moveItem, onError]
+  );
   const folderCounts = useMemo(() => countItemsByFolder(sets), [sets]);
   const activeAssignments = useMemo(
     () => assignments.filter((a) => a.status === 'active'),
@@ -436,7 +450,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
           title={`Move “${folderTarget.title}” to…`}
           onClose={() => setFolderTarget(null)}
           onSelect={(folderId) => {
-            void folders.moveItem(folderTarget.id, folderId);
+            void handleDropOnFolder(folderTarget.id, folderId);
             setFolderTarget(null);
           }}
         />
