@@ -305,7 +305,8 @@ export interface ResolvedDrivePermission {
  * A missing `driveVisibility` on a legacy session doc means domain-restricted.
  * A domain-restricted share on a public webmail domain gets no Drive
  * permission at all and settles at 'private' instead of leaking the file to
- * every Gmail/Outlook/etc. account holder.
+ * every Gmail/Outlook/etc. account holder. `teacherEmail` must already be
+ * verified — every caller passes null for an unverified self-reported one.
  */
 export function resolveDrivePermission(
   driveVisibility: unknown,
@@ -638,7 +639,9 @@ export function buildDefaultWallArchiveDeps(): WallArchiveDeps {
       (await refreshGoogleAccessTokenForUid(teacherUid)).accessToken,
     getUserEmail: async (uid) => {
       try {
-        return (await admin.auth().getUser(uid)).email ?? null;
+        // Unverified email is self-reportable and resolveDrivePermission trusts its domain.
+        const user = await admin.auth().getUser(uid);
+        return user.emailVerified && user.email ? user.email : null;
       } catch {
         return null;
       }
