@@ -43,8 +43,9 @@ export const PlcNormingFlagControl: React.FC<PlcNormingFlagControlProps> = ({
 
   const labelFor = (l: PlcNormingLevel) => normingLabelFor(l, labels);
 
-  const pick = async (next: PlcNormingLevel) => {
-    if (busy) return;
+  // Shared by pick() and pickViaKeyNav() below; returns whether the write succeeded.
+  const commit = async (next: PlcNormingLevel): Promise<boolean> => {
+    if (busy) return false;
     const target = shown === next ? null : next;
     setBusy(true);
     setOptimistic({ from: level, to: target });
@@ -56,7 +57,7 @@ export const PlcNormingFlagControl: React.FC<PlcNormingFlagControlProps> = ({
         slot,
         level: target,
       });
-      setOpen(false);
+      return true;
     } catch (err) {
       setOptimistic(null);
       onError?.(
@@ -66,9 +67,22 @@ export const PlcNormingFlagControl: React.FC<PlcNormingFlagControlProps> = ({
               defaultValue: 'Could not update the norming flag.',
             })
       );
+      return false;
     } finally {
       setBusy(false);
     }
+  };
+
+  // Click / Space / Enter activation: a single deliberate pick, so close the popover.
+  const pick = async (next: PlcNormingLevel) => {
+    if (await commit(next)) setOpen(false);
+  };
+
+  // Arrow/Home/End roving-tabindex nav: the radiogroup pattern commits on every
+  // move, so closing here would strand a keyboard user after their first step —
+  // leave the popover open until they explicitly activate a level or the toggle.
+  const pickViaKeyNav = (next: PlcNormingLevel) => {
+    void commit(next);
   };
 
   const flagLabel = shown
@@ -107,11 +121,7 @@ export const PlcNormingFlagControl: React.FC<PlcNormingFlagControlProps> = ({
             })}
             className="flex items-center gap-1"
             onKeyDown={(e) =>
-              handleRadioGroupKeyDown(
-                e,
-                PLC_NORMING_LEVELS,
-                (l) => void pick(l)
-              )
+              handleRadioGroupKeyDown(e, PLC_NORMING_LEVELS, pickViaKeyNav)
             }
           >
             {PLC_NORMING_LEVELS.map((l, idx) => {

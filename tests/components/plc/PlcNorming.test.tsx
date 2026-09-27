@@ -113,6 +113,26 @@ describe('PlcNormingFlagControl', () => {
         level: 'medium',
       })
     );
+    // Arrow nav commits on every move (the radiogroup pattern), so the popover
+    // must stay open — closing here would strand a keyboard user after one step.
+    expect(screen.getByRole('radiogroup')).toBeInTheDocument();
+  });
+
+  it('closes the popover after a direct click pick, unlike arrow-key nav', async () => {
+    render(<PlcNormingFlagControl {...base} level={null} isAudio={false} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Flag for PLC norming' })
+    );
+    fireEvent.click(screen.getByRole('radio', { name: 'Medium' }));
+    await waitFor(() =>
+      expect(callSetPlcNormingFlag).toHaveBeenCalledWith({
+        ...base,
+        level: 'medium',
+      })
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
+    );
   });
 });
 
