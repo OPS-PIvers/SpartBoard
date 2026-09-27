@@ -639,8 +639,7 @@ export function buildDefaultWallArchiveDeps(): WallArchiveDeps {
       (await refreshGoogleAccessTokenForUid(teacherUid)).accessToken,
     getUserEmail: async (uid) => {
       try {
-        // Unverified: email/password sign-in allows a self-reported address,
-        // and resolveDrivePermission trusts this domain for a "domain" share.
+        // Unverified email is self-reportable and resolveDrivePermission trusts its domain.
         const user = await admin.auth().getUser(uid);
         return user.emailVerified && user.email ? user.email : null;
       } catch {
