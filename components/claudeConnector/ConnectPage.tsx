@@ -1,7 +1,7 @@
 // OAuth consent page for the Claude connector (docs/plans/CLAUDE_CONNECTOR.md CC-D1).
 import React from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { AlertCircle, Check, Loader2, LogIn, Sparkles, X } from 'lucide-react';
+import { AlertCircle, Check, Loader2, LogIn, X } from 'lucide-react';
 import { APP_NAME } from '@/config/constants';
 import { functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
@@ -129,6 +129,8 @@ export const ConnectPage: React.FC = () => {
   if (user?.uid !== trackedUid) {
     setTrackedUid(user?.uid);
     setPreview({ kind: 'loading' });
+    // A finished sign-in must not leave Allow and Cancel disabled.
+    setBusy(null);
   }
 
   React.useEffect(() => {
@@ -207,9 +209,11 @@ export const ConnectPage: React.FC = () => {
     return (
       <Shell>
         <div className="flex flex-col items-center text-center">
-          <div className="w-14 h-14 rounded-2xl bg-brand-blue-primary/10 flex items-center justify-center mb-5">
-            <Sparkles className="w-7 h-7 text-brand-blue-primary" />
-          </div>
+          <img
+            src="/icon-128.png"
+            alt=""
+            className="mb-5 h-14 w-14 rounded-2xl"
+          />
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight mb-3">
             Connect Claude to {APP_NAME}
           </h1>
@@ -259,9 +263,11 @@ export const ConnectPage: React.FC = () => {
   return (
     <Shell>
       <div className="flex flex-col items-center text-center">
-        <div className="w-14 h-14 rounded-2xl bg-brand-blue-primary/10 flex items-center justify-center mb-5">
-          <Sparkles className="w-7 h-7 text-brand-blue-primary" />
-        </div>
+        <img
+          src="/icon-128.png"
+          alt=""
+          className="mb-5 h-14 w-14 rounded-2xl"
+        />
         <h1 className="text-2xl font-bold text-slate-800 tracking-tight mb-2">
           Allow {preview.clientName} to use your {APP_NAME}?
         </h1>
