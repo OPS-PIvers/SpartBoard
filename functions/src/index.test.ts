@@ -3304,6 +3304,11 @@ describe('index barrel — deployed export set', () => {
     'ltiResolveNamesForAssignmentV1',
     'linkLtiCourseV1',
     'ltiSuggestClassLinkMatchV1',
+    // Claude connector
+    'mcpServer',
+    'mcpOAuth',
+    'mcpAuthorizeV1',
+    'revokeMcpGrantV1',
   ] as const;
 
   it('exports exactly the expected identifier set', () => {
