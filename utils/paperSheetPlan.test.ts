@@ -448,19 +448,24 @@ describe('paperChoiceOrder', () => {
     incorrectAnswers: wrong,
   });
 
-  it('is a permutation of the options, stable for the same batch and question', () => {
+  it('is a permutation of the options, stable for the same question', () => {
     const q = question('q1', 'Paris', ['Lyon', 'Nice', 'Lille']);
-    const order = paperChoiceOrder('batch-1', q);
+    const order = paperChoiceOrder(q);
     expect([...order].sort()).toEqual(['Lille', 'Lyon', 'Nice', 'Paris']);
-    expect(paperChoiceOrder('batch-1', q)).toEqual(order);
+    expect(paperChoiceOrder(q)).toEqual(order);
+  });
+
+  it('letters a teammate copy the same way, so any test paper matches any sheet', () => {
+    const q = question('q1', 'Paris', ['Lyon', 'Nice', 'Lille']);
+    const copy = question('copy-of-q1', 'Paris', ['Lille', 'Nice', 'Lyon']);
+    expect(paperChoiceOrder(copy)).toEqual(paperChoiceOrder(q));
   });
 
   it('does not always put the correct answer first', () => {
     const positions = new Set(
       Array.from({ length: 40 }, (_, i) =>
         paperChoiceOrder(
-          'batch-1',
-          question(`q${i}`, 'right', ['a', 'b', 'c'])
+          question(`q${i}`, 'right', ['a', 'b', `c${i}`])
         ).indexOf('right')
       )
     );
@@ -468,12 +473,14 @@ describe('paperChoiceOrder', () => {
   });
 
   it('keeps True before False', () => {
-    expect(
-      paperChoiceOrder('batch-1', question('q1', 'False', ['True']))
-    ).toEqual(['True', 'False']);
-    expect(
-      paperChoiceOrder('batch-9', question('q2', 'true', ['false']))
-    ).toEqual(['true', 'false']);
+    expect(paperChoiceOrder(question('q1', 'False', ['True']))).toEqual([
+      'True',
+      'False',
+    ]);
+    expect(paperChoiceOrder(question('q2', 'true', ['false']))).toEqual([
+      'true',
+      'false',
+    ]);
   });
 
   it('is recorded on the batch for every authored question, and not for a stub', () => {
@@ -527,9 +534,12 @@ describe('paperChoiceOrder', () => {
   });
 
   it('keeps placeholder letters in A-B-C order so each bubble means its own letter', () => {
-    expect(
-      paperChoiceOrder('batch-1', question('q1', 'C', ['A', 'B', 'D']))
-    ).toEqual(['A', 'B', 'C', 'D']);
+    expect(paperChoiceOrder(question('q1', 'C', ['A', 'B', 'D']))).toEqual([
+      'A',
+      'B',
+      'C',
+      'D',
+    ]);
   });
 });
 

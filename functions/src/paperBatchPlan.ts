@@ -152,7 +152,7 @@ const pageCountForQuestions = (
 const clampChoices = (n: number): number =>
   Math.min(Math.max(n, MIN_CHOICE_COUNT), MAX_CHOICE_COUNT);
 
-/** Small deterministic PRNG so a batch always shuffles the same way. */
+/** Small deterministic PRNG so an option set always shuffles the same way. */
 function seededRandom(seed: string): () => number {
   let h = 0x811c9dc5;
   for (let i = 0; i < seed.length; i += 1) {
@@ -187,10 +187,9 @@ export const isPlaceholderLetterChoices = (
     .sort()
     .join('|') === PLACEHOLDER_LETTERS.slice(0, choices.length).join('|');
 
-/** The lettered order a question's options print in on the test paper. */
+/** The lettered order a question's options print in; seeded by the option set alone, like the client's. */
 export function paperChoiceOrder(
-  batchId: string,
-  question: PaperQuestion
+  question: Pick<PaperQuestion, 'correctAnswer' | 'incorrectAnswers'>
 ): string[] {
   const choices = [
     question.correctAnswer,
@@ -205,7 +204,8 @@ export function paperChoiceOrder(
   if (isPlaceholderLetterChoices(choices)) {
     return [...choices].sort((a, b) => a.trim().localeCompare(b.trim()));
   }
-  const rand = seededRandom(`${batchId}:${question.id}`);
+  choices.sort();
+  const rand = seededRandom(choices.join('\u0001'));
   for (let i = choices.length - 1; i > 0; i -= 1) {
     const j = Math.floor(rand() * (i + 1));
     [choices[i], choices[j]] = [choices[j], choices[i]];
@@ -658,7 +658,7 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
 
   const choiceOrder: Record<string, string[]> = {};
   for (const q of input.questions ?? []) {
-    choiceOrder[q.id] = paperChoiceOrder(input.batchId, q);
+    choiceOrder[q.id] = paperChoiceOrder(q);
   }
 
   const batch: PaperBatchDoc = {
