@@ -104,12 +104,32 @@ export const TOUR_ANCHORS = {
     perWidget: true,
   },
 
-  'settings.root': { label: 'Widget settings panel', perWidget: true },
-  'settings.help': { label: 'Widget help button in settings', perWidget: true },
-  'settings.close': { label: 'Close settings button', perWidget: true },
-  'settings.tab-settings': { label: 'Settings tab', perWidget: true },
-  'settings.tab-style': { label: 'Style tab', perWidget: true },
-  'settings.search': { label: 'Find a setting box', perWidget: true },
+  'settings.root': {
+    label: 'Widget settings panel',
+    perWidget: true,
+    panel: true,
+  },
+  'settings.help': {
+    label: 'Widget help button in settings',
+    perWidget: true,
+    panel: true,
+  },
+  'settings.close': {
+    label: 'Close settings button',
+    perWidget: true,
+    panel: true,
+  },
+  'settings.tab-settings': {
+    label: 'Settings tab',
+    perWidget: true,
+    panel: true,
+  },
+  'settings.tab-style': { label: 'Style tab', perWidget: true, panel: true },
+  'settings.search': {
+    label: 'Find a setting box',
+    perWidget: true,
+    panel: true,
+  },
   'settings.field': {
     label: 'A single settings field row, by widget type and field key',
     perField: true,
