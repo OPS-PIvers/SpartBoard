@@ -2,6 +2,7 @@
 import type * as admin from 'firebase-admin';
 import { hashQuestionForTranslation } from '../quizTranslationHash';
 import { ToolError } from './activity';
+import { standardCodes, type TargetTag } from './standards';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -30,7 +31,7 @@ export interface StoredQuestion {
   placeholder?: string;
   minWords?: number;
   maxWords?: number;
-  targets?: { id: string }[];
+  targets?: TargetTag[];
   [extra: string]: unknown;
 }
 
@@ -97,6 +98,7 @@ export interface FriendlyQuestion {
   placeholder?: string;
   min_words?: number;
   max_words?: number;
+  standards?: string[];
 }
 
 const TO_STORED: Record<FriendlyType, StoredQuestionType> = {
@@ -286,6 +288,8 @@ export function toFriendlyQuestion(
   };
   if (q.points !== undefined) out.points = q.points;
   if (q.timeLimit) out.time_limit_seconds = q.timeLimit;
+  const standards = standardCodes(q.targets);
+  if (standards.length > 0) out.standards = standards;
   const split = (s: string) => (s ?? '').split('|').filter((v) => v.length > 0);
   switch (q.type) {
     case 'MC':

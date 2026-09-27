@@ -136,19 +136,11 @@ export function registerMiniAppTools(
     'list_mini_apps',
     {
       title: 'List mini-apps',
-      description: `Lists the teacher's mini-apps (single-file HTML apps shown in the Mini App widget) in library order, ${PAGE_SIZE} per page.`,
+      description: `Lists mini-apps in library order, ${PAGE_SIZE} per page.`,
       inputSchema: {
         search: z.string().max(100).optional(),
-        folder_id: z
-          .string()
-          .optional()
-          .describe(
-            'Only items in this folder; "root" for items in no folder.'
-          ),
-        cursor: z
-          .string()
-          .optional()
-          .describe('next_cursor from a previous page.'),
+        folder_id: z.string().optional().describe('Folder id, or "root".'),
+        cursor: z.string().optional().describe('From next_cursor.'),
       },
       annotations: READ_ONLY,
     },
@@ -200,16 +192,14 @@ export function registerMiniAppTools(
     'create_mini_app',
     {
       title: 'Create a mini-app',
-      description: `Saves a single-file HTML app (inline CSS and JavaScript, no server) to the teacher's Mini App library, at the top of the list. It runs in a sandboxed frame on the classroom board. Up to ${MAX_HTML / 1000}k characters.`,
+      description: `Saves a single-file HTML app (inline CSS and JS, no server) to the Mini App library. Runs sandboxed on the classroom board. Up to ${MAX_HTML / 1000}k characters.`,
       inputSchema: {
         title: z.string().trim().min(1).max(MAX_TITLE),
         html: z.string().min(1),
         folder_id: z
           .string()
           .optional()
-          .describe(
-            'From list_folders. Omit to save at the top of the library.'
-          ),
+          .describe('From list_folders; omit for top level.'),
       },
       annotations: CREATES,
     },
@@ -256,7 +246,7 @@ export function registerMiniAppTools(
     {
       title: 'Edit a mini-app',
       description:
-        'Edits a mini-app. Only the fields you pass change; `html` replaces the whole file. The previous version is kept for 30 days (restore_revision).',
+        'Edits a mini-app; only passed fields change. `html` replaces the whole file.',
       inputSchema: {
         app_id: z.string().min(1),
         title: z.string().trim().min(1).max(MAX_TITLE).optional(),
@@ -265,9 +255,7 @@ export function registerMiniAppTools(
           .string()
           .nullable()
           .optional()
-          .describe(
-            'Move to this folder; null moves it to the top of the library.'
-          ),
+          .describe('Folder id; null for top level.'),
       },
       annotations: OVERWRITES,
     },

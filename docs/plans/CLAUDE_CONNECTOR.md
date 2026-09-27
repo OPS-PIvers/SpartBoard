@@ -103,7 +103,7 @@ page); full content only from `get_*`.
 | 1   | `get_my_account`, `list_folders`, `create_folder`, `list_flashcard_sets`, `get_flashcard_set`, `create_flashcard_set`, `update_flashcard_set`, `list_revisions`, `restore_revision` |
 | 2   | quizzes and question banks: list / get / create / update (Drive), `/connect` captures the offline Drive grant                                                                       |
 | 3   | video activities, rubrics, Activity Wall, mini-apps; `get_quiz_results_summary`, `get_video_activity_results_summary` (CC-D3)                                                       |
-| 4   | Companion skill in `claude-skills`; MCP prompts for the common workflows                                                                                                            |
+| 4   | 4a: five MCP prompts, slimmer tool list, `standards` on quiz and bank questions. 4b: review-before-assigning mark. 4c: `spartboard` skill in `claude-skills`                        |
 
 ### PR 2 notes
 
@@ -119,6 +119,19 @@ page); full content only from `get_*`.
 - Activity Wall edits keep class targeting and the live accepting/visible toggles. When the wall has a session doc, the session mirror is refreshed in the same batch.
 - Mini-apps are capped at 120k characters through Claude and keep their library `order`.
 - Result summaries reuse `computeAssessmentAggregate` (the PLC rollup) on one session at a time: `teacherUid == uid` only, hidden under 5 completed responses, newest 5 assignments. They return percents, score bands and MC/choose-all option counts, never a student id or typed answer. Quiz keys come from the PLC canonical copy when synced, otherwise the assignment's Drive file.
+
+### PR 4 decisions (grill-me, 2026-09-27)
+
+- CC-D17 **Review loop**: Claude agrees a short plan (count, types, DOK mix, one "Align to MN standards? (optional)" line), saves once, then names what to double-check. It never pastes the full content back. The server instructions and every starter prompt carry this, so it holds without the skill.
+- CC-D18 **Standards**: Claude looks standards up with the Learning Commons connector. Quiz and bank questions take MN ELA 2020 / SS 2021 benchmark codes, validated against `standards_catalog` and stored as the same `targets` snapshot the editor picker writes. Other subjects and types name the code in chat only. PLC and personal targets stay in the editor.
+- CC-D19 **Review mark** (4b): Claude creates and edits of quizzes, video activities, flashcard sets, Activity Walls and mini-apps show "Review before assigning" plus an assign confirm until the teacher opens the item's editor. An org-wide admin switch, on by default, hides it.
+- CC-D20 **Skill** (4c): a short `SKILL.md` plus one reference file per content type, org-provisioned by an admin.
+
+### PR 4a notes
+
+- `tools/list` went from about 40.9k to 32.9k characters (about 11.7k to 9.4k tokens) per message, including the new `standards` field. Descriptions were shortened, and `slimToolListing` drops the SDK's `$schema`, default `execution` and read-only `destructiveHint`. Tool behaviour is unchanged.
+- `standards` on a question replaces its standard tags and keeps PLC and personal targets in place; omitting it keeps them. A bare code that exists in both sets asks for the full id (`mn-ela-2020:6.1.2.1`).
+- Prompts: `quiz_from_reading`, `flashcards_from_vocab`, `video_activity_from_youtube`, `rubric_for_assignment`, `how_did_my_class_do`.
 
 ## Limits and cost (CC-D16)
 

@@ -295,13 +295,10 @@ export function registerResultsTools(
     'get_quiz_results_summary',
     {
       title: 'Summarize quiz results',
-      description: `Class-level results for the teacher's own assignments of a quiz (newest ${MAX_SESSIONS}): average score, score bands, and percent correct and answer choice counts per question. Hidden until at least ${MIN_RESPONSES} students have finished. ${PRIVACY}`,
+      description: `Class-level results for the newest ${MAX_SESSIONS} assignments of a quiz: average, score bands, percent correct and choice counts per question. Hidden under ${MIN_RESPONSES} finishers.`,
       inputSchema: {
         quiz_id: z.string().min(1).describe('From list_quizzes.'),
-        assignment_id: z
-          .string()
-          .optional()
-          .describe('Only this assignment; omit for the most recent ones.'),
+        assignment_id: z.string().optional().describe('Omit for the newest.'),
       },
       annotations: READ_ONLY,
     },
@@ -345,13 +342,10 @@ export function registerResultsTools(
     'get_video_activity_results_summary',
     {
       title: 'Summarize video activity results',
-      description: `Class-level results for the teacher's own assignments of a video activity (newest ${MAX_SESSIONS}): average score, score bands, and percent correct and answer choice counts per question. Hidden until at least ${MIN_RESPONSES} students have finished. ${PRIVACY}`,
+      description: `Class-level results for the newest ${MAX_SESSIONS} assignments of a video activity: average, score bands, percent correct and choice counts per question. Hidden under ${MIN_RESPONSES} finishers.`,
       inputSchema: {
         activity_id: z.string().min(1).describe('From list_video_activities.'),
-        assignment_id: z
-          .string()
-          .optional()
-          .describe('Only this assignment; omit for the most recent ones.'),
+        assignment_id: z.string().optional().describe('Omit for the newest.'),
       },
       annotations: READ_ONLY,
     },

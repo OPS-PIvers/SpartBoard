@@ -141,10 +141,14 @@ export const mcpServer = onRequest(
       { McpServer },
       { StreamableHTTPServerTransport },
       { registerTools, SERVER_INSTRUCTIONS },
+      { registerPrompts },
+      { slimToolListing },
     ] = await Promise.all([
       import('@modelcontextprotocol/sdk/server/mcp.js'),
       import('@modelcontextprotocol/sdk/server/streamableHttp.js'),
       import('./tools'),
+      import('./prompts'),
+      import('./toolKit'),
     ]);
     const server = new McpServer(
       {
@@ -168,6 +172,8 @@ export const mcpServer = onRequest(
       email: claims.email,
       grantId: claims.grantId,
     });
+    registerPrompts(server);
+    slimToolListing(server);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,

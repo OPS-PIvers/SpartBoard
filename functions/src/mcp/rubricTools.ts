@@ -218,16 +218,13 @@ export async function restoreRubricRevision(
 }
 
 const criterionSchema = z.object({
-  id: z
-    .string()
-    .optional()
-    .describe('Existing criterion id from get_rubric; omit for new.'),
+  id: z.string().optional().describe('Keep from get_rubric; omit if new.'),
   name: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
   levels: z
     .array(
       z.object({
-        id: z.string().optional().describe('Existing level id; omit for new.'),
+        id: z.string().optional().describe('Keep; omit if new.'),
         label: z.string().min(1).max(100).describe('e.g. "Proficient".'),
         points: z.number().int().min(0).max(100),
         description: z
@@ -240,7 +237,7 @@ const criterionSchema = z.object({
     .min(MIN_LEVELS)
     .max(MAX_LEVELS)
     .describe(
-      `${MIN_LEVELS}-${MAX_LEVELS} levels with different whole-number points; stored lowest first.`
+      `${MIN_LEVELS}-${MAX_LEVELS} levels, each with different whole-number points.`
     ),
 });
 
@@ -249,13 +246,10 @@ export function registerRubricTools(server: McpServer, ctx: ToolContext): void {
     'list_rubrics',
     {
       title: 'List rubrics',
-      description: `Lists the teacher's rubrics, newest first, ${PAGE_SIZE} per page.`,
+      description: `Lists rubrics, newest first, ${PAGE_SIZE} per page.`,
       inputSchema: {
         search: z.string().max(100).optional(),
-        cursor: z
-          .string()
-          .optional()
-          .describe('next_cursor from a previous page.'),
+        cursor: z.string().optional().describe('From next_cursor.'),
       },
       annotations: READ_ONLY,
     },
@@ -278,8 +272,7 @@ export function registerRubricTools(server: McpServer, ctx: ToolContext): void {
     'get_rubric',
     {
       title: 'Get a rubric',
-      description:
-        'Returns a rubric with every criterion and level. Keep criterion and level ids when sending it back to update_rubric.',
+      description: 'Returns a rubric with criterion and level ids.',
       inputSchema: { rubric_id: z.string().min(1) },
       annotations: READ_ONLY,
     },
@@ -299,7 +292,7 @@ export function registerRubricTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Create a rubric',
       description:
-        "Creates a scoring rubric in the teacher's SpartBoard library. Teachers attach rubrics to free-response quiz questions in the quiz editor.",
+        "Creates a scoring rubric in the teacher's library, for free-response quiz questions.",
       inputSchema: {
         title: z.string().trim().min(1).max(200),
         description: z.string().max(1000).optional(),
@@ -342,7 +335,7 @@ export function registerRubricTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Edit a rubric',
       description:
-        'Edits a rubric. Only the fields you pass change. `criteria`, when passed, replaces the whole list: include every criterion to keep, with its id from get_rubric. The previous version is kept for 30 days (restore_revision).',
+        'Edits a rubric; only passed fields change. `criteria` replaces the whole list: send every criterion to keep, with its id.',
       inputSchema: {
         rubric_id: z.string().min(1),
         title: z.string().trim().min(1).max(200).optional(),
