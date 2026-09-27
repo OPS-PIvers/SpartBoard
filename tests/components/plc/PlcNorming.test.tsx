@@ -58,7 +58,7 @@ describe('PlcNormingFlagControl', () => {
     expect(
       screen.queryByText('Your PLC will hear this recording.')
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Medium' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Medium' }));
     await waitFor(() =>
       expect(callSetPlcNormingFlag).toHaveBeenCalledWith({
         ...base,
@@ -84,13 +84,33 @@ describe('PlcNormingFlagControl', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'Flagged for PLC norming: Exceeds' })
     );
-    const active = screen.getByRole('button', { name: 'Exceeds' });
-    expect(active).toHaveAttribute('aria-pressed', 'true');
+    const active = screen.getByRole('radio', { name: 'Exceeds' });
+    expect(active).toHaveAttribute('aria-checked', 'true');
     fireEvent.click(active);
     await waitFor(() =>
       expect(callSetPlcNormingFlag).toHaveBeenCalledWith({
         ...base,
         level: null,
+      })
+    );
+  });
+
+  it('supports roving-tabindex arrow-key nav across the level picker, falling back to the first option when nothing is flagged yet', async () => {
+    render(<PlcNormingFlagControl {...base} level={null} isAudio={false} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Flag for PLC norming' })
+    );
+    const radios = screen.getAllByRole('radio');
+    expect(radios[0]).toHaveAttribute('tabIndex', '0');
+    radios.slice(1).forEach((r) => expect(r).toHaveAttribute('tabIndex', '-1'));
+
+    radios[0].focus();
+    fireEvent.keyDown(screen.getByRole('radiogroup'), { key: 'ArrowRight' });
+    expect(radios[1]).toHaveFocus();
+    await waitFor(() =>
+      expect(callSetPlcNormingFlag).toHaveBeenCalledWith({
+        ...base,
+        level: 'medium',
       })
     );
   });
