@@ -16,6 +16,15 @@ import type { ClassRoster, MiniAppItem, WidgetData } from '@/types';
 
 const periodCtx: { current: unknown } = { current: undefined };
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
+vi.mock('@/hooks/useClaudeReview', () => ({
+  useClaudeReview: () => ({
+    needsReview: () => false,
+    badge: () => null,
+    confirmUse: () => Promise.resolve(true),
+    markReviewed: () => undefined,
+    whenReviewed: (_item: unknown, go: () => void) => go(),
+  }),
+}));
 vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('@/context/useSavedWidgets', () => ({ useSavedWidgets: vi.fn() }));
 vi.mock('@/hooks/useMiniAppSession', () => ({

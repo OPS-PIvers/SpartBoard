@@ -154,7 +154,11 @@ export function buildVideoMetadata(
   content: VideoContent,
   driveFileId: string,
   existing: Record<string, unknown> | null,
-  claude: { claudeCreatedAt?: number; claudeEditedAt?: number }
+  claude: {
+    claudeCreatedAt?: number;
+    claudeEditedAt?: number;
+    claudeReviewPendingAt?: number;
+  }
 ): Record<string, unknown> {
   const keep: Record<string, unknown> = {};
   for (const k of [

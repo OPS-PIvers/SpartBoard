@@ -66,6 +66,15 @@ vi.mock('@/hooks/useFolders', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useClaudeReview', () => ({
+  useClaudeReview: () => ({
+    needsReview: () => false,
+    badge: () => null,
+    confirmUse: () => Promise.resolve(true),
+    markReviewed: () => undefined,
+    whenReviewed: (_item: unknown, go: () => void) => go(),
+  }),
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1', displayName: 'Test Teacher' },

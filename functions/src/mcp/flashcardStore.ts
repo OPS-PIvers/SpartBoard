@@ -28,6 +28,7 @@ export interface FlashcardSet {
   updatedAt: number;
   claudeCreatedAt?: number;
   claudeEditedAt?: number;
+  claudeReviewPendingAt?: number;
 }
 
 export const setsPath = (uid: string) => `users/${uid}/flashcard_sets`;

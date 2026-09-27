@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { PAGE_SIZE } from './config';
 import {
+  REVIEW_MARK,
   ToolError,
   logActivity,
   reserveWrite,
@@ -94,6 +95,7 @@ async function saveEdit(
     order: previous.order ?? 0,
     updatedAt: now,
     claudeEditedAt: now,
+    [REVIEW_MARK]: now,
   };
   batch.set(ctx.db.doc(appPath(ctx.uid, doc.id)), doc);
   logActivity(ctx, batch, {
@@ -223,6 +225,7 @@ export function registerMiniAppTools(
           order:
             minOrder === null || !Number.isFinite(minOrder) ? 0 : minOrder - 1,
           claudeCreatedAt: now,
+          [REVIEW_MARK]: now,
           ...(input.folder_id ? { folderId: input.folder_id } : {}),
         };
         const batch = ctx.db.batch();

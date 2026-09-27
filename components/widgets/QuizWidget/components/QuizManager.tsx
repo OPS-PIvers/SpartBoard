@@ -150,6 +150,7 @@ import { QUIZ_TRANSLATION_FEATURE } from '@/config/quizTranslation';
 import { useDialog } from '@/context/useDialog';
 import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
 import { needsKeyMessage } from '@/utils/quizNeedsKey';
+import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { countRecordingSlots } from '@/utils/quizRecordingModes';
 import {
   splitDueAtToInputs,
@@ -697,6 +698,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
+  const claudeReview = useClaudeReview('quizzes');
 
   // ─── Assign modal state (2-stage: mode → settings) ────────────────────────
   const [assignTarget, setAssignTarget] = useState<QuizMetadata | null>(null);
@@ -769,17 +771,19 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       // quiz with unanswered questions, but a keyboard or programmatic path
       // must not create an assignment that can't be scored.
       if (!isViewOnly && quizNeedsKeyCount(quiz) > 0) return;
-      if (isViewOnly) {
-        setViewOnlyShareTarget(quiz);
-        setViewOnlyShareLink(null);
-        setViewOnlyShareError(null);
-      } else {
-        // Open the destination chooser first; it routes to the SpartBoard assign
-        // modal, the Google Classroom flow, or the Schoology how-to.
-        setChooserTarget(quiz);
-      }
+      claudeReview.whenReviewed(quiz, () => {
+        if (isViewOnly) {
+          setViewOnlyShareTarget(quiz);
+          setViewOnlyShareLink(null);
+          setViewOnlyShareError(null);
+        } else {
+          // Open the destination chooser first; it routes to the SpartBoard assign
+          // modal, the Google Classroom flow, or the Schoology how-to.
+          setChooserTarget(quiz);
+        }
+      });
     },
-    [isViewOnly]
+    [isViewOnly, claudeReview]
   );
 
   // Route a chooser pick to the right flow. SpartBoard/Classroom both continue
@@ -1243,7 +1247,12 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onClick: () => onResults(quiz),
       });
     }
-    return [...statusBadges, ...buildQuizSyncBadges(quiz)];
+    const review = claudeReview.badge(quiz, () => onEdit(quiz));
+    return [
+      ...(review ? [review] : []),
+      ...statusBadges,
+      ...buildQuizSyncBadges(quiz),
+    ];
   };
 
   const buildQuizSyncBadges = (quiz: QuizMetadata) => {

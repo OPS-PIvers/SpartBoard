@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { PAGE_SIZE } from './config';
 import {
+  REVIEW_MARK,
   ToolError,
   logActivity,
   reserveWrite,
@@ -246,7 +247,10 @@ async function writeWall(
       data,
     });
   }
-  batch.set(ctx.db.doc(wallPath(ctx.uid, wall.id)), wall);
+  batch.set(ctx.db.doc(wallPath(ctx.uid, wall.id)), {
+    ...wall,
+    [REVIEW_MARK]: now,
+  });
   const sessionRef = ctx.db.doc(`activity_wall_sessions/${ctx.uid}_${wall.id}`);
   if (opts.action !== 'create' && (await sessionRef.get()).exists) {
     batch.set(sessionRef, sessionMirror(wall, ctx.uid, now), { merge: true });

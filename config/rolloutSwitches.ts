@@ -25,6 +25,10 @@ import {
   normalizeQuizDocumentImportSettings,
 } from '@/config/quizDocumentImport';
 import {
+  CLAUDE_REVIEW_REMINDERS_SETTINGS_DOC,
+  normalizeClaudeReviewRemindersSettings,
+} from '@/config/claudeReviewReminders';
+import {
   SUB_LAUNCH_AS_TEACHER_SETTINGS_DOC,
   normalizeSubLaunchAsTeacherSettings,
 } from '@/config/subLaunchAsTeacher';
@@ -84,5 +88,13 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     title: 'Substitutes can start an activity',
     description: 'Subs can start activities. Results go to the teacher.',
     normalize: normalizeSubLaunchAsTeacherSettings,
+  },
+  {
+    docId: CLAUDE_REVIEW_REMINDERS_SETTINGS_DOC,
+    feature: 'claude-connector',
+    title: 'Review reminders for Claude-made items',
+    description:
+      'Flag items Claude made or changed until the teacher opens them. On by default.',
+    normalize: normalizeClaudeReviewRemindersSettings,
   },
 ];

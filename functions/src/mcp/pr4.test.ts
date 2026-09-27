@@ -169,3 +169,17 @@ describe('slim tool listing', () => {
     ).toEqual({ readOnlyHint: false, destructiveHint: true });
   });
 });
+
+describe('standards lookup cap', () => {
+  it('refuses a save that would read an unbounded number of catalog docs', async () => {
+    const { loadBenchmarks, MAX_STANDARDS_PER_SAVE } =
+      await import('./standards');
+    const refs = Array.from(
+      { length: MAX_STANDARDS_PER_SAVE + 1 },
+      (_, i) => `6.1.${i}.1`
+    );
+    await expect(loadBenchmarks({} as never, refs)).rejects.toThrow(
+      /at most 100/
+    );
+  });
+});

@@ -456,7 +456,11 @@ export function buildMetadata(
   content: QuizContent,
   driveFileId: string,
   existing: Record<string, unknown> | null,
-  claude: { claudeCreatedAt?: number; claudeEditedAt?: number }
+  claude: {
+    claudeCreatedAt?: number;
+    claudeEditedAt?: number;
+    claudeReviewPendingAt?: number;
+  }
 ): Record<string, unknown> {
   const preserved = {
     folderId: existing?.folderId,

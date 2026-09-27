@@ -4,6 +4,8 @@ import { ToolError } from './activity';
 
 export const STANDARD_SETS = ['mn-ela-2020', 'mn-ss-2021'] as const;
 export const MAX_STANDARDS_PER_QUESTION = 10;
+/** Distinct codes per save, so one call reads at most 200 catalog docs. */
+export const MAX_STANDARDS_PER_SAVE = 100;
 
 /** QuestionTargetTag in types.ts. */
 export interface TargetTag {
@@ -89,6 +91,11 @@ export async function loadBenchmarks(
   db: admin.firestore.Firestore,
   refs: string[]
 ): Promise<Map<string, Benchmark[]>> {
+  if (new Set(refs).size > MAX_STANDARDS_PER_SAVE) {
+    throw new ToolError(
+      `Use at most ${MAX_STANDARDS_PER_SAVE} different standards in one save.`
+    );
+  }
   const ids = new Set<string>();
   for (const ref of refs) {
     if (ref.includes(':')) ids.add(ref);
