@@ -574,6 +574,7 @@ function StarsBlock({
     <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden p-1">
       <div className="flex gap-0.5">
         {Array.from({ length: maxStars }, (_, i) => (
+          // eslint-disable-next-line no-restricted-syntax -- a star rating is one button per star
           <button
             key={i}
             onClick={() => {

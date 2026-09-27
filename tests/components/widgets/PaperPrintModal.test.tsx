@@ -950,22 +950,29 @@ describe('PaperPrintModal', () => {
       return screen.findByText(/Which page goes on the sheet\?/);
     };
 
+    const pickPage = async (page: number) => {
+      fireEvent.change(await screen.findByLabelText('Page number'), {
+        target: { value: String(page) },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Add page' }));
+    };
+
     it('asks which page, rather than printing the whole file', async () => {
       await choosePdf();
       expect(
         screen.getByText(/Unit 3 review\.pdf has 3 pages/)
       ).toBeInTheDocument();
-      expect(
-        screen.getByRole('button', { name: 'Page 3' })
-      ).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Page 4' })).toBeNull();
+      const page = screen.getByLabelText('Page number');
+      expect(page).toHaveAttribute('max', '3');
+      fireEvent.change(page, { target: { value: '4' } });
+      expect(screen.getByRole('button', { name: 'Add page' })).toBeDisabled();
       // Nothing is on the sheet until a page is picked.
       expect(drive.uploadFile).not.toHaveBeenCalled();
     });
 
     it('renders the chosen page and uploads it as an ordinary image', async () => {
       await choosePdf();
-      fireEvent.click(screen.getByRole('button', { name: 'Page 2' }));
+      await pickPage(2);
       await waitFor(() => expect(drive.uploadFile).toHaveBeenCalled());
 
       expect(renderPdfPage).toHaveBeenCalledWith(2);
@@ -988,7 +995,7 @@ describe('PaperPrintModal', () => {
         screen.getByRole('button', { name: /Add to the answer sheet/ })
       );
       fireEvent.change(fileInput(), { target: { files: [pdf()] } });
-      fireEvent.click(await screen.findByRole('button', { name: 'Page 1' }));
+      await pickPage(1);
       await screen.findByText('1 item');
       selectWholeClass();
       fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
@@ -1007,7 +1014,7 @@ describe('PaperPrintModal', () => {
         screen.getByRole('button', { name: /Add to the answer sheet/ })
       );
       fireEvent.change(fileInput(), { target: { files: [pdf()] } });
-      fireEvent.click(await screen.findByRole('button', { name: 'Page 1' }));
+      await pickPage(1);
       expect(await screen.findByText('Unit 3 review')).toBeInTheDocument();
     });
 
@@ -1037,7 +1044,7 @@ describe('PaperPrintModal', () => {
         screen.getByRole('button', { name: /Add to the answer sheet/ })
       );
       fireEvent.change(fileInput(), { target: { files: [pdf()] } });
-      fireEvent.click(await screen.findByRole('button', { name: 'Page 1' }));
+      await pickPage(1);
 
       expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
       finish();
@@ -1058,7 +1065,7 @@ describe('PaperPrintModal', () => {
         )
       );
       // No page picker to work through first.
-      expect(screen.queryByRole('button', { name: 'Page 1' })).toBeNull();
+      expect(screen.queryByLabelText('Page number')).toBeNull();
       expect(renderPdfPage).not.toHaveBeenCalled();
     });
 
@@ -1068,7 +1075,7 @@ describe('PaperPrintModal', () => {
         screen.getByRole('button', { name: /Add to the answer sheet/ })
       );
       fireEvent.change(fileInput(), { target: { files: [pdf()] } });
-      await screen.findByRole('button', { name: 'Page 1' });
+      await screen.findByLabelText('Page number');
       expect(closePdf).not.toHaveBeenCalled();
 
       // Nothing here clicks Cancel, so only unmount can release the worker.
@@ -1214,7 +1221,10 @@ describe('PaperPrintModal with handwritten answers', () => {
     fireEvent.change(screen.getByLabelText('Questions'), {
       target: { value: '4' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Question 3 written' }));
+    fireEvent.change(screen.getByLabelText('Written question number'), {
+      target: { value: '3' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     fireEvent.change(screen.getByLabelText('Question 3 box size'), {
       target: { value: 'L' },
     });
@@ -1246,6 +1256,24 @@ describe('PaperPrintModal with handwritten answers', () => {
     );
     // Stubs print the number only, never a stem.
     expect(print.mock.calls[0][0].writtenTexts).toBeUndefined();
+  });
+
+  it('only adds written numbers within the question count, and removes them', () => {
+    setup({ quiz: quiz({ title: 'Pop quiz', questions: [] }) });
+    fireEvent.change(screen.getByLabelText('Questions'), {
+      target: { value: '4' },
+    });
+    const number = screen.getByLabelText('Written question number');
+    const add = screen.getByRole('button', { name: 'Add' });
+    fireEvent.change(number, { target: { value: '9' } });
+    expect(add).toBeDisabled();
+    fireEvent.change(number, { target: { value: '2' } });
+    fireEvent.keyDown(number, { key: 'Enter' });
+    expect(number).toHaveValue(null);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Remove question 2 written' })
+    );
+    expect(screen.queryByLabelText('Question 2 box size')).toBeNull();
   });
 
   it('pre-marks numbers the reader found without choices as written', async () => {
@@ -1285,8 +1313,8 @@ describe('PaperPrintModal with handwritten answers', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Read the test' }));
     await screen.findByText(/2 questions read/);
     expect(
-      screen.getByRole('button', { name: 'Question 2 written' })
-    ).toHaveAttribute('aria-pressed', 'true');
+      screen.getByRole('button', { name: 'Remove question 2 written' })
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('Question 2 box size')).toHaveValue('M');
     await printIt(print);
     const created = onCreateQuiz.mock.calls[0][0] as QuizData;
