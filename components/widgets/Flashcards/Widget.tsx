@@ -597,6 +597,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                     'Assignment could not be reopened.'
                   )
                 }
+                onError={(message) => addToast(message, 'error')}
                 onAssignmentDelete={(a) => void handleAssignmentDelete(a)}
               />
             )}
