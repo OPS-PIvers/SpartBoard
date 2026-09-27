@@ -758,6 +758,20 @@ export const getAdminBuildingConfig = (
       if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
       break;
     }
+    case 'activity-wall': {
+      // Widget-face appearance only; distinct from the activity-library defaults sharing this record.
+      if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;
+      if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
+      if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
+      if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
+      if (
+        raw.imageSize === 'small' ||
+        raw.imageSize === 'medium' ||
+        raw.imageSize === 'large'
+      )
+        out.imageSize = raw.imageSize;
+      break;
+    }
     default:
       break;
   }
