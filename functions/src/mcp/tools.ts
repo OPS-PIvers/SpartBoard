@@ -41,6 +41,7 @@ import { registerResultsTools } from './resultsTools';
 export const SERVER_INSTRUCTIONS = [
   "SpartBoard is a classroom dashboard. These tools read and write the signed-in teacher's own library.",
   'Before editing an item, fetch it with the matching get_* tool and send back the full updated content.',
+  'Before creating, agree a short plan with the teacher; after saving, say where to find it and what to double-check instead of repeating the content.',
   'Every edit keeps the previous version for 30 days; use list_revisions and restore_revision to undo.',
   'Nothing here can delete items, assign work to students, or share content; the teacher does that in SpartBoard.',
   'No student-level data is available through this connector; results summaries are class-level and hidden for fewer than 5 students.',
@@ -75,9 +76,7 @@ const cardInput = z.object({
 const languageInput = z
   .string()
   .regex(/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/)
-  .describe(
-    'BCP 47 language tag used for read-aloud, e.g. en-US, es-MX. Defaults to en-US.'
-  );
+  .describe('BCP 47 read-aloud language, e.g. es-MX. Default en-US.');
 
 async function saveFlashcardEdit(
   ctx: ToolContext,
@@ -137,7 +136,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Get my SpartBoard account',
       description:
-        'Returns the connected teacher account, what content this connector can work with, and daily limits.',
+        'Returns the connected teacher, supported content and daily limits.',
       inputSchema: {},
       annotations: {
         readOnlyHint: true,
@@ -181,8 +180,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     'list_folders',
     {
       title: 'List library folders',
-      description:
-        "Lists the teacher's library folders for a content type, so new items can be filed where the teacher wants them.",
+      description: "Lists the teacher's library folders for a content type.",
       inputSchema: { content_type: z.enum(CONTENT_TYPES) },
       annotations: {
         readOnlyHint: true,
@@ -217,8 +215,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     'create_folder',
     {
       title: 'Create a library folder',
-      description:
-        "Creates a folder in the teacher's library for a content type. Returns the new folder id.",
+      description: 'Creates a library folder for a content type.',
       inputSchema: {
         content_type: z.enum(CONTENT_TYPES),
         name: z.string().trim().min(1).max(100),
@@ -274,23 +271,11 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     'list_flashcard_sets',
     {
       title: 'List flashcard sets',
-      description: `Lists the teacher's flashcard sets, newest first, ${PAGE_SIZE} per page. Returns ids and titles only; use get_flashcard_set for cards.`,
+      description: `Lists flashcard sets, newest first, ${PAGE_SIZE} per page. Ids and titles only.`,
       inputSchema: {
-        search: z
-          .string()
-          .max(100)
-          .optional()
-          .describe('Case-insensitive match on title.'),
-        folder_id: z
-          .string()
-          .optional()
-          .describe(
-            'Only sets in this folder. Use "root" for sets not in any folder.'
-          ),
-        cursor: z
-          .string()
-          .optional()
-          .describe('next_cursor from a previous page.'),
+        search: z.string().max(100).optional().describe('Title contains.'),
+        folder_id: z.string().optional().describe('Folder id, or "root".'),
+        cursor: z.string().optional().describe('From next_cursor.'),
       },
       annotations: {
         readOnlyHint: true,
@@ -319,8 +304,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     'get_flashcard_set',
     {
       title: 'Get a flashcard set',
-      description:
-        "Returns a flashcard set with every card. Keep each card's id when sending the set back to update_flashcard_set.",
+      description: 'Returns a flashcard set with card ids.',
       inputSchema: { set_id: z.string().min(1) },
       annotations: {
         readOnlyHint: true,
@@ -340,7 +324,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     'create_flashcard_set',
     {
       title: 'Create a flashcard set',
-      description: `Creates a new flashcard set in the teacher's SpartBoard library (Flashcards widget). Up to ${MAX_CARDS} cards; terms up to ${MAX_TERM} characters, definitions up to ${MAX_DEFINITION}. Plain text only.`,
+      description: `Creates a flashcard set. Up to ${MAX_CARDS} cards; plain text.`,
       inputSchema: {
         title: z.string().trim().min(1).max(200),
         description: z.string().max(1000).optional(),
@@ -349,9 +333,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         folder_id: z
           .string()
           .optional()
-          .describe(
-            'From list_folders. Omit to save at the top of the library.'
-          ),
+          .describe('From list_folders; omit for top level.'),
         cards: z.array(cardInput).min(1).max(MAX_CARDS),
       },
       annotations: {
@@ -402,7 +384,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Edit a flashcard set',
       description:
-        'Edits a flashcard set. Only the fields you pass change. `cards`, when passed, replaces the whole card list: include every card to keep, with its id from get_flashcard_set. The previous version is kept for 30 days (restore_revision). Open Study assignments pick up the new cards.',
+        'Edits a flashcard set; only passed fields change. `cards` replaces the whole list: send every card to keep, with its id. Open Study assignments update.',
       inputSchema: {
         set_id: z.string().min(1),
         title: z.string().trim().min(1).max(200).optional(),
@@ -413,16 +395,11 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           .string()
           .nullable()
           .optional()
-          .describe(
-            'Move to this folder; null moves it to the top of the library.'
-          ),
+          .describe('Folder id; null for top level.'),
         cards: z
           .array(
             cardInput.extend({
-              id: z
-                .string()
-                .optional()
-                .describe('Existing card id; omit for a new card.'),
+              id: z.string().optional().describe('Keep; omit if new.'),
             })
           )
           .min(1)
@@ -466,12 +443,9 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'List previous versions',
       description:
-        'Lists versions saved before Claude edited an item (kept 30 days), newest first.',
+        'Lists versions saved before Claude edits (kept 30 days), newest first.',
       inputSchema: {
-        item_id: z
-          .string()
-          .optional()
-          .describe('Only versions of this item, e.g. a set_id.'),
+        item_id: z.string().optional().describe('Only this item.'),
       },
       annotations: {
         readOnlyHint: true,
@@ -505,7 +479,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Restore a previous version',
       description:
-        'Puts an item back to a version from list_revisions. The current version is saved first, so a restore can itself be undone.',
+        'Restores a version from list_revisions. The current version is saved first.',
       inputSchema: { revision_id: z.string().min(1) },
       annotations: {
         readOnlyHint: false,

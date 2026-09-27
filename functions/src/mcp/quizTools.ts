@@ -34,6 +34,12 @@ import {
   type StoredQuestion,
 } from './quizStore';
 import {
+  MAX_STANDARDS_PER_QUESTION,
+  applyStandards,
+  loadBenchmarks,
+  normalizeStandardRef,
+} from './standards';
+import {
   CREATES,
   OVERWRITES,
   READ_ONLY,
@@ -48,10 +54,7 @@ import {
 const MAX_REVISION_BYTES = 800_000;
 
 const questionSchema = z.object({
-  id: z
-    .string()
-    .optional()
-    .describe('Existing question id from get_*; omit for a new question.'),
+  id: z.string().optional().describe('Keep from get_*; omit if new.'),
   type: z.enum([
     'multiple_choice',
     'choose_all',
@@ -119,10 +122,17 @@ const questionSchema = z.object({
     .describe('free_response hint text.'),
   min_words: z.number().int().min(0).max(5000).optional(),
   max_words: z.number().int().min(1).max(5000).optional(),
+  standards: z
+    .array(z.string().max(40))
+    .max(MAX_STANDARDS_PER_QUESTION)
+    .optional()
+    .describe(
+      "Minnesota ELA or Social Studies benchmark codes, e.g. 6.1.2.1. Replaces the question's standards; omit to keep them."
+    ),
 });
 
 const QUESTION_HELP =
-  'Question types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer, optional accepted_alternates), matching (pairs, optional extra_matches), ordering (items_in_order), free_response (no key). Plain text only.';
+  'Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates), matching (pairs + extra_matches), ordering (items_in_order), free_response (no key). Plain text.';
 
 const toolNames = (kind: QuizKind) =>
   kind === 'quiz'
@@ -151,12 +161,17 @@ function assertNotSynced(kind: QuizKind, meta: Record<string, unknown>): void {
   }
 }
 
-function buildQuestions(
+async function buildQuestions(
+  ctx: ToolContext,
   inputs: FriendlyQuestion[],
   previous: StoredQuestion[]
-): StoredQuestion[] {
+): Promise<StoredQuestion[]> {
   const byId = new Map(previous.map((q) => [q.id, q]));
   const used = new Set<string>();
+  const refs = inputs
+    .flatMap((q) => q.standards ?? [])
+    .map(normalizeStandardRef);
+  const catalog = await loadBenchmarks(ctx.db, [...new Set(refs)]);
   return inputs.map((input, i) => {
     const existing =
       input.id && byId.has(input.id) && !used.has(input.id)
@@ -164,6 +179,16 @@ function buildQuestions(
         : undefined;
     const q = toStoredQuestion(input, i + 1, existing, randomUUID);
     used.add(q.id);
+    if (input.standards !== undefined) {
+      const targets = applyStandards(
+        i + 1,
+        q.targets,
+        input.standards,
+        catalog
+      );
+      if (targets.length > 0) q.targets = targets;
+      else delete q.targets;
+    }
     return q;
   });
 }
@@ -305,23 +330,11 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
       names.list,
       {
         title: `List ${KIND[kind].plural}`,
-        description: `Lists the teacher's ${KIND[kind].plural}, newest first, ${PAGE_SIZE} per page. Returns ids and titles only; use ${names.get} for questions.`,
+        description: `Lists ${KIND[kind].plural}, newest first, ${PAGE_SIZE} per page. Ids and titles only.`,
         inputSchema: {
-          search: z
-            .string()
-            .max(100)
-            .optional()
-            .describe('Case-insensitive match on title.'),
-          folder_id: z
-            .string()
-            .optional()
-            .describe(
-              'Only items in this folder. Use "root" for items not in any folder.'
-            ),
-          cursor: z
-            .string()
-            .optional()
-            .describe('next_cursor from a previous page.'),
+          search: z.string().max(100).optional().describe('Title contains.'),
+          folder_id: z.string().optional().describe('Folder id, or "root".'),
+          cursor: z.string().optional().describe('From next_cursor.'),
         },
         annotations: READ_ONLY,
       },
@@ -346,7 +359,7 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
       names.get,
       {
         title: `Get a ${label}`,
-        description: `Returns a ${label} with every question and answer key. Keep each question's id when sending it back to ${names.update}.`,
+        description: `Returns a ${label} with its answer key and question ids.`,
         inputSchema: { [names.idKey]: z.string().min(1) },
         annotations: READ_ONLY,
       },
@@ -384,15 +397,13 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
       names.create,
       {
         title: `Create a ${label}`,
-        description: `Creates a new ${label} in the teacher's SpartBoard library, saved to their Google Drive. ${QUESTION_HELP}`,
+        description: `Creates a ${label} in the teacher's library (saved to Drive). ${QUESTION_HELP}`,
         inputSchema: {
           title: z.string().trim().min(1).max(200),
           folder_id: z
             .string()
             .optional()
-            .describe(
-              'From list_folders. Omit to save at the top of the library.'
-            ),
+            .describe('From list_folders; omit for top level.'),
           language: z
             .string()
             .regex(/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/)
@@ -405,7 +416,8 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
       (input) =>
         run(names.create, ctx, async () => {
           await assertFolder(ctx, folderType, input.folder_id);
-          const questions = buildQuestions(
+          const questions = await buildQuestions(
+            ctx,
             input.questions as FriendlyQuestion[],
             []
           );
@@ -434,7 +446,7 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
       names.update,
       {
         title: `Edit a ${label}`,
-        description: `Edits a ${label}. Only the fields you pass change. \`questions\`, when passed, replaces the whole list: include every question to keep, with its id from ${names.get}. In a quiz with sections, new questions are added to the last section and existing questions keep their places; the teacher can move them in SpartBoard. The previous version is kept for 30 days (restore_revision). ${label === 'quiz' ? 'Existing assignments keep the questions they were given.' : ''} ${QUESTION_HELP}`,
+        description: `Edits a ${label}; only passed fields change. \`questions\` replaces the whole list: send every question to keep, with its id. New questions go in the last section.${label === 'quiz' ? ' Existing assignments keep their questions.' : ''}`,
         inputSchema: {
           [names.idKey]: z.string().min(1),
           title: z.string().trim().min(1).max(200).optional(),
@@ -442,9 +454,7 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
             .string()
             .nullable()
             .optional()
-            .describe(
-              'Move to this folder; null moves it to the top of the library.'
-            ),
+            .describe('Folder id; null for top level.'),
           questions: z
             .array(questionSchema)
             .min(1)
@@ -461,7 +471,8 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
           const { meta, content, token } = await loadContent(ctx, kind, id);
           assertNotSynced(kind, meta);
           const questions = input.questions
-            ? buildQuestions(
+            ? await buildQuestions(
+                ctx,
                 input.questions as FriendlyQuestion[],
                 content.questions
               )

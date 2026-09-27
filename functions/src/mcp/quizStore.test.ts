@@ -130,7 +130,7 @@ describe('toStoredQuestion', () => {
       correctAnswer: 'A',
       incorrectAnswers: ['B'],
       optionOrder: [1, 0],
-      targets: [{ id: 't1' }],
+      targets: [{ id: 't1', kind: 'personal', label: 'T' }],
       rubricId: 'r1',
       needsKey: true,
     };
@@ -158,7 +158,9 @@ describe('toStoredQuestion', () => {
       existing
     );
     expect(retyped.rubricId).toBeUndefined();
-    expect(retyped.targets).toEqual([{ id: 't1' }]);
+    expect(retyped.targets).toEqual([
+      { id: 't1', kind: 'personal', label: 'T' },
+    ]);
   });
 
   it('round-trips through the tool format', () => {
@@ -249,7 +251,10 @@ describe('metadata mirrors', () => {
 
   it('indexes bank targets with bank-level tags inherited once per question', () => {
     const index = bankTargetIndex({
-      questions: [q('1', { targets: [{ id: 'a' }] }), q('2')],
+      questions: [
+        q('1', { targets: [{ id: 'a', kind: 'standard', label: 'A' }] }),
+        q('2'),
+      ],
       targets: [{ id: 'a' }, { id: 'b' }],
     });
     expect(index).toEqual({

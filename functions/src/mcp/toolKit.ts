@@ -1,5 +1,6 @@
 // Shared plumbing for MCP tool handlers: results, errors and cursor paging.
 import * as admin from 'firebase-admin';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { PAGE_SIZE } from './config';
 import { ToolError, type ToolContext } from './activity';
@@ -153,4 +154,44 @@ export function titleAndFolderFilter(
       (!folderId || (folderId === 'root' ? !folder : folder === folderId))
     );
   };
+}
+
+type ListHandler = (request: unknown, extra: unknown) => Promise<unknown>;
+interface ListedTool {
+  inputSchema?: Record<string, unknown>;
+  execution?: { taskSupport?: string };
+  annotations?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+/** Drops protocol defaults from tools/list ($schema, forbidden task support, destructiveHint on read-only tools); every chat pays for these tokens. */
+export function slimTool(tool: ListedTool): ListedTool {
+  const out: ListedTool = { ...tool };
+  if (out.inputSchema && '$schema' in out.inputSchema) {
+    const schema = { ...out.inputSchema };
+    delete schema.$schema;
+    out.inputSchema = schema;
+  }
+  if (out.execution?.taskSupport === 'forbidden') delete out.execution;
+  if (out.annotations?.readOnlyHint === true) {
+    const annotations = { ...out.annotations };
+    delete annotations.destructiveHint;
+    out.annotations = annotations;
+  }
+  return out;
+}
+
+/** Wraps the SDK's tools/list handler with slimTool; a no-op if the SDK internals change. */
+export function slimToolListing(server: McpServer): void {
+  const handlers = (
+    server.server as unknown as { _requestHandlers?: Map<string, ListHandler> }
+  )._requestHandlers;
+  const original = handlers?.get('tools/list');
+  if (!handlers || !original) return;
+  handlers.set('tools/list', async (request, extra) => {
+    const result = (await original(request, extra)) as { tools?: ListedTool[] };
+    return Array.isArray(result.tools)
+      ? { ...result, tools: result.tools.map(slimTool) }
+      : result;
+  });
 }

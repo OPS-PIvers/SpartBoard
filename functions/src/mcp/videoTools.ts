@@ -46,7 +46,7 @@ const questionSchema = z.object({
   id: z
     .string()
     .optional()
-    .describe('Existing question id from get_video_activity; omit for new.'),
+    .describe('Keep from get_video_activity; omit if new.'),
   type: z.enum(['multiple_choice', 'choose_all', 'fill_in_blank']),
   text: z.string().min(1).max(4000),
   timestamp_seconds: z
@@ -54,9 +54,7 @@ const questionSchema = z.object({
     .int()
     .min(0)
     .max(86_400)
-    .describe(
-      'Seconds into the video when the video pauses for this question.'
-    ),
+    .describe('When the video pauses for this question.'),
   correct_answer: z
     .string()
     .max(1000)
@@ -89,7 +87,7 @@ const questionSchema = z.object({
 });
 
 const QUESTION_HELP =
-  'Question types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer, optional accepted_alternates). Each question needs timestamp_seconds; only use times you know are inside the video.';
+  'Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates). Only use timestamps you know are inside the video.';
 
 function summarize(id: string, data: Record<string, unknown>) {
   return {
@@ -225,23 +223,11 @@ export function registerVideoTools(server: McpServer, ctx: ToolContext): void {
     'list_video_activities',
     {
       title: 'List video activities',
-      description: `Lists the teacher's video activities (YouTube videos with questions), newest first, ${PAGE_SIZE} per page. Use get_video_activity for questions.`,
+      description: `Lists video activities, newest first, ${PAGE_SIZE} per page. Ids and titles only.`,
       inputSchema: {
-        search: z
-          .string()
-          .max(100)
-          .optional()
-          .describe('Case-insensitive match on title.'),
-        folder_id: z
-          .string()
-          .optional()
-          .describe(
-            'Only items in this folder; "root" for items in no folder.'
-          ),
-        cursor: z
-          .string()
-          .optional()
-          .describe('next_cursor from a previous page.'),
+        search: z.string().max(100).optional().describe('Title contains.'),
+        folder_id: z.string().optional().describe('Folder id, or "root".'),
+        cursor: z.string().optional().describe('From next_cursor.'),
       },
       annotations: READ_ONLY,
     },
@@ -267,7 +253,7 @@ export function registerVideoTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Get a video activity',
       description:
-        "Returns a video activity with its YouTube link and every question, answer key and timestamp. Keep each question's id when sending it back to update_video_activity.",
+        'Returns a video activity with its link, answer key, timestamps and question ids.',
       inputSchema: { activity_id: z.string().min(1) },
       annotations: READ_ONLY,
     },
@@ -286,16 +272,14 @@ export function registerVideoTools(server: McpServer, ctx: ToolContext): void {
     'create_video_activity',
     {
       title: 'Create a video activity',
-      description: `Creates a video activity: a YouTube video that pauses at set times to ask questions. Saved to the teacher's Google Drive and SpartBoard library (Video Activity widget). ${QUESTION_HELP}`,
+      description: `Creates a video activity: a YouTube video that pauses to ask questions (saved to Drive). ${QUESTION_HELP}`,
       inputSchema: {
         title: z.string().trim().min(1).max(200),
         youtube_url: z.string().max(500),
         folder_id: z
           .string()
           .optional()
-          .describe(
-            'From list_folders. Omit to save at the top of the library.'
-          ),
+          .describe('From list_folders; omit for top level.'),
         questions: z.array(questionSchema).min(1).max(MAX_VIDEO_QUESTIONS),
       },
       annotations: CREATES,
@@ -339,7 +323,7 @@ export function registerVideoTools(server: McpServer, ctx: ToolContext): void {
     'update_video_activity',
     {
       title: 'Edit a video activity',
-      description: `Edits a video activity. Only the fields you pass change. \`questions\`, when passed, replaces the whole list: include every question to keep, with its id from get_video_activity. Questions are sorted by timestamp. The previous version is kept for 30 days (restore_revision). Existing assignments keep the questions they were given. ${QUESTION_HELP}`,
+      description: `Edits a video activity; only passed fields change. \`questions\` replaces the whole list: send every question to keep, with its id. Existing assignments keep their questions.`,
       inputSchema: {
         activity_id: z.string().min(1),
         title: z.string().trim().min(1).max(200).optional(),
@@ -348,9 +332,7 @@ export function registerVideoTools(server: McpServer, ctx: ToolContext): void {
           .string()
           .nullable()
           .optional()
-          .describe(
-            'Move to this folder; null moves it to the top of the library.'
-          ),
+          .describe('Folder id; null for top level.'),
         questions: z
           .array(questionSchema)
           .min(1)

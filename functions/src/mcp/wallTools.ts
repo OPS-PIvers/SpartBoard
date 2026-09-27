@@ -301,32 +301,29 @@ const wallFields = {
     .enum(LAYOUTS)
     .optional()
     .describe(
-      'wall: free-form cards. columns: named columns. table: rows x columns grid. timeline: ordered cards. map: students drop pins. wordcloud: one word or phrase per post.'
+      'wall: free cards. columns, table: labeled sections. timeline: ordered. map: pins. wordcloud: short phrases.'
     ),
   columns: z
     .array(z.string().max(100))
     .max(MAX_SECTIONS)
     .optional()
-    .describe('Column names; required for the columns layout.'),
+    .describe('Required for columns.'),
   table_rows: z
     .array(z.string().max(100))
     .max(MAX_SECTIONS)
     .optional()
-    .describe('Row labels; required for the table layout.'),
+    .describe('Required for table.'),
   table_columns: z
     .array(z.string().max(100))
     .max(MAX_SECTIONS)
     .optional()
-    .describe('Column labels; required for the table layout.'),
+    .describe('Required for table.'),
   post_types: z
     .array(z.enum(['photo', 'link', 'file', 'video']))
     .optional()
-    .describe('Extra post types besides text. Omit for text only.'),
+    .describe('Besides text.'),
   show_names: z.boolean().optional().describe("Show students' names on posts."),
-  moderation: z
-    .boolean()
-    .optional()
-    .describe('Hold posts for teacher approval before they appear.'),
+  moderation: z.boolean().optional().describe('Teacher approves posts first.'),
   allow_likes: z.boolean().optional(),
   allow_comments: z.boolean().optional(),
   max_posts_per_student: z
@@ -386,13 +383,10 @@ export function registerWallTools(server: McpServer, ctx: ToolContext): void {
     'list_activity_walls',
     {
       title: 'List Activity Walls',
-      description: `Lists the teacher's Activity Walls (boards students post to), newest first, ${PAGE_SIZE} per page.`,
+      description: `Lists Activity Walls, newest first, ${PAGE_SIZE} per page.`,
       inputSchema: {
         search: z.string().max(100).optional(),
-        cursor: z
-          .string()
-          .optional()
-          .describe('next_cursor from a previous page.'),
+        cursor: z.string().optional().describe('From next_cursor.'),
       },
       annotations: READ_ONLY,
     },
@@ -416,7 +410,7 @@ export function registerWallTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Get an Activity Wall',
       description:
-        "Returns an Activity Wall's prompt, layout and settings. Student posts are not available.",
+        "Returns an Activity Wall's prompt, layout and settings (no student posts).",
       inputSchema: { wall_id: z.string().min(1) },
       annotations: READ_ONLY,
     },
@@ -431,7 +425,7 @@ export function registerWallTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Create an Activity Wall',
       description:
-        "Creates an Activity Wall in the teacher's SpartBoard library: a prompt students answer by posting cards. The teacher opens it with students from the Activity Wall widget.",
+        'Creates an Activity Wall: a prompt students answer by posting cards.',
       inputSchema: { title: z.string().trim().min(1).max(200), ...wallFields },
       annotations: CREATES,
     },
@@ -463,7 +457,7 @@ export function registerWallTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Edit an Activity Wall',
       description:
-        'Edits an Activity Wall. Only the fields you pass change; list fields replace the whole list. Renaming a column moves its posts to the default spot. If the wall is open with students, they see the change right away. The previous version is kept for 30 days (restore_revision).',
+        'Edits an Activity Wall; only passed fields change and lists are replaced. Renaming a column moves its posts to the default spot. Students on an open wall see changes at once.',
       inputSchema: {
         wall_id: z.string().min(1),
         title: z.string().trim().min(1).max(200).optional(),
