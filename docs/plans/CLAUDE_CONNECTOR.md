@@ -133,6 +133,16 @@ page); full content only from `get_*`.
 - `standards` on a question replaces its standard tags and keeps PLC and personal targets in place; omitting it keeps them. A bare code that exists in both sets asks for the full id (`mn-ela-2020:6.1.2.1`).
 - Prompts: `quiz_from_reading`, `flashcards_from_vocab`, `video_activity_from_youtube`, `rubric_for_assignment`, `how_did_my_class_do`.
 
+### PR 4b notes
+
+- The server sets `claudeReviewPendingAt` on every Claude create, edit or restore of a quiz, video activity, flashcard set, Activity Wall or mini-app (never banks or rubrics, never the wall session mirror).
+- `useClaudeReview` (hooks/) owns the mark on the client:
+  - It shows a "Review before assigning" badge, and clicking the badge opens the editor.
+  - It asks before Assign, or before "Open on board" for walls.
+  - Opening the editor deletes the field. Every teacher save also drops it, because the flashcard, wall and mini-app saves spread the item, and the quiz and video saves rebuild their metadata.
+- Gate: `admin_settings/claude_review_reminders` (on unless `enabled: false`) AND `claude-connector`. The switch is on the Previews tab next to the connector flag. A substitute's shared view opens no listener.
+- `standards` lookups are capped at 100 distinct codes per save (200 catalog reads).
+
 ## Limits and cost (CC-D16)
 
 - No `minInstances`. `maxInstances`: 10 for `mcpServer`, 5 for `mcpOAuth`.

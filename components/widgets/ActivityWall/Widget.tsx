@@ -1,5 +1,6 @@
 // Activity Wall front face — a live preview of the active wall plus its toolbar.
 
+import { useClaudeReview } from '@/hooks/useClaudeReview';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   CloudOff,
@@ -91,6 +92,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
   const { user, canAccessFeature } = useAuth();
   const { showConfirm } = useDialog();
+  const claudeReview = useClaudeReview('activity_wall_activities');
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   const config = widget.config as ActivityWallConfig;
   const imageSize = isWallImageSize(config.imageSize)
@@ -790,11 +792,26 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           activeEntryId={config.activeActivityId ?? null}
           readOnly={isActiveBoardReadOnly}
           onOpenOnBoard={(entryId) => {
-            setActiveEntry(entryId);
-            setLibraryOpen(false);
+            const open = () => {
+              setActiveEntry(entryId);
+              setLibraryOpen(false);
+            };
+            const entry = entries.find((e) => e.id === entryId);
+            if (entry) claudeReview.whenReviewed(entry, open, 'Open anyway');
+            else open();
           }}
           onCreate={() => setEditorEntry(null)}
-          onEdit={(entry) => setEditorEntry(entry)}
+          onEdit={(entry) => {
+            claudeReview.markReviewed(entry);
+            setEditorEntry(entry);
+          }}
+          badgesFor={(entry) => {
+            const review = claudeReview.badge(entry, () => {
+              claudeReview.markReviewed(entry);
+              setEditorEntry(entry);
+            });
+            return review ? [review] : [];
+          }}
           onDuplicate={duplicateWall}
           onDelete={removeWall}
           addToast={addToast}

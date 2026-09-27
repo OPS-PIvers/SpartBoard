@@ -1970,6 +1970,8 @@ export interface ActivityWallActivity {
 export interface ActivityWallLibraryEntry {
   id: string;
   title: string;
+  /** Set by the Claude connector until the teacher opens the editor (utils/claudeReview.ts). */
+  claudeReviewPendingAt?: number | null;
   prompt: string;
   mode: ActivityWallMode;
   moderationEnabled: boolean;
@@ -2930,6 +2932,8 @@ export interface TimeToolConfig {
 export interface MiniAppItem {
   id: string;
   title: string;
+  /** Set by the Claude connector until the teacher opens the editor (utils/claudeReview.ts). */
+  claudeReviewPendingAt?: number | null;
   html: string;
   createdAt: number;
   order?: number;
@@ -3973,6 +3977,8 @@ export interface QuizMetadataSyncLinkage {
 export interface QuizMetadata {
   id: string;
   title: string;
+  /** Set by the Claude connector until the teacher opens the editor (utils/claudeReview.ts). */
+  claudeReviewPendingAt?: number | null;
   driveFileId: string;
   questionCount: number;
   createdAt: number;
@@ -6305,6 +6311,8 @@ export interface VideoActivityMetadataSyncLinkage {
 export interface VideoActivityMetadata {
   id: string;
   title: string;
+  /** Set by the Claude connector until the teacher opens the editor (utils/claudeReview.ts). */
+  claudeReviewPendingAt?: number | null;
   youtubeUrl: string;
   driveFileId: string;
   questionCount: number;
@@ -7850,6 +7858,8 @@ export interface FlashcardCard {
 export interface FlashcardSet {
   id: string;
   title: string;
+  /** Set by the Claude connector until the teacher opens the editor (utils/claudeReview.ts). */
+  claudeReviewPendingAt?: number | null;
   description?: string;
   termLanguage: string;
   definitionLanguage: string;

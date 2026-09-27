@@ -84,6 +84,8 @@ import {
 import type { LibraryTab } from '@/components/common/library/types';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { useClaudeReview } from '@/hooks/useClaudeReview';
+import { withoutClaudeReview } from '@/utils/claudeReview';
 
 // --- M17 B3: setAssignmentTargetsV1 client caller ---
 // Mirrors `functions/src/studentAssignmentTargets.ts` — kept local (not the
@@ -486,6 +488,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const { user, getAssignmentMode } = useAuth();
   const assignmentMode: AssignmentMode = getAssignmentMode('miniApp');
   const { showConfirm } = useDialog();
+  const claudeReview = useClaudeReview('miniapps');
   const { saveSavedWidget } = useSavedWidgets();
   const config = (widget.config ?? {}) as MiniAppConfig;
   const activeApp = config.activeApp ?? null;
@@ -549,7 +552,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     return `${appTitle} — ${formatted}`;
   };
 
-  const handleOpenAssign = (app: MiniAppItem) => {
+  const handleOpenAssign = (app: MiniAppItem) =>
+    claudeReview.whenReviewed(app, () => openAssign(app));
+
+  const openAssign = (app: MiniAppItem) => {
     setAssigningApp(app);
     setAssignmentName(buildDefaultAssignmentName(app.title));
     setCreatedSessionId(null);
@@ -1060,7 +1066,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   };
 
   const handleEdit = (app: MiniAppItem) => {
-    setEditingApp({ ...app });
+    claudeReview.markReviewed(app);
+    setEditingApp(withoutClaudeReview({ ...app }));
   };
 
   const handleDelete = async (id: string) => {
@@ -1122,7 +1129,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     if (!user) throw new Error('Not authenticated');
     const existing = library.find((a) => a.id === updated.id);
     const appData: MiniAppItem = {
-      ...updated,
+      ...withoutClaudeReview(updated),
       createdAt: existing?.createdAt ?? updated.createdAt,
       order: existing?.order ?? updated.order ?? 0,
     };
@@ -1820,6 +1827,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               isDuplicating={duplicateBusy.isBusy}
               onRun={handleRun}
               onAssign={handleOpenAssign}
+              badgesFor={(app) => {
+                const review = claudeReview.badge(app, () => handleEdit(app));
+                return review ? [review] : [];
+              }}
               onShowAssignments={handleOpenAssignments}
               onReorder={handleReorder}
               onSaveGlobalToLibrary={(app) => void handleSaveToLibrary(app)}

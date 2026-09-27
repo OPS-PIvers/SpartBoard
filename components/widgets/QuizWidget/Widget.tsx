@@ -164,6 +164,7 @@ import { buildPeriodAccess } from '@/utils/periodPlan';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
 import { revealValueFor } from '@/utils/quizFibAlternates';
+import { useClaudeReview } from '@/hooks/useClaudeReview';
 
 /**
  * Session-options shape used when minting a view-only Quiz share. Typed as
@@ -230,6 +231,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { showConfirm } = useDialog();
   const { openPicker } = useGooglePicker();
   const canImportDocuments = useQuizDocumentImportGate();
+  const claudeReview = useClaudeReview('quizzes');
   // D1: the AI reader has its own admin-default permission, AND-ed with the AI one.
   const canUseAiReader =
     canImportDocuments &&
@@ -1812,6 +1814,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           if (data) {
             setEditingQuiz(data);
             setEditingMeta(meta);
+            claudeReview.markReviewed(meta);
           }
         }}
         onPreview={async (meta) => {

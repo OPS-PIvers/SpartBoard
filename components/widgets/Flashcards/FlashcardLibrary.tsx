@@ -32,7 +32,7 @@ import {
   filterByFolder,
   useLibraryView,
 } from '@/components/common/library';
-import type { LibraryTab } from '@/components/common/library';
+import type { LibraryBadge, LibraryTab } from '@/components/common/library';
 
 interface FlashcardLibraryProps {
   sets: FlashcardSet[];
@@ -50,6 +50,8 @@ interface FlashcardLibraryProps {
   onShare: (set: FlashcardSet) => void;
   onAssign: (set: FlashcardSet) => void;
   onDelete: (set: FlashcardSet) => void;
+  /** Status chips for a set's card, e.g. the Claude review mark. */
+  badgesFor?: (set: FlashcardSet) => LibraryBadge[];
   onAssignmentResults: (assignment: FlashcardAssignment) => void;
   onAssignmentPublishScores: (assignment: FlashcardAssignment) => void;
   onAssignmentUnpublishScores: (assignment: FlashcardAssignment) => void;
@@ -111,6 +113,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onShare,
   onAssign,
   onDelete,
+  badgesFor,
   onAssignmentResults,
   onAssignmentPublishScores,
   onAssignmentUnpublishScores,
@@ -384,6 +387,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
                 title={set.title || 'Untitled set'}
                 tourIndex={index}
                 tourWidgetType="flashcards"
+                badges={badgesFor?.(set)}
                 subtitle={`${set.cards.length} card${set.cards.length === 1 ? '' : 's'} · Updated ${new Date(set.updatedAt).toLocaleDateString()}`}
                 thumbnail={
                   <div className="flex h-full w-full items-center justify-center bg-rose-50 text-rose-600">

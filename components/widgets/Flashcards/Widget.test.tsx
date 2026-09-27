@@ -11,6 +11,15 @@ import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import type { FlashcardSet, WidgetData } from '@/types';
 import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
+vi.mock('@/hooks/useClaudeReview', () => ({
+  useClaudeReview: () => ({
+    needsReview: () => false,
+    badge: () => null,
+    confirmUse: () => Promise.resolve(true),
+    markReviewed: () => undefined,
+    whenReviewed: (_item: unknown, go: () => void) => go(),
+  }),
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1' },

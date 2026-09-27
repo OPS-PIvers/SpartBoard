@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { PAGE_SIZE } from './config';
 import {
+  REVIEW_MARK,
   ToolError,
   logActivity,
   reserveWrite,
@@ -272,6 +273,7 @@ async function saveContent(
     ...(opts.action === 'create'
       ? { claudeCreatedAt: now }
       : { claudeEditedAt: now }),
+    ...(kind === 'quiz' ? { [REVIEW_MARK]: now } : {}),
   });
   batch.set(ctx.db.doc(metaPath(kind, ctx.uid, content.id)), meta);
   logActivity(ctx, batch, {

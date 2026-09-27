@@ -4,6 +4,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { DAILY_WRITE_LIMIT, PAGE_SIZE } from './config';
 import {
+  REVIEW_MARK,
   ToolError,
   logActivity,
   reserveWrite,
@@ -94,7 +95,10 @@ async function saveFlashcardEdit(
     title: existing.title,
     data: previous,
   });
-  const normalized = normalizeSet({ ...next, claudeEditedAt: now }, now);
+  const normalized = normalizeSet(
+    { ...next, claudeEditedAt: now, [REVIEW_MARK]: now },
+    now
+  );
   stageSetWrite(ctx.db, batch, ctx.uid, normalized);
   logActivity(ctx, batch, {
     action,
@@ -360,6 +364,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
             createdAt: now,
             updatedAt: now,
             claudeCreatedAt: now,
+            [REVIEW_MARK]: now,
           },
           now
         );

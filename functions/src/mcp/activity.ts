@@ -101,3 +101,6 @@ export function snapshotRevision(
   });
   return ref.id;
 }
+
+/** Set on every Claude write to a student-facing item; SpartBoard shows "Review before assigning" until the teacher opens the editor. */
+export const REVIEW_MARK = 'claudeReviewPendingAt';

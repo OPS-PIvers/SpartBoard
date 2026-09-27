@@ -74,6 +74,7 @@ import { getPlcMemberEmail } from '@/utils/plc';
 import { AlertTriangle, Loader2, LogIn } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
+import { useClaudeReview } from '@/hooks/useClaudeReview';
 
 /**
  * Shared clipboard helper — centralizes the feature-detection + toast flow
@@ -117,6 +118,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     featurePermissions,
     getAssignmentMode,
   } = useAuth();
+  const claudeReview = useClaudeReview('video_activities');
   const vaAssignmentMode = getAssignmentMode('videoActivity');
   const config = widget.config as VideoActivityConfig;
 
@@ -559,6 +561,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           if (data) {
             setEditingActivity(data);
             setEditingMeta(meta);
+            claudeReview.markReviewed(meta);
           }
         }}
         defaultSessionSettings={defaultSessionSettings}

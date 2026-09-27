@@ -75,6 +75,7 @@ import {
 } from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
 import type {
+  LibraryBadge,
   LibraryTab,
   LibrarySortDir,
   LibraryFilter,
@@ -108,6 +109,8 @@ export interface MiniAppManagerProps {
   /* ── Library-tab callbacks (personal) ─────────────────────────────────── */
   onCreate: () => void;
   onEdit: (app: MiniAppItem) => void;
+  /** Status chips for a personal app's card, e.g. the Claude review mark. */
+  badgesFor?: (app: MiniAppItem) => LibraryBadge[];
   onDelete: (app: MiniAppItem) => void | Promise<void>;
   /**
    * Phase 5 — duplicate kebab item. Owns the actual write (the widget
@@ -311,6 +314,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   assignmentsLoading = false,
   onCreate,
   onEdit,
+  badgesFor,
   onDelete,
   onDuplicate,
   isDuplicating,
@@ -706,6 +710,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         key={getRowId(row)}
         id={getRowId(row)}
         title={app.title}
+        badges={badgesFor?.(app)}
         subtitle={
           <span className="font-mono">
             {(app.html.length / 1024).toFixed(1)} KB
