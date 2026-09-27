@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-09-26_
+_Last audited: 2026-09-27_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-09-27: Daily audit (Sunday), run from the main session (per CLAUDE.md, type-check/lint are never run from a subagent). Weekly audits skipped per the scheduled task's Saturday/Sunday skip rule — only the 3 daily audits ran this cycle. `scheduled-tasks` rebased onto `origin/dev-paul` at session start (HEAD `20d87da`, 16 commits absorbed since the 2026-09-26 baseline `42f052d`) — a clean fast-forward, no conflicts — and pushed. Environment note (unchanged from every prior cycle): only Node v22.22.2 is available here though `package.json` requires `>=24.0.0` — both commands print the routine `WARN Unsupported engine` line but run and complete normally. `pnpm run type-check` (`tsc --noEmit`, full root run, backgrounded and polled to completion via a Monitor until-loop): exit 0 — 0 TypeScript errors. `pnpm run lint` (root `lint:app` chained into `functions/`'s own `lint:functions`, both `--max-warnings 0`, run as a detached background process with the real PID tracked to completion via a Monitor until-loop rather than guessed): exit 0 — 0 ESLint errors, 0 warnings across the whole codebase, root and functions both. No structured `### [SEVERITY]` Open items exist in this journal to cross-reference or move to Completed (prior entries remain narrative daily-check logs, per this journal's established format) — 0 new issues found. Codebase remains fully type-safe and lint-clean._
 
 _2026-09-26: Daily audit (Saturday), run from the main session (per CLAUDE.md, `type-check`/`lint` are never run from a subagent). `scheduled-tasks` created fresh this cycle from `origin/dev-paul` HEAD (`42f052d`, "docs(plans): Unit Overview widget plan and mockup" #3505) — the branch didn't previously exist in this environment, equivalent to a full rebase; no conflicts since there was nothing to rebase onto. Environment note (unchanged from every prior cycle): only Node v22.22.2 is available here though `package.json` requires `>=24.0.0` — both commands print the routine `WARN Unsupported engine` line but run and complete normally. `pnpm run type-check` (`tsc --noEmit`, full root run, ~96s): exit 0 — 0 TypeScript errors. `pnpm run lint` (root `lint:app` via `eslint . --max-warnings 0` chained into `functions/`'s own `lint:functions`): run as a detached background process (`nohup bash -c 'pnpm run lint; echo EXIT_CODE:$?'`), the real PID tracked to completion via a blocking poll loop rather than guessed — took noticeably longer than most recent cycles (~13 minutes wall-clock, `eslint.js` sustained ~145% CPU throughout, so actively working rather than stalled) but completed with `EXIT_CODE:0`: 0 ESLint errors, 0 warnings (`--max-warnings 0`) across the whole codebase, root and functions both, confirmed by all four `lint:app`/`lint:functions` invocation banners appearing in the log with no rule output and no error banner between them. No structured `### [SEVERITY]` Open items exist in this journal to cross-reference or move to Completed (prior entries remain narrative daily-check logs, per this journal's established format) — 0 new issues found. Codebase remains fully type-safe and lint-clean._
 
