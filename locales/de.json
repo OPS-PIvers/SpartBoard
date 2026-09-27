@@ -3332,6 +3332,31 @@
       "importScope": "Importieren aus",
       "importWholeClass": "Ganze Klasse",
       "importGroupEmpty": "In dieser Klassengruppe ist niemand auf der Liste."
+    },
+    "weather": {
+      "weatherMode": "Wettermodus",
+      "manual": "Manuell",
+      "automatic": "Automatisch",
+      "temperature": "Temperatur (°F)",
+      "condition": "Wetterlage",
+      "sunny": "Sonnig",
+      "cloudy": "Bewölkt",
+      "rainy": "Regnerisch",
+      "snowy": "Schneereich",
+      "windy": "Windig",
+      "automaticWeather": "Automatisches Wetter",
+      "weatherSource": "Wetterquelle",
+      "openWeather": "OpenWeather",
+      "cityZip": "Stadt oder Postleitzahl",
+      "useLocation": "Aktuellen Standort verwenden",
+      "refreshWeather": "Wetter aktualisieren",
+      "refreshCity": "Stadt aktualisieren",
+      "showFeelsLike": "Gefühlte Temperatur bevorzugen",
+      "hideClothing": "Kleidungsvorschläge ausblenden",
+      "syncBackground": "Tafelhintergrund an das Wetter anpassen",
+      "secondaryColor": "Farbe des Zusatztexts",
+      "matchText": "Wie Text",
+      "clothingCard": "Kleidungskarte"
     }
   },
   "glRecorder": {
