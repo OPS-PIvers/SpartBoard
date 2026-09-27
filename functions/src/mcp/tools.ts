@@ -84,6 +84,16 @@ async function assertFolder(
   }
 }
 
+function decodeCursor(
+  cursor: string | undefined
+): { updatedAt: number; id: string } | null {
+  const sep = cursor?.indexOf(':') ?? -1;
+  if (!cursor || sep <= 0) return null;
+  const updatedAt = Number(cursor.slice(0, sep));
+  const id = cursor.slice(sep + 1);
+  return Number.isFinite(updatedAt) && id ? { updatedAt, id } : null;
+}
+
 function summarizeSet(set: FlashcardSet) {
   return {
     set_id: set.id,
@@ -330,7 +340,8 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           (!folder_id ||
             (folder_id === 'root' ? !s.folderId : s.folderId === folder_id));
         const results: FlashcardSet[] = [];
-        let after = cursor ? Number(cursor) : null;
+        // Cursor is "<updatedAt>:<docId>"; the id breaks ties so equal timestamps never drop a set.
+        let after = decodeCursor(cursor);
         let scanned = 0;
         let exhausted = false;
         // Scan in pages so a filtered list never reads the whole library at once.
@@ -338,24 +349,28 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           let q = db
             .collection(setsPath(uid))
             .orderBy('updatedAt', 'desc')
+            .orderBy(admin.firestore.FieldPath.documentId(), 'desc')
             .limit(50);
-          if (after !== null && Number.isFinite(after)) q = q.startAfter(after);
+          if (after) q = q.startAfter(after.updatedAt, after.id);
           const snap = await q.get();
           scanned += snap.size;
+          let consumed = 0;
           for (const d of snap.docs) {
+            consumed += 1;
             const set = { ...(d.data() as FlashcardSet), id: d.id };
-            after = set.updatedAt;
+            after = { updatedAt: set.updatedAt, id: d.id };
             if (matches(set)) results.push(set);
             if (results.length >= PAGE_SIZE) break;
           }
-          if (snap.size < 50) {
+          if (snap.size < 50 && consumed === snap.size) {
             exhausted = true;
             break;
           }
         }
         return {
           sets: results.map(summarizeSet),
-          next_cursor: exhausted || after === null ? null : String(after),
+          next_cursor:
+            exhausted || !after ? null : `${after.updatedAt}:${after.id}`,
         };
       })
   );
