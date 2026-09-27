@@ -98,14 +98,15 @@ const Message: React.FC<{
 );
 
 const CAN = [
-  'Create flashcards, quizzes and question banks in your library',
+  'Create flashcards, quizzes, video activities, rubrics and more',
   'Edit items you ask it to change',
   'Undo its own edits for 30 days',
+  'See class-level results for your own assignments',
 ];
 const CANNOT = [
   'Delete anything',
   'Assign or share work with students',
-  'See student names, answers or scores',
+  "See any one student's name, answers or score",
 ];
 
 export const ConnectPage: React.FC = () => {
@@ -294,7 +295,7 @@ export const ConnectPage: React.FC = () => {
         {(drive === 'missing' || drive === 'granting') && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
             <p className="text-slate-700 mb-2">
-              Quizzes and question banks are saved in your Google Drive. Allow
+              Quizzes and video activities are saved in your Google Drive. Allow
               Drive access so Claude can work with them.
             </p>
             <button

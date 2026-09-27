@@ -32,14 +32,19 @@ import {
   titleAndFolderFilter,
 } from './toolKit';
 import { registerQuizTools, restoreQuizRevision } from './quizTools';
+import { registerVideoTools, restoreVideoRevision } from './videoTools';
+import { registerRubricTools, restoreRubricRevision } from './rubricTools';
+import { registerWallTools, restoreWallRevision } from './wallTools';
+import { registerMiniAppTools, restoreMiniAppRevision } from './miniAppTools';
+import { registerResultsTools } from './resultsTools';
 
 export const SERVER_INSTRUCTIONS = [
   "SpartBoard is a classroom dashboard. These tools read and write the signed-in teacher's own library.",
   'Before editing an item, fetch it with the matching get_* tool and send back the full updated content.',
   'Every edit keeps the previous version for 30 days; use list_revisions and restore_revision to undo.',
   'Nothing here can delete items, assign work to students, or share content; the teacher does that in SpartBoard.',
-  'No student-level data is available through this connector.',
-  "Quizzes and question banks are saved in the teacher's Google Drive; items shared with a PLC can only be edited in SpartBoard.",
+  'No student-level data is available through this connector; results summaries are class-level and hidden for fewer than 5 students.',
+  "Quizzes, question banks and video activities are saved in the teacher's Google Drive; items shared with a PLC can only be edited in SpartBoard.",
 ].join(' ');
 
 function summarizeSet(set: FlashcardSet) {
@@ -151,8 +156,21 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         return {
           email: ctx.email,
           name,
-          content_types: ['flashcards', 'quizzes', 'question_banks'],
-          can: ['create', 'edit', 'undo edits'],
+          content_types: [
+            'flashcards',
+            'quizzes',
+            'question_banks',
+            'video_activities',
+            'rubrics',
+            'activity_walls',
+            'mini_apps',
+          ],
+          can: [
+            'create',
+            'edit',
+            'undo edits',
+            'class-level quiz and video activity results',
+          ],
           cannot: ['delete', 'assign to students', 'share', 'see student data'],
           daily_change_limit: DAILY_WRITE_LIMIT,
         };
@@ -509,6 +527,11 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         if (itemType === 'quiz' || itemType === 'question_bank') {
           return restoreQuizRevision(ctx, rev);
         }
+        if (itemType === 'video_activity')
+          return restoreVideoRevision(ctx, rev);
+        if (itemType === 'rubric') return restoreRubricRevision(ctx, rev);
+        if (itemType === 'activity_wall') return restoreWallRevision(ctx, rev);
+        if (itemType === 'mini_app') return restoreMiniAppRevision(ctx, rev);
         if (itemType !== 'flashcard_set') {
           throw new ToolError('That revision cannot be restored.');
         }
@@ -532,4 +555,9 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   );
 
   registerQuizTools(server, ctx);
+  registerVideoTools(server, ctx);
+  registerRubricTools(server, ctx);
+  registerWallTools(server, ctx);
+  registerMiniAppTools(server, ctx);
+  registerResultsTools(server, ctx);
 }

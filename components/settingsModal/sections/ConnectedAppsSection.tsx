@@ -41,6 +41,10 @@ const ITEM_LABELS: Record<string, string> = {
   folder: 'folder',
   quiz: 'quiz',
   question_bank: 'question bank',
+  video_activity: 'video activity',
+  rubric: 'rubric',
+  activity_wall: 'Activity Wall',
+  mini_app: 'mini-app',
 };
 
 const formatDate = (ms: number): string =>
