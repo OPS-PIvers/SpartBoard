@@ -216,8 +216,11 @@ export const archiveActivityWallPhoto = onCall(
     const driveVisibility: unknown = (
       (sessionSnap.data() ?? {}) as Record<string, unknown>
     ).driveVisibility;
+    // Unverified: email/password sign-in allows a self-reported address, and
+    // resolveDrivePermission trusts this domain for a "domain" share.
     const teacherEmail =
-      typeof request.auth.token?.email === 'string'
+      request.auth.token?.email_verified === true &&
+      typeof request.auth.token.email === 'string'
         ? request.auth.token.email
         : null;
 
