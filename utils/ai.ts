@@ -10,6 +10,7 @@ import {
 } from '@/types';
 import { TOOLS } from '@/config/tools';
 import { reportAiModelConfigFallback } from '@/utils/aiModelConfigFallback';
+import { cleanGeneratedStep } from '@/components/widgets/GuidedLearning/utils/generatedStep';
 
 export interface GeneratedMiniApp {
   /** The generated HTML code for the mini-app, including embedded CSS and JS */
@@ -548,11 +549,10 @@ export async function generateGuidedLearning(
       ? (data.suggestedMode as GuidedLearningMode)
       : 'structured';
 
+    // Audio and video steps need media the generator can't supply.
     const validInteractionTypes: GuidedLearningInteractionType[] = [
       'text-popover',
       'tooltip',
-      'audio',
-      'video',
       'pan-zoom',
       'pan-zoom-spotlight',
       'spotlight',
@@ -588,20 +588,13 @@ export async function generateGuidedLearning(
         const rawIndex = typeof s.imageIndex === 'number' ? s.imageIndex : 0;
         const imageIndex =
           rawIndex >= 0 && rawIndex <= maxImageIndex ? rawIndex : 0;
-        return {
-          ...s,
+        return cleanGeneratedStep(s, {
           id,
           xPct,
           yPct,
           interactionType,
           imageIndex,
-          showOverlay:
-            s.showOverlay === 'popover' ||
-            s.showOverlay === 'tooltip' ||
-            s.showOverlay === 'banner'
-              ? s.showOverlay
-              : 'none',
-        } as GuidedLearningStep;
+        });
       })
       .filter((s): s is GuidedLearningStep => s !== null);
 

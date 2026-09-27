@@ -26,7 +26,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GuidedLearningSet } from '@/types';
-import { GL_SET_BASE_SCHEMA_VERSION } from '../utils/setMigration';
+import { requiredSchemaVersion } from '../utils/setMigration';
 import {
   generateGuidedLearning,
   buildPromptWithFileContext,
@@ -372,7 +372,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
       );
       const set: GuidedLearningSet = {
         id: crypto.randomUUID(),
-        schemaVersion: GL_SET_BASE_SCHEMA_VERSION,
+        schemaVersion: requiredSchemaVersion(result),
         title: result.suggestedTitle,
         imageUrls: snapshot.map((img) => img.url),
         ...(thumbs.length > 0

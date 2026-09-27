@@ -54,12 +54,22 @@ const restoreIfMinimized = (ctx: PrerequisiteContext, id: string) => {
   if (ctx.isMinimized(id)) ctx.restore(id);
 };
 
+const scrollIntoView = (ctx: PrerequisiteContext): null => {
+  findTourAnchor(ctx.binding, ctx.scope)?.scrollIntoView?.({
+    block: 'nearest',
+    inline: 'nearest',
+  });
+  return null;
+};
+
 const SATISFIERS: Record<
   TourAnchorPrerequisite,
   (ctx: PrerequisiteContext) => PrerequisiteUndo | null
 > = {
-  'dock-expanded': () => {
-    if (!dockElement() || isDockExpanded()) return null;
+  'dock-expanded': (ctx) => {
+    if (!dockElement()) return null;
+    // Items far along the dock sit outside its scroller at laptop widths.
+    if (isDockExpanded()) return scrollIntoView(ctx);
     requestDock(true);
     // Collapse again only if the dock is still open, so a teacher's own toggle wins.
     return {
@@ -86,13 +96,7 @@ const SATISFIERS: Record<
     if (ctx.widgetId) restoreIfMinimized(ctx, ctx.widgetId);
     return null;
   },
-  'in-view': (ctx) => {
-    findTourAnchor(ctx.binding, ctx.scope)?.scrollIntoView?.({
-      block: 'nearest',
-      inline: 'nearest',
-    });
-    return null;
-  },
+  'in-view': scrollIntoView,
 };
 
 /** Sets up the state a step's anchor needs; idempotent, so it can run until found. */

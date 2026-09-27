@@ -39,15 +39,21 @@ export interface TourStepHealth {
   /** 1-based position among all of the set's steps, as the Studio numbers them. */
   number: number;
   problem: AnchorProblem | null;
+  /** An earlier step's click opens a widget for the tour (`spawns`). */
+  widgetSpawned?: boolean;
 }
 
 /** Every live-tour step in a set with its registry check. */
 export const tourHealthOf = (set: GuidedLearningSet): TourStepHealth[] =>
-  tourStepsOf(set).map((step) => ({
-    step,
-    number: set.steps.indexOf(step) + 1,
-    problem: anchorProblem(step.tour.anchor),
-  }));
+  tourStepsOf(set).map((step) => {
+    const index = set.steps.indexOf(step);
+    return {
+      step,
+      number: index + 1,
+      problem: anchorProblem(step.tour.anchor),
+      widgetSpawned: set.steps.slice(0, index).some((s) => s.tour?.spawns),
+    };
+  });
 
 /** Resolves each step on the page as it is now, without presenting anything. */
 export const checkAnchorsLive = (
@@ -108,7 +114,7 @@ export function anchorNeeds(ref: string): 'widget' | 'panel' | null {
 
 /** Broken: unregistered, missed in real runs, or absent with nothing to open; needs-open: on a closed widget or panel. */
 export function stepVerdict(
-  health: Pick<TourStepHealth, 'step' | 'problem'>,
+  health: Pick<TourStepHealth, 'step' | 'problem' | 'widgetSpawned'>,
   setup: GuidedLearningSet['tourSetup'],
   field: TourFieldStats | null,
   onScreen: boolean | undefined
@@ -118,7 +124,8 @@ export function stepVerdict(
     return { state: 'broken', reason: 'field-misses' };
   }
   const needs = anchorNeeds(health.step.tour.anchor);
-  const addsWidgets = (setup?.widgets.length ?? 0) > 0;
+  const addsWidgets =
+    (setup?.widgets.length ?? 0) > 0 || health.widgetSpawned === true;
   if (needs === 'widget' && !addsWidgets) {
     return { state: 'needs-open', reason: 'widget-not-added' };
   }

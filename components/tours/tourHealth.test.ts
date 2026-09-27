@@ -144,6 +144,41 @@ describe('stepVerdict', () => {
     });
   });
 
+  it('counts a widget an earlier step opens', () => {
+    const spawned = { ...health('widget.title'), widgetSpawned: true };
+    expect(stepVerdict(spawned, { widgets: [] }, none, true)).toEqual({
+      state: 'ok',
+      reason: null,
+    });
+    const set = {
+      steps: [
+        {
+          id: 'a',
+          tour: {
+            anchor: 'dock.item:clock',
+            action: 'click',
+            spawns: {
+              slot: 0,
+              type: 'clock',
+              xProp: 0,
+              yProp: 0,
+              wProp: 0.2,
+              hProp: 0.2,
+            },
+          },
+        },
+        {
+          id: 'b',
+          tour: { anchor: 'widget.title', action: 'observe', slot: 0 },
+        },
+      ],
+    } as never;
+    expect(tourHealthOf(set).map((h) => h.widgetSpawned)).toEqual([
+      false,
+      true,
+    ]);
+  });
+
   it('is broken when unregistered, missed in real runs, or absent with nothing to open', () => {
     expect(
       stepVerdict(health('sidebar.nowhere'), setup, none, undefined)

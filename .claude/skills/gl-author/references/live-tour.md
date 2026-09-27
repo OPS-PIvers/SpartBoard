@@ -100,13 +100,15 @@ exist.
   before it looks, so don't add a step just to open the dock or select a
   widget unless teaching that is the point.
 - **Panels are not.** An anchor marked `panel` without `requires` (a menu
-  item, a library tab) is only visible after something opens it, so an
-  earlier step must open it with `action: "click"`.
+  item, a library tab, anything in a widget's settings panel) is only
+  visible after something opens it, so an earlier step must open it with
+  `action: "click"`.
 - **Some chrome only exists in one state.** `dock.open-tools` shows only
-  while the dock is collapsed, and dock items far along the dock sit
-  outside its scroller at laptop widths. Start the tour from the state its
-  first step needs, and let `checkAnchor` at 1440×900 decide what is
-  reachable.
+  while the dock is collapsed. Start the tour from the state its first
+  step needs, and let `checkAnchor` at 1440×900 decide what is reachable.
+  The runner scrolls a dock item into view once the dock is open, so in a
+  capture script scroll it yourself (`locator.scrollIntoViewIfNeeded()`)
+  before `checkAnchor`.
 - **Positional refs** (`row-<n>`, and list fields such as
   `#items.2.task`) point at whatever sits in that position on the
   teacher's board. Use one only on a row the tour itself creates or sets
@@ -144,8 +146,6 @@ unresolvable; they already match by widget type. The validator rejects it.
   that slot. Leave that widget type out of `tourSetup.widgets`, or the
   runner adds one at the start and the click adds a second. A tour whose
   only widget is spawned has `"tourSetup": { "widgets": [] }` or none.
-  The Help Center's tour health panel doesn't read `spawns` yet and may
-  report its later steps as needing a widget; the tour itself runs.
 - `layoutKeyframes` on a step moves or resizes slotted widgets
   (`{ slot, xProp, yProp, wProp, hProp }`) before it starts, for a step
   that needs the widget somewhere else.

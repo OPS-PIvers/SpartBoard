@@ -291,16 +291,6 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 ### Ready for an agent
 
-#### Guided Learning AI generator (`functions/src/aiGeneration.ts` `generateGuidedLearning`)
-
-- [ ] Bring the Gemini prompt and response schema up to the gl-author skill: emit `region` for click targets, banners, callout boxes and audio/video steps where they fit, and teach `**bold**` key terms. Today every AI-drafted step is a pin-only target. Flag it as a behaviour change. (M/MED)
-
-#### Live tours (found authoring the gl-author tour example)
-
-- [ ] `tourHealth.ts` `stepVerdict` ignores `spawns`, so a tour whose widget is opened by a step shows its later steps as "needs-open: widget-not-added" in the Help Center health panel. (S/LOW)
-- [ ] `dock-expanded` does not scroll the dock, so `dock.more-widgets` and dock items far along the dock are off-screen at 1440 px and resolve as missing; add `in-view` handling for dock anchors. (S/LOW)
-- [ ] `settings.root`, `settings.close` and `settings.search` render only while settings are open but have neither `panel` nor `requires` in `config/tourAnchors.ts`. (S/LOW)
-
 #### `docs/plans/AI_RESPONSIBLE_USE_WIDGET.md`
 
 - [ ] Implement widget types/registration: types.ts WidgetType, config/tools.ts, config/widgetDefaults.ts, config/widgetGradeLevels.ts, WidgetRegistry.ts for ai-responsible-use and ai-responsible-use-card. (L)
