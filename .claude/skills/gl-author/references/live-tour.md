@@ -19,6 +19,24 @@ another app is an ordinary set.
 
 ## How the runner plays a set
 
+Plan a live tour around a completed task in the real app. Write the
+starting state, the clicks that open each subsequent surface, and the
+visible outcome before authoring screenshots. A menu item inside a closed
+menu needs a preceding click that opens the menu. For every `click` step,
+anchor the element that receives the user's click and verify that the
+runner advances after that click. Use `observe` for a typing step with a
+Next button or for checking the final result. Slide `interactionType` is
+only the screenshot fallback; it cannot turn an `observe` step into a
+click in the live runner. Mix slide interaction types where they fit the
+target, but judge the live tour by its `tour.action` and actual UI behavior.
+
+Test the complete sequence in the running app with a fresh workspace and
+again with relevant preexisting data. Click each target without forcing it,
+type into prompted fields, check each next anchor is visible, and confirm
+the intended result in the correct place. When a recording is requested,
+capture the actual runner session; a slideshow of screenshots does not
+demonstrate the live tour.
+
 - Once any step has a `tour`, the runner plays **every** step in order.
   Steps with a `tour` anchor their callout to the live element. Steps
   without one show a centered card with the label and text, which suits an
