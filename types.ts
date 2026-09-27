@@ -2035,6 +2035,16 @@ export interface ActivityWallGlobalConfig {
   dockDefaults?: Record<string, boolean>;
 }
 
+/** Widget-instance appearance defaults for a new ActivityWall — distinct from the activity-library ActivityWallBuildingConfig above. */
+export interface BuildingActivityWallDefaults {
+  buildingId: string;
+  fontFamily?: string;
+  fontColor?: string;
+  cardColor?: string;
+  cardOpacity?: number;
+  imageSize?: 'small' | 'medium' | 'large';
+}
+
 export interface ActivityWallConfig {
   /** Set only inside a substitute share, from the share's names file. */
   subSharePosts?: ActivityWallSubmission[];

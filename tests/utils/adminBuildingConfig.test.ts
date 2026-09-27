@@ -1013,6 +1013,64 @@ describe('getAdminBuildingConfig', () => {
     });
   });
 
+  describe('activity-wall', () => {
+    it('passes through prefixed font family, colours, opacity, and image size', () => {
+      const perm = makePerm('activity-wall', {
+        high: {
+          fontFamily: 'font-handwritten',
+          fontColor: '#f8fafc',
+          cardColor: '#0f172a',
+          cardOpacity: 0.6,
+          imageSize: 'large',
+        },
+      });
+      expect(getAdminBuildingConfig('activity-wall', [perm], ['high'])).toEqual(
+        {
+          fontFamily: 'font-handwritten',
+          fontColor: '#f8fafc',
+          cardColor: '#0f172a',
+          cardOpacity: 0.6,
+          imageSize: 'large',
+        }
+      );
+    });
+
+    it('rejects bare GlobalFontFamily ids — activity-wall uses the prefixed FONTS space', () => {
+      const perm = makePerm('activity-wall', { high: { fontFamily: 'sans' } });
+      expect(getAdminBuildingConfig('activity-wall', [perm], ['high'])).toEqual(
+        {}
+      );
+    });
+
+    it('rejects invalid colours, out-of-range opacity, and an unknown image size', () => {
+      const perm = makePerm('activity-wall', {
+        high: {
+          fontColor: 'rgb(0,0,0)',
+          cardColor: 'white',
+          cardOpacity: 1.5,
+          imageSize: 'huge',
+        },
+      });
+      expect(getAdminBuildingConfig('activity-wall', [perm], ['high'])).toEqual(
+        {}
+      );
+    });
+
+    it('leaves the unrelated activity-library defaults on the same building record untouched', () => {
+      const perm = makePerm('activity-wall', {
+        high: {
+          defaultLayout: 'columns',
+          cardColor: '#0f172a',
+        },
+      });
+      // Only the appearance fields this case knows about are seeded —
+      // `defaultLayout` belongs to the separate activity-defaults surface.
+      expect(getAdminBuildingConfig('activity-wall', [perm], ['high'])).toEqual(
+        { cardColor: '#0f172a' }
+      );
+    });
+  });
+
   it('returns empty for unknown widget types', () => {
     const perm = makePerm('clock', { high: { format24: true } });
     // Pass a type that has no case in the switch.
