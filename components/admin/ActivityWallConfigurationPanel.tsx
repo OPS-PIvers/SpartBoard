@@ -307,7 +307,7 @@ export const ActivityWallConfigurationPanel: React.FC<
               id={`aw-font-color-${selectedBuildingId}`}
               value={currentBuildingConfig.fontColor}
               onChange={(fontColor) => handleUpdateBuilding({ fontColor })}
-              fallback="#f8fafc"
+              fallback="#ffffff"
               ariaLabel="Pick default Activity Wall text colour"
             />
           </div>
