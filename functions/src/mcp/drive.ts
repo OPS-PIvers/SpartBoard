@@ -1,4 +1,4 @@
-// Teacher Drive access for Drive-backed content (quizzes, question banks) via the stored offline grant.
+// Teacher Drive access for Drive-backed content (quizzes, banks, video activities) via the stored offline grant.
 import { publicOrigin } from './config';
 import { ToolError } from './activity';
 import { BoundedLruMap } from '../utils/boundedLruMap';
@@ -12,7 +12,7 @@ const tokenCache = new BoundedLruMap<
 >(500);
 
 export const needsDriveMessage = (): string =>
-  `SpartBoard can't reach this teacher's Google Drive, where quizzes and question banks are saved. Ask them to open ${publicOrigin()} and choose "Keep Drive connected" when asked, or disconnect and reconnect SpartBoard in Claude's connector settings.`;
+  `SpartBoard can't reach this teacher's Google Drive, where quizzes, question banks and video activities are saved. Ask them to open ${publicOrigin()} and choose "Keep Drive connected" when asked, or disconnect and reconnect SpartBoard in Claude's connector settings.`;
 
 /** Access token from the teacher's stored refresh token, cached until a minute before expiry. */
 export async function driveTokenFor(

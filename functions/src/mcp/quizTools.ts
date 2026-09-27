@@ -304,8 +304,8 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
     server.registerTool(
       names.list,
       {
-        title: `List ${label}s`,
-        description: `Lists the teacher's ${label}s, newest first, ${PAGE_SIZE} per page. Returns ids and titles only; use ${names.get} for questions.`,
+        title: `List ${KIND[kind].plural}`,
+        description: `Lists the teacher's ${KIND[kind].plural}, newest first, ${PAGE_SIZE} per page. Returns ids and titles only; use ${names.get} for questions.`,
         inputSchema: {
           search: z
             .string()

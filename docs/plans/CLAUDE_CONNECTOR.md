@@ -112,6 +112,14 @@ page); full content only from `get_*`.
 - Sections, bank pulls and stimuli are preserved but not editable; new questions land after existing `order` entries.
 - A pre-edit revision stores the Drive JSON when it is under 800 KB; above that, restore points the teacher to Drive's version history.
 
+### PR 3 notes
+
+- Video activities reuse the quiz Drive file format (`SpartBoard/Quizzes/*.quiz.json`) and the PLC read-only rule. Questions are MC, choose-all and FIB with `timestamp`; FIB alternates are stored as `acceptableVariants`.
+- Rubric docs are written with exactly the keys `firestore.rules` allows, so they carry no Claude markers. Quiz questions keep their rubric snapshot until the teacher reattaches it.
+- Activity Wall edits keep class targeting and the live accepting/visible toggles. When the wall has a session doc, the session mirror is refreshed in the same batch.
+- Mini-apps are capped at 120k characters through Claude and keep their library `order`.
+- Result summaries reuse `computeAssessmentAggregate` (the PLC rollup) on one session at a time: `teacherUid == uid` only, hidden under 5 completed responses, newest 5 assignments. They return percents, score bands and MC/choose-all option counts, never a student id or typed answer. Quiz keys come from the PLC canonical copy when synced, otherwise the assignment's Drive file.
+
 ## Limits and cost (CC-D16)
 
 - No `minInstances`. `maxInstances`: 10 for `mcpServer`, 5 for `mcpOAuth`.
@@ -135,6 +143,5 @@ page); full content only from `get_*`.
 
 ## Open items
 
-- Confirm with the district data agreement that class-level aggregates (CC-D3) are fine to send to
-  Anthropic.
+- ~~Confirm class-level aggregates (CC-D3) are covered by the district data agreement.~~ Resolved 2026-09-27: Anthropic signed the district DPA.
 - Set a $5 budget alert on both Firebase projects' billing accounts.

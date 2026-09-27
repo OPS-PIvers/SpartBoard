@@ -34,6 +34,8 @@ export const FOLDER_COLLECTIONS = {
   flashcards: 'flashcard_folders',
   quizzes: 'quiz_folders',
   question_banks: 'question_bank_folders',
+  video_activities: 'video_activity_folders',
+  mini_apps: 'miniapp_folders',
 } as const;
 export type FolderContentType = keyof typeof FOLDER_COLLECTIONS;
 export const CONTENT_TYPES = Object.keys(FOLDER_COLLECTIONS) as [

@@ -54,12 +54,14 @@ export const KIND = {
     folderCollection: 'quiz_folders',
     itemType: 'quiz',
     label: 'quiz',
+    plural: 'quizzes',
   },
   bank: {
     collection: 'question_banks',
     folderCollection: 'question_bank_folders',
     itemType: 'question_bank',
     label: 'question bank',
+    plural: 'question banks',
   },
 } as const;
 
@@ -437,7 +439,9 @@ export function bankTargetIndex(
   return { targetIds: Object.keys(counts).sort(), targetCounts: counts };
 }
 
-const stripUndefined = <T extends Record<string, unknown>>(value: T): T =>
+export const stripUndefined = <T extends Record<string, unknown>>(
+  value: T
+): T =>
   Object.fromEntries(
     Object.entries(value).filter(([, v]) => v !== undefined)
   ) as T;
