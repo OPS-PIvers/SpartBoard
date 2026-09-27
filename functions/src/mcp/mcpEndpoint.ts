@@ -5,6 +5,7 @@ import '../functionsInit';
 import {
   DAILY_CALL_LIMIT_PER_INSTANCE,
   STATUS_CACHE_MS,
+  publicOrigin,
   resourceMetadataUrl,
 } from './config';
 import { verifyAccessToken, type AccessClaims } from './tokens';
@@ -146,7 +147,19 @@ export const mcpServer = onRequest(
       import('./tools'),
     ]);
     const server = new McpServer(
-      { name: 'spartboard', title: 'SpartBoard', version: '1.0.0' },
+      {
+        name: 'spartboard',
+        title: 'SpartBoard',
+        version: '1.0.0',
+        websiteUrl: publicOrigin(),
+        icons: [
+          {
+            src: `${publicOrigin()}/favicon.png`,
+            mimeType: 'image/png',
+            sizes: ['72x72'],
+          },
+        ],
+      },
       { instructions: SERVER_INSTRUCTIONS }
     );
     registerTools(server, {
