@@ -1,7 +1,7 @@
 /**
  * VideoActivityEditorModal — full-screen editor for a Video Activity.
  *
- * Wraps the two-pane EditorWorkspace: left context pane has the title +
+ * Wraps the two-pane EditorWorkspace: left context pane has the
  * YouTube URL + Timeline + sortable question list; right detail pane has
  * the editor for the currently-selected question (timestamp / type /
  * prompt / answers).
@@ -16,6 +16,7 @@ import {
   VideoActivityQuestion,
 } from '@/types';
 import { EditorWorkspace } from '@/components/common/EditorWorkspace';
+import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { videoActivityIncompleteReason } from '@/utils/activityCompleteness';
 import { useAuth } from '@/context/useAuth';
 import { VideoActivityBehaviorSettingsPanel } from '@/components/common/library/VideoActivityBehaviorSettingsPanel';
@@ -146,6 +147,7 @@ export const VideoActivityEditorModal: React.FC<
 
   const {
     title,
+    setTitle,
     youtubeUrl,
     questions,
     totalPoints,
@@ -279,6 +281,18 @@ export const VideoActivityEditorModal: React.FC<
     ),
     [questions.length, totalPoints]
   );
+  const headerExtras = useMemo(
+    () =>
+      folders && onFolderChange ? (
+        <FolderSelectField
+          variant="header"
+          folders={folders}
+          value={folderId ?? null}
+          onChange={onFolderChange}
+        />
+      ) : null,
+    [folders, folderId, onFolderChange]
+  );
   const { setShowAiPrompt } = editorState;
   const hasYoutubeUrl = Boolean(youtubeUrl.trim());
   const footerExtras = useMemo(
@@ -307,7 +321,10 @@ export const VideoActivityEditorModal: React.FC<
     <EditorWorkspace
       key={activity.id}
       isOpen={isOpen}
-      title={title.trim() || (originalTitle ? 'Edit Activity' : 'New Activity')}
+      title={title}
+      onTitleChange={setTitle}
+      titlePlaceholder="Activity title"
+      headerExtras={headerExtras}
       subtitle={subtitle}
       isDirty={isDirty}
       isSaving={saving}
@@ -340,12 +357,7 @@ export const VideoActivityEditorModal: React.FC<
           </div>
 
           {editorTab === 'questions' ? (
-            <VideoActivityEditorContextPane
-              state={editorState}
-              folders={folders}
-              folderId={folderId}
-              onFolderChange={onFolderChange}
-            />
+            <VideoActivityEditorContextPane state={editorState} />
           ) : (
             <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 px-5 py-5 space-y-5">
               <VideoActivityBehaviorSettingsPanel

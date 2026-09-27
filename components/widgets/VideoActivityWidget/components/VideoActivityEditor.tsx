@@ -15,8 +15,7 @@ import {
   X,
   Youtube,
 } from 'lucide-react';
-import { LibraryFolder, VideoActivityQuestion } from '@/types';
-import { FolderSelectField } from '@/components/common/library/FolderSelectField';
+import { VideoActivityQuestion } from '@/types';
 import { SortableList } from '@/components/common/SortableList';
 import { AIGeneratorOverlay } from '@/components/common/AIGeneratorOverlay';
 import { extractYouTubeId } from '@/utils/youtube';
@@ -37,9 +36,6 @@ const TYPE_BADGE: Record<QuestionType, { label: string; className: string }> = {
 
 interface PaneProps {
   state: VideoActivityEditorController;
-  folders?: LibraryFolder[];
-  folderId?: string | null;
-  onFolderChange?: (folderId: string | null) => void;
 }
 
 /** Hoisted so SortableList's memoized id array survives re-renders. */
@@ -57,25 +53,14 @@ const getQuestionId = (q: VideoActivityQuestion) => q.id;
  * add it here or the pane will render stale data.
  */
 const vaContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
-  prev.folders === next.folders &&
-  prev.folderId === next.folderId &&
-  prev.onFolderChange === next.onFolderChange &&
-  prev.state.title === next.state.title &&
   prev.state.youtubeUrl === next.state.youtubeUrl &&
   prev.state.questions === next.state.questions &&
   prev.state.selectedId === next.state.selectedId &&
   prev.state.error === next.state.error;
 
 export const VideoActivityEditorContextPane = React.memo(
-  function VideoActivityEditorContextPane({
-    state,
-    folders,
-    folderId,
-    onFolderChange,
-  }: PaneProps) {
+  function VideoActivityEditorContextPane({ state }: PaneProps) {
     const {
-      title,
-      setTitle,
       youtubeUrl,
       setYoutubeUrl,
       questions,
@@ -96,13 +81,6 @@ export const VideoActivityEditorContextPane = React.memo(
       <div className="flex flex-col h-full">
         {/* Settings strip */}
         <div className="px-5 py-4 border-b border-slate-200 space-y-3 bg-white shrink-0">
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Activity title (e.g. Photosynthesis)"
-            className="w-full bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:outline-none text-lg font-bold p-0"
-          />
           <div className="relative">
             <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
             <input
@@ -113,13 +91,6 @@ export const VideoActivityEditorContextPane = React.memo(
               className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary text-sm"
             />
           </div>
-          {folders && onFolderChange && (
-            <FolderSelectField
-              folders={folders}
-              value={folderId ?? null}
-              onChange={onFolderChange}
-            />
-          )}
           {error && (
             <div className="p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold">
               <AlertCircle className="w-4 h-4 shrink-0" />

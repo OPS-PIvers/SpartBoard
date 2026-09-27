@@ -39,7 +39,6 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
 }) => {
   const { canAccessFeature } = useAuth();
   const { addToast, activeDashboard } = useDashboard();
-  const titleFieldId = useId();
   const htmlFieldId = useId();
 
   // --- Snapshot originals ---
@@ -170,7 +169,19 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
   return (
     <EditorModalShell
       isOpen={isOpen}
-      title={title.trim() || (originalTitle ? 'Edit App' : 'New App')}
+      title={title}
+      onTitleChange={setTitle}
+      titlePlaceholder="App title"
+      headerExtras={
+        folders && onFolderChange ? (
+          <FolderSelectField
+            variant="header"
+            folders={folders}
+            value={folderId ?? null}
+            onChange={onFolderChange}
+          />
+        ) : undefined
+      }
       subtitle={
         <span className="flex items-center gap-1.5">
           <Code2 className="w-3.5 h-3.5" />
@@ -184,6 +195,18 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
       incompleteNotice={incompleteNotice}
       onClose={onClose}
       saveLabel="Save App"
+      footerExtras={
+        canAccessFeature('gemini-functions') ? (
+          <button
+            onClick={() => setShowPromptInput(true)}
+            className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
+            title="Generate with AI"
+          >
+            <Sparkles className="w-4 h-4" />
+            Draft with AI
+          </button>
+        ) : undefined
+      }
       saveDisabled={!title.trim()}
       saveErrorMessage={false}
       bodyClassName="px-6 py-5 bg-slate-50/50"
@@ -227,41 +250,6 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
             />
           )}
         </AIGeneratorOverlay>
-
-        {/* Title + AI generator button */}
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <SettingsLabel htmlFor={titleFieldId}>App Title</SettingsLabel>
-            <input
-              id={titleFieldId}
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Lunch Randomizer"
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-black text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all"
-            />
-          </div>
-          {canAccessFeature('gemini-functions') && (
-            <div className="pt-5">
-              <button
-                onClick={() => setShowPromptInput(true)}
-                className="h-[46px] px-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
-                title="Generate with AI"
-              >
-                <Sparkles className="w-4 h-4" />
-                Draft with AI
-              </button>
-            </div>
-          )}
-        </div>
-
-        {folders && onFolderChange && (
-          <FolderSelectField
-            folders={folders}
-            value={folderId ?? null}
-            onChange={onFolderChange}
-          />
-        )}
 
         {/* HTML Code textarea */}
         <div className="flex-1 flex flex-col min-h-[250px]">
