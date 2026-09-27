@@ -131,7 +131,8 @@ export async function refreshGrant(
     tx.update(ref, {
       refreshHash: sha256(secret),
       prevRefreshHash: isCurrent ? grant.refreshHash : grant.prevRefreshHash,
-      rotatedAt: now,
+      // Retries must not move the anchor, or a replayed old token could keep the window open forever.
+      ...(isCurrent ? { rotatedAt: now } : {}),
       lastRefreshedAt: now,
       refreshExpiresAt: now + REFRESH_IDLE_TTL_MS,
     });

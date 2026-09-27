@@ -12,6 +12,7 @@ import {
 } from './tokens';
 import { handleRegister, handleToken } from './oauthEndpoints';
 import { authorize } from './authorizeCallables';
+import { createGrant, refreshGrant } from './grants';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -247,6 +248,31 @@ describe('authorization flow', () => {
         },
         base
       )
+    ).rejects.toThrow();
+  });
+});
+
+describe('refresh token rotation', () => {
+  beforeEach(() => resetSigningKeyCache());
+
+  it('allows one retry window per rotation, then revokes on replay', async () => {
+    const db = seed();
+    const t0 = 1_000_000;
+    const first = await createGrant(
+      db,
+      { uid: 't1', email: TEACHER, clientName: 'Claude', orgId: 'orono' },
+      t0
+    );
+    const second = await refreshGrant(db, first.refresh_token, t0 + 1_000);
+    expect(second.refresh_token).not.toBe(first.refresh_token);
+    // A client retry of the superseded token inside the window still works.
+    await refreshGrant(db, first.refresh_token, t0 + 30_000);
+    // Replaying it again later must not ride the retry's timestamp.
+    await expect(
+      refreshGrant(db, first.refresh_token, t0 + 70_000)
+    ).rejects.toThrow();
+    await expect(
+      refreshGrant(db, second.refresh_token, t0 + 71_000)
     ).rejects.toThrow();
   });
 });
