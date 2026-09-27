@@ -11,6 +11,11 @@ import { verifyAccessToken, type AccessClaims } from './tokens';
 import { isConnectorFeatureGranted } from './eligibility';
 import { grantRef } from './grants';
 import { BoundedLruMap } from '../utils/boundedLruMap';
+import {
+  GOOGLE_OAUTH_CLIENT_ID,
+  GOOGLE_OAUTH_CLIENT_SECRET,
+  GOOGLE_OAUTH_REFRESH_TOKEN_KEY,
+} from '../secrets';
 
 type Firestore = admin.firestore.Firestore;
 type Response = Parameters<Parameters<typeof onRequest>[0]>[1];
@@ -67,6 +72,12 @@ export const mcpServer = onRequest(
     maxInstances: 10,
     concurrency: 40,
     invoker: 'public',
+    // Drive-backed tools refresh the teacher's stored Google grant.
+    secrets: [
+      GOOGLE_OAUTH_CLIENT_ID,
+      GOOGLE_OAUTH_CLIENT_SECRET,
+      GOOGLE_OAUTH_REFRESH_TOKEN_KEY,
+    ],
   },
   async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');

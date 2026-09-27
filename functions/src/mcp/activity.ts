@@ -5,7 +5,7 @@ import { DAILY_WRITE_LIMIT, LOG_TTL_MS } from './config';
 type Firestore = admin.firestore.Firestore;
 type WriteBatch = admin.firestore.WriteBatch;
 
-export type ItemType = 'flashcard_set' | 'folder';
+export type ItemType = 'flashcard_set' | 'folder' | 'quiz' | 'question_bank';
 
 export interface ToolContext {
   db: Firestore;
