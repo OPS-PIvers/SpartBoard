@@ -2129,8 +2129,12 @@ interface GuidedLearningStep {
   imageIndex?: number;
   label?: string;
   interactionType: string;
-  hideStepNumber?: boolean;
   showOverlay?: 'none' | 'popover' | 'tooltip' | 'banner';
+  bannerTone?: 'blue' | 'red' | 'neutral';
+  region?: { shape: string; wPct: number; hPct: number; cornerPct?: number };
+  calloutBox?: { xPct: number; yPct: number; wPct: number; hPct: number };
+  calloutTone?: string;
+  cursor?: { hide?: boolean };
   text?: string;
   panZoomScale?: number;
   spotlightRadius?: number;
@@ -2280,21 +2284,24 @@ Return ONLY valid JSON with this exact structure:
   "steps": [
     {
       "id": "unique-string",
-      "xPct": number (0-100),
-      "yPct": number (0-100),
-      "label": "string",
+      "xPct": number (0-100, centre of the target),
+      "yPct": number (0-100, centre of the target),
+      "label": "string (1-4 words naming the target)",
       "interactionType": "text-popover" | "tooltip" | "pan-zoom" | "spotlight" | "pan-zoom-spotlight" | "question",
       "imageIndex": number (0-based index into the provided images, 0..${maxIndex}),
-      "hideStepNumber": boolean (optional),
+      "region": { "shape": "rect" | "ellipse", "wPct": number, "hPct": number, "cornerPct": number (rect only, 0-50, optional) } (optional),
       "showOverlay": "none" | "popover" | "tooltip" | "banner" (for pan-zoom, spotlight, pan-zoom-spotlight),
-      "text": "string (for text-popover/tooltip)",
+      "bannerTone": "blue" | "red" | "neutral" (only with showOverlay "banner"),
+      "text": "string",
       "panZoomScale": number (1.5-4, for pan-zoom and pan-zoom-spotlight),
-      "spotlightRadius": number (10-40, for spotlight and pan-zoom-spotlight),
-      "autoAdvanceDuration": number (seconds),
+      "spotlightRadius": number (5-40, for spotlight and pan-zoom-spotlight without a region),
+      "calloutBox": { "xPct": number, "yPct": number, "wPct": number, "hPct": number } (optional),
+      "calloutTone": "light" | "accent" (optional),
+      "cursor": { "hide": true } (optional, steps with no target),
       "question": {
         "type": "multiple-choice" | "matching" | "sorting",
         "text": "string",
-        "choices": ["string"] (MC: include correct + 3 incorrect),
+        "choices": ["string"] (MC: the correct answer + 2-3 incorrect, similar length),
         "correctAnswer": "string (MC: must match one choice)",
         "matchingPairs": [{"left": "string", "right": "string"}],
         "sortingItems": ["string"] (in correct order)
@@ -2309,11 +2316,30 @@ Guidelines:
 - Distribute steps across the images in a pedagogically meaningful order; do not cluster everything on image 0 unless only one image was provided.
 - Respect any per-image notes the teacher provided (sent as text before each image).
 - Create 4-8 meaningful steps per image that guide learners through the content (scale total step count with image count, cap at ~${Math.min(24, imageCount * 6)}).
-- Use text-popover for key concepts, spotlight to highlight areas, pan-zoom to zoom in on details, pan-zoom-spotlight when both are useful, questions to check understanding.
-- Place hotspots at meaningful locations on the image (xPct/yPct as percentages 0-100, relative to the image they reference).
-- Include at least 1 question step for comprehension checking.
-- Make content educational and age-appropriate.
-- Set autoAdvanceDuration to 5-15 seconds for non-question steps in guided mode.`;
+- All coordinates are percentages of the referenced image (0-100), measured from its top-left corner.
+
+Targets:
+- Give every step that points at one part of the image a "region" that tightly covers that part: a "rect" for buttons, labels, boxes and table cells, an "ellipse" for round or organic shapes. xPct/yPct is the region's centre and wPct/hPct its size, so xPct ± wPct/2 and yPct ± hPct/2 must stay within 0-100. The region is what the learner clicks, and the spotlight and zoom follow its shape.
+- Question steps and steps about the whole image have no region: put xPct/yPct on an empty part of the image and set "cursor": { "hide": true }.
+
+Interaction choice:
+- A control or part the learner should find or click: "spotlight" with "showOverlay": "tooltip" and a region.
+- A small detail on a large image: "pan-zoom" with panZoomScale 2-3, or "pan-zoom-spotlight" when the surroundings distract.
+- A concept that belongs to one area: "text-popover" with a region. A note about a wide area such as a column or panel: "tooltip".
+- A warning or must-read rule: a spotlight or pan-zoom step with "showOverlay": "banner" and "bannerTone" "red" for danger, "blue" for information or "neutral". The banner text is one short sentence.
+- Check understanding with question steps placed after the steps that teach the answer. Include at least 1 question step. Matching and sorting need 3-5 items.
+
+Callouts:
+- Leave out calloutBox and calloutTone on most steps; automatic placement keeps the callout off the target.
+- Use a calloutBox only for a callout that should sit in a specific empty area, such as a margin beside a diagram. xPct/yPct is its top-left corner and wPct/hPct its size, and it must not cover the step's region. It applies only to text-popover and tooltip steps, and to a "popover" or "tooltip" overlay.
+- calloutTone "light" (white card) or "accent" (blue card) only when the default dark card would clash with the image.
+
+Writing:
+- label: 1-4 words naming the thing ("Nucleus", "Save button"). It is also read aloud to screen reader users, so it must make sense on its own.
+- text: 1-2 sentences, 25 words at most, one idea per step. Imperative voice for actions ("Click Save."), declarative for concepts ("The nucleus stores DNA.").
+- Wrap the one key term a step teaches in **double asterisks**, at most once per step. No other markup, lists, headings or line breaks.
+- No filler: no "Let's", "Simply", "Just", "Great!", "Notice how", "dive in", "explore", "journey", rhetorical questions, exclamation points or em-dashes. Do not welcome, congratulate or summarize.
+- Make content educational and age-appropriate.`;
 
       const userPromptHeader = prompt
         ? `Additional instructions: ${sanitizePrompt(prompt)}`

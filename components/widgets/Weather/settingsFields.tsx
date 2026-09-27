@@ -13,6 +13,7 @@ import {
   type EarthNetworksResponse,
   type OpenWeatherData,
 } from './constants';
+import { tourAttr } from '@/config/tourAnchors';
 
 function useWeatherGlobalConfig(): WeatherGlobalConfig | undefined {
   const { featurePermissions } = useAuth();
@@ -41,6 +42,11 @@ export const WeatherFeelsLikeField: React.FC<{
         label={ctx.t('widgetSettings.weather.showFeelsLike')}
         showLabels={false}
         size="sm"
+        anchor={tourAttr(
+          'widget-settings.weather.show-feels-like',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       />
     </div>
   );
@@ -212,6 +218,11 @@ export const WeatherAutoSyncField: React.FC<{
               disabled={loading}
               onClick={() => void fetchStation()}
               className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+              {...tourAttr(
+                'widget-settings.weather.sync-station',
+                ctx.widget.id,
+                ctx.widget.type
+              )}
             >
               {ctx.t('widgets.weather.refreshStation')}
             </button>
@@ -239,6 +250,11 @@ export const WeatherAutoSyncField: React.FC<{
                   disabled={loading || !hasApiKey}
                   onClick={syncCity}
                   className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                  {...tourAttr(
+                    'widget-settings.weather.sync-city',
+                    ctx.widget.id,
+                    ctx.widget.type
+                  )}
                 >
                   {ctx.t('widgetSettings.weather.refreshCity')}
                 </button>

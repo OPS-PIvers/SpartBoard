@@ -7,7 +7,7 @@ export interface RosterGroupsIntegrationSettings {
   /**
    * Surface saved class groups inside board widgets. Ships OFF: a group can be
    * named "Modified Assessments" and boards are projected, so the privacy
-   * behaviour (docs/plans/ROSTER_GROUPS_INTEGRATION.md §2) has to be verified
+   * behaviour (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md §2) has to be verified
    * in a browser before any teacher sees it, and flipping it back is the kill
    * switch.
    */

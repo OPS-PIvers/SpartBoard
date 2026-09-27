@@ -2627,6 +2627,9 @@
     "tourUntagged": "Über den Namen gefunden (noch nicht im Code markiert)",
     "tourWidget": "Welches Widget",
     "tourWidgetPick": "Widget wählen",
+    "tourField": "Welche Einstellung",
+    "tourFieldPick": "Einstellung wählen",
+    "tourFieldPlaceholder": "Einstellungsschlüssel",
     "tourAction": "Wenn die Tour diesen Schritt erreicht",
     "tourAction_click": "Auf den Klick warten",
     "tourAction_observe": "Zeigen, dann Weiter",
@@ -2935,6 +2938,7 @@
     "reopenFailed": "Die Tour konnte nicht wieder im Studio geöffnet werden.",
     "tourAnchorId": "ID:",
     "tourAnchorWidgetType": "Widget:",
+    "tourAnchorFieldKey": "Einstellung:",
     "tourSuggestedId": "Vorgeschlagene ID",
     "tourCopyFailed": "Kopieren fehlgeschlagen. Die ID ist markiert, drücke also Strg+C oder ⌘C.",
     "tourFind": {
@@ -3654,6 +3658,7 @@
     "reason": {
       "unknownAnchor": "Nicht in der Anker-Liste",
       "needsWidgetType": "Widget-Typ fehlt",
+      "needsFieldKey": "Ziel-Einstellung oder -Zeile fehlt",
       "unexpectedWidgetType": "Hat einen Widget-Typ, den dieser Anker nicht annimmt",
       "unknownWidgetType": "Nennt einen Widget-Typ, den es nicht gibt",
       "fieldMisses": "In {{misses}} von {{runs}} echten Durchläufen nicht gefunden",

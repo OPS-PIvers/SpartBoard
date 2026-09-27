@@ -1,5 +1,5 @@
 // Firestore security-rules tests for per-period access on flashcard sessions
-// (docs/plans/PER_PERIOD_ASSIGNMENT_ACCESS.md): the empty-cards create, the
+// (docs/plans/shipped/PER_PERIOD_ASSIGNMENT_ACCESS.md): the empty-cards create, the
 // seat that names the student's period, the fcOpen gate on progress and the
 // hidden content doc. Requires a running Firestore emulator; invoke via
 // `pnpm run test:rules`.

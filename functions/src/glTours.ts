@@ -1,4 +1,4 @@
-// Published live-tour snapshots (docs/plans/GUIDED_LEARNING_STUDIO.md P7-3) and their one-time seed.
+// Published live-tour snapshots (docs/plans/shipped/GUIDED_LEARNING_STUDIO.md P7-3) and their one-time seed.
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';

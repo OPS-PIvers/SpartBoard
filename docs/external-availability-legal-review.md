@@ -6,7 +6,7 @@ remains advisable, but the public copy now reflects the decided operator model._
 
 This is the review packet for the eligibility/availability changes to the public
 legal pages (`/privacy`, `/terms`, and `/support`) made ahead of the
-wide-distribution External flip. See [`docs/wide-distro-plan.md`](./wide-distro-plan.md)
+wide-distribution External flip. See [`docs/wide-distro-plan.md`](wide-distro-plan.md)
 lines 23–26 and 139–141, and its "Open questions → Operator model" section.
 
 ## FINAL decision (operator model)

@@ -266,7 +266,7 @@ describe('ActiveClassChip', () => {
   });
 });
 
-// ─── Pool selection (docs/plans/ROSTER_GROUPS_INTEGRATION.md D8/D16) ──────────
+// ─── Pool selection (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D8/D16) ──────────
 
 describe('ActiveClassChip — group submenu', () => {
   beforeEach(() => vi.clearAllMocks());

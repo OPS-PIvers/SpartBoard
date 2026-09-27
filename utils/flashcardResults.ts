@@ -1,6 +1,6 @@
 /**
  * Pure aggregation for the Flashcards teacher results views
- * (docs/plans/FLASHCARDS.md Q44/Q45). No Firestore, no React.
+ * (docs/plans/shipped/FLASHCARDS.md Q44/Q45). No Firestore, no React.
  */
 import type {
   FlashcardCard,

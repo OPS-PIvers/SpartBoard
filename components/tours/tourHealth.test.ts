@@ -17,6 +17,12 @@ describe('anchorProblem', () => {
     expect(anchorProblem('dock.item:clock')).toBeNull();
   });
 
+  it('accepts per-field anchors with a widget type and needs one without', () => {
+    expect(anchorProblem('settings.field:poll#question')).toBeNull();
+    expect(anchorProblem('settings.field')).toBe('needs-widget-type');
+    expect(anchorProblem('settings.field:poll')).toBe('needs-field-key');
+  });
+
   it('accepts per-widget anchors with or without a widget type', () => {
     expect(anchorProblem('widget.window')).toBeNull();
     expect(anchorProblem('widget.settings-opener:schedule')).toBeNull();
@@ -136,6 +142,41 @@ describe('stepVerdict', () => {
       state: 'needs-open',
       reason: 'widget-not-added',
     });
+  });
+
+  it('counts a widget an earlier step opens', () => {
+    const spawned = { ...health('widget.title'), widgetSpawned: true };
+    expect(stepVerdict(spawned, { widgets: [] }, none, true)).toEqual({
+      state: 'ok',
+      reason: null,
+    });
+    const set = {
+      steps: [
+        {
+          id: 'a',
+          tour: {
+            anchor: 'dock.item:clock',
+            action: 'click',
+            spawns: {
+              slot: 0,
+              type: 'clock',
+              xProp: 0,
+              yProp: 0,
+              wProp: 0.2,
+              hProp: 0.2,
+            },
+          },
+        },
+        {
+          id: 'b',
+          tour: { anchor: 'widget.title', action: 'observe', slot: 0 },
+        },
+      ],
+    } as never;
+    expect(tourHealthOf(set).map((h) => h.widgetSpawned)).toEqual([
+      false,
+      true,
+    ]);
   });
 
   it('is broken when unregistered, missed in real runs, or absent with nothing to open', () => {

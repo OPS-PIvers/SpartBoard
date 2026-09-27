@@ -100,6 +100,7 @@ const Panel: React.FC<{
       >
         <LibraryShell
           widgetLabel="Quiz"
+          widgetType="quiz"
           tab={tab}
           onTabChange={setTab}
           counts={{ library: FAKE_QUIZZES.length, active: 3, archive: 2 }}
@@ -122,6 +123,7 @@ const Panel: React.FC<{
                 search={search}
                 onSearchChange={setSearch}
                 searchPlaceholder="Search quizzes…"
+                widgetType="quiz"
                 sort={sort}
                 sortOptions={[
                   { key: 'updated', label: 'Last updated', defaultDir: 'desc' },
@@ -138,11 +140,13 @@ const Panel: React.FC<{
             <LibraryGrid<FakeQuiz>
               items={FAKE_QUIZZES}
               getId={(q) => q.id}
-              renderCard={(q) => (
+              renderCard={(q, index) => (
                 <LibraryItemCard<FakeQuiz>
                   key={q.id}
                   id={q.id}
                   title={q.title}
+                  tourIndex={index}
+                  tourWidgetType="quiz"
                   subtitle={q.subtitle}
                   badges={
                     q.id === 'q2'
@@ -181,6 +185,8 @@ const Panel: React.FC<{
               <AssignmentArchiveCard<FakeAssignment>
                 assignment={{ id: 'a1' }}
                 mode="active"
+                tourIndex={0}
+                tourWidgetType="quiz"
                 status={{ label: 'Live', tone: 'success', dot: true }}
                 title="Fractions Review"
                 subtitle="Period 3 — Mathematics (Room 214)"
@@ -205,6 +211,8 @@ const Panel: React.FC<{
               <AssignmentArchiveCard<FakeAssignment>
                 assignment={{ id: 'a2' }}
                 mode="active"
+                tourIndex={1}
+                tourWidgetType="quiz"
                 status={{ label: 'Paused', tone: 'warn', dot: true }}
                 title="Westward Expansion — Unit 4 Checkpoint with a Long Title"
                 subtitle="Period 5 — American History"
@@ -221,6 +229,8 @@ const Panel: React.FC<{
               <AssignmentArchiveCard<FakeAssignment>
                 assignment={{ id: 'a3' }}
                 mode="active"
+                tourIndex={2}
+                tourWidgetType="quiz"
                 status={{ label: 'Shared', tone: 'info' }}
                 title="Vocabulary Week 12"
                 subtitle="View-only share"
@@ -238,6 +248,8 @@ const Panel: React.FC<{
               <AssignmentArchiveCard<FakeAssignment>
                 assignment={{ id: 'a4' }}
                 mode="archive"
+                tourIndex={0}
+                tourWidgetType="quiz"
                 status={{ label: 'Ended', tone: 'neutral' }}
                 title="Cell Structure"
                 subtitle="Period 1 — Biology"
@@ -260,6 +272,8 @@ const Panel: React.FC<{
               <AssignmentArchiveCard<FakeAssignment>
                 assignment={{ id: 'a5' }}
                 mode="archive"
+                tourIndex={1}
+                tourWidgetType="quiz"
                 status={{ label: 'Closed', tone: 'neutral' }}
                 title="Exit Ticket 5/28"
                 subtitle="Period 3 — Mathematics"

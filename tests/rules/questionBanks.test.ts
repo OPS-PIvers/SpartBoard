@@ -1,5 +1,5 @@
 // Firestore security-rules regression for question banks
-// (docs/plans/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md §5, PR 2):
+// (docs/plans/shipped/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md §5, PR 2):
 //   - /users/{uid}/question_banks + question_bank_folders: owner-only
 //   - /synced_question_banks/{groupId}: any authed get, owner-only writes,
 //     version +1, list closed

@@ -1,6 +1,6 @@
 /**
  * One key-merge step for both readers and both key sources
- * (docs/plans/QUIZ_IMPORT_RELIABILITY.md R10–R13).
+ * (docs/plans/shipped/QUIZ_IMPORT_RELIABILITY.md R10–R13).
  *
  * A key matches by section, item and part when both the test and the key
  * print sections; otherwise by item number when the test's numbers are unique,

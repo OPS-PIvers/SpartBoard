@@ -3,7 +3,7 @@
  *
  * Writes the `PaperBatch` that the scan import later reads seats out of, so a
  * successful print is the point of no return: the batch must be saved before
- * the paper exists. See docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md §6.
+ * the paper exists. See docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md §6.
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';

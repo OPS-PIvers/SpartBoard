@@ -160,7 +160,7 @@ interface ShareCollectionInput {
 
 /**
  * The share's shape as the sub will walk it: one section per collection in the
- * tree, boards named and ordered (docs/plans/SUB_SHARE_COLLECTIONS.md §3.1).
+ * tree, boards named and ordered (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md §3.1).
  * Built on the teacher's client by `utils/subShareSnapshot`.
  */
 export interface SubShareTree {

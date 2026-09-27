@@ -126,7 +126,7 @@ export const TabExitLog: React.FC<
 
 /**
  * Makes a student's tab-warning count clickable, opening every exit with its
- * time away (docs/plans/TAB_AWAY_TIMER.md §2.6). Without the tab-away-timer
+ * time away (docs/plans/shipped/TAB_AWAY_TIMER.md §2.6). Without the tab-away-timer
  * flag it renders the count unchanged.
  */
 export const TabExitsPopover: React.FC<TabExitsPopoverProps> = ({

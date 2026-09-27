@@ -1,4 +1,4 @@
-// Teacher review of Flashcards Check flags (docs/plans/FLASHCARDS.md §2.6 Q41, §7).
+// Teacher review of Flashcards Check flags (docs/plans/shipped/FLASHCARDS.md §2.6 Q41, §7).
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import './functionsInit';

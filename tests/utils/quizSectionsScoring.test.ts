@@ -1,4 +1,4 @@
-/** Choose-N sections in scoring and results (docs/plans/QUIZ_EXAMVIEW_IMPORT.md E14). */
+/** Choose-N sections in scoring and results (docs/plans/shipped/QUIZ_EXAMVIEW_IMPORT.md E14). */
 import { describe, it, expect } from 'vitest';
 import type { QuizQuestion, QuizResponse, QuizSessionSection } from '@/types';
 import {

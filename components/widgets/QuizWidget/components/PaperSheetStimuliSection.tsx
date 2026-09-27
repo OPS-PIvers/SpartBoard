@@ -1,6 +1,6 @@
 /**
  * "Add to the answer sheet" — the only place paper sheet stimuli are authored
- * (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D18). Collapsed until the teacher
+ * (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md D18). Collapsed until the teacher
  * opens it, so a teacher who never wants one never sees it.
  *
  * Presentational: the parent owns the list and the resolved image sources, so

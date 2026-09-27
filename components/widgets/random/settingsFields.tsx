@@ -18,6 +18,7 @@ import { getLocalIsoDate } from '@/utils/localDate';
 import { countRosterGroupMembers } from '@/utils/rosterGroups';
 import { combineRosterNames } from '@/utils/rosterNameLists';
 import { useRosterGroupsIntegrationSettings } from '@/hooks/useRosterGroupsIntegrationSettings';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 function useStudentCount(config: RandomConfig): number {
   const { rosters, activeRosterId } = useDashboard();
@@ -64,6 +65,11 @@ export const RandomGroupCountField: React.FC<{
       aria-labelledby={ctx.labelId}
       aria-describedby={ctx.describedBy}
       className="flex items-center gap-3"
+      {...tourAttr(
+        'widget-settings.random.group-count',
+        ctx.widget.id,
+        ctx.widget.type
+      )}
     >
       <input
         type="range"
@@ -135,6 +141,11 @@ export const RandomRosterActionsField: React.FC<{
         disabled={!activeRoster}
         onClick={importRoster}
         className="rounded-lg bg-brand-blue-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"
+        {...tourAttr(
+          'widget-settings.random.import-class',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       >
         {ctx.t('widgetSettings.random.importClass')}
       </button>
@@ -142,6 +153,11 @@ export const RandomRosterActionsField: React.FC<{
         type="button"
         onClick={() => void clearNames()}
         className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
+        {...tourAttr(
+          'widget-settings.random.clear-names',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       >
         {ctx.t('widgetSettings.random.clearNames')}
       </button>
@@ -242,6 +258,11 @@ export const RandomSendToStationsField: React.FC<{
       disabled={!stationsWidget}
       onClick={() => void send()}
       className="w-full rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-40"
+      {...tourAttr(
+        'widget-settings.random.send-stations',
+        ctx.widget.id,
+        ctx.widget.type
+      )}
     >
       {ctx.t('widgetSettings.random.sendToStations')}
     </button>
@@ -345,6 +366,11 @@ export const RandomSendToProjectsField: React.FC<{
       disabled={!projectsWidget}
       onClick={() => void send()}
       className="w-full rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-40"
+      {...tourAttr(
+        'widget-settings.random.send-projects',
+        ctx.widget.id,
+        ctx.widget.type
+      )}
     >
       {ctx.t('widgetSettings.random.sendToProjects')}
     </button>
@@ -353,7 +379,7 @@ export const RandomSendToProjectsField: React.FC<{
 
 /**
  * "Keep these groups together" — the Lock role
- * (docs/plans/ROSTER_GROUPS_INTEGRATION.md D6/D7).
+ * (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D6/D7).
  *
  * Deliberately separate from the pool control in the class picker: one
  * checkbox meaning "include" or "keep together" depending on what else is
@@ -409,7 +435,7 @@ export const RandomLockedGroupsField: React.FC<{ ctx: CustomRenderCtx }> = ({
       aria-describedby={ctx.describedBy}
       className="flex flex-col gap-1"
     >
-      {groups.map((g) => {
+      {groups.map((g, groupIndex) => {
         const size = countRosterGroupMembers(activeRoster, g.id) ?? 0;
         return (
           <label
@@ -420,6 +446,12 @@ export const RandomLockedGroupsField: React.FC<{ ctx: CustomRenderCtx }> = ({
               type="checkbox"
               checked={locked.includes(g.id)}
               onChange={() => toggle(g.id)}
+              {...tourFieldAttr(
+                'widget-settings.random.locked-group',
+                ctx.widget.type,
+                `row-${groupIndex + 1}`
+              )}
+              data-tour-widget={ctx.widget.id}
               className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
             />
             <Lock size={14} className="text-slate-400 shrink-0" />
@@ -436,7 +468,7 @@ export const RandomLockedGroupsField: React.FC<{ ctx: CustomRenderCtx }> = ({
 
 /**
  * "Save as class groups" — the write-back half of the two-way link
- * (docs/plans/ROSTER_GROUPS_INTEGRATION.md D3/D18).
+ * (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D3/D18).
  *
  * Always creates; it never edits a saved group in place, so a teacher can't
  * lose a hand-built group to a stray randomize. Saves `studentIds` rather

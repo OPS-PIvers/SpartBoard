@@ -1,10 +1,13 @@
 import React, { useId } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { ToggleRow } from './ToggleRow';
 
 interface LimitsAndEditingProps {
   maxPostsPerStudent: number;
   allowStudentEdit: boolean;
   allowStudentDelete: boolean;
+  widgetId: string;
+  widgetType: string;
   onChange: (patch: {
     maxPostsPerStudent?: number;
     allowStudentEdit?: boolean;
@@ -24,6 +27,8 @@ export const LimitsAndEditing: React.FC<LimitsAndEditingProps> = ({
   maxPostsPerStudent,
   allowStudentEdit,
   allowStudentDelete,
+  widgetId,
+  widgetType,
   onChange,
 }) => {
   const customId = useId();
@@ -31,7 +36,9 @@ export const LimitsAndEditing: React.FC<LimitsAndEditingProps> = ({
 
   return (
     <div className="space-y-3">
-      <fieldset>
+      <fieldset
+        {...tourAttr('activity-wall-editor.max-posts', widgetId, widgetType)}
+      >
         <legend className="text-sm font-bold text-slate-700">
           Max posts per student
         </legend>
@@ -100,11 +107,21 @@ export const LimitsAndEditing: React.FC<LimitsAndEditingProps> = ({
         label="Students may edit their posts"
         checked={allowStudentEdit}
         onChange={(next) => onChange({ allowStudentEdit: next })}
+        anchor={tourAttr(
+          'activity-wall-editor.allow-edit',
+          widgetId,
+          widgetType
+        )}
       />
       <ToggleRow
         label="Students may delete their posts"
         checked={allowStudentDelete}
         onChange={(next) => onChange({ allowStudentDelete: next })}
+        anchor={tourAttr(
+          'activity-wall-editor.allow-delete',
+          widgetId,
+          widgetType
+        )}
       />
       <p className="text-xs text-slate-600">Only while the wall is open.</p>
     </div>

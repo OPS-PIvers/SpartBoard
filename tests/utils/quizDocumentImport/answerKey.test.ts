@@ -1,5 +1,5 @@
 /**
- * The answer-key block (docs/plans/QUIZ_DOCUMENT_IMPORT.md D2).
+ * The answer-key block (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D2).
  *
  * A key entry is written exactly like a numbered question whose text is a
  * single letter, so the risk runs both ways: miss the key and every question

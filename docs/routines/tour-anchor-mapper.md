@@ -1,6 +1,6 @@
 # Tour anchor mapper routine
 
-A Claude Code routine that tags the elements live-tour authors clicked but that had no `data-tour` anchor. Recordings queue those clicks in `tour_anchor_queue` (Live Tours v2, `docs/plans/LIVE_TOURS_V2.md`). This routine reads the queue through a private endpoint, registers anchors, opens one PR per run against `dev-paul`, and reports back.
+A Claude Code routine that tags the elements live-tour authors clicked but that had no `data-tour` anchor. Recordings queue those clicks in `tour_anchor_queue` (Live Tours v2, `docs/plans/shipped/LIVE_TOURS_V2.md`). This routine reads the queue through a private endpoint, registers anchors, opens one PR per run against `dev-paul`, and reports back.
 
 ## Triggers
 

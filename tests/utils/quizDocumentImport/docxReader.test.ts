@@ -1,5 +1,5 @@
 /**
- * The Word reader (docs/plans/QUIZ_DOCUMENT_IMPORT.md D2, D4, D13). Fixtures
+ * The Word reader (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D2, D4, D13). Fixtures
  * are real .docx archives built with JSZip rather than stubs, so the test
  * fails if the parts of the format we depend on are read wrongly.
  */
@@ -206,7 +206,7 @@ describe('readDocx — pictures', () => {
   });
 });
 
-/* ─── Layout (docs/plans/QUIZ_IMPORT_RELIABILITY.md R2, R24) ──────────────── */
+/* ─── Layout (docs/plans/shipped/QUIZ_IMPORT_RELIABILITY.md R2, R24) ──────────────── */
 
 const cell = (inner: string, props = ''): string =>
   `<w:tc>${props ? `<w:tcPr>${props}</w:tcPr>` : ''}${inner}</w:tc>`;

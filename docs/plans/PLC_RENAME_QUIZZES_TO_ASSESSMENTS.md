@@ -3,7 +3,7 @@
 **Status:** outline only, not grilled
 **Origin:** lead-teacher feedback 2026-09-09: "I'd rather just rename quizzes as
 assessments"; separate quiz and assessment concepts feel like Schoology.
-**Depends on:** `docs/plans/PLC_ASSESSMENT_DATA.md` PR 2 (merged Assessments tab)
+**Depends on:** `docs/plans/shipped/PLC_ASSESSMENT_DATA.md` PR 2 (merged Assessments tab)
 
 ## Outline
 

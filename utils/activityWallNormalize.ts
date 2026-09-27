@@ -134,7 +134,7 @@ export function normalizeActivityWallLibraryEntry(
     updatedAt: typeof updatedAt === 'number' ? updatedAt : 0,
     // Padlet-lite redesign (P1-1): derive every new field from the legacy
     // mode/identificationMode when the document predates the field, per the
-    // mapping in docs/plans/ACTIVITY_WALL_REDESIGN.md's Data model section.
+    // mapping in docs/plans/shipped/ACTIVITY_WALL_REDESIGN.md's Data model section.
     layout: layout ?? layoutFromLegacyMode(resolvedMode),
     allowedTypes: allowedTypes ?? allowedTypesFromLegacyMode(resolvedMode),
     appearance: appearance ?? ACTIVITY_WALL_DEFAULT_APPEARANCE,

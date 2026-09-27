@@ -56,7 +56,7 @@ Details in §4 and §5.
 
 ### Evidence, file by file
 
-**`functions/src/aiGeneration.ts`** — the main Gemini caller. As of 2026-09-25 `quizDocumentExtract.ts`, `quizStimulusText.ts` and `quizTranslation.ts` also import `@google/genai`, all on the same Vertex client settings, and the paper handwriting worker will join them (docs/plans/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md).
+**`functions/src/aiGeneration.ts`** — the main Gemini caller. As of 2026-09-25 `quizDocumentExtract.ts`, `quizStimulusText.ts` and `quizTranslation.ts` also import `@google/genai`, all on the same Vertex client settings, and the paper handwriting worker will join them (docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md).
 
 ```ts
 // line 4

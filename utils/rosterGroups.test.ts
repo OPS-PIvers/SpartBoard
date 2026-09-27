@@ -1,6 +1,6 @@
 /**
  * Pool resolution for saved class groups
- * (docs/plans/ROSTER_GROUPS_INTEGRATION.md D22).
+ * (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D22).
  *
  * `null` is load-bearing: every caller reads it as "no pool, use the whole
  * class". Returning an empty Set instead would hide the entire roster, which

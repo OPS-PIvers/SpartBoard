@@ -1,4 +1,4 @@
-// Copies non-student config from prod (spartboard) into spartboard-dev. Read-only on prod; see docs/plans/DEV_FIREBASE_PROJECT.md.
+// Copies non-student config from prod (spartboard) into spartboard-dev. Read-only on prod; see docs/plans/shipped/DEV_FIREBASE_PROJECT.md.
 // Usage: node scripts/dev-seed/copy-config-from-prod.mjs [--dry-run]
 // Prod creds: scripts/service-account-key.json. Dev creds: gcloud application-default login.
 import { initializeApp, cert, applicationDefault } from 'firebase-admin/app';

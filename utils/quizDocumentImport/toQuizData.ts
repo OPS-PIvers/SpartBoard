@@ -1,6 +1,6 @@
 /**
  * Turns what the reader found into a real quiz
- * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D5, D12).
+ * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D5, D12).
  *
  * Questions the reader couldn't find an answer for are carried across with
  * `needsKey`, which is what lets the quiz save and open in the editor while

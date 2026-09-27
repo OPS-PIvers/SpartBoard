@@ -353,7 +353,7 @@ A wave's PRs touch disjoint files (see the ownership table) and can be built in 
   - `config/featureDefaults.ts`
   - `utils/paperWritten.ts` (new; constants, `defaultPaperBoxSize`, `paperWrittenView`, status helpers)
   - `docs/gemini-api-terms-audit.md`
-  - `docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md` (point Q4 and §10 here)
+  - `docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md` (point Q4 and §10 here)
 - **Acceptance tests:**
   - `paperWrittenView` for each mode × status
   - `defaultPaperBoxSize` boundaries

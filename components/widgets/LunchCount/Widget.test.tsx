@@ -10,7 +10,7 @@ import { mockPointerEvent } from '@/tests/testHelpers/mocks';
 vi.mock('@/context/useDashboard');
 vi.mock('@/context/useAuth');
 // Class groups default OFF here, so these suites keep asserting the
-// pre-feature behaviour (docs/plans/ROSTER_GROUPS_INTEGRATION.md D23).
+// pre-feature behaviour (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D23).
 // Flip `gate.enabled` inside a test to exercise the feature.
 const gate = vi.hoisted(() => ({ enabled: false }));
 vi.mock('@/hooks/useRosterGroupsGate', () => ({
@@ -240,7 +240,7 @@ describe('LunchCountWidget', () => {
 });
 
 /**
- * Pool filter (docs/plans/ROSTER_GROUPS_INTEGRATION.md D22). Asserted here
+ * Pool filter (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D22). Asserted here
  * rather than trusted to match Checklist's — two widgets sharing a shape is
  * exactly how the ungated sibling control slipped through on PR 2.
  */

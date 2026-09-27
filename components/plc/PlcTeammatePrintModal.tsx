@@ -1,6 +1,6 @@
 /**
  * PlcTeammatePrintModal — pick a PLC teammate who is out, see what would print
- * for them, then print it (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md §6).
+ * for them, then print it (docs/plans/shipped/PLC_DELEGATED_PAPER_PRINTING.md §6).
  *
  * The browser never plans the batch: it sends selections and prints whatever
  * seat map the server hands back (D16), so a peer cannot point a seat at an

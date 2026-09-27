@@ -1,0 +1,249 @@
+<title>Unit Overview Mockup</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap">
+<style>
+:root{color-scheme:light;--ink:#1e293b;--muted:#475569;--faint:#94a3b8;--blue:#2d3f89;--blue-soft:#e8ebf7;--red:#ad2122;--amber:#b45309;--glass:rgba(255,255,255,.86);--line:rgba(148,163,184,.28);font-family:Lexend,system-ui,sans-serif}
+body{margin:0;background:#0f172a;color:#e2e8f0;padding-inline:16px;padding-block:28px 60px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:36px}
+h1{font-weight:600;font-size:22px;margin:0;color:#f1f5f9;text-wrap:balance}
+.lede{color:#cbd5e1;margin:6px 0 0;max-width:70ch;line-height:1.55;font-weight:300}
+.scene h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#cbd5e1;font-weight:500;margin:0 0 4px}
+.scene p.cap{margin:0 0 14px;color:#cbd5e1;font-size:13px;font-weight:300;max-width:75ch}
+.board{position:relative;border-radius:18px;padding:64px 28px 28px;background:radial-gradient(1200px 500px at 20% 0%,#3b5b8c 0%,transparent 60%),radial-gradient(900px 500px at 90% 100%,#5b4a7a 0%,transparent 55%),#1f2d45;overflow-x:auto}
+.win{position:relative;background:var(--glass);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.6);border-radius:22px;box-shadow:0 20px 50px rgba(2,6,23,.45);color:var(--ink);outline:2px solid rgba(96,165,250,.0)}
+.win.sel{outline:2px solid rgba(147,197,253,.7);outline-offset:2px}
+.pill{position:absolute;top:-50px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:6px;background:rgba(255,255,255,.42);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.5);border-radius:999px;box-shadow:0 18px 40px rgba(2,6,23,.35);white-space:nowrap}
+.pill .t{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#334155;padding:0 8px}
+.ib{width:26px;height:26px;border-radius:999px;display:grid;place-items:center;background:rgba(255,255,255,.55);color:#334155}
+.ib svg{width:14px;height:14px}
+.sep{width:1px;height:16px;background:rgba(100,116,139,.35);margin:0 2px}
+.seg{display:flex;background:rgba(255,255,255,.55);border-radius:999px;padding:2px}
+.seg span{font-size:10px;font-weight:600;padding:4px 10px;border-radius:999px;color:#475569}
+.seg span.on{background:var(--blue);color:#fff}
+/* focus */
+.focus{width:760px;height:420px;display:flex;flex-direction:column;padding:26px 34px}
+.fhead{display:flex;justify-content:space-between;align-items:baseline;gap:16px}
+.utitle{font-size:15px;font-weight:600;color:var(--blue)}
+.week{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:10px}
+.bar{width:120px;height:6px;border-radius:9px;background:#e2e8f0;overflow:hidden}.bar i{display:block;height:100%;width:43%;background:var(--blue)}
+.eq{margin-top:22px;font-size:25px;font-weight:300;line-height:1.3;color:var(--ink);text-wrap:balance}
+.eq b{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--red);margin-bottom:6px}
+.tlabel{margin-top:22px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--blue)}
+.targets{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:10px}
+.targets li{font-size:21px;font-weight:500;line-height:1.3;display:flex;gap:12px}
+.targets li:before{content:"";flex:none;width:10px;height:10px;margin-top:9px;border-radius:3px;background:var(--blue)}
+.vocab{margin-top:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.vocab em{font-style:normal;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.chip{font-size:14px;padding:5px 12px;border-radius:999px;background:var(--blue-soft);color:var(--blue);font-weight:500}
+/* overview */
+.ov{width:1080px;height:560px;padding:22px 24px;display:flex;flex-direction:column;gap:14px}
+.ovh{display:flex;justify-content:space-between;align-items:baseline}
+.ovh .utitle{font-size:20px}
+.grid{flex:1;display:grid;grid-template-columns:1.25fr 1fr 1fr;grid-template-rows:auto 1fr;gap:12px;min-height:0}
+.card{background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:14px;padding:14px 16px;overflow:auto}
+.card h3{margin:0 0 8px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--blue);display:flex;justify-content:space-between}
+.card h3 small{color:var(--faint);font-weight:500;letter-spacing:0}
+.card ul{margin:0;padding-left:0;list-style:none;display:grid;gap:7px;font-size:13.5px;line-height:1.4}
+.card li{display:flex;gap:8px}
+.ck{flex:none;width:15px;height:15px;border-radius:4px;border:1.5px solid #94a3b8;margin-top:2px;display:grid;place-items:center}
+.ck.done{background:#16a34a;border-color:#16a34a}.ck.done:after{content:"";width:7px;height:4px;border:2px solid #fff;border-top:0;border-right:0;transform:rotate(-45deg) translate(1px,-1px)}
+li.done span{color:var(--faint);text-decoration:line-through}
+li.today span{font-weight:600}
+.star{flex:none;color:var(--amber);font-size:12px;margin-top:1px}
+.code{font-size:11px;font-weight:600;color:var(--blue);background:var(--blue-soft);border-radius:5px;padding:1px 6px;margin-right:6px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.span2{grid-row:span 2}
+.cols2{columns:2;column-gap:14px}.cols2 li{break-inside:avoid;margin-bottom:6px}
+.lnk{color:var(--blue);text-decoration:underline;text-decoration-color:rgba(45,63,137,.35)}
+.tag{font-size:10px;font-weight:600;border-radius:5px;padding:1px 6px;margin-left:6px}
+.tag.f{background:#ecfdf5;color:#047857}.tag.s{background:#fef2f2;color:var(--red)}
+/* narrow + empty */
+.row{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
+.narrow{width:340px;height:440px;padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.narrow .utitle{font-size:14px}
+.narrow .targets li{font-size:16px}.narrow .targets li:before{margin-top:6px}
+.empty{width:340px;height:260px;display:grid;place-items:center;text-align:center;padding:20px}
+.empty h4{margin:0;font-size:17px;font-weight:600}.empty p{margin:6px 0 16px;color:var(--muted);font-size:13px}
+.btn{display:inline-block;background:var(--blue);color:#fff;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600}
+.btn.ghost{background:#fff;color:var(--blue);border:1px solid var(--line)}
+.unavail{width:340px;height:170px;display:grid;place-items:center;text-align:center;padding:20px}
+/* drawer */
+.drawer{width:320px;background:#fff;color:var(--ink);border-radius:18px;padding:18px;box-shadow:0 20px 50px rgba(2,6,23,.45);display:grid;gap:14px;font-size:13px}
+.drawer h4{margin:0;font-size:14px;font-weight:600}
+.fld{display:grid;gap:6px}.fld label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.sel{border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;justify-content:space-between}
+.tg{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f1f5f9}
+.sw{width:30px;height:17px;border-radius:9px;background:#cbd5e1;position:relative}.sw:after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:#fff}
+.sw.on{background:var(--blue)}.sw.on:after{left:15px}
+.grip{color:var(--faint);margin-right:8px}
+/* modal */
+.modal{width:1080px;height:560px;background:#f8fafc;color:var(--ink);border-radius:20px;box-shadow:0 30px 70px rgba(2,6,23,.55);display:grid;grid-template-columns:260px 1fr;overflow:hidden}
+.lib{background:#fff;border-right:1px solid #e2e8f0;padding:18px;display:flex;flex-direction:column;gap:10px}
+.lib h4{margin:0 0 4px;font-size:15px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.lib .it{padding:10px 12px;border-radius:12px;font-size:13px;display:grid;gap:2px}
+.lib .it small{color:var(--muted)}
+.lib .it.on{background:var(--blue-soft);color:var(--blue);font-weight:600}
+.lib .arch{margin-top:auto;font-size:12px;color:var(--muted)}
+.ed{padding:20px 26px;overflow:auto;display:grid;gap:14px;align-content:start}
+.edh{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.edh input{font:600 20px Lexend,sans-serif;border:0;background:transparent;color:var(--ink);width:100%}
+.meta{display:flex;gap:10px;flex-wrap:wrap}.meta span{font-size:12px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:5px 10px;color:var(--muted)}
+.sec{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px 14px;display:grid;gap:8px}
+.sec .sh{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;color:var(--blue);letter-spacing:.08em;text-transform:uppercase}
+.sec .sh em{font-style:normal;color:var(--faint);text-transform:none;letter-spacing:0;font-weight:400}
+.srow{font-size:13px;display:flex;gap:8px;align-items:center;padding:6px 8px;border-radius:8px;background:#f8fafc}
+.src{font-size:10px;font-weight:600;padding:1px 6px;border-radius:5px;background:#f1f5f9;color:var(--muted)}
+.add{font-size:12px;color:var(--blue);font-weight:600}
+.addsec{border:1.5px dashed #cbd5e1;border-radius:14px;padding:10px;text-align:center;font-size:13px;color:var(--muted)}
+.notes{display:grid;gap:6px;color:#cbd5e1;font-size:13px;line-height:1.5;font-weight:300;max-width:80ch}
+.notes b{color:#f1f5f9;font-weight:500}
+</style>
+
+<div class="wrap">
+<header>
+<h1>Unit Overview widget: mockup</h1>
+<p class="lede">Sample content from the Grade 9 Coming of Age unit sheet, drawn in SpartBoard's widget chrome: the frosted glass window, the floating toolbar pill that appears on select, and the settings drawer. These are layout proposals to react to, not final visuals.</p>
+</header>
+
+<section class="scene">
+<h2>1 · Focus mode, projected</h2>
+<p class="cap">What students see at the start of class. Only the items the teacher marked for today, in large type. The Focus/Overview switch sits in the toolbar next to settings.</p>
+<div class="board">
+<div class="win sel focus">
+ <div class="pill"><span class="t">Unit Overview</span><span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.8 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 14H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 3V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 10h.1a2 2 0 1 1 0 4z"/></svg></span><span class="seg"><span class="on">Focus</span><span>Overview</span></span><span class="sep"></span><span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 17v5M9 10.8V4h6v6.8l3 3.2H6z"/></svg></span><span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></span><span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></span></div>
+ <div class="fhead"><span class="utitle">Coming of Age · English 9</span><span class="week">Week 3 of 7 <span class="bar"><i></i></span></span></div>
+ <div class="eq"><b>Essential question</b>How do societal, cultural, and historical contexts shape the coming-of-age experiences of different characters?</div>
+ <div class="tlabel">Today I can…</div>
+ <ul class="targets">
+  <li>determine the central message (theme) of a coming-of-age story.</li>
+  <li>find and use strong textual evidence to support my ideas in discussion.</li>
+ </ul>
+ <div class="vocab"><em>Words today</em><span class="chip">Epiphany</span><span class="chip">Catalyst</span><span class="chip">Turning point</span></div>
+</div>
+</div>
+</section>
+
+<section class="scene">
+<h2>2 · Overview mode</h2>
+<p class="cap">The whole unit at a glance as a grid of section cards. Each widget picks which sections appear and in what order. Items starred for today are bold, and a checkbox marks each item this class has covered. Both marks are stored per widget, so a board for 2nd hour can run ahead of 5th hour.</p>
+<div class="board">
+<div class="win ov">
+ <div class="ovh"><span class="utitle">Coming of Age</span><span class="week">Grade 9 · 6–7 weeks · Week 3 of 7 <span class="bar"><i></i></span></span></div>
+ <div class="grid">
+  <div class="card span2"><h3>Learning targets <small>4 of 11 covered</small></h3><ul>
+   <li class="done"><span class="ck done"></span><span>I can identify the traits and characteristics of a coming-of-age story.</span></li>
+   <li class="done"><span class="ck done"></span><span>I can identify coming-of-age elements in fiction and creative nonfiction.</span></li>
+   <li class="done"><span class="ck done"></span><span>I can describe the central idea in a text and how the author develops it.</span></li>
+   <li class="done"><span class="ck done"></span><span>I can connect coming-of-age themes to an adult's experience of growing up.</span></li>
+   <li class="today"><span class="ck"></span><span>I can determine the central message (theme) of a coming-of-age story. <span class="star">★</span></span></li>
+   <li class="today"><span class="ck"></span><span>I can find and use strong textual evidence to support my ideas. <span class="star">★</span></span></li>
+   <li><span class="ck"></span><span>I can analyze how narrator's point of view, foreshadowing, pacing, and flashbacks shape a theme.</span></li>
+   <li><span class="ck"></span><span>I can participate in a meaningful discussion by coming prepared and responding with evidence.</span></li>
+   <li><span class="ck"></span><span>I can develop interview questions and interview an adult about their coming-of-age experience.</span></li>
+   <li><span class="ck"></span><span>I can collaborate with peers to design a coming-of-age storyboard.</span></li>
+  </ul></div>
+  <div class="card"><h3>Essential questions</h3><ul>
+   <li><span>What defines "coming of age," and how does it relate to identity?</span></li>
+   <li class="today"><span>How do societal, cultural, and historical contexts shape these experiences? <span class="star">★</span></span></li>
+   <li><span>What common challenges do characters face on the way to maturity?</span></li>
+  </ul></div>
+  <div class="card"><h3>Standards</h3><ul>
+   <li><span><span class="code">9.4.1.1</span>Cite strong textual evidence to support analysis.</span></li>
+   <li><span><span class="code">9.4.2.2</span>Determine a theme and analyze its development.</span></li>
+   <li><span><span class="code">9.9.1.1</span>Initiate and participate in collaborative discussions.</span></li>
+  </ul></div>
+  <div class="card"><h3>Readings &amp; viewings</h3><ul>
+   <li><span><span class="lnk">The Wonder Years: "The Square Dance"</span></span></li>
+   <li><span><span class="lnk">By Any Other Name</span> · Santha Rama Rau</span></li>
+   <li><span><span class="lnk">Is Everyone Hanging Out Without Me?</span> · Mindy Kaling</span></li>
+   <li><span><span class="lnk">Us and Them</span> · David Sedaris</span></li>
+   <li><span><span class="lnk">Reindeer Games</span> · Sherman Alexie</span></li>
+  </ul></div>
+  <div class="card"><h3>Vocabulary <small>15</small></h3><ul class="cols2">
+   <li><span>Bildungsroman</span></li><li><span>Protagonist</span></li><li class="today"><span>Epiphany ★</span></li><li><span>Naivete</span></li><li><span>Idealism</span></li><li><span>Realism</span></li><li class="today"><span>Turning point ★</span></li><li class="today"><span>Catalyst ★</span></li><li><span>Discovery</span></li><li><span>Identity</span></li>
+  </ul>
+  <h3 style="margin-top:12px">Assessments</h3><ul>
+   <li><span>Wonder Years short stories <span class="tag f">Formative</span></span></li>
+   <li><span>Storyboard and pitch <span class="tag s">Summative</span></span></li>
+  </ul></div>
+ </div>
+</div>
+</div>
+</section>
+
+<section class="scene">
+<h2>3 · Small sizes, empty state, missing unit</h2>
+<p class="cap">Resized narrow, the widget shows the sections in one scrolling column. A new widget opens to a single action. A unit that was hard-deleted shows a re-pick prompt; an archived unit keeps rendering.</p>
+<div class="board"><div class="row">
+ <div class="win narrow">
+  <span class="utitle">Coming of Age · Week 3/7</span>
+  <div class="tlabel" style="margin-top:4px">Today I can…</div>
+  <ul class="targets"><li>determine the central message (theme) of a coming-of-age story.</li><li>find and use strong textual evidence to support my ideas.</li></ul>
+  <div class="tlabel">Standards</div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="code">9.4.1.1</span><span class="code">9.4.2.2</span><span class="code">9.9.1.1</span></div>
+  <div class="vocab"><span class="chip">Epiphany</span><span class="chip">Catalyst</span></div>
+ </div>
+ <div style="display:grid;gap:26px">
+  <div class="win empty"><div><h4>No unit selected</h4><p>Pick a unit from your library or start a new one.</p><span class="btn">Choose unit</span></div></div>
+  <div class="win unavail"><div><h4 style="margin:0;font-size:15px;font-weight:600">This unit was deleted</h4><p style="margin:6px 0 12px;color:var(--muted);font-size:13px">Choose another unit to show here.</p><span class="btn ghost">Choose unit</span></div></div>
+ </div>
+</div></div>
+</section>
+
+<section class="scene">
+<h2>4 · Settings drawer (per widget)</h2>
+<p class="cap">Settings for this board's copy of the widget: which unit it shows, the default mode, which sections appear and in what order, how standards read, and the unit start date that drives "Week X of Y". The unit's content itself is edited in the library.</p>
+<div class="board"><div class="row">
+ <div class="drawer">
+  <h4>Unit Overview</h4>
+  <div class="fld"><label>Unit</label><div class="sel"><span>Coming of Age · English 9</span><span>▾</span></div><span class="add">Edit unit in library</span></div>
+  <div class="fld"><label>Start date</label><div class="sel"><span>Sep 14, 2026</span><span>7 weeks</span></div></div>
+  <div class="fld"><label>Standards show</label><div class="seg" style="background:#f1f5f9;width:max-content"><span class="on">Code + text</span><span>Codes</span><span>Text</span></div></div>
+  <div class="fld"><label>Sections in overview</label>
+   <div class="tg"><span><span class="grip">⋮⋮</span>Learning targets</span><span class="sw on"></span></div>
+   <div class="tg"><span><span class="grip">⋮⋮</span>Essential questions</span><span class="sw on"></span></div>
+   <div class="tg"><span><span class="grip">⋮⋮</span>Standards</span><span class="sw on"></span></div>
+   <div class="tg"><span><span class="grip">⋮⋮</span>Readings &amp; viewings</span><span class="sw on"></span></div>
+   <div class="tg"><span><span class="grip">⋮⋮</span>Vocabulary</span><span class="sw on"></span></div>
+   <div class="tg"><span><span class="grip">⋮⋮</span>Assessments</span><span class="sw on"></span></div>
+   <div class="tg"><span><span class="grip">⋮⋮</span>Discussion norms</span><span class="sw"></span></div>
+  </div>
+ </div>
+</div></div>
+</section>
+
+<section class="scene">
+<h2>5 · Unit library and editor (modal)</h2>
+<p class="cap">Opened from the empty state, the settings drawer, or the toolbar. The library is on the left and the editor on the right. Learning targets can come from the standards catalog, a PLC's target list, your own saved targets, or be typed as a free-text "I can" statement.</p>
+<div class="board">
+<div class="modal">
+ <div class="lib">
+  <h4>My units <span class="btn" style="padding:5px 10px;font-size:12px">+ New</span></h4>
+  <div class="it on">Coming of Age<small>English 9 · 11 targets</small></div>
+  <div class="it">Argument &amp; Rhetoric<small>English 9 · 8 targets</small></div>
+  <div class="it">Romeo and Juliet<small>English 9 · 9 targets</small></div>
+  <div class="it">Poetry Workshop<small>English 9 · 6 targets</small></div>
+  <div class="arch">Archived (2)</div>
+ </div>
+ <div class="ed">
+  <div class="edh"><input id="ut" value="Coming of Age" aria-label="Unit title"><span class="btn ghost" style="white-space:nowrap">Duplicate</span><span class="btn">Save</span></div>
+  <div class="meta"><span>Grade 9</span><span>English</span><span>6–7 weeks</span></div>
+  <div class="sec"><div class="sh">Learning targets <em>11 · drag to reorder</em></div>
+   <div class="srow"><span class="grip">⋮⋮</span>I can determine the central message (theme) of a coming-of-age story.<span class="src">PLC · ELA 9</span></div>
+   <div class="srow"><span class="grip">⋮⋮</span>I can find and use strong textual evidence to support my ideas.<span class="src">Standard 9.4.1.1</span></div>
+   <div class="srow"><span class="grip">⋮⋮</span>I can develop interview questions and interview an adult.<span class="src">Typed</span></div>
+   <div style="display:flex;gap:16px"><span class="add">+ Pick from standards &amp; targets</span><span class="add">+ Type an "I can" statement</span></div>
+  </div>
+  <div class="sec"><div class="sh">Essential questions <em>3</em></div><div class="srow"><span class="grip">⋮⋮</span>What defines "coming of age," and how does it relate to identity?</div><span class="add">+ Add question</span></div>
+  <div class="sec"><div class="sh">Vocabulary <em>15 · paste a list to add many</em></div><div style="display:flex;gap:6px;flex-wrap:wrap"><span class="chip">Bildungsroman</span><span class="chip">Epiphany</span><span class="chip">Naivete</span><span class="chip">Catalyst</span><span class="chip">+11</span></div></div>
+  <div class="addsec">+ Add section: Standards · Readings · Assessments · Custom list</div>
+ </div>
+</div>
+</div>
+</section>
+
+<section class="notes">
+<h2 style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#cbd5e1;font-weight:500;margin:0">Questions to react to</h2>
+<div><b>Focus layout:</b> the EQ sits above the targets. Would you rather lead with the targets?</div>
+<div><b>Checkboxes on the projected overview:</b> they show progress to students. Should they be visible when projected, or only for the teacher?</div>
+<div><b>Overview grid:</b> targets take the tall left column. Should a teacher be able to resize cards, or is the auto layout enough?</div>
+</section>
+</div>

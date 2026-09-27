@@ -1,7 +1,7 @@
 /**
  * Keeps track of which of a quiz's sheet images a PLC teammate could open, and
  * shares the ones the teacher says may be shared
- * (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D6).
+ * (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md D6).
  *
  * Only looks when the quiz is actually in a PLC group: a quiz nobody else can
  * see has nothing to decide, and Drive should not be asked either way.

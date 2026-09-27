@@ -6,6 +6,7 @@ import { HelpShortcutsTab } from './HelpShortcutsTab';
 import { HelpGuidesTab } from './HelpGuidesTab';
 import { setLastHelpTab, type HelpTab } from './helpCenterState';
 import type { WidgetType } from '@/types';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface HelpCenterModalProps {
   isOpen: boolean;
@@ -100,6 +101,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
           placeholder={t('helpCenter.search')}
           aria-label={t('helpCenter.search')}
           className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-light/40"
+          {...tourAttr('help-center.search')}
         />
       </div>
       <button
@@ -107,6 +109,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
         onClick={onClose}
         aria-label={t('helpCenter.close')}
         className="ml-auto p-1 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+        {...tourAttr('help-center.close')}
       >
         <X size={20} />
       </button>
@@ -152,6 +155,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
                   ? 'bg-brand-blue-primary/10 text-brand-blue-primary'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
+              {...tourFieldAttr('help-center.tab', 'help', id)}
             >
               <Icon className="w-4 h-4" />
               {t(`helpCenter.tabs.${id}`)}
@@ -168,6 +172,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
             value={tab}
             onChange={(e) => onTabChange(e.target.value as HelpTab)}
             className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm text-slate-800"
+            {...tourAttr('help-center.tab-select')}
           >
             {TABS.map(({ id }) => (
               <option key={id} value={id}>

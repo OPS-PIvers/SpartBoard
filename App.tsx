@@ -555,7 +555,7 @@ const App: React.FC = () => {
     pathname === '/student/login' || pathname.startsWith('/student/login/');
   const isMyAssignmentsRoute =
     pathname === '/my-assignments' || pathname.startsWith('/my-assignments/');
-  // Projects widget student page (docs/plans/PROJECTS_WIDGET.md §6). Same
+  // Projects widget student page (docs/plans/shipped/PROJECTS_WIDGET.md §6). Same
   // GIS-authenticated audience as /my-assignments, which is what links to it.
   const isProjectRoute = pathname.startsWith('/project/');
   // Phase A — `/subs` is the substitute teacher portal. Mounted outside the

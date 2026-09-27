@@ -1,5 +1,5 @@
 /**
- * ExamView layouts read without AI (docs/plans/QUIZ_EXAMVIEW_IMPORT.md E1–E4,
+ * ExamView layouts read without AI (docs/plans/shipped/QUIZ_EXAMVIEW_IMPORT.md E1–E4,
  * E8). Fixtures are synthetic and copy only ExamView's layout.
  */
 import { describe, it, expect } from 'vitest';

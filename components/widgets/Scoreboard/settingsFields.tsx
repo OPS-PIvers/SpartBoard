@@ -18,13 +18,16 @@ import {
 } from '@/config/scoreboard';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useTranslation } from 'react-i18next';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
-const TeamNameInput: React.FC<{
-  value: string;
-  onUpdate: (val: string) => void;
-  placeholder?: string;
-  className?: string;
-}> = ({ value, onUpdate, placeholder, className }) => {
+const TeamNameInput: React.FC<
+  {
+    value: string;
+    onUpdate: (val: string) => void;
+    placeholder?: string;
+    className?: string;
+  } & React.InputHTMLAttributes<HTMLInputElement>
+> = ({ value, onUpdate, placeholder, className, ...rest }) => {
   const [localValue, setLocalValue] = React.useState(value);
   const [prevValue, setPrevValue] = React.useState(value);
   const debouncedValue = useDebounce(localValue, 500);
@@ -48,6 +51,7 @@ const TeamNameInput: React.FC<{
       onChange={(e) => setLocalValue(e.target.value)}
       className={className}
       placeholder={placeholder}
+      {...rest}
     />
   );
 };
@@ -72,7 +76,7 @@ export const ScoreboardSettings: React.FC<{
   const teams = Array.isArray(config.teams) ? config.teams : [];
   const layout = config.layout ?? 'cards';
 
-  // --- Class groups (docs/plans/ROSTER_GROUPS_INTEGRATION.md D17/D20) ---
+  // --- Class groups (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D17/D20) ---
   const rosterGroupsEnabled = useRosterGroupsGate();
   const activeRoster = useMemo(
     () => rosters.find((r) => r.id === activeRosterId) ?? rosters[0],
@@ -319,6 +323,11 @@ export const ScoreboardSettings: React.FC<{
             className="flex items-center bg-slate-200/80 rounded-lg p-0.5"
             role="radiogroup"
             aria-labelledby={layoutLabelId}
+            {...tourAttr(
+              'widget-settings.scoreboard.layout',
+              widget.id,
+              widget.type
+            )}
           >
             <button
               type="button"
@@ -366,6 +375,11 @@ export const ScoreboardSettings: React.FC<{
             onClick={importFromRandom}
             disabled={!randomWidget}
             data-testid="import-groups-btn"
+            {...tourAttr(
+              'widget-settings.scoreboard.import-random-groups',
+              widget.id,
+              widget.type
+            )}
             title={
               !randomWidget
                 ? t('widgetSettings.scoreboard.addRandomizerFirst')
@@ -392,6 +406,11 @@ export const ScoreboardSettings: React.FC<{
               checked={useGroupNames}
               onChange={(e) => setUseGroupNames(e.target.checked)}
               className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+              {...tourAttr(
+                'widget-settings.scoreboard.use-group-names',
+                widget.id,
+                widget.type
+              )}
             />
             <span>{t('widgetSettings.scoreboard.useGroupNames')}</span>
           </label>
@@ -400,6 +419,11 @@ export const ScoreboardSettings: React.FC<{
             variant="secondary"
             onClick={() => void importClassGroups()}
             icon={<Plus className="w-3 h-3" />}
+            {...tourAttr(
+              'widget-settings.scoreboard.import-class-groups',
+              widget.id,
+              widget.type
+            )}
           >
             {t('widgetSettings.scoreboard.importClassGroups', {
               count: rosterGroups.length,
@@ -411,6 +435,11 @@ export const ScoreboardSettings: React.FC<{
               variant="ghost"
               onClick={resyncMembers}
               icon={<RefreshCw className="w-3 h-3" />}
+              {...tourAttr(
+                'widget-settings.scoreboard.resync-members',
+                widget.id,
+                widget.type
+              )}
             >
               {t('widgetSettings.scoreboard.resyncMembers')}
             </Button>
@@ -448,6 +477,11 @@ export const ScoreboardSettings: React.FC<{
             <button
               onClick={() => setShowResetConfirm(true)}
               className="text-xxs font-bold text-red-500 hover:text-red-600 underline"
+              {...tourAttr(
+                'widget-settings.scoreboard.reset-scores',
+                widget.id,
+                widget.type
+              )}
             >
               {t('widgetSettings.scoreboard.resetScores')}
             </button>
@@ -455,7 +489,7 @@ export const ScoreboardSettings: React.FC<{
         </div>
 
         <div className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
-          {teams.map((team) => (
+          {teams.map((team, teamIndex) => (
             <div
               key={team.id}
               className="flex gap-2 items-center bg-white p-2 rounded-xl border border-slate-200"
@@ -468,6 +502,12 @@ export const ScoreboardSettings: React.FC<{
                 onUpdate={(val) => updateTeamName(team.id, val)}
                 className="flex-1 text-xs font-bold text-slate-700 bg-transparent outline-none"
                 placeholder={t('widgetSettings.scoreboard.teamNamePlaceholder')}
+                {...tourFieldAttr(
+                  'widget-settings.scoreboard.team-name',
+                  widget.type,
+                  `team-${teamIndex + 1}`
+                )}
+                data-tour-widget={widget.id}
               />
               {team.linkedRosterGroupId && (
                 <span
@@ -484,6 +524,12 @@ export const ScoreboardSettings: React.FC<{
               <button
                 onClick={() => removeTeam(team.id)}
                 className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                {...tourFieldAttr(
+                  'widget-settings.scoreboard.delete-team',
+                  widget.type,
+                  `team-${teamIndex + 1}`
+                )}
+                data-tour-widget={widget.id}
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -496,6 +542,11 @@ export const ScoreboardSettings: React.FC<{
           className="w-full py-3 border-2 border-dashed border-slate-200 text-slate-400 hover:border-brand-blue-primary hover:text-brand-blue-primary"
           variant="ghost"
           icon={<Plus className="w-4 h-4" />}
+          {...tourAttr(
+            'widget-settings.scoreboard.add-team',
+            widget.id,
+            widget.type
+          )}
         >
           {t('widgetSettings.scoreboard.addTeam')}
         </Button>

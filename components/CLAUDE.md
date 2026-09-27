@@ -10,7 +10,7 @@ Loaded when working under `components/`.
 
 ## On-screen copy
 
-Permanent helper text was cut across the app in September 2026 (`docs/plans/ALWAYS_VISIBLE_COPY.md`), so don't add it back.
+Permanent helper text was cut across the app in September 2026 (`docs/plans/shipped/ALWAYS_VISIBLE_COPY.md`), so don't add it back.
 
 - A label and its control need no sentence under them. Add a hint only when it states a prerequisite ("Signed-in students only."), a number or limit the label lacks, or the consequence of a destructive action.
 - Detail that is needed but rarely goes in the control's `title` tooltip, not in a new permanent line.

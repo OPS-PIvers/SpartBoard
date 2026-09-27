@@ -266,6 +266,8 @@ export interface LibraryToolbarProps {
 
   /** Optional right-aligned extras (e.g. "5 of 20 items"). */
   rightSlot?: React.ReactNode;
+  /** Owner widget type for live-tour anchors. Defaults to a generic 'library' scope. */
+  widgetType?: string;
 }
 
 /* ─── LibraryItemCard (sortable card) ─────────────────────────────────────── */
@@ -336,6 +338,10 @@ export interface LibraryItemCardProps<TMeta = unknown> {
   selected?: boolean;
   /** Fired when the user toggles the card's checkbox (or clicks the row in selection mode). */
   onSelectionToggle?: () => void;
+  /** 0-based position in the caller's list, for live-tour row anchors. Omit to skip tagging. */
+  tourIndex?: number;
+  /** Owner widget type for live-tour row anchors. Defaults to a generic 'library' scope. */
+  tourWidgetType?: string;
 }
 
 /* ─── LibraryGrid (dnd-kit SortableContext wrapper) ───────────────────────── */
@@ -469,6 +475,10 @@ export interface AssignmentArchiveCardProps<TAssignment> {
   title: string;
   /** Optional small-text subtitle, e.g. className, period name. */
   subtitle?: React.ReactNode;
+  /** 0-based position in the caller's list, for live-tour row anchors. Omit to skip tagging. */
+  tourIndex?: number;
+  /** Owner widget type for live-tour row anchors. Defaults to a generic 'library' scope. */
+  tourWidgetType?: string;
 }
 
 /* ─── AssignModal (shared assign chrome + widget slots) ───────────────────── */
@@ -552,7 +562,7 @@ export type ImportSourcePayload =
       pages?: Blob[];
       /**
        * The optional answer key picked beside the test
-       * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D8). Absent when the teacher
+       * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D8). Absent when the teacher
        * attached none, which is the common case.
        */
       keyFile?: UploadedDocument;
@@ -624,7 +634,7 @@ export interface ImportAdapter<TData> {
    * Optional editable preview. When present the wizard renders this instead
    * of `renderPreview` and adopts whatever the adapter hands back, so a
    * review step can let the teacher correct what was read before anything is
-   * saved (docs/plans/QUIZ_DOCUMENT_IMPORT.md D10). Adapters that omit it are
+   * saved (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D10). Adapters that omit it are
    * unaffected and keep the read-only preview.
    */
   renderReview?: (

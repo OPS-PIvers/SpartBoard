@@ -1,6 +1,6 @@
 /**
  * The double gate for saved class groups in widgets
- * (docs/plans/ROSTER_GROUPS_INTEGRATION.md D23): the org-wide rollout switch
+ * (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D23): the org-wide rollout switch
  * AND the per-user `roster-groups` permission.
  *
  * Both halves were spelled out at each call site through PR 3, which is

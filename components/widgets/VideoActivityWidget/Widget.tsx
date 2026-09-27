@@ -1061,6 +1061,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           }
           setShareWithPlcTarget(meta);
         }}
+        onError={(message) => addToast(message, 'error')}
       />
       {publishingAssignment && (
         <PublishScoresModal

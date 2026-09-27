@@ -3,6 +3,7 @@ import { useAuth } from '@/context/useAuth';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import type { GraphicOrganizerConfig, GraphicOrganizerTemplate } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 const BUILT_IN_TEMPLATES = [
   { value: 'frayer', label: 'frayer' },
@@ -45,6 +46,11 @@ export const GraphicOrganizerTemplateField: React.FC<{
         }
         aria-labelledby={ctx.labelId}
         className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+        {...tourAttr(
+          'widget-settings.graphic-organizer.template',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       >
         {BUILT_IN_TEMPLATES.map((template) => (
           <option key={template.value} value={template.value}>

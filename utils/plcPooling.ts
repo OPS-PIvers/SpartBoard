@@ -1,5 +1,5 @@
 /**
- * Title-aware PLC pooling (docs/plans/PLC_ASSESSMENT_DATA.md §8.1).
+ * Title-aware PLC pooling (docs/plans/shipped/PLC_ASSESSMENT_DATA.md §8.1).
  *
  * Sessions pool by `syncGroupId`. Each teacher's PLC assign used to mint its
  * own group, so one quiz split into one pool per teacher. These helpers pick

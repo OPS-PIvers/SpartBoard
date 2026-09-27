@@ -1,5 +1,5 @@
 // Firestore security-rules coverage for the merged Activity Wall student page
-// (docs/plans/ACTIVITY_WALL_MERGED_STUDENT_PAGE.md): the student-link audience
+// (docs/plans/shipped/ACTIVITY_WALL_MERGED_STUDENT_PAGE.md): the student-link audience
 // reads approved posts while `studentsCanSeePosts` is on, never another
 // student's pending post, teachers post auto-approved under moderation, and
 // session-level likes/comments follow the wall's own engagement flags.

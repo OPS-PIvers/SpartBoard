@@ -1,5 +1,5 @@
 // Firestore security-rules tests for the "build a quiz from a test document"
-// rollout switch (docs/plans/QUIZ_DOCUMENT_IMPORT.md D21):
+// rollout switch (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D21):
 //   /admin_settings/quiz_document_import — any authed user reads it; only an
 //   admin flips it.
 //

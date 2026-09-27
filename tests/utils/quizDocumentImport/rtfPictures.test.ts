@@ -1,4 +1,4 @@
-/** RTF pictures (docs/plans/QUIZ_EXAMVIEW_IMPORT.md E11). */
+/** RTF pictures (docs/plans/shipped/QUIZ_EXAMVIEW_IMPORT.md E11). */
 import { describe, it, expect, vi } from 'vitest';
 import { parseRtfDocument } from '@/utils/quizDocumentImport/rtfReader';
 import {

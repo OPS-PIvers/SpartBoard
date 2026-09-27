@@ -1,5 +1,5 @@
 /**
- * The `needsKey` contract (docs/plans/QUIZ_DOCUMENT_IMPORT.md D5–D7): a
+ * The `needsKey` contract (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D5–D7): a
  * document import may create a question without an answer, and everything
  * downstream must agree on which questions those are.
  */

@@ -51,6 +51,7 @@ const STATE_KEY: Record<TourHealthState, string> = {
 const REASON_KEY: Record<StepHealthReason, string> = {
   'unknown-anchor': 'tourHealth.reason.unknownAnchor',
   'needs-widget-type': 'tourHealth.reason.needsWidgetType',
+  'needs-field-key': 'tourHealth.reason.needsFieldKey',
   'unexpected-widget-type': 'tourHealth.reason.unexpectedWidgetType',
   'unknown-widget-type': 'tourHealth.reason.unknownWidgetType',
   'field-misses': 'tourHealth.reason.fieldMisses',

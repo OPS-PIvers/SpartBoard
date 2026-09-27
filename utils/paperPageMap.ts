@@ -1,7 +1,7 @@
 /**
  * Page maps for sheets that carry handwritten answer boxes (layoutVersion 2).
  * Pure: turns the sheet's entries in test order into where every MC row and
- * written box prints. See docs/plans/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md D9-D16, §3.2.
+ * written box prints. See docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md D9-D16, §3.2.
  */
 
 import type {

@@ -3,6 +3,7 @@ import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import type { SeatingChartConfig } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { Eraser, Trash2 } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 
 const translate = (ctx: CustomRenderCtx, leaf: string) =>
   ctx.t(`widgetSettings.seating-chart.${leaf}`);
@@ -51,6 +52,11 @@ export const SeatingChartActionsField: React.FC<{
         type="button"
         onClick={() => void handleClearAssignments()}
         className="flex w-full items-center gap-2 rounded-lg bg-red-50 p-3 text-left text-xs font-bold text-red-600 transition-colors hover:bg-red-100"
+        {...tourAttr(
+          'widget-settings.seating-chart.clear-assignments',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       >
         <Eraser className="h-4 w-4" aria-hidden="true" />
         {translate(ctx, 'clearAssignments')}
@@ -59,6 +65,11 @@ export const SeatingChartActionsField: React.FC<{
         type="button"
         onClick={() => void handleClearFurniture()}
         className="flex w-full items-center gap-2 rounded-lg bg-slate-100 p-3 text-left text-xs font-bold text-slate-600 transition-colors hover:bg-slate-200"
+        {...tourAttr(
+          'widget-settings.seating-chart.clear-furniture',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       >
         <Trash2 className="h-4 w-4" aria-hidden="true" />
         {translate(ctx, 'clearFurniture')}

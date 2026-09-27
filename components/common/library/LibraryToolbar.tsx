@@ -9,12 +9,14 @@ import {
 } from 'lucide-react';
 import type { LibraryToolbarProps, LibrarySortDir } from './types';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { tourTypeAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const SortDropdown: React.FC<{
   sort: LibraryToolbarProps['sort'];
   sortOptions: LibraryToolbarProps['sortOptions'];
   onSortChange: LibraryToolbarProps['onSortChange'];
-}> = ({ sort, sortOptions, onSortChange }) => {
+  widgetType: string;
+}> = ({ sort, sortOptions, onSortChange, widgetType }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useClickOutside(ref, () => setOpen(false));
@@ -42,6 +44,7 @@ const SortDropdown: React.FC<{
           onClick={() => setOpen((v) => !v)}
           aria-haspopup="listbox"
           aria-expanded={open}
+          {...tourTypeAttr('library-shell.sort', widgetType)}
           className="inline-flex items-center font-bold text-slate-700 hover:bg-slate-50 transition-colors"
           style={{
             gap: 'min(8px, 2cqmin)',
@@ -117,7 +120,9 @@ const FilterDropdown: React.FC<{
   options: Array<{ value: string; label: string }>;
   value: string;
   onChange: (value: string) => void;
-}> = ({ id, label, options, value, onChange }) => {
+  widgetType: string;
+  rowIndex: number;
+}> = ({ id, label, options, value, onChange, widgetType, rowIndex }) => {
   const isActive = value !== '';
   return (
     <div className="relative inline-flex items-center">
@@ -126,6 +131,11 @@ const FilterDropdown: React.FC<{
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label={label}
+        {...tourFieldAttr(
+          'library-shell.filter',
+          widgetType,
+          `row-${rowIndex + 1}`
+        )}
         className={`appearance-none rounded-xl border bg-white shadow-sm font-bold transition-colors cursor-pointer hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30 ${
           isActive
             ? 'border-brand-blue-primary/40 text-brand-blue-primary'
@@ -164,6 +174,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
   filterValues,
   onFilterChange,
   rightSlot,
+  widgetType = 'library',
 }) => {
   const visibleFilters = (filters ?? []).filter((f) => f.visible !== false);
 
@@ -185,6 +196,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={searchPlaceholder}
+          {...tourTypeAttr('library-shell.search', widgetType)}
           className="w-full rounded-xl border border-slate-200 bg-white font-medium text-slate-700 placeholder:text-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30 focus:border-brand-blue-primary/40"
           style={{
             paddingLeft: 'min(36px, 9cqmin)',
@@ -199,11 +211,12 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
         sort={sort}
         sortOptions={sortOptions}
         onSortChange={onSortChange}
+        widgetType={widgetType}
       />
 
       {visibleFilters.length > 0 &&
         onFilterChange &&
-        visibleFilters.map((f) => (
+        visibleFilters.map((f, i) => (
           <FilterDropdown
             key={f.id}
             id={f.id}
@@ -211,6 +224,8 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
             options={f.options}
             value={filterValues?.[f.id] ?? ''}
             onChange={(v) => onFilterChange(f.id, v)}
+            widgetType={widgetType}
+            rowIndex={i}
           />
         ))}
 

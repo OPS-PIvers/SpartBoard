@@ -1,6 +1,6 @@
 /**
  * Turns a document's lines into questions
- * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D2, D12; QUIZ_IMPORT_RELIABILITY.md R5–R9, R23, R25).
+ * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D2, D12; QUIZ_IMPORT_RELIABILITY.md R5–R9, R23, R25).
  *
  * Extract, never invent: a stem is what the document printed, options are
  * kept as written with no minimum count, and a question the reader cannot

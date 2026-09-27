@@ -1,5 +1,5 @@
 /**
- * Which reader the quiz import uses (docs/plans/QUIZ_DOCUMENT_IMPORT.md D1).
+ * Which reader the quiz import uses (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D1).
  * A teacher who has AI access gets the reader that handles a key in a table;
  * one who doesn't, or whose call fails, still gets a quiz to fix.
  */

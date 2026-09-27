@@ -5,7 +5,7 @@
  * in a new window plus `window.print()`, so teachers get real printing and the
  * OS "Save as PDF" for free, with no PDF dependency. Everything is positioned
  * in millimetres from `paperSheetLayout.ts` so the scan reader can recompute
- * the same geometry. See docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md §5.
+ * the same geometry. See docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md §5.
  */
 
 import {
@@ -68,7 +68,7 @@ export interface PaperPrintJob {
   sheets: readonly PaperSheetPlan[];
   /**
    * Answer columns per page; absent = 2, the layout every batch printed before
-   * sheet stimuli existed used (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D1).
+   * sheet stimuli existed used (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md D1).
    * `'questions'` prints each row's question text beside its bubbles.
    */
   columnsPerPage?: PaperGrid;
@@ -85,7 +85,7 @@ export interface PaperPrintJob {
   stimulusImageSrc?: Readonly<Record<string, string>>;
   /**
    * Whose classes this stack is for, when a PLC teammate printed it
-   * (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md D17). Absent on the self-print
+   * (docs/plans/shipped/PLC_DELEGATED_PAPER_PRINTING.md D17). Absent on the self-print
    * path, which renders exactly as it did before delegation existed.
    */
   printedForTeacherName?: string;
@@ -107,7 +107,7 @@ export interface PaperSheetQuestionText {
   choices: readonly string[];
 }
 
-/** A graded paper response redrawn onto its sheet (docs/plans/QUIZ_RESULTS_PRINT.md D22-D23). */
+/** A graded paper response redrawn onto its sheet (docs/plans/shipped/QUIZ_RESULTS_PRINT.md D22-D23). */
 export interface SheetFill {
   /** Bubble the student filled, per sheet row; null where the row is empty. */
   filled: readonly (number | null)[];

@@ -1,5 +1,5 @@
 /**
- * Choose-N quiz sections on the server (docs/plans/QUIZ_EXAMVIEW_IMPORT.md E14).
+ * Choose-N quiz sections on the server (docs/plans/shipped/QUIZ_EXAMVIEW_IMPORT.md E14).
  * Mirrors `utils/quizSections.ts` `notChosenQuestionIds`, which functions/
  * can't import: the answered questions count first N in section order, topped
  * up with unanswered ones; the rest leave the student's total.

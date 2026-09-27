@@ -282,7 +282,7 @@ export const YourWidgetAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
 
 ## Step 3.5 — Settings schema (schema-first path)
 
-The Widget Settings Drawer (`docs/plans/WIDGET_SETTINGS_DRAWER.md`) renders
+The Widget Settings Drawer (`docs/plans/shipped/WIDGET_SETTINGS_DRAWER.md`) renders
 settings from a declarative schema instead of a hand-written `Settings.tsx`
 panel. After the widget's `*Config` type exists in `types.ts` (Step 1) and the
 widget folder exists (Step 3), scaffold its schema:
@@ -295,7 +295,7 @@ This generates, idempotently:
 
 - `components/widgets/YourWidget/settings.schema.ts` — a `defineSettings<YourWidgetConfig>({...})`
   module with an empty `content` group; fill in `groups`/`fields` per the field
-  kit in `docs/plans/WIDGET_SETTINGS_DRAWER.md` §4.2–4.3.
+  kit in `docs/plans/shipped/WIDGET_SETTINGS_DRAWER.md` §4.2–4.3.
 - `components/widgets/YourWidget/settings.schema.test.ts` — asserts
   `validateSchema` reports no errors.
 - `tests/fixtures/widgetConfigs/your-widget.json` — a migration fixture stub.

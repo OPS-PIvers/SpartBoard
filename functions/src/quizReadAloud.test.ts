@@ -1,4 +1,4 @@
-// Unit tests for the quiz read-aloud engine (docs/plans/QUIZ_READ_ALOUD.md §7 PR2).
+// Unit tests for the quiz read-aloud engine (docs/plans/shipped/QUIZ_READ_ALOUD.md §7 PR2).
 // Firestore is a tiny in-memory fake with set-merge + transactions; Cloud TTS
 // and Storage are injected stubs, so only the plan's decisions are under test.
 

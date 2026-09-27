@@ -2,7 +2,7 @@
  * Turns a quiz and a roster selection into the sheets to print and the
  * `PaperBatch` that records what was printed.
  *
- * Pure — no Firestore, no DOM. See docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md §5.
+ * Pure — no Firestore, no DOM. See docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md §5.
  */
 
 import type {

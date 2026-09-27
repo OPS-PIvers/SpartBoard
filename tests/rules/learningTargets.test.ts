@@ -1,5 +1,5 @@
 // Firestore security-rules regression for the learning-targets feature
-// (docs/plans/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md §5):
+// (docs/plans/shipped/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md §5):
 //   - /standards_catalog/{id}: any authed read, admin-only write
 //   - /plcs/{plcId}/meta/learningTargets: member reads, non-viewer writes,
 //     schema lock-down, 1,000-target cap, masteryCutoffs range, no delete

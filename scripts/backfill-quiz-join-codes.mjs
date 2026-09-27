@@ -1,7 +1,7 @@
 /**
  * Backfill `quiz_join_codes/{code}/sessions/{sessionId}` pointers for quiz
  * sessions created before the lookup collection shipped
- * (docs/plans/QUIZ_JOIN_CODE_LOOKUP.md).
+ * (docs/plans/shipped/QUIZ_JOIN_CODE_LOOKUP.md).
  *
  * Without a pointer a session is reachable only through the legacy
  * `where('code','==',code)` query, which is the query that keeps `quiz_sessions`

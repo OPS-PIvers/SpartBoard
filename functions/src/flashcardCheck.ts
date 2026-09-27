@@ -1,4 +1,4 @@
-// Server grading for Flashcards Check submissions (docs/plans/FLASHCARDS.md §2.6, §7).
+// Server grading for Flashcards Check submissions (docs/plans/shipped/FLASHCARDS.md §2.6, §7).
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import './functionsInit';

@@ -23,6 +23,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { logError } from '@/utils/logError';
 import { Toggle } from '@/components/common/Toggle';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { canonicalizeBuildingIds } from '@/config/buildings';
 import {
   Plus,
   Trash2,
@@ -105,10 +106,17 @@ export const DashboardTemplatesManager: React.FC = () => {
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const loaded = snap.docs.map((d) => ({
-          ...(d.data() as AnyTemplate),
-          id: d.id,
-        }));
+        const loaded = snap.docs.map((d) => {
+          const data = d.data() as AnyTemplate;
+          return {
+            ...data,
+            id: d.id,
+            // targetBuildings may hold a legacy long-form id that would never match building.id's canonical form.
+            targetBuildings: canonicalizeBuildingIds(
+              data.targetBuildings ?? []
+            ),
+          };
+        });
         setTemplates(loaded);
         // Seed local copies for any template not already being edited
         setLocalTemplates((prev) => {

@@ -9,6 +9,7 @@ import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { Plc } from '@/types';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcEditModalProps {
   isOpen: boolean;
@@ -192,6 +193,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
             onChange={(e) => setName(e.target.value)}
             disabled={!isCreate && !isLead}
             autoFocus={isCreate}
+            {...tourAttr('plc-edit.name')}
           />
         </div>
 
@@ -207,7 +209,8 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
               </span>
             </div>
             <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-48 overflow-y-auto custom-scrollbar">
-              {memberList.map((m) => {
+              {memberList.map((m, memberIndex) => {
+                const rowKey = `row-${memberIndex + 1}`;
                 const uid = m.uid;
                 const email = m.email;
                 const isMe = uid === user?.uid;
@@ -240,6 +243,11 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
                     {isLead && !isMemberLead && (
                       <button
                         onClick={() => void handleRemoveMember(uid, label)}
+                        {...tourFieldAttr(
+                          'plc-edit.remove-member',
+                          'plc-edit',
+                          rowKey
+                        )}
                         className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                         title={t('sidebar.plcs.removeMember', {
                           defaultValue: 'Remove Member',
@@ -276,10 +284,12 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 disabled={busy}
+                {...tourAttr('plc-edit.invite-email')}
               />
               <button
                 type="submit"
                 disabled={busy || !inviteEmail.trim()}
+                {...tourAttr('plc-edit.send-invite')}
                 className="bg-brand-blue-primary text-white px-3.5 py-2 rounded-xl flex gap-1.5 items-center text-xs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Mail className="w-3.5 h-3.5" />
@@ -305,7 +315,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
               })}
             </label>
             <div className="border border-slate-200 rounded-xl divide-y divide-slate-100">
-              {outstanding.map((inv) => (
+              {outstanding.map((inv, inviteIndex) => (
                 <div
                   key={inv.id}
                   className="flex items-center gap-2 px-3 py-2 text-sm"
@@ -316,6 +326,11 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
                   </div>
                   <button
                     onClick={() => void handleRevokeInvite(inv)}
+                    {...tourFieldAttr(
+                      'plc-edit.revoke-invite',
+                      'plc-edit',
+                      `row-${inviteIndex + 1}`
+                    )}
                     className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                     title={t('sidebar.plcs.revokeInvite', {
                       defaultValue: 'Revoke Invitation',
@@ -338,6 +353,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
             <button
               onClick={onClose}
               disabled={busy}
+              {...tourAttr('plc-edit.cancel')}
               className="px-4 py-2 text-sm font-bold text-slate-600 hover:text-slate-800 transition-colors disabled:opacity-50"
             >
               {t('common.cancel', { defaultValue: 'Cancel' })}
@@ -345,6 +361,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
             <button
               onClick={() => void handleSave()}
               disabled={busy || !name.trim()}
+              {...tourAttr('plc-edit.save')}
               className="bg-brand-blue-primary text-white px-5 py-2 rounded-xl flex gap-1.5 items-center text-sm font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save className="w-4 h-4" />

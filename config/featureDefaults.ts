@@ -1,4 +1,4 @@
-// Registry of every global feature: runtime defaults plus its admin row (docs/plans/ADMIN_ACCESS_PAGES.md D5).
+// Registry of every global feature: runtime defaults plus its admin row (docs/plans/shipped/ADMIN_ACCESS_PAGES.md D5).
 import type React from 'react';
 import {
   BarChart,

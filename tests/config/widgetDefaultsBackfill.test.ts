@@ -4,7 +4,7 @@ import { WidgetType } from '@/types';
 
 // Item 1a.6: backfill WIDGET_DEFAULTS with the front-face inline fallback for
 // every settings-inventory row marked in-defaults? = no. Table mirrors
-// docs/plans/widget-settings-inventory.md; keep the pairs in sync with it.
+// docs/plans/shipped/widget-settings-inventory.md; keep the pairs in sync with it.
 const BACKFILLED: Array<{
   type: WidgetType;
   key: string;

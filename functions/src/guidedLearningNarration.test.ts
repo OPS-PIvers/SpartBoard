@@ -1,4 +1,4 @@
-// Unit tests for Guided Learning narration (docs/plans/GUIDED_LEARNING_STUDIO.md P2-4).
+// Unit tests for Guided Learning narration (docs/plans/shipped/GUIDED_LEARNING_STUDIO.md P2-4).
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const INCREMENT = Symbol('increment');

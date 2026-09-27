@@ -939,7 +939,7 @@ export class GoogleDriveService {
    * A Google Doc has no bytes of its own, so it is exported as .docx rather
    * than the plain text `exportFileText` produces: the reader needs the Word
    * XML to see which answer a teacher marked in bold
-   * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D4). A PDF or an uploaded .docx
+   * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D4). A PDF or an uploaded .docx
    * already has bytes and is downloaded as-is.
    */
   async downloadDocumentAsBlob(

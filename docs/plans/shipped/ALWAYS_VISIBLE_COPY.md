@@ -4,14 +4,14 @@ Status: all six phases done 2026-09-25 (#3428, #3432, the Phase 3-5 PRs and Phas
 
 Paul asked for a full audit of the helper text, hints, tips, subtitles and notices that sit permanently on screen, because earlier Claude models wrote long sentences to say simple, objective things. This doc is the plan. The per-area findings, with every string, its location and a proposed replacement, are in [`copy-audit/`](copy-audit/).
 
-| Area                                                                                            | Findings file                                       | Permanent findings                  |
-| ----------------------------------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------- |
-| Admin panel                                                                                     | [admin.md](copy-audit/admin.md)                     | about 190                           |
-| Widgets other than Quiz and Guided Learning, including every widget's legacy settings panel     | [widgets.md](copy-audit/widgets.md)                 | about 95                            |
-| PLC                                                                                             | [plc.md](copy-audit/plc.md)                         | about 55                            |
-| App shell (sidebar, settings modal, share, assign, classes, add-ons, subs portal, student apps) | [shell.md](copy-audit/shell.md)                     | about 55                            |
-| Quiz widget and student quiz app                                                                | [quiz.md](copy-audit/quiz.md)                       | about 55, plus about 85 conditional |
-| Guided Learning, Help Center and live tours                                                     | [guided-learning.md](copy-audit/guided-learning.md) | about 45                            |
+| Area                                                                                            | Findings file                                          | Permanent findings                  |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------- |
+| Admin panel                                                                                     | [admin.md](copy-audit/admin.md)                        | about 190                           |
+| Widgets other than Quiz and Guided Learning, including every widget's legacy settings panel     | [widgets.md](copy-audit/widgets.md)                    | about 95                            |
+| PLC                                                                                             | [plc.md](copy-audit/plc.md)                            | about 55                            |
+| App shell (sidebar, settings modal, share, assign, classes, add-ons, subs portal, student apps) | [shell.md](copy-audit/shell.md)                        | about 55                            |
+| Quiz widget and student quiz app                                                                | [quiz.md](copy-audit/quiz.md)                          | about 55, plus about 85 conditional |
+| Guided Learning, Help Center and live tours                                                     | [guided-learning.md](../copy-audit/guided-learning.md) | about 45                            |
 
 Roughly 500 permanent strings are flagged, and a little over half of them should be deleted outright rather than rewritten. Another 150 or so are empty states, dialogs and errors that are too long but only appear in one state. Each findings file also lists the strings that look long but should stay, with the reason.
 

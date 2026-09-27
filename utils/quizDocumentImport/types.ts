@@ -1,6 +1,6 @@
 /**
  * The shape both document readers return
- * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D1). The review table and the create
+ * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D1). The review table and the create
  * step work off this alone, so they never need to know whether the browser
  * reader or the AI reader produced it.
  */

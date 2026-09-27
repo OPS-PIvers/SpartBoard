@@ -8,18 +8,11 @@ controlled data and no temporary source or dependency changes left behind.
 
 1. Start from the user-requested branch and run `git status --short`. Record
    existing edits and untracked files so they are not overwritten or committed.
-2. Use the repository-pinned package manager. In this repository run:
+2. Install dependencies only if `node_modules` is missing, with the
+   repository's own command (root and `functions/`):
 
    ```bash
-   corepack pnpm install --frozen-lockfile
-   ```
-
-   Using another pnpm major can reject the lockfile or dependency overrides.
-   If the task will end in a repository PR, also install the independently
-   locked Functions dependencies before running the full validation gate:
-
-   ```bash
-   corepack pnpm -C functions install --frozen-lockfile
+   pnpm run install:all
    ```
 
 3. Inspect the widget, settings panel, contexts, and existing dev harnesses
@@ -52,14 +45,21 @@ cannot share a group. Use fictional names and no personal data.
 
 ## 3. Start Vite without incidental tracked edits
 
-Launch Vite directly so screenshot work does not run unrelated pre-dev scripts:
+Launch Vite directly so screenshot work does not run unrelated pre-dev scripts
+(this is the `vite-dev-bypass` launch config):
 
 ```bash
-VITE_AUTH_BYPASS=true corepack pnpm exec vite \
+VITE_AUTH_BYPASS=true pnpm exec vite \
   --host 127.0.0.1 --port 56300 --strictPort
 ```
 
-Wait for the server readiness message before opening the page.
+Wait for the server readiness message before opening the page. Without a
+`.env.local` the app renders a blank page; for capture, export placeholder
+`VITE_FIREBASE_*` values in that shell (project id `demo-spartboard`) rather
+than writing a file, so nothing talks to prod or dev. The bypass
+user is a mock admin, so admin-only previews such as live tours and the
+calmer player are on. It does not bypass Firestore rules: anything that
+must be saved server-side needs a harness.
 
 ## 4. Choose Playwright transport
 
@@ -72,12 +72,19 @@ Use `browser_resize`, `browser_click`, `browser_type`,
 ### Playwright MCP unavailable
 
 Use the repository's installed `@playwright/test` package from a local Node
-script. First try its managed browser. Installing it with
-`corepack pnpm exec playwright install chromium` is acceptable when
-the environment permits the download.
+script (an `.mjs` file under `.playwright-mcp/`, which git ignores). Cloud
+sessions ship Chromium at `/opt/pw-browsers`, but its build number rarely
+matches the one the installed Playwright looks for, so launch it
+explicitly and never run `playwright install` there:
 
-If no managed browser is available, install a headless Chromium package in a
-temporary directory so `package.json` and `pnpm-lock.yaml` stay untouched:
+```js
+const browser = await chromium.launch({
+  executablePath: '/opt/pw-browsers/chromium',
+});
+```
+
+Only when no browser exists at all, install a headless Chromium package in
+a temporary directory so `package.json` and `pnpm-lock.yaml` stay untouched:
 
 ```bash
 GL_BROWSER_TMP_DIR=$(mktemp -d)
@@ -87,28 +94,10 @@ node .claude/skills/gl-author/scripts/materialize_chromium.mjs \
   .playwright-mcp/chromium
 ```
 
-Launch that binary with the repository's Playwright library:
-
-```js
-import { chromium } from '@playwright/test';
-
-const browser = await chromium.launch({
-  executablePath: '.playwright-mcp/chromium',
-  headless: true,
-  args: [
-    '--no-sandbox',
-    '--disable-dev-shm-usage',
-    '--single-process',
-    '--disable-gpu',
-    '--disable-webgl',
-    '--disable-software-rasterizer',
-    '--use-gl=disabled',
-  ],
-});
-```
-
-Delete the temporary package directory after capture. The materialized browser
-may remain under `.playwright-mcp/`, which is ignored by git.
+and launch it with `executablePath: '.playwright-mcp/chromium'` and
+`args: ['--no-sandbox', '--disable-dev-shm-usage', '--single-process',
+'--disable-gpu', '--use-gl=disabled']`. Delete the temporary package
+directory after capture.
 
 ## 5. Capture real states
 
@@ -119,13 +108,18 @@ may remain under `.playwright-mcp/`, which is ignored by git.
 4. Open menus and dialogs through user-visible controls. Capture the states the
    guide describes, such as class selection, attendance, settings, and each
    completed widget mode.
-5. Wait for semantic completion instead of sleeping. After randomization, wait
+5. Close first-run toasts ("Welcome! Board created") before a screenshot;
+   they can sit over the settings panel. Freeze time-based widgets with
+   `page.clock.setFixedTime(...)` so every slide shows the same time.
+   Dock items are drag handles that report `aria-disabled` outside edit
+   mode, so click them with `{ force: true }`.
+6. Wait for semantic completion instead of sleeping. After randomization, wait
    for generated student rows, group cards, or enabled result controls, not the
    button that started the operation. Placeholder containers can appear before
    results are populated.
-6. Keep timed UI visible by overriding long `window.setTimeout` delays before
+7. Keep timed UI visible by overriding long `window.setTimeout` delays before
    triggering it, when necessary.
-7. Save numbered PNGs under `.playwright-mcp/shots/` in slide order.
+8. Save numbered PNGs under `.playwright-mcp/shots/` in slide order.
 
 ## 6. Measure and verify hotspots
 
@@ -148,6 +142,28 @@ const region = {
 For canvas content or a target without stable DOM bounds, inspect the saved PNG
 at full resolution and measure there. Record `imageIndex` with every point.
 
+For a live tour, the same locator gives the step's anchor. Import the helpers
+from `.claude/skills/gl-author/scripts/tour_anchor.mjs` and, before each
+step's screenshot:
+
+```js
+import {
+  checkAnchor,
+  fallbackFor,
+  measureWidgetLayout,
+  refFor,
+} from '../.claude/skills/gl-author/scripts/tour_anchor.mjs';
+
+const ref = await refFor(locator); // e.g. settings.field:clock#format24
+const { box } = await checkAnchor(page, ref); // fails if the runner could not use it
+const fallback = await fallbackFor(locator); // { role, name } or null
+```
+
+Leave `fallback` out when it returns null. Measure each tour
+widget with `measureWidgetLayout(page, 'clock', 0)` once it sits where the
+screenshots show it. See [live-tour.md](live-tour.md) for what to do with
+them.
+
 Render a verification copy of every slide with numbered pins, then inspect a
 contact sheet. A pin or region must land on the intended control or content,
 no callout may cover its target, and the
@@ -163,10 +179,12 @@ overlays are QA artifacts only; embed the unmarked screenshots in the guide.
    node .claude/skills/gl-author/scripts/validate_gl_json.mjs path/to/file.gl.json
    ```
 
-3. For repository-level confidence, create a temporary Vitest beside
-   `components/widgets/GuidedLearning/utils/glTransfer.ts` that reads the
-   artifact and calls `parseGuidedLearningJson`. Expect no warnings, run that
-   one test, then delete it.
+3. For repository-level confidence, copy the file next to
+   `.claude/skills/gl-author/examples/` temporarily and run
+   `pnpm exec vitest run tests/glAuthorExamples.test.ts`: it runs every
+   example through the validator, the app's `parseGuidedLearningJson` and
+   import validation, and the app's own anchor check. Remove the copy
+   afterwards unless the user wants it kept as an example.
 4. Run `git status --short` and inspect the tracked diff. Remove temporary
    harnesses, capture scripts, browser dependencies, and package-lock changes.
    Preserve pre-existing user files and the requested `.gl.json` deliverable.
@@ -174,15 +192,7 @@ overlays are QA artifacts only; embed the unmarked screenshots in the guide.
    downloaded file by parsing it and checking the validator's decoded image
    counts and sizes.
 
-When the task includes a repository PR, run `corepack pnpm run validate` before
-pushing. On constrained executors the app-wide ESLint process can exceed Node's
-default heap after type-checking. Complete that stage with:
-
-```bash
-node --max-old-space-size=4096 node_modules/eslint/bin/eslint.js . \
-  --max-warnings 0
-```
-
-Then run the remaining format and test commands from `package.json`; do not
-change project scripts or dependency files solely to work around executor
-limits.
+When the task includes a repository PR, follow the repository's CLAUDE.md:
+the pre-commit hook lints and formats staged files, `pnpm exec vitest related
+--run <files>` covers tests, and CI runs the full gates. Never run the full
+`validate`, `lint` or `test` scripts locally.

@@ -13,7 +13,7 @@
  *
  *   a. Build the `PlcLinkage` (`id`, `name`, `memberEmails`). No Google Sheet
  *      step — pooled results come from the server-side PLC pipeline
- *      (docs/plans/PLC_ASSESSMENT_DATA.md); a sheet can be added from Results.
+ *      (docs/plans/shipped/PLC_ASSESSMENT_DATA.md); a sheet can be added from Results.
  *   b. If the source quiz has no `sync.groupId`, mint one with `plcId` set,
  *      attach the sync linkage to the local quiz, and pass the new id through
  *      as `plcTemplateSyncGroupId` so teammates who "Add to my board" land on
@@ -151,7 +151,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
         return Promise.resolve();
       }
       // A quiz still missing answers can't be scored, so it can't go to a PLC
-      // where a teammate would assign it (docs/plans/QUIZ_DOCUMENT_IMPORT.md D6).
+      // where a teammate would assign it (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D6).
       const unanswered = meta.needsKeyCount ?? 0;
       if (unanswered > 0) {
         addToast(

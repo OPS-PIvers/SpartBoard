@@ -1,5 +1,5 @@
 // Firestore security-rules tests for the `isSubMonitor` read branch
-// (docs/plans/SUB_SHARE_COLLECTIONS.md §3.6, D7). Requires a running Firestore
+// (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md §3.6, D7). Requires a running Firestore
 // emulator; invoke via `pnpm run test:rules`.
 //
 // Contract: a substitute who launched a run from a sub share may read that one

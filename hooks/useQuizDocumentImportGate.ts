@@ -1,6 +1,6 @@
 /**
  * The double gate for importing a quiz from a test document
- * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D21): the org-wide rollout switch AND
+ * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D21): the org-wide rollout switch AND
  * the per-user `quiz-document-import` permission. One source, so the entry
  * tile, the stub-fill path and the AI reader cannot drift apart.
  */

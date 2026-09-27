@@ -136,7 +136,7 @@ export function shuffleArray<T>(
  * Distribute `roster` evenly across `stations`, respecting `maxStudents` caps.
  * Round-robin order so caps fill bottom-up; overflow stays unassigned.
  *
- * Constraint-aware (docs/plans/ROSTER_GROUPS_INTEGRATION.md D15): a
+ * Constraint-aware (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D15): a
  * `keepTogether` cohort is placed as one unit, and `keepApart` pairs are
  * avoided when a station without the conflict has room. Keep-together wins a
  * disagreement, matching the Randomizer's D13 lock precedence; the caller

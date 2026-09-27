@@ -3,6 +3,7 @@ import { Toggle } from '@/components/common/Toggle';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { useDashboard } from '@/context/useDashboard';
 import type { ExpectationsConfig, SoundConfig } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const ExpectationsSoundSyncField: React.FC<{
   ctx: CustomRenderCtx;
@@ -61,6 +62,11 @@ export const ExpectationsSoundSyncField: React.FC<{
         showLabels={false}
         size="sm"
         activeColor="bg-indigo-500"
+        anchor={tourAttr(
+          'widget-settings.expectations.sound-sync',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       />
     </div>
   );

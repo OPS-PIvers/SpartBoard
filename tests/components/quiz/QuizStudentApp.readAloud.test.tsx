@@ -1,6 +1,6 @@
 /**
  * Read-aloud eligibility and placement in the self-paced student shell
- * (docs/plans/QUIZ_READ_ALOUD.md §6.2). Audio itself is not exercised here;
+ * (docs/plans/shipped/QUIZ_READ_ALOUD.md §6.2). Audio itself is not exercised here;
  * the assertions are about which controls mount for whom.
  */
 import React from 'react';

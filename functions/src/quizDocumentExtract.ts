@@ -1,5 +1,5 @@
 // The AI reader for quiz document import
-// (docs/plans/QUIZ_DOCUMENT_IMPORT.md D1, D3, D18, D19, D20).
+// (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D1, D3, D18, D19, D20).
 //
 // The browser reader handles a tidy numbered test. This one reads the PDF
 // itself rather than a transcription of it, so layout, bold and a key laid

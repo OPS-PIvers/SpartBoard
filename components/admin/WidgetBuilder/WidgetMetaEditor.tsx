@@ -6,6 +6,7 @@ import {
   clampWidgetDimension,
 } from './types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { canonicalizeBuildingIds } from '@/config/buildings';
 import {
   CUSTOM_WIDGET_ICON_OPTIONS,
   getCustomWidgetIcon,
@@ -46,10 +47,12 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
     update({ title, slug: slugify(title) });
   };
 
+  // meta.buildings may hold a legacy long-form id that would never match building.id's canonical form.
+  const canonicalBuildings = canonicalizeBuildingIds(meta.buildings);
   const toggleBuilding = (id: string) => {
-    const next = meta.buildings.includes(id)
-      ? meta.buildings.filter((b) => b !== id)
-      : [...meta.buildings, id];
+    const next = canonicalBuildings.includes(id)
+      ? canonicalBuildings.filter((b) => b !== id)
+      : [...canonicalBuildings, id];
     update({ buildings: next });
   };
   const selectedIconOption = CUSTOM_WIDGET_ICON_OPTIONS.find(
@@ -247,7 +250,7 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
             >
               <input
                 type="checkbox"
-                checked={meta.buildings.includes(building.id)}
+                checked={canonicalBuildings.includes(building.id)}
                 onChange={() => toggleBuilding(building.id)}
                 className="accent-blue-500"
               />

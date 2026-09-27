@@ -1,5 +1,5 @@
 // controlSubAssignmentV1 — a substitute pauses or ends the one run they
-// started (docs/plans/SUB_SHARE_COLLECTIONS.md §3.6). They cannot write the
+// started (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md §3.6). They cannot write the
 // teacher's session docs, and the plan chose a callable over widening the
 // update rules, so the write runs here as admin once the caller is proven to
 // be the monitor the launch stamped.

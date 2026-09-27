@@ -3,10 +3,13 @@ import { Check } from 'lucide-react';
 import type { ActivityWallAppearance } from '@/types';
 import { BACKGROUND_COLORS, BACKGROUND_GRADIENTS } from '@/config/backgrounds';
 import { useBackgrounds } from '@/hooks/useBackgrounds';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface AppearancePickerProps {
   value: ActivityWallAppearance;
   onChange: (appearance: ActivityWallAppearance) => void;
+  widgetId: string;
+  widgetType: string;
 }
 
 const swatchClass = (selected: boolean) =>
@@ -26,11 +29,16 @@ const SelectedMark: React.FC = () => (
 export const AppearancePicker: React.FC<AppearancePickerProps> = ({
   value,
   onChange,
+  widgetId,
+  widgetType,
 }) => {
   const { presets } = useBackgrounds();
 
   return (
-    <div className="space-y-4">
+    <div
+      {...tourAttr('activity-wall-editor.appearance', widgetId, widgetType)}
+      className="space-y-4"
+    >
       <div>
         <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-600">
           Gradients

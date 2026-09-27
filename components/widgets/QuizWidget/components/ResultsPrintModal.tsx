@@ -185,7 +185,7 @@ const KEY_MODES: { id: ResultsKeyMode; label: string }[] = [
   { id: 'all', label: 'Every question' },
 ];
 
-/** Print quiz results to hand back, for one student or the whole list (docs/plans/QUIZ_RESULTS_PRINT.md). */
+/** Print quiz results to hand back, for one student or the whole list (docs/plans/shipped/QUIZ_RESULTS_PRINT.md). */
 export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   quiz,
   responses,

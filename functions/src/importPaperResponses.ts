@@ -1,6 +1,6 @@
 /**
  * importPaperResponsesV1 — writes scanned paper answer sheets as ordinary
- * `quiz_sessions/{id}/responses/*` docs (docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md §7).
+ * `quiz_sessions/{id}/responses/*` docs (docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md §7).
  *
  * The only non-student writer of response docs. The Firestore rules that bind
  * a response to the auth uid that wrote it stay untouched: this runs as admin,
@@ -17,7 +17,7 @@
  * at that key is a collision (Q25) and is reported, never overwritten, unless
  * the teacher resolved it in review and sent `replaceExisting`.
  *
- * Handwritten answers (docs/plans/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md D28-D30):
+ * Handwritten answers (docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md D28-D30):
  * each seat merges per answer in its own transaction, and a `layoutVersion: 2`
  * import adds written answers, private subdocs and one transcription job per inked page.
  */

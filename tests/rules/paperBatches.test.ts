@@ -4,7 +4,7 @@
 //   - /admin_settings/paper_answer_sheets — any authed user reads the rollout
 //     switch; only an admin flips it.
 //   - /admin_settings/plc_delegated_printing — same shape, for printing a PLC
-//     teammate's sheets (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md §3.2).
+//     teammate's sheets (docs/plans/shipped/PLC_DELEGATED_PAPER_PRINTING.md §3.2).
 //
 // Requires a running Firestore emulator. Invoke via:
 //   pnpm run test:rules

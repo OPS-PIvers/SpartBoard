@@ -1,5 +1,5 @@
 // Firestore security-rules tests for per-period access on guided learning
-// sessions (docs/plans/PER_PERIOD_ASSIGNMENT_ACCESS.md): the seat that names
+// sessions (docs/plans/shipped/PER_PERIOD_ASSIGNMENT_ACCESS.md): the seat that names
 // the student's period, the glOpen gate on responses and progress, and the
 // hidden content doc. Requires a running Firestore emulator; invoke via
 // `pnpm run test:rules`.

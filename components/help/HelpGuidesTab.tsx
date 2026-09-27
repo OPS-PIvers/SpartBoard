@@ -17,6 +17,7 @@ import { useAuth } from '@/context/useAuth';
 import { useHelpResources } from '@/hooks/useHelpResources';
 import { useOrganization } from '@/hooks/useOrganization';
 import { HelpResourceViewer } from './HelpResourceViewer';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface HelpGuidesTabProps {
   query: string;
@@ -198,6 +199,11 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
                 ? 'bg-brand-blue-primary/10 text-brand-blue-primary'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
+            {...tourFieldAttr(
+              'help-center.guides.category',
+              'help',
+              category.id
+            )}
           >
             {category.name}
           </button>
@@ -213,6 +219,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
           value={effectiveCategoryId}
           onChange={(e) => setCategoryId(e.target.value)}
           className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm text-slate-800"
+          {...tourAttr('help-center.guides.category-select')}
         >
           {categoryOptions.map((category) => (
             <option key={category.id} value={category.id}>
@@ -235,6 +242,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
                   ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
                   : 'border-slate-200 text-slate-600 hover:bg-slate-100'
               }`}
+              {...tourFieldAttr('help-center.guides.kind-filter', 'help', id)}
             >
               <Icon className="w-3.5 h-3.5" />
               {t(`helpCenter.guides.kinds.${id}`)}
@@ -246,6 +254,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
               onClick={() => setWidgetFilter(undefined)}
               aria-label={t('helpCenter.guides.clearWidgetFilter')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-brand-blue-primary bg-brand-blue-primary/10 text-xs font-semibold text-brand-blue-primary"
+              {...tourAttr('help-center.guides.clear-widget-filter')}
             >
               {widgetLabel(widgetFilter)}
               <X className="w-3.5 h-3.5" />
@@ -267,7 +276,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {filtered.map((item) => {
+            {filtered.map((item, index) => {
               const Icon = KIND_ICONS[kindOf(item)];
               return (
                 <li key={item.id}>
@@ -276,6 +285,11 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
                     onClick={() => openCard(item)}
                     data-help-item-id={item.id}
                     className="w-full flex items-start gap-3 text-left rounded-lg border border-slate-200 bg-white px-3 py-3 hover:border-brand-blue-light hover:bg-slate-50 transition-colors"
+                    {...tourFieldAttr(
+                      'help-center.guides.item',
+                      'help',
+                      `row-${index + 1}`
+                    )}
                   >
                     <Icon className="w-4 h-4 mt-0.5 shrink-0 text-slate-500" />
                     <span className="flex-1 min-w-0">

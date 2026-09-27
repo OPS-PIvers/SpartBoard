@@ -1,6 +1,6 @@
 /**
  * "Add answer key": read a key file on its own and fill the questions that
- * still need an answer (docs/plans/QUIZ_IMPORT_RELIABILITY.md R17, R26, R31).
+ * still need an answer (docs/plans/shipped/QUIZ_IMPORT_RELIABILITY.md R17, R26, R31).
  * Nothing is written until the teacher has seen what will and won't go in.
  */
 

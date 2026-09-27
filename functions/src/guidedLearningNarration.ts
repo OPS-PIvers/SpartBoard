@@ -1,4 +1,4 @@
-// Guided Learning step narration (docs/plans/GUIDED_LEARNING_STUDIO.md P2-4): admin-only Cloud TTS into the shared quiz cache.
+// Guided Learning step narration (docs/plans/shipped/GUIDED_LEARNING_STUDIO.md P2-4): admin-only Cloud TTS into the shared quiz cache.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { createHash } from 'node:crypto';
 import { ALLOWED_ORIGINS } from './classlinkShared';

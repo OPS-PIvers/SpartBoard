@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ClassLinkClass } from '@/types';
 import { formatClassLinkClassLabel } from '@/components/common/AssignClassPicker.helpers';
+import { tourAttr } from '@/config/tourAnchors';
 import { ToggleRow } from './ToggleRow';
 
 interface ModerationAndAccessProps {
@@ -10,6 +11,8 @@ interface ModerationAndAccessProps {
   studentsCanSeePosts: boolean;
   classIds: string[];
   classes: ClassLinkClass[];
+  widgetId: string;
+  widgetType: string;
   onChange: (patch: {
     moderationEnabled?: boolean;
     allowGuests?: boolean;
@@ -27,6 +30,8 @@ export const ModerationAndAccess: React.FC<ModerationAndAccessProps> = ({
   studentsCanSeePosts,
   classIds,
   classes,
+  widgetId,
+  widgetType,
   onChange,
 }) => (
   <div className="space-y-2">
@@ -35,23 +40,31 @@ export const ModerationAndAccess: React.FC<ModerationAndAccessProps> = ({
       hint="Posts wait for your approval before anyone sees them."
       checked={moderationEnabled}
       onChange={(next) => onChange({ moderationEnabled: next })}
+      anchor={tourAttr('activity-wall-editor.moderation', widgetId, widgetType)}
     />
     <ToggleRow
       label="Allow guests"
       hint="Anyone with the link may post without signing in."
       checked={allowGuests}
       onChange={(next) => onChange({ allowGuests: next })}
+      anchor={tourAttr('activity-wall-editor.guests', widgetId, widgetType)}
     />
     <ToggleRow
       label="Show names"
       checked={showNames}
       onChange={(next) => onChange({ showNames: next })}
+      anchor={tourAttr('activity-wall-editor.show-names', widgetId, widgetType)}
     />
     <ToggleRow
       label="Students can see posts"
       hint="Turn off to hide everyone's posts until you reveal the wall."
       checked={studentsCanSeePosts}
       onChange={(next) => onChange({ studentsCanSeePosts: next })}
+      anchor={tourAttr(
+        'activity-wall-editor.student-view',
+        widgetId,
+        widgetType
+      )}
     />
 
     {classes.length > 0 && (

@@ -166,13 +166,13 @@ Modified:
   mount `PresentControls` while presenting.
 - `components/quiz/QuizPausedPlaceholder.tsx` — render `session.pauseMessage`.
 - `types.ts` — add `pauseMessage?: string` to `QuizSession`.
-- `docs/plans/QUIZ_INTERFACE_REDESIGN.md` — amend the two lines this supersedes (below).
+- `docs/plans/shipped/QUIZ_INTERFACE_REDESIGN.md` — amend the two lines this supersedes (below).
 
 Deleted: `monitor/PresentMode.tsx`.
 
 ## Superseded decisions
 
-`docs/plans/QUIZ_INTERFACE_REDESIGN.md` records for this screen: _"Explicitly never shows names
+`docs/plans/shipped/QUIZ_INTERFACE_REDESIGN.md` records for this screen: _"Explicitly never shows names
 or scores"_ (line 54–55) and specifies a unit test _"projector safety (Present shows no names
 or scores)"_ (line 189).
 

@@ -33,6 +33,7 @@ import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { Z_INDEX } from '@/config/zIndex';
 import { LibraryGridLockContext } from './LibraryGridLockContext';
 import { useCloseOnHostResize } from '../useCloseOnHostResize';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import type {
   LibraryBadge,
   LibraryBadgeTone,
@@ -92,6 +93,9 @@ const BADGE_TONE_STYLES: Record<
 
 interface OverflowMenuProps {
   actions: LibraryMenuAction[];
+  /** `row-${index+1}` for the owning card, or undefined to skip tour tagging. */
+  rowKey?: string;
+  widgetType: string;
 }
 
 const MENU_WIDTH = 224; // w-56; fits the longest current item label ("Print response sheets") without truncating
@@ -99,7 +103,11 @@ const MENU_GAP = 4;
 const MENU_ITEM_HEIGHT = 32;
 const MENU_CHROME_HEIGHT = 10;
 
-const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
+const OverflowMenu: React.FC<OverflowMenuProps> = ({
+  actions,
+  rowKey,
+  widgetType,
+}) => {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
     null
@@ -182,7 +190,7 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
               zIndex: Z_INDEX.popover,
             }}
           >
-            {ordered.map((item) => {
+            {ordered.map((item, i) => {
               const Icon = item.icon;
               return (
                 <button
@@ -196,6 +204,13 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
                   }}
                   disabled={item.disabled}
                   title={item.disabled ? item.disabledReason : undefined}
+                  {...(rowKey
+                    ? tourFieldAttr(
+                        'library-shell.card-menu-item',
+                        widgetType,
+                        `${rowKey}-item-${i + 1}`
+                      )
+                    : {})}
                   className={`flex w-full items-center gap-2 px-3 py-1.5 text-left font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                     item.destructive
                       ? 'text-brand-red-dark hover:bg-brand-red-lighter/30'
@@ -221,6 +236,9 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
           e.stopPropagation();
           setOpen((v) => !v);
         }}
+        {...(rowKey
+          ? tourFieldAttr('library-shell.card-menu', widgetType, rowKey)
+          : {})}
         className="inline-flex shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
         style={{
           width: 'min(32px, 9cqmin)',
@@ -245,9 +263,10 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
 
 /* ─── Inline icon-only action button ──────────────────────────────────────── */
 
-const IconActionButton: React.FC<{ action: LibraryIconAction }> = ({
-  action,
-}) => {
+const IconActionButton: React.FC<{
+  action: LibraryIconAction;
+  tourAttrs?: Record<string, string>;
+}> = ({ action, tourAttrs }) => {
   const Icon = action.icon;
   const isPrimary = action.tone === 'primary';
   return (
@@ -260,6 +279,7 @@ const IconActionButton: React.FC<{ action: LibraryIconAction }> = ({
       disabled={action.disabled}
       title={action.disabled ? action.disabledReason : action.label}
       aria-label={action.label}
+      {...tourAttrs}
       // Hover affordances are only meaningful on an enabled button — gating
       // them behind `enabled:` keeps the disabled state visually inert
       // (Tailwind's `enabled:` variant matches `:not(:disabled)`). Without
@@ -390,11 +410,15 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
     selectionMode,
     selected,
     onSelectionToggle,
+    tourIndex,
+    tourWidgetType,
   } = props;
 
   const PrimaryIcon = primaryAction?.icon;
   const SecondaryPrimaryIcon = secondaryPrimaryAction?.icon;
   const isList = viewMode === 'list';
+  const tourRowKey = tourIndex != null ? `row-${tourIndex + 1}` : undefined;
+  const tourWidgetTypeResolved = tourWidgetType ?? 'library';
 
   // Single-click vs double-click coordination. The browser fires
   // `onClick` AND `onDoubleClick` on a real dblclick; without a delay
@@ -443,6 +467,13 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
           ? handleBodyClick
           : undefined
       }
+      {...(tourRowKey
+        ? tourFieldAttr(
+            'library-shell.card-open',
+            tourWidgetTypeResolved,
+            tourRowKey
+          )
+        : {})}
       className={[
         // `@container` makes the card itself the query target so the action
         // buttons can collapse their text labels at narrow widths via
@@ -571,8 +602,20 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
         className={`flex shrink-0 items-center ${isList ? '' : 'self-end'}`}
         style={{ gap: 'min(6px, 1.5cqmin)' }}
       >
-        {iconActions?.map((action) => (
-          <IconActionButton key={action.id} action={action} />
+        {iconActions?.map((action, ai) => (
+          <IconActionButton
+            key={action.id}
+            action={action}
+            tourAttrs={
+              tourRowKey
+                ? tourFieldAttr(
+                    'library-shell.card-icon-action',
+                    tourWidgetTypeResolved,
+                    `${tourRowKey}-action-${ai + 1}`
+                  )
+                : undefined
+            }
+          />
         ))}
         {secondaryPrimaryAction && (
           <button
@@ -589,6 +632,13 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
                 : secondaryPrimaryAction.label
             }
             aria-label={secondaryPrimaryAction.label}
+            {...(tourRowKey
+              ? tourFieldAttr(
+                  'library-shell.card-secondary-action',
+                  tourWidgetTypeResolved,
+                  tourRowKey
+                )
+              : {})}
             // Same outer shape/size as `primaryAction` but inverted palette:
             // white surface with brand-blue border so it reads as the
             // secondary CTA. Label collapses to icon-only below ~280px
@@ -627,6 +677,13 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
                 : primaryAction.label
             }
             aria-label={primaryAction.label}
+            {...(tourRowKey
+              ? tourFieldAttr(
+                  'library-shell.card-primary-action',
+                  tourWidgetTypeResolved,
+                  tourRowKey
+                )
+              : {})}
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-blue-lighter font-semibold text-brand-blue-dark transition-colors hover:bg-brand-blue-primary/15 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-brand-blue-lighter"
             style={{
               paddingInline: 'min(14px, 3.2cqmin)',
@@ -656,7 +713,11 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
           </button>
         )}
         {secondaryActions && secondaryActions.length > 0 && (
-          <OverflowMenu actions={secondaryActions} />
+          <OverflowMenu
+            actions={secondaryActions}
+            rowKey={tourRowKey}
+            widgetType={tourWidgetTypeResolved}
+          />
         )}
       </div>
     </div>

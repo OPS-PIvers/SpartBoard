@@ -1,7 +1,7 @@
 /**
  * usePendingTeammateQuizCopies — once-per-session sweep that builds the library
  * copies a PLC teammate's delegated print run deferred
- * (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md D20).
+ * (docs/plans/shipped/PLC_DELEGATED_PAPER_PRINTING.md D20).
  *
  * When a teammate prints response sheets for a teacher who does not yet hold
  * the quiz, and SpartBoard cannot reach that teacher's Drive, the server writes

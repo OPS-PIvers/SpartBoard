@@ -42,6 +42,7 @@ import {
   resetStation,
   stationCount,
 } from './hooks/stationsActions';
+import { tourAttr } from '@/config/tourAnchors';
 
 const UNASSIGNED_DROP_ID = 'stations:unassigned';
 const STATION_DROP_PREFIX = 'station:';
@@ -465,6 +466,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                 </>
               )}
               <Button
+                {...tourAttr('stations.shuffle', widget.id, widget.type)}
                 onClick={handleShuffle}
                 variant="ghost"
                 size="sm"
@@ -494,6 +496,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                 </span>
               </Button>
               <Button
+                {...tourAttr('stations.rotate', widget.id, widget.type)}
                 onClick={handleRotate}
                 variant="ghost"
                 size="sm"
@@ -523,6 +526,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                 </span>
               </Button>
               <Button
+                {...tourAttr('stations.reset-all', widget.id, widget.type)}
                 onClick={handleResetAll}
                 variant="ghost"
                 size="sm"

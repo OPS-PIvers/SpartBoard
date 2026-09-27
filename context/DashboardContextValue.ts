@@ -399,7 +399,7 @@ export interface DashboardContextValue {
   }) => Promise<string>;
   /**
    * Create a sub share of a Collection — or of a single Board, written as a
-   * one-board Collection share (docs/plans/SUB_SHARE_COLLECTIONS.md A1). The
+   * one-board Collection share (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md A1). The
    * tree says how the sub walks it; `sourceId` is the Board or Collection it
    * came from, so the dialog can offer to update this share later.
    */

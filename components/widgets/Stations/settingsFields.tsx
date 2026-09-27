@@ -11,6 +11,7 @@ import { countRosterGroupMembers } from '@/utils/rosterGroups';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { StationEditor } from './components/StationEditor';
 import { SavedPresetsPanel } from './components/SavedPresetsPanel';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const DEFAULT_STATION_COLORS = WIDGET_PALETTE;
 
@@ -263,6 +264,11 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
             type="button"
             onClick={handleAddStation}
             className="flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xxs font-black uppercase tracking-widest text-white shadow-sm hover:bg-brand-blue-dark"
+            {...tourAttr(
+              'widget-settings.stations.add-station',
+              ctx.widget.id,
+              ctx.widget.type
+            )}
           >
             <Plus size={12} />
             {translate(ctx, 'addStation')}
@@ -283,6 +289,8 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
                 station={station}
                 index={index}
                 total={stations.length}
+                widgetId={ctx.widget.id}
+                widgetType={ctx.widget.type}
                 onChange={(updates) => handleStationChange(station.id, updates)}
                 onDelete={() => void handleStationDelete(station.id)}
                 onMoveUp={() => handleMove(station.id, -1)}
@@ -310,7 +318,7 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
                   {translate(ctx, 'keepTogether')}
                 </p>
                 <div className="flex flex-col gap-1">
-                  {rosterGroups.map((group) => (
+                  {rosterGroups.map((group, groupIndex) => (
                     <label
                       key={group.id}
                       className="flex cursor-pointer items-center gap-2 text-sm text-slate-700"
@@ -320,6 +328,12 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
                         checked={lockedGroupIds.includes(group.id)}
                         onChange={() => toggleLockedGroup(group.id)}
                         className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+                        {...tourFieldAttr(
+                          'widget-settings.stations.toggle-lock-group',
+                          ctx.widget.type,
+                          `group-${groupIndex + 1}`
+                        )}
+                        data-tour-widget={ctx.widget.id}
                       />
                       <Lock className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                       <span className="truncate">{group.name}</span>
@@ -346,6 +360,11 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
                   type="button"
                   onClick={() => void handleImportGroupsAsStations()}
                   className="w-full rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-sm font-bold text-brand-blue-primary transition-colors hover:border-brand-blue-primary hover:bg-brand-blue-lighter"
+                  {...tourAttr(
+                    'widget-settings.stations.import-class-groups',
+                    ctx.widget.id,
+                    ctx.widget.type
+                  )}
                 >
                   {translate(ctx, 'makeFromGroups', {
                     count: rosterGroups.length,
@@ -358,7 +377,12 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
       )}
 
       <div className="border-t border-slate-100 pt-4">
-        <SavedPresetsPanel stations={stations} onLoad={handleLoadPreset} />
+        <SavedPresetsPanel
+          stations={stations}
+          onLoad={handleLoadPreset}
+          widgetId={ctx.widget.id}
+          widgetType={ctx.widget.type}
+        />
       </div>
     </FieldRoot>
   );

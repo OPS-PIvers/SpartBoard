@@ -1,5 +1,5 @@
 // Firestore security-rules regression for the PLC pooling link on
-// `quiz_sessions/{sessionId}` (docs/plans/PLC_ASSESSMENT_DATA.md §3.1 / §4).
+// `quiz_sessions/{sessionId}` (docs/plans/shipped/PLC_ASSESSMENT_DATA.md §3.1 / §4).
 //
 // A session may carry `plcId` + `syncGroupId` so the recompute function can
 // pool results across a PLC. The rule pins:

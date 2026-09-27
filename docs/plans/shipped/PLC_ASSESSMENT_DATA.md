@@ -399,4 +399,4 @@ Deviations from the sections above, decided while building:
 ## 10. Out of scope (separate docs)
 
 - `docs/plans/PLC_RENAME_QUIZZES_TO_ASSESSMENTS.md`
-- `docs/plans/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md` (targets, banks, per-target data)
+- `docs/plans/shipped/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md` (targets, banks, per-target data)

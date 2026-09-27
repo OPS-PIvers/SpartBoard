@@ -1,6 +1,6 @@
 /**
  * The optional answer key file picked beside the test
- * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D8).
+ * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D8).
  *
  * Letters only mean something while the options still carry the letters the
  * document printed, so the key is applied to the `ExtractedQuiz` and not to

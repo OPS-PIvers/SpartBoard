@@ -175,10 +175,12 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
     />
   ) : (
     <div className="flex flex-col">
-      {tabAssignments.map((assignment) => (
+      {tabAssignments.map((assignment, index) => (
         <AssignmentArchiveCard<FlashcardAssignment>
           key={assignment.id}
           assignment={assignment}
+          tourIndex={index}
+          tourWidgetType="flashcards"
           mode={tab === 'archive' ? 'archive' : 'active'}
           status={
             tab === 'archive'
@@ -287,6 +289,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
             <LibraryToolbar
               {...view.toolbarProps}
               searchPlaceholder="Search flashcard sets…"
+              widgetType="flashcards"
               sortOptions={[
                 { key: 'updated', label: 'Last updated', defaultDir: 'desc' },
                 { key: 'title', label: 'Title', defaultDir: 'asc' },
@@ -360,11 +363,13 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
                 }
               />
             }
-            renderCard={(set) => (
+            renderCard={(set, index) => (
               <LibraryItemCard<FlashcardSet>
                 key={set.id}
                 id={set.id}
                 title={set.title || 'Untitled set'}
+                tourIndex={index}
+                tourWidgetType="flashcards"
                 subtitle={`${set.cards.length} card${set.cards.length === 1 ? '' : 's'} · Updated ${new Date(set.updatedAt).toLocaleDateString()}`}
                 thumbnail={
                   <div className="flex h-full w-full items-center justify-center bg-rose-50 text-rose-600">

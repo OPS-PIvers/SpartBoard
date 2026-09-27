@@ -279,6 +279,8 @@ export interface GuidedLearningManagerProps {
   /** Org-wide assignment mode. Drives Assign-vs-Share button labels and the
    *  In-Progress-vs-Shared tab label. Defaults to `'submissions'`. */
   assignmentMode?: AssignmentMode;
+  /** Surfaces a failed folder move (drag or bulk) as a toast. */
+  onError?: (message: string) => void;
 }
 
 /* ─── Sort / filter config ────────────────────────────────────────────────── */
@@ -457,6 +459,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onAssignmentPublishScores,
   onAssignmentUnpublishScores,
   assignmentMode = 'submissions',
+  onError,
 }) => {
   const { t } = useTranslation();
   const isViewOnly = assignmentMode === 'view-only';
@@ -634,11 +637,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       if (!userId) return;
       try {
         await moveItem(rawId, folderId);
-      } catch (err) {
-        console.error('[GuidedLearningManager] moveItem failed:', err);
+      } catch {
+        onError?.('That set could not be moved.');
       }
     },
-    [userId, moveItem]
+    [userId, moveItem, onError]
   );
   const handleDropOnFolder = useCallback(
     async (itemId: string, folderId: string | null): Promise<void> => {
@@ -700,22 +703,17 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         const results = await Promise.allSettled(
           ids.map((id) => moveItem(id.slice('personal:'.length), folderId))
         );
-        results.forEach((result, idx) => {
-          if (result.status === 'rejected') {
-            console.error(
-              '[GuidedLearningManager] bulk move failed for',
-              ids[idx],
-              result.reason
-            );
-          }
-        });
+        const failed = results.filter((r) => r.status === 'rejected').length;
+        if (failed > 0) {
+          onError?.(`${failed} set${failed === 1 ? '' : 's'} failed to move.`);
+        }
         selection.clear();
         setSelectionMode(false);
       } finally {
         setBulkBusy(false);
       }
     },
-    [userId, selection, moveItem]
+    [userId, selection, moveItem, onError]
   );
 
   const reorderDragActive =
@@ -798,7 +796,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   /* ─── Rendering helpers ─────────────────────────────────────────────────── */
 
-  const renderLibraryCard = (entry: LibraryEntry): React.ReactElement => {
+  const renderLibraryCard = (
+    entry: LibraryEntry,
+    index?: number
+  ): React.ReactElement => {
     const badges: LibraryBadge[] = [
       { label: MODE_LABELS[entry.mode], tone: 'info' },
     ];
@@ -1023,6 +1024,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         onSelectionToggle={
           selectable ? () => selection.toggle(entry.id) : undefined
         }
+        tourIndex={index}
+        tourWidgetType="guided-learning"
       />
     );
   };
@@ -1031,7 +1034,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   const renderAssignmentCard = (
     a: GuidedLearningAssignment,
-    mode: 'active' | 'archive'
+    mode: 'active' | 'archive',
+    index?: number
   ): React.ReactElement => {
     // Matches the path form produced by useGuidedLearningSession.createSession
     // (App.tsx routes the student app on pathname.startsWith('/guided-learning/')).
@@ -1218,6 +1222,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         onClick={
           assignmentIsViewOnly ? undefined : () => onAssignmentOpenResults(a)
         }
+        tourIndex={index}
+        tourWidgetType="guided-learning"
       />
     );
   };
@@ -1379,7 +1385,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     }
     return (
       <div className="flex flex-col">
-        {list.map((a) => renderAssignmentCard(a, mode))}
+        {list.map((a, index) => renderAssignmentCard(a, mode, index))}
         {showOlderButton}
       </div>
     );
@@ -1477,6 +1483,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
             sortOptions={SORT_OPTIONS}
             filters={[sourceFilter]}
             searchPlaceholder="Search sets…"
+            widgetType="guided-learning"
             rightSlot={
               <span
                 className="flex items-center"

@@ -129,7 +129,7 @@ Each item lists the files it owns. Items in the same phase are file-disjoint and
   "Engagement" section holds likes / comments / replies. Remove those toggles from the share
   modal's create form.
 - **C5 Cleanup.** Delete `MyPostsList.tsx`; remove the share-level likes/comments writes; update
-  `docs/plans/ACTIVITY_WALL_REDESIGN.md` with a pointer to this doc.
+  `docs/plans/shipped/ACTIVITY_WALL_REDESIGN.md` with a pointer to this doc.
 
 ### Phase D — tests and verification
 

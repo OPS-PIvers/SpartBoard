@@ -1,6 +1,6 @@
 /**
  * Turns the pictures a Word test carried into quiz stimuli
- * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D13, D14).
+ * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D13, D14).
  *
  * Between the read and the save, a question's `stimulusIds` hold the
  * reader's own image ids. This swaps them for the ids of real uploaded

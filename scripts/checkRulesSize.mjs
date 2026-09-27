@@ -18,7 +18,7 @@
  * bytes under the cap, and the dev-paul deploy failed on a green PR. It had
  * happened once before (#2089, which reclaimed headroom by slimming comments).
  *
- * Since PR 0 of docs/plans/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md, the
+ * Since PR 0 of docs/plans/shipped/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md, the
  * deploy script strips full-line comments and blank lines first
  * (scripts/stripRulesComments.mjs), so the cap applies to the STRIPPED
  * text. This guard measures that same stripped text; the source size is

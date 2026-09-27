@@ -10,6 +10,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { GuidedLearningStep } from '@/types';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { CALLOUT_TONES, CALLOUT_TONE_STYLES } from '../../utils/calloutStyle';
 import {
   clearCalloutPin,
@@ -99,9 +100,14 @@ export const CalloutToolbar: React.FC<CalloutToolbarProps> = ({
       </button>
       <span className="mx-0.5 h-5 w-px bg-slate-200" aria-hidden="true" />
       <div
-        role="group"
+        role="radiogroup"
         aria-label={t('glStudio.calloutColour')}
         className="flex items-center gap-1 px-0.5"
+        onKeyDown={(e) =>
+          handleRadioGroupKeyDown(e, CALLOUT_TONES, (option) =>
+            onChange(setCalloutTone(step, option))
+          )
+        }
       >
         {CALLOUT_TONES.map((option) => {
           const style = CALLOUT_TONE_STYLES[option];
@@ -110,7 +116,9 @@ export const CalloutToolbar: React.FC<CalloutToolbarProps> = ({
             <button
               key={option}
               type="button"
-              aria-pressed={checked}
+              role="radio"
+              aria-checked={checked}
+              tabIndex={checked ? 0 : -1}
               aria-label={t(style.labelKey)}
               title={t(style.labelKey)}
               onClick={() => onChange(setCalloutTone(step, option))}

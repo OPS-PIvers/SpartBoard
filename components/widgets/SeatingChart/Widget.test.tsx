@@ -12,7 +12,7 @@ import { DashboardContextValue } from '@/context/DashboardContextValue';
 
 vi.mock('@/context/useDashboard');
 // Class groups default OFF here, so these suites keep asserting the
-// pre-feature behaviour (docs/plans/ROSTER_GROUPS_INTEGRATION.md D23).
+// pre-feature behaviour (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D23).
 // Flip `gate.enabled` inside a test to exercise the feature.
 const gate = vi.hoisted(() => ({ enabled: false }));
 vi.mock('@/hooks/useRosterGroupsGate', () => ({
@@ -433,7 +433,7 @@ describe('generatePodsLayout', () => {
 });
 
 /**
- * Pool filter (docs/plans/ROSTER_GROUPS_INTEGRATION.md D22).
+ * Pool filter (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D22).
  *
  * Two things here are specific to Seating Chart rather than shared with the
  * other pooled widgets, and both would have shipped broken:

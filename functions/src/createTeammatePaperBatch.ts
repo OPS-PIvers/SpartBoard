@@ -1,6 +1,6 @@
 /**
  * createTeammatePaperBatchV1 / withdrawTeammatePaperBatchV1 — the write half of
- * delegated printing (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md §5.2, §5.3).
+ * delegated printing (docs/plans/shipped/PLC_DELEGATED_PAPER_PRINTING.md §5.2, §5.3).
  *
  * Both run as admin AFTER `authorizeDelegatedPrint` proves the caller may act,
  * so `users/{uid}/paper_batches` stays owner-only in `firestore.rules`.

@@ -1,4 +1,4 @@
-// Rules for handwritten paper answers (docs/plans/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md §3.5):
+// Rules for handwritten paper answers (docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md §3.5):
 //   - quiz_sessions/{sid}/responses/{key}/paperPrivate/{qid}: session teacher reads, server writes.
 //   - users/{uid}/paper_transcription_jobs/{id}: owner reads, server writes.
 //   - Storage paper_written_crops/{uid}/...: owning teacher creates once, nobody reads.

@@ -1,5 +1,5 @@
 /**
- * PR 2 of docs/plans/PLC_ASSESSMENT_DATA.md (D12): retroactive
+ * PR 2 of docs/plans/shipped/PLC_ASSESSMENT_DATA.md (D12): retroactive
  * "Share results with PLC" / "Stop sharing" write the session link fields
  * and the assignment's `plc` linkage together in one batch.
  */

@@ -2,7 +2,7 @@
 
 **Date**: 2026-09-20 · **Branch**: `dev-paul` · **Status**: Draft for product-owner review. The decisions in §2 were settled in a design interview on 2026-09-19/20, and no code has been written. File paths were verified against `dev-paul` at `baa1e3e`; re-verify them before relying on them.
 
-Let a PLC teammate print paper answer sheets for a colleague who is out. Builds on the shipped paper answer sheets feature (`docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md`), which this plan does not change: the absent teacher still scans, reviews and publishes exactly as they do today.
+Let a PLC teammate print paper answer sheets for a colleague who is out. Builds on the shipped paper answer sheets feature (`docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md`), which this plan does not change: the absent teacher still scans, reviews and publishes exactly as they do today.
 
 ---
 

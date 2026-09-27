@@ -77,7 +77,14 @@ vi.mock('@/components/common/Modal', () => ({
 
 const renderModal = (entry: ActivityWallLibraryEntry | null = null) =>
   render(
-    <WallEditorModal open entry={entry} onClose={vi.fn()} onSaved={vi.fn()} />
+    <WallEditorModal
+      open
+      entry={entry}
+      widgetId="widget-1"
+      widgetType="activity-wall"
+      onClose={vi.fn()}
+      onSaved={vi.fn()}
+    />
   );
 
 describe('WallEditorModal', () => {

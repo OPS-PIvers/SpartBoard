@@ -1,5 +1,5 @@
 /**
- * Word's automatic list numbering (docs/plans/QUIZ_IMPORT_RELIABILITY.md R24).
+ * Word's automatic list numbering (docs/plans/shipped/QUIZ_IMPORT_RELIABILITY.md R24).
  *
  * A teacher-typed Word test gets its `1.` and `a.` from list formatting, not
  * from typed characters, so `word/document.xml` holds no number at all. This

@@ -7,6 +7,7 @@ import {
   ScoreboardColor,
   normalizeScoreboardColor,
 } from '@/config/scoreboard';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 const COLOR_STYLES: Record<
   ScoreboardColor,
@@ -109,11 +110,16 @@ const getStyles = (colorClass: ScoreboardColor) => COLOR_STYLES[colorClass];
 export const ScoreboardItem = React.memo(
   ({
     team,
+    teamPosition = 1,
+    widgetId,
     onUpdateScore,
   }: {
     team: ScoreboardTeam;
+    teamPosition?: number;
+    widgetId?: string;
     onUpdateScore: (id: string, delta: number) => void;
   }) => {
+    const fieldKey = `team-${teamPosition}`;
     // Normalize the persisted color through the known-palette set before
     // it lands in className — an unknown value would interpolate into
     // `bg-something-500` that Tailwind has no rule for, leaving white
@@ -162,6 +168,12 @@ export const ScoreboardItem = React.memo(
             <button
               onClick={() => onUpdateScore(team.id, -1)}
               aria-label="Decrease score"
+              {...tourFieldAttr(
+                'scoreboard.remove-point',
+                'scoreboard',
+                fieldKey
+              )}
+              data-tour-widget={widgetId}
               className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
               style={{ padding: 'clamp(4px, 6cqmin, 28px)' }}
             >
@@ -187,6 +199,8 @@ export const ScoreboardItem = React.memo(
             <button
               onClick={() => onUpdateScore(team.id, 1)}
               aria-label="Increase score"
+              {...tourFieldAttr('scoreboard.add-point', 'scoreboard', fieldKey)}
+              data-tour-widget={widgetId}
               className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
               style={{ padding: 'clamp(4px, 6cqmin, 28px)' }}
             >
@@ -210,6 +224,8 @@ export const ScoreboardItem = React.memo(
     // we prevent all `ScoreboardItem`s from re-rendering when only a single team's score updates.
     return (
       prevProps.onUpdateScore === nextProps.onUpdateScore &&
+      prevProps.teamPosition === nextProps.teamPosition &&
+      prevProps.widgetId === nextProps.widgetId &&
       prevProps.team.id === nextProps.team.id &&
       prevProps.team.name === nextProps.team.name &&
       prevProps.team.score === nextProps.team.score &&

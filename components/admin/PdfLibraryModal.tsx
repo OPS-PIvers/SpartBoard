@@ -28,6 +28,7 @@ import {
 import { db, isAuthBypass } from '@/config/firebase';
 import { GlobalPdfItem, PdfGlobalConfig, FeaturePermission } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { canonicalizeBuildingIds } from '@/config/buildings';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
@@ -96,7 +97,15 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
       q,
       (snap) => {
         setPdfs(
-          snap.docs.map((d) => ({ ...d.data(), id: d.id }) as GlobalPdfItem)
+          snap.docs.map((d) => {
+            const data = d.data() as GlobalPdfItem;
+            return {
+              ...data,
+              id: d.id,
+              // pdf.buildings may hold a legacy long-form id that would never match building.id's canonical form.
+              buildings: canonicalizeBuildingIds(data.buildings ?? []),
+            };
+          })
         );
         setLoading(false);
       },

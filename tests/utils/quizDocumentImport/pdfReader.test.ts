@@ -1,5 +1,5 @@
 /**
- * The PDF reader (docs/plans/QUIZ_DOCUMENT_IMPORT.md D2). pdf.js is injected
+ * The PDF reader (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D2). pdf.js is injected
  * so the line-grouping and the text-layer-vs-OCR decision are testable
  * without a real PDF; the grouping is the part that decides whether a test
  * printed from Word reads correctly.
@@ -160,7 +160,7 @@ describe('readPdf', () => {
   });
 });
 
-/* ─── Layout (docs/plans/QUIZ_IMPORT_RELIABILITY.md R2–R4) ────────────────── */
+/* ─── Layout (docs/plans/shipped/QUIZ_IMPORT_RELIABILITY.md R2–R4) ────────────────── */
 
 /** A 12pt fragment with a realistic advance width (6pt a character). */
 const text12 = (str: string, x: number, y: number): PdfTextItem => ({

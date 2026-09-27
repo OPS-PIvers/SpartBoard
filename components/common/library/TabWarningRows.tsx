@@ -92,7 +92,7 @@ const stepLabel = (seconds: number) =>
     ? `${seconds}s`
     : `${Math.floor(seconds / 60)}m${seconds % 60 ? ` ${seconds % 60}s` : ''}`;
 
-/** "Auto-submit if away too long" with its time limit (docs/plans/TAB_AWAY_TIMER.md §2.4). */
+/** "Auto-submit if away too long" with its time limit (docs/plans/shipped/TAB_AWAY_TIMER.md §2.4). */
 export const TabAwayLimitRow: React.FC<{
   autoSubmit: boolean | undefined;
   seconds: number | undefined;

@@ -1,6 +1,6 @@
 # Live Tours v2: unmapped-anchor pipeline, top toolbar, recorded widget layout, sturdier playback
 
-Follow-up to Phase 3 of `docs/plans/GUIDED_LEARNING_STUDIO.md` (recorder and live tours). It covers three areas:
+Follow-up to Phase 3 of `docs/plans/shipped/GUIDED_LEARNING_STUDIO.md` (recorder and live tours). It covers three areas:
 
 1. Unmapped anchors are saved, queued and exposed to a Claude Code routine that opens PRs to tag them.
 2. The recording toolbar moves to the top of the screen.

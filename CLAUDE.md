@@ -48,7 +48,7 @@ Do not duplicate that locally.
 | `dev-*` | `spartboard-dev` | hosting, Firestore rules, indexes, Storage rules, functions | https://spartboard-dev.web.app |
 | `main`  | `spartboard`     | the same, and nothing else writes to prod                   | https://spartboard.web.app     |
 
-Since 2026-09-21 a push to `dev-paul` never touches production. Plan and decisions: `docs/plans/DEV_FIREBASE_PROJECT.md`.
+Since 2026-09-21 a push to `dev-paul` never touches production. Plan and decisions: `docs/plans/shipped/DEV_FIREBASE_PROJECT.md`.
 
 - **Compatibility is a release-time rule now, not a per-merge rule.** Merges into `dev-paul` no longer need gating on a marker only the new client writes. At a `main` release, rules and function changes still have to tolerate a teacher's already-open tab running the previous client, and read-rule tightening still needs that marker.
 - **CLI and MCP default to prod.** `.firebaserc` `default` (and the Firebase MCP's active project) is `spartboard`. Pass `--project dev` for any ad-hoc deploy, rules release, log read or data change, and never deploy to prod by hand unless Paul asks.
@@ -121,6 +121,7 @@ allowlist fails toward a cosmetic annoyance.
 
 ## CI and conventions
 
+- **Every PR targets `dev-paul`, never `main`**, including cloud-session PRs. A session branch can start from `main`, so before the first push run `git rebase --onto origin/dev-paul $(git merge-base HEAD origin/main)` if `git log origin/dev-paul..HEAD` shows commits that are not yours. Only Paul's promotion PRs go into `main`.
 - Pushes to `dev-*` deploy to `spartboard-dev`; pushes to `main` deploy production. See "Firebase projects" above.
 - `pr-validation.yml` has a `preflight` job: if `firebase-dev-deploy.yml` already passed on the PR's head SHA, everything except E2E is skipped.
 - **Release notes**: `public/changelog.json` is read by teachers, not developers. Never name a feature flag, a Firestore path or an internal mechanism in it, and check every claim against what admin settings actually enable rather than what the code defines. See [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md#how-to-write-a-release-note).
@@ -129,6 +130,10 @@ allowlist fails toward a cosmetic annoyance.
 - Widgets are not virtualized — keep dashboards to about 20 widgets.
 
 ### Editing a plan in `docs/plans/`
+
+`docs/plans/` holds only live plans. `docs/plans/shipped/` is the read-only decision record for
+shipped plans that code comments cite (e.g. "D3"); don't revise those. Move a plan there once its
+feature is built, even if a flag flip or cleanup step remains; track that step in `TODO.md`.
 
 **Before rewriting or substantially revising any `docs/plans/*.md`, list open PRs that touch that
 file and rebase onto them instead of rewriting from the version on `main`.** These docs get multiple

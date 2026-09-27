@@ -12,7 +12,7 @@ interface RosterGroupMenuItemsProps {
 
 /**
  * The indented group rows under one class in a class picker
- * (docs/plans/ROSTER_GROUPS_INTEGRATION.md D8/D16). Shared by
+ * (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D8/D16). Shared by
  * `ActiveClassChip` and the Randomizer's `RandomClassContextButton`.
  *
  * This is a teacher-facing surface, so the group name is shown here — it must

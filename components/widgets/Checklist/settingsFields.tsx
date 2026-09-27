@@ -3,6 +3,7 @@ import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { RosterGroupSelect } from '@/components/common/RosterGroupSelect';
+import { tourAttr } from '@/config/tourAnchors';
 import type {
   ChecklistItem,
   InstructionalRoutinesConfig,
@@ -125,6 +126,11 @@ export const ChecklistImportActionsField: React.FC<{
         onClick={addPastedTasks}
         disabled={pastedLines.length === 0}
         className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-brand-blue-primary hover:text-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed"
+        {...tourAttr(
+          'widget-settings.checklist.paste',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
       >
         {ctx.t('widgetSettings.checklist.addPastedTasks', {
           count: pastedLines.length,
@@ -135,6 +141,11 @@ export const ChecklistImportActionsField: React.FC<{
           type="button"
           onClick={importRoutine}
           className="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+          {...tourAttr(
+            'widget-settings.checklist.import-routine',
+            ctx.widget.id,
+            ctx.widget.type
+          )}
         >
           {ctx.t('widgetSettings.checklist.importRoutine')}
         </button>
@@ -142,6 +153,11 @@ export const ChecklistImportActionsField: React.FC<{
           type="button"
           onClick={importText}
           className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+          {...tourAttr(
+            'widget-settings.checklist.import-text',
+            ctx.widget.id,
+            ctx.widget.type
+          )}
         >
           {ctx.t('widgetSettings.checklist.importText')}
         </button>
@@ -151,7 +167,7 @@ export const ChecklistImportActionsField: React.FC<{
 };
 
 /**
- * Pool picker (docs/plans/ROSTER_GROUPS_INTEGRATION.md D22). Checklist has no
+ * Pool picker (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D22). Checklist has no
  * class chip to hang the group submenu off, so the pool lives here instead —
  * the one deviation from D8's "class-picker submenu" placement.
  */

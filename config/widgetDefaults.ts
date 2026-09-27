@@ -517,7 +517,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       cardColor: '#ffffff',
       cardOpacity: 1,
       specialistClass: '',
-    } as SpecialistScheduleConfig,
+    } satisfies SpecialistScheduleConfig,
   },
   'graphic-organizer': {
     w: 800,
@@ -527,7 +527,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       nodes: {},
       cardColor: '#ffffff',
       cardOpacity: 1,
-    } as GraphicOrganizerConfig,
+    } satisfies GraphicOrganizerConfig,
   },
   'reveal-grid': {
     w: 600,
@@ -555,7 +555,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
         },
       ],
       revealMode: 'flip',
-    } as RevealGridConfig,
+    } satisfies RevealGridConfig,
   },
   numberLine: {
     w: 700,

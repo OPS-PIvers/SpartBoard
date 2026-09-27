@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Circle, Copy, Footprints } from 'lucide-react';
 import type {
@@ -18,6 +18,7 @@ import { TOOLS } from '@/config/tools';
 import { teacherMustClick } from '@/components/tours/tourSession';
 import { suggestAnchorId } from '../recorder/resolveAnchor';
 import { StudioFindOnBoard } from './StudioFindOnBoard';
+import { fieldKeysForWidgetType, hasFieldSchema } from './tourFieldKeys';
 
 interface StudioTourControlsProps {
   step: GuidedLearningStep;
@@ -47,6 +48,10 @@ const UNTAGGED = '__untagged';
 const isPerWidgetType = (id: TourAnchorId): boolean => {
   const def: TourAnchorDef = TOUR_ANCHORS[id];
   return !!def.perWidgetType;
+};
+const isPerField = (id: TourAnchorId): boolean => {
+  const def: TourAnchorDef = TOUR_ANCHORS[id];
+  return !!def.perField;
 };
 
 const actionClass =
@@ -131,10 +136,31 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
 }) => {
   const { t } = useTranslation();
   const tour = step.tour;
-  const { id, widgetType } = parseTourAnchorRef(tour?.anchor ?? '');
+  const { id, widgetType, fieldKey } = parseTourAnchorRef(tour?.anchor ?? '');
   const anchorId = isTourAnchorId(id) ? id : null;
   const perType = anchorId ? isPerWidgetType(anchorId) : false;
+  const perField = anchorId ? isPerField(anchorId) : false;
+  const needsWidgetType = perType || perField;
   const selected = !tour ? '' : (anchorId ?? UNTAGGED);
+
+  const schemaAvailable =
+    perField && !!widgetType && hasFieldSchema(widgetType as WidgetType);
+  const [loadedKeys, setLoadedKeys] = useState<{
+    type: string;
+    keys: string[];
+  } | null>(null);
+  const fieldKeys =
+    schemaAvailable && loadedKeys?.type === widgetType ? loadedKeys.keys : [];
+  useEffect(() => {
+    if (!schemaAvailable || !widgetType) return;
+    let active = true;
+    void fieldKeysForWidgetType(widgetType as WidgetType).then((keys) => {
+      if (active) setLoadedKeys({ type: widgetType, keys });
+    });
+    return () => {
+      active = false;
+    };
+  }, [schemaAvailable, widgetType]);
 
   const withoutTour = (): GuidedLearningStep => {
     const next = { ...step };
@@ -154,7 +180,8 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
     bind({
       anchor: tourAnchorRef(
         value,
-        isPerWidgetType(value) ? widgetType : undefined
+        isPerWidgetType(value) || isPerField(value) ? widgetType : undefined,
+        isPerField(value) ? fieldKey : undefined
       ),
       action: tour?.action ?? 'click',
     });
@@ -212,6 +239,14 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
               </code>
             </span>
           )}
+          {fieldKey && (
+            <span>
+              {t('glStudio.tourAnchorFieldKey')}{' '}
+              <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-slate-800">
+                {fieldKey}
+              </code>
+            </span>
+          )}
         </p>
       )}
       {tour && (
@@ -221,7 +256,7 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
           onPeek={onPeekBoard}
         />
       )}
-      {anchorId && perType && tour && (
+      {anchorId && needsWidgetType && tour && (
         <label className="flex flex-col gap-1.5 text-xs font-bold text-slate-600">
           {t('glStudio.tourWidget')}
           <select
@@ -229,7 +264,11 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
             onChange={(e) =>
               bind({
                 ...tour,
-                anchor: tourAnchorRef(anchorId, e.target.value || undefined),
+                anchor: tourAnchorRef(
+                  anchorId,
+                  e.target.value || undefined,
+                  perField ? fieldKey : undefined
+                ),
               })
             }
             className={selectClass}
@@ -241,6 +280,51 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
               </option>
             ))}
           </select>
+        </label>
+      )}
+      {anchorId && perField && tour && widgetType && (
+        <label className="flex flex-col gap-1.5 text-xs font-bold text-slate-600">
+          {t('glStudio.tourField')}
+          {schemaAvailable ? (
+            <select
+              value={fieldKey ?? ''}
+              onChange={(e) =>
+                bind({
+                  ...tour,
+                  anchor: tourAnchorRef(
+                    anchorId,
+                    widgetType,
+                    e.target.value || undefined
+                  ),
+                })
+              }
+              className={selectClass}
+            >
+              <option value="">{t('glStudio.tourFieldPick')}</option>
+              {fieldKeys.map((key) => (
+                <option key={key} value={key}>
+                  {key}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={fieldKey ?? ''}
+              placeholder={t('glStudio.tourFieldPlaceholder')}
+              onChange={(e) =>
+                bind({
+                  ...tour,
+                  anchor: tourAnchorRef(
+                    anchorId,
+                    widgetType,
+                    e.target.value || undefined
+                  ),
+                })
+              }
+              className={selectClass}
+            />
+          )}
         </label>
       )}
       {tour && (

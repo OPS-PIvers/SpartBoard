@@ -301,14 +301,14 @@ service firebase.storage {
       allow write: if false;
     }
 
-    // Quiz read-aloud MP3 cache (docs/plans/QUIZ_READ_ALOUD.md §5): content-hashed,
+    // Quiz read-aloud MP3 cache (docs/plans/shipped/QUIZ_READ_ALOUD.md §5): content-hashed,
     // PII-free, written only by Cloud Functions; SSO students read via the SDK.
     match /quiz_tts_cache/{voice}/{fileName} {
       allow read: if request.auth != null;
       allow write: if false;
     }
 
-    // Projects widget uploads (docs/plans/PROJECTS_WIDGET.md D19/D20). Transit
+    // Projects widget uploads (docs/plans/shipped/PROJECTS_WIDGET.md D19/D20). Transit
     // buffer only: the archive trigger copies each object to the teacher's
     // Drive and deletes it here, exactly as Activity Wall media does.
     match /project_uploads/{runId}/{groupId}/{uploadId}/{fileName} {

@@ -1,4 +1,4 @@
-// Guided Learning building-set index (docs/plans/GUIDED_LEARNING_STUDIO.md P5-1): a slim, server-written library mirror.
+// Guided Learning building-set index (docs/plans/shipped/GUIDED_LEARNING_STUDIO.md P5-1): a slim, server-written library mirror.
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';

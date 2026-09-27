@@ -18,6 +18,7 @@ import {
 import { db, storage } from '@/config/firebase';
 import { MusicStation, MUSIC_GENRES, MusicGenre } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { canonicalizeBuildingIds } from '@/config/buildings';
 import { useAuth } from '@/context/useAuth';
 import { Button } from '@/components/common/Button';
 import { ConfirmDialog } from '@/components/widgets/InstructionalRoutines/ConfirmDialog';
@@ -238,16 +239,24 @@ export const MusicManager: React.FC = () => {
           const loaded: MusicStation[] = data.stations ?? [];
           // Backwards compatibility for missing thumbnails on YouTube URLs
           const migrated = loaded.map((station) => {
-            if (!station.thumbnail && station.url) {
-              const videoId = extractYouTubeId(station.url);
+            let next = station;
+            if (!next.thumbnail && next.url) {
+              const videoId = extractYouTubeId(next.url);
               if (videoId) {
-                return {
-                  ...station,
+                next = {
+                  ...next,
                   thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
                 };
               }
             }
-            return station;
+            // buildingIds may hold a legacy long-form id that would never match building.id's canonical form.
+            if (next.buildingIds) {
+              next = {
+                ...next,
+                buildingIds: canonicalizeBuildingIds(next.buildingIds),
+              };
+            }
+            return next;
           });
           setStations(migrated.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
         } else {

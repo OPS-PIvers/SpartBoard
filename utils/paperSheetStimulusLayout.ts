@@ -1,6 +1,6 @@
 /**
  * Fits the stimuli of one page into the answer sheet's right-hand band
- * (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D10-D13).
+ * (docs/plans/shipped/QUIZ_PAPER_SHEET_STIMULI.md D10-D13).
  *
  * Pure, and shared by the print modal's preview and the printer, so what a
  * teacher sees before printing is what comes out of the copier.

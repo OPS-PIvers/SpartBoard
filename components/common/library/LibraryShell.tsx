@@ -9,6 +9,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { OverflowMenu } from '@/components/common/sessionViews/OverflowMenu';
+import { tourAttr, tourTypeAttr, tourFieldAttr } from '@/config/tourAnchors';
 import type {
   LibraryShellProps,
   LibraryTab,
@@ -71,7 +72,8 @@ const renderActionButton = (
   labelsHidden: boolean,
   key?: string,
   extraClass = '',
-  accented = false
+  accented = false,
+  tourProps: Record<string, string> = {}
 ): React.ReactElement => {
   const Icon = action.icon;
   const base =
@@ -98,6 +100,7 @@ const renderActionButton = (
             : undefined
       }
       aria-label={action.label}
+      {...tourProps}
       className={`${base} ${variantClass} ${extraClass}`}
       style={{
         paddingInline: labelsHidden ? '0' : 'min(14px, 3cqmin)',
@@ -277,6 +280,8 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
               ariaLabel={`${widgetLabel} library tabs`}
               onDark
               accentColor={accent}
+              tourId="library-shell.tab"
+              tourScope={widgetType ?? 'library'}
             />
           ) : (
             <div className="min-w-0" />
@@ -292,7 +297,14 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                   action,
                   'secondary',
                   labelsHidden,
-                  `secondary-${i}`
+                  `secondary-${i}`,
+                  '',
+                  false,
+                  tourFieldAttr(
+                    'library-shell.secondary-action',
+                    widgetType ?? 'library',
+                    `row-${i + 1}`
+                  )
                 )
               )}
               {primaryAction &&
@@ -304,13 +316,18 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                       labelsHidden,
                       undefined,
                       'rounded-r-none',
-                      accent != null
+                      accent != null,
+                      widgetType
+                        ? tourTypeAttr('library-shell.new', widgetType)
+                        : tourAttr('library-shell.new')
                     )}
                     <OverflowMenu
                       items={primaryAction.menuItems}
                       ariaLabel="More ways to create"
                       triggerIcon={ChevronDown}
                       stretch
+                      tourId="library-shell.new-menu-item"
+                      tourScope={widgetType ?? 'library'}
                       triggerClassName={
                         accent
                           ? 'rounded-r-xl border-l border-slate-200 bg-white text-[color:var(--library-accent)] shadow-sm hover:bg-slate-100'
@@ -325,7 +342,10 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                     labelsHidden,
                     undefined,
                     '',
-                    accent != null
+                    accent != null,
+                    widgetType
+                      ? tourTypeAttr('library-shell.new', widgetType)
+                      : tourAttr('library-shell.new')
                   )
                 ))}
             </div>

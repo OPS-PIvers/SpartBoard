@@ -1,6 +1,6 @@
 /**
  * Reads a .docx (and so a Google Doc, which Drive exports as one — D4) into
- * lines and pictures, per docs/plans/QUIZ_DOCUMENT_IMPORT.md D2 and D13.
+ * lines and pictures, per docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D2 and D13.
  *
  * A Word file is a zip: `word/document.xml` holds the text, `word/media/*`
  * the pictures, and `word/_rels/document.xml.rels` ties an image reference in

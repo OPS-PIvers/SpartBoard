@@ -1,6 +1,6 @@
 /**
  * Pure row-building + filtering for the merged PLC Assessments list
- * (docs/plans/PLC_ASSESSMENT_DATA.md D5/D13). No React, no Firebase.
+ * (docs/plans/shipped/PLC_ASSESSMENT_DATA.md D5/D13). No React, no Firebase.
  */
 
 import type {

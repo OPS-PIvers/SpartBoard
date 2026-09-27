@@ -1,4 +1,4 @@
-// Recorder step-text drafting (docs/plans/GUIDED_LEARNING_STUDIO.md P3-3): request parsing, prompt and output clamping.
+// Recorder step-text drafting (docs/plans/shipped/GUIDED_LEARNING_STUDIO.md P3-3): request parsing, prompt and output clamping.
 import { HttpsError } from 'firebase-functions/v2/https';
 import { sanitizePrompt } from './sanitize';
 

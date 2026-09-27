@@ -1,6 +1,6 @@
 /**
  * The `'document'` import source and the optional editable review step
- * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D9, D10). Quiz is the only adapter that
+ * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D9, D10). Quiz is the only adapter that
  * uses either today, so these guard the shared wizard against the two ways a
  * test document arrives and against the review pane silently dropping edits.
  */

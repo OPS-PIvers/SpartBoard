@@ -6,7 +6,7 @@ import type { ClockConfig, WidgetData } from '@/types';
 
 const clockDefaults = WIDGET_DEFAULTS.clock.config as ClockConfig;
 
-// Pre-migration fixture from docs/plans/widget-settings-inventory.md ("## clock").
+// Pre-migration fixture from docs/plans/shipped/widget-settings-inventory.md ("## clock").
 const PRE_MIGRATION_CONFIG = {
   format24: true,
   showSeconds: true,

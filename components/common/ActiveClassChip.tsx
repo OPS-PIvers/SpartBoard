@@ -11,7 +11,7 @@ import { Z_INDEX } from '@/config/zIndex';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 /**
- * Optional pool selection (docs/plans/ROSTER_GROUPS_INTEGRATION.md D8/D16).
+ * Optional pool selection (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D8/D16).
  * A host passes this only when the rollout switch and the `roster-groups`
  * permission are both on; without it the chip is the class switcher it has
  * always been.

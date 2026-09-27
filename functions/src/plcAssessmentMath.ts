@@ -1,4 +1,4 @@
-// Pure math for the PLC pooled-assessment aggregate (docs/plans/PLC_ASSESSMENT_DATA.md §5.3).
+// Pure math for the PLC pooled-assessment aggregate (docs/plans/shipped/PLC_ASSESSMENT_DATA.md §5.3).
 // Local mirrors of the root `types.ts` shapes; functions cannot import across the repo root.
 
 import { notChosenIds, type ChooseSection } from './quizSectionsChosen';

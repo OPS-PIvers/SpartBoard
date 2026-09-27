@@ -1,5 +1,5 @@
 // Firestore rules for the tab-away exit log (`tabExits`) on Quiz and Video
-// Activity responses (docs/plans/TAB_AWAY_TIMER.md §3.2). A student may only
+// Activity responses (docs/plans/shipped/TAB_AWAY_TIMER.md §3.2). A student may only
 // append one exit or close their own open last exit; earlier entries never
 // change and the log stops at 50. Reads: the student and the teacher see the
 // log, another student does not.

@@ -23,6 +23,7 @@ import {
   suggestLtiClassLinkMatch,
 } from '@/utils/ltiCourseLinks';
 import type { SchoologySeenSection } from '@/hooks/useSchoologySeenSections';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface LinkSchoologyModalProps {
   isOpen: boolean;
@@ -217,6 +218,7 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
         <button
           type="button"
           onClick={onClose}
+          {...tourAttr('schoology-link.cancel')}
           className="text-sm font-bold text-slate-500 hover:text-slate-700 px-4 py-2 rounded-lg transition-colors"
         >
           Done
@@ -264,12 +266,17 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
             </p>
           </div>
         ) : (
-          unlinkedSections.map((section) => {
+          unlinkedSections.map((section, i) => {
             const state = rowState[section.contextId] ?? 'idle';
             const hint = hints[section.contextId];
             return (
               <div
                 key={section.contextId}
+                {...tourFieldAttr(
+                  'schoology-link.section-row',
+                  'schoology-link',
+                  `row-${i + 1}`
+                )}
                 className="rounded-lg border border-slate-200 p-3 space-y-2"
               >
                 <div className="flex items-center justify-between gap-2">
@@ -310,6 +317,11 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
                       state === 'linking' ||
                       state === 'linked'
                     }
+                    {...tourFieldAttr(
+                      'schoology-link.link',
+                      'schoology-link',
+                      `row-${i + 1}`
+                    )}
                     className="inline-flex items-center gap-1.5 text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark px-3 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
                   >
                     {state === 'linking' && (

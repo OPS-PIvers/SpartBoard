@@ -1,6 +1,6 @@
 /**
  * Tests for `commitProjectGroupsV1` — the Projects widget's group import
- * (docs/plans/PROJECTS_WIDGET.md D8/D9/D10).
+ * (docs/plans/shipped/PROJECTS_WIDGET.md D8/D9/D10).
  *
  * The invariants that matter here are the ones a teacher's tracked work rests
  * on: only the run's own teacher may write, `memberUids` are the real HMAC

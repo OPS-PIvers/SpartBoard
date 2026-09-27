@@ -1,4 +1,4 @@
-// Step narration helpers (docs/plans/GUIDED_LEARNING_STUDIO.md P2-4); the server side is functions/src/guidedLearningNarration.ts.
+// Step narration helpers (docs/plans/shipped/GUIDED_LEARNING_STUDIO.md P2-4); the server side is functions/src/guidedLearningNarration.ts.
 import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { functions, storage } from '@/config/firebase';

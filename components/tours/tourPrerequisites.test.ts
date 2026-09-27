@@ -63,6 +63,24 @@ describe('satisfyPrerequisite', () => {
     window.removeEventListener(TOUR_DOCK_EVENT, listen);
   });
 
+  it('scrolls a dock item into view once the dock is open', () => {
+    const dock = document.createElement('div');
+    dock.setAttribute('data-role', 'dock');
+    dock.setAttribute('data-dock-expanded', 'true');
+    const item = document.createElement('button');
+    item.setAttribute('data-tour', 'dock.item');
+    item.setAttribute('data-tour-widget-type', 'dice');
+    const scroll = vi.fn();
+    item.scrollIntoView = scroll;
+    dock.appendChild(item);
+    document.body.appendChild(dock);
+    expect(satisfyPrerequisite(ctxFor('dock.item:dice'))).toBeNull();
+    expect(scroll).toHaveBeenCalledWith({
+      block: 'nearest',
+      inline: 'nearest',
+    });
+  });
+
   it('selects the widget, restoring it first when minimized, and deselects on undo', () => {
     let selected: string | null = null;
     const ctx = ctxFor('widget.close:clock', {

@@ -2979,7 +2979,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // the user must have at least one of these buildings in their
       // `selectedBuildings` (self-managed in General Settings).
       if (permission.buildings && permission.buildings.length > 0) {
-        const allowed = new Set(permission.buildings);
+        // canonicalize() so a legacy-form stored id still matches selectedBuildings (always canonical post-load).
+        const allowed = new Set(canonicalizeBuildingIds(permission.buildings));
         const hasMatch = selectedBuildings.some((b) => allowed.has(b));
         if (!hasMatch) return false;
       }

@@ -27,6 +27,7 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { DriveFile } from '@/utils/googleDriveService';
 import { extractYouTubeId } from '@/utils/youtube';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { canonicalizeBuildingIds } from '@/config/buildings';
 import {
   Upload,
   Image as ImageIcon,
@@ -267,7 +268,18 @@ export const BackgroundManager: React.FC = () => {
     const unsub = onSnapshot(
       q,
       (snapshot) => {
-        setPresets(snapshot.docs.map((d) => d.data() as BackgroundPreset));
+        setPresets(
+          snapshot.docs.map((d) => {
+            const preset = d.data() as BackgroundPreset;
+            // buildingIds may hold a legacy long-form id that would never match building.id's canonical form.
+            return preset.buildingIds
+              ? {
+                  ...preset,
+                  buildingIds: canonicalizeBuildingIds(preset.buildingIds),
+                }
+              : preset;
+          })
+        );
         setLoading(false);
       },
       (error) => {

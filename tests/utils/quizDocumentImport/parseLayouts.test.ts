@@ -1,6 +1,6 @@
 /**
  * Regression tests for the parser failures measured on real teacher files
- * (docs/plans/QUIZ_IMPORT_RELIABILITY.md "What fails today", R5–R9, R23, R25).
+ * (docs/plans/shipped/QUIZ_IMPORT_RELIABILITY.md "What fails today", R5–R9, R23, R25).
  * Fixtures are synthetic and copy only the layout.
  */
 import { describe, it, expect } from 'vitest';

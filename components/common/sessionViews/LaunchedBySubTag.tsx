@@ -14,7 +14,7 @@ interface LaunchedBySubTagProps {
 
 /**
  * Says who started a run the teacher did not start themselves
- * (docs/plans/SUB_SHARE_COLLECTIONS.md §3.6). Renders nothing on the teacher's
+ * (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md §3.6). Renders nothing on the teacher's
  * own runs, which is every run without the stamp.
  */
 export const LaunchedBySubTag: React.FC<LaunchedBySubTagProps> = ({

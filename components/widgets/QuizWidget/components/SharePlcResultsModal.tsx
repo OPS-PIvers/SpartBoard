@@ -1,6 +1,6 @@
 /**
  * SharePlcResultsModal — retroactively pool an existing assignment's results
- * with a PLC (docs/plans/PLC_ASSESSMENT_DATA.md D12).
+ * with a PLC (docs/plans/shipped/PLC_ASSESSMENT_DATA.md D12).
  *
  * Step 1 picks the PLC (skipped when the teacher belongs to exactly one).
  * Step 2 picks the pool: the PLC's live quiz assessments ranked by source

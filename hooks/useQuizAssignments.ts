@@ -1443,7 +1443,7 @@ export const useQuizAssignments = (
         // Stimuli referenced by at least one question, labels stripped.
         // Omitted entirely for stimulus-free quizzes.
         ...(sessionStimuli.length > 0 ? { stimuli: sessionStimuli } : {}),
-        // Read-aloud snapshot (docs/plans/QUIZ_READ_ALOUD.md §3); omitted when off.
+        // Read-aloud snapshot (docs/plans/shipped/QUIZ_READ_ALOUD.md §3); omitted when off.
         ...(opts.readAloudAll ? { readAloudAll: true } : {}),
         ...(resolveQuizHandRaiseEnabled(handRaiseMode, opts.handRaiseEnabled)
           ? { handRaiseEnabled: true }
@@ -1505,7 +1505,7 @@ export const useQuizAssignments = (
         // students, so mirror it here alongside the window (the archive doc
         // above already carries it).
         ...(settings.dueAt != null ? { dueAt: settings.dueAt } : {}),
-        // PLC pooling marker (docs/plans/PLC_ASSESSMENT_DATA.md §3.1); the
+        // PLC pooling marker (docs/plans/shipped/PLC_ASSESSMENT_DATA.md §3.1); the
         // server keys the shared assessment on `syncGroupId`.
         ...(settings.plc
           ? {

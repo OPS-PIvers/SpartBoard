@@ -1,6 +1,6 @@
 /**
  * Parser fixtures for the layouts a real classroom test actually uses
- * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D2). Every case here is "what the
+ * (docs/plans/shipped/QUIZ_DOCUMENT_IMPORT.md D2). Every case here is "what the
  * document said", never a guess: a question the reader can't type comes back
  * as written-response with a warning rather than an invented key.
  */

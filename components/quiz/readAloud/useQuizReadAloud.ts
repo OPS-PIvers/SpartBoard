@@ -1,4 +1,4 @@
-// Student read-aloud player (docs/plans/QUIZ_READ_ALOUD.md §6.2): one audio element,
+// Student read-aloud player (docs/plans/shipped/QUIZ_READ_ALOUD.md §6.2): one audio element,
 // manifest-first playback with the callable as fallback, prefetch of the current and
 // next question, stimulus chunk playlists, rate + auto-read persisted per device.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';

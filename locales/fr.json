@@ -2627,6 +2627,9 @@
     "tourUntagged": "Trouvé par son nom (pas encore balisé dans le code)",
     "tourWidget": "Quel widget",
     "tourWidgetPick": "Choisir un widget",
+    "tourField": "Quel réglage",
+    "tourFieldPick": "Choisir un réglage",
+    "tourFieldPlaceholder": "Clé du réglage",
     "tourAction": "Quand la visite atteint cette étape",
     "tourAction_click": "Attendre le clic",
     "tourAction_observe": "Le montrer, puis Suivant",
@@ -2935,6 +2938,7 @@
     "reopenFailed": "Impossible de rouvrir la visite dans le Studio.",
     "tourAnchorId": "Id :",
     "tourAnchorWidgetType": "Widget :",
+    "tourAnchorFieldKey": "Réglage :",
     "tourSuggestedId": "Id suggéré",
     "tourCopyFailed": "Copie impossible. L’id est sélectionné, appuyez donc sur Ctrl+C ou ⌘C.",
     "tourFind": {
@@ -3654,6 +3658,7 @@
     "reason": {
       "unknownAnchor": "Absente du registre des ancres",
       "needsWidgetType": "Type de widget manquant",
+      "needsFieldKey": "Réglage ou ligne cible manquant",
       "unexpectedWidgetType": "A un type de widget que cette ancre n'accepte pas",
       "unknownWidgetType": "Nomme un type de widget qui n'existe pas",
       "fieldMisses": "Introuvable dans {{misses}} passages réels sur {{runs}}",

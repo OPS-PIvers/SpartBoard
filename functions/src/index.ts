@@ -72,7 +72,7 @@ export {
   transcribePaperBlankV1,
 } from './paperWrittenCallables';
 
-// ── Quiz read-aloud (Cloud Text-to-Speech; docs/plans/QUIZ_READ_ALOUD.md) ──
+// ── Quiz read-aloud (Cloud Text-to-Speech; docs/plans/shipped/QUIZ_READ_ALOUD.md) ──
 export { prepareQuizReadAloudV1, synthesizeQuizAudioV1 } from './quizReadAloud';
 export { synthesizeGuidedLearningNarrationV1 } from './guidedLearningNarration';
 export { translateQuizV1, translateResponseV1 } from './quizTranslation';
@@ -116,7 +116,7 @@ export {
   pinLoginV1,
 } from './studentIdentity';
 
-// ── Projects widget: group import (docs/plans/PROJECTS_WIDGET.md D8) ───────
+// ── Projects widget: group import (docs/plans/shipped/PROJECTS_WIDGET.md D8) ───────
 export { commitProjectGroupsV1 } from './projectGroups';
 // Projects widget: uploads ride the Activity Wall's Storage → Drive path (D20).
 export { archiveProjectUploadOnCreate } from './projectUploadArchive';
@@ -144,7 +144,7 @@ export {
   cleanupFlashcardAssignmentPointers,
 } from './studentAssignmentCleanup';
 
-// ── Flashcards Check submission (server-graded; docs/plans/FLASHCARDS.md §7) ─
+// ── Flashcards Check submission (server-graded; docs/plans/shipped/FLASHCARDS.md §7) ─
 export { submitFlashcardCheckV1 } from './flashcardCheck';
 export { resolveFlashcardFlagV1 } from './flashcardFlags';
 
@@ -205,7 +205,7 @@ export { recomputePlcAssessments } from './recomputePlcAssessments';
 // exposes teacher emails/displayNames. Decision 1.1 hardening. ──────────────
 export { mirrorPlcIndex } from './mirrorPlcIndex';
 
-// PLC norming flags: anonymized answer copies for norming (docs/plans/PLC_NORMING_FLAGS.md).
+// PLC norming flags: anonymized answer copies for norming (docs/plans/shipped/PLC_NORMING_FLAGS.md).
 export {
   setPlcNormingFlagV1,
   cleanupPlcNormingOnMembership,

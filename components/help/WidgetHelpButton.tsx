@@ -83,6 +83,11 @@ export const WidgetHelpButton: React.FC<WidgetHelpButtonProps> = ({
               requestStartTour({ setId: liveSetId });
               onClose();
             }}
+            {...tourAttr(
+              'settings.help-menu.show-live',
+              widget.id,
+              widget.type
+            )}
           >
             <Footprints className="w-4 h-4 text-slate-500" aria-hidden="true" />
             {t('tours.showMeLive')}
@@ -92,6 +97,11 @@ export const WidgetHelpButton: React.FC<WidgetHelpButtonProps> = ({
             role="menuitem"
             className={menuItemClass}
             onClick={openGuides}
+            {...tourAttr(
+              'settings.help-menu.open-guides',
+              widget.id,
+              widget.type
+            )}
           >
             <BookOpen className="w-4 h-4 text-slate-500" aria-hidden="true" />
             {t('tours.openGuides')}

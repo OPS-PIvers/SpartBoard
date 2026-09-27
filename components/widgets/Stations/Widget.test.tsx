@@ -8,7 +8,7 @@ import { getLocalIsoDate } from '@/utils/localDate';
 
 vi.mock('@/context/useDashboard');
 // Both halves of the class-groups gate default OFF here, so these suites keep
-// asserting the pre-feature behaviour (docs/plans/ROSTER_GROUPS_INTEGRATION.md D23).
+// asserting the pre-feature behaviour (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D23).
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ canAccessFeature: () => false }),
 }));
