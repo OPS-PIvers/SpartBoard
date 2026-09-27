@@ -52,7 +52,6 @@ import {
   type ExtractedQuestion,
 } from '@/utils/quizDocumentImport';
 import {
-  MAX_PDF_PAGES_LISTED,
   isPdf,
   openPdfPages,
   pdfPageFileName,
@@ -351,6 +350,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const [sharingBusy, setSharingBusy] = useState(false);
   const [askingToShare, setAskingToShare] = useState(false);
   /** A PDF waiting on the teacher to say which page goes on the sheet (D7). */
+  const [pdfPageDraft, setPdfPageDraft] = useState('1');
   const [pdfPick, setPdfPick] = useState<{
     file: File;
     pages: PdfPages;
@@ -417,6 +417,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         // it is rendered and uploaded as a PNG, so the print never sees pdf.js.
         if (pdf) {
           const pages = await openPdfPages(file);
+          setPdfPageDraft('1');
           setPdfPick({ file, pages });
           return null;
         }
@@ -866,7 +867,13 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   };
 
   if (pdfPick) {
-    const listed = Math.min(pdfPick.pages.pageCount, MAX_PDF_PAGES_LISTED);
+    const picked = Number(pdfPageDraft);
+    const pdfPageNumber =
+      Number.isInteger(picked) &&
+      picked >= 1 &&
+      picked <= pdfPick.pages.pageCount
+        ? picked
+        : null;
     return (
       <Modal
         isOpen
@@ -899,26 +906,33 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             {pdfPick.file.name} has {pdfPick.pages.pageCount} page
             {pdfPick.pages.pageCount === 1 ? '' : 's'}.
           </p>
-          <div className="flex max-h-64 flex-wrap gap-2 overflow-y-auto">
-            {Array.from({ length: listed }, (_, i) => (
-              // eslint-disable-next-line no-restricted-syntax -- each button is a real PDF page
-              <button
-                key={i + 1}
-                type="button"
-                disabled={stimulusBusy}
-                onClick={() => void addPdfPage(i + 1)}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
-              >
-                Page {i + 1}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              aria-label="Page number"
+              min={1}
+              max={pdfPick.pages.pageCount}
+              value={pdfPageDraft}
+              disabled={stimulusBusy}
+              onChange={(e) => setPdfPageDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter' || pdfPageNumber === null) return;
+                e.preventDefault();
+                void addPdfPage(pdfPageNumber);
+              }}
+              className="w-24 rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
+            />
+            <button
+              type="button"
+              disabled={stimulusBusy || pdfPageNumber === null}
+              onClick={() => {
+                if (pdfPageNumber !== null) void addPdfPage(pdfPageNumber);
+              }}
+              className="rounded-lg bg-brand-blue-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-50"
+            >
+              Add page
+            </button>
           </div>
-          {pdfPick.pages.pageCount > listed && (
-            <p className="text-xs text-slate-600">
-              Only the first {listed} pages are offered. Split the PDF if you
-              need one from further in.
-            </p>
-          )}
         </div>
       </Modal>
     );
