@@ -134,6 +134,26 @@ describe('PlcNormingFlagControl', () => {
       expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
     );
   });
+
+  it('does not un-flag an already-boundary-checked level on a no-op Home/End press', () => {
+    const { rerender } = render(
+      <PlcNormingFlagControl {...base} level="high" isAudio={false} />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Flagged for PLC norming: High' })
+    );
+    screen.getByRole('radio', { name: 'High' }).focus();
+    fireEvent.keyDown(screen.getByRole('radiogroup'), { key: 'Home' });
+    expect(callSetPlcNormingFlag).not.toHaveBeenCalled();
+
+    // The popover is already open (Home was a no-op, so nothing closed it).
+    rerender(
+      <PlcNormingFlagControl {...base} level="review" isAudio={false} />
+    );
+    screen.getByRole('radio', { name: 'Review' }).focus();
+    fireEvent.keyDown(screen.getByRole('radiogroup'), { key: 'End' });
+    expect(callSetPlcNormingFlag).not.toHaveBeenCalled();
+  });
 });
 
 const copy = (over: Partial<PlcNormingCopy>): PlcNormingCopy => ({

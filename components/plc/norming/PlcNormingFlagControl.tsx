@@ -43,10 +43,9 @@ export const PlcNormingFlagControl: React.FC<PlcNormingFlagControlProps> = ({
 
   const labelFor = (l: PlcNormingLevel) => normingLabelFor(l, labels);
 
-  // Shared by pick() and pickViaKeyNav() below; returns whether the write succeeded.
-  const commit = async (next: PlcNormingLevel): Promise<boolean> => {
+  // The write itself; target is the exact level to store (or null to clear).
+  const write = async (target: PlcNormingLevel | null): Promise<boolean> => {
     if (busy) return false;
-    const target = shown === next ? null : next;
     setBusy(true);
     setOptimistic({ from: level, to: target });
     try {
@@ -73,16 +72,16 @@ export const PlcNormingFlagControl: React.FC<PlcNormingFlagControlProps> = ({
     }
   };
 
-  // Click / Space / Enter activation: a single deliberate pick, so close the popover.
+  // Click / Space / Enter: toggle off if already active, else select; then close.
   const pick = async (next: PlcNormingLevel) => {
-    if (await commit(next)) setOpen(false);
+    const target = shown === next ? null : next;
+    if (await write(target)) setOpen(false);
   };
 
-  // Arrow/Home/End roving-tabindex nav: the radiogroup pattern commits on every
-  // move, so closing here would strand a keyboard user after their first step —
-  // leave the popover open until they explicitly activate a level or the toggle.
+  // Arrow/Home/End: always selects (never toggles off) and never closes, since
+  // Home/End can land back on the already-checked option with no real move.
   const pickViaKeyNav = (next: PlcNormingLevel) => {
-    void commit(next);
+    if (shown !== next) void write(next);
   };
 
   const flagLabel = shown
