@@ -143,6 +143,5 @@ page); full content only from `get_*`.
 
 ## Open items
 
-- Confirm with the district data agreement that class-level aggregates (CC-D3) are fine to send to
-  Anthropic.
+- ~~Confirm class-level aggregates (CC-D3) are covered by the district data agreement.~~ Resolved 2026-09-27: Anthropic signed the district DPA.
 - Set a $5 budget alert on both Firebase projects' billing accounts.
