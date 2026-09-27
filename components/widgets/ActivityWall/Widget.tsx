@@ -137,6 +137,10 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const [editorEntry, setEditorEntry] = useState<
     ActivityWallLibraryEntry | null | undefined
   >(undefined);
+  const handleEditEntry = (entry: ActivityWallLibraryEntry) => {
+    claudeReview.markReviewed(entry);
+    setEditorEntry(entry);
+  };
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [moderationOpen, setModerationOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -801,15 +805,11 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             else open();
           }}
           onCreate={() => setEditorEntry(null)}
-          onEdit={(entry) => {
-            claudeReview.markReviewed(entry);
-            setEditorEntry(entry);
-          }}
+          onEdit={handleEditEntry}
           badgesFor={(entry) => {
-            const review = claudeReview.badge(entry, () => {
-              claudeReview.markReviewed(entry);
-              setEditorEntry(entry);
-            });
+            const review = claudeReview.badge(entry, () =>
+              handleEditEntry(entry)
+            );
             return review ? [review] : [];
           }}
           onDuplicate={duplicateWall}

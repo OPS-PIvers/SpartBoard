@@ -126,6 +126,10 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   } = useFlashcardAssignments(inShare ? undefined : user?.uid);
   const folders = useFolders(inShare ? undefined : user?.uid, 'flashcards');
   const [editingSet, setEditingSet] = useState<FlashcardSet | null>(null);
+  const handleEditSet = (set: FlashcardSet) => {
+    claudeReview.markReviewed(set);
+    setEditingSet(set);
+  };
   const [saving, setSaving] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [sharingSet, setSharingSet] = useState<FlashcardSet | null>(null);
@@ -569,15 +573,11 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 folders={folders}
                 onNew={() => setEditingSet(makeSet())}
                 onImport={() => setImportOpen(true)}
-                onEdit={(set) => {
-                  claudeReview.markReviewed(set);
-                  setEditingSet(set);
-                }}
+                onEdit={handleEditSet}
                 badgesFor={(set) => {
-                  const review = claudeReview.badge(set, () => {
-                    claudeReview.markReviewed(set);
-                    setEditingSet(set);
-                  });
+                  const review = claudeReview.badge(set, () =>
+                    handleEditSet(set)
+                  );
                   return review ? [review] : [];
                 }}
                 onPresent={showPresent}
