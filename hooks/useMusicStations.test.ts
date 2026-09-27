@@ -72,6 +72,19 @@ const stationEmptyBuildingIds: MusicStation = {
   buildingIds: [],
 };
 
+// Stored with the pre-rename legacy long-form id, as an older/unresaved doc would have.
+const stationLegacyBuildingId: MusicStation = {
+  id: 'station-legacy',
+  title: 'Legacy High School Radio',
+  channel: 'LegacyFM',
+  url: 'https://youtube.com/watch?v=pqr',
+  thumbnail: '',
+  color: '#fff',
+  isActive: true,
+  order: 6,
+  buildingIds: ['orono-high-school'],
+};
+
 type SnapshotCallback = (snap: {
   exists: () => boolean;
   data: () => { stations?: MusicStation[] };
@@ -149,6 +162,14 @@ describe('useMusicStations – building filter', () => {
     const { result } = renderHook(() => useMusicStations());
     const ids = result.current.stations.map((s) => s.id);
     expect(ids).toContain('station-all');
+  });
+
+  it('matches a station stored with a legacy long-form building id against the canonical selection', () => {
+    setupMocks(['high'], [stationLegacyBuildingId]);
+    const { result } = renderHook(() => useMusicStations());
+    const ids = result.current.stations.map((s) => s.id);
+    // 'orono-high-school' and 'high' are the same building; canonicalizing must match them.
+    expect(ids).toContain('station-legacy');
   });
 
   it('returns no building-restricted stations when none match selected buildings', () => {
