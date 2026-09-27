@@ -1,10 +1,3 @@
-// Regression: the rename-folder modal looked up the folder being renamed
-// with `dockItems.find(...) as { folder: DockFolder }`, asserting it must
-// exist. If the folder disappears from `dockItems` while the modal is open
-// (e.g. deleted from another open tab/device — dock items sync in real
-// time), `.find()` returns `undefined` and `.folder.name` throws, crashing
-// the Dock's render. Fix: look the folder up without asserting, and render
-// nothing (closing the modal) when it's gone instead of crashing.
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -50,9 +43,7 @@ vi.mock('@/components/layout/dock/ToolDockItem', () => ({
   ),
 }));
 
-// Exposes a button that fires the real `onRename(folder.id)` callback Dock
-// passes down, so the test can drive Dock's internal `renamingFolderId`
-// state exactly like a real click on FolderItem's popover "Rename" button.
+// Fires the real onRename(folder.id) callback, like the popover's Rename button.
 vi.mock('@/components/layout/dock/FolderItem', () => ({
   FolderItem: ({
     folder,
@@ -286,21 +277,17 @@ describe('Dock — renaming a folder that disappears mid-edit', () => {
     const { rerender } = render(<Dock />);
     expandDock();
 
-    // Open the rename modal for the folder — sets Dock's internal
-    // `renamingFolderId` state, mirroring a real click on FolderItem's
-    // popover "Rename" button.
+    // Open the rename modal, sets Dock's internal renamingFolderId state.
     fireEvent.click(screen.getByTestId('folder-item'));
     expect(screen.getByTestId('rename-folder-modal')).toHaveTextContent(
       'My Folder'
     );
 
-    // Simulate the folder vanishing from `dockItems` — a live sync update
-    // from another tab/device deleting it — while the modal is still open.
+    // Folder vanishes from dockItems (e.g. deleted from another tab) while open.
     setupMocks([]);
     expect(() => rerender(<Dock />)).not.toThrow();
 
-    // The modal has nothing left to rename, so it closes instead of
-    // rendering with stale/undefined data.
+    // Nothing left to rename, so the modal closes instead of crashing.
     expect(screen.queryByTestId('rename-folder-modal')).not.toBeInTheDocument();
   });
 });
