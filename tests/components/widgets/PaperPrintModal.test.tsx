@@ -1214,7 +1214,10 @@ describe('PaperPrintModal with handwritten answers', () => {
     fireEvent.change(screen.getByLabelText('Questions'), {
       target: { value: '4' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Question 3 written' }));
+    fireEvent.change(screen.getByLabelText('Written question number'), {
+      target: { value: '3' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     fireEvent.change(screen.getByLabelText('Question 3 box size'), {
       target: { value: 'L' },
     });
@@ -1246,6 +1249,24 @@ describe('PaperPrintModal with handwritten answers', () => {
     );
     // Stubs print the number only, never a stem.
     expect(print.mock.calls[0][0].writtenTexts).toBeUndefined();
+  });
+
+  it('only adds written numbers within the question count, and removes them', () => {
+    setup({ quiz: quiz({ title: 'Pop quiz', questions: [] }) });
+    fireEvent.change(screen.getByLabelText('Questions'), {
+      target: { value: '4' },
+    });
+    const number = screen.getByLabelText('Written question number');
+    const add = screen.getByRole('button', { name: 'Add' });
+    fireEvent.change(number, { target: { value: '9' } });
+    expect(add).toBeDisabled();
+    fireEvent.change(number, { target: { value: '2' } });
+    fireEvent.keyDown(number, { key: 'Enter' });
+    expect(number).toHaveValue(null);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Remove question 2 written' })
+    );
+    expect(screen.queryByLabelText('Question 2 box size')).toBeNull();
   });
 
   it('pre-marks numbers the reader found without choices as written', async () => {
@@ -1285,8 +1306,8 @@ describe('PaperPrintModal with handwritten answers', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Read the test' }));
     await screen.findByText(/2 questions read/);
     expect(
-      screen.getByRole('button', { name: 'Question 2 written' })
-    ).toHaveAttribute('aria-pressed', 'true');
+      screen.getByRole('button', { name: 'Remove question 2 written' })
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('Question 2 box size')).toHaveValue('M');
     await printIt(print);
     const created = onCreateQuiz.mock.calls[0][0] as QuizData;

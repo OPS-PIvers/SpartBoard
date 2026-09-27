@@ -18,6 +18,12 @@ Permanent helper text was cut across the app in September 2026 (`docs/plans/ship
 - No em dashes, "Tip:" or "Note:" boxes, marketing words, or mechanics (Firestore, JSON, CSS, sync internals, flag names) in UI text. Run `deslop --writing` on new strings.
 - `tests/copyGuard.test.ts` fails on new em dashes, Tip/Note prefixes and strings over 30 words. Shorten the string. Never add to `tests/fixtures/copyGuardBaseline.json`, which may only shrink.
 
+## Picking a number
+
+- A count or a question number is a `<select>` (short fixed list, like 5/10/15/All) or an `<input type="number">` with `min`/`max`. Never render one button per number in a range: a 1-25 wall of buttons shipped in Flashcards assign and again in the paper quiz's written answers.
+- Choosing several numbers from a range (which questions are written) is a number input plus Add, listing each pick as a row with a remove button.
+- The `no-restricted-syntax` lint rule fails on buttons mapped from `Array.from({ length })` or a 10+ number literal. Real per-item controls (star rating, a page per PDF page, a tab per cycle day) take an `eslint-disable-next-line` with the reason.
+
 ## Design Context
 
 ### Users

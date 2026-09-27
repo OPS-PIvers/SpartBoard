@@ -246,6 +246,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const [stubWritten, setStubWritten] = useState<Record<number, StubWritten>>(
     {}
   );
+  const [writtenDraft, setWrittenDraft] = useState('');
   // The test paper this stub's questions came from, when one was uploaded.
   const [readDoc, setReadDoc] = useState<{
     fileName: string;
@@ -284,6 +285,18 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     return inRange;
   }, [stubWritten, stubQuestionCount]);
   const stubWrittenCount = Object.keys(stubWrittenInRange).length;
+  const writtenDraftNumber = ((): number | null => {
+    const n = Number(writtenDraft);
+    return Number.isInteger(n) && n >= 1 && n <= stubQuestionCount ? n : null;
+  })();
+  const addStubWritten = () => {
+    const n = writtenDraftNumber;
+    if (n === null) return;
+    setStubWritten((prev) =>
+      prev[n] ? prev : { ...prev, [n]: { size: 'M', points: 1 } }
+    );
+    setWrittenDraft('');
+  };
   const writtenCount = isStub ? stubWrittenCount : analysis.written.length;
   const questionCount = isStub
     ? stubQuestionCount - stubWrittenCount
@@ -888,6 +901,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           </p>
           <div className="flex max-h-64 flex-wrap gap-2 overflow-y-auto">
             {Array.from({ length: listed }, (_, i) => (
+              // eslint-disable-next-line no-restricted-syntax -- each button is a real PDF page
               <button
                 key={i + 1}
                 type="button"
@@ -1261,44 +1275,33 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
 
         {isStub && writtenOn && (
           <div>
-            <p
-              id="paper-stub-written"
-              className="text-xs font-bold uppercase tracking-wider text-slate-500"
-            >
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Written answers
             </p>
-            <div
-              role="group"
-              aria-labelledby="paper-stub-written"
-              className="mt-2 flex max-h-28 flex-wrap gap-1 overflow-y-auto rounded-xl border border-slate-200 p-2 pb-3"
-            >
-              {Array.from({ length: stubQuestionCount }, (_, i) => {
-                const n = i + 1;
-                const on = !!stubWritten[n];
-                return (
-                  <button
-                    key={n}
-                    type="button"
-                    aria-pressed={on}
-                    aria-label={`Question ${n} written`}
-                    onClick={() =>
-                      setStubWritten((prev) => {
-                        const next = { ...prev };
-                        if (on) delete next[n];
-                        else next[n] = { size: 'M', points: 1 };
-                        return next;
-                      })
-                    }
-                    className={`h-7 min-w-[2rem] rounded-md border px-1.5 text-xs font-semibold transition-colors ${
-                      on
-                        ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
-                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'
-                    }`}
-                  >
-                    {n}
-                  </button>
-                );
-              })}
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="number"
+                aria-label="Written question number"
+                placeholder="#"
+                min={1}
+                max={stubQuestionCount}
+                value={writtenDraft}
+                onChange={(e) => setWrittenDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  e.preventDefault();
+                  addStubWritten();
+                }}
+                className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+              />
+              <button
+                type="button"
+                disabled={writtenDraftNumber === null}
+                onClick={addStubWritten}
+                className="rounded-lg border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+              >
+                Add
+              </button>
             </div>
             {stubWrittenCount > 0 && (
               <ul className="mt-2 space-y-1.5">
@@ -1347,6 +1350,20 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                           className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm"
                         />
                         <span className="text-xs text-slate-500">pts</span>
+                        <button
+                          type="button"
+                          aria-label={`Remove question ${n} written`}
+                          onClick={() =>
+                            setStubWritten((prev) => {
+                              const next = { ...prev };
+                              delete next[n];
+                              return next;
+                            })
+                          }
+                          className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                        >
+                          <X className="h-4 w-4" aria-hidden />
+                        </button>
                       </li>
                     );
                   })}
