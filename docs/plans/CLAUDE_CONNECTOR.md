@@ -105,6 +105,13 @@ page); full content only from `get_*`.
 | 3   | video activities, rubrics, Activity Wall, mini-apps; `get_quiz_results_summary`, `get_video_activity_results_summary` (CC-D3)                                                       |
 | 4   | Companion skill in `claude-skills`; MCP prompts for the common workflows                                                                                                            |
 
+### PR 2 notes
+
+- Items with `sync` set (shared with a PLC) are read-only to Claude: editing them would have to publish a new synced version and mirror PLC headers, which stays in SpartBoard.
+- Claude edits questions in a friendly shape (`multiple_choice`, `choose_all`, `matching` pairs, …) that the server encodes into the client's `correctAnswer` strings. An edited question keeps its targets, stimuli and rubric; its answer key and `optionOrder` are replaced.
+- Sections, bank pulls and stimuli are preserved but not editable; new questions land after existing `order` entries.
+- A pre-edit revision stores the Drive JSON when it is under 800 KB; above that, restore points the teacher to Drive's version history.
+
 ## Limits and cost (CC-D16)
 
 - No `minInstances`. `maxInstances`: 10 for `mcpServer`, 5 for `mcpOAuth`.

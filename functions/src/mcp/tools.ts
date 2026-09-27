@@ -1,7 +1,6 @@
 // MCP tool definitions for the Claude connector (plan: "Tools", PR 1).
 import * as admin from 'firebase-admin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { DAILY_WRITE_LIMIT, PAGE_SIZE } from './config';
 import {
@@ -23,6 +22,16 @@ import {
   stageSetWrite,
   type FlashcardSet,
 } from './flashcardStore';
+import {
+  CONTENT_TYPES,
+  FOLDER_COLLECTIONS,
+  assertFolder,
+  iso,
+  pageByUpdatedAt,
+  run,
+  titleAndFolderFilter,
+} from './toolKit';
+import { registerQuizTools, restoreQuizRevision } from './quizTools';
 
 export const SERVER_INSTRUCTIONS = [
   "SpartBoard is a classroom dashboard. These tools read and write the signed-in teacher's own library.",
@@ -30,69 +39,8 @@ export const SERVER_INSTRUCTIONS = [
   'Every edit keeps the previous version for 30 days; use list_revisions and restore_revision to undo.',
   'Nothing here can delete items, assign work to students, or share content; the teacher does that in SpartBoard.',
   'No student-level data is available through this connector.',
+  "Quizzes and question banks are saved in the teacher's Google Drive; items shared with a PLC can only be edited in SpartBoard.",
 ].join(' ');
-
-const FOLDER_COLLECTIONS = { flashcards: 'flashcard_folders' } as const;
-type FolderContentType = keyof typeof FOLDER_COLLECTIONS;
-const CONTENT_TYPES = Object.keys(FOLDER_COLLECTIONS) as [FolderContentType];
-
-const json = (value: unknown): CallToolResult => ({
-  content: [{ type: 'text', text: JSON.stringify(value, null, 2) }],
-});
-
-const iso = (ms: unknown): string | null =>
-  typeof ms === 'number' ? new Date(ms).toISOString() : null;
-
-/** Runs a tool body, turning expected failures into a readable tool error for Claude. */
-async function run(
-  name: string,
-  ctx: ToolContext,
-  body: () => Promise<unknown>
-): Promise<CallToolResult> {
-  try {
-    return json(await body());
-  } catch (err) {
-    if (err instanceof ToolError) {
-      return { isError: true, content: [{ type: 'text', text: err.message }] };
-    }
-    console.error(`[mcpServer] ${name} failed`, { uid: ctx.uid, err });
-    return {
-      isError: true,
-      content: [
-        {
-          type: 'text',
-          text: 'SpartBoard could not complete that request. Try again shortly.',
-        },
-      ],
-    };
-  }
-}
-
-async function assertFolder(
-  ctx: ToolContext,
-  contentType: FolderContentType,
-  folderId: string | null | undefined
-): Promise<void> {
-  if (!folderId) return;
-  const snap = await ctx.db
-    .doc(`users/${ctx.uid}/${FOLDER_COLLECTIONS[contentType]}/${folderId}`)
-    .get();
-  if (!snap.exists) {
-    throw new ToolError(
-      `Folder ${folderId} was not found. Use list_folders to find a folder id.`
-    );
-  }
-}
-
-function decodeCursor(
-  cursor: string | undefined
-): { updatedAt: number; id: string } | null {
-  const sep = cursor?.indexOf(':') ?? -1;
-  if (!cursor || sep <= 0) return null;
-  const updatedAt = Number(cursor.slice(0, sep));
-  const id = cursor.slice(sep + 1);
-  return Number.isFinite(updatedAt) && id ? { updatedAt, id } : null;
-}
 
 function summarizeSet(set: FlashcardSet) {
   return {
@@ -203,7 +151,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         return {
           email: ctx.email,
           name,
-          content_types: ['flashcards'],
+          content_types: ['flashcards', 'quizzes', 'question_banks'],
           can: ['create', 'edit', 'undo edits'],
           cannot: ['delete', 'assign to students', 'share', 'see student data'],
           daily_change_limit: DAILY_WRITE_LIMIT,
@@ -334,43 +282,17 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     },
     ({ search, folder_id, cursor }) =>
       run('list_flashcard_sets', ctx, async () => {
-        const needle = search?.trim().toLowerCase() ?? '';
-        const matches = (s: FlashcardSet) =>
-          (!needle || s.title.toLowerCase().includes(needle)) &&
-          (!folder_id ||
-            (folder_id === 'root' ? !s.folderId : s.folderId === folder_id));
-        const results: FlashcardSet[] = [];
-        // Cursor is "<updatedAt>:<docId>"; the id breaks ties so equal timestamps never drop a set.
-        let after = decodeCursor(cursor);
-        let scanned = 0;
-        let exhausted = false;
-        // Scan in pages so a filtered list never reads the whole library at once.
-        while (results.length < PAGE_SIZE && scanned < 200) {
-          let q = db
-            .collection(setsPath(uid))
-            .orderBy('updatedAt', 'desc')
-            .orderBy(admin.firestore.FieldPath.documentId(), 'desc')
-            .limit(50);
-          if (after) q = q.startAfter(after.updatedAt, after.id);
-          const snap = await q.get();
-          scanned += snap.size;
-          let consumed = 0;
-          for (const d of snap.docs) {
-            consumed += 1;
-            const set = { ...(d.data() as FlashcardSet), id: d.id };
-            after = { updatedAt: set.updatedAt, id: d.id };
-            if (matches(set)) results.push(set);
-            if (results.length >= PAGE_SIZE) break;
-          }
-          if (snap.size < 50 && consumed === snap.size) {
-            exhausted = true;
-            break;
-          }
-        }
+        const page = await pageByUpdatedAt(
+          db,
+          setsPath(uid),
+          cursor,
+          titleAndFolderFilter(search, folder_id)
+        );
         return {
-          sets: results.map(summarizeSet),
-          next_cursor:
-            exhausted || !after ? null : `${after.updatedAt}:${after.id}`,
+          sets: page.items.map(({ id, data }) =>
+            summarizeSet({ ...(data as unknown as FlashcardSet), id })
+          ),
+          next_cursor: page.next_cursor,
         };
       })
   );
@@ -583,7 +505,11 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           throw new ToolError(
             `Revision ${revision_id} was not found or has expired.`
           );
-        if (rev.get('itemType') !== 'flashcard_set') {
+        const itemType = rev.get('itemType') as unknown;
+        if (itemType === 'quiz' || itemType === 'question_bank') {
+          return restoreQuizRevision(ctx, rev);
+        }
+        if (itemType !== 'flashcard_set') {
           throw new ToolError('That revision cannot be restored.');
         }
         const itemId = String(rev.get('itemId'));
@@ -604,4 +530,6 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         return saveFlashcardEdit(ctx, existing, restored, 'restore');
       })
   );
+
+  registerQuizTools(server, ctx);
 }

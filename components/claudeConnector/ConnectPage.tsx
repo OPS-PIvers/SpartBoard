@@ -5,6 +5,7 @@ import { AlertCircle, Check, Loader2, LogIn, Sparkles, X } from 'lucide-react';
 import { APP_NAME } from '@/config/constants';
 import { functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import { refreshAccessTokenViaBackend } from '@/utils/googleOAuthRefresh';
 
 // Mirrors AuthorizeRequest / AuthorizeResponse in functions/src/mcp/authorizeCallables.ts.
 interface AuthorizeRequest {
@@ -97,7 +98,7 @@ const Message: React.FC<{
 );
 
 const CAN = [
-  'Create flashcard sets and folders in your library',
+  'Create flashcards, quizzes and question banks in your library',
   'Edit items you ask it to change',
   'Undo its own edits for 30 days',
 ];
@@ -108,7 +109,8 @@ const CANNOT = [
 ];
 
 export const ConnectPage: React.FC = () => {
-  const { user, loading, signInWithGoogle, signOut } = useAuth();
+  const { user, loading, signInWithGoogle, signOut, captureOfflineGrant } =
+    useAuth();
   const params = React.useMemo(readParams, []);
   const [preview, setPreview] = React.useState<PreviewState>({
     kind: 'loading',
@@ -117,12 +119,32 @@ export const ConnectPage: React.FC = () => {
     null
   );
   const [actionError, setActionError] = React.useState<string | null>(null);
+  // Quizzes and banks live in Drive, so the server needs the teacher's offline grant.
+  const [drive, setDrive] = React.useState<
+    'checking' | 'ok' | 'missing' | 'granting'
+  >('checking');
 
   const [trackedUid, setTrackedUid] = React.useState(user?.uid);
   if (user?.uid !== trackedUid) {
     setTrackedUid(user?.uid);
     setPreview({ kind: 'loading' });
   }
+
+  React.useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    refreshAccessTokenViaBackend()
+      .then((out) => {
+        if (!cancelled)
+          setDrive(out.status === 'needs-consent' ? 'missing' : 'ok');
+      })
+      .catch(() => {
+        if (!cancelled) setDrive('ok');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   React.useEffect(() => {
     if (!user || !params) return;
@@ -269,6 +291,28 @@ export const ConnectPage: React.FC = () => {
             ))}
           </ul>
         </div>
+        {(drive === 'missing' || drive === 'granting') && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <p className="text-slate-700 mb-2">
+              Quizzes and question banks are saved in your Google Drive. Allow
+              Drive access so Claude can work with them.
+            </p>
+            <button
+              onClick={() => {
+                setDrive('granting');
+                captureOfflineGrant()
+                  .then((ok) => setDrive(ok ? 'ok' : 'missing'))
+                  .catch(() => setDrive('missing'));
+              }}
+              disabled={drive === 'granting'}
+              className="text-sm font-semibold text-brand-blue-primary hover:text-brand-blue-dark disabled:opacity-60"
+            >
+              {drive === 'granting'
+                ? 'Waiting for Google…'
+                : 'Allow Drive access'}
+            </button>
+          </div>
+        )}
         <p className="text-xs text-slate-500">
           You can disconnect anytime in {APP_NAME} under Profile &amp; Settings
           &gt; Connected apps.

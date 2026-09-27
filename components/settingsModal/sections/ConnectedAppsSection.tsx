@@ -39,6 +39,8 @@ const ACTION_LABELS: Record<ActivityRow['action'], string> = {
 const ITEM_LABELS: Record<string, string> = {
   flashcard_set: 'flashcard set',
   folder: 'folder',
+  quiz: 'quiz',
+  question_bank: 'question bank',
 };
 
 const formatDate = (ms: number): string =>
