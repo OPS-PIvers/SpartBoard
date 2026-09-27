@@ -154,9 +154,9 @@ export const mcpServer = onRequest(
         websiteUrl: publicOrigin(),
         icons: [
           {
-            src: `${publicOrigin()}/favicon.png`,
+            src: `${publicOrigin()}/icon-128.png`,
             mimeType: 'image/png',
-            sizes: ['72x72'],
+            sizes: ['128x128'],
           },
         ],
       },
