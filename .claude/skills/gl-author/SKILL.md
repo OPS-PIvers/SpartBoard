@@ -27,7 +27,12 @@ Read the one closest to the request before starting.
    one script so pins are computed, not eyeballed. When starting from an
    exported file, decode each `imageUrls` entry and overlay its existing
    pins so you can see what the author meant.
-2. **Plan steps.** One hotspot per thing the audience must notice: 4–8
+2. **Plan steps.** For a live tour, first write one concrete task the teacher
+   will complete, trace the real UI state changes, and put a user click on
+   each control that advances that task. Use `observe` only for typing,
+   inspecting a result, or a state-dependent control the teacher must set
+   themselves. A sequence of informational popovers is not a live tour.
+   For other sets, use one hotspot per thing the audience must notice: 4–8
    teaching steps per slide and 4–10 for a single diagram, up to ~16 for an
    app walkthrough, plus any question and media steps. Spread steps across
    slides in teaching order rather than piling them on the first. Add pins
