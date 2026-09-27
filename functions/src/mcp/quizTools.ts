@@ -25,6 +25,7 @@ import {
   normalizeContent,
   questionNeedsKey,
   readMetadata,
+  reconcileQuestionOrder,
   toFriendlyQuestion,
   toStoredQuestion,
   type FriendlyQuestion,
@@ -214,9 +215,13 @@ async function saveContent(
   }
 ) {
   const now = Date.now();
+  const questions = clearSatisfiedNeedsKey(next.questions);
   const content: QuizContent = {
     ...next,
-    questions: clearSatisfiedNeedsKey(next.questions),
+    questions,
+    ...(Array.isArray(next.order)
+      ? { order: reconcileQuestionOrder(next.order, questions) }
+      : {}),
     updatedAt: now,
   };
   const driveFileId = await saveQuizJson(
@@ -429,7 +434,7 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
       names.update,
       {
         title: `Edit a ${label}`,
-        description: `Edits a ${label}. Only the fields you pass change. \`questions\`, when passed, replaces the whole list: include every question to keep, with its id from ${names.get}. New questions go at the end of any sections. The previous version is kept for 30 days (restore_revision). ${label === 'quiz' ? 'Existing assignments keep the questions they were given.' : ''} ${QUESTION_HELP}`,
+        description: `Edits a ${label}. Only the fields you pass change. \`questions\`, when passed, replaces the whole list: include every question to keep, with its id from ${names.get}. In a quiz with sections, new questions are added to the last section and existing questions keep their places; the teacher can move them in SpartBoard. The previous version is kept for 30 days (restore_revision). ${label === 'quiz' ? 'Existing assignments keep the questions they were given.' : ''} ${QUESTION_HELP}`,
         inputSchema: {
           [names.idKey]: z.string().min(1),
           title: z.string().trim().min(1).max(200).optional(),

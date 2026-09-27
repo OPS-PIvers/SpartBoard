@@ -5,6 +5,7 @@ import {
   buildMetadata,
   clearSatisfiedNeedsKey,
   normalizeContent,
+  reconcileQuestionOrder,
   toFriendlyQuestion,
   toStoredQuestion,
   type FriendlyQuestion,
@@ -266,5 +267,35 @@ describe('metadata mirrors', () => {
     );
     expect(content.questions[0].type).toBe('free-response');
     expect(content.id).toBe('x');
+  });
+});
+
+describe('reconcileQuestionOrder', () => {
+  it('drops removed questions, keeps sections and slots, and appends new ones last', () => {
+    const order = [
+      { kind: 'section', id: 's1' },
+      { kind: 'question', id: 'a' },
+      { kind: 'question', id: 'gone' },
+      { kind: 'slot', id: 'slot1' },
+      { kind: 'section', id: 's2' },
+      { kind: 'question', id: 'b' },
+    ];
+    const questions = ['b', 'a', 'new'].map((id) => ({
+      id,
+      timeLimit: 0,
+      text: id,
+      type: 'MC' as const,
+      correctAnswer: 'x',
+      incorrectAnswers: ['y'],
+    }));
+    expect(reconcileQuestionOrder(order, questions)).toEqual([
+      { kind: 'section', id: 's1' },
+      { kind: 'question', id: 'a' },
+      { kind: 'slot', id: 'slot1' },
+      { kind: 'section', id: 's2' },
+      { kind: 'question', id: 'b' },
+      { kind: 'question', id: 'new' },
+    ]);
+    expect(reconcileQuestionOrder(undefined, questions)).toBeUndefined();
   });
 });

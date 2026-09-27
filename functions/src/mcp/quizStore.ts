@@ -340,6 +340,29 @@ export function buildSearchText(questions: StoredQuestion[]): string {
     .slice(0, 2000);
 }
 
+/** Mirrors quizOrder in utils/questionBanks.ts for question entries: drops removed ids, appends new ones last. */
+export function reconcileQuestionOrder(
+  order: unknown,
+  questions: StoredQuestion[]
+): unknown {
+  if (!Array.isArray(order)) return order;
+  const ids = new Set(questions.map((q) => q.id));
+  const seen = new Set<string>();
+  const out: unknown[] = [];
+  for (const entry of order as { kind?: unknown; id?: unknown }[]) {
+    if (entry?.kind === 'question') {
+      const id = String(entry.id);
+      if (!ids.has(id) || seen.has(id)) continue;
+      seen.add(id);
+    }
+    out.push(entry);
+  }
+  for (const q of questions) {
+    if (!seen.has(q.id)) out.push({ kind: 'question', id: q.id });
+  }
+  return out;
+}
+
 /** Mirrors isMissingKey in utils/quizNeedsKey.ts. */
 function isMissingKey(q: StoredQuestion): boolean {
   if (q.type === 'free-response') return false;
