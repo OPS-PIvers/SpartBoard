@@ -3564,11 +3564,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   tabWarningsEnabled: false,
                 },
                 attemptLimit: 1,
-                ...(plc && groupId ? { plc, plcPoolSyncGroupId: groupId } : {}),
+                ...(plc && groupId ? { plc } : {}),
               },
               // No classIds and paused: never a live door for students.
               // publishPaperResultsV1 ends it once results go out (Q34).
-              { initialStatus: 'paused' }
+              {
+                initialStatus: 'paused',
+                ...(plc && groupId ? { plcPoolSyncGroupId: groupId } : {}),
+              }
             );
             return id;
           }}
