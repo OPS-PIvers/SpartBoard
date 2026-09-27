@@ -38,7 +38,6 @@ import { useDragScroll } from '@/hooks/useDragScroll';
 import {
   WidgetType,
   WidgetData,
-  DockFolder,
   DockItem,
   MiniAppItem,
   InternalToolType,
@@ -454,6 +453,16 @@ export const Dock: React.FC = () => {
     annotationActive && annotationState?.activeTool !== 'select';
 
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+
+  // Undefined when the folder being renamed was deleted elsewhere (another
+  // tab/device sync) while this modal was open — looked up fresh each render
+  // instead of asserted, so that race closes the modal instead of crashing.
+  const renamingFolder = renamingFolderId
+    ? dockItems.find(
+        (i): i is Extract<DockItem, { type: 'folder' }> =>
+          i.type === 'folder' && i.folder.id === renamingFolderId
+      )
+    : undefined;
 
   const { processAndUploadImage } = useImageUpload();
 
@@ -1027,15 +1036,9 @@ export const Dock: React.FC = () => {
         />
       )}
 
-      {renamingFolderId && (
+      {renamingFolderId && renamingFolder && (
         <RenameFolderModal
-          name={
-            (
-              dockItems.find(
-                (i) => i.type === 'folder' && i.folder.id === renamingFolderId
-              ) as { folder: DockFolder }
-            ).folder.name
-          }
+          name={renamingFolder.folder.name}
           onClose={() => setRenamingFolderId(null)}
           onSave={(newName) => {
             if (newName.trim()) {
