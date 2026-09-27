@@ -2,6 +2,7 @@
 export const CLAUDE_REVIEW_FIELD = 'claudeReviewPendingAt';
 
 export interface ClaudeReviewable {
+  id?: string;
   claudeReviewPendingAt?: number | null;
 }
 
