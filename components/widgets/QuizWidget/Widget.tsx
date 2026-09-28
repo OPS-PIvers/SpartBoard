@@ -1861,7 +1861,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           if (quizHasBankSlots(data)) {
             if (mode !== 'student') {
               addToast(
-                'Random bank draws need a self-paced session. Switch the session mode to self-paced and try again.',
+                'Random bank draws need Assessment Mode. Switch to Assessment Mode and try again.',
                 'error'
               );
               return;

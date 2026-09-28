@@ -1264,7 +1264,7 @@ export const useQuizAssignments = (
         !!accessMode && !!periodAccess && Object.keys(periodAccess).length > 0;
       const hasBankSlots = !!bankSlots && bankSlots.length > 0;
       if (hasBankSlots && settings.sessionMode !== 'student') {
-        throw new Error('Random bank draws need a self-paced session');
+        throw new Error('Random bank draws need Assessment Mode');
       }
       // Defensive sanitization at the hook boundary: drop empty/non-string
       // entries so this stays robust against future call sites that may

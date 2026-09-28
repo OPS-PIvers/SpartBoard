@@ -3024,7 +3024,7 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
         { sessionMode: 'teacher', sessionOptions: {} },
         { bankSlots: BANK_SLOTS }
       )
-    ).rejects.toThrow('Random bank draws need a self-paced session');
+    ).rejects.toThrow('Random bank draws need Assessment Mode');
     expect(batchCommit).not.toHaveBeenCalled();
   });
 
