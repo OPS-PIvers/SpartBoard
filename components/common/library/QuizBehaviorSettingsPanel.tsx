@@ -142,6 +142,7 @@ export const QuizBehaviorSettingsPanel: React.FC<
         attemptLimit={value.attemptLimit}
         onAttemptLimitChange={(v) => onChange({ ...value, attemptLimit: v })}
         shuffleQuestionsAvailable={value.sessionMode === 'student'}
+        shuffleQuestionsHint={`${QUIZ_STUDENT_MODE_LABEL} only.`}
         afterTabWarningsSlot={
           (value.sessionOptions.tabWarningsEnabled ?? true) && (
             <>

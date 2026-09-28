@@ -193,6 +193,8 @@ export interface AssignmentSettingsToggleGroupProps {
    * VA always passes true. Defaults to true.
    */
   shuffleQuestionsAvailable?: boolean;
+  /** Hint shown while Shuffle Questions is unavailable. */
+  shuffleQuestionsHint?: string;
   /**
    * Hide entire sections. Currently no widget needs this, but it keeps the
    * door open for widgets that don't expose, e.g., tab-switch detection.
@@ -231,6 +233,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
   onAttemptLimitChange,
   modeLocked = false,
   shuffleQuestionsAvailable = true,
+  shuffleQuestionsHint = 'Self-paced only.',
   excludeSections,
   trailingSlot,
   integritySectionLabel,
@@ -294,7 +297,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
             checked={options.shuffleQuestions ?? false}
             onChange={(v) => update('shuffleQuestions', v)}
             disabled={!shuffleQuestionsAvailable}
-            hint={shuffleQuestionsAvailable ? undefined : 'Self-paced only.'}
+            hint={shuffleQuestionsAvailable ? undefined : shuffleQuestionsHint}
           />
           <ToggleRow
             compact
