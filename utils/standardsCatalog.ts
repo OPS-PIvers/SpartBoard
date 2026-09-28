@@ -36,18 +36,84 @@ export const STANDARD_SETS: StandardSetEntry[] = [
       (await import('@/config/standards/mn-ss-2021.json'))
         .default as StandardsFile,
   },
+  {
+    set: 'mn-math-2007',
+    subject: 'math',
+    label: 'Minnesota Math (2007)',
+    load: async () =>
+      (await import('@/config/standards/mn-math-2007.json'))
+        .default as StandardsFile,
+  },
+  {
+    set: 'mn-sci-2019',
+    subject: 'science',
+    label: 'Minnesota Science (2019)',
+    load: async () =>
+      (await import('@/config/standards/mn-sci-2019.json'))
+        .default as StandardsFile,
+  },
+  {
+    set: 'mn-pe-2018',
+    subject: 'pe-health',
+    label: 'Minnesota Physical Education (2018)',
+    load: async () =>
+      (await import('@/config/standards/mn-pe-2018.json'))
+        .default as StandardsFile,
+  },
+  {
+    set: 'mn-dance-2018',
+    subject: 'art',
+    label: 'Minnesota Arts: Dance (2018)',
+    load: async () =>
+      (await import('@/config/standards/mn-dance-2018.json'))
+        .default as StandardsFile,
+  },
+  {
+    set: 'mn-media-arts-2018',
+    subject: 'art',
+    label: 'Minnesota Arts: Media Arts (2018)',
+    load: async () =>
+      (await import('@/config/standards/mn-media-arts-2018.json'))
+        .default as StandardsFile,
+  },
+  {
+    set: 'mn-music-2018',
+    subject: 'music',
+    label: 'Minnesota Arts: Music (2018)',
+    load: async () =>
+      (await import('@/config/standards/mn-music-2018.json'))
+        .default as StandardsFile,
+  },
+  {
+    set: 'mn-theatre-2018',
+    subject: 'art',
+    label: 'Minnesota Arts: Theatre (2018)',
+    load: async () =>
+      (await import('@/config/standards/mn-theatre-2018.json'))
+        .default as StandardsFile,
+  },
+  {
+    set: 'mn-visual-arts-2018',
+    subject: 'art',
+    label: 'Minnesota Arts: Visual Arts (2018)',
+    load: async () =>
+      (await import('@/config/standards/mn-visual-arts-2018.json'))
+        .default as StandardsFile,
+  },
 ];
 
 export interface StandardHeading {
-  /** 'R9', 'LSVEI 3' or '5'. */
+  /** 'R9', 'LSVEI 3', '5' or '6.1.1'. */
   code: string;
   /** Heading text without the code or trailing description. */
   title: string;
 }
 
 // ELA headings read "R9 Media Literacy: …" or "LSVEI 1 Exchange ideas…";
-// Social Studies headings read "5. Public Policy: …".
+// Social Studies, PE and Arts headings read "5. Public Policy: …";
+// Math and Science headings carry a dotted code: "6.1.1 Read, write…".
 const ELA_HEADING = /^([A-Z]{1,6}\s?\d{1,2})\b[.:]?\s*(.*)$/s;
+const DOTTED_HEADING = /^((?:K|\d{1,2})(?:\.\d{1,2}){1,3})\s+(.*)$/s;
 const SS_HEADING = /^(\d{1,2})\.\s*(.*)$/s;
 
 const TITLE_MAX = 72;
@@ -67,7 +133,10 @@ export function parseStandardHeading(
   benchmarkCode: string
 ): StandardHeading {
   const text = standard.trim();
-  const match = ELA_HEADING.exec(text) ?? SS_HEADING.exec(text);
+  const match =
+    ELA_HEADING.exec(text) ??
+    DOTTED_HEADING.exec(text) ??
+    SS_HEADING.exec(text);
   const title = shortTitle((match ? match[2] : text).trim());
   if (match) return { code: match[1].replace(/\s+/g, ' '), title };
   const parts = benchmarkCode.split('.');

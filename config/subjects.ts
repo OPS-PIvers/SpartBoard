@@ -13,7 +13,15 @@ export interface SubjectsDoc {
 export const SUBJECTS_DOC = 'subjects';
 
 /** Subject ids the standards catalog is keyed on; admins can rename but never archive them. */
-export const CATALOG_SUBJECT_IDS = ['ela', 'social-studies'] as const;
+export const CATALOG_SUBJECT_IDS = [
+  'ela',
+  'social-studies',
+  'math',
+  'science',
+  'pe-health',
+  'art',
+  'music',
+] as const;
 
 export const DEFAULT_SUBJECTS: Subject[] = [
   { id: 'ela', label: 'English Language Arts' },

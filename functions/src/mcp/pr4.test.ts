@@ -53,6 +53,20 @@ describe('standards tags', () => {
       'mn-ss-2021:6.1.2.1'
     );
     expect(normalizeStandardRef('K.1.1.1')).toBe('K.1.1.1');
+    expect(normalizeStandardRef('MN Science 7L.3.1.1.1')).toBe('7L.3.1.1.1');
+    expect(normalizeStandardRef('Visual Arts 5.6.2.3.1')).toBe('5.6.2.3.1');
+  });
+
+  it('builds Math and Science tags under their dotted standard', () => {
+    expect(
+      tagFromBenchmark({
+        id: 'mn-math-2007:6.1.1.1',
+        set: 'mn-math-2007',
+        code: '6.1.1.1',
+        standard: '6.1.1 Read, write, represent and compare numbers.',
+        text: 'Locate positive rational numbers on a number line.',
+      }).parentId
+    ).toBe('mn-math-2007:std:6.1.1');
   });
 
   it('replaces standard tags but keeps PLC and personal targets', () => {
@@ -181,5 +195,47 @@ describe('standards lookup cap', () => {
     await expect(loadBenchmarks({} as never, refs)).rejects.toThrow(
       /at most 100/
     );
+  });
+
+  it('queries bare codes across every set and reads full ids directly', async () => {
+    const { loadBenchmarks } = await import('./standards');
+    const math = { ...ss, id: 'mn-math-2007:6.1.2.1', set: 'mn-math-2007' };
+    const snap = (b: typeof ela) => ({
+      id: b.id,
+      exists: true,
+      data: () => b,
+    });
+    const inCalls: string[][] = [];
+    const db = {
+      doc: (path: string) => path,
+      getAll: (...paths: string[]) =>
+        Promise.resolve(
+          paths.map((p) =>
+            p === `standards_catalog/${math.id}`
+              ? snap(math)
+              : { id: p.split('/')[1], exists: false, data: () => undefined }
+          )
+        ),
+      collection: () => ({
+        where: (_f: string, _op: string, codes: string[]) => ({
+          get: () => {
+            inCalls.push(codes);
+            return Promise.resolve({ docs: [snap(ela), snap(ss), snap(math)] });
+          },
+        }),
+      }),
+    };
+    const out = await loadBenchmarks(db as never, [
+      '6.1.2.1',
+      'mn-math-2007:6.1.2.1',
+      'mn-ela-2020:9.9.9.9',
+    ]);
+    expect(inCalls).toEqual([['6.1.2.1']]);
+    expect(out.get('6.1.2.1')?.map((b) => b.id)).toEqual([
+      'mn-math-2007:6.1.2.1',
+      'mn-ela-2020:6.1.2.1',
+      'mn-ss-2021:6.1.2.1',
+    ]);
+    expect(out.has('mn-ela-2020:9.9.9.9')).toBe(false);
   });
 });

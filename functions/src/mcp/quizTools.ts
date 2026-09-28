@@ -128,7 +128,7 @@ const questionSchema = z.object({
     .max(MAX_STANDARDS_PER_QUESTION)
     .optional()
     .describe(
-      "Minnesota ELA or Social Studies benchmark codes, e.g. 6.1.2.1. Replaces the question's standards; omit to keep them."
+      "Minnesota benchmark codes (ELA, Social Studies, Math, Science, Physical Education or Arts), e.g. 6.1.2.1 or 7L.3.1.1.1. A code in more than one subject needs the full id, e.g. mn-math-2007:6.1.2.1. Replaces the question's standards; omit to keep them."
     ),
 });
 

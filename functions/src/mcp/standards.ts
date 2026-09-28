@@ -2,9 +2,20 @@
 import type * as admin from 'firebase-admin';
 import { ToolError } from './activity';
 
-export const STANDARD_SETS = ['mn-ela-2020', 'mn-ss-2021'] as const;
+export const STANDARD_SETS = [
+  'mn-ela-2020',
+  'mn-ss-2021',
+  'mn-math-2007',
+  'mn-sci-2019',
+  'mn-pe-2018',
+  'mn-dance-2018',
+  'mn-media-arts-2018',
+  'mn-music-2018',
+  'mn-theatre-2018',
+  'mn-visual-arts-2018',
+] as const;
 export const MAX_STANDARDS_PER_QUESTION = 10;
-/** Distinct codes per save, so one call reads at most 200 catalog docs. */
+/** Distinct codes per save, which bounds the catalog reads one call makes. */
 export const MAX_STANDARDS_PER_SAVE = 100;
 
 /** QuestionTargetTag in types.ts. */
@@ -30,6 +41,7 @@ interface Benchmark {
 }
 
 const ELA_HEADING = /^([A-Z]{1,6}\s?\d{1,2})\b[.:]?\s*(.*)$/s;
+const DOTTED_HEADING = /^((?:K|\d{1,2})(?:\.\d{1,2}){1,3})\s+(.*)$/s;
 const SS_HEADING = /^(\d{1,2})\.\s*(.*)$/s;
 const TITLE_MAX = 72;
 
@@ -50,7 +62,10 @@ export function benchmarkHeading(b: Benchmark): {
     return { code: b.standardCode, title: b.standardTitle };
   }
   const text = b.standard.trim();
-  const match = ELA_HEADING.exec(text) ?? SS_HEADING.exec(text);
+  const match =
+    ELA_HEADING.exec(text) ??
+    DOTTED_HEADING.exec(text) ??
+    SS_HEADING.exec(text);
   const title = shortTitle((match ? match[2] : text).trim());
   if (match) return { code: match[1].replace(/\s+/g, ' '), title };
   const parts = b.code.split('.');
@@ -77,7 +92,7 @@ export function normalizeStandardRef(raw: string): string {
     (STANDARD_SETS as readonly string[]).some((set) => s.startsWith(`${set}:`))
   )
     return s;
-  const m = /([0-9K]{1,2}(?:\.[0-9A-Za-z]{1,3}){2,4})\s*$/.exec(s);
+  const m = /([0-9K]{1,2}[A-Z]?(?:\.[0-9A-Za-z]{1,3}){2,4})\s*$/.exec(s);
   return m ? m[1] : s;
 }
 
@@ -96,17 +111,28 @@ export async function loadBenchmarks(
       `Use at most ${MAX_STANDARDS_PER_SAVE} different standards in one save.`
     );
   }
-  const ids = new Set<string>();
-  for (const ref of refs) {
-    if (ref.includes(':')) ids.add(ref);
-    else for (const set of STANDARD_SETS) ids.add(`${set}:${ref}`);
-  }
+  const ids = [...new Set(refs.filter((r) => r.includes(':')))];
+  const codes = [...new Set(refs.filter((r) => !r.includes(':')))];
   const out = new Map<string, Benchmark[]>();
-  if (ids.size === 0) return out;
-  const snaps = await db.getAll(
-    ...[...ids].map((id) => db.doc(`standards_catalog/${id}`))
-  );
+  // Bare codes are queried rather than fanned out to one doc read per set.
+  const [byId, byCode] = await Promise.all([
+    ids.length
+      ? db.getAll(...ids.map((id) => db.doc(`standards_catalog/${id}`)))
+      : Promise.resolve([]),
+    Promise.all(
+      Array.from({ length: Math.ceil(codes.length / 30) }, (_, i) =>
+        db
+          .collection('standards_catalog')
+          .where('code', 'in', codes.slice(i * 30, i * 30 + 30))
+          .get()
+      )
+    ),
+  ]);
+  const snaps = [...byId, ...byCode.flatMap((q) => q.docs)];
+  const seen = new Set<string>();
   for (const snap of snaps) {
+    if (seen.has(snap.id)) continue;
+    seen.add(snap.id);
     if (!snap.exists) continue;
     const b = { ...(snap.data() as Benchmark), id: snap.id };
     out.set(b.id, [b]);
@@ -138,7 +164,7 @@ export function applyStandards(
       const hits = catalog.get(ref) ?? [];
       if (hits.length === 0) {
         throw new ToolError(
-          `Question ${n}: "${raw}" is not a Minnesota ELA (2020) or Social Studies (2021) benchmark in SpartBoard. Use a benchmark code like 6.1.2.1, or leave standards off.`
+          `Question ${n}: "${raw}" is not a Minnesota standards benchmark in SpartBoard. Use a benchmark code like 6.1.2.1, or leave standards off.`
         );
       }
       if (hits.length > 1) {

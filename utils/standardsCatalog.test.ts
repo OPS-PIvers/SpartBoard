@@ -107,6 +107,27 @@ describe('parseStandardHeading', () => {
     ).toEqual({ code: '5', title: 'Public Policy' });
   });
 
+  it('keeps the dotted code on Math and Science headings', () => {
+    expect(
+      parseStandardHeading(
+        'K.1.1 Understand the relationship between quantities and numbers.',
+        'K.1.1.1'
+      )
+    ).toEqual({
+      code: 'K.1.1',
+      title: 'Understand the relationship between quantities and numbers',
+    });
+    expect(
+      parseStandardHeading(
+        '1.1.1 Asking questions and defining problems: Students will be able to ask questions.',
+        '0E.1.1.1.1'
+      )
+    ).toEqual({
+      code: '1.1.1',
+      title: 'Asking questions and defining problems',
+    });
+  });
+
   it('falls back to the numeric key from the benchmark code', () => {
     expect(parseStandardHeading('Anchor text only', '3.2.4.1')).toEqual({
       code: '2.4',

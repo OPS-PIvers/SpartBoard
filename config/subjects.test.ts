@@ -18,6 +18,7 @@ describe('subjects config', () => {
       subjects: [
         { id: 'ela', label: 'ELA', archived: true },
         { id: 'math', label: 'Math', archived: true },
+        { id: 'world-language', label: 'World Language', archived: true },
         { id: 'bad' },
       ],
       updatedAt: 5,
@@ -25,8 +26,13 @@ describe('subjects config', () => {
     expect(doc.updatedAt).toBe(5);
     expect(doc.subjects).toEqual([
       { id: 'ela', label: 'ELA' },
-      { id: 'math', label: 'Math', archived: true },
+      { id: 'math', label: 'Math' },
+      { id: 'world-language', label: 'World Language', archived: true },
       { id: 'social-studies', label: 'Social Studies' },
+      { id: 'science', label: 'Science' },
+      { id: 'pe-health', label: 'PE / Health' },
+      { id: 'art', label: 'Art' },
+      { id: 'music', label: 'Music' },
     ]);
   });
 
