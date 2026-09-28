@@ -416,6 +416,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Bulk-import every question bank in a Schoology .imscc export. Admin-only until Paul has run it.
+  'question-bank-imscc-import': {
+    label: 'Import question banks from Schoology',
+    icon: FileUp,
+    description:
+      'Import every question bank in a Schoology export (.imscc) at once.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // AI reading of an imported test document; also requires quiz-document-import
   // and gemini-functions. Fail-closed, so nobody gets it until it is saved.
   'quiz-document-ai-reader': {

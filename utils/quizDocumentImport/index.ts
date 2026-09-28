@@ -28,7 +28,7 @@ import {
   assertWithinPageLimit,
   byteLimitFor,
 } from './limits';
-import type { ExtractedQuiz } from './types';
+import type { ExtractedQuiz, RemoteImageFetcher } from './types';
 import { UNREADABLE_FILE, documentKind, titleFromFileName } from './fileKind';
 
 export * from './types';
@@ -68,7 +68,13 @@ export {
   NOT_AN_EXAMVIEW_TEST,
 } from './examViewTestReader';
 export { readRtf, parseRtf } from './rtfReader';
-export { readCartridge } from './cartridgeReader';
+export {
+  readCartridge,
+  readCartridgeBanks,
+  collectionTitle,
+  type CartridgeBank,
+  type CartridgeBankCollection,
+} from './cartridgeReader';
 export { readPdf, groupItemsIntoLines } from './pdfReader';
 export {
   columnBands,
@@ -132,6 +138,8 @@ export interface ReadDocumentOptions {
   pages?: readonly Blob[];
   /** Converts RTF and ExamView bitmap pictures to PNG; defaults to the browser's canvas (E11). */
   bmpToPng?: BmpToPng;
+  /** Copies pictures an LMS export links to on another site. */
+  fetchRemoteImage?: RemoteImageFetcher;
 }
 
 /**
@@ -148,7 +156,12 @@ export async function readQuizDocument(
   if (!kind) {
     throw new Error(UNREADABLE_FILE);
   }
-  const reader = { multiAnswer: options.multiAnswer === true };
+  const reader = {
+    multiAnswer: options.multiAnswer === true,
+    ...(options.fetchRemoteImage
+      ? { fetchRemoteImage: options.fetchRemoteImage }
+      : {}),
+  };
   const pages =
     kind === 'image' && options.pages?.length ? options.pages : [file];
   assertWithinByteLimitOf(byteLimitFor(kind), pages);

@@ -3175,6 +3175,7 @@ describe('index barrel — deployed export set', () => {
     'archiveActivityWallSubmissionOnUpdate',
     'archiveActivityWallSubmissionOnCreate',
     'fetchLinkPreview',
+    'fetchImportImage',
     'archiveProjectUploadOnCreate',
     'archiveQuizMediaArtifact',
     'sweepStuckQuizArchives',

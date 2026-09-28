@@ -817,4 +817,25 @@ describe('ImportWizard', () => {
       screen.getByRole('button', { name: /copy template url/i })
     ).toBeInTheDocument();
   });
+  it('hands a bulk-source file off and ignores other file types', () => {
+    const { adapter } = makeAdapter();
+    const onFile = vi.fn();
+    adapter.bulkSource = {
+      title: 'Schoology export (.imscc)',
+      description: 'Every question bank.',
+      accept: '.imscc',
+      onFile,
+    };
+    renderWizard(adapter);
+
+    const input = screen.getByLabelText('Schoology export (.imscc)');
+    const wrong = new File(['x'], 'notes.csv');
+    fireEvent.change(input, { target: { files: [wrong] } });
+    expect(onFile).not.toHaveBeenCalled();
+    expect(screen.getByText('Choose a .imscc file.')).toBeInTheDocument();
+
+    const right = new File(['x'], 'History.IMSCC');
+    fireEvent.change(input, { target: { files: [right] } });
+    expect(onFile).toHaveBeenCalledWith(right);
+  });
 });

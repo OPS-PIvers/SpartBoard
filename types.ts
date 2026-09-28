@@ -8976,6 +8976,8 @@ export type GlobalFeature =
   | 'quiz-translation'
   /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
   | 'question-bank-ai'
+  /** Import every question bank in a Schoology collection export (.imscc) at once. */
+  | 'question-bank-imscc-import'
   /** Paper answer sheets; only meaningful while the district switch is on. */
   | 'paper-answer-sheets'
   /** Saved class groups inside board widgets; AND-ed with the district switch. */
