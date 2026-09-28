@@ -158,6 +158,8 @@ export const VideoActivityLivePlayer: React.FC<
   const [whoOpen, setWhoOpen] = useState(false);
   const [ending, setEnding] = useState(false);
   const [presenting, setPresenting] = useState(false);
+  // The popup player mounts only once PresentWindow has moved its root into the popup.
+  const [popupReady, setPopupReady] = useState(false);
 
   const playheadRef = useRef(live.playheadSeconds);
   // Just below the start so a question at 0:00 still counts as crossed.
@@ -752,13 +754,14 @@ export const VideoActivityLivePlayer: React.FC<
             switchPlayer(false);
             addToast('Allow pop-ups to present to class.', 'error');
           }}
+          onWindowReady={(win) => setPopupReady(win !== null)}
         >
           <div
             className="fixed inset-0 bg-black font-sans"
             style={{ containerType: 'size' }}
             data-testid="va-present-screen"
           >
-            <div className="absolute inset-0">{videoPlayer}</div>
+            <div className="absolute inset-0">{popupReady && videoPlayer}</div>
             {openQuestion && (
               <div
                 className="absolute inset-0 bg-white overflow-y-auto flex flex-col"
