@@ -591,13 +591,17 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
         aria-expanded={false}
         className={
           cqScaled
-            ? 'group flex w-full items-center gap-1.5 py-1 font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors'
-            : 'group flex w-full items-center gap-1.5 py-1 text-sm font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors'
+            ? 'group flex w-full items-center gap-2 py-1 font-bold text-brand-blue-dark hover:text-brand-blue-primary transition-colors'
+            : 'group flex w-full items-center gap-2 py-1 text-sm font-bold text-brand-blue-dark hover:text-brand-blue-primary transition-colors'
         }
         style={scaledFont(cqScaled, 14, 5.5)}
       >
         <SlidersHorizontal
-          className={cqScaled ? undefined : 'w-4 h-4'}
+          className={
+            cqScaled
+              ? 'text-brand-blue-primary'
+              : 'w-4 h-4 text-brand-blue-primary'
+          }
           style={scaledIcon(cqScaled, 16, 4.5)}
           aria-hidden="true"
         />
@@ -973,7 +977,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   );
 
   return (
-    <div className="space-y-0">
+    <div className="space-y-3">
       {scheduleSection}
       {periodSection}
       {value.targetMode === 'students' &&

@@ -7,7 +7,7 @@
  *   1. Pick a quiz from the teacher's personal library
  *      (reuses `PlcSharePickerModal`).
  *   2. Slimmed configure step: class/period picker + due-date + read-only
- *      behavior summary from `getQuizBehavior(pickedQuiz)` + teacher name.
+ *      behavior summary from `getAssignBehaviorSeed(pickedQuiz)` + teacher name.
  *
  * On submit:
  *
@@ -55,7 +55,10 @@ import {
 } from '@/utils/localDate';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { logError } from '@/utils/logError';
-import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
+import {
+  getAssignBehaviorSeed,
+  formatBehaviorSummary,
+} from '@/utils/quizBehavior';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
   makeEmptyPickerValue,
@@ -262,9 +265,9 @@ export const PlcNewQuizAssignmentModal: React.FC<
       }
 
       // Task 10: source sessionMode/sessionOptions/attemptLimit from the
-      // quiz's behavior settings (getQuizBehavior). No longer driven by
+      // quiz's behavior settings, always in Assessment Mode. No longer driven by
       // removed form controls.
-      const behavior = getQuizBehavior(pickedQuiz);
+      const behavior = getAssignBehaviorSeed(pickedQuiz);
       const sessionOptions: QuizSessionOptions = behavior.sessionOptions;
 
       // Title-aware pooling (§8.1): prefer the PLC library group so every
@@ -409,7 +412,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
     return null;
   }
 
-  const behavior = getQuizBehavior(pickedQuiz);
+  const behavior = getAssignBehaviorSeed(pickedQuiz);
   const behaviorSummary = formatBehaviorSummary(behavior);
 
   const dateInputValue = splitDueAtToInputs(dueAt, true).date;

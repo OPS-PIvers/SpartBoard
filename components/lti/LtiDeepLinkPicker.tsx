@@ -76,7 +76,10 @@ import {
 } from '@/utils/studentTargetRef';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
-import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
+import {
+  getAssignBehaviorSeed,
+  formatBehaviorSummary,
+} from '@/utils/quizBehavior';
 import {
   getVideoActivityBehavior,
   formatVideoActivityBehaviorSummary,
@@ -438,7 +441,7 @@ const LtiDeepLinkFlow: React.FC = () => {
   const behaviorSummary = useMemo(() => {
     if (kind === 'quiz') {
       return selectedQuiz
-        ? formatBehaviorSummary(getQuizBehavior(selectedQuiz))
+        ? formatBehaviorSummary(getAssignBehaviorSeed(selectedQuiz))
         : null;
     }
     return selectedActivity
@@ -640,7 +643,7 @@ const LtiDeepLinkFlow: React.FC = () => {
         // self-paces regardless; carrying the configured options/attemptLimit
         // keeps per-attempt behavior matching.)
         const { sessionMode, sessionOptions, attemptLimit } =
-          getQuizBehavior(selectedQuiz);
+          getAssignBehaviorSeed(selectedQuiz);
 
         const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
         const plcLinkage = resolvePlcLinkage();

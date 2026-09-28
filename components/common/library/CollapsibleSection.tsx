@@ -41,8 +41,8 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
         aria-controls={regionId}
         className="group flex w-full items-center justify-between gap-2 rounded-md py-1 transition-colors"
       >
-        <span className="flex items-baseline gap-2 min-w-0">
-          <span className="flex items-center gap-2 self-center text-sm font-bold text-brand-blue-dark shrink-0">
+        <span className="flex items-center gap-2 min-w-0">
+          <span className="flex items-center gap-2 text-sm font-bold text-brand-blue-dark shrink-0">
             {Icon && (
               <Icon
                 aria-hidden="true"

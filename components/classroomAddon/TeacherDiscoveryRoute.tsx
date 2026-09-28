@@ -62,7 +62,10 @@ import {
 } from '@/utils/studentTargetRef';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
-import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
+import {
+  getAssignBehaviorSeed,
+  formatBehaviorSummary,
+} from '@/utils/quizBehavior';
 import {
   getVideoActivityBehavior,
   formatVideoActivityBehaviorSummary,
@@ -333,7 +336,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const behaviorSummary = useMemo(() => {
     if (kind === 'quiz') {
       return selectedQuiz
-        ? formatBehaviorSummary(getQuizBehavior(selectedQuiz))
+        ? formatBehaviorSummary(getAssignBehaviorSeed(selectedQuiz))
         : null;
     }
     return selectedActivity
@@ -553,7 +556,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     // teacher session, so the runner self-paces regardless; we still carry the
     // configured options/attemptLimit so per-attempt behavior matches.
     const { sessionMode, sessionOptions, attemptLimit } =
-      getQuizBehavior(selectedQuiz);
+      getAssignBehaviorSeed(selectedQuiz);
 
     const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
 

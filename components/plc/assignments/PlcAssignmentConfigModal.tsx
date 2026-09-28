@@ -175,7 +175,7 @@ export const PlcAssignmentConfigModal: React.FC<
   );
 
   // --- Form state ---
-  const [quizMode, setQuizMode] = useState<QuizSessionMode>('auto');
+  const [quizMode, setQuizMode] = useState<QuizSessionMode>('student');
   const [picker, setPicker] =
     useState<AssignClassPickerValue>(makeEmptyPickerValue);
   const [quizOptions, setQuizOptions] = useState<BaseSessionOptions>(
