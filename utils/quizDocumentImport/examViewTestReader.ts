@@ -47,6 +47,9 @@ const WRITTEN_TYPES = new Set([9, 10, 11, 12, 13]);
 const BLANK_TYPES = new Set([0, 1, 2, 3, 4, 5]);
 
 const PREFIX_BACK = 508;
+/** Far past any real test; bounds the work a damaged file can cause. */
+const MAX_QUESTIONS = 500;
+const MAX_FULL_SCANS = 3;
 const TEXT_AFTER_TAG = 60;
 
 const PARAGRAPH = 0x0d;
@@ -185,7 +188,9 @@ interface Record {
 function readRecords(r: Reader): Record[] {
   const headers: number[] = [];
   let at = findHeader(r, 0, 1024 * 1024);
-  while (at >= 0) {
+  // A damaged file gives up after a few whole-file scans rather than freezing the tab.
+  let fullScans = 0;
+  while (at >= 0 && headers.length < MAX_QUESTIONS) {
     headers.push(at);
     const tagBytes = r.u32(at + 12);
     const length = r.u32(at + 16 + tagBytes);
@@ -193,7 +198,10 @@ function readRecords(r: Reader): Record[] {
     // The stored length skips a record's pictures; a bad one falls back to a full scan.
     const guess = length > 0 && at + length < r.length ? at + length : textEnd;
     at = findHeader(r, Math.max(guess, textEnd), guess + 64 * 1024);
-    if (at < 0) at = findHeader(r, textEnd, r.length);
+    if (at < 0 && fullScans < MAX_FULL_SCANS) {
+      fullScans += 1;
+      at = findHeader(r, textEnd, r.length);
+    }
   }
   return headers.map((h, i) => {
     const start = h + 16 + r.u32(h + 12) + TEXT_AFTER_TAG;
