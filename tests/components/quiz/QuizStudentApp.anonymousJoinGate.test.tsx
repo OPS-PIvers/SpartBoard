@@ -4,14 +4,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
-const { mockAuth, mockJoinQuizSession, mockLookupSession } = vi.hoisted(() => ({
-  mockAuth: {
-    onAuthStateChanged: vi.fn(),
-    authStateReady: vi.fn().mockResolvedValue(undefined),
-    currentUser: { uid: 'anon-uid', isAnonymous: true } as unknown,
-  },
-  mockJoinQuizSession: vi.fn(),
-  mockLookupSession: vi.fn(),
+const { mockAuth, mockJoinQuizSession, mockLookupSession, mockSsoGate } =
+  vi.hoisted(() => ({
+    mockSsoGate: { value: false },
+    mockAuth: {
+      onAuthStateChanged: vi.fn(),
+      authStateReady: vi.fn().mockResolvedValue(undefined),
+      currentUser: { uid: 'anon-uid', isAnonymous: true } as unknown,
+    },
+    mockJoinQuizSession: vi.fn(),
+    mockLookupSession: vi.fn(),
+  }));
+
+vi.mock('@/utils/studentJoinRouting', () => ({
+  shouldGateToSso: () => mockSsoGate.value,
 }));
 
 vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
@@ -80,6 +86,18 @@ const lookup = (anonymousJoinBlocked: boolean) => ({
 describe('QuizStudentApp — anonymous join gate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSsoGate.value = false;
+  });
+
+  it('keeps sign-in available on a rostered session closed to PIN joins', async () => {
+    window.history.replaceState({}, '', '/quiz?code=ABC123');
+    mockSsoGate.value = true;
+    mockLookupSession.mockResolvedValue(lookup(true));
+    render(<QuizStudentApp />);
+    expect(
+      (await screen.findAllByRole('button', { name: /sign in/i })).length
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText('Sign in to join this activity.')).toBeNull();
   });
 
   it('hides the PIN form for a URL code whose session is closed to PIN joins', async () => {

@@ -2233,7 +2233,10 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               });
             }
             const url = `${window.location.origin}/quiz?code=${code}`;
-            if (!canAccessFeature('anonymous-join')) {
+            if (
+              quizAssignmentMode !== 'view-only' &&
+              !canAccessFeature('anonymous-join')
+            ) {
               addToast(
                 'Assignment created (paused). Press Play when you\u2019re ready to start.',
                 'success'

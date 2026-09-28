@@ -632,20 +632,16 @@ const QuizJoinFlow: React.FC<{
       try {
         const info = await lookupSession(urlCode);
         if (cancelled) return;
-        if (info?.anonymousJoinBlocked) {
-          setSsoGate('blocked');
-          return;
-        }
+        const ssoOffered = shouldGateToSso({
+          flagEnabled: QUIZ_SSO_REDIRECT_ENABLED,
+          isStudentRole,
+          embedded,
+          hasCode: !!urlCode,
+          classIds: info?.classIds,
+        });
+        // Sign-in stays available on a session closed to PIN joins.
         setSsoGate(
-          shouldGateToSso({
-            flagEnabled: QUIZ_SSO_REDIRECT_ENABLED,
-            isStudentRole,
-            embedded,
-            hasCode: !!urlCode,
-            classIds: info?.classIds,
-          })
-            ? 'gate'
-            : 'pin'
+          ssoOffered ? 'gate' : info?.anonymousJoinBlocked ? 'blocked' : 'pin'
         );
       } catch {
         if (!cancelled) setSsoGate('pin');
@@ -1108,7 +1104,7 @@ const QuizJoinFlow: React.FC<{
     if (ssoGate === 'blocked') {
       return (
         <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-4 p-6">
-          <AlertCircle className="w-10 h-10 text-violet-400" />
+          <AlertCircle className="w-10 h-10 text-amber-400" />
           <p className="text-slate-300 text-sm text-center max-w-sm">
             {ANONYMOUS_JOIN_BLOCKED_MESSAGE}
           </p>
