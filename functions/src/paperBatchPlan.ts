@@ -359,11 +359,16 @@ const ROW_PITCH_MM = 8;
 const COLUMN_X_MM: readonly number[] = [24, 116];
 const QUESTION_GRID_TOP_MM = 54;
 const QUESTION_ROW_PITCH_MM = 42;
-const QUESTION_ROWS_PER_PAGE = 5;
 const QUESTION_STEM_X_MM = 36;
 const QUESTION_STEM_W_MM = 144;
 const QUESTION_STEM_H_MM = 10.8;
 const QUESTION_CHOICE_TOP_MM = 12;
+const QUESTION_CHOICE_LINE_MM = 6;
+const QUESTION_STEM_LINE_MM = 3.6;
+const QUESTION_STEM_MAX_LINES = 3;
+const QUESTION_ROW_GAP_MM = 5;
+const QUESTION_GRID_BOTTOM_MM = 263;
+const BUBBLE_DIAMETER_MM = 5;
 const WRITTEN_LINE_PITCH_MM = ROW_PITCH_MM;
 const WRITTEN_HEADER_ROWS_WITH_STEM = 2;
 const WRITTEN_HEADER_ROWS_NUMBER_ONLY = 1;
@@ -380,6 +385,8 @@ export interface PlanPaperPagesInput {
   entries: readonly PaperSheetEntry[];
   grid: PaperGrid;
   stems: boolean;
+  choiceCount?: number;
+  stemLines?: Readonly<Record<string, number>>;
 }
 
 export type PlanPaperPagesResult =
@@ -446,16 +453,117 @@ function questionSlotsFor(size: Exclude<PaperBoxSize, 'full'>): number {
   return slots;
 }
 
+/** Mirror of `planQuestionTextPages` in `utils/paperPageMap.ts`. */
+function planQuestionTextPages(
+  input: PlanPaperPagesInput
+): PlanPaperPagesResult {
+  const { entries, stems } = input;
+  const choices = Math.min(
+    Math.max(input.choiceCount ?? MAX_CHOICE_COUNT, MIN_CHOICE_COUNT),
+    MAX_CHOICE_COUNT
+  );
+  const pages: PaperPageItem[][] = [[]];
+  let sheetRow = 0;
+  let y = QUESTION_GRID_TOP_MM;
+  const current = (): PaperPageItem[] => pages[pages.length - 1];
+  const newPage = (): void => {
+    pages.push([]);
+    y = QUESTION_GRID_TOP_MM;
+  };
+  const place = (height: number): number => {
+    if (y + height > QUESTION_GRID_BOTTOM_MM && current().length > 0) newPage();
+    const top = y;
+    y = top + height + QUESTION_ROW_GAP_MM;
+    return top;
+  };
+  const choicesH =
+    QUESTION_CHOICE_TOP_MM +
+    (choices - 1) * QUESTION_CHOICE_LINE_MM +
+    BUBBLE_DIAMETER_MM;
+
+  for (const entry of entries) {
+    if (entry.kind === 'mc') {
+      const lines = Math.min(
+        Math.max(
+          Math.ceil(
+            input.stemLines?.[entry.questionId] ?? QUESTION_STEM_MAX_LINES
+          ),
+          1
+        ),
+        QUESTION_STEM_MAX_LINES
+      );
+      const unused = QUESTION_STEM_H_MM - lines * QUESTION_STEM_LINE_MM;
+      const top = place(choicesH - unused);
+      current().push({
+        kind: 'mc',
+        questionId: entry.questionId,
+        sheetRow: sheetRow++,
+        label: entry.label,
+        originMm: { x: COLUMN_X_MM[0], y: top - unused },
+      });
+      continue;
+    }
+    if (ownsPage(entry.size, 'questions')) {
+      if (current().length > 0) newPage();
+      current().push(
+        writtenBlock(
+          entry,
+          GRID_TOP_MM,
+          PAPER_FULL_PAGE_LINES,
+          stems,
+          FULL_WIDTH
+        )
+      );
+      y = Number.POSITIVE_INFINITY;
+      continue;
+    }
+    const size = entry.size as Exclude<PaperBoxSize, 'full'>;
+    const lines = questionSlotLines(questionSlotsFor(size));
+    const top = place(QUESTION_CHOICE_TOP_MM + lines * WRITTEN_LINE_PITCH_MM);
+    current().push({
+      kind: 'written',
+      questionId: entry.questionId,
+      label: entry.label,
+      headerMm: {
+        x: WRITTEN_HEADER_X_MM,
+        y: top,
+        w: QUESTION_STEM_X_MM + QUESTION_STEM_W_MM - WRITTEN_HEADER_X_MM,
+        h: QUESTION_STEM_H_MM,
+      },
+      boxMm: {
+        x: WRITTEN_BOX_X_MM,
+        y: top + QUESTION_CHOICE_TOP_MM,
+        w: WRITTEN_BOX_W_MM,
+        h: lines * WRITTEN_LINE_PITCH_MM,
+      },
+      lines,
+    });
+  }
+
+  if (pages.length > MAX_PAGE) {
+    return { ok: false, reason: 'too-many-pages', pageCount: pages.length };
+  }
+  return {
+    ok: true,
+    pageMaps: pages.map((items, index) => ({
+      page: index + 1,
+      grid: 'questions' as const,
+      items,
+    })),
+  };
+}
+
 /** Mirror of `planPaperPages` in `utils/paperPageMap.ts`; see it for the layout rules. */
 export function planPaperPages(
   input: PlanPaperPagesInput
 ): PlanPaperPagesResult {
-  const { entries, grid, stems } = input;
+  if (input.grid === 'questions') return planQuestionTextPages(input);
+  const { entries, stems } = input;
+  const grid = input.grid;
   const pages: PaperPageItem[][] = [[]];
   let sheetRow = 0;
   let cursor = 0;
-  const capacity =
-    grid === 'questions' ? QUESTION_ROWS_PER_PAGE : ROWS_PER_COLUMN;
+  const capacity = ROWS_PER_COLUMN;
   const current = (): PaperPageItem[] => pages[pages.length - 1];
   const newPage = (): void => {
     pages.push([]);
@@ -492,32 +600,6 @@ export function planPaperPages(
         continue;
       }
       const size = entry.size as Exclude<PaperBoxSize, 'full'>;
-      if (grid === 'questions') {
-        const slots = questionSlotsFor(size);
-        ensureRoom(slots);
-        const top = QUESTION_GRID_TOP_MM + cursor * QUESTION_ROW_PITCH_MM;
-        const lines = questionSlotLines(slots);
-        current().push({
-          kind: 'written',
-          questionId: entry.questionId,
-          label: entry.label,
-          headerMm: {
-            x: WRITTEN_HEADER_X_MM,
-            y: top,
-            w: QUESTION_STEM_X_MM + QUESTION_STEM_W_MM - WRITTEN_HEADER_X_MM,
-            h: QUESTION_STEM_H_MM,
-          },
-          boxMm: {
-            x: WRITTEN_BOX_X_MM,
-            y: top + QUESTION_CHOICE_TOP_MM,
-            w: WRITTEN_BOX_W_MM,
-            h: lines * WRITTEN_LINE_PITCH_MM,
-          },
-          lines,
-        });
-        cursor += slots;
-        continue;
-      }
       const lines = paperBoxLines(size);
       const rows = headerRows(stems) + lines;
       const fits = (at: number): boolean =>
@@ -547,20 +629,6 @@ export function planPaperPages(
     const run = entries.slice(i, end) as McEntry[];
     const boxFollows = end < entries.length;
     i = end;
-
-    if (grid === 'questions') {
-      for (const mc of run) {
-        ensureRoom(1);
-        current().push(
-          mcItem(mc, {
-            x: COLUMN_X_MM[0],
-            y: QUESTION_GRID_TOP_MM + cursor * QUESTION_ROW_PITCH_MM,
-          })
-        );
-        cursor += 1;
-      }
-      continue;
-    }
 
     const columns = grid;
     let at = 0;

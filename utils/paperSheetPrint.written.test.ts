@@ -186,7 +186,7 @@ describe('buildPaperSheetsHtml with page maps', () => {
 
   it('draws a sheet with no written boxes exactly where the arithmetic layout does', () => {
     const entries = Array.from({ length: 60 }, (_, i) => mc(i + 1));
-    for (const grid of [1, 2, 'questions'] as const) {
+    for (const grid of [1, 2] as const) {
       const byMap = buildPaperSheetsHtml(
         job(mapsFor(entries, grid), { columnsPerPage: grid })
       );

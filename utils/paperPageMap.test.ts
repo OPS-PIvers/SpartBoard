@@ -19,6 +19,10 @@ import {
   MARKER_CELL_COUNT,
   MAX_CHOICE_COUNT,
   PAGE_HEIGHT_MM,
+  QUESTION_GRID_BOTTOM_MM,
+  QUESTION_GRID_TOP_MM,
+  QUESTION_ROW_GAP_MM,
+  QUESTION_STEM_H_MM,
   PAGE_WIDTH_MM,
   STIMULUS_RECT_MM,
   bubbleRectAtOriginMm,
@@ -26,7 +30,6 @@ import {
   cornerWindowsMm,
   markerCellRectMm,
   mcRowOriginMm,
-  questionStemRectMm,
   questionsPerPage,
   type RectMm,
 } from './paperSheetLayout';
@@ -178,7 +181,7 @@ describe('planPaperPages geometry', () => {
 
 describe('planPaperPages packing', () => {
   it('matches the arithmetic layout when nothing is written', () => {
-    for (const grid of GRIDS) {
+    for (const grid of [2, 1] as const) {
       const perPage = questionsPerPage(grid);
       const maps = plan(sheet(perPage * 2 + 3), grid);
       expect(maps).toHaveLength(3);
@@ -293,13 +296,75 @@ describe('planPaperPages packing', () => {
     expect(questionSlotsFor('L')).toBe(3);
     const [page, next] = plan(sheet(4, { 2: 'M', 4: 'L' }), 'questions');
     const [m] = writtenItemsOf(page);
-    expect(m.headerMm).toMatchObject({ y: questionStemRectMm(1).y });
-    expect(mcItemsOf(page).map((r) => r.originMm)).toEqual([
-      mcRowOriginMm(0, 'questions'),
-      mcRowOriginMm(3, 'questions'),
-    ]);
-    // An L box needs three slots and only one is left.
-    expect(writtenItemsOf(next)[0].headerMm.y).toBe(questionStemRectMm(0).y);
+    expect(m.lines).toBe(8);
+    // Full-stem row, gap, then the M box's header.
+    expect(m.headerMm.y).toBe(QUESTION_GRID_TOP_MM + 41 + QUESTION_ROW_GAP_MM);
+    expect(mcItemsOf(page)).toHaveLength(2);
+    // The L box no longer fits under the M box and row 3.
+    expect(writtenItemsOf(next)[0].headerMm.y).toBe(QUESTION_GRID_TOP_MM);
+  });
+
+  it('sizes each question-text row to its stem and leaves the same gap after every row', () => {
+    const entries = sheet(24);
+    const stemLines = Object.fromEntries(
+      entries.map((e, i) => [e.questionId, (i % 3) + 1])
+    );
+    for (const choiceCount of [2, 4, 5]) {
+      const maps = mapsOf(
+        planPaperPages({
+          entries,
+          grid: 'questions',
+          stems: true,
+          choiceCount,
+          stemLines,
+        })
+      );
+      for (const map of maps) {
+        const rows = mcItemsOf(map);
+        const stemTop = (r: (typeof rows)[number]): number =>
+          r.originMm.y + QUESTION_STEM_H_MM - stemLines[r.questionId] * 3.6;
+        const lastBubble = (r: (typeof rows)[number]): RectMm =>
+          bubbleRectAtOriginMm(r.originMm, choiceCount - 1, 'questions');
+        expect(stemTop(rows[0])).toBeCloseTo(QUESTION_GRID_TOP_MM);
+        rows.forEach((r, k) => {
+          const b = lastBubble(r);
+          expect(b.y + b.h).toBeLessThanOrEqual(QUESTION_GRID_BOTTOM_MM);
+          if (k > 0) {
+            const prev = lastBubble(rows[k - 1]);
+            expect(stemTop(r) - (prev.y + prev.h)).toBeCloseTo(
+              QUESTION_ROW_GAP_MM
+            );
+          }
+        });
+      }
+    }
+  });
+
+  it('assumes a full stem for a question with no measured lines', () => {
+    const maps = plan(sheet(8), 'questions');
+    // 41 mm rows with 5 mm gaps: four to a page.
+    expect(maps.map((m) => m.items.length)).toEqual([4, 4]);
+    expect(mcItemsOf(maps[0])[1].originMm.y).toBe(QUESTION_GRID_TOP_MM + 46);
+  });
+
+  it('fits more short questions on a page than the fixed grid did', () => {
+    const entries = sheet(12);
+    const stemLines = Object.fromEntries(entries.map((e) => [e.questionId, 1]));
+    const maps = mapsOf(
+      planPaperPages({
+        entries,
+        grid: 'questions',
+        stems: true,
+        choiceCount: 4,
+        stemLines,
+      })
+    );
+    expect(maps[0].items.length).toBeGreaterThan(5);
+  });
+
+  it('pins the question-text bottom to where the fifth fixed row ended', () => {
+    const b = bubbleRectMm(4, MAX_CHOICE_COUNT - 1, 'questions');
+    expect(b.y + b.h).toBe(QUESTION_GRID_BOTTOM_MM);
   });
 
   it('refuses a sheet past the marker page limit', () => {

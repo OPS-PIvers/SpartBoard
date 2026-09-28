@@ -260,6 +260,25 @@ describe('client/server page map parity (layoutVersion 2)', () => {
     }
   });
 
+  it('sizes question-text rows identically from choice count and stem lines', () => {
+    for (const [name, entries] of Object.entries(SHEETS)) {
+      for (const choiceCount of [2, 4, 5]) {
+        const input = {
+          entries,
+          grid: 'questions' as const,
+          stems: true,
+          choiceCount,
+          stemLines: Object.fromEntries(
+            entries.map((e, i) => [e.questionId, (i % 3) + 1])
+          ),
+        };
+        expect(serverPages(input), `${name} / ${choiceCount}`).toEqual(
+          clientPages(input)
+        );
+      }
+    }
+  });
+
   it('refuses the same sheet past the last page the marker can carry', () => {
     expect(MAX_PAGE).toBe(CLIENT_MAX_PAGE);
     const entries = Array.from({ length: MAX_PAGE + 1 }, (_, i) =>

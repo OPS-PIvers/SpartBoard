@@ -36,7 +36,14 @@ const written = (n: number, size: PaperBoxSize = 'M'): PaperSheetEntry => ({
 });
 
 const plan = (entries: PaperSheetEntry[], grid: PaperGrid): PaperPageMap[] => {
-  const result = planPaperPages({ entries, grid, stems: true });
+  // One-line stems pack question-text rows as tightly as they print.
+  const result = planPaperPages({
+    entries,
+    grid,
+    stems: true,
+    choiceCount: 4,
+    stemLines: Object.fromEntries(entries.map((e) => [e.questionId, 1])),
+  });
   if (!result.ok) throw new Error('plan refused');
   return result.pageMaps;
 };

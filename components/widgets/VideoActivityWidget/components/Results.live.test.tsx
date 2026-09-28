@@ -201,4 +201,37 @@ describe('Video activity Results: live sessions', () => {
     expect(within(panel).queryByRole('img', { name: 'Missed' })).toBeNull();
     expect(within(panel).getByText('1/3 correct')).toBeInTheDocument();
   });
+
+  it("shows each student's tab exits and total time away without the timer flag", () => {
+    render(
+      <Results
+        session={session()}
+        responses={[
+          {
+            ...response,
+            tabSwitchWarnings: 2,
+            tabExits: [
+              {
+                leftAt: 10,
+                attempt: 0,
+                durationMs: 12_000,
+                outcome: 'returned',
+              },
+              {
+                leftAt: 50,
+                attempt: 0,
+                durationMs: 33_000,
+                outcome: 'returned',
+              },
+            ],
+          },
+        ]}
+        onBack={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('tab', { name: /Students/ }));
+    expect(
+      within(screen.getByRole('tabpanel')).getByText('2 · 0:45')
+    ).toBeInTheDocument();
+  });
 });
