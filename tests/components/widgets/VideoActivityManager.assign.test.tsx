@@ -705,3 +705,44 @@ describe('VideoActivityManager assign modal — make-up prefill', () => {
     expect(onPendingAssignDone).toHaveBeenCalledOnce();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Tests — delete from the row menu confirms in one click
+// ---------------------------------------------------------------------------
+
+describe('VideoActivityManager — delete in progress assignment', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('deletes after one menu click and the confirm dialog', async () => {
+    const onArchiveDelete = vi.fn(() => Promise.resolve());
+    render(
+      <VideoActivityManager
+        activities={[makeVaMeta()]}
+        loading={false}
+        error={null}
+        onNew={vi.fn()}
+        onImport={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onAssign={vi.fn()}
+        onResults={vi.fn()}
+        defaultSessionSettings={DEFAULT_SESSION_SETTINGS}
+        rosters={ROSTERS}
+        assignments={[makeVaAssignment()]}
+        assignmentsLoading={false}
+        onArchiveDelete={onArchiveDelete}
+      />
+    );
+
+    fireEvent.click(await screen.findByRole('tab', { name: /in progress/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'More actions' })
+    );
+    fireEvent.click(await screen.findByRole('menuitem', { name: /delete/i }));
+
+    await waitFor(() => expect(onArchiveDelete).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText('Confirm delete')).not.toBeInTheDocument();
+  });
+});

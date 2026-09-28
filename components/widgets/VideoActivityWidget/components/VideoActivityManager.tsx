@@ -622,14 +622,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   // still works; live ClassLink data is now reached only via the Import
   // dialog.
 
-  // Delete confirmation state
-  const [confirmDeleteActivityId, setConfirmDeleteActivityId] = useState<
-    string | null
-  >(null);
-  const [confirmDeleteAssignmentId, setConfirmDeleteAssignmentId] = useState<
-    string | null
-  >(null);
-
   /* ─── Folder navigation (Wave 3-B-3) ──────────────────────────────────── */
   const folderState = useFolders(userId, 'video_activity');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -1041,19 +1033,19 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
                 : []),
               {
                 id: 'delete',
-                label:
-                  confirmDeleteActivityId === activity.id
-                    ? 'Confirm delete'
-                    : 'Delete',
+                label: 'Delete',
                 icon: Trash2,
                 destructive: true,
-                onClick: () => {
-                  if (confirmDeleteActivityId === activity.id) {
-                    setConfirmDeleteActivityId(null);
-                    void onDelete(activity);
-                  } else {
-                    setConfirmDeleteActivityId(activity.id);
-                  }
+                onClick: async () => {
+                  const ok = await showConfirm(
+                    `Delete "${activity.title}"? This cannot be undone.`,
+                    {
+                      title: 'Delete Video Activity',
+                      variant: 'danger',
+                      confirmLabel: 'Delete',
+                    }
+                  );
+                  if (ok) await onDelete(activity);
                 },
               },
             ];
@@ -1341,19 +1333,19 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     if (onArchiveDelete) {
       actions.push({
         id: 'delete',
-        label:
-          confirmDeleteAssignmentId === assignment.id
-            ? 'Confirm delete'
-            : 'Delete',
+        label: 'Delete',
         icon: Trash2,
         destructive: true,
-        onClick: () => {
-          if (confirmDeleteAssignmentId === assignment.id) {
-            setConfirmDeleteAssignmentId(null);
-            void onArchiveDelete(assignment);
-          } else {
-            setConfirmDeleteAssignmentId(assignment.id);
-          }
+        onClick: async () => {
+          const ok = await showConfirm(
+            'Delete this assignment and all responses? This cannot be undone.',
+            {
+              title: 'Delete Assignment',
+              variant: 'danger',
+              confirmLabel: 'Delete',
+            }
+          );
+          if (ok) await onArchiveDelete(assignment);
         },
       });
     }
