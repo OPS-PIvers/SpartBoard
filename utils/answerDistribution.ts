@@ -36,7 +36,9 @@ export function distributionFromAnswers<Q extends DistributionQuestion>(
 }
 
 /** Bar rows for one question across responses; a response without an answer is not counted. */
-export function buildDistribution<Q extends DistributionQuestion & { id: string }>(
+export function buildDistribution<
+  Q extends DistributionQuestion & { id: string },
+>(
   question: Q,
   responses: readonly {
     answers: readonly { questionId: string; answer: string }[];

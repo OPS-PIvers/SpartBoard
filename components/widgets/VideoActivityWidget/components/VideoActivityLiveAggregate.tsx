@@ -29,7 +29,7 @@ interface LiveAggregate {
 const OTHER_KEY = '\u0000other';
 
 /** Anonymous class distribution for the open question (D16). */
-export function buildLiveAggregate({
+function buildLiveAggregate({
   question,
   keyQuestion,
   answers,

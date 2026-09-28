@@ -37,7 +37,10 @@ const rows = () =>
 
 describe('VideoActivityLiveAggregate', () => {
   const mc = pub({ options: ['Blue', 'Red', 'Green'] });
-  const mcKey = key({ correctAnswer: 'Red', incorrectAnswers: ['Blue', 'Green'] });
+  const mcKey = key({
+    correctAnswer: 'Red',
+    incorrectAnswers: ['Blue', 'Green'],
+  });
 
   it('draws an MC distribution in board order with no names', () => {
     render(
@@ -67,8 +70,9 @@ describe('VideoActivityLiveAggregate', () => {
       />
     );
     const correct = screen.getByText('Correct');
-    expect(correct.closest('[data-testid="answer-distribution-row"]'))
-      .toHaveTextContent('Red');
+    expect(
+      correct.closest('[data-testid="answer-distribution-row"]')
+    ).toHaveTextContent('Red');
   });
 
   it('counts each choose-all pick under its option, in board order', () => {
