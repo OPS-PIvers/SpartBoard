@@ -69,6 +69,17 @@ function acceptExtensionsForSources(sources: ImportSourceKind[]): string {
   return Array.from(exts).join(',');
 }
 
+/** True when `fileName` ends with one of the comma-separated extensions in `accept`. */
+function matchesAccept(fileName: string, accept: string): boolean {
+  const lower = fileName.toLowerCase();
+  return accept
+    .split(',')
+    .map((ext) => ext.trim().toLowerCase())
+    .some((ext) => ext && lower.endsWith(ext));
+}
+
+const DOCUMENT_EXTENSIONS = '.pdf,.docx,.odt,.tst,.rtf,.imscc';
+
 function inferKindFromFileName(
   fileName: string,
   supported: ImportSourceKind[]
@@ -270,8 +281,37 @@ export function ImportWizard<TData>({
     });
   };
 
+  const bulkSource = adapter.bulkSource;
+  const handBulkFile = (file: File): void => {
+    if (!bulkSource) return;
+    if (!matchesAccept(file.name, bulkSource.accept)) {
+      setParseError(`Choose a ${bulkSource.accept} file.`);
+      return;
+    }
+    bulkSource.onFile(file);
+  };
+
   const importFile = async (file: File): Promise<void> => {
     const session = sessionRef.current;
+    // A collection export picked or dropped on the main zone goes to the bulk import.
+    if (bulkSource && matchesAccept(file.name, bulkSource.accept)) {
+      bulkSource.onFile(file);
+      return;
+    }
+    const uploadAccept = acceptExtensionsForSources(adapter.supportedSources);
+    const isDocument =
+      supportsDocument && matchesAccept(file.name, DOCUMENT_EXTENSIONS);
+    // Reading a zip or a Word file as CSV text only produces garbled questions.
+    if (
+      !isDocument &&
+      uploadAccept &&
+      !matchesAccept(file.name, uploadAccept)
+    ) {
+      setParseError(
+        `That file can’t be imported here. Choose a ${uploadHint === 'File' ? 'supported' : uploadHint} file${bulkSource ? ` or a ${bulkSource.title}` : ''}.`
+      );
+      return;
+    }
     const kind = inferKindFromFileName(file.name, adapter.supportedSources);
     if (kind === 'file') {
       await runParse({ kind: 'file', file });
@@ -309,19 +349,6 @@ export function ImportWizard<TData>({
 
   const uploadDrop = useFileDrop((file) => void importFile(file), loading);
 
-  const bulkSource = adapter.bulkSource;
-  const handBulkFile = (file: File): void => {
-    if (!bulkSource) return;
-    const accepted = bulkSource.accept
-      .split(',')
-      .map((ext) => ext.trim().toLowerCase())
-      .some((ext) => file.name.toLowerCase().endsWith(ext));
-    if (!accepted) {
-      setParseError(`Choose a ${bulkSource.accept} file.`);
-      return;
-    }
-    bulkSource.onFile(file);
-  };
   const bulkDrop = useFileDrop(handBulkFile, loading || !bulkSource);
 
   const handleCreateTemplate = async (): Promise<void> => {
@@ -523,7 +550,7 @@ export function ImportWizard<TData>({
               <p className="text-xs font-semibold text-brand-blue-primary">
                 {uploadDrop.dragging
                   ? 'Drop it here'
-                  : `Drop a file here · ${uploadHint}`}
+                  : `Drop a file here · ${uploadHint}${adapter.bulkSource ? ` or ${adapter.bulkSource.accept}` : ''}`}
               </p>
             </>
           )}
@@ -560,7 +587,12 @@ export function ImportWizard<TData>({
             <input
               type="file"
               ref={fileInputRef}
-              accept={acceptExtensionsForSources(adapter.supportedSources)}
+              accept={[
+                acceptExtensionsForSources(adapter.supportedSources),
+                adapter.bulkSource?.accept,
+              ]
+                .filter(Boolean)
+                .join(',')}
               onChange={(e) => void handleFilePicked(e)}
               className="hidden"
               aria-label="Upload import file"
