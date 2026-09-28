@@ -3,19 +3,21 @@
  * per-question attach section used in the detail pane. Both entry points
  * operate on the same `stimuli` array owned by `useQuizEditorState`.
  *
- * Sources: device upload (teacher's Drive), Drive/any URL paste. Uploaded
+ * Sources: device upload or paste (teacher's Drive), Drive picker, URL paste. Uploaded
  * and Drive-pasted files require link-viewable sharing so anonymous
  * students can load them — the teacher is prompted to confirm on every
  * attach (never auto-shared silently).
  */
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ChevronDown,
   ChevronRight,
+  CloudDownload,
   FileText,
   Link2,
   Loader2,
+  Monitor,
   Paperclip,
   Trash2,
   Upload,
@@ -31,6 +33,9 @@ import {
 } from '@/utils/quizStimuli';
 import { extractGoogleFileId } from '@/utils/urlHelpers';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { useGooglePicker } from '@/hooks/useGooglePicker';
+import { useFilesDrop } from '@/hooks/useFileDrop';
+import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { extractStimulusReadAloudText } from '@/utils/quizReadAloudApi';
 import type { QuizEditorController } from './useQuizEditorState';
@@ -62,6 +67,8 @@ const MAX_STIMULUS_BYTES = 200 * 1024 * 1024;
  */
 function useStimulusIntake(state: QuizEditorController) {
   const { driveService, userDomain } = useGoogleDrive();
+  const { openPicker } = useGooglePicker();
+  const { ensureGoogleScope } = useAuth();
   const { showConfirm, showAlert } = useDialog();
   const [busy, setBusy] = useState(false);
 
@@ -137,7 +144,7 @@ function useStimulusIntake(state: QuizEditorController) {
   );
 
   const addFromUrl = useCallback(
-    async (rawUrl: string): Promise<QuizStimulus | null> => {
+    async (rawUrl: string, label?: string): Promise<QuizStimulus | null> => {
       const url = rawUrl.trim();
       if (!url) return null;
       const type = detectStimulusTypeFromUrl(url);
@@ -164,7 +171,7 @@ function useStimulusIntake(state: QuizEditorController) {
           type,
           url,
           ...(driveFileId ? { driveFileId } : {}),
-          label: url.replace(/^https?:\/\//, '').slice(0, 60),
+          label: label ?? url.replace(/^https?:\/\//, '').slice(0, 60),
         };
         state.addStimulus(stimulus);
         return stimulus;
@@ -174,6 +181,85 @@ function useStimulusIntake(state: QuizEditorController) {
     },
     [driveService, confirmShare, showAlert, state]
   );
+
+  const addFromDrive = useCallback(async (): Promise<QuizStimulus | null> => {
+    let picked;
+    try {
+      const token = await ensureGoogleScope('drive.file', {
+        interactive: true,
+      });
+      if (!token) {
+        throw new Error(
+          'Google Drive access is required. Please sign in again.'
+        );
+      }
+      picked = await openPicker({ mode: 'stimuli', token });
+    } catch (err) {
+      await showAlert(
+        err instanceof Error ? err.message : 'Could not open Google Drive.',
+        { variant: 'error' }
+      );
+      return null;
+    }
+    if (!picked) return null;
+    // Docs and Slides take the same path as a pasted Doc link.
+    if (picked.mimeType === 'application/vnd.google-apps.document') {
+      return addFromUrl(
+        `https://docs.google.com/document/d/${picked.id}/edit`,
+        picked.name
+      );
+    }
+    if (picked.mimeType === 'application/vnd.google-apps.presentation') {
+      return addFromUrl(
+        `https://docs.google.com/presentation/d/${picked.id}/edit`,
+        picked.name
+      );
+    }
+    const type = detectStimulusTypeFromFile(
+      new File([], picked.name, { type: picked.mimeType })
+    );
+    if (!type) {
+      await showAlert(
+        `"${picked.name}" isn't a supported stimulus. Use an image, audio, video, or PDF file.`,
+        { variant: 'warning' }
+      );
+      return null;
+    }
+    const shared = await confirmShare(picked.name);
+    if (!shared) return null;
+    setBusy(true);
+    try {
+      if (driveService) {
+        try {
+          await driveService.makePublic(picked.id, undefined);
+        } catch {
+          await showAlert(
+            "Couldn't update sharing (you may not own this file). Make sure it's set to \"anyone with the link\" in Drive, or students won't see it.",
+            { variant: 'warning' }
+          );
+        }
+      }
+      const stimulus: QuizStimulus = {
+        id: crypto.randomUUID(),
+        type,
+        url: `https://drive.google.com/file/d/${picked.id}/view`,
+        driveFileId: picked.id,
+        label: picked.name,
+      };
+      state.addStimulus(stimulus);
+      return stimulus;
+    } finally {
+      setBusy(false);
+    }
+  }, [
+    ensureGoogleScope,
+    openPicker,
+    addFromUrl,
+    confirmShare,
+    driveService,
+    showAlert,
+    state,
+  ]);
 
   // userDomain intentionally unused today: stimulus sharing is always
   // type:'anyone' (anonymous students), never domain-scoped.
@@ -193,14 +279,106 @@ function useStimulusIntake(state: QuizEditorController) {
     return stimulus;
   }, [state]);
 
-  return { addFromFile, addFromUrl, addPassage, busy };
+  return { addFromFile, addFromUrl, addFromDrive, addPassage, busy };
 }
+
+type StimulusIntake = ReturnType<typeof useStimulusIntake>;
+
+/** Adds dropped or pasted files one at a time; each has its own share prompt. */
+async function addFiles(
+  addFromFile: StimulusIntake['addFromFile'],
+  files: File[],
+  onAdded?: (s: QuizStimulus) => void
+): Promise<void> {
+  for (const file of files) {
+    const added = await addFromFile(file);
+    if (added) onAdded?.(added);
+  }
+}
+
+const isEditableTarget = (target: EventTarget | null): boolean =>
+  target instanceof HTMLElement &&
+  (target.isContentEditable ||
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA');
+
+/** Ctrl+V of a copied image or file anywhere while the panel is open. */
+function usePasteFiles(onFiles: (files: File[]) => void, disabled: boolean) {
+  useEffect(() => {
+    if (disabled) return;
+    const onPaste = (e: ClipboardEvent) => {
+      const data = e.clipboardData;
+      if (!data) return;
+      const files = Array.from(data.files);
+      if (files.length === 0) return;
+      // Pasting copied text into a field keeps working as normal.
+      if (isEditableTarget(e.target) && data.types.includes('text/plain')) {
+        return;
+      }
+      e.preventDefault();
+      onFiles(files);
+    };
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  }, [onFiles, disabled]);
+}
+
+const fileButtonClass =
+  'inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-brand-blue-primary hover:text-brand-blue-primary disabled:opacity-40';
+
+/** Hidden file input plus "Choose file" and "Choose from Drive" buttons. */
+const FileSourceButtons: React.FC<{
+  intake: StimulusIntake;
+  onAdded?: (s: QuizStimulus) => void;
+  compact?: boolean;
+}> = ({ intake, onAdded, compact = false }) => {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept={STIMULUS_ACCEPT}
+        className="hidden"
+        data-testid="stimulus-file-input"
+        onChange={(e) => {
+          const files = Array.from(e.target.files ?? []);
+          e.target.value = '';
+          if (files.length > 0)
+            void addFiles(intake.addFromFile, files, onAdded);
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={intake.busy}
+        className={fileButtonClass}
+      >
+        <Monitor className="h-3.5 w-3.5" aria-hidden />
+        Choose file
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          void intake.addFromDrive().then((added) => {
+            if (added) onAdded?.(added);
+          })
+        }
+        disabled={intake.busy}
+        className={fileButtonClass}
+      >
+        <CloudDownload className="h-3.5 w-3.5" aria-hidden />
+        {compact ? 'Drive' : 'Choose from Drive'}
+      </button>
+    </>
+  );
+};
 
 const UrlAddRow: React.FC<{
   onAdd: (url: string) => Promise<unknown>;
   busy: boolean;
-  compact?: boolean;
-}> = ({ onAdd, busy, compact = false }) => {
+}> = ({ onAdd, busy }) => {
   const [url, setUrl] = useState('');
   const submit = async () => {
     if (!url.trim()) return;
@@ -219,9 +397,7 @@ const UrlAddRow: React.FC<{
             void submit();
           }
         }}
-        placeholder={
-          compact ? 'Paste a URL…' : 'Paste an image, YouTube, Doc, or PDF URL…'
-        }
+        placeholder="Paste a link"
         className={inputClass}
         disabled={busy}
       />
@@ -251,45 +427,52 @@ export const StimulusManagerPanel: React.FC<{
 }> = ({ state, readAloudAvailable = false }) => {
   const { stimuli, questions } = state;
   const intake = useStimulusIntake(state);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { addFromFile } = intake;
+  const onFiles = useCallback(
+    (files: File[]) => void addFiles(addFromFile, files),
+    [addFromFile]
+  );
+  const drop = useFilesDrop(onFiles, intake.busy);
+  usePasteFiles(onFiles, intake.busy);
 
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 px-5 py-4 space-y-4">
       <div className="space-y-2">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={STIMULUS_ACCEPT}
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = '';
-            if (file) void intake.addFromFile(file);
-          }}
-        />
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={intake.busy}
-          className="w-full flex items-center justify-center gap-1.5 py-2.5 border-2 border-dashed border-slate-300 hover:border-brand-blue-primary/40 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-brand-blue-primary font-bold transition-all text-xs disabled:opacity-50"
+        <div
+          {...drop.dropProps}
+          data-testid="stimulus-drop-zone"
+          className={`flex flex-col items-center gap-2.5 rounded-lg border-2 border-dashed px-4 py-4 transition-colors ${
+            drop.dragging
+              ? 'border-brand-blue-primary bg-brand-blue-lighter'
+              : 'border-slate-300 bg-white'
+          }`}
         >
-          {intake.busy ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Upload className="w-4 h-4" />
-          )}
-          Upload to your Drive
-        </button>
-        <button
-          type="button"
-          onClick={() => intake.addPassage()}
-          disabled={intake.busy}
-          className="flex items-center gap-2 px-3 py-2 bg-white border-2 border-slate-300 hover:border-brand-blue-primary/50 disabled:opacity-40 rounded-lg text-sm font-bold text-slate-700"
-        >
-          <FileText className="w-4 h-4" />
-          Add a passage
-        </button>
-        <UrlAddRow onAdd={intake.addFromUrl} busy={intake.busy} />
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-600">
+            {intake.busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Upload className="h-4 w-4" aria-hidden />
+            )}
+            {drop.dragging ? 'Drop it here' : 'Drop or paste a file'}
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <FileSourceButtons intake={intake} />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => intake.addPassage()}
+            disabled={intake.busy}
+            className="shrink-0 flex items-center gap-2 px-3 py-2 bg-white border-2 border-slate-300 hover:border-brand-blue-primary/50 disabled:opacity-40 rounded-lg text-sm font-bold text-slate-700"
+          >
+            <FileText className="w-4 h-4" />
+            Add a passage
+          </button>
+          <div className="flex-1 min-w-0">
+            <UrlAddRow onAdd={intake.addFromUrl} busy={intake.busy} />
+          </div>
+        </div>
       </div>
 
       {stimuli.length === 0 ? (
@@ -711,8 +894,16 @@ export const QuestionStimulusSection: React.FC<{
               })}
             </ul>
           )}
+          <div className="flex flex-wrap gap-2">
+            <FileSourceButtons
+              compact
+              intake={intake}
+              onAdded={(added) =>
+                toggleStimulusOnQuestion(added.id, questionId)
+              }
+            />
+          </div>
           <UrlAddRow
-            compact
             busy={intake.busy}
             onAdd={async (url) => {
               const added = await intake.addFromUrl(url);
