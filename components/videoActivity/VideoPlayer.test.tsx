@@ -203,5 +203,25 @@ describe('VideoPlayer', () => {
       expect(rafQueue).toHaveLength(1);
       expect(secondPlayer.getPlayerState).toHaveBeenCalled();
     });
+
+    it('teacher mode reports ticks and never seeks back or triggers questions', () => {
+      player.getPlayerState = vi.fn(() => 1); // PLAYING
+      player.getCurrentTime = vi.fn(() => 50);
+      const onTick = vi.fn();
+      const onQuestionTrigger = vi.fn();
+      render(
+        <VideoPlayer
+          {...defaultProps}
+          questions={[{ id: 'q1', timestamp: 10, text: 'Q', type: 'MC' }]}
+          onQuestionTrigger={onQuestionTrigger}
+          teacherMode
+          onTick={onTick}
+        />
+      );
+      flushFrame(1000);
+      expect(onTick).toHaveBeenCalledWith(50, 120, true);
+      expect(player.seekTo).not.toHaveBeenCalled();
+      expect(onQuestionTrigger).not.toHaveBeenCalled();
+    });
   });
 });

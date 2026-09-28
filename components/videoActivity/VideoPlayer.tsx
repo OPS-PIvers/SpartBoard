@@ -41,6 +41,12 @@ interface VideoPlayerProps {
   playheadRef?: React.MutableRefObject<number>;
   /** Holds playback (e.g. the class period paused); playback resumes when cleared. */
   paused?: boolean;
+  /** Teacher board mode: no seek lock and no built-in question triggers; the parent paces via onTick. */
+  teacherMode?: boolean;
+  /** Every poll: playhead, duration and whether the video is playing. */
+  onTick?: (seconds: number, durationSeconds: number, playing: boolean) => void;
+  /** Where playback starts, in whole seconds. */
+  startSeconds?: number;
 }
 
 const SEEK_TOLERANCE_SECONDS = 0.75;
@@ -59,6 +65,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   seekRequest,
   playheadRef,
   paused = false,
+  teacherMode = false,
+  onTick,
+  startSeconds,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
@@ -100,6 +109,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const autoPlayRef = useRef(autoPlay);
   const onQuestionTriggerRef = useRef(onQuestionTrigger);
   const onVideoEndRef = useRef(onVideoEnd);
+  const teacherModeRef = useRef(teacherMode);
+  const onTickRef = useRef(onTick);
+  const startSecondsRef = useRef(startSeconds);
 
   useLayoutEffect(() => {
     unansweredRef.current = questions
@@ -121,7 +133,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   useLayoutEffect(() => {
     onQuestionTriggerRef.current = onQuestionTrigger;
     onVideoEndRef.current = onVideoEnd;
-  }, [onQuestionTrigger, onVideoEnd]);
+    teacherModeRef.current = teacherMode;
+    onTickRef.current = onTick;
+  }, [onQuestionTrigger, onVideoEnd, teacherMode, onTick]);
 
   const startPolling = useCallback(() => {
     // Supersede any loop already running: if startPolling is called again
@@ -157,6 +171,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       const state = player.getPlayerState();
       const isPlaying = state === YT_PLAYER_STATE.PLAYING;
       if (playheadRef) playheadRef.current = player.getCurrentTime();
+
+      if (teacherModeRef.current) {
+        onTickRef.current?.(
+          player.getCurrentTime(),
+          player.getDuration(),
+          isPlaying
+        );
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
 
       if (isPlaying && !questionVisibleRef.current) {
         const currentTime = player.getCurrentTime();
@@ -225,6 +249,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           fs: 0, // disable fullscreen to prevent skip bypass
           disablekb: 1,
           playsinline: 1,
+          ...(startSecondsRef.current
+            ? { start: Math.floor(startSecondsRef.current) }
+            : {}),
         },
         events: {
           onReady: () => {
@@ -235,7 +262,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           },
           onStateChange: (event: { data: number }) => {
             if (event.data === YT_PLAYER_STATE.ENDED) {
-              stopPolling();
+              // The teacher can seek back after the end, so keep polling.
+              if (!teacherModeRef.current) stopPolling();
               onVideoEndRef.current();
             }
           },
@@ -269,11 +297,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
     if (!questionVisible && playerRef.current) {
       const state = playerRef.current.getPlayerState();
-      if (state === YT_PLAYER_STATE.PAUSED) {
+      // Teacher mode also starts from unstarted/cued/ended, since Play is explicit there.
+      if (
+        state === YT_PLAYER_STATE.PAUSED ||
+        (teacherMode &&
+          state !== YT_PLAYER_STATE.PLAYING &&
+          state !== YT_PLAYER_STATE.BUFFERING)
+      ) {
         playerRef.current.playVideo();
       }
     }
-  }, [questionVisible, paused]);
+  }, [questionVisible, paused, teacherMode]);
 
   useEffect(() => {
     if (!seekRequest || !playerRef.current) return;
