@@ -1217,9 +1217,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             ) : (
               <TestAndKeyUploader
                 pickFromDrive={pickDocument}
-                submitLabel="Read the test"
+                submitLabel="Convert test"
                 busy={readingDoc}
-                busyLabel="Reading the test…"
+                busyLabel="Converting the test…"
                 onSubmit={(selection) => void readQuestionsFrom(selection)}
               >
                 {canUseAi && (

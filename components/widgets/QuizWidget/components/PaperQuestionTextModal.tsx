@@ -102,7 +102,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
     key: UploadedDocument | null,
     read: ReadUploadedTest
   ) => {
-    setProgress('Reading the test…');
+    setProgress('Converting the test…');
     const extracted = await read(test, {
       ...(canUseAi ? { useAi } : {}),
       key,
@@ -307,7 +307,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
               }
             : undefined
         }
-        submitLabel="Read the test"
+        submitLabel="Convert test"
         onSubmit={(selection) => void readSelection(selection)}
       >
         {canUseAi && <AiReaderToggle checked={useAi} onChange={setUseAi} />}

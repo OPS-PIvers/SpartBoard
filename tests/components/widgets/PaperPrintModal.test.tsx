@@ -375,7 +375,7 @@ describe('PaperPrintModal', () => {
         dataTransfer: { files: [file], types: ['Files'] },
       });
       await screen.findByText('unit3.pdf');
-      fireEvent.click(screen.getByRole('button', { name: 'Read the test' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Convert test' }));
     };
 
     it('reads the paper, sizes the sheet to it and names the test', async () => {
@@ -1310,7 +1310,7 @@ describe('PaperPrintModal with handwritten answers', () => {
       dataTransfer: { files: [file], types: ['Files'] },
     });
     await screen.findByText('unit3.pdf');
-    fireEvent.click(screen.getByRole('button', { name: 'Read the test' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Convert test' }));
     await screen.findByText(/2 questions read/);
     expect(
       screen.getByRole('button', { name: 'Remove question 2 written' })

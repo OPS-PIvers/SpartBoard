@@ -204,9 +204,9 @@ export interface ExtractedQuiz {
 /** The neutral status line naming the reader, or '' when there is none. */
 export const readByLabel = (readBy: ExtractedQuiz['readBy']): string =>
   readBy === 'ai'
-    ? 'Read with AI.'
+    ? 'Converted with AI.'
     : readBy === 'plain'
-      ? 'Read without AI.'
+      ? 'Converted without AI.'
       : '';
 
 /** True when the reader found the question but no answer for it (D5). */
