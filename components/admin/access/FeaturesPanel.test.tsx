@@ -75,6 +75,10 @@ vi.mock('@/hooks/useStorage', () => ({
 
 vi.mock('@/hooks/useIsMobile', () => ({ useIsMobile: () => false }));
 
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({ addToast: vi.fn() }),
+}));
+
 describe('FeaturesPanel', () => {
   afterEach(() => {
     cleanup();

@@ -31,6 +31,10 @@ vi.mock('@/hooks/useStorage', () => ({
   }),
 }));
 
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({ addToast: vi.fn() }),
+}));
+
 import { FeaturesPanel } from '@/components/admin/access/FeaturesPanel';
 
 afterEach(cleanup);
