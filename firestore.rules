@@ -3898,7 +3898,9 @@ service cloud.firestore {
           periodJoinOk(sessionData(), incoming()) &&
           (isStudentRoleUser()
             ? responseKey == authUid()
-            : responseKey.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$'));
+            // PIN joins honor the teacher's anonymous-join stamp.
+            : responseKey.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$') &&
+              sessionData().get('allowAnonymousJoin', true) != false);
         allow update: if request.auth != null && (
           // Teacher and admins can update any field
           authUid() == sessionTeacherUid() || isAdmin() ||
@@ -4590,7 +4592,9 @@ service cloud.firestore {
           periodJoinOk(vaS(), incoming()) &&
           (isStudentRoleUser()
             ? responseDocId == authUid()
-            : responseDocId.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$'));
+            // PIN joins honor the teacher's anonymous-join stamp.
+            : responseDocId.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$') &&
+              vaS().get('allowAnonymousJoin', true) != false);
         // Update split: TEACHER branch (PR3 publish-scores: score/isCorrect/
         // scoreVisibility; gated by parent teacherUid, admins also pass) and
         // STUDENT branch (answer-submit, append-only invariants). Mutually

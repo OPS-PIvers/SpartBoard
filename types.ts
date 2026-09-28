@@ -4310,6 +4310,8 @@ export interface QuizSession
   autoProgressAt?: number | null;
   /** Short alphanumeric code students use to join */
   code: string;
+  /** Teacher's `anonymous-join` access at create time; false hides PIN join. Absent = allowed. */
+  allowAnonymousJoin?: boolean;
   totalQuestions: number;
   /**
    * Student-safe questions (no correctAnswer) so the session document can be
@@ -6475,6 +6477,8 @@ export interface VideoActivitySession
    * Empty array means any PIN is accepted.
    */
   allowedPins: string[];
+  /** Teacher's `anonymous-join` access at create time; false hides PIN join. Absent = allowed. */
+  allowAnonymousJoin?: boolean;
   createdAt: number;
   endedAt?: number;
   /** Optional Unix timestamp when the session link expires. */

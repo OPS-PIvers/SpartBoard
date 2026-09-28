@@ -85,6 +85,10 @@ import {
 import { isInvalidWordRange } from '@/utils/wordLimit';
 import { getServerNow } from '@/utils/serverTime';
 import { withNotChosen } from '@/utils/quizSections';
+import {
+  ANONYMOUS_JOIN_BLOCKED_MESSAGE,
+  isAnonymousJoinBlocked,
+} from '@/utils/anonymousJoin';
 export type { QuizSessionOptions } from '@/types';
 
 export const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
@@ -1793,6 +1797,8 @@ export interface UseQuizSessionStudentResult {
     classIds: string[];
     /** Session doc id — also the assignment id for pointer-doc lookups. */
     sessionId: string;
+    /** The teacher lacked `anonymous-join`, so PIN entry is closed. */
+    anonymousJoinBlocked: boolean;
   } | null>;
   /**
    * Join a quiz session.
@@ -2129,6 +2135,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       periodNames: string[];
       classIds: string[];
       sessionId: string;
+      anonymousJoinBlocked: boolean;
     } | null> => {
       // Populate the hook's `error` state on failure so callers' .catch
       // handlers (which only console.warn) still produce visible UI feedback.
@@ -2164,6 +2171,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             ? sessionData.classIds
             : [],
           sessionId,
+          anonymousJoinBlocked: isAnonymousJoinBlocked(sessionData),
         };
       } catch (err) {
         const msg =
@@ -2253,6 +2261,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         );
         const sessionDoc = joinable[0];
         const sessionData = sessionDoc.data;
+
+        if (isAnonymous && isAnonymousJoinBlocked(sessionData)) {
+          throw new Error(ANONYMOUS_JOIN_BLOCKED_MESSAGE);
+        }
 
         // Phase 3 — PIN→SSO identity bridge. When an anonymous PIN
         // joiner lands on a rostered session (the typical case for

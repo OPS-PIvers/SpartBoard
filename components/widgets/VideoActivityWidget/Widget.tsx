@@ -800,6 +800,10 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
 
           const url = `${window.location.origin}/activity/${encodeURIComponent(sessionId)}`;
           const isViewOnly = vaAssignmentMode === 'view-only';
+          if (!isViewOnly && !canAccessFeature('anonymous-join')) {
+            addToast('Assignment created.', 'success');
+            return sessionId;
+          }
           await copyUrlToClipboard(url, addToast, {
             successMessage: isViewOnly
               ? 'Share link copied to clipboard!'

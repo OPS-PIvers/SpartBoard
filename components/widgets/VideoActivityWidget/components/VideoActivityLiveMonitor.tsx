@@ -375,7 +375,8 @@ export const VideoActivityLiveMonitor: React.FC<
 }) => {
   const { showConfirm } = useDialog();
   const { addToast, rosters } = useDashboard();
-  const { orgId } = useAuth();
+  const { orgId, canAccessFeature } = useAuth();
+  const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   // Per-period sessions swap the single Pause button for one chip per period.
   const perPeriod = hasPeriodAccess(session) && session.status !== 'ended';
   const periodActions = usePeriodAccess(
@@ -717,7 +718,11 @@ export const VideoActivityLiveMonitor: React.FC<
               <ScaledEmptyState
                 icon={Users}
                 title="Waiting for students"
-                subtitle="Share the assignment link from the In Progress tab."
+                subtitle={
+                  canOfferAnonymousJoin
+                    ? 'Share the assignment link from the In Progress tab.'
+                    : 'Students join from My Assignments.'
+                }
               />
             ) : (
               <div className="flex flex-col rounded-2xl bg-white/50 border border-slate-200/60 backdrop-blur-sm overflow-hidden">
