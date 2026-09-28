@@ -6,7 +6,7 @@ vi.mock('firebase-admin', () => ({
   firestore: Object.assign(vi.fn(), { FieldValue: {} }),
 }));
 
-import { specificFeatureIdFor } from './aiGeneration';
+import { missingDocDeniesNonAdmin, specificFeatureIdFor } from './aiGeneration';
 
 describe('specificFeatureIdFor', () => {
   it('charges each widget its own switch for shared types', () => {
@@ -35,5 +35,29 @@ describe('specificFeatureIdFor', () => {
     expect(specificFeatureIdFor('quiz', undefined)).toBe('quiz');
     expect(specificFeatureIdFor('poll', undefined)).toBe('smart-poll');
     expect(specificFeatureIdFor('unknown', undefined)).toBeNull();
+  });
+});
+
+describe('missingDocDeniesNonAdmin', () => {
+  it('keeps Bloom’s AI closed to teachers until an admin saves its switch', () => {
+    expect(
+      missingDocDeniesNonAdmin(specificFeatureIdFor('blooms-ai', undefined)!)
+    ).toBe(true);
+  });
+
+  it('leaves features that default open alone', () => {
+    for (const [type, source] of [
+      ['quiz', undefined],
+      ['poll', undefined],
+      ['mini-app', 'mini-app'],
+      ['ocr', 'drawing'],
+      ['ocr', 'webcam'],
+      ['video-activity-recommend', undefined],
+      ['dashboard-layout', undefined],
+    ] as const) {
+      expect(
+        missingDocDeniesNonAdmin(specificFeatureIdFor(type, source)!)
+      ).toBe(false);
+    }
   });
 });

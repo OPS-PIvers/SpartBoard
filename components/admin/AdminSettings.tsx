@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
+import { isSuperAdminActor } from '@/utils/superAdmin';
 import { FeaturePermissionsManager } from './FeaturePermissionsManager';
 import { BackgroundManager } from './BackgroundManager';
 import { FeaturesPanel } from './access/FeaturesPanel';
@@ -160,6 +161,8 @@ const TAB_GROUPS = [
         label: 'PLC Resources',
         icon: Sparkles,
         component: PlcResourcesManager,
+        // Rules let only super admins write plc_resources.
+        superAdminOnly: true,
       },
     ],
   },
@@ -173,11 +176,22 @@ interface TabConfig {
   icon: typeof Shield;
   component: React.FC;
   fillHeight?: boolean;
+  superAdminOnly?: boolean;
 }
 
 const TABS: readonly TabConfig[] = TAB_GROUPS.flatMap<TabConfig>(
   (group) => group.tabs
 );
+
+/** The groups and tabs this admin can open; empty groups drop out. */
+const visibleGroups = (isSuperAdmin: boolean) =>
+  TAB_GROUPS.map((group) => ({
+    id: group.id,
+    label: group.label,
+    tabs: (group.tabs as readonly TabConfig[]).filter(
+      (tab) => isSuperAdmin || !tab.superAdminOnly
+    ),
+  })).filter((group) => group.tabs.length > 0);
 
 const LAST_TAB_KEY = 'spart.adminSettings.lastTab';
 
@@ -223,8 +237,20 @@ const RailTab: React.FC<{
 );
 
 export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
-  const { isAdmin } = useAuth();
-  const [activeTab, setActiveTabState] = useState<TabId>(readLastTab);
+  const { isAdmin, user, userRoles, roleId, orgId } = useAuth();
+  const isSuperAdmin = isSuperAdminActor(
+    user?.email,
+    userRoles?.superAdmins,
+    roleId,
+    orgId
+  );
+  const groups = visibleGroups(isSuperAdmin);
+  const tabs = groups.flatMap((group) => group.tabs);
+  const [storedTab, setActiveTabState] = useState<TabId>(readLastTab);
+  // A remembered tab this admin can't open falls back to Widgets.
+  const activeTab: TabId = tabs.some((t) => t.id === storedTab)
+    ? storedTab
+    : 'widgets';
   const setActiveTab = (tab: TabId) => {
     setActiveTabState(tab);
     try {
@@ -331,7 +357,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
               aria-label="Admin sections"
               className="flex flex-col flex-1 overflow-y-auto py-2"
             >
-              {TAB_GROUPS.map((group) => (
+              {groups.map((group) => (
                 <div key={group.id} className="mb-1">
                   <div className="px-4 pt-3 pb-1">
                     <span className="hidden lg:block text-[10px] font-bold uppercase tracking-[0.18em] text-white/35">
@@ -362,7 +388,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
             {/* Mobile drill-in menu */}
             <div className={`md:hidden ${showMobileMenu ? 'block' : 'hidden'}`}>
               <div className="flex flex-col py-2">
-                {TAB_GROUPS.map((group) => (
+                {groups.map((group) => (
                   <div key={group.id}>
                     <div className="px-4 pt-4 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                       {group.label}
@@ -397,7 +423,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
               <div
                 className={`${!showMobileMenu ? 'block' : 'hidden md:block'} p-4 md:p-6 ${activeTabFills ? 'h-full' : ''}`}
               >
-                {TABS.map((tab) => {
+                {tabs.map((tab) => {
                   const TabComponent = tab.component;
                   return (
                     activeTab === tab.id && (
