@@ -212,7 +212,7 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
             Bloom&apos;s Taxonomy Administration
           </h2>
           <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">
-            Content, Categories & AI Settings
+            Content & Categories
           </p>
         </div>
       </div>
