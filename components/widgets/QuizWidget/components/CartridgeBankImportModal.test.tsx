@@ -168,6 +168,8 @@ describe('CartridgeBankImportModal', () => {
       expect(screen.getByText(/2 banks saved/)).toBeInTheDocument()
     );
     expect(saveItem).toHaveBeenCalledTimes(3);
+    const romeCalls = saveItem.mock.calls.filter(([b]) => b.title === 'Rome');
+    expect(romeCalls[1][0]).toBe(romeCalls[0][0]);
   });
 
   it('imports quizzes in quiz mode and says banks were skipped', async () => {

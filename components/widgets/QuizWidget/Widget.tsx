@@ -415,6 +415,8 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const [bankCartridge, setBankCartridge] = useState<File | null>(null);
   const canImportQuizCartridge = canAccessFeature('quiz-imscc-import');
   const [quizCartridge, setQuizCartridge] = useState<File | null>(null);
+  // Quizzes a Schoology import already saved, so a retry only re-runs the folder move.
+  const savedCartridgeQuizzes = useRef(new Map<string, string>());
   const [editingBankMeta, setEditingBankMeta] =
     useState<QuestionBankMetadata | null>(null);
   const [shareBankTarget, setShareBankTarget] =
@@ -1476,8 +1478,12 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         folders={quizFolders}
         createFolder={createQuizFolder}
         saveItem={async (quiz, folderId) => {
-          const meta = await saveQuiz(quiz);
-          await moveQuizItem(meta.id, folderId);
+          let id = savedCartridgeQuizzes.current.get(quiz.id);
+          if (!id) {
+            id = (await saveQuiz(quiz)).id;
+            savedCartridgeQuizzes.current.set(quiz.id, id);
+          }
+          await moveQuizItem(id, folderId);
         }}
         attachPictures={(quiz, images) =>
           attachImagesToQuiz(quiz, images, stimulusUploader)

@@ -107,6 +107,8 @@ export const CartridgeBankImportModal: React.FC<
   const [save, setSave] = useState<SaveState>({ kind: 'idle' });
   const savedIds = useRef(new Set<string>());
   const madeFolders = useRef(new Map<string, string>());
+  // A retry reuses the row's quiz, so its id and uploaded pictures stay the same.
+  const built = useRef(new Map<string, QuizData>());
   const isQuiz = kind === 'quiz';
   const noun = (n: number): string =>
     isQuiz ? plural(n, 'quiz', 'quizzes') : plural(n, 'bank');
@@ -182,6 +184,11 @@ export const CartridgeBankImportModal: React.FC<
     withPictures: boolean
   ): Promise<void> => {
     const bank: CartridgeBank = row.bank;
+    const cached = built.current.get(bank.id);
+    if (cached) {
+      await saveItem(cached, folderId);
+      return;
+    }
     const quiz = extractedToQuizData(
       {
         title: bank.title,
@@ -195,6 +202,7 @@ export const CartridgeBankImportModal: React.FC<
       quiz,
       withPictures ? bank.images : []
     );
+    built.current.set(bank.id, pictured);
     await saveItem(pictured, folderId);
   };
 
