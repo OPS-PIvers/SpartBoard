@@ -19,6 +19,17 @@ export const RenameFolderModal: React.FC<RenameFolderModalProps> = ({
   globalStyle,
 }) => {
   const [val, setVal] = useState(name);
+  const [showError, setShowError] = useState(false);
+
+  const commit = () => {
+    const trimmed = val.trim();
+    if (!trimmed) {
+      setShowError(true);
+      return;
+    }
+    onSave(trimmed);
+  };
+
   return (
     <Modal isOpen={true} onClose={onClose} variant="bare" zIndex="z-critical">
       <GlassCard
@@ -31,13 +42,22 @@ export const RenameFolderModal: React.FC<RenameFolderModalProps> = ({
         <input
           type="text"
           value={val}
-          onChange={(e) => setVal(e.target.value)}
+          onChange={(e) => {
+            setVal(e.target.value);
+            if (showError) setShowError(false);
+          }}
           autoFocus
           placeholder="Folder name..."
-          className="w-full px-4 py-3 bg-slate-100 border-none rounded-xl focus:ring-2 focus:ring-brand-blue-primary text-sm font-bold mb-6"
-          onKeyDown={(e) => e.key === 'Enter' && onSave(val)}
+          aria-invalid={showError || undefined}
+          className={`w-full px-4 py-3 bg-slate-100 border-none rounded-xl focus:ring-2 text-sm font-bold ${showError ? 'ring-2 ring-brand-red-primary focus:ring-brand-red-primary' : 'focus:ring-brand-blue-primary'}`}
+          onKeyDown={(e) => e.key === 'Enter' && commit()}
         />
-        <div className="flex gap-3">
+        {showError && (
+          <p className="text-xxs text-brand-red-primary mt-1 mb-4">
+            Folder name can&apos;t be empty.
+          </p>
+        )}
+        <div className={showError ? 'flex gap-3' : 'flex gap-3 mt-6'}>
           <button
             onClick={onClose}
             className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-500 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"
@@ -45,7 +65,7 @@ export const RenameFolderModal: React.FC<RenameFolderModalProps> = ({
             Cancel
           </button>
           <button
-            onClick={() => onSave(val)}
+            onClick={commit}
             className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-white bg-brand-blue-primary rounded-xl hover:bg-brand-blue-dark shadow-lg shadow-brand-blue-primary/20 transition-all"
           >
             Save
