@@ -835,6 +835,8 @@ export class QuizDriveService {
       fibGrading?: FibGradingContext | null;
       /** "Time Away" column; ignored in PLC mode, whose sheets are read by column position. */
       timeAway?: boolean;
+      /** Live video activity questions the class was never asked. */
+      notAskedQuestionIds?: string[];
     }
   ): Promise<string> {
     // Quiz's grader threads per-response manual grades through for

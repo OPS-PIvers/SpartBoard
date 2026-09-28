@@ -217,6 +217,27 @@ export function videoKeyForGrader(questions: unknown[]): unknown[] {
   });
 }
 
+/** Live (teacher-paced) sessions score only the questions the class was asked. */
+export function videoAskedScope(session: Data): {
+  pacing: 'live' | 'self_paced';
+  keep: (questions: unknown[]) => unknown[];
+} {
+  if (session.sessionMode !== 'teacher') {
+    return { pacing: 'self_paced', keep: (questions) => questions };
+  }
+  const live = (session.live ?? {}) as Data;
+  const asked = new Set(
+    asArray(live.askedQuestionIds).filter(
+      (id): id is string => typeof id === 'string'
+    )
+  );
+  return {
+    pacing: 'live',
+    keep: (questions) =>
+      questions.filter((q) => asked.has(asText(((q ?? {}) as Data).id))),
+  };
+}
+
 async function videoSessionSummary(
   ctx: ToolContext,
   sessionDoc: admin.firestore.DocumentSnapshot
@@ -228,9 +249,11 @@ async function videoSessionSummary(
     sessionDoc.ref.collection('key').doc('answers').get(),
   ]);
   const completed = responses.docs.filter((d) => d.get('completedAt') != null);
+  const scope = videoAskedScope(s);
   const header = {
     assignment_id: sessionDoc.id,
     assignment_name: s.assignmentName ?? null,
+    pacing: scope.pacing,
     class_periods: asArray(s.periodNames),
     status: s.status ?? null,
     created_at: iso(s.createdAt),
@@ -239,14 +262,17 @@ async function videoSessionSummary(
   if (completed.length < MIN_RESPONSES) {
     return { ...header, ...suppressed(completed.length) };
   }
-  const keyQuestions = videoKeyForGrader(
+  const allKeyQuestions = videoKeyForGrader(
     asArray(keySnap.get('questions')).length > 0
       ? asArray(keySnap.get('questions'))
       : asArray(s.questions)
   );
-  const publicQuestions = asArray(s.publicQuestions);
+  const keyQuestions = scope.keep(allKeyQuestions);
+  const publicQuestions = scope.keep(asArray(s.publicQuestions));
+  const notAsked = allKeyQuestions.length - keyQuestions.length;
   return {
     ...header,
+    ...(scope.pacing === 'live' ? { questions_not_asked: notAsked } : {}),
     ...(await aggregate(
       'video-activity',
       sessionDoc.id,
@@ -342,7 +368,7 @@ export function registerResultsTools(
     'get_video_activity_results_summary',
     {
       title: 'Summarize video activity results',
-      description: `Class-level results for the newest ${MAX_SESSIONS} assignments of a video activity: average, score bands, percent correct and choice counts per question. Hidden under ${MIN_RESPONSES} finishers.`,
+      description: `Class-level results for the newest ${MAX_SESSIONS} assignments of a video activity: average, score bands, percent correct and choice counts per question. Live (teacher-paced) assignments cover only the questions the class was asked. Hidden under ${MIN_RESPONSES} finishers.`,
       inputSchema: {
         activity_id: z.string().min(1).describe('From list_video_activities.'),
         assignment_id: z.string().optional().describe('Omit for the newest.'),

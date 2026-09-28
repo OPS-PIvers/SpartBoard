@@ -15,9 +15,13 @@ import {
   XCircle,
   GraduationCap,
   Send,
+  CircleDashed,
+  MinusCircle,
+  UserPlus,
 } from 'lucide-react';
 import {
   PlcLinkage,
+  StudentTargetRef,
   VideoActivityQuestion,
   VideoActivityResponse,
   VideoActivitySession,
@@ -75,7 +79,12 @@ import {
 } from '@/components/common/sessionViews';
 import type { OverflowMenuItem } from '@/components/common/sessionViews';
 import { scoreColorClasses } from '@/utils/scoreColor';
-import { scoredVideoActivityQuestions } from '@/utils/videoActivityLive';
+import {
+  isLiveVideoActivitySession,
+  makeUpTargetStudents,
+  notAskedVideoActivityQuestionIds,
+  scoredVideoActivityQuestions,
+} from '@/utils/videoActivityLive';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useVideoActivityKeyQuestions } from '@/hooks/useVideoActivityKeyQuestions';
 
@@ -94,19 +103,27 @@ interface ResultsProps {
    * pooling is out of scope for PR 1 of docs/plans/shipped/PLC_ASSESSMENT_DATA.md.
    */
   plc?: PlcLinkage;
+  /** Opens a self-paced make-up for an ended live session, pre-targeted at students with no answers. */
+  onAssignMakeUp?: (targetStudents: StudentTargetRef[]) => void;
 }
+
+const MARK_ICON_STYLE = {
+  width: 'min(14px, 3.5cqmin)',
+  height: 'min(14px, 3.5cqmin)',
+};
 
 export const Results: React.FC<ResultsProps> = ({
   session,
   responses,
   onBack,
   plc: _plc,
+  onAssignMakeUp,
 }) => {
   const { ensureGoogleScope, user, orgId, canAccessFeature, isExternalUser } =
     useAuth();
   const tabAwayTimerOn = canAccessFeature('tab-away-timer');
   const { showConfirm } = useDialog();
-  const { addToast } = useDashboard();
+  const { addToast, rosters } = useDashboard();
   // Use the multi-class variant — `session.classId` is a transitional
   // mirror of `classIds[0]` only, so the single-class hook would miss
   // SSO students from `classIds[1+]` on multi-class assignments and
@@ -117,11 +134,8 @@ export const Results: React.FC<ResultsProps> = ({
       return session.classIds;
     return session.classId ? [session.classId] : [];
   }, [session.classIds, session.classId]);
-  const { byStudentUid: classLinkNames } = useAssignmentPseudonymsMulti(
-    session.id,
-    sessionClassIds,
-    orgId
-  );
+  const { byStudentUid: classLinkNames, targetRefKeyByStudentUid } =
+    useAssignmentPseudonymsMulti(session.id, sessionClassIds, orgId);
   // Schoology LTI students aren't in any ClassLink roster — resolve their names
   // on-read via NRPS and merge in (ClassLink wins on the rare uid collision).
   // Gated on `ltiNrps` so non-LTI sessions never make the call. `kind: 'va'`
@@ -160,6 +174,27 @@ export const Results: React.FC<ResultsProps> = ({
     [session, questions]
   );
   const totalStudents = responses.length;
+  const isLive = isLiveVideoActivitySession(session);
+  const notAskedIds = useMemo(
+    () => notAskedVideoActivityQuestionIds(session, questions),
+    [session, questions]
+  );
+  const notAsked = useMemo(() => new Set(notAskedIds), [notAskedIds]);
+  const showMakeUp =
+    isLive &&
+    session.status === 'ended' &&
+    !!onAssignMakeUp &&
+    canAccessFeature('video-activity-live');
+  const handleAssignMakeUp = () => {
+    onAssignMakeUp?.(
+      makeUpTargetStudents(
+        rosters,
+        session.rosterIds ?? [],
+        responses,
+        targetRefKeyByStudentUid
+      )
+    );
+  };
 
   /**
    * Compute correctness from the authoritative activity question data.
@@ -296,6 +331,7 @@ export const Results: React.FC<ResultsProps> = ({
           gradeFn:
             gradeVideoActivityAnswer as unknown as NonNullable<ExporterOptions>['gradeFn'],
           timeAway: canAccessFeature('tab-away-timer'),
+          ...(isLive ? { notAskedQuestionIds: notAskedIds } : {}),
         }
       );
       setExportUrl(url);
@@ -528,6 +564,14 @@ export const Results: React.FC<ResultsProps> = ({
                 disabled={pushingSchoology || completed === 0}
               />
             )}
+            {showMakeUp && (
+              <ActionButton
+                variant="secondary"
+                label="Assign make-up (self-paced)"
+                icon={UserPlus}
+                onClick={handleAssignMakeUp}
+              />
+            )}
             {overflowItems.length > 0 && <OverflowMenu items={overflowItems} />}
           </>
         }
@@ -669,26 +713,31 @@ export const Results: React.FC<ResultsProps> = ({
           ) : (
             <div className="bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm overflow-hidden">
               {questions.map((q, idx) => {
-                const accuracy = getQuestionAccuracy(q);
+                const skipped = notAsked.has(q.id);
+                const accuracy = skipped ? 0 : getQuestionAccuracy(q);
                 const colors = scoreColorClasses(accuracy);
                 return (
                   <SessionRow
                     key={q.id}
                     trailing={
-                      <div className="shrink-0 text-right">
-                        <p
-                          className={`font-black tabular-nums ${colors.text}`}
-                          style={{ fontSize: 'min(16px, 5cqmin)' }}
-                        >
-                          {accuracy}%
-                        </p>
-                        <p
-                          className="text-slate-400"
-                          style={{ fontSize: 'min(9px, 2.5cqmin)' }}
-                        >
-                          accuracy
-                        </p>
-                      </div>
+                      skipped ? (
+                        <SessionBadge tone="neutral" label="Not asked" />
+                      ) : (
+                        <div className="shrink-0 text-right">
+                          <p
+                            className={`font-black tabular-nums ${colors.text}`}
+                            style={{ fontSize: 'min(16px, 5cqmin)' }}
+                          >
+                            {accuracy}%
+                          </p>
+                          <p
+                            className="text-slate-400"
+                            style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+                          >
+                            accuracy
+                          </p>
+                        </div>
+                      )
                     }
                   >
                     <div
@@ -711,18 +760,20 @@ export const Results: React.FC<ResultsProps> = ({
                     </div>
 
                     {/* Accuracy bar */}
-                    <div
-                      className="bg-slate-100 rounded-full overflow-hidden"
-                      style={{
-                        height: 'min(6px, 1.5cqmin)',
-                        marginTop: 'min(6px, 1.5cqmin)',
-                      }}
-                    >
+                    {!skipped && (
                       <div
-                        className={`h-full rounded-full transition-all ${colors.bar}`}
-                        style={{ width: `${accuracy}%` }}
-                      />
-                    </div>
+                        className="bg-slate-100 rounded-full overflow-hidden"
+                        style={{
+                          height: 'min(6px, 1.5cqmin)',
+                          marginTop: 'min(6px, 1.5cqmin)',
+                        }}
+                      >
+                        <div
+                          className={`h-full rounded-full transition-all ${colors.bar}`}
+                          style={{ width: `${accuracy}%` }}
+                        />
+                      </div>
+                    )}
                   </SessionRow>
                 );
               })}
@@ -785,35 +836,82 @@ export const Results: React.FC<ResultsProps> = ({
                             {/* Iterate in canonical question order (not
                                 submission order) so the icon strip matches the
                                 Live Monitor for self-paced revisits. */}
-                            {questions
-                              .map((q) =>
-                                r.answers.find((a) => a.questionId === q.id)
-                              )
-                              .filter(
-                                (a): a is (typeof r.answers)[number] =>
-                                  a !== undefined
-                              )
-                              .map((a) =>
-                                isAnswerCorrect(a.questionId, a.answer) ? (
-                                  <CheckCircle2
-                                    key={a.questionId}
-                                    className="text-emerald-500"
-                                    style={{
-                                      width: 'min(14px, 3.5cqmin)',
-                                      height: 'min(14px, 3.5cqmin)',
-                                    }}
-                                  />
-                                ) : (
-                                  <XCircle
-                                    key={a.questionId}
-                                    className="text-brand-red-primary"
-                                    style={{
-                                      width: 'min(14px, 3.5cqmin)',
-                                      height: 'min(14px, 3.5cqmin)',
-                                    }}
-                                  />
-                                )
-                              )}
+                            {isLive
+                              ? questions.map((q) => {
+                                  const a = r.answers.find(
+                                    (x) => x.questionId === q.id
+                                  );
+                                  if (notAsked.has(q.id))
+                                    return (
+                                      <CircleDashed
+                                        key={q.id}
+                                        role="img"
+                                        aria-label="Not asked"
+                                        className="text-slate-300"
+                                        style={MARK_ICON_STYLE}
+                                      >
+                                        <title>Not asked</title>
+                                      </CircleDashed>
+                                    );
+                                  if (!a)
+                                    return (
+                                      <MinusCircle
+                                        key={q.id}
+                                        role="img"
+                                        aria-label="Missed"
+                                        className="text-amber-500"
+                                        style={MARK_ICON_STYLE}
+                                      >
+                                        <title>Missed</title>
+                                      </MinusCircle>
+                                    );
+                                  return isAnswerCorrect(q.id, a.answer) ? (
+                                    <CheckCircle2
+                                      key={q.id}
+                                      role="img"
+                                      aria-label="Correct"
+                                      className="text-emerald-500"
+                                      style={MARK_ICON_STYLE}
+                                    />
+                                  ) : (
+                                    <XCircle
+                                      key={q.id}
+                                      role="img"
+                                      aria-label="Incorrect"
+                                      className="text-brand-red-primary"
+                                      style={MARK_ICON_STYLE}
+                                    />
+                                  );
+                                })
+                              : questions
+                                  .map((q) =>
+                                    r.answers.find((a) => a.questionId === q.id)
+                                  )
+                                  .filter(
+                                    (a): a is (typeof r.answers)[number] =>
+                                      a !== undefined
+                                  )
+                                  .map((a) =>
+                                    isAnswerCorrect(a.questionId, a.answer) ? (
+                                      <CheckCircle2
+                                        key={a.questionId}
+                                        className="text-emerald-500"
+                                        style={{
+                                          width: 'min(14px, 3.5cqmin)',
+                                          height: 'min(14px, 3.5cqmin)',
+                                        }}
+                                      />
+                                    ) : (
+                                      <XCircle
+                                        key={a.questionId}
+                                        className="text-brand-red-primary"
+                                        style={{
+                                          width: 'min(14px, 3.5cqmin)',
+                                          height: 'min(14px, 3.5cqmin)',
+                                        }}
+                                      />
+                                    )
+                                  )}
                           </div>
                           {scoreable ? (
                             <ScorePill score={score} display="percent" />

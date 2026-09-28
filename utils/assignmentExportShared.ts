@@ -98,6 +98,8 @@ export interface BuildResultsSheetDataOptions<
   formatAnswer?: (question: Q, answer: R['answers'][number]) => string;
   /** Adds "Time Away" after "Warnings". Solo sheets only: PLC sheets are read by column position. */
   timeAway?: boolean;
+  /** Live video activity: questions the class was never asked; "Not asked" cells, out of every row's max. */
+  notAskedQuestionIds?: string[];
 }
 
 /** Sheets rejects any cell over 50,000 characters. */
@@ -186,6 +188,7 @@ export function buildResultsSheetData<
     'Unknown Teacher';
   const timestamp = new Date().toISOString();
   const formatAnswer = options?.formatAnswer;
+  const notAsked = new Set(options?.notAskedQuestionIds ?? []);
 
   // Deduplicate questions by id before all downstream point math. Drive-
   // sync duplication and arrayUnion races on the template doc can leave
@@ -229,7 +232,7 @@ export function buildResultsSheetData<
         : null;
     return questions.reduce((sum, q) => {
       if (served && !served.has(q.id)) return sum;
-      if (r._notChosen?.includes(q.id)) return sum;
+      if (r._notChosen?.includes(q.id) || notAsked.has(q.id)) return sum;
       return r.grading?.[q.id]?.excused ? sum : sum + (q.points ?? 1);
     }, 0);
   };
@@ -286,7 +289,7 @@ export function buildResultsSheetData<
     for (const q of questions) {
       const ans = answerMap.get(q.id);
       if (!ans || ans.unresponded) continue; // absent OR unresponded === no cell
-      if (r._notChosen?.includes(q.id)) continue;
+      if (r._notChosen?.includes(q.id) || notAsked.has(q.id)) continue;
       grades.set(q.id, gradeFn(q, ans.answer, r));
     }
     // An `awaiting-grade` slot's 0 is a placeholder, not a score. Render the
@@ -297,7 +300,9 @@ export function buildResultsSheetData<
       const grade = grades.get(q.id);
       const baseCell = r._notChosen?.includes(q.id)
         ? 'Not chosen'
-        : !grade
+        : notAsked.has(q.id)
+          ? 'Not asked'
+          : !grade
           ? ''
           : grade.state === 'awaiting-grade'
             ? 'Ungraded'
@@ -305,7 +310,11 @@ export function buildResultsSheetData<
       const cols = [baseCell];
       if (formatAnswer) {
         const ans = answerMap.get(q.id);
-        cols.push(ans && !ans.unresponded ? formatAnswer(q, ans) : '');
+        cols.push(
+          ans && !ans.unresponded && !notAsked.has(q.id)
+            ? formatAnswer(q, ans)
+            : ''
+        );
       }
       if (rubricQuestionIds.has(q.id) && q.rubricSnapshot) {
         const scores = r.grading?.[q.id]?.rubricScores ?? [];

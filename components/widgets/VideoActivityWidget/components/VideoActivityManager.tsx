@@ -84,6 +84,7 @@ import { buildDuplicateAction } from '@/components/common/library/libraryDuplica
 import type {
   AssignmentMode,
   ClassRoster,
+  StudentTargetRef,
   VideoActivityAssignment,
   VideoActivityAssignmentStatus,
   VideoActivityMetadata,
@@ -110,6 +111,16 @@ import {
 } from '@/utils/localDate';
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
+
+/** A self-paced assign to open pre-filled, e.g. a live session's make-up (D18). */
+export interface VideoActivityPendingAssign {
+  /** Changes per request so the same activity can be re-opened. */
+  key: string;
+  activityId: string;
+  rosterIds: string[];
+  /** Empty keeps class-wide targeting. */
+  targetStudents: StudentTargetRef[];
+}
 
 export interface VideoActivityManagerProps {
   /** Teacher's Firebase UID — scopes the folders subcollection. */
@@ -253,6 +264,10 @@ export interface VideoActivityManagerProps {
   assignmentMode?: AssignmentMode;
   /** Surfaces a failed folder move (drag or bulk) as a toast. */
   onError?: (message: string) => void;
+  /** Opens the self-paced Assign dialog pre-filled once its activity is in the library. */
+  pendingAssign?: VideoActivityPendingAssign | null;
+  /** Called when the pre-filled dialog closes, assigned or not. */
+  onPendingAssignDone?: () => void;
 }
 
 /* ─── Library hook option constants (module-level for referential stability) ─
@@ -492,6 +507,8 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   lastClassIdByActivityId,
   assignmentMode = 'submissions',
   onError,
+  pendingAssign,
+  onPendingAssignDone,
 }) => {
   const { showConfirm } = useDialog();
   const { canAccessFeature } = useAuth();
@@ -543,12 +560,42 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const [prevAssignTargetId, setPrevAssignTargetId] = useState<string | null>(
     null
   );
+  // A pending pre-filled assign opens once its activity is in the library.
+  const [openedPendingKey, setOpenedPendingKey] = useState<string | null>(null);
+  const pendingMeta = pendingAssign
+    ? activities.find((a) => a.id === pendingAssign.activityId)
+    : undefined;
+  if (pendingAssign && pendingMeta && pendingAssign.key !== openedPendingKey) {
+    setOpenedPendingKey(pendingAssign.key);
+    setAssignTarget(pendingMeta);
+    setPrevAssignTargetId(null);
+  }
+  const activePending =
+    pendingAssign &&
+    pendingAssign.key === openedPendingKey &&
+    pendingAssign.activityId === assignTarget?.id
+      ? pendingAssign
+      : null;
+  const closeAssign = () => {
+    setAssignTarget(null);
+    setAssignDueAt(null);
+    if (pendingAssign) onPendingAssignDone?.();
+  };
+
   if (assignTarget && assignTarget.id !== prevAssignTargetId) {
     setPrevAssignTargetId(assignTarget.id);
     setAssignOptions(defaultSessionSettings);
     setAssignmentName(buildDefaultAssignmentName(assignTarget.title));
     setAssignDueAt(null);
-    setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
+    setAssignTargeting(
+      activePending && activePending.targetStudents.length > 0
+        ? {
+            ...EMPTY_ASSIGN_TARGETING_VALUE,
+            targetMode: 'students',
+            targetStudents: activePending.targetStudents,
+          }
+        : EMPTY_ASSIGN_TARGETING_VALUE
+    );
     setAssignPace('student');
     setAssignError(null);
     // Prefer unified roster memory; fall back to legacy ClassLink-sourcedId
@@ -562,7 +609,9 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         legacyMulti ?? (legacySingle ? [legacySingle] : undefined);
       rememberedRosters = mapLegacyClassIdsToRosterIds(legacyClassIds, rosters);
     }
-    setPickerValue({ rosterIds: rememberedRosters });
+    setPickerValue({
+      rosterIds: activePending ? activePending.rosterIds : rememberedRosters,
+    });
   } else if (!assignTarget && prevAssignTargetId !== null) {
     setPrevAssignTargetId(null);
   }
@@ -789,8 +838,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         assignLive ? EMPTY_ASSIGN_TARGETING_VALUE : targetingWithDue,
         assignLive ? 'teacher' : 'student'
       );
-      setAssignTarget(null);
-      setAssignDueAt(null);
+      closeAssign();
     } catch (err) {
       setAssignError(
         err instanceof Error ? err.message : 'Failed to create assignment'
@@ -1484,10 +1532,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       {assignTarget && !isViewOnly && (
         <AssignModal<VideoActivitySessionSettings>
           isOpen={true}
-          onClose={() => {
-            setAssignTarget(null);
-            setAssignDueAt(null);
-          }}
+          onClose={closeAssign}
           itemTitle={assignTarget.title}
           options={assignOptions}
           onOptionsChange={setAssignOptions}
@@ -1516,8 +1561,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
               periodAccess={periodAccess}
               assignError={assignError}
               onEditInActivity={() => {
-                setAssignTarget(null);
-                setAssignDueAt(null);
+                closeAssign();
                 onEdit(assignTarget);
               }}
             />

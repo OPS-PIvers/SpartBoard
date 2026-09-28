@@ -1,8 +1,11 @@
 import type {
+  ClassRoster,
+  StudentTargetRef,
   VideoActivityLiveState,
   VideoActivityQuestion,
   VideoActivitySession,
 } from '@/types';
+import { classStudentRows } from '@/utils/studentTargetRef';
 
 type LiveSessionFields = Pick<VideoActivitySession, 'sessionMode' | 'live'>;
 
@@ -30,6 +33,51 @@ export function scoredVideoActivityQuestions<
   if (!isLiveVideoActivitySession(session)) return questions;
   const asked = new Set(session?.live?.askedQuestionIds ?? []);
   return questions.filter((q) => asked.has(q.id));
+}
+
+/** Question ids a live session never asked (skipped or never reached); empty for self-paced. */
+export function notAskedVideoActivityQuestionIds(
+  session: LiveSessionFields | null | undefined,
+  questions: Pick<VideoActivityQuestion, 'id'>[]
+): string[] {
+  if (!isLiveVideoActivitySession(session)) return [];
+  const asked = new Set(session?.live?.askedQuestionIds ?? []);
+  return questions.filter((q) => !asked.has(q.id)).map((q) => q.id);
+}
+
+interface MakeUpResponseLike {
+  studentUid: string;
+  pin?: string;
+  answers: { questionId: string }[];
+}
+
+/** Roster students with no answers in a live session: the make-up's default targets (D18). */
+export function makeUpTargetStudents(
+  rosters: ClassRoster[],
+  rosterIds: string[],
+  responses: MakeUpResponseLike[],
+  targetRefKeyByStudentUid: Map<string, string>
+): StudentTargetRef[] {
+  const answeredKeys = new Set<string>();
+  const answeredPins = new Set<string>();
+  for (const r of responses) {
+    if (r.answers.length === 0) continue;
+    const key = targetRefKeyByStudentUid.get(r.studentUid);
+    if (key) answeredKeys.add(key);
+    if (r.pin) answeredPins.add(r.pin);
+  }
+  const pinByStudentId = new Map<string, string>();
+  for (const roster of rosters) {
+    if (!rosterIds.includes(roster.id)) continue;
+    for (const s of roster.students) if (s.pin) pinByStudentId.set(s.id, s.pin);
+  }
+  return classStudentRows({ rosters, selectedRosterIds: rosterIds })
+    .filter((row) => {
+      if (answeredKeys.has(row.key)) return false;
+      const pin = pinByStudentId.get(row.studentId);
+      return !(pin && answeredPins.has(pin));
+    })
+    .map((row) => row.ref);
 }
 
 type TimedQuestion = Pick<VideoActivityQuestion, 'id' | 'timestamp'>;
