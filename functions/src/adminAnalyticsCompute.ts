@@ -452,17 +452,18 @@ export async function computeAnalyticsForOrg(
   // classified into a bucket that will never have real data in production.
   //
   // Current writers (by function → featureId):
-  //   generateWithAI (aiGeneration.ts): mini-app→embed-mini-app, poll→smart-poll,
-  //     quiz→quiz, ocr→ocr, blooms-ai→blooms-ai,
-  //     video-activity-recommend→video-activity-recommend,
+  //   generateWithAI (aiGeneration.ts): mini-app→embed-mini-app (Embed) or
+  //     mini-app-ai (Mini App), poll→smart-poll, quiz→quiz, ocr→ocr,
+  //     ocr+drawing→drawing-ai, ocr+webcam→webcam-ai, blooms-ai→blooms-ai,
+  //     video-activity-recommend→video-activity-ai,
   //     dashboard-layout→dashboard-layout, instructional-routine→instructional-routine,
   //     widget-builder→widget-builder, widget-explainer→widget-explainer
+  //   generateVideoActivity (aiGeneration.ts): video-activity-ai
+  //   generateGuidedLearning, draftGuidedLearningStepTextV1 (aiGeneration.ts): guided-learning-ai
   //   transcribeVideoWithGemini (aiGeneration.ts): video-activity-audio-transcription
   //   paper handwriting worker (paperHandwritingQuota.ts): paper-handwritten-responses, in pages
   //
-  // NOT included (by design):
-  //   generateGuidedLearning — admin-only, writes no ai_usage counter at all
-  //   generateVideoActivity  — writes only the overall {uid}_{date} counter
+  // Kept for existing docs only: video-activity-recommend (now counted as video-activity-ai).
   //
   // IMPORTANT: Keep in sync with the mirror in
   // tests/components/admin/Analytics/AiFeatureLabels.test.ts — that test's
