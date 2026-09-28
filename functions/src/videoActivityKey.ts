@@ -84,7 +84,9 @@ export function isLiveQuestionOpen(
     | { currentQuestionId?: unknown; questionPhase?: unknown }
     | undefined;
   return (
-    live?.currentQuestionId === questionId && live.questionPhase === 'open'
+    live?.currentQuestionId === questionId &&
+    live.questionPhase === 'open' &&
+    (live as { answerRevealed?: unknown }).answerRevealed !== true
   );
 }
 
@@ -151,18 +153,20 @@ export async function handleCheckVideoActivityAnswer(
     allowSkipping?: boolean;
     requireCorrectAnswer?: boolean;
   };
+  const responseDoc = responseSnap.docs[0];
+  const isLive = session.sessionMode === 'teacher';
+  const isStudent = !isTeacher && !isViewOnly && !!responseDoc;
+  // A live student waits for the board's reveal, so the key stays server-side.
   const result = (answer: string): CheckVideoActivityAnswerResult => ({
     isCorrect: gradeVaAnswer(question, answer),
-    correctAnswer: question.correctAnswer ?? '',
+    correctAnswer: isLive && isStudent ? '' : (question.correctAnswer ?? ''),
   });
-  const responseDoc = responseSnap.docs[0];
-  if (isTeacher || isViewOnly || !responseDoc) return result(input.answer);
+  if (!isStudent) return result(input.answer);
   if (isPeriodFrozen(session, responseDoc.data(), nowMs))
     throw new HttpsError(
       'failed-precondition',
       "Your class period isn't open right now."
     );
-  const isLive = session.sessionMode === 'teacher';
   if (isLive && !isLiveQuestionOpen(session, question.id))
     throw new HttpsError('failed-precondition', 'Question closed.', {
       reason: QUESTION_CLOSED_REASON,

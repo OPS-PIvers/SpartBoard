@@ -363,7 +363,7 @@ describe('handleCheckVideoActivityAnswer in a teacher-paced session', () => {
     });
     await expect(
       handleCheckVideoActivityAnswer(db, 'stu', q2('Blue'), 1000)
-    ).resolves.toMatchObject({ isCorrect: true });
+    ).resolves.toEqual({ isCorrect: true, correctAnswer: '' });
     expect(docs[RESPONSE].answers).toEqual([
       { questionId: 'q2', answer: 'Blue', answeredAt: 1000, isCorrect: true },
     ]);
@@ -374,6 +374,7 @@ describe('handleCheckVideoActivityAnswer in a teacher-paced session', () => {
       { currentQuestionId: 'q2', questionPhase: 'closed' },
       { currentQuestionId: 'q1', questionPhase: 'open' },
       { currentQuestionId: null, questionPhase: 'closed' },
+      { currentQuestionId: 'q2', questionPhase: 'open', answerRevealed: true },
     ];
     for (const live of cases) {
       const { docs, db } = setup(live);
