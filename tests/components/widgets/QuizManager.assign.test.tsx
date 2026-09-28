@@ -330,8 +330,10 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
     );
     // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
-    // The due date lives inside the Schedule section.
-    fireEvent.click(screen.getByRole('button', { name: /^schedule/i }));
+    // The due date lives inside the Availability & Due Date section.
+    fireEvent.click(
+      screen.getByRole('button', { name: /^availability & due date/i })
+    );
     expect(screen.getByTestId('assign-due-date')).toBeInTheDocument();
   });
 
@@ -697,7 +699,9 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
 
     // Set a due date
-    fireEvent.click(screen.getByRole('button', { name: /^schedule/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /^availability & due date/i })
+    );
     const dueDateInput = screen.getByTestId('assign-due-date');
     fireEvent.change(dueDateInput, { target: { value: '2026-06-01' } });
 

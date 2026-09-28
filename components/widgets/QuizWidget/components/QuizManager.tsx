@@ -2442,6 +2442,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                     : {}),
                 }}
                 onExpand={handleExpandIndividualTargeting}
+                scheduleLabel="Availability & Due Date"
                 scheduleExtra={
                   <AssignDueDateField
                     dueAt={assignDueAt}

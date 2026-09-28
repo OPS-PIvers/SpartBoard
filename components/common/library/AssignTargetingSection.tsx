@@ -145,6 +145,8 @@ export interface AssignTargetingSectionProps {
   periodAccess?: AssignPeriodAccessContext;
   /** Host field rendered inside Schedule (Quiz's due date). */
   scheduleExtra?: React.ReactNode;
+  /** Overrides the "Schedule" header. */
+  scheduleLabel?: string;
   /** Collapsed-state summary for `scheduleExtra`. */
   scheduleExtraSummary?: string | null;
 }
@@ -312,6 +314,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   periodAccess,
   scheduleExtra,
   scheduleExtraSummary,
+  scheduleLabel,
 }) => {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -514,7 +517,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   // toggle is safe here because Schedule owns no other competing control.
   const scheduleSection = (
     <CollapsibleSection
-      label={t('assignTargeting.scheduleLabel', 'Schedule')}
+      label={scheduleLabel ?? t('assignTargeting.scheduleLabel', 'Schedule')}
       icon={CalendarClock}
       summary={scheduleSummary || undefined}
     >
