@@ -18,6 +18,8 @@ const SESSIONS = 'video_activity_sessions';
 const MAX_ID_LENGTH = 128;
 const MAX_ANSWER_LENGTH = 2000;
 const CLOSE_GRACE_MS = 120_000;
+/** HttpsError details reason for a live answer outside its open window (D20). */
+export const QUESTION_CLOSED_REASON = 'question-closed';
 
 export interface CheckVideoActivityAnswerInput {
   sessionId: string;
@@ -72,6 +74,19 @@ const keyQuestions = (raw: unknown): VaKeyQuestion[] =>
           typeof (q as VaKeyQuestion).id === 'string'
       )
     : [];
+
+/** Teacher-paced sessions accept an answer only for the open question (D8, D20). */
+export function isLiveQuestionOpen(
+  session: Record<string, unknown>,
+  questionId: string
+): boolean {
+  const live = session.live as
+    | { currentQuestionId?: unknown; questionPhase?: unknown }
+    | undefined;
+  return (
+    live?.currentQuestionId === questionId && live.questionPhase === 'open'
+  );
+}
 
 // Mirrors the player's no-skip order; a scripted client can still walk it, but recorded answers are locked.
 export function allEarlierAnswered(
@@ -147,7 +162,13 @@ export async function handleCheckVideoActivityAnswer(
       'failed-precondition',
       "Your class period isn't open right now."
     );
+  const isLive = session.sessionMode === 'teacher';
+  if (isLive && !isLiveQuestionOpen(session, question.id))
+    throw new HttpsError('failed-precondition', 'Question closed.', {
+      reason: QUESTION_CLOSED_REASON,
+    });
   if (
+    !isLive &&
     settings.allowSkipping !== true &&
     !allEarlierAnswered(questions, question, responseDoc.data().answers)
   )
@@ -156,7 +177,8 @@ export async function handleCheckVideoActivityAnswer(
       'Answer the earlier questions first.'
     );
   // Require-correct mode only ever records correct answers, so revealing the key can't change a score.
-  if (settings.requireCorrectAnswer !== false) return result(input.answer);
+  if (!isLive && settings.requireCorrectAnswer !== false)
+    return result(input.answer);
   // Otherwise the checked answer is the graded one: record it first, so probing spends the attempt.
   const closeAt: unknown = session.closeAt;
   return db.runTransaction(async (tx) => {

@@ -63,7 +63,10 @@ export function normalizeVideoActivitySession(
       requireCorrectAnswer: data.settings?.requireCorrectAnswer ?? true,
       allowSkipping: data.settings?.allowSkipping ?? false,
     },
-    status: data.status === 'ended' ? 'ended' : 'active',
+    status:
+      data.status === 'ended' || data.status === 'waiting'
+        ? data.status
+        : 'active',
     allowedPins: data.allowedPins ?? [],
     createdAt,
     ...(typeof data.endedAt === 'number' ? { endedAt: data.endedAt } : {}),

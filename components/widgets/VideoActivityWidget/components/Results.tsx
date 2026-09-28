@@ -75,6 +75,7 @@ import {
 } from '@/components/common/sessionViews';
 import type { OverflowMenuItem } from '@/components/common/sessionViews';
 import { scoreColorClasses } from '@/utils/scoreColor';
+import { scoredVideoActivityQuestions } from '@/utils/videoActivityLive';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useVideoActivityKeyQuestions } from '@/hooks/useVideoActivityKeyQuestions';
 
@@ -154,6 +155,10 @@ export const Results: React.FC<ResultsProps> = ({
     loading: keyLoading,
     failed: keyFailed,
   } = useVideoActivityKeyQuestions(session);
+  const scoredQuestions = useMemo(
+    () => scoredVideoActivityQuestions(session, questions),
+    [session, questions]
+  );
   const totalStudents = responses.length;
 
   /**
@@ -168,7 +173,7 @@ export const Results: React.FC<ResultsProps> = ({
   };
 
   const getStudentScore = (r: VideoActivityResponse): number =>
-    computeVideoActivityScorePct(questions, r.answers);
+    computeVideoActivityScorePct(scoredQuestions, r.answers);
 
   // ⚡ Bolt: Consolidate multiple O(N) array passes inside render
   // Calculate completed count and average score in a single loop
@@ -194,8 +199,8 @@ export const Results: React.FC<ResultsProps> = ({
     for (const r of responses) {
       if (r.completedAt !== null) {
         completedCount++;
-        if (canScoreVideoActivityResponse(questions, r.answers)) {
-          scoreSum += computeVideoActivityScorePct(questions, r.answers);
+        if (canScoreVideoActivityResponse(scoredQuestions, r.answers)) {
+          scoreSum += computeVideoActivityScorePct(scoredQuestions, r.answers);
           scoredCount++;
         }
       }
@@ -209,7 +214,7 @@ export const Results: React.FC<ResultsProps> = ({
       // submission still counts as a real 0, so it keeps the average defined.
       avgScore: scoredCount > 0 ? Math.round(scoreSum / scoredCount) : null,
     };
-  }, [responses, questions]);
+  }, [responses, scoredQuestions]);
 
   const getQuestionAccuracy = (question: VideoActivityQuestion): number =>
     computeQuestionAccuracy(question, responses);
@@ -338,7 +343,7 @@ export const Results: React.FC<ResultsProps> = ({
     // dialog for nothing — or PATCH a phantom 0 into the real gradebook.
     const grades = buildVideoActivityGradeEntries(
       responses,
-      questions,
+      scoredQuestions,
       maxPoints
     );
     if (grades.length === 0) {
@@ -412,7 +417,7 @@ export const Results: React.FC<ResultsProps> = ({
     const maxPoints = videoActivityMaxPoints(questions);
     const grades = buildVideoActivityGradeEntries(
       responses,
-      questions,
+      scoredQuestions,
       maxPoints
     );
     if (grades.length === 0) {
@@ -735,10 +740,16 @@ export const Results: React.FC<ResultsProps> = ({
                 .sort((a, b) => {
                   // Unscorable responses (answer key not loaded) sink to the
                   // bottom instead of intermixing with genuine 0% students.
-                  const sa = canScoreVideoActivityResponse(questions, a.answers)
+                  const sa = canScoreVideoActivityResponse(
+                    scoredQuestions,
+                    a.answers
+                  )
                     ? getStudentScore(a)
                     : -1;
-                  const sb = canScoreVideoActivityResponse(questions, b.answers)
+                  const sb = canScoreVideoActivityResponse(
+                    scoredQuestions,
+                    b.answers
+                  )
                     ? getStudentScore(b)
                     : -1;
                   return sb - sa;
@@ -750,10 +761,10 @@ export const Results: React.FC<ResultsProps> = ({
                   // 0 rather than a real result — show a neutral "—" instead of
                   // "0%". See `canScoreVideoActivityResponse`.
                   const scoreable = canScoreVideoActivityResponse(
-                    questions,
+                    scoredQuestions,
                     r.answers
                   );
-                  const correct = countCorrectAnswers(r, questions);
+                  const correct = countCorrectAnswers(r, scoredQuestions);
                   const warnings = r.tabSwitchWarnings ?? 0;
                   // `formatStudentName` returns '' on roster miss and legacy rows may carry '' for `r.name`.
                   const displayName =
@@ -838,7 +849,7 @@ export const Results: React.FC<ResultsProps> = ({
                           className="text-slate-400"
                           style={{ fontSize: 'min(10px, 3cqmin)' }}
                         >
-                          {correct}/{questions.length} correct
+                          {correct}/{scoredQuestions.length} correct
                         </span>
                         {tabAwayTimerOn &&
                           warnings > 0 &&

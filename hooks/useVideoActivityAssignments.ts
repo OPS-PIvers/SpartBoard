@@ -37,6 +37,7 @@ import {
 } from './useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import { scoredVideoActivityQuestions } from '@/utils/videoActivityLive';
 import {
   mirrorPlcAssignmentStatus,
   writePlcAssignmentIndexEntry,
@@ -53,6 +54,7 @@ import type {
   VideoActivityData,
   VideoActivityMetadata,
   VideoActivityMetadataSyncLinkage,
+  VideoActivityQuestion,
   VideoActivityResponse,
   VideoActivityScoreVisibility,
   VideoActivitySession,
@@ -209,7 +211,11 @@ export interface UseVideoActivityAssignmentsResult {
     assignmentId: string,
     activityData: VideoActivityData,
     visibility: Exclude<VideoActivityScoreVisibility, 'none'>
-  ) => Promise<{ responsesUpdated: number }>;
+  ) => Promise<{
+    responsesUpdated: number;
+    /** The questions scores were computed over (asked ones only in a live session). */
+    scoredQuestions: VideoActivityQuestion[];
+  }>;
   /**
    * Revoke published score visibility for an assignment. Clears
    * `scoreVisibility` + `scorePublishedAt` on the assignment doc (via
@@ -1001,9 +1007,12 @@ export const useVideoActivityAssignments = (
       );
 
       // Dedupe first-wins before indexing — mirrors useQuizAssignments; last-wins can grade against a duplicate's differing correctAnswer.
-      const questionsById = new Map(
-        dedupeQuestionsById(activityData.questions).map((q) => [q.id, q])
+      const sessionSnap = await getDoc(sessionRef);
+      const scoredQuestions = scoredVideoActivityQuestions(
+        sessionSnap.data() as Partial<VideoActivitySession> | undefined,
+        dedupeQuestionsById(activityData.questions)
       );
+      const questionsById = new Map(scoredQuestions.map((q) => [q.id, q]));
 
       // Read responses in bounded pages (limit + documentId cursor) rather
       // than one unbounded `getDocs` so a PLC-shared assignment with
@@ -1139,7 +1148,7 @@ export const useVideoActivityAssignments = (
         );
       }
 
-      return { responsesUpdated: updates.length };
+      return { responsesUpdated: updates.length, scoredQuestions };
     },
     [userId]
   );

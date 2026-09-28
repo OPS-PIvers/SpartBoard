@@ -6447,6 +6447,25 @@ export interface VideoActivityGlobalConfig {
  * A Firestore session document giving students access to an activity.
  * Stored at /video_activity_sessions/{sessionId}
  */
+export type VideoActivitySessionStatus = 'waiting' | 'active' | 'ended';
+
+export type VideoActivitySessionMode = 'student' | 'teacher';
+
+/** Teacher-paced pacing state on the session doc (docs/plans/VA_TEACHER_PACED.md §4.1). */
+export interface VideoActivityLiveState {
+  /** null while the video plays or in the lobby. */
+  currentQuestionId: string | null;
+  questionPhase: 'open' | 'closed';
+  resultsShown: boolean;
+  answerRevealed: boolean;
+  /** Questions the class was asked; the score denominator. */
+  askedQuestionIds: string[];
+  /** Questions the teacher scrubbed past; not asked, not scored. */
+  skippedQuestionIds: string[];
+  playheadSeconds: number;
+  updatedAt: number;
+}
+
 export interface VideoActivitySession
   extends SubLaunchedSessionFields, PeriodAccessSessionFields {
   id: string;
@@ -6471,7 +6490,12 @@ export interface VideoActivitySession
    * Mirrors QuizSession.sessionOptions. Absent on pre-PR1 sessions.
    */
   sessionOptions?: VideoActivitySessionOptions;
-  status: 'active' | 'ended';
+  /** 'waiting' is the teacher-paced lobby before Start. */
+  status: VideoActivitySessionStatus;
+  /** Absent means 'student' (self-paced); 'teacher' is a live, board-paced session. */
+  sessionMode?: VideoActivitySessionMode;
+  /** Board pacing state; present only when sessionMode is 'teacher'. */
+  live?: VideoActivityLiveState;
   /**
    * Roster PINs allowed to join. Teacher sets this when assigning to a class.
    * Empty array means any PIN is accepted.
@@ -9002,6 +9026,8 @@ export type GlobalFeature =
   | 'paper-handwritten-responses'
   /** Claude connector: teachers connect Claude to their library (docs/plans/CLAUDE_CONNECTOR.md). */
   | 'claude-connector'
+  /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/VA_TEACHER_PACED.md). */
+  | 'video-activity-live'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'

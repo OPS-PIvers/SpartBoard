@@ -706,6 +706,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Teacher-paced (live) Video Activity: the Assign dialog's live option (docs/plans/VA_TEACHER_PACED.md).
+  'video-activity-live': {
+    label: 'Video Activity live mode',
+    icon: Cast,
+    description:
+      'Play a video activity on the board and pause for class answers.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'video-activity',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Per-widget AI switches: hide and meter each widget's AI; `gemini-functions` is the hard server gate.
   quiz: {
     label: 'Quiz: AI',
