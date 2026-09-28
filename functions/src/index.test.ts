@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import axios from 'axios';
 
 interface MockDocInput {
@@ -4143,5 +4143,118 @@ describe('draftGuidedLearningStepTextV1', () => {
     expect(call.contents[0].parts[2]).toEqual({
       inlineData: { mimeType: 'image/png', data: 'AAAA' },
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Per-widget AI switches enforced by enforceAiFeatureAccess.
+// ---------------------------------------------------------------------------
+describe('per-widget AI switches', () => {
+  const TEACHER = {
+    uid: 'uid-teacher-1',
+    token: { email: 'teacher@school.org', email_verified: true },
+  };
+  const VIDEO_DATA = {
+    url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    questionCount: 3,
+  };
+  const STEP = {
+    imageBase64: 'AAAA',
+    mimeType: 'image/png',
+    anchorLabel: 'Widget button in the dock',
+    accessibleName: 'Clock',
+    action: 'click',
+  };
+  const video = generateVideoActivity as unknown as (
+    data: unknown,
+    context: unknown
+  ) => Promise<unknown>;
+  const stepText = draftGuidedLearningStepTextV1 as unknown as (
+    data: unknown,
+    context: unknown
+  ) => Promise<unknown>;
+  const saved = (id: string, doc: Record<string, unknown>) =>
+    mockFirestoreState.docs.set(`global_permissions/${id}`, doc);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFirestoreState.admins = new Set<string>();
+    __resetGenerateWithAICaches();
+    geminiConfigDocGet.mockResolvedValue({
+      exists: false,
+      data: () => undefined as Record<string, unknown> | undefined,
+    });
+  });
+
+  afterEach(() => {
+    mockFirestoreState.docs.delete('global_permissions/video-activity-ai');
+    mockFirestoreState.docs.delete('global_permissions/guided-learning-ai');
+  });
+
+  it('denies Video Activity AI to a teacher while its switch is admin-only', async () => {
+    saved('video-activity-ai', {
+      enabled: true,
+      accessLevel: 'admin',
+      betaUsers: [],
+    });
+    await expect(video(VIDEO_DATA, { auth: TEACHER })).rejects.toThrow(
+      'video-activity-ai is currently restricted to administrators.'
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('denies Video Activity AI to everyone while its switch is off', async () => {
+    saved('video-activity-ai', {
+      enabled: false,
+      accessLevel: 'public',
+      betaUsers: [],
+    });
+    await expect(video(VIDEO_DATA, { auth: TEACHER })).rejects.toThrow(
+      'video-activity-ai is currently disabled by an administrator.'
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('stops a teacher at the widget daily limit', async () => {
+    saved('video-activity-ai', {
+      enabled: true,
+      accessLevel: 'public',
+      betaUsers: [],
+      config: { dailyLimit: 5, dailyLimitEnabled: true },
+    });
+    const usedFive = Promise.resolve({
+      exists: true,
+      data: () => ({ count: 5 }),
+    });
+    transactionGet
+      .mockReturnValueOnce(usedFive as never)
+      .mockReturnValueOnce(usedFive as never);
+    await expect(video(VIDEO_DATA, { auth: TEACHER })).rejects.toThrow(
+      'Daily limit for video-activity-ai reached (5 per day).'
+    );
+    expect(transactionSet).not.toHaveBeenCalled();
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('lets a teacher draft step text once the Guided Learning AI switch is public', async () => {
+    saved('guided-learning-ai', {
+      enabled: true,
+      accessLevel: 'public',
+      betaUsers: [],
+    });
+    await stepText({ steps: [STEP] }, { auth: TEACHER }).catch(() => undefined);
+    expect(generateContentMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a malformed request before charging the quota', async () => {
+    saved('guided-learning-ai', {
+      enabled: true,
+      accessLevel: 'public',
+      betaUsers: [],
+    });
+    await expect(
+      stepText({ steps: 'not-a-list' }, { auth: TEACHER })
+    ).rejects.toThrow();
+    expect(transactionSet).not.toHaveBeenCalled();
   });
 });

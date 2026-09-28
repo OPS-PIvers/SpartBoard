@@ -425,8 +425,7 @@ export {
 // Public Vertex client and model config for AI features outside this file.
 export { vertexClientOptions, getGeminiModelConfig };
 
-/** Per-feature doc id for a `generateWithAI` request; `source` splits the shared types by widget, and an unknown one is refused. */
-// `source` is client-asserted: these switches meter and hide per widget; `gemini-functions` is the hard server boundary.
+/** Per-feature doc id for a `generateWithAI` request; `source` is client-asserted (meters and hides per widget; `gemini-functions` is the hard gate), and an unknown one is refused. */
 export function specificFeatureIdFor(
   genType: string,
   source: unknown
@@ -2262,10 +2261,6 @@ export const generateGuidedLearning = onCall(
       );
     }
     const db = admin.firestore();
-    const token = request.auth?.token ?? {};
-    if (!(await resolveCallerIsAdmin(db, token))) {
-      await enforceAiFeatureAccess(db, token, uid, 'guided-learning-ai', false);
-    }
 
     const { prompt } = data;
     const images: GuidedLearningImageInput[] =
@@ -2307,6 +2302,12 @@ export const generateGuidedLearning = onCall(
         'invalid-argument',
         'Image payload is too large. Please use fewer or smaller images (under 20 MB total).'
       );
+    }
+
+    // Charged only after the request is known to be well-formed.
+    const token = request.auth?.token ?? {};
+    if (!(await resolveCallerIsAdmin(db, token))) {
+      await enforceAiFeatureAccess(db, token, uid, 'guided-learning-ai', false);
     }
 
     // Read model config from Firestore
@@ -2474,6 +2475,7 @@ export const draftGuidedLearningStepTextV1 = onCall(
       );
     }
     const db = admin.firestore();
+    const parsedRequest = parseStepTextRequest(request.data);
     if (!(await resolveCallerIsAdmin(db, request.auth.token))) {
       await enforceAiFeatureAccess(
         db,
@@ -2483,7 +2485,6 @@ export const draftGuidedLearningStepTextV1 = onCall(
         false
       );
     }
-    const parsedRequest = parseStepTextRequest(request.data);
     const { advancedModel } = await getGeminiModelConfig(db);
     try {
       const ai = new GoogleGenAI(vertexClientOptions());

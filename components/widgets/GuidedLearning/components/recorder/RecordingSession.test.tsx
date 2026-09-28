@@ -18,10 +18,14 @@ const h = vi.hoisted(() => ({
   matcher: null as NameMatcher | null,
   recording: null as TourRecording | null,
   enqueue: vi.fn(),
+  aiAllowed: true,
 }));
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: 'admin-1' }, canAccessFeature: () => true }),
+  useAuth: () => ({
+    user: { uid: 'admin-1' },
+    canAccessFeature: () => h.aiAllowed,
+  }),
 }));
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: () => Promise.resolve(true) }),
@@ -284,6 +288,28 @@ describe('RecordingSession', () => {
     expect(await screen.findByTestId('studio')).toHaveTextContent(
       'Untitled tour · 0 drafted'
     );
+  });
+
+  it('skips drafting the text while the Guided Learning AI switch is off', async () => {
+    h.aiAllowed = false;
+    try {
+      renderSession();
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Stub finish' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Next frame' }));
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole('button', { name: 'Upload and open in Studio' })
+        );
+        await Promise.resolve();
+      });
+      expect(await screen.findByTestId('studio')).toHaveTextContent(
+        'Untitled tour · 0 drafted'
+      );
+      expect(h.draft).not.toHaveBeenCalled();
+    } finally {
+      h.aiAllowed = true;
+    }
   });
 
   const reachUpload = () => {

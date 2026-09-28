@@ -3008,7 +3008,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       );
 
       // Per-feature default from the single FEATURE_DEFAULTS table.
-      // `missingDocPublic: false` keeps it off until saved, except preview flags admins get first.
+      // `missingDocPublic: false` keeps it off until saved, except for admins on `isAdminPreviewFeature` flags.
       if (!permission) {
         const def = FEATURE_DEFAULTS[featureId];
         if (!def.missingDocPublic)

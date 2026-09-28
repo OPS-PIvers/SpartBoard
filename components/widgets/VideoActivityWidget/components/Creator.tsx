@@ -82,8 +82,6 @@ export const Creator: React.FC<CreatorProps> = ({
     rationale: string;
   } | null>(null);
 
-  const canUseAI = aiEnabled;
-
   const handleNextFromInfo = () => {
     if (!url.trim() || !title.trim()) {
       setError('Title and YouTube URL are required.');
@@ -111,13 +109,13 @@ export const Creator: React.FC<CreatorProps> = ({
     } catch (err) {
       if (err instanceof YouTubeKeyMissingError) {
         setSearchError(
-          canUseAI
+          aiEnabled
             ? 'YouTube search isn’t configured. Paste a URL or ask Gemini to recommend one instead.'
             : 'YouTube search isn’t configured. Paste a URL instead.'
         );
       } else if (err instanceof YouTubeQuotaError) {
         setSearchError(
-          canUseAI
+          aiEnabled
             ? 'YouTube search quota is exhausted for today. Paste a URL or use the recommend tab.'
             : 'YouTube search quota is exhausted for today. Paste a URL instead.'
         );
@@ -326,7 +324,7 @@ export const Creator: React.FC<CreatorProps> = ({
                         label: 'Paste URL',
                         Icon: Youtube,
                       },
-                      ...(canUseAI
+                      ...(aiEnabled
                         ? [
                             {
                               id: 'recommend' as const,
@@ -400,7 +398,7 @@ export const Creator: React.FC<CreatorProps> = ({
                     />
                   )}
 
-                  {canUseAI && discoverTab === 'recommend' && (
+                  {aiEnabled && discoverTab === 'recommend' && (
                     <RecommendTab
                       topic={recommendTopic}
                       onTopicChange={setRecommendTopic}
@@ -443,7 +441,7 @@ export const Creator: React.FC<CreatorProps> = ({
 
           {step === 'source' && (
             <div className="grid gap-3 animate-in fade-in zoom-in-95 duration-300">
-              {canUseAI && (
+              {aiEnabled && (
                 <button
                   onClick={() => setStep('ai')}
                   className="group relative p-5 bg-white border-2 border-slate-200 hover:border-indigo-500 hover:shadow-md rounded-2xl text-left transition-all overflow-hidden"
