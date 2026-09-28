@@ -281,7 +281,7 @@ describe('PlcNewVideoActivityAssignmentModal (VA Task 10 — slimmed configure s
     // Expected summary includes: "Auto-progress", "2 attempts", "rewind 10s", "score only"
     const summaryEl = screen.getByTestId('plc-new-va-behavior-summary');
     expect(summaryEl).toBeInTheDocument();
-    expect(summaryEl.textContent).toMatch(/auto-progress/i);
+    expect(summaryEl.textContent).not.toMatch(/paced|progress/i);
     expect(summaryEl.textContent).toMatch(/2 attempts/i);
     expect(summaryEl.textContent).toMatch(/rewind 10s/i);
   });
