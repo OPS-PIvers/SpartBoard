@@ -8,7 +8,7 @@ import {
   CheckCircle2,
   Eye,
   BarChart3,
-  MonitorUp,
+  ListOrdered,
   Pause,
   Play,
   Square,
@@ -36,7 +36,6 @@ import {
   type SessionTone,
 } from '@/components/common/sessionViews';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
-import { PresentWindow } from '@/components/common/PresentWindow';
 import { studentQuestionsFromSession } from '@/utils/videoActivityPublicQuestions';
 import {
   computeSkippedOnSeek,
@@ -157,9 +156,7 @@ export const VideoActivityLivePlayer: React.FC<
   const [scrub, setScrub] = useState<number | null>(null);
   const [whoOpen, setWhoOpen] = useState(false);
   const [ending, setEnding] = useState(false);
-  const [presenting, setPresenting] = useState(false);
-  // The popup player mounts only once PresentWindow has moved its root into the popup.
-  const [popupReady, setPopupReady] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
 
   const playheadRef = useRef(live.playheadSeconds);
   // Just below the start so a question at 0:00 still counts as crossed.
@@ -280,16 +277,6 @@ export const VideoActivityLivePlayer: React.FC<
     prevRef.current = playheadRef.current;
     setPlaying(true);
     controls.resume(playheadRef.current).catch(report('resume'));
-  };
-
-  // Hands playback to the other player at the same playhead; ticks settle before crossings count.
-  const switchPlayer = (present: boolean) => {
-    const at = playheadRef.current;
-    startSecondsRef.current = at;
-    pendingSeekRef.current = { target: at, ticksLeft: SEEK_SETTLE_TICKS };
-    prevRef.current = at;
-    setSeekRequest(null);
-    setPresenting(present);
   };
 
   const handleStart = () => {
@@ -446,7 +433,6 @@ export const VideoActivityLivePlayer: React.FC<
 
   const videoPlayer = (
     <VideoPlayer
-      key={presenting ? 'present' : 'board'}
       youtubeUrl={session.youtubeUrl}
       questions={questions}
       answeredQuestionIds={EMPTY_SET}
@@ -462,17 +448,15 @@ export const VideoActivityLivePlayer: React.FC<
       seekRequest={seekRequest}
     />
   );
-  const questionBody = (large: boolean) =>
-    openQuestion && (
-      <LiveQuestionBody
-        question={openQuestion}
-        keyQuestion={openKey}
-        answers={openAnswers}
-        resultsShown={live.resultsShown}
-        revealed={revealed}
-        large={large}
-      />
-    );
+  const questionBody = openQuestion && (
+    <LiveQuestionBody
+      question={openQuestion}
+      keyQuestion={openKey}
+      answers={openAnswers}
+      resultsShown={live.resultsShown}
+      revealed={revealed}
+    />
+  );
 
   return (
     <div className="flex flex-col h-full font-sans bg-slate-50">
@@ -492,28 +476,7 @@ export const VideoActivityLivePlayer: React.FC<
           style={{ gap: 'min(8px, 1.5cqmin)' }}
         >
           <div className="relative flex-1 min-h-0 rounded-xl overflow-hidden bg-black">
-            {presenting ? (
-              <div
-                className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center text-slate-200 font-bold"
-                style={{
-                  gap: 'min(8px, 2cqmin)',
-                  fontSize: 'min(16px, 5cqmin)',
-                }}
-                data-testid="va-live-presenting"
-              >
-                <MonitorUp
-                  aria-hidden="true"
-                  className="text-slate-400"
-                  style={{
-                    width: 'min(40px, 12cqmin)',
-                    height: 'min(40px, 12cqmin)',
-                  }}
-                />
-                Presenting to class
-              </div>
-            ) : (
-              <div className="absolute inset-0">{videoPlayer}</div>
-            )}
+            <div className="absolute inset-0">{videoPlayer}</div>
             {openQuestion && (
               <div
                 className="absolute inset-0 bg-white/95 overflow-y-auto flex flex-col"
@@ -589,7 +552,7 @@ export const VideoActivityLivePlayer: React.FC<
                     onClick={handleResume}
                   />
                 </div>
-                {questionBody(false)}
+                {questionBody}
               </div>
             )}
           </div>
@@ -655,10 +618,10 @@ export const VideoActivityLivePlayer: React.FC<
             </span>
             <button
               type="button"
-              onClick={() => switchPlayer(!presenting)}
-              aria-pressed={presenting}
+              onClick={() => setListOpen((v) => !v)}
+              aria-pressed={listOpen}
               className={`inline-flex items-center shrink-0 rounded-lg border font-bold transition-colors ${
-                presenting
+                listOpen
                   ? 'bg-brand-blue-primary border-brand-blue-primary text-white hover:bg-brand-blue-dark'
                   : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
               }`}
@@ -668,116 +631,88 @@ export const VideoActivityLivePlayer: React.FC<
                 padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
               }}
             >
-              <MonitorUp
+              <ListOrdered
                 aria-hidden="true"
                 style={{
                   width: 'min(14px, 4cqmin)',
                   height: 'min(14px, 4cqmin)',
                 }}
               />
-              {presenting ? 'Stop presenting' : 'Present to class'}
+              Questions
             </button>
           </div>
         </div>
-        <aside
-          className="shrink-0 flex flex-col min-h-0 rounded-xl bg-white/70 border border-slate-200"
-          style={{ width: 'min(280px, 34cqw)' }}
-          aria-label="Questions"
-        >
-          <div
-            className="font-black uppercase tracking-widest text-slate-500 shrink-0"
-            style={{
-              fontSize: 'min(10px, 3cqmin)',
-              padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
-            }}
+        {listOpen && (
+          <aside
+            className="shrink-0 flex flex-col min-h-0 rounded-xl bg-white/70 border border-slate-200"
+            style={{ width: 'min(280px, 34cqw)' }}
+            aria-label="Questions"
           >
-            Questions · {questions.length}
-          </div>
-          <ol
-            className="flex-1 min-h-0 overflow-y-auto flex flex-col"
-            style={{
-              gap: 'min(4px, 1cqmin)',
-              padding: '0 min(6px, 1.5cqmin)',
-              paddingBottom: 'min(12px, 3cqmin)',
-            }}
-          >
-            {questions.map((q, i) => {
-              const state = liveQuestionState(q.id, live);
-              const chip = CHIP[state];
-              return (
-                <li key={q.id}>
-                  <button
-                    type="button"
-                    onClick={() => void jumpTo(q)}
-                    disabled={state === 'open'}
-                    className={`w-full text-left rounded-lg flex flex-col transition-colors ${
-                      state === 'open'
-                        ? 'bg-emerald-50 border border-emerald-200'
-                        : 'hover:bg-slate-100 border border-transparent'
-                    }`}
-                    style={{
-                      gap: 'min(2px, 0.5cqmin)',
-                      padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
-                    }}
-                    title={state === 'open' ? undefined : 'Open this question'}
-                  >
-                    <span
-                      className="flex items-center"
-                      style={{ gap: 'min(6px, 1.5cqmin)' }}
+            <div
+              className="font-black uppercase tracking-widest text-slate-500 shrink-0"
+              style={{
+                fontSize: 'min(10px, 3cqmin)',
+                padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
+              }}
+            >
+              Questions · {questions.length}
+            </div>
+            <ol
+              className="flex-1 min-h-0 overflow-y-auto flex flex-col"
+              style={{
+                gap: 'min(4px, 1cqmin)',
+                padding: '0 min(6px, 1.5cqmin)',
+                paddingBottom: 'min(12px, 3cqmin)',
+              }}
+            >
+              {questions.map((q, i) => {
+                const state = liveQuestionState(q.id, live);
+                const chip = CHIP[state];
+                return (
+                  <li key={q.id}>
+                    <button
+                      type="button"
+                      onClick={() => void jumpTo(q)}
+                      disabled={state === 'open'}
+                      className={`w-full text-left rounded-lg flex flex-col transition-colors ${
+                        state === 'open'
+                          ? 'bg-emerald-50 border border-emerald-200'
+                          : 'hover:bg-slate-100 border border-transparent'
+                      }`}
+                      style={{
+                        gap: 'min(2px, 0.5cqmin)',
+                        padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
+                      }}
+                      title={
+                        state === 'open' ? undefined : 'Open this question'
+                      }
                     >
                       <span
-                        className="font-mono font-bold text-slate-500 tabular-nums"
-                        style={{ fontSize: 'min(11px, 3.2cqmin)' }}
+                        className="flex items-center"
+                        style={{ gap: 'min(6px, 1.5cqmin)' }}
                       >
-                        {formatClock(q.timestamp)}
+                        <span
+                          className="font-mono font-bold text-slate-500 tabular-nums"
+                          style={{ fontSize: 'min(11px, 3.2cqmin)' }}
+                        >
+                          {formatClock(q.timestamp)}
+                        </span>
+                        <SessionBadge tone={chip.tone} label={chip.label} />
                       </span>
-                      <SessionBadge tone={chip.tone} label={chip.label} />
-                    </span>
-                    <span
-                      className="text-slate-700 line-clamp-2"
-                      style={{ fontSize: 'min(12px, 3.5cqmin)' }}
-                    >
-                      {i + 1}. {q.text}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-        </aside>
+                      <span
+                        className="text-slate-700 line-clamp-2"
+                        style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                      >
+                        {i + 1}. {q.text}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </aside>
+        )}
       </div>
-      {presenting && (
-        <PresentWindow
-          title={className}
-          onClose={() => switchPlayer(false)}
-          onBlocked={() => {
-            switchPlayer(false);
-            addToast('Allow pop-ups to present to class.', 'error');
-          }}
-          onWindowReady={(win) => setPopupReady(win !== null)}
-        >
-          <div
-            className="fixed inset-0 bg-black font-sans"
-            style={{ containerType: 'size' }}
-            data-testid="va-present-screen"
-          >
-            <div className="absolute inset-0">{popupReady && videoPlayer}</div>
-            {openQuestion && (
-              <div
-                className="absolute inset-0 bg-white overflow-y-auto flex flex-col"
-                style={{
-                  gap: '3cqmin',
-                  padding: '5cqmin',
-                  paddingBottom: '8cqmin',
-                }}
-                data-testid="va-present-question"
-              >
-                {questionBody(true)}
-              </div>
-            )}
-          </div>
-        </PresentWindow>
-      )}
     </div>
   );
 };
@@ -785,23 +720,21 @@ export const VideoActivityLivePlayer: React.FC<
 const EMPTY_SET = new Set<string>();
 const NOOP = () => undefined;
 
-/** The open question on the board or projector: options, or the class results when shown. */
+/** The open question on the board: options, or the class results when shown. */
 const LiveQuestionBody: React.FC<{
   question: VideoActivityPublicQuestion;
   keyQuestion: VideoActivityQuestion | undefined;
   answers: string[];
   resultsShown: boolean;
   revealed: boolean;
-  /** Projector sizing, unbounded by the widget's pixel caps. */
-  large: boolean;
-}> = ({ question, keyQuestion, answers, resultsShown, revealed, large }) => {
+}> = ({ question, keyQuestion, answers, resultsShown, revealed }) => {
   const fibKey =
     revealed && keyQuestion && question.type === 'FIB' ? (
       <p
         className="inline-flex items-center font-bold text-emerald-700"
         style={{
           gap: 'min(6px, 1.5cqmin)',
-          fontSize: large ? '5cqmin' : 'min(20px, 6cqmin)',
+          fontSize: 'min(20px, 6cqmin)',
         }}
       >
         <CheckCircle2
@@ -815,7 +748,7 @@ const LiveQuestionBody: React.FC<{
     <>
       <p
         className="font-bold text-slate-800 leading-snug"
-        style={{ fontSize: large ? '6cqmin' : 'min(28px, 7cqmin)' }}
+        style={{ fontSize: 'min(28px, 7cqmin)' }}
       >
         {question.text}
       </p>
@@ -825,14 +758,12 @@ const LiveQuestionBody: React.FC<{
           keyQuestion={keyQuestion}
           answers={answers}
           answerRevealed={revealed}
-          large={large}
         />
       ) : (
         <LiveOptions
           question={question}
           correct={correctSet(keyQuestion)}
           revealed={revealed}
-          large={large}
         />
       )}
       {fibKey}
@@ -845,11 +776,10 @@ const LiveOptions: React.FC<{
   question: VideoActivityPublicQuestion;
   correct: Set<string>;
   revealed: boolean;
-  large: boolean;
-}> = ({ question, correct, revealed, large }) => {
+}> = ({ question, correct, revealed }) => {
   if (question.type === 'FIB' || !question.options) return null;
-  const optionSize = large ? '4.5cqmin' : 'min(20px, 5.5cqmin)';
-  const markSize = large ? '3.5cqmin' : 'min(14px, 4cqmin)';
+  const optionSize = 'min(20px, 5.5cqmin)';
+  const markSize = 'min(14px, 4cqmin)';
 
   return (
     <ul className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
@@ -865,9 +795,7 @@ const LiveOptions: React.FC<{
             }`}
             style={{
               gap: 'min(10px, 2.5cqmin)',
-              padding: large
-                ? '2cqmin 3cqmin'
-                : 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
+              padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
             }}
           >
             <span

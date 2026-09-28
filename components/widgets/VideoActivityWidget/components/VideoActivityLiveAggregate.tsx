@@ -88,9 +88,12 @@ function buildLiveAggregate({
   );
 }
 
-export const VideoActivityLiveAggregate: React.FC<
-  LiveAggregateProps & { large?: boolean }
-> = ({ question, keyQuestion, answers, answerRevealed, large = false }) => {
+export const VideoActivityLiveAggregate: React.FC<LiveAggregateProps> = ({
+  question,
+  keyQuestion,
+  answers,
+  answerRevealed,
+}) => {
   const { totalAnswered, rows } = buildLiveAggregate({
     question,
     keyQuestion,
@@ -102,7 +105,7 @@ export const VideoActivityLiveAggregate: React.FC<
     return (
       <p
         className="font-bold text-slate-600"
-        style={{ fontSize: large ? '4cqmin' : 'min(18px, 5cqmin)' }}
+        style={{ fontSize: 'min(18px, 5cqmin)' }}
         data-testid="va-live-aggregate"
       >
         No answers yet
@@ -117,10 +120,10 @@ export const VideoActivityLiveAggregate: React.FC<
         total={totalAnswered}
         showCorrect={answerRevealed}
         correctLabel="Correct"
-        labelSize={large ? '4.5cqmin' : 'min(22px, 5.5cqmin)'}
-        countSize={large ? '4.5cqmin' : 'min(22px, 5.5cqmin)'}
-        barHeight={large ? '3cqmin' : 'min(16px, 3.5cqmin)'}
-        gap={large ? '2.5cqmin' : 'min(12px, 2.5cqmin)'}
+        labelSize={'min(22px, 5.5cqmin)'}
+        countSize={'min(22px, 5.5cqmin)'}
+        barHeight={'min(16px, 3.5cqmin)'}
+        gap={'min(12px, 2.5cqmin)'}
       />
     </div>
   );

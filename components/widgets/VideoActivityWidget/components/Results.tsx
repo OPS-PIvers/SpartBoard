@@ -28,6 +28,7 @@ import {
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { TabExitsPopover } from '@/components/common/TabExitsPopover';
+import { formatTabAwayTotal } from '@/utils/tabExits';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
 import { QuizDriveService } from '@/utils/quizDriveService';
@@ -949,7 +950,7 @@ export const Results: React.FC<ResultsProps> = ({
                         >
                           {correct}/{scoredQuestions.length} correct
                         </span>
-                        {tabAwayTimerOn &&
+                        {(tabAwayTimerOn || isLive) &&
                           warnings > 0 &&
                           session.sessionOptions?.tabWarningsEnabled !==
                             false && (
@@ -963,7 +964,11 @@ export const Results: React.FC<ResultsProps> = ({
                               <SessionBadge
                                 tone="danger"
                                 icon={AlertTriangle}
-                                label={`${warnings}`}
+                                label={
+                                  isLive && r.tabExits?.length
+                                    ? `${warnings} · ${formatTabAwayTotal(r.tabExits)}`
+                                    : `${warnings}`
+                                }
                               />
                             </TabExitsPopover>
                           )}
