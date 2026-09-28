@@ -18,7 +18,14 @@ describe('specificFeatureIdFor', () => {
   it('keeps the old ids for callers that send no source', () => {
     expect(specificFeatureIdFor('mini-app', undefined)).toBe('embed-mini-app');
     expect(specificFeatureIdFor('ocr', undefined)).toBe('ocr');
-    expect(specificFeatureIdFor('ocr', 'anything-else')).toBe('ocr');
+  });
+
+  it('refuses a source it does not know instead of falling back', () => {
+    expect(() => specificFeatureIdFor('ocr', 'anything-else')).toThrow(
+      'Unknown AI source.'
+    );
+    expect(() => specificFeatureIdFor('ocr', 'mini-app')).toThrow();
+    expect(() => specificFeatureIdFor('mini-app', 'drawing')).toThrow();
   });
 
   it('folds video recommendations into the Video Activity AI switch', () => {

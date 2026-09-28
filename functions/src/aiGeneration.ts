@@ -425,18 +425,21 @@ export {
 // Public Vertex client and model config for AI features outside this file.
 export { vertexClientOptions, getGeminiModelConfig };
 
-/** Per-feature doc id for a `generateWithAI` request; `source` splits the shared types by widget. */
+/** Per-feature doc id for a `generateWithAI` request; `source` splits the shared types by widget, and an unknown one is refused. */
 export function specificFeatureIdFor(
   genType: string,
   source: unknown
 ): string | null {
   switch (genType) {
     case 'mini-app':
-      return source === 'mini-app' ? 'mini-app-ai' : 'embed-mini-app';
+      if (source === undefined) return 'embed-mini-app';
+      if (source === 'mini-app') return 'mini-app-ai';
+      throw new HttpsError('invalid-argument', 'Unknown AI source.');
     case 'ocr':
+      if (source === undefined) return 'ocr';
       if (source === 'drawing') return 'drawing-ai';
       if (source === 'webcam') return 'webcam-ai';
-      return 'ocr';
+      throw new HttpsError('invalid-argument', 'Unknown AI source.');
     case 'poll':
       return 'smart-poll';
     case 'video-activity-recommend':
