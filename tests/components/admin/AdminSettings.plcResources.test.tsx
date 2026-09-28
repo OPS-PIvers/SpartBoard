@@ -27,10 +27,15 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+const auth = vi.hoisted(() => ({ superAdmins: ['admin@s.edu'] as string[] }));
+
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     isAdmin: true,
     user: { uid: 'admin-1', email: 'admin@s.edu' },
+    userRoles: { superAdmins: auth.superAdmins },
+    roleId: null,
+    orgId: 'orono',
   }),
 }));
 
@@ -80,5 +85,26 @@ describe('AdminSettings — PLC Resources tab wiring', () => {
     render(<AdminSettings onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('tab', { name: /plc resources/i }));
     expect(screen.getByTestId('plc-resources-manager')).toBeInTheDocument();
+  });
+
+  it('hides the tab from an admin who is not a super admin', () => {
+    auth.superAdmins = [];
+    window.localStorage.setItem('spart.adminSettings.lastTab', 'plc-resources');
+    try {
+      render(<AdminSettings onClose={vi.fn()} />);
+      expect(
+        screen.queryByRole('tab', { name: /plc resources/i })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId('plc-resources-manager')
+      ).not.toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /widgets/i })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      );
+    } finally {
+      auth.superAdmins = ['admin@s.edu'];
+      window.localStorage.removeItem('spart.adminSettings.lastTab');
+    }
   });
 });

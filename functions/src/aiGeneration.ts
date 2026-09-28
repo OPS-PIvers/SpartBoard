@@ -10,6 +10,7 @@ import {
 } from '@google/genai';
 import { sanitizePrompt } from './sanitize';
 import { parseGeminiJson } from './parseGeminiJson';
+import { adminPassesMissingDoc } from './featureMissingDoc';
 import {
   buildStepTextParts,
   clampStepTextResponse,
@@ -456,6 +457,10 @@ export function specificFeatureIdFor(
   }
 }
 
+/** A default-off feature (e.g. `blooms-ai`) stays closed to non-admins until an admin saves its doc. */
+export const missingDocDeniesNonAdmin = (featureId: string): boolean =>
+  adminPassesMissingDoc(featureId);
+
 function assertPermissionAllows(
   perm: GlobalPermission,
   token: { email?: string; email_verified?: boolean },
@@ -746,6 +751,11 @@ export const generateWithAI = onCall(
                   `Daily limit for ${specificFeatureId} reached (${specificLimit} per day). Please try again tomorrow.`
                 );
               }
+            } else if (missingDocDeniesNonAdmin(specificFeatureId)) {
+              throw new HttpsError(
+                'permission-denied',
+                `${specificFeatureId} is currently restricted to administrators.`
+              );
             }
           }
         }
