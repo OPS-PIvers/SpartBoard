@@ -1,9 +1,17 @@
 /** What a picked file is and what to call the quiz it becomes (D11). */
 
-export type DocumentKind = 'pdf' | 'docx' | 'rtf' | 'cartridge' | 'image';
+export type DocumentKind =
+  | 'pdf'
+  | 'docx'
+  | 'odt'
+  | 'rtf'
+  | 'examview'
+  | 'cartridge'
+  | 'image';
 
 const DOCX_TYPE =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const ODT_TYPE = 'application/vnd.oasis.opendocument.text';
 const RTF_TYPES = new Set(['application/rtf', 'text/rtf', 'text/richtext']);
 const IMAGE_TYPES = new Set([
   'image/jpeg',
@@ -23,8 +31,11 @@ export function documentKind(
   if (file.type === 'application/pdf' || fileName.endsWith('.pdf'))
     return 'pdf';
   if (file.type === DOCX_TYPE || fileName.endsWith('.docx')) return 'docx';
+  if (file.type === ODT_TYPE || fileName.endsWith('.odt')) return 'odt';
   // The extension decides for RTF: Windows hands .rtf out as application/msword.
   if (RTF_TYPES.has(file.type) || fileName.endsWith('.rtf')) return 'rtf';
+  // ExamView's own test file; browsers give it no type.
+  if (fileName.endsWith('.tst')) return 'examview';
   // An LMS export is a zip, so only the extension identifies it.
   if (fileName.endsWith('.imscc')) return 'cartridge';
   // A photo of the test, read by OCR a page per image (R15).
@@ -44,7 +55,7 @@ export function isHeicFile(file: File | Blob, name = ''): boolean {
 }
 
 export const UNREADABLE_FILE =
-  'That file type can’t be read. Upload a PDF, a Word file (.docx), a rich text file (.rtf), a Google Doc, an LMS export (.imscc) or photos of the pages.';
+  'That file type can’t be read. Upload a PDF, a Word or OpenDocument file, a rich text file (.rtf), a Google Doc, an ExamView test (.tst), an LMS export (.imscc) or photos of the pages.';
 
 /** The document name without its extension, which becomes the quiz title (D11). */
 export function titleFromFileName(name: string): string {

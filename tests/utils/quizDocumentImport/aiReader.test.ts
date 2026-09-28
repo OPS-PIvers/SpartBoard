@@ -321,7 +321,7 @@ describe('readQuizDocumentWithAi', () => {
         fileName: 'notes.txt',
         extract: () => Promise.resolve(aiQuiz()),
       })
-    ).rejects.toThrow(/PDF, a Word file/);
+    ).rejects.toThrow(/PDF, a Word/);
   });
 });
 

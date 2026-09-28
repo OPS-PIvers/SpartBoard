@@ -8,11 +8,15 @@
 
 import { parseDocument } from './parseQuestions';
 import { readDocx } from './docxReader';
+import { readOdt } from './odtReader';
 import { readRtf } from './rtfReader';
+import { readExamViewTest } from './examViewTestReader';
+import { mergeAnswerKey } from './mergeKey';
 import {
   browserBmpToPng,
   rtfPictureImages,
   type BmpToPng,
+  type RtfPicture,
 } from './rtfPictures';
 import { readCartridge } from './cartridgeReader';
 import { readPdf, type PdfReaderDeps } from './pdfReader';
@@ -20,8 +24,9 @@ import type { PdfCropperDeps } from './pdfFigures';
 import { attachPdfPictures } from './pdfPictures';
 import {
   MAX_DOCUMENT_PAGES,
-  assertWithinByteLimit,
+  assertWithinByteLimitOf,
   assertWithinPageLimit,
+  byteLimitFor,
 } from './limits';
 import type { ExtractedQuiz } from './types';
 import { UNREADABLE_FILE, documentKind, titleFromFileName } from './fileKind';
@@ -56,6 +61,12 @@ export {
   type SavedKeySkip,
 } from './savedQuizKey';
 export { readDocx } from './docxReader';
+export { readOdt } from './odtReader';
+export {
+  readExamViewTest,
+  parseExamViewTest,
+  NOT_AN_EXAMVIEW_TEST,
+} from './examViewTestReader';
 export { readRtf, parseRtf } from './rtfReader';
 export { readCartridge } from './cartridgeReader';
 export { readPdf, groupItemsIntoLines } from './pdfReader';
@@ -99,9 +110,12 @@ export {
 } from './driveStimulusUploader';
 export {
   MAX_DOCUMENT_BYTES,
+  MAX_EXAMVIEW_TEST_BYTES,
   MAX_DOCUMENT_PAGES,
+  byteLimitFor,
   DocumentTooLargeError,
   assertWithinByteLimit,
+  assertWithinByteLimitOf,
   assertWithinPageLimit,
 } from './limits';
 
@@ -116,7 +130,7 @@ export interface ReadDocumentOptions {
   multiAnswer?: boolean;
   /** Photos of the test, one per page in order; `file` is the first (R30). */
   pages?: readonly Blob[];
-  /** Converts an RTF's bitmap pictures to PNG; defaults to the browser's canvas (E11). */
+  /** Converts RTF and ExamView bitmap pictures to PNG; defaults to the browser's canvas (E11). */
   bmpToPng?: BmpToPng;
 }
 
@@ -137,7 +151,7 @@ export async function readQuizDocument(
   const reader = { multiAnswer: options.multiAnswer === true };
   const pages =
     kind === 'image' && options.pages?.length ? options.pages : [file];
-  assertWithinByteLimit(...pages);
+  assertWithinByteLimitOf(byteLimitFor(kind), pages);
 
   const warnings: string[] = [];
 
@@ -146,22 +160,20 @@ export async function readQuizDocument(
     return readCartridge(file, titleFromFileName(fileName), undefined, reader);
   }
 
-  if (kind === 'rtf') {
-    const { lines, pictures } = await readRtf(file);
-    const {
-      questions: parsed,
-      texts,
-      warnings: keyWarnings,
-      keySummary,
-    } = parseDocument(lines, reader);
-    warnings.push(...keyWarnings);
-    const used = new Set(parsed.flatMap((q) => q.imageIds));
+  /** Parses the lines, then converts only the pictures a question uses. */
+  const withPictures = async (
+    parsed: ReturnType<typeof parseDocument>,
+    pictures: readonly RtfPicture[]
+  ): Promise<ExtractedQuiz> => {
+    const { texts, keySummary } = parsed;
+    warnings.push(...parsed.warnings);
+    const used = new Set(parsed.questions.flatMap((q) => q.imageIds));
     const { images, unreadable } = await rtfPictureImages(
       pictures.filter((p) => used.has(p.id)),
       options.bmpToPng ?? browserBmpToPng
     );
     // A vector drawing can't be shown, so its question is named for the teacher (E11).
-    const questions = parsed.map((q) => {
+    const questions = parsed.questions.map((q) => {
       if (!q.imageIds.some((id) => unreadable.has(id))) return q;
       warnings.push(
         `Question ${q.sourceLabel ?? q.number}’s picture couldn’t be read — add it in the editor.`
@@ -176,10 +188,50 @@ export async function readQuizDocument(
       ...(keySummary ? { keySummary } : {}),
       warnings,
     };
+  };
+
+  if (kind === 'rtf') {
+    const { lines, pictures } = await readRtf(file);
+    return withPictures(parseDocument(lines, reader), pictures);
   }
 
-  if (kind === 'docx') {
-    const { lines, images } = await readDocx(file);
+  // ExamView's own file stores the key, so it merges like a key printed in the test.
+  if (kind === 'examview') {
+    const test = await readExamViewTest(file);
+    warnings.push(...test.warnings);
+    const parsed = parseDocument(test.lines, reader);
+    const keyed = mergeAnswerKey(
+      {
+        title: '',
+        questions: parsed.questions,
+        images: [],
+        warnings: [],
+        ...(parsed.keySummary ? { keySummary: parsed.keySummary } : {}),
+      },
+      test.keyItems,
+      'document',
+      reader
+    );
+    const questions = keyed.questions.map((q) => {
+      const written = test.writtenTexts.get(q.ref?.item ?? q.number);
+      return written && q.type === 'free-response'
+        ? { ...q, text: written }
+        : q;
+    });
+    return withPictures(
+      {
+        ...parsed,
+        questions,
+        warnings: [...parsed.warnings, ...keyed.warnings],
+        ...(keyed.keySummary ? { keySummary: keyed.keySummary } : {}),
+      },
+      test.pictures
+    );
+  }
+
+  if (kind === 'docx' || kind === 'odt') {
+    const { lines, images } =
+      kind === 'docx' ? await readDocx(file) : await readOdt(file);
     const {
       questions,
       texts,

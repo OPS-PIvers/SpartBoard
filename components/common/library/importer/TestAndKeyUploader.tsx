@@ -60,7 +60,7 @@ interface TestAndKeyUploaderProps {
   decode?: (file: File) => Promise<File>;
 }
 
-const DOCUMENT_ACCEPT = '.pdf,.docx,.rtf';
+const DOCUMENT_ACCEPT = '.pdf,.docx,.odt,.rtf';
 const PHOTO_ACCEPT = '.jpg,.jpeg,.png,.heic,.heif';
 
 const objectUrl = (file: Blob): string =>
@@ -155,8 +155,8 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
 
   const unreadable = (zone: Zone): string =>
     zone === 'key'
-      ? 'That answer key can’t be read. Use a PDF, a Word file (.docx), a rich text file (.rtf), a Google Doc or photos of the pages.'
-      : `That file can’t be read. Use a PDF, a Word file (.docx), a rich text file (.rtf), a Google Doc${allowCartridge ? ', an LMS export (.imscc)' : ''} or photos of the pages.`;
+      ? 'That answer key can’t be read. Use a PDF, a Word or OpenDocument file, a rich text file (.rtf), a Google Doc or photos of the pages.'
+      : `That file can’t be read. Use a PDF, a Word or OpenDocument file, a rich text file (.rtf), a Google Doc, an ExamView test (.tst)${allowCartridge ? ', an LMS export (.imscc)' : ''} or photos of the pages.`;
 
   // An oversized file is never read; its size error shows on submit.
   const sniffKey = (file: Blob, name: string): Promise<boolean> =>
@@ -169,6 +169,8 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
     const kind = documentKind(file, name);
     if (!kind || kind === 'image') return false;
     if (kind === 'cartridge') return zone === 'test' && allowCartridge;
+    // An ExamView test carries its own key, so it is never the key.
+    if (kind === 'examview') return zone === 'test';
     return true;
   };
 
@@ -342,8 +344,8 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
           <DropZone
             zone="test"
             title="Test questions"
-            hint={`PDF, Word, .rtf${allowCartridge ? ', LMS export' : ''} or photos`}
-            accept={`${DOCUMENT_ACCEPT}${allowCartridge ? ',.imscc' : ''},${PHOTO_ACCEPT}`}
+            hint={`PDF, Word, .odt, .rtf, ExamView .tst${allowCartridge ? ', LMS export' : ''} or photos`}
+            accept={`${DOCUMENT_ACCEPT},.tst${allowCartridge ? ',.imscc' : ''},${PHOTO_ACCEPT}`}
             content={content.test}
             error={errors.test}
             working={working.test}
@@ -375,7 +377,7 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
           <DropZone
             zone="key"
             title={showTest ? 'Answer key (optional)' : 'Answer key'}
-            hint="PDF, Word, .rtf or photos"
+            hint="PDF, Word, .odt, .rtf or photos"
             accept={`${DOCUMENT_ACCEPT},${PHOTO_ACCEPT}`}
             content={content.key}
             error={errors.key}

@@ -122,7 +122,7 @@ describe('readQuizDocument', () => {
   it('refuses a file type it cannot read', async () => {
     await expect(
       readQuizDocument(new Blob(['hello']), { fileName: 'notes.txt' })
-    ).rejects.toThrow(/PDF, a Word file/i);
+    ).rejects.toThrow(/PDF, a Word/i);
   });
 
   it('refuses an oversized file before reading any of it', async () => {

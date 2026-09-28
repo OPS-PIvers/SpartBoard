@@ -5,7 +5,7 @@
 
 import { mergeAnswerKey, readAnswerKeyFile } from './index';
 import { documentKind } from './fileKind';
-import { assertWithinByteLimit } from './limits';
+import { assertWithinByteLimitOf, byteLimitFor } from './limits';
 import { browserPdfDeps } from './pdfBrowserDeps';
 import { browserImageDeps } from './imageBrowserDeps';
 import {
@@ -65,7 +65,10 @@ export async function readTestAndKey(
   { key, ...options }: ReadTestAndKeyOptions = {}
 ): Promise<ExtractedQuiz> {
   // D18's budget covers the import, not each file.
-  assertWithinByteLimit(...allPages(test), ...(key ? allPages(key) : []));
+  assertWithinByteLimitOf(
+    byteLimitFor(documentKind(test.file, test.fileName)),
+    [...allPages(test), ...(key ? allPages(key) : [])]
+  );
   const read = await readTestDocument(test.file, test.fileName, {
     ...options,
     ...(test.pages ? { pages: test.pages } : {}),

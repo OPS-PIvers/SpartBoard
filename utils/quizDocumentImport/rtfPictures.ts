@@ -2,7 +2,7 @@
 
 import type { ExtractedImage } from './types';
 
-export type RtfPictureKind = 'png' | 'jpeg' | 'wmf' | 'emf' | 'other';
+export type RtfPictureKind = 'png' | 'jpeg' | 'wmf' | 'emf' | 'dib' | 'other';
 
 /** A `\pict` group's bytes, anchored to a line by `id`. */
 export interface RtfPicture {
@@ -158,7 +158,9 @@ async function pictureImage(
       ? wmfBitmap(picture.bytes)
       : picture.kind === 'emf'
         ? emfBitmap(picture.bytes)
-        : null;
+        : picture.kind === 'dib'
+          ? picture.bytes
+          : null;
   const bmp = dib ? dibToBmp(dib) : null;
   if (!bmp) return null;
   try {

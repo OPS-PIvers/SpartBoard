@@ -143,7 +143,7 @@ describe('ImportWizard — test document source', () => {
     ).toBe('.csv');
     expect(
       screen.getByLabelText('Upload test questions').getAttribute('accept')
-    ).toBe('.pdf,.docx,.rtf,.imscc,.jpg,.jpeg,.png,.heic,.heif');
+    ).toBe('.pdf,.docx,.odt,.rtf,.tst,.imscc,.jpg,.jpeg,.png,.heic,.heif');
   });
 
   it('still reads a test document forced through the generic button', async () => {
@@ -280,7 +280,7 @@ describe('ImportWizard — LMS exports', () => {
     // An export carries its own answers, so it is never the key file.
     expect(
       screen.getByLabelText('Upload answer key').getAttribute('accept')
-    ).toBe('.pdf,.docx,.rtf,.jpg,.jpeg,.png,.heic,.heif');
+    ).toBe('.pdf,.docx,.odt,.rtf,.jpg,.jpeg,.png,.heic,.heif');
   });
 });
 

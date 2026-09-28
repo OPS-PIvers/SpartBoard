@@ -23,10 +23,11 @@ const SUPPORTED_MIME_TYPES = [
 /** Image MIME types offered in the image-picker mode. */
 const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'].join(',');
 
-/** A printed test: a PDF, a Word file, or a Google Doc (plan D9). */
+/** A printed test: a PDF, a Word or OpenDocument file, or a Google Doc (plan D9). */
 const TEST_DOCUMENT_MIME_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.oasis.opendocument.text',
   'application/vnd.google-apps.document',
 ].join(',');
 

@@ -68,6 +68,8 @@ export async function readTestDocument(
   if (
     options.useAi === false ||
     kind === 'rtf' ||
+    kind === 'odt' ||
+    kind === 'examview' ||
     kind === 'cartridge' ||
     kind === 'image'
   ) {
