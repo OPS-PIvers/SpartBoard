@@ -18,6 +18,12 @@ vi.mock('@/utils/quizReadAloudApi', () => ({
 vi.mock('@/hooks/useGoogleDrive', () => ({
   useGoogleDrive: () => ({ driveService: null, userDomain: null }),
 }));
+vi.mock('@/hooks/useGooglePicker', () => ({
+  useGooglePicker: () => ({ openPicker: vi.fn() }),
+}));
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ ensureGoogleScope: vi.fn() }),
+}));
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: vi.fn(), showAlert: vi.fn() }),
 }));
