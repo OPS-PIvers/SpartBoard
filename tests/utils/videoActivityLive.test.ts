@@ -205,7 +205,11 @@ describe('whoHasntAnswered', () => {
   });
 
   it('targets roster students with no live answers for the make-up', () => {
-    const student = (id: string, sourcedId: string | undefined, pin: string) => ({
+    const student = (
+      id: string,
+      sourcedId: string | undefined,
+      pin: string
+    ) => ({
       id,
       firstName: id,
       lastName: 'X',

@@ -303,10 +303,10 @@ export function buildResultsSheetData<
         : notAsked.has(q.id)
           ? 'Not asked'
           : !grade
-          ? ''
-          : grade.state === 'awaiting-grade'
-            ? 'Ungraded'
-            : formatExportPoints(grade.pointsEarned);
+            ? ''
+            : grade.state === 'awaiting-grade'
+              ? 'Ungraded'
+              : formatExportPoints(grade.pointsEarned);
       const cols = [baseCell];
       if (formatAnswer) {
         const ans = answerMap.get(q.id);

@@ -134,7 +134,10 @@ describe('useVideoActivitySessionStudent — ended live session', () => {
   });
 
   it('still closes an ended self-paced session to a returning student', async () => {
-    docs[SESSION_PATH] = buildSession({ sessionMode: undefined, live: undefined });
+    docs[SESSION_PATH] = buildSession({
+      sessionMode: undefined,
+      live: undefined,
+    });
     docs[RESPONSE_PATH] = answered;
     const { result } = await join();
 

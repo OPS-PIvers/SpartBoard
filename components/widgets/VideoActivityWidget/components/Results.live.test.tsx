@@ -27,8 +27,20 @@ const roster = {
   id: 'r1',
   name: 'Period 1',
   students: [
-    { id: 'a', firstName: 'Ada', lastName: 'L', pin: '01', classLinkSourcedId: 'sid-a' },
-    { id: 'b', firstName: 'Bo', lastName: 'D', pin: '02', classLinkSourcedId: 'sid-b' },
+    {
+      id: 'a',
+      firstName: 'Ada',
+      lastName: 'L',
+      pin: '01',
+      classLinkSourcedId: 'sid-a',
+    },
+    {
+      id: 'b',
+      firstName: 'Bo',
+      lastName: 'D',
+      pin: '02',
+      classLinkSourcedId: 'sid-b',
+    },
   ],
 } as unknown as ClassRoster;
 vi.mock('@/context/useDashboard', () => ({
