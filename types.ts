@@ -2383,7 +2383,6 @@ export interface BloomsTaxonomyGlobalConfig {
 export interface BloomsTaxonomyBuildingConfig {
   contentOverrides?: BloomsContent;
   availableCategories?: BloomsCategoryKey[];
-  aiEnabled?: boolean;
   defaultEnabledCategories?: BloomsCategoryKey[];
 }
 
@@ -6440,7 +6439,6 @@ export interface GlobalVideoActivity extends VideoActivityMetadata {
 
 export interface VideoActivityGlobalConfig {
   dockDefaults?: Record<string, boolean>;
-  aiEnabled?: boolean;
 }
 
 /**
