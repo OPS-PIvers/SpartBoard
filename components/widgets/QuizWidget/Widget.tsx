@@ -2233,7 +2233,15 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               });
             }
             const url = `${window.location.origin}/quiz?code=${code}`;
-            if (typeof navigator !== 'undefined' && navigator.clipboard) {
+            if (!canAccessFeature('anonymous-join')) {
+              addToast(
+                'Assignment created (paused). Press Play when you\u2019re ready to start.',
+                'success'
+              );
+            } else if (
+              typeof navigator !== 'undefined' &&
+              navigator.clipboard
+            ) {
               void navigator.clipboard
                 .writeText(url)
                 .then(() =>

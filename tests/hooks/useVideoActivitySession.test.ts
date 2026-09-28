@@ -7,7 +7,12 @@ import {
   afterEach,
   type Mock,
 } from 'vitest';
+import { createElement, type ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react';
+import {
+  AuthContext,
+  type AuthContextType,
+} from '@/context/AuthContextValue';
 import {
   collection,
   doc,
@@ -138,6 +143,31 @@ afterEach(() => {
 });
 
 describe('useVideoActivitySessionTeacher — createSession', () => {
+  it.each([
+    [false, false],
+    [true, true],
+  ])(
+    'stamps allowAnonymousJoin=%s from the teacher anonymous-join gate',
+    async (granted, expected) => {
+      const value = {
+        canAccessFeature: (id: string) =>
+          id === 'anonymous-join' ? granted : false,
+      } as unknown as AuthContextType;
+      const wrapper = ({ children }: { children: ReactNode }) =>
+        createElement(AuthContext.Provider, { value }, children);
+      const { result } = renderHook(() => useVideoActivitySessionTeacher(), {
+        wrapper,
+      });
+      await act(async () => {
+        await result.current.createSession(
+          baseActivity({ questions: [] }),
+          TEACHER_UID
+        );
+      });
+      expect(sessionWrite()).toMatchObject({ allowAnonymousJoin: expected });
+    }
+  );
+
   it('writes the full session payload to the sessionId doc path and returns the id', async () => {
     vi.spyOn(crypto, 'randomUUID').mockReturnValue(
       '11111111-1111-4111-8111-111111111111'
@@ -182,6 +212,7 @@ describe('useVideoActivitySessionTeacher — createSession', () => {
       },
       status: 'active',
       allowedPins: ['1234'],
+      allowAnonymousJoin: true,
       createdAt: 1700000000000,
       mode: 'submissions',
     });

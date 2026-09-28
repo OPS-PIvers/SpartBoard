@@ -71,6 +71,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { QUIZ_SSO_REDIRECT_ENABLED } from '@/config/constants';
+import { ANONYMOUS_JOIN_BLOCKED_MESSAGE } from '@/utils/anonymousJoin';
 import { shouldGateToSso } from '@/utils/studentJoinRouting';
 import { logError } from '@/utils/logError';
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
@@ -431,11 +432,11 @@ const QuizJoinFlow: React.FC<{
   // session are offered Google sign-in by default — which keys their response
   // by their own stable auth.uid and sidesteps the wrong-period fork — with a
   // "use a PIN instead" escape. 'pending' means we still need to look up the
-  // session to learn whether it's ClassLink-gated; when the flag is off (the
-  // default) we start at 'pin' so there is zero extra work and zero extra read.
-  const [ssoGate, setSsoGate] = useState<'pending' | 'gate' | 'pin'>(() =>
-    QUIZ_SSO_REDIRECT_ENABLED && !!urlCode && !embedded ? 'pending' : 'pin'
-  );
+  // session to learn whether it's ClassLink-gated or closed to PIN joins
+  // ('blocked'). Without a URL code there is nothing to look up yet.
+  const [ssoGate, setSsoGate] = useState<
+    'pending' | 'gate' | 'pin' | 'blocked'
+  >(() => (!!urlCode && !embedded ? 'pending' : 'pin'));
 
   const {
     session,
@@ -481,6 +482,10 @@ const QuizJoinFlow: React.FC<{
         // error state surfaces below the form.
         setPeriodStep(null);
         throw err;
+      }
+      if (sessionInfo?.anonymousJoinBlocked) {
+        setSsoGate('blocked');
+        return;
       }
       const periods = sessionInfo?.periodNames ?? [];
       if (periods.length > 0) {
@@ -606,9 +611,8 @@ const QuizJoinFlow: React.FC<{
   // Resolve the SSO gate. SSO students skip it (the auto-join effect handles
   // them). Otherwise look up the session to learn whether it's ClassLink-
   // rostered; any failure falls back to the PIN path (fail-open) so a flaky
-  // lookup never blocks a student from joining. This is the only added read,
-  // and it runs solely when the flag is on (otherwise ssoGate starts at 'pin'
-  // and this effect returns immediately).
+  // lookup never blocks a student from joining. Runs only for URL-code joins
+  // (otherwise ssoGate starts at 'pin' and this effect returns immediately).
   useEffect(() => {
     if (ssoGate !== 'pending') return;
     // SSO students are handled by the auto-join effect, and the render branch
@@ -628,6 +632,10 @@ const QuizJoinFlow: React.FC<{
       try {
         const info = await lookupSession(urlCode);
         if (cancelled) return;
+        if (info?.anonymousJoinBlocked) {
+          setSsoGate('blocked');
+          return;
+        }
         setSsoGate(
           shouldGateToSso({
             flagEnabled: QUIZ_SSO_REDIRECT_ENABLED,
@@ -1096,6 +1104,16 @@ const QuizJoinFlow: React.FC<{
     // SSO gate is still deciding whether this is a ClassLink session.
     if (ssoGate === 'pending') {
       return <FullPageLoader message="Loading…" />;
+    }
+    if (ssoGate === 'blocked') {
+      return (
+        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-4 p-6">
+          <AlertCircle className="w-10 h-10 text-violet-400" />
+          <p className="text-slate-300 text-sm text-center max-w-sm">
+            {ANONYMOUS_JOIN_BLOCKED_MESSAGE}
+          </p>
+        </div>
+      );
     }
     // ClassLink-rostered session: offer Google sign-in by default (keys the
     // response by the student's own stable auth.uid — no PIN/period fork),

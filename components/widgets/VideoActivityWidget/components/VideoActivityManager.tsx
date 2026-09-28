@@ -371,6 +371,10 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
   //   - Submissions + active+paused or no monitor wired: Copy link.
   //   - Submissions + archive: Results.
   const isLiveActive = mode === 'active' && assignment.status === 'active';
+  const { canSeeShareTracking, canAccessFeature } = useAuth();
+  // No-sign-in join links are gated; view-only shares are not joins.
+  const canCopyLink =
+    assignmentIsViewOnly || canAccessFeature('anonymous-join');
   const primaryAction: { label: string; icon: typeof Copy } | null =
     assignmentIsViewOnly
       ? mode === 'active'
@@ -379,13 +383,14 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
       : mode === 'active'
         ? isLiveActive && onArchiveMonitor
           ? { label: 'Monitor', icon: Monitor }
-          : { label: 'Copy link', icon: Copy }
+          : canCopyLink
+            ? { label: 'Copy link', icon: Copy }
+            : null
         : { label: 'Results', icon: BarChart3 };
 
   // Admin-only by default — view-count display fires one Firestore
   // aggregation per visible card per dashboard tab-focus, gated behind the
   // `share-link-tracking` global permission.
-  const { canSeeShareTracking } = useAuth();
   const trackingEnabled = canSeeShareTracking();
   const { count } = useSessionViewCount(
     'video_activity_sessions',
@@ -485,6 +490,8 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onError,
 }) => {
   const { showConfirm } = useDialog();
+  const { canAccessFeature } = useAuth();
+  const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   const claudeReview = useClaudeReview('video_activities');
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
@@ -1148,7 +1155,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       // depending on state). View-only Shared cards already pin "Copy
       // link" as the primary action — duplicating it in the kebab is just
       // visual noise.
-      if (onArchiveCopyUrl && !assignmentIsViewOnly) {
+      if (
+        onArchiveCopyUrl &&
+        !assignmentIsViewOnly &&
+        canOfferAnonymousJoin
+      ) {
         actions.push({
           id: 'copy-url',
           label: 'Copy link',

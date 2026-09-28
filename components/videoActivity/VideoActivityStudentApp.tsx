@@ -48,6 +48,10 @@ import { TabAwayClock } from '@/components/common/TabAwayClock';
 import { useServerNow } from '@/hooks/useServerNow';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import {
+  ANONYMOUS_JOIN_BLOCKED_MESSAGE,
+  isAnonymousJoinBlocked,
+} from '@/utils/anonymousJoin';
+import {
   VideoActivityPeriodLockedScreen,
   VideoActivityPeriodPausedOverlay,
 } from './VideoActivityPeriodLockedScreen';
@@ -374,6 +378,30 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   // so without this the button would stay clickable during the lookup and
   // a double-tap could fan out parallel requests.
   const [lookingUp, setLookingUp] = useState(false);
+
+  // PIN joiners learn up front whether the teacher allows no-sign-in joins.
+  const [anonGate, setAnonGate] = useState<'pending' | 'blocked' | 'open'>(
+    () =>
+      isStudentRole || !sessionId || sessionId.includes('/')
+        ? 'open'
+        : 'pending'
+  );
+  useEffect(() => {
+    if (anonGate !== 'pending') return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const info = await lookupSession(sessionId);
+        if (!cancelled)
+          setAnonGate(isAnonymousJoinBlocked(info) ? 'blocked' : 'open');
+      } catch {
+        if (!cancelled) setAnonGate('open');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [anonGate, sessionId, lookupSession]);
 
   // SSO auto-join. Mirrors QuizStudentApp's pattern: a single ref guards
   // against StrictMode double-invoke. When `joinStatus` flips to `'error'`,
@@ -778,6 +806,13 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         return <ErrorScreen message={error ?? ssoAutoJoinError ?? ''} />;
       }
       return <FullPageLoader message="Joining activity…" />;
+    }
+
+    if (anonGate === 'pending') {
+      return <FullPageLoader message="Loading…" />;
+    }
+    if (anonGate === 'blocked') {
+      return <ErrorScreen message={ANONYMOUS_JOIN_BLOCKED_MESSAGE} />;
     }
 
     return (

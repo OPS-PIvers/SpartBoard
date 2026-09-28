@@ -41,6 +41,10 @@ import { logError } from '@/utils/logError';
 import { tabAwaySessionFields } from '@/utils/tabAwayLimit';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
+  ANONYMOUS_JOIN_BLOCKED_MESSAGE,
+  isAnonymousJoinBlocked,
+} from '@/utils/anonymousJoin';
+import {
   computeResponseKey,
   encodeResponseKeySegment,
   AttemptLimitReachedError,
@@ -211,8 +215,12 @@ export const useVideoActivitySessionTeacher =
     const sessionDocUnsubRef = useRef<Unsubscribe | null>(null);
     const sessionsUnsubRef = useRef<Unsubscribe | null>(null);
     // Read via context so a provider-less caller denies instead of throwing.
+    const authContext = useContext(AuthContext);
     const tabAwayTimerOn =
-      useContext(AuthContext)?.canAccessFeature?.('tab-away-timer') === true;
+      authContext?.canAccessFeature?.('tab-away-timer') === true;
+    // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
+    const allowAnonymousJoin =
+      authContext?.canAccessFeature?.('anonymous-join') !== false;
 
     const createSession = useCallback(
       async (
@@ -263,6 +271,7 @@ export const useVideoActivitySessionTeacher =
           settings: sessionSettings,
           status: 'active',
           allowedPins,
+          allowAnonymousJoin,
           createdAt: Date.now(),
           // Phase 5A: multi-class ClassLink targeting + post-PIN period
           // picker support. `classIds` is authoritative; `classId` is
@@ -313,7 +322,7 @@ export const useVideoActivitySessionTeacher =
 
         return sessionId;
       },
-      [tabAwayTimerOn]
+      [tabAwayTimerOn, allowAnonymousJoin]
     );
 
     const subscribeToActivitySessions = useCallback(
@@ -895,6 +904,11 @@ export const useVideoActivitySessionStudent =
           // gate. SSO joiners (studentRole custom-token users) skip both checks
           // — they're identified by their auth UID, not by a roster PIN.
           if (isAnonymous) {
+            if (isAnonymousJoinBlocked(sessionData)) {
+              setJoinStatus('error');
+              setError(ANONYMOUS_JOIN_BLOCKED_MESSAGE);
+              return;
+            }
             if (!studentPin || studentPin.trim().length === 0) {
               setJoinStatus('error');
               setError('A roster PIN is required to join this activity.');

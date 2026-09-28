@@ -869,6 +869,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const { canAccessFeature } = useAuth();
   const handRaiseMode = useQuizHandRaiseMode();
   const translationAllowed = canAccessFeature(QUIZ_TRANSLATION_FEATURE);
+  const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   // §10 assign advisory: coverage comes from the in-memory index; Generate reuses the editor hook.
   const assignTranslations = useQuizTranslations(assignQuizData, assignTarget);
 
@@ -1445,13 +1446,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             onClick: () => void (onArchiveStart ?? noop)(a),
           };
 
-      secondaries.push({
-        id: 'copy-url',
-        label: 'Copy Student Link',
-        icon: Link2,
-        onClick: () => (onArchiveCopyUrl ?? noop)(a),
-        disabled: !urlLive,
-      });
+      if (canOfferAnonymousJoin) {
+        secondaries.push({
+          id: 'copy-url',
+          label: 'Copy Student Link',
+          icon: Link2,
+          onClick: () => (onArchiveCopyUrl ?? noop)(a),
+          disabled: !urlLive,
+        });
+      }
       if (isActive) {
         secondaries.push({
           id: 'monitor',
@@ -2977,8 +2980,9 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   // Admin-only by default — view-count display fires one Firestore
   // aggregation per visible card per dashboard tab-focus, gated behind the
   // `share-link-tracking` global permission.
-  const { canSeeShareTracking } = useAuth();
+  const { canSeeShareTracking, canAccessFeature } = useAuth();
   const trackingEnabled = canSeeShareTracking();
+  const showJoinCode = urlLive && canAccessFeature('anonymous-join');
   const { count } = useSessionViewCount(
     'quiz_sessions',
     // Quiz assignment id is also the underlying session id (1:1 — see the
@@ -3039,7 +3043,9 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
     meta = (
       <>
         {dateChip}
-        {urlLive && <span className="font-mono tracking-wider">{a.code}</span>}
+        {showJoinCode && (
+          <span className="font-mono tracking-wider">{a.code}</span>
+        )}
         {noPeriods ? (
           <span
             className="font-semibold text-amber-600 truncate"

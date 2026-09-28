@@ -1113,6 +1113,9 @@ export const useQuizAssignments = (
     authContext?.canAccessQuizMediaResponse?.() === true;
   const tabAwayTimerOn =
     authContext?.canAccessFeature?.('tab-away-timer') === true;
+  // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
+  const allowAnonymousJoin =
+    authContext?.canAccessFeature?.('anonymous-join') !== false;
   // Admin raise-hand gate for this teacher's buildings; resolved onto the
   // session doc at assign time. Read through a ref so createAssignment can wait
   // for the profile + permission snapshots instead of failing open to
@@ -1426,6 +1429,7 @@ export const useQuizAssignments = (
         startedAt: mode === 'student' ? now : null,
         endedAt: null,
         code,
+        allowAnonymousJoin,
         totalQuestions: hasBankSlots
           ? sessionTotalQuestions(
               sessionQuestions.map((q) => q.id),
@@ -1662,6 +1666,7 @@ export const useQuizAssignments = (
       translationLoader,
       resolveHandRaiseMode,
       tabAwayTimerOn,
+      allowAnonymousJoin,
     ]
   );
 

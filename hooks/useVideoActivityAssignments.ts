@@ -12,7 +12,13 @@
  * (mirroring Quiz's `shareAssignment` / `importSharedAssignment` flows).
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useContext,
+} from 'react';
 import {
   addDoc,
   collection,
@@ -26,6 +32,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
+import { AuthContext } from '@/context/AuthContextValue';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import {
@@ -246,6 +253,9 @@ export const useVideoActivityAssignments = (
   const [assignments, setAssignments] = useState<VideoActivityAssignment[]>([]);
   const [loading, setLoading] = useState<boolean>(!!userId);
   const [error, setError] = useState<string | null>(null);
+  // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
+  const allowAnonymousJoin =
+    useContext(AuthContext)?.canAccessFeature?.('anonymous-join') !== false;
 
   // Live mirror of `assignments` so status mutators can look up a
   // PLC linkage by id without re-creating the callback every render
@@ -370,6 +380,7 @@ export const useVideoActivityAssignments = (
           : {}),
         status: sessionStatus,
         allowedPins: [],
+        allowAnonymousJoin,
         createdAt: now,
         ...(sessionStatus === 'ended' ? { endedAt: now } : {}),
         // Phase 5A: multi-class ClassLink targeting + post-PIN period picker.
@@ -438,7 +449,7 @@ export const useVideoActivityAssignments = (
 
       return { id: assignmentId };
     },
-    [userId]
+    [userId, allowAnonymousJoin]
   );
 
   const setStatus = useCallback(

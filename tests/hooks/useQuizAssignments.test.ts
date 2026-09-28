@@ -2742,6 +2742,32 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     ...overrides,
   });
 
+  it.each([
+    [false, false],
+    [true, true],
+  ])(
+    'stamps allowAnonymousJoin=%s from the teacher anonymous-join gate',
+    async (granted, expected) => {
+      const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
+        wrapper: gateWrapper(
+          gateAuth('teacher-choice', {
+            canAccessFeature: ((id: string) =>
+              id === 'anonymous-join'
+                ? granted
+                : false) as AuthContextType['canAccessFeature'],
+          })
+        ),
+      });
+      await act(async () => {
+        await result.current.createAssignment(QUIZ, {
+          sessionMode: 'teacher',
+          sessionOptions: {},
+        });
+      });
+      expect(findSessionSet()).toMatchObject({ allowAnonymousJoin: expected });
+    }
+  );
+
   it('applies force-off from the membership building even with no selected buildings', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
       wrapper: gateWrapper(gateAuth('force-off')),

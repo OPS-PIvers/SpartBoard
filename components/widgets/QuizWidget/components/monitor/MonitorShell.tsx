@@ -1,5 +1,6 @@
 import React, {
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -36,6 +37,7 @@ import {
 import { db } from '@/config/firebase';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
+import { AuthContext } from '@/context/AuthContextValue';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { logError } from '@/utils/logError';
 import {
@@ -165,6 +167,11 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
 
   const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
+  // Read via context so a provider-less (sub portal) mount keeps today's behavior.
+  const authContext = useContext(AuthContext);
+  const showJoinCode =
+    !!session.code &&
+    authContext?.canAccessFeature?.('anonymous-join') !== false;
   const data = useMonitorData(
     session,
     responses,
@@ -410,7 +417,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   );
 
   const copyJoinLink = () => {
-    if (!session.code) return;
+    if (!showJoinCode) return;
     void navigator.clipboard.writeText(
       `${window.location.origin}/quiz?code=${session.code}`
     );
@@ -482,7 +489,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       icon: BarChart3,
       onClick: () => setScreen({ name: 'questions' }),
     },
-    ...(session.code
+    ...(showJoinCode
       ? [
           {
             label: 'Show join code',
@@ -517,7 +524,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             label: soundMuted ? 'Unmute sounds' : 'Mute sounds',
             icon: soundMuted ? VolumeX : Volume2,
             onClick: () => setSoundMuted((v) => !v),
-            divider: !canReveal && !session.code,
+            divider: !canReveal && !showJoinCode,
           },
         ]
       : []),
@@ -752,7 +759,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             fibGrading={fibGrading}
           />
         )}
-        {screen.name === 'code' && <JoinCodeScreen session={session} />}
+        {screen.name === 'code' && showJoinCode && (
+          <JoinCodeScreen session={session} />
+        )}
         {screen.name === 'settings' && (
           <QuizSettingsScreen
             session={session}
