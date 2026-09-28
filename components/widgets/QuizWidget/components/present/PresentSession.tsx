@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { PresentWindow } from './PresentWindow';
+import { PresentWindow } from '@/components/common/PresentWindow';
 import { PresentScreen, PresentData } from './PresentScreen';
 import { PresentControls } from './PresentControls';
 

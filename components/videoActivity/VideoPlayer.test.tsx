@@ -8,6 +8,8 @@ const mockExtractYouTubeId = vi.fn<(url: string) => string | null>();
 
 vi.mock('@/utils/youtube', () => ({
   loadYouTubeApi: (callback: () => void) => mockLoadYouTubeApi(callback),
+  loadYouTubeApiIn: (_win: Window, callback: () => void) =>
+    mockLoadYouTubeApi(callback),
   extractYouTubeId: (url: string) => mockExtractYouTubeId(url),
   YT_PLAYER_STATE: {
     UNSTARTED: -1,

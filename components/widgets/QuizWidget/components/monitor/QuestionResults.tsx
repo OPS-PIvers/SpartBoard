@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, ChevronRight, Lock } from 'lucide-react';
+import { ChevronRight, Lock } from 'lucide-react';
 import { QuizSession, QuizData, QuizResponse, QuizQuestion } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import {
@@ -7,7 +7,8 @@ import {
   servedLocaleForResponse,
   type FibGradingContext,
 } from '@/utils/quizFibAnswers';
-import { buildDistribution } from './monitorUtils';
+import { buildDistribution } from '@/utils/answerDistribution';
+import { AnswerDistributionBars } from '@/components/common/AnswerDistributionBars';
 
 interface QuestionResultsProps {
   quizData: QuizData;
@@ -140,74 +141,20 @@ export const QuestionDetail: React.FC<QuestionDetailProps> = ({
       </div>
 
       {hasDistribution ? (
-        <div className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
-          {rows.map((row) => {
-            const pct =
-              totalAnswered > 0
-                ? Math.round((row.count / totalAnswered) * 100)
-                : 0;
-            const showCorrect = !live && row.isCorrect;
-            return (
-              <div key={row.label}>
-                <div
-                  className="flex items-center justify-between"
-                  style={{
-                    gap: 'min(8px, 2cqmin)',
-                    marginBottom: 'min(2px, 0.5cqmin)',
-                  }}
-                >
-                  <span
-                    className={`font-sans truncate inline-flex items-center ${
-                      showCorrect
-                        ? 'text-emerald-700 font-semibold'
-                        : 'text-brand-gray-dark'
-                    }`}
-                    style={{
-                      fontSize: 'min(12px, 4cqmin)',
-                      gap: 'min(4px, 1cqmin)',
-                    }}
-                  >
-                    {showCorrect && (
-                      <Check
-                        aria-label="Correct answer"
-                        style={{
-                          width: 'min(12px, 4cqmin)',
-                          height: 'min(12px, 4cqmin)',
-                        }}
-                      />
-                    )}
-                    {row.label}
-                  </span>
-                  <span
-                    className="text-brand-gray-primary tabular-nums shrink-0"
-                    style={{ fontSize: 'min(11px, 3.8cqmin)' }}
-                  >
-                    {row.count}
-                  </span>
-                </div>
-                <div
-                  className="bg-brand-gray-lightest rounded-full overflow-hidden"
-                  style={{ height: 'min(8px, 2cqmin)' }}
-                >
-                  <div
-                    className={`h-full rounded-full ${
-                      showCorrect ? 'bg-emerald-500' : 'bg-brand-blue-light'
-                    }`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-          {rows.length === 0 && (
-            <p
-              className="text-brand-gray-primary"
-              style={{ fontSize: 'min(12px, 4cqmin)' }}
-            >
-              No answers yet.
-            </p>
-          )}
-        </div>
+        rows.length > 0 ? (
+          <AnswerDistributionBars
+            rows={rows}
+            total={totalAnswered}
+            showCorrect={!live}
+          />
+        ) : (
+          <p
+            className="text-brand-gray-primary"
+            style={{ fontSize: 'min(12px, 4cqmin)' }}
+          >
+            No answers yet.
+          </p>
+        )
       ) : (
         <p
           className="text-brand-gray-primary"

@@ -9,7 +9,11 @@ export interface VideoActivityLiveControls {
   openQuestion: (questionId: string, playheadSeconds: number) => Promise<void>;
   resume: (playheadSeconds: number) => Promise<void>;
   showResults: (shown: boolean) => Promise<void>;
-  revealAnswer: (revealed: boolean) => Promise<void>;
+  /** Writes the key for students to see while revealed, and clears it on hide. */
+  revealAnswer: (
+    revealed: boolean,
+    correctAnswer?: string | null
+  ) => Promise<void>;
   skip: (questionIds: string[], playheadSeconds: number) => Promise<void>;
   /** Closes any open question and ends the session; the caller runs the assignment finalize path. */
   end: (playheadSeconds: number) => Promise<void>;
@@ -44,6 +48,7 @@ export function useVideoActivityLiveControls(
             'live.questionPhase': 'open',
             'live.resultsShown': false,
             'live.answerRevealed': false,
+            'live.revealedAnswer': null,
             'live.askedQuestionIds': arrayUnion(questionId),
             'live.skippedQuestionIds': arrayRemove(questionId),
           },
@@ -54,11 +59,16 @@ export function useVideoActivityLiveControls(
           {
             'live.currentQuestionId': null,
             'live.questionPhase': 'closed',
+            'live.revealedAnswer': null,
           },
           playheadSeconds
         ),
       showResults: (shown) => write({ 'live.resultsShown': shown }),
-      revealAnswer: (revealed) => write({ 'live.answerRevealed': revealed }),
+      revealAnswer: (revealed, correctAnswer = null) =>
+        write({
+          'live.answerRevealed': revealed,
+          'live.revealedAnswer': revealed ? correctAnswer : null,
+        }),
       skip: async (questionIds, playheadSeconds) => {
         if (questionIds.length === 0) return;
         await write(

@@ -186,12 +186,14 @@ export const VideoActivityLiveStudent: React.FC<
       break;
     case 'revealed': {
       const { question, answer } = screen;
+      const revealedAnswer = session.live?.revealedAnswer ?? null;
       if (!answer) {
         body = (
           <LockedAnswerCard
             question={question}
             number={questionNumber(question)}
             answer={null}
+            correctAnswer={revealedAnswer}
             banner={
               <Banner tone="neutral" icon={<Lock className="w-4 h-4" />}>
                 You didn&apos;t answer this one
@@ -209,7 +211,7 @@ export const VideoActivityLiveStudent: React.FC<
           number={questionNumber(question)}
           answer={answer.answer}
           verdict={verdict}
-          correctAnswer={local?.correctAnswer ?? null}
+          correctAnswer={revealedAnswer}
           banner={
             verdict === undefined ? (
               <Banner tone="neutral" icon={<Lock className="w-4 h-4" />}>
@@ -426,16 +428,24 @@ const LockedAnswerCard: React.FC<{
   /** Null when the student missed it. */
   answer: string | null;
   verdict?: boolean;
-  /** Known only in the tab that checked the answer. */
+  /** The key the teacher revealed on the board. */
   correctAnswer?: string | null;
   banner: React.ReactNode;
-}> = ({ question, number, answer, verdict, correctAnswer = null, banner }) => {
+}> = ({
+  question,
+  number,
+  answer,
+  verdict,
+  correctAnswer: key = null,
+  banner,
+}) => {
   const type = question.type ?? 'MC';
   const options = useMemo(() => questionOptions(question), [question]);
-  const key = verdict === undefined ? null : correctAnswer;
+  // A missed choice question still shows the revealed key.
+  const showChoices = answer !== null || key !== null;
   return (
     <QuestionShell question={question} number={number}>
-      {answer !== null && type === 'MC' && (
+      {showChoices && type === 'MC' && (
         <McOptionList
           options={options}
           selected={answer}
@@ -455,10 +465,16 @@ const LockedAnswerCard: React.FC<{
           correctAnswer={key}
         />
       )}
-      {answer !== null && type === 'MA' && (
+      {answer === null && type === 'FIB' && key !== null && (
+        <p className="px-5 pb-5 text-sm text-slate-600">
+          Correct answer:{' '}
+          <span className="font-bold text-emerald-700">{key}</span>
+        </p>
+      )}
+      {showChoices && type === 'MA' && (
         <MaOptionList
           options={options}
-          selected={splitMa(answer)}
+          selected={splitMa(answer ?? '')}
           onToggle={noop}
           locked
           correctAnswer={key}

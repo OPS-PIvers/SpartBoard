@@ -3,6 +3,7 @@ import {
   extractYouTubeId,
   buildSpotifyEmbedUrl,
   loadYouTubeApi,
+  loadYouTubeApiIn,
 } from './youtube';
 
 describe('extractYouTubeId', () => {
@@ -227,5 +228,36 @@ describe('loadYouTubeApi', () => {
 
     expect(previousHandler).toHaveBeenCalledTimes(1);
     expect(callback).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('loadYouTubeApiIn', () => {
+  const fakeWindow = () =>
+    ({
+      document: document.implementation.createHTMLDocument('popup'),
+    }) as unknown as Window;
+
+  it('loads the API into the other window once and runs queued callbacks', () => {
+    const win = fakeWindow();
+    const first = vi.fn();
+    const second = vi.fn();
+    loadYouTubeApiIn(win, first);
+    loadYouTubeApiIn(win, second);
+    expect(
+      win.document.querySelectorAll('script[src*="youtube.com/iframe_api"]')
+    ).toHaveLength(1);
+    expect(first).not.toHaveBeenCalled();
+    win.onYouTubeIframeAPIReady?.();
+    expect(first).toHaveBeenCalledOnce();
+    expect(second).toHaveBeenCalledOnce();
+  });
+
+  it('calls back at once when that window already has the API', () => {
+    const win = fakeWindow();
+    win.YT = { Player: class {} } as unknown as typeof window.YT;
+    const cb = vi.fn();
+    loadYouTubeApiIn(win, cb);
+    expect(cb).toHaveBeenCalledOnce();
+    expect(win.document.querySelector('script')).toBeNull();
   });
 });

@@ -108,6 +108,7 @@ interface PlayerProps {
   onTick: (s: number, d: number, playing: boolean) => void;
   paused: boolean;
   seekRequest: { time: number; nonce: number } | null;
+  startSeconds?: number;
 }
 const player: { props: PlayerProps | null } = { props: null };
 vi.mock('@/components/videoActivity/VideoPlayer', () => ({
@@ -294,7 +295,7 @@ describe('VideoActivityLivePlayer open question', () => {
     fireEvent.click(
       within(panel).getByRole('button', { name: 'Reveal answer' })
     );
-    expect(controls.revealAnswer).toHaveBeenCalledWith(true);
+    expect(controls.revealAnswer).toHaveBeenCalledWith(true, 'A');
     fireEvent.click(within(panel).getByRole('button', { name: 'Resume' }));
     expect(controls.resume).toHaveBeenCalledOnce();
     expect(player.props?.paused).toBe(false);
@@ -309,16 +310,34 @@ describe('VideoActivityLivePlayer open question', () => {
     expect(within(pop).queryByText('Ada Lovelace')).not.toBeInTheDocument();
   });
 
-  it('shows counts when results are shown and marks the answer on reveal', () => {
+  it('keeps results hidden until shown', () => {
+    renderPlayer(openSession(), responses);
+    expect(screen.queryByTestId('va-live-aggregate')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('answer-distribution-count')).toBeNull();
+  });
+
+  it('shows the distribution without marking the answer before reveal', () => {
+    renderPlayer(openSession({ resultsShown: true }), responses);
+    const counts = screen
+      .getAllByTestId('answer-distribution-count')
+      .map((n) => n.textContent);
+    expect(counts).toEqual(['1', '0']);
+    expect(screen.queryByText('Correct')).not.toBeInTheDocument();
+  });
+
+  it('marks the answer with a label on reveal', () => {
     renderPlayer(
       openSession({ resultsShown: true, answerRevealed: true }),
       responses
     );
-    const counts = screen
-      .getAllByTestId('va-live-option-count')
-      .map((n) => n.textContent);
-    expect(counts).toEqual(['1', '0']);
     expect(screen.getByText('Correct')).toBeInTheDocument();
+    expect(screen.getByLabelText('Correct answer')).toBeInTheDocument();
+  });
+
+  it('reveals with the key so students can see it', () => {
+    renderPlayer(openSession(), responses);
+    fireEvent.click(screen.getByRole('button', { name: 'Reveal answer' }));
+    expect(controls.revealAnswer).toHaveBeenCalledWith(true, 'A');
   });
 
   it('ends the live state before the finalize path', async () => {
@@ -326,5 +345,81 @@ describe('VideoActivityLivePlayer open question', () => {
     fireEvent.click(screen.getByRole('button', { name: 'End' }));
     await waitFor(() => expect(onEnd).toHaveBeenCalledOnce());
     expect(controls.end).toHaveBeenCalledOnce();
+  });
+});
+
+describe('VideoActivityLivePlayer present window', () => {
+  const openPopup = () => {
+    const popupDoc = document.implementation.createHTMLDocument('present');
+    const popup = {
+      document: popupDoc,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      close: vi.fn(),
+    };
+    const open = vi
+      .spyOn(window, 'open')
+      .mockReturnValue(popup as unknown as Window);
+    return { popup, popupDoc, open };
+  };
+
+  it('moves the one player into the popup and back at the same playhead', () => {
+    const { popup, popupDoc, open } = openPopup();
+    renderPlayer(makeSession('active', { playheadSeconds: 3 }));
+    act(() => player.props?.onTick(7, 60, true));
+    expect(screen.getByTestId('video-player')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Present to class' }));
+    expect(open).toHaveBeenCalledOnce();
+    expect(screen.queryByTestId('video-player')).not.toBeInTheDocument();
+    expect(screen.getByTestId('va-live-presenting')).toBeInTheDocument();
+    expect(
+      popupDoc.querySelectorAll('[data-testid="video-player"]')
+    ).toHaveLength(1);
+    expect(player.props?.startSeconds).toBe(7);
+
+    act(() => player.props?.onTick(12, 60, true));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop presenting' }));
+    expect(popup.close).toHaveBeenCalledOnce();
+    expect(
+      popupDoc.querySelectorAll('[data-testid="video-player"]')
+    ).toHaveLength(0);
+    expect(screen.getByTestId('video-player')).toBeInTheDocument();
+    expect(player.props?.startSeconds).toBe(12);
+    open.mockRestore();
+  });
+
+  it('projects the open question and, when shown, the results', () => {
+    const { popupDoc, open } = openPopup();
+    renderPlayer(
+      makeSession('active', {
+        currentQuestionId: 'q1',
+        questionPhase: 'open',
+        askedQuestionIds: ['q1'],
+        resultsShown: true,
+      }),
+      [response('01', [{ questionId: 'q1', answer: 'B' }])]
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Present to class' }));
+    const projected = popupDoc.querySelector(
+      '[data-testid="va-present-question"]'
+    );
+    expect(projected?.textContent).toContain('Pick A');
+    expect(
+      projected?.querySelector('[data-testid="va-live-aggregate"]')
+    ).not.toBeNull();
+    expect(projected?.textContent).not.toContain('Resume');
+    open.mockRestore();
+  });
+
+  it('stays on the board when the popup is blocked', () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    renderPlayer(makeSession('active'));
+    fireEvent.click(screen.getByRole('button', { name: 'Present to class' }));
+    expect(screen.getByTestId('video-player')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Present to class' })
+    ).toBeInTheDocument();
+    open.mockRestore();
   });
 });
