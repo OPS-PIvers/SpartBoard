@@ -80,8 +80,7 @@ export const CustomWidgetsProvider: React.FC<{ children: React.ReactNode }> = ({
       const filtered = Array.from(byId.values()).filter(
         (w) =>
           w.buildings.length === 0 ||
-          // w.buildings may hold a legacy long-form id; selectedBuildings is
-          // always canonical post-load (see config/buildings.ts).
+          // w.buildings may still hold a legacy long-form id; canonicalize before comparing against selectedBuildings (always canonical).
           canonicalizeBuildingIds(w.buildings).some((b) =>
             selectedBuildings.includes(b)
           )
