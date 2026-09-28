@@ -131,6 +131,7 @@ export function ImportWizard<TData>({
   const [creatingTemplate, setCreatingTemplate] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bulkInputRef = useRef<HTMLInputElement>(null);
   // Off by default; kept across opens so a teacher needn't re-tick it.
   const [aiReaderOff, setAiReaderOff] = useState(true);
 
@@ -307,6 +308,21 @@ export function ImportWizard<TData>({
   };
 
   const uploadDrop = useFileDrop((file) => void importFile(file), loading);
+
+  const bulkSource = adapter.bulkSource;
+  const handBulkFile = (file: File): void => {
+    if (!bulkSource) return;
+    const accepted = bulkSource.accept
+      .split(',')
+      .map((ext) => ext.trim().toLowerCase())
+      .some((ext) => file.name.toLowerCase().endsWith(ext));
+    if (!accepted) {
+      setParseError(`Choose a ${bulkSource.accept} file.`);
+      return;
+    }
+    bulkSource.onFile(file);
+  };
+  const bulkDrop = useFileDrop(handBulkFile, loading || !bulkSource);
 
   const handleCreateTemplate = async (): Promise<void> => {
     if (!adapter.templateHelper) return;
@@ -550,6 +566,47 @@ export function ImportWizard<TData>({
               aria-label="Upload import file"
             />
           )}
+        </div>
+      )}
+
+      {bulkSource && (
+        <div
+          {...bulkDrop.dropProps}
+          data-testid="import-bulk-source"
+          className={`flex items-center gap-3 rounded-2xl border-2 border-dashed p-4 transition-colors ${
+            bulkDrop.dragging
+              ? 'border-brand-blue-primary bg-brand-blue-lighter/70'
+              : 'border-slate-300 bg-white'
+          }`}
+        >
+          <FileUp className="h-6 w-6 shrink-0 text-brand-blue-primary" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-slate-800">
+              {bulkSource.title}
+            </p>
+            <p className="text-xs text-slate-500">{bulkSource.description}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => bulkInputRef.current?.click()}
+            disabled={loading}
+            className={sourceButtonClass}
+          >
+            <FileUp className="h-3.5 w-3.5" />
+            Choose file
+          </button>
+          <input
+            type="file"
+            ref={bulkInputRef}
+            accept={bulkSource.accept}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (bulkInputRef.current) bulkInputRef.current.value = '';
+              if (file) handBulkFile(file);
+            }}
+            className="hidden"
+            aria-label={bulkSource.title}
+          />
         </div>
       )}
 
