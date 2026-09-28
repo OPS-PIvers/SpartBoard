@@ -3617,7 +3617,15 @@ export interface QuizQuestion {
 
 // --- LEARNING TARGETS AND STANDARDS ---
 
-export type StandardSubject = 'ela' | 'social-studies';
+export type StandardSubject =
+  | 'ela'
+  | 'social-studies'
+  | 'math'
+  | 'science'
+  | 'pe-health'
+  | 'art'
+  | 'music'
+  | 'world-language';
 
 /** One benchmark in the seeded `standards_catalog`. Doc id = `${set}:${code}`. */
 export interface StandardBenchmark {

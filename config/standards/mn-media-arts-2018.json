@@ -1,0 +1,909 @@
+{
+  "set": "mn-media-arts-2018",
+  "subject": "art",
+  "source": "MN_Media_Arts_Standards.csv",
+  "revision": "2018 Draft #3 (Color Table Version)",
+  "count": 90,
+  "benchmarks": [
+    {
+      "id": "mn-media-arts-2018:2.0.2.2.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.0.2.2.1",
+      "grade": "K",
+      "strand": "Media Arts: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Develop ideas for media artworks using play and experimentation. For example: Combine lines and shapes in digital formats; try different drawing tools in sketching app."
+    },
+    {
+      "id": "mn-media-arts-2018:2.1.2.2.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.1.2.2.1",
+      "grade": "1",
+      "strand": "Media Arts: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Plan and prototype a media artwork idea.\nFor example: Group brainstorm; draw a picture of idea; practice using the camera."
+    },
+    {
+      "id": "mn-media-arts-2018:2.2.2.2.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.2.2.2.1",
+      "grade": "2",
+      "strand": "Media Arts: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Generate multiple ideas for media artworks through the development of sketches, models or stories.\nFor example: Develop soft skills through small group pitching."
+    },
+    {
+      "id": "mn-media-arts-2018:2.3.2.2.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.3.2.2.1",
+      "grade": "3",
+      "strand": "Media Arts: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Generate multiple ideas for a sequenced media artwork using a variety of tools and materials.\nFor example: Take a series of photographs; observational drawing; journaling."
+    },
+    {
+      "id": "mn-media-arts-2018:2.4.2.2.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.4.2.2.1",
+      "grade": "4",
+      "strand": "Media Arts: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Generate multiple ideas for media artworks using a variety of creative methods that explore time and motion.\nFor example: Investigation with video; reverse designing media artswork; mindmapping."
+    },
+    {
+      "id": "mn-media-arts-2018:2.5.2.2.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.5.2.2.1",
+      "grade": "5",
+      "strand": "Media Arts: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Develop and test ideas, plans, models, and proposals for media artworks, considering artistic goals and audience.\nFor example: Draw a layout of a stop motion set; practice in and compare different sound recording spaces; interview or investigate audience for a project."
+    },
+    {
+      "id": "mn-media-arts-2018:2.6.2.2.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.6.2.2.1",
+      "grade": "6",
+      "strand": "Media Arts: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Organize and propose artistic ideas, plans, prototypes, and processes for media artworks, considering expressive intent.\nFor example: Sketching; modeling; sequencing."
+    },
+    {
+      "id": "mn-media-arts-2018:2.7.2.2.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.7.2.2.1",
+      "grade": "7",
+      "strand": "Media Arts: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Design, propose and evaluate artistic ideas, plans, prototypes, and production processes for media artworks, considering expressive intent and resources.\nFor example: Pitching; storyboarding."
+    },
+    {
+      "id": "mn-media-arts-2018:2.8.2.2.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.8.2.2.1",
+      "grade": "8",
+      "strand": "Media Arts: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Structure and critique ideas and solutions for original media artworks, using divergent thinking and identified generative methods.\nFor example: Compare and contrast App-based animation platforms; repeatedly abstract an object for a 2D design."
+    },
+    {
+      "id": "mn-media-arts-2018:2.9.2.2.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.9.2.2.1",
+      "grade": "9-12",
+      "strand": "Media Arts: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Apply aesthetic criteria in developing, proposing, and refining artistic ideas, plans, prototypes, and production processes for media artworks, considering original inspirations, audience and constraints.\nFor example: Survey; research; design thinking; identify problem."
+    },
+    {
+      "id": "mn-media-arts-2018:2.0.2.3.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.0.2.3.1",
+      "grade": "K",
+      "strand": "Media Arts: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Capture ideas in media artworks.\nFor example: Take pictures considering space; use recording materials; assemble different lines and shapes in design app."
+    },
+    {
+      "id": "mn-media-arts-2018:2.1.2.3.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.1.2.3.1",
+      "grade": "1",
+      "strand": "Media Arts: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Choose and use a media arts tool to capture an idea.\nFor example: Camera; digital drawing; sound recording."
+    },
+    {
+      "id": "mn-media-arts-2018:2.2.2.3.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.2.2.3.1",
+      "grade": "2",
+      "strand": "Media Arts: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Choose and use sketches, models or stories to create unified media artworks.\nFor example: Use storyboard to make a stop motion; Pick from thumbnail sketches for graphic design."
+    },
+    {
+      "id": "mn-media-arts-2018:2.3.2.3.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.3.2.3.1",
+      "grade": "3",
+      "strand": "Media Arts: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Construct media arts content to communicate a purpose or idea, using elements of artistic foundations.\nFor example: Photo collage considering attention; poster design considering composition; character design and development considering convention."
+    },
+    {
+      "id": "mn-media-arts-2018:2.4.2.3.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.4.2.3.1",
+      "grade": "4",
+      "strand": "Media Arts: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Structure and arrange content and components to convey purpose and meaning in the creation of media artworks, applying artistic foundations.\nFor example: Hand drawn animation considering balance and contrast; design music for video clip considering emphasis; photo manipulation considering fairness, fair use, juxaposition, and imaging."
+    },
+    {
+      "id": "mn-media-arts-2018:2.5.2.3.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.5.2.3.1",
+      "grade": "5",
+      "strand": "Media Arts: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Create content and combine components for a specific audience to express purpose and meaning in media artworks, utilizing artistic foundations.\nFor example: Stop motion animation considering force and exaggeration; live action filmaking considering narrative structure; digital self-portraits exploring identity and meaning."
+    },
+    {
+      "id": "mn-media-arts-2018:2.6.2.3.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.6.2.3.1",
+      "grade": "6",
+      "strand": "Media Arts: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Experiment with multiple approaches to produce content and components for a specific purpose in media artworks, utilizing a range of artistic foundations.\nFor example: Digital illustration considering perspective; clay animation considering point of view; poster design considering media messages."
+    },
+    {
+      "id": "mn-media-arts-2018:2.7.2.3.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.7.2.3.1",
+      "grade": "7",
+      "strand": "Media Arts: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Create media artworks, using artistic foundations, that integrate production processes, content, and stylistic conventions to communicate meaning for a specific audience.\nFor example: Choose and defend a narrative structure for video."
+    },
+    {
+      "id": "mn-media-arts-2018:2.8.2.3.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.8.2.3.1",
+      "grade": "8",
+      "strand": "Media Arts: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Create media artworks using transdisciplinary or transmedia production, to express emotion and meaning.\nFor example: Original sound design (such as an experiential design incorporating a podcast) considering theme, movement and unity; simple web page design condsidering positioning with multimodal perception."
+    },
+    {
+      "id": "mn-media-arts-2018:2.9.2.3.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.9.2.3.1",
+      "grade": "9-12",
+      "strand": "Media Arts: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Create media artworks using hybridization or multimodal perception, by integrating components and stylistic conventions, to express compelling purpose, story, or emotion.\nFor example: Set building with light, motion or interactivity; character development, type selection considering multiple presentation formats.\n\n2. Create media arts productions in a variety of genres, considering critical media literacies, aesthetic criteria, communication goals, and audience using artistic foundations.\nFor example: Magazine layout considering space and sequence specifically through typography, messaging, and audience; game world design considering narrative structure."
+    },
+    {
+      "id": "mn-media-arts-2018:2.0.2.4.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.0.2.4.1",
+      "grade": "K",
+      "strand": "Media Arts: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Make changes to the content of media artworks and share results.\nFor example: Rearrange objects in a digital drawing; rerecord video."
+    },
+    {
+      "id": "mn-media-arts-2018:2.1.2.4.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.1.2.4.1",
+      "grade": "1",
+      "strand": "Media Arts: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "After reviewing media artwork, make changes to the form of the work.\nFor example: The order of sequencing photos; the color of objects and images."
+    },
+    {
+      "id": "mn-media-arts-2018:2.2.2.4.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.2.2.4.1",
+      "grade": "2",
+      "strand": "Media Arts: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Test and describe expressive effects in altering, revising, and completing media artworks.\nFor example: Changing the frame rate in an animation; comparing spacing in a design; trying different shot types for an action."
+    },
+    {
+      "id": "mn-media-arts-2018:2.3.2.4.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.3.2.4.1",
+      "grade": "3",
+      "strand": "Media Arts: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "When revising media artworks compare and contrast how the emphasis of elements alters effect and purpose.\nFor example: Use of space in live action filming; manipulation of light in an image."
+    },
+    {
+      "id": "mn-media-arts-2018:2.4.2.4.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.4.2.4.1",
+      "grade": "4",
+      "strand": "Media Arts: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Revise content to convey purpose and meaning in various media artworks, using artistic foundations.\nFor example: Editing filters considering texture, editing, and mixing qualities considering sound elements."
+    },
+    {
+      "id": "mn-media-arts-2018:2.5.2.4.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.5.2.4.1",
+      "grade": "5",
+      "strand": "Media Arts: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Based on feedback, revise media artworks to improve clarity and purpose.\nFor example: Review balance of components, including juxtaposition."
+    },
+    {
+      "id": "mn-media-arts-2018:2.6.2.4.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.6.2.4.1",
+      "grade": "6",
+      "strand": "Media Arts: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Evaluate how elements and components can be altered for intentional effects and audience.\nFor example: Font and image size and placement; sound selection and rearragement in video considering stylistic convention."
+    },
+    {
+      "id": "mn-media-arts-2018:2.7.2.4.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.7.2.4.1",
+      "grade": "7",
+      "strand": "Media Arts: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Improve media artworks by placing emphasis on particular expressive components.\nFor example: Consideration of continuity, purpose, audience, or place."
+    },
+    {
+      "id": "mn-media-arts-2018:2.8.2.4.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.8.2.4.1",
+      "grade": "8",
+      "strand": "Media Arts: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Refine media artworks, resisting closure while intentionally altering stylistic conventions based on specific goals and personal choices.\nFor example: Edit video game level design considering interactive components after receiving feedback."
+    },
+    {
+      "id": "mn-media-arts-2018:2.9.2.4.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.9.2.4.1",
+      "grade": "9-12",
+      "strand": "Media Arts: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Modify media artworks by improving technical quality, components, and stylistic conventions, based on consideration of purpose, audience, and place.\nFor example: Redesign webpage based on a specific project goal."
+    },
+    {
+      "id": "mn-media-arts-2018:2.0.3.5.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.0.3.5.1",
+      "grade": "K",
+      "strand": "Media Arts: 3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Identify different ways media artworks are presented.\nFor example: Look at, listen to, or experience media arts presentations."
+    },
+    {
+      "id": "mn-media-arts-2018:2.1.3.5.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.1.3.5.1",
+      "grade": "1",
+      "strand": "Media Arts: 3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Sort media artwork by styles and types.\nFor example: Comparing work by a single artist."
+    },
+    {
+      "id": "mn-media-arts-2018:2.2.3.5.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.2.3.5.1",
+      "grade": "2",
+      "strand": "Media Arts: 3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Identify techniques and sequencing in media artworks.\n\nFor example: Flipbooks; storyboard; frames for stop motion."
+    },
+    {
+      "id": "mn-media-arts-2018:2.3.3.5.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.3.3.5.1",
+      "grade": "3",
+      "strand": "Media Arts: 3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Discuss techniques used in editing media artworks.\nFor example: Cutting and splicing; volume; transitions; fade."
+    },
+    {
+      "id": "mn-media-arts-2018:2.4.3.5.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.4.3.5.1",
+      "grade": "4",
+      "strand": "Media Arts: 3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Combine and coordinate a variety of media content into a media artwork presentation.\nFor example: A mixed media performance."
+    },
+    {
+      "id": "mn-media-arts-2018:2.5.3.5.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.5.3.5.1",
+      "grade": "5",
+      "strand": "Media Arts: 3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Organize multiple media artworks to be combined into a single presentation.\n\nFor example: A media broadcast."
+    },
+    {
+      "id": "mn-media-arts-2018:2.6.3.5.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.6.3.5.1",
+      "grade": "6",
+      "strand": "Media Arts: 3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Evaluate how the public uses, relates to, and participates with media artworks.\nFor example: Social media platforms; public space artworks."
+    },
+    {
+      "id": "mn-media-arts-2018:2.7.3.5.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.7.3.5.1",
+      "grade": "7",
+      "strand": "Media Arts: 3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Explain the choices made in the presentation of media artworks.\nFor example: Choices made in creative components such as sound, titling, etc."
+    },
+    {
+      "id": "mn-media-arts-2018:2.8.3.5.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.8.3.5.1",
+      "grade": "8",
+      "strand": "Media Arts: 3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Develop and apply criteria for evaluating a collection of media artwork for presentation.\nFor example: Create survey for a focus group; participate in forum on media artwork presentation."
+    },
+    {
+      "id": "mn-media-arts-2018:2.9.3.5.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.9.3.5.1",
+      "grade": "9-12",
+      "strand": "Media Arts: 3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Critique and justify the use of design components within a media arts presentation, considering the reaction of the audience.\nFor example: Director Q&A; stakeholder review; SCAMPER; six thinking hats."
+    },
+    {
+      "id": "mn-media-arts-2018:2.0.3.6.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.0.3.6.1",
+      "grade": "K",
+      "strand": "Media Arts: 3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Explain the message of a media artwork.\nFor example: Compare cereal box design for intended audience."
+    },
+    {
+      "id": "mn-media-arts-2018:2.1.3.6.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.1.3.6.1",
+      "grade": "1",
+      "strand": "Media Arts: 3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Identify where you see media arts in the community.\nFor example: Bank kiosk, billboards."
+    },
+    {
+      "id": "mn-media-arts-2018:2.2.3.6.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.2.3.6.1",
+      "grade": "2",
+      "strand": "Media Arts: 3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Compare and contrast venues where media arts are shared and their effects on the audience.\n\nFor example: Explore media environments like movie theatre, computer, home movie."
+    },
+    {
+      "id": "mn-media-arts-2018:2.3.3.6.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.3.3.6.1",
+      "grade": "3",
+      "strand": "Media Arts: 3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Explain how the meaning of a media artwork might change depending on the venue.\nFor example: Formal vs informal (movie theater vs at home); still photo vs. film."
+    },
+    {
+      "id": "mn-media-arts-2018:2.4.3.6.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.4.3.6.1",
+      "grade": "4",
+      "strand": "Media Arts: 3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Identfy and describe presentation conditions, and take on a role in presenting media artworks.\nFor example: Exporting and distributing completed movie into online portfolio."
+    },
+    {
+      "id": "mn-media-arts-2018:2.5.3.6.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.5.3.6.1",
+      "grade": "5",
+      "strand": "Media Arts: 3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Explain different roles related to presenting media artworks, and fullfill one of those roles in a presentation.\nFor example: Director; writer; actor; presenter."
+    },
+    {
+      "id": "mn-media-arts-2018:2.6.3.6.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.6.3.6.1",
+      "grade": "6",
+      "strand": "Media Arts: 3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Analyze various presentation formats and fulfill various tasks and defined processes in the presentation or distribution of media artworks.\nFor example: Virtual channels; formatting and exporting for various print production."
+    },
+    {
+      "id": "mn-media-arts-2018:2.7.3.6.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.7.3.6.1",
+      "grade": "7",
+      "strand": "Media Arts: 3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Evaluate how various presentation formats and approaches to distribution can have a personal or local impact.\nFor example: Compare and contrast presentation for a museum with commercial signage."
+    },
+    {
+      "id": "mn-media-arts-2018:2.8.3.6.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.8.3.6.1",
+      "grade": "8",
+      "strand": "Media Arts: 3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Evaluate and implement improvements in the presention of media artworks, considering personal and local impacts.\nFor example: Research the changes to personal or corporate branding over time."
+    },
+    {
+      "id": "mn-media-arts-2018:2.9.3.6.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.9.3.6.1",
+      "grade": "9-12",
+      "strand": "Media Arts: 3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Design and evaluate presentation and distribution of media artworks through multiple formats for specific contexts, market(s) and system(s).\nFor example: Evaluate presentation modes for media artworks through virtual channels versus a multimedia theatre, considering media arts contexts."
+    },
+    {
+      "id": "mn-media-arts-2018:2.0.4.7.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.0.4.7.1",
+      "grade": "K",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Identify components (such as sound, lighting, sequence, mood) in media artworks.\nFor example: List parts of a movie such as beginning, middle, and end."
+    },
+    {
+      "id": "mn-media-arts-2018:2.1.4.7.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.1.4.7.1",
+      "grade": "1",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Identify components and messages in media artworks.\nFor example: List parts of a movie such as beginning, middle and end, and identify how these parts tell stories or share messages."
+    },
+    {
+      "id": "mn-media-arts-2018:2.2.4.7.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.2.4.7.1",
+      "grade": "2",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Identify and describe the components and messages in media artworks, and share how the work creates different experiences.\n\nFor example: Watch a suspenseful video and discuss feelings and why."
+    },
+    {
+      "id": "mn-media-arts-2018:2.3.4.7.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.3.4.7.1",
+      "grade": "3",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Identify and describe how messages are created by components in media artworks, and share how the components affect mood.\nFor example: Watch a variety of media arts clips and discuss different clips express or influence different moods."
+    },
+    {
+      "id": "mn-media-arts-2018:2.4.4.7.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.4.4.7.1",
+      "grade": "4",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Compare how messages are created by components in media artworks, and explain how the components affect mood and audience experience.\nFor example: Watch a variety of media arts clips and discuss how different clips express mood, and how they affect how the audience experiences the media art works."
+    },
+    {
+      "id": "mn-media-arts-2018:2.5.4.7.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.5.4.7.1",
+      "grade": "5",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Differentiate how components in media artworks impact message and mood to create meaning and how they affect audience experience.\nFor example: Analyze how lighting design and sound design in a film impact mood and audience experience."
+    },
+    {
+      "id": "mn-media-arts-2018:2.6.4.7.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.6.4.7.1",
+      "grade": "6",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Analyze how messages change due to multiple approaches in producing media artworks and how they affect audience experience.\nFor example: Examine media artworks that use different technological approaches, such as interactivity versus theatrical film, and the affect on audience experience."
+    },
+    {
+      "id": "mn-media-arts-2018:2.7.4.7.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.7.4.7.1",
+      "grade": "7",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Analyze how intentional use of elements of media artworks interact with personal perceptions, influencing mood and managing audience experience.\nFor example: Examine how media artworks include a variety of media elements which affect the way we see, hear, or experience a media artwork."
+    },
+    {
+      "id": "mn-media-arts-2018:2.8.4.7.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.8.4.7.1",
+      "grade": "8",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Analyze the relationships between media arts components, and explain how transdisciplinary or transmedia productions communicate and affect audience experience.\nFor example: Compare the experience of platforms with interactivity (such as experiential design) with the experience of traditional art mediums."
+    },
+    {
+      "id": "mn-media-arts-2018:2.9.4.7.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.9.4.7.1",
+      "grade": "9-12",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Analyze how a broad range of media artworks affect experience and communicate through multimodal perception, while using artistic foundations.\nFor example: Analyze the managed experience in augmented reality, virtual worlds or gaming that incorporates artificial intelligence."
+    },
+    {
+      "id": "mn-media-arts-2018:2.0.4.8.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.0.4.8.1",
+      "grade": "K",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Share reactions to media artworks.\nFor example: Stating personal selection of a sound or image experience."
+    },
+    {
+      "id": "mn-media-arts-2018:2.1.4.8.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.1.4.8.1",
+      "grade": "1",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Identify effective parts and possible changes to media artworks.\nFor example: Utilize a process to provide and use feedback such as praise/polish/ponder activities."
+    },
+    {
+      "id": "mn-media-arts-2018:2.2.4.8.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.2.4.8.1",
+      "grade": "2",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Discuss the effectiveness of and improvements for media artworks, considering their context.\nFor example: Change the color, texture or feel of a digital illustration to improve the tone of the media artwork."
+    },
+    {
+      "id": "mn-media-arts-2018:2.3.4.8.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.3.4.8.1",
+      "grade": "3",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Evaluate media artworks and identify possible improvements based on given criteria.\nFor example: Discuss how given criteria are evident in a media artwork and suggest ways to improve the media artwork such as keeping movements smaller and more controlled in stopmotion animation, or use of techniques to stabilize the captured video, or how to increase focus in digital images."
+    },
+    {
+      "id": "mn-media-arts-2018:2.4.4.8.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.4.4.8.1",
+      "grade": "4",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Apply given criteria for evaluating and improving media artworks and production processes.\nFor example: Keeping movements smaller and more controlled in stopmotion animation, use of techniques to stabilize the captured video, or how to increase focus in digital images."
+    },
+    {
+      "id": "mn-media-arts-2018:2.5.4.8.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.5.4.8.1",
+      "grade": "5",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Develop and apply criteria to evaluate media artworks and production processes.\nFor example: As a group, collaboratively develop a list of criteria to be used in evaluating a media artwork including how the media artwork was produced/created."
+    },
+    {
+      "id": "mn-media-arts-2018:2.6.4.8.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.6.4.8.1",
+      "grade": "6",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Provide and receive constructive feedback based on criteria for evaluating media artworks.\nFor example: Create a rubric for a project."
+    },
+    {
+      "id": "mn-media-arts-2018:2.7.4.8.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.7.4.8.1",
+      "grade": "7",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Compare and contrast an evaluation of a media artwork based on personal criteria and an evaluation of a media artwork based on a set of established criteria.\nFor example: Complete a self assessment and compare it with assesment from peer or educator."
+    },
+    {
+      "id": "mn-media-arts-2018:2.8.4.8.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.8.4.8.1",
+      "grade": "8",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Evaluate media artworks and production processes with developed criteria at multiple stages in the creation process, including criteria related to fair use and copyright.**\nFor example: Plagiarism; appropriation; intellectual property; creative commons media; public domain; and legal."
+    },
+    {
+      "id": "mn-media-arts-2018:2.9.4.8.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.9.4.8.1",
+      "grade": "9-12",
+      "strand": "Media Arts: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Construct and defend evaluations of media artworks and production processes, including criteria related to ethics. **\nFor example: Respond to representations of people, identity or groups in media artworks."
+    },
+    {
+      "id": "mn-media-arts-2018:2.0.5.9.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.0.5.9.1",
+      "grade": "K",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Use personal experiences in creating media artworks.\nFor example: Personal stories; media art works that display personal life experience."
+    },
+    {
+      "id": "mn-media-arts-2018:2.1.5.9.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.1.5.9.1",
+      "grade": "1",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Use personal experiences and interests in creating media artworks.\nFor example: Personal stories; media art works that display personal life experience; or media artworks that exhibit choices of content/tools."
+    },
+    {
+      "id": "mn-media-arts-2018:2.2.5.9.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.2.5.9.1",
+      "grade": "2",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Use personal experiences, interests, and research in creating media artworks.\nFor example: Personal stories; media art works that display personal life experience; or media artworks that exhibit research to create story."
+    },
+    {
+      "id": "mn-media-arts-2018:2.3.5.9.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.3.5.9.1",
+      "grade": "3",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Identify and show how media artworks form meaning, situations, and culture.\nFor example: Popular media."
+    },
+    {
+      "id": "mn-media-arts-2018:2.4.5.9.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.4.5.9.1",
+      "grade": "4",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Examine and use personal interests, research, and cultural understanding to create media artworks.\nFor example: Autobiographical stories; creating media artworks illustrating personal statements/positions; media art works that display personal life experiences."
+    },
+    {
+      "id": "mn-media-arts-2018:2.5.5.9.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.5.5.9.1",
+      "grade": "5",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Access and use multiple resources related to cultural understanding to create media artworks.\nFor example: Interests, knowledge, and experiences."
+    },
+    {
+      "id": "mn-media-arts-2018:2.6.5.9.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.6.5.9.1",
+      "grade": "6",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "1.Compare and constrast how creating and presenting media artworks forms personal and digital identity.**\nFor example: Using platforms of systematic communications, distribution and engagement with new media."
+    },
+    {
+      "id": "mn-media-arts-2018:2.7.5.9.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.7.5.9.1",
+      "grade": "7",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Analyze how to safely, ethically and intentionally develop digital identity when creating and presenting media artworks, through systematic communications.**\nFor example: Ethically exploring anonymity in a virtual world such as gaming; digital safety; digital security."
+    },
+    {
+      "id": "mn-media-arts-2018:2.8.5.9.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.8.5.9.1",
+      "grade": "8",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Evaluate the cycle of producing media artworks to make meaning of and respond to local and global events, and the power of media arts to affect social change.\nFor example: Artmaking in response to natural disaster; political and social campaigns."
+    },
+    {
+      "id": "mn-media-arts-2018:2.9.5.9.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.9.5.9.1",
+      "grade": "9-12",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Incorporate personal experiences and cultural perspectives to establish personal aesthetic in media artworks.\n\n2. Analyze how individually developed media messages influence local and global communities.\nFor example: Disruption of the dominant discourse through media artworks; responsibly and irresponsibly developed media messages."
+    },
+    {
+      "id": "mn-media-arts-2018:2.0.5.10.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.0.5.10.1",
+      "grade": "K",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Identify how media arts are a part of life.\nFor example: Name places media arts are found in our daily life and how they are used, such as smartphones."
+    },
+    {
+      "id": "mn-media-arts-2018:2.1.5.10.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.1.5.10.1",
+      "grade": "1",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Describe media art from various times and places. For example: Describe how media arts has changed over time, such as hand drawn cel animation to computer generated animations; describe how media arts has existed in theaters and television, but now also exist online, within apps, social media, personal devices, smartphones, etc; describe how media arts exists across the world."
+    },
+    {
+      "id": "mn-media-arts-2018:2.2.5.10.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.2.5.10.1",
+      "grade": "2",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Discuss how media artworks relate to everyday cultural life.\n\nFor example: Describe how media arts is used in our everyday life, how it influences what we think, and how it can be used in our lives."
+    },
+    {
+      "id": "mn-media-arts-2018:2.3.5.10.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.3.5.10.1",
+      "grade": "3",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Explain how knowing the time and place in which a media artwork was made influences interpretation of the work.\nFor example: Describe how labor-intensive films and animations used to be when they were shot frame-by-frame or by creating using cel animation techniques; describe how special effects in film have changed over time and how they impact what media artists are able to communicate."
+    },
+    {
+      "id": "mn-media-arts-2018:2.4.5.10.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.4.5.10.1",
+      "grade": "4",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Identify how media artworks are used to inform or change beliefs, values or behaviors of an individual or society.\nFor example: Identify how media arts influences what we perceive, think, or believe; identify how media arts can influence our culture for positive change."
+    },
+    {
+      "id": "mn-media-arts-2018:2.5.5.10.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.5.5.10.1",
+      "grade": "5",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Make inferences about the time, place, or culture in which a media artwork was created, citing evidence.\nFor example: Evaluate different video game designs for their history and context."
+    },
+    {
+      "id": "mn-media-arts-2018:2.6.5.10.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.6.5.10.1",
+      "grade": "6",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Explain how media artworks relate to and impact personal, societal, cultural, historical, and community situations.\nFor example: Personal identity; digital identity; historical events; entertainment."
+    },
+    {
+      "id": "mn-media-arts-2018:2.7.5.10.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.7.5.10.1",
+      "grade": "7",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Analyze how response to media art is influenced by understanding the time and place in which it was created, the available resources, and cultural uses.\nFor example: Evaluate the changes in the use and style of photography over time."
+    },
+    {
+      "id": "mn-media-arts-2018:2.8.5.10.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.8.5.10.1",
+      "grade": "8",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Explain different ways media arts are used to represent, establish, reinforce, and reflect culture or group identity.\nFor example: Use of memes and viral video in systematic communications."
+    },
+    {
+      "id": "mn-media-arts-2018:2.9.5.10.1",
+      "set": "mn-media-arts-2018",
+      "subject": "art",
+      "code": "2.9.5.10.1",
+      "grade": "9-12",
+      "strand": "Media Arts: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Synthesize how media arts represent, establish, reinforce, and reflect culture or group identity.\n\n2. Use contexts, purposes, representations, and values to inform media artworks.\nFor example: Develop media literacy to examine how media messages affect social trends, power, equity, bias, gender, personal or cultural identity."
+    }
+  ]
+}
