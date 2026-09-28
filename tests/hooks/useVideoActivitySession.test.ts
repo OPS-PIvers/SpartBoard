@@ -9,10 +9,7 @@ import {
 } from 'vitest';
 import { createElement, type ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react';
-import {
-  AuthContext,
-  type AuthContextType,
-} from '@/context/AuthContextValue';
+import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import {
   collection,
   doc,

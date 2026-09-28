@@ -1155,11 +1155,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       // depending on state). View-only Shared cards already pin "Copy
       // link" as the primary action — duplicating it in the kebab is just
       // visual noise.
-      if (
-        onArchiveCopyUrl &&
-        !assignmentIsViewOnly &&
-        canOfferAnonymousJoin
-      ) {
+      if (onArchiveCopyUrl && !assignmentIsViewOnly && canOfferAnonymousJoin) {
         actions.push({
           id: 'copy-url',
           label: 'Copy link',

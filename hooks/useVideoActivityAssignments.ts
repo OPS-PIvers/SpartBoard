@@ -12,13 +12,7 @@
  * (mirroring Quiz's `shareAssignment` / `importSharedAssignment` flows).
  */
 
-import {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  useContext,
-} from 'react';
+import { useState, useEffect, useCallback, useRef, useContext } from 'react';
 import {
   addDoc,
   collection,
