@@ -126,6 +126,13 @@ describe('parseStandardHeading', () => {
       code: '1.1.1',
       title: 'Asking questions and defining problems',
     });
+    // Math 2022 numbers kindergarten as grade 0.
+    expect(
+      parseStandardHeading(
+        '0.3.5 Number Relationships: Describe, Interpret and use quantities.',
+        '0.3.5.1'
+      )
+    ).toEqual({ code: '0.3.5', title: 'Number Relationships' });
   });
 
   it('falls back to the numeric key from the benchmark code', () => {

@@ -45,6 +45,14 @@ export const STANDARD_SETS: StandardSetEntry[] = [
         .default as StandardsFile,
   },
   {
+    set: 'mn-math-2022',
+    subject: 'math',
+    label: 'Minnesota Math (2022)',
+    load: async () =>
+      (await import('@/config/standards/mn-math-2022.json'))
+        .default as StandardsFile,
+  },
+  {
     set: 'mn-sci-2019',
     subject: 'science',
     label: 'Minnesota Science (2019)',

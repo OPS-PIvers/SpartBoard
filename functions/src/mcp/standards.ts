@@ -6,6 +6,7 @@ export const STANDARD_SETS = [
   'mn-ela-2020',
   'mn-ss-2021',
   'mn-math-2007',
+  'mn-math-2022',
   'mn-sci-2019',
   'mn-pe-2018',
   'mn-dance-2018',

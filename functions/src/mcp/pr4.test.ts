@@ -53,6 +53,10 @@ describe('standards tags', () => {
       'mn-ss-2021:6.1.2.1'
     );
     expect(normalizeStandardRef('K.1.1.1')).toBe('K.1.1.1');
+    expect(normalizeStandardRef('MN Math 0.3.5.1')).toBe('0.3.5.1');
+    expect(normalizeStandardRef('mn-math-2022:9.2.4.15')).toBe(
+      'mn-math-2022:9.2.4.15'
+    );
     expect(normalizeStandardRef('MN Science 7L.3.1.1.1')).toBe('7L.3.1.1.1');
     expect(normalizeStandardRef('Visual Arts 5.6.2.3.1')).toBe('5.6.2.3.1');
   });
