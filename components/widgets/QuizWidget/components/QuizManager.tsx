@@ -62,6 +62,7 @@ import {
   KeyRound,
   ScanLine,
   ScanText,
+  ClipboardCheck,
 } from 'lucide-react';
 import {
   AssignmentMode,
@@ -148,7 +149,10 @@ import { useAuth } from '@/context/useAuth';
 import { useQuizHandRaiseMode } from '@/hooks/useQuizHandRaiseMode';
 import { QUIZ_TRANSLATION_FEATURE } from '@/config/quizTranslation';
 import { useDialog } from '@/context/useDialog';
-import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
+import {
+  getAssignBehaviorSeed,
+  formatBehaviorSummary,
+} from '@/utils/quizBehavior';
 import { needsKeyMessage } from '@/utils/quizNeedsKey';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { countRecordingSlots } from '@/utils/quizRecordingModes';
@@ -799,8 +803,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         return;
       }
       setAssignDestination(destination);
-      // Deep-copy: the shared DEFAULT_QUIZ_BEHAVIOR fallback is frozen.
-      setAssignBehavior(structuredClone(getQuizBehavior(quiz)));
+      setAssignBehavior(getAssignBehaviorSeed(quiz));
       setAssignTarget(quiz);
     },
     [chooserTarget]
@@ -1737,8 +1740,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Assign confirm handler ───────────────────────────────────────────────
   const handleAssignConfirm = (): void => {
     if (!assignTarget) return;
-    const behavior =
-      assignBehavior ?? structuredClone(getQuizBehavior(assignTarget));
+    const behavior = assignBehavior ?? getAssignBehaviorSeed(assignTarget);
     // M17 C3 F5 — per-student overrides are only honored in self-paced mode
     // (a teacher-paced `currentQuestionIndex` is shared class-wide and can't
     // diverge per student). Block the save rather than silently assigning
@@ -1748,7 +1750,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       setTargetingPacingError(
         t('assignTargeting.pacingBlocked', {
           defaultValue:
-            "Individual student modifications require Self-paced mode. Switch Session Settings below to Self-paced, or use 'Clear all modifications' under Edit or add modifications.",
+            "Individual student modifications require Assessment Mode. Switch Assessment Settings above to Assessment Mode, or use 'Clear all modifications' under Edit or add modifications.",
         })
       );
       return;
@@ -2357,14 +2359,50 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onOptionsChange={setAssignOptions}
           extraSlot={
             <>
-              {/* Who — classes, then optional per-student targeting */}
+              {/* Who, then how, then when and per-student modifications */}
               <AssignClassPicker
+                collapsible
                 rosters={rosters}
                 value={assignOptions.picker}
                 onChange={(picker) =>
                   setAssignOptions({ ...assignOptions, picker })
                 }
               />
+
+              {/* How — per-assignment behavior, pre-filled from the quiz */}
+              {assignBehavior && (
+                <CollapsibleSection
+                  label="Assessment Settings"
+                  icon={ClipboardCheck}
+                  summary={
+                    <span data-testid="quiz-behavior-summary">
+                      {formatBehaviorSummary(assignBehavior)}
+                    </span>
+                  }
+                >
+                  <p className="text-xxs text-slate-400">
+                    Applies to this assignment only.
+                  </p>
+                  <QuizBehaviorSettingsPanel
+                    value={assignBehavior}
+                    onChange={(next) => {
+                      setTargetingPacingError(null);
+                      setAssignBehavior(next);
+                    }}
+                    handRaiseMode={handRaiseMode}
+                  />
+                  {assignHasRecordingQuestions &&
+                    assignBehavior.sessionMode !== 'student' && (
+                      <p
+                        role="status"
+                        className="text-xxs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5"
+                      >
+                        {t('quizMediaResponse.assign.advisory.notSelfPaced')}
+                      </p>
+                    )}
+                </CollapsibleSection>
+              )}
+
               <AssignTargetingSection
                 rosters={rosters}
                 selectedRosterIds={assignOptions.picker.rosterIds}
@@ -2404,6 +2442,18 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                     : {}),
                 }}
                 onExpand={handleExpandIndividualTargeting}
+                scheduleLabel="Availability & Due Date"
+                scheduleExtra={
+                  <AssignDueDateField
+                    dueAt={assignDueAt}
+                    onDueAtChange={setAssignDueAt}
+                  />
+                }
+                scheduleExtraSummary={
+                  assignDueAt == null
+                    ? null
+                    : `Due ${new Date(assignDueAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+                }
               />
               {targetingPacingError && (
                 <p
@@ -2424,45 +2474,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                     names: targetingTimingWarning.join(', '),
                   })}
                 </p>
-              )}
-
-              {/* When */}
-              <AssignDueDateField
-                dueAt={assignDueAt}
-                onDueAtChange={setAssignDueAt}
-              />
-
-              {/* How — per-assignment behavior, pre-filled from the quiz */}
-              {assignBehavior && (
-                <CollapsibleSection
-                  label="Session Settings"
-                  summary={
-                    <span data-testid="quiz-behavior-summary">
-                      {formatBehaviorSummary(assignBehavior)}
-                    </span>
-                  }
-                >
-                  <p className="text-xxs text-slate-400">
-                    Applies to this assignment only.
-                  </p>
-                  <QuizBehaviorSettingsPanel
-                    value={assignBehavior}
-                    onChange={(next) => {
-                      setTargetingPacingError(null);
-                      setAssignBehavior(next);
-                    }}
-                    handRaiseMode={handRaiseMode}
-                  />
-                  {assignHasRecordingQuestions &&
-                    assignBehavior.sessionMode !== 'student' && (
-                      <p
-                        role="status"
-                        className="text-xxs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5"
-                      >
-                        {t('quizMediaResponse.assign.advisory.notSelfPaced')}
-                      </p>
-                    )}
-                </CollapsibleSection>
               )}
             </>
           }

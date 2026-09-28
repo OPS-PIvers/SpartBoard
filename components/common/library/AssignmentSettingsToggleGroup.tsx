@@ -193,6 +193,8 @@ export interface AssignmentSettingsToggleGroupProps {
    * Defaults to true.
    */
   shuffleQuestionsAvailable?: boolean;
+  /** Hint shown while Shuffle Questions is unavailable. */
+  shuffleQuestionsHint?: string;
   /** Hide the "Shuffle Questions" row (Video Activity plays questions in video order). */
   hideShuffleQuestions?: boolean;
   /**
@@ -233,6 +235,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
   onAttemptLimitChange,
   modeLocked = false,
   shuffleQuestionsAvailable = true,
+  shuffleQuestionsHint = 'Self-paced only.',
   hideShuffleQuestions = false,
   excludeSections,
   trailingSlot,
@@ -298,7 +301,9 @@ export const AssignmentSettingsToggleGroup: React.FC<
               checked={options.shuffleQuestions ?? false}
               onChange={(v) => update('shuffleQuestions', v)}
               disabled={!shuffleQuestionsAvailable}
-              hint={shuffleQuestionsAvailable ? undefined : 'Self-paced only.'}
+              hint={
+                shuffleQuestionsAvailable ? undefined : shuffleQuestionsHint
+              }
             />
           )}
           <ToggleRow

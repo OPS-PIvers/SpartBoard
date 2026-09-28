@@ -150,4 +150,23 @@ describe('AssignClassPicker', () => {
     fireEvent.click(screen.getByRole('button', { name: /Clear/ }));
     expect(onChange).toHaveBeenCalledWith({ rosterIds: [] });
   });
+
+  it('collapsible header folds the class list and shows the selected count', () => {
+    render(
+      <AssignClassPicker
+        collapsible
+        rosters={[makeRoster('r1', 'Period 1'), makeRoster('r2', 'Period 2')]}
+        value={{ rosterIds: ['r1'] }}
+        onChange={vi.fn()}
+      />
+    );
+    const header = screen.getByRole('button', { name: /Assign to classes/ });
+    expect(header).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Period 1')).toBeInTheDocument();
+
+    fireEvent.click(header);
+    expect(header).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Period 1')).not.toBeInTheDocument();
+    expect(header).toHaveTextContent('1 selected');
+  });
 });

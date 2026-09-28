@@ -434,8 +434,6 @@ export function usePlcQuizActions(
           },
           {
             ...(canonical.behavior ?? {
-              sessionMode:
-                entry?.sessionMode ?? DEFAULT_QUIZ_BEHAVIOR.sessionMode,
               sessionOptions:
                 entry?.sessionOptions ?? DEFAULT_QUIZ_BEHAVIOR.sessionOptions,
               // null = unlimited (explicit); only an absent value falls back.
@@ -444,6 +442,8 @@ export function usePlcQuizActions(
                   ? entry.attemptLimit
                   : DEFAULT_QUIZ_BEHAVIOR.attemptLimit,
             }),
+            // Assign always runs in Assessment Mode.
+            sessionMode: 'student',
             ...(plcLinkage ? { plc: plcLinkage } : {}),
           },
           {

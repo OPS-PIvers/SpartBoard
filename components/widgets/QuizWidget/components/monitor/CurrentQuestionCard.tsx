@@ -5,6 +5,7 @@ import { resolveStimuli } from '@/utils/quizStimuli';
 import { CollapsibleStimuli } from '@/components/quiz/QuizStimulusView';
 import { formatRevealedAnswer } from '@/utils/quizFibAlternates';
 import { tourAttr } from '@/config/tourAnchors';
+import { QUIZ_STUDENT_MODE_LABEL } from '@/utils/quizBehavior';
 
 interface CurrentQuestionCardProps {
   session: QuizSession;
@@ -131,7 +132,7 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
           className="text-brand-gray-dark"
           style={{ fontSize: 'min(13px, 4.5cqmin)' }}
         >
-          Self-paced · {session.totalQuestions} questions
+          {QUIZ_STUDENT_MODE_LABEL} · {session.totalQuestions} questions
         </p>
         <p
           className="font-sans font-semibold text-brand-blue-dark tabular-nums"

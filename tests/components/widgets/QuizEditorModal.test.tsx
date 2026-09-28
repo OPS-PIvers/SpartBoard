@@ -200,9 +200,9 @@ describe('QuizEditorModal — Questions/Settings tab', () => {
       />
     );
     fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    // QuizBehaviorSettingsPanel renders Teacher-paced / Auto-progress / Self-paced
+    // QuizBehaviorSettingsPanel renders Teacher-paced / Auto-progress / Assessment Mode
     expect(screen.getByText('Teacher-paced')).toBeInTheDocument();
-    expect(screen.getByText('Self-paced')).toBeInTheDocument();
+    expect(screen.getByText('Assessment Mode')).toBeInTheDocument();
   });
 
   it('switching back to Questions hides the behavior panel', () => {
@@ -243,7 +243,7 @@ describe('QuizEditorModal — Questions/Settings tab', () => {
   it('when a behavior prop is provided, it seeds the panel', () => {
     const customBehavior: QuizBehaviorSettings = {
       ...DEFAULT_QUIZ_BEHAVIOR,
-      sessionMode: 'student',
+      sessionMode: 'teacher',
     };
     render(
       <QuizEditorModal
@@ -255,9 +255,10 @@ describe('QuizEditorModal — Questions/Settings tab', () => {
       />
     );
     fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    // The "Self-paced" button should be aria-pressed=true
-    const selfPacedBtn = screen.getByRole('button', { name: /self-paced/i });
-    expect(selfPacedBtn).toHaveAttribute('aria-pressed', 'true');
+    const teacherPacedBtn = screen.getByRole('button', {
+      name: /teacher-paced/i,
+    });
+    expect(teacherPacedBtn).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('editing a behavior control and saving passes updated behavior as 2nd arg', async () => {
@@ -270,15 +271,15 @@ describe('QuizEditorModal — Questions/Settings tab', () => {
         onSave={onSave}
       />
     );
-    // Switch to settings and change mode to 'student'
+    // Switch to settings and change mode to 'teacher'
     fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    fireEvent.click(screen.getByRole('button', { name: /self-paced/i }));
+    fireEvent.click(screen.getByRole('button', { name: /teacher-paced/i }));
 
     // Save
     fireEvent.click(screen.getByRole('button', { name: 'Save Quiz' }));
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
     const [, behavior] = onSave.mock.calls[0];
-    expect(behavior).toMatchObject({ sessionMode: 'student' });
+    expect(behavior).toMatchObject({ sessionMode: 'teacher' });
   });
 
   it('changing behavior marks the editor as dirty', () => {
@@ -294,15 +295,15 @@ describe('QuizEditorModal — Questions/Settings tab', () => {
     expect(workspace).toHaveAttribute('data-is-dirty', 'false');
 
     fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    fireEvent.click(screen.getByRole('button', { name: /self-paced/i }));
+    fireEvent.click(screen.getByRole('button', { name: /teacher-paced/i }));
     expect(workspace).toHaveAttribute('data-is-dirty', 'true');
   });
 
   it('reusing the modal for a different quiz resets originalBehavior — no false dirty', () => {
-    // Quiz A has a custom behavior (self-paced / student mode).
+    // Quiz A has a custom behavior (teacher mode).
     const customBehavior: QuizBehaviorSettings = {
       ...DEFAULT_QUIZ_BEHAVIOR,
-      sessionMode: 'student',
+      sessionMode: 'teacher',
     };
 
     const { rerender } = render(
@@ -330,11 +331,11 @@ describe('QuizEditorModal — Questions/Settings tab', () => {
     const workspace = screen.getByTestId('editor-workspace');
     expect(workspace).toHaveAttribute('data-is-dirty', 'false');
 
-    // The Settings panel should reflect DEFAULT behavior (Teacher-paced / teacher mode).
+    // The Settings panel should reflect DEFAULT behavior (Assessment Mode).
     fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    const teacherPacedBtn = screen.getByRole('button', {
-      name: /teacher-paced/i,
+    const assessmentBtn = screen.getByRole('button', {
+      name: /assessment mode/i,
     });
-    expect(teacherPacedBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(assessmentBtn).toHaveAttribute('aria-pressed', 'true');
   });
 });
