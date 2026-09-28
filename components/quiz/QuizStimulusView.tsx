@@ -12,7 +12,7 @@
  * false) by every other consumer — the full-page `/quiz` student route
  * (`QuizStudentApp.tsx`), the teacher grading UI (`FreeResponseGrader.tsx`),
  * and the Present paced-answering view (`PresentPacedAnswering.tsx`, which
- * mounts into a `window.open()` popup document via `PresentWindow.tsx`) —
+ * mounts into a `window.open()` popup document via `components/common/PresentWindow.tsx`) —
  * none of which sits inside a `container-type: size` ancestor. `cqmin`
  * would compute to zero there, so those three keep the fixed Tailwind sizing.
  */

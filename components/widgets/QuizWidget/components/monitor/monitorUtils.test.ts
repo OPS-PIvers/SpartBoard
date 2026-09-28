@@ -2,13 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { QuizQuestion, QuizResponse } from '@/types';
 import {
   STUCK_THRESHOLD_MS,
-  buildDistribution,
   compareStudents,
   isStuck,
   matchesFilter,
   studentFlags,
   proficiencyBand,
 } from './monitorUtils';
+import { buildDistribution } from '@/utils/answerDistribution';
 
 const NOW = 1_000_000_000;
 

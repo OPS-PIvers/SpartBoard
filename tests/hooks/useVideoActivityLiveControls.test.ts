@@ -45,6 +45,7 @@ describe('useVideoActivityLiveControls', () => {
       'live.questionPhase': 'open',
       'live.resultsShown': false,
       'live.answerRevealed': false,
+      'live.revealedAnswer': null,
       'live.askedQuestionIds': { __arrayUnion: ['q2'] },
       'live.skippedQuestionIds': { __arrayRemove: ['q2'] },
       'live.updatedAt': 1000,
@@ -52,11 +53,12 @@ describe('useVideoActivityLiveControls', () => {
     });
   });
 
-  it('resume closes the question', async () => {
+  it('resume closes the question and clears the revealed key', async () => {
     await controls().resume(50);
     expect(lastPatch()).toEqual({
       'live.currentQuestionId': null,
       'live.questionPhase': 'closed',
+      'live.revealedAnswer': null,
       'live.updatedAt': 1000,
       'live.playheadSeconds': 50,
     });
@@ -68,11 +70,23 @@ describe('useVideoActivityLiveControls', () => {
       'live.resultsShown': true,
       'live.updatedAt': 1000,
     });
-    await controls().revealAnswer(false);
+    await controls().revealAnswer(false, 'A');
     expect(lastPatch()).toEqual({
       'live.answerRevealed': false,
+      'live.revealedAnswer': null,
       'live.updatedAt': 1000,
     });
+  });
+
+  it('reveal writes the key for students', async () => {
+    await controls().revealAnswer(true, 'B|C');
+    expect(lastPatch()).toEqual({
+      'live.answerRevealed': true,
+      'live.revealedAnswer': 'B|C',
+      'live.updatedAt': 1000,
+    });
+    await controls().revealAnswer(true);
+    expect(lastPatch()).toMatchObject({ 'live.revealedAnswer': null });
   });
 
   it('skip unions ids and ignores an empty list', async () => {

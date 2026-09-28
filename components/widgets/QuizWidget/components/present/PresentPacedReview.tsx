@@ -2,7 +2,7 @@ import React from 'react';
 import { Check } from 'lucide-react';
 import { QuizLeaderboardEntry, QuizQuestion, QuizResponse } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
-import { buildDistribution } from '@/components/widgets/QuizWidget/components/monitor/monitorUtils';
+import { buildDistribution } from '@/utils/answerDistribution';
 import { PresentStandings } from './PresentStandings';
 
 interface PresentPacedReviewProps {

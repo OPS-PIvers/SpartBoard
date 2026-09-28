@@ -7,8 +7,8 @@ import React, { useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2,
   Eye,
-  EyeOff,
   BarChart3,
+  MonitorUp,
   Pause,
   Play,
   Square,
@@ -36,6 +36,7 @@ import {
   type SessionTone,
 } from '@/components/common/sessionViews';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { PresentWindow } from '@/components/common/PresentWindow';
 import { studentQuestionsFromSession } from '@/utils/videoActivityPublicQuestions';
 import {
   computeSkippedOnSeek,
@@ -46,16 +47,7 @@ import {
   type LiveQuestionState,
 } from '@/utils/videoActivityLive';
 import { logError } from '@/utils/logError';
-
-/** What PR 6's aggregate view receives for the open question. */
-export interface LiveAggregateContext {
-  question: VideoActivityPublicQuestion;
-  /** Keyed question for marking correct answers; undefined while the key loads. */
-  keyQuestion: VideoActivityQuestion | undefined;
-  /** Every submitted answer to the question, as stored. */
-  answers: string[];
-  answerRevealed: boolean;
-}
+import { VideoActivityLiveAggregate } from './VideoActivityLiveAggregate';
 
 interface VideoActivityLivePlayerProps {
   session: VideoActivitySession;
@@ -63,8 +55,6 @@ interface VideoActivityLivePlayerProps {
   /** Runs the assignment end/finalize path after the live state is closed. */
   onEnd: () => Promise<void>;
   onBack?: () => void;
-  /** Replaces the default per-option counts under Show results. */
-  renderAggregate?: (ctx: LiveAggregateContext) => React.ReactNode;
 }
 
 const SEEK_SETTLE_TICKS = 12;
@@ -101,7 +91,7 @@ const answersFor = (
 
 export const VideoActivityLivePlayer: React.FC<
   VideoActivityLivePlayerProps
-> = ({ session, responses, onEnd, onBack, renderAggregate }) => {
+> = ({ session, responses, onEnd, onBack }) => {
   const { canAccessFeature, orgId } = useAuth();
   const { rosters, addToast } = useDashboard();
   const { showConfirm } = useDialog();
@@ -167,6 +157,9 @@ export const VideoActivityLivePlayer: React.FC<
   const [scrub, setScrub] = useState<number | null>(null);
   const [whoOpen, setWhoOpen] = useState(false);
   const [ending, setEnding] = useState(false);
+  const [presenting, setPresenting] = useState(false);
+  // The popup player mounts only once PresentWindow has moved its root into the popup.
+  const [popupReady, setPopupReady] = useState(false);
 
   const playheadRef = useRef(live.playheadSeconds);
   // Just below the start so a question at 0:00 still counts as crossed.
@@ -287,6 +280,16 @@ export const VideoActivityLivePlayer: React.FC<
     prevRef.current = playheadRef.current;
     setPlaying(true);
     controls.resume(playheadRef.current).catch(report('resume'));
+  };
+
+  // Hands playback to the other player at the same playhead; ticks settle before crossings count.
+  const switchPlayer = (present: boolean) => {
+    const at = playheadRef.current;
+    startSecondsRef.current = at;
+    pendingSeekRef.current = { target: at, ticksLeft: SEEK_SETTLE_TICKS };
+    prevRef.current = at;
+    setSeekRequest(null);
+    setPresenting(present);
   };
 
   const handleStart = () => {
@@ -427,7 +430,6 @@ export const VideoActivityLivePlayer: React.FC<
 
   const openKey = openQuestion ? keyById.get(openQuestion.id) : undefined;
   const revealed = live.answerRevealed;
-  const correct = correctSet(openKey);
   const openAnswers = openQuestion
     ? answersFor(responses, openQuestion.id)
     : [];
@@ -441,6 +443,36 @@ export const VideoActivityLivePlayer: React.FC<
       : 'Paused';
   const sliderValue = scrub ?? clock.current;
   const duration = Math.max(clock.duration, sliderValue);
+
+  const videoPlayer = (
+    <VideoPlayer
+      key={presenting ? 'present' : 'board'}
+      youtubeUrl={session.youtubeUrl}
+      questions={questions}
+      answeredQuestionIds={EMPTY_SET}
+      onQuestionTrigger={NOOP}
+      onVideoEnd={() => setPlaying(false)}
+      questionVisible={openQuestion !== null}
+      allowSkipping
+      autoPlay
+      paused={!playing}
+      teacherMode
+      onTick={handleTick}
+      startSeconds={startSecondsRef.current}
+      seekRequest={seekRequest}
+    />
+  );
+  const questionBody = (large: boolean) =>
+    openQuestion && (
+      <LiveQuestionBody
+        question={openQuestion}
+        keyQuestion={openKey}
+        answers={openAnswers}
+        resultsShown={live.resultsShown}
+        revealed={revealed}
+        large={large}
+      />
+    );
 
   return (
     <div className="flex flex-col h-full font-sans bg-slate-50">
@@ -460,23 +492,28 @@ export const VideoActivityLivePlayer: React.FC<
           style={{ gap: 'min(8px, 1.5cqmin)' }}
         >
           <div className="relative flex-1 min-h-0 rounded-xl overflow-hidden bg-black">
-            <div className="absolute inset-0">
-              <VideoPlayer
-                youtubeUrl={session.youtubeUrl}
-                questions={questions}
-                answeredQuestionIds={EMPTY_SET}
-                onQuestionTrigger={NOOP}
-                onVideoEnd={() => setPlaying(false)}
-                questionVisible={openQuestion !== null}
-                allowSkipping
-                autoPlay
-                paused={!playing}
-                teacherMode
-                onTick={handleTick}
-                startSeconds={startSecondsRef.current}
-                seekRequest={seekRequest}
-              />
-            </div>
+            {presenting ? (
+              <div
+                className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center text-slate-200 font-bold"
+                style={{
+                  gap: 'min(8px, 2cqmin)',
+                  fontSize: 'min(16px, 5cqmin)',
+                }}
+                data-testid="va-live-presenting"
+              >
+                <MonitorUp
+                  aria-hidden="true"
+                  className="text-slate-400"
+                  style={{
+                    width: 'min(40px, 12cqmin)',
+                    height: 'min(40px, 12cqmin)',
+                  }}
+                />
+                Presenting to class
+              </div>
+            ) : (
+              <div className="absolute inset-0">{videoPlayer}</div>
+            )}
             {openQuestion && (
               <div
                 className="absolute inset-0 bg-white/95 overflow-y-auto flex flex-col"
@@ -533,17 +570,18 @@ export const VideoActivityLivePlayer: React.FC<
                         .catch(report('showResults'))
                     }
                   />
-                  <ActionButton
-                    variant="secondary"
-                    label={revealed ? 'Hide answer' : 'Reveal answer'}
-                    icon={revealed ? EyeOff : Eye}
-                    active={revealed}
-                    onClick={() =>
-                      void controls
-                        .revealAnswer(!revealed)
-                        .catch(report('revealAnswer'))
-                    }
-                  />
+                  {!revealed && (
+                    <ActionButton
+                      variant="secondary"
+                      label="Reveal answer"
+                      icon={Eye}
+                      onClick={() =>
+                        void controls
+                          .revealAnswer(true, openKey?.correctAnswer ?? null)
+                          .catch(report('revealAnswer'))
+                      }
+                    />
+                  )}
                   <ActionButton
                     variant="primary"
                     label="Resume"
@@ -551,28 +589,7 @@ export const VideoActivityLivePlayer: React.FC<
                     onClick={handleResume}
                   />
                 </div>
-                <p
-                  className="font-bold text-slate-800 leading-snug"
-                  style={{ fontSize: 'min(28px, 7cqmin)' }}
-                >
-                  {openQuestion.text}
-                </p>
-                {live.resultsShown && renderAggregate ? (
-                  renderAggregate({
-                    question: openQuestion,
-                    keyQuestion: openKey,
-                    answers: openAnswers,
-                    answerRevealed: revealed,
-                  })
-                ) : (
-                  <LiveOptions
-                    question={openQuestion}
-                    keyQuestion={openKey}
-                    correct={correct}
-                    revealed={revealed}
-                    answers={live.resultsShown ? openAnswers : null}
-                  />
-                )}
+                {questionBody(false)}
               </div>
             )}
           </div>
@@ -636,6 +653,30 @@ export const VideoActivityLivePlayer: React.FC<
             >
               {formatClock(sliderValue)} / {formatClock(clock.duration)}
             </span>
+            <button
+              type="button"
+              onClick={() => switchPlayer(!presenting)}
+              aria-pressed={presenting}
+              className={`inline-flex items-center shrink-0 rounded-lg border font-bold transition-colors ${
+                presenting
+                  ? 'bg-brand-blue-primary border-brand-blue-primary text-white hover:bg-brand-blue-dark'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                fontSize: 'min(12px, 3.5cqmin)',
+                padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+              }}
+            >
+              <MonitorUp
+                aria-hidden="true"
+                style={{
+                  width: 'min(14px, 4cqmin)',
+                  height: 'min(14px, 4cqmin)',
+                }}
+              />
+              {presenting ? 'Stop presenting' : 'Present to class'}
+            </button>
           </div>
         </div>
         <aside
@@ -705,6 +746,38 @@ export const VideoActivityLivePlayer: React.FC<
           </ol>
         </aside>
       </div>
+      {presenting && (
+        <PresentWindow
+          title={className}
+          onClose={() => switchPlayer(false)}
+          onBlocked={() => {
+            switchPlayer(false);
+            addToast('Allow pop-ups to present to class.', 'error');
+          }}
+          onWindowReady={(win) => setPopupReady(win !== null)}
+        >
+          <div
+            className="fixed inset-0 bg-black font-sans"
+            style={{ containerType: 'size' }}
+            data-testid="va-present-screen"
+          >
+            <div className="absolute inset-0">{popupReady && videoPlayer}</div>
+            {openQuestion && (
+              <div
+                className="absolute inset-0 bg-white overflow-y-auto flex flex-col"
+                style={{
+                  gap: '3cqmin',
+                  padding: '5cqmin',
+                  paddingBottom: '8cqmin',
+                }}
+                data-testid="va-present-question"
+              >
+                {questionBody(true)}
+              </div>
+            )}
+          </div>
+        </PresentWindow>
+      )}
     </div>
   );
 };
@@ -712,55 +785,71 @@ export const VideoActivityLivePlayer: React.FC<
 const EMPTY_SET = new Set<string>();
 const NOOP = () => undefined;
 
-/** Options on the board, the revealed answer and, when shown, simple per-option counts. */
-const LiveOptions: React.FC<{
+/** The open question on the board or projector: options, or the class results when shown. */
+const LiveQuestionBody: React.FC<{
   question: VideoActivityPublicQuestion;
   keyQuestion: VideoActivityQuestion | undefined;
+  answers: string[];
+  resultsShown: boolean;
+  revealed: boolean;
+  /** Projector sizing, unbounded by the widget's pixel caps. */
+  large: boolean;
+}> = ({ question, keyQuestion, answers, resultsShown, revealed, large }) => {
+  const fibKey =
+    revealed && keyQuestion && question.type === 'FIB' ? (
+      <p
+        className="inline-flex items-center font-bold text-emerald-700"
+        style={{
+          gap: 'min(6px, 1.5cqmin)',
+          fontSize: large ? '5cqmin' : 'min(20px, 6cqmin)',
+        }}
+      >
+        <CheckCircle2
+          aria-hidden="true"
+          style={{ width: '1em', height: '1em' }}
+        />
+        Answer: {keyQuestion.correctAnswer}
+      </p>
+    ) : null;
+  return (
+    <>
+      <p
+        className="font-bold text-slate-800 leading-snug"
+        style={{ fontSize: large ? '6cqmin' : 'min(28px, 7cqmin)' }}
+      >
+        {question.text}
+      </p>
+      {resultsShown ? (
+        <VideoActivityLiveAggregate
+          question={question}
+          keyQuestion={keyQuestion}
+          answers={answers}
+          answerRevealed={revealed}
+          large={large}
+        />
+      ) : (
+        <LiveOptions
+          question={question}
+          correct={correctSet(keyQuestion)}
+          revealed={revealed}
+          large={large}
+        />
+      )}
+      {fibKey}
+    </>
+  );
+};
+
+/** The options on the board, with the key marked once revealed. */
+const LiveOptions: React.FC<{
+  question: VideoActivityPublicQuestion;
   correct: Set<string>;
   revealed: boolean;
-  answers: string[] | null;
-}> = ({ question, keyQuestion, correct, revealed, answers }) => {
-  const counts = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const a of answers ?? []) {
-      const parts = question.type === 'MA' ? a.split('|') : [a];
-      for (const p of parts) {
-        const k = p.trim();
-        if (k) m.set(k, (m.get(k) ?? 0) + 1);
-      }
-    }
-    return m;
-  }, [answers, question.type]);
-
-  if (question.type === 'FIB' || !question.options) {
-    return (
-      <div className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
-        {answers && (
-          <p
-            className="font-bold text-slate-600"
-            style={{ fontSize: 'min(16px, 5cqmin)' }}
-          >
-            {answers.length} {answers.length === 1 ? 'answer' : 'answers'}
-          </p>
-        )}
-        {revealed && keyQuestion && (
-          <p
-            className="inline-flex items-center font-bold text-emerald-700"
-            style={{ gap: 'min(6px, 1.5cqmin)', fontSize: 'min(20px, 6cqmin)' }}
-          >
-            <CheckCircle2
-              aria-hidden="true"
-              style={{
-                width: 'min(20px, 6cqmin)',
-                height: 'min(20px, 6cqmin)',
-              }}
-            />
-            Answer: {keyQuestion.correctAnswer}
-          </p>
-        )}
-      </div>
-    );
-  }
+  large: boolean;
+}> = ({ question, correct, revealed, large }) => {
+  if (question.type === 'FIB' || !question.options) return null;
+  const optionSize = large ? '4.5cqmin' : 'min(20px, 5.5cqmin)';
+  const markSize = large ? '3.5cqmin' : 'min(14px, 4cqmin)';
 
   return (
     <ul className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
@@ -776,46 +865,33 @@ const LiveOptions: React.FC<{
             }`}
             style={{
               gap: 'min(10px, 2.5cqmin)',
-              padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
+              padding: large
+                ? '2cqmin 3cqmin'
+                : 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
             }}
           >
             <span
               className="font-black text-slate-500 shrink-0"
-              style={{ fontSize: 'min(18px, 5cqmin)' }}
+              style={{ fontSize: optionSize }}
             >
               {String.fromCharCode(65 + i)}
             </span>
             <span
               className="flex-1 min-w-0 font-semibold text-slate-800"
-              style={{ fontSize: 'min(20px, 5.5cqmin)' }}
+              style={{ fontSize: optionSize }}
             >
               {opt}
             </span>
             {isCorrect && (
               <span
                 className="inline-flex items-center font-bold text-emerald-700 shrink-0"
-                style={{
-                  gap: 'min(4px, 1cqmin)',
-                  fontSize: 'min(14px, 4cqmin)',
-                }}
+                style={{ gap: 'min(4px, 1cqmin)', fontSize: markSize }}
               >
                 <CheckCircle2
                   aria-hidden="true"
-                  style={{
-                    width: 'min(16px, 4.5cqmin)',
-                    height: 'min(16px, 4.5cqmin)',
-                  }}
+                  style={{ width: '1.1em', height: '1.1em' }}
                 />
                 Correct
-              </span>
-            )}
-            {answers && (
-              <span
-                className="font-black text-slate-700 tabular-nums shrink-0"
-                style={{ fontSize: 'min(20px, 5.5cqmin)' }}
-                data-testid="va-live-option-count"
-              >
-                {counts.get(opt.trim()) ?? 0}
               </span>
             )}
           </li>

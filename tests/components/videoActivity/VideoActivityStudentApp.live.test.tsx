@@ -316,6 +316,74 @@ describe('VideoActivityStudentApp: teacher-paced', () => {
     ).toBeInTheDocument();
   });
 
+  it('marks the revealed key on the board answer, not the check result', async () => {
+    hookState.session = openQ('q1', {
+      answerRevealed: true,
+      revealedAnswer: 'Blue',
+    });
+    hookState.myResponse = buildResponse({
+      answers: [
+        { questionId: 'q1', answer: 'Red', answeredAt: 2, isCorrect: false },
+      ],
+    });
+    render(<VideoActivityStudentApp />);
+    expect(await screen.findByText('Incorrect')).toBeInTheDocument();
+    expect(screen.getByText('Blue').closest('button')).toHaveClass(
+      'bg-emerald-50'
+    );
+    expect(screen.getByText('Red').closest('button')).toHaveClass('bg-red-50');
+  });
+
+  it('shows no key until the teacher reveals it', async () => {
+    hookState.session = openQ('q1', { revealedAnswer: 'Blue' });
+    hookState.myResponse = buildResponse({
+      answers: [
+        { questionId: 'q1', answer: 'Red', answeredAt: 2, isCorrect: false },
+      ],
+    });
+    render(<VideoActivityStudentApp />);
+    expect(
+      await screen.findByText('Submitted, eyes on the board')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Blue').closest('button')).not.toHaveClass(
+      'bg-emerald-50'
+    );
+  });
+
+  it('shows the revealed key to a student who missed a choose-all question', async () => {
+    hookState.session = buildSession({
+      live: live({
+        currentQuestionId: 'q3',
+        askedQuestionIds: ['q3'],
+        answerRevealed: true,
+        revealedAnswer: 'X|Z',
+      }),
+    });
+    render(<VideoActivityStudentApp />);
+    expect(
+      await screen.findByText("You didn't answer this one")
+    ).toBeInTheDocument();
+    expect(screen.getByText('X').closest('button')).toHaveClass(
+      'bg-emerald-50/60'
+    );
+    expect(screen.getByText('Y').closest('button')).not.toHaveClass(
+      'bg-emerald-50/60'
+    );
+  });
+
+  it('shows the revealed fill-in answer to a student who missed it', async () => {
+    hookState.session = buildSession({
+      live: live({
+        currentQuestionId: 'q2',
+        askedQuestionIds: ['q2'],
+        answerRevealed: true,
+        revealedAnswer: 'Mitosis',
+      }),
+    });
+    render(<VideoActivityStudentApp />);
+    expect(await screen.findByText('Mitosis')).toBeInTheDocument();
+  });
+
   it('completes once on end and scores over asked questions only', async () => {
     hookState.session = buildSession({
       status: 'ended',

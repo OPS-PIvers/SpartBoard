@@ -6458,6 +6458,8 @@ export interface VideoActivityLiveState {
   questionPhase: 'open' | 'closed';
   resultsShown: boolean;
   answerRevealed: boolean;
+  /** The open question's key while revealed; live students never get it from the server. */
+  revealedAnswer?: string | null;
   /** Questions the class was asked; the score denominator. */
   askedQuestionIds: string[];
   /** Questions the teacher scrubbed past; not asked, not scored. */
