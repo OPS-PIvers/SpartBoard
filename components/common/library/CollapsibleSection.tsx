@@ -1,8 +1,9 @@
 import React, { useId, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, type LucideIcon } from 'lucide-react';
 
 interface CollapsibleSectionProps {
   label: string;
+  icon?: LucideIcon;
   defaultOpen?: boolean;
   /** Optional inline text shown next to the label in BOTH states (e.g. a collapsed-state summary). */
   summary?: React.ReactNode;
@@ -24,6 +25,7 @@ interface CollapsibleSectionProps {
  */
 export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   label,
+  icon: Icon,
   defaultOpen = false,
   summary,
   children,
@@ -40,7 +42,13 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
         className="group flex w-full items-center justify-between gap-2 rounded-md py-1 transition-colors"
       >
         <span className="flex items-baseline gap-2 min-w-0">
-          <span className="text-sm font-bold text-brand-blue-dark shrink-0">
+          <span className="flex items-center gap-2 self-center text-sm font-bold text-brand-blue-dark shrink-0">
+            {Icon && (
+              <Icon
+                aria-hidden="true"
+                className="w-4 h-4 text-brand-blue-primary"
+              />
+            )}
             {label}
           </span>
           {summary && (

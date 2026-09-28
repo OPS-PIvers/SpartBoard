@@ -50,7 +50,12 @@
 import React, { useId, useMemo, useState } from 'react';
 import type { AssignTranslationContext } from './AssignStudentPicker';
 import { useTranslation } from 'react-i18next';
-import { SlidersHorizontal, Users } from 'lucide-react';
+import {
+  CalendarClock,
+  ChevronRight,
+  SlidersHorizontal,
+  Users,
+} from 'lucide-react';
 import { CollapsibleSection } from './CollapsibleSection';
 import { WindowField } from './AssignWindowField';
 import { scaledFont } from './assignWindowUtils';
@@ -138,6 +143,10 @@ export interface AssignTargetingSectionProps {
   cqScaled?: boolean;
   /** Per-period start and windows; the section shows once two or more classes are checked. */
   periodAccess?: AssignPeriodAccessContext;
+  /** Host field rendered inside Schedule (Quiz's due date). */
+  scheduleExtra?: React.ReactNode;
+  /** Collapsed-state summary for `scheduleExtra`. */
+  scheduleExtraSummary?: string | null;
 }
 
 /** `min(Xpx, Ycqmin)` square icon size, only when `cqScaled`. */
@@ -301,6 +310,8 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   useRosterDefaults = true,
   cqScaled = false,
   periodAccess,
+  scheduleExtra,
+  scheduleExtraSummary,
 }) => {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -491,7 +502,12 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
       periodPlan: value.periodPlan,
     });
 
-  const scheduleSummary = formatScheduleSummary(value, t);
+  const scheduleSummary = [
+    formatScheduleSummary(value, t),
+    scheduleExtraSummary,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   // Schedule — always rendered regardless of targetMode (spec Decision 5:
   // windows apply to class-wide assignments too). A single `CollapsibleSection`
@@ -499,7 +515,8 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   const scheduleSection = (
     <CollapsibleSection
       label={t('assignTargeting.scheduleLabel', 'Schedule')}
-      summary={scheduleSummary ?? undefined}
+      icon={CalendarClock}
+      summary={scheduleSummary || undefined}
     >
       <div className="grid grid-cols-2 gap-2">
         <WindowField
@@ -527,6 +544,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
           />
         )}
       </div>
+      {scheduleExtra}
     </CollapsibleSection>
   );
 
@@ -570,10 +588,11 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
       <button
         type="button"
         onClick={openModifications}
+        aria-expanded={false}
         className={
           cqScaled
-            ? 'flex items-center gap-1.5 font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors'
-            : 'flex items-center gap-1.5 text-sm font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors'
+            ? 'group flex w-full items-center gap-1.5 py-1 font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors'
+            : 'group flex w-full items-center gap-1.5 py-1 text-sm font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors'
         }
         style={scaledFont(cqScaled, 14, 5.5)}
       >
@@ -588,6 +607,15 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
             {`— ${modificationsSummary}`}
           </span>
         )}
+        <ChevronRight
+          aria-hidden="true"
+          className={
+            cqScaled
+              ? 'ml-auto text-slate-400'
+              : 'ml-auto w-4 h-4 text-slate-400'
+          }
+          style={scaledIcon(cqScaled, 16, 4.5)}
+        />
       </button>
     </div>
   ) : (

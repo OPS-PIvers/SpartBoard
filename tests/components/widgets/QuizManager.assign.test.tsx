@@ -4,7 +4,7 @@
  * The standalone Quiz AssignModal shows:
  *   - The class/period picker (AssignClassPicker) + individual targeting
  *   - A due-date date input
- *   - A collapsed "Session Settings" section, pre-filled from
+ *   - A collapsed "Assessment Settings" section, pre-filled from
  *     getQuizBehavior(meta), expandable to a fully editable
  *     QuizBehaviorSettingsPanel (per-assignment overrides — never written
  *     back to the quiz doc)
@@ -240,7 +240,7 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
     ).toBeInTheDocument();
   });
 
-  it('Session Settings starts collapsed — no mode picker or toggles until expanded', async () => {
+  it('Assessment Settings starts collapsed — no mode picker or toggles until expanded', async () => {
     renderManager(makeQuizMeta());
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
@@ -249,7 +249,7 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
     );
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
     // Collapsed: header + summary only, no editable controls yet.
-    expect(screen.getByText('Session Settings')).toBeInTheDocument();
+    expect(screen.getByText('Assessment Settings')).toBeInTheDocument();
     expect(screen.queryByText('Session Mode')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /^teacher-paced/i })
@@ -257,7 +257,7 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
     expect(screen.queryByText('Speed Bonus Points')).not.toBeInTheDocument();
   });
 
-  it('expanding Session Settings reveals the editable behavior panel', async () => {
+  it('expanding Assessment Settings reveals the editable behavior panel', async () => {
     renderManager(makeQuizMeta());
     fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
     fireEvent.click(
@@ -267,7 +267,7 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
       name: /chapter 5 review/i,
     });
     fireEvent.click(
-      within(dialog).getByRole('button', { name: /session settings/i })
+      within(dialog).getByRole('button', { name: /assessment settings/i })
     );
     expect(within(dialog).getByText('Session Mode')).toBeInTheDocument();
     expect(
@@ -304,7 +304,7 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
       name: /chapter 5 review/i,
     });
     fireEvent.click(
-      within(dialog).getByRole('button', { name: /session settings/i })
+      within(dialog).getByRole('button', { name: /assessment settings/i })
     );
     fireEvent.click(
       within(dialog).getByRole('button', { name: /^teacher-paced/i })
@@ -330,7 +330,8 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
     );
     // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
-    // Due-date should be a date input or labeled element
+    // The due date lives inside the Schedule section.
+    fireEvent.click(screen.getByRole('button', { name: /^schedule/i }));
     expect(screen.getByTestId('assign-due-date')).toBeInTheDocument();
   });
 
@@ -390,7 +391,7 @@ describe('QuizManager assign modal — recorded-answer advisory', () => {
       name: /chapter 5 review/i,
     });
     fireEvent.click(
-      within(dialog).getByRole('button', { name: /session settings/i })
+      within(dialog).getByRole('button', { name: /assessment settings/i })
     );
     fireEvent.click(
       within(dialog).getByRole('button', { name: /^teacher-paced/i })
@@ -412,7 +413,7 @@ describe('QuizManager assign modal — recorded-answer advisory', () => {
       name: /chapter 5 review/i,
     });
     fireEvent.click(
-      within(dialog).getByRole('button', { name: /session settings/i })
+      within(dialog).getByRole('button', { name: /assessment settings/i })
     );
     fireEvent.click(
       within(dialog).getByRole('button', { name: /^teacher-paced/i })
@@ -450,7 +451,7 @@ describe('QuizManager assign modal — recorded-answer advisory', () => {
       name: /chapter 5 review/i,
     });
     fireEvent.click(
-      within(dialog).getByRole('button', { name: /session settings/i })
+      within(dialog).getByRole('button', { name: /assessment settings/i })
     );
     // Give the background load a tick to resolve before asserting absence.
     await within(dialog).findByRole('button', { name: /^teacher-paced/i });
@@ -551,7 +552,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
 
     checkAccommodatedClass(dialog);
     fireEvent.click(
-      within(dialog).getByRole('button', { name: /session settings/i })
+      within(dialog).getByRole('button', { name: /assessment settings/i })
     );
     fireEvent.click(
       within(dialog).getByRole('button', { name: /^teacher-paced/i })
@@ -589,7 +590,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
 
     checkAccommodatedClass(dialog);
     fireEvent.click(
-      within(dialog).getByRole('button', { name: /session settings/i })
+      within(dialog).getByRole('button', { name: /assessment settings/i })
     );
     fireEvent.click(
       within(dialog).getByRole('button', { name: /^teacher-paced/i })
@@ -652,7 +653,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
 
     checkAccommodatedClass(dialog);
     fireEvent.click(
-      within(dialog).getByRole('button', { name: /session settings/i })
+      within(dialog).getByRole('button', { name: /assessment settings/i })
     );
     fireEvent.click(
       within(dialog).getByRole('button', { name: /^teacher-paced/i })
@@ -696,6 +697,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
 
     // Set a due date
+    fireEvent.click(screen.getByRole('button', { name: /^schedule/i }));
     const dueDateInput = screen.getByTestId('assign-due-date');
     fireEvent.change(dueDateInput, { target: { value: '2026-06-01' } });
 

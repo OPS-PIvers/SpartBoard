@@ -3084,7 +3084,7 @@
     "clearModifications": "Clear all modifications",
     "noLinkedClass": "This assignment is not linked to a class you can modify here.",
     "timingNotAppliedConfirm": "Extended time for {{names}} won't apply in teacher-paced mode. Click Assign again to continue.",
-    "pacingBlocked": "Individual student modifications require Assessment Mode. Switch Session Settings below to Assessment Mode, or use 'Clear all modifications' under Edit or add modifications.",
+    "pacingBlocked": "Individual student modifications require Assessment Mode. Switch Assessment Settings above to Assessment Mode, or use 'Clear all modifications' under Edit or add modifications.",
     "periodsLabel": "Class periods",
     "periodModeLabel": "How periods open",
     "periodModeAssessment": "In-class assessment",
