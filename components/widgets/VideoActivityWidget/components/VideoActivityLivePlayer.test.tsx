@@ -332,6 +332,7 @@ describe('VideoActivityLivePlayer open question', () => {
     );
     expect(screen.getByText('Correct')).toBeInTheDocument();
     expect(screen.getByLabelText('Correct answer')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /answer$/ })).toBeNull();
   });
 
   it('reveals with the key so students can see it', () => {

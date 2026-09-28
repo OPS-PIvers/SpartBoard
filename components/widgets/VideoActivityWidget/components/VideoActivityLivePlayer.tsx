@@ -7,7 +7,6 @@ import React, { useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2,
   Eye,
-  EyeOff,
   BarChart3,
   MonitorUp,
   Pause,
@@ -569,17 +568,18 @@ export const VideoActivityLivePlayer: React.FC<
                         .catch(report('showResults'))
                     }
                   />
-                  <ActionButton
-                    variant="secondary"
-                    label={revealed ? 'Hide answer' : 'Reveal answer'}
-                    icon={revealed ? EyeOff : Eye}
-                    active={revealed}
-                    onClick={() =>
-                      void controls
-                        .revealAnswer(!revealed, openKey?.correctAnswer ?? null)
-                        .catch(report('revealAnswer'))
-                    }
-                  />
+                  {!revealed && (
+                    <ActionButton
+                      variant="secondary"
+                      label="Reveal answer"
+                      icon={Eye}
+                      onClick={() =>
+                        void controls
+                          .revealAnswer(true, openKey?.correctAnswer ?? null)
+                          .catch(report('revealAnswer'))
+                      }
+                    />
+                  )}
                   <ActionButton
                     variant="primary"
                     label="Resume"
