@@ -11,7 +11,6 @@
 import type {
   VideoActivityBehaviorSettings,
   VideoActivityMetadata,
-  QuizSessionMode,
 } from '@/types';
 
 /** Recursively freeze so the shared default can't be mutated in place. */
@@ -47,24 +46,17 @@ export function getVideoActivityBehavior(
   return meta.behavior ?? DEFAULT_VA_BEHAVIOR;
 }
 
-/** Human-readable label for a VA session mode (matches quiz formatter). */
-export function formatVASessionMode(mode: QuizSessionMode): string {
-  if (mode === 'teacher') return 'Teacher-paced';
-  if (mode === 'auto') return 'Auto-progress';
-  return 'Self-paced';
-}
-
 /**
  * Build a compact read-only behavior summary string from a VA's behavior
  * settings. Mirrors `formatBehaviorSummary` in `utils/quizBehavior.ts` but
  * covers VA-specific knobs: rewind, penalty, and score visibility.
  *
- * Example: "Teacher-paced · 1 attempt · rewind 15s · score only"
+ * Example: "1 attempt · rewind 15s · score only". No session mode: live is chosen at assign time.
  */
 export function formatVideoActivityBehaviorSummary(
   behavior: VideoActivityBehaviorSettings
 ): string {
-  const parts: string[] = [formatVASessionMode(behavior.sessionMode)];
+  const parts: string[] = [];
 
   if (behavior.attemptLimit === null) {
     parts.push('unlimited attempts');

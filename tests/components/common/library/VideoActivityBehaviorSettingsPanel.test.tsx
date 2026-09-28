@@ -12,16 +12,28 @@ const defaultValue: VideoActivityBehaviorSettings = {
 };
 
 describe('VideoActivityBehaviorSettingsPanel', () => {
-  it('renders all three mode option cards', () => {
+  it('does not render a session mode picker', () => {
     render(
       <VideoActivityBehaviorSettingsPanel
         value={defaultValue}
         onChange={vi.fn()}
       />
     );
-    expect(screen.getByText('Teacher-paced')).toBeInTheDocument();
-    expect(screen.getByText('Auto-progress')).toBeInTheDocument();
-    expect(screen.getByText('Self-paced')).toBeInTheDocument();
+    expect(screen.queryByText('Session Mode')).not.toBeInTheDocument();
+    expect(screen.queryByText('Teacher-paced')).not.toBeInTheDocument();
+    expect(screen.queryByText('Auto-progress')).not.toBeInTheDocument();
+  });
+
+  it('hides Shuffle Questions', () => {
+    render(
+      <VideoActivityBehaviorSettingsPanel
+        value={defaultValue}
+        onChange={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByText('Question Randomization'));
+    expect(screen.queryByText('Shuffle Questions')).not.toBeInTheDocument();
+    expect(screen.getByText('Shuffle Answer Options')).toBeInTheDocument();
   });
 
   it('renders the toggle group (Focus mode is visible)', () => {
@@ -52,19 +64,6 @@ describe('VideoActivityBehaviorSettingsPanel', () => {
       />
     );
     expect(screen.getByText('Scoring')).toBeInTheDocument();
-  });
-
-  it('clicking "Self-paced" calls onChange with sessionMode: student', () => {
-    const onChange = vi.fn();
-    render(
-      <VideoActivityBehaviorSettingsPanel
-        value={defaultValue}
-        onChange={onChange}
-      />
-    );
-    fireEvent.click(screen.getByRole('button', { name: /self-paced/i }));
-    expect(onChange).toHaveBeenCalledOnce();
-    expect(onChange.mock.calls[0][0]).toMatchObject({ sessionMode: 'student' });
   });
 
   it('toggling a sessionOption calls onChange with the updated sessionOptions', () => {
@@ -99,21 +98,5 @@ describe('VideoActivityBehaviorSettingsPanel', () => {
     expect(onChange.mock.calls[0][0]).toMatchObject({
       sessionOptions: expect.objectContaining({ tabWarningsEnabled: false }),
     });
-  });
-
-  it('when modeLocked, all mode buttons are disabled', () => {
-    render(
-      <VideoActivityBehaviorSettingsPanel
-        value={defaultValue}
-        onChange={vi.fn()}
-        modeLocked
-      />
-    );
-    const teacherBtn = screen.getByRole('button', { name: /teacher-paced/i });
-    const autoBtn = screen.getByRole('button', { name: /auto-progress/i });
-    const selfBtn = screen.getByRole('button', { name: /self-paced/i });
-    expect(teacherBtn).toBeDisabled();
-    expect(autoBtn).toBeDisabled();
-    expect(selfBtn).toBeDisabled();
   });
 });
