@@ -1,8 +1,7 @@
 // Pure helpers for the quiz live monitor. Kept free of React/Firestore so the
 // stuck heuristic, sort/filter, and banding logic are unit-testable.
 
-import { QuizResponse, QuizQuestion } from '@/types';
-import { groupAnswersByOption } from '@/utils/quizQuestionDrilldown';
+import { QuizResponse } from '@/types';
 
 /** In-progress students with no answer write for this long count as stuck. */
 export const STUCK_THRESHOLD_MS = 120_000;
@@ -104,30 +103,4 @@ export function matchesFilter(
     default:
       return true;
   }
-}
-
-export interface AnswerDistribution {
-  totalAnswered: number;
-  /** Ordered rows: MC/MA use the option list, others group normalized answers. */
-  rows: { label: string; count: number; isCorrect: boolean }[];
-}
-
-export function buildDistribution(
-  question: QuizQuestion,
-  responses: QuizResponse[],
-  gradeAnswer: (q: QuizQuestion, answer: string) => { isCorrect: boolean }
-): AnswerDistribution {
-  const entries: { answer: string; item: null }[] = [];
-  for (const r of responses) {
-    const ans = r.answers.find((a) => a.questionId === question.id);
-    if (ans) entries.push({ answer: ans.answer, item: null });
-  }
-  return {
-    totalAnswered: entries.length,
-    rows: groupAnswersByOption(question, entries).map((g) => ({
-      label: g.label,
-      count: g.items.length,
-      isCorrect: g.isKey ?? gradeAnswer(question, g.label).isCorrect,
-    })),
-  };
 }

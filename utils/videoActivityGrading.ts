@@ -31,11 +31,13 @@ import { normalizeAnswer as quizNormalizeAnswer } from '@/hooks/useQuizSession';
  * VA-only forgiveness — Quiz's own grading stays strict to keep Matching
  * pair-equality behavior unchanged.
  */
-function normalizeAnswer(s: string): string {
+export function normalizeVideoActivityAnswer(s: string): string {
   return quizNormalizeAnswer(s)
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
 }
+
+const normalizeAnswer = normalizeVideoActivityAnswer;
 
 /**
  * Grade a single Video Activity answer.

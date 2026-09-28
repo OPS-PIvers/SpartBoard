@@ -43,7 +43,10 @@ import type {
   VideoActivitySessionSettings,
 } from '@/types';
 import { DEFAULT_VA_BEHAVIOR } from '@/utils/videoActivityBehavior';
-import type { AssignTargetingValue } from '@/utils/studentTargetRef';
+import {
+  EMPTY_ASSIGN_TARGETING_VALUE,
+  type AssignTargetingValue,
+} from '@/utils/studentTargetRef';
 
 // ---------------------------------------------------------------------------
 // Heavy hook stubs
@@ -75,12 +78,14 @@ vi.mock('@/hooks/useClaudeReview', () => ({
     whenReviewed: (_item: unknown, go: () => void) => go(),
   }),
 }));
+const liveFlag = { enabled: false };
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1', displayName: 'Test Teacher' },
     canSeeShareTracking: vi.fn(() => false),
     canAccessQuizMediaResponse: vi.fn(() => false),
-    canAccessFeature: vi.fn(() => true),
+    canAccessFeature: (id: string) =>
+      id === 'video-activity-live' ? liveFlag.enabled : true,
   }),
 }));
 
@@ -173,7 +178,8 @@ function renderManager(
     activity: VideoActivityMetadata,
     rosterIds: string[],
     dueAt: number | null,
-    targeting: AssignTargetingValue
+    targeting: AssignTargetingValue,
+    sessionMode: 'student' | 'teacher'
   ) => Promise<string>;
   render(
     <VideoActivityManager
@@ -425,7 +431,7 @@ describe('VideoActivityManager onAssign — behavior sourced from activity, dueA
     expect(rosterIds).toContain('r1');
   });
 
-  it('onAssign is called with exactly 4 args (meta, rosterIds, dueAt, targeting) — no behavior args', async () => {
+  it('onAssign is called with exactly 5 args (meta, rosterIds, dueAt, targeting, sessionMode) — no behavior args', async () => {
     const onAssign = vi.fn().mockResolvedValue('session-1');
     const customBehavior: VideoActivityBehaviorSettings = {
       ...DEFAULT_VA_BEHAVIOR,
@@ -446,8 +452,9 @@ describe('VideoActivityManager onAssign — behavior sourced from activity, dueA
     fireEvent.click(confirmBtn);
 
     await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
-    // 4 args: meta, rosterIds, dueAt, targeting — NO mode/sessionOptions/attemptLimit
-    expect(onAssign.mock.calls[0]).toHaveLength(4);
+    // 5 args: meta, rosterIds, dueAt, targeting, pacing — NO sessionOptions/attemptLimit
+    expect(onAssign.mock.calls[0]).toHaveLength(5);
+    expect(onAssign.mock.calls[0][4]).toBe('student');
     // The meta carries the behavior so the Widget handler can call
     // getVideoActivityBehavior(calledMeta) to source the behavior.
     const calledMeta = onAssign.mock.calls[0][0] as VideoActivityMetadata;
@@ -571,5 +578,69 @@ describe('VideoActivityManager — targetSkippedCount row marker (M17 E2 F3)', (
 
     await screen.findByText('Cell Division');
     expect(screen.queryByText(/skipped/i)).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests — teacher-paced (live) pacing choice (VA_TEACHER_PACED §5.1)
+// ---------------------------------------------------------------------------
+
+describe('VideoActivityManager assign modal — live pacing', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    liveFlag.enabled = false;
+  });
+
+  async function openModal(onAssign = vi.fn().mockResolvedValue('s-1')) {
+    renderManager(makeVaMeta(), onAssign);
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    const dialog = await screen.findByRole('dialog', {
+      name: /cell division/i,
+    });
+    return { dialog, onAssign };
+  }
+
+  it('hides the pacing choice without the flag', async () => {
+    const { dialog } = await openModal();
+    expect(
+      within(dialog).queryByRole('radio', { name: /teacher-paced/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('defaults to self-paced with the flag', async () => {
+    liveFlag.enabled = true;
+    const { dialog } = await openModal();
+    expect(
+      within(dialog).getByRole('radio', { name: /self-paced/i })
+    ).toHaveAttribute('aria-checked', 'true');
+    expect(
+      within(dialog).queryByTestId('va-assign-live-note')
+    ).not.toBeInTheDocument();
+  });
+
+  it('live assigns one class, no due date, and passes teacher pacing', async () => {
+    liveFlag.enabled = true;
+    const { dialog, onAssign } = await openModal();
+    fireEvent.click(within(dialog).getByTestId('roster-r1'));
+    fireEvent.change(within(dialog).getByTestId('va-assign-due-date'), {
+      target: { value: '2026-10-01' },
+    });
+    fireEvent.click(
+      within(dialog).getByRole('radio', { name: /teacher-paced/i })
+    );
+    expect(
+      within(dialog).getByTestId('va-assign-live-note')
+    ).toBeInTheDocument();
+    expect(within(dialog).getByTestId('va-assign-due-date')).toBeDisabled();
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /start live/i })
+    );
+
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    const [, rosterIds, dueAt, targeting, mode] = onAssign.mock.calls[0];
+    expect(rosterIds).toEqual(['r1']);
+    expect(dueAt).toBeNull();
+    expect(targeting).toEqual(EMPTY_ASSIGN_TARGETING_VALUE);
+    expect(mode).toBe('teacher');
   });
 });

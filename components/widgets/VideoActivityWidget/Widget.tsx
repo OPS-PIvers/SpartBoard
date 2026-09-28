@@ -27,6 +27,7 @@ import {
   VideoActivitySessionSettings,
   VideoActivitySessionOptions,
   VideoActivitySession,
+  VideoActivitySessionMode,
 } from '@/types';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
@@ -67,6 +68,7 @@ import { VideoActivityManager } from './components/VideoActivityManager';
 import { Creator } from './components/Creator';
 import { Results } from './components/Results';
 import { VideoActivityLiveMonitor } from './components/VideoActivityLiveMonitor';
+import { VideoActivityLivePlayer } from './components/VideoActivityLivePlayer';
 import { VideoActivityEditorModal } from './components/VideoActivityEditorModal';
 import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
 import { getPlcMemberEmail } from '@/utils/plc';
@@ -465,6 +467,31 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
       liveSession && liveSession.id === selectedSession.id
         ? liveSession
         : selectedSession;
+    const exitToManager = () => {
+      unsubscribeFromSession();
+      setSelectedSession(null);
+      updateWidget(widget.id, {
+        config: {
+          ...config,
+          view: 'manager',
+          resultsSessionId: null,
+        } as VideoActivityConfig,
+      });
+    };
+    if (sessionForMonitor.sessionMode === 'teacher') {
+      return (
+        <VideoActivityLivePlayer
+          session={sessionForMonitor}
+          responses={responses}
+          onEnd={async () => {
+            await deactivateAssignment(selectedSession.id);
+            addToast('Session ended.', 'success');
+            exitToManager();
+          }}
+          onBack={exitToManager}
+        />
+      );
+    }
     return (
       <VideoActivityLiveMonitor
         session={sessionForMonitor}
@@ -565,8 +592,10 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           meta,
           rosterIds,
           dueAt,
-          targeting: AssignTargetingValue = EMPTY_ASSIGN_TARGETING_VALUE
+          targeting: AssignTargetingValue = EMPTY_ASSIGN_TARGETING_VALUE,
+          sessionMode: VideoActivitySessionMode = 'student'
         ) => {
+          const isLive = sessionMode === 'teacher';
           // Use loadActivityData directly to avoid setting loadingActivity
           // which would cause the Manager component to unmount and destroy the modal
           const data = await loadActivityData(meta.driveFileId);
@@ -636,7 +665,8 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             vaAssignmentMode,
             derived.classPeriodByClassId,
             sessionOptions,
-            periodGate
+            periodGate,
+            sessionMode
           );
 
           // M17 §5 B3 — write the new window fields onto the session doc
@@ -788,15 +818,29 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             delete nextMap[meta.id];
           }
 
+          let openLive = false;
+          if (isLive) {
+            // A live session opens straight into the board player.
+            const snap = await getDoc(
+              doc(db, 'video_activity_sessions', sessionId)
+            );
+            if (snap.exists()) {
+              setSelectedSession(snap.data() as VideoActivitySession);
+              subscribeToSession(sessionId);
+              openLive = true;
+            }
+          }
           updateWidget(widget.id, {
             config: {
               ...config,
+              ...(openLive ? { view: 'monitor' } : {}),
               selectedActivityId: meta.id,
               selectedActivityTitle: meta.title,
               resultsSessionId: sessionId,
               lastRosterIdsByActivityId: nextMap,
             } as VideoActivityConfig,
           });
+          if (isLive) return sessionId;
 
           const url = `${window.location.origin}/activity/${encodeURIComponent(sessionId)}`;
           const isViewOnly = vaAssignmentMode === 'view-only';

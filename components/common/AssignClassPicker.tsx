@@ -25,6 +25,8 @@ export interface AssignClassPickerProps {
   disabled?: boolean;
   /** Header folds the list away behind a chevron (starts open). */
   collapsible?: boolean;
+  /** One class at most: picking a class replaces the selection. */
+  singleSelect?: boolean;
 }
 
 export const AssignClassPicker: React.FC<AssignClassPickerProps> = ({
@@ -33,13 +35,16 @@ export const AssignClassPicker: React.FC<AssignClassPickerProps> = ({
   onChange,
   disabled = false,
   collapsible = false,
+  singleSelect = false,
 }) => {
   const [open, setOpen] = useState(true);
   const regionId = useId();
   const toggleRosterId = (id: string): void => {
     const next = value.rosterIds.includes(id)
       ? value.rosterIds.filter((x) => x !== id)
-      : [...value.rosterIds, id];
+      : singleSelect
+        ? [id]
+        : [...value.rosterIds, id];
     onChange({ rosterIds: next });
   };
 
@@ -87,7 +92,7 @@ export const AssignClassPicker: React.FC<AssignClassPickerProps> = ({
             className="w-4 h-4 text-brand-blue-primary"
           />
           <span className="text-sm font-bold text-brand-blue-dark">
-            Assign to classes{' '}
+            {singleSelect ? 'Assign to a class' : 'Assign to classes'}{' '}
             <span className="text-slate-400 font-normal">(optional)</span>
           </span>
           {!open && hasSelection && (
@@ -108,7 +113,7 @@ export const AssignClassPicker: React.FC<AssignClassPickerProps> = ({
             className="w-4 h-4 text-brand-blue-primary"
           />
           <p className="text-sm font-bold text-brand-blue-dark">
-            Assign to classes{' '}
+            {singleSelect ? 'Assign to a class' : 'Assign to classes'}{' '}
             <span className="text-slate-400 font-normal">(optional)</span>
           </p>
         </div>
@@ -141,7 +146,7 @@ export const AssignClassPicker: React.FC<AssignClassPickerProps> = ({
                     : `${selectedCount} of ${selectableCount} selected.`}
               </span>
               <div className="flex items-center gap-2">
-                {selectedCount < selectableCount && (
+                {!singleSelect && selectedCount < selectableCount && (
                   <button
                     type="button"
                     onClick={selectAll}
