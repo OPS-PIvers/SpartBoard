@@ -41,11 +41,19 @@ import { logError } from '@/utils/logError';
 import { tabAwaySessionFields } from '@/utils/tabAwayLimit';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
+  ANONYMOUS_JOIN_BLOCKED_MESSAGE,
+  isAnonymousJoinBlocked,
+} from '@/utils/anonymousJoin';
+import {
   computeResponseKey,
   encodeResponseKeySegment,
   AttemptLimitReachedError,
 } from '@/hooks/useQuizSession';
 import { normalizeVideoActivitySession } from '@/utils/videoActivityNormalize';
+import {
+  initialVideoActivityLiveState,
+  isLiveVideoActivitySession,
+} from '@/utils/videoActivityLive';
 import {
   QUIZ_CONTENT_COLLECTION,
   QUIZ_CONTENT_DOC,
@@ -76,6 +84,7 @@ import {
   VideoActivityAnswer,
   VideoActivitySessionSettings,
   VideoActivitySessionOptions,
+  VideoActivitySessionMode,
   VideoActivityCheckResult,
   TabExit,
 } from '@/types';
@@ -144,7 +153,9 @@ export interface UseVideoActivitySessionTeacherResult {
      *  scoring). Optional — when omitted the session doc carries player-
      *  behavior settings only and grading falls back to legacy semantics. */
     sessionOptions?: VideoActivitySessionOptions,
-    periodGate?: Pick<VideoActivitySession, 'accessMode' | 'periodAccess'>
+    periodGate?: Pick<VideoActivitySession, 'accessMode' | 'periodAccess'>,
+    /** 'teacher' opens a live session in the lobby; self-paced-only behaviors are forced off. */
+    sessionMode?: VideoActivitySessionMode
   ) => Promise<string>;
   /** Sessions created by the current teacher for the selected activity. */
   sessions: VideoActivitySession[];
@@ -211,8 +222,12 @@ export const useVideoActivitySessionTeacher =
     const sessionDocUnsubRef = useRef<Unsubscribe | null>(null);
     const sessionsUnsubRef = useRef<Unsubscribe | null>(null);
     // Read via context so a provider-less caller denies instead of throwing.
+    const authContext = useContext(AuthContext);
     const tabAwayTimerOn =
-      useContext(AuthContext)?.canAccessFeature?.('tab-away-timer') === true;
+      authContext?.canAccessFeature?.('tab-away-timer') === true;
+    // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
+    const allowAnonymousJoin =
+      authContext?.canAccessFeature?.('anonymous-join') !== false;
 
     const createSession = useCallback(
       async (
@@ -227,15 +242,32 @@ export const useVideoActivitySessionTeacher =
         mode: AssignmentMode = 'submissions',
         classPeriodByClassId?: Record<string, string>,
         sessionOptions?: VideoActivitySessionOptions,
-        periodGate?: Pick<VideoActivitySession, 'accessMode' | 'periodAccess'>
+        periodGate?: Pick<VideoActivitySession, 'accessMode' | 'periodAccess'>,
+        sessionMode: VideoActivitySessionMode = 'student'
       ): Promise<string> => {
         const sessionId = crypto.randomUUID();
         const trimmedAssignmentName = assignmentName?.trim();
-        const sessionSettings: VideoActivitySessionSettings = {
-          autoPlay: settings?.autoPlay ?? false,
-          requireCorrectAnswer: settings?.requireCorrectAnswer ?? true,
-          allowSkipping: settings?.allowSkipping ?? false,
-        };
+        const isLive = sessionMode === 'teacher';
+        // Live mode: one answer per question, no require-correct (D10).
+        const sessionSettings: VideoActivitySessionSettings = isLive
+          ? {
+              autoPlay: false,
+              requireCorrectAnswer: false,
+              allowSkipping: true,
+            }
+          : {
+              autoPlay: settings?.autoPlay ?? false,
+              requireCorrectAnswer: settings?.requireCorrectAnswer ?? true,
+              allowSkipping: settings?.allowSkipping ?? false,
+            };
+        const effectiveOptions: VideoActivitySessionOptions | undefined = isLive
+          ? {
+              ...sessionOptions,
+              rewindOnIncorrectSeconds: 0,
+              pointPenaltyOnIncorrect: 0,
+              attemptLimit: 1,
+            }
+          : sessionOptions;
 
         // Dedupes, so a duplicated question id can't inflate "Question X of N".
         const split = splitVideoActivitySessionQuestions(activity.questions);
@@ -261,8 +293,15 @@ export const useVideoActivitySessionTeacher =
               }
             : {}),
           settings: sessionSettings,
-          status: 'active',
+          status: isLive ? 'waiting' : 'active',
+          ...(isLive
+            ? {
+                sessionMode: 'teacher' as const,
+                live: initialVideoActivityLiveState(Date.now()),
+              }
+            : {}),
           allowedPins,
+          allowAnonymousJoin,
           createdAt: Date.now(),
           // Phase 5A: multi-class ClassLink targeting + post-PIN period
           // picker support. `classIds` is authoritative; `classId` is
@@ -275,11 +314,14 @@ export const useVideoActivitySessionTeacher =
           Object.keys(classPeriodByClassId).length > 0
             ? { classPeriodByClassId }
             : {}),
-          ...(sessionOptions || tabAwayTimerOn
+          ...(effectiveOptions || tabAwayTimerOn
             ? {
                 sessionOptions: {
-                  ...sessionOptions,
-                  ...tabAwaySessionFields(tabAwayTimerOn, sessionOptions ?? {}),
+                  ...effectiveOptions,
+                  ...tabAwaySessionFields(
+                    tabAwayTimerOn,
+                    effectiveOptions ?? {}
+                  ),
                 },
               }
             : {}),
@@ -313,7 +355,7 @@ export const useVideoActivitySessionTeacher =
 
         return sessionId;
       },
-      [tabAwayTimerOn]
+      [tabAwayTimerOn, allowAnonymousJoin]
     );
 
     const subscribeToActivitySessions = useCallback(
@@ -895,6 +937,11 @@ export const useVideoActivitySessionStudent =
           // gate. SSO joiners (studentRole custom-token users) skip both checks
           // — they're identified by their auth UID, not by a roster PIN.
           if (isAnonymous) {
+            if (isAnonymousJoinBlocked(sessionData)) {
+              setJoinStatus('error');
+              setError(ANONYMOUS_JOIN_BLOCKED_MESSAGE);
+              return;
+            }
             if (!studentPin || studentPin.trim().length === 0) {
               setJoinStatus('error');
               setError('A roster PIN is required to join this activity.');
@@ -910,16 +957,24 @@ export const useVideoActivitySessionStudent =
             }
           }
 
-          if (sessionData.status === 'ended') {
+          const closedMessage =
+            'This activity has been closed by your teacher. Ask for a new link if you still need access.';
+          // A live student who already joined reloads into the completion screen.
+          const liveEnded =
+            sessionData.status === 'ended' &&
+            isLiveVideoActivitySession(sessionData);
+          if (sessionData.status === 'ended' && !liveEnded) {
             setJoinStatus('error');
-            setError(
-              'This activity has been closed by your teacher. Ask for a new link if you still need access.'
-            );
+            setError(closedMessage);
             return;
           }
 
           // Check expiry
-          if (sessionData.expiresAt && Date.now() > sessionData.expiresAt) {
+          if (
+            !liveEnded &&
+            sessionData.expiresAt &&
+            Date.now() > sessionData.expiresAt
+          ) {
             setJoinStatus('error');
             setError(
               'This activity has expired. Contact your teacher for a new link.'
@@ -1082,6 +1137,22 @@ export const useVideoActivitySessionStudent =
               effectiveResponseRef = legacyRef;
               existingSnap = legacySnap;
             }
+          }
+
+          if (liveEnded) {
+            if (!existingSnap.exists()) {
+              setJoinStatus('error');
+              setError(closedMessage);
+              return;
+            }
+            // Read-only: no seat, no reset, no new response.
+            setSessionId(targetSessionId);
+            setResponseDocId(effectiveResponseRef.id);
+            setPeriodKeys([]);
+            setContent(null);
+            setSession(sessionData);
+            setJoinStatus('joined');
+            return;
           }
 
           // Per-period sessions: the join names one of the student's periods

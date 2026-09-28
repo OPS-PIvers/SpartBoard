@@ -12,7 +12,7 @@
  * (mirroring Quiz's `shareAssignment` / `importSharedAssignment` flows).
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useContext } from 'react';
 import {
   addDoc,
   collection,
@@ -26,6 +26,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
+import { AuthContext } from '@/context/AuthContextValue';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import {
@@ -36,6 +37,7 @@ import {
 } from './useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import { scoredVideoActivityQuestions } from '@/utils/videoActivityLive';
 import {
   mirrorPlcAssignmentStatus,
   writePlcAssignmentIndexEntry,
@@ -52,6 +54,7 @@ import type {
   VideoActivityData,
   VideoActivityMetadata,
   VideoActivityMetadataSyncLinkage,
+  VideoActivityQuestion,
   VideoActivityResponse,
   VideoActivityScoreVisibility,
   VideoActivitySession,
@@ -208,7 +211,11 @@ export interface UseVideoActivityAssignmentsResult {
     assignmentId: string,
     activityData: VideoActivityData,
     visibility: Exclude<VideoActivityScoreVisibility, 'none'>
-  ) => Promise<{ responsesUpdated: number }>;
+  ) => Promise<{
+    responsesUpdated: number;
+    /** The questions scores were computed over (asked ones only in a live session). */
+    scoredQuestions: VideoActivityQuestion[];
+  }>;
   /**
    * Revoke published score visibility for an assignment. Clears
    * `scoreVisibility` + `scorePublishedAt` on the assignment doc (via
@@ -246,6 +253,9 @@ export const useVideoActivityAssignments = (
   const [assignments, setAssignments] = useState<VideoActivityAssignment[]>([]);
   const [loading, setLoading] = useState<boolean>(!!userId);
   const [error, setError] = useState<string | null>(null);
+  // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
+  const allowAnonymousJoin =
+    useContext(AuthContext)?.canAccessFeature?.('anonymous-join') !== false;
 
   // Live mirror of `assignments` so status mutators can look up a
   // PLC linkage by id without re-creating the callback every render
@@ -370,6 +380,7 @@ export const useVideoActivityAssignments = (
           : {}),
         status: sessionStatus,
         allowedPins: [],
+        allowAnonymousJoin,
         createdAt: now,
         ...(sessionStatus === 'ended' ? { endedAt: now } : {}),
         // Phase 5A: multi-class ClassLink targeting + post-PIN period picker.
@@ -438,7 +449,7 @@ export const useVideoActivityAssignments = (
 
       return { id: assignmentId };
     },
-    [userId]
+    [userId, allowAnonymousJoin]
   );
 
   const setStatus = useCallback(
@@ -996,9 +1007,12 @@ export const useVideoActivityAssignments = (
       );
 
       // Dedupe first-wins before indexing — mirrors useQuizAssignments; last-wins can grade against a duplicate's differing correctAnswer.
-      const questionsById = new Map(
-        dedupeQuestionsById(activityData.questions).map((q) => [q.id, q])
+      const sessionSnap = await getDoc(sessionRef);
+      const scoredQuestions = scoredVideoActivityQuestions(
+        sessionSnap.data() as Partial<VideoActivitySession> | undefined,
+        dedupeQuestionsById(activityData.questions)
       );
+      const questionsById = new Map(scoredQuestions.map((q) => [q.id, q]));
 
       // Read responses in bounded pages (limit + documentId cursor) rather
       // than one unbounded `getDocs` so a PLC-shared assignment with
@@ -1134,7 +1148,7 @@ export const useVideoActivityAssignments = (
         );
       }
 
-      return { responsesUpdated: updates.length };
+      return { responsesUpdated: updates.length, scoredQuestions };
     },
     [userId]
   );

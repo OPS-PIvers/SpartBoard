@@ -7,7 +7,9 @@ import {
   afterEach,
   type Mock,
 } from 'vitest';
+import { createElement, type ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react';
+import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import {
   collection,
   doc,
@@ -138,6 +140,88 @@ afterEach(() => {
 });
 
 describe('useVideoActivitySessionTeacher — createSession', () => {
+  it.each([
+    [false, false],
+    [true, true],
+  ])(
+    'stamps allowAnonymousJoin=%s from the teacher anonymous-join gate',
+    async (granted, expected) => {
+      const value = {
+        canAccessFeature: (id: string) =>
+          id === 'anonymous-join' ? granted : false,
+      } as unknown as AuthContextType;
+      const wrapper = ({ children }: { children: ReactNode }) =>
+        createElement(AuthContext.Provider, { value }, children);
+      const { result } = renderHook(() => useVideoActivitySessionTeacher(), {
+        wrapper,
+      });
+      await act(async () => {
+        await result.current.createSession(
+          baseActivity({ questions: [] }),
+          TEACHER_UID
+        );
+      });
+      expect(sessionWrite()).toMatchObject({ allowAnonymousJoin: expected });
+    }
+  );
+
+  it('opens a teacher-paced session in the lobby with self-paced behaviors off', async () => {
+    const { result } = renderHook(() => useVideoActivitySessionTeacher());
+    const sessionOptions = {
+      attemptLimit: 3,
+      rewindOnIncorrectSeconds: 10,
+      pointPenaltyOnIncorrect: 1,
+    } as unknown as VideoActivitySessionOptions;
+
+    await act(async () => {
+      await result.current.createSession(
+        baseActivity(),
+        TEACHER_UID,
+        [],
+        { requireCorrectAnswer: true, allowSkipping: false },
+        'Live',
+        ['c1'],
+        ['Period 1'],
+        ['r1'],
+        'submissions',
+        undefined,
+        sessionOptions,
+        undefined,
+        'teacher'
+      );
+    });
+
+    const payload = sessionWrite() as VideoActivitySession;
+    expect(payload.status).toBe('waiting');
+    expect(payload.sessionMode).toBe('teacher');
+    expect(payload.live).toMatchObject({
+      currentQuestionId: null,
+      questionPhase: 'closed',
+      askedQuestionIds: [],
+      skippedQuestionIds: [],
+    });
+    expect(payload.settings).toMatchObject({
+      requireCorrectAnswer: false,
+      allowSkipping: true,
+    });
+    expect(payload.sessionOptions).toMatchObject({
+      attemptLimit: 1,
+      rewindOnIncorrectSeconds: 0,
+      pointPenaltyOnIncorrect: 0,
+    });
+  });
+
+  it('leaves self-paced sessions without a mode or live block', async () => {
+    const { result } = renderHook(() => useVideoActivitySessionTeacher());
+    await act(async () => {
+      await result.current.createSession(baseActivity(), TEACHER_UID, []);
+    });
+    const payload = sessionWrite() as VideoActivitySession;
+    expect(payload.status).toBe('active');
+    expect(payload.sessionMode).toBeUndefined();
+    expect(payload.live).toBeUndefined();
+  });
+
   it('writes the full session payload to the sessionId doc path and returns the id', async () => {
     vi.spyOn(crypto, 'randomUUID').mockReturnValue(
       '11111111-1111-4111-8111-111111111111'
@@ -182,6 +266,7 @@ describe('useVideoActivitySessionTeacher — createSession', () => {
       },
       status: 'active',
       allowedPins: ['1234'],
+      allowAnonymousJoin: true,
       createdAt: 1700000000000,
       mode: 'submissions',
     });

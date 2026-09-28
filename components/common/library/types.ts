@@ -622,6 +622,14 @@ export interface ImportAdapter<TData> {
   supportsKeyFile?: boolean;
   /** True when this adapter can read a document with AI; the wizard offers a switch. */
   supportsAiReader?: boolean;
+  /** A one-file import that saves many items; the wizard hands the file off and closes. */
+  bulkSource?: {
+    title: string;
+    description: string;
+    /** File-input `accept`, e.g. `.imscc`. */
+    accept: string;
+    onFile: (file: File) => void;
+  };
   /** Optional helper for Google Sheets template creation. */
   templateHelper?: {
     createTemplate: () => Promise<{ url: string }>;

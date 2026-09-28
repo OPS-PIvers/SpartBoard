@@ -84,12 +84,15 @@ import { buildDuplicateAction } from '@/components/common/library/libraryDuplica
 import type {
   AssignmentMode,
   ClassRoster,
+  StudentTargetRef,
   VideoActivityAssignment,
   VideoActivityAssignmentStatus,
   VideoActivityMetadata,
   VideoActivitySession,
+  VideoActivitySessionMode,
   VideoActivitySessionSettings,
 } from '@/types';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
   makeEmptyPickerValue,
@@ -108,6 +111,16 @@ import {
 } from '@/utils/localDate';
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
+
+/** A self-paced assign to open pre-filled, e.g. a live session's make-up (D18). */
+export interface VideoActivityPendingAssign {
+  /** Changes per request so the same activity can be re-opened. */
+  key: string;
+  activityId: string;
+  rosterIds: string[];
+  /** Empty keeps class-wide targeting. */
+  targetStudents: StudentTargetRef[];
+}
 
 export interface VideoActivityManagerProps {
   /** Teacher's Firebase UID — scopes the folders subcollection. */
@@ -161,7 +174,9 @@ export interface VideoActivityManagerProps {
     /** Optional due date (epoch ms). null = no due date. */
     dueAt: number | null,
     /** M17 B3 — individual targeting/overrides/window (spec §5 B3). */
-    targeting: AssignTargetingValue
+    targeting: AssignTargetingValue,
+    /** 'teacher' opens a live, board-paced session (one class, no schedule). */
+    sessionMode: VideoActivitySessionMode
   ) => Promise<string>;
   /** Rosters to populate the picker. */
   rosters: ClassRoster[];
@@ -249,6 +264,10 @@ export interface VideoActivityManagerProps {
   assignmentMode?: AssignmentMode;
   /** Surfaces a failed folder move (drag or bulk) as a toast. */
   onError?: (message: string) => void;
+  /** Opens the self-paced Assign dialog pre-filled once its activity is in the library. */
+  pendingAssign?: VideoActivityPendingAssign | null;
+  /** Called when the pre-filled dialog closes, assigned or not. */
+  onPendingAssignDone?: () => void;
 }
 
 /* ─── Library hook option constants (module-level for referential stability) ─
@@ -371,6 +390,10 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
   //   - Submissions + active+paused or no monitor wired: Copy link.
   //   - Submissions + archive: Results.
   const isLiveActive = mode === 'active' && assignment.status === 'active';
+  const { canSeeShareTracking, canAccessFeature } = useAuth();
+  // No-sign-in join links are gated; view-only shares are not joins.
+  const canCopyLink =
+    assignmentIsViewOnly || canAccessFeature('anonymous-join');
   const primaryAction: { label: string; icon: typeof Copy } | null =
     assignmentIsViewOnly
       ? mode === 'active'
@@ -379,13 +402,14 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
       : mode === 'active'
         ? isLiveActive && onArchiveMonitor
           ? { label: 'Monitor', icon: Monitor }
-          : { label: 'Copy link', icon: Copy }
+          : canCopyLink
+            ? { label: 'Copy link', icon: Copy }
+            : null
         : { label: 'Results', icon: BarChart3 };
 
   // Admin-only by default — view-count display fires one Firestore
   // aggregation per visible card per dashboard tab-focus, gated behind the
   // `share-link-tracking` global permission.
-  const { canSeeShareTracking } = useAuth();
   const trackingEnabled = canSeeShareTracking();
   const { count } = useSessionViewCount(
     'video_activity_sessions',
@@ -483,8 +507,13 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   lastClassIdByActivityId,
   assignmentMode = 'submissions',
   onError,
+  pendingAssign,
+  onPendingAssignDone,
 }) => {
   const { showConfirm } = useDialog();
+  const { canAccessFeature } = useAuth();
+  const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
+  const canAssignLive = canAccessFeature('video-activity-live');
   const claudeReview = useClaudeReview('video_activities');
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
@@ -522,18 +551,52 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const [assignTargeting, setAssignTargeting] = useState<AssignTargetingValue>(
     EMPTY_ASSIGN_TARGETING_VALUE
   );
+  const [assignPace, setAssignPace] =
+    useState<VideoActivitySessionMode>('student');
+  const assignLive = canAssignLive && assignPace === 'teacher';
 
   // Adjust state during render when the assign target changes — avoids the
   // set-state-in-effect anti-pattern while keeping form fields reset per open.
   const [prevAssignTargetId, setPrevAssignTargetId] = useState<string | null>(
     null
   );
+  // A pending pre-filled assign opens once its activity is in the library.
+  const [openedPendingKey, setOpenedPendingKey] = useState<string | null>(null);
+  const pendingMeta = pendingAssign
+    ? activities.find((a) => a.id === pendingAssign.activityId)
+    : undefined;
+  if (pendingAssign && pendingMeta && pendingAssign.key !== openedPendingKey) {
+    setOpenedPendingKey(pendingAssign.key);
+    setAssignTarget(pendingMeta);
+    setPrevAssignTargetId(null);
+  }
+  const activePending =
+    pendingAssign &&
+    pendingAssign.key === openedPendingKey &&
+    pendingAssign.activityId === assignTarget?.id
+      ? pendingAssign
+      : null;
+  const closeAssign = () => {
+    setAssignTarget(null);
+    setAssignDueAt(null);
+    if (pendingAssign) onPendingAssignDone?.();
+  };
+
   if (assignTarget && assignTarget.id !== prevAssignTargetId) {
     setPrevAssignTargetId(assignTarget.id);
     setAssignOptions(defaultSessionSettings);
     setAssignmentName(buildDefaultAssignmentName(assignTarget.title));
     setAssignDueAt(null);
-    setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
+    setAssignTargeting(
+      activePending && activePending.targetStudents.length > 0
+        ? {
+            ...EMPTY_ASSIGN_TARGETING_VALUE,
+            targetMode: 'students',
+            targetStudents: activePending.targetStudents,
+          }
+        : EMPTY_ASSIGN_TARGETING_VALUE
+    );
+    setAssignPace('student');
     setAssignError(null);
     // Prefer unified roster memory; fall back to legacy ClassLink-sourcedId
     // maps so teachers upgrading from pre-unification configs don't lose
@@ -546,7 +609,9 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         legacyMulti ?? (legacySingle ? [legacySingle] : undefined);
       rememberedRosters = mapLegacyClassIdsToRosterIds(legacyClassIds, rosters);
     }
-    setPickerValue({ rosterIds: rememberedRosters });
+    setPickerValue({
+      rosterIds: activePending ? activePending.rosterIds : rememberedRosters,
+    });
   } else if (!assignTarget && prevAssignTargetId !== null) {
     setPrevAssignTargetId(null);
   }
@@ -751,9 +816,10 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     const visibleRosterIds = new Set(
       rosters.filter((r) => !r.loadError).map((r) => r.id)
     );
-    const validRosterIds = pickerValue.rosterIds.filter((id) =>
-      visibleRosterIds.has(id)
-    );
+    const validRosterIds = pickerValue.rosterIds
+      .filter((id) => visibleRosterIds.has(id))
+      // One class per live session (D14).
+      .slice(0, assignLive ? 1 : undefined);
     try {
       // Behavior (sessionOptions, attemptLimit) is now sourced from the
       // activity itself in the Widget handler via getVideoActivityBehavior(meta).
@@ -768,11 +834,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       await onAssign(
         assignTarget,
         validRosterIds,
-        assignDueAt,
-        targetingWithDue
+        assignLive ? null : assignDueAt,
+        assignLive ? EMPTY_ASSIGN_TARGETING_VALUE : targetingWithDue,
+        assignLive ? 'teacher' : 'student'
       );
-      setAssignTarget(null);
-      setAssignDueAt(null);
+      closeAssign();
     } catch (err) {
       setAssignError(
         err instanceof Error ? err.message : 'Failed to create assignment'
@@ -799,7 +865,8 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         viewOnlyShareTarget,
         [],
         null,
-        EMPTY_ASSIGN_TARGETING_VALUE
+        EMPTY_ASSIGN_TARGETING_VALUE,
+        'student'
       );
       setViewOnlyShareLink(
         `${window.location.origin}/activity/${encodeURIComponent(sessionId)}`
@@ -1148,7 +1215,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       // depending on state). View-only Shared cards already pin "Copy
       // link" as the primary action — duplicating it in the kebab is just
       // visual noise.
-      if (onArchiveCopyUrl && !assignmentIsViewOnly) {
+      if (onArchiveCopyUrl && !assignmentIsViewOnly && canOfferAnonymousJoin) {
         actions.push({
           id: 'copy-url',
           label: 'Copy link',
@@ -1465,19 +1532,24 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       {assignTarget && !isViewOnly && (
         <AssignModal<VideoActivitySessionSettings>
           isOpen={true}
-          onClose={() => {
-            setAssignTarget(null);
-            setAssignDueAt(null);
-          }}
+          onClose={closeAssign}
           itemTitle={assignTarget.title}
           options={assignOptions}
           onOptionsChange={setAssignOptions}
           assignmentName={assignmentName}
           onAssignmentNameChange={setAssignmentName}
-          confirmLabel="Assign"
+          confirmLabel={assignLive ? 'Start live' : 'Assign'}
           onAssign={handleAssignConfirm}
           extraSlot={
             <AssignBehaviorSummaryVA
+              pace={canAssignLive ? assignPace : undefined}
+              onPaceChange={(next) => {
+                setAssignPace(next);
+                if (next === 'teacher')
+                  setPickerValue((v) => ({
+                    rosterIds: v.rosterIds.slice(0, 1),
+                  }));
+              }}
               meta={assignTarget}
               dueAt={assignDueAt}
               onDueAtChange={setAssignDueAt}
@@ -1489,8 +1561,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
               periodAccess={periodAccess}
               assignError={assignError}
               onEditInActivity={() => {
-                setAssignTarget(null);
-                setAssignDueAt(null);
+                closeAssign();
                 onEdit(assignTarget);
               }}
             />
@@ -1537,6 +1608,9 @@ function buildDefaultAssignmentName(title: string): string {
  *   4. An inline error message if `assignError` is set.
  */
 const AssignBehaviorSummaryVA: React.FC<{
+  /** Undefined hides the pacing choice (flag off). */
+  pace?: VideoActivitySessionMode;
+  onPaceChange: (next: VideoActivitySessionMode) => void;
   meta: VideoActivityMetadata;
   dueAt: number | null;
   onDueAtChange: (dueAt: number | null) => void;
@@ -1550,6 +1624,8 @@ const AssignBehaviorSummaryVA: React.FC<{
   assignError: string | null;
   onEditInActivity?: () => void;
 }> = ({
+  pace,
+  onPaceChange,
   meta,
   dueAt,
   onDueAtChange,
@@ -1577,23 +1653,41 @@ const AssignBehaviorSummaryVA: React.FC<{
     }
   };
 
+  const live = pace === 'teacher';
+
   return (
     <>
+      {pace && (
+        <div className="space-y-1">
+          <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+            Pacing
+          </p>
+          <SegmentedControl<VideoActivitySessionMode>
+            role="radiogroup"
+            ariaLabel="Pacing"
+            value={pace}
+            onChange={onPaceChange}
+            options={[
+              { value: 'student', label: 'Self-paced' },
+              { value: 'teacher', label: 'Teacher-paced (live)' },
+            ]}
+          />
+        </div>
+      )}
+
       <AssignClassPicker
         rosters={rosters}
         value={pickerValue}
         onChange={onPickerChange}
+        singleSelect={live}
       />
 
-      <AssignTargetingSection
-        rosters={rosters}
-        selectedRosterIds={pickerValue.rosterIds}
-        periodAccess={periodAccess}
-        value={targeting}
-        onChange={onTargetingChange}
-        kind="video-activity"
-        showDueAt={false}
-      />
+      {live && (
+        <p data-testid="va-assign-live-note" className="text-sm text-slate-600">
+          Off in live mode: due date, scheduling, retries, rewinds and
+          penalties.
+        </p>
+      )}
 
       {assignError && (
         <div className="flex items-start gap-2 rounded-xl border border-brand-red-primary/30 bg-brand-red-lighter/40 px-3 py-2 text-sm font-medium text-brand-red-dark">
@@ -1602,45 +1696,61 @@ const AssignBehaviorSummaryVA: React.FC<{
         </div>
       )}
 
-      {/* Due date */}
-      <div>
-        <label
-          htmlFor="va-assign-due-date-input"
-          className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1"
-        >
-          Due Date <span className="font-normal">(optional)</span>
-        </label>
-        <input
-          id="va-assign-due-date-input"
-          type="date"
-          data-testid="va-assign-due-date"
-          value={dateInputValue}
-          onChange={handleDateChange}
-          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+      <fieldset
+        disabled={live}
+        aria-disabled={live}
+        className={`space-y-3 min-w-0 ${live ? 'opacity-50' : ''}`}
+      >
+        <AssignTargetingSection
+          rosters={rosters}
+          selectedRosterIds={pickerValue.rosterIds}
+          periodAccess={periodAccess}
+          value={targeting}
+          onChange={onTargetingChange}
+          kind="video-activity"
+          showDueAt={false}
         />
-      </div>
 
-      {/* Read-only behavior summary */}
-      <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
-            Behavior
-          </p>
-          <button
-            type="button"
-            onClick={onEditInActivity}
-            className="text-xxs font-bold text-brand-blue-primary hover:text-brand-blue-dark transition-colors"
+        {/* Due date */}
+        <div>
+          <label
+            htmlFor="va-assign-due-date-input"
+            className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1"
           >
-            Edit in activity
-          </button>
+            Due Date <span className="font-normal">(optional)</span>
+          </label>
+          <input
+            id="va-assign-due-date-input"
+            type="date"
+            data-testid="va-assign-due-date"
+            value={dateInputValue}
+            onChange={handleDateChange}
+            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+          />
         </div>
-        <p
-          data-testid="va-behavior-summary"
-          className="text-sm text-slate-600 leading-snug"
-        >
-          {summary}
-        </p>
-      </div>
+
+        {/* Read-only behavior summary */}
+        <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+              Behavior
+            </p>
+            <button
+              type="button"
+              onClick={onEditInActivity}
+              className="text-xxs font-bold text-brand-blue-primary hover:text-brand-blue-dark transition-colors"
+            >
+              Edit in activity
+            </button>
+          </div>
+          <p
+            data-testid="va-behavior-summary"
+            className="text-sm text-slate-600 leading-snug"
+          >
+            {summary}
+          </p>
+        </div>
+      </fieldset>
     </>
   );
 };

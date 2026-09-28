@@ -19,6 +19,7 @@ import {
   MIN_RESPONSES,
   formatSummary,
   suppressed,
+  videoAskedScope,
   videoKeyForGrader,
 } from './resultsTools';
 import {
@@ -361,5 +362,18 @@ describe('results summaries', () => {
     expect(videoKeyForGrader([{ id: 'q', acceptableVariants: ['x'] }])).toEqual(
       [{ id: 'q', acceptableVariants: ['x'], alternateAnswers: ['x'] }]
     );
+  });
+
+  it('scopes live video sessions to the asked questions', () => {
+    const qs = [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }];
+    const live = videoAskedScope({
+      sessionMode: 'teacher',
+      live: { askedQuestionIds: ['q1', 'q3'], skippedQuestionIds: ['q2'] },
+    });
+    expect(live.pacing).toBe('live');
+    expect(live.keep(qs)).toEqual([{ id: 'q1' }, { id: 'q3' }]);
+    const selfPaced = videoAskedScope({});
+    expect(selfPaced.pacing).toBe('self_paced');
+    expect(selfPaced.keep(qs)).toBe(qs);
   });
 });

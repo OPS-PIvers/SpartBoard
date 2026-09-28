@@ -14,7 +14,8 @@
  *   - must start with a single `/` (reject `//host` protocol-relative URLs),
  *   - must contain no backslash (some engines normalise `\` to `/`),
  *   - its path (sans query/hash) must be exactly `/quiz`, `/join`, a
- *     `/flashcards/a/{assignmentId}` page, or a `/activity-wall/{sessionId}` submission page.
+ *     `/flashcards/a/{assignmentId}` page, a `/activity/{sessionId}` Video Activity,
+ *     or a `/activity-wall/{sessionId}` submission page.
  *
  * Anything else returns `null` and the caller should fall back to its default
  * destination.
@@ -32,6 +33,7 @@ export function resolveNextTarget(rawNext: string | null): string | null {
   const path = rawNext.split(/[?#]/)[0];
   if (path === '/quiz' || path === '/join') return rawNext;
   if (/^\/flashcards\/a\/[A-Za-z0-9_-]+$/.test(path)) return rawNext;
+  if (/^\/activity\/[A-Za-z0-9_-]+$/.test(path)) return rawNext;
   // Activity Wall submission pages: `/activity-wall/{sessionId}` only. The
   // gallery sub-route is public and never a post-login destination.
   return /^\/activity-wall\/[A-Za-z0-9_-]+$/.test(path) &&

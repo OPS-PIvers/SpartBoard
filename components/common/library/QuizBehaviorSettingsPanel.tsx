@@ -1,7 +1,7 @@
 /**
  * QuizBehaviorSettingsPanel — reusable behavior settings UI for Quiz.
  *
- * Renders the mode selector (Teacher-paced / Auto-progress / Self-paced),
+ * Renders the mode selector (Teacher-paced / Auto-progress / Assessment Mode),
  * the AssignmentSettingsToggleGroup (integrity / feedback / randomization
  * toggles + attempt limit), and the gamification CollapsibleSection.
  *
@@ -26,6 +26,7 @@ import { CollapsibleSection } from './CollapsibleSection';
 import { ToggleRow } from './AssignmentSettingsToggleGroup';
 import type { AssignModeOption } from './types';
 import { SESSION_MODES } from './sessionModes';
+import { QUIZ_STUDENT_MODE_LABEL } from '@/utils/quizBehavior';
 
 export interface QuizBehaviorSettingsPanelProps {
   value: QuizBehaviorSettings;
@@ -56,6 +57,7 @@ export const QuizBehaviorSettingsPanel: React.FC<
     useContext(AuthContext)?.canAccessFeature?.('tab-away-timer') === true;
   const modes: AssignModeOption[] = SESSION_MODES.map((m) => ({
     ...m,
+    ...(m.id === 'student' ? { label: QUIZ_STUDENT_MODE_LABEL } : {}),
     disabled: modeLocked,
   }));
 
@@ -140,6 +142,7 @@ export const QuizBehaviorSettingsPanel: React.FC<
         attemptLimit={value.attemptLimit}
         onAttemptLimitChange={(v) => onChange({ ...value, attemptLimit: v })}
         shuffleQuestionsAvailable={value.sessionMode === 'student'}
+        shuffleQuestionsHint={`${QUIZ_STUDENT_MODE_LABEL} only.`}
         afterTabWarningsSlot={
           (value.sessionOptions.tabWarningsEnabled ?? true) && (
             <>

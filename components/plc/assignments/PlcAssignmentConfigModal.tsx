@@ -47,7 +47,10 @@ import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTarget
 import { getPlcMemberEmails } from '@/utils/plc';
 import { logError } from '@/utils/logError';
 import { dueInputsToEpoch, DEFAULT_DUE_TIME } from '@/utils/localDate';
-import { formatBehaviorSummary } from '@/utils/quizBehavior';
+import {
+  formatBehaviorSummary,
+  QUIZ_STUDENT_MODE_LABEL,
+} from '@/utils/quizBehavior';
 import { formatVideoActivityBehaviorSummary } from '@/utils/videoActivityBehavior';
 import type {
   Plc,
@@ -137,7 +140,7 @@ const DEFAULT_VA_SESSION_SETTINGS: VideoActivitySessionSettings = {
 const DEFAULT_QUIZ_MODES: { id: QuizSessionMode; label: string }[] = [
   { id: 'teacher', label: 'Teacher-paced' },
   { id: 'auto', label: 'Auto-paced' },
-  { id: 'student', label: 'Self-paced' },
+  { id: 'student', label: QUIZ_STUDENT_MODE_LABEL },
 ];
 
 // ---------------------------------------------------------------------------
@@ -172,7 +175,7 @@ export const PlcAssignmentConfigModal: React.FC<
   );
 
   // --- Form state ---
-  const [quizMode, setQuizMode] = useState<QuizSessionMode>('auto');
+  const [quizMode, setQuizMode] = useState<QuizSessionMode>('student');
   const [picker, setPicker] =
     useState<AssignClassPickerValue>(makeEmptyPickerValue);
   const [quizOptions, setQuizOptions] = useState<BaseSessionOptions>(
@@ -253,7 +256,7 @@ export const PlcAssignmentConfigModal: React.FC<
         let effectiveSessionOptions: QuizSessionOptions;
         let effectiveAttemptLimit: number | null;
         if (quizBehavior) {
-          effectiveSessionMode = quizBehavior.sessionMode;
+          effectiveSessionMode = 'student';
           effectiveSessionOptions = quizBehavior.sessionOptions;
           effectiveAttemptLimit = quizBehavior.attemptLimit;
         } else {
@@ -524,7 +527,10 @@ export const PlcAssignmentConfigModal: React.FC<
                 data-testid="plc-config-behavior-summary"
                 className="text-sm text-slate-600 leading-snug"
               >
-                {formatBehaviorSummary(quizBehavior)}
+                {formatBehaviorSummary({
+                  ...quizBehavior,
+                  sessionMode: 'student',
+                })}
               </p>
             </div>
           ) : kind === 'quiz' ? (

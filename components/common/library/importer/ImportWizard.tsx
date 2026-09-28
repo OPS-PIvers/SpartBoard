@@ -69,18 +69,24 @@ function acceptExtensionsForSources(sources: ImportSourceKind[]): string {
   return Array.from(exts).join(',');
 }
 
+/** True when `fileName` ends with one of the comma-separated extensions in `accept`. */
+function matchesAccept(fileName: string, accept: string): boolean {
+  const lower = fileName.toLowerCase();
+  return accept
+    .split(',')
+    .map((ext) => ext.trim().toLowerCase())
+    .some((ext) => ext && lower.endsWith(ext));
+}
+
+const DOCUMENT_EXTENSIONS = '.pdf,.docx,.odt,.tst,.rtf,.imscc';
+
 function inferKindFromFileName(
   fileName: string,
   supported: ImportSourceKind[]
 ): Exclude<ImportSourceKind, 'sheet'> {
   const lower = fileName.toLowerCase();
   if (
-    (lower.endsWith('.pdf') ||
-      lower.endsWith('.docx') ||
-      lower.endsWith('.odt') ||
-      lower.endsWith('.tst') ||
-      lower.endsWith('.rtf') ||
-      lower.endsWith('.imscc')) &&
+    matchesAccept(lower, DOCUMENT_EXTENSIONS) &&
     supported.includes('document')
   )
     return 'document';
@@ -131,6 +137,7 @@ export function ImportWizard<TData>({
   const [creatingTemplate, setCreatingTemplate] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bulkInputRef = useRef<HTMLInputElement>(null);
   // Off by default; kept across opens so a teacher needn't re-tick it.
   const [aiReaderOff, setAiReaderOff] = useState(true);
 
@@ -269,8 +276,37 @@ export function ImportWizard<TData>({
     });
   };
 
+  const bulkSource = adapter.bulkSource;
+  const handBulkFile = (file: File): void => {
+    if (!bulkSource) return;
+    if (!matchesAccept(file.name, bulkSource.accept)) {
+      setParseError(`Choose a ${bulkSource.accept} file.`);
+      return;
+    }
+    bulkSource.onFile(file);
+  };
+
   const importFile = async (file: File): Promise<void> => {
     const session = sessionRef.current;
+    // A collection export picked or dropped on the main zone goes to the bulk import.
+    if (bulkSource && matchesAccept(file.name, bulkSource.accept)) {
+      bulkSource.onFile(file);
+      return;
+    }
+    const uploadAccept = acceptExtensionsForSources(adapter.supportedSources);
+    const isDocument =
+      supportsDocument && matchesAccept(file.name, DOCUMENT_EXTENSIONS);
+    // Reading a zip or a Word file as CSV text only produces garbled questions.
+    if (
+      !isDocument &&
+      uploadAccept &&
+      !matchesAccept(file.name, uploadAccept)
+    ) {
+      setParseError(
+        `That file can’t be imported here. Choose a ${uploadHint === 'File' ? 'supported' : uploadHint} file${bulkSource ? ` or a ${bulkSource.title}` : ''}.`
+      );
+      return;
+    }
     const kind = inferKindFromFileName(file.name, adapter.supportedSources);
     if (kind === 'file') {
       await runParse({ kind: 'file', file });
@@ -307,6 +343,8 @@ export function ImportWizard<TData>({
   };
 
   const uploadDrop = useFileDrop((file) => void importFile(file), loading);
+
+  const bulkDrop = useFileDrop(handBulkFile, loading || !bulkSource);
 
   const handleCreateTemplate = async (): Promise<void> => {
     if (!adapter.templateHelper) return;
@@ -507,7 +545,7 @@ export function ImportWizard<TData>({
               <p className="text-xs font-semibold text-brand-blue-primary">
                 {uploadDrop.dragging
                   ? 'Drop it here'
-                  : `Drop a file here · ${uploadHint}`}
+                  : `Drop a file here · ${uploadHint}${adapter.bulkSource ? ` or ${adapter.bulkSource.accept}` : ''}`}
               </p>
             </>
           )}
@@ -544,12 +582,58 @@ export function ImportWizard<TData>({
             <input
               type="file"
               ref={fileInputRef}
-              accept={acceptExtensionsForSources(adapter.supportedSources)}
+              accept={[
+                acceptExtensionsForSources(adapter.supportedSources),
+                adapter.bulkSource?.accept,
+              ]
+                .filter(Boolean)
+                .join(',')}
               onChange={(e) => void handleFilePicked(e)}
               className="hidden"
               aria-label="Upload import file"
             />
           )}
+        </div>
+      )}
+
+      {bulkSource && (
+        <div
+          {...bulkDrop.dropProps}
+          data-testid="import-bulk-source"
+          className={`flex items-center gap-3 rounded-2xl border-2 border-dashed p-4 transition-colors ${
+            bulkDrop.dragging
+              ? 'border-brand-blue-primary bg-brand-blue-lighter/70'
+              : 'border-slate-300 bg-white'
+          }`}
+        >
+          <FileUp className="h-6 w-6 shrink-0 text-brand-blue-primary" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-slate-800">
+              {bulkSource.title}
+            </p>
+            <p className="text-xs text-slate-500">{bulkSource.description}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => bulkInputRef.current?.click()}
+            disabled={loading}
+            className={sourceButtonClass}
+          >
+            <FileUp className="h-3.5 w-3.5" />
+            Choose file
+          </button>
+          <input
+            type="file"
+            ref={bulkInputRef}
+            accept={bulkSource.accept}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (bulkInputRef.current) bulkInputRef.current.value = '';
+              if (file) handBulkFile(file);
+            }}
+            className="hidden"
+            aria-label={bulkSource.title}
+          />
         </div>
       )}
 

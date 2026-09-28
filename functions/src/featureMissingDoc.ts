@@ -4,6 +4,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-read-aloud',
   'quiz-translation',
   'question-bank-ai',
+  'question-bank-imscc-import',
   'quiz-document-ai-reader',
   'quiz-import-suggested-targets',
   'paper-answer-sheets',
@@ -29,6 +30,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'plc-notes-rich-editor',
   'paper-handwritten-responses',
   'claude-connector',
+  'video-activity-live',
   'guided-learning-ai',
   'blooms-ai',
 ];

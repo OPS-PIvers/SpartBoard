@@ -275,11 +275,11 @@ describe('PlcNewQuizAssignmentModal (Task 10 — slimmed configure step)', () =>
   it('renders the behavior summary from the picked quiz behavior', async () => {
     await renderAndPickQuiz();
 
-    // fakeQuiz.behavior = { sessionMode: 'auto', attemptLimit: 2, shuffleAnswerOptions: true, showResultToStudent: true }
+    // fakeQuiz.behavior is auto-progress; assign always runs in Assessment Mode.
     // Expected: "Auto-progress · 2 attempts · shuffles answers · shows results"
     const summaryEl = screen.getByTestId('plc-quiz-behavior-summary');
     expect(summaryEl).toBeInTheDocument();
-    expect(summaryEl.textContent).toMatch(/auto-progress/i);
+    expect(summaryEl.textContent).toMatch(/assessment mode/i);
     expect(summaryEl.textContent).toMatch(/2 attempts/i);
   });
 
@@ -317,7 +317,7 @@ describe('PlcNewQuizAssignmentModal (Task 10 — slimmed configure step)', () =>
     ];
 
     // Must use behavior from fakeQuiz.behavior
-    expect(settings.sessionMode).toBe('auto');
+    expect(settings.sessionMode).toBe('student');
     expect(settings.attemptLimit).toBe(2);
     expect(
       (settings.sessionOptions as Record<string, unknown>).showResultToStudent

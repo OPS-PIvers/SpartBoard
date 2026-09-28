@@ -18,7 +18,7 @@ describe('QuizBehaviorSettingsPanel', () => {
     );
     expect(screen.getByText('Teacher-paced')).toBeInTheDocument();
     expect(screen.getByText('Auto-progress')).toBeInTheDocument();
-    expect(screen.getByText('Self-paced')).toBeInTheDocument();
+    expect(screen.getByText('Assessment Mode')).toBeInTheDocument();
   });
 
   it('renders the toggle group (Focus mode is visible)', () => {
@@ -51,12 +51,15 @@ describe('QuizBehaviorSettingsPanel', () => {
   });
 
   it('forwards disabled to the switch so disabled rows are truly disabled (a11y)', () => {
-    // sessionMode 'teacher' (the default) makes "Shuffle Questions" unavailable,
+    // sessionMode 'teacher' makes "Shuffle Questions" unavailable,
     // so ToggleRow renders it disabled. The switch must expose a real disabled
     // state — not just a pointer-events-none wrapper — so keyboard and AT users
     // cannot focus or activate it.
     render(
-      <QuizBehaviorSettingsPanel value={defaultValue} onChange={vi.fn()} />
+      <QuizBehaviorSettingsPanel
+        value={{ ...defaultValue, sessionMode: 'teacher' }}
+        onChange={vi.fn()}
+      />
     );
     // Expand the "Question Randomization" disclosure to reveal its rows.
     fireEvent.click(
@@ -110,12 +113,12 @@ describe('QuizBehaviorSettingsPanel', () => {
     expect(screen.getByText('Gamification')).toBeInTheDocument();
   });
 
-  it('clicking "Self-paced" calls onChange with sessionMode: student', () => {
+  it('clicking "Assessment Mode" calls onChange with sessionMode: student', () => {
     const onChange = vi.fn();
     render(
       <QuizBehaviorSettingsPanel value={defaultValue} onChange={onChange} />
     );
-    fireEvent.click(screen.getByRole('button', { name: /self-paced/i }));
+    fireEvent.click(screen.getByRole('button', { name: /assessment mode/i }));
     expect(onChange).toHaveBeenCalledOnce();
     expect(onChange.mock.calls[0][0]).toMatchObject({ sessionMode: 'student' });
   });
@@ -253,7 +256,7 @@ describe('QuizBehaviorSettingsPanel', () => {
     );
     const teacherBtn = screen.getByRole('button', { name: /teacher-paced/i });
     const autoBtn = screen.getByRole('button', { name: /auto-progress/i });
-    const selfBtn = screen.getByRole('button', { name: /self-paced/i });
+    const selfBtn = screen.getByRole('button', { name: /assessment mode/i });
     expect(teacherBtn).toBeDisabled();
     expect(autoBtn).toBeDisabled();
     expect(selfBtn).toBeDisabled();

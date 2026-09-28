@@ -30,6 +30,7 @@ import {
   rowWarnings,
   type AiExtractFn,
   type ExtractedImage,
+  type RemoteImageFetcher,
 } from '@/utils/quizDocumentImport';
 import { readTestAndKey } from '@/utils/quizDocumentImport/readTestAndKey';
 import { QuizDocumentReview } from '../components/QuizDocumentReview';
@@ -101,6 +102,8 @@ export interface QuizImportAdapterDeps {
    * the consumer cannot reach Drive; the quiz is then created without them.
    */
   attachDocumentImages?: (quiz: QuizData) => Promise<QuizData>;
+  /** Copies pictures an LMS export links to on another site. */
+  fetchRemoteImage?: RemoteImageFetcher;
   /**
    * Handed the pictures a read document carried, so the consumer can hold
    * them until `attachDocumentImages` runs. The adapter owns no state of its
@@ -452,6 +455,9 @@ export function createQuizImportAdapter(
             key: source.keyFile,
             ...(source.useAi === false ? { useAi: false } : {}),
             ...(multiAnswer ? { multiAnswer } : {}),
+            ...(deps.fetchRemoteImage
+              ? { fetchRemoteImage: deps.fetchRemoteImage }
+              : {}),
           }
         );
         deps.onDocumentImages?.(extracted.images);

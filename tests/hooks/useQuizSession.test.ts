@@ -1004,6 +1004,7 @@ describe('useQuizSessionStudent — lookupSession', () => {
       periodNames: ['Period 1', 'Period 2'],
       classIds: [],
       sessionId: 'newer',
+      anonymousJoinBlocked: false,
     });
   });
 
@@ -1028,6 +1029,7 @@ describe('useQuizSessionStudent — lookupSession', () => {
       periodNames: ['Hour 1'],
       classIds: ['F33EC569', 'FB8737C8'],
       sessionId: 'classlink',
+      anonymousJoinBlocked: false,
     });
   });
 });

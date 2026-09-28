@@ -188,7 +188,7 @@ describe('PlcAssignmentConfigModal (quiz kind)', () => {
         onClose={vi.fn()}
       />
     );
-    // Expect mode buttons: Teacher-paced, Auto-paced, Self-paced
+    // Expect mode buttons: Teacher-paced, Auto-paced, Assessment Mode
     expect(
       screen.getByRole('radio', { name: /teacher-paced/i })
     ).toBeInTheDocument();
@@ -196,7 +196,7 @@ describe('PlcAssignmentConfigModal (quiz kind)', () => {
       screen.getByRole('radio', { name: /auto-paced/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('radio', { name: /self-paced/i })
+      screen.getByRole('radio', { name: /assessment mode/i })
     ).toBeInTheDocument();
   });
 
@@ -684,7 +684,7 @@ describe('PlcAssignmentConfigModal (quiz kind — Task 10 slimmed, quizBehavior 
     } as unknown as ReturnType<typeof useDashboard>);
   });
 
-  it('does NOT render a mode picker (Teacher-paced / Auto-paced / Self-paced) when quizBehavior is provided', () => {
+  it('does NOT render a mode picker (Teacher-paced / Auto-paced / Assessment Mode) when quizBehavior is provided', () => {
     render(
       <PlcAssignmentConfigModal
         plc={fakePlc}
@@ -702,7 +702,7 @@ describe('PlcAssignmentConfigModal (quiz kind — Task 10 slimmed, quizBehavior 
       screen.queryByRole('radio', { name: /auto-paced/i })
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('radio', { name: /self-paced/i })
+      screen.queryByRole('radio', { name: /assessment mode/i })
     ).not.toBeInTheDocument();
   });
 
@@ -719,7 +719,7 @@ describe('PlcAssignmentConfigModal (quiz kind — Task 10 slimmed, quizBehavior 
     );
     const summaryEl = screen.getByTestId('plc-config-behavior-summary');
     expect(summaryEl).toBeInTheDocument();
-    expect(summaryEl.textContent).toMatch(/auto-progress/i);
+    expect(summaryEl.textContent).toMatch(/assessment mode/i);
     expect(summaryEl.textContent).toMatch(/3 attempts/i);
   });
 
@@ -750,7 +750,7 @@ describe('PlcAssignmentConfigModal (quiz kind — Task 10 slimmed, quizBehavior 
       unknown,
       Record<string, unknown>,
     ];
-    expect(settings.sessionMode).toBe('auto');
+    expect(settings.sessionMode).toBe('student');
     expect(settings.attemptLimit).toBe(3);
     expect(
       (settings.sessionOptions as Record<string, unknown>).showResultToStudent
@@ -833,7 +833,7 @@ describe('PlcAssignmentConfigModal (video-activity kind — Task 10 VA parity, v
     const summaryEl = screen.getByTestId('plc-config-va-behavior-summary');
     expect(summaryEl).toBeInTheDocument();
     // fakeVaBehavior: auto mode, 2 attempts, rewind 15s, −5 pts penalty, score only
-    expect(summaryEl.textContent).toMatch(/auto-progress/i);
+    expect(summaryEl.textContent).not.toMatch(/paced|progress/i);
     expect(summaryEl.textContent).toMatch(/2 attempts/i);
     expect(summaryEl.textContent).toMatch(/rewind 15s/i);
   });

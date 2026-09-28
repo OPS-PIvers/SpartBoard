@@ -228,7 +228,14 @@ export const multiAnswerKey = (texts: readonly string[]): string =>
 export const SELECT_ALL_WORDING =
   /\b(?:select|choose|mark|check|circle|pick|identify|click)\s+(?:all|each|every)\b|\ball\s+(?:that|which)\s+apply\b|\bmore\s+than\s+one\s+(?:correct\s+)?(?:answer|choice|option)\b/i;
 
+/** Copies a picture an export links to on another site; null when it can't. */
+export type RemoteImageFetcher = (
+  url: string
+) => Promise<{ blob: Blob; contentType: string } | null>;
+
 /** Reader switches; `multiAnswer` lets a read produce choose-all-that-apply questions. */
 export interface ReaderOptions {
   multiAnswer?: boolean;
+  /** Lets an LMS export bring in pictures hosted outside the zip. */
+  fetchRemoteImage?: RemoteImageFetcher;
 }

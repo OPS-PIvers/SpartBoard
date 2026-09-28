@@ -89,6 +89,7 @@ const DOCK_STYLE_OPTIONS: {
   dockBorderRadius: GlobalStyle['dockBorderRadius'];
   dockTransparency: number;
 }[] = [
+  { label: 'Rounded', dockBorderRadius: '2xl', dockTransparency: 0.4 },
   { label: 'Pill', dockBorderRadius: 'full', dockTransparency: 0.4 },
   { label: 'Bar', dockBorderRadius: 'md', dockTransparency: 0.6 },
   { label: 'Flat', dockBorderRadius: 'none', dockTransparency: 0.85 },
@@ -551,6 +552,7 @@ const StepAppearance: React.FC<{
               Math.abs(style.dockTransparency - o.dockTransparency) < 0.05;
             const radiusClass: Record<string, string> = {
               full: 'rounded-full',
+              '2xl': 'rounded-lg',
               md: 'rounded-md',
               none: 'rounded-none',
             };

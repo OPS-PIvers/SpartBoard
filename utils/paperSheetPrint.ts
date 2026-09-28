@@ -279,13 +279,21 @@ function columnLegendsHtml(
 }
 
 /** The stem above a question's bubbles, and each choice's text beside its own bubble. */
-function questionTextHtml(origin: PointMm, q: PaperSheetQuestionText): string {
+function questionTextHtml(
+  origin: PointMm,
+  q: PaperSheetQuestionText,
+  numberDiv: (style: string) => string
+): string {
+  // The number rides on the stem's first line, however many lines the stem takes.
+  const number = numberDiv(
+    `left:${mm(origin.x - QUESTION_STEM_X_MM)};top:0;width:${mm(NUMBER_WIDTH_MM - 2)}`
+  );
   const parts = [
-    `<div class="qt-stem" style="left:${mm(QUESTION_STEM_X_MM)};top:${mm(
+    `<div class="qt-stem-box" style="left:${mm(QUESTION_STEM_X_MM)};top:${mm(
       origin.y
-    )};width:${mm(QUESTION_STEM_W_MM)};height:${mm(QUESTION_STEM_H_MM)}">${escapeHtml(
+    )};width:${mm(QUESTION_STEM_W_MM)};height:${mm(QUESTION_STEM_H_MM)}"><div class="qt-stem-line">${number}<div class="qt-stem">${escapeHtml(
       q.text
-    )}</div>`,
+    )}</div></div></div>`,
   ];
   // A stub's options are just the bubble letters, which say nothing to a student.
   if (!isPlaceholderLetterChoices(q.choices)) {
@@ -327,16 +335,19 @@ function mcRowHtml(
   const numberHtml = label
     ? `<span>${escapeHtml(printedNumber)}</span><span class="num-src">(${escapeHtml(label)})</span>`
     : escapeHtml(printedNumber);
-  parts.push(
+  const numberDiv = (style: string): string =>
     `<div class="${columnsPerPage === 'questions' ? 'num qnum' : 'num'}${
       label ? ' labelled' : ''
-    }" style="left:${mm(origin.x)};top:${mm(origin.y)};width:${mm(
-      NUMBER_WIDTH_MM - 2
-    )}">${numberHtml}</div>`
-  );
+    }" style="${style}">${numberHtml}</div>`;
   const text = questionTexts?.[index];
   if (columnsPerPage === 'questions' && text) {
-    parts.push(questionTextHtml(origin, text));
+    parts.push(questionTextHtml(origin, text, numberDiv));
+  } else {
+    parts.push(
+      numberDiv(
+        `left:${mm(origin.x)};top:${mm(origin.y)};width:${mm(NUMBER_WIDTH_MM - 2)}`
+      )
+    );
   }
   for (let choice = 0; choice < choiceCount; choice += 1) {
     const r = bubbleRectAtOriginMm(origin, choice, columnsPerPage);
@@ -620,7 +631,7 @@ const SHEET_STYLES = `
     color: #000;
   }
   .sheet:last-child { page-break-after: auto; }
-  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap, .qt-stem, .qt-choice, .wr-rule, .wr-key { position: absolute; }
+  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap, .qt-stem, .qt-stem-box, .qt-choice, .wr-rule, .wr-key { position: absolute; }
   .wr-rule { height: ${WRITTEN_RULE_MM}mm; background: ${letterGrey()}; }
   .wr-key {
     background: #e5e5e5;
@@ -640,6 +651,10 @@ const SHEET_STYLES = `
     -webkit-line-clamp: 3;
     overflow: hidden;
   }
+  /* A short stem sits on its choices, so the spare room falls after the previous question. */
+  .qt-stem-box { display: flex; flex-direction: column; justify-content: flex-end; }
+  .qt-stem-line { position: relative; }
+  .qt-stem-line > .qt-stem { position: static; }
   .qt-choice {
     font-size: 9pt;
     line-height: ${BUBBLE_DIAMETER_MM}mm;

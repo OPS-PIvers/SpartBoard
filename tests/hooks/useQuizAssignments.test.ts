@@ -2742,6 +2742,32 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     ...overrides,
   });
 
+  it.each([
+    [false, false],
+    [true, true],
+  ])(
+    'stamps allowAnonymousJoin=%s from the teacher anonymous-join gate',
+    async (granted, expected) => {
+      const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
+        wrapper: gateWrapper(
+          gateAuth('teacher-choice', {
+            canAccessFeature: ((id: string) =>
+              id === 'anonymous-join'
+                ? granted
+                : false) as AuthContextType['canAccessFeature'],
+          })
+        ),
+      });
+      await act(async () => {
+        await result.current.createAssignment(QUIZ, {
+          sessionMode: 'teacher',
+          sessionOptions: {},
+        });
+      });
+      expect(findSessionSet()).toMatchObject({ allowAnonymousJoin: expected });
+    }
+  );
+
   it('applies force-off from the membership building even with no selected buildings', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
       wrapper: gateWrapper(gateAuth('force-off')),
@@ -3024,7 +3050,7 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
         { sessionMode: 'teacher', sessionOptions: {} },
         { bankSlots: BANK_SLOTS }
       )
-    ).rejects.toThrow('Random bank draws need a self-paced session');
+    ).rejects.toThrow('Random bank draws need Assessment Mode');
     expect(batchCommit).not.toHaveBeenCalled();
   });
 

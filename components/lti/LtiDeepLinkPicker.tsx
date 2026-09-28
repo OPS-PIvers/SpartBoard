@@ -76,7 +76,10 @@ import {
 } from '@/utils/studentTargetRef';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
-import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
+import {
+  getAssignBehaviorSeed,
+  formatBehaviorSummary,
+} from '@/utils/quizBehavior';
 import {
   getVideoActivityBehavior,
   formatVideoActivityBehaviorSummary,
@@ -438,7 +441,7 @@ const LtiDeepLinkFlow: React.FC = () => {
   const behaviorSummary = useMemo(() => {
     if (kind === 'quiz') {
       return selectedQuiz
-        ? formatBehaviorSummary(getQuizBehavior(selectedQuiz))
+        ? formatBehaviorSummary(getAssignBehaviorSeed(selectedQuiz))
         : null;
     }
     return selectedActivity
@@ -634,13 +637,9 @@ const LtiDeepLinkFlow: React.FC = () => {
           sessionSectionsFor(quizData)
         );
 
-        // Respect the quiz's OWN configured behavior (session mode, per-attempt
-        // options, attempt limit) exactly as the normal SpartBoard assign flow
-        // does. (A Schoology launch has no live teacher session, so the runner
-        // self-paces regardless; carrying the configured options/attemptLimit
-        // keeps per-attempt behavior matching.)
+        // Assessment Mode always; options and attempt limit come from the quiz.
         const { sessionMode, sessionOptions, attemptLimit } =
-          getQuizBehavior(selectedQuiz);
+          getAssignBehaviorSeed(selectedQuiz);
 
         const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
         const plcLinkage = resolvePlcLinkage();

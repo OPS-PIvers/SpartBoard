@@ -188,13 +188,13 @@ describe('QuizEditorModal isDirty (behavior compare)', () => {
     fireEvent.click(screen.getByRole('button', { name: /^settings$/i }));
 
     // Change session mode → dirty.
-    fireEvent.click(screen.getByRole('button', { name: /self-paced/i }));
+    fireEvent.click(screen.getByRole('button', { name: /teacher-paced/i }));
     expect(dirtyAttr()).toBe('true');
 
     // Revert to the original mode. The behavior object is now structurally
     // equal but NOT referentially equal to the original — the field-by-field
     // compare must still report clean (matching the old JSON.stringify).
-    fireEvent.click(screen.getByRole('button', { name: /teacher-paced/i }));
+    fireEvent.click(screen.getByRole('button', { name: /assessment mode/i }));
     expect(dirtyAttr()).toBe('false');
   });
 

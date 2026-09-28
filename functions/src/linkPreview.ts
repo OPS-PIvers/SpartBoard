@@ -8,10 +8,13 @@
  * public hostname that resolves to an internal address is also rejected.
  */
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import dns from 'dns';
-import https from 'https';
 import axios from 'axios';
 import { ALLOWED_ORIGINS } from './classlinkShared';
+import {
+  createPinnedAgent,
+  resolveAndValidateHost,
+  type ResolvedAddress,
+} from './ssrfGuard';
 import './functionsInit';
 
 const MAX_REDIRECTS = 2;
@@ -75,85 +78,6 @@ function isRateLimited(
   globalCallTimes.push(now);
   calls.push(now);
   return false;
-}
-
-// IP-literal / reserved-range blocks, mirrored from embedProxy.ts's
-// checkUrlCompatibility, applied to every resolved address (not just the
-// hostname string) since a public hostname can resolve to a private IP.
-const BLOCKED_IP_PATTERNS = [
-  /^127\./,
-  /^10\./,
-  /^172\.(1[6-9]|2[0-9]|3[01])\./,
-  /^192\.168\./,
-  /^169\.254\./,
-  /^0\./,
-  /^::1$/,
-  /^::$/,
-  /^f[cd][0-9a-f]{2}:/i,
-  /^fe[89ab][0-9a-f]:/i,
-  /^fec[0-9a-f]:/i,
-];
-
-// Unwraps an IPv4-mapped IPv6 address (dotted or hex form) to its embedded IPv4 so the IPv4 blocklist still applies.
-function normalizeAddress(address: string): string {
-  const lower = address.toLowerCase();
-  const dotted = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(lower);
-  if (dotted) return dotted[1];
-  const hex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(lower);
-  if (hex) {
-    const hi = parseInt(hex[1], 16);
-    const lo = parseInt(hex[2], 16);
-    return [hi >> 8, hi & 0xff, lo >> 8, lo & 0xff].join('.');
-  }
-  return address;
-}
-
-function isBlockedIp(address: string): boolean {
-  const normalized = normalizeAddress(address);
-  return BLOCKED_IP_PATTERNS.some((pattern) => pattern.test(normalized));
-}
-
-interface ResolvedAddress {
-  address: string;
-  family: number;
-}
-
-// Resolves once, validates every address, and returns them for pinning (avoids TOCTOU DNS rebinding).
-async function resolveAndValidateHost(
-  hostname: string
-): Promise<ResolvedAddress[]> {
-  const lower = hostname.toLowerCase();
-  if (lower === 'localhost' || lower === 'metadata.google.internal') {
-    throw new Error('Blocked host');
-  }
-  const results = await dns.promises.lookup(hostname, { all: true });
-  if (results.length === 0) {
-    throw new Error('Host did not resolve');
-  }
-  for (const { address } of results) {
-    if (isBlockedIp(address)) {
-      throw new Error('Host resolves to a private address');
-    }
-  }
-  return results;
-}
-
-// Pins the connection to the already-validated addresses instead of letting axios/Node re-resolve DNS.
-function createPinnedAgent(addresses: ResolvedAddress[]): https.Agent {
-  return new https.Agent({
-    lookup: (
-      _hostname: string,
-      options: unknown,
-      callback: (
-        err: NodeJS.ErrnoException | null,
-        address: string,
-        family: number
-      ) => void
-    ) => {
-      const first = addresses[0];
-      callback(null, first.address, first.family);
-    },
-  });
 }
 
 function youtubeVideoId(parsedUrl: URL): string | null {

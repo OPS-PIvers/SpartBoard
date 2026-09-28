@@ -51,7 +51,9 @@ export interface UseQuestionBanksResult {
   /** Drive save + metadata upsert; republishes to the synced doc and PLC headers when shared. */
   saveBank: (
     bank: QuestionBankData,
-    existingDriveFileId?: string
+    existingDriveFileId?: string,
+    /** Where a brand-new bank lands; ignored once the bank exists. */
+    placement?: { folderId: string }
   ) => Promise<QuestionBankMetadata>;
   loadBankData: (driveFileId: string) => Promise<QuestionBankData>;
   /** Removes the Drive file, metadata, every PLC header and the synced doc. */
@@ -205,7 +207,8 @@ export const useQuestionBanks = (
   const saveBank = useCallback(
     async (
       bank: QuestionBankData,
-      existingDriveFileId?: string
+      existingDriveFileId?: string,
+      placement?: { folderId: string }
     ): Promise<QuestionBankMetadata> => {
       if (!userId) throw new Error('Not authenticated');
       const drive = getDriveService();
@@ -216,7 +219,11 @@ export const useQuestionBanks = (
         updated,
         existingDriveFileId ?? existing?.driveFileId
       );
-      const metadata = buildBankMetadata(updated, driveFileId, existing);
+      const metadata = buildBankMetadata(
+        updated,
+        driveFileId,
+        existing ?? (placement ? { folderId: placement.folderId } : null)
+      );
       await setDoc(bankMetaRef(userId, bank.id), metadata);
       if (existing?.sync) {
         await publishSynced(

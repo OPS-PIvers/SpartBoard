@@ -916,6 +916,67 @@ describe('pinLoginV1', () => {
     expect(res).toEqual({ matched: true, customToken: 'ct:PS2' });
   });
 
+  describe('allowAnonymousJoin stamp', () => {
+    function seedVa(extra: Record<string, unknown>) {
+      h.docStore.set('video_activity_sessions/vs1', {
+        teacherUid: 'teacher1',
+        rosterIds: ['r1'],
+        ...extra,
+      });
+      h.docStore.set('users/teacher1/rosters/r1/pin_index/1__1234', {
+        pseudonym: 'PS2',
+        classId: 'CL2',
+        orgId: 'org-orono',
+      });
+    }
+    const vaLogin = () =>
+      callPinLogin({
+        data: {
+          kind: 'video-activity',
+          sessionId: 'vs1',
+          pin: '1234',
+          period: '1',
+        },
+      });
+
+    it('rejects a video-activity PIN login stamped false', async () => {
+      seedVa({ allowAnonymousJoin: false });
+      await expectCode(vaLogin(), 'permission-denied');
+      expect(h.lastCustomToken).toBeNull();
+    });
+
+    it('rejects a quiz PIN login stamped false', async () => {
+      h.docStore.set('quiz_sessions/qs1', {
+        code: 'ABC123',
+        status: 'active',
+        teacherUid: 'teacher1',
+        rosterIds: ['r1'],
+        allowAnonymousJoin: false,
+      });
+      await expectCode(
+        callPinLogin({
+          data: { kind: 'quiz', code: 'ABC123', pin: '1234', period: '1' },
+        }),
+        'permission-denied'
+      );
+    });
+
+    it('allows a session stamped true', async () => {
+      seedVa({ allowAnonymousJoin: true });
+      expect(await vaLogin()).toEqual({ matched: true, customToken: 'ct:PS2' });
+    });
+
+    it('allows an unstamped session', async () => {
+      seedVa({});
+      expect(await vaLogin()).toEqual({ matched: true, customToken: 'ct:PS2' });
+    });
+
+    it('allows a view-only share stamped false', async () => {
+      seedVa({ allowAnonymousJoin: false, mode: 'view-only' });
+      expect(await vaLogin()).toEqual({ matched: true, customToken: 'ct:PS2' });
+    });
+  });
+
   it('maps a createCustomToken failure to internal', async () => {
     h.docStore.set('video_activity_sessions/vs1', {
       teacherUid: 'teacher1',

@@ -110,7 +110,7 @@ vi.mock('@/utils/youtube', async () => {
  */
 class FakeYTPlayer {
   constructor(
-    _elementId: string,
+    _elementId: string | HTMLElement,
     options: {
       height: string;
       width: string;

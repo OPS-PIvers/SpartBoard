@@ -233,7 +233,7 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
     collectionName: 'video_activity_sessions',
     dualQuery: true,
     classFilterShape: 'single',
-    activeFilter: { field: 'status', value: 'active' },
+    activeFilter: { field: 'status', valueIn: ['waiting', 'active'] },
     endedFilter: { field: 'status', value: 'ended' },
     endedOrderBy: 'endedAt',
     endedLimit: 50,

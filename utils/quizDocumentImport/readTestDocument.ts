@@ -7,7 +7,7 @@
 
 import { readQuizDocument } from './index';
 import { readQuizDocumentWithAi, type AiExtractFn } from './aiReader';
-import type { ExtractedQuiz } from './types';
+import type { ExtractedQuiz, RemoteImageFetcher } from './types';
 import { documentKind } from './fileKind';
 import { browserPdfDeps } from './pdfBrowserDeps';
 import { browserImageDeps } from './imageBrowserDeps';
@@ -41,6 +41,8 @@ export interface ReadTestDocumentOptions {
   multiAnswer?: boolean;
   /** Photos of the test, one per page in order; `file` is the first (R30). */
   pages?: readonly Blob[];
+  /** Copies pictures an LMS export links to on another site. */
+  fetchRemoteImage?: RemoteImageFetcher;
 }
 
 export async function readTestDocument(
@@ -60,6 +62,9 @@ export async function readTestDocument(
         : {}),
       ...(kind === 'image' ? { pdf: browserImageDeps(pages), pages } : {}),
       ...(options.multiAnswer ? { multiAnswer: true } : {}),
+      ...(options.fetchRemoteImage
+        ? { fetchRemoteImage: options.fetchRemoteImage }
+        : {}),
     });
 
   // The callable takes only a PDF or a Word file, so everything else is read here.

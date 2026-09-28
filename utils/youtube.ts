@@ -32,6 +32,34 @@ export const loadYouTubeApi = (callback: () => void): void => {
   }
 };
 
+const foreignPending = new WeakMap<Window, (() => void)[]>();
+
+/** Loads the API into another window (a Present popup), so its players talk to that window. */
+export const loadYouTubeApiIn = (win: Window, callback: () => void): void => {
+  if (win === window) {
+    loadYouTubeApi(callback);
+    return;
+  }
+  if (win.YT?.Player) {
+    callback();
+    return;
+  }
+  const queued = foreignPending.get(win);
+  if (queued) {
+    queued.push(callback);
+    return;
+  }
+  foreignPending.set(win, [callback]);
+  const previousHandler = win.onYouTubeIframeAPIReady;
+  win.onYouTubeIframeAPIReady = () => {
+    if (typeof previousHandler === 'function') previousHandler();
+    (foreignPending.get(win) ?? []).splice(0).forEach((cb) => cb());
+  };
+  const tag = win.document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  win.document.head.appendChild(tag);
+};
+
 /** Extracts the 11-character video ID from any YouTube URL format. */
 export const extractYouTubeId = (url: string): string | null => {
   const m = url.match(
@@ -94,7 +122,7 @@ declare global {
   interface Window {
     YT?: {
       Player: new (
-        elementId: string,
+        elementId: string | HTMLElement,
         options: {
           height: string;
           width: string;

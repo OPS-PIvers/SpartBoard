@@ -817,4 +817,56 @@ describe('ImportWizard', () => {
       screen.getByRole('button', { name: /copy template url/i })
     ).toBeInTheDocument();
   });
+  it('hands a bulk-source file off and ignores other file types', () => {
+    const { adapter } = makeAdapter();
+    const onFile = vi.fn();
+    adapter.bulkSource = {
+      title: 'Schoology export (.imscc)',
+      description: 'Every question bank.',
+      accept: '.imscc',
+      onFile,
+    };
+    renderWizard(adapter);
+
+    const input = screen.getByLabelText('Schoology export (.imscc)');
+    const wrong = new File(['x'], 'notes.csv');
+    fireEvent.change(input, { target: { files: [wrong] } });
+    expect(onFile).not.toHaveBeenCalled();
+    expect(screen.getByText('Choose a .imscc file.')).toBeInTheDocument();
+
+    const right = new File(['x'], 'History.IMSCC');
+    fireEvent.change(input, { target: { files: [right] } });
+    expect(onFile).toHaveBeenCalledWith(right);
+  });
+  it('refuses a file the upload sources cannot read instead of parsing it as text', async () => {
+    const { adapter, parseSpy } = makeAdapter({ supportedSources: ['csv'] });
+    renderWizard(adapter);
+    fireEvent.change(screen.getByLabelText('Upload import file'), {
+      target: { files: [makeFile('export.zip', 'PK')] },
+    });
+    expect(
+      await screen.findByText(
+        'That file can’t be imported here. Choose a CSV file.'
+      )
+    ).toBeInTheDocument();
+    expect(parseSpy).not.toHaveBeenCalled();
+  });
+
+  it('sends a collection export picked on the main upload to the bulk source', () => {
+    const { adapter, parseSpy } = makeAdapter({ supportedSources: ['csv'] });
+    const onFile = vi.fn();
+    adapter.bulkSource = {
+      title: 'Schoology export (.imscc)',
+      description: 'Every question bank.',
+      accept: '.imscc',
+      onFile,
+    };
+    renderWizard(adapter);
+    const input = screen.getByLabelText('Upload import file');
+    expect(input).toHaveAttribute('accept', '.csv,.imscc');
+    const file = makeFile('History.imscc', 'PK');
+    fireEvent.change(input, { target: { files: [file] } });
+    expect(onFile).toHaveBeenCalledWith(file);
+    expect(parseSpy).not.toHaveBeenCalled();
+  });
 });

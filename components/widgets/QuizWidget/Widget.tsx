@@ -53,6 +53,8 @@ import {
   type ExtractedImage,
 } from '@/utils/quizDocumentImport';
 import { readTestAndKey } from '@/utils/quizDocumentImport/readTestAndKey';
+import { fetchImageThroughServer } from '@/utils/quizDocumentImport/remoteImageFetcher';
+import { CartridgeBankImportModal } from './components/CartridgeBankImportModal';
 import {
   callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
@@ -304,10 +306,9 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // D13/D14: one upload per picture, linked to every question that uses it,
   // into the same Drive folder and sharing as an editor-added stimulus.
-  const attachDocumentImages = useCallback(
-    async (quiz: QuizData): Promise<QuizData> => {
-      const images = documentImagesRef.current;
-      const uploader = driveStimulusUploader({
+  const stimulusUploader = useMemo(
+    () =>
+      driveStimulusUploader({
         uploadFile: (file, name, folder) => {
           if (!driveService) throw new Error('Google Drive is not connected.');
           return driveService.uploadFile(file, name, folder);
@@ -319,7 +320,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         deleteFile: async (id) => {
           await driveService?.deleteFile(id);
         },
-      });
+      }),
+    [driveService]
+  );
+
+  const attachDocumentImages = useCallback(
+    async (quiz: QuizData): Promise<QuizData> => {
+      const images = documentImagesRef.current;
+      const uploader = stimulusUploader;
 
       // Passing no images strips the reader's own ids, so a quiz never
       // carries a pointer to a picture that was not uploaded.
@@ -347,7 +355,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
       return attachImagesToQuiz(quiz, images, uploader);
     },
-    [driveService, showConfirm, addToast]
+    [driveService, stimulusUploader, showConfirm, addToast]
   );
 
   const {
@@ -395,13 +403,16 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     [bankSources, loadBankContent, appendQuestionsToBank]
   );
   const bankAiAllowed = canAccessFeature('question-bank-ai') && canUseQuizAi;
-  const { folders: bankFolders, moveItem: moveBankItem } = useFolders(
-    user?.uid,
-    'question_bank'
-  );
+  const {
+    folders: bankFolders,
+    moveItem: moveBankItem,
+    createFolder: createBankFolder,
+  } = useFolders(user?.uid, 'question_bank');
   // Bank editor state — ephemeral, mirrors the quiz editor pair below.
   const [editingBank, setEditingBank] = useState<QuestionBankData | null>(null);
   const [bankImportOpen, setBankImportOpen] = useState(false);
+  const canImportBankCartridge = canAccessFeature('question-bank-imscc-import');
+  const [bankCartridge, setBankCartridge] = useState<File | null>(null);
   const [editingBankMeta, setEditingBankMeta] =
     useState<QuestionBankMetadata | null>(null);
   const [shareBankTarget, setShareBankTarget] =
@@ -1403,8 +1414,35 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     canUseAi: canUseQuizAi,
   };
 
+  if (bankCartridge) {
+    return (
+      <CartridgeBankImportModal
+        file={bankCartridge}
+        onClose={(summary) => {
+          setBankCartridge(null);
+          if (summary && summary.saved > 0) {
+            addToast(
+              `${summary.saved} question ${summary.saved === 1 ? 'bank' : 'banks'} imported.`,
+              'success'
+            );
+          }
+        }}
+        existingBanks={banks}
+        folders={bankFolders}
+        createFolder={createBankFolder}
+        saveBank={saveBank}
+        attachPictures={(quiz, images) =>
+          attachImagesToQuiz(quiz, images, stimulusUploader)
+        }
+        canUploadPictures={!!driveService}
+        fetchRemoteImage={fetchImageThroughServer}
+        multiAnswer={canAccessFeature('quiz-choose-all')}
+      />
+    );
+  }
+
   if (bankImportOpen) {
-    const adapter = createQuizImportAdapter({
+    const baseAdapter = createQuizImportAdapter({
       ...sharedImportDeps,
       widgetLabel: 'Question bank',
       // Same row format as a quiz; the parsed questions become a new bank.
@@ -1420,6 +1458,21 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         });
       },
     });
+    const adapter = canImportBankCartridge
+      ? {
+          ...baseAdapter,
+          bulkSource: {
+            title: 'Schoology export (.imscc)',
+            description:
+              'Brings in every question bank in the export, each in its own bank.',
+            accept: '.imscc',
+            onFile: (file: File) => {
+              setBankImportOpen(false);
+              setBankCartridge(file);
+            },
+          },
+        }
+      : baseAdapter;
     return (
       <ImportWizard
         isOpen
@@ -1449,6 +1502,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       },
       documentImages: () => documentImagesRef.current,
       attachDocumentImages,
+      fetchRemoteImage: fetchImageThroughServer,
       saveQuiz: async (data) => {
         await saveQuiz(data);
       },
@@ -1861,7 +1915,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           if (quizHasBankSlots(data)) {
             if (mode !== 'student') {
               addToast(
-                'Random bank draws need a self-paced session. Switch the session mode to self-paced and try again.',
+                'Random bank draws need Assessment Mode. Switch to Assessment Mode and try again.',
                 'error'
               );
               return;
@@ -2233,7 +2287,15 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               });
             }
             const url = `${window.location.origin}/quiz?code=${code}`;
-            if (typeof navigator !== 'undefined' && navigator.clipboard) {
+            if (
+              quizAssignmentMode !== 'view-only' &&
+              !canAccessFeature('anonymous-join')
+            ) {
+              addToast('Assignment created.', 'success');
+            } else if (
+              typeof navigator !== 'undefined' &&
+              navigator.clipboard
+            ) {
               void navigator.clipboard
                 .writeText(url)
                 .then(() =>

@@ -113,4 +113,36 @@ describe('buildVideoActivityResultsSheetData', () => {
     expect(headers[0]).toBe('Timestamp');
     expect(headers[10]).toBe('Submitted At');
   });
+
+  it('marks never-asked live questions "Not asked" and drops them from max points', () => {
+    const q1 = vaQuestion({ id: 'q1', points: 2 });
+    const q2 = vaQuestion({ id: 'q2', points: 3 });
+    const q3 = vaQuestion({ id: 'q3', points: 1 });
+    const r = vaResponse({
+      answers: [{ questionId: 'q1', answer: 'mitochondria', answeredAt: 1 }],
+    });
+    const { headers, dataRows } = buildVideoActivityResultsSheetData(
+      [r],
+      [q1, q2, q3],
+      { notAskedQuestionIds: ['q2'] }
+    );
+    expect(headers).toHaveLength(14);
+    // Max Points at index 8: q1 + q3; asked-but-missed q3 counts, q2 does not.
+    expect(dataRows[0][8]).toBe('3');
+    expect(dataRows[0][6]).toBe('67%');
+    expect(dataRows[0].slice(11)).toEqual(['2', 'Not asked', '']);
+  });
+
+  it('leaves the sheet unchanged when no question is marked not asked', () => {
+    const responses = [vaResponse()];
+    const questions = [vaQuestion(), vaQuestion({ id: 'q2' })];
+    const plain = buildVideoActivityResultsSheetData(responses, questions);
+    const empty = buildVideoActivityResultsSheetData(responses, questions, {
+      notAskedQuestionIds: [],
+    });
+    expect(empty.headers).toEqual(plain.headers);
+    expect(empty.dataRows.map((r) => r.slice(1))).toEqual(
+      plain.dataRows.map((r) => r.slice(1))
+    );
+  });
 });

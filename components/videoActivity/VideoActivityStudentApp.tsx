@@ -36,6 +36,12 @@ import { VideoActivityPublicQuestion, VideoActivitySession } from '@/types';
 import { studentQuestionsFromSession } from '@/utils/videoActivityPublicQuestions';
 import { VideoPlayer } from './VideoPlayer';
 import { QuestionOverlay } from './QuestionOverlay';
+import { VideoActivityLiveStudent } from './VideoActivityLiveStudent';
+import {
+  isLiveVideoActivitySession,
+  scoredVideoActivityQuestions,
+} from '@/utils/videoActivityLive';
+import { isQuestionClosedError } from '@/utils/videoActivityLiveStudent';
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
 import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
@@ -47,6 +53,8 @@ import {
 import { TabAwayClock } from '@/components/common/TabAwayClock';
 import { useServerNow } from '@/hooks/useServerNow';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
+import { isAnonymousJoinBlocked } from '@/utils/anonymousJoin';
+import { AnonymousJoinBlockedScreen } from '@/components/common/AnonymousJoinBlockedScreen';
 import {
   VideoActivityPeriodLockedScreen,
   VideoActivityPeriodPausedOverlay,
@@ -375,6 +383,30 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   // a double-tap could fan out parallel requests.
   const [lookingUp, setLookingUp] = useState(false);
 
+  // PIN joiners learn up front whether the teacher allows no-sign-in joins.
+  const [anonGate, setAnonGate] = useState<'pending' | 'blocked' | 'open'>(
+    () =>
+      isStudentRole || !sessionId || sessionId.includes('/')
+        ? 'open'
+        : 'pending'
+  );
+  useEffect(() => {
+    if (anonGate !== 'pending') return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const info = await lookupSession(sessionId);
+        if (!cancelled)
+          setAnonGate(isAnonymousJoinBlocked(info) ? 'blocked' : 'open');
+      } catch {
+        if (!cancelled) setAnonGate('open');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [anonGate, sessionId, lookupSession]);
+
   // SSO auto-join. Mirrors QuizStudentApp's pattern: a single ref guards
   // against StrictMode double-invoke. When `joinStatus` flips to `'error'`,
   // the render-time reset below clears the ref AND `joinStatus` is in the
@@ -537,6 +569,33 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     ]
   );
 
+  // Teacher-paced: the board drives everything, and ending the session finishes every student.
+  const isLive = isLiveVideoActivitySession(session);
+  const liveEnded = isLive && session?.status === 'ended';
+  const liveCompleteStartedRef = useRef(false);
+  const liveNeedsComplete =
+    liveEnded &&
+    joinStatus === 'joined' &&
+    !isViewOnly &&
+    myResponse != null &&
+    myResponse.completedAt == null;
+  useEffect(() => {
+    if (!liveNeedsComplete || liveCompleteStartedRef.current) return;
+    liveCompleteStartedRef.current = true;
+    completeActivity().catch((err: unknown) =>
+      logError('VideoActivityStudentApp.liveComplete', err, { sessionId })
+    );
+  }, [liveNeedsComplete, completeActivity, sessionId]);
+  const handleLiveCheckError = useCallback(
+    (err: unknown) => {
+      if (!perPeriod || isQuestionClosedError(err) || !isFrozenCheckError(err))
+        return false;
+      freezeForPeriod();
+      return true;
+    },
+    [perPeriod, freezeForPeriod]
+  );
+
   const handleVideoEnd = useCallback(async () => {
     setVideoEnded(true);
     if (isViewOnly) return;
@@ -561,6 +620,8 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     () => !!myResponse?.unlocked
   );
   const playheadRef = useRef(0);
+  // No player in live mode: tab exits log the board's last known position.
+  if (isLive) playheadRef.current = session?.live?.playheadSeconds ?? 0;
 
   // Track the previous `tabSwitchWarnings` value via state-during-render
   // so we can sync the local counter without an extra effect pass.
@@ -780,6 +841,15 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       return <FullPageLoader message="Joining activity…" />;
     }
 
+    if (anonGate === 'pending') {
+      return <FullPageLoader message="Loading…" />;
+    }
+    if (anonGate === 'blocked') {
+      return (
+        <AnonymousJoinBlockedScreen nextTarget={window.location.pathname} />
+      );
+    }
+
     return (
       <div className="h-screen overflow-y-auto bg-gradient-to-b from-white to-slate-100">
         <div className="min-h-full flex flex-col items-center justify-center p-4">
@@ -873,9 +943,21 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const atCap = attemptLimit !== null && completedCount >= attemptLimit;
   // A retake waiting on a shut period shows the locked card; otherwise finished work always shows here.
   const retakeWaiting = retakePending && perPeriod && !canEnter;
-  if ((videoEnded || myResponse?.completedAt || atCap) && !retakeWaiting) {
-    const answeredCount = myResponse?.answers.length ?? 0;
-    const totalQuestions = sortedQuestions.length;
+  if (
+    (videoEnded || myResponse?.completedAt || atCap || liveEnded) &&
+    !retakeWaiting
+  ) {
+    // Live scores count only the questions the class was asked (D11).
+    const scoredQuestions = scoredVideoActivityQuestions(
+      session,
+      sortedQuestions
+    );
+    const answeredCount = isLive
+      ? scoredQuestions.filter((q) =>
+          myResponse?.answers.some((a) => a.questionId === q.id)
+        ).length
+      : (myResponse?.answers.length ?? 0);
+    const totalQuestions = scoredQuestions.length;
     // Score visibility gates whether the student sees their percentage. The
     // teacher's Publish Scores flow flips `session.scoreVisibility` from
     // `'none'` (or absent) to one of the reveal modes. Until then, the
@@ -886,7 +968,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     const showScore = visibility !== 'none';
     // `isCorrect` comes from the server check at submit time, and Publish re-grades it.
     const correct = showScore
-      ? sortedQuestions.filter(
+      ? scoredQuestions.filter(
           (q) =>
             myResponse?.answers.find((x) => x.questionId === q.id)
               ?.isCorrect === true
@@ -971,8 +1053,8 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const answeredCount = myResponse?.answers.length ?? 0;
   const totalQuestions = sortedQuestions.length;
 
-  return (
-    <div className="h-screen h-dvh overflow-hidden bg-gradient-to-b from-white to-slate-100 flex flex-col relative">
+  const shellOverlays = (
+    <>
       {/* Resume prompt — covers the player on first render after a teacher
           unlock so the student knows what happened before they touch
           anything. */}
@@ -1057,6 +1139,29 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
           </span>
         </div>
       )}
+    </>
+  );
+
+  if (isLive && session) {
+    return (
+      <VideoActivityLiveStudent
+        session={session}
+        questions={sortedQuestions}
+        answers={myResponse?.answers ?? []}
+        checkAnswer={checkAnswer}
+        submitAnswer={submitAnswer}
+        onCheckError={handleLiveCheckError}
+        readOnly={isViewOnly}
+        paused={periodPaused}
+      >
+        {shellOverlays}
+      </VideoActivityLiveStudent>
+    );
+  }
+
+  return (
+    <div className="h-screen h-dvh overflow-hidden bg-gradient-to-b from-white to-slate-100 flex flex-col relative">
+      {shellOverlays}
 
       {/* Top bar */}
       <div className="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between shrink-0">

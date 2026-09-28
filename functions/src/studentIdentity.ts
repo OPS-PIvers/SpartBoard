@@ -1299,6 +1299,21 @@ export const pinLoginV1 = onCall(
       return { matched: false, reason: 'session-not-found' };
     }
     const sessionData = sessionSnap.data() ?? {};
+    // Stamped at create time from the teacher's `anonymous-join` access; absent = allowed.
+    if (
+      sessionData.allowAnonymousJoin === false &&
+      sessionData.mode !== 'view-only'
+    ) {
+      console.warn('[pinLoginV1] rejected', {
+        kind,
+        reason: 'anonymous-join-disabled',
+        sessionId: sessionRef.id,
+      });
+      throw new HttpsError(
+        'permission-denied',
+        'Sign in to join this activity.'
+      );
+    }
     const teacherUid =
       typeof sessionData.teacherUid === 'string' ? sessionData.teacherUid : '';
     if (!teacherUid) {

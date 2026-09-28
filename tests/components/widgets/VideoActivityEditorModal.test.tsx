@@ -136,6 +136,13 @@ const fakeActivity2: VideoActivityData = {
 // Tests
 // ---------------------------------------------------------------------------
 
+const focusModeSwitch = (): HTMLElement => {
+  const row = screen.getByText('Focus mode').closest('div');
+  const el = row?.querySelector('[role="switch"]');
+  if (!el) throw new Error('Focus mode switch not found');
+  return el as HTMLElement;
+};
+
 describe('VideoActivityEditorModal — Questions/Settings tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -169,7 +176,7 @@ describe('VideoActivityEditorModal — Questions/Settings tab', () => {
     ).toBeInTheDocument();
   });
 
-  it('switching to Settings tab renders the behavior panel (mode buttons)', () => {
+  it('switching to Settings tab renders the behavior panel', () => {
     render(
       <VideoActivityEditorModal
         isOpen
@@ -179,8 +186,8 @@ describe('VideoActivityEditorModal — Questions/Settings tab', () => {
       />
     );
     fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    expect(screen.getByText('Teacher-paced')).toBeInTheDocument();
-    expect(screen.getByText('Self-paced')).toBeInTheDocument();
+    expect(screen.getByText('Focus mode')).toBeInTheDocument();
+    expect(screen.queryByText('Teacher-paced')).not.toBeInTheDocument();
   });
 
   it('switching back to Questions hides the behavior panel', () => {
@@ -194,7 +201,7 @@ describe('VideoActivityEditorModal — Questions/Settings tab', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /^settings$/i }));
     fireEvent.click(screen.getAllByRole('button', { name: /^questions$/i })[0]);
-    expect(screen.queryByText('Teacher-paced')).not.toBeInTheDocument();
+    expect(screen.queryByText('Focus mode')).not.toBeInTheDocument();
   });
 
   it('saving without changing settings calls onSave with DEFAULT_VA_BEHAVIOR as 2nd arg', async () => {
@@ -218,7 +225,10 @@ describe('VideoActivityEditorModal — Questions/Settings tab', () => {
   it('when a behavior prop is provided, it seeds the panel', () => {
     const customBehavior: VideoActivityBehaviorSettings = {
       ...DEFAULT_VA_BEHAVIOR,
-      sessionMode: 'student',
+      sessionOptions: {
+        ...DEFAULT_VA_BEHAVIOR.sessionOptions,
+        tabWarningsEnabled: false,
+      },
     };
     render(
       <VideoActivityEditorModal
@@ -230,8 +240,7 @@ describe('VideoActivityEditorModal — Questions/Settings tab', () => {
       />
     );
     fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    const selfPacedBtn = screen.getByRole('button', { name: /self-paced/i });
-    expect(selfPacedBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(focusModeSwitch()).toHaveAttribute('aria-checked', 'false');
   });
 
   it('editing a behavior control and saving passes updated behavior as 2nd arg', async () => {
@@ -244,15 +253,16 @@ describe('VideoActivityEditorModal — Questions/Settings tab', () => {
         onSave={onSave}
       />
     );
-    // Switch to settings and change mode to 'student'
     fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    fireEvent.click(screen.getByRole('button', { name: /self-paced/i }));
+    fireEvent.click(focusModeSwitch());
 
     // Save
     fireEvent.click(screen.getByRole('button', { name: 'Save Activity' }));
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
-    const [, behavior] = onSave.mock.calls[0];
-    expect(behavior).toMatchObject({ sessionMode: 'student' });
+    const behavior = onSave.mock.calls[0][1] as VideoActivityBehaviorSettings;
+    expect(behavior.sessionOptions).toMatchObject({
+      tabWarningsEnabled: false,
+    });
   });
 
   it('changing behavior marks the editor as dirty', () => {
@@ -268,14 +278,17 @@ describe('VideoActivityEditorModal — Questions/Settings tab', () => {
     expect(workspace).toHaveAttribute('data-is-dirty', 'false');
 
     fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    fireEvent.click(screen.getByRole('button', { name: /self-paced/i }));
+    fireEvent.click(focusModeSwitch());
     expect(workspace).toHaveAttribute('data-is-dirty', 'true');
   });
 
   it('reusing the modal for a different activity resets originalBehavior — no false dirty', () => {
     const customBehavior: VideoActivityBehaviorSettings = {
       ...DEFAULT_VA_BEHAVIOR,
-      sessionMode: 'student',
+      sessionOptions: {
+        ...DEFAULT_VA_BEHAVIOR.sessionOptions,
+        tabWarningsEnabled: false,
+      },
     };
 
     const { rerender } = render(
@@ -302,11 +315,7 @@ describe('VideoActivityEditorModal — Questions/Settings tab', () => {
     const workspace = screen.getByTestId('editor-workspace');
     expect(workspace).toHaveAttribute('data-is-dirty', 'false');
 
-    // The Settings panel should reflect DEFAULT behavior (Teacher-paced).
     fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    const teacherPacedBtn = screen.getByRole('button', {
-      name: /teacher-paced/i,
-    });
-    expect(teacherPacedBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(focusModeSwitch()).toHaveAttribute('aria-checked', 'true');
   });
 });

@@ -13,8 +13,8 @@
  * code/PIN-only join flow.
  */
 
-import React from 'react';
-import { Users, Check, Link2 } from 'lucide-react';
+import React, { useId, useState } from 'react';
+import { Users, Check, Link2, ChevronRight } from 'lucide-react';
 import type { ClassRoster } from '@/types';
 import type { AssignClassPickerValue } from './AssignClassPicker.helpers';
 
@@ -23,6 +23,10 @@ export interface AssignClassPickerProps {
   value: AssignClassPickerValue;
   onChange: (next: AssignClassPickerValue) => void;
   disabled?: boolean;
+  /** Header folds the list away behind a chevron (starts open). */
+  collapsible?: boolean;
+  /** One class at most: picking a class replaces the selection. */
+  singleSelect?: boolean;
 }
 
 export const AssignClassPicker: React.FC<AssignClassPickerProps> = ({
@@ -30,11 +34,17 @@ export const AssignClassPicker: React.FC<AssignClassPickerProps> = ({
   value,
   onChange,
   disabled = false,
+  collapsible = false,
+  singleSelect = false,
 }) => {
+  const [open, setOpen] = useState(true);
+  const regionId = useId();
   const toggleRosterId = (id: string): void => {
     const next = value.rosterIds.includes(id)
       ? value.rosterIds.filter((x) => x !== id)
-      : [...value.rosterIds, id];
+      : singleSelect
+        ? [id]
+        : [...value.rosterIds, id];
     onChange({ rosterIds: next });
   };
 
@@ -68,62 +78,95 @@ export const AssignClassPicker: React.FC<AssignClassPickerProps> = ({
         disabled ? 'opacity-50 pointer-events-none space-y-2' : 'space-y-2'
       }
     >
-      <div className="flex items-center gap-2">
-        <Users
-          aria-hidden="true"
-          focusable="false"
-          className="w-4 h-4 text-brand-blue-primary"
-        />
-        <p className="text-sm font-bold text-brand-blue-dark">
-          Assign to classes{' '}
-          <span className="text-slate-400 font-normal">(optional)</span>
-        </p>
-      </div>
-
-      {rosters.length === 0 ? (
-        <EmptyStub message="No classes yet. Create one in My Classes or import from ClassLink to assign here." />
+      {collapsible ? (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-controls={regionId}
+          className="group flex w-full items-center gap-2 rounded-md py-1 transition-colors"
+        >
+          <Users
+            aria-hidden="true"
+            focusable="false"
+            className="w-4 h-4 text-brand-blue-primary"
+          />
+          <span className="text-sm font-bold text-brand-blue-dark">
+            {singleSelect ? 'Assign to a class' : 'Assign to classes'}{' '}
+            <span className="text-slate-400 font-normal">(optional)</span>
+          </span>
+          {!open && hasSelection && (
+            <span className="text-xs text-slate-500 truncate">
+              {selectedCount} selected
+            </span>
+          )}
+          <ChevronRight
+            aria-hidden="true"
+            className={`ml-auto w-4 h-4 text-slate-400 group-hover:text-brand-blue-primary transition-all ${open ? 'rotate-90' : ''}`}
+          />
+        </button>
       ) : (
-        <CheckList>
-          {rosters.map((r) => (
-            <RosterCheckItem
-              key={r.id}
-              roster={r}
-              checked={value.rosterIds.includes(r.id)}
-              onToggle={() => toggleRosterId(r.id)}
-            />
-          ))}
-        </CheckList>
+        <div className="flex items-center gap-2">
+          <Users
+            aria-hidden="true"
+            focusable="false"
+            className="w-4 h-4 text-brand-blue-primary"
+          />
+          <p className="text-sm font-bold text-brand-blue-dark">
+            {singleSelect ? 'Assign to a class' : 'Assign to classes'}{' '}
+            <span className="text-slate-400 font-normal">(optional)</span>
+          </p>
+        </div>
       )}
 
-      {totalCount > 0 && (
-        <div className="flex items-center justify-between text-xxs text-slate-500">
-          <span>
-            {!hasSelection
-              ? 'None selected — students join with the code only.'
-              : totalCount > selectableCount
-                ? `${selectedCount} of ${selectableCount} selected (${totalCount - selectableCount} unavailable).`
-                : `${selectedCount} of ${selectableCount} selected.`}
-          </span>
-          <div className="flex items-center gap-2">
-            {selectedCount < selectableCount && (
-              <button
-                type="button"
-                onClick={selectAll}
-                className="font-bold text-brand-blue-primary hover:text-brand-blue-dark"
-              >
-                Select all ({selectableCount})
-              </button>
-            )}
-            {hasSelection && (
-              <button
-                type="button"
-                onClick={clearAll}
-                className="font-bold text-slate-500 hover:text-slate-700"
-              >
-                Clear
-              </button>
-            )}
-          </div>
+      {(!collapsible || open) && (
+        <div id={regionId} className="space-y-2">
+          {rosters.length === 0 ? (
+            <EmptyStub message="No classes yet. Create one in My Classes or import from ClassLink to assign here." />
+          ) : (
+            <CheckList>
+              {rosters.map((r) => (
+                <RosterCheckItem
+                  key={r.id}
+                  roster={r}
+                  checked={value.rosterIds.includes(r.id)}
+                  onToggle={() => toggleRosterId(r.id)}
+                />
+              ))}
+            </CheckList>
+          )}
+
+          {totalCount > 0 && (
+            <div className="flex items-center justify-between text-xxs text-slate-500">
+              <span>
+                {!hasSelection
+                  ? 'None selected — students join with the code only.'
+                  : totalCount > selectableCount
+                    ? `${selectedCount} of ${selectableCount} selected (${totalCount - selectableCount} unavailable).`
+                    : `${selectedCount} of ${selectableCount} selected.`}
+              </span>
+              <div className="flex items-center gap-2">
+                {!singleSelect && selectedCount < selectableCount && (
+                  <button
+                    type="button"
+                    onClick={selectAll}
+                    className="font-bold text-brand-blue-primary hover:text-brand-blue-dark"
+                  >
+                    Select all ({selectableCount})
+                  </button>
+                )}
+                {hasSelection && (
+                  <button
+                    type="button"
+                    onClick={clearAll}
+                    className="font-bold text-slate-500 hover:text-slate-700"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

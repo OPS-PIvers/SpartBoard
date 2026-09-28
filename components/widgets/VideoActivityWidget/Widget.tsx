@@ -27,6 +27,7 @@ import {
   VideoActivitySessionSettings,
   VideoActivitySessionOptions,
   VideoActivitySession,
+  VideoActivitySessionMode,
 } from '@/types';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
@@ -63,10 +64,14 @@ import { writePlcVideoActivityEntry } from '@/hooks/usePlcVideoActivities';
 import { PlcShareTargetModal } from '@/components/plc/PlcShareTargetModal';
 import { logError } from '@/utils/logError';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
-import { VideoActivityManager } from './components/VideoActivityManager';
+import {
+  VideoActivityManager,
+  type VideoActivityPendingAssign,
+} from './components/VideoActivityManager';
 import { Creator } from './components/Creator';
 import { Results } from './components/Results';
 import { VideoActivityLiveMonitor } from './components/VideoActivityLiveMonitor';
+import { VideoActivityLivePlayer } from './components/VideoActivityLivePlayer';
 import { VideoActivityEditorModal } from './components/VideoActivityEditorModal';
 import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
 import { getPlcMemberEmail } from '@/utils/plc';
@@ -179,6 +184,9 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     useState<VideoActivityMetadata | null>(null);
 
   const [loadingActivity, setLoadingActivity] = useState(false);
+  // A make-up assign waiting for the manager view to open it (D18).
+  const [pendingAssign, setPendingAssign] =
+    useState<VideoActivityPendingAssign | null>(null);
   const [selectedSession, setSelectedSession] =
     useState<VideoActivitySession | null>(null);
   // Monotonically increasing token to guard against rapid Monitor/Results
@@ -437,21 +445,41 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     const resultsAssignment = assignments.find(
       (a) => a.id === selectedSession.id
     );
+    const exitResults = () => {
+      unsubscribeFromSession();
+      setSelectedSession(null);
+      updateWidget(widget.id, {
+        config: {
+          ...config,
+          view: 'manager',
+          resultsSessionId: null,
+        } as VideoActivityConfig,
+      });
+    };
     return (
       <Results
         session={selectedSession}
         responses={responses}
         plc={resultsAssignment?.plc}
-        onBack={() => {
-          unsubscribeFromSession();
-          setSelectedSession(null);
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              view: 'manager',
-              resultsSessionId: null,
-            } as VideoActivityConfig,
+        onBack={exitResults}
+        onAssignMakeUp={(targetStudents) => {
+          const meta = activities.find(
+            (a) =>
+              a.id === selectedSession.activityId ||
+              (!!resultsAssignment?.activityDriveFileId &&
+                a.driveFileId === resultsAssignment.activityDriveFileId)
+          );
+          if (!meta) {
+            addToast('This activity is no longer in your library.', 'error');
+            return;
+          }
+          setPendingAssign({
+            key: crypto.randomUUID(),
+            activityId: meta.id,
+            rosterIds: selectedSession.rosterIds ?? [],
+            targetStudents,
           });
+          exitResults();
         }}
       />
     );
@@ -465,6 +493,31 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
       liveSession && liveSession.id === selectedSession.id
         ? liveSession
         : selectedSession;
+    const exitToManager = () => {
+      unsubscribeFromSession();
+      setSelectedSession(null);
+      updateWidget(widget.id, {
+        config: {
+          ...config,
+          view: 'manager',
+          resultsSessionId: null,
+        } as VideoActivityConfig,
+      });
+    };
+    if (sessionForMonitor.sessionMode === 'teacher') {
+      return (
+        <VideoActivityLivePlayer
+          session={sessionForMonitor}
+          responses={responses}
+          onEnd={async () => {
+            await deactivateAssignment(selectedSession.id);
+            addToast('Session ended.', 'success');
+            exitToManager();
+          }}
+          onBack={exitToManager}
+        />
+      );
+    }
     return (
       <VideoActivityLiveMonitor
         session={sessionForMonitor}
@@ -565,8 +618,10 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           meta,
           rosterIds,
           dueAt,
-          targeting: AssignTargetingValue = EMPTY_ASSIGN_TARGETING_VALUE
+          targeting: AssignTargetingValue = EMPTY_ASSIGN_TARGETING_VALUE,
+          sessionMode: VideoActivitySessionMode = 'student'
         ) => {
+          const isLive = sessionMode === 'teacher';
           // Use loadActivityData directly to avoid setting loadingActivity
           // which would cause the Manager component to unmount and destroy the modal
           const data = await loadActivityData(meta.driveFileId);
@@ -636,7 +691,8 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             vaAssignmentMode,
             derived.classPeriodByClassId,
             sessionOptions,
-            periodGate
+            periodGate,
+            sessionMode
           );
 
           // M17 §5 B3 — write the new window fields onto the session doc
@@ -788,18 +844,36 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             delete nextMap[meta.id];
           }
 
+          let openLive = false;
+          if (isLive) {
+            // A live session opens straight into the board player.
+            const snap = await getDoc(
+              doc(db, 'video_activity_sessions', sessionId)
+            );
+            if (snap.exists()) {
+              setSelectedSession(snap.data() as VideoActivitySession);
+              subscribeToSession(sessionId);
+              openLive = true;
+            }
+          }
           updateWidget(widget.id, {
             config: {
               ...config,
+              ...(openLive ? { view: 'monitor' } : {}),
               selectedActivityId: meta.id,
               selectedActivityTitle: meta.title,
               resultsSessionId: sessionId,
               lastRosterIdsByActivityId: nextMap,
             } as VideoActivityConfig,
           });
+          if (isLive) return sessionId;
 
           const url = `${window.location.origin}/activity/${encodeURIComponent(sessionId)}`;
           const isViewOnly = vaAssignmentMode === 'view-only';
+          if (!isViewOnly && !canAccessFeature('anonymous-join')) {
+            addToast('Assignment created.', 'success');
+            return sessionId;
+          }
           await copyUrlToClipboard(url, addToast, {
             successMessage: isViewOnly
               ? 'Share link copied to clipboard!'
@@ -810,6 +884,8 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           });
           return sessionId;
         }}
+        pendingAssign={pendingAssign}
+        onPendingAssignDone={() => setPendingAssign(null)}
         lastRosterIdsByActivityId={config.lastRosterIdsByActivityId}
         lastClassIdsByActivityId={config.lastClassIdsByActivityId}
         lastClassIdByActivityId={config.lastClassIdByActivityId}
@@ -1133,7 +1209,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
                   return mp != null
                     ? buildVideoActivityGradeEntries(
                         responses,
-                        data.questions,
+                        result.scoredQuestions,
                         mp
                       )
                     : [];
@@ -1141,7 +1217,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
                 buildSchoologyGrades: (responses) =>
                   buildVideoActivityGradeEntries(
                     responses,
-                    data.questions,
+                    result.scoredQuestions,
                     videoActivityMaxPoints(data.questions)
                   ),
               });
