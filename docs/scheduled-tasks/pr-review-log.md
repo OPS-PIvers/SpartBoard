@@ -4371,3 +4371,29 @@ rather than "no data") is also still open.
 - Notes:
   - `gh` is absent and `/mnt/skills/user/` does not exist again. GitHub access went through MCP, and the standards came from CLAUDE.md.
   - No lint, type-check or test runs were made because no code was changed.
+
+## 2026-09-28
+- PRs reviewed (10):
+  - #3550 Nightly debugger run 83 (2026-09-28): memory doc update
+  - #3549 firestore.rules: plc_resources write requires a real super admin, not bare isAdmin()
+  - #3548 Add DE/ES/FR translations for widgetSettings.common i18n namespace
+  - #3547 Fix: custom widgets vanish for teachers with a legacy-id building
+  - #3546 Fix silent no-op when saving a folder rename with a blank name
+  - #3545 Fix: canonicalize legacy building ids in the global mini-app library filter
+  - #3544 test(mcp): cover Claude connector auth gate and write-budget/revision infra
+  - #3543 Admin: per-widget AI switches with access level and daily limit
+  - #3542 D5 Toast Architecture: route the Admin Access hook's toasts through addToast
+  - #3528 Improve gl-author guidance for task-driven live tours
+- Comments processed: 1 unresolved inline thread (#3543, client-asserted `source`) — 0 fixed, 0 explained. The author had already replied that it is a documented tradeoff left to Paul, so no further reply was posted. All other feedback was resolved threads or claude[bot] summaries that had already been answered (for example, #3545's CustomWidgets follow-up is covered by #3547).
+- Fixes pushed: none
+- Reviews posted: 10
+- Merge readiness:
+  - Ready: #3550, #3546, #3545, #3544, #3542, #3528.
+  - Ready with minor notes:
+    - #3549: the PLC Resources admin tab is still shown to building and domain admins, whose writes now fail against the rules. Hide it or show a clear error.
+    - #3548: the new test opens with a 15-line docblock, which breaks the one-line comment rule.
+    - #3547: a two-line inline comment and a long test narrative block, plus a `useEffect` capture in the test.
+    - #3543: `canUseAI` is a trivial alias, two comments are stale since the `isAdminPreviewFeature` change, quota is charged before validation, server tests for the `video-activity-ai` switch and the per-feature limit branch are missing, and the PR should name the Access > Widgets > Guided Learning path for `guided-learning-ai`.
+- Notes:
+  - `gh` is absent and `/mnt/skills/user/` does not exist. GitHub access went through MCP, and the standards came from CLAUDE.md.
+  - No lint, type-check or test runs were made because no code was changed.
