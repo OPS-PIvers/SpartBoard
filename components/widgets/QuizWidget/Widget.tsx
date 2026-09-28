@@ -2237,10 +2237,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               quizAssignmentMode !== 'view-only' &&
               !canAccessFeature('anonymous-join')
             ) {
-              addToast(
-                'Assignment created (paused). Press Play when you\u2019re ready to start.',
-                'success'
-              );
+              addToast('Assignment created.', 'success');
             } else if (
               typeof navigator !== 'undefined' &&
               navigator.clipboard
