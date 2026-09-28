@@ -644,3 +644,64 @@ describe('VideoActivityManager assign modal — live pacing', () => {
     expect(mode).toBe('teacher');
   });
 });
+
+describe('VideoActivityManager assign modal — make-up prefill', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    liveFlag.enabled = true;
+  });
+
+  const pending = {
+    key: 'k1',
+    activityId: 'va-1',
+    rosterIds: ['r1'],
+    targetStudents: [{ kind: 'classlink' as const, sourcedId: 'sid-b' }],
+  };
+
+  function renderWithPending(
+    onAssign = vi.fn().mockResolvedValue('s-2'),
+    onPendingAssignDone = vi.fn()
+  ) {
+    render(
+      <VideoActivityManager
+        activities={[makeVaMeta()]}
+        loading={false}
+        error={null}
+        onNew={vi.fn()}
+        onImport={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onAssign={onAssign}
+        defaultSessionSettings={DEFAULT_SESSION_SETTINGS}
+        rosters={ROSTERS}
+        assignments={[]}
+        assignmentsLoading={false}
+        pendingAssign={pending}
+        onPendingAssignDone={onPendingAssignDone}
+      />
+    );
+    return { onAssign, onPendingAssignDone };
+  }
+
+  it('opens self-paced with the class and the absent students picked', async () => {
+    const { onAssign, onPendingAssignDone } = renderWithPending();
+    const dialog = await screen.findByRole('dialog', {
+      name: /cell division/i,
+    });
+    expect(within(dialog).getByTestId('roster-r1')).toBeChecked();
+    expect(
+      within(dialog).getByRole('radio', { name: /self-paced/i })
+    ).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    const [, rosterIds, , targeting, mode] = onAssign.mock.calls[0];
+    expect(rosterIds).toEqual(['r1']);
+    expect((targeting as AssignTargetingValue).targetMode).toBe('students');
+    expect((targeting as AssignTargetingValue).targetStudents).toEqual(
+      pending.targetStudents
+    );
+    expect(mode).toBe('student');
+    expect(onPendingAssignDone).toHaveBeenCalledOnce();
+  });
+});

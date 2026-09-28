@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import type { VideoActivityQuestion } from '@/types';
+import type { ClassRoster, VideoActivityQuestion } from '@/types';
 import {
   computeSkippedOnSeek,
   initialVideoActivityLiveState,
   isLiveVideoActivitySession,
   liveQuestionState,
+  makeUpTargetStudents,
+  notAskedVideoActivityQuestionIds,
   questionCrossed,
   scoredVideoActivityQuestions,
   whoHasntAnswered,
@@ -185,5 +187,68 @@ describe('whoHasntAnswered', () => {
     );
     expect(result.notAnswered).toEqual(['Cy Young']);
     expect(result.notJoined).toEqual(['Ada Lovelace', 'Bo Diddley']);
+  });
+
+  it('lists never-asked questions for live sessions only', () => {
+    const live = {
+      ...initialVideoActivityLiveState(0),
+      askedQuestionIds: ['q1'],
+      skippedQuestionIds: ['q2'],
+    };
+    expect(
+      notAskedVideoActivityQuestionIds(
+        { sessionMode: 'teacher', live },
+        questions
+      )
+    ).toEqual(['q2', 'q3']);
+    expect(notAskedVideoActivityQuestionIds({}, questions)).toEqual([]);
+  });
+
+  it('targets roster students with no live answers for the make-up', () => {
+    const student = (
+      id: string,
+      sourcedId: string | undefined,
+      pin: string
+    ) => ({
+      id,
+      firstName: id,
+      lastName: 'X',
+      pin,
+      ...(sourcedId ? { classLinkSourcedId: sourcedId } : {}),
+    });
+    const roster = {
+      id: 'r1',
+      name: 'Period 1',
+      students: [
+        student('ada', 'sid-ada', '01'),
+        student('bo', 'sid-bo', '02'),
+        student('cy', 'sid-cy', '03'),
+        student('di', 'sid-di', '04'),
+        student('pinOnly', undefined, '05'),
+      ],
+    } as unknown as ClassRoster;
+    const other = {
+      id: 'r2',
+      name: 'Period 2',
+      students: [student('zed', 'sid-zed', '09')],
+    } as unknown as ClassRoster;
+    const refs = makeUpTargetStudents(
+      [roster, other],
+      ['r1'],
+      [
+        { studentUid: 'u-ada', answers: [{ questionId: 'q1' }] },
+        // Joined but never answered: still owes the make-up.
+        { studentUid: 'u-bo', answers: [] },
+        { studentUid: 'anon', pin: '03', answers: [{ questionId: 'q1' }] },
+      ],
+      new Map([
+        ['u-ada', 'classlink:sid-ada'],
+        ['u-bo', 'classlink:sid-bo'],
+      ])
+    );
+    expect(refs).toEqual([
+      { kind: 'classlink', sourcedId: 'sid-bo' },
+      { kind: 'classlink', sourcedId: 'sid-di' },
+    ]);
   });
 });

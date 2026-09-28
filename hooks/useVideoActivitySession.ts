@@ -50,7 +50,10 @@ import {
   AttemptLimitReachedError,
 } from '@/hooks/useQuizSession';
 import { normalizeVideoActivitySession } from '@/utils/videoActivityNormalize';
-import { initialVideoActivityLiveState } from '@/utils/videoActivityLive';
+import {
+  initialVideoActivityLiveState,
+  isLiveVideoActivitySession,
+} from '@/utils/videoActivityLive';
 import {
   QUIZ_CONTENT_COLLECTION,
   QUIZ_CONTENT_DOC,
@@ -954,16 +957,24 @@ export const useVideoActivitySessionStudent =
             }
           }
 
-          if (sessionData.status === 'ended') {
+          const closedMessage =
+            'This activity has been closed by your teacher. Ask for a new link if you still need access.';
+          // A live student who already joined reloads into the completion screen.
+          const liveEnded =
+            sessionData.status === 'ended' &&
+            isLiveVideoActivitySession(sessionData);
+          if (sessionData.status === 'ended' && !liveEnded) {
             setJoinStatus('error');
-            setError(
-              'This activity has been closed by your teacher. Ask for a new link if you still need access.'
-            );
+            setError(closedMessage);
             return;
           }
 
           // Check expiry
-          if (sessionData.expiresAt && Date.now() > sessionData.expiresAt) {
+          if (
+            !liveEnded &&
+            sessionData.expiresAt &&
+            Date.now() > sessionData.expiresAt
+          ) {
             setJoinStatus('error');
             setError(
               'This activity has expired. Contact your teacher for a new link.'
@@ -1126,6 +1137,22 @@ export const useVideoActivitySessionStudent =
               effectiveResponseRef = legacyRef;
               existingSnap = legacySnap;
             }
+          }
+
+          if (liveEnded) {
+            if (!existingSnap.exists()) {
+              setJoinStatus('error');
+              setError(closedMessage);
+              return;
+            }
+            // Read-only: no seat, no reset, no new response.
+            setSessionId(targetSessionId);
+            setResponseDocId(effectiveResponseRef.id);
+            setPeriodKeys([]);
+            setContent(null);
+            setSession(sessionData);
+            setJoinStatus('joined');
+            return;
           }
 
           // Per-period sessions: the join names one of the student's periods

@@ -64,7 +64,10 @@ import { writePlcVideoActivityEntry } from '@/hooks/usePlcVideoActivities';
 import { PlcShareTargetModal } from '@/components/plc/PlcShareTargetModal';
 import { logError } from '@/utils/logError';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
-import { VideoActivityManager } from './components/VideoActivityManager';
+import {
+  VideoActivityManager,
+  type VideoActivityPendingAssign,
+} from './components/VideoActivityManager';
 import { Creator } from './components/Creator';
 import { Results } from './components/Results';
 import { VideoActivityLiveMonitor } from './components/VideoActivityLiveMonitor';
@@ -181,6 +184,9 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     useState<VideoActivityMetadata | null>(null);
 
   const [loadingActivity, setLoadingActivity] = useState(false);
+  // A make-up assign waiting for the manager view to open it (D18).
+  const [pendingAssign, setPendingAssign] =
+    useState<VideoActivityPendingAssign | null>(null);
   const [selectedSession, setSelectedSession] =
     useState<VideoActivitySession | null>(null);
   // Monotonically increasing token to guard against rapid Monitor/Results
@@ -439,21 +445,41 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     const resultsAssignment = assignments.find(
       (a) => a.id === selectedSession.id
     );
+    const exitResults = () => {
+      unsubscribeFromSession();
+      setSelectedSession(null);
+      updateWidget(widget.id, {
+        config: {
+          ...config,
+          view: 'manager',
+          resultsSessionId: null,
+        } as VideoActivityConfig,
+      });
+    };
     return (
       <Results
         session={selectedSession}
         responses={responses}
         plc={resultsAssignment?.plc}
-        onBack={() => {
-          unsubscribeFromSession();
-          setSelectedSession(null);
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              view: 'manager',
-              resultsSessionId: null,
-            } as VideoActivityConfig,
+        onBack={exitResults}
+        onAssignMakeUp={(targetStudents) => {
+          const meta = activities.find(
+            (a) =>
+              a.id === selectedSession.activityId ||
+              (!!resultsAssignment?.activityDriveFileId &&
+                a.driveFileId === resultsAssignment.activityDriveFileId)
+          );
+          if (!meta) {
+            addToast('This activity is no longer in your library.', 'error');
+            return;
+          }
+          setPendingAssign({
+            key: crypto.randomUUID(),
+            activityId: meta.id,
+            rosterIds: selectedSession.rosterIds ?? [],
+            targetStudents,
           });
+          exitResults();
         }}
       />
     );
@@ -858,6 +884,8 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           });
           return sessionId;
         }}
+        pendingAssign={pendingAssign}
+        onPendingAssignDone={() => setPendingAssign(null)}
         lastRosterIdsByActivityId={config.lastRosterIdsByActivityId}
         lastClassIdsByActivityId={config.lastClassIdsByActivityId}
         lastClassIdByActivityId={config.lastClassIdByActivityId}
