@@ -3624,7 +3624,8 @@ export type StandardSubject =
   | 'science'
   | 'pe-health'
   | 'art'
-  | 'music';
+  | 'music'
+  | 'world-language';
 
 /** One benchmark in the seeded `standards_catalog`. Doc id = `${set}:${code}`. */
 export interface StandardBenchmark {

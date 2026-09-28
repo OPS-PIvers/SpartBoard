@@ -108,6 +108,14 @@ export const STANDARD_SETS: StandardSetEntry[] = [
       (await import('@/config/standards/mn-visual-arts-2018.json'))
         .default as StandardsFile,
   },
+  {
+    set: 'actfl-cando-2026',
+    subject: 'world-language',
+    label: 'World Language: NCSSFL-ACTFL Can-Do (2026)',
+    load: async () =>
+      (await import('@/config/standards/actfl-cando-2026.json'))
+        .default as StandardsFile,
+  },
 ];
 
 export interface StandardHeading {
@@ -119,9 +127,9 @@ export interface StandardHeading {
 
 // ELA headings read "R9 Media Literacy: …" or "LSVEI 1 Exchange ideas…";
 // Social Studies, PE and Arts headings read "5. Public Policy: …";
-// Math and Science headings carry a dotted code: "6.1.1 Read, write…".
+// Math, Science and World Language headings carry a dotted code: "6.1.1 Read, write…", "WL.3.2 Interpersonal: …".
 const ELA_HEADING = /^([A-Z]{1,6}\s?\d{1,2})\b[.:]?\s*(.*)$/s;
-const DOTTED_HEADING = /^((?:K|\d{1,2})(?:\.\d{1,2}){1,3})\s+(.*)$/s;
+const DOTTED_HEADING = /^((?:WL\.)?(?:K|\d{1,2})(?:\.\d{1,2}){1,3})\s+(.*)$/s;
 const SS_HEADING = /^(\d{1,2})\.\s*(.*)$/s;
 
 const TITLE_MAX = 72;

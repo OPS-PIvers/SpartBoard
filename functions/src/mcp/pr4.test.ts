@@ -54,6 +54,11 @@ describe('standards tags', () => {
     );
     expect(normalizeStandardRef('K.1.1.1')).toBe('K.1.1.1');
     expect(normalizeStandardRef('MN Math 0.3.5.1')).toBe('0.3.5.1');
+    expect(normalizeStandardRef('ACTFL Novice High WL.3.2.1')).toBe('WL.3.2.1');
+    expect(normalizeStandardRef('WL.10.4.2')).toBe('WL.10.4.2');
+    expect(normalizeStandardRef('actfl-cando-2026:WL.3.2.1')).toBe(
+      'actfl-cando-2026:WL.3.2.1'
+    );
     expect(normalizeStandardRef('mn-math-2022:9.2.4.15')).toBe(
       'mn-math-2022:9.2.4.15'
     );

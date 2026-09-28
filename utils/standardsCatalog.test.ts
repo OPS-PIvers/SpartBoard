@@ -133,6 +133,12 @@ describe('parseStandardHeading', () => {
         '0.3.5.1'
       )
     ).toEqual({ code: '0.3.5', title: 'Number Relationships' });
+    expect(
+      parseStandardHeading(
+        'WL.11.4 Intercultural Investigation: I can objectively evaluate products.',
+        'WL.11.4.1'
+      )
+    ).toEqual({ code: 'WL.11.4', title: 'Intercultural Investigation' });
   });
 
   it('falls back to the numeric key from the benchmark code', () => {

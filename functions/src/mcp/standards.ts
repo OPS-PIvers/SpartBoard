@@ -14,6 +14,7 @@ export const STANDARD_SETS = [
   'mn-music-2018',
   'mn-theatre-2018',
   'mn-visual-arts-2018',
+  'actfl-cando-2026',
 ] as const;
 export const MAX_STANDARDS_PER_QUESTION = 10;
 /** Distinct codes per save, which bounds the catalog reads one call makes. */
@@ -42,7 +43,7 @@ interface Benchmark {
 }
 
 const ELA_HEADING = /^([A-Z]{1,6}\s?\d{1,2})\b[.:]?\s*(.*)$/s;
-const DOTTED_HEADING = /^((?:K|\d{1,2})(?:\.\d{1,2}){1,3})\s+(.*)$/s;
+const DOTTED_HEADING = /^((?:WL\.)?(?:K|\d{1,2})(?:\.\d{1,2}){1,3})\s+(.*)$/s;
 const SS_HEADING = /^(\d{1,2})\.\s*(.*)$/s;
 const TITLE_MAX = 72;
 
@@ -93,7 +94,9 @@ export function normalizeStandardRef(raw: string): string {
     (STANDARD_SETS as readonly string[]).some((set) => s.startsWith(`${set}:`))
   )
     return s;
-  const m = /([0-9K]{1,2}[A-Z]?(?:\.[0-9A-Za-z]{1,3}){2,4})\s*$/.exec(s);
+  const m = /((?:WL\.)?[0-9K]{1,2}[A-Z]?(?:\.[0-9A-Za-z]{1,3}){2,4})\s*$/.exec(
+    s
+  );
   return m ? m[1] : s;
 }
 

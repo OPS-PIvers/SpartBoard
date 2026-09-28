@@ -21,6 +21,7 @@ export const CATALOG_SUBJECT_IDS = [
   'pe-health',
   'art',
   'music',
+  'world-language',
 ] as const;
 
 export const DEFAULT_SUBJECTS: Subject[] = [

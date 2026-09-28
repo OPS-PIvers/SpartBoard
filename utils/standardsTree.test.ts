@@ -71,6 +71,36 @@ describe('buildStandardsTree', () => {
     expect(ss.code).toBe('5');
     expect(ss.title).toBe('Public Policy');
   });
+
+  it('orders World Language proficiency levels by number, not text', () => {
+    const wl = (code: string, strand: string): StandardBenchmark => ({
+      ...bench(
+        code,
+        'K-12',
+        strand,
+        `${code.slice(0, -2)} Interpersonal: I can.`,
+        'I can.'
+      ),
+      id: `actfl-cando-2026:${code}`,
+      set: 'actfl-cando-2026',
+      subject: 'world-language',
+    });
+    const tree = buildStandardsTree([
+      wl('WL.10.2.1', '10. Superior'),
+      wl('WL.2.2.1', '2. Novice Mid'),
+      wl('WL.9.2.1', '9. Advanced High'),
+    ]);
+    const strands = tree.subjects[0].strands;
+    expect(strands.map((s) => s.name)).toEqual([
+      '2. Novice Mid',
+      '9. Advanced High',
+      '10. Superior',
+    ]);
+    expect(strands[0].standards[0]).toMatchObject({
+      key: 'actfl-cando-2026|WL.2.2',
+      title: 'Interpersonal',
+    });
+  });
 });
 
 describe('filterStandardsTree', () => {
