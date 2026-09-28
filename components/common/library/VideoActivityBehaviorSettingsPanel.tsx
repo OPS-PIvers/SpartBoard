@@ -2,8 +2,7 @@
  * VideoActivityBehaviorSettingsPanel — reusable behavior settings UI for
  * Video Activity.
  *
- * Renders the mode selector (Teacher-paced / Auto-progress / Self-paced),
- * the AssignmentSettingsToggleGroup (integrity / feedback / randomization
+ * Renders the AssignmentSettingsToggleGroup (integrity / feedback / randomization
  * toggles + attempt limit), and VA-specific scoring options
  * (scoreVisibility in a Scoring CollapsibleSection).
  *
@@ -19,12 +18,9 @@ import React, { useContext } from 'react';
 import type {
   VideoActivityBehaviorSettings,
   VideoActivityScoreVisibility,
-  QuizSessionMode,
 } from '@/types';
 import { AssignmentSettingsToggleGroup } from './AssignmentSettingsToggleGroup';
 import { CollapsibleSection } from './CollapsibleSection';
-import type { AssignModeOption } from './types';
-import { SESSION_MODES } from './sessionModes';
 import { PUBLISH_LEVEL_OPTIONS } from './publishScoreLevels';
 import { TabAwayLimitRow, TabWarningThresholdRow } from './TabWarningRows';
 import { AuthContext } from '@/context/AuthContextValue';
@@ -32,10 +28,7 @@ import { AuthContext } from '@/context/AuthContextValue';
 export interface VideoActivityBehaviorSettingsPanelProps {
   value: VideoActivityBehaviorSettings;
   onChange: (next: VideoActivityBehaviorSettings) => void;
-  /**
-   * When true, the mode selector buttons are disabled (e.g. live assignment).
-   * Default false.
-   */
+  /** When true, the settings controls are locked (e.g. live assignment). */
   modeLocked?: boolean;
 }
 
@@ -56,70 +49,11 @@ export const VideoActivityBehaviorSettingsPanel: React.FC<
   // Read via context so a provider-less host hides the rows instead of throwing.
   const tabAwayTimerOn =
     useContext(AuthContext)?.canAccessFeature?.('tab-away-timer') === true;
-  const modes: AssignModeOption[] = SESSION_MODES.map((m) => ({
-    ...m,
-    disabled: modeLocked,
-  }));
-
-  const handleModeChange = (id: string) => {
-    if (modeLocked) return;
-    onChange({ ...value, sessionMode: id as QuizSessionMode });
-  };
-
   const currentVisibility =
     value.sessionOptions.scoreVisibility ?? 'score-only';
 
   return (
     <>
-      {/* Mode selector */}
-      <div className="space-y-3">
-        <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest">
-          Session Mode
-        </p>
-        <div className="grid gap-2">
-          {modes.map((mode) => {
-            const Icon = mode.icon;
-            const selected = mode.id === value.sessionMode;
-            return (
-              <button
-                key={mode.id}
-                type="button"
-                onClick={() => handleModeChange(mode.id)}
-                disabled={mode.disabled}
-                aria-pressed={selected}
-                className={`w-full text-left p-3 rounded-xl border-2 transition-all flex items-start gap-3 group ${
-                  selected
-                    ? 'border-brand-blue-primary bg-brand-blue-lighter/30'
-                    : 'border-slate-200 hover:border-brand-blue-primary hover:bg-brand-blue-lighter/20'
-                } ${mode.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {Icon && (
-                  <div
-                    className={`p-2 rounded-lg transition-colors shrink-0 ${
-                      selected
-                        ? 'bg-brand-blue-primary text-white'
-                        : 'bg-slate-100 text-brand-blue-primary'
-                    }`}
-                  >
-                    <Icon size={18} />
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="font-black text-sm text-slate-800 leading-tight">
-                    {mode.label}
-                  </p>
-                  {mode.description && (
-                    <p className="text-xs text-slate-500 mt-0.5 leading-snug">
-                      {mode.description}
-                    </p>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Toggle group: integrity / feedback / randomization + VA scoring */}
       <AssignmentSettingsToggleGroup
         modeLocked={modeLocked}
@@ -140,7 +74,7 @@ export const VideoActivityBehaviorSettingsPanel: React.FC<
         }
         attemptLimit={value.attemptLimit}
         onAttemptLimitChange={(v) => onChange({ ...value, attemptLimit: v })}
-        shuffleQuestionsAvailable={value.sessionMode === 'student'}
+        hideShuffleQuestions
         afterTabWarningsSlot={
           tabAwayTimerOn &&
           (value.sessionOptions.tabWarningsEnabled ?? true) && (

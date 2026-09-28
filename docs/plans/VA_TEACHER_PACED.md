@@ -12,28 +12,28 @@ Non-goals for v1: video on student devices, multi-class live sessions, auto-adva
 
 ## 2. Decisions (from the design interview)
 
-| #   | Decision                   | Choice                                                                                                                                                                                             |
-| --- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | Student device             | Question only, no video. A "watch the board" screen between questions                                                                                                                             |
-| D2  | Resume                     | The board auto-pauses at each timestamp; only the teacher's **Resume** restarts playback. Live "X of Y answered" counter                                                                          |
-| D3  | Results on board           | Hidden by default. **Show results** projects the anonymous aggregate; **Reveal answer** marks the correct option                                                                                   |
-| D4  | Where the mode is chosen   | At assign time. Same VA asset; the Assign dialog offers Self-paced / Teacher-paced (live), default Self-paced                                                                                      |
-| D5  | The dead editor picker     | Removed from the VA behavior panel now, as an unflagged bug fix. Stored `behavior.sessionMode` values are ignored from then on                                                                     |
-| D6  | Board player               | The live monitor becomes the player plus controls inside the widget (works on one mirrored screen), plus an optional Quiz-style **Present to class** pop-out for two-screen teachers               |
-| D7  | Join path                  | Class sessions appear on `/my-assignments`; the `/activity/{id}` link and a QR are shown on the board. Link, QR and PIN entry are hidden when `canAccessFeature('anonymous-join')` fails            |
-| D8  | Answer window              | A question accepts answers only while open (from the pause until Resume). Students who miss it see "Question closed"                                                                              |
-| D9  | Student feedback           | "Submitted, eyes on the board" after answering; the device flips to correct/incorrect when the teacher reveals                                                                                     |
-| D10 | Self-paced behaviors       | Require-correct, rewind-on-incorrect, retries and point penalties are off in live mode. One answer per question. The Assign dialog greys them out with a note                                      |
-| D11 | Scoring                    | Same `responses` docs, so Results, export and gradebook are unchanged. Score is out of asked questions; an asked-but-missed question scores 0                                                      |
-| D12 | Teacher scrubbing          | Free seek. Seeking past a timestamp skips its question (not asked, not scored). A question jump list opens any question directly                                                                  |
-| D13 | Session start              | Lobby: QR/link, joined count and **Start**. The video does not play until Start                                                                                                                    |
-| D14 | Targeting                  | One class per live session. Each period runs its own session from the same activity                                                                                                                |
-| D15 | Names on the board         | Counts and anonymous aggregates only. A deliberate **Who hasn't answered?** popover lists names                                                                                                   |
-| D16 | Aggregate display          | MC and choose-all: bar distributions (as Quiz). Fill-in-the-blank: normalized, grouped, ranked answers with an "Other (k)" bucket; the correct group is highlighted on reveal                       |
-| D17 | `anonymous-join` gap       | Live mode honors it (D7). A separate unflagged bug-fix PR makes VA and Quiz self-paced honor it too, with student-side and server-side checks                                                      |
-| D18 | Absent students            | An ended live session offers **Assign make-up (self-paced)**, defaulting to students with no answers. It creates a normal self-paced session                                                       |
-| D19 | Returning to a closed Q    | The jump list reopens it for students who haven't answered. Existing answers stay locked; the aggregate keeps accumulating; the answer is hidden again until re-revealed                            |
-| D20 | Enforcing D8               | `checkVideoActivityAnswerV1` rejects an answer whose `questionId` is not the session's open question. No `firestore.rules` growth                                                                   |
+| #   | Decision                 | Choice                                                                                                                                                                                   |
+| --- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Student device           | Question only, no video. A "watch the board" screen between questions                                                                                                                    |
+| D2  | Resume                   | The board auto-pauses at each timestamp; only the teacher's **Resume** restarts playback. Live "X of Y answered" counter                                                                 |
+| D3  | Results on board         | Hidden by default. **Show results** projects the anonymous aggregate; **Reveal answer** marks the correct option                                                                         |
+| D4  | Where the mode is chosen | At assign time. Same VA asset; the Assign dialog offers Self-paced / Teacher-paced (live), default Self-paced                                                                            |
+| D5  | The dead editor picker   | Removed from the VA behavior panel now, as an unflagged bug fix. Stored `behavior.sessionMode` values are ignored from then on                                                           |
+| D6  | Board player             | The live monitor becomes the player plus controls inside the widget (works on one mirrored screen), plus an optional Quiz-style **Present to class** pop-out for two-screen teachers     |
+| D7  | Join path                | Class sessions appear on `/my-assignments`; the `/activity/{id}` link and a QR are shown on the board. Link, QR and PIN entry are hidden when `canAccessFeature('anonymous-join')` fails |
+| D8  | Answer window            | A question accepts answers only while open (from the pause until Resume). Students who miss it see "Question closed"                                                                     |
+| D9  | Student feedback         | "Submitted, eyes on the board" after answering; the device flips to correct/incorrect when the teacher reveals                                                                           |
+| D10 | Self-paced behaviors     | Require-correct, rewind-on-incorrect, retries and point penalties are off in live mode. One answer per question. The Assign dialog greys them out with a note                            |
+| D11 | Scoring                  | Same `responses` docs, so Results, export and gradebook are unchanged. Score is out of asked questions; an asked-but-missed question scores 0                                            |
+| D12 | Teacher scrubbing        | Free seek. Seeking past a timestamp skips its question (not asked, not scored). A question jump list opens any question directly                                                         |
+| D13 | Session start            | Lobby: QR/link, joined count and **Start**. The video does not play until Start                                                                                                          |
+| D14 | Targeting                | One class per live session. Each period runs its own session from the same activity                                                                                                      |
+| D15 | Names on the board       | Counts and anonymous aggregates only. A deliberate **Who hasn't answered?** popover lists names                                                                                          |
+| D16 | Aggregate display        | MC and choose-all: bar distributions (as Quiz). Fill-in-the-blank: normalized, grouped, ranked answers with an "Other (k)" bucket; the correct group is highlighted on reveal            |
+| D17 | `anonymous-join` gap     | Live mode honors it (D7). A separate unflagged bug-fix PR makes VA and Quiz self-paced honor it too, with student-side and server-side checks                                            |
+| D18 | Absent students          | An ended live session offers **Assign make-up (self-paced)**, defaulting to students with no answers. It creates a normal self-paced session                                             |
+| D19 | Returning to a closed Q  | The jump list reopens it for students who haven't answered. Existing answers stay locked; the aggregate keeps accumulating; the answer is hidden again until re-revealed                 |
+| D20 | Enforcing D8             | `checkVideoActivityAnswerV1` rejects an answer whose `questionId` is not the session's open question. No `firestore.rules` growth                                                        |
 
 ## 3. Rollout
 
@@ -117,15 +117,15 @@ When an ended live session is open in Results, show **Assign make-up (self-paced
 
 In `components/videoActivity/VideoActivityStudentApp.tsx`, branch on `session.sessionMode === 'teacher'` into a new `VideoActivityLiveStudent` view. It never mounts `VideoPlayer`.
 
-| Session state                                  | Student sees                                                                |
-| ---------------------------------------------- | --------------------------------------------------------------------------- |
-| `waiting`                                      | "You're in. Waiting for your teacher to start."                             |
-| `active`, `currentQuestionId: null`            | "Watch the board."                                                          |
-| open question, not answered                    | The question (reuse `QuestionOverlay` input parts) and Submit               |
-| open question, answered                        | "Submitted, eyes on the board" with their answer shown locked               |
-| `answerRevealed`                               | Correct / incorrect on their answer; "You didn't answer this one" if missed |
-| closed question, not answered, not revealed    | "Question closed"                                                           |
-| `ended`                                        | Existing completion screen with score if `scoreVisibility` allows           |
+| Session state                               | Student sees                                                                |
+| ------------------------------------------- | --------------------------------------------------------------------------- |
+| `waiting`                                   | "You're in. Waiting for your teacher to start."                             |
+| `active`, `currentQuestionId: null`         | "Watch the board."                                                          |
+| open question, not answered                 | The question (reuse `QuestionOverlay` input parts) and Submit               |
+| open question, answered                     | "Submitted, eyes on the board" with their answer shown locked               |
+| `answerRevealed`                            | Correct / incorrect on their answer; "You didn't answer this one" if missed |
+| closed question, not answered, not revealed | "Question closed"                                                           |
+| `ended`                                     | Existing completion screen with score if `scoreVisibility` allows           |
 
 Refresh and late join simply render from current session state; there is no local progress to restore. The tab-away timer and tab-exit tracking keep working as today.
 

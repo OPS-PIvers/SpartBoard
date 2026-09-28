@@ -833,7 +833,7 @@ describe('PlcAssignmentConfigModal (video-activity kind — Task 10 VA parity, v
     const summaryEl = screen.getByTestId('plc-config-va-behavior-summary');
     expect(summaryEl).toBeInTheDocument();
     // fakeVaBehavior: auto mode, 2 attempts, rewind 15s, −5 pts penalty, score only
-    expect(summaryEl.textContent).toMatch(/auto-progress/i);
+    expect(summaryEl.textContent).not.toMatch(/paced|progress/i);
     expect(summaryEl.textContent).toMatch(/2 attempts/i);
     expect(summaryEl.textContent).toMatch(/rewind 15s/i);
   });

@@ -294,19 +294,19 @@ describe('VideoActivityManager assign modal — slimmed flow (VA Task 9)', () =>
     expect(screen.getByTestId('assign-class-picker')).toBeInTheDocument();
   });
 
-  it('behavior summary reflects default behavior (teacher-paced) when no behavior is set', async () => {
-    renderManager(makeVaMeta()); // no behavior → DEFAULT_VA_BEHAVIOR (teacher)
+  it('behavior summary reflects default behavior and names no session mode', async () => {
+    renderManager(makeVaMeta());
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
     await screen.findByRole('dialog', { name: /cell division/i });
     const summary = screen.getByTestId('va-behavior-summary');
-    expect(summary.textContent).toMatch(/teacher.paced/i);
+    expect(summary.textContent).toMatch(/1 attempt/i);
+    expect(summary.textContent).not.toMatch(/paced/i);
   });
 
   it('behavior summary reflects custom behavior set on the activity', async () => {
     const customBehavior: VideoActivityBehaviorSettings = {
       ...DEFAULT_VA_BEHAVIOR,
-      sessionMode: 'student',
       attemptLimit: 3,
     };
     renderManager(makeVaMeta({ behavior: customBehavior }));
@@ -314,7 +314,6 @@ describe('VideoActivityManager assign modal — slimmed flow (VA Task 9)', () =>
     fireEvent.click(assignBtn);
     await screen.findByRole('dialog', { name: /cell division/i });
     const summary = screen.getByTestId('va-behavior-summary');
-    expect(summary.textContent).toMatch(/self.paced/i);
     expect(summary.textContent).toMatch(/3 attempts/i);
   });
 });

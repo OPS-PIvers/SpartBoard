@@ -189,12 +189,14 @@ export interface AssignmentSettingsToggleGroupProps {
   modeLocked?: boolean;
   /**
    * When false, the "Shuffle Questions" toggle is rendered disabled with a
-   * self-paced-only hint. Quiz passes false for teacher/auto modes;
-   * VA always passes true. Defaults to true.
+   * self-paced-only hint. Quiz passes false for teacher/auto modes.
+   * Defaults to true.
    */
   shuffleQuestionsAvailable?: boolean;
   /** Hint shown while Shuffle Questions is unavailable. */
   shuffleQuestionsHint?: string;
+  /** Hide the "Shuffle Questions" row (Video Activity plays questions in video order). */
+  hideShuffleQuestions?: boolean;
   /**
    * Hide entire sections. Currently no widget needs this, but it keeps the
    * door open for widgets that don't expose, e.g., tab-switch detection.
@@ -234,6 +236,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
   modeLocked = false,
   shuffleQuestionsAvailable = true,
   shuffleQuestionsHint = 'Self-paced only.',
+  hideShuffleQuestions = false,
   excludeSections,
   trailingSlot,
   integritySectionLabel,
@@ -291,14 +294,18 @@ export const AssignmentSettingsToggleGroup: React.FC<
 
       {showSection('randomization') && (
         <CollapsibleSection label="Question Randomization">
-          <ToggleRow
-            compact
-            label="Shuffle Questions"
-            checked={options.shuffleQuestions ?? false}
-            onChange={(v) => update('shuffleQuestions', v)}
-            disabled={!shuffleQuestionsAvailable}
-            hint={shuffleQuestionsAvailable ? undefined : shuffleQuestionsHint}
-          />
+          {!hideShuffleQuestions && (
+            <ToggleRow
+              compact
+              label="Shuffle Questions"
+              checked={options.shuffleQuestions ?? false}
+              onChange={(v) => update('shuffleQuestions', v)}
+              disabled={!shuffleQuestionsAvailable}
+              hint={
+                shuffleQuestionsAvailable ? undefined : shuffleQuestionsHint
+              }
+            />
+          )}
           <ToggleRow
             compact
             label="Shuffle Answer Options"
