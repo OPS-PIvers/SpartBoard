@@ -413,6 +413,10 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const [bankImportOpen, setBankImportOpen] = useState(false);
   const canImportBankCartridge = canAccessFeature('question-bank-imscc-import');
   const [bankCartridge, setBankCartridge] = useState<File | null>(null);
+  const canImportQuizCartridge = canAccessFeature('quiz-imscc-import');
+  const [quizCartridge, setQuizCartridge] = useState<File | null>(null);
+  // Quizzes a Schoology import already saved, so a retry only re-runs the folder move.
+  const savedCartridgeQuizzes = useRef(new Map<string, string>());
   const [editingBankMeta, setEditingBankMeta] =
     useState<QuestionBankMetadata | null>(null);
   const [shareBankTarget, setShareBankTarget] =
@@ -482,10 +486,11 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Folders are managed by QuizManager separately; this duplicate binding is
   // used only so the editor modal can surface a folder picker and commit
   // moves via `moveItem` without leaving the modal.
-  const { folders: quizFolders, moveItem: moveQuizItem } = useFolders(
-    user?.uid,
-    'quiz'
-  );
+  const {
+    folders: quizFolders,
+    moveItem: moveQuizItem,
+    createFolder: createQuizFolder,
+  } = useFolders(user?.uid, 'quiz');
 
   // PLC subscription — needed at the widget level (not just inside the
   // Assign modal) so the assign flow can resolve the selected PLC and its
@@ -1427,10 +1432,59 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
           }
         }}
-        existingBanks={banks}
+        existing={banks}
         folders={bankFolders}
         createFolder={createBankFolder}
-        saveBank={saveBank}
+        saveItem={async (quiz, folderId) => {
+          await saveBank(
+            {
+              id: crypto.randomUUID(),
+              title: quiz.title,
+              questions: quiz.questions,
+              ...(quiz.stimuli ? { stimuli: quiz.stimuli } : {}),
+              createdAt: quiz.createdAt,
+              updatedAt: quiz.updatedAt,
+            },
+            undefined,
+            { folderId }
+          );
+        }}
+        attachPictures={(quiz, images) =>
+          attachImagesToQuiz(quiz, images, stimulusUploader)
+        }
+        canUploadPictures={!!driveService}
+        fetchRemoteImage={fetchImageThroughServer}
+        multiAnswer={canAccessFeature('quiz-choose-all')}
+      />
+    );
+  }
+
+  if (quizCartridge) {
+    return (
+      <CartridgeBankImportModal
+        kind="quiz"
+        file={quizCartridge}
+        onClose={(summary) => {
+          setQuizCartridge(null);
+          if (summary && summary.saved > 0) {
+            addToast(
+              `${summary.saved} ${summary.saved === 1 ? 'quiz' : 'quizzes'} imported.`,
+              'success'
+            );
+            setView('manager');
+          }
+        }}
+        existing={quizzes}
+        folders={quizFolders}
+        createFolder={createQuizFolder}
+        saveItem={async (quiz, folderId) => {
+          let id = savedCartridgeQuizzes.current.get(quiz.id);
+          if (!id) {
+            id = (await saveQuiz(quiz)).id;
+            savedCartridgeQuizzes.current.set(quiz.id, id);
+          }
+          await moveQuizItem(id, folderId);
+        }}
         attachPictures={(quiz, images) =>
           attachImagesToQuiz(quiz, images, stimulusUploader)
         }
@@ -1507,11 +1561,23 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         await saveQuiz(data);
       },
     });
+    const quizAdapter = canImportQuizCartridge
+      ? {
+          ...adapter,
+          bulkSource: {
+            title: 'Schoology export (.imscc)',
+            description:
+              'Brings in every quiz and test in the export, each as its own quiz.',
+            accept: '.imscc',
+            onFile: (file: File) => setQuizCartridge(file),
+          },
+        }
+      : adapter;
     return (
       <ImportWizard
         isOpen
         onClose={() => setView('manager')}
-        adapter={adapter}
+        adapter={quizAdapter}
         onSaved={() => {
           addToast('Quiz saved to Drive!', 'success');
           setView('manager');

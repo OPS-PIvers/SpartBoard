@@ -1,6 +1,6 @@
-// Plans a bulk question-bank import from an LMS collection export (.imscc).
+// Plans a bulk question-bank or quiz import from an LMS collection export (.imscc).
 
-import type { LibraryFolder, QuestionBankMetadata } from '@/types';
+import type { LibraryFolder } from '@/types';
 import {
   questionNeedsKey,
   type CartridgeBank,
@@ -15,13 +15,23 @@ export interface BankImportRow {
   flaggedCount: number;
   /** The export held no questions for this bank. */
   empty: boolean;
-  /** A bank with this title already sits in the same folder. */
+  /** An item with this title already sits in the same folder. */
   duplicate: boolean;
 }
 
 /** Why an empty bank was left out; Schoology drops these question types. */
 export const EMPTY_BANK_REASON =
   'No questions in the export. Schoology can’t export Matching, Ordering, or multi-blank questions, so rebuild them in SpartBoard.';
+
+/** Why an empty quiz was left out. */
+export const EMPTY_QUIZ_REASON =
+  'No questions in the export. Schoology can’t export Matching, Ordering, or multi-blank questions, so rebuild this quiz in SpartBoard.';
+
+/** The library fields a duplicate check needs; banks and quizzes both carry them. */
+export interface LibraryItemPlacement {
+  title: string;
+  folderId?: string | null;
+}
 
 const norm = (name: string): string => name.trim().toLowerCase();
 
@@ -50,7 +60,7 @@ export function folderNames(
 export function planBankImport(
   banks: readonly CartridgeBank[],
   collectionName: string,
-  existing: readonly QuestionBankMetadata[],
+  existing: readonly LibraryItemPlacement[],
   folders: readonly LibraryFolder[]
 ): BankImportRow[] {
   const taken = new Set(

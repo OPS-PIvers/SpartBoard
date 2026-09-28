@@ -5,6 +5,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-translation',
   'question-bank-ai',
   'question-bank-imscc-import',
+  'quiz-imscc-import',
   'quiz-document-ai-reader',
   'quiz-import-suggested-targets',
   'paper-answer-sheets',

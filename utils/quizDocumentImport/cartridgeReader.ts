@@ -688,7 +688,7 @@ export async function readCartridge(
 
 /* ─── Every question bank in a collection export ─────────────────────── */
 
-/** One question bank in an LMS collection export. */
+/** One question bank, or one quiz or test, in an LMS collection export. */
 export interface CartridgeBank {
   /** The manifest's resource identifier, unique within the export. */
   id: string;
@@ -706,6 +706,8 @@ export interface CartridgeBankCollection {
   banks: CartridgeBank[];
   /** Quizzes and tests in the export, which a bank import leaves out. */
   skippedTests: number;
+  /** Question banks in the export, which a quiz import leaves out. */
+  skippedBanks: number;
 }
 
 const isBankResource = (type: string): boolean => /question-?bank/i.test(type);
@@ -729,7 +731,7 @@ interface ManifestBankRef {
   folderPath: string[];
 }
 
-/** The banks the manifest's outline lists, each with the folders above it. */
+/** The items the manifest's outline lists, each with the folders above it. */
 function outlinedBanks(
   manifest: Document,
   bankIds: ReadonlySet<string>
@@ -762,13 +764,17 @@ function resourceHref(resource: Element): string {
   );
 }
 
-/** Reads every question bank in a collection export, keeping the folder each sat in. */
+/** Reads every question bank (or every quiz, with `read: 'tests'`) in a collection export, keeping the folder each sat in. */
 export async function readCartridgeBanks(
   file: Blob,
   fallbackTitle: string,
-  options: ReaderOptions & { maxUnzippedBytes?: number } = {}
+  options: ReaderOptions & {
+    maxUnzippedBytes?: number;
+    read?: 'banks' | 'tests';
+  } = {}
 ): Promise<CartridgeBankCollection> {
   const multi = options.multiAnswer === true;
+  const readTests = options.read === 'tests';
   const budget: UnzipBudget = {
     remaining: options.maxUnzippedBytes ?? MAX_CARTRIDGE_UNZIPPED_BYTES,
   };
@@ -791,14 +797,18 @@ export async function readCartridgeBanks(
   const resources = descendants(manifest, 'resource');
   const bankResources = new Map<string, Element>();
   let skippedTests = 0;
+  let skippedBanks = 0;
   for (const resource of resources) {
     const type = resource.getAttribute('type') ?? '';
     const id = resource.getAttribute('identifier') ?? '';
-    if (isBankResource(type) && id) bankResources.set(id, resource);
-    else if (isTestResource(type)) skippedTests += 1;
+    const isBank = isBankResource(type);
+    const isTest = !isBank && isTestResource(type);
+    if ((readTests ? isTest : isBank) && id) bankResources.set(id, resource);
+    else if (isTest) skippedTests += 1;
+    else if (isBank) skippedBanks += 1;
   }
 
-  // Banks the outline leaves out still come in, at the top.
+  // Items the outline leaves out still come in, at the top.
   const outlined = outlinedBanks(manifest, new Set(bankResources.keys()));
   const listed = new Set(outlined.map((r) => r.resourceId));
   const refs = [
@@ -808,8 +818,11 @@ export async function readCartridgeBanks(
       .map((id) => ({ resourceId: id, title: '', folderPath: [] })),
   ];
 
-  const read: Array<{ ref: ManifestBankRef; questions: ExtractedQuestion[] }> =
-    [];
+  const read: Array<{
+    ref: ManifestBankRef;
+    fileTitle: string;
+    questions: ExtractedQuestion[];
+  }> = [];
   for (const ref of refs) {
     const resource = bankResources.get(ref.resourceId);
     const href = resource ? decodePath(resourceHref(resource)) : '';
@@ -817,6 +830,7 @@ export async function readCartridgeBanks(
     const parsed = entry ? itemsIn(await unzipText(entry, budget)) : null;
     read.push({
       ref,
+      fileTitle: parsed?.title ?? '',
       questions: (parsed?.items ?? []).map((item, index) =>
         toQuestion(item, index + 1, multi)
       ),
@@ -830,11 +844,14 @@ export async function readCartridgeBanks(
   );
 
   const banks: CartridgeBank[] = [];
-  for (const [index, { ref, questions: raw }] of read.entries()) {
+  for (const [index, { ref, fileTitle, questions: raw }] of read.entries()) {
     const { questions, images } = await attachCartridgeImages(raw, find);
     banks.push({
       id: ref.resourceId,
-      title: ref.title || `Question bank ${index + 1}`,
+      title:
+        ref.title ||
+        fileTitle ||
+        `${readTests ? 'Quiz' : 'Question bank'} ${index + 1}`,
       folderPath: ref.folderPath,
       questions,
       images,
@@ -850,5 +867,6 @@ export async function readCartridgeBanks(
     title: collectionTitle(manifestTitle, fallbackTitle),
     banks,
     skippedTests,
+    skippedBanks,
   };
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import type { QuestionBankMetadata, QuizData } from '@/types';
+import type { QuizData } from '@/types';
 import type {
   CartridgeBank,
   CartridgeBankCollection,
@@ -41,6 +41,7 @@ const bank = (
 const COLLECTION: CartridgeBankCollection = {
   title: 'World History Tests',
   skippedTests: 2,
+  skippedBanks: 1,
   banks: [
     bank('b1', 'Greece', ['Unit 2'], 2),
     bank('b2', 'Rome', ['Unit 2'], 3),
@@ -48,8 +49,7 @@ const COLLECTION: CartridgeBankCollection = {
   ],
 };
 
-const existing = (title: string): QuestionBankMetadata =>
-  ({ id: title, title, folderId: 'u2' }) as QuestionBankMetadata;
+const existing = (title: string) => ({ title, folderId: 'u2' });
 
 function setup(
   overrides: Partial<React.ComponentProps<typeof CartridgeBankImportModal>> = {}
@@ -57,10 +57,10 @@ function setup(
   const props: React.ComponentProps<typeof CartridgeBankImportModal> = {
     file: new File(['x'], 'export.imscc'),
     onClose: vi.fn(),
-    existingBanks: [],
+    existing: [],
     folders: [],
     createFolder: vi.fn((name: string) => Promise.resolve(`folder-${name}`)),
-    saveBank: vi.fn(() => Promise.resolve({} as QuestionBankMetadata)),
+    saveItem: vi.fn(() => Promise.resolve()),
     attachPictures: vi.fn((quiz: QuizData) => Promise.resolve(quiz)),
     canUploadPictures: true,
     multiAnswer: false,
@@ -93,7 +93,7 @@ describe('CartridgeBankImportModal', () => {
 
   it('leaves a bank already in the library unticked', async () => {
     setup({
-      existingBanks: [existing('Greece')],
+      existing: [existing('Greece')],
       folders: [
         {
           id: 'root',
@@ -136,11 +136,10 @@ describe('CartridgeBankImportModal', () => {
       'Unit 2',
       'folder-World History Tests'
     );
-    expect(props.saveBank).toHaveBeenCalledTimes(2);
-    expect(props.saveBank).toHaveBeenCalledWith(
+    expect(props.saveItem).toHaveBeenCalledTimes(2);
+    expect(props.saveItem).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Greece' }),
-      undefined,
-      { folderId: 'folder-Unit 2' }
+      'folder-Unit 2'
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
@@ -149,12 +148,12 @@ describe('CartridgeBankImportModal', () => {
 
   it('keeps the banks that saved and retries only the ones that failed', async () => {
     let failRome = true;
-    const saveBank = vi.fn((b: { title: string }) =>
+    const saveItem = vi.fn((b: { title: string }) =>
       b.title === 'Rome' && failRome
         ? Promise.reject(new Error('Drive hiccup'))
-        : Promise.resolve({} as QuestionBankMetadata)
+        : Promise.resolve()
     );
-    setup({ saveBank });
+    setup({ saveItem });
     fireEvent.click(
       await screen.findByRole('button', { name: 'Import 2 banks' })
     );
@@ -168,7 +167,22 @@ describe('CartridgeBankImportModal', () => {
     await waitFor(() =>
       expect(screen.getByText(/2 banks saved/)).toBeInTheDocument()
     );
-    expect(saveBank).toHaveBeenCalledTimes(3);
+    expect(saveItem).toHaveBeenCalledTimes(3);
+    const romeCalls = saveItem.mock.calls.filter(([b]) => b.title === 'Rome');
+    expect(romeCalls[1][0]).toBe(romeCalls[0][0]);
+  });
+
+  it('imports quizzes in quiz mode and says banks were skipped', async () => {
+    const props = setup({ kind: 'quiz' });
+    expect(
+      await screen.findByText('Import quizzes from Schoology')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/1 question bank in the export was skipped/)
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Import 2 quizzes' }));
+    expect(await screen.findByText(/2 quizzes saved/)).toBeInTheDocument();
+    expect(props.saveItem).toHaveBeenCalledTimes(2);
   });
 
   it('shows why an export could not be read', async () => {
