@@ -68,6 +68,9 @@ describe('VideoActivityStudentApp — anonymous join gate', () => {
     expect(
       await screen.findByText('Sign in to join this activity.')
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /sign in/i })
+    ).toBeInTheDocument();
     expect(screen.queryByPlaceholderText('Ask your teacher')).toBeNull();
   });
 

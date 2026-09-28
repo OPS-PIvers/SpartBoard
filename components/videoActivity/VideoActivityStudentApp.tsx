@@ -47,10 +47,8 @@ import {
 import { TabAwayClock } from '@/components/common/TabAwayClock';
 import { useServerNow } from '@/hooks/useServerNow';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
-import {
-  ANONYMOUS_JOIN_BLOCKED_MESSAGE,
-  isAnonymousJoinBlocked,
-} from '@/utils/anonymousJoin';
+import { isAnonymousJoinBlocked } from '@/utils/anonymousJoin';
+import { AnonymousJoinBlockedScreen } from '@/components/common/AnonymousJoinBlockedScreen';
 import {
   VideoActivityPeriodLockedScreen,
   VideoActivityPeriodPausedOverlay,
@@ -812,7 +810,9 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       return <FullPageLoader message="Loading…" />;
     }
     if (anonGate === 'blocked') {
-      return <ErrorScreen message={ANONYMOUS_JOIN_BLOCKED_MESSAGE} />;
+      return (
+        <AnonymousJoinBlockedScreen nextTarget={window.location.pathname} />
+      );
     }
 
     return (

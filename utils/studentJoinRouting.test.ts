@@ -2,6 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { resolveNextTarget, shouldGateToSso } from './studentJoinRouting';
 
 describe('resolveNextTarget', () => {
+  it('allows a Video Activity page and rejects other /activity paths', () => {
+    expect(resolveNextTarget('/activity/abc-123')).toBe('/activity/abc-123');
+    expect(resolveNextTarget('/activity/abc/extra')).toBeNull();
+    expect(resolveNextTarget('/activity')).toBeNull();
+  });
+
   it('returns null for empty / missing input', () => {
     expect(resolveNextTarget(null)).toBeNull();
     expect(resolveNextTarget('')).toBeNull();

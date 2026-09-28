@@ -71,7 +71,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { QUIZ_SSO_REDIRECT_ENABLED } from '@/config/constants';
-import { ANONYMOUS_JOIN_BLOCKED_MESSAGE } from '@/utils/anonymousJoin';
+import { AnonymousJoinBlockedScreen } from '@/components/common/AnonymousJoinBlockedScreen';
 import { shouldGateToSso } from '@/utils/studentJoinRouting';
 import { logError } from '@/utils/logError';
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
@@ -1103,12 +1103,9 @@ const QuizJoinFlow: React.FC<{
     }
     if (ssoGate === 'blocked') {
       return (
-        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-4 p-6">
-          <AlertCircle className="w-10 h-10 text-amber-400" />
-          <p className="text-slate-300 text-sm text-center max-w-sm">
-            {ANONYMOUS_JOIN_BLOCKED_MESSAGE}
-          </p>
-        </div>
+        <AnonymousJoinBlockedScreen
+          nextTarget={`${window.location.pathname}?code=${encodeURIComponent(urlCode)}`}
+        />
       );
     }
     // ClassLink-rostered session: offer Google sign-in by default (keys the
