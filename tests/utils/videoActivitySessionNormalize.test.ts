@@ -222,3 +222,15 @@ describe('normalizeVideoActivitySession — required field defaults', () => {
     expect(withoutExpiry.expiresAt).toBeUndefined();
   });
 });
+
+describe('normalizeVideoActivitySession status', () => {
+  it('keeps the live lobby status and folds unknown values to active', () => {
+    expect(
+      normalizeVideoActivitySession('s', { status: 'waiting' }).status
+    ).toBe('waiting');
+    expect(normalizeVideoActivitySession('s', { status: 'ended' }).status).toBe(
+      'ended'
+    );
+    expect(normalizeVideoActivitySession('s', {}).status).toBe('active');
+  });
+});

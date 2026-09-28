@@ -865,6 +865,48 @@ describe('useVideoActivityAssignments — publishAssignmentScores', () => {
       update: batchUpdate,
       commit: batchCommit,
     });
+    mockGetDoc.mockResolvedValue({ data: () => undefined });
+  });
+
+  it('scores a live session over the asked questions only', async () => {
+    mockGetDoc.mockResolvedValue({
+      data: () => ({
+        sessionMode: 'teacher',
+        live: { askedQuestionIds: ['q1'], skippedQuestionIds: ['q0'] },
+      }),
+    });
+    const refLive = { id: 'r-live' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          ref: refLive,
+          data: () => ({
+            studentUid: 's1',
+            answers: [{ questionId: 'q1', answer: 'b', answeredAt: 1 }],
+          }),
+        },
+      ],
+    });
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    let scored: { id: string }[] = [];
+    await act(async () => {
+      const out = await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        activityData,
+        'score-only'
+      );
+      scored = out.scoredQuestions;
+    });
+
+    const responseCall = batchUpdate.mock.calls.find(
+      ([ref]) => ref === refLive
+    );
+    if (!responseCall) throw new Error('expected update on response ref');
+    expect((responseCall[1] as { score: number }).score).toBe(100);
+    expect(scored.map((q) => q.id)).toEqual(['q1']);
   });
 
   it('computes score correctly when activityData.questions has no duplicates', async () => {

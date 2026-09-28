@@ -50,6 +50,7 @@ import {
   AttemptLimitReachedError,
 } from '@/hooks/useQuizSession';
 import { normalizeVideoActivitySession } from '@/utils/videoActivityNormalize';
+import { initialVideoActivityLiveState } from '@/utils/videoActivityLive';
 import {
   QUIZ_CONTENT_COLLECTION,
   QUIZ_CONTENT_DOC,
@@ -80,6 +81,7 @@ import {
   VideoActivityAnswer,
   VideoActivitySessionSettings,
   VideoActivitySessionOptions,
+  VideoActivitySessionMode,
   VideoActivityCheckResult,
   TabExit,
 } from '@/types';
@@ -148,7 +150,9 @@ export interface UseVideoActivitySessionTeacherResult {
      *  scoring). Optional — when omitted the session doc carries player-
      *  behavior settings only and grading falls back to legacy semantics. */
     sessionOptions?: VideoActivitySessionOptions,
-    periodGate?: Pick<VideoActivitySession, 'accessMode' | 'periodAccess'>
+    periodGate?: Pick<VideoActivitySession, 'accessMode' | 'periodAccess'>,
+    /** 'teacher' opens a live session in the lobby; self-paced-only behaviors are forced off. */
+    sessionMode?: VideoActivitySessionMode
   ) => Promise<string>;
   /** Sessions created by the current teacher for the selected activity. */
   sessions: VideoActivitySession[];
@@ -235,15 +239,32 @@ export const useVideoActivitySessionTeacher =
         mode: AssignmentMode = 'submissions',
         classPeriodByClassId?: Record<string, string>,
         sessionOptions?: VideoActivitySessionOptions,
-        periodGate?: Pick<VideoActivitySession, 'accessMode' | 'periodAccess'>
+        periodGate?: Pick<VideoActivitySession, 'accessMode' | 'periodAccess'>,
+        sessionMode: VideoActivitySessionMode = 'student'
       ): Promise<string> => {
         const sessionId = crypto.randomUUID();
         const trimmedAssignmentName = assignmentName?.trim();
-        const sessionSettings: VideoActivitySessionSettings = {
-          autoPlay: settings?.autoPlay ?? false,
-          requireCorrectAnswer: settings?.requireCorrectAnswer ?? true,
-          allowSkipping: settings?.allowSkipping ?? false,
-        };
+        const isLive = sessionMode === 'teacher';
+        // Live mode: one answer per question, no require-correct (D10).
+        const sessionSettings: VideoActivitySessionSettings = isLive
+          ? {
+              autoPlay: false,
+              requireCorrectAnswer: false,
+              allowSkipping: true,
+            }
+          : {
+              autoPlay: settings?.autoPlay ?? false,
+              requireCorrectAnswer: settings?.requireCorrectAnswer ?? true,
+              allowSkipping: settings?.allowSkipping ?? false,
+            };
+        const effectiveOptions: VideoActivitySessionOptions | undefined = isLive
+          ? {
+              ...sessionOptions,
+              rewindOnIncorrectSeconds: 0,
+              pointPenaltyOnIncorrect: 0,
+              attemptLimit: 1,
+            }
+          : sessionOptions;
 
         // Dedupes, so a duplicated question id can't inflate "Question X of N".
         const split = splitVideoActivitySessionQuestions(activity.questions);
@@ -269,7 +290,13 @@ export const useVideoActivitySessionTeacher =
               }
             : {}),
           settings: sessionSettings,
-          status: 'active',
+          status: isLive ? 'waiting' : 'active',
+          ...(isLive
+            ? {
+                sessionMode: 'teacher' as const,
+                live: initialVideoActivityLiveState(Date.now()),
+              }
+            : {}),
           allowedPins,
           allowAnonymousJoin,
           createdAt: Date.now(),
@@ -284,11 +311,14 @@ export const useVideoActivitySessionTeacher =
           Object.keys(classPeriodByClassId).length > 0
             ? { classPeriodByClassId }
             : {}),
-          ...(sessionOptions || tabAwayTimerOn
+          ...(effectiveOptions || tabAwayTimerOn
             ? {
                 sessionOptions: {
-                  ...sessionOptions,
-                  ...tabAwaySessionFields(tabAwayTimerOn, sessionOptions ?? {}),
+                  ...effectiveOptions,
+                  ...tabAwaySessionFields(
+                    tabAwayTimerOn,
+                    effectiveOptions ?? {}
+                  ),
                 },
               }
             : {}),

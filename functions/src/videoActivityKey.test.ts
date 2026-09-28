@@ -8,9 +8,11 @@ vi.mock('firebase-admin', () => ({
 vi.mock('firebase-functions/v2/https', () => {
   class FakeHttpsError extends Error {
     code: string;
-    constructor(code: string, message: string) {
+    details: unknown;
+    constructor(code: string, message: string, details?: unknown) {
       super(message);
       this.code = code;
+      this.details = details;
     }
   }
   return {
@@ -318,6 +320,90 @@ describe('handleCheckVideoActivityAnswer when wrong answers are kept', () => {
     const { docs, db } = setup({}, { settings: {} });
     await handleCheckVideoActivityAnswer(db, 'stu', input('Rome'), 1000);
     expect(docs[RESPONSE].answers).toEqual([]);
+  });
+});
+
+describe('handleCheckVideoActivityAnswer in a teacher-paced session', () => {
+  const TWO = [
+    ...KEYED,
+    {
+      id: 'q2',
+      type: 'FIB',
+      text: 'Later?',
+      timestamp: 20,
+      correctAnswer: 'blue',
+      incorrectAnswers: [],
+    },
+  ];
+  const RESPONSE = `${SESSION}/responses/pin-p1-01`;
+  const setup = (live: Doc, answers: Doc[] = []) => {
+    const docs: Record<string, Doc> = {
+      [SESSION]: {
+        teacherUid: 't1',
+        questions: [],
+        sessionMode: 'teacher',
+        settings: { requireCorrectAnswer: false, allowSkipping: true },
+        live,
+      },
+      [KEY]: { questions: TWO },
+      [RESPONSE]: { studentUid: 'stu', answers, completedAt: null },
+    };
+    return { docs, db: makeDb(docs) };
+  };
+  const q2 = (answer: string) => ({
+    sessionId: 's1',
+    questionId: 'q2',
+    answer,
+  });
+
+  it('grades and records an answer to the open question, even out of order', async () => {
+    const { docs, db } = setup({
+      currentQuestionId: 'q2',
+      questionPhase: 'open',
+    });
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'stu', q2('Blue'), 1000)
+    ).resolves.toEqual({ isCorrect: true, correctAnswer: '' });
+    expect(docs[RESPONSE].answers).toEqual([
+      { questionId: 'q2', answer: 'Blue', answeredAt: 1000, isCorrect: true },
+    ]);
+  });
+
+  it('rejects a question that is not open with a question-closed reason', async () => {
+    const cases: Doc[] = [
+      { currentQuestionId: 'q2', questionPhase: 'closed' },
+      { currentQuestionId: 'q1', questionPhase: 'open' },
+      { currentQuestionId: null, questionPhase: 'closed' },
+      { currentQuestionId: 'q2', questionPhase: 'open', answerRevealed: true },
+    ];
+    for (const live of cases) {
+      const { docs, db } = setup(live);
+      await expect(
+        handleCheckVideoActivityAnswer(db, 'stu', q2('blue'), 1000)
+      ).rejects.toMatchObject({
+        code: 'failed-precondition',
+        details: { reason: 'question-closed' },
+      });
+      expect(docs[RESPONSE].answers).toEqual([]);
+    }
+  });
+
+  it('keeps the first answer locked when a student answers again', async () => {
+    const { docs, db } = setup(
+      { currentQuestionId: 'q2', questionPhase: 'open' },
+      [{ questionId: 'q2', answer: 'red', answeredAt: 1, isCorrect: false }]
+    );
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'stu', q2('blue'), 1000)
+    ).resolves.toMatchObject({ isCorrect: false });
+    expect(docs[RESPONSE].answers).toHaveLength(1);
+  });
+
+  it('lets the owning teacher check any question', async () => {
+    const { db } = setup({ currentQuestionId: null, questionPhase: 'closed' });
+    await expect(
+      handleCheckVideoActivityAnswer(db, 't1', q2('blue'))
+    ).resolves.toMatchObject({ isCorrect: true });
   });
 });
 

@@ -1137,7 +1137,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
                   return mp != null
                     ? buildVideoActivityGradeEntries(
                         responses,
-                        data.questions,
+                        result.scoredQuestions,
                         mp
                       )
                     : [];
@@ -1145,7 +1145,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
                 buildSchoologyGrades: (responses) =>
                   buildVideoActivityGradeEntries(
                     responses,
-                    data.questions,
+                    result.scoredQuestions,
                     videoActivityMaxPoints(data.questions)
                   ),
               });
