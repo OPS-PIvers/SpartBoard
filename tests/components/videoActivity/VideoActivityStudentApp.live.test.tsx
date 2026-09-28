@@ -34,6 +34,7 @@ const { mockAuth, hookState, spies } = vi.hoisted(() => ({
     checkAnswer: vi.fn(),
     submitAnswer: vi.fn(),
     completeActivity: vi.fn(),
+    reportTabSwitch: vi.fn(),
   },
 }));
 
@@ -75,8 +76,8 @@ vi.mock('@/hooks/useVideoActivitySession', () => ({
     submitAnswer: spies.submitAnswer,
     checkAnswer: spies.checkAnswer,
     completeActivity: spies.completeActivity,
-    reportTabSwitch: vi.fn(),
-    saveTabExits: vi.fn(),
+    reportTabSwitch: spies.reportTabSwitch,
+    saveTabExits: vi.fn(() => Promise.resolve()),
     periodKeys: [],
     contentPending: false,
     retakePending: false,
@@ -414,5 +415,32 @@ describe('VideoActivityStudentApp: teacher-paced', () => {
     render(<VideoActivityStudentApp />);
     expect(await screen.findByText('Activity Complete!')).toBeInTheDocument();
     expect(spies.completeActivity).not.toHaveBeenCalled();
+  });
+});
+
+describe('VideoActivityStudentApp: teacher-paced tab warnings', () => {
+  it('warns and logs a tab exit but never submits', async () => {
+    hookState.session = buildSession({
+      sessionOptions: {
+        tabWarningsEnabled: true,
+        tabWarningThreshold: 1,
+        tabAwayLimitSeconds: 5,
+        tabAwayAutoSubmit: true,
+        attemptLimit: 1,
+      },
+    });
+    spies.reportTabSwitch.mockResolvedValue(1);
+    const focus = vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+    render(<VideoActivityStudentApp />);
+    await screen.findByText('Watch the board.');
+    act(() => {
+      window.dispatchEvent(new Event('blur'));
+    });
+    expect(await screen.findByText('TAB SWITCH DETECTED')).toBeInTheDocument();
+    expect(screen.getByText('Warning 1.')).toBeInTheDocument();
+    expect(spies.reportTabSwitch).toHaveBeenCalledOnce();
+    await new Promise((r) => setTimeout(r, 150));
+    expect(spies.completeActivity).not.toHaveBeenCalled();
+    focus.mockRestore();
   });
 });

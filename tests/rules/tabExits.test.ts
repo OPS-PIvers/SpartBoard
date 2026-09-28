@@ -318,6 +318,42 @@ describe.each(COLLECTIONS)('tabExits on $name responses', (c) => {
   });
 });
 
+describe('tabExits on a teacher-paced video activity', () => {
+  const va = COLLECTIONS[1];
+  beforeEach(async () => {
+    await seed([closedExit]);
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), va.session), {
+        sessionMode: 'teacher',
+        live: { currentQuestionId: null, questionPhase: 'closed' },
+      });
+    });
+  });
+
+  it('the student appends and closes an exit', async () => {
+    const mine = doc(asStudent(), va.response);
+    await assertSucceeds(
+      updateDoc(mine, {
+        tabSwitchWarnings: increment(1),
+        tabExits: [closedExit, openExit],
+      })
+    );
+    await assertSucceeds(
+      updateDoc(mine, {
+        tabExits: [
+          closedExit,
+          { ...openExit, durationMs: 4000, outcome: 'returned' },
+        ],
+      })
+    );
+  });
+
+  it('the teacher reads the exit log and another student cannot', async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(), va.response)));
+    await assertFails(getDoc(doc(asOther(), va.response)));
+  });
+});
+
 describe('tabExits on create', () => {
   it('a quiz join cannot seed an exit log', async () => {
     await seed();

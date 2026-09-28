@@ -669,11 +669,20 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
   const tabWarningsEnabled =
     session?.sessionOptions?.tabWarningsEnabled !== false;
-  const tabWarningThreshold = getEffectiveTabWarningThreshold(
-    session?.sessionOptions?.tabWarningThreshold
-  );
+  // Live sessions log warnings but never submit a student's work.
+  const tabWarningThreshold = isLive
+    ? 'off'
+    : getEffectiveTabWarningThreshold(
+        session?.sessionOptions?.tabWarningThreshold
+      );
   // Null unless the teacher assigned with the tab-away-timer flag.
-  const tabAwayRule = getEffectiveTabAwayRule(session?.sessionOptions ?? {});
+  const sessionAwayRule = getEffectiveTabAwayRule(
+    session?.sessionOptions ?? {}
+  );
+  const tabAwayRule =
+    isLive && sessionAwayRule
+      ? { ...sessionAwayRule, autoSubmit: false }
+      : sessionAwayRule;
 
   // The tab-away tracker counts each exit, logs it to `tabExits`, and closes
   // it when the student comes back.
@@ -704,7 +713,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       setWarningCount(newTotal);
       // Teacher-unlocked attempts skip the warning modal — any further
       // strike finalizes the attempt instantly.
-      if (myResponse?.unlocked) {
+      if (myResponse?.unlocked && !isLive) {
         setShowCheatWarning(false);
         // A failed submit (Firestore offline) must not leave detection armed-off.
         void handleAutoSubmit('post-unlock').finally(tabTracker.release);
