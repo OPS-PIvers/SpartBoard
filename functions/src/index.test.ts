@@ -187,7 +187,12 @@ const mockFirestore = {
             if (id === 'gemini-functions') return geminiConfigDocGet();
             if (id === 'video-activity-audio-transcription')
               return audioTranscriptionPermDocGet();
-            return Promise.resolve({ exists: false });
+            const saved = mockFirestoreState.docs.get(
+              `global_permissions/${id}`
+            );
+            return Promise.resolve(
+              saved ? { exists: true, data: () => saved } : { exists: false }
+            );
           },
         }),
       };
@@ -256,6 +261,7 @@ const mockFirestore = {
 
     if (name === 'ai_usage') {
       return {
+        doc: (id: string) => ({ id, path: `ai_usage/${id}` }),
         select: vi.fn(() => ({
           stream: vi.fn(() => toAsyncStream(mockFirestoreState.aiUsage)),
         })),
@@ -3423,10 +3429,6 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
 
   it('does not throw for a beta user when accessLevel is "beta"', async () => {
     // Arrange: caller is in betaUsers — should pass the accessLevel gate.
-    // `runTransaction` is a no-op mock (doesn't invoke its callback), so the
-    // usage-counter step is skipped and the handler proceeds to the (mocked)
-    // Gemini call. We just need to confirm it does NOT throw a
-    // permission-denied error.
     geminiConfigDocGet.mockResolvedValue({
       exists: true,
       data: () =>
@@ -3437,25 +3439,14 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
         }) as Record<string, unknown>,
     });
 
-    // A beta caller clears the accessLevel gate but still rejects in the
-    // usage-limit step (this mock's `ai_usage` collection doesn't stub
-    // `.doc()`), so the AI call is never reached. Pin the actual rejection
-    // reason rather than asserting "not this message" — the latter passes
-    // for any failure at all, including a gate error whose wording moved.
+    // The mocked Gemini call rejects afterwards; what matters is that the gate let it through.
     const err = await handler(VALID_DATA, { auth: NON_ADMIN_AUTH }).then(
       () => null,
       (e: unknown) => e as Error
     );
 
-    expect(err).toBeInstanceOf(Error);
-    // The gate rejects with HttpsError('permission-denied'), which this
-    // file's HttpsError mock surfaces as `name`. Anything else means the
-    // caller got through the gate. (Deliberately not pinning the exact
-    // downstream error — it's a `TypeError` only because this mock's
-    // `ai_usage` collection doesn't stub `.doc()`, an artifact of mock
-    // completeness rather than handler behavior.)
     expect(err?.name).not.toBe('permission-denied');
-    expect(generateContentMock).not.toHaveBeenCalled();
+    expect(generateContentMock).toHaveBeenCalledTimes(1);
   });
 
   it('does not throw accessLevel errors for an admin regardless of accessLevel setting', async () => {
@@ -4038,6 +4029,40 @@ describe('generateGuidedLearning', () => {
         data: VALID_IMAGE.base64,
       },
     });
+  });
+
+  it('lets a teacher through once the Guided Learning AI switch is public', async () => {
+    const key = 'global_permissions/guided-learning-ai';
+    mockFirestoreState.docs.set(key, {
+      enabled: true,
+      accessLevel: 'public',
+      betaUsers: [],
+    });
+    try {
+      await handler({ images: [VALID_IMAGE] }, { auth: NON_ADMIN_AUTH }).catch(
+        () => undefined
+      );
+      expect(generateContentMock).toHaveBeenCalledTimes(1);
+    } finally {
+      mockFirestoreState.docs.delete(key);
+    }
+  });
+
+  it('keeps a teacher out while the switch is saved at admin level', async () => {
+    const key = 'global_permissions/guided-learning-ai';
+    mockFirestoreState.docs.set(key, {
+      enabled: true,
+      accessLevel: 'admin',
+      betaUsers: [],
+    });
+    try {
+      await expect(
+        handler({ images: [VALID_IMAGE] }, { auth: NON_ADMIN_AUTH })
+      ).rejects.toThrow('guided-learning-ai is currently restricted');
+      expect(generateContentMock).not.toHaveBeenCalled();
+    } finally {
+      mockFirestoreState.docs.delete(key);
+    }
   });
 });
 

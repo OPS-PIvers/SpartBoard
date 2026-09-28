@@ -41,8 +41,8 @@ import { createVideoActivityImportAdapter } from '../adapters/videoActivityImpor
 interface CreatorProps {
   onBack: () => void;
   onSave: (activity: VideoActivityData) => Promise<void>;
-  aiEnabled: boolean; // From widget global settings
-  isAdmin: boolean;
+  /** Every AI gate already resolved by the widget (`gemini-functions`, `video-activity-ai`, config). */
+  aiEnabled: boolean;
   audioTranscriptionEnabled: boolean;
   createTemplateSheet: (title: string) => Promise<string>;
 }
@@ -54,7 +54,6 @@ export const Creator: React.FC<CreatorProps> = ({
   onBack,
   onSave,
   aiEnabled,
-  isAdmin,
   createTemplateSheet,
 }) => {
   const activityTitleFieldId = useId();
@@ -83,8 +82,7 @@ export const Creator: React.FC<CreatorProps> = ({
     rationale: string;
   } | null>(null);
 
-  // Allow AI if explicitly enabled OR if user is admin
-  const canUseAI = aiEnabled || isAdmin;
+  const canUseAI = aiEnabled;
 
   const handleNextFromInfo = () => {
     if (!url.trim() || !title.trim()) {
@@ -113,11 +111,15 @@ export const Creator: React.FC<CreatorProps> = ({
     } catch (err) {
       if (err instanceof YouTubeKeyMissingError) {
         setSearchError(
-          'YouTube search isn’t configured. Paste a URL or ask Gemini to recommend one instead.'
+          canUseAI
+            ? 'YouTube search isn’t configured. Paste a URL or ask Gemini to recommend one instead.'
+            : 'YouTube search isn’t configured. Paste a URL instead.'
         );
       } else if (err instanceof YouTubeQuotaError) {
         setSearchError(
-          'YouTube search quota is exhausted for today. Paste a URL or use the recommend tab.'
+          canUseAI
+            ? 'YouTube search quota is exhausted for today. Paste a URL or use the recommend tab.'
+            : 'YouTube search quota is exhausted for today. Paste a URL instead.'
         );
       } else {
         setSearchError(
@@ -324,11 +326,15 @@ export const Creator: React.FC<CreatorProps> = ({
                         label: 'Paste URL',
                         Icon: Youtube,
                       },
-                      {
-                        id: 'recommend' as const,
-                        label: 'Recommend',
-                        Icon: Wand2,
-                      },
+                      ...(canUseAI
+                        ? [
+                            {
+                              id: 'recommend' as const,
+                              label: 'Recommend',
+                              Icon: Wand2,
+                            },
+                          ]
+                        : []),
                     ].map(({ id, label, Icon }) => {
                       const active = discoverTab === id;
                       return (
@@ -394,7 +400,7 @@ export const Creator: React.FC<CreatorProps> = ({
                     />
                   )}
 
-                  {discoverTab === 'recommend' && (
+                  {canUseAI && discoverTab === 'recommend' && (
                     <RecommendTab
                       topic={recommendTopic}
                       onTopicChange={setRecommendTopic}

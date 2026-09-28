@@ -38,6 +38,8 @@ const ESTIMATED_TOOLBAR_HEIGHT = 44;
 export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { addWidget, addToast, updateWidget } = useDashboardActions();
   const { canAccessFeature } = useAuth();
+  const canGenerateApp =
+    canAccessFeature('gemini-functions') && canAccessFeature('embed-mini-app');
   const buildingId = useWidgetBuildingId(widget);
   const { config: globalConfig } = useEmbedConfig(buildingId);
   const { getDriveFileTextContent } = useGoogleDrive();
@@ -278,7 +280,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const handleGenerateMiniApp = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!canAccessFeature('embed-mini-app')) return;
+    if (!canGenerateApp) return;
     if (isGeneratingApp) return;
     if (displayMode === 'url' && !url.trim()) return;
     if (displayMode === 'code' && !html.trim()) return;
@@ -493,7 +495,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     </button>
                   )}
                 </div>
-                {canAccessFeature('embed-mini-app') && (
+                {canGenerateApp && (
                   <button
                     onClick={handleGenerateMiniApp}
                     disabled={isGeneratingApp}

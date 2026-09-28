@@ -18,7 +18,8 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'test-user' },
     isAdmin: true,
-    canAccessFeature: (id: string) => id === 'gemini-functions',
+    canAccessFeature: (id: string) =>
+      id === 'gemini-functions' || id === 'guided-learning-ai',
   }),
 }));
 

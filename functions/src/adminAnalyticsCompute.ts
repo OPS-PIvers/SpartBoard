@@ -482,6 +482,11 @@ export async function computeAnalyticsForOrg(
     'tts',
     'translation',
     'paper-handwritten-responses',
+    'video-activity-ai',
+    'guided-learning-ai',
+    'mini-app-ai',
+    'drawing-ai',
+    'webcam-ai',
   ];
 
   const aiUsageStream = db

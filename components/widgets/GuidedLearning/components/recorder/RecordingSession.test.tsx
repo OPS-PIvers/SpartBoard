@@ -21,7 +21,7 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: 'admin-1' } }),
+  useAuth: () => ({ user: { uid: 'admin-1' }, canAccessFeature: () => true }),
 }));
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: () => Promise.resolve(true) }),

@@ -88,6 +88,8 @@ export interface QuizImportAdapterDeps {
    * are both on (D21). False keeps the import wizard exactly as it was.
    */
   canImportDocuments?: boolean;
+  /** Offer "generate with AI" in the wizard (`gemini-functions` && the Quiz AI switch). */
+  canUseAi?: boolean;
   /** Offer the test's learning-target lines as targets in review (R20, R22). */
   canSuggestTargets?: boolean;
   /** Turn printed section headings into quiz sections (QUIZ_EXAMVIEW_IMPORT E16). */
@@ -389,27 +391,31 @@ export function createQuizImportAdapter(
       },
       instructions: TEMPLATE_INSTRUCTIONS,
     },
-    aiAssist: {
-      promptPlaceholder:
-        'e.g. A 5-question quiz about the solar system for 3rd graders.',
-      generate: async ({ prompt }) => {
-        // A generated quiz reaches the review table without going through
-        // `parse`, so it clears the previous read's pictures too.
-        deps.onDocumentImages?.([]);
-        // The quiz import wizard has only a free-form prompt textarea — no
-        // type-mix picker — so default to 5 MC questions. The richer
-        // per-type stepper UX lives in the QuizEditor's "Draft with AI"
-        // overlay where the teacher has the full editor open.
-        const result = await generateQuiz(prompt, { MC: 5 });
-        return {
-          id: crypto.randomUUID(),
-          title: result.title,
-          questions: result.questions.map(coerceGeneratedQuestion),
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-      },
-    },
+    ...(deps.canUseAi
+      ? {
+          aiAssist: {
+            promptPlaceholder:
+              'e.g. A 5-question quiz about the solar system for 3rd graders.',
+            generate: async ({ prompt }) => {
+              // A generated quiz reaches the review table without going through
+              // `parse`, so it clears the previous read's pictures too.
+              deps.onDocumentImages?.([]);
+              // The quiz import wizard has only a free-form prompt textarea — no
+              // type-mix picker — so default to 5 MC questions. The richer
+              // per-type stepper UX lives in the QuizEditor's "Draft with AI"
+              // overlay where the teacher has the full editor open.
+              const result = await generateQuiz(prompt, { MC: 5 });
+              return {
+                id: crypto.randomUUID(),
+                title: result.title,
+                questions: result.questions.map(coerceGeneratedQuestion),
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+              };
+            },
+          },
+        }
+      : {}),
     parse: async (source) => {
       // Whatever is read now owns the pictures. Clearing first covers a
       // sheet or CSV read after a document one, and a document read that

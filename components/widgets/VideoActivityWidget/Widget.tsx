@@ -207,6 +207,10 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   );
   const aiEnabled =
     (videoActivityPerm?.config as VideoActivityGlobalConfig)?.aiEnabled ?? true;
+  const canUseAi =
+    canAccessFeature('gemini-functions') &&
+    canAccessFeature('video-activity-ai') &&
+    (aiEnabled || isAdmin === true);
 
   // Check if the admin audio transcription feature is enabled (admin-gated global feature)
   const audioTranscriptionEnabled =
@@ -419,8 +423,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     return (
       <Creator
         onBack={() => setView('manager')}
-        aiEnabled={aiEnabled}
-        isAdmin={isAdmin ?? false}
+        aiEnabled={canUseAi}
         audioTranscriptionEnabled={audioTranscriptionEnabled}
         createTemplateSheet={createTemplateSheet}
         onSave={async (activity) => {

@@ -29,6 +29,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'plc-notes-rich-editor',
   'paper-handwritten-responses',
   'claude-connector',
+  'guided-learning-ai',
 ];
 
 /** Plan D7: admins pass a preview flag that has no saved doc yet. */

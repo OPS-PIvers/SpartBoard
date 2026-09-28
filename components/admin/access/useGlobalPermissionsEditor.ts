@@ -25,6 +25,13 @@ export const GEMINI_FEATURES: GlobalFeature[] = [
   'video-activity-audio-transcription',
   'ai-file-context',
   PAPER_HANDWRITTEN_FEATURE,
+  'quiz',
+  'video-activity-ai',
+  'guided-learning-ai',
+  'mini-app-ai',
+  'drawing-ai',
+  'webcam-ai',
+  'blooms-ai',
 ];
 
 /** Features whose admin card picks the Gemini model tier. */

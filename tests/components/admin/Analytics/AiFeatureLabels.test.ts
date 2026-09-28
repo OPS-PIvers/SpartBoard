@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { AI_FEATURE_LABELS } from '@/components/admin/Analytics/aiFeatureLabels';
 
 // Mirror of GEMINI_SPECIFIC_FEATURES in functions/src/adminAnalyticsCompute.ts — keep in sync.
-// ('guided-learning' is intentionally absent — it writes no ai_usage counter.)
 //
 // IMPORTANT: Adding a new AI feature requires updating THREE locations atomically.
 // Because frontend tests cannot import from functions/src/ (cross-package boundary),
@@ -26,6 +25,11 @@ const GEMINI_SPECIFIC_FEATURES = [
   'tts',
   'translation',
   'paper-handwritten-responses',
+  'video-activity-ai',
+  'guided-learning-ai',
+  'mini-app-ai',
+  'drawing-ai',
+  'webcam-ai',
 ] as const;
 
 describe('AI_FEATURE_LABELS', () => {

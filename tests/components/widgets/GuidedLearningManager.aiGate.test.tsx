@@ -67,8 +67,8 @@ const renderManager = (features: string[], isAdmin = true) => {
 afterEach(cleanup);
 
 describe('GuidedLearningManager AI button', () => {
-  it('shows AI to admins with the gemini-functions feature', async () => {
-    const open = renderManager(['gemini-functions']);
+  it('shows AI with gemini-functions and the Guided Learning AI switch', async () => {
+    const open = renderManager(['gemini-functions', 'guided-learning-ai']);
     fireEvent.click(await screen.findByRole('button', { name: 'AI' }));
     expect(open).toHaveBeenCalledWith('personal');
   });
@@ -79,9 +79,16 @@ describe('GuidedLearningManager AI button', () => {
     expect(screen.queryByRole('button', { name: 'AI' })).toBeNull();
   });
 
-  it('hides AI from non-admins with the feature', async () => {
-    renderManager(['gemini-functions'], false);
+  it('hides AI while the Guided Learning AI switch is off', async () => {
+    renderManager(['gemini-functions']);
     await screen.findByRole('button', { name: 'New Set' });
     expect(screen.queryByRole('button', { name: 'AI' })).toBeNull();
+  });
+
+  it('shows AI to a teacher the switch lets in', async () => {
+    renderManager(['gemini-functions', 'guided-learning-ai'], false);
+    expect(
+      await screen.findByRole('button', { name: 'AI' })
+    ).toBeInTheDocument();
   });
 });

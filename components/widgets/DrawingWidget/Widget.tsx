@@ -1003,7 +1003,7 @@ export const DrawingWidget: React.FC<{
       setIsExtracting(true);
       addToast('Scanning handwriting...', 'info');
       const dataUrl = canvas.toDataURL('image/png');
-      const extractedText = await extractTextWithGemini(dataUrl);
+      const extractedText = await extractTextWithGemini(dataUrl, 'drawing');
 
       if (!extractedText || !extractedText.trim()) {
         addToast('No text could be extracted.', 'info');
@@ -1325,22 +1325,23 @@ export const DrawingWidget: React.FC<{
               )}
           </div>
 
-          {canAccessFeature('gemini-functions') && (
-            <button
-              type="button"
-              onClick={() => void handleSendToText()}
-              disabled={isExtracting}
-              title="Extract Text (AI)"
-              aria-label="Extract Text (AI)"
-              className={actionBtnBase}
-            >
-              {isExtracting ? (
-                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
-              ) : (
-                <Type className="w-4 h-4" />
-              )}
-            </button>
-          )}
+          {canAccessFeature('gemini-functions') &&
+            canAccessFeature('drawing-ai') && (
+              <button
+                type="button"
+                onClick={() => void handleSendToText()}
+                disabled={isExtracting}
+                title="Extract Text (AI)"
+                aria-label="Extract Text (AI)"
+                className={actionBtnBase}
+              >
+                {isExtracting ? (
+                  <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
+                ) : (
+                  <Type className="w-4 h-4" />
+                )}
+              </button>
+            )}
         </div>
 
         {/* Page control — pushed to the right with `ml-auto` so the multi-
