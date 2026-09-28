@@ -86,12 +86,7 @@ function inferKindFromFileName(
 ): Exclude<ImportSourceKind, 'sheet'> {
   const lower = fileName.toLowerCase();
   if (
-    (lower.endsWith('.pdf') ||
-      lower.endsWith('.docx') ||
-      lower.endsWith('.odt') ||
-      lower.endsWith('.tst') ||
-      lower.endsWith('.rtf') ||
-      lower.endsWith('.imscc')) &&
+    matchesAccept(lower, DOCUMENT_EXTENSIONS) &&
     supported.includes('document')
   )
     return 'document';
