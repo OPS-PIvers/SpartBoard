@@ -637,11 +637,7 @@ const LtiDeepLinkFlow: React.FC = () => {
           sessionSectionsFor(quizData)
         );
 
-        // Respect the quiz's OWN configured behavior (session mode, per-attempt
-        // options, attempt limit) exactly as the normal SpartBoard assign flow
-        // does. (A Schoology launch has no live teacher session, so the runner
-        // self-paces regardless; carrying the configured options/attemptLimit
-        // keeps per-attempt behavior matching.)
+        // Assessment Mode always; options and attempt limit come from the quiz.
         const { sessionMode, sessionOptions, attemptLimit } =
           getAssignBehaviorSeed(selectedQuiz);
 
