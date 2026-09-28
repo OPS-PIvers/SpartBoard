@@ -15,7 +15,6 @@ import type { AssignmentMode, AssignmentWidgetKey } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
 import { parseAssignmentModesConfig } from '@/utils/assignmentModesConfig';
-import { Toast } from '@/components/common/Toast';
 import { AccessFeatureRow } from '@/components/admin/access/AccessFeatureRow';
 import { useGlobalPermissionsEditor } from '@/components/admin/access/useGlobalPermissionsEditor';
 
@@ -61,8 +60,6 @@ export const AppSettingsView: React.FC = () => {
     saving,
     unsavedChanges,
     isSaved,
-    message,
-    setMessage,
     showMessage,
     loading,
   } = useGlobalPermissionsEditor();
@@ -119,14 +116,6 @@ export const AppSettingsView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {message && (
-        <Toast
-          message={message.text}
-          type={message.type}
-          onClose={() => setMessage(null)}
-        />
-      )}
-
       {/* Global Branding */}
       {
         <div className="bg-white border-2 border-slate-200 rounded-2xl p-6 mb-6 hover:border-brand-blue-light transition-all text-left">

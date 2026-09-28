@@ -411,13 +411,6 @@ export const FeaturePermissionsManager: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {globalEditor.message && (
-        <Toast
-          message={globalEditor.message.text}
-          type={globalEditor.message.type}
-          onClose={() => globalEditor.setMessage(null)}
-        />
-      )}
       {/* Message Toast */}
       {message && (
         <Toast
