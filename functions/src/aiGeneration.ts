@@ -426,6 +426,7 @@ export {
 export { vertexClientOptions, getGeminiModelConfig };
 
 /** Per-feature doc id for a `generateWithAI` request; `source` splits the shared types by widget, and an unknown one is refused. */
+// `source` is client-asserted: these switches meter and hide per widget; `gemini-functions` is the hard server boundary.
 export function specificFeatureIdFor(
   genType: string,
   source: unknown
