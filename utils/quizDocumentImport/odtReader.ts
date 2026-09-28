@@ -237,7 +237,7 @@ export async function readOdt(file: Blob): Promise<OdtContent> {
       imageIdByPath.set(href, id);
       images.push({
         id,
-        blob: new Blob([await entry.async('uint8array')], {
+        blob: new Blob([(await entry.async('uint8array')) as BlobPart], {
           type: contentType,
         }),
         contentType,
