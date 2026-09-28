@@ -45,6 +45,7 @@ import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
 import { QuizLanguageField } from './QuizLanguageField';
 import { sanitizeStimulusPointers } from '@/utils/quizStimuli';
 import { quizOrder } from '@/utils/questionBanks';
+import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import { useTranslation } from 'react-i18next';
@@ -287,6 +288,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
 
   const {
     title,
+    setTitle,
     questions,
     stimuli,
     language,
@@ -510,6 +512,18 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     ),
     [questions.length, oversized]
   );
+  const headerExtras = useMemo(
+    () =>
+      folders && onFolderChange ? (
+        <FolderSelectField
+          variant="header"
+          folders={folders}
+          value={folderId ?? null}
+          onChange={onFolderChange}
+        />
+      ) : null,
+    [folders, folderId, onFolderChange]
+  );
   const footerExtras = useMemo(
     () =>
       aiEnabled ? (
@@ -573,16 +587,10 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     <EditorWorkspace
       key={quiz.id}
       isOpen={isOpen}
-      title={
-        title.trim() ||
-        (isBank
-          ? originalTitle
-            ? 'Edit Bank'
-            : 'New Bank'
-          : originalTitle
-            ? 'Edit Quiz'
-            : 'New Quiz')
-      }
+      title={title}
+      onTitleChange={setTitle}
+      titlePlaceholder={isBank ? 'Bank title' : 'Quiz title'}
+      headerExtras={headerExtras}
       subtitle={subtitle}
       isDirty={isDirty}
       isSaving={saving}
@@ -633,15 +641,11 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               state={editorState}
               aiEnabled={aiEnabled}
               bankApi={isBank ? undefined : bankApi}
-              folders={folders}
-              folderId={folderId}
-              onFolderChange={onFolderChange}
               shuffleQuestionsEnabled={
                 behavior.sessionMode === 'student' &&
                 behavior.sessionOptions.shuffleQuestions === true
               }
               titleSlot={bankTargetsStrip}
-              titlePlaceholder={isBank ? 'Bank title' : undefined}
               inheritedTargets={isBank ? bankTargets : undefined}
               allowSections={!isBank}
               onAddAnswerKey={
