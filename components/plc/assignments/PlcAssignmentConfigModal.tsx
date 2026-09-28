@@ -256,7 +256,7 @@ export const PlcAssignmentConfigModal: React.FC<
         let effectiveSessionOptions: QuizSessionOptions;
         let effectiveAttemptLimit: number | null;
         if (quizBehavior) {
-          effectiveSessionMode = quizBehavior.sessionMode;
+          effectiveSessionMode = 'student';
           effectiveSessionOptions = quizBehavior.sessionOptions;
           effectiveAttemptLimit = quizBehavior.attemptLimit;
         } else {
@@ -527,7 +527,10 @@ export const PlcAssignmentConfigModal: React.FC<
                 data-testid="plc-config-behavior-summary"
                 className="text-sm text-slate-600 leading-snug"
               >
-                {formatBehaviorSummary(quizBehavior)}
+                {formatBehaviorSummary({
+                  ...quizBehavior,
+                  sessionMode: 'student',
+                })}
               </p>
             </div>
           ) : kind === 'quiz' ? (

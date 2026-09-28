@@ -719,7 +719,7 @@ describe('PlcAssignmentConfigModal (quiz kind — Task 10 slimmed, quizBehavior 
     );
     const summaryEl = screen.getByTestId('plc-config-behavior-summary');
     expect(summaryEl).toBeInTheDocument();
-    expect(summaryEl.textContent).toMatch(/auto-progress/i);
+    expect(summaryEl.textContent).toMatch(/assessment mode/i);
     expect(summaryEl.textContent).toMatch(/3 attempts/i);
   });
 
@@ -750,7 +750,7 @@ describe('PlcAssignmentConfigModal (quiz kind — Task 10 slimmed, quizBehavior 
       unknown,
       Record<string, unknown>,
     ];
-    expect(settings.sessionMode).toBe('auto');
+    expect(settings.sessionMode).toBe('student');
     expect(settings.attemptLimit).toBe(3);
     expect(
       (settings.sessionOptions as Record<string, unknown>).showResultToStudent
