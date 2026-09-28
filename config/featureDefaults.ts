@@ -774,6 +774,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: true,
   },
+  // Admin-only until saved, like the per-building toggle it replaced (default off).
   'blooms-ai': {
     label: "Bloom's Taxonomy: AI",
     icon: Sparkles,
@@ -781,9 +782,9 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'permanent',
     afterLaunch: 'keep',
     widget: 'blooms-taxonomy',
-    defaultAccessLevel: 'public',
+    defaultAccessLevel: 'admin',
     defaultEnabled: true,
-    missingDocPublic: true,
+    missingDocPublic: false,
   },
 };
 

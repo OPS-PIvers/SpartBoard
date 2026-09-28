@@ -99,7 +99,6 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
       buildingDefaults[canonicalId] ?? {
         availableCategories: [...CONTENT_CATEGORIES],
         defaultEnabledCategories: [...CONTENT_CATEGORIES],
-        aiEnabled: false,
         contentOverrides: {},
       },
     [buildingDefaults, canonicalId]
@@ -213,7 +212,7 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
             Bloom&apos;s Taxonomy Administration
           </h2>
           <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">
-            Content, Categories & AI Settings
+            Content & Categories
           </p>
         </div>
       </div>
@@ -332,28 +331,6 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
                     </label>
                   ))}
                 </div>
-              </div>
-
-              {/* AI Toggle */}
-              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
-                <h4 className="text-sm font-black text-slate-700 uppercase tracking-widest">
-                  AI Generation
-                </h4>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={currentBuildingConfig.aiEnabled ?? false}
-                    onChange={(e) =>
-                      updateBuilding({ aiEnabled: e.target.checked })
-                    }
-                    className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-500 w-5 h-5"
-                  />
-                  <div>
-                    <p className="text-sm font-semibold text-slate-700">
-                      Enable AI content generation
-                    </p>
-                  </div>
-                </label>
               </div>
             </div>
 

@@ -1,4 +1,4 @@
-// Pins the "Enable AI Mode" Toggle's accessible name; without a label prop the switch is unnamed for screen readers.
+// Global Settings has no AI toggle; Video Activity AI is the switch on its Access > Widgets row.
 
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
@@ -46,8 +46,8 @@ const permission: FeaturePermission = {
   config: {},
 };
 
-describe('VideoActivityConfigurationModal — label associations', () => {
-  it('names the Enable AI Mode toggle', async () => {
+describe('VideoActivityConfigurationModal — global settings', () => {
+  it('shows dock defaults and no AI toggle', async () => {
     render(
       <VideoActivityConfigurationModal
         onClose={vi.fn()}
@@ -58,10 +58,8 @@ describe('VideoActivityConfigurationModal — label associations', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Global Settings' }));
 
-    await waitFor(() =>
-      expect(
-        screen.getByRole('switch', { name: 'Enable AI Mode' })
-      ).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText(/dock/i)).toBeInTheDocument());
+    expect(screen.queryByText('Enable AI Mode')).toBeNull();
+    expect(screen.queryByText('AI Question Generation')).toBeNull();
   });
 });

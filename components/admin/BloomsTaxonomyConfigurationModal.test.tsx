@@ -44,18 +44,17 @@ describe('BloomsTaxonomyConfigurationModal', () => {
         onClose={vi.fn()}
         permission={basePermission({
           buildingDefaults: {
-            schumann: { aiEnabled: true },
+            schumann: { availableCategories: ['questionStems'] },
           },
         })}
         onSave={vi.fn()}
       />
     );
 
-    // If the lookup missed (raw-id bug), the checkbox would fall back to the
-    // default (unchecked) instead of the saved enabled state.
+    // If the lookup missed (raw-id bug), every category would fall back to the default (checked).
     expect(
-      screen.getByRole('checkbox', { name: /Enable AI content generation/ })
-    ).toBeChecked();
+      screen.getAllByRole('checkbox', { name: /Action Verbs/ })[0]
+    ).not.toBeChecked();
   });
 
   it('saves building defaults under the canonical building id, not the legacy raw id', () => {
@@ -79,15 +78,17 @@ describe('BloomsTaxonomyConfigurationModal', () => {
     );
 
     fireEvent.click(
-      screen.getByRole('checkbox', { name: /Enable AI content generation/ })
+      screen.getAllByRole('checkbox', { name: /Action Verbs/ })[0]
     );
     fireEvent.click(screen.getByText('Save Configuration'));
 
     expect(onSave).toHaveBeenCalledTimes(1);
     const config = onSave.mock.calls[0][0]?.config as unknown as {
-      buildingDefaults: Record<string, { aiEnabled?: boolean }>;
+      buildingDefaults: Record<string, { availableCategories?: string[] }>;
     };
-    expect(config.buildingDefaults['schumann']?.aiEnabled).toBe(true);
+    expect(
+      config.buildingDefaults['schumann']?.availableCategories
+    ).not.toContain('actionVerbs');
     expect(config.buildingDefaults['schumann-elementary']).toBeUndefined();
   });
 });
