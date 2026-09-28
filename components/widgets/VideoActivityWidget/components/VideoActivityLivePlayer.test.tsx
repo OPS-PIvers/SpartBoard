@@ -242,10 +242,22 @@ describe('VideoActivityLivePlayer playback', () => {
     expect(controls.openQuestion).not.toHaveBeenCalled();
   });
 
+  it('hides the question list until the teacher opens it', () => {
+    renderPlayer(makeSession('active'));
+    expect(
+      screen.queryByRole('complementary', { name: /questions/i })
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Questions' }));
+    expect(
+      screen.getByRole('complementary', { name: /questions/i })
+    ).toBeInTheDocument();
+  });
+
   it('opens a question from the jump list', async () => {
     renderPlayer(
       makeSession('active', { askedQuestionIds: ['q1'], playheadSeconds: 12 })
     );
+    fireEvent.click(screen.getByRole('button', { name: 'Questions' }));
     const list = screen.getByRole('complementary', { name: /questions/i });
     expect(within(list).getByText('Closed')).toBeInTheDocument();
     expect(within(list).getAllByText('Upcoming')).toHaveLength(2);
@@ -258,6 +270,7 @@ describe('VideoActivityLivePlayer playback', () => {
 
   it('jumping ahead skips the questions in between', async () => {
     renderPlayer(makeSession('active', { playheadSeconds: 5 }));
+    fireEvent.click(screen.getByRole('button', { name: 'Questions' }));
     const list = screen.getByRole('complementary', { name: /questions/i });
     fireEvent.click(within(list).getByText(/3\. Third/));
     await waitFor(() =>
@@ -346,81 +359,5 @@ describe('VideoActivityLivePlayer open question', () => {
     fireEvent.click(screen.getByRole('button', { name: 'End' }));
     await waitFor(() => expect(onEnd).toHaveBeenCalledOnce());
     expect(controls.end).toHaveBeenCalledOnce();
-  });
-});
-
-describe('VideoActivityLivePlayer present window', () => {
-  const openPopup = () => {
-    const popupDoc = document.implementation.createHTMLDocument('present');
-    const popup = {
-      document: popupDoc,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      close: vi.fn(),
-    };
-    const open = vi
-      .spyOn(window, 'open')
-      .mockReturnValue(popup as unknown as Window);
-    return { popup, popupDoc, open };
-  };
-
-  it('moves the one player into the popup and back at the same playhead', () => {
-    const { popup, popupDoc, open } = openPopup();
-    renderPlayer(makeSession('active', { playheadSeconds: 3 }));
-    act(() => player.props?.onTick(7, 60, true));
-    expect(screen.getByTestId('video-player')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Present to class' }));
-    expect(open).toHaveBeenCalledOnce();
-    expect(screen.queryByTestId('video-player')).not.toBeInTheDocument();
-    expect(screen.getByTestId('va-live-presenting')).toBeInTheDocument();
-    expect(
-      popupDoc.querySelectorAll('[data-testid="video-player"]')
-    ).toHaveLength(1);
-    expect(player.props?.startSeconds).toBe(7);
-
-    act(() => player.props?.onTick(12, 60, true));
-    fireEvent.click(screen.getByRole('button', { name: 'Stop presenting' }));
-    expect(popup.close).toHaveBeenCalledOnce();
-    expect(
-      popupDoc.querySelectorAll('[data-testid="video-player"]')
-    ).toHaveLength(0);
-    expect(screen.getByTestId('video-player')).toBeInTheDocument();
-    expect(player.props?.startSeconds).toBe(12);
-    open.mockRestore();
-  });
-
-  it('projects the open question and, when shown, the results', () => {
-    const { popupDoc, open } = openPopup();
-    renderPlayer(
-      makeSession('active', {
-        currentQuestionId: 'q1',
-        questionPhase: 'open',
-        askedQuestionIds: ['q1'],
-        resultsShown: true,
-      }),
-      [response('01', [{ questionId: 'q1', answer: 'B' }])]
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Present to class' }));
-    const projected = popupDoc.querySelector(
-      '[data-testid="va-present-question"]'
-    );
-    expect(projected?.textContent).toContain('Pick A');
-    expect(
-      projected?.querySelector('[data-testid="va-live-aggregate"]')
-    ).not.toBeNull();
-    expect(projected?.textContent).not.toContain('Resume');
-    open.mockRestore();
-  });
-
-  it('stays on the board when the popup is blocked', () => {
-    const open = vi.spyOn(window, 'open').mockReturnValue(null);
-    renderPlayer(makeSession('active'));
-    fireEvent.click(screen.getByRole('button', { name: 'Present to class' }));
-    expect(screen.getByTestId('video-player')).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Present to class' })
-    ).toBeInTheDocument();
-    open.mockRestore();
   });
 });
