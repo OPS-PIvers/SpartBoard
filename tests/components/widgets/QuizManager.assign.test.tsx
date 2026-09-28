@@ -274,7 +274,7 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
       within(dialog).getByRole('button', { name: /^teacher-paced/i })
     ).toBeInTheDocument();
     expect(
-      within(dialog).getByRole('button', { name: /^self-paced/i })
+      within(dialog).getByRole('button', { name: /^assessment mode/i })
     ).toBeInTheDocument();
   });
 
@@ -295,7 +295,7 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
 
   it('overriding session mode in the modal passes the override to onAssign', async () => {
     const onAssign = vi.fn();
-    renderManager(makeQuizMeta(), onAssign); // default → teacher-paced
+    renderManager(makeQuizMeta(), onAssign); // default → Assessment Mode
     fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
     fireEvent.click(
       await screen.findByRole('button', { name: /SpartBoard Only/i })
@@ -307,13 +307,13 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
       within(dialog).getByRole('button', { name: /session settings/i })
     );
     fireEvent.click(
-      within(dialog).getByRole('button', { name: /^self-paced/i })
+      within(dialog).getByRole('button', { name: /^teacher-paced/i })
     );
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
 
     await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
     const behavior = onAssign.mock.calls[0][1] as QuizBehaviorSettings;
-    expect(behavior.sessionMode).toBe('student');
+    expect(behavior.sessionMode).toBe('teacher');
     // The quiz meta itself is untouched — overrides are per-assignment only.
     const calledMeta = onAssign.mock.calls[0][0] as QuizMetadata;
     expect(calledMeta.behavior).toBeUndefined();
@@ -392,14 +392,15 @@ describe('QuizManager assign modal — recorded-answer advisory', () => {
     fireEvent.click(
       within(dialog).getByRole('button', { name: /session settings/i })
     );
-    // Default behavior is teacher-paced — the advisory should surface once
-    // the background quiz-data load resolves.
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /^teacher-paced/i })
+    );
     expect(
-      await within(dialog).findByText(/Spoken answers need self-paced mode/i)
+      await within(dialog).findByText(/Spoken answers need Assessment Mode/i)
     ).toBeInTheDocument();
   });
 
-  it('hides the advisory once the teacher switches to self-paced', async () => {
+  it('hides the advisory once the teacher switches to Assessment Mode', async () => {
     renderManager(makeQuizMeta(), vi.fn(), {
       onLoadQuizData: () => Promise.resolve(makeRecordingQuizData()),
     });
@@ -413,12 +414,15 @@ describe('QuizManager assign modal — recorded-answer advisory', () => {
     fireEvent.click(
       within(dialog).getByRole('button', { name: /session settings/i })
     );
-    await within(dialog).findByText(/Spoken answers need self-paced mode/i);
     fireEvent.click(
-      within(dialog).getByRole('button', { name: /^self-paced/i })
+      within(dialog).getByRole('button', { name: /^teacher-paced/i })
+    );
+    await within(dialog).findByText(/Spoken answers need Assessment Mode/i);
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /^assessment mode/i })
     );
     expect(
-      within(dialog).queryByText(/Spoken answers need self-paced mode/i)
+      within(dialog).queryByText(/Spoken answers need Assessment Mode/i)
     ).not.toBeInTheDocument();
   });
 
@@ -451,7 +455,7 @@ describe('QuizManager assign modal — recorded-answer advisory', () => {
     // Give the background load a tick to resolve before asserting absence.
     await within(dialog).findByRole('button', { name: /^teacher-paced/i });
     expect(
-      within(dialog).queryByText(/Spoken answers need self-paced mode/i)
+      within(dialog).queryByText(/Spoken answers need Assessment Mode/i)
     ).not.toBeInTheDocument();
   });
 });
@@ -546,6 +550,12 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     });
 
     checkAccommodatedClass(dialog);
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /session settings/i })
+    );
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /^teacher-paced/i })
+    );
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
 
     // First click surfaces the timing warning by name and holds the assign.
@@ -579,6 +589,12 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
 
     checkAccommodatedClass(dialog);
     fireEvent.click(
+      within(dialog).getByRole('button', { name: /session settings/i })
+    );
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /^teacher-paced/i })
+    );
+    fireEvent.click(
       within(dialog).getByRole('button', { name: /edit or add modifications/i })
     );
     fireEvent.click(
@@ -588,7 +604,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
 
     expect(onAssign).not.toHaveBeenCalled();
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(
-      /require Self-paced mode/i
+      /require Assessment Mode/i
     );
   });
 
@@ -617,7 +633,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     expect(targeting.targetMode).toBe('class');
   });
 
-  it('M17 C3 F5: pacing block is fixable in-modal by switching to Self-paced', async () => {
+  it('M17 C3 F5: pacing block is fixable in-modal by switching to Assessment Mode', async () => {
     const onAssign = vi.fn();
     renderManager(
       makeQuizMeta({
@@ -636,6 +652,12 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
 
     checkAccommodatedClass(dialog);
     fireEvent.click(
+      within(dialog).getByRole('button', { name: /session settings/i })
+    );
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /^teacher-paced/i })
+    );
+    fireEvent.click(
       within(dialog).getByRole('button', { name: /edit or add modifications/i })
     );
     fireEvent.click(
@@ -645,12 +667,9 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     expect(onAssign).not.toHaveBeenCalled();
     await within(dialog).findByRole('alert');
 
-    // Fix it without leaving the modal: expand Session Settings, go self-paced.
+    // Fix it without leaving the modal: switch to Assessment Mode.
     fireEvent.click(
-      within(dialog).getByRole('button', { name: /session settings/i })
-    );
-    fireEvent.click(
-      within(dialog).getByRole('button', { name: /^self-paced/i })
+      within(dialog).getByRole('button', { name: /^assessment mode/i })
     );
     // Changing behavior clears the inline error.
     expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
@@ -824,12 +843,15 @@ describe('Widget.onAssign — behavior snapshot passed through onAssign', () => 
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
 
     const summary = screen.getByTestId('quiz-behavior-summary');
-    // Self-paced / student mode should appear in the summary text
-    expect(summary.textContent).toMatch(/self.paced/i);
+    expect(summary.textContent).toMatch(/assessment mode/i);
   });
 
-  it('behavior summary shows teacher-paced for default quiz (no behavior set)', async () => {
-    renderManager(makeQuizMeta()); // no behavior → DEFAULT_QUIZ_BEHAVIOR (teacher)
+  it('opens in Assessment Mode even when the quiz was saved teacher-paced', async () => {
+    renderManager(
+      makeQuizMeta({
+        behavior: { ...DEFAULT_QUIZ_BEHAVIOR, sessionMode: 'teacher' },
+      })
+    );
 
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
@@ -842,7 +864,7 @@ describe('Widget.onAssign — behavior snapshot passed through onAssign', () => 
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
 
     const summary = screen.getByTestId('quiz-behavior-summary');
-    expect(summary.textContent).toMatch(/teacher.paced/i);
+    expect(summary.textContent).toMatch(/assessment mode/i);
   });
 });
 

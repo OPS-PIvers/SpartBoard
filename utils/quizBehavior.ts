@@ -26,7 +26,7 @@ const deepFreeze = <T>(o: T): T => {
 // has no behavior; freezing turns any accidental in-place mutation into a
 // loud error instead of silently corrupting every other quiz's default.
 export const DEFAULT_QUIZ_BEHAVIOR: QuizBehaviorSettings = deepFreeze({
-  sessionMode: 'teacher',
+  sessionMode: 'student',
   sessionOptions: {
     tabWarningsEnabled: true,
     blockCopyPaste: false,
@@ -44,17 +44,27 @@ export const DEFAULT_QUIZ_BEHAVIOR: QuizBehaviorSettings = deepFreeze({
   attemptLimit: 1,
 });
 
+/** Quiz's name for the self-paced (`student`) session mode. */
+export const QUIZ_STUDENT_MODE_LABEL = 'Assessment Mode';
+
 export function getQuizBehavior(
   meta: Pick<QuizMetadata, 'behavior'>
 ): QuizBehaviorSettings {
   return meta.behavior ?? DEFAULT_QUIZ_BEHAVIOR;
 }
 
+/** Assign always opens in Assessment Mode, whatever pacing the quiz was saved with. */
+export function getAssignBehaviorSeed(
+  meta: Pick<QuizMetadata, 'behavior'>
+): QuizBehaviorSettings {
+  return { ...structuredClone(getQuizBehavior(meta)), sessionMode: 'student' };
+}
+
 /** Human-readable label for a quiz session mode. */
 export function formatSessionMode(mode: QuizSessionMode): string {
   if (mode === 'teacher') return 'Teacher-paced';
   if (mode === 'auto') return 'Auto-progress';
-  return 'Self-paced';
+  return QUIZ_STUDENT_MODE_LABEL;
 }
 
 /**

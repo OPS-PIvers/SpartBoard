@@ -47,7 +47,10 @@ import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTarget
 import { getPlcMemberEmails } from '@/utils/plc';
 import { logError } from '@/utils/logError';
 import { dueInputsToEpoch, DEFAULT_DUE_TIME } from '@/utils/localDate';
-import { formatBehaviorSummary } from '@/utils/quizBehavior';
+import {
+  formatBehaviorSummary,
+  QUIZ_STUDENT_MODE_LABEL,
+} from '@/utils/quizBehavior';
 import { formatVideoActivityBehaviorSummary } from '@/utils/videoActivityBehavior';
 import type {
   Plc,
@@ -137,7 +140,7 @@ const DEFAULT_VA_SESSION_SETTINGS: VideoActivitySessionSettings = {
 const DEFAULT_QUIZ_MODES: { id: QuizSessionMode; label: string }[] = [
   { id: 'teacher', label: 'Teacher-paced' },
   { id: 'auto', label: 'Auto-paced' },
-  { id: 'student', label: 'Self-paced' },
+  { id: 'student', label: QUIZ_STUDENT_MODE_LABEL },
 ];
 
 // ---------------------------------------------------------------------------

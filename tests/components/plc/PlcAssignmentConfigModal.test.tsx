@@ -188,7 +188,7 @@ describe('PlcAssignmentConfigModal (quiz kind)', () => {
         onClose={vi.fn()}
       />
     );
-    // Expect mode buttons: Teacher-paced, Auto-paced, Self-paced
+    // Expect mode buttons: Teacher-paced, Auto-paced, Assessment Mode
     expect(
       screen.getByRole('radio', { name: /teacher-paced/i })
     ).toBeInTheDocument();
@@ -196,7 +196,7 @@ describe('PlcAssignmentConfigModal (quiz kind)', () => {
       screen.getByRole('radio', { name: /auto-paced/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('radio', { name: /self-paced/i })
+      screen.getByRole('radio', { name: /assessment mode/i })
     ).toBeInTheDocument();
   });
 
@@ -684,7 +684,7 @@ describe('PlcAssignmentConfigModal (quiz kind — Task 10 slimmed, quizBehavior 
     } as unknown as ReturnType<typeof useDashboard>);
   });
 
-  it('does NOT render a mode picker (Teacher-paced / Auto-paced / Self-paced) when quizBehavior is provided', () => {
+  it('does NOT render a mode picker (Teacher-paced / Auto-paced / Assessment Mode) when quizBehavior is provided', () => {
     render(
       <PlcAssignmentConfigModal
         plc={fakePlc}
@@ -702,7 +702,7 @@ describe('PlcAssignmentConfigModal (quiz kind — Task 10 slimmed, quizBehavior 
       screen.queryByRole('radio', { name: /auto-paced/i })
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('radio', { name: /self-paced/i })
+      screen.queryByRole('radio', { name: /assessment mode/i })
     ).not.toBeInTheDocument();
   });
 

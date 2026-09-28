@@ -31,8 +31,8 @@ describe('getQuizBehavior', () => {
     } as QuizMetadata;
     expect(getQuizBehavior(meta)).toEqual(behavior);
   });
-  it('DEFAULT has teacher mode, attemptLimit 1, shuffleAnswerOptions on', () => {
-    expect(DEFAULT_QUIZ_BEHAVIOR.sessionMode).toBe('teacher');
+  it('DEFAULT has student mode, attemptLimit 1, shuffleAnswerOptions on', () => {
+    expect(DEFAULT_QUIZ_BEHAVIOR.sessionMode).toBe('student');
     expect(DEFAULT_QUIZ_BEHAVIOR.attemptLimit).toBe(1);
     expect(DEFAULT_QUIZ_BEHAVIOR.sessionOptions.shuffleAnswerOptions).toBe(
       true

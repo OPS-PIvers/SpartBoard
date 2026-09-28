@@ -148,7 +148,10 @@ import { useAuth } from '@/context/useAuth';
 import { useQuizHandRaiseMode } from '@/hooks/useQuizHandRaiseMode';
 import { QUIZ_TRANSLATION_FEATURE } from '@/config/quizTranslation';
 import { useDialog } from '@/context/useDialog';
-import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
+import {
+  getAssignBehaviorSeed,
+  formatBehaviorSummary,
+} from '@/utils/quizBehavior';
 import { needsKeyMessage } from '@/utils/quizNeedsKey';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { countRecordingSlots } from '@/utils/quizRecordingModes';
@@ -799,8 +802,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         return;
       }
       setAssignDestination(destination);
-      // Deep-copy: the shared DEFAULT_QUIZ_BEHAVIOR fallback is frozen.
-      setAssignBehavior(structuredClone(getQuizBehavior(quiz)));
+      setAssignBehavior(getAssignBehaviorSeed(quiz));
       setAssignTarget(quiz);
     },
     [chooserTarget]
@@ -1737,8 +1739,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Assign confirm handler ───────────────────────────────────────────────
   const handleAssignConfirm = (): void => {
     if (!assignTarget) return;
-    const behavior =
-      assignBehavior ?? structuredClone(getQuizBehavior(assignTarget));
+    const behavior = assignBehavior ?? getAssignBehaviorSeed(assignTarget);
     // M17 C3 F5 — per-student overrides are only honored in self-paced mode
     // (a teacher-paced `currentQuestionIndex` is shared class-wide and can't
     // diverge per student). Block the save rather than silently assigning
@@ -1748,7 +1749,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       setTargetingPacingError(
         t('assignTargeting.pacingBlocked', {
           defaultValue:
-            "Individual student modifications require Self-paced mode. Switch Session Settings below to Self-paced, or use 'Clear all modifications' under Edit or add modifications.",
+            "Individual student modifications require Assessment Mode. Switch Session Settings below to Assessment Mode, or use 'Clear all modifications' under Edit or add modifications.",
         })
       );
       return;
