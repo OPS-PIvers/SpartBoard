@@ -7,7 +7,13 @@
 
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { ImportWizard } from '@/components/common/library/importer';
 import type {
   ImportAdapter,
@@ -34,7 +40,7 @@ async function readTest(file: File) {
   fireEvent.change(screen.getByLabelText('Upload test questions'), {
     target: { files: [file] },
   });
-  const read = screen.getByRole('button', { name: 'Read the test' });
+  const read = screen.getByRole('button', { name: 'Import' });
   await waitFor(() => expect(read).not.toBeDisabled());
   fireEvent.click(read);
 }
@@ -104,6 +110,22 @@ describe('ImportWizard — test document source', () => {
     expect(screen.queryByLabelText('Upload test questions')).toBeNull();
   });
 
+  it('turns the AI reader on only after the cost prompt is confirmed', async () => {
+    const { adapter, parseSpy } = makeAdapter();
+    renderWizard({ ...adapter, supportsAiReader: true });
+    const toggle = screen.getByLabelText('Convert with AI');
+    fireEvent.click(toggle);
+    const prompt = screen.getByRole('dialog', { name: 'Convert with AI?' });
+    fireEvent.click(within(prompt).getByRole('button', { name: 'Cancel' }));
+    expect(toggle).not.toBeChecked();
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole('button', { name: 'Use AI' }));
+    expect(toggle).toBeChecked();
+    await readTest(PDF_BYTES);
+    await waitFor(() => expect(parseSpy).toHaveBeenCalled());
+    expect(parseSpy.mock.calls[0][0]).not.toHaveProperty('useAi');
+  });
+
   it('shows the upload tile but no Drive button when the adapter cannot pick', () => {
     const { adapter } = makeAdapter();
     renderWizard(adapter);
@@ -161,7 +183,7 @@ describe('ImportWizard — test document source', () => {
     renderWizard(adapter);
     fireEvent.click(screen.getByText(/Choose from Drive/i));
     await screen.findByText('Quiz 1.docx');
-    fireEvent.click(screen.getByRole('button', { name: 'Read the test' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
     await waitFor(() => expect(parseSpy).toHaveBeenCalledTimes(1));
     expect(parseSpy.mock.calls[0][0]).toEqual({
       kind: 'document',
@@ -212,7 +234,7 @@ describe('ImportWizard — busy state', () => {
     // The old inline banner sat below the document tiles, off-screen until the
     // teacher scrolled; this one covers the whole panel.
     const busy = await screen.findByRole('status');
-    expect(busy.textContent).toMatch(/Reading your document/i);
+    expect(busy.textContent).toMatch(/Importing/i);
     expect(busy.className).toContain('absolute');
     expect(busy.className).toContain('inset-0');
 

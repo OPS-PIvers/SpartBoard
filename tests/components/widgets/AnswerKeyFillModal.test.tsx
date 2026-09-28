@@ -61,7 +61,7 @@ const readKeyFile = async () => {
     },
   });
   await screen.findByText('key.pdf');
-  fireEvent.click(screen.getByRole('button', { name: 'Read the answer key' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Import' }));
 };
 
 describe('AnswerKeyFillModal', () => {
