@@ -444,6 +444,11 @@ export async function readExamViewTest(
   });
   const payload = examViewPayload(new Uint8Array(buffer));
   if (!payload) throw new Error(NOT_AN_EXAMVIEW_TEST);
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error(
+      'This browser can’t open ExamView files. Update it, or export the test from ExamView as Rich Text Format.'
+    );
+  }
   let inflated: Uint8Array;
   try {
     inflated = await inflate(payload);
