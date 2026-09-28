@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { Puzzle } from 'lucide-react';
 import { db, isConfigured, isAuthBypass } from '@/config/firebase';
+import { canonicalizeBuildingIds } from '@/config/buildings';
 import { CustomWidgetDoc, ToolMetadata } from '@/types';
 import { useAuth } from './useAuth';
 import { CustomWidgetsContext } from './CustomWidgetsContextValue';
@@ -79,7 +80,10 @@ export const CustomWidgetsProvider: React.FC<{ children: React.ReactNode }> = ({
       const filtered = Array.from(byId.values()).filter(
         (w) =>
           w.buildings.length === 0 ||
-          w.buildings.some((b) => selectedBuildings.includes(b))
+          // w.buildings may still hold a legacy long-form id; canonicalize before comparing against selectedBuildings (always canonical).
+          canonicalizeBuildingIds(w.buildings).some((b) =>
+            selectedBuildings.includes(b)
+          )
       );
       setCustomWidgets(filtered);
       setLoading(false);
