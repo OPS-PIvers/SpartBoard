@@ -166,6 +166,20 @@ export default tseslint.config(
       'no-debugger': 'error',
       'prefer-const': 'error',
       'no-var': 'error',
+
+      // A number picker is a <select> or number input, never one button per number.
+      'no-restricted-syntax': [
+        'error',
+        ...[
+          "CallExpression[callee.object.name='Array'][callee.property.name='from'][arguments.0.type='ObjectExpression'] > :function JSXOpeningElement[name.name='button']",
+          "CallExpression[callee.property.name='map'][callee.object.callee.object.name='Array'][callee.object.callee.property.name='from'] > :function JSXOpeningElement[name.name='button']",
+          "CallExpression[callee.property.name='map'][callee.object.type='ArrayExpression'][callee.object.elements.9.raw=/^[0-9]+$/] > :function JSXOpeningElement[name.name='button']",
+        ].map((selector) => ({
+          selector,
+          message:
+            'One button per number in a range is not a number picker. Use a <select> for a short fixed list or <input type="number">; see components/CLAUDE.md "Picking a number".',
+        })),
+      ],
     },
   },
   {

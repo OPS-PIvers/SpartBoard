@@ -25,6 +25,8 @@ export interface FolderSelectFieldProps {
   /** Disables the field and tooltips with `disabledReason`. */
   disabled?: boolean;
   disabledReason?: string;
+  /** `header` drops the visible label for a compact button in an editor header. */
+  variant?: 'field' | 'header';
 }
 
 export const FolderSelectField: React.FC<FolderSelectFieldProps> = ({
@@ -34,6 +36,7 @@ export const FolderSelectField: React.FC<FolderSelectFieldProps> = ({
   label = 'Folder',
   disabled = false,
   disabledReason,
+  variant = 'field',
 }) => {
   const [pickerOpen, setPickerOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -51,18 +54,29 @@ export const FolderSelectField: React.FC<FolderSelectFieldProps> = ({
         ? currentFolder.name
         : 'Folder not found';
 
+  const isHeader = variant === 'header';
+
   return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
-        {label}
-      </label>
+    <div className={isHeader ? 'min-w-0' : 'flex flex-col gap-1.5'}>
+      {!isHeader && (
+        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
+          {label}
+        </label>
+      )}
       <button
         ref={buttonRef}
         type="button"
         disabled={disabled}
         onClick={() => setPickerOpen(true)}
-        title={disabled ? disabledReason : undefined}
-        className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 transition-colors hover:border-brand-blue-primary/40 hover:bg-brand-blue-lighter/10 disabled:cursor-not-allowed disabled:opacity-60"
+        title={disabled ? disabledReason : isHeader ? label : undefined}
+        aria-label={isHeader ? `${label}: ${displayName}` : undefined}
+        aria-haspopup="dialog"
+        aria-expanded={pickerOpen}
+        className={`inline-flex items-center gap-2 border border-slate-300 bg-white text-left text-sm font-medium text-slate-700 transition-colors hover:border-brand-blue-primary/40 hover:bg-brand-blue-lighter/10 disabled:cursor-not-allowed disabled:opacity-60 ${
+          isHeader
+            ? 'w-full max-w-[16rem] rounded-lg px-2.5 py-1.5'
+            : 'rounded-xl px-3 py-2'
+        }`}
       >
         {value == null ? (
           <Inbox className="h-4 w-4 shrink-0 text-slate-400" />

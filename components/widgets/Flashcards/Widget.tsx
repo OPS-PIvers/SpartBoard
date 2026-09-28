@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { Layers, LogIn } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -103,6 +104,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const config = widget.config as FlashcardsConfig;
   const { user, ensureGoogleScope } = useAuth();
+  const claudeReview = useClaudeReview('flashcard_sets');
   const { addToast, updateWidget, rosters, updateRoster } = useDashboard();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { showConfirm } = useDialog();
@@ -124,6 +126,10 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   } = useFlashcardAssignments(inShare ? undefined : user?.uid);
   const folders = useFolders(inShare ? undefined : user?.uid, 'flashcards');
   const [editingSet, setEditingSet] = useState<FlashcardSet | null>(null);
+  const handleEditSet = (set: FlashcardSet) => {
+    claudeReview.markReviewed(set);
+    setEditingSet(set);
+  };
   const [saving, setSaving] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [sharingSet, setSharingSet] = useState<FlashcardSet | null>(null);
@@ -277,7 +283,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       );
       return;
     }
-    setAssigningSet(set);
+    claudeReview.whenReviewed(set, () => setAssigningSet(set));
   };
 
   const performAssign = async ({
@@ -567,7 +573,13 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 folders={folders}
                 onNew={() => setEditingSet(makeSet())}
                 onImport={() => setImportOpen(true)}
-                onEdit={setEditingSet}
+                onEdit={handleEditSet}
+                badgesFor={(set) => {
+                  const review = claudeReview.badge(set, () =>
+                    handleEditSet(set)
+                  );
+                  return review ? [review] : [];
+                }}
                 onPresent={showPresent}
                 onShare={setSharingSet}
                 onAssign={handleAssign}

@@ -154,20 +154,12 @@ describe('client/server paper batch plan parity', () => {
     }
   });
 
-  it('letters every question in the same order, seeded by batch', () => {
+  it('letters every question in the same order', () => {
     for (const q of QUESTIONS) {
-      expect(serverChoiceOrder(BATCH_ID, q)).toEqual(
-        clientChoiceOrder(BATCH_ID, q)
-      );
-      // A different batch reshuffles — and must reshuffle the same way.
-      expect(serverChoiceOrder('other-batch', q)).toEqual(
-        clientChoiceOrder('other-batch', q)
-      );
+      expect(serverChoiceOrder(q)).toEqual(clientChoiceOrder(q));
     }
     const stub = question('q6', 'C', ['A', 'B', 'D']);
-    expect(serverChoiceOrder(BATCH_ID, stub)).toEqual(
-      clientChoiceOrder(BATCH_ID, stub)
-    );
+    expect(serverChoiceOrder(stub)).toEqual(clientChoiceOrder(stub));
   });
 
   it('picks the same printable rows out of a mixed quiz', () => {

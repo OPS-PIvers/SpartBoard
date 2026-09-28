@@ -164,6 +164,7 @@ import { buildPeriodAccess } from '@/utils/periodPlan';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
 import { revealValueFor } from '@/utils/quizFibAlternates';
+import { useClaudeReview } from '@/hooks/useClaudeReview';
 
 /**
  * Session-options shape used when minting a view-only Quiz share. Typed as
@@ -230,6 +231,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { showConfirm } = useDialog();
   const { openPicker } = useGooglePicker();
   const canImportDocuments = useQuizDocumentImportGate();
+  const claudeReview = useClaudeReview('quizzes');
   // D1: the AI reader has its own admin-default permission, AND-ed with the AI one.
   const canUseAiReader =
     canImportDocuments &&
@@ -1812,6 +1814,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           if (data) {
             setEditingQuiz(data);
             setEditingMeta(meta);
+            claudeReview.markReviewed(meta);
           }
         }}
         onPreview={async (meta) => {
@@ -3537,6 +3540,12 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           )}
           onCreateAssignment={async () => {
             const behavior = getQuizBehavior(paperImport.meta);
+            // Pool with the PLC the quiz syncs from, as the assign dialog pre-selects it.
+            const groupId = paperImport.meta.sync?.groupId;
+            const groupPlcId = groupId
+              ? syncedGroups.get(groupId)?.plcId
+              : undefined;
+            const plc = buildPlcLinkage(plcs.find((p) => p.id === groupPlcId));
             const { id } = await createAssignment(
               {
                 id: paperImport.meta.id,
@@ -3558,10 +3567,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   tabWarningsEnabled: false,
                 },
                 attemptLimit: 1,
+                ...(plc && groupId ? { plc } : {}),
               },
               // No classIds and paused: never a live door for students.
               // publishPaperResultsV1 ends it once results go out (Q34).
-              { initialStatus: 'paused' }
+              {
+                initialStatus: 'paused',
+                ...(plc && groupId ? { plcPoolSyncGroupId: groupId } : {}),
+              }
             );
             return id;
           }}

@@ -127,7 +127,7 @@ function mcOptions(
   const order =
     choiceOrder && choiceOrder.length > 0
       ? choiceOrder
-      : paperChoiceOrder('results-print', {
+      : paperChoiceOrder({
           ...q,
           incorrectAnswers: q.incorrectAnswers.filter(Boolean),
         });

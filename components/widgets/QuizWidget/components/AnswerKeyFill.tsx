@@ -232,7 +232,7 @@ export const AnswerKeyFillModal: React.FC<AnswerKeyFillModalProps> = ({
                   }
                 : undefined
             }
-            submitLabel="Read the answer key"
+            submitLabel="Import"
             onSubmit={({ key }) => void read(key)}
           />
         </div>
@@ -240,7 +240,7 @@ export const AnswerKeyFillModal: React.FC<AnswerKeyFillModalProps> = ({
       {(step === 'reading' || step === 'saving') && (
         <div className="flex items-center gap-3 px-5 py-8 text-sm text-slate-600">
           <Loader2 className="h-5 w-5 animate-spin" />
-          {step === 'reading' ? 'Reading the answer key…' : 'Saving…'}
+          {step === 'reading' ? 'Importing…' : 'Saving…'}
         </div>
       )}
       {step === 'review' && result && (

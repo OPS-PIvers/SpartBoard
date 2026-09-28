@@ -253,6 +253,37 @@ describe('markPlcAssessmentDirtyOnResponse', () => {
     expect(stub.get('plcs/plc-1/assessments/grp-1')?.dirtyAt).toBe(NOW);
   });
 
+  it('marks dirty when a completed response is rescanned or graded without a score change', async () => {
+    const done = {
+      status: 'completed',
+      score: null,
+      answers: [{ questionId: 'q1', answer: 'B' }],
+    };
+    const reset = () =>
+      stub.store.set('plcs/plc-1/assessments/grp-1', {
+        syncGroupId: 'grp-1',
+        dirtyAt: null,
+      });
+
+    reset();
+    await onResponse(responseEvent(done, { ...done }));
+    expect(stub.get('plcs/plc-1/assessments/grp-1')?.dirtyAt).toBeNull();
+
+    await onResponse(
+      responseEvent(done, {
+        ...done,
+        answers: [{ questionId: 'q1', answer: 'A' }],
+      })
+    );
+    expect(stub.get('plcs/plc-1/assessments/grp-1')?.dirtyAt).toBe(NOW);
+
+    reset();
+    await onResponse(
+      responseEvent(done, { ...done, grading: { q1: { pointsAwarded: 1 } } })
+    );
+    expect(stub.get('plcs/plc-1/assessments/grp-1')?.dirtyAt).toBe(NOW);
+  });
+
   it('does nothing for a session without PLC linkage', async () => {
     stub.store.set('quiz_sessions/sess-a', {
       teacherUid: 'tA',

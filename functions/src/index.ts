@@ -262,3 +262,8 @@ export {
   linkLtiCourseV1,
   ltiSuggestClassLinkMatchV1,
 } from './lti/courseLinkEndpoints';
+
+// Claude connector (remote MCP server) — see docs/plans/CLAUDE_CONNECTOR.md.
+export { mcpServer } from './mcp/mcpEndpoint';
+export { mcpOAuth } from './mcp/oauthEndpoints';
+export { mcpAuthorizeV1, revokeMcpGrantV1 } from './mcp/authorizeCallables';

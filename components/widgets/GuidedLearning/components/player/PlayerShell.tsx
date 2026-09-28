@@ -152,6 +152,7 @@ export const PlayerTopBar: React.FC<PlayerTopBarProps> = ({
               style={{ gap: 'min(6px, 1.5cqmin)' }}
             >
               {Array.from({ length: imageCount }, (_, imageIndex) => (
+                // eslint-disable-next-line no-restricted-syntax -- a pager with one tab per image
                 <button
                   key={`image-${imageIndex}`}
                   onClick={() => onSelectImage?.(imageIndex)}
