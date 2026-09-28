@@ -6451,7 +6451,7 @@ export type VideoActivitySessionStatus = 'waiting' | 'active' | 'ended';
 
 export type VideoActivitySessionMode = 'student' | 'teacher';
 
-/** Teacher-paced pacing state on the session doc (docs/plans/VA_TEACHER_PACED.md §4.1). */
+/** Teacher-paced pacing state on the session doc (docs/plans/shipped/VA_TEACHER_PACED.md §4.1). */
 export interface VideoActivityLiveState {
   /** null while the video plays or in the lobby. */
   currentQuestionId: string | null;
@@ -9030,7 +9030,7 @@ export type GlobalFeature =
   | 'paper-handwritten-responses'
   /** Claude connector: teachers connect Claude to their library (docs/plans/CLAUDE_CONNECTOR.md). */
   | 'claude-connector'
-  /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/VA_TEACHER_PACED.md). */
+  /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/shipped/VA_TEACHER_PACED.md). */
   | 'video-activity-live'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'

@@ -1,6 +1,6 @@
 /**
  * VideoActivityLivePlayer: the board player and pacing controls for a
- * teacher-paced (live) session (docs/plans/VA_TEACHER_PACED.md §5.2).
+ * teacher-paced (live) session (docs/plans/shipped/VA_TEACHER_PACED.md §5.2).
  */
 
 import React, { useMemo, useRef, useState } from 'react';
