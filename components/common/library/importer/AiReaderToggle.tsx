@@ -58,6 +58,7 @@ export const AiReaderToggle: React.FC<AiReaderToggleProps> = ({
           <div className="flex justify-end gap-2">
             <button
               type="button"
+              autoFocus
               onClick={() => confirm(false)}
               className="rounded-lg px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100"
             >
@@ -65,7 +66,6 @@ export const AiReaderToggle: React.FC<AiReaderToggleProps> = ({
             </button>
             <button
               type="button"
-              autoFocus
               onClick={() => confirm(true)}
               className="rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-blue-dark"
             >
