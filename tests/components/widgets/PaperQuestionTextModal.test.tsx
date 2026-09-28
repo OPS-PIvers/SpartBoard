@@ -90,7 +90,7 @@ const chooseTest = async () => {
     target: { files: [file] },
   });
   await screen.findByText('test.pdf');
-  fireEvent.click(screen.getByRole('button', { name: 'Convert test' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Import' }));
 };
 
 describe('PaperQuestionTextModal', () => {
@@ -380,9 +380,7 @@ describe('PaperQuestionTextModal with only an answer key (R17)', () => {
       readKey,
     });
     await chooseKey();
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Read the answer key' })
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
     const list = await screen.findByRole('list', {
       name: 'Answers to fill in',
     });

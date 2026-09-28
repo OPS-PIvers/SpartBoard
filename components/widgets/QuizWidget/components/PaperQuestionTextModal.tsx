@@ -102,7 +102,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
     key: UploadedDocument | null,
     read: ReadUploadedTest
   ) => {
-    setProgress('Converting the test…');
+    setProgress('Importing…');
     const extracted = await read(test, {
       ...(canUseAi ? { useAi } : {}),
       key,
@@ -202,7 +202,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
         setKeyFill(null);
         await readWithImporter(test, key, readDocument);
       } else if (key) {
-        setProgress('Reading the answer key…');
+        setProgress('Importing…');
         setKeyFill(
           await readKeyFill(quiz.questions, key, readKey, fillStubKey)
         );
@@ -298,7 +298,6 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
       </p>
       <TestAndKeyUploader
         allowKeyAlone
-        keyAloneLabel="Read the answer key"
         pickFromDrive={
           onPickFromDrive
             ? async () => {
@@ -307,7 +306,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
               }
             : undefined
         }
-        submitLabel="Convert test"
+        submitLabel="Import"
         onSubmit={(selection) => void readSelection(selection)}
       >
         {canUseAi && <AiReaderToggle checked={useAi} onChange={setUseAi} />}

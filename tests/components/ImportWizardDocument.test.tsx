@@ -34,7 +34,7 @@ async function readTest(file: File) {
   fireEvent.change(screen.getByLabelText('Upload test questions'), {
     target: { files: [file] },
   });
-  const read = screen.getByRole('button', { name: 'Convert test' });
+  const read = screen.getByRole('button', { name: 'Import' });
   await waitFor(() => expect(read).not.toBeDisabled());
   fireEvent.click(read);
 }
@@ -161,7 +161,7 @@ describe('ImportWizard — test document source', () => {
     renderWizard(adapter);
     fireEvent.click(screen.getByText(/Choose from Drive/i));
     await screen.findByText('Quiz 1.docx');
-    fireEvent.click(screen.getByRole('button', { name: 'Convert test' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
     await waitFor(() => expect(parseSpy).toHaveBeenCalledTimes(1));
     expect(parseSpy.mock.calls[0][0]).toEqual({
       kind: 'document',
@@ -212,7 +212,7 @@ describe('ImportWizard — busy state', () => {
     // The old inline banner sat below the document tiles, off-screen until the
     // teacher scrolled; this one covers the whole panel.
     const busy = await screen.findByRole('status');
-    expect(busy.textContent).toMatch(/Converting your document/i);
+    expect(busy.textContent).toMatch(/Importing/i);
     expect(busy.className).toContain('absolute');
     expect(busy.className).toContain('inset-0');
 

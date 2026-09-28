@@ -190,9 +190,7 @@ export function ImportWizard<TData>({
   const runParse = async (payload: ImportSourcePayload): Promise<void> => {
     const session = sessionRef.current;
     setLoadingLabel(
-      payload.kind === 'document'
-        ? 'Converting your document…'
-        : 'Importing your file…'
+      payload.kind === 'document' ? 'Importing…' : 'Importing your file…'
     );
     setLoading(true);
     setParseError(null);
@@ -647,9 +645,9 @@ export function ImportWizard<TData>({
             zones={supportsKeyFile ? 'both' : 'test'}
             allowCartridge
             pickFromDrive={adapter.pickDocument}
-            submitLabel="Convert test"
+            submitLabel="Import"
             busy={loading}
-            busyLabel="Converting your document…"
+            busyLabel="Importing…"
             onSubmit={readTestAndKey}
           >
             {supportsAiReader && (
