@@ -204,6 +204,7 @@ describe('VideoActivityStudentApp: teacher-paced', () => {
     fireEvent.click(screen.getByText('Blue'));
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+      await Promise.resolve();
     });
     expect(spies.checkAnswer).toHaveBeenCalledWith('q1', 'Blue');
     expect(spies.submitAnswer).toHaveBeenCalledWith('q1', 'Blue', true);
@@ -223,6 +224,7 @@ describe('VideoActivityStudentApp: teacher-paced', () => {
     });
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+      await Promise.resolve();
     });
     expect(spies.submitAnswer).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toHaveTextContent(
@@ -243,6 +245,7 @@ describe('VideoActivityStudentApp: teacher-paced', () => {
     fireEvent.click(await screen.findByText('Y'));
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+      await Promise.resolve();
     });
     expect(spies.checkAnswer).toHaveBeenCalledWith('q3', 'Y');
     expect(spies.submitAnswer).not.toHaveBeenCalled();
@@ -292,6 +295,7 @@ describe('VideoActivityStudentApp: teacher-paced', () => {
     fireEvent.click(await screen.findByText('Blue'));
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+      await Promise.resolve();
     });
     hookState.session = openQ('q1', { answerRevealed: true });
     rerender(<VideoActivityStudentApp />);

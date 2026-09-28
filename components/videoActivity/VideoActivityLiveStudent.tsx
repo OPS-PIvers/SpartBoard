@@ -19,12 +19,8 @@ import type {
   VideoActivityPublicQuestion,
   VideoActivitySession,
 } from '@/types';
-import {
-  FibAnswerInput,
-  MaOptionList,
-  McOptionList,
-  questionOptions,
-} from './QuestionOverlay';
+import { FibAnswerInput, MaOptionList, McOptionList } from './QuestionOverlay';
+import { questionOptions } from '@/utils/videoActivityOptions';
 import { VideoActivityPeriodPausedOverlay } from './VideoActivityPeriodLockedScreen';
 
 interface VideoActivityLiveStudentProps {
