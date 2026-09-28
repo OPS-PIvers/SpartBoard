@@ -59,6 +59,7 @@ import i18n from '@/i18n';
 import { useFirestore, type SharedBoardSnapshot } from '@/hooks/useFirestore';
 import { TOOLS } from '@/config/tools';
 import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
+import { DEFAULT_BOARD_BACKGROUND } from '@/config/backgrounds';
 import {
   WIDGET_DEFAULTS,
   WIDGET_STRETCH_BEHAVIOR,
@@ -2617,7 +2618,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           const defaultDb: Dashboard = {
             id: crypto.randomUUID(),
             name: 'My First Board',
-            background: 'bg-slate-900',
+            background: DEFAULT_BOARD_BACKGROUND,
             widgets: [],
             createdAt: Date.now(),
           };
@@ -4245,7 +4246,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         : {
             id: crypto.randomUUID(),
             name,
-            background: 'bg-slate-800',
+            background: DEFAULT_BOARD_BACKGROUND,
             widgets: [],
             createdAt: Date.now(),
             order: maxOrder + 1,

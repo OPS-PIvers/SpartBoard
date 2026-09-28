@@ -1,3 +1,6 @@
+// New boards start light so the default dock and window text stay readable.
+export const DEFAULT_BOARD_BACKGROUND = 'bg-brand-gray-lightest';
+
 export const BACKGROUND_COLORS = [
   { id: 'bg-brand-gray-darkest' },
   { id: 'bg-brand-blue-dark' },

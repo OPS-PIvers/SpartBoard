@@ -4,6 +4,7 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { Loader2, Layout, Folder } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { db, isAuthBypass } from '@/config/firebase';
+import { DEFAULT_BOARD_BACKGROUND } from '@/config/backgrounds';
 import { useDashboard } from '@/context/useDashboard';
 import { hydrateCollectionTemplate } from '@/utils/collectionTemplateHydration';
 import {
@@ -91,7 +92,7 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
         const dashboard = {
           id: crypto.randomUUID(),
           name: tpl.name,
-          background: tpl.background ?? 'bg-slate-900',
+          background: tpl.background ?? DEFAULT_BOARD_BACKGROUND,
           widgets: migrateBoardWidgets(tpl.widgets ?? []),
           createdAt: Date.now(),
           order: baseOrder + 1,

@@ -9409,7 +9409,7 @@ export const DEFAULT_GLOBAL_STYLE: GlobalStyle = {
   windowTransparency: 0.8,
   windowBorderRadius: '2xl',
   dockTransparency: 0.4,
-  dockBorderRadius: 'full',
+  dockBorderRadius: '2xl',
   dockTextColor: '#334155', // Slate 700 (dark grey)
   dockTextShadow: false,
   // Brand color defaults — shared source of truth used by DashboardView (CSS vars) and StylePanel (pickers)
