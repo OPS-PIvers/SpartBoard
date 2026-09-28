@@ -26,10 +26,10 @@ describe('tailwind brand colour tokens', () => {
         used.add(m[1]);
       }
     }
-    const brand = config.theme.extend.colors.brand as Record<
-      string,
-      Record<string, string>
-    >;
+    const colors = config.theme?.extend?.colors as
+      | { brand?: Record<string, Record<string, string>> }
+      | undefined;
+    const brand = colors?.brand ?? {};
     const missing = [...used].filter((family) => !brand[family]?.DEFAULT);
     expect(used.has('red')).toBe(true);
     expect(missing).toEqual([]);
