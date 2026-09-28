@@ -77,6 +77,8 @@ function inferKindFromFileName(
   if (
     (lower.endsWith('.pdf') ||
       lower.endsWith('.docx') ||
+      lower.endsWith('.odt') ||
+      lower.endsWith('.tst') ||
       lower.endsWith('.rtf') ||
       lower.endsWith('.imscc')) &&
     supported.includes('document')

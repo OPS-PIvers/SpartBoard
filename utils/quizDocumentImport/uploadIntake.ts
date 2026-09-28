@@ -43,6 +43,10 @@ async function quickLines(file: Blob, name: string): Promise<string[]> {
     const { readDocx } = await import('./docxReader');
     return (await readDocx(file)).lines.map((l) => l.text);
   }
+  if (kind === 'odt') {
+    const { readOdt } = await import('./odtReader');
+    return (await readOdt(file)).lines.map((l) => l.text);
+  }
   if (kind === 'rtf') {
     const { readRtf } = await import('./rtfReader');
     return (await readRtf(file)).lines.map((l) => l.text);

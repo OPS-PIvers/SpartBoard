@@ -12,17 +12,32 @@ export const MAX_CARTRIDGE_UNZIPPED_BYTES = 100 * 1024 * 1024;
 /** Thrown before the document is read, so an oversized file costs nothing. */
 export class DocumentTooLargeError extends Error {}
 
+/** ExamView keeps pictures as raw bitmaps, so its own test files run large. */
+export const MAX_EXAMVIEW_TEST_BYTES = 64 * 1024 * 1024;
+
+/** The byte budget for an import whose test is this kind of file. */
+export const byteLimitFor = (kind: string | null): number =>
+  kind === 'examview' ? MAX_EXAMVIEW_TEST_BYTES : MAX_DOCUMENT_BYTES;
+
 /**
  * D18's budget is per import, not per file, so a test and its key file share
  * one allowance. Pass every file the import will read.
  */
 export function assertWithinByteLimit(...files: Blob[]): void {
+  assertWithinByteLimitOf(MAX_DOCUMENT_BYTES, files);
+}
+
+export function assertWithinByteLimitOf(
+  maxBytes: number,
+  files: readonly Blob[]
+): void {
   const total = files.reduce((sum, file) => sum + file.size, 0);
-  if (total > MAX_DOCUMENT_BYTES) {
+  if (total > maxBytes) {
+    const mb = Math.round(maxBytes / 1024 / 1024);
     throw new DocumentTooLargeError(
       files.length > 1
-        ? `The test and its answer key come to more than ${Math.round(MAX_DOCUMENT_BYTES / 1024 / 1024)} MB together. Split them into smaller files and import them one at a time.`
-        : `This file is larger than ${Math.round(MAX_DOCUMENT_BYTES / 1024 / 1024)} MB. Split it into smaller files and import them one at a time.`
+        ? `The test and its answer key come to more than ${mb} MB together. Split them into smaller files and import them one at a time.`
+        : `This file is larger than ${mb} MB. Split it into smaller files and import them one at a time.`
     );
   }
 }

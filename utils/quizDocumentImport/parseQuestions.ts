@@ -286,6 +286,8 @@ interface Draft {
   skippedFrom?: number;
   /** The PDF line holding a target that filled the opening line, while it may still wrap. */
   targetLine?: DocLine;
+  /** A written item's lettered parts and part labels, one line each (E5). */
+  partLines?: string[];
 }
 
 /** `I.` … `VIII.` opening a statement in a stem (E3). */
@@ -408,7 +410,9 @@ function finish(
 ): ExtractedQuestion {
   const warnings: string[] = [];
   const stem = tidy(draft.textParts.join(' '));
-  const printed = stemText(draft);
+  const printed = [stemText(draft), ...(draft.partLines ?? [])]
+    .filter(Boolean)
+    .join('\n');
   let text = draft.instruction
     ? `${tidy(draft.instruction)} ${printed}`
     : printed;
@@ -855,6 +859,36 @@ export function parseDocument(
     }
 
     const open = current;
+
+    // A written item's parts, and a label like "20 A" naming its own number, stay in its prompt.
+    if (
+      open &&
+      examView &&
+      examViewKindOf(open.section.name) === 'written' &&
+      open.options.length === 0
+    ) {
+      const entries = entriesOnLine(text, multi);
+      const ownLabel = entries.length === 1 && entries[0][0] === open.item;
+      const part = Boolean(matchOption(line));
+      const opening = matchQuestionOpening(text);
+      const elsewhere =
+        (opening !== null && opening.number > open.item && !ownLabel) ||
+        isHeading(text) ||
+        Boolean(sectionHeading(text, examView)) ||
+        INLINE_TEST_BANK_ANSWER.test(text) ||
+        TEST_BANK_FIELD_LINE.test(text) ||
+        Boolean(targetOf(text));
+      const parts = open.partLines;
+      if (!elsewhere && (ownLabel || part || parts)) {
+        const tidied = tidy(text);
+        if (!parts) open.partLines = [tidied];
+        else if (ownLabel || part) parts.push(tidied);
+        else
+          parts[parts.length - 1] = tidy(`${parts[parts.length - 1]} ${text}`);
+        open.imageIds.push(...(line.imageIds ?? []));
+        return;
+      }
+    }
 
     // A key entry never continues a question or opens one (R8).
     if (entriesOnLine(text, multi).length > 0) {
