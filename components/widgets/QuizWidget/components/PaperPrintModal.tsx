@@ -72,6 +72,7 @@ import {
   type PaperSheetEntry,
   type PlanPaperPagesResult,
 } from '@/utils/paperPageMap';
+import { browserStemMeasure, stemLinesById } from '@/utils/paperStemLines';
 import { MAX_PAGE } from '@/utils/paperSheetMarker';
 import {
   PAPER_BOX_SIZES,
@@ -324,23 +325,36 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const questionTextLayout =
     includeQuestionText && !isStub && sheetStimuli.length === 0;
   const grid = questionTextLayout ? 'questions' : columnsPerPage;
-  // Only a sheet with written boxes prints by page map; every other sheet keeps today's layout.
+  // Each question-text row is sized to its own stem, so those sheets always print by page map.
+  const stemLines = useMemo(
+    () =>
+      questionTextLayout
+        ? stemLinesById(sheetQuestions, browserStemMeasure())
+        : undefined,
+    [questionTextLayout, sheetQuestions]
+  );
+  // Only a sheet with written boxes or question text prints by page map; every other sheet keeps today's layout.
   const pagePlan = useMemo((): PlanPaperPagesResult | null => {
-    if (writtenCount === 0) return null;
+    if (writtenCount === 0 && !questionTextLayout) return null;
     return planPaperPages({
       entries: isStub
         ? stubEntries(stubQuestionCount, stubWrittenInRange, (n) => `stub-${n}`)
         : analysis.entries,
       grid,
       stems: !isStub,
+      choiceCount,
+      ...(stemLines ? { stemLines } : {}),
     });
   }, [
     writtenCount,
+    questionTextLayout,
     isStub,
     stubQuestionCount,
     stubWrittenInRange,
     analysis.entries,
     grid,
+    choiceCount,
+    stemLines,
   ]);
   const tooManyPages = pagePlan?.ok === false;
   const sheetImages = usePaperSheetStimulusImages(sheetStimuli);
@@ -655,6 +669,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             : analysis.entries,
           grid,
           stems: !isStub,
+          choiceCount,
+          ...(stemLines ? { stemLines } : {}),
         });
         if (!plan.ok) {
           onError(tooManyPagesMessage(plan.pageCount));
