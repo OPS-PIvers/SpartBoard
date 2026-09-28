@@ -241,6 +241,8 @@ export default {
             lighter: '#eaecf5',
           },
           red: {
+            // Bare `brand-red` classes (admin danger buttons, error text) need this.
+            DEFAULT: '#ad2122',
             primary: '#ad2122',
             dark: '#7a1718',
             light: '#c13435',
