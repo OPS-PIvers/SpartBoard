@@ -266,6 +266,16 @@ export function ImportWizard<TData>({
 
   const readTestAndKey = ({ test, key }: TestAndKeySelection): void => {
     if (!test) return;
+    // A whole-collection export goes to the bulk import, which reads every item in it.
+    const bulk = adapter.bulkSource;
+    if (bulk && matchesAccept(test.fileName, bulk.accept)) {
+      bulk.onFile(
+        test.file instanceof File
+          ? test.file
+          : new File([test.file], test.fileName)
+      );
+      return;
+    }
     void runParse({
       kind: 'document',
       file: test.file,

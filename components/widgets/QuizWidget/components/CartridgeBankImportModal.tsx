@@ -1,4 +1,4 @@
-// Checklist import of every question bank in a Schoology collection export (.imscc).
+// Checklist import of every question bank, or every quiz, in a Schoology export (.imscc).
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -13,12 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
-import type {
-  LibraryFolder,
-  QuestionBankData,
-  QuestionBankMetadata,
-  QuizData,
-} from '@/types';
+import type { LibraryFolder, QuizData } from '@/types';
 import {
   extractedToQuizData,
   readCartridgeBanks,
@@ -30,11 +25,13 @@ import {
 import { titleFromFileName } from '@/utils/quizDocumentImport/fileKind';
 import {
   EMPTY_BANK_REASON,
+  EMPTY_QUIZ_REASON,
   ensureFolderPath,
   initiallyChecked,
   planBankImport,
   runPool,
   type BankImportRow,
+  type LibraryItemPlacement,
 } from '@/utils/cartridgeBankImport';
 
 const SAVE_CONCURRENCY = 3;
@@ -55,15 +52,14 @@ export interface CartridgeImportSummary {
 
 interface CartridgeBankImportModalProps {
   file: File;
+  /** Question banks by default; `quiz` brings in the export's quizzes and tests. */
+  kind?: 'bank' | 'quiz';
   onClose: (summary: CartridgeImportSummary | null) => void;
-  existingBanks: readonly QuestionBankMetadata[];
+  existing: readonly LibraryItemPlacement[];
   folders: readonly LibraryFolder[];
   createFolder: (name: string, parentId: string | null) => Promise<string>;
-  saveBank: (
-    bank: QuestionBankData,
-    existingDriveFileId: undefined,
-    placement: { folderId: string }
-  ) => Promise<QuestionBankMetadata>;
+  /** Saves one read item, pictures attached, into `folderId`. */
+  saveItem: (quiz: QuizData, folderId: string) => Promise<void>;
   /** Uploads a bank's pictures and points its questions at them; no images strips the pointers. */
   attachPictures: (
     quiz: QuizData,
@@ -92,11 +88,12 @@ export const CartridgeBankImportModal: React.FC<
   CartridgeBankImportModalProps
 > = ({
   file,
+  kind = 'bank',
   onClose,
-  existingBanks,
+  existing,
   folders,
   createFolder,
-  saveBank,
+  saveItem,
   attachPictures,
   canUploadPictures,
   fetchRemoteImage,
@@ -110,12 +107,16 @@ export const CartridgeBankImportModal: React.FC<
   const [save, setSave] = useState<SaveState>({ kind: 'idle' });
   const savedIds = useRef(new Set<string>());
   const madeFolders = useRef(new Map<string, string>());
+  const isQuiz = kind === 'quiz';
+  const noun = (n: number): string =>
+    isQuiz ? plural(n, 'quiz', 'quizzes') : plural(n, 'bank');
 
   // Reading the zip is async work outside React, so it runs in an effect.
   useEffect(() => {
     let cancelled = false;
     readCartridgeBanks(file, titleFromFileName(file.name), {
       multiAnswer,
+      read: isQuiz ? 'tests' : 'banks',
       ...(fetchRemoteImage ? { fetchRemoteImage } : {}),
     })
       .then((collection) => {
@@ -136,7 +137,7 @@ export const CartridgeBankImportModal: React.FC<
     return () => {
       cancelled = true;
     };
-  }, [file, multiAnswer, fetchRemoteImage]);
+  }, [file, multiAnswer, fetchRemoteImage, isQuiz]);
 
   const rows = useMemo<BankImportRow[]>(
     () =>
@@ -144,11 +145,11 @@ export const CartridgeBankImportModal: React.FC<
         ? planBankImport(
             read.collection.banks,
             name.trim() || read.collection.title,
-            existingBanks,
+            existing,
             folders
           )
         : [],
-    [read, name, existingBanks, folders]
+    [read, name, existing, folders]
   );
 
   // The first plan decides the starting ticks; the teacher's changes win after that.
@@ -194,18 +195,7 @@ export const CartridgeBankImportModal: React.FC<
       quiz,
       withPictures ? bank.images : []
     );
-    await saveBank(
-      {
-        id: crypto.randomUUID(),
-        title: bank.title,
-        questions: pictured.questions,
-        ...(pictured.stimuli ? { stimuli: pictured.stimuli } : {}),
-        createdAt: pictured.createdAt,
-        updatedAt: pictured.updatedAt,
-      },
-      undefined,
-      { folderId }
-    );
+    await saveItem(pictured, folderId);
   };
 
   const runImport = async (targets: BankImportRow[]): Promise<void> => {
@@ -273,14 +263,16 @@ export const CartridgeBankImportModal: React.FC<
         id="cartridge-bank-import-title"
         className="font-black text-lg text-slate-800 truncate"
       >
-        Import question banks from Schoology
+        {isQuiz
+          ? 'Import quizzes from Schoology'
+          : 'Import question banks from Schoology'}
       </h3>
       <button
         type="button"
         onClick={close}
         disabled={busy}
         className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors shrink-0 disabled:opacity-40"
-        aria-label="Close question bank import"
+        aria-label={isQuiz ? 'Close quiz import' : 'Close question bank import'}
       >
         <X size={20} />
       </button>
@@ -335,7 +327,7 @@ export const CartridgeBankImportModal: React.FC<
         <div className="flex items-start gap-2 rounded-xl border border-emerald-300/60 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">
           <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
           <span>
-            {plural(save.saved, 'bank')} saved to the “{name.trim()}” folder.
+            {noun(save.saved)} saved to the “{name.trim()}” folder.
           </span>
         </div>
         {failedRows.length > 0 && (
@@ -344,7 +336,7 @@ export const CartridgeBankImportModal: React.FC<
             className="rounded-xl border border-brand-red-primary/20 bg-brand-red-lighter/40 p-3 text-sm text-brand-red-dark"
           >
             <p className="font-bold">
-              {plural(failedRows.length, 'bank')} couldn’t be saved:
+              {noun(failedRows.length)} couldn’t be saved:
             </p>
             <ul className="mt-1 list-disc pl-5">
               {failedRows.map((r) => (
@@ -357,6 +349,10 @@ export const CartridgeBankImportModal: React.FC<
     );
   } else {
     const { collection } = read;
+    const skipped = isQuiz ? collection.skippedBanks : collection.skippedTests;
+    const skippedLabel = isQuiz
+      ? plural(skipped, 'question bank')
+      : plural(skipped, 'quiz or test', 'quizzes and tests');
     let lastPath = '';
     body = (
       <div className="space-y-4">
@@ -375,15 +371,17 @@ export const CartridgeBankImportModal: React.FC<
             className="w-full px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium focus:outline-none focus:border-brand-blue-primary transition-colors"
           />
           <p className="mt-1 text-xs text-slate-500">
-            Banks keep their Schoology folders inside this one.
-            {collection.skippedTests > 0 &&
-              ` ${plural(collection.skippedTests, 'quiz or test', 'quizzes and tests')} in the export ${collection.skippedTests === 1 ? 'was' : 'were'} skipped.`}
+            {isQuiz ? 'Quizzes' : 'Banks'} keep their Schoology folders inside
+            this one.
+            {skipped > 0 &&
+              ` ${skippedLabel} in the export ${skipped === 1 ? 'was' : 'were'} skipped.`}
           </p>
         </div>
 
         <div className="flex items-center justify-between text-xs font-bold text-slate-600">
           <span>
-            {selected.length} of {importable.length} banks selected ·{' '}
+            {selected.length} of {importable.length}{' '}
+            {isQuiz ? 'quizzes' : 'banks'} selected ·{' '}
             {plural(
               selected.reduce((n, r) => n + r.questionCount, 0),
               'question'
@@ -408,7 +406,9 @@ export const CartridgeBankImportModal: React.FC<
         </div>
 
         <ul
-          aria-label="Question banks in the export"
+          aria-label={
+            isQuiz ? 'Quizzes in the export' : 'Question banks in the export'
+          }
           className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white"
         >
           {rows.map((row) => {
@@ -466,7 +466,7 @@ export const CartridgeBankImportModal: React.FC<
                     </div>
                     {row.empty && (
                       <p className="text-xs text-slate-500">
-                        {EMPTY_BANK_REASON}
+                        {isQuiz ? EMPTY_QUIZ_REASON : EMPTY_BANK_REASON}
                       </p>
                     )}
                     {open && <QuestionList bank={row.bank} />}
@@ -503,8 +503,8 @@ export const CartridgeBankImportModal: React.FC<
             />
             <span>
               {canUploadPictures
-                ? `Copy ${plural(pictureCount, 'picture')} to your Drive and share ${pictureCount === 1 ? 'it' : 'them'} as “anyone with the link can view,” so students can see ${pictureCount === 1 ? 'it' : 'them'}. Unticked, the banks are saved without pictures.`
-                : `Connect Google Drive to bring in ${plural(pictureCount, 'picture')}. The banks will be saved without ${pictureCount === 1 ? 'it' : 'them'}.`}
+                ? `Copy ${plural(pictureCount, 'picture')} to your Drive and share ${pictureCount === 1 ? 'it' : 'them'} as “anyone with the link can view,” so students can see ${pictureCount === 1 ? 'it' : 'them'}. Unticked, the ${isQuiz ? 'quizzes' : 'banks'} are saved without pictures.`
+                : `Connect Google Drive to bring in ${plural(pictureCount, 'picture')}. The ${isQuiz ? 'quizzes' : 'banks'} will be saved without ${pictureCount === 1 ? 'it' : 'them'}.`}
             </span>
           </label>
         )}
@@ -533,7 +533,7 @@ export const CartridgeBankImportModal: React.FC<
           className={footerButton}
         >
           <CheckCircle2 className="w-4 h-4" />
-          Import {plural(selected.length, 'bank')}
+          Import {noun(selected.length)}
         </button>
       )}
       {save.kind === 'finished' && failedRows.length > 0 && (
