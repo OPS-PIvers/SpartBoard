@@ -489,20 +489,6 @@ export function ImportWizard<TData>({
 
   const sourceStep = (
     <div className="space-y-4">
-      {adapter.aiAssist && (
-        <button
-          type="button"
-          onClick={() => setAiOpen(true)}
-          className="w-full py-4 bg-slate-50 hover:bg-slate-100 border-2 border-dashed border-slate-300 hover:border-brand-blue-primary/40 rounded-2xl flex flex-col items-center justify-center gap-1 transition-colors group active:scale-95"
-          aria-label={`AI-assist import for ${adapter.widgetLabel}`}
-        >
-          <Sparkles className="w-6 h-6 text-brand-blue-primary group-hover:scale-110 transition-transform" />
-          <span className="font-black text-brand-blue-dark text-xs uppercase tracking-widest">
-            Draft with AI
-          </span>
-        </button>
-      )}
-
       {(canPickSheet || supportsAnyUpload) && (
         // A disabled control receives no drag events, and the buttons are
         // disabled while a parse runs, so the zone carries them.
@@ -701,6 +687,18 @@ export function ImportWizard<TData>({
             Import pasted JSON
           </button>
         </div>
+      )}
+
+      {adapter.aiAssist && (
+        <button
+          type="button"
+          onClick={() => setAiOpen(true)}
+          className={sourceButtonClass}
+          aria-label={`AI-assist import for ${adapter.widgetLabel}`}
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          Draft with AI
+        </button>
       )}
 
       {parseError && (
