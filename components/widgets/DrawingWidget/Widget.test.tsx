@@ -162,6 +162,19 @@ describe('DrawingWidget', () => {
     expect(mockContext.clearRect).toHaveBeenCalled();
   });
 
+  it('shows Extract Text (AI) only while the Drawing AI switch is on', () => {
+    const first = render(<DrawingWidget widget={widget} />);
+    expect(first.queryByLabelText('Extract Text (AI)')).not.toBeNull();
+    first.unmount();
+
+    (useAuth as Mock).mockReturnValue({
+      user: { uid: 'user1' },
+      canAccessFeature: vi.fn((id: string) => id !== 'drawing-ai'),
+    });
+    const second = render(<DrawingWidget widget={widget} />);
+    expect(second.queryByLabelText('Extract Text (AI)')).toBeNull();
+  });
+
   it('no longer renders the Assign (Cast) or Save-to-Cloud buttons', () => {
     const { container } = render(<DrawingWidget widget={widget} />);
     // Previously the overlay-mode toolbar included buttons titled "Assign..."

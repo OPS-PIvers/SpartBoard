@@ -674,7 +674,9 @@ const StudioSession: React.FC<
   }, [pasteListening]);
 
   const canUseAi =
-    !readOnly && isAdmin === true && canAccessFeature('gemini-functions');
+    !readOnly &&
+    canAccessFeature('gemini-functions') &&
+    canAccessFeature('guided-learning-ai');
   const canRecordTour = isAdmin === true && canAccessFeature('gl-live-tours');
 
   const canvasDrop = useFileDrop(

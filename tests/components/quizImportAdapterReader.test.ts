@@ -294,7 +294,7 @@ describe('document pictures are scoped to the read that produced them', () => {
   it('drops them when the quiz is generated with AI instead', async () => {
     // Generating skips `parse` entirely but still lands on the review table.
     const onDocumentImages = vi.fn();
-    const quizAdapter = adapter({ onDocumentImages });
+    const quizAdapter = adapter({ onDocumentImages, canUseAi: true });
 
     await quizAdapter.parse(source);
     // The generate call itself needs Firebase; letting it fail proves the
@@ -304,5 +304,12 @@ describe('document pictures are scoped to the read that produced them', () => {
     ).rejects.toThrow();
 
     expect(onDocumentImages).toHaveBeenLastCalledWith([]);
+  });
+});
+
+describe('quiz import AI assist', () => {
+  it('is offered only when the Quiz AI switch allows it', () => {
+    expect(adapter().aiAssist).toBeUndefined();
+    expect(adapter({ canUseAi: true }).aiAssist).toBeDefined();
   });
 });

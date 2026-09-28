@@ -28,9 +28,10 @@ export const WebcamWidget: React.FC<{
   const { canAccessFeature } = useAuth();
   const { addWidget, addToast, updateWidget } = useDashboardActions();
   const { showAlert, showConfirm } = useDialog();
-  const ocrMode: 'standard' | 'gemini' = canAccessFeature('gemini-functions')
-    ? 'gemini'
-    : 'standard';
+  const ocrMode: 'standard' | 'gemini' =
+    canAccessFeature('gemini-functions') && canAccessFeature('webcam-ai')
+      ? 'gemini'
+      : 'standard';
   const widgetConfig = (_widget.config || {}) as WebcamConfig;
 
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -180,7 +181,7 @@ export const WebcamWidget: React.FC<{
 
       let text = '';
       if (ocrMode === 'gemini') {
-        text = await extractTextWithGemini(dataUrl);
+        text = await extractTextWithGemini(dataUrl, 'webcam');
       } else {
         // Loaded on demand: tesseract.js is multi-megabyte and only the local OCR mode needs it.
         const { default: Tesseract } = await import('tesseract.js');

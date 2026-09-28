@@ -45,6 +45,8 @@ interface AIData {
    * requested. Unspecified types are treated as zero.
    */
   typeCounts?: Partial<Record<QuizGenType, number>>;
+  /** Calling widget for shared types (`mini-app`, `ocr`), so each widget has its own admin switch. */
+  source?: string;
 }
 
 type QuizGenType = 'MC' | 'FIB' | 'Matching' | 'Ordering' | 'MA';
@@ -423,6 +425,146 @@ export {
 // Public Vertex client and model config for AI features outside this file.
 export { vertexClientOptions, getGeminiModelConfig };
 
+/** Per-feature doc id for a `generateWithAI` request; `source` is client-asserted (meters and hides per widget; `gemini-functions` is the hard gate), and an unknown one is refused. */
+export function specificFeatureIdFor(
+  genType: string,
+  source: unknown
+): string | null {
+  switch (genType) {
+    case 'mini-app':
+      if (source === undefined) return 'embed-mini-app';
+      if (source === 'mini-app') return 'mini-app-ai';
+      throw new HttpsError('invalid-argument', 'Unknown AI source.');
+    case 'ocr':
+      if (source === undefined) return 'ocr';
+      if (source === 'drawing') return 'drawing-ai';
+      if (source === 'webcam') return 'webcam-ai';
+      throw new HttpsError('invalid-argument', 'Unknown AI source.');
+    case 'poll':
+      return 'smart-poll';
+    case 'video-activity-recommend':
+      return 'video-activity-ai';
+    case 'quiz':
+    case 'blooms-ai':
+    case 'dashboard-layout':
+    case 'instructional-routine':
+    case 'widget-builder':
+    case 'widget-explainer':
+      return genType;
+    default:
+      return null;
+  }
+}
+
+function assertPermissionAllows(
+  perm: GlobalPermission,
+  token: { email?: string; email_verified?: boolean },
+  messages: { disabled: string; adminOnly: string; notBeta: string }
+): void {
+  if (!perm.enabled)
+    throw new HttpsError('permission-denied', messages.disabled);
+  if (perm.accessLevel === 'admin') {
+    throw new HttpsError('permission-denied', messages.adminOnly);
+  }
+  if (
+    perm.accessLevel === 'beta' &&
+    !isVerifiedBetaMember(token, perm.betaUsers ?? [])
+  ) {
+    throw new HttpsError('permission-denied', messages.notBeta);
+  }
+}
+
+/** Non-admin gate for a dedicated AI function: `gemini-functions`, then the widget's own doc, then both daily caps. */
+async function enforceAiFeatureAccess(
+  db: admin.firestore.Firestore,
+  token: { email?: string; email_verified?: boolean },
+  uid: string,
+  featureId: string,
+  missingDocAllowed: boolean
+): Promise<void> {
+  const [geminiDoc, specDoc] = await Promise.all([
+    db.collection('global_permissions').doc('gemini-functions').get(),
+    db.collection('global_permissions').doc(featureId).get(),
+  ]);
+  const geminiPerm = geminiDoc.exists
+    ? (geminiDoc.data() as GlobalPermission)
+    : undefined;
+  if (geminiPerm) {
+    assertPermissionAllows(geminiPerm, token, {
+      disabled: 'Gemini functions are currently disabled by an administrator.',
+      adminOnly: 'Gemini functions are currently restricted to administrators.',
+      notBeta: 'You do not have access to Gemini beta functions.',
+    });
+  }
+  const specPerm = specDoc.exists
+    ? (specDoc.data() as GlobalPermission)
+    : undefined;
+  if (specPerm) {
+    assertPermissionAllows(specPerm, token, {
+      disabled: `${featureId} is currently disabled by an administrator.`,
+      adminOnly: `${featureId} is currently restricted to administrators.`,
+      notBeta: `You do not have access to the ${featureId} beta feature.`,
+    });
+  } else if (!missingDocAllowed) {
+    throw new HttpsError(
+      'permission-denied',
+      'Admin access required to use AI generation.'
+    );
+  }
+
+  // W7: classify before the transaction (collectionGroup reads can't run inside it).
+  const isExternal = await isExternalCaller(db, token);
+  const email = token.email ?? null;
+  const today = new Date().toISOString().split('T')[0];
+  const overallRef = db.collection('ai_usage').doc(`${uid}_${today}`);
+  const specificRef = db
+    .collection('ai_usage')
+    .doc(`${uid}_${featureId}_${today}`);
+  try {
+    await db.runTransaction(async (transaction) => {
+      const overallDoc = await transaction.get(overallRef);
+      const specUsageDoc = await transaction.get(specificRef);
+      const overallUsage = (overallDoc.data()?.count as number) || 0;
+      const overallLimit = pickOverallLimit(geminiPerm?.config, isExternal);
+      if (
+        geminiPerm?.config?.dailyLimitEnabled !== false &&
+        overallUsage >= overallLimit
+      ) {
+        throw new HttpsError(
+          'resource-exhausted',
+          `Daily AI usage limit reached (${overallLimit} generations). Please try again tomorrow.`
+        );
+      }
+      const specificUsage = (specUsageDoc.data()?.count as number) || 0;
+      if (specPerm && specPerm.config?.dailyLimitEnabled !== false) {
+        const specificLimit = pickOverallLimit(specPerm.config, isExternal);
+        if (specificUsage >= specificLimit) {
+          throw new HttpsError(
+            'resource-exhausted',
+            `Daily limit for ${featureId} reached (${specificLimit} per day). Please try again tomorrow.`
+          );
+        }
+      }
+
+      const lastUsed = admin.firestore.FieldValue.serverTimestamp();
+      transaction.set(
+        overallRef,
+        { count: overallUsage + 1, email, lastUsed },
+        { merge: true }
+      );
+      transaction.set(
+        specificRef,
+        { count: specificUsage + 1, email, lastUsed },
+        { merge: true }
+      );
+    });
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    console.error(`[${featureId}] usage check error:`, error);
+    throw new HttpsError('internal', 'Failed to verify AI usage limits.');
+  }
+}
+
 export const generateWithAI = onCall(
   {
     memory: '512MiB',
@@ -472,22 +614,10 @@ export const generateWithAI = onCall(
     // silently inflated their per-feature usage counters for any request that
     // reached this branch with those types — the counters were incremented
     // before the promptMap lookup threw "Invalid generation type".
-    let specificFeatureId: string | null = null;
     const genType = String(data?.type || '')
       .toLowerCase()
       .trim();
-    if (genType === 'mini-app') specificFeatureId = 'embed-mini-app';
-    if (genType === 'poll') specificFeatureId = 'smart-poll';
-    if (genType === 'quiz') specificFeatureId = 'quiz';
-    if (genType === 'ocr') specificFeatureId = 'ocr';
-    if (genType === 'blooms-ai') specificFeatureId = 'blooms-ai';
-    if (genType === 'video-activity-recommend')
-      specificFeatureId = 'video-activity-recommend';
-    if (genType === 'dashboard-layout') specificFeatureId = 'dashboard-layout';
-    if (genType === 'instructional-routine')
-      specificFeatureId = 'instructional-routine';
-    if (genType === 'widget-builder') specificFeatureId = 'widget-builder';
-    if (genType === 'widget-explainer') specificFeatureId = 'widget-explainer';
+    const specificFeatureId = specificFeatureIdFor(genType, data?.source);
 
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -1665,83 +1795,13 @@ export const generateVideoActivity = onCall(
     const isAdmin = await resolveCallerIsAdmin(db, request.auth.token);
 
     if (!isAdmin) {
-      // --- Check Global Gemini Permission (enabled + accessLevel) ---
-      const accessPermDoc = await db
-        .collection('global_permissions')
-        .doc('gemini-functions')
-        .get();
-      const accessPerm = accessPermDoc.exists
-        ? (accessPermDoc.data() as GlobalPermission)
-        : undefined;
-
-      if (accessPerm && !accessPerm.enabled) {
-        throw new HttpsError(
-          'permission-denied',
-          'Gemini functions are currently disabled by an administrator.'
-        );
-      }
-
-      if (accessPerm) {
-        const { accessLevel, betaUsers = [] } = accessPerm;
-        if (accessLevel === 'admin') {
-          throw new HttpsError(
-            'permission-denied',
-            'Gemini functions are currently restricted to administrators.'
-          );
-        }
-        if (
-          accessLevel === 'beta' &&
-          !isVerifiedBetaMember(request.auth.token, betaUsers)
-        ) {
-          throw new HttpsError(
-            'permission-denied',
-            'You do not have access to Gemini beta functions.'
-          );
-        }
-      }
-
-      // --- Check Overall Gemini Limit ---
-      const today = new Date().toISOString().split('T')[0];
-      const overallUsageRef = db.collection('ai_usage').doc(`${uid}_${today}`);
-
-      // W7: classify external (no-org) vs org caller BEFORE the transaction
-      // (collectionGroup read must not run inside it). Fail-safe toward org.
-      const isExternal = await isExternalCaller(db, request.auth.token);
-
-      try {
-        await db.runTransaction(async (transaction) => {
-          const overallLimitEnabled =
-            accessPerm?.config?.dailyLimitEnabled !== false;
-          // W7: external callers get the lower external cap; org/internal
-          // callers keep `config.dailyLimit ?? 20` (unchanged).
-          const overallLimit = pickOverallLimit(accessPerm?.config, isExternal);
-
-          const overallUsageDoc = await transaction.get(overallUsageRef);
-          const currentOverallUsage =
-            (overallUsageDoc.data()?.count as number) || 0;
-
-          if (overallLimitEnabled && currentOverallUsage >= overallLimit) {
-            throw new HttpsError(
-              'resource-exhausted',
-              `Daily AI usage limit reached (${overallLimit} generations). Please try again tomorrow.`
-            );
-          }
-
-          transaction.set(
-            overallUsageRef,
-            {
-              count: currentOverallUsage + 1,
-              email,
-              lastUsed: admin.firestore.FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-          );
-        });
-      } catch (error) {
-        if (error instanceof HttpsError) throw error;
-        console.error('Usage check error:', error);
-        throw new HttpsError('internal', 'Failed to verify AI usage limits.');
-      }
+      await enforceAiFeatureAccess(
+        db,
+        request.auth.token,
+        uid,
+        'video-activity-ai',
+        true
+      );
     }
 
     // Read model config from Firestore
@@ -2167,22 +2227,9 @@ interface GuidedLearningImageInput {
  * Multi-image guided-learning generator (rebuilt in #1368 from the original
  * single-image function into a 10-image / 20 MB authoring tool).
  *
- * ADMIN-ONLY BY DESIGN: this is an authoring tool for teacher-facing content,
- * not a runtime student feature, so the caller must have an `admins/{email}`
- * document — non-admins are rejected with `permission-denied` before any model
- * call. Because the widget-side entry point already gates the "Generate with
- * AI" action behind `isAdmin`, this server check is the authoritative gate.
- *
- * NO `ai_usage` RATE LIMIT IS APPLIED, DELIBERATELY: every caller here is
- * necessarily an admin, and admins are exempt from the daily `ai_usage` cap in
- * ALL Gemini Cloud Functions (`generateWithAI`, `generateVideoActivity`,
- * `transcribeVideoWithGemini` all short-circuit before computing a limit for
- * admins — see the `isExternalCaller` docblock above). Adding a per-admin cap
- * only here would be inconsistent with that established policy and would
- * throttle the intended admin authoring workflow. If finer-grained control is
- * ever needed (e.g. per-building disablement), introduce a
- * `canAccessFeature('guided-learning-ai')` gate on the client rather than a
- * server-side usage counter, so the admin-exempt policy stays uniform.
+ * Admins are uncapped; everyone else needs `global_permissions/guided-learning-ai`
+ * saved above admin level (a missing doc keeps it admin-only) and is charged
+ * against its daily limit.
  */
 export const generateGuidedLearning = onCall(
   {
@@ -2198,7 +2245,6 @@ export const generateGuidedLearning = onCall(
       imageBase64?: string;
       mimeType?: string;
     };
-    // Admin only
     const uid = request.auth?.uid;
     if (!uid) {
       throw new HttpsError(
@@ -2215,13 +2261,6 @@ export const generateGuidedLearning = onCall(
       );
     }
     const db = admin.firestore();
-    const isAdmin = await resolveCallerIsAdmin(db, request.auth?.token ?? {});
-    if (!isAdmin) {
-      throw new HttpsError(
-        'permission-denied',
-        'Admin access required to use AI generation.'
-      );
-    }
 
     const { prompt } = data;
     const images: GuidedLearningImageInput[] =
@@ -2263,6 +2302,12 @@ export const generateGuidedLearning = onCall(
         'invalid-argument',
         'Image payload is too large. Please use fewer or smaller images (under 20 MB total).'
       );
+    }
+
+    // Charged only after the request is known to be well-formed.
+    const token = request.auth?.token ?? {};
+    if (!(await resolveCallerIsAdmin(db, token))) {
+      await enforceAiFeatureAccess(db, token, uid, 'guided-learning-ai', false);
     }
 
     // Read model config from Firestore
@@ -2415,7 +2460,7 @@ Writing:
   }
 );
 
-// Recorder step text (plan P3-3): admin-only like generateGuidedLearning, so no ai_usage limit.
+// Recorder step text (plan P3-3): same `guided-learning-ai` gate and limit as generateGuidedLearning.
 export const draftGuidedLearningStepTextV1 = onCall(
   {
     memory: '512MiB',
@@ -2430,13 +2475,16 @@ export const draftGuidedLearningStepTextV1 = onCall(
       );
     }
     const db = admin.firestore();
+    const parsedRequest = parseStepTextRequest(request.data);
     if (!(await resolveCallerIsAdmin(db, request.auth.token))) {
-      throw new HttpsError(
-        'permission-denied',
-        'Admin access required to use AI generation.'
+      await enforceAiFeatureAccess(
+        db,
+        request.auth.token,
+        request.auth.uid,
+        'guided-learning-ai',
+        false
       );
     }
-    const parsedRequest = parseStepTextRequest(request.data);
     const { advancedModel } = await getGeminiModelConfig(db);
     try {
       const ai = new GoogleGenAI(vertexClientOptions());

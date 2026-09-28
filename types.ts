@@ -8999,7 +8999,15 @@ export type GlobalFeature =
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
   | 'paper-handwritten-responses'
   /** Claude connector: teachers connect Claude to their library (docs/plans/CLAUDE_CONNECTOR.md). */
-  | 'claude-connector';
+  | 'claude-connector'
+  /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
+  | 'quiz'
+  | 'video-activity-ai'
+  | 'guided-learning-ai'
+  | 'mini-app-ai'
+  | 'drawing-ai'
+  | 'webcam-ai'
+  | 'blooms-ai';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

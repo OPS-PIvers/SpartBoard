@@ -29,6 +29,7 @@ import {
   Send,
   Share2,
   Smartphone,
+  Sparkles,
   StickyNote,
   Target,
   TextCursorInput,
@@ -705,6 +706,85 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Per-widget AI switches: hide and meter each widget's AI; `gemini-functions` is the hard server gate.
+  quiz: {
+    label: 'Quiz: AI',
+    icon: Sparkles,
+    description: 'Drafts questions and converts imports with AI.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
+  },
+  'video-activity-ai': {
+    label: 'Video Activity: AI',
+    icon: Sparkles,
+    description: 'Writes questions from a video and suggests videos.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    widget: 'video-activity',
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
+  },
+  // Admin-only until saved; the server denies non-admins while no doc exists.
+  'guided-learning-ai': {
+    label: 'Guided Learning: AI',
+    icon: Sparkles,
+    description: 'Drafts sets and step text with AI.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    widget: 'guided-learning',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'mini-app-ai': {
+    label: 'Mini Apps: AI',
+    icon: Sparkles,
+    description: 'Builds a mini app from a description.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    widget: 'miniApp',
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
+  },
+  'drawing-ai': {
+    label: 'Drawing: AI text recognition',
+    icon: Sparkles,
+    description: 'Turns handwriting on the canvas into text.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    widget: 'drawing',
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
+  },
+  'webcam-ai': {
+    label: 'Webcam: AI text recognition',
+    icon: Sparkles,
+    description: 'Reads text from the camera with AI.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    widget: 'webcam',
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
+  },
+  'blooms-ai': {
+    label: "Bloom's Taxonomy: AI",
+    icon: Sparkles,
+    description: 'Writes question stems for a topic.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    widget: 'blooms-taxonomy',
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */
@@ -714,12 +794,10 @@ export const LEGACY_TOOL_FEATURES: Record<InternalToolType, GlobalFeature> = {
   remote: 'remote-control',
 };
 
-/** Preview flags that admins get before any doc is saved (plan D7). */
+/** Default-off flags that admins get before any doc is saved (plan D7). */
 export const isAdminPreviewFeature = (featureId: GlobalFeature): boolean => {
   const def = FEATURE_DEFAULTS[featureId];
-  return (
-    def.stage === 'preview' && !def.missingDocPublic && !def.failClosedForAdmins
-  );
+  return !def.missingDocPublic && !def.failClosedForAdmins;
 };
 
 export const ALL_GLOBAL_FEATURES = Object.keys(

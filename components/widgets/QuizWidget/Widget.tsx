@@ -233,10 +233,12 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const canImportDocuments = useQuizDocumentImportGate();
   const claudeReview = useClaudeReview('quizzes');
   // D1: the AI reader has its own admin-default permission, AND-ed with the AI one.
+  const canUseQuizAi =
+    canAccessFeature('gemini-functions') && canAccessFeature('quiz');
   const canUseAiReader =
     canImportDocuments &&
     canAccessFeature('quiz-document-ai-reader') &&
-    canAccessFeature('gemini-functions');
+    canUseQuizAi;
   const config = widget.config as QuizConfig;
 
   // Opens the Google Picker so the teacher selects a Sheet to import. Picking
@@ -392,9 +394,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     () => ({ sources: bankSources, loadBankContent, appendQuestionsToBank }),
     [bankSources, loadBankContent, appendQuestionsToBank]
   );
-  const bankAiAllowed =
-    canAccessFeature('question-bank-ai') &&
-    canAccessFeature('gemini-functions');
+  const bankAiAllowed = canAccessFeature('question-bank-ai') && canUseQuizAi;
   const { folders: bankFolders, moveItem: moveBankItem } = useFolders(
     user?.uid,
     'question_bank'
@@ -1400,6 +1400,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     ensureDriveScope: () =>
       ensureGoogleScope('drive.file', { interactive: true }),
     pickSheet,
+    canUseAi: canUseQuizAi,
   };
 
   if (bankImportOpen) {

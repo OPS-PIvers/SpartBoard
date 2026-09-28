@@ -274,7 +274,9 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   const { t } = useTranslation();
   const { canAccessFeature } = useAuth();
   const isBank = mode === 'bank';
-  const aiEnabled = aiAllowed ?? canAccessFeature('gemini-functions');
+  const aiEnabled =
+    aiAllowed ??
+    (canAccessFeature('gemini-functions') && canAccessFeature('quiz'));
   const readAloudAvailable = canAccessFeature('quiz-read-aloud');
   const handRaiseMode = useQuizHandRaiseMode();
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);

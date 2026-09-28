@@ -427,58 +427,59 @@ export const PollSettings: React.FC<{
 
           {/* AI poll generator — disabled while a session is live (replacing the
           options mid-vote would desync the rules' optionCounts + remap votes). */}
-          {canAccessFeature('smart-poll') && (
-            <fieldset
-              disabled={isLive || atQuestionLimit}
-              aria-labelledby={`pollwidget-ai-draft-label-${widget.id}`}
-              className="min-w-0 m-0 border-0 p-0 disabled:opacity-50"
-              {...tourAttr(
-                'widget-settings.poll.ai-draft',
-                widget.id,
-                widget.type
-              )}
-            >
-              <SettingsLabel
-                as="span"
-                id={`pollwidget-ai-draft-label-${widget.id}`}
+          {canAccessFeature('gemini-functions') &&
+            canAccessFeature('smart-poll') && (
+              <fieldset
+                disabled={isLive || atQuestionLimit}
+                aria-labelledby={`pollwidget-ai-draft-label-${widget.id}`}
+                className="min-w-0 m-0 border-0 p-0 disabled:opacity-50"
+                {...tourAttr(
+                  'widget-settings.poll.ai-draft',
+                  widget.id,
+                  widget.type
+                )}
               >
-                {t('widgetSettings.poll.draftWithAi')}
-              </SettingsLabel>
-              {canAccessFeature('ai-file-context') && (
-                <DriveFileAttachment
-                  onFileContent={(content, name) => {
-                    setFileContext(content);
-                    setFileName(name);
+                <SettingsLabel
+                  as="span"
+                  id={`pollwidget-ai-draft-label-${widget.id}`}
+                >
+                  {t('widgetSettings.poll.draftWithAi')}
+                </SettingsLabel>
+                {canAccessFeature('ai-file-context') && (
+                  <DriveFileAttachment
+                    onFileContent={(content, name) => {
+                      setFileContext(content);
+                      setFileName(name);
+                    }}
+                    className="mb-2"
+                  />
+                )}
+                <MagicInput<GeneratedPoll>
+                  onGenerate={(topic) => {
+                    return generatePoll(
+                      buildPromptWithFileContext(topic, fileContext, fileName)
+                    );
                   }}
-                  className="mb-2"
-                />
-              )}
-              <MagicInput<GeneratedPoll>
-                onGenerate={(topic) => {
-                  return generatePoll(
-                    buildPromptWithFileContext(topic, fileContext, fileName)
-                  );
-                }}
-                onSuccess={(result) => {
-                  const drafted: PollQuestion = {
-                    id: crypto.randomUUID(),
-                    question: result.question,
-                    options: result.options.map((opt) => ({
+                  onSuccess={(result) => {
+                    const drafted: PollQuestion = {
                       id: crypto.randomUUID(),
-                      label: opt,
-                      votes: 0,
-                    })),
-                  };
-                  const next = [...questions, drafted];
-                  applyConfig(withPollQuestions(config, next));
-                  setRawEditIndex(next.length - 1);
-                  addToast(t('widgetSettings.poll.questionAdded'), 'success');
-                }}
-                placeholder={t('widgetSettings.poll.aiPlaceholder')}
-                buttonLabel={t('widgetSettings.poll.draftWithAi')}
-              />
-            </fieldset>
-          )}
+                      question: result.question,
+                      options: result.options.map((opt) => ({
+                        id: crypto.randomUUID(),
+                        label: opt,
+                        votes: 0,
+                      })),
+                    };
+                    const next = [...questions, drafted];
+                    applyConfig(withPollQuestions(config, next));
+                    setRawEditIndex(next.length - 1);
+                    addToast(t('widgetSettings.poll.questionAdded'), 'success');
+                  }}
+                  placeholder={t('widgetSettings.poll.aiPlaceholder')}
+                  buttonLabel={t('widgetSettings.poll.draftWithAi')}
+                />
+              </fieldset>
+            )}
 
           {/* Question set — locked while a session is live, because the rules pin
           optionCounts at start and votes are keyed by question + option index:

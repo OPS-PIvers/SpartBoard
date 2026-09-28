@@ -70,6 +70,9 @@ describe('isAdminPreviewFeature', () => {
     expect(isAdminPreviewFeature('quiz-media-response')).toBe(false);
     expect(isAdminPreviewFeature('personal-spotify')).toBe(false);
     expect(isAdminPreviewFeature('live-session')).toBe(false);
+    // Guided Learning AI stays admin-only until its switch is saved.
+    expect(isAdminPreviewFeature('guided-learning-ai')).toBe(true);
+    expect(isAdminPreviewFeature('quiz')).toBe(false);
   });
 
   it('matches the functions mirror in functions/src/featureMissingDoc.ts', () => {

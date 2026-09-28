@@ -141,7 +141,9 @@ export const VideoActivityEditorModal: React.FC<
 }) => {
   const { canAccessFeature } = useAuth();
   const canUseAi =
-    canAccessFeature('gemini-functions') && (aiEnabled || isAdmin);
+    canAccessFeature('gemini-functions') &&
+    canAccessFeature('video-activity-ai') &&
+    (aiEnabled || isAdmin);
 
   const editorState = useVideoActivityEditorState({ activity });
 

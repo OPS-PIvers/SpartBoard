@@ -51,7 +51,10 @@ export const BloomsTaxonomyWidget: React.FC<{ widget: WidgetData }> = ({
   // `gemini-functions` permission, matching every other AI feature. Without
   // this, disabling the global AI kill-switch would leave Blooms AI active for
   // any building with aiEnabled:true.
-  const aiEnabled = aiEnabledSetting && canAccessFeature('gemini-functions');
+  const aiEnabled =
+    aiEnabledSetting &&
+    canAccessFeature('gemini-functions') &&
+    canAccessFeature('blooms-ai');
 
   // Honor admin's defaultEnabledCategories when widget has no saved setting
   const enabledCategories = config.enabledCategories ??
