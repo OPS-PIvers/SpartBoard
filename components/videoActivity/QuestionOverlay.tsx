@@ -38,7 +38,7 @@ const formatTimestamp = (seconds: number) => {
 };
 
 /** Deterministic Fisher–Yates shuffle keyed by the question id. */
-function shuffleByQuestionId<T>(arr: T[], questionId: string): T[] {
+export function shuffleByQuestionId<T>(arr: T[], questionId: string): T[] {
   const out = [...arr];
   let seed = questionId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
   const rand = () => {
@@ -51,6 +51,199 @@ function shuffleByQuestionId<T>(arr: T[], questionId: string): T[] {
   }
   return out;
 }
+
+/** MC/MA options in the order every student sees them. */
+export const questionOptions = (
+  question: VideoActivityPublicQuestion
+): string[] =>
+  (question.type ?? 'MC') === 'FIB'
+    ? []
+    : shuffleByQuestionId(question.options ?? [], question.id);
+
+interface McOptionListProps {
+  options: string[];
+  selected: string | null;
+  onSelect: (option: string) => void;
+  locked: boolean;
+  /** Non-null once graded: marks the key and a wrong pick. */
+  correctAnswer: string | null;
+}
+
+export const McOptionList: React.FC<McOptionListProps> = ({
+  options,
+  selected,
+  onSelect,
+  locked,
+  correctAnswer,
+}) => {
+  const graded = correctAnswer !== null;
+  return (
+    <div className="px-5 pb-5 grid gap-2.5">
+      {options.map((option, i) => {
+        let style =
+          'border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700';
+        if (graded) {
+          if (option === correctAnswer) {
+            style =
+              'border-2 border-emerald-200 bg-emerald-50 text-emerald-700 font-bold';
+          } else if (option === selected) {
+            style = 'border-2 border-red-200 bg-red-50 text-red-700';
+          } else {
+            style = 'border-2 border-slate-100 bg-slate-50 text-slate-400';
+          }
+        } else if (selected === option) {
+          style =
+            'border-2 border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary font-semibold';
+        }
+        return (
+          <button
+            key={`${i}-${option}`}
+            disabled={locked}
+            onClick={() => onSelect(option)}
+            className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all ${style} flex items-center gap-3`}
+          >
+            <span className="shrink-0 w-6 h-6 rounded-full border-2 border-current flex items-center justify-center text-xs font-bold">
+              {String.fromCharCode(65 + i)}
+            </span>
+            <span className="flex-1">{option}</span>
+            {graded && option === correctAnswer && (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            )}
+            {graded && option === selected && option !== correctAnswer && (
+              <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+interface FibAnswerInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  /** Enter key; the caller decides whether a submit is allowed. */
+  onEnter: () => void;
+  locked: boolean;
+  graded: boolean;
+  isCorrect: boolean;
+  /** Shown under a wrong graded answer when known. */
+  correctAnswer: string | null;
+}
+
+export const FibAnswerInput: React.FC<FibAnswerInputProps> = ({
+  value,
+  onChange,
+  onEnter,
+  locked,
+  graded,
+  isCorrect,
+  correctAnswer,
+}) => (
+  <div className="px-5 pb-5">
+    <input
+      type="text"
+      autoFocus
+      disabled={locked}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onEnter();
+      }}
+      placeholder="Type your answer…"
+      className={`w-full px-4 py-3 text-sm rounded-xl border-2 transition-all focus:outline-none ${
+        graded
+          ? isCorrect
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 font-bold'
+            : 'border-red-200 bg-red-50 text-red-700'
+          : 'border-slate-300 focus:border-brand-blue-light focus:ring-2 focus:ring-brand-blue-light text-slate-900 placeholder-slate-400'
+      }`}
+    />
+    {graded && !isCorrect && correctAnswer !== null && (
+      <p className="text-xs text-slate-500 mt-2">
+        Correct answer:{' '}
+        <span className="font-bold text-emerald-700">{correctAnswer}</span>
+      </p>
+    )}
+  </div>
+);
+
+interface MaOptionListProps {
+  options: string[];
+  selected: Set<string>;
+  onToggle: (option: string) => void;
+  locked: boolean;
+  /** Non-null once graded: the |-encoded key. */
+  correctAnswer: string | null;
+}
+
+export const MaOptionList: React.FC<MaOptionListProps> = ({
+  options,
+  selected,
+  onToggle,
+  locked,
+  correctAnswer,
+}) => {
+  const graded = correctAnswer !== null;
+  // Correct selections for MA, parsed from the |-encoded key the server returns.
+  const correctSet = useMemo(
+    () =>
+      new Set(
+        (correctAnswer ?? '')
+          .split('|')
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0)
+      ),
+    [correctAnswer]
+  );
+  return (
+    <div className="px-5 pb-5 grid gap-2.5">
+      {options.map((option, i) => {
+        const isChecked = selected.has(option);
+        const isCorrectOption = correctSet.has(option);
+        let style =
+          'border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700';
+        if (graded) {
+          if (isCorrectOption && isChecked) {
+            style =
+              'border-2 border-emerald-200 bg-emerald-50 text-emerald-700 font-bold';
+          } else if (isCorrectOption && !isChecked) {
+            // Missed-correct: highlight subtly so students see what they missed.
+            style =
+              'border-2 border-emerald-200 bg-emerald-50/60 text-emerald-700';
+          } else if (!isCorrectOption && isChecked) {
+            style = 'border-2 border-red-200 bg-red-50 text-red-700';
+          } else {
+            style = 'border-2 border-slate-100 bg-slate-50 text-slate-400';
+          }
+        } else if (isChecked) {
+          style =
+            'border-2 border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary font-semibold';
+        }
+        return (
+          <button
+            key={`${i}-${option}`}
+            type="button"
+            disabled={locked}
+            onClick={() => onToggle(option)}
+            className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all ${style} flex items-center gap-3`}
+          >
+            <span
+              className={`shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center text-xs font-bold ${
+                isChecked
+                  ? 'bg-current text-white'
+                  : 'border-current bg-transparent'
+              }`}
+            >
+              {isChecked && <CheckCircle2 className="w-3.5 h-3.5" />}
+            </span>
+            <span className="flex-1">{option}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
   question,
@@ -77,25 +270,8 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
   const [correctAnswer, setCorrectAnswer] = useState<string | null>(null);
   const graded = submitted && correctAnswer !== null;
 
-  // Correct selections for MA, parsed from the |-encoded key the server returns.
-  const maCorrectSet = useMemo(() => {
-    if (type !== 'MA' || correctAnswer === null) return new Set<string>();
-    return new Set(
-      correctAnswer
-        .split('|')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0)
-    );
-  }, [type, correctAnswer]);
-
   // Shuffled option list for MC + MA (FIB has no options).
-  const options = useMemo(
-    () =>
-      type === 'FIB'
-        ? []
-        : shuffleByQuestionId(question.options ?? [], question.id),
-    [type, question.id, question.options]
-  );
+  const options = useMemo(() => questionOptions(question), [question]);
 
   const canSubmit = (() => {
     if (submitted || checking) return false;
@@ -177,125 +353,37 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
 
       {/* Body — type-specific input */}
       {type === 'MC' && (
-        <div className="px-5 pb-5 grid gap-2.5">
-          {options.map((option, i) => {
-            let style =
-              'border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700';
-            if (graded) {
-              if (option === correctAnswer) {
-                style =
-                  'border-2 border-emerald-200 bg-emerald-50 text-emerald-700 font-bold';
-              } else if (option === mcSelected) {
-                style = 'border-2 border-red-200 bg-red-50 text-red-700';
-              } else {
-                style = 'border-2 border-slate-100 bg-slate-50 text-slate-400';
-              }
-            } else if (mcSelected === option) {
-              style =
-                'border-2 border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary font-semibold';
-            }
-            return (
-              <button
-                key={`${i}-${option}`}
-                disabled={locked}
-                onClick={() => setMcSelected(option)}
-                className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all ${style} flex items-center gap-3`}
-              >
-                <span className="shrink-0 w-6 h-6 rounded-full border-2 border-current flex items-center justify-center text-xs font-bold">
-                  {String.fromCharCode(65 + i)}
-                </span>
-                <span className="flex-1">{option}</span>
-                {graded && option === correctAnswer && (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                )}
-                {graded &&
-                  option === mcSelected &&
-                  option !== correctAnswer && (
-                    <XCircle className="w-4 h-4 text-red-500 shrink-0" />
-                  )}
-              </button>
-            );
-          })}
-        </div>
+        <McOptionList
+          options={options}
+          selected={mcSelected}
+          onSelect={setMcSelected}
+          locked={locked}
+          correctAnswer={graded ? correctAnswer : null}
+        />
       )}
 
       {type === 'FIB' && (
-        <div className="px-5 pb-5">
-          <input
-            type="text"
-            autoFocus
-            disabled={locked}
-            value={fibAnswer}
-            onChange={(e) => setFibAnswer(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && canSubmit) handleSubmit();
-            }}
-            placeholder="Type your answer…"
-            className={`w-full px-4 py-3 text-sm rounded-xl border-2 transition-all focus:outline-none ${
-              graded
-                ? submittedIsCorrect
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 font-bold'
-                  : 'border-red-200 bg-red-50 text-red-700'
-                : 'border-slate-300 focus:border-brand-blue-light focus:ring-2 focus:ring-brand-blue-light text-slate-900 placeholder-slate-400'
-            }`}
-          />
-          {graded && !submittedIsCorrect && (
-            <p className="text-xs text-slate-500 mt-2">
-              Correct answer:{' '}
-              <span className="font-bold text-emerald-700">
-                {correctAnswer}
-              </span>
-            </p>
-          )}
-        </div>
+        <FibAnswerInput
+          value={fibAnswer}
+          onChange={setFibAnswer}
+          onEnter={() => {
+            if (canSubmit) handleSubmit();
+          }}
+          locked={locked}
+          graded={graded}
+          isCorrect={submittedIsCorrect}
+          correctAnswer={correctAnswer}
+        />
       )}
 
       {type === 'MA' && (
-        <div className="px-5 pb-5 grid gap-2.5">
-          {options.map((option, i) => {
-            const isChecked = maSelected.has(option);
-            const isCorrectOption = maCorrectSet.has(option);
-            let style =
-              'border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700';
-            if (graded) {
-              if (isCorrectOption && isChecked) {
-                style =
-                  'border-2 border-emerald-200 bg-emerald-50 text-emerald-700 font-bold';
-              } else if (isCorrectOption && !isChecked) {
-                // Missed-correct: highlight subtly so students see what they missed.
-                style =
-                  'border-2 border-emerald-200 bg-emerald-50/60 text-emerald-700';
-              } else if (!isCorrectOption && isChecked) {
-                style = 'border-2 border-red-200 bg-red-50 text-red-700';
-              } else {
-                style = 'border-2 border-slate-100 bg-slate-50 text-slate-400';
-              }
-            } else if (isChecked) {
-              style =
-                'border-2 border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary font-semibold';
-            }
-            return (
-              <button
-                key={`${i}-${option}`}
-                type="button"
-                disabled={locked}
-                onClick={() => toggleMaOption(option)}
-                className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all ${style} flex items-center gap-3`}
-              >
-                <span
-                  className={`shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center text-xs font-bold ${
-                    isChecked
-                      ? 'bg-current text-white'
-                      : 'border-current bg-transparent'
-                  }`}
-                >
-                  {isChecked && <CheckCircle2 className="w-3.5 h-3.5" />}
-                </span>
-                <span className="flex-1">{option}</span>
-              </button>
-            );
-          })}
-        </div>
+        <MaOptionList
+          options={options}
+          selected={maSelected}
+          onToggle={toggleMaOption}
+          locked={locked}
+          correctAnswer={graded ? correctAnswer : null}
+        />
       )}
 
       {/* Submit button */}
