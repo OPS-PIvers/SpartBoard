@@ -74,7 +74,7 @@ export const VideoActivityBehaviorSettingsPanel: React.FC<
         }
         attemptLimit={value.attemptLimit}
         onAttemptLimitChange={(v) => onChange({ ...value, attemptLimit: v })}
-        shuffleQuestionsAvailable={false}
+        hideShuffleQuestions
         afterTabWarningsSlot={
           tabAwayTimerOn &&
           (value.sessionOptions.tabWarningsEnabled ?? true) && (

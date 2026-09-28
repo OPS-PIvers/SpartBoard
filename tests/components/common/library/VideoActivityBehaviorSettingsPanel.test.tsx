@@ -24,6 +24,18 @@ describe('VideoActivityBehaviorSettingsPanel', () => {
     expect(screen.queryByText('Auto-progress')).not.toBeInTheDocument();
   });
 
+  it('hides Shuffle Questions', () => {
+    render(
+      <VideoActivityBehaviorSettingsPanel
+        value={defaultValue}
+        onChange={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByText('Question Randomization'));
+    expect(screen.queryByText('Shuffle Questions')).not.toBeInTheDocument();
+    expect(screen.getByText('Shuffle Answer Options')).toBeInTheDocument();
+  });
+
   it('renders the toggle group (Focus mode is visible)', () => {
     render(
       <VideoActivityBehaviorSettingsPanel
