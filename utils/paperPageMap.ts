@@ -1,5 +1,5 @@
 /**
- * Page maps for sheets that carry handwritten answer boxes (layoutVersion 2).
+ * Page maps for sheets that carry handwritten answer boxes or question text (layoutVersion 2).
  * Pure: turns the sheet's entries in test order into where every MC row and
  * written box prints. See docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md D9-D16, §3.2.
  */
@@ -16,11 +16,18 @@ import {
   CORNER_WINDOW_H_MM,
   GRID_TOP_MM,
   PAGE_HEIGHT_MM,
+  BUBBLE_DIAMETER_MM,
+  MAX_CHOICE_COUNT,
+  MIN_CHOICE_COUNT,
+  QUESTION_CHOICE_LINE_MM,
   QUESTION_CHOICE_TOP_MM,
+  QUESTION_GRID_BOTTOM_MM,
   QUESTION_GRID_TOP_MM,
+  QUESTION_ROW_GAP_MM,
   QUESTION_ROW_PITCH_MM,
-  QUESTION_ROWS_PER_PAGE,
   QUESTION_STEM_H_MM,
+  QUESTION_STEM_LINE_MM,
+  QUESTION_STEM_MAX_LINES,
   QUESTION_STEM_W_MM,
   QUESTION_STEM_X_MM,
   ROW_PITCH_MM,
@@ -49,6 +56,10 @@ export interface PlanPaperPagesInput {
   grid: PaperGrid;
   /** Plain sheets: headers print the stem, or the number only (stubs). Question-text sheets always use the slot stem rect; stubs never print on them. */
   stems: boolean;
+  /** Question-text sheets: bubbles printed per row, so each row is only as tall as it needs. */
+  choiceCount?: number;
+  /** Question-text sheets: printed stem lines per question id; a missing id takes the most. */
+  stemLines?: Readonly<Record<string, number>>;
 }
 
 export type PlanPaperPagesResult =
@@ -129,13 +140,14 @@ export function questionSlotsFor(size: Exclude<PaperBoxSize, 'full'>): number {
 export function planPaperPages(
   input: PlanPaperPagesInput
 ): PlanPaperPagesResult {
-  const { entries, grid, stems } = input;
+  if (input.grid === 'questions') return planQuestionTextPages(input);
+  const { entries, stems } = input;
+  const grid = input.grid;
   const pages: PaperPageItem[][] = [[]];
   let sheetRow = 0;
-  // Cursor in grid units: 8 mm rows on plain sheets, 42 mm slots on question-text sheets.
+  // Cursor in 8 mm grid rows.
   let cursor = 0;
-  const capacity =
-    grid === 'questions' ? QUESTION_ROWS_PER_PAGE : ROWS_PER_COLUMN;
+  const capacity = ROWS_PER_COLUMN;
   const current = (): PaperPageItem[] => pages[pages.length - 1];
   const newPage = (): void => {
     pages.push([]);
@@ -179,32 +191,6 @@ export function planPaperPages(
         continue;
       }
       const size = entry.size as Exclude<PaperBoxSize, 'full'>;
-      if (grid === 'questions') {
-        const slots = questionSlotsFor(size);
-        ensureRoom(slots);
-        const top = QUESTION_GRID_TOP_MM + cursor * QUESTION_ROW_PITCH_MM;
-        const lines = questionSlotLines(slots);
-        current().push({
-          kind: 'written',
-          questionId: entry.questionId,
-          label: entry.label,
-          headerMm: {
-            x: WRITTEN_HEADER_X_MM,
-            y: top,
-            w: QUESTION_STEM_X_MM + QUESTION_STEM_W_MM - WRITTEN_HEADER_X_MM,
-            h: QUESTION_STEM_H_MM,
-          },
-          boxMm: {
-            x: WRITTEN_BOX_X_MM,
-            y: top + QUESTION_CHOICE_TOP_MM,
-            w: WRITTEN_BOX_W_MM,
-            h: lines * WRITTEN_LINE_PITCH_MM,
-          },
-          lines,
-        });
-        cursor += slots;
-        continue;
-      }
       const lines = paperBoxLines(size);
       const rows = headerRows(stems) + lines;
       const fits = (at: number): boolean =>
@@ -239,20 +225,6 @@ export function planPaperPages(
     const boxFollows = end < entries.length;
     i = end;
 
-    if (grid === 'questions') {
-      for (const mc of run) {
-        ensureRoom(1);
-        current().push(
-          mcItem(mc, {
-            x: COLUMN_X_MM[0],
-            y: QUESTION_GRID_TOP_MM + cursor * QUESTION_ROW_PITCH_MM,
-          })
-        );
-        cursor += 1;
-      }
-      continue;
-    }
-
     const columns = grid;
     let at = 0;
     while (at < run.length) {
@@ -284,6 +256,113 @@ export function planPaperPages(
   return {
     ok: true,
     pageMaps: pages.map((items, index) => ({ page: index + 1, grid, items })),
+  };
+}
+
+/**
+ * Question-text sheets stack rows by height: each row takes its stem's lines and
+ * its bubbles, then a blank gap, so a short stem never leaves space above its choices.
+ */
+function planQuestionTextPages(
+  input: PlanPaperPagesInput
+): PlanPaperPagesResult {
+  const { entries, stems } = input;
+  const choices = Math.min(
+    Math.max(input.choiceCount ?? MAX_CHOICE_COUNT, MIN_CHOICE_COUNT),
+    MAX_CHOICE_COUNT
+  );
+  const pages: PaperPageItem[][] = [[]];
+  let sheetRow = 0;
+  // Top of the next printed thing on the current page, in mm.
+  let y = QUESTION_GRID_TOP_MM;
+  const current = (): PaperPageItem[] => pages[pages.length - 1];
+  const newPage = (): void => {
+    pages.push([]);
+    y = QUESTION_GRID_TOP_MM;
+  };
+  // Starts a page when `height` from `y` would pass the grid's bottom.
+  const place = (height: number): number => {
+    if (y + height > QUESTION_GRID_BOTTOM_MM && current().length > 0) newPage();
+    const top = y;
+    y = top + height + QUESTION_ROW_GAP_MM;
+    return top;
+  };
+  const choicesH =
+    QUESTION_CHOICE_TOP_MM +
+    (choices - 1) * QUESTION_CHOICE_LINE_MM +
+    BUBBLE_DIAMETER_MM;
+
+  for (const entry of entries) {
+    if (entry.kind === 'mc') {
+      const lines = Math.min(
+        Math.max(
+          Math.ceil(
+            input.stemLines?.[entry.questionId] ?? QUESTION_STEM_MAX_LINES
+          ),
+          1
+        ),
+        QUESTION_STEM_MAX_LINES
+      );
+      // The stem bottom-aligns in its box, so the row origin sits above the first printed line.
+      const unused = QUESTION_STEM_H_MM - lines * QUESTION_STEM_LINE_MM;
+      const top = place(choicesH - unused);
+      current().push({
+        kind: 'mc',
+        questionId: entry.questionId,
+        sheetRow: sheetRow++,
+        label: entry.label,
+        originMm: { x: COLUMN_X_MM[0], y: top - unused },
+      });
+      continue;
+    }
+    if (ownsPage(entry.size, 'questions')) {
+      if (current().length > 0) newPage();
+      current().push(
+        writtenBlock(
+          entry,
+          GRID_TOP_MM,
+          PAPER_FULL_PAGE_LINES,
+          stems,
+          FULL_WIDTH
+        )
+      );
+      // Nothing shares a page with it; the next entry starts a fresh one.
+      y = Number.POSITIVE_INFINITY;
+      continue;
+    }
+    const size = entry.size as Exclude<PaperBoxSize, 'full'>;
+    const lines = questionSlotLines(questionSlotsFor(size));
+    const top = place(QUESTION_CHOICE_TOP_MM + lines * WRITTEN_LINE_PITCH_MM);
+    current().push({
+      kind: 'written',
+      questionId: entry.questionId,
+      label: entry.label,
+      headerMm: {
+        x: WRITTEN_HEADER_X_MM,
+        y: top,
+        w: QUESTION_STEM_X_MM + QUESTION_STEM_W_MM - WRITTEN_HEADER_X_MM,
+        h: QUESTION_STEM_H_MM,
+      },
+      boxMm: {
+        x: WRITTEN_BOX_X_MM,
+        y: top + QUESTION_CHOICE_TOP_MM,
+        w: WRITTEN_BOX_W_MM,
+        h: lines * WRITTEN_LINE_PITCH_MM,
+      },
+      lines,
+    });
+  }
+
+  if (pages.length > MAX_PAGE) {
+    return { ok: false, reason: 'too-many-pages', pageCount: pages.length };
+  }
+  return {
+    ok: true,
+    pageMaps: pages.map((items, index) => ({
+      page: index + 1,
+      grid: 'questions' as const,
+      items,
+    })),
   };
 }
 

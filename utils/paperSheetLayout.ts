@@ -81,6 +81,13 @@ export const QUESTION_STEM_W_MM = 144;
 export const QUESTION_STEM_H_MM = 10.8;
 export const QUESTION_CHOICE_TOP_MM = 12;
 export const QUESTION_CHOICE_LINE_MM = 6;
+/** Line height of a printed stem; the stem box holds `QUESTION_STEM_MAX_LINES` of them. */
+export const QUESTION_STEM_LINE_MM = 3.6;
+export const QUESTION_STEM_MAX_LINES = 3;
+/** Blank space after a question's last bubble on a page-mapped question-text sheet. */
+export const QUESTION_ROW_GAP_MM = 5;
+/** Lowest a question-text row may reach: where the fifth fixed-pitch row ended. */
+export const QUESTION_GRID_BOTTOM_MM = 263;
 /** Bubble x of every choice; clears the bottom-left corner window. */
 export const QUESTION_CHOICE_X_MM = 36;
 /** Gap between a bubble and its choice text. */
