@@ -90,6 +90,9 @@ export type AIGenerationType =
   | 'guided-learning'
   | 'blooms-ai';
 
+/** Widgets that share an AI type but have their own admin switch. */
+export type AISource = 'mini-app' | 'drawing' | 'webcam';
+
 export interface GeneratedVideoQuestion extends GeneratedQuestion {
   /** Seconds from video start when this question should trigger. */
   timestamp: number;
@@ -131,6 +134,8 @@ async function callAI(
     prompt?: string;
     image?: string;
     typeCounts?: QuizTypeCounts;
+    /** Calling widget for shared types, so the server charges that widget's AI switch. */
+    source?: AISource;
   },
   baseErrorMessage: string
 ): Promise<AIResponseData> {
@@ -141,6 +146,7 @@ async function callAI(
         prompt?: string;
         image?: string;
         typeCounts?: QuizTypeCounts;
+        source?: AISource;
       },
       AIResponseData
     >(functions, 'generateWithAI');
@@ -174,10 +180,11 @@ async function callAI(
  * @returns A promise resolving to the extracted text.
  */
 export async function extractTextWithGemini(
-  base64Image: string
+  base64Image: string,
+  source?: Extract<AISource, 'drawing' | 'webcam'>
 ): Promise<string> {
   const data = await callAI(
-    { type: 'ocr', image: base64Image },
+    { type: 'ocr', image: base64Image, ...(source ? { source } : {}) },
     'Failed to extract text using Gemini.'
   );
 
@@ -196,10 +203,11 @@ export async function extractTextWithGemini(
  * @throws Error if the generation fails.
  */
 export async function generateMiniAppCode(
-  prompt: string
+  prompt: string,
+  source?: Extract<AISource, 'mini-app'>
 ): Promise<GeneratedMiniApp> {
   const data = await callAI(
-    { type: 'mini-app', prompt },
+    { type: 'mini-app', prompt, ...(source ? { source } : {}) },
     'Failed to generate app. Please try again with a different prompt.'
   );
 

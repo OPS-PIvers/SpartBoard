@@ -10,6 +10,7 @@ import {
 import { db, isAuthBypass } from '@/config/firebase';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 import { useAuth } from '@/context/useAuth';
+import { useDashboard } from '@/context/useDashboard';
 import { logError } from '@/utils/logError';
 import {
   PAPER_HANDWRITTEN_DEFAULT_DAILY_LIMIT,
@@ -25,6 +26,13 @@ export const GEMINI_FEATURES: GlobalFeature[] = [
   'video-activity-audio-transcription',
   'ai-file-context',
   PAPER_HANDWRITTEN_FEATURE,
+  'quiz',
+  'video-activity-ai',
+  'guided-learning-ai',
+  'mini-app-ai',
+  'drawing-ai',
+  'webcam-ai',
+  'blooms-ai',
 ];
 
 /** Features whose admin card picks the Gemini model tier. */
@@ -40,24 +48,23 @@ export const defaultDailyLimit = (featureId: GlobalFeature): number => {
   return 20;
 };
 
-export type AdminMessage = { type: 'success' | 'error'; text: string };
-
 /** Load, edit and save `global_permissions/*` docs for an admin page. */
 export const useGlobalPermissionsEditor = () => {
   const { user } = useAuth();
+  const { addToast } = useDashboard();
   const [permissions, setPermissions] = useState<
     Map<string, GlobalFeaturePermission>
   >(new Map());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [unsavedChanges, setUnsavedChanges] = useState<Set<string>>(new Set());
-  const [message, setMessage] = useState<AdminMessage | null>(null);
 
-  const showMessage = useCallback((type: 'success' | 'error', text: string) => {
-    setMessage({ type, text });
-    const timeoutId = setTimeout(() => setMessage(null), 3000);
-    return () => clearTimeout(timeoutId);
-  }, []);
+  const showMessage = useCallback(
+    (type: 'success' | 'error', text: string) => {
+      addToast(text, type);
+    },
+    [addToast]
+  );
 
   useEffect(() => {
     if (isAuthBypass) {
@@ -194,8 +201,6 @@ export const useGlobalPermissionsEditor = () => {
     loading,
     saving,
     unsavedChanges,
-    message,
-    setMessage,
     showMessage,
     getPermission,
     isSaved,

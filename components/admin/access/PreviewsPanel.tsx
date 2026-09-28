@@ -3,7 +3,6 @@ import { FlaskConical, Loader2 } from 'lucide-react';
 import type { GlobalFeature } from '@/types';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 import type { RolloutSwitch } from '@/config/rolloutSwitches';
-import { Toast } from '@/components/common/Toast';
 import { Toggle } from '@/components/common/Toggle';
 import { AccessFeatureRow, Chip } from './AccessFeatureRow';
 import { AccessSearchEmpty, AdminSearchField } from './AdminSearchField';
@@ -139,13 +138,6 @@ export const PreviewsPanel: React.FC = () => {
 
   return (
     <div className="space-y-3">
-      {editor.message && (
-        <Toast
-          message={editor.message.text}
-          type={editor.message.type}
-          onClose={() => editor.setMessage(null)}
-        />
-      )}
       <AdminSearchField tab="previews" placeholder="Search previews" />
       {features.length === 0 && rolloutOnly.length === 0 ? (
         <AccessSearchEmpty tab="previews" fallback="Nothing in preview." />

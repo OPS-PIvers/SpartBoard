@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-09-27_
+_Last audited: 2026-09-28_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-09-28: Daily audit (Monday), run from the main session (per CLAUDE.md, type-check/lint are never run from a subagent). `scheduled-tasks` rebased onto `origin/dev-paul` at session start (HEAD `20d87da` → `a5072c05`, 3 commits absorbed) — a clean fast-forward, no conflicts. Environment note (unchanged): only Node v22.22.2 is available here though `package.json` requires `>=24.0.0` — both commands print the routine `WARN Unsupported engine` line but run and complete normally. `pnpm run type-check` (`tsc --noEmit`, full root run, foregrounded): exit 0 — 0 TypeScript errors. `pnpm run lint` (root `lint:app` chained into `functions/`'s own `lint:functions`, both `--max-warnings 0`, run as a background process and tracked to completion via a task notification rather than a blocking poll): exit 0 — 0 ESLint errors, 0 warnings across the whole codebase, root and functions both. No structured `### [SEVERITY]` Open items exist in this journal to cross-reference or move to Completed (prior entries remain narrative daily-check logs, per this journal's established format) — 0 new issues found. Codebase remains fully type-safe and lint-clean._
 
 _2026-09-27: Daily audit (Sunday), run from the main session (per CLAUDE.md, type-check/lint are never run from a subagent). Weekly audits skipped per the scheduled task's Saturday/Sunday skip rule — only the 3 daily audits ran this cycle. `scheduled-tasks` rebased onto `origin/dev-paul` at session start (HEAD `20d87da`, 16 commits absorbed since the 2026-09-26 baseline `42f052d`) — a clean fast-forward, no conflicts — and pushed. Environment note (unchanged from every prior cycle): only Node v22.22.2 is available here though `package.json` requires `>=24.0.0` — both commands print the routine `WARN Unsupported engine` line but run and complete normally. `pnpm run type-check` (`tsc --noEmit`, full root run, backgrounded and polled to completion via a Monitor until-loop): exit 0 — 0 TypeScript errors. `pnpm run lint` (root `lint:app` chained into `functions/`'s own `lint:functions`, both `--max-warnings 0`, run as a detached background process with the real PID tracked to completion via a Monitor until-loop rather than guessed): exit 0 — 0 ESLint errors, 0 warnings across the whole codebase, root and functions both. No structured `### [SEVERITY]` Open items exist in this journal to cross-reference or move to Completed (prior entries remain narrative daily-check logs, per this journal's established format) — 0 new issues found. Codebase remains fully type-safe and lint-clean._
 

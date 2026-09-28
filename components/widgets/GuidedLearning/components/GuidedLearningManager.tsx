@@ -481,9 +481,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   );
   useSyncExternalStore(watchLiveTours, getToursVersion, getToursVersion);
   // Same gate as the Studio's AI button.
+  const auth = React.useContext(AuthContext);
   const aiAuthoring =
-    React.useContext(AuthContext)?.canAccessFeature('gemini-functions') ??
-    false;
+    !!auth?.canAccessFeature('gemini-functions') &&
+    !!auth?.canAccessFeature('guided-learning-ai');
   const [tab, setTab] = React.useState<LibraryTab>('library');
 
   // ─── Bulk selection (Step 8) ────────────────────────────────────────────
@@ -762,7 +763,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     ...(isAdmin && liveTours
       ? [{ label: 'Record a tour', icon: Circle, onClick: requestRecordTour }]
       : []),
-    ...(isAdmin && aiAuthoring
+    ...(aiAuthoring
       ? [
           {
             label: 'AI',

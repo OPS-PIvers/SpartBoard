@@ -13,7 +13,7 @@ interface EditorHeaderProps {
   notice?: string | null;
   autosaveStatus: AutosaveStatus;
   onRetrySave: () => void;
-  /** Shown only when AI drafting is available (admin + gemini-functions). */
+  /** Shown only when AI drafting is available (`gemini-functions` + `guided-learning-ai`). */
   onDraftWithAi?: () => void;
   /** Folder picker, device switcher and other header controls. */
   extras?: React.ReactNode;

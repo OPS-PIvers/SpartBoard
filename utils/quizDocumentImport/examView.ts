@@ -107,6 +107,18 @@ function typed(
       return q.type === 'free-response' ? { ...q, type: 'FIB' } : q;
     case 'written':
       if (q.type === 'free-response') return q;
+      // Lettered lines under a written heading are the prompt's parts, never choices.
+      if (q.options.length > 0 && (q.type === 'MC' || q.type === 'MA')) {
+        return {
+          ...q,
+          type: 'free-response',
+          text: [q.text, ...q.options.map((o) => `${o.letter}. ${o.text}`)]
+            .filter(Boolean)
+            .join('\n'),
+          options: [],
+          correctAnswer: '',
+        };
+      }
       // The AI reader can key a written item from the sample answer (E17).
       return q.type === 'FIB'
         ? {

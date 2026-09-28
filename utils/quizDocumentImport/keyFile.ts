@@ -15,6 +15,7 @@
 import { readKeyItems } from './keyForms';
 import { documentKind } from './fileKind';
 import { readDocx } from './docxReader';
+import { readOdt } from './odtReader';
 import { readRtf } from './rtfReader';
 import { readPdf, type PdfReaderDeps } from './pdfReader';
 import { MAX_DOCUMENT_PAGES, assertWithinByteLimit } from './limits';
@@ -46,23 +47,26 @@ export async function readAnswerKeyFile(
   const reader = { multiAnswer: options.multiAnswer === true };
   if (!kind) {
     throw new Error(
-      'That answer key can’t be read. Upload a PDF, a Word file (.docx), a rich text file (.rtf) or a Google Doc.'
+      'That answer key can’t be read. Upload a PDF, a Word or OpenDocument file, a rich text file (.rtf) or a Google Doc.'
+    );
+  }
+  if (kind === 'cartridge' || kind === 'examview') {
+    throw new Error(
+      kind === 'cartridge'
+        ? 'An LMS export already carries its answers, so it can’t also be used as a separate answer key.'
+        : 'An ExamView test already carries its answers, so it can’t also be used as a separate answer key.'
     );
   }
   assertWithinByteLimit(file);
 
-  if (kind === 'docx') {
-    const { lines } = await readDocx(file);
+  if (kind === 'docx' || kind === 'odt') {
+    const { lines } =
+      kind === 'docx' ? await readDocx(file) : await readOdt(file);
     return readKeyItems(lines, reader);
   }
   if (kind === 'rtf') {
     const { lines } = await readRtf(file);
     return readKeyItems(lines, reader);
-  }
-  if (kind === 'cartridge') {
-    throw new Error(
-      'An LMS export already carries its answers, so it can’t also be used as a separate answer key.'
-    );
   }
   if (!options.pdf) {
     throw new Error('Reading a PDF answer key needs the PDF reader.');

@@ -41,17 +41,10 @@ export const BloomsTaxonomyWidget: React.FC<{ widget: WidgetData }> = ({
     | undefined;
   const buildingConfig: BloomsTaxonomyBuildingConfig =
     globalConfig?.buildingDefaults?.[buildingId] ?? {};
-  const {
-    availableCategories,
-    aiEnabled: aiEnabledSetting = false,
-    defaultEnabledCategories,
-  } = buildingConfig;
+  const { availableCategories, defaultEnabledCategories } = buildingConfig;
 
-  // Gate AI on BOTH the building's aiEnabled setting AND the global
-  // `gemini-functions` permission, matching every other AI feature. Without
-  // this, disabling the global AI kill-switch would leave Blooms AI active for
-  // any building with aiEnabled:true.
-  const aiEnabled = aiEnabledSetting && canAccessFeature('gemini-functions');
+  const aiEnabled =
+    canAccessFeature('gemini-functions') && canAccessFeature('blooms-ai');
 
   // Honor admin's defaultEnabledCategories when widget has no saved setting
   const enabledCategories = config.enabledCategories ??

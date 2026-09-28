@@ -234,27 +234,25 @@ describe('Studio start hub', () => {
   });
 
   describe('Draft with AI', () => {
-    it('needs admin and gemini-functions', () => {
+    it('needs gemini-functions and the Guided Learning AI switch', () => {
       auth.features = new Set(['gemini-functions']);
-      auth.isAdmin = false;
       const first = renderStudio(emptySet());
       expect(target('ai')).toBeNull();
       first.unmount();
 
-      auth.isAdmin = true;
-      auth.features = new Set(['gl-live-tours']);
+      auth.features = new Set(['gl-live-tours', 'guided-learning-ai']);
       const second = renderStudio(emptySet());
       expect(target('ai')).toBeNull();
       second.unmount();
 
-      auth.features = new Set(['gemini-functions']);
+      auth.features = new Set(['gemini-functions', 'guided-learning-ai']);
       renderStudio(emptySet());
       fireEvent.click(target('ai') as HTMLElement);
       expect(screen.getByTestId('ai-generator')).toBeInTheDocument();
     });
 
     it('fills the open set in place from the hub, as one undoable edit', () => {
-      auth.features = new Set(['gemini-functions']);
+      auth.features = new Set(['gemini-functions', 'guided-learning-ai']);
       const onSave = vi.fn().mockResolvedValue(undefined);
       renderStudio(emptySet(), { onSave });
       fireEvent.click(target('ai') as HTMLElement);
@@ -280,7 +278,7 @@ describe('Studio start hub', () => {
     });
 
     it('saves the draft under the open set id', async () => {
-      auth.features = new Set(['gemini-functions']);
+      auth.features = new Set(['gemini-functions', 'guided-learning-ai']);
       const onSave = vi.fn().mockResolvedValue(undefined);
       renderStudio(emptySet(), { onSave });
       fireEvent.click(target('ai') as HTMLElement);
@@ -296,7 +294,7 @@ describe('Studio start hub', () => {
     });
 
     it('drafts onto Storage for a building set', () => {
-      auth.features = new Set(['gemini-functions']);
+      auth.features = new Set(['gemini-functions', 'guided-learning-ai']);
       renderStudio({ ...emptySet(), isBuilding: true });
       fireEvent.click(target('ai') as HTMLElement);
       expect(screen.getByTestId('ai-generator')).toHaveAttribute(

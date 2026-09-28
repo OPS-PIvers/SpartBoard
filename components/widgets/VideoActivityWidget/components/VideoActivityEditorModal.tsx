@@ -36,10 +36,6 @@ interface VideoActivityEditorModalProps {
     updated: VideoActivityData,
     behavior: VideoActivityBehaviorSettings
   ) => Promise<void>;
-  /** Video Activity widget-level AI toggle (from VideoActivityGlobalConfig.aiEnabled). */
-  aiEnabled?: boolean;
-  /** Admin override — admins can use AI even when the widget-level toggle is off. */
-  isAdmin?: boolean;
   /** Optional folder picker. When `folders` and `onFolderChange` are both provided, a folder-select field is shown. */
   folders?: LibraryFolder[];
   folderId?: string | null;
@@ -132,8 +128,6 @@ export const VideoActivityEditorModal: React.FC<
   onClose,
   onSave,
   autosave = true,
-  aiEnabled = true,
-  isAdmin = false,
   folders,
   folderId,
   onFolderChange,
@@ -141,7 +135,8 @@ export const VideoActivityEditorModal: React.FC<
 }) => {
   const { canAccessFeature } = useAuth();
   const canUseAi =
-    canAccessFeature('gemini-functions') && (aiEnabled || isAdmin);
+    canAccessFeature('gemini-functions') &&
+    canAccessFeature('video-activity-ai');
 
   const editorState = useVideoActivityEditorState({ activity });
 

@@ -4320,14 +4320,22 @@ service cloud.firestore {
 
     // Admin-curated resources pushed to PLCs. Any authenticated teacher can
     // read (matches dashboard_templates / instructional_routines); the PLC
-    // client filters by scope + plcIds. Only admins write. Single shared doc
-    // per resource — no per-PLC fan-out.
+    // client filters by scope + plcIds. Single shared doc per resource — no
+    // per-PLC fan-out, and no orgId field at all: a `scope: 'all'` doc is
+    // read by every org's PLCs (hooks/usePlcResources.ts's
+    // where('scope','==','all') query has no org filter), and `plcIds` can
+    // name any PLC in any org. isAdmin() is a bare /admins/{email} doc, which
+    // also mirrors org-scoped building_admin/domain_admin (see
+    // functions/src/organizationMembersSync.ts) — used bare it let a
+    // building_admin of ANY org push content into (or delete) every other
+    // org's PLCs, the same bug class fixed in help_resources/plcs/plcIndex/
+    // announcements. Only a real site-wide super admin writes.
     match /plc_resources/{resourceId} {
       allow read: if request.auth != null;
       // Shape locked via hasOnly([...]) (post-write merged doc, so partial updates
       // validate in full). Gate: createdByAdminUid == auth.uid; createdByAdminEmail
       // is a display snapshot validated as a string (not pinned to token.email).
-      allow create, update: if isAdmin()
+      allow create, update: if isSuperAdmin()
         && incoming().id == resourceId
         && incoming().keys().hasOnly([
              'id', 'kind', 'title', 'description', 'refId', 'scope', 'plcIds',
@@ -4344,7 +4352,7 @@ service cloud.firestore {
         && isStr('createdByAdminEmail')
         && isInt('createdAt')
         && isInt('updatedAt');
-      allow delete: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
 
 

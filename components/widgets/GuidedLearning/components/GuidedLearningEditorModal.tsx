@@ -72,11 +72,13 @@ export const GuidedLearningEditorModal: React.FC<
   onFolderChange,
 }) => {
   const { t } = useTranslation();
-  const { isAdmin, canAccessFeature } = useAuth();
+  const { canAccessFeature } = useAuth();
   const [showAiGen, setShowAiGen] = useState(false);
 
   const canUseAi =
-    !!onAiGenerated && isAdmin === true && canAccessFeature('gemini-functions');
+    !!onAiGenerated &&
+    canAccessFeature('gemini-functions') &&
+    canAccessFeature('guided-learning-ai');
 
   // Reset modal-local state when set prop identity changes (the editor hook
   // resets its own draft state on the same identity change).

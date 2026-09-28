@@ -14,4 +14,9 @@ export const AI_FEATURE_LABELS: Record<string, string> = {
   tts: 'Quiz Read-Aloud',
   translation: 'Quiz Translation',
   'paper-handwritten-responses': 'Handwritten Answers (pages)',
+  'video-activity-ai': 'Video Activity AI',
+  'guided-learning-ai': 'Guided Learning AI',
+  'mini-app-ai': 'Mini App AI',
+  'drawing-ai': 'Drawing Text Recognition',
+  'webcam-ai': 'Webcam Text Recognition',
 };

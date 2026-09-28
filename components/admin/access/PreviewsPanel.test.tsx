@@ -42,6 +42,10 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: { email: 'admin@test.com' } }),
 }));
 
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({ addToast: vi.fn() }),
+}));
+
 let savedPermissions: Record<string, unknown>[] = [];
 
 import { PreviewsPanel } from './PreviewsPanel';

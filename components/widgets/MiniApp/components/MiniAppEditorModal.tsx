@@ -108,7 +108,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
         fileContext,
         fileName
       );
-      const result = await generateMiniAppCode(fullPrompt);
+      const result = await generateMiniAppCode(fullPrompt, 'mini-app');
       setTitle(result.title);
       setHtml(result.html);
       setShowPromptInput(false);
@@ -196,7 +196,8 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
       onClose={onClose}
       saveLabel="Save App"
       footerExtras={
-        canAccessFeature('gemini-functions') ? (
+        canAccessFeature('gemini-functions') &&
+        canAccessFeature('mini-app-ai') ? (
           <button
             onClick={() => setShowPromptInput(true)}
             className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"

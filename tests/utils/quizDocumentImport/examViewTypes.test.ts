@@ -345,3 +345,51 @@ describe('key forms', () => {
     );
   });
 });
+
+describe('written items with lettered parts', () => {
+  const lines: DocLine[] = [
+    row('Multiple Choice'),
+    row(
+      'Identify the letter of the choice that best completes the statement or answers the question.'
+    ),
+    row('____', '1.', 'Which is a producer?'),
+    row('a.', 'grass', 'c.', 'hawk'),
+    row('b.', 'mouse', 'd.', 'fungus'),
+    row('____', '2.', 'Which is a consumer?'),
+    row('a.', 'oak', 'c.', 'moss'),
+    row('b.', 'fox', 'd.', 'fern'),
+    row('Short Answer'),
+    row('3.', 'Answer EITHER question, but not both.'),
+    row('3 A'),
+    row('A. Identify one producer.'),
+    row('B. Explain its role.'),
+    row('3 B'),
+    row('A. Identify one consumer.'),
+    row('B. Explain its role'),
+    row('in the food web.'),
+    row('4.', 'Describe a food chain.'),
+  ];
+
+  it('keeps parts and a label naming the item as the prompt, not a key', () => {
+    const { questions } = parseDocument(lines);
+    expect(questions.map((q) => q.type)).toEqual([
+      'MC',
+      'MC',
+      'free-response',
+      'free-response',
+    ]);
+    expect(questions[2].text).toBe(
+      [
+        'Answer EITHER question, but not both.',
+        '3 A',
+        'A. Identify one producer.',
+        'B. Explain its role.',
+        '3 B',
+        'A. Identify one consumer.',
+        'B. Explain its role in the food web.',
+      ].join('\n')
+    );
+    expect(questions[2].correctAnswer).toBe('');
+    expect(questions[3].text).toBe('Describe a food chain.');
+  });
+});

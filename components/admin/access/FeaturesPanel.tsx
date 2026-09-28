@@ -5,7 +5,6 @@ import {
   FEATURE_DEFAULTS,
   type FeatureCategory,
 } from '@/config/featureDefaults';
-import { Toast } from '@/components/common/Toast';
 import { AccessFeatureRow } from './AccessFeatureRow';
 import { AccessSearchEmpty, AdminSearchField } from './AdminSearchField';
 import { GeminiModelsCard } from './GeminiModelsCard';
@@ -56,13 +55,6 @@ export const FeaturesPanel: React.FC = () => {
 
   return (
     <div className="space-y-3">
-      {editor.message && (
-        <Toast
-          message={editor.message.text}
-          type={editor.message.type}
-          onClose={() => editor.setMessage(null)}
-        />
-      )}
       <AdminSearchField tab="features" placeholder="Search features" />
       {sections.length === 0 && (
         <AccessSearchEmpty tab="features" fallback="No features." />

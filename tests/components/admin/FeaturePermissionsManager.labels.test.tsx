@@ -30,6 +30,10 @@ vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: vi.fn().mockResolvedValue(true) }),
 }));
 
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({ addToast: vi.fn() }),
+}));
+
 import { FeaturePermissionsManager } from '@/components/admin/FeaturePermissionsManager';
 
 afterEach(cleanup);

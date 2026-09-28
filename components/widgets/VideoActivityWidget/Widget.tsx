@@ -26,7 +26,6 @@ import {
   VideoActivityResponse,
   VideoActivitySessionSettings,
   VideoActivitySessionOptions,
-  VideoActivityGlobalConfig,
   VideoActivitySession,
 } from '@/types';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
@@ -115,7 +114,6 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     googleAccessToken,
     isAdmin,
     canAccessFeature,
-    featurePermissions,
     getAssignmentMode,
   } = useAuth();
   const claudeReview = useClaudeReview('video_activities');
@@ -201,12 +199,9 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   const { folders: videoActivityFolders, moveItem: moveVideoActivityItem } =
     useFolders(user?.uid, 'video_activity');
 
-  // Get global AI generation permission from feature permissions
-  const videoActivityPerm = featurePermissions.find(
-    (p) => p.widgetType === 'video-activity'
-  );
-  const aiEnabled =
-    (videoActivityPerm?.config as VideoActivityGlobalConfig)?.aiEnabled ?? true;
+  const canUseAi =
+    canAccessFeature('gemini-functions') &&
+    canAccessFeature('video-activity-ai');
 
   // Check if the admin audio transcription feature is enabled (admin-gated global feature)
   const audioTranscriptionEnabled =
@@ -419,8 +414,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     return (
       <Creator
         onBack={() => setView('manager')}
-        aiEnabled={aiEnabled}
-        isAdmin={isAdmin ?? false}
+        aiEnabled={canUseAi}
         audioTranscriptionEnabled={audioTranscriptionEnabled}
         createTemplateSheet={createTemplateSheet}
         onSave={async (activity) => {
@@ -1187,8 +1181,6 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
       <VideoActivityEditorModal
         isOpen={!!editingActivity}
         activity={editingActivity}
-        aiEnabled={aiEnabled}
-        isAdmin={isAdmin === true}
         // A synced activity publishes a new version to its PLC on every save,
         // so that path keeps an explicit Save.
         autosave={!editingMeta?.sync}

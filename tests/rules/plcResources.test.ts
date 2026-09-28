@@ -1,7 +1,9 @@
 // Firestore security rules regression coverage for `plc_resources/{resourceId}`.
 // Pins the invariants introduced in the PLC redesign Wave 1:
 //   - Any authenticated user can read (matches dashboard_templates posture).
-//   - Only admins can create/update/delete.
+//   - Only a real site-wide super admin can create/update/delete (not just
+//     any /admins/{email} doc — see plcResourcesCrossOrgAdmin.test.ts for why
+//     a bare isAdmin() is unsafe here).
 //   - On create/update: `id` must equal resourceId, `kind` and `scope` must
 //     be from their allowed enums, required fields must be present and
 //     correctly typed, `createdByAdminUid` must equal the admin caller's uid.
@@ -68,10 +70,15 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
-  // Seed the admin doc so isAdmin() resolves for ADMIN_EMAIL.
+  // Seed the admin doc so isAdmin() resolves for ADMIN_EMAIL, plus the legacy
+  // superAdmins[] entry so isSuperAdmin() resolves too (write now requires a
+  // real super admin, not just any /admins/{email} doc).
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {
       email: ADMIN_EMAIL,
+    });
+    await setDoc(doc(ctx.firestore(), 'admin_settings/user_roles'), {
+      superAdmins: [ADMIN_EMAIL],
     });
   });
 });
@@ -202,6 +209,9 @@ describe('plc_resources — create', () => {
         await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {
           email: ADMIN_EMAIL,
         });
+        await setDoc(doc(ctx.firestore(), 'admin_settings/user_roles'), {
+          superAdmins: [ADMIN_EMAIL],
+        });
       });
       await assertSucceeds(
         setDoc(
@@ -218,6 +228,9 @@ describe('plc_resources — create', () => {
       await testEnv.withSecurityRulesDisabled(async (ctx) => {
         await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {
           email: ADMIN_EMAIL,
+        });
+        await setDoc(doc(ctx.firestore(), 'admin_settings/user_roles'), {
+          superAdmins: [ADMIN_EMAIL],
         });
       });
       await assertSucceeds(

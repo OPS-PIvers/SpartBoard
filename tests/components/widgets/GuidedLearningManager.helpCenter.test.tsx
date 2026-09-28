@@ -71,7 +71,10 @@ const renderManager = (
     <AuthContext.Provider
       value={
         {
-          canAccessFeature: (id: string) => id === 'gemini-functions',
+          // The Guided Learning AI switch defaults to admins only.
+          canAccessFeature: (id: string) =>
+            id === 'gemini-functions' ||
+            (id === 'guided-learning-ai' && isAdmin),
           canSeeShareTracking: () => false,
         } as unknown as React.ContextType<typeof AuthContext>
       }
@@ -212,7 +215,7 @@ describe('GuidedLearningManager — AI drafts land in the library being viewed',
     expect(onOpenAIAuthoring).toHaveBeenLastCalledWith('building');
   });
 
-  it('offers AI only to admins', async () => {
+  it('offers AI only to admins while the switch is at its default', async () => {
     renderManager(false);
     await screen.findByText('Personal Set');
     expect(screen.queryByRole('button', { name: 'AI' })).toBeNull();

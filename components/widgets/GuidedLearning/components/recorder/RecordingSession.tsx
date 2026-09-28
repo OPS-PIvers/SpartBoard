@@ -56,7 +56,10 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
   onEnd,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const canDraftText =
+    canAccessFeature('gemini-functions') &&
+    canAccessFeature('guided-learning-ai');
   const { showConfirm } = useDialog();
   const dashboard = useContext(DashboardContext);
   const { uploadGuidedLearningImage } = useStorage();
@@ -164,12 +167,14 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
       const slideThumbnails: Record<string, string> = {};
       for (const r of results)
         if (r.thumbnailUrl) slideThumbnails[r.url] = r.thumbnailUrl;
-      setBusy(t('glRecorder.drafting'));
+      if (canDraftText) setBusy(t('glRecorder.drafting'));
       const goal = title.trim();
-      const drafted = await draftRecordedStepText(
-        { ...recording, frames },
-        goal || undefined
-      ).catch(() => []);
+      const drafted = canDraftText
+        ? await draftRecordedStepText(
+            { ...recording, frames },
+            goal || undefined
+          ).catch(() => [])
+        : [];
       const recorded = await buildRecordedSet(recording, {
         id: setId,
         title: goal || t('glRecorder.untitled'),

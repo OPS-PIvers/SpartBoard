@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/useAuth';
 import { MiniAppItem, GlobalMiniAppItem } from '@/types';
 import { db } from '@/config/firebase';
+import { canonicalizeBuildingIds } from '@/config/buildings';
 import {
   collection,
   onSnapshot,
@@ -96,7 +97,9 @@ export const useMiniAppSync = (
         const isGlobal = appBuildings.length === 0;
         if (isGlobal) return true;
         if (selectedBuildings.length === 0) return false;
-        return appBuildings.some((b) => selectedBuildings.includes(b));
+        // appBuildings may still hold a legacy long-form id; canonicalize before comparing against selectedBuildings (always canonical).
+        const canonicalAppBuildings = canonicalizeBuildingIds(appBuildings);
+        return canonicalAppBuildings.some((b) => selectedBuildings.includes(b));
       });
       setGlobalLibrary(filtered);
     });
