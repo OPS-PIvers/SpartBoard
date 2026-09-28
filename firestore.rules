@@ -950,6 +950,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Rollout switch for the "Review before assigning" mark on Claude-made
+    // items — teachers read it to show the mark; admins turn it off.
+    match /admin_settings/claude_review_reminders {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     // Admin audit log — admin-only read; create-only (append-only so an admin
     // can't edit/delete their own trail). Written by GlobalPermissionsManager on
     // sensitive settings changes. timestamp is set server-side via
@@ -5394,6 +5401,17 @@ service cloud.firestore {
     }
     match /users/{userId}/projects_folders/{folderId} {
       allow read, write: if ownsUserTeacher(userId);
+    }
+
+    // === Claude connector (docs/plans/CLAUDE_CONNECTOR.md): server-written, owner-readable ===
+    match /users/{userId}/mcp_grants/{grantId} {
+      allow read: if ownsUserTeacher(userId);
+    }
+    match /users/{userId}/claude_activity/{entryId} {
+      allow read: if ownsUserTeacher(userId);
+    }
+    match /users/{userId}/claude_revisions/{revisionId} {
+      allow read: if ownsUserTeacher(userId);
     }
 
     // === Flashcards (PR 1: teacher-owned authoring library) ===

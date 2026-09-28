@@ -215,6 +215,10 @@ export const TOUR_ANCHORS = {
     label: 'Language tab in Profile & Settings',
     panel: true,
   },
+  'profile.tab-connected-apps': {
+    label: 'Connected apps tab in Profile & Settings',
+    panel: true,
+  },
   'profile.buildings': {
     label: 'Building choices in the Profile tab',
     panel: true,

@@ -15,6 +15,7 @@
  * session id, so existing sessions keep matching after migration.
  */
 
+import { withoutClaudeReview } from '@/utils/claudeReview';
 import { useCallback, useEffect, useState } from 'react';
 import {
   collection,
@@ -100,7 +101,7 @@ export const useActivityWallLibrary = (
       // when empty so Firestore doesn't store an empty string that breaks
       // the `passesStudentClassGate` rule, which expects either a real
       // sourcedId or an absent field.
-      const { classId, ...rest } = entry;
+      const { classId, ...rest } = withoutClaudeReview(entry);
       const payload: ActivityWallLibraryEntry = {
         ...rest,
         ...(classId ? { classId } : {}),

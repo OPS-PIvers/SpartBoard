@@ -21,7 +21,10 @@ import { LibraryShell } from '@/components/common/library/LibraryShell';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
 import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
-import type { LibrarySortDir } from '@/components/common/library/types';
+import type {
+  LibraryBadge,
+  LibrarySortDir,
+} from '@/components/common/library/types';
 import { db } from '@/config/firebase';
 import type { ActivityWallLibraryEntry } from '@/types';
 import { ACTIVITY_WALL_DEFAULT_APPEARANCE } from '@/types';
@@ -39,6 +42,8 @@ interface WallLibraryModalProps {
   onOpenOnBoard: (entryId: string) => void;
   onCreate: () => void;
   onEdit: (entry: ActivityWallLibraryEntry) => void;
+  /** Extra status chips, e.g. the Claude review mark. */
+  badgesFor?: (entry: ActivityWallLibraryEntry) => LibraryBadge[];
   onDuplicate: (entry: ActivityWallLibraryEntry) => Promise<void>;
   onDelete: (entryId: string) => Promise<void>;
   addToast: (message: string, tone: 'success' | 'error' | 'info') => void;
@@ -83,6 +88,7 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
   onOpenOnBoard,
   onCreate,
   onEdit,
+  badgesFor,
   onDuplicate,
   onDelete,
   addToast,
@@ -280,6 +286,7 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
               thumbnail={<WallThumbnail entry={entry} />}
               sortable={false}
               badges={[
+                ...(badgesFor?.(entry) ?? []),
                 {
                   label: entry.acceptingResponses === false ? 'Closed' : 'Open',
                   tone:

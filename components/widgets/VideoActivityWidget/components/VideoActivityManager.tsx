@@ -57,6 +57,7 @@ import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
+import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
@@ -484,6 +485,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onError,
 }) => {
   const { showConfirm } = useDialog();
+  const claudeReview = useClaudeReview('video_activities');
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
   const [tab, setTab] = useState<LibraryTab>('library');
@@ -841,9 +843,13 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
 
   /* ─── Library tab content ─────────────────────────────────────────────── */
 
-  const activityBadges = (a: VideoActivityMetadata): LibraryBadge[] => [
-    { label: `${a.questionCount} Qs`, tone: 'info' },
-  ];
+  const activityBadges = (a: VideoActivityMetadata): LibraryBadge[] => {
+    const review = claudeReview.badge(a, () => onEdit(a));
+    return [
+      ...(review ? [review] : []),
+      { label: `${a.questionCount} Qs`, tone: 'info' },
+    ];
+  };
 
   const libraryEmptyState = (
     <ScaledEmptyState
@@ -1008,7 +1014,9 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
                       setViewOnlyShareLink(null);
                       setViewOnlyShareError(null);
                     } else {
-                      setAssignTarget(activity);
+                      claudeReview.whenReviewed(activity, () =>
+                        setAssignTarget(activity)
+                      );
                     }
                   },
                 }}

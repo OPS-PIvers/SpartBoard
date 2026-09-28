@@ -515,6 +515,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
       titlePlaceholder="Project title"
       headerExtras={
         <FolderSelectField
+          variant="header"
           folders={folders}
           value={draft.folderId ?? null}
           onChange={(folderId) => patch({ folderId })}

@@ -38,9 +38,30 @@ const SCAN_MIME_TYPES = [
   'image/tiff',
 ].join(',');
 
+/** A quiz stimulus: image, audio, video, PDF, or a Doc/Slides embed. */
+const STIMULUS_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/x-m4a',
+  'audio/wav',
+  'audio/x-wav',
+  'audio/ogg',
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+  'application/pdf',
+  'application/vnd.google-apps.document',
+  'application/vnd.google-apps.presentation',
+].join(',');
+
 /** Options for `openPicker`. Default mode is `'docs'`. */
 export interface OpenPickerOptions {
-  mode?: 'docs' | 'images' | 'sheets' | 'scans' | 'documents';
+  mode?: 'docs' | 'images' | 'sheets' | 'scans' | 'documents' | 'stimuli';
   /**
    * Optional OAuth token override. When supplied, the Picker authenticates with
    * this instead of the hook's render-time `googleAccessToken`. Lets a caller
@@ -179,7 +200,9 @@ export const useGooglePicker = () => {
                     ? SCAN_MIME_TYPES
                     : mode === 'documents'
                       ? TEST_DOCUMENT_MIME_TYPES
-                      : SUPPORTED_MIME_TYPES;
+                      : mode === 'stimuli'
+                        ? STIMULUS_MIME_TYPES
+                        : SUPPORTED_MIME_TYPES;
 
             const fileIds = options?.fileIds ?? [];
             const docsView =
@@ -214,7 +237,9 @@ export const useGooglePicker = () => {
                     ? 'Select a scanned PDF'
                     : mode === 'documents'
                       ? 'Select a test document'
-                      : 'Select a file for AI context');
+                      : mode === 'stimuli'
+                        ? 'Select a stimulus'
+                        : 'Select a file for AI context');
 
             const builder = new google.picker.PickerBuilder()
               .addView(docsView)

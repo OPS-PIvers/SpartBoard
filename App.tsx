@@ -169,6 +169,11 @@ const InviteAcceptance = lazy(() =>
     default: module.InviteAcceptance,
   }))
 );
+const ClaudeConnectPage = lazy(() =>
+  import('./components/claudeConnector/ConnectPage').then((module) => ({
+    default: module.ConnectPage,
+  }))
+);
 const PlcInviteAcceptance = lazy(() =>
   import('./components/auth/PlcInviteAcceptance').then((module) => ({
     default: module.PlcInviteAcceptance,
@@ -1051,6 +1056,17 @@ const App: React.FC = () => {
           </div>
         </div>
       </div>
+    );
+  }
+
+  // Claude connector OAuth consent (docs/plans/CLAUDE_CONNECTOR.md); teacher auth only, no dashboard.
+  if (pathname === '/connect') {
+    return (
+      <AuthProvider>
+        <Suspense fallback={<FullPageLoader />}>
+          <ClaudeConnectPage />
+        </Suspense>
+      </AuthProvider>
     );
   }
 

@@ -2,6 +2,7 @@
 import type React from 'react';
 import {
   BarChart,
+  Bot,
   Building2,
   CalendarClock,
   Cast,
@@ -688,6 +689,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Claude connector sign-in and tools; the server checks the same gate on every request (CC-D7).
+  'claude-connector': {
+    label: 'Claude connector',
+    icon: Bot,
+    description: 'Teachers connect Claude to create and edit their library.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'integrations',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

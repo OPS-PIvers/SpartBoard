@@ -14,6 +14,7 @@ export interface StubDocSnap {
   exists: boolean;
   ref: StubDocRef;
   data: () => StubData | undefined;
+  get: (field: string) => unknown;
 }
 
 export interface StubQuery {
@@ -27,7 +28,7 @@ export interface StubCollectionRef extends StubQuery {
   id: string;
   path: string;
   parent: StubDocRef | null;
-  doc: (id: string) => StubDocRef;
+  doc: (id?: string) => StubDocRef;
 }
 
 export interface StubDocRef {
@@ -90,6 +91,7 @@ function deepMerge(base: StubData, patch: StubData): StubData {
 
 export function makeStubFirestore(seed: Record<string, StubData> = {}) {
   const store = new Map<string, StubData>();
+  let autoId = 0;
   for (const [path, data] of Object.entries(seed)) store.set(path, { ...data });
   const writes: Array<{ op: string; path: string; data?: StubData }> = [];
   const hooks: {
@@ -154,7 +156,8 @@ export function makeStubFirestore(seed: Record<string, StubData> = {}) {
     id: path.split('/').pop()!,
     path,
     parent,
-    doc: (id: string) => makeDoc(`${path}/${id}`),
+    doc: (id?: string) =>
+      makeDoc(`${path}/${id ?? `auto${(autoId += 1).toString()}`}`),
   });
 
   const snapFor = (path: string): StubDocSnap => {
@@ -164,6 +167,7 @@ export function makeStubFirestore(seed: Record<string, StubData> = {}) {
       exists: data !== undefined,
       ref: makeDoc(path),
       data: () => (data === undefined ? undefined : { ...data }),
+      get: (field: string) => data?.[field],
     };
   };
 

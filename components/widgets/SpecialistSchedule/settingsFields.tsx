@@ -271,6 +271,7 @@ export const SpecialistScheduleCycleDaysField: React.FC<{
             const customName = customDayNames[dayNumber];
             const selected = selectedDay === dayNumber;
             return (
+              // eslint-disable-next-line no-restricted-syntax -- one named tab per cycle day
               <button
                 key={dayNumber}
                 type="button"

@@ -24,7 +24,6 @@ import {
   Trash2,
 } from 'lucide-react';
 import {
-  LibraryFolder,
   QuestionTargetTag,
   QuizOrderEntry,
   QuizQuestion,
@@ -40,7 +39,6 @@ import { findSlotSource, slotEligibleFromSource } from './bankSlotHelpers';
 import { BankPickerModal } from './BankPickerModal';
 import { SaveToBankModal } from './SaveToBankModal';
 import type { QuizEditorBankApi } from './QuizEditorModal';
-import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { SortableList } from '@/components/common/SortableList';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
 import { AIGeneratorOverlay } from '@/components/common/AIGeneratorOverlay';
@@ -78,14 +76,10 @@ interface PaneProps {
   aiEnabled: boolean;
   /** Question-bank access; omitted when banks are unavailable. */
   bankApi?: QuizEditorBankApi;
-  folders?: LibraryFolder[];
-  folderId?: string | null;
-  onFolderChange?: (folderId: string | null) => void;
   /** Drives the advisory's shuffle-no-op line; owned by the modal. */
   shuffleQuestionsEnabled?: boolean;
-  /** Rendered directly under the title input (bank editor's targets strip). */
+  /** Rendered at the top of the pane (bank editor's targets strip). */
   titleSlot?: React.ReactNode;
-  titlePlaceholder?: string;
   /** Bank-level tags every question inherits; rows render them muted. */
   inheritedTargets?: QuestionTargetTag[];
   /** Opens "Add answer key"; shown beside the needs-answer count when set (R31). */
@@ -153,10 +147,6 @@ const TYPE_BADGE: Record<QuizQuestionType, string> = {
 const quizContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.aiEnabled === next.aiEnabled &&
   prev.bankApi === next.bankApi &&
-  prev.folders === next.folders &&
-  prev.folderId === next.folderId &&
-  prev.onFolderChange === next.onFolderChange &&
-  prev.state.title === next.state.title &&
   prev.state.questions === next.state.questions &&
   prev.state.stimuli === next.state.stimuli &&
   prev.state.order === next.state.order &&
@@ -165,7 +155,6 @@ const quizContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.state.checkedIds === next.state.checkedIds &&
   prev.shuffleQuestionsEnabled === next.shuffleQuestionsEnabled &&
   prev.titleSlot === next.titleSlot &&
-  prev.titlePlaceholder === next.titlePlaceholder &&
   prev.inheritedTargets === next.inheritedTargets &&
   prev.onAddAnswerKey === next.onAddAnswerKey &&
   prev.allowSections === next.allowSections &&
@@ -175,12 +164,8 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
   state,
   aiEnabled,
   bankApi,
-  folders,
-  folderId,
-  onFolderChange,
   shuffleQuestionsEnabled,
   titleSlot,
-  titlePlaceholder,
   inheritedTargets,
   onAddAnswerKey,
   allowSections = true,
@@ -189,8 +174,6 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
   const mediaResponseAllowed = canAccessQuizMediaResponse();
   const sectionsEnabled = allowSections && canAccessFeature('quiz-sections');
   const {
-    title,
-    setTitle,
     questions,
     stimuli,
     order,
@@ -270,24 +253,8 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
   return (
     <div className="flex flex-col h-full">
       {/* Settings strip */}
-      <div className="px-5 py-4 border-b border-slate-200 space-y-3 bg-white shrink-0">
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={
-            titlePlaceholder ?? 'Quiz title (e.g. Science Unit 4 Review)'
-          }
-          className="w-full bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:outline-none text-lg font-bold p-0"
-        />
+      <div className="px-5 py-4 border-b border-slate-200 space-y-3 bg-white shrink-0 empty:hidden">
         {titleSlot}
-        {folders && onFolderChange && (
-          <FolderSelectField
-            folders={folders}
-            value={folderId ?? null}
-            onChange={onFolderChange}
-          />
-        )}
         {error && (
           <div className="p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold">
             <AlertCircle className="w-4 h-4 shrink-0" />

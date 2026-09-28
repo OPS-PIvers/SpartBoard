@@ -28,7 +28,7 @@ import type { PaperSheetEntry } from './paperPageMap';
 import { defaultPaperBoxSize } from './paperWritten';
 import { effectiveChooseCount, sessionSectionsFor } from './quizSections';
 
-/** Small deterministic PRNG so a batch always shuffles the same way. */
+/** Small deterministic PRNG so an option set always shuffles the same way. */
 function seededRandom(seed: string): () => number {
   let h = 0x811c9dc5;
   for (let i = 0; i < seed.length; i += 1) {
@@ -63,13 +63,13 @@ export const isPlaceholderLetterChoices = (
 /**
  * The lettered order a question's options print in on the test paper.
  *
- * Seeded by batch and question so the same batch always prints the same paper
- * and the correct answer is not always A. True/False keeps True first, as
- * students expect.
+ * Seeded by the option set alone, so every print of a question (any batch, any
+ * teammate's copy) letters it the same way and any test paper matches any
+ * sheet; the correct answer is still not always A. True/False keeps True
+ * first, as students expect.
  */
 export function paperChoiceOrder(
-  batchId: string,
-  question: QuizQuestion
+  question: Pick<QuizQuestion, 'correctAnswer' | 'incorrectAnswers'>
 ): string[] {
   const choices = [
     question.correctAnswer,
@@ -84,7 +84,8 @@ export function paperChoiceOrder(
   if (isPlaceholderLetterChoices(choices)) {
     return [...choices].sort((a, b) => a.trim().localeCompare(b.trim()));
   }
-  const rand = seededRandom(`${batchId}:${question.id}`);
+  choices.sort();
+  const rand = seededRandom(choices.join('\u0001'));
   for (let i = choices.length - 1; i > 0; i -= 1) {
     const j = Math.floor(rand() * (i + 1));
     [choices[i], choices[j]] = [choices[j], choices[i]];
@@ -373,7 +374,7 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
 
   const choiceOrder: Record<string, string[]> = {};
   for (const q of input.questions ?? []) {
-    choiceOrder[q.id] = paperChoiceOrder(input.batchId, q);
+    choiceOrder[q.id] = paperChoiceOrder(q);
   }
   for (const [id, options] of Object.entries(input.choiceOrder ?? {})) {
     choiceOrder[id] = [...options];

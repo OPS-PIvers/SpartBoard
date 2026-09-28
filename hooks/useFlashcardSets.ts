@@ -1,3 +1,4 @@
+import { withoutClaudeReview } from '@/utils/claudeReview';
 import { useCallback, useEffect, useState } from 'react';
 import {
   collection,
@@ -80,7 +81,7 @@ const rewriteOpenStudySessions = async (
 };
 
 const normalizeSet = (set: FlashcardSet): FlashcardSet => ({
-  ...set,
+  ...withoutClaudeReview(set),
   title: set.title.trim(),
   description: set.description?.trim() ?? '',
   termLanguage: set.termLanguage.trim() || 'en-US',

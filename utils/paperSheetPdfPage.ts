@@ -10,8 +10,6 @@
 /** pdf.js viewport scale is relative to 72 dpi; 200 dpi is what a copier wants. */
 export const PDF_RENDER_DPI = 200;
 const PDF_SCALE = PDF_RENDER_DPI / 72;
-/** More pages than a teacher would page through; the picker lists this many. */
-export const MAX_PDF_PAGES_LISTED = 60;
 
 export interface RenderedPdfPage {
   blob: Blob;
