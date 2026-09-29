@@ -5,7 +5,15 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { CloudDownload, FileText, FileUp, Loader2, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import {
+  CloudDownload,
+  FilePlus,
+  FileText,
+  FileUp,
+  Loader2,
+  X,
+} from 'lucide-react';
 import { useFilesDrop } from '@/hooks/useFileDrop';
 import { documentKind } from '@/utils/quizDocumentImport/fileKind';
 import {
@@ -55,6 +63,10 @@ interface TestAndKeyUploaderProps {
   onSubmit: (selection: TestAndKeySelection) => void;
   /** Sits between the zones and the button, e.g. the AI reader switch. */
   children?: React.ReactNode;
+  /** With `zones="both"`, the key zone waits behind a link until asked for or filled. */
+  keyBehindLink?: boolean;
+  /** Renders the submit button here instead, e.g. a modal footer. */
+  submitContainer?: Element | null;
   /** Test seams. */
   looksLikeKey?: (file: Blob, name: string) => Promise<boolean>;
   decode?: (file: File) => Promise<File>;
@@ -91,6 +103,8 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
   busyLabel,
   onSubmit,
   children,
+  keyBehindLink = false,
+  submitContainer,
   looksLikeKey = looksLikeAnswerKey,
   decode = decodeIfHeic,
 }) => {
@@ -103,6 +117,7 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
     key: '',
   });
   const [keyHint, setKeyHint] = useState(false);
+  const [keyOpen, setKeyOpen] = useState(false);
   const [working, setWorking] = useState<Record<Zone, boolean>>({
     test: false,
     key: false,
@@ -121,6 +136,8 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
   };
   const showTest = zones !== 'key';
   const showKey = zones !== 'test';
+  const keyCollapsed =
+    showTest && showKey && keyBehindLink && !keyOpen && content.key === null;
 
   // Thumbnails hold object URLs, which outlive the component unless released.
   const contentRef = useRef(content);
@@ -335,15 +352,36 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
     });
   };
 
+  const submitButton = (
+    <button
+      type="button"
+      onClick={submit}
+      disabled={!canSubmit}
+      className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-blue-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+      {busy && busyLabel
+        ? busyLabel
+        : keyAloneLabel && showTest && !content.test && content.key
+          ? keyAloneLabel
+          : submitLabel}
+    </button>
+  );
+
   return (
     <div className="space-y-3">
       <div
-        className={`grid gap-3 ${showTest && showKey ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}
+        className={`grid gap-3 ${showTest && showKey && !keyCollapsed ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}
       >
         {showTest && (
           <DropZone
             zone="test"
-            title="Test questions"
+            name="test questions"
+            title={
+              keyCollapsed
+                ? 'Test questions & answer key (optional)'
+                : 'Test questions'
+            }
             hint={`PDF, Word, .odt, .rtf, ExamView .tst${allowCartridge ? ', LMS export' : ''} or photos`}
             accept={`${DOCUMENT_ACCEPT},.tst${allowCartridge ? ',.imscc' : ''},${PHOTO_ACCEPT}`}
             content={content.test}
@@ -373,9 +411,10 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
             )}
           </DropZone>
         )}
-        {showKey && (
+        {showKey && !keyCollapsed && (
           <DropZone
             zone="key"
+            name="answer key"
             title={showTest ? 'Answer key (optional)' : 'Answer key'}
             hint="PDF, Word, .odt, .rtf or photos"
             accept={`${DOCUMENT_ACCEPT},${PHOTO_ACCEPT}`}
@@ -393,6 +432,18 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
         )}
       </div>
 
+      {keyCollapsed && (
+        <button
+          type="button"
+          onClick={() => setKeyOpen(true)}
+          disabled={disabled}
+          className="inline-flex items-center gap-1 text-xs font-bold text-brand-blue-primary hover:underline disabled:opacity-40"
+        >
+          <FilePlus className="h-3.5 w-3.5" />
+          Attach a separate answer key
+        </button>
+      )}
+
       {showTest && showKey && content.test && content.key && (
         <button
           type="button"
@@ -406,25 +457,17 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
 
       {children}
 
-      <button
-        type="button"
-        onClick={submit}
-        disabled={!canSubmit}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-blue-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-        {busy && busyLabel
-          ? busyLabel
-          : keyAloneLabel && showTest && !content.test && content.key
-            ? keyAloneLabel
-            : submitLabel}
-      </button>
+      {submitContainer === undefined
+        ? submitButton
+        : submitContainer && createPortal(submitButton, submitContainer)}
     </div>
   );
 };
 
 interface DropZoneProps {
   zone: Zone;
+  /** Lowercase noun for control labels, e.g. "answer key". */
+  name: string;
   title: string;
   hint: string;
   accept: string;
@@ -443,6 +486,7 @@ interface DropZoneProps {
 
 const DropZone: React.FC<DropZoneProps> = ({
   zone,
+  name,
   title,
   hint,
   accept,
@@ -484,7 +528,7 @@ const DropZone: React.FC<DropZoneProps> = ({
             type="button"
             onClick={onRemove}
             disabled={disabled}
-            aria-label={`Remove ${title.replace(' (optional)', '').toLowerCase()}`}
+            aria-label={`Remove ${name}`}
             className="text-xs font-bold text-slate-500 hover:text-brand-red-primary disabled:opacity-40"
           >
             Remove
@@ -501,7 +545,10 @@ const DropZone: React.FC<DropZoneProps> = ({
 
       {photos.length > 0 && (
         <>
-          <ol aria-label={`${title} pages`} className="grid grid-cols-4 gap-2">
+          <ol
+            aria-label={`${name.charAt(0).toUpperCase()}${name.slice(1)} pages`}
+            className="grid grid-cols-4 gap-2"
+          >
             {photos.map((photo, i) => (
               <li
                 key={photo.id}
@@ -615,7 +662,7 @@ const DropZone: React.FC<DropZoneProps> = ({
         type="file"
         multiple
         accept={accept}
-        aria-label={`Upload ${title.replace(' (optional)', '').toLowerCase()}`}
+        aria-label={`Upload ${name}`}
         className="hidden"
         onChange={(e) => {
           const files = Array.from(e.target.files ?? []);

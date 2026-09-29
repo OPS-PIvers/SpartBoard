@@ -134,6 +134,8 @@ export function ImportWizard<TData>({
 
   // Template helper UI state.
   const [showFormat, setShowFormat] = useState(false);
+  // The document uploader renders its Import button into the footer.
+  const [submitSlot, setSubmitSlot] = useState<HTMLDivElement | null>(null);
   const [creatingTemplate, setCreatingTemplate] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -287,6 +289,8 @@ export function ImportWizard<TData>({
   };
 
   const bulkSource = adapter.bulkSource;
+  const groupedSources = supportsDocument || !!bulkSource;
+  const pairedSources = !!bulkSource && (canPickSheet || supportsAnyUpload);
   const handBulkFile = (file: File): void => {
     if (!bulkSource) return;
     if (!matchesAccept(file.name, bulkSource.accept)) {
@@ -537,113 +541,194 @@ export function ImportWizard<TData>({
 
   const sourceStep = (
     <div className="space-y-4">
-      {(canPickSheet || supportsAnyUpload) && (
-        // A disabled control receives no drag events, and the buttons are
-        // disabled while a parse runs, so the zone carries them.
-        <div
-          {...(supportsAnyUpload ? uploadDrop.dropProps : {})}
-          data-testid="import-source-zone"
-          className={`flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed p-4 text-center transition-colors ${
-            uploadDrop.dragging
-              ? 'border-brand-blue-primary bg-brand-blue-lighter/70'
-              : 'border-brand-blue-primary/30 bg-brand-blue-lighter/30'
-          }`}
-        >
-          {supportsAnyUpload && (
-            <>
-              <FileUp className="h-6 w-6 text-brand-blue-primary" />
-              <p className="text-xs font-semibold text-brand-blue-primary">
-                {uploadDrop.dragging
-                  ? 'Drop it here'
-                  : `Drop a file here · ${uploadHint}${adapter.bulkSource ? ` or ${adapter.bulkSource.accept}` : ''}`}
-              </p>
-            </>
-          )}
-          <div className="flex flex-wrap justify-center gap-2">
-            {canPickSheet && (
-              <button
-                type="button"
-                onClick={() => void handlePickSheet()}
-                disabled={picking || loading}
-                className={sourceButtonClass}
-                aria-label="Choose a Google Sheet from Google Drive"
-              >
-                {picking ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <FileSpreadsheet className="h-3.5 w-3.5" />
-                )}
-                Choose Google Sheet
-              </button>
-            )}
-            {supportsAnyUpload && (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
+      {supportsDocument && (
+        <div className="space-y-2">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-500">
+            Import an existing assessment
+          </p>
+          <TestAndKeyUploader
+            zones={supportsKeyFile ? 'both' : 'test'}
+            allowCartridge
+            pickFromDrive={adapter.pickDocument}
+            submitLabel="Import"
+            busy={loading}
+            busyLabel="Importing…"
+            onSubmit={readTestAndKey}
+            keyBehindLink
+            submitContainer={submitSlot}
+          >
+            {supportsAiReader && (
+              <AiReaderToggle
+                checked={!aiReaderOff}
+                onChange={(on) => setAiReaderOff(!on)}
                 disabled={loading}
-                className={sourceButtonClass}
+              />
+            )}
+          </TestAndKeyUploader>
+        </div>
+      )}
+
+      {(!!bulkSource || canPickSheet || supportsAnyUpload) && (
+        <div className={`grid gap-3 ${pairedSources ? 'sm:grid-cols-2' : ''}`}>
+          {bulkSource && (
+            <div
+              {...bulkDrop.dropProps}
+              data-testid="import-bulk-source"
+              className={`flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed p-4 text-center transition-colors ${
+                bulkDrop.dragging
+                  ? 'border-brand-blue-primary bg-brand-blue-lighter/70'
+                  : 'border-slate-300 bg-white'
+              }`}
+            >
+              <p className="text-sm font-bold text-slate-800">
+                {bulkSource.title}
+              </p>
+              <p className="text-xs text-slate-500">{bulkSource.description}</p>
+              <button
+                type="button"
+                onClick={() => bulkInputRef.current?.click()}
+                disabled={loading}
+                className={`mt-auto ${sourceButtonClass}`}
               >
                 <FileUp className="h-3.5 w-3.5" />
                 Choose file
               </button>
-            )}
-          </div>
-          {supportsAnyUpload && (
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept={[
-                acceptExtensionsForSources(adapter.supportedSources),
-                adapter.bulkSource?.accept,
-              ]
-                .filter(Boolean)
-                .join(',')}
-              onChange={(e) => void handleFilePicked(e)}
-              className="hidden"
-              aria-label="Upload import file"
-            />
+              <input
+                type="file"
+                ref={bulkInputRef}
+                accept={bulkSource.accept}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (bulkInputRef.current) bulkInputRef.current.value = '';
+                  if (file) handBulkFile(file);
+                }}
+                className="hidden"
+                aria-label={bulkSource.title}
+              />
+            </div>
+          )}
+
+          {(canPickSheet || supportsAnyUpload) && (
+            // A disabled control receives no drag events, and the buttons are
+            // disabled while a parse runs, so the zone carries them.
+            <div
+              {...(supportsAnyUpload ? uploadDrop.dropProps : {})}
+              data-testid="import-source-zone"
+              className={`flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed p-4 text-center transition-colors ${
+                uploadDrop.dragging
+                  ? 'border-brand-blue-primary bg-brand-blue-lighter/70'
+                  : groupedSources
+                    ? 'border-slate-300 bg-white'
+                    : 'border-brand-blue-primary/30 bg-brand-blue-lighter/30'
+              }`}
+            >
+              {groupedSources && (
+                <p className="text-sm font-bold text-slate-800">
+                  Import from template
+                </p>
+              )}
+              {supportsAnyUpload && (
+                <>
+                  {!groupedSources && (
+                    <FileUp className="h-6 w-6 text-brand-blue-primary" />
+                  )}
+                  <p className="text-xs font-semibold text-brand-blue-primary">
+                    {uploadDrop.dragging
+                      ? 'Drop it here'
+                      : `Drop a file here · ${uploadHint}${adapter.bulkSource ? ` or ${adapter.bulkSource.accept}` : ''}`}
+                  </p>
+                </>
+              )}
+              <div className="mt-auto flex flex-wrap justify-center gap-2">
+                {canPickSheet && (
+                  <button
+                    type="button"
+                    onClick={() => void handlePickSheet()}
+                    disabled={picking || loading}
+                    className={sourceButtonClass}
+                    aria-label="Choose a Google Sheet from Google Drive"
+                  >
+                    {picking ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <FileSpreadsheet className="h-3.5 w-3.5" />
+                    )}
+                    Choose Google Sheet
+                  </button>
+                )}
+                {supportsAnyUpload && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={loading}
+                    className={sourceButtonClass}
+                  >
+                    <FileUp className="h-3.5 w-3.5" />
+                    Choose file
+                  </button>
+                )}
+              </div>
+              {supportsAnyUpload && (
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept={[
+                    acceptExtensionsForSources(adapter.supportedSources),
+                    adapter.bulkSource?.accept,
+                  ]
+                    .filter(Boolean)
+                    .join(',')}
+                  onChange={(e) => void handleFilePicked(e)}
+                  className="hidden"
+                  aria-label="Upload import file"
+                />
+              )}
+            </div>
+          )}
+
+          {adapter.templateHelper && (
+            <button
+              type="button"
+              onClick={() => setShowFormat((v) => !v)}
+              aria-expanded={showFormat}
+              className={`inline-flex items-center gap-1 justify-self-start text-xs font-bold text-brand-blue-primary hover:underline ${pairedSources ? 'sm:col-start-2' : ''}`}
+            >
+              <Info className="h-3.5 w-3.5 shrink-0" />
+              Template &amp; format help
+            </button>
           )}
         </div>
       )}
 
-      {bulkSource && (
-        <div
-          {...bulkDrop.dropProps}
-          data-testid="import-bulk-source"
-          className={`flex items-center gap-3 rounded-2xl border-2 border-dashed p-4 transition-colors ${
-            bulkDrop.dragging
-              ? 'border-brand-blue-primary bg-brand-blue-lighter/70'
-              : 'border-slate-300 bg-white'
-          }`}
-        >
-          <FileUp className="h-6 w-6 shrink-0 text-brand-blue-primary" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-slate-800">
-              {bulkSource.title}
-            </p>
-            <p className="text-xs text-slate-500">{bulkSource.description}</p>
+      {adapter.templateHelper && showFormat && (
+        <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3 text-xs">
+          <div className="text-slate-700 leading-relaxed">
+            {adapter.templateHelper.instructions}
           </div>
-          <button
-            type="button"
-            onClick={() => bulkInputRef.current?.click()}
-            disabled={loading}
-            className={sourceButtonClass}
-          >
-            <FileUp className="h-3.5 w-3.5" />
-            Choose file
-          </button>
-          <input
-            type="file"
-            ref={bulkInputRef}
-            accept={bulkSource.accept}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (bulkInputRef.current) bulkInputRef.current.value = '';
-              if (file) handBulkFile(file);
-            }}
-            className="hidden"
-            aria-label={bulkSource.title}
-          />
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void handleCreateTemplate()}
+              disabled={creatingTemplate}
+              className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-1.5 py-2 bg-white border-2 border-brand-blue-primary/20 hover:border-brand-blue-primary/40 rounded-xl text-brand-blue-primary font-black transition-all shadow-sm active:scale-95 disabled:opacity-50 text-xs uppercase tracking-widest"
+            >
+              {creatingTemplate ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+              )}
+              Create template
+              <ExternalLink className="w-3 h-3 opacity-40" />
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleCopyTemplateUrl()}
+              className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-1.5 py-2 bg-white border-2 border-brand-blue-primary/20 hover:border-brand-blue-primary/40 rounded-xl text-brand-blue-primary font-black transition-all shadow-sm active:scale-95 text-xs uppercase tracking-widest"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              Copy template URL
+            </button>
+          </div>
         </div>
       )}
 
@@ -684,76 +769,6 @@ export function ImportWizard<TData>({
                 This doesn&apos;t look like a Google Sheets URL.
               </p>
             )}
-        </div>
-      )}
-
-      {adapter.templateHelper && (
-        <div className="rounded-2xl border border-brand-blue-primary/20 bg-brand-blue-lighter/20 p-3">
-          <button
-            type="button"
-            onClick={() => setShowFormat((v) => !v)}
-            className="w-full flex items-center gap-2 text-brand-blue-primary text-xs font-bold"
-          >
-            <Info className="w-3.5 h-3.5 shrink-0" />
-            <span>Template &amp; format help</span>
-            <span className="ml-auto opacity-50">{showFormat ? '▲' : '▼'}</span>
-          </button>
-          {showFormat && (
-            <div className="mt-3 space-y-3 text-xs">
-              <div className="text-slate-700 leading-relaxed">
-                {adapter.templateHelper.instructions}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => void handleCreateTemplate()}
-                  disabled={creatingTemplate}
-                  className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-1.5 py-2 bg-white border-2 border-brand-blue-primary/20 hover:border-brand-blue-primary/40 rounded-xl text-brand-blue-primary font-black transition-all shadow-sm active:scale-95 disabled:opacity-50 text-xs uppercase tracking-widest"
-                >
-                  {creatingTemplate ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <FileSpreadsheet className="w-3.5 h-3.5" />
-                  )}
-                  Create template
-                  <ExternalLink className="w-3 h-3 opacity-40" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleCopyTemplateUrl()}
-                  className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-1.5 py-2 bg-white border-2 border-brand-blue-primary/20 hover:border-brand-blue-primary/40 rounded-xl text-brand-blue-primary font-black transition-all shadow-sm active:scale-95 text-xs uppercase tracking-widest"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  Copy template URL
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {supportsDocument && (
-        <div className="space-y-2">
-          <p className="text-xs font-black uppercase tracking-widest text-slate-500">
-            Import an existing assessment
-          </p>
-          <TestAndKeyUploader
-            zones={supportsKeyFile ? 'both' : 'test'}
-            allowCartridge
-            pickFromDrive={adapter.pickDocument}
-            submitLabel="Import"
-            busy={loading}
-            busyLabel="Importing…"
-            onSubmit={readTestAndKey}
-          >
-            {supportsAiReader && (
-              <AiReaderToggle
-                checked={!aiReaderOff}
-                onChange={(on) => setAiReaderOff(!on)}
-                disabled={loading}
-              />
-            )}
-          </TestAndKeyUploader>
         </div>
       )}
 
@@ -921,6 +936,10 @@ export function ImportWizard<TData>({
           <ArrowLeft className="w-4 h-4" />
           Back
         </button>
+      )}
+
+      {step === 'source' && supportsDocument && (
+        <div ref={setSubmitSlot} className="flex-1" />
       )}
 
       <div className="flex items-center gap-2">
