@@ -412,9 +412,33 @@ async function unzipText(
   );
 }
 
+/** Turns HTML-only named entities (`&iacute;`) into numeric ones, which XML accepts. */
+function defineHtmlEntities(xml: string): string {
+  const decoder = new DOMParser();
+  const decoded = new Map<string, string>();
+  return xml.replace(/&([a-zA-Z][a-zA-Z0-9]*);/g, (whole, name: string) => {
+    if (['lt', 'gt', 'amp', 'quot', 'apos'].includes(name)) return whole;
+    let numeric = decoded.get(name);
+    if (numeric === undefined) {
+      const text =
+        decoder.parseFromString(whole, 'text/html').documentElement
+          .textContent ?? '';
+      numeric =
+        text && text !== whole
+          ? Array.from(text, (c) => `&#${c.codePointAt(0)};`).join('')
+          : whole;
+      decoded.set(name, numeric);
+    }
+    return numeric;
+  });
+}
+
 /** Every QTI item in one XML file, in the order the file lists them. */
 function itemsIn(xml: string): { title: string; items: Element[] } | null {
-  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  const doc = new DOMParser().parseFromString(
+    defineHtmlEntities(xml),
+    'application/xml'
+  );
   if (doc.getElementsByTagName('parsererror').length > 0) return null;
   if (!firstDescendant(doc, 'questestinterop')) return null;
   const holder =
@@ -787,7 +811,7 @@ export async function readCartridgeBanks(
   const manifestEntry = zip.file(MANIFEST);
   if (!manifestEntry) throw new Error(NOT_A_CARTRIDGE);
   const manifest = new DOMParser().parseFromString(
-    await unzipText(manifestEntry, budget),
+    defineHtmlEntities(await unzipText(manifestEntry, budget)),
     'application/xml'
   );
   if (manifest.getElementsByTagName('parsererror').length > 0) {
