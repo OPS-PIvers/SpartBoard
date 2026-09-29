@@ -48,7 +48,7 @@ describe('passages found by their shape', () => {
   it('shows the passage once when sections are on', () => {
     const read = parseDocument(HEADED, { passages: true });
     const quiz = extractedToQuizData(
-      { title: 't', images: [], warnings: [], ...read },
+      { title: 't', images: [], ...read },
       { sections: true }
     );
     expect(quiz.stimuli).toHaveLength(1);
