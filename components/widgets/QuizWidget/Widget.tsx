@@ -1567,7 +1567,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           bulkSource: {
             title: 'Schoology export (.imscc)',
             description:
-              'Brings in every quiz and test in the export, each as its own quiz.',
+              'Brings in every quiz and test in the export as separate quizzes.',
             accept: '.imscc',
             onFile: (file: File) => setQuizCartridge(file),
           },
