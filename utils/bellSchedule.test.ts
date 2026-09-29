@@ -8,6 +8,8 @@ import {
   dateKey,
   listBellPeriods,
   listTeacherBellPeriods,
+  matchBellPeriod,
+  normalizePeriodKey,
   resolveBellWindow,
   resolveBuildingSchedule,
 } from './bellSchedule';
@@ -139,5 +141,42 @@ describe('listTeacherBellPeriods', () => {
       { buildingId: 'b1', periodId: 'P3', label: 'Period 3' },
     ]);
     expect(listTeacherBellPeriods([], ['b1'])).toEqual([]);
+  });
+});
+
+describe('matchBellPeriod', () => {
+  const options = [
+    { buildingId: 'b1', periodId: 'P3', label: 'Period 3' },
+    { buildingId: 'b1', periodId: '5A', label: '5th Hour (A)' },
+    { buildingId: 'b1', periodId: '5B', label: '5th Hour (B)' },
+    { buildingId: 'b1', periodId: 'Planning', label: 'Planning' },
+  ];
+
+  it('folds period prefixes and leading zeros', () => {
+    expect(normalizePeriodKey(' Period 03 ')).toBe('3');
+    expect(normalizePeriodKey('P3')).toBe('3');
+    expect(normalizePeriodKey('0')).toBe('0');
+    expect(normalizePeriodKey('Planning')).toBe('planning');
+  });
+
+  it('tags the one building period a OneRoster period names', () => {
+    expect(matchBellPeriod(['3'], options)).toEqual({
+      buildingId: 'b1',
+      periodId: 'P3',
+    });
+    expect(matchBellPeriod(['5b'], options)).toEqual({
+      buildingId: 'b1',
+      periodId: '5B',
+    });
+  });
+
+  it('leaves the class untagged when nothing or several periods match', () => {
+    expect(matchBellPeriod(['5'], options)).toBeNull();
+    expect(matchBellPeriod(['3', '5A'], options)).toBeNull();
+    expect(matchBellPeriod([], options)).toBeNull();
+    expect(matchBellPeriod(['3'], undefined)).toBeNull();
+    expect(
+      matchBellPeriod(['3'], [...options, { ...options[0], buildingId: 'b2' }])
+    ).toBeNull();
   });
 });

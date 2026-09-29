@@ -72,6 +72,8 @@ export interface ClassLinkClass {
   title: string;
   classCode?: string;
   subject?: string;
+  /** OneRoster class periods, e.g. ["5"]. */
+  periods?: string[];
 }
 
 export interface ClassLinkStudent {
@@ -178,6 +180,8 @@ export interface ClassRosterMeta {
   classlinkOrgId?: string;
   /** Epoch ms of the last ClassLink import or merge for this roster. */
   classlinkSyncedAt?: number;
+  /** OneRoster class periods from the last import or ClassLink dialog load. */
+  classlinkPeriods?: string[];
   /** Counts from the last nightly sync. Names stay in Drive (`lastSync`). */
   classlinkSyncSummary?: RosterSyncCounts;
   /**

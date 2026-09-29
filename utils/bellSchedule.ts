@@ -125,3 +125,26 @@ export function listTeacherBellPeriods(
   }
   return out;
 }
+
+/** Folds "Period 05", "P5" and "5" to one key so OneRoster periods can match building period ids. */
+export function normalizePeriodKey(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/^(period|per|p)\s*(?=\d)/, '')
+    .replace(/^0+(?=\w)/, '');
+}
+
+/** The one teacher bell period a ClassLink class's OneRoster periods name, or null when none or several match. */
+export function matchBellPeriod(
+  periods: readonly string[] | undefined,
+  options: readonly BuildingBellPeriodOption[] | undefined
+): RosterBellPeriod | null {
+  if (!periods?.length || !options?.length) return null;
+  const wanted = new Set(periods.map(normalizePeriodKey).filter(Boolean));
+  const hits = options.filter((o) =>
+    wanted.has(normalizePeriodKey(o.periodId))
+  );
+  if (hits.length !== 1) return null;
+  return { buildingId: hits[0].buildingId, periodId: hits[0].periodId };
+}
