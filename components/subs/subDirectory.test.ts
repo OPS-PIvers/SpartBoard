@@ -99,4 +99,24 @@ describe('buildDirectoryEntries', () => {
       ['Zed Adams', 'collection-board'],
     ]);
   });
+
+  it('does not crash on a shared board stored without a name', () => {
+    const [entry] = buildDirectoryEntries(
+      [],
+      [
+        collectionShare({
+          shareId: 's9',
+          kind: 'board',
+          boards: [
+            {
+              id: 'board-b730',
+              sectionId: 'x',
+              order: 0,
+            } as unknown as NonNullable<SharedCollection['boards']>[number],
+          ],
+        }),
+      ]
+    );
+    expect(entry).toMatchObject({ shareId: 's9', boardId: 'board-b730' });
+  });
 });
