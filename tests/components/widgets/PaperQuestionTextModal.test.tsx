@@ -362,6 +362,9 @@ describe('PaperQuestionTextModal with only an answer key (R17)', () => {
     const file = new File([new Uint8Array(4)], 'key.pdf', {
       type: 'application/pdf',
     });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Attach a separate answer key' })
+    );
     fireEvent.change(screen.getByLabelText('Upload answer key'), {
       target: { files: [file] },
     });

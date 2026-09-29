@@ -72,6 +72,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
 }) => {
   const [step, setStep] = useState<Step>('setup');
   const [progress, setProgress] = useState('');
+  const [submitSlot, setSubmitSlot] = useState<HTMLDivElement | null>(null);
   const [picking, setPicking] = useState(false);
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [apply, setApply] = useState<Record<number, boolean>>({});
@@ -293,11 +294,10 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
 
   const renderUploaderSetup = () => (
     <div className="space-y-4 px-5 pb-5 pt-4">
-      <p className="text-sm text-slate-700">
-        Add the test paper, the answer key, or both.
-      </p>
       <TestAndKeyUploader
         allowKeyAlone
+        keyBehindLink
+        submitContainer={submitSlot}
         pickFromDrive={
           onPickFromDrive
             ? async () => {
@@ -491,6 +491,17 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
         >
           Apply to {applyCount} question{applyCount === 1 ? '' : 's'}
         </button>
+      </div>
+    ) : step === 'setup' && readDocument ? (
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+        >
+          Cancel
+        </button>
+        <div ref={setSubmitSlot} className="flex-1" />
       </div>
     ) : undefined;
 

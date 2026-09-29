@@ -6,14 +6,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  CloudDownload,
-  FilePlus,
-  FileText,
-  FileUp,
-  Loader2,
-  X,
-} from 'lucide-react';
+import { CloudDownload, FilePlus, FileText, Loader2, X } from 'lucide-react';
 import { useFilesDrop } from '@/hooks/useFileDrop';
 import { documentKind } from '@/utils/quizDocumentImport/fileKind';
 import {
@@ -67,8 +60,6 @@ interface TestAndKeyUploaderProps {
   keyBehindLink?: boolean;
   /** Renders the submit button here instead, e.g. a modal footer. */
   submitContainer?: Element | null;
-  /** Centers each zone's title and file name. */
-  centered?: boolean;
   /** Test seams. */
   looksLikeKey?: (file: Blob, name: string) => Promise<boolean>;
   decode?: (file: File) => Promise<File>;
@@ -107,7 +98,6 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
   children,
   keyBehindLink = false,
   submitContainer,
-  centered = false,
   looksLikeKey = looksLikeAnswerKey,
   decode = decodeIfHeic,
 }) => {
@@ -380,7 +370,6 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
           <DropZone
             zone="test"
             name="test questions"
-            centered={centered}
             title={
               keyCollapsed
                 ? 'Test questions & answer key (optional)'
@@ -419,7 +408,6 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
           <DropZone
             zone="key"
             name="answer key"
-            centered={centered}
             title={showTest ? 'Answer key (optional)' : 'Answer key'}
             hint="PDF, Word, .odt, .rtf or photos"
             accept={`${DOCUMENT_ACCEPT},${PHOTO_ACCEPT}`}
@@ -473,7 +461,6 @@ interface DropZoneProps {
   zone: Zone;
   /** Lowercase noun for control labels, e.g. "answer key". */
   name: string;
-  centered: boolean;
   title: string;
   hint: string;
   accept: string;
@@ -493,7 +480,6 @@ interface DropZoneProps {
 const DropZone: React.FC<DropZoneProps> = ({
   zone,
   name,
-  centered,
   title,
   hint,
   accept,
@@ -520,22 +506,16 @@ const DropZone: React.FC<DropZoneProps> = ({
       aria-labelledby={titleId}
       data-testid={`${zone}-zone`}
       {...drop.dropProps}
-      className={`flex ${centered ? '' : 'min-h-[9rem]'} flex-col gap-2 rounded-2xl border-2 border-dashed p-3 transition-colors ${
+      className={`flex flex-col gap-2 rounded-2xl border-2 border-dashed p-3 transition-colors ${
         drop.dragging
           ? 'border-brand-blue-primary bg-brand-blue-lighter/50'
           : 'border-slate-300 bg-slate-50/60'
       }`}
     >
-      <div
-        className={
-          centered
-            ? 'grid grid-cols-[1fr_auto_1fr] items-baseline gap-2'
-            : 'flex items-baseline justify-between gap-2'
-        }
-      >
+      <div className="grid grid-cols-[1fr_auto_1fr] items-baseline gap-2">
         <h3
           id={titleId}
-          className={`text-sm font-bold text-slate-800 ${centered ? 'col-start-2 text-center' : ''}`}
+          className="col-start-2 text-center text-sm font-bold text-slate-800"
         >
           {title}
         </h3>
@@ -553,9 +533,7 @@ const DropZone: React.FC<DropZoneProps> = ({
       </div>
 
       {content?.kind === 'document' && (
-        <p
-          className={`flex items-center gap-2 truncate text-sm font-semibold text-slate-700 ${centered ? 'justify-center' : ''}`}
-        >
+        <p className="flex items-center justify-center gap-2 truncate text-sm font-semibold text-slate-700">
           <FileText className="h-4 w-4 shrink-0 text-slate-500" />
           <span className="truncate">{content.fileName}</span>
         </p>
@@ -632,10 +610,8 @@ const DropZone: React.FC<DropZoneProps> = ({
         <div className="mt-auto flex flex-col items-center gap-1.5 text-center">
           {!content && (
             <>
-              {working ? (
+              {working && (
                 <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
-              ) : (
-                !centered && <FileUp className="h-5 w-5 text-slate-500" />
               )}
               <p className="text-xs text-slate-600">
                 {drop.dragging ? 'Drop it here' : `Drop a file here · ${hint}`}
