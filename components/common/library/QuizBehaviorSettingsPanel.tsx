@@ -40,6 +40,8 @@ export interface QuizBehaviorSettingsPanelProps {
   readAloudAvailable?: boolean;
   /** Admin raise-hand gate; the checkbox is hidden unless this is 'teacher-choice'. */
   handRaiseMode?: QuizHandRaiseMode;
+  /** A question needs a teacher grade, so "Show score on submit" is unavailable. */
+  hasManualGrading?: boolean;
 }
 
 export const QuizBehaviorSettingsPanel: React.FC<
@@ -50,11 +52,17 @@ export const QuizBehaviorSettingsPanel: React.FC<
   modeLocked = false,
   readAloudAvailable = false,
   handRaiseMode = DEFAULT_QUIZ_HAND_RAISE_MODE,
+  hasManualGrading = false,
 }) => {
   const { t } = useTranslation();
   // Read via context so a provider-less host hides the row instead of throwing.
+  const authContext = useContext(AuthContext);
   const tabAwayTimerOn =
-    useContext(AuthContext)?.canAccessFeature?.('tab-away-timer') === true;
+    authContext?.canAccessFeature?.('tab-away-timer') === true;
+  const scoreOnSubmitOn =
+    authContext?.canAccessFeature?.('quiz-score-on-submit') === true;
+  const scoreOnSubmit =
+    !hasManualGrading && value.sessionOptions.showScoreOnSubmit === true;
   const modes: AssignModeOption[] = SESSION_MODES.map((m) => ({
     ...m,
     ...(m.id === 'student' ? { label: QUIZ_STUDENT_MODE_LABEL } : {}),
@@ -122,6 +130,41 @@ export const QuizBehaviorSettingsPanel: React.FC<
         modeLocked={modeLocked}
         showCopyPasteToggle
         showLearningTargetsToggle
+        feedbackLeadingSlot={
+          scoreOnSubmitOn && (
+            <ToggleRow
+              compact
+              label={t('quizScoreOnSubmit.label', 'Show score on submit')}
+              checked={scoreOnSubmit}
+              disabled={hasManualGrading}
+              onChange={(v) =>
+                onChange({
+                  ...value,
+                  sessionOptions: {
+                    ...value.sessionOptions,
+                    showScoreOnSubmit: v,
+                  },
+                })
+              }
+              hint={
+                hasManualGrading
+                  ? t(
+                      'quizScoreOnSubmit.unavailable',
+                      'Not available with free-response questions.'
+                    )
+                  : scoreOnSubmit
+                    ? t(
+                        'quizScoreOnSubmit.on',
+                        'Students see their score as soon as they submit.'
+                      )
+                    : t(
+                        'quizScoreOnSubmit.off',
+                        'Students see their score when you publish results.'
+                      )
+              }
+            />
+          )
+        }
         options={{
           tabWarningsEnabled: value.sessionOptions.tabWarningsEnabled,
           blockCopyPaste: value.sessionOptions.blockCopyPaste,

@@ -189,6 +189,7 @@ import { isValidDraw, orderServedQuestions } from '@/utils/questionBanks';
 import { chooseServedDraw } from '@/utils/quizBankDraw';
 import { groupQuestionsByTargets } from '@/utils/quizTargetStats';
 import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
+import { useQuizScoreOnSubmit } from '@/hooks/useQuizScoreOnSubmit';
 import {
   DEFAULT_WRITTEN_RETURN_MODE,
   isPaperWrittenAnswer,
@@ -463,6 +464,7 @@ const QuizJoinFlow: React.FC<{
     periodKeys,
     contentPending,
   } = useQuizSessionStudent();
+  useQuizScoreOnSubmit(session, myResponse);
 
   const handleJoin = useCallback(
     async (joinCode: string, joinPin: string) => {

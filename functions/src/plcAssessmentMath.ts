@@ -296,7 +296,7 @@ function parseRubricCriterionIds(raw: unknown): string[] {
     .filter((id) => id.length > 0);
 }
 
-function parseSyncedQuestion(raw: unknown): GroupQuestion | null {
+export function parseSyncedQuestion(raw: unknown): GroupQuestion | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const r = raw as Record<string, unknown>;
   const id = asString(r.id);

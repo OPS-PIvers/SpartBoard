@@ -142,6 +142,11 @@ import { readAloudTranslationLocales } from '@/config/quizReadAloud';
 import { alignToPreviousOrder } from '@/utils/quizLocalizedArrays';
 import { freshQuestionIdsByLocale } from '@/utils/quizTranslationIndex';
 import { revealValueFor } from '@/utils/quizFibAlternates';
+import {
+  buildScoreOnSubmitKey,
+  quizNeedsManualGrading,
+  SCORE_ON_SUBMIT_KEY_DOC,
+} from '@/utils/quizScoreOnSubmit';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -617,6 +622,18 @@ function isHandRaiseGatePending(
   );
 }
 
+/** Server-only answer key `scoreQuizOnSubmitV1` grades with. */
+const scoreKeyRef = (userId: string, assignmentId: string) =>
+  doc(
+    db,
+    'users',
+    userId,
+    QUIZ_ASSIGNMENTS_COLLECTION,
+    assignmentId,
+    'key',
+    SCORE_ON_SUBMIT_KEY_DOC
+  );
+
 /** Flatten session-option toggles onto the session doc's mirror fields. */
 function sessionOptionsToSessionPatch(
   o: QuizSessionOptions
@@ -652,6 +669,8 @@ function sessionOptionsToSessionPatch(
   if (o.shuffleAnswerOptions !== undefined)
     patch.shuffleAnswerOptions = o.shuffleAnswerOptions;
   if (o.readAloudAll !== undefined) patch.readAloudAll = o.readAloudAll;
+  if (o.showScoreOnSubmit !== undefined)
+    patch.showScoreOnSubmit = o.showScoreOnSubmit;
   // `handRaiseEnabled` is deliberately NOT mirrored: it is resolved against the
   // admin gate at create time only, so a later patch (e.g. a PLC sync) can't
   // switch raise hand on inside a force-off building. Running sessions keep
@@ -1125,6 +1144,8 @@ export const useQuizAssignments = (
     authContext?.canAccessQuizMediaResponse?.() === true;
   const tabAwayTimerOn =
     authContext?.canAccessFeature?.('tab-away-timer') === true;
+  const scoreOnSubmitOn =
+    authContext?.canAccessFeature?.('quiz-score-on-submit') === true;
   // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
   const allowAnonymousJoin =
     authContext?.canAccessFeature?.('anonymous-join') !== false;
@@ -1482,6 +1503,11 @@ export const useQuizAssignments = (
         showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
         showCorrectOnBoard: opts.showCorrectOnBoard ?? false,
         showLearningTargets: opts.showLearningTargets ?? false,
+        ...(scoreOnSubmitOn &&
+        opts.showScoreOnSubmit &&
+        !quizNeedsManualGrading(sessionQuestions)
+          ? { showScoreOnSubmit: true }
+          : {}),
         revealedAnswers: {},
         // Phase 2 gamification
         speedBonusEnabled: opts.speedBonusEnabled ?? false,
@@ -1602,6 +1628,12 @@ export const useQuizAssignments = (
           : assignment
       );
       batch.set(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), sessionDoc);
+      // Written whenever the flag is on, so switching the setting on later has a key to grade with.
+      if (scoreOnSubmitOn) {
+        batch.set(scoreKeyRef(userId, assignmentId), {
+          questions: buildScoreOnSubmitKey(sessionQuestions),
+        });
+      }
       if (sessionContent) {
         batch.set(
           doc(
@@ -1679,6 +1711,7 @@ export const useQuizAssignments = (
       resolveHandRaiseMode,
       tabAwayTimerOn,
       allowAnonymousJoin,
+      scoreOnSubmitOn,
     ]
   );
 
@@ -1949,6 +1982,7 @@ export const useQuizAssignments = (
       batch.delete(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
       );
+      batch.delete(scoreKeyRef(userId, assignmentId));
       await batch.commit();
     },
     [userId]
@@ -2897,6 +2931,11 @@ export const useQuizAssignments = (
         };
         firstBatch.set(contentRef, syncedContent);
       }
+      if (scoreOnSubmitOn) {
+        firstBatch.set(scoreKeyRef(userId, assignmentId), {
+          questions: buildScoreOnSubmitKey(canonicalQuestions),
+        });
+      }
       const syncReadAloud =
         (behavior?.sessionOptions ?? assignment.sessionOptions)
           ?.readAloudAll === true ||
@@ -2906,7 +2945,7 @@ export const useQuizAssignments = (
       // Assignment + session (+ content) writes already used; fill the rest.
       const firstChunkSize = Math.min(
         responsesToTag.length,
-        MAX_BATCH_WRITES - (inContent ? 3 : 2)
+        MAX_BATCH_WRITES - (inContent ? 3 : 2) - (scoreOnSubmitOn ? 1 : 0)
       );
       for (let i = 0; i < firstChunkSize; i++) {
         firstBatch.update(responsesToTag[i].ref, {
@@ -2947,7 +2986,7 @@ export const useQuizAssignments = (
         taggedResponseCount: responsesToTag.length,
       };
     },
-    [userId, projectPublicQuestionForMode]
+    [userId, projectPublicQuestionForMode, scoreOnSubmitOn]
   );
 
   const unpublishAssignmentScores = useCallback<

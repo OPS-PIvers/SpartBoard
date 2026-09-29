@@ -211,6 +211,8 @@ export interface AssignmentSettingsToggleGroupProps {
   showCopyPasteToggle?: boolean;
   /** Quiz-only: expose the learning-target grouping toggle in Answer Feedback. */
   showLearningTargetsToggle?: boolean;
+  /** Rows rendered first inside Answer Feedback (Quiz's "Show score on submit"). */
+  feedbackLeadingSlot?: React.ReactNode;
   /**
    * Optional content rendered directly under the Focus mode row
    * (still inside the integrity section). Quiz uses this for the M17 B4
@@ -242,6 +244,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
   integritySectionLabel,
   showCopyPasteToggle = false,
   showLearningTargetsToggle = false,
+  feedbackLeadingSlot,
   afterTabWarningsSlot,
 }) => {
   const update = <K extends keyof BaseSessionOptions>(
@@ -317,6 +320,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
 
       {showSection('feedback') && (
         <CollapsibleSection label="Answer Feedback">
+          {feedbackLeadingSlot}
           <ToggleRow
             compact
             label="Show right/wrong to students"
