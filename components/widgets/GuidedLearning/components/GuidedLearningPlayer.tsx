@@ -450,18 +450,16 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       ? panZoomTargetStep.id
       : null;
 
-  // v2 zoom persistence — the held scale survives step changes until reset.
+  // v2 zoom: pan-zoom steps set the scale, any other step eases back to 100%.
   const [zoomScale, setZoomScale] = useState(1);
   const [prevPanZoomId, setPrevPanZoomId] = useState<string | null>(null);
   if (schemaV2 && panZoomActive !== prevPanZoomId) {
     setPrevPanZoomId(panZoomActive);
-    if (panZoomActive) {
-      const zoomStep = steps.find((s) => s.id === panZoomActive);
-      setZoomScale(zoomStep?.panZoomScale ?? 2.5);
-    } else if (mode === 'explore') {
-      // Explore deselect animates back to identity — clear the held zoom too.
-      setZoomScale(1);
-    }
+    setZoomScale(
+      panZoomActive
+        ? (steps.find((s) => s.id === panZoomActive)?.panZoomScale ?? 2.5)
+        : 1
+    );
   }
 
   // Steps the learner has moved past or completed, for the outline's marks.
