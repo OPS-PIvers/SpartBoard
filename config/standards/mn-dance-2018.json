@@ -2,7 +2,7 @@
   "set": "mn-dance-2018",
   "subject": "art",
   "source": "MN_Dance_Standards.csv",
-  "revision": "2018 Draft #3 (Color Table Version)",
+  "revision": "2018 Adopted (MDE spreadsheet, Perpich mirror Nov 2020)",
   "count": 165,
   "benchmarks": [
     {
@@ -173,7 +173,7 @@
       "grade": "6",
       "strand": "Dance: 2. Create",
       "standard": "2. Generate and develop original artistic ideas.",
-      "text": "Demonstrate various movement vocabularies and analyze how each each expresses artistic intent."
+      "text": "Demonstrate various movement vocabularies and analyze how each expresses artistic intent."
     },
     {
       "id": "mn-dance-2018:1.7.2.2.2",
@@ -393,7 +393,7 @@
       "grade": "8",
       "strand": "Dance: 2. Create",
       "standard": "3. Create original artistic work.",
-      "text": "Create a dance study that communicates personal, societal, historical, or cultural meaning. Develop an artistic statement that supports the artistic intentand identifies source materials."
+      "text": "Create a dance study that communicates personal, societal, historical, or cultural meaning. Develop an artistic statement that supports the artistic intent and identifies source materials."
     },
     {
       "id": "mn-dance-2018:1.9.2.3.2",
@@ -463,7 +463,7 @@
       "grade": "5",
       "strand": "Dance: 2. Create",
       "standard": "4. Revise and complete original artistic work.",
-      "text": "Explain creative choices, sources, and revisons based on feedback."
+      "text": "Explain creative choices, sources, and revisions based on feedback."
     },
     {
       "id": "mn-dance-2018:1.6.2.4.1",
@@ -1233,7 +1233,7 @@
       "grade": "7",
       "strand": "Dance: 4. Respond",
       "standard": "8. Evaluate artistic work by applying criteria.",
-      "text": "Work collaboratively to develop criteria to critique a dance using genre-specfic dance terminology."
+      "text": "Work collaboratively to develop criteria to critique a dance using genre-specific dance terminology."
     },
     {
       "id": "mn-dance-2018:1.8.4.8.1",
@@ -1353,7 +1353,7 @@
       "grade": "9-12",
       "strand": "Dance: 5. Connect",
       "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
-      "text": "Discribe content and context of choreography developed over time and its relationship to personal perspectives."
+      "text": "Describe content and context of choreography developed over time and its relationship to personal perspectives."
     },
     {
       "id": "mn-dance-2018:1.0.5.9.2",

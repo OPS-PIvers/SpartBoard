@@ -2,7 +2,7 @@
   "set": "mn-visual-arts-2018",
   "subject": "art",
   "source": "MN_Visual_Arts_Standards.csv",
-  "revision": "2018 Draft #3 (Color Table Version)",
+  "revision": "2018 Adopted (MDE spreadsheet, Perpich mirror Nov 2020)",
   "count": 130,
   "benchmarks": [
     {
@@ -153,7 +153,7 @@
       "grade": "4",
       "strand": "Visual Arts: 2. Create",
       "standard": "2. Generate and develop original artistic ideas.",
-      "text": "Incorporate personal choice into divising a solution for a creative art problem."
+      "text": "Incorporate personal choice into devising a solution for a creative art problem."
     },
     {
       "id": "mn-visual-arts-2018:5.5.2.2.2",
@@ -383,7 +383,7 @@
       "grade": "7",
       "strand": "Visual Arts: 2. Create",
       "standard": "3. Create original artistic work.",
-      "text": "Describe ethical responsbility when sharing original artwork through the internet and communication formats."
+      "text": "Describe ethical responsibility when sharing original artwork through the internet and communication formats."
     },
     {
       "id": "mn-visual-arts-2018:5.8.2.3.2",
@@ -512,7 +512,7 @@
       "code": "5.0.3.5.1",
       "grade": "K",
       "strand": "Visual Arts: 3. Present",
-      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "standard": "5. Develop and refine artistic techniques and work for presentation.",
       "text": "Share artwork based on personal preference."
     },
     {
@@ -522,7 +522,7 @@
       "code": "5.1.3.5.1",
       "grade": "1",
       "strand": "Visual Arts: 3. Present",
-      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "standard": "5. Develop and refine artistic techniques and work for presentation.",
       "text": "Identify why artwork should be prepared for presentation."
     },
     {
@@ -532,7 +532,7 @@
       "code": "5.2.3.5.1",
       "grade": "2",
       "strand": "Visual Arts: 3. Present",
-      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "standard": "5. Develop and refine artistic techniques and work for presentation.",
       "text": "Prepare works of art for presentation in a specific location.\nFor example: Physical or digital formats."
     },
     {
@@ -542,7 +542,7 @@
       "code": "5.3.3.5.1",
       "grade": "3",
       "strand": "Visual Arts: 3. Present",
-      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "standard": "5. Develop and refine artistic techniques and work for presentation.",
       "text": "Evaluate the functionality of different spaces for exhibiting art."
     },
     {
@@ -552,7 +552,7 @@
       "code": "5.4.3.5.1",
       "grade": "4",
       "strand": "Visual Arts: 3. Present",
-      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "standard": "5. Develop and refine artistic techniques and work for presentation.",
       "text": "Identify considerations for presenting art in various locations.\nFor example: Indoor or outdoor settings; in temporary or permanent forms; in physical or digital spaces."
     },
     {
@@ -562,7 +562,7 @@
       "code": "5.5.3.5.1",
       "grade": "5",
       "strand": "Visual Arts: 3. Present",
-      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "standard": "5. Develop and refine artistic techniques and work for presentation.",
       "text": "Compare and contrast methods for preparing and presenting art."
     },
     {
@@ -572,7 +572,7 @@
       "code": "5.6.3.5.1",
       "grade": "6",
       "strand": "Visual Arts: 3. Present",
-      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "standard": "5. Develop and refine artistic techniques and work for presentation.",
       "text": "Consider and respond to the needs of the viewer when displaying artwork."
     },
     {
@@ -582,7 +582,7 @@
       "code": "5.7.3.5.1",
       "grade": "7",
       "strand": "Visual Arts: 3. Present",
-      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "standard": "5. Develop and refine artistic techniques and work for presentation.",
       "text": "Individually or collaboratively develop a visual plan for displaying works of art."
     },
     {
@@ -592,7 +592,7 @@
       "code": "5.8.3.5.1",
       "grade": "8",
       "strand": "Visual Arts: 3. Present",
-      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "standard": "5. Develop and refine artistic techniques and work for presentation.",
       "text": "Collaboratively apply appropriate methods to prepare and present selected artwork for display."
     },
     {
@@ -602,7 +602,7 @@
       "code": "5.9.3.5.1",
       "grade": "9-12",
       "strand": "Visual Arts: 3. Present",
-      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "standard": "5. Develop and refine artistic techniques and work for presentation.",
       "text": "Evaluate, select, and apply methods or processes appropriate to display artwork in a specific place, including an artist statement."
     },
     {
@@ -612,7 +612,7 @@
       "code": "5.0.3.6.1",
       "grade": "K",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Identify artwork based on a theme or concept using artistic foundations."
     },
     {
@@ -622,7 +622,7 @@
       "code": "5.1.3.6.1",
       "grade": "1",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Identify places where art may be displayed or saved."
     },
     {
@@ -632,7 +632,7 @@
       "code": "5.2.3.6.1",
       "grade": "2",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Choose artwork based on a theme or concept for an exhibit."
     },
     {
@@ -642,7 +642,7 @@
       "code": "5.3.3.6.1",
       "grade": "3",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Explain the purpose of a portfolio or collection."
     },
     {
@@ -652,7 +652,7 @@
       "code": "5.4.3.6.1",
       "grade": "4",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Select artwork for display in a collection with a specific purpose or theme."
     },
     {
@@ -662,7 +662,7 @@
       "code": "5.5.3.6.1",
       "grade": "5",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Identify and describe the choices an artist makes when assembling a presentation or a portfolio.\nFor example: Physical vs. digital formats."
     },
     {
@@ -672,7 +672,7 @@
       "code": "5.6.3.6.1",
       "grade": "6",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Select artwork for a collection or portfolio based on given criteria."
     },
     {
@@ -682,7 +682,7 @@
       "code": "5.7.3.6.1",
       "grade": "7",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Compare and contrast the differences between engaging with art through technology and physically experiencing an artwork."
     },
     {
@@ -692,7 +692,7 @@
       "code": "5.8.3.6.1",
       "grade": "8",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Develop and apply criteria for evaluating a collection of artwork for presentation."
     },
     {
@@ -702,7 +702,7 @@
       "code": "5.9.3.6.1",
       "grade": "9-12",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Analyze, critique, and justify artwork in an artist statement for a collection or portfolio presentation."
     },
     {
@@ -712,7 +712,7 @@
       "code": "5.0.3.6.2",
       "grade": "K",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Identify where art is found in a community."
     },
     {
@@ -722,7 +722,7 @@
       "code": "5.1.3.6.2",
       "grade": "1",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Identify what an art museum is and distinguish how an art museum is different from other art spaces. For example: Physical and digital spaces."
     },
     {
@@ -732,7 +732,7 @@
       "code": "5.2.3.6.2",
       "grade": "2",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Compare and contrast purposes of art museums, art galleries, and other venues or formats."
     },
     {
@@ -742,7 +742,7 @@
       "code": "5.3.3.6.2",
       "grade": "3",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Compare and contrast objects, artifacts, and artworks that are valued in different communities or cultures."
     },
     {
@@ -752,7 +752,7 @@
       "code": "5.4.3.6.2",
       "grade": "4",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Identify how an exhibition in a museum or other venue presents ideas and provides information about a specific concept or topic."
     },
     {
@@ -762,7 +762,7 @@
       "code": "5.5.3.6.2",
       "grade": "5",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Explain why some objects, artifacts, and artworks are valued over others."
     },
     {
@@ -772,7 +772,7 @@
       "code": "5.6.3.6.2",
       "grade": "6",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Compare and contrast viewing and experiencing collections or exhibitions in different venues or formats."
     },
     {
@@ -782,7 +782,7 @@
       "code": "5.7.3.6.2",
       "grade": "7",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Explain how exhibitions reflect the history and values of a community."
     },
     {
@@ -792,7 +792,7 @@
       "code": "5.8.3.6.2",
       "grade": "8",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Analyze why and how an exhibition or collection may influence ideas, beliefs, and experiences."
     },
     {
@@ -802,7 +802,7 @@
       "code": "5.9.3.6.2",
       "grade": "9-12",
       "strand": "Visual Arts: 3. Present",
-      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "standard": "6. Make artistic choices in order to convey meaning through presentation.",
       "text": "Analyze relationships between artists, artwork, and audience for impact of presentation."
     },
     {
@@ -963,7 +963,7 @@
       "grade": "5",
       "strand": "Visual Arts: 4. Respond",
       "standard": "8. Evaluate artistic work by applying criteria.",
-      "text": "Establish the validity of percieved cultural symbols within an artwork."
+      "text": "Establish the validity of perceived cultural symbols within an artwork."
     },
     {
       "id": "mn-visual-arts-2018:5.6.4.8.1",

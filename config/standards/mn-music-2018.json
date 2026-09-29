@@ -2,7 +2,7 @@
   "set": "mn-music-2018",
   "subject": "music",
   "source": "MN_Music_Standards.csv",
-  "revision": "2018 Draft #3 (Color Table Version)",
+  "revision": "2018 Adopted (MDE spreadsheet, Perpich mirror Nov 2020)",
   "count": 90,
   "benchmarks": [
     {
@@ -473,7 +473,7 @@
       "grade": "6",
       "strand": "3. Present",
       "standard": "6. Make artistic choices in order to convey meaning through performance.",
-      "text": "Perform music for an audience by responding to notation and applying musical elements and technical skills.For example: Audience being a classmate, friend, online platform, or a large group."
+      "text": "Perform music for an audience by responding to notation and applying musical elements and technical skills.\nFor example: Audience being a classmate, friend, online platform, or a large group."
     },
     {
       "id": "mn-music-2018:3.7.3.6.1",

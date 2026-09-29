@@ -2,7 +2,7 @@
   "set": "mn-theatre-2018",
   "subject": "art",
   "source": "MN_Theatre_Standards.csv",
-  "revision": "2018 Draft #3 (Color Table Version)",
+  "revision": "2018 Adopted (MDE spreadsheet, Perpich mirror Nov 2020)",
   "count": 169,
   "benchmarks": [
     {
@@ -1563,7 +1563,7 @@
       "grade": "6",
       "strand": "Theatre: 5. Connect",
       "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
-      "text": "Explain how the actions and motivationsof characters in a work impact and reflect perspectives of a community or culture."
+      "text": "Explain how the actions and motivations of characters in a work impact and reflect perspectives of a community or culture."
     },
     {
       "id": "mn-theatre-2018:4.7.5.9.1",
