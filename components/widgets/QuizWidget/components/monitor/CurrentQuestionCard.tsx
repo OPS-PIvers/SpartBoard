@@ -16,6 +16,8 @@ interface CurrentQuestionCardProps {
   onAdvance: () => Promise<void>;
   /** This widget instance's id, for live-tour anchor scoping. */
   widgetId?: string;
+  /** Class controls, shown at the top of the card. */
+  periodControls?: React.ReactNode;
 }
 
 // Blue Lighter panel per the approved design — flat fill, no accent stripes.
@@ -27,6 +29,7 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
   doneCount,
   onAdvance,
   widgetId,
+  periodControls,
 }) => {
   const [advancing, setAdvancing] = useState(false);
   const handleAdvance = async () => {
@@ -120,13 +123,10 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
   }
 
   if (isSelfPaced || !currentQ) {
-    return (
+    const summary = (
       <div
-        className="bg-brand-blue-lighter rounded-xl flex items-center justify-between"
-        style={{
-          padding: 'min(12px, 3cqmin) min(16px, 3.5cqmin)',
-          gap: 'min(8px, 2cqmin)',
-        }}
+        className="flex items-center justify-between"
+        style={{ gap: 'min(8px, 2cqmin)' }}
       >
         <p
           className="text-brand-gray-dark"
@@ -142,6 +142,18 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
         </p>
       </div>
     );
+    return (
+      <div
+        className="bg-brand-blue-lighter rounded-xl flex flex-col"
+        style={{
+          padding: 'min(12px, 3cqmin) min(16px, 3.5cqmin)',
+          gap: 'min(10px, 2.5cqmin)',
+        }}
+      >
+        {periodControls}
+        {summary}
+      </div>
+    );
   }
 
   return (
@@ -149,6 +161,7 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
       className="bg-brand-blue-lighter rounded-xl flex flex-col"
       style={{ padding: 'min(16px, 3.5cqmin)', gap: 'min(10px, 2.5cqmin)' }}
     >
+      {periodControls}
       <div
         className="flex items-baseline justify-between"
         style={{ gap: 'min(8px, 2cqmin)' }}

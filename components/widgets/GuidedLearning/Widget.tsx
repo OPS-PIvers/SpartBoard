@@ -23,7 +23,7 @@ import {
 import { db, functions } from '@/config/firebase';
 import { useDashboard } from '@/context/useDashboard';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
-import { buildPeriodAccess } from '@/utils/periodPlan';
+import { buildPeriodAccess, DEFAULT_PERIOD_PLAN } from '@/utils/periodPlan';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareGuidedLearningWidget } from './SubShareWidget';
 import { useDialog } from '@/context/useDialog';
@@ -653,7 +653,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       try {
         const selectedRosters = rosters.filter((r) => rosterIds.includes(r.id));
         const derived = deriveSessionTargetsFromRosters(selectedRosters);
-        const periodPlan = targeting.periodPlan ?? { mode: 'assignment' };
+        const periodPlan = targeting.periodPlan ?? DEFAULT_PERIOD_PLAN;
         const builtPeriodAccess =
           assignPeriodCtx && selectedRosters.length > 1
             ? buildPeriodAccess({

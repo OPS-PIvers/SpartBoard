@@ -71,15 +71,14 @@ describe('AssignPeriodAccessSection', () => {
     expect(screen.queryByText('Class periods')).not.toBeInTheDocument();
   });
 
-  it('defaults to Assignment and switches to In-class assessment', () => {
+  it('defaults to In-class assessment and switches to Assignment', () => {
     const onChange = renderSection();
-    expect(screen.getByRole('radio', { name: 'Assignment' })).toHaveAttribute(
-      'aria-checked',
-      'true'
-    );
-    fireEvent.click(screen.getByRole('radio', { name: 'In-class assessment' }));
+    expect(
+      screen.getByRole('radio', { name: 'In-class assessment' })
+    ).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByRole('radio', { name: 'Assignment' }));
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ periodPlan: { mode: 'assessment' } })
+      expect.objectContaining({ periodPlan: { mode: 'assignment' } })
     );
   });
 
@@ -113,7 +112,10 @@ describe('AssignPeriodAccessSection', () => {
   });
 
   it('records a per-period window source', () => {
-    const onChange = renderSection();
+    const onChange = renderSection({
+      ...EMPTY_ASSIGN_TARGETING_VALUE,
+      periodPlan: { mode: 'assignment' },
+    });
     fireEvent.click(screen.getByText('Customize per period'));
     fireEvent.change(screen.getByLabelText('Window for P3 Local'), {
       target: { value: 'custom' },

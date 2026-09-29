@@ -32,6 +32,9 @@ export function periodKeyForRoster(roster: PeriodRoster): string {
   return `roster:${roster.id}`;
 }
 
+/** The mode a multi-period assign starts in until the teacher picks one. */
+export const DEFAULT_PERIOD_PLAN: PeriodPlan = { mode: 'assessment' };
+
 /** SSO or the ClassLink PIN bridge gives this roster's students a class claim. */
 export function rosterIsVerified(roster: PeriodRoster): boolean {
   return !!roster.classlinkClassId || !!roster.testClassId;
@@ -103,7 +106,7 @@ export function buildPeriodGate({
   | { accessMode: AccessMode; periodAccess: Record<string, PeriodAccess> }
   | undefined {
   if (!bellWindow || rosters.length < 2) return undefined;
-  const resolved = plan ?? { mode: 'assignment' };
+  const resolved = plan ?? DEFAULT_PERIOD_PLAN;
   const periodAccess = buildPeriodAccess({
     plan: resolved,
     rosters,
