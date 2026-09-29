@@ -1139,6 +1139,7 @@
       "restore": "Restaurer",
       "renamePrompt": "Nouveau nom pour cette évaluation",
       "renameFailed": "Impossible de renommer cette évaluation. Réessayez.",
+      "reorderFailed": "Impossible d’enregistrer le nouvel ordre. Réessayez.",
       "archivedToast": "« {{title}} » archivée.",
       "archiveFailed": "Impossible d’archiver cette évaluation. Réessayez.",
       "restoredToast": "« {{title}} » restaurée.",

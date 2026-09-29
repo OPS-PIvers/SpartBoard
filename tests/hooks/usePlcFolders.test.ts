@@ -52,4 +52,40 @@ describe('usePlcFolders', () => {
     ).rejects.toThrow(/plcQuizId or assessmentId/);
     expect(mockCommit).not.toHaveBeenCalled();
   });
+
+  it('reorderEntries writes order to both docs without bumping updatedAt', async () => {
+    const { result } = renderHook(() => usePlcFolders('plc-1'));
+
+    await result.current.reorderEntries([
+      { plcQuizId: 'quiz-1', assessmentId: 'assess-1', order: 0 },
+      { plcQuizId: 'quiz-2', assessmentId: null, order: 1 },
+    ]);
+
+    expect(mockUpdate).toHaveBeenCalledWith('plcs/plc-1/quizzes/quiz-1', {
+      order: 0,
+    });
+    expect(mockUpdate).toHaveBeenCalledWith('plcs/plc-1/assessments/assess-1', {
+      order: 0,
+    });
+    expect(mockUpdate).toHaveBeenCalledWith('plcs/plc-1/quizzes/quiz-2', {
+      order: 1,
+    });
+    expect(mockUpdate).toHaveBeenCalledTimes(3);
+    expect(mockCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('reorderEntries splits large lists across batches', async () => {
+    const { result } = renderHook(() => usePlcFolders('plc-1'));
+
+    await result.current.reorderEntries(
+      Array.from({ length: 450 }, (_, i) => ({
+        plcQuizId: `q${i}`,
+        assessmentId: `a${i}`,
+        order: i,
+      }))
+    );
+
+    expect(mockUpdate).toHaveBeenCalledTimes(900);
+    expect(mockCommit).toHaveBeenCalledTimes(3);
+  });
 });

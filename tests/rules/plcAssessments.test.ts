@@ -434,6 +434,20 @@ describe('plcs/{plcId}/assessments — update', () => {
       })
     );
   });
+
+  it('allows a member to set an integer order and read it back', async () => {
+    await assertSucceeds(updateDoc(assessmentRef(asMember()), { order: 3 }));
+    await assertSucceeds(getDoc(assessmentRef(asMember())));
+  });
+
+  it('rejects a non-integer order', async () => {
+    await assertFails(updateDoc(assessmentRef(asMember()), { order: '3' }));
+    await assertFails(updateDoc(assessmentRef(asMember()), { order: 1.5 }));
+  });
+
+  it('rejects an order write from a non-member', async () => {
+    await assertFails(updateDoc(assessmentRef(asNonMember()), { order: 0 }));
+  });
 });
 
 // ---------------------------------------------------------------------------
