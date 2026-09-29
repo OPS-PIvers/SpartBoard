@@ -200,7 +200,7 @@ export const VideoActivityStudentApp: React.FC = () => {
  * Firestore — pasting the `?preview=1` URL into a tab is safe regardless of
  * what auth state that browser profile already carries. */
 const VideoActivityPreviewLobby: React.FC = () => (
-  <div className="h-screen overflow-y-auto bg-gradient-to-b from-white to-slate-100 flex flex-col">
+  <div className="h-screen [height:100dvh] overflow-y-auto bg-gradient-to-b from-white to-slate-100 flex flex-col">
     <TeacherPreviewBanner />
     <div className="flex-1 flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
@@ -765,7 +765,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
   if (periodStep && joinStatus !== 'joined') {
     return (
-      <div className="h-screen overflow-y-auto bg-gradient-to-b from-white to-slate-100">
+      <div className="h-screen [height:100dvh] overflow-y-auto bg-gradient-to-b from-white to-slate-100">
         <div className="min-h-full flex flex-col items-center justify-center p-6">
           <div className="w-full max-w-sm">
             <div className="flex items-center justify-center mb-8">
@@ -860,7 +860,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     }
 
     return (
-      <div className="h-screen overflow-y-auto bg-gradient-to-b from-white to-slate-100">
+      <div className="h-screen [height:100dvh] overflow-y-auto bg-gradient-to-b from-white to-slate-100">
         <div className="min-h-full flex flex-col items-center justify-center p-4">
           <div className="w-full max-w-sm">
             {/* Brand header */}
@@ -985,7 +985,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       : 0;
 
     return (
-      <div className="h-screen overflow-y-auto bg-gradient-to-b from-white to-slate-100">
+      <div className="h-screen [height:100dvh] overflow-y-auto bg-gradient-to-b from-white to-slate-100">
         <div className="min-h-full flex flex-col items-center justify-center p-4">
           <div className="w-full max-w-sm">
             <div className="bg-white rounded-2xl shadow-sm shadow-slate-900/5 border border-slate-200 overflow-hidden text-center">
@@ -1169,7 +1169,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   }
 
   return (
-    <div className="h-screen h-dvh overflow-hidden bg-gradient-to-b from-white to-slate-100 flex flex-col relative">
+    <div className="h-screen [height:100dvh] overflow-hidden bg-gradient-to-b from-white to-slate-100 flex flex-col relative">
       {shellOverlays}
 
       {/* Top bar */}

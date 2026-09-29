@@ -168,7 +168,7 @@ export const NextUpStudentApp: React.FC = () => {
   }
 
   return (
-    <div className="h-screen overflow-y-auto bg-white">
+    <div className="h-screen [height:100dvh] overflow-y-auto bg-white">
       <div className="min-h-full flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <div className="flex items-center justify-center mb-8 gap-2">

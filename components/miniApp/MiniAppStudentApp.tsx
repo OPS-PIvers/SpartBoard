@@ -309,7 +309,7 @@ const PeriodPicker: React.FC<{
     ...new Set(Object.values(session.periodAccess ?? {}).map((p) => p.label)),
   ].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   return (
-    <div className="h-screen overflow-y-auto bg-slate-900 flex [align-items:safe_center] justify-center p-6">
+    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-900 flex items-center [align-items:safe_center] justify-center p-6">
       <div className="bg-slate-800 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
         <p className="text-slate-300 text-sm font-semibold truncate mb-2">
           {session.appTitle}

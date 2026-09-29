@@ -340,7 +340,7 @@ const QuizPreviewLobby: React.FC = () => {
       : (new URLSearchParams(window.location.search).get('code') ?? '');
 
   return (
-    <div className="h-screen overflow-y-auto bg-slate-900 flex flex-col">
+    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-900 flex flex-col">
       <TeacherPreviewBanner />
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-sm">
@@ -991,7 +991,7 @@ const QuizJoinFlow: React.FC<{
       // grow past 100% via `min-h-full` — content centers when it fits and
       // the outer scrolls when it doesn't (e.g. teacher with 8+ periods on
       // a phone-sized viewport).
-      <div className="h-screen overflow-y-auto bg-slate-900">
+      <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-900">
         <div className="min-h-full flex flex-col items-center justify-center p-6">
           <div className="w-full max-w-sm">
             <div className="flex items-center justify-center mb-8">
@@ -3123,7 +3123,7 @@ export const ActiveQuiz: React.FC<{
     // on widescreens; this guarantees the narrow-viewport path stays
     // scroll-free regardless of what's rendered inside.
     <div
-      className={`h-screen overflow-y-auto overflow-x-hidden relative ${appBg}`}
+      className={`h-screen [height:100dvh] overflow-y-auto overflow-x-hidden relative ${appBg}`}
     >
       {/* The "your teacher unlocked your attempt" prompt — covers the quiz
           UI on first render after a teacher unlock so the student knows
@@ -4433,7 +4433,7 @@ const ReviewPhase: React.FC<{
   }
 
   return (
-    <div className="h-screen overflow-y-auto bg-slate-900">
+    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-900">
       <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
         {/* Question recap */}
         <p className="text-slate-400 text-xs uppercase tracking-widest mb-3">
@@ -4545,7 +4545,7 @@ const ResultsScreen: React.FC<{
   }
 
   return (
-    <div className="h-screen overflow-y-auto bg-slate-900">
+    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-900">
       <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
         <Trophy className="w-16 h-16 text-amber-400 mb-6" />
         <h1 className="text-3xl font-black text-white mb-2">Quiz Complete!</h1>
@@ -4881,7 +4881,7 @@ export const PublishedScoreReview: React.FC<{
   // state — no results are rendered once locked.
   if (lockedOut && embedded) {
     return (
-      <div className={`h-screen overflow-y-auto ${pageBg}`}>
+      <div className={`h-screen [height:100dvh] overflow-y-auto ${pageBg}`}>
         <div className="min-h-full flex flex-col items-center justify-center gap-4 p-6 text-center">
           <ShieldAlert
             className={`h-12 w-12 ${light ? 'text-amber-500' : 'text-amber-400'}`}
@@ -4908,7 +4908,7 @@ export const PublishedScoreReview: React.FC<{
   // active-quiz screen uses — see comment there for why.
   return (
     <div
-      className={`h-screen overflow-y-auto overflow-x-hidden px-4 py-8 sm:px-6 sm:py-12 ${pageBg}`}
+      className={`h-screen [height:100dvh] overflow-y-auto overflow-x-hidden px-4 py-8 sm:px-6 sm:py-12 ${pageBg}`}
     >
       {watermarkEnabled && (
         <ResultsWatermark

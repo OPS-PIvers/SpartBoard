@@ -80,7 +80,7 @@ export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
 
   if (!!error || !share || isExpired) {
     return (
-      <div className="h-screen overflow-y-auto bg-slate-50">
+      <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-50">
         <ExpiredOrErrorPanel
           message={
             isExpired
