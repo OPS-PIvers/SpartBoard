@@ -171,17 +171,34 @@ function setDirections(section: {
   return /\(([^()]+)\)\s*$/.exec(section.name ?? '')?.[1]?.trim();
 }
 
+/** Lines between two printings of a running header, at the least, off a PDF. */
+const HEADER_MIN_GAP = 5;
+/** An answer printed on its own line, which repeats without being a header. */
+const ANSWER_TOKEN = /^(?:true|false|t|f|yes|no|n\/?a|none)\.?$/i;
+
 /** A running header or footer, like "VERSION A" on every page, is never a heading. */
 function runningHeaders(lines: readonly DocLine[]): Set<string> {
-  const counts = new Map<string, number>();
-  for (const line of lines) {
+  const seen = new Map<string, number[]>();
+  lines.forEach((line, i) => {
     const text = tidy(line.text);
-    if (text) counts.set(text, (counts.get(text) ?? 0) + 1);
-  }
+    if (text) seen.set(text, [...(seen.get(text) ?? []), i]);
+  });
+  // A header repeats once a page: on different PDF pages, or well apart elsewhere.
+  const spread = (at: number[]): boolean =>
+    at.every((i, n) => {
+      if (n === 0) return true;
+      const page = lines[i].page;
+      const before = lines[at[n - 1]].page;
+      return page !== undefined && before !== undefined
+        ? page !== before
+        : i - at[n - 1] >= HEADER_MIN_GAP;
+    });
   const headers = new Set<string>();
-  for (const [text, count] of counts) {
+  for (const [text, at] of seen) {
     if (
-      count >= 3 &&
+      at.length >= 3 &&
+      spread(at) &&
+      !ANSWER_TOKEN.test(text) &&
       /[A-Z]/.test(text) &&
       !/[a-z]/.test(text) &&
       text.split(' ').length <= 8 &&
