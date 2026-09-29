@@ -75,6 +75,7 @@ import { createQuizImportAdapter } from './adapters/quizImportAdapter';
 import { extractQuizFromDocument } from '@/utils/quizDocumentImport/aiReaderApi';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
+import { QuizStudentView } from '@/components/quiz/QuizStudentView';
 import { QuizResults } from './components/QuizResults';
 import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettingsModal';
 import { SharePlcResultsModal } from './components/SharePlcResultsModal';
@@ -562,6 +563,10 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Local state for views that need loaded data
   const [loadedQuizData, setLoadedQuizData] = useState<QuizData | null>(null);
+  const [studentView, setStudentView] = useState<{
+    quiz: QuizData;
+    behavior: QuizBehaviorSettings;
+  } | null>(null);
   const [loadingQuizData, setLoadingQuizData] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
 
@@ -1849,6 +1854,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Default: manager view (with editor modal rendered as sibling)
   return (
     <>
+      {studentView && (
+        <QuizStudentView
+          quiz={studentView.quiz}
+          behavior={studentView.behavior}
+          tabAwayTimerOn={canAccessFeature('tab-away-timer')}
+          onExit={() => setStudentView(null)}
+        />
+      )}
       <QuizManager
         userId={user?.uid}
         widgetId={widget.id}
@@ -1942,6 +1955,18 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           const data = await loadQuiz(meta);
           if (data) setView('preview');
         }}
+        onStudentView={
+          canAccessFeature('quiz-student-view')
+            ? async (meta) => {
+                const data = await loadQuiz(meta);
+                if (data)
+                  setStudentView({
+                    quiz: data,
+                    behavior: getQuizBehavior(meta),
+                  });
+              }
+            : undefined
+        }
         rosters={rosters}
         config={config}
         onAssign={async (
