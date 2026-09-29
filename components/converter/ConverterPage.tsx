@@ -117,7 +117,7 @@ export const ConverterPage: React.FC = () => {
     progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return (
-    <div className="h-screen overflow-y-auto w-full bg-slate-100 flex flex-col items-center [justify-content:safe_center] p-6 font-sans text-slate-800">
+    <div className="h-screen [height:100dvh] overflow-y-auto w-full bg-slate-100 flex flex-col items-center justify-center [justify-content:safe_center] p-6 font-sans text-slate-800">
       <div className="w-full max-w-xl">
         <header className="text-center mb-8">
           <h1 className="text-3xl font-black tracking-tight text-slate-900">

@@ -46,7 +46,7 @@ export const GuidedLearningPeriodLockedScreen: React.FC<
 > = ({ session, periodKeys, now }) => {
   const { t } = useTranslation();
   return (
-    <div className="h-screen overflow-y-auto bg-slate-950">
+    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-950">
       <div className="min-h-full flex items-center justify-center p-6">
         <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
           <div className="flex items-center justify-center gap-2 mb-6">

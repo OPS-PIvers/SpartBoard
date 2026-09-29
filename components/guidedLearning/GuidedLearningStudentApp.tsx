@@ -646,7 +646,7 @@ const StudentExperience: React.FC<{
   };
 
   return (
-    <div className="h-screen h-dvh overflow-hidden bg-slate-950">
+    <div className="h-screen [height:100dvh] overflow-hidden bg-slate-950">
       <div className="h-full relative" style={{ containerType: 'size' }}>
         <GuidedLearningPlayer
           key={`gl-player-${replayKey}`}
@@ -808,7 +808,7 @@ const StartScreen: React.FC<{
 
   if (needsPeriodPicker) {
     return (
-      <div className="h-screen overflow-y-auto bg-slate-950">
+      <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-950">
         <div className="min-h-full flex items-center justify-center p-6">
           <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
             <ClipboardList
@@ -849,7 +849,7 @@ const StartScreen: React.FC<{
     Boolean(session.welcomeEnabled) && welcomeMessage.length > 0;
 
   return (
-    <div className="h-screen overflow-y-auto bg-slate-950">
+    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-950">
       <div className="min-h-full flex items-center justify-center p-6">
         <div
           className={`bg-slate-900 border border-white/10 rounded-2xl p-8 ${showWelcome ? 'max-w-md' : 'max-w-sm'} w-full text-center shadow-2xl`}
@@ -984,7 +984,7 @@ const CompletionScreen: React.FC<{
   // and surface the Replay CTA as the primary action.
   if (isViewOnly) {
     return (
-      <div className="h-screen overflow-y-auto bg-slate-950">
+      <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-950">
         <div className="min-h-full flex items-center justify-center p-6">
           <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
             <BookOpen
@@ -1021,7 +1021,7 @@ const CompletionScreen: React.FC<{
   // (uncommon but supported).
   if (visibility === 'none') {
     return (
-      <div className="h-screen overflow-y-auto bg-slate-950">
+      <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-950">
         <div className="min-h-full flex items-center justify-center p-6">
           <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
             <CheckCircle2
@@ -1044,7 +1044,7 @@ const CompletionScreen: React.FC<{
   }
 
   return (
-    <div className="h-screen overflow-y-auto bg-slate-950">
+    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-950">
       <div className="min-h-full flex items-center justify-center p-6">
         <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
           <Trophy
@@ -1127,7 +1127,7 @@ export const PublishedGLReview: React.FC<{
   const totalGradable = gradableSteps.length;
 
   return (
-    <div className="h-screen overflow-y-auto bg-slate-950">
+    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-950">
       <div className="min-h-full flex items-start justify-center p-6">
         <div className="w-full max-w-md flex flex-col gap-4">
           <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 text-center shadow-2xl">
