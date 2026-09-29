@@ -413,9 +413,11 @@ export interface UseLibraryViewResult<TItem> {
   visibleItems: TItem[];
   /** Bound props for <LibraryToolbar />. */
   toolbarProps: Omit<LibraryToolbarProps, 'sortOptions' | 'filters'>;
-  /** True when manual-drag reorder should be locked (search or non-manual sort). */
+  /** True when a drag can't reorder: search is active, or there is no Manual sort. */
   reorderLocked: boolean;
   reorderLockedReason: string | undefined;
+  /** Call on a card-to-card drop: switches sort to Manual and returns false when locked. */
+  prepareReorder: () => boolean;
   /** Raw state (for consumers that want to persist across mounts). */
   state: {
     search: string;

@@ -1050,7 +1050,6 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       orderedIds.forEach((id, index) => {
         batch.update(doc(db, 'users', user.uid, GL_PERSONAL_COLLECTION, id), {
           order: index,
-          updatedAt: Date.now(),
         });
       });
       try {

@@ -730,10 +730,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   const handleReorderDrop = useCallback(
     (orderedIds: string[]) => {
-      if (!reorderDragActive) return;
+      if (!reorderDragActive || !view.prepareReorder()) return;
       void reorder.handleReorder(orderedIds);
     },
-    [reorder, reorderDragActive]
+    [reorder, reorderDragActive, view]
   );
 
   // ─── Counts for tabs ──────────────────────────────────────────────────────

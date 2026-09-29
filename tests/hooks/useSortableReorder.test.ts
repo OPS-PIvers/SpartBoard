@@ -193,4 +193,46 @@ describe('useSortableReorder', () => {
 
     expect(result.current.orderedItems.map(getId)).toEqual(['a', 'b', 'c']);
   });
+
+  it('adopts a new upstream order when no commit is in flight', () => {
+    const onCommit = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ items }) => useSortableReorder({ items, getId, onCommit }),
+      { initialProps: { items: makeItems(['a', 'b', 'c']) } }
+    );
+
+    // A sort switch or a reorder saved from another tab.
+    rerender({ items: makeItems(['c', 'a', 'b']) });
+
+    expect(result.current.orderedItems.map(getId)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('keeps the optimistic order while a commit is in flight', async () => {
+    let resolveCommit: (() => void) | null = null;
+    const onCommit = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveCommit = resolve;
+        })
+    );
+    const { result, rerender } = renderHook(
+      ({ items }) => useSortableReorder({ items, getId, onCommit }),
+      { initialProps: { items: makeItems(['a', 'b', 'c']) } }
+    );
+
+    let pending: Promise<void> | undefined;
+    act(() => {
+      pending = result.current.handleReorder(['b', 'c', 'a']);
+    });
+    // The view switches sort in the same event, re-ordering upstream items.
+    rerender({ items: makeItems(['c', 'b', 'a']) });
+    expect(result.current.orderedItems.map(getId)).toEqual(['b', 'c', 'a']);
+
+    await act(async () => {
+      resolveCommit?.();
+      await pending;
+    });
+    rerender({ items: makeItems(['b', 'c', 'a']) });
+    expect(result.current.orderedItems.map(getId)).toEqual(['b', 'c', 'a']);
+  });
 });
