@@ -520,7 +520,7 @@ const DropZone: React.FC<DropZoneProps> = ({
       aria-labelledby={titleId}
       data-testid={`${zone}-zone`}
       {...drop.dropProps}
-      className={`flex min-h-[9rem] flex-col gap-2 rounded-2xl border-2 border-dashed p-3 transition-colors ${
+      className={`flex ${centered ? '' : 'min-h-[9rem]'} flex-col gap-2 rounded-2xl border-2 border-dashed p-3 transition-colors ${
         drop.dragging
           ? 'border-brand-blue-primary bg-brand-blue-lighter/50'
           : 'border-slate-300 bg-slate-50/60'
@@ -635,7 +635,7 @@ const DropZone: React.FC<DropZoneProps> = ({
               {working ? (
                 <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
               ) : (
-                <FileUp className="h-5 w-5 text-slate-500" />
+                !centered && <FileUp className="h-5 w-5 text-slate-500" />
               )}
               <p className="text-xs text-slate-600">
                 {drop.dragging ? 'Drop it here' : `Drop a file here · ${hint}`}
