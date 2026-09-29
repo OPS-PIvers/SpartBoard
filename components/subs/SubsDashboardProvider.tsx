@@ -26,9 +26,14 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
+import { ToastContainer } from '@/components/common/ToastContainer';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { WidgetBuildingOverrideContext } from '@/context/WidgetBuildingContextValue';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import {
+  SubShareHostContext,
+  type SubShareHostValue,
+} from '@/context/SubShareHostContextValue';
 import { useSubShareContentLoader } from '@/hooks/useSubShareContentLoader';
 import type {
   DashboardContextValue,
@@ -221,6 +226,24 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
     [boardKey]
   );
 
+  // Same lifetimes as DashboardContext's toasts, so a widget's report reaches the sub.
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+  const addToast = useCallback(
+    (
+      message: string,
+      type: Toast['type'] = 'info',
+      action?: Toast['action']
+    ) => {
+      const id = crypto.randomUUID();
+      setToasts((prev) => [...prev, { id, message, type, action }]);
+      setTimeout(() => removeToast(id), action ? 10000 : 3000);
+    },
+    [removeToast]
+  );
+
   // Resets the open board only, per plan D3.
   const resetWidgets = useCallback(() => {
     const base = initialByBoard.get(boardKey);
@@ -336,7 +359,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       bringToFront,
 
       // === Safe defaults =================================================
-      toasts: EMPTY_ARRAY as Toast[],
+      toasts,
       loading: false,
       isSaving: false,
       saveRetrying: false,
@@ -360,10 +383,8 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       activeRosterId,
 
       // === No-op actions =================================================
-      // Toasts go nowhere — subs cannot see them and never trigger flows
-      // that would produce them.
-      addToast: NOOP,
-      removeToast: NOOP,
+      addToast,
+      removeToast,
 
       // Dashboard CRUD — subs never create / delete / rename / load /
       // reorder dashboards.
@@ -510,7 +531,16 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       appendRosterGroups:
         NOOP_ASYNC as DashboardContextValue['appendRosterGroups'],
     };
-  }, [activeDashboard, updateWidget, bringToFront, rosters, activeRosterId]);
+  }, [
+    activeDashboard,
+    updateWidget,
+    bringToFront,
+    rosters,
+    activeRosterId,
+    toasts,
+    addToast,
+    removeToast,
+  ]);
 
   // Schedule / soundboard / specialist widgets read building defaults. The
   // sub belongs to no building of the teacher's, so the share's building is
@@ -523,6 +553,14 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
     share.sharedRosters ?? NO_SHARED_ROSTERS
   );
 
+  const teacherName = share.originalAuthorName?.trim().length
+    ? share.originalAuthorName.trim()
+    : null;
+  const hostValue = useMemo<SubShareHostValue>(
+    () => ({ teacherName }),
+    [teacherName]
+  );
+
   const controlValue = useMemo<SubsControlContextValue>(
     () => ({ resetWidgets, rosterStatus, loadRosters }),
     [resetWidgets, rosterStatus, loadRosters]
@@ -533,7 +571,10 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       <SubsControlContext.Provider value={controlValue}>
         <WidgetBuildingOverrideContext.Provider value={buildingOverride}>
           <SubShareContentContext.Provider value={shareContent}>
-            {children}
+            <SubShareHostContext.Provider value={hostValue}>
+              {children}
+              <ToastContainer />
+            </SubShareHostContext.Provider>
           </SubShareContentContext.Provider>
         </WidgetBuildingOverrideContext.Provider>
       </SubsControlContext.Provider>

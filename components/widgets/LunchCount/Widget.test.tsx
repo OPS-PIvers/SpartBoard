@@ -1,10 +1,18 @@
+import type { ReactElement } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, within, fireEvent } from '@testing-library/react';
+import {
+  render,
+  screen,
+  within,
+  fireEvent,
+  waitFor,
+} from '@testing-library/react';
 import { LunchCountWidget } from './Widget';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { WidgetData, LunchCountConfig } from '@/types';
 import { mockPointerEvent } from '@/tests/testHelpers/mocks';
+import { SubShareHostContext } from '@/context/SubShareHostContextValue';
 
 // Mock dependencies
 vi.mock('@/context/useDashboard');
@@ -346,5 +354,72 @@ describe('LunchCountWidget — class group pool', () => {
   it('keeps the plain label when nothing is hidden', () => {
     render(<LunchCountWidget widget={pooledWidget(null, { s1: 'hot' })} />);
     expect(screen.getByText(/Assign 1 More Students/i)).toBeInTheDocument();
+  });
+
+  describe('submitting from a substitute share', () => {
+    const submitWith = async (ui: ReactElement) => {
+      (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        user: { displayName: 'Sam Substitute' },
+        featurePermissions: [
+          {
+            widgetType: 'lunchCount',
+            config: {
+              submissionUrl: 'https://script.example/exec',
+              schumannSheetId: 'sheet-1',
+            },
+          },
+        ],
+      });
+      render(ui);
+      fireEvent.click(screen.getByRole('button', { name: /Submit Report/i }));
+      fireEvent.click(
+        screen.getByRole('button', { name: /Confirm & Submit/i })
+      );
+      await waitFor(() =>
+        expect(global.fetch).toHaveBeenCalledWith(
+          'https://script.example/exec',
+          expect.anything()
+        )
+      );
+      const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
+        ([url]) => url === 'https://script.example/exec'
+      );
+      return JSON.parse((call?.[1] as { body: string }).body) as {
+        label: string;
+      };
+    };
+    const base = pooledWidget(null, { s1: 'hot', s2: 'bento' });
+    const assigned: WidgetData = {
+      ...base,
+      config: {
+        ...base.config,
+        gradeLevel: '1',
+        lunchTimeHour: '11',
+        lunchTimeMinute: '30',
+      } as LunchCountConfig,
+    };
+
+    it('labels the report with the teacher who shared the board', async () => {
+      const payload = await submitWith(
+        <SubShareHostContext.Provider value={{ teacherName: 'Jane Doe' }}>
+          <LunchCountWidget widget={assigned} />
+        </SubShareHostContext.Provider>
+      );
+      expect(payload.label).toBe('11:30 - GR1 - J. Doe');
+    });
+
+    it('never falls back to the substitute when the share has no name', async () => {
+      const payload = await submitWith(
+        <SubShareHostContext.Provider value={{ teacherName: null }}>
+          <LunchCountWidget widget={assigned} />
+        </SubShareHostContext.Provider>
+      );
+      expect(payload.label).toBe('11:30 - GR1 - Staff');
+    });
+
+    it('uses the signed-in teacher outside a share', async () => {
+      const payload = await submitWith(<LunchCountWidget widget={assigned} />);
+      expect(payload.label).toBe('11:30 - GR1 - S. Substitute');
+    });
   });
 });

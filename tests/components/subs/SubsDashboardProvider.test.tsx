@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { render, act } from '@testing-library/react';
+import { render, act, screen } from '@testing-library/react';
 import React from 'react';
 import { SubsDashboardProvider } from '@/components/subs/SubsDashboardProvider';
 import { useSubsControl } from '@/components/subs/SubsControlContext';
 import { useDashboard } from '@/context/useDashboard';
+import { useSubShareHost } from '@/context/SubShareHostContextValue';
 import type { SubstituteShareDoc } from '@/hooks/useSubstituteShares';
 import type { ClassRoster, WidgetData } from '@/types';
 import type { SubstituteRosterState } from '@/hooks/useSubstituteRosters';
@@ -423,5 +424,52 @@ describe('SubsDashboardProvider per-board session state', () => {
 
     rerender(<Fixed shareId="share-2" />);
     expect(hotCount(read())).toBe(1);
+  });
+});
+
+describe('SubsDashboardProvider host and toasts', () => {
+  function HostProbe() {
+    const host = useSubShareHost();
+    return <span data-testid="host">{host?.teacherName ?? 'none'}</span>;
+  }
+
+  it('names the teacher who shared the board', () => {
+    render(
+      <SubsDashboardProvider
+        share={makeShare({ originalAuthorName: ' Jane Doe ' })}
+      >
+        <HostProbe />
+      </SubsDashboardProvider>
+    );
+    expect(screen.getByTestId('host')).toHaveTextContent('Jane Doe');
+  });
+
+  it('says it is a share even when the share has no name', () => {
+    render(
+      <SubsDashboardProvider share={makeShare()}>
+        <HostProbe />
+      </SubsDashboardProvider>
+    );
+    expect(screen.getByTestId('host')).toHaveTextContent('none');
+  });
+
+  it('shows a widget toast to the substitute', () => {
+    function Toaster() {
+      const { addToast } = useDashboard();
+      return (
+        <button onClick={() => addToast('Lunch report submitted', 'success')}>
+          go
+        </button>
+      );
+    }
+    render(
+      <SubsDashboardProvider share={makeShare()}>
+        <Toaster />
+      </SubsDashboardProvider>
+    );
+    act(() => screen.getByText('go').click());
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Lunch report submitted'
+    );
   });
 });

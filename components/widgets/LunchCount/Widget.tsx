@@ -21,6 +21,7 @@ import {
 import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { useSubShareHost } from '@/context/SubShareHostContextValue';
 import {
   WidgetData,
   LunchCountConfig,
@@ -234,6 +235,11 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   const { updateWidget, addToast, rosters, activeRosterId, activeDashboard } =
     useDashboard();
   const { user, featurePermissions } = useAuth();
+  // A substitute reports for the teacher whose board this is, not under their own name.
+  const subShareHost = useSubShareHost();
+  const reportName = subShareHost
+    ? (subShareHost.teacherName ?? 'Staff')
+    : (user?.displayName ?? 'Staff');
   const config = widget.config as LunchCountConfig;
   const {
     cachedMenu = null,
@@ -525,7 +531,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       return;
     }
 
-    const teacherName = formatTeacherName(user?.displayName ?? 'Staff');
+    const teacherName = formatTeacherName(reportName);
     const gradeLabel = formatGradeLabel(gradeLevel);
     const lunchTime = formatLunchTime(lunchTimeHour, lunchTimeMinute);
 
@@ -1127,7 +1133,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
         onSubmit={handleSubmitReport}
         data={{
           date: new Date().toLocaleDateString(),
-          staffName: formatTeacherName(user?.displayName ?? 'Unknown Staff'),
+          staffName: formatTeacherName(reportName),
           hotLunch: reportStats.hotLunch,
           bentoBox: reportStats.bentoBox,
           hotLunchName: cachedMenu?.hotLunch?.name ?? 'Hot Lunch',
@@ -1138,7 +1144,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
           submissionLabel: [
             formatLunchTime(lunchTimeHour, lunchTimeMinute),
             formatGradeLabel(gradeLevel),
-            formatTeacherName(user?.displayName ?? 'Unknown Staff'),
+            formatTeacherName(reportName),
           ]
             .filter(Boolean)
             .join(' - '),
