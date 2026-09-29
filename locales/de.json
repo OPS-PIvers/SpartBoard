@@ -1637,6 +1637,7 @@
     "copyMode": "Kopieren",
     "copyModeHint": "Sie erhalten eine eigene Kopie zum Bearbeiten.",
     "substituteMode": "Vertretung (nur anzeigen)",
+    "subShare": "Mit Vertretung teilen",
     "substituteModeHint": "Erscheint für den gewählten Zeitraum im Vertretungsportal.",
     "expiresIn": "Läuft ab in",
     "building": "Gebäude",

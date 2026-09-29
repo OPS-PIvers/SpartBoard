@@ -33,6 +33,8 @@ interface ShareCollectionLinkCreatorModalProps {
   /** Boards currently in the Collection. Frozen at modal open. */
   boards: Dashboard[];
   onClose: () => void;
+  /** Opens ShareWithSubModal; offered only with `sub-share-collections`. */
+  onShareWithSub?: () => void;
 }
 
 type ModeChoice = 'copy' | 'substitute';
@@ -53,7 +55,7 @@ const SUB_TTL_PRESETS: { label: string; ms: number }[] = [
 
 export const ShareCollectionLinkCreatorModal: FC<
   ShareCollectionLinkCreatorModalProps
-> = ({ isOpen, collection, boards, onClose }) => {
+> = ({ isOpen, collection, boards, onClose, onShareWithSub }) => {
   const { t } = useTranslation();
   const {
     shareCollection,
@@ -295,6 +297,28 @@ export const ShareCollectionLinkCreatorModal: FC<
                   defaultValue: 'They get their own copy to edit.',
                 })}
               </p>
+            )}
+            {!offerSubstitute && onShareWithSub && (
+              <button
+                type="button"
+                onClick={onShareWithSub}
+                className="w-full flex items-start gap-2 p-3 rounded-lg border border-slate-200 text-left hover:bg-slate-50"
+              >
+                <UserCheck className="w-3.5 h-3.5 mt-0.5 text-slate-800" />
+                <span className="flex-1">
+                  <span className="block text-sm font-bold text-slate-800">
+                    {t('shareCollection.subShare', {
+                      defaultValue: 'Share with a sub',
+                    })}
+                  </span>
+                  <span className="block text-xs text-slate-500 mt-0.5">
+                    {t('shareCollection.substituteModeHint', {
+                      defaultValue:
+                        'Shows in the Substitute Portal for the time you set.',
+                    })}
+                  </span>
+                </span>
+              </button>
             )}
             {offerSubstitute && (
               <fieldset className="space-y-2">

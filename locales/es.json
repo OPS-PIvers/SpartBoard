@@ -1637,6 +1637,7 @@
     "copyMode": "Copiar",
     "copyModeHint": "Reciben su propia copia para editar.",
     "substituteMode": "Sustituto (solo lectura)",
+    "subShare": "Compartir con un sustituto",
     "substituteModeHint": "Aparece en el Portal de sustitutos durante el tiempo que elijas.",
     "expiresIn": "Expira en",
     "building": "Edificio",

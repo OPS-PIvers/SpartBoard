@@ -71,6 +71,8 @@ interface ShareLinkCreatorModalProps {
   dashboard: Dashboard | null;
   isOpen: boolean;
   onClose: () => void;
+  /** Opens ShareWithSubModal; offered only with `sub-share-collections`. */
+  onShareWithSub?: () => void;
 }
 
 interface ModeOptionProps {
@@ -129,6 +131,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
   dashboard,
   isOpen,
   onClose,
+  onShareWithSub,
 }) => {
   const { t } = useTranslation();
   const {
@@ -607,6 +610,21 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
               })}
               Icon={GraduationCap}
               onPick={setMode}
+            />
+          )}
+          {!offerSubstitute && onShareWithSub && (
+            <ModeOption
+              mode="substitute"
+              selected={false}
+              title={t('shareLinkCreatorModal.modes.subShare.title', {
+                defaultValue: 'Share with a sub',
+              })}
+              body={t('shareLinkCreatorModal.modes.subShare.body', {
+                defaultValue:
+                  'Shows in the Substitute Portal for the time you set.',
+              })}
+              Icon={GraduationCap}
+              onPick={onShareWithSub}
             />
           )}
           {mode === 'substitute' && (

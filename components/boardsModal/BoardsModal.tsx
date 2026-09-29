@@ -780,6 +780,14 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         isOpen={!!shareTarget}
         dashboard={shareTarget}
         onClose={() => setShareTarget(null)}
+        onShareWithSub={
+          canShareWithSub && shareTarget
+            ? () => {
+                setSubShareTarget({ kind: 'board', dashboard: shareTarget });
+                setShareTarget(null);
+              }
+            : undefined
+        }
       />
       {shareCollectionTarget && (
         <ShareCollectionLinkCreatorModal
@@ -789,6 +797,17 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
             (d) => (d.collectionId ?? null) === shareCollectionTarget.id
           )}
           onClose={() => setShareCollectionTarget(null)}
+          onShareWithSub={
+            canShareWithSub
+              ? () => {
+                  setSubShareTarget({
+                    kind: 'collection',
+                    collection: shareCollectionTarget,
+                  });
+                  setShareCollectionTarget(null);
+                }
+              : undefined
+          }
         />
       )}
       {/* Mounted only while open, so a second trip through the dialog starts clean. */}
