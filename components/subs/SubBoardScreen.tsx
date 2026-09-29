@@ -72,7 +72,7 @@ export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-white/60 bg-slate-900">
+      <div className="min-h-screen flex items-center justify-center text-slate-400 bg-slate-50">
         <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
@@ -80,7 +80,7 @@ export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
 
   if (!!error || !share || isExpired) {
     return (
-      <div className="min-h-screen bg-slate-900">
+      <div className="min-h-screen bg-slate-50">
         <ExpiredOrErrorPanel
           message={
             isExpired
@@ -141,7 +141,7 @@ export const SubBoardScreenContent: React.FC<SubBoardScreenContentProps> = ({
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-slate-900">
+    <div className="min-h-screen relative overflow-hidden bg-slate-50">
       <SubProfileToolbar
         teacherName={teacherName}
         teacherInitials={initials}
@@ -158,7 +158,7 @@ export const SubBoardScreenContent: React.FC<SubBoardScreenContentProps> = ({
           status={rosterStatus}
           onLoad={() => void loadRosters()}
         />
-        <div className="hidden md:flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/15 px-3 py-1.5 text-[11px] text-white/80 pointer-events-none">
+        <div className="hidden md:flex items-center gap-2 rounded-full bg-white/85 backdrop-blur-xl border border-slate-200/70 shadow-md px-3 py-1.5 text-[11px] font-medium text-slate-600 pointer-events-none">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
           Substitute view. Widgets are locked.
         </div>
@@ -180,7 +180,7 @@ const RosterLoadButton: React.FC<{
     return (
       <div
         role="status"
-        className="flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/15 px-3 py-1.5 text-xs text-white/80"
+        className="flex items-center gap-2 rounded-full bg-white/85 backdrop-blur-xl border border-slate-200/70 shadow-md px-3 py-1.5 text-xs text-slate-600"
       >
         <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
         Loading class list…
@@ -193,10 +193,10 @@ const RosterLoadButton: React.FC<{
     <button
       type="button"
       onClick={onLoad}
-      className={`flex items-center gap-2 rounded-full backdrop-blur-xl border px-3 py-1.5 text-xs font-bold text-white shadow-lg shadow-black/20 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+      className={`flex items-center gap-2 rounded-full backdrop-blur-xl border px-3 py-1.5 text-xs font-bold shadow-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
         failed
-          ? 'bg-amber-500/25 hover:bg-amber-500/35 border-amber-300/40'
-          : 'bg-white/15 hover:bg-white/25 border-white/25'
+          ? 'bg-amber-50/95 hover:bg-amber-100 border-amber-300 text-amber-800'
+          : 'bg-white/85 hover:bg-white border-slate-200/70 text-brand-blue-primary'
       }`}
     >
       <Icon className="w-3.5 h-3.5" aria-hidden />
@@ -213,15 +213,15 @@ export const ExpiredOrErrorPanel: React.FC<{
   actionLabel?: string;
 }> = ({ message, onBack, hint, actionLabel }) => (
   <main className="min-h-screen flex items-center justify-center px-8">
-    <div className="max-w-md text-center text-white">
+    <div className="max-w-md text-center text-slate-900">
       <h2 className="text-2xl font-bold tracking-tight">{message}</h2>
-      <p className="mt-2 text-sm text-white/60">
+      <p className="mt-2 text-sm text-slate-600">
         {hint ?? 'Returning you to the teacher directory.'}
       </p>
       <button
         type="button"
         onClick={onBack}
-        className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 text-xs font-bold text-white transition-colors cursor-pointer"
+        className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
       >
         <ArrowLeft className="w-3.5 h-3.5" />
         {actionLabel ?? 'Back to directory'}

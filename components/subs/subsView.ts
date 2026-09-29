@@ -8,7 +8,7 @@ const ACCENT_PALETTE = [
   'bg-emerald-600',
   'bg-amber-500',
   'bg-rose-500',
-  'bg-violet-500',
+  'bg-teal-700',
   'bg-cyan-600',
   'bg-orange-500',
   'bg-pink-500',
