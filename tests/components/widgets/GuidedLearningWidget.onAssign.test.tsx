@@ -295,13 +295,13 @@ describe('GuidedLearningWidget onAssign — per-period access', () => {
         periodAccess: Record<string, { state: string; label: string }>;
       },
     ];
-    expect(periodGate.accessMode).toBe('assignment');
+    expect(periodGate.accessMode).toBe('assessment');
     expect(Object.keys(periodGate.periodAccess).sort()).toEqual([
       'cl-3',
       'roster:roster-1',
     ]);
     expect(periodGate.periodAccess['cl-3']).toMatchObject({
-      state: 'open',
+      state: 'closed',
       label: 'Period 3',
     });
     expect(window.openAt).toBeUndefined();

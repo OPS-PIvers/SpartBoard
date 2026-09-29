@@ -164,7 +164,7 @@ import {
 } from '@/utils/studentTargetRef';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import type { StudentTargetRef } from '@/types';
-import { buildPeriodAccess } from '@/utils/periodPlan';
+import { buildPeriodAccess, DEFAULT_PERIOD_PLAN } from '@/utils/periodPlan';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
 import { revealValueFor } from '@/utils/quizFibAlternates';
@@ -2096,7 +2096,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             rosterIds.includes(r.id)
           );
           const derived = deriveSessionTargetsFromRosters(selectedRosters);
-          const periodPlan = targeting.periodPlan ?? { mode: 'assignment' };
+          const periodPlan = targeting.periodPlan ?? DEFAULT_PERIOD_PLAN;
           const builtPeriodAccess =
             assignPeriodCtx && mode === 'student' && selectedRosters.length > 1
               ? buildPeriodAccess({

@@ -46,7 +46,7 @@ import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import { runPublishGradePush } from '@/utils/publishGradePush';
 import { useDashboard } from '@/context/useDashboard';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
-import { buildPeriodAccess } from '@/utils/periodPlan';
+import { buildPeriodAccess, DEFAULT_PERIOD_PLAN } from '@/utils/periodPlan';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareVideoActivityWidget } from './SubShareWidget';
 import { useAuth } from '@/context/useAuth';
@@ -660,7 +660,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             rosters,
             selectedRosterIds: rosterIds,
           });
-          const periodPlan = targeting.periodPlan ?? { mode: 'assignment' };
+          const periodPlan = targeting.periodPlan ?? DEFAULT_PERIOD_PLAN;
           const builtPeriodAccess =
             assignPeriodCtx && selectedRosters.length > 1
               ? buildPeriodAccess({
