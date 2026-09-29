@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-09-28_
+_Last audited: 2026-09-29_
 _Last action: 2026-09-24 — MEDIUM `QuizStimulusView.tsx` zero-`cqmin` blocker resolved: added an optional `cqScaled?: boolean` prop (default `false`) threaded through every subcomponent in the file, applying `min(Xpx, Ycqmin)` inline styles only when set, so the two CQ-container consumers (`CurrentQuestionCard.tsx`, `QuizPreview.tsx`) now scale while the two non-CQ consumers (`QuizStudentApp.tsx`, `FreeResponseGrader.tsx`) keep today's fixed styling untouched — the same `cqScaled` pattern proven on `AssignTargetingSection.tsx`. 1250/1250 relevant tests pass. Item moved to Completed. PR opened against dev-paul._
 
 ---
@@ -39,6 +39,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-09-29: Daily audit (Tuesday). 7 `Widget.tsx` files changed since baseline `a5072c05` (BloomsTaxonomy, DrawingWidget, Embed, GuidedLearning, QuizWidget, VideoActivityWidget, Webcam); the added lines contain no new `max-[Npx]`/`max-w-[Npx]` caps, inline pixel sizes, hardcoded `cqmin` or `overflow-hidden` content wrappers. Repo-wide, `components/widgets/*/Widget.tsx` has 0 `max-h/max-w-[Npx]` classes. Existing Open items not re-verified line-by-line this cycle. **Net: 0 new issues, 0 resolved.**_
 
 _2026-09-28: Daily audit (Monday), delegated to a sub-agent. Scanned all 49 `components/widgets/**/Widget.tsx` files (enumerated via Glob, not sampled) for the four anti-pattern categories. `git log` since the 2026-09-27 baseline (`20d87da`) surfaced 7 commits touching widget/quiz/activity-wall/common-library code, all diffed directly for `className`/`style`/`fontSize`/`cqmin` changes — zero styling diff lines (pure logic/plumbing: Quiz import UI, PLC pooling, Flashcards error handling, editor title-move, paper quiz number inputs). Every hit from the fresh sweep resolved to an already-tracked Open item (line-number drift only) or an established WON'T-FIX bucket (portaled/fixed chrome, resize handles, `cqw`/`cqh` fill-better formulas already documented as legitimate). Re-confirmed `DiceWidget`'s `getDiceSize()` is still properly `min()`-capped (no regression on the standing Completed fix) and `NumberLineWidget` still has zero flagged hits (its two Completed entries stay closed). **Net this cycle: 0 new anti-patterns, 0 items resolved, 0 items regressed.**_
 
