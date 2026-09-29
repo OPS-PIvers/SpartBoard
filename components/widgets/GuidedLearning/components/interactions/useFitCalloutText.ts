@@ -4,6 +4,46 @@ import { type CalloutFit, fitCalloutText } from '../../utils/fitCalloutText';
 /** CSS variable the card reads its body font size from. */
 export const FIT_BODY_VAR = '--gl-fit-body';
 
+/** Fits a card's text to a w x h px box by measuring a hidden clone beside it. */
+export function measureCalloutFit(
+  card: HTMLElement,
+  w: number,
+  h: number
+): CalloutFit {
+  const clone = card.cloneNode(true) as HTMLElement;
+  clone.removeAttribute('data-gl-callout');
+  clone.removeAttribute('data-gl-previewing');
+  clone.removeAttribute('data-testid');
+  clone.removeAttribute('role');
+  clone.setAttribute('aria-hidden', 'true');
+  Object.assign(clone.style, {
+    position: 'absolute',
+    visibility: 'hidden',
+    pointerEvents: 'none',
+    left: '0px',
+    top: '0px',
+    translate: 'none',
+    width: `${w}px`,
+    maxWidth: 'none',
+    height: 'auto',
+    minHeight: '0px',
+    maxHeight: 'none',
+    animation: 'none',
+    // A running font-size transition would make every probe read the first size.
+    transition: 'none',
+  });
+  card.parentElement?.appendChild(clone);
+  const fit = fitCalloutText({
+    boxH: h,
+    measure: (px) => {
+      clone.style.setProperty(FIT_BODY_VAR, `${px}px`);
+      return clone.offsetHeight;
+    },
+  });
+  clone.remove();
+  return fit;
+}
+
 /** Fits a callout's text to its box by measuring a hidden clone at the box's pixel width. */
 export function useFitCalloutText(
   cardRef: RefObject<HTMLElement | null>,
@@ -27,35 +67,8 @@ export function useFitCalloutText(
 
   useLayoutEffect(() => {
     const card = cardRef.current;
-    const parent = card?.parentElement;
-    if (!card || !parent || w <= 0 || h <= 0 || paused) return;
-    const clone = card.cloneNode(true) as HTMLElement;
-    clone.removeAttribute('data-gl-callout');
-    clone.removeAttribute('data-testid');
-    clone.removeAttribute('role');
-    clone.setAttribute('aria-hidden', 'true');
-    Object.assign(clone.style, {
-      position: 'absolute',
-      visibility: 'hidden',
-      pointerEvents: 'none',
-      left: '0px',
-      top: '0px',
-      width: `${w}px`,
-      maxWidth: 'none',
-      height: 'auto',
-      minHeight: '0px',
-      maxHeight: 'none',
-      animation: 'none',
-    });
-    parent.appendChild(clone);
-    const next = fitCalloutText({
-      boxH: h,
-      measure: (px) => {
-        clone.style.setProperty(FIT_BODY_VAR, `${px}px`);
-        return clone.offsetHeight;
-      },
-    });
-    clone.remove();
+    if (!card?.parentElement || w <= 0 || h <= 0 || paused) return;
+    const next = measureCalloutFit(card, w, h);
     setFit((prev) =>
       prev &&
       prev.bodyPx === next.bodyPx &&

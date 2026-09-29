@@ -1,4 +1,8 @@
 import { calloutArrowPaths } from '../interactions/CalloutArrow';
+import {
+  FIT_BODY_VAR,
+  measureCalloutFit,
+} from '../interactions/useFitCalloutText';
 import { connectorFor } from '../../utils/calloutPlacement';
 import type { PxRect } from '../../types/stage';
 
@@ -6,7 +10,7 @@ import type { PxRect } from '../../types/stage';
 export interface GesturePreview {
   /** Moves the followed elements by container px (the CSS `translate` property). */
   shift: (dx: number, dy: number) => void;
-  /** Resizes the callout card, in container px. */
+  /** Resizes the callout card, in container px, refitting its text each frame. */
   size: (w: number, h: number) => void;
   /** Redraws the spotlight hole and rim of a drawn region. */
   shape: (d: string) => void;
@@ -69,6 +73,7 @@ export function createGesturePreview(
     width: el.style.width,
     minHeight: el.style.minHeight,
     maxWidth: el.style.maxWidth,
+    fit: el.style.getPropertyValue(FIT_BODY_VAR),
   }));
   const paths = shapes.map((el) => el.getAttribute('d'));
   const anchorTranslates = anchors.map((el) => el.style.translate);
@@ -93,8 +98,10 @@ export function createGesturePreview(
     size: (w, h) =>
       cards.forEach((el) => {
         el.setAttribute('data-gl-previewing', '');
+        const fit = measureCalloutFit(el, w, h);
+        el.style.setProperty(FIT_BODY_VAR, `${fit.bodyPx}px`);
         el.style.width = `${w}px`;
-        el.style.minHeight = `${h}px`;
+        el.style.minHeight = `${fit.heightPx}px`;
         el.style.maxWidth = 'none';
       }),
     shape: (d) => shapes.forEach((el) => el.setAttribute('d', d)),
@@ -117,7 +124,10 @@ export function createGesturePreview(
       heads.forEach((el, i) => setAttr(el, 'points', headPoints[i]));
       shifted.forEach((el, i) => (el.style.translate = translates[i]));
       cards.forEach((el, i) => {
-        Object.assign(el.style, sizes[i]);
+        const { fit, ...size } = sizes[i];
+        Object.assign(el.style, size);
+        if (fit) el.style.setProperty(FIT_BODY_VAR, fit);
+        else el.style.removeProperty(FIT_BODY_VAR);
         el.removeAttribute('data-gl-previewing');
       });
       shapes.forEach((el, i) => setAttr(el, 'd', paths[i]));
