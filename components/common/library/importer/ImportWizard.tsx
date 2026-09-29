@@ -555,7 +555,6 @@ export function ImportWizard<TData>({
             busyLabel="Importing…"
             onSubmit={readTestAndKey}
             keyBehindLink
-            centered
             submitContainer={submitSlot}
           >
             {supportsAiReader && (
@@ -618,9 +617,7 @@ export function ImportWizard<TData>({
               className={`flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed p-4 text-center transition-colors ${
                 uploadDrop.dragging
                   ? 'border-brand-blue-primary bg-brand-blue-lighter/70'
-                  : groupedSources
-                    ? 'border-slate-300 bg-white'
-                    : 'border-brand-blue-primary/30 bg-brand-blue-lighter/30'
+                  : 'border-slate-300 bg-white'
               }`}
             >
               {groupedSources && (
@@ -629,16 +626,11 @@ export function ImportWizard<TData>({
                 </p>
               )}
               {supportsAnyUpload && (
-                <>
-                  {!groupedSources && (
-                    <FileUp className="h-6 w-6 text-brand-blue-primary" />
-                  )}
-                  <p className="text-xs font-semibold text-brand-blue-primary">
-                    {uploadDrop.dragging
-                      ? 'Drop it here'
-                      : `Drop a file here · ${uploadHint}${adapter.bulkSource ? ` or ${adapter.bulkSource.accept}` : ''}`}
-                  </p>
-                </>
+                <p className="text-xs font-semibold text-brand-blue-primary">
+                  {uploadDrop.dragging
+                    ? 'Drop it here'
+                    : `Drop a file here · ${uploadHint}${adapter.bulkSource ? ` or ${adapter.bulkSource.accept}` : ''}`}
+                </p>
               )}
               <div className="mt-auto flex flex-wrap justify-center gap-2">
                 {canPickSheet && (

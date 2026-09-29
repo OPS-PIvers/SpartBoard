@@ -1232,6 +1232,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               </div>
             ) : (
               <TestAndKeyUploader
+                keyBehindLink
                 pickFromDrive={pickDocument}
                 submitLabel="Import"
                 busy={readingDoc}
