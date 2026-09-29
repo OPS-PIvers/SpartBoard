@@ -412,19 +412,28 @@ async function unzipText(
   );
 }
 
-/** Every QTI item in one XML file, in the order the file lists them. */
 /** Turns HTML-only named entities (`&iacute;`) into numeric ones, which XML accepts. */
 function defineHtmlEntities(xml: string): string {
   const decoder = new DOMParser();
+  const decoded = new Map<string, string>();
   return xml.replace(/&([a-zA-Z][a-zA-Z0-9]*);/g, (whole, name: string) => {
     if (['lt', 'gt', 'amp', 'quot', 'apos'].includes(name)) return whole;
-    const text =
-      decoder.parseFromString(whole, 'text/html').documentElement.textContent ??
-      '';
-    return text && text !== whole ? `&#${text.codePointAt(0)};` : whole;
+    let numeric = decoded.get(name);
+    if (numeric === undefined) {
+      const text =
+        decoder.parseFromString(whole, 'text/html').documentElement
+          .textContent ?? '';
+      numeric =
+        text && text !== whole
+          ? Array.from(text, (c) => `&#${c.codePointAt(0)};`).join('')
+          : whole;
+      decoded.set(name, numeric);
+    }
+    return numeric;
   });
 }
 
+/** Every QTI item in one XML file, in the order the file lists them. */
 function itemsIn(xml: string): { title: string; items: Element[] } | null {
   const doc = new DOMParser().parseFromString(
     defineHtmlEntities(xml),
