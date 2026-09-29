@@ -553,7 +553,7 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
           {/* STEP: Preview & Publish */}
           {state.step === 'preview' && (
             <div className="h-full overflow-auto p-6">
-              <div className="max-w-5xl mx-auto flex flex-col gap-6 h-full">
+              <div className="max-w-5xl mx-auto flex flex-col gap-6 min-h-full">
                 {/* Summary header */}
                 <div className="flex items-center gap-4 bg-slate-800 rounded-xl border border-slate-700 px-5 py-4">
                   <span className="w-14 h-14 rounded-2xl bg-slate-700 flex items-center justify-center">

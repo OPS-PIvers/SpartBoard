@@ -130,7 +130,7 @@ export const PlcVideoActivitiesTabsBody: React.FC<
       : undefined;
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <div className="flex flex-col gap-4 min-h-full">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div
           role="tablist"
