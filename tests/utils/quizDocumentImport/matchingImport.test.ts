@@ -290,3 +290,24 @@ describe('key entries past F', () => {
     ]);
   });
 });
+
+describe('a stem that opens with a later-letter initial', () => {
+  it('stays a question outside a key', () => {
+    const { questions, warnings } = parseDocument(
+      lines(
+        '1. Which planet is largest?',
+        'A. Jupiter',
+        'B. Mars',
+        '2. J. K. Rowling first published which book?',
+        'A. Harry Potter',
+        'B. Dune',
+        '3. Which gas do plants take in?',
+        'A. Carbon dioxide',
+        'B. Helium'
+      )
+    );
+    expect(warnings).toEqual([]);
+    expect(questions).toHaveLength(3);
+    expect(questions[1].text).toBe('J. K. Rowling first published which book?');
+  });
+});
