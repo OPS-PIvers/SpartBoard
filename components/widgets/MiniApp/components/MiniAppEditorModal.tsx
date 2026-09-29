@@ -212,7 +212,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
       saveErrorMessage={false}
       bodyClassName="px-6 py-5 bg-slate-50/50"
     >
-      <div className="flex flex-col gap-4 h-full relative">
+      <div className="flex flex-col gap-4 min-h-full relative">
         {/* AI generator Overlay */}
         <AIGeneratorOverlay
           open={showPromptInput}

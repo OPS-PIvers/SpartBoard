@@ -28,24 +28,33 @@ const listFiles = (path: string): string[] => {
   });
 };
 
+// Every class literal in the className, including both arms of a conditional.
 const classNameOf = (el: ts.JsxOpeningLikeElement): string => {
+  const parts: string[] = [];
+  const collect = (n: ts.Node) => {
+    if (ts.isStringLiteralLike(n)) parts.push(n.text);
+    else if (ts.isTemplateExpression(n)) {
+      parts.push(n.head.text, ...n.templateSpans.map((s) => s.literal.text));
+      n.templateSpans.forEach((s) => collect(s.expression));
+    } else if (ts.isConditionalExpression(n)) {
+      collect(n.whenTrue);
+      collect(n.whenFalse);
+    } else if (ts.isBinaryExpression(n)) {
+      collect(n.left);
+      collect(n.right);
+    } else if (ts.isParenthesizedExpression(n) || ts.isJsxExpression(n)) {
+      if (n.expression) collect(n.expression);
+    }
+  };
   for (const prop of el.attributes.properties) {
-    if (!ts.isJsxAttribute(prop) || prop.name.getText() !== 'className')
-      continue;
-    const init = prop.initializer;
-    if (!init) return '';
-    if (ts.isStringLiteral(init)) return init.text;
-    const expr = ts.isJsxExpression(init) ? init.expression : undefined;
-    if (!expr) return '';
-    if (ts.isStringLiteralLike(expr)) return expr.text;
-    if (ts.isTemplateExpression(expr))
-      return [
-        expr.head.text,
-        ...expr.templateSpans.map((s) => s.literal.text),
-      ].join(' ');
-    return '';
+    if (
+      ts.isJsxAttribute(prop) &&
+      prop.name.getText() === 'className' &&
+      prop.initializer
+    )
+      collect(prop.initializer);
   }
-  return '';
+  return parts.join(' ');
 };
 
 const openingOf = (node: ts.Node): ts.JsxOpeningLikeElement | undefined =>

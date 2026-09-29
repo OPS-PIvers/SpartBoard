@@ -107,9 +107,9 @@ export const StudioStartHub: React.FC<StudioStartHubProps> = ({
     <section
       aria-labelledby="gl-studio-hub-title"
       data-testid="gl-studio-hub"
-      className="flex h-full w-full items-center justify-center overflow-y-auto"
+      className="flex h-full w-full justify-center overflow-y-auto"
     >
-      <div className="w-full max-w-3xl py-4">
+      <div className="my-auto w-full max-w-3xl py-4">
         <h2
           id="gl-studio-hub-title"
           className="text-xl font-bold text-slate-800"

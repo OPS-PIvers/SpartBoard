@@ -62,7 +62,7 @@ export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+    <div className="h-screen overflow-y-auto bg-slate-50 text-slate-900 flex flex-col">
       <header className="flex items-center justify-between px-8 py-5">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-brand-blue-primary flex items-center justify-center">

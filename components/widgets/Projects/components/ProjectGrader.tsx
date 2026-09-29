@@ -295,7 +295,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
       <div className="grid h-full min-h-0 grid-cols-[minmax(160px,1fr)_2.6fr]">
         <nav
           aria-label="Group queue"
-          className="overflow-y-auto border-r border-slate-200 bg-slate-50"
+          className="overflow-y-auto border-r border-slate-200 bg-slate-50 pb-2"
         >
           <p className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 backdrop-blur">
             Groups

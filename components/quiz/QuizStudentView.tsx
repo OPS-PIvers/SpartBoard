@@ -90,8 +90,8 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
         onRestart={() => setRun((n) => n + 1)}
         onExit={onExit}
       />
-      {/* translateZ makes this the containing block, so the player's fixed overlays stay under the toolbar. */}
-      <div className="relative flex-1 overflow-y-auto [transform:translateZ(0)]">
+      {/* translateZ keeps the player's fixed overlays under the toolbar; the arbitrary variants fit its full-screen root to this box. */}
+      <div className="relative flex-1 min-h-0 overflow-y-auto [transform:translateZ(0)] [&>.h-screen]:h-full [&>.min-h-screen]:min-h-full">
         <StudentViewAttempt key={run} session={session} />
       </div>
     </div>,

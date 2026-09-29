@@ -195,7 +195,7 @@ export const SubCollectionBoardScreen: React.FC<
   // Expiry takes the screen down; a failed read of the next board does not.
   if (expired || (!!error && !shown)) {
     return (
-      <div className="min-h-screen bg-slate-50">
+      <div className="h-screen overflow-y-auto bg-slate-50">
         <ExpiredOrErrorPanel
           message={
             expired ? 'This share has expired.' : (error ?? 'Board not found.')
@@ -215,7 +215,7 @@ export const SubCollectionBoardScreen: React.FC<
       );
     }
     return (
-      <div className="min-h-screen bg-slate-50">
+      <div className="h-screen overflow-y-auto bg-slate-50">
         <ExpiredOrErrorPanel
           message="Board not found."
           onBack={onBackToDirectory}

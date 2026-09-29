@@ -340,7 +340,7 @@ const QuizPreviewLobby: React.FC = () => {
       : (new URLSearchParams(window.location.search).get('code') ?? '');
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col">
+    <div className="h-screen overflow-y-auto bg-slate-900 flex flex-col">
       <TeacherPreviewBanner />
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-sm">

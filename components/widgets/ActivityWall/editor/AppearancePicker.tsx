@@ -97,7 +97,7 @@ export const AppearancePicker: React.FC<AppearancePickerProps> = ({
             No background images are available for your account.
           </p>
         ) : (
-          <div className="grid max-h-48 grid-cols-4 gap-2 overflow-y-auto pr-1 sm:grid-cols-6">
+          <div className="grid max-h-48 grid-cols-4 gap-2 overflow-y-auto pr-1 sm:grid-cols-6 pb-1">
             {presets.map((preset) => {
               const selected =
                 value.kind === 'image' && value.value === preset.id;
