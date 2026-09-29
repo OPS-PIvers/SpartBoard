@@ -66,13 +66,18 @@ export function createPinnedAgent(addresses: ResolvedAddress[]): https.Agent {
   return new https.Agent({
     lookup: (
       _hostname: string,
-      options: unknown,
+      options: { all?: boolean } | undefined,
       callback: (
         err: NodeJS.ErrnoException | null,
-        address: string,
-        family: number
+        address: string | ResolvedAddress[],
+        family?: number
       ) => void
     ) => {
+      // Node's autoSelectFamily calls lookup with all:true and needs an array.
+      if (options?.all) {
+        callback(null, addresses);
+        return;
+      }
       const first = addresses[0];
       callback(null, first.address, first.family);
     },
