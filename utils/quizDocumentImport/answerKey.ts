@@ -26,9 +26,9 @@ import {
 /** What may trail an entry (R11): `2pts`, `(p. 4)`, `PTS: 1`; groups 3–4 are points. */
 const ENTRY_EXTRAS = String.raw`(?:\s*(?:\(\s*(?:p|pg|page)s?\.?\s*\d{1,4}(?:\s*[-–]\s*\d{1,4})?\s*\)|(\d{1,2}(?:\.\d+)?)\s*(?:pts?|points?)\b\.?|PTS\s*:\s*(\d{1,2}(?:\.\d+)?)))*`;
 
-/** `1. B`, `1) b`, `1-B`, `1: B`, `1 B`, `1. T`, `1. True` — alone on the line. */
+/** `1. B`, `1) b`, `1-B`, `1: B`, `1 B`, `1. T`, `1. True`, a matching bank's `1. K` — alone on the line. */
 const KEY_ENTRY = new RegExp(
-  String.raw`(\d{1,3})\s*[.):\-–]?\s*(true|false|[a-ft])(?![a-z0-9])` +
+  String.raw`(\d{1,3})\s*(?:[.):\-–]?\s*(true|false|[a-ft])|[.):\-–]\s*([g-z]))(?![a-z0-9])` +
     ENTRY_EXTRAS,
   'gi'
 );
@@ -285,10 +285,10 @@ export function entriesOnLine(text: string, multi = false): KeyEntry[] {
   if (withText) return [[Number(withText[1]), withText[2].toUpperCase()]];
   const found: KeyEntry[] = [];
   for (const m of trimmed.matchAll(KEY_ENTRY)) {
-    const points = m[3] ?? m[4];
+    const points = m[4] ?? m[5];
     found.push([
       Number(m[1]),
-      normalizeAnswer(m[2]),
+      m[2] ? normalizeAnswer(m[2]) : m[3].toUpperCase(),
       ...(points ? [Number(points)] : []),
     ] as KeyEntry);
   }
@@ -389,7 +389,11 @@ function findTestBankKey(
     if (isHeading(text)) {
       keyLineIndexes.add(n);
       const above = lines[n - 1]?.text ?? '';
-      if (above.trim() && !OPTION_LIKE.test(above) && !/^\s*\d/.test(above)) {
+      if (
+        above.trim() &&
+        !OPTION_LIKE.test(above) &&
+        !/^\s*(?:_{2,}\s*)?\d/.test(above)
+      ) {
         keyLineIndexes.add(n - 1);
       }
     }
@@ -420,6 +424,10 @@ function entriesAt(
   const next = lines[index + 1]?.text.trim() ?? '';
   if (number && /^(?:true|false|[a-ft])$/i.test(next)) {
     return { entries: [[Number(number[1]), normalizeAnswer(next)]], used: 2 };
+  }
+  // A matching bank's later letters, capitalised so a stray unit label isn't one.
+  if (number && /^[G-Z]$/.test(next)) {
+    return { entries: [[Number(number[1]), next]], used: 2 };
   }
 
   if (headed) {
@@ -626,7 +634,8 @@ function choiceFor(
   question: ExtractedQuestion,
   answer: string
 ): ExtractedQuestion['options'][number] | undefined {
-  const byLetter = question.options.find((o) => o.letter === answer);
+  const letter = /^[a-z]$/i.test(answer) ? answer.toUpperCase() : answer;
+  const byLetter = question.options.find((o) => o.letter === letter);
   if (byLetter) return byLetter;
   if (TRUE_ANSWER.test(answer)) {
     return question.options.find((o) => TRUE_ANSWER.test(o.text.trim()));

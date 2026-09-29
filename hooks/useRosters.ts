@@ -549,6 +549,12 @@ const validateRosterMeta = (
   if (typeof d.classlinkSyncedAt === 'number') {
     meta.classlinkSyncedAt = d.classlinkSyncedAt;
   }
+  if (
+    Array.isArray(d.classlinkPeriods) &&
+    d.classlinkPeriods.every((p) => typeof p === 'string')
+  ) {
+    meta.classlinkPeriods = d.classlinkPeriods;
+  }
   if (typeof d.testClassId === 'string') {
     meta.testClassId = d.testClassId;
   }
@@ -583,6 +589,7 @@ export type RosterCreateMeta = Pick<
   | 'classlinkSubject'
   | 'classlinkOrgId'
   | 'classlinkSyncedAt'
+  | 'classlinkPeriods'
   | 'testClassId'
   | 'bellPeriod'
 >;

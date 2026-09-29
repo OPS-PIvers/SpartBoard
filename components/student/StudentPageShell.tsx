@@ -39,12 +39,14 @@ export const StudentPageShell: React.FC<PageShellProps> = ({
   hideDoneButton,
   children,
 }) => (
-  <div className="relative min-h-screen w-screen overflow-x-hidden bg-slate-50 font-sans">
-    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-40" />
-    <div className="pointer-events-none absolute left-[-15%] top-[-10%] h-[500px] w-[500px] rounded-full bg-brand-blue-primary/15 blur-[120px]" />
-    <div className="pointer-events-none absolute bottom-[-15%] right-[-10%] h-[500px] w-[500px] rounded-full bg-brand-red-primary/10 blur-[120px]" />
+  <div className="relative h-screen [height:100dvh] w-screen overflow-y-auto overflow-x-hidden bg-slate-50 font-sans">
+    <div className="pointer-events-none fixed inset-0 overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-40" />
+      <div className="absolute left-[-15%] top-[-10%] h-[500px] w-[500px] rounded-full bg-brand-blue-primary/15 blur-[120px]" />
+      <div className="absolute bottom-[-15%] right-[-10%] h-[500px] w-[500px] rounded-full bg-brand-red-primary/10 blur-[120px]" />
+    </div>
 
-    <div className="relative z-10 flex min-h-screen flex-col">
+    <div className="relative z-10 flex min-h-full flex-col">
       {/* Header — full-width, anchored. Brand-blue with white text. The
           hamburger never shifts when the sidebar opens; the sidebar slides
           in *below* this header (top: PAGE_HEADER_HEIGHT). */}

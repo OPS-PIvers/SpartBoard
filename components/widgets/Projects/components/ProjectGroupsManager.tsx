@@ -498,7 +498,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
         </p>
       )}
 
-      <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto pr-1 md:grid-cols-[minmax(0,1fr)_16rem]">
+      <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto pr-1 pb-3 md:grid-cols-[minmax(0,1fr)_16rem]">
         <div className="grid content-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {draft.length === 0 && (
             <div className="col-span-full rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">

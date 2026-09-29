@@ -33,7 +33,7 @@ export const AddonShell: React.FC<{
   /** Max content width. Defaults to a comfortable single-column card width. */
   maxWidthClassName?: string;
 }> = ({ children, maxWidthClassName = 'max-w-xl' }) => (
-  <div className="h-screen overflow-y-auto bg-gradient-to-b from-white to-slate-100 font-sans text-slate-900">
+  <div className="h-screen [height:100dvh] overflow-y-auto bg-gradient-to-b from-white to-slate-100 font-sans text-slate-900">
     {/* Decorative brand glow — purely atmospheric, behind the content. */}
     <div
       aria-hidden="true"

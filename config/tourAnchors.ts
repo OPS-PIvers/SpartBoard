@@ -174,6 +174,40 @@ export const TOUR_ANCHORS = {
   'board-actions.zoom-reset': { label: 'Reset zoom button' },
   'board-actions.help': { label: 'Help button' },
 
+  'boards.share-board': {
+    label: 'Share button on a board card',
+    panel: true,
+  },
+  'boards.sub-share-copy-link': {
+    label: 'Copy link button on an active sub share',
+    panel: true,
+  },
+  'share-link.share-with-sub': {
+    label: 'Share with a sub option in the share dialog',
+    panel: true,
+  },
+  'sub-share.building': {
+    label: 'Building picker in the sub share dialog',
+    panel: true,
+  },
+  'sub-share.email-input': {
+    label: 'Sub email box in the sub share dialog',
+    panel: true,
+  },
+  'sub-share.add-email': {
+    label: 'Add sub button in the sub share dialog',
+    panel: true,
+  },
+  'sub-share.save': {
+    label: 'Share button that creates or updates the sub share',
+    destructive: true,
+    panel: true,
+  },
+  'sub-share.done': {
+    label: 'Done button after the sub share is saved',
+    panel: true,
+  },
+
   'projects.board-grid': {
     label: 'Projects step grid',
     perWidget: true,

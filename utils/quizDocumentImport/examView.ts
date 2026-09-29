@@ -34,9 +34,6 @@ export const EXAMVIEW_TYPE_HEADING =
 export const WRITTEN_SECTION =
   /\b(?:short\s+answers?|problems?|essays?|other)\b/i;
 
-/** ExamView's matching directions, which open a new term list. */
-export const MATCHING_DIRECTIONS = /^\s*match\s+each\b/i;
-
 /** Two of ExamView's five fingerprints mark the document as ExamView (E4). */
 export function isExamView(lines: readonly DocLine[]): boolean {
   let blanks = 0;
@@ -259,7 +256,7 @@ function combineMatching(items: ExtractedQuestion[]): ExtractedQuestion[] {
       points: items.reduce((sum, q) => sum + (q.points ?? 1), 0),
       imageIds: [...new Set(items.flatMap((q) => q.imageIds))],
       warnings: [...new Set(items.flatMap((q) => q.warnings))],
-      examView: 'matching',
+      ...(first.examView ? { examView: 'matching' as const } : {}),
       ...(first.suggestedTarget
         ? { suggestedTarget: first.suggestedTarget }
         : {}),
@@ -311,21 +308,20 @@ function applyHeadingPoints(
   return out;
 }
 
-/** Splits, combines and scores ExamView items once their key is in; safe to run again (E6, E7, E9). */
+/** Splits, combines and scores ExamView items, and any document's matching sets, once keyed (E6, E7, E9). */
 export function applyExamViewAfterKey(
   questions: readonly ExtractedQuestion[]
 ): ExtractedQuestion[] {
-  if (!questions.some((q) => q.examView)) return [...questions];
+  const examView = questions.some((q) => q.examView);
+  if (!examView && !questions.some((q) => q.matchingGroup)) {
+    return [...questions];
+  }
   const split = questions.flatMap(splitModifiedTrueFalse);
   const combined: ExtractedQuestion[] = [];
   let i = 0;
   while (i < split.length) {
     const q = split[i];
-    if (
-      q.examView !== 'matching' ||
-      q.type === 'Matching' ||
-      !q.matchingGroup
-    ) {
+    if (q.type === 'Matching' || !q.matchingGroup) {
       combined.push(q);
       i += 1;
       continue;
@@ -341,7 +337,10 @@ export function applyExamViewAfterKey(
     combined.push(...combineMatching(split.slice(i, end)));
     i = end;
   }
-  return applyHeadingPoints(combined).map((q, n) => ({ ...q, number: n + 1 }));
+  return (examView ? applyHeadingPoints(combined) : combined).map((q, n) => ({
+    ...q,
+    number: n + 1,
+  }));
 }
 
 /** `OBJ: 1.2 Describe the cycling of…` as a suggested target (E10). */

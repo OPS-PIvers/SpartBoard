@@ -143,7 +143,7 @@ export const PlcAssessmentsBody: React.FC<PlcAssessmentsBodyProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col min-h-full">
       {effectiveType === 'quiz' ? (
         <div {...panelProps} className="flex-1 min-h-0">
           <PlcAssessmentList
@@ -153,7 +153,7 @@ export const PlcAssessmentsBody: React.FC<PlcAssessmentsBodyProps> = ({
           />
         </div>
       ) : (
-        <div className="flex flex-col md:flex-row gap-6 h-full min-h-0">
+        <div className="flex flex-col md:flex-row gap-6">
           {typeNav && (
             <div className="w-full md:w-56 md:shrink-0">{typeNav}</div>
           )}

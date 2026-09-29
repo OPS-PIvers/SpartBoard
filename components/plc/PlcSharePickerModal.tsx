@@ -148,7 +148,7 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
               />
             </div>
 
-            <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar -mx-1 px-1">
+            <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar -mx-1 px-1 pb-1">
               {filtered.length === 0 ? (
                 <p className="text-xs text-slate-500 text-center py-3">
                   {t('plcDashboard.sharePicker.noMatches', {

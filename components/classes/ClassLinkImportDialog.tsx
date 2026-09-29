@@ -1,8 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { collection, getDocs } from 'firebase/firestore';
 import { Download, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
-import { ClassLinkClass, ClassRoster, ClassRosterMeta, Student } from '@/types';
+import {
+  ClassLinkClass,
+  ClassRoster,
+  ClassRosterMeta,
+  RosterBellPeriod,
+  Student,
+} from '@/types';
 import { Modal } from '@/components/common/Modal';
 import { db } from '@/config/firebase';
 import { classLinkService } from '@/utils/classlinkService';
@@ -12,6 +18,9 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { mergeClassLinkStudents } from './mergeClassLinkStudents';
 import { tourFieldAttr } from '@/config/tourAnchors';
+import { useTeacherBellPeriodOptions } from '@/hooks/useTeacherBellPeriods';
+import { matchBellPeriod } from '@/utils/bellSchedule';
+import { backfillRosters, readClassPeriods } from './classLinkPeriods';
 
 const TEST_PREFIX = 'test:';
 
@@ -41,7 +50,8 @@ const TEST_PREFIX = 'test:';
  */
 const buildClassLinkRosterMeta = (
   cls: ClassLinkClass,
-  orgId: string | null | undefined
+  orgId: string | null | undefined,
+  bellPeriod?: RosterBellPeriod | null
 ): Partial<ClassRosterMeta> | null => {
   if (cls.sourcedId.startsWith(TEST_PREFIX)) {
     return { testClassId: cls.sourcedId.slice(TEST_PREFIX.length) };
@@ -54,6 +64,9 @@ const buildClassLinkRosterMeta = (
   if (cls.classCode) meta.classlinkClassCode = cls.classCode;
   if (cls.subject) meta.classlinkSubject = cls.subject;
   if (orgId) meta.classlinkOrgId = orgId;
+  const periods = readClassPeriods(cls);
+  if (periods.length > 0) meta.classlinkPeriods = periods;
+  if (bellPeriod) meta.bellPeriod = bellPeriod;
   return meta;
 };
 
@@ -100,6 +113,9 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
   const { t } = useTranslation();
   const { rosters, addRoster, updateRoster, addToast } = useDashboard();
   const { user, userRoles, orgId, roleId } = useAuth();
+  const bellOptions = useTeacherBellPeriodOptions();
+  const backfillRef = useRef({ rosters, updateRoster, bellOptions });
+  backfillRef.current = { rosters, updateRoster, bellOptions };
 
   const canReadTestClassesForOrg = useMemo(
     () => canReadTestClasses(orgId, roleId, userRoles, user?.email),
@@ -205,6 +221,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
         setClasses(combinedClasses);
         setStudentsByClass(data.studentsByClass);
         setTestEmailsByClass(testResult.extraEmails);
+        void backfillRosters(data.classes, backfillRef.current);
       } catch (err) {
         if (cancelled) return;
         console.error('Failed to fetch from ClassLink', err);
@@ -239,7 +256,11 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
       const subjectPrefix = cls.subject ? `${cls.subject} - ` : '';
       const codeSuffix = cls.classCode ? ` (${cls.classCode})` : '';
       const displayName = `${subjectPrefix}${cls.title}${codeSuffix}`;
-      const rosterMeta = buildClassLinkRosterMeta(cls, orgId);
+      const rosterMeta = buildClassLinkRosterMeta(
+        cls,
+        orgId,
+        matchBellPeriod(readClassPeriods(cls), bellOptions)
+      );
       await addRoster(displayName, students, rosterMeta ?? undefined);
       addToast(
         t('toasts.classLink.imported', {
@@ -288,7 +309,13 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
       // imported before the metadata fields existed (or merged with a new
       // ClassLink class) still need `classlinkClassId` so the student SSO
       // gate resolves via session `classIds[]` derivation downstream.
-      const rosterMeta = buildClassLinkRosterMeta(cls, orgId);
+      const rosterMeta = buildClassLinkRosterMeta(
+        cls,
+        orgId,
+        target.bellPeriod
+          ? null
+          : matchBellPeriod(readClassPeriods(cls), bellOptions)
+      );
       await updateRoster(mode.rosterId, {
         students: result.students,
         ...(rosterMeta ?? {}),

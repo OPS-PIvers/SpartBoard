@@ -282,7 +282,7 @@ const QuestionNavigator: React.FC<QuestionNavigatorProps> = ({
           Drag to reorder · click to edit
         </span>
       </div>
-      <div className="max-h-[7.5rem] overflow-y-auto custom-scrollbar -mx-1 px-1">
+      <div className="max-h-[7.5rem] overflow-y-auto custom-scrollbar -mx-1 px-1 py-1">
         <SortableList
           items={questions}
           getId={getQuestionId}

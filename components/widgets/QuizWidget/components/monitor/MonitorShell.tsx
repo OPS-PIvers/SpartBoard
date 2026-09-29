@@ -193,6 +193,17 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
 
   // Per-period sessions swap the single Pause button for one chip per period.
   const perPeriod = hasPeriodAccess(session);
+  const periodNameFor = (key: string): string =>
+    session.classPeriodByClassId?.[key] ??
+    session.periodAccess?.[key]?.label ??
+    key;
+  const showStrip = perPeriod && session.status !== 'ended';
+  // Chips double as the class filter only when every filter name has a chip.
+  const chipNames = new Set(
+    Object.keys(session.periodAccess ?? {}).map(periodNameFor)
+  );
+  const chipsFilter =
+    showStrip && data.periodNames.every((p) => chipNames.has(p));
   const periodActions = usePeriodAccess(
     perPeriod ? session : null,
     {
@@ -649,9 +660,22 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       >
         {screen.name === 'home' && (
           <div className="flex flex-col" style={{ gap: 'min(10px, 2.5cqmin)' }}>
-            {perPeriod && session.status !== 'ended' && (
+            {showStrip && (
               <PeriodAccessStrip
                 periodAccess={session.periodAccess}
+                {...(chipsFilter &&
+                  data.periodNames.length > 1 && {
+                    isViewing: (key: string) =>
+                      data.selectedPeriods.includes(periodNameFor(key)),
+                    onView: (key: string) => {
+                      const p = periodNameFor(key);
+                      data.setSelectedPeriods(
+                        data.selectedPeriods.includes(p)
+                          ? data.selectedPeriods.filter((x) => x !== p)
+                          : [...data.selectedPeriods, p]
+                      );
+                    },
+                  })}
                 extendMs={EXTEND_MS}
                 onStart={(key) =>
                   startPeriods(() => periodActions.startPeriod(key))
@@ -664,7 +688,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 }
               />
             )}
-            {data.periodNames.length > 1 && (
+            {data.periodNames.length > 1 && !chipsFilter && (
               <div
                 className="flex flex-wrap"
                 style={{ gap: 'min(4px, 1cqmin)' }}

@@ -1154,7 +1154,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     // the shared `LibraryDndContext` below), so a non-manual sort won't persist
     // a new order.
     tabContent = (
-      <div className="flex h-full min-h-0" style={{ gap: 'min(12px, 3cqmin)' }}>
+      <div className="flex" style={{ gap: 'min(12px, 3cqmin)' }}>
         <div className="flex-1 min-w-0 flex flex-col">
           {selectionMode && selection.count > 0 && (
             <div style={{ marginBottom: 'min(12px, 3cqmin)' }}>

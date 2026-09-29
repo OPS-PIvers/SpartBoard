@@ -247,6 +247,15 @@ const LibraryDevHarness = import.meta.env.DEV
       }))
     )
   : null;
+// Also built into auth-bypass (E2E) builds for the library end-padding guard.
+const LibraryManagersDevHarness =
+  import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
+    ? lazy(() =>
+        import('./components/dev/LibraryManagersDevHarness').then((module) => ({
+          default: module.LibraryManagersDevHarness,
+        }))
+      )
+    : null;
 const SessionViewsDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/SessionViewsDevHarness').then((module) => ({
@@ -721,6 +730,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <LibraryDevHarness />
+      </Suspense>
+    );
+  }
+
+  // Real library managers against fixtures; auth-bypass only, so never on a deployed site.
+  if (
+    LibraryManagersDevHarness &&
+    isAuthBypass &&
+    pathname === '/library-managers-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <LibraryManagersDevHarness />
       </Suspense>
     );
   }

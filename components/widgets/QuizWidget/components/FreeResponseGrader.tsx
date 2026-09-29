@@ -1505,7 +1505,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           /* Left rail — the student queue. */
           <nav
             aria-label={tg('queueLabel')}
-            className="overflow-y-auto border-r border-slate-200 bg-slate-50"
+            className="overflow-y-auto border-r border-slate-200 bg-slate-50 pb-2"
           >
             <div className="sticky top-0 z-10 flex items-center gap-1 border-b border-slate-200 bg-slate-50/95 py-1.5 pl-4 pr-2 backdrop-blur">
               {graderV2 && (

@@ -27,7 +27,7 @@ export const WordCloudLayout: React.FC<WallRenderProps> = ({
         />
       )}
       <div
-        className="flex h-full w-full flex-wrap content-center items-center justify-center overflow-auto"
+        className="flex h-full w-full flex-wrap content-center items-center [align-content:safe_center] [align-items:safe_center] justify-center overflow-auto"
         style={{ gap: scale.gap, padding: scale.pad }}
         data-testid="aw-layout-wordcloud"
       >

@@ -14,6 +14,7 @@
 
 import { type FC, useCallback, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { tourAttr } from '@/config/tourAnchors';
 import { Check, Mail, Plus, Trash2 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useDashboard } from '@/context/useDashboard';
@@ -416,6 +417,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
               value={buildingId}
               disabled={Boolean(existing)}
               onChange={(e) => setBuildingIdPick(e.target.value)}
+              {...tourAttr('sub-share.building')}
               className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded bg-white disabled:bg-slate-100"
             >
               {teacherBuildings.length === 0 && (
@@ -535,6 +537,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
                   }
                 }}
                 placeholder={`name${ORONO_EMAIL_DOMAIN}`}
+                {...tourAttr('sub-share.email-input')}
                 aria-label={t('shareLinkCreatorModal.substitute.addEmail', {
                   defaultValue: 'Add',
                 })}
@@ -543,6 +546,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
               <button
                 type="button"
                 onClick={addEmail}
+                {...tourAttr('sub-share.add-email')}
                 className="shrink-0 inline-flex items-center gap-1 rounded-md bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -567,6 +571,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
             <button
               type="button"
               onClick={() => void handleSave()}
+              {...tourAttr('sub-share.save')}
               disabled={busy}
               className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark disabled:opacity-50"
             >
@@ -647,6 +652,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
             <button
               type="button"
               onClick={onClose}
+              {...tourAttr('sub-share.done')}
               className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark"
             >
               {t('common.done', { defaultValue: 'Done' })}

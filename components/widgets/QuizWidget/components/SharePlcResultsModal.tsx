@@ -128,7 +128,7 @@ export const SharePlcResultsModal: React.FC<SharePlcResultsModalProps> = ({
             <p className="text-xs text-slate-600">
               No student names are shared.
             </p>
-            <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar -mx-1 px-1">
+            <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar -mx-1 px-1 pb-1">
               {plcs.map((plc) => (
                 <label
                   key={plc.id}
@@ -196,7 +196,7 @@ export const SharePlcResultsModal: React.FC<SharePlcResultsModalProps> = ({
               </div>
             ) : (
               <div
-                className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar -mx-1 px-1"
+                className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar -mx-1 px-1 pb-1"
                 role="radiogroup"
                 aria-label="Pool"
               >

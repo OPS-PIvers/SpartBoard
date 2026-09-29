@@ -739,7 +739,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
         (loading ? (
           <LoadingRow label="Loading projects…" />
         ) : (
-          <div className="flex h-full min-h-0 flex-col">
+          <div className="flex flex-col">
             {error && (
               <p
                 role="status"

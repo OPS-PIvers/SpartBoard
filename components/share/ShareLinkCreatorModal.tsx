@@ -15,6 +15,7 @@
 
 import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { tourAttr, type TourAnchorId } from '@/config/tourAnchors';
 import {
   Cloud,
   Copy,
@@ -82,6 +83,7 @@ interface ModeOptionProps {
   body: string;
   Icon: React.ComponentType<{ className?: string }>;
   onPick: (mode: ShareMode) => void;
+  tourId?: TourAnchorId;
 }
 
 const ModeOption: React.FC<ModeOptionProps> = ({
@@ -91,11 +93,13 @@ const ModeOption: React.FC<ModeOptionProps> = ({
   body,
   Icon,
   onPick,
+  tourId,
 }) => {
   return (
     <button
       type="button"
       onClick={() => onPick(mode)}
+      {...(tourId ? tourAttr(tourId) : {})}
       className={`w-full text-left rounded-xl border bg-white px-4 py-4 transition-all focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 cursor-pointer ${
         selected
           ? 'border-brand-blue-primary shadow-md ring-1 ring-brand-blue-lighter'
@@ -625,6 +629,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
               })}
               Icon={GraduationCap}
               onPick={onShareWithSub}
+              tourId="share-link.share-with-sub"
             />
           )}
           {mode === 'substitute' && (

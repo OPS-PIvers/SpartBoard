@@ -166,7 +166,7 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
           }
         )
       }
-      className="grid max-h-48 grid-cols-2 gap-2 overflow-y-auto pr-1"
+      className="grid max-h-48 grid-cols-2 gap-2 overflow-y-auto pr-1 pb-1"
     >
       {stations.map((station, stationIndex) => {
         const active = config.stationId === station.id;

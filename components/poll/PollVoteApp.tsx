@@ -15,7 +15,7 @@ import {
 type Status = 'loading' | 'error' | 'ready';
 
 const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="h-screen overflow-y-auto bg-slate-100">
+  <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-100">
     <div className="min-h-full flex items-center justify-center p-4 sm:p-6">
       <div className="w-full max-w-xl bg-white rounded-2xl shadow-xl overflow-hidden">
         {children}

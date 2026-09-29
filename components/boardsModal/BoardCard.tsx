@@ -2,6 +2,7 @@ import React from 'react';
 import { Star, Pin, Folder, Copy, Share2, Loader2, Pencil } from 'lucide-react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
+import { tourAttr } from '@/config/tourAnchors';
 import type { Dashboard } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { hexToRgba, pickReadableForeground } from '@/utils/collectionColor';
@@ -209,6 +210,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
             }}
             onPointerDown={(e) => e.stopPropagation()}
             aria-label={t('boardsModal.share', { defaultValue: 'Share' })}
+            {...tourAttr('boards.share-board')}
             className="p-1 rounded text-slate-300 hover:text-brand-blue-primary hover:bg-brand-blue-lighter transition"
           >
             <Share2 className="w-3.5 h-3.5" />

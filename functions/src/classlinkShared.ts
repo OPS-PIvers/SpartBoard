@@ -62,6 +62,7 @@ export interface ClassLinkClass {
   title: string;
   classCode?: string;
   subject?: string;
+  periods?: string[];
 }
 
 /**

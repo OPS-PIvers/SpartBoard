@@ -106,7 +106,7 @@ export const SubsAuthGate: React.FC<Props> = ({ children }) => {
 };
 
 const PortalShell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+  <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-50 text-slate-900 flex flex-col">
     <header className="flex items-center gap-3 px-8 py-5">
       <div className="w-9 h-9 rounded-lg bg-brand-blue-primary flex items-center justify-center">
         <GraduationCap className="w-5 h-5 text-white" />

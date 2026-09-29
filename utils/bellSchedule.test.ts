@@ -8,6 +8,9 @@ import {
   dateKey,
   listBellPeriods,
   listTeacherBellPeriods,
+  matchBellPeriod,
+  normalizePeriodKey,
+  periodFamily,
   resolveBellWindow,
   resolveBuildingSchedule,
 } from './bellSchedule';
@@ -139,5 +142,98 @@ describe('listTeacherBellPeriods', () => {
       { buildingId: 'b1', periodId: 'P3', label: 'Period 3' },
     ]);
     expect(listTeacherBellPeriods([], ['b1'])).toEqual([]);
+  });
+});
+
+describe('matchBellPeriod', () => {
+  const options = [
+    { buildingId: 'b1', periodId: 'P3', label: 'Period 3' },
+    { buildingId: 'b1', periodId: '5A', label: '5th Hour (A)' },
+    { buildingId: 'b1', periodId: '5B', label: '5th Hour (B)' },
+    { buildingId: 'b1', periodId: 'Planning', label: 'Planning' },
+  ];
+
+  it('folds period prefixes and leading zeros', () => {
+    expect(normalizePeriodKey(' Period 03 ')).toBe('3');
+    expect(normalizePeriodKey('P3')).toBe('3');
+    expect(normalizePeriodKey('0')).toBe('0');
+    expect(normalizePeriodKey('Planning')).toBe('planning');
+  });
+
+  it('tags the one building period a OneRoster period names', () => {
+    expect(matchBellPeriod(['3'], options)).toEqual({
+      buildingId: 'b1',
+      periodId: 'P3',
+    });
+    expect(matchBellPeriod(['5b'], options)).toEqual({
+      buildingId: 'b1',
+      periodId: '5B',
+    });
+  });
+
+  it('tags a bare period number with all of its sections', () => {
+    expect(matchBellPeriod(['5'], options)).toEqual({
+      buildingId: 'b1',
+      periodId: '5',
+    });
+    expect(periodFamily('P5b')).toBe('5');
+    expect(periodFamily('Planning')).toBe('planning');
+  });
+
+  it('leaves the class untagged when nothing or several periods match', () => {
+    expect(matchBellPeriod(['6'], options)).toBeNull();
+    expect(
+      matchBellPeriod(
+        ['5'],
+        [...options, { buildingId: 'b2', periodId: '5C', label: '5C' }]
+      )
+    ).toBeNull();
+    expect(matchBellPeriod(['3', '5A'], options)).toBeNull();
+    expect(matchBellPeriod([], options)).toBeNull();
+    expect(matchBellPeriod(['3'], undefined)).toBeNull();
+    expect(
+      matchBellPeriod(['3'], [...options, { ...options[0], buildingId: 'b2' }])
+    ).toBeNull();
+  });
+});
+
+describe('resolveBellWindow with lunch sections', () => {
+  const at = (h: number, m: number) => new Date(2026, 8, 29, h, m).getTime();
+  const sections: BuildingScheduleDefaults = {
+    buildingId: 'b1',
+    items: [],
+    schedules: [
+      {
+        id: 'regular',
+        name: 'Regular',
+        days: [1, 2, 3, 4, 5],
+        items: [
+          ['5A', '11:38', '12:02'],
+          ['5B', '12:05', '12:29'],
+          ['5C', '12:32', '12:56'],
+        ].map(([periodId, startTime, endTime]) => ({
+          task: `5th Hour (${periodId.slice(1)})`,
+          startTime,
+          endTime,
+          isClassPeriod: true,
+          periodId,
+        })),
+      },
+    ],
+  };
+
+  it('spans every section for a bare period number', () => {
+    expect(resolveBellWindow(sections, { periodId: '5' }, tue)).toEqual({
+      openAt: at(11, 38),
+      closeAt: at(12, 56),
+    });
+  });
+
+  it('keeps a section tag to its own bell', () => {
+    expect(resolveBellWindow(sections, { periodId: '5B' }, tue)).toEqual({
+      openAt: at(12, 5),
+      closeAt: at(12, 29),
+    });
+    expect(resolveBellWindow(sections, { periodId: '6' }, tue)).toBeNull();
   });
 });

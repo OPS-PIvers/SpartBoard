@@ -481,7 +481,7 @@ export const Sidebar: React.FC = () => {
             <div className="flex-1 relative overflow-hidden bg-white">
               {/* MAIN MENU */}
               <nav
-                className={`absolute inset-0 pt-3 flex flex-col overflow-y-auto transition-[transform,opacity] duration-300 ease-in-out ${
+                className={`absolute inset-0 pt-3 pb-3 flex flex-col overflow-y-auto transition-[transform,opacity] duration-300 ease-in-out ${
                   activeSection === 'main'
                     ? 'translate-x-0 opacity-100 visible'
                     : '-translate-x-full opacity-0 invisible'

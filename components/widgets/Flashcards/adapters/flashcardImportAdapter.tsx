@@ -56,7 +56,7 @@ export function createFlashcardImportAdapter(
         <p className="text-sm font-bold text-slate-700">
           {data.cards.length} card{data.cards.length === 1 ? '' : 's'} ready
         </p>
-        <div className="max-h-72 space-y-2 overflow-y-auto pr-1 custom-scrollbar">
+        <div className="max-h-72 space-y-2 overflow-y-auto pr-1 custom-scrollbar pb-1">
           {data.cards.slice(0, 20).map((card, index) => (
             <div
               key={card.id}

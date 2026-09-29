@@ -76,7 +76,7 @@ export const ModerationAndAccess: React.FC<ModerationAndAccessProps> = ({
           Students in the selected classes see this wall in their assignments.
           Leave all off to share by link only.
         </p>
-        <div className="max-h-40 space-y-1 overflow-y-auto">
+        <div className="max-h-40 space-y-1 overflow-y-auto pb-1">
           {classes.map((cls) => {
             const checked = classIds.includes(cls.sourcedId);
             return (

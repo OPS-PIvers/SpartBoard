@@ -943,7 +943,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   ) : null;
 
   const mainContent = (
-    <div className="flex flex-col gap-4 h-full min-w-0 flex-1">
+    <div className="flex flex-col gap-4 min-w-0 flex-1">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
           <div
@@ -1159,7 +1159,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
       aria-label={t('plcDashboard.assessmentList.folders.sidebarLabel', {
         defaultValue: 'Folders',
       })}
-      className="flex flex-col md:flex-row gap-6 h-full min-h-0"
+      className="flex flex-col md:flex-row gap-6 min-h-full"
     >
       <LibraryDndContext
         itemIds={rowIds}

@@ -33,7 +33,7 @@ export const VideoActivityPeriodLockedScreen: React.FC<
 > = ({ session, periodKeys, now, started }) => {
   const Icon = started ? PauseCircle : Lock;
   return (
-    <div className="h-screen overflow-y-auto bg-gradient-to-b from-white to-slate-100">
+    <div className="h-screen [height:100dvh] overflow-y-auto bg-gradient-to-b from-white to-slate-100">
       <div className="min-h-full flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm shadow-slate-900/5 border border-slate-200 p-6 text-center">
           <div className="flex items-center justify-center gap-2 mb-6">

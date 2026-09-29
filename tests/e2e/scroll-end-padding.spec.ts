@@ -77,3 +77,52 @@ test('the widget settings drawer keeps padding under its last row', async ({
   await expect(drawer).toBeVisible({ timeout: 10000 });
   await checkEveryTab(page, drawer, 'Clock settings');
 });
+
+const LIBRARY_VIEWS = [
+  'quiz',
+  'video-activity',
+  'guided-learning',
+  'mini-app',
+  'flashcards',
+  'activity-wall',
+];
+
+for (const view of LIBRARY_VIEWS) {
+  test(`every ${view} library tab keeps padding under its last row`, async ({
+    page,
+  }) => {
+    await page.goto(`/library-managers-dev?view=${view}`);
+    await page.addStyleTag({
+      content:
+        '*, *::before, *::after { transition: none !important; animation: none !important; }',
+    });
+    const shell = page.getByRole('tabpanel', { name: /tab content/ });
+    await expect(shell).toBeVisible();
+    const body = page.locator('body');
+    const tabs = page.getByRole('tablist').first().getByRole('tab');
+    const count = await tabs.count();
+    for (let i = 0; i < Math.max(count, 1); i++) {
+      let name = 'Library';
+      if (count > 0) {
+        const tab = tabs.nth(i);
+        name = (await tab.innerText()).trim() || `tab ${i + 1}`;
+        await tab.click();
+        await expect(tab).toHaveAttribute('aria-selected', 'true');
+      }
+      await page.waitForTimeout(300);
+      await expectScrollEndPadding(body, `${view} library > ${name}`);
+    }
+    // An open preview pane must not pin the list to the panel height.
+    const firstTab = count > 0 ? tabs.first() : null;
+    if (firstTab) await firstTab.click();
+    const firstCard = page
+      .getByTestId('library-grid')
+      .locator(':scope > *')
+      .first();
+    await firstCard.click({ position: { x: 40, y: 12 } });
+    const pane = page.getByRole('complementary', { name: 'Item preview' });
+    if (await pane.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await expectScrollEndPadding(body, `${view} library > preview open`);
+    }
+  });
+}
