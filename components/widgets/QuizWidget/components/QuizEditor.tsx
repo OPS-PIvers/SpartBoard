@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
   ChevronDown,
+  Copy,
   GripVertical,
   Heading,
   KeyRound,
@@ -186,6 +187,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
     setSelectedId,
     addQuestion,
     deleteQuestion,
+    duplicateQuestion,
     reorderEntries,
     addBankSlot,
     removeBankSlot,
@@ -510,6 +512,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                   onSelect={setSelectedId}
                   onToggleChecked={toggleChecked}
                   onDelete={deleteQuestion}
+                  onDuplicate={duplicateQuestion}
                   dragHandleAttributes={handle.attributes}
                   dragHandleListeners={handle.listeners}
                   inheritedTargets={inheritedTargets}
@@ -569,6 +572,7 @@ interface QuestionRowProps {
   onSelect: (id: string) => void;
   onToggleChecked: (id: string, range?: boolean) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
   dragHandleAttributes: React.HTMLAttributes<HTMLElement>;
   dragHandleListeners: Record<string, (event: Event) => void> | undefined;
   inheritedTargets?: QuestionTargetTag[];
@@ -593,6 +597,7 @@ const questionRowPropsEqual = (
   prev.onSelect === next.onSelect &&
   prev.onToggleChecked === next.onToggleChecked &&
   prev.onDelete === next.onDelete &&
+  prev.onDuplicate === next.onDuplicate &&
   prev.inheritedTargets === next.inheritedTargets;
 
 const QuestionRow = React.memo(function QuestionRow({
@@ -603,6 +608,7 @@ const QuestionRow = React.memo(function QuestionRow({
   onSelect,
   onToggleChecked,
   onDelete,
+  onDuplicate,
   dragHandleAttributes,
   dragHandleListeners,
   inheritedTargets,
@@ -695,9 +701,22 @@ const QuestionRow = React.memo(function QuestionRow({
         type="button"
         onClick={(e) => {
           e.stopPropagation();
+          onDuplicate(question.id);
+        }}
+        aria-label="Duplicate question"
+        title="Duplicate question"
+        className="text-slate-300 hover:text-brand-blue-primary hover:bg-slate-100 rounded p-1 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+      >
+        <Copy className="w-3.5 h-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
           onDelete(question.id);
         }}
         aria-label="Delete question"
+        title="Delete question"
         className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-colors opacity-0 group-hover:opacity-100"
       >
         <Trash2 className="w-3.5 h-3.5" />

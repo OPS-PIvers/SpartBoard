@@ -79,6 +79,7 @@ export interface QuizEditorController {
   removeIncorrect: (id: string, index: number) => void;
   addQuestion: () => void;
   deleteQuestion: (id: string) => void;
+  duplicateQuestion: (id: string) => void;
   reorderQuestions: (next: QuizQuestion[]) => void;
   // Bank slots + interleaved row order
   bankSlots: QuizBankSlot[];
@@ -402,6 +403,27 @@ export function useQuizEditorState({
     setOrder((prev) => dropFromOrder(prev, new Set([id])));
   }, []);
 
+  // Deep copy with a fresh id, placed right after the original; the printed label stays with the original.
+  const duplicateQuestion = useCallback((id: string) => {
+    const source = questionsRef.current.find((q) => q.id === id);
+    if (!source) return;
+    const { sourceLabel: _label, ...rest } = structuredClone(source);
+    const copy: QuizQuestion = { ...rest, id: crypto.randomUUID() };
+    setQuestions((prev) => {
+      const idx = prev.findIndex((q) => q.id === id);
+      if (idx < 0) return prev;
+      return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
+    });
+    setOrder((prev) => {
+      const idx = prev.findIndex((e) => e.id === id);
+      const entry = { kind: 'question' as const, id: copy.id };
+      return idx < 0
+        ? [...prev, entry]
+        : [...prev.slice(0, idx + 1), entry, ...prev.slice(idx + 1)];
+    });
+    setSelectedId(copy.id);
+  }, []);
+
   // Questions move among themselves; slot rows keep their positions.
   const reorderQuestions = useCallback((next: QuizQuestion[]) => {
     setQuestions(next);
@@ -716,6 +738,7 @@ export function useQuizEditorState({
     removeIncorrect,
     addQuestion,
     deleteQuestion,
+    duplicateQuestion,
     reorderQuestions,
     bankSlots,
     order,

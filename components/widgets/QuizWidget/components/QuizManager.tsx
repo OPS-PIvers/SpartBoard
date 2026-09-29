@@ -286,6 +286,8 @@ interface QuizManagerProps {
   onNewPaperTest?: () => void;
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;
+  /** Take the quiz as students see it. Absent when the feature is off. */
+  onStudentView?: (quiz: QuizMetadata) => void;
   /**
    * Assign callback. `behavior` is the per-assignment behavior snapshot —
    * seeded from the quiz's saved settings and possibly overridden by the
@@ -637,6 +639,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onNewPaperTest,
   onEdit,
   onPreview,
+  onStudentView,
   onAssign,
   onLoadQuizData,
   skippedTargetsByAssignmentId,
@@ -1064,6 +1067,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         icon: Eye,
         onClick: () => onPreview(quiz),
       },
+      ...(onStudentView
+        ? [
+            {
+              id: 'student-view',
+              label: 'Student view',
+              icon: Eye,
+              onClick: () => onStudentView(quiz),
+            },
+          ]
+        : []),
       {
         id: 'edit',
         label: 'Edit',

@@ -43,7 +43,7 @@ export const SubsAuthGate: React.FC<Props> = ({ children }) => {
   if (loading) {
     return (
       <PortalShell>
-        <div className="flex flex-col items-center gap-3 text-white/70">
+        <div className="flex flex-col items-center gap-3 text-slate-500">
           <Loader2 className="w-8 h-8 animate-spin" />
           <span className="text-sm">Checking sign-in…</span>
         </div>
@@ -58,13 +58,13 @@ export const SubsAuthGate: React.FC<Props> = ({ children }) => {
           <h1 className="text-3xl font-bold tracking-tight">
             Substitute Portal
           </h1>
-          <p className="mt-3 text-sm text-white/60">
+          <p className="mt-3 text-sm text-slate-600">
             Sign in with your @orono.k12.mn.us account.
           </p>
           <button
             type="button"
             onClick={() => void signInWithGoogle()}
-            className="mt-8 inline-flex items-center gap-2 rounded-lg bg-white text-brand-blue-dark hover:bg-white/90 px-5 py-2.5 text-sm font-bold transition-colors shadow-lg cursor-pointer"
+            className="mt-8 inline-flex items-center gap-2 rounded-lg bg-white border border-slate-300 text-slate-800 hover:bg-slate-50 px-5 py-2.5 text-sm font-bold transition-colors shadow-sm cursor-pointer"
           >
             <GoogleGlyph />
             Sign in with Google
@@ -78,21 +78,21 @@ export const SubsAuthGate: React.FC<Props> = ({ children }) => {
     return (
       <PortalShell>
         <div className="max-w-md w-full mx-auto text-center">
-          <div className="mx-auto w-12 h-12 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center">
-            <ShieldAlert className="w-6 h-6 text-red-300" />
+          <div className="mx-auto w-12 h-12 rounded-full bg-red-50 border border-red-200 flex items-center justify-center">
+            <ShieldAlert className="w-6 h-6 text-red-600" />
           </div>
           <h1 className="mt-4 text-xl font-bold tracking-tight">
             District account required
           </h1>
-          <p className="mt-2 text-sm text-white/60">
+          <p className="mt-2 text-sm text-slate-600">
             The Substitute Portal is restricted to{' '}
-            <span className="font-mono text-white/80">@orono.k12.mn.us</span>{' '}
+            <span className="font-mono text-slate-800">@orono.k12.mn.us</span>{' '}
             accounts. Signing you out — try again with your district account.
           </p>
           <button
             type="button"
             onClick={() => void signOut()}
-            className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 text-xs font-bold text-white transition-colors cursor-pointer"
+            className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
             Sign out
@@ -106,14 +106,14 @@ export const SubsAuthGate: React.FC<Props> = ({ children }) => {
 };
 
 const PortalShell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-brand-blue-dark text-white flex flex-col">
+  <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
     <header className="flex items-center gap-3 px-8 py-5">
-      <div className="w-9 h-9 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+      <div className="w-9 h-9 rounded-lg bg-brand-blue-primary flex items-center justify-center">
         <GraduationCap className="w-5 h-5 text-white" />
       </div>
       <div>
         <div className="text-sm font-bold tracking-tight">SpartBoard</div>
-        <div className="text-[11px] text-white/60 -mt-0.5">
+        <div className="text-[11px] text-slate-500 -mt-0.5">
           Substitute Portal
         </div>
       </div>

@@ -6062,6 +6062,16 @@ export interface SharedQuizAssignment {
   stimuli?: QuizStimulus[];
   /** Mirrors `QuizData.language`. */
   language?: string;
+  /** Printable stimuli, sections and bank draws; absent on older shares. */
+  paperSheetStimuli?: PaperSheetStimulus[];
+  order?: QuizOrderEntry[];
+  sections?: QuizSection[];
+  bankSlots?: QuizBankSlot[];
+  /** Banks the slots draw from, inlined; see `utils/quizShareContent.ts`. */
+  banks?: (Pick<
+    QuestionBankData,
+    'id' | 'title' | 'questions' | 'stimuli' | 'targets'
+  > & { key: string })[];
   createdAt: number;
   updatedAt: number;
   assignmentSettings: QuizAssignmentSettings;
@@ -9041,6 +9051,8 @@ export type GlobalFeature =
   | 'claude-connector'
   /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/shipped/VA_TEACHER_PACED.md). */
   | 'video-activity-live'
+  /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
+  | 'quiz-student-view'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'

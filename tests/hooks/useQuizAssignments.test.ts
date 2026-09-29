@@ -19,6 +19,7 @@ import type {
   QuizPublicQuestion,
   QuizSession,
   SharedQuizAssignment,
+  QuizData,
 } from '@/types';
 
 // `deleteField()` and `serverTimestamp()` return Firestore sentinels; the
@@ -622,6 +623,82 @@ describe('useQuizAssignments - importSharedAssignment', () => {
     });
     // Member path: the non-member nudge must NOT fire.
     expect(onNonMember).not.toHaveBeenCalled();
+  });
+
+  it('copies a bank-draw quiz with its banks and freezes the pool onto the assignment', async () => {
+    const bankQuestion = (id: string) => ({
+      id,
+      type: 'MC',
+      text: id,
+      correctAnswer: 'a',
+      incorrectAnswers: ['b'],
+      timeLimit: 0,
+    });
+    const sharedDoc = {
+      title: 'Bank quiz',
+      questions: [],
+      bankSlots: [
+        {
+          id: 'slot-1',
+          bankId: 'sharer-bank',
+          bankTitle: 'Fractions',
+          mode: 'random',
+          count: 1,
+        },
+      ],
+      banks: [
+        {
+          key: 'sharer-bank',
+          id: 'sharer-bank',
+          title: 'Fractions',
+          questions: [bankQuestion('b1'), bankQuestion('b2')],
+        },
+      ],
+      createdAt: 1,
+      updatedAt: 1,
+      assignmentSettings: { sessionMode: 'student', sessionOptions: {} },
+      originalAuthor: 'originator-uid',
+      sharedAt: 1,
+    } as unknown as SharedQuizAssignment;
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => sharedDoc,
+    });
+
+    const saveQuiz = vi.fn().mockResolvedValue({ id: 'q', driveFileId: 'd' });
+    const saveBank = vi.fn().mockResolvedValue(undefined);
+    const saveDriveSnapshot = vi.fn().mockResolvedValue('snapshot-file');
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.importSharedAssignment(
+        'share-id',
+        saveQuiz,
+        undefined,
+        undefined,
+        { saveBank, saveDriveSnapshot }
+      );
+    });
+
+    expect(saveBank).toHaveBeenCalledTimes(1);
+    const newBankId = (saveBank.mock.calls[0][0] as { id: string }).id;
+    expect(newBankId).not.toBe('sharer-bank');
+    const savedQuiz = saveQuiz.mock.calls[0][0] as QuizData;
+    expect(savedQuiz.bankSlots).toEqual([
+      expect.objectContaining({ id: 'slot-1', bankId: newBankId }),
+    ]);
+    expect(savedQuiz).not.toHaveProperty('banks');
+    const snapshot = saveDriveSnapshot.mock.calls[0][0] as QuizData;
+    expect(snapshot.questions.map((q) => q.id)).toEqual(['b1', 'b2']);
+
+    const assignment = findAssignmentSet();
+    expect(assignment.resolvedDriveFileId).toBe('snapshot-file');
+    const sessionCall = batchSet.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.set on session doc');
+    expect(sessionCall[1]).toMatchObject({
+      bankSlots: [expect.objectContaining({ id: 'slot-1', count: 1 })],
+    });
   });
 
   it('creates the imported assignment in paused state so students cannot join before the teacher targets it', async () => {

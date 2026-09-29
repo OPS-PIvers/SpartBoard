@@ -45,6 +45,15 @@ async function readTest(file: File) {
   fireEvent.click(read);
 }
 
+/** The key zone waits behind a link until the teacher asks for it. */
+function keyInput() {
+  const link = screen.queryByRole('button', {
+    name: 'Attach a separate answer key',
+  });
+  if (link) fireEvent.click(link);
+  return screen.getByLabelText('Upload answer key');
+}
+
 function makeAdapter(
   opts: {
     supportedSources?: ImportSourceKind[];
@@ -297,9 +306,9 @@ describe('ImportWizard — LMS exports', () => {
     const { adapter } = makeAdapter({ supportsKeyFile: true });
     renderWizard(adapter);
     // An export carries its own answers, so it is never the key file.
-    expect(
-      screen.getByLabelText('Upload answer key').getAttribute('accept')
-    ).toBe('.pdf,.docx,.odt,.rtf,.jpg,.jpeg,.png,.heic,.heif');
+    expect(keyInput().getAttribute('accept')).toBe(
+      '.pdf,.docx,.odt,.rtf,.jpg,.jpeg,.png,.heic,.heif'
+    );
   });
 });
 
@@ -326,7 +335,7 @@ describe('ImportWizard — rich text documents', () => {
     const { adapter, parseSpy } = makeAdapter({ supportsKeyFile: true });
     renderWizard(adapter);
     const key = new File(['{\\rtf1}'], 'key.rtf', { type: 'application/rtf' });
-    fireEvent.change(screen.getByLabelText('Upload answer key'), {
+    fireEvent.change(keyInput(), {
       target: { files: [key] },
     });
     await screen.findByText('key.rtf');
@@ -379,16 +388,43 @@ describe('ImportWizard — editable review step', () => {
 
 describe('the optional answer key slot (D8)', () => {
   const upload = (label: string, name: string) => {
-    const input = screen.getByLabelText(label);
+    const input =
+      label === 'Upload answer key' ? keyInput() : screen.getByLabelText(label);
     fireEvent.change(input, {
       target: { files: [new File(['x'], name, { type: 'application/pdf' })] },
     });
   };
 
+  it('waits behind a link, and the test zone takes both until then', () => {
+    const { adapter } = makeAdapter({ supportsKeyFile: true });
+    renderWizard(adapter);
+    expect(screen.queryByLabelText('Upload answer key')).toBeNull();
+    expect(
+      screen.getByText('Test questions & answer key (optional)')
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Attach a separate answer key' })
+    );
+    expect(screen.getByText('Answer key (optional)')).toBeInTheDocument();
+    expect(screen.getByText('Test questions')).toBeInTheDocument();
+  });
+
+  it('puts the Import button in the footer beside Cancel', () => {
+    const { adapter } = makeAdapter({ supportsKeyFile: true });
+    renderWizard(adapter);
+    const cancel = screen.getByRole('button', { name: 'Cancel' });
+    const importButton = screen.getByRole('button', { name: 'Import' });
+    expect(cancel.parentElement).toContainElement(importButton);
+  });
+
   it('is not offered by an adapter that does not read a key', () => {
     const { adapter } = makeAdapter();
     renderWizard(adapter);
     expect(screen.queryByText('Answer key (optional)')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Attach a separate answer key' })
+    ).toBeNull();
   });
 
   it('sends an attached key along with the test document', async () => {

@@ -22,7 +22,7 @@ export const SubShareUpdateBanner: React.FC<SubShareUpdateBannerProps> = ({
     <div
       role="status"
       data-screenshot="exclude"
-      className="fixed top-20 left-1/2 z-dock -translate-x-1/2 flex items-center gap-3 rounded-full bg-slate-800/90 backdrop-blur-xl border border-white/20 shadow-xl px-4 py-2 text-sm text-slate-200"
+      className="fixed top-20 left-1/2 z-dock -translate-x-1/2 flex items-center gap-3 rounded-full bg-white border border-slate-200 shadow-xl px-4 py-2 text-sm text-slate-700"
     >
       <span>
         {t('subShare.update.available', {
@@ -33,7 +33,7 @@ export const SubShareUpdateBanner: React.FC<SubShareUpdateBannerProps> = ({
       <button
         type="button"
         onClick={onReload}
-        className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/15 hover:bg-white/25 border border-white/25 px-3 py-1 text-xs font-bold text-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+        className="flex shrink-0 items-center gap-1.5 rounded-full bg-brand-blue-primary hover:bg-brand-blue-dark px-3 py-1 text-xs font-bold text-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
       >
         <RefreshCw className="w-3.5 h-3.5" aria-hidden />
         {t('subShare.update.reload', { defaultValue: 'Reload' })}

@@ -156,9 +156,9 @@ export const SubBoardNav: React.FC<SubBoardNavProps> = ({
       )}
 
       {!menuOpen && (
-        <div className="absolute bottom-full left-0 mb-1.5 flex max-w-[16rem] items-center gap-1.5 rounded-full bg-slate-900/70 backdrop-blur-sm border border-white/15 px-2.5 py-1 text-xs text-slate-200">
+        <div className="absolute bottom-full left-0 mb-1.5 flex max-w-[16rem] items-center gap-1.5 rounded-full bg-white/90 backdrop-blur-sm border border-slate-200 shadow-sm px-2.5 py-1 text-xs text-slate-700">
           {currentName && <span className="truncate">{currentName}</span>}
-          <span className="shrink-0 text-slate-300">{position}</span>
+          <span className="shrink-0 text-slate-500">{position}</span>
         </div>
       )}
 

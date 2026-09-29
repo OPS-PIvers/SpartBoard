@@ -1509,7 +1509,7 @@ const SuccessPill: React.FC<{ light: boolean; children: React.ReactNode }> = ({
 
 // ─── Active quiz ──────────────────────────────────────────────────────────────
 
-const ActiveQuiz: React.FC<{
+export const ActiveQuiz: React.FC<{
   session: QuizSession;
   currentQuestion: QuizPublicQuestion | undefined;
   alreadyAnswered: boolean;
@@ -5671,7 +5671,7 @@ function revealMatches(
   return normalizeAnswer(given) === normalizeAnswer(revealed);
 }
 
-const QuizSubmittedWaitScreen: React.FC<{
+export const QuizSubmittedWaitScreen: React.FC<{
   session: QuizSession;
   myResponse: NonNullable<
     ReturnType<typeof useQuizSessionStudent>['myResponse']
@@ -5683,6 +5683,8 @@ const QuizSubmittedWaitScreen: React.FC<{
   totalQuestions?: number;
   /** Per-student pointer override (M17 B4); absent = session value applies. */
   pointerTabWarningThreshold?: number | 'off';
+  /** Teacher Student view has no assignments page to return to. */
+  hideReturnButton?: boolean;
 }> = ({
   session,
   myResponse,
@@ -5690,6 +5692,7 @@ const QuizSubmittedWaitScreen: React.FC<{
   answeredCount,
   totalQuestions,
   pointerTabWarningThreshold,
+  hideReturnButton = false,
 }) => {
   // Local variable name avoids shadowing `QuizResponse.autoSubmitted`
   // (the cron-set flag for idle-finalized responses). This banner is
@@ -5755,7 +5758,7 @@ const QuizSubmittedWaitScreen: React.FC<{
         quiz. PIN-based students joined by code and have nowhere to go
         back to — skip the CTA for them.
       */}
-      {!pin && (
+      {!pin && !hideReturnButton && (
         <div className="mt-6">
           <ReturnToAssignmentsButton variant="standalone" />
         </div>

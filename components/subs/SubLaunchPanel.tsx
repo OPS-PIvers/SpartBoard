@@ -50,7 +50,7 @@ const RunControls: React.FC<{
   if (state === 'ended') {
     return (
       <p
-        className="text-slate-300"
+        className="text-slate-600"
         style={{ fontSize: NOTE, marginTop: 'min(6px, 1.5cqmin)' }}
       >
         Ended. Your teacher has whatever the class finished.
@@ -69,7 +69,7 @@ const RunControls: React.FC<{
           thing that does not carry. */}
       {state === 'paused' && (
         <p
-          className="font-medium text-slate-200"
+          className="font-medium text-slate-700"
           style={{ fontSize: NOTE, marginBottom: 'min(4px, 1cqmin)' }}
         >
           Paused. Students cannot answer until you start it again.
@@ -77,7 +77,7 @@ const RunControls: React.FC<{
       )}
       {error && (
         <p
-          className="text-slate-200"
+          className="text-slate-700"
           style={{ fontSize: NOTE, marginBottom: 'min(4px, 1cqmin)' }}
         >
           {error}
@@ -92,7 +92,7 @@ const RunControls: React.FC<{
             type="button"
             onClick={() => act('end')}
             disabled={busy}
-            className="rounded-lg bg-slate-700 font-semibold text-white hover:bg-slate-600 disabled:opacity-60"
+            className="rounded-lg bg-brand-blue-primary font-semibold text-white hover:bg-brand-blue-dark disabled:opacity-60"
             style={{ padding: PAD, fontSize: NOTE }}
           >
             End it now
@@ -100,7 +100,7 @@ const RunControls: React.FC<{
           <button
             type="button"
             onClick={() => setConfirming(false)}
-            className="font-medium text-slate-300 underline hover:text-white"
+            className="font-medium text-slate-600 underline hover:text-slate-900"
             style={{ fontSize: NOTE }}
           >
             Keep going
@@ -116,7 +116,7 @@ const RunControls: React.FC<{
               type="button"
               onClick={() => act(state === 'paused' ? 'resume' : 'pause')}
               disabled={busy}
-              className="rounded-lg bg-slate-700 font-semibold text-white hover:bg-slate-600 disabled:opacity-60"
+              className="rounded-lg bg-brand-blue-primary font-semibold text-white hover:bg-brand-blue-dark disabled:opacity-60"
               style={{ padding: PAD, fontSize: NOTE }}
             >
               {state === 'paused' ? `Start ${label} again` : 'Pause'}
@@ -126,7 +126,7 @@ const RunControls: React.FC<{
             type="button"
             onClick={() => setConfirming(true)}
             disabled={busy}
-            className="font-medium text-slate-300 underline hover:text-white disabled:opacity-60"
+            className="font-medium text-slate-600 underline hover:text-slate-900 disabled:opacity-60"
             style={{ fontSize: NOTE }}
           >
             End {label}
@@ -161,11 +161,11 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
   if (status === 'launched' && result && !result.code) {
     return (
       <div className="text-center" style={{ padding: PAD }}>
-        <p className="font-semibold text-white" style={{ fontSize: BODY }}>
+        <p className="font-semibold text-slate-900" style={{ fontSize: BODY }}>
           Started
         </p>
         <p
-          className="text-slate-300"
+          className="text-slate-600"
           style={{ fontSize: NOTE, marginTop: 'min(4px, 1cqmin)' }}
         >
           Students find it in their assignments. Runs in the teacher&apos;s
@@ -179,17 +179,17 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
   if (status === 'launched' && result) {
     return (
       <div className="text-center" style={{ padding: PAD }}>
-        <p className="text-slate-300" style={{ fontSize: NOTE }}>
+        <p className="text-slate-600" style={{ fontSize: NOTE }}>
           Students join with this code
         </p>
         <p
-          className="font-bold tracking-widest text-white tabular-nums"
+          className="font-bold tracking-widest text-slate-900 tabular-nums"
           style={{ fontSize: 'clamp(20px, 12cqmin, 64px)' }}
         >
           {result.code}
         </p>
         <p
-          className="text-slate-300"
+          className="text-slate-600"
           style={{ fontSize: NOTE, marginTop: 'min(4px, 1cqmin)' }}
         >
           Runs in the teacher&apos;s account.
@@ -202,13 +202,13 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
   if (status === 'error') {
     return (
       <div className="text-center" style={{ padding: PAD }}>
-        <p className="text-slate-200" style={{ fontSize: NOTE }}>
+        <p className="text-slate-700" style={{ fontSize: NOTE }}>
           {error}
         </p>
         <button
           type="button"
           onClick={reset}
-          className="font-medium text-slate-300 underline hover:text-white"
+          className="font-medium text-slate-600 underline hover:text-slate-900"
           style={{ fontSize: NOTE, marginTop: 'min(4px, 1cqmin)' }}
         >
           Back
@@ -220,7 +220,7 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
   if (status === 'launching') {
     return (
       <div
-        className="flex items-center justify-center text-slate-200"
+        className="flex items-center justify-center text-slate-700"
         style={{ padding: PAD, gap: 'min(8px, 2cqmin)', fontSize: NOTE }}
       >
         <Loader2
@@ -260,7 +260,7 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
   return (
     <div style={{ padding: PAD }}>
       <p
-        className="text-slate-300"
+        className="text-slate-600"
         style={{ fontSize: NOTE, marginBottom: 'min(4px, 1cqmin)' }}
       >
         Which class?
@@ -271,7 +271,7 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
             key={roster.id}
             type="button"
             onClick={() => void launch([roster.id])}
-            className="rounded-lg bg-slate-700 text-left font-medium text-white hover:bg-slate-600"
+            className="rounded-lg bg-slate-100 text-left font-medium text-slate-800 hover:bg-slate-200"
             style={{ padding: PAD, fontSize: BODY }}
           >
             {roster.name}
@@ -281,7 +281,7 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
       <button
         type="button"
         onClick={() => setPicking(false)}
-        className="font-medium text-slate-300 underline hover:text-white"
+        className="font-medium text-slate-600 underline hover:text-slate-900"
         style={{ fontSize: NOTE, marginTop: 'min(4px, 1cqmin)' }}
       >
         Cancel

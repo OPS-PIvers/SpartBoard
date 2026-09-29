@@ -38,7 +38,7 @@
  *   components/quickAccessModal/QuickAccessModal.tsx
  *     t('quickAccess.title'), t('quickAccess.emptyResults'), etc.
  *
- *   components/subs/SubCollectionsList.tsx
+ *   components/subs/SubDirectoryCard.tsx
  *     t('subCollections.loading'), t('subCollections.openBoard'), etc.
  *
  *   components/boardsModal/CreateFromTemplateModal.tsx

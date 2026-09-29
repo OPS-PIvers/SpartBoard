@@ -88,6 +88,42 @@ describe('TestAndKeyUploader', () => {
     expect(onSubmit.mock.calls[0][0].key?.fileName).toBe('Unit 3.pdf');
   });
 
+  it('with the key behind a link, sorts a test and key dropped together into both zones', async () => {
+    const { onSubmit } = setup({ keyBehindLink: true });
+    expect(screen.queryByTestId('key-zone')).toBeNull();
+    drop('test', [pdf('Unit 3 Answer Key.pdf'), pdf('Unit 3.pdf')]);
+    await within(await screen.findByTestId('key-zone')).findByText(
+      'Unit 3 Answer Key.pdf'
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Attach a separate answer key' })
+    ).toBeNull();
+    read();
+    expect(onSubmit.mock.calls[0][0].test?.fileName).toBe('Unit 3.pdf');
+    expect(onSubmit.mock.calls[0][0].key?.fileName).toBe(
+      'Unit 3 Answer Key.pdf'
+    );
+  });
+
+  it('with the key behind a link, still moves a key off the test zone when asked', async () => {
+    setup({ keyBehindLink: true });
+    drop('test', [pdf('scoring guide.pdf')]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Move it' }));
+    expect(
+      within(screen.getByTestId('key-zone')).getByText('scoring guide.pdf')
+    ).toBeInTheDocument();
+  });
+
+  it('renders its button into a given container', () => {
+    const slot = document.createElement('div');
+    document.body.appendChild(slot);
+    setup({ submitContainer: slot });
+    expect(
+      within(slot).getByRole('button', { name: 'Read the test' })
+    ).toBeDisabled();
+    slot.remove();
+  });
+
   it('points out a key dropped on the test zone, and moves it only when asked', async () => {
     setup();
     drop('test', [pdf('scoring guide.pdf')]);
