@@ -10,6 +10,7 @@ import {
   selectPushableResponses,
   getEarnedPoints,
   getResponseScore,
+  getMaxAnsweredPoints,
 } from './quizScoreboard';
 import type { QuizQuestion, QuizResponse, Rubric } from '@/types';
 
@@ -276,6 +277,16 @@ describe('isResponseAwaitingGrade — media slots', () => {
     expect(selectPushableResponses([r], qs)).toHaveLength(1);
     // q1's points leave this student's max, so the percentage is over q2 only.
     expect(getResponseScore(r, qs)).toBe(0);
+  });
+
+  it('an excused slot leaves the live running-accuracy denominator too', () => {
+    const qs = [spoken('q1'), mc('q2')];
+    const r = recordedResponse({
+      q1: { pointsAwarded: 0, excused: true, gradedBy: 't', gradedAt: 1 },
+    });
+    r.answers.push({ questionId: 'q2', answer: 'A', answeredAt: 2 });
+    expect(getEarnedPoints(r, qs)).toBe(1);
+    expect(getMaxAnsweredPoints(r, qs)).toBe(1);
   });
 
   it('an unadjudicated capture-unavailable slot still owes a decision', () => {
