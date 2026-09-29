@@ -1356,7 +1356,6 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       orderedIds.forEach((id, index) => {
         batch.update(doc(db, 'users', user.uid, QUIZZES_COLLECTION, id), {
           order: index,
-          updatedAt: Date.now(),
         });
       });
       try {
@@ -1560,6 +1559,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       canImportDocuments,
       canSuggestTargets: canAccessFeature('quiz-import-suggested-targets'),
       canUseSections: canAccessFeature('quiz-sections'),
+      canFindPassages: canAccessFeature('quiz-import-passages'),
       pickDocument,
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
       canUseChooseAll: canAccessFeature('quiz-choose-all'),

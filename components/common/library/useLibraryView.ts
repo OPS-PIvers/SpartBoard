@@ -7,6 +7,7 @@ import type {
 } from './types';
 
 const DEFAULT_LOCKED_REASON = 'Clear search and set sort to Manual to reorder.';
+const SEARCH_LOCKED_REASON = 'Clear search to reorder.';
 
 export function useLibraryView<TItem>(
   options: UseLibraryViewOptions<TItem>
@@ -84,8 +85,24 @@ export function useLibraryView<TItem>(
     filterPredicates,
   ]);
 
-  const reorderLocked = search.trim() !== '' || sort.key !== 'manual';
-  const reorderLockedReason = reorderLocked ? DEFAULT_LOCKED_REASON : undefined;
+  // A drop while sorted by another key switches to Manual (see prepareReorder).
+  const hasManualSort = sortComparators.manual != null;
+  const searchActive = search.trim() !== '';
+  const reorderLocked =
+    searchActive || (sort.key !== 'manual' && !hasManualSort);
+  const reorderLockedReason = !reorderLocked
+    ? undefined
+    : searchActive
+      ? SEARCH_LOCKED_REASON
+      : DEFAULT_LOCKED_REASON;
+
+  const prepareReorder = useCallback((): boolean => {
+    if (reorderLocked) return false;
+    setSort((prev) =>
+      prev.key === 'manual' ? prev : { key: 'manual', dir: 'asc' }
+    );
+    return true;
+  }, [reorderLocked]);
 
   const handleFilterChange = useCallback((id: string, value: string) => {
     setFilterValues((prev) => {
@@ -127,6 +144,7 @@ export function useLibraryView<TItem>(
     toolbarProps,
     reorderLocked,
     reorderLockedReason,
+    prepareReorder,
     state,
   };
 }

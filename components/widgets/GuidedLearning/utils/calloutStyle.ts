@@ -17,7 +17,7 @@ export const CALLOUT_BOX_POS_MIN = -500;
 export const CALLOUT_BOX_POS_MAX = 500;
 /** Auto-fit body size range in px; the floor is the readable minimum (G10). */
 export const CALLOUT_TEXT_FLOOR_PX = 12;
-export const CALLOUT_TEXT_CAP_PX = 36;
+export const CALLOUT_TEXT_CAP_PX = 96;
 export const CALLOUT_TITLE_RATIO = 1.2;
 export const CALLOUT_TONES: readonly GuidedLearningCalloutTone[] = [
   'dark',

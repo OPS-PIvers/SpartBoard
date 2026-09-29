@@ -282,10 +282,10 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
     !view.reorderLocked && view.visibleItems.length >= 2;
   const handleReorderDrop = useCallback(
     (orderedIds: string[]) => {
-      if (!reorderDragActive) return;
+      if (!reorderDragActive || !view.prepareReorder()) return;
       void reorder.handleReorder(orderedIds);
     },
-    [reorder, reorderDragActive]
+    [reorder, reorderDragActive, view]
   );
 
   /* ─── Writes ──────────────────────────────────────────────────────────── */

@@ -35,6 +35,9 @@ const KEY_ENTRY = new RegExp(
 
 /** `1. B - producer`, `1. B. producer`: a letter, then the choice it names. */
 const LETTER_WITH_TEXT = /^\s*(\d{1,3})\s*[.):\-–]\s*([a-f])\s*[.):\-–—]\s+\S/i;
+/** `1. G — Feature`: a matching bank's later letters, capitalised so a stem isn't one. */
+const LATE_LETTER_WITH_TEXT =
+  /^\s*(\d{1,3})\s*[.):\-–]\s*([G-Z])\s*[.):\-–—]\s+\S/;
 
 /** `3. A, C` / `3. A and C`: one question keyed with several letters. */
 const LETTER_LIST_ENTRY =
@@ -117,9 +120,9 @@ export const TEST_BANK_FIELD_LINE = new RegExp(
 export const TEST_BANK_SECTION =
   /^\s*(?:multiple\s+choice|multiple\s+response|modified\s+true\s*\/\s*false|true\s*\/\s*false|yes\s*\/\s*no|completion|matching|short\s+answer|essay|problem|other|numeric\s+response)\s*$/i;
 
-/** "Answer Key", "Answer Section", "Unit 3 Test - Answer Key". */
+/** "Answer Key", "Answer Section", "Unit 3 Test - Answer Key", "Version A — Teacher Key". */
 const STRONG_HEADING =
-  /^\s*(?:(?:answer\s*(?:key|section|sheet)s?|correct\s+answers)\b.{0,60}|.{0,60}\banswer\s*(?:key|section)\s*:?)\s*$/i;
+  /^\s*(?:(?:answer\s*(?:key|section|sheet)s?|teacher(?:['’]?s)?\s+(?:answer\s+)?keys?|correct\s+answers)\b.{0,60}|.{0,60}\b(?:answer\s*(?:key|section)|teacher(?:['’]?s)?\s+(?:answer\s+)?key)\s*:?)\s*$/i;
 
 /** "Answers", "Key:", "Question  Answer" — only when that is the whole line. */
 const WEAK_HEADING =
@@ -431,6 +434,9 @@ function entriesAt(
   }
 
   if (headed) {
+    // Only under a key heading, so a stem like "2. J. K. Rowling wrote..." stays a question.
+    const late = LATE_LETTER_WITH_TEXT.exec(text);
+    if (late) return { entries: [[Number(late[1]), late[2]]], used: 1 };
     const numbered = NUMBERED_ENTRY.exec(text);
     if (numbered && (!askedNumbers || askedNumbers.has(Number(numbered[1])))) {
       return {

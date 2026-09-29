@@ -16,6 +16,7 @@ import {
   deleteDoc,
   query,
   orderBy,
+  writeBatch,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
@@ -90,6 +91,8 @@ export interface UseVideoActivityResult {
   pullSyncedVideoActivity: (
     activityMeta: VideoActivityMetadata
   ) => Promise<VideoActivityMetadata>;
+  /** Persist a manual drag order onto each activity's metadata. */
+  reorderActivities: (orderedIds: string[]) => Promise<void>;
   /** Create a template Google Sheet for CSV import. */
   createTemplateSheet: (title: string) => Promise<string>;
   /** Is a Drive service available? */
@@ -235,6 +238,9 @@ export const useVideoActivity = (
         // re-writing the metadata. Mirrors `useQuiz.saveQuiz`.
         ...(existingMeta?.folderId !== undefined
           ? { folderId: existingMeta.folderId }
+          : {}),
+        ...(existingMeta?.order !== undefined
+          ? { order: existingMeta.order }
           : {}),
         ...(existingSync
           ? {
@@ -476,11 +482,29 @@ export const useVideoActivity = (
     [userId]
   );
 
+  const reorderActivities = useCallback(
+    async (orderedIds: string[]): Promise<void> => {
+      if (!userId) throw new Error('Not authenticated');
+      const batch = writeBatch(db);
+      orderedIds.forEach((id, index) => {
+        batch.update(
+          doc(db, 'users', userId, VIDEO_ACTIVITIES_COLLECTION, id),
+          {
+            order: index,
+          }
+        );
+      });
+      await batch.commit();
+    },
+    [userId]
+  );
+
   return {
     activities,
     loading,
     error,
     saveActivity,
+    reorderActivities,
     loadActivityData,
     deleteActivity,
     duplicateActivity,

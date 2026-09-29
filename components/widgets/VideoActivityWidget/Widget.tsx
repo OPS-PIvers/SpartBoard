@@ -136,6 +136,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     attachSyncLinkage,
     createTemplateSheet,
     isDriveConnected,
+    reorderActivities,
   } = useVideoActivity(user?.uid);
 
   const { plcs } = usePlcs();
@@ -590,6 +591,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         activities={activities}
         loading={loading}
         error={error}
+        onReorderActivities={user?.uid ? reorderActivities : undefined}
         onNew={() => {
           const now = Date.now();
           setEditingActivity({

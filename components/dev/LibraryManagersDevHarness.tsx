@@ -193,10 +193,14 @@ type HarnessView = (typeof LIBRARY_HARNESS_VIEWS)[number];
 
 const QuizView: React.FC = () => {
   const [tab, setTab] = useState<QuizManagerTab>('library');
+  const [quizzes, setQuizzes] = useState(QUIZZES);
+  const reorderQuizzes = (ids: string[]): void =>
+    setQuizzes((prev) => prev.map((q) => ({ ...q, order: ids.indexOf(q.id) })));
   return (
     <QuizManager
       userId="mock-user-id"
-      quizzes={QUIZZES}
+      quizzes={quizzes}
+      onReorderQuizzes={reorderQuizzes}
       loading={false}
       error={null}
       onNew={noop}

@@ -23,7 +23,14 @@ export interface UsePlcFoldersResult extends UseFoldersResult {
     target: PlcFolderMoveTarget,
     folderId: string | null
   ) => Promise<void>;
+  /** Writes each entry's manual list position to both of its docs in batches. */
+  reorderEntries: (
+    updates: (PlcFolderMoveTarget & { order: number })[]
+  ) => Promise<void>;
 }
+
+// Each update writes up to two docs; stay under Firestore's 500-write batch cap.
+const REORDER_BATCH_SIZE = 200;
 
 export const usePlcFolders = (
   plcId: string | undefined
@@ -74,8 +81,33 @@ export const usePlcFolders = (
     [plcId]
   );
 
+  const reorderEntries = useCallback(
+    async (updates: (PlcFolderMoveTarget & { order: number })[]) => {
+      if (!plcId) throw new Error('Not authenticated');
+      for (let i = 0; i < updates.length; i += REORDER_BATCH_SIZE) {
+        const batch = writeBatch(db);
+        // No updatedAt bump: reordering is a display choice, not an edit.
+        for (const u of updates.slice(i, i + REORDER_BATCH_SIZE)) {
+          if (u.plcQuizId) {
+            batch.update(doc(db, 'plcs', plcId, 'quizzes', u.plcQuizId), {
+              order: u.order,
+            });
+          }
+          if (u.assessmentId) {
+            batch.update(
+              doc(db, 'plcs', plcId, 'assessments', u.assessmentId),
+              { order: u.order }
+            );
+          }
+        }
+        await batch.commit();
+      }
+    },
+    [plcId]
+  );
+
   return useMemo<UsePlcFoldersResult>(
-    () => ({ ...base, moveEntry }),
-    [base, moveEntry]
+    () => ({ ...base, moveEntry, reorderEntries }),
+    [base, moveEntry, reorderEntries]
   );
 };

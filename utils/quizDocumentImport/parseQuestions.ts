@@ -91,6 +91,15 @@ const PASSAGE_CUE =
 /** A shared lead-in at or under this length is copied into each stem (R25). */
 const SHORT_LEAD_IN = 150;
 
+/** Prose this long, in two or more sentences, reads as a passage rather than an instruction. */
+const PASSAGE_MIN = 200;
+const INSTRUCTIONS_OPENING = /^\s*(?:directions|instructions)\b/i;
+/** "Case Study: FreshFuel Bowls", "Passage 2", "Excerpt from The Giver". */
+const PASSAGE_TITLE =
+  /^\s*(?:case\s+study|passage|excerpt|article|story|poem|scenario|reading|source|text)\b[^.!?]{0,80}$/i;
+/** A label with nothing after it, like "Questions:". */
+const LABEL_ONLY = /^[\p{L}’' ]{1,20}:$/u;
+
 const tidy = (s: string): string => s.replace(/\s+/g, ' ').trim();
 
 /** A matching bank's term, `A.` through `Z.`, `(k)` or `k)`, with a space after it. */
@@ -122,6 +131,87 @@ function matchingTerms(
   }
   if (terms.length === 0) return null;
   return lead.length > 0 ? { lead: tidy(lead.join(' ')), terms } : { terms };
+}
+
+/** A block of lines as a passage: its title, prose and any "Read…" instruction; null when it isn't prose. */
+function passageOf(
+  lines: readonly string[]
+): { label?: string; text: string; instruction?: string } | null {
+  const kept = lines.map(tidy).filter(Boolean);
+  while (kept.length > 0 && LABEL_ONLY.test(kept[kept.length - 1])) kept.pop();
+  const title =
+    kept.length > 1 && PASSAGE_TITLE.test(kept[0]) ? kept.shift() : undefined;
+  const sentences = tidy(kept.join(' '))
+    .split(/(?<=[.?!])\s+/)
+    .filter((s) => !RANGE_INSTRUCTION.test(s));
+  const instruction = sentences.find((s) => READ_INSTRUCTION.test(s));
+  const prose = sentences.filter((s) => s !== instruction);
+  const text = prose.join(' ');
+  if (
+    text.length < PASSAGE_MIN ||
+    prose.length < 2 ||
+    INSTRUCTIONS_OPENING.test(text)
+  ) {
+    return null;
+  }
+  return {
+    ...(title ? { label: title.replace(/:$/, '') } : {}),
+    text,
+    ...(instruction ? { instruction } : {}),
+  };
+}
+
+/** A matching set's directions: the section's own, unless they are only labels like "Terms:", else the heading's parenthetical. */
+function setDirections(section: {
+  name?: string;
+  directions?: string;
+}): string | undefined {
+  const own = section.directions;
+  if (own && !/^(?:[\p{L}’' ]{1,20}:\s*)+$/u.test(own)) return own;
+  return /\(([^()]+)\)\s*$/.exec(section.name ?? '')?.[1]?.trim();
+}
+
+/** Lines between two printings of a running header, at the least, off a PDF. */
+const HEADER_MIN_GAP = 5;
+/** An answer printed on its own line, which repeats without being a header. */
+const ANSWER_TOKEN = /^(?:true|false|t|f|yes|no|n\/?a|none)\.?$/i;
+
+/** A running header or footer, like "VERSION A" on every page, is never a heading. */
+function runningHeaders(lines: readonly DocLine[]): Set<string> {
+  const seen = new Map<string, number[]>();
+  lines.forEach((line, i) => {
+    const text = tidy(line.text);
+    if (text) seen.set(text, [...(seen.get(text) ?? []), i]);
+  });
+  // A header repeats once a page: on different PDF pages, or well apart elsewhere.
+  const spread = (at: number[]): boolean =>
+    at.every((i, n) => {
+      if (n === 0) return true;
+      const page = lines[i].page;
+      const before = lines[at[n - 1]].page;
+      return page !== undefined && before !== undefined
+        ? page !== before
+        : i - at[n - 1] >= HEADER_MIN_GAP;
+    });
+  const headers = new Set<string>();
+  for (const [text, at] of seen) {
+    if (
+      at.length >= 3 &&
+      spread(at) &&
+      !ANSWER_TOKEN.test(text) &&
+      /[A-Z]/.test(text) &&
+      !/[a-z]/.test(text) &&
+      text.split(' ').length <= 8 &&
+      !NAMED_SECTION.test(text) &&
+      !NUMBERED_SECTION.test(text) &&
+      !EXAMVIEW_TYPE_HEADING.test(text) &&
+      !matchQuestionOpening(text) &&
+      !TERM.test(text)
+    ) {
+      headers.add(text);
+    }
+  }
+  return headers;
 }
 
 /** A section whose heading names it Matching. */
@@ -542,8 +632,9 @@ function finish(
     ...(draft.part ? { part: draft.part } : {}),
   };
 
-  const matchingDirections =
-    draft.matching?.directions ?? draft.section.directions;
+  const matchingDirections = draft.matching
+    ? (draft.matching.directions ?? setDirections(draft.section))
+    : undefined;
   const question: ExtractedQuestion = {
     number: position,
     ref,
@@ -732,6 +823,7 @@ export function parseDocument(
   const multi = options.multiAnswer === true;
   const lines = splitAtColumnMarkers(documentLines);
   const examView = isExamView(lines);
+  const headers = runningHeaders(lines);
   /** Where accepted question numbers sit on a PDF page (E1). */
   const numberXs: number[] = [];
   const { keyLineIndexes, items: keyItems } = findAnswerKey(lines, options);
@@ -783,6 +875,29 @@ export function parseDocument(
     covering = null;
   };
 
+  /** Passages found without a cue or a question range. */
+  const guessedTexts = new Set<string>();
+
+  /** Does a passage start at `index`: prose running from here to the next question, option or heading? */
+  const passageStartsAt = (index: number): boolean => {
+    const block: string[] = [];
+    for (let n = index; n < lines.length; n += 1) {
+      if (keyLineIndexes.has(n)) break;
+      const text = lines[n].text.trim();
+      if (!text) continue;
+      if (
+        matchQuestionOpening(text) ||
+        matchOption(lines[n]) ||
+        sectionHeading(text, examView) ||
+        RANGE_INSTRUCTION.test(text)
+      ) {
+        break;
+      }
+      block.push(text);
+    }
+    return passageOf(block) !== null;
+  };
+
   /** Turn a waiting preamble into shared text for the questions it covers (R25). */
   const settlePreamble = (): void => {
     const waiting = preamble;
@@ -790,6 +905,24 @@ export function parseDocument(
     if (!waiting) return;
     const all = tidy(waiting.lines.join(' '));
     if (!all) return;
+    const found = options.passages ? passageOf(waiting.lines) : null;
+    if (found) {
+      const id = `text-${texts.length + 1}`;
+      texts.push({
+        id,
+        text: found.text,
+        label: found.label ?? `Passage ${texts.length + 1}`,
+      });
+      // Found by length alone, so the review asks the teacher to check the link.
+      if (!waiting.range && !PASSAGE_CUE.test(all)) guessedTexts.add(id);
+      covering = {
+        ...(waiting.range ? { range: waiting.range } : {}),
+        section: waiting.section,
+        textId: id,
+        ...(found.instruction ? { instruction: found.instruction } : {}),
+      };
+      return;
+    }
     const sentences = all.split(/(?<=[.?!])\s+/);
     const instruction =
       sentences.find(
@@ -921,6 +1054,7 @@ export function parseDocument(
       }
       return;
     }
+    if (headers.has(tidy(text))) return;
 
     const open = current;
 
@@ -1198,6 +1332,18 @@ export function parseDocument(
       }
     }
 
+    // A passage after the choices, or a titled one after a written stem, belongs to the questions after it.
+    const choice = lastOption;
+    const afterChoice = choice
+      ? !isWrapOf(choice.line, choice.wraps.at(-1) ?? choice.line, line)
+      : open.options.length === 0 && PASSAGE_TITLE.test(text);
+    if (options.passages && afterChoice && passageStartsAt(index)) {
+      open.rawLines.pop();
+      endQuestion();
+      preamble = { lines: [text], section };
+      return;
+    }
+
     // A wrapped line: continues the option it follows, or the stem if the
     // question hasn't reached its options yet.
     const wrapping = lastOption;
@@ -1323,8 +1469,28 @@ export function parseDocument(
     noteMissingChoices(q, Boolean(q.ref && sorting.has(refKey(q.ref))))
   );
   const used = new Set(questions.map((q) => q.sharedTextId).filter(Boolean));
+  // One note per guessed passage, on the first question it was attached to.
+  const noted = questions.map((q) => {
+    const text = texts.find((t) => t.id === q.sharedTextId);
+    if (!text || !guessedTexts.has(text.id)) return q;
+    const linked = questions.filter((o) => o.sharedTextId === text.id);
+    if (linked[0] !== q) return q;
+    const label = (o: ExtractedQuestion) =>
+      o.sourceLabel ?? String(o.ref?.item ?? o.number);
+    const span =
+      linked.length > 1
+        ? `questions ${label(q)}–${label(linked[linked.length - 1])}`
+        : `question ${label(q)}`;
+    return {
+      ...q,
+      warnings: [
+        ...q.warnings,
+        `“${text.label}” was attached to ${span} as a passage. Check that it belongs with them.`,
+      ],
+    };
+  });
   return {
-    questions,
+    questions: noted,
     texts: texts.filter((t) => used.has(t.id)),
     warnings: merged.warnings,
     ...(merged.keySummary ? { keySummary: merged.keySummary } : {}),

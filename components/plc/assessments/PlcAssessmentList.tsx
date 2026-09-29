@@ -21,7 +21,12 @@ import {
   Search,
   Users,
 } from 'lucide-react';
-import { useDraggable } from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { getPlcFeatures, type Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
@@ -55,6 +60,7 @@ import {
   filterAssessmentRows,
   filterRowsByFolder,
   formatShortDate,
+  reorderRows,
   suggestedFolderNames,
   type AssessmentListFilter,
   type AssessmentListRow,
@@ -196,7 +202,14 @@ const AssessmentRow: React.FC<RowProps> = ({
     setMenuOpen(false);
     setMoveSubmenuOpen(false);
   });
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: row.id,
     disabled: !canEdit || row.archived,
   });
@@ -294,6 +307,7 @@ const AssessmentRow: React.FC<RowProps> = ({
   return (
     <li
       ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
       data-testid="assessment-row"
       className={`bg-white border border-slate-200 rounded-2xl px-4 py-3 flex items-center gap-3 ${isDragging ? 'opacity-40' : ''}`}
     >
@@ -824,6 +838,32 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
     [moveEntry, folderState.folders, addToast, plc.id, t]
   );
 
+  const { reorderEntries } = folderState;
+  const handleReorder = useCallback(
+    async (nextVisibleIds: string[]) => {
+      const changes = reorderRows(rows, nextVisibleIds);
+      if (changes.length === 0) return;
+      try {
+        await reorderEntries(
+          changes.map(({ row, order }) => ({
+            plcQuizId: row.plcQuizId,
+            assessmentId: row.assessmentId,
+            order,
+          }))
+        );
+      } catch (err) {
+        logError('PlcAssessmentList.reorder', err, { plcId: plc.id });
+        addToast(
+          t('plcDashboard.assessmentList.reorderFailed', {
+            defaultValue: 'Couldn’t save the new order. Try again.',
+          }),
+          'error'
+        );
+      }
+    },
+    [rows, reorderEntries, addToast, plc.id, t]
+  );
+
   const handleDropOnFolder = useCallback(
     (rowId: string, folderId: string | null) => {
       const row = visibleRows.find((r) => r.id === rowId);
@@ -1073,38 +1113,43 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
                   })}
           </p>
         ) : (
-          <ul className="space-y-2">
-            {visibleRows.map((row) => (
-              <AssessmentRow
-                key={row.id}
-                row={row}
-                canEdit={canEdit}
-                folders={folderState.folders}
-                inLibrary={quizActions.isInLibrary(row.syncGroupId)}
-                busy={quizActions.busy}
-                onOpen={handleOpen}
-                onAssign={(r) => void handleAssign(r)}
-                onImport={(r) => {
-                  const target = toActionTarget(r);
-                  if (target) importQuiz(target);
-                }}
-                onEdit={(r) => {
-                  const target = toActionTarget(r);
-                  if (target) editQuiz(target);
-                }}
-                canPrintForTeammate={canPrintForTeammate}
-                onPrintForTeammate={setTeammatePrintRow}
-                onVersionHistory={(r) => {
-                  const target = toActionTarget(r);
-                  if (target) quizActions.openVersionHistory(target);
-                }}
-                onRename={(r) => void handleRename(r)}
-                onArchive={(r) => void handleArchive(r)}
-                onRestore={(r) => void handleRestore(r)}
-                onMoveToFolder={(r, folderId) => void moveRow(r, folderId)}
-              />
-            ))}
-          </ul>
+          <SortableContext
+            items={rowIds}
+            strategy={verticalListSortingStrategy}
+          >
+            <ul className="space-y-2">
+              {visibleRows.map((row) => (
+                <AssessmentRow
+                  key={row.id}
+                  row={row}
+                  canEdit={canEdit}
+                  folders={folderState.folders}
+                  inLibrary={quizActions.isInLibrary(row.syncGroupId)}
+                  busy={quizActions.busy}
+                  onOpen={handleOpen}
+                  onAssign={(r) => void handleAssign(r)}
+                  onImport={(r) => {
+                    const target = toActionTarget(r);
+                    if (target) importQuiz(target);
+                  }}
+                  onEdit={(r) => {
+                    const target = toActionTarget(r);
+                    if (target) editQuiz(target);
+                  }}
+                  canPrintForTeammate={canPrintForTeammate}
+                  onPrintForTeammate={setTeammatePrintRow}
+                  onVersionHistory={(r) => {
+                    const target = toActionTarget(r);
+                    if (target) quizActions.openVersionHistory(target);
+                  }}
+                  onRename={(r) => void handleRename(r)}
+                  onArchive={(r) => void handleArchive(r)}
+                  onRestore={(r) => void handleRestore(r)}
+                  onMoveToFolder={(r, folderId) => void moveRow(r, folderId)}
+                />
+              ))}
+            </ul>
+          </SortableContext>
         )}
       </div>
 
@@ -1163,6 +1208,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
     >
       <LibraryDndContext
         itemIds={rowIds}
+        onReorder={handleReorder}
         onDropOnFolder={handleDropOnFolder}
         renderOverlay={renderDragOverlay}
       >

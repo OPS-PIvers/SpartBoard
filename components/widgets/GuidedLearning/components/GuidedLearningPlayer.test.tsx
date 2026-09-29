@@ -443,7 +443,7 @@ describe('GuidedLearningPlayer', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('persists zoom across steps for v2 sets and offers a reset-view button', () => {
+  it('eases v2 sets back to 100% on a step without pan-zoom', () => {
     const set: GuidedLearningSet = {
       id: 'set-v2-zoom',
       title: 'V2 Zoom Test',
@@ -457,6 +457,14 @@ describe('GuidedLearningPlayer', () => {
           imageIndex: 0,
           interactionType: 'pan-zoom',
           panZoomScale: 3,
+        },
+        {
+          id: 'zoom-step-2',
+          xPct: 40,
+          yPct: 40,
+          imageIndex: 0,
+          interactionType: 'pan-zoom',
+          panZoomScale: 2,
         },
         {
           id: 'plain-step',
@@ -478,11 +486,50 @@ describe('GuidedLearningPlayer', () => {
     const layer = screen.getByTestId('gl-panzoom-layer');
     expect(layer.style.transform).toContain('scale(3)');
 
-    // Arriving at a non-pan-zoom step keeps the zoom and pans to its hotspot.
+    // Consecutive pan-zoom steps move straight to the next level.
     fireEvent.click(screen.getByRole('button', { name: /next step/i }));
+    expect(layer.style.transform).toContain('scale(2)');
+
+    // A step without pan-zoom animates back to identity.
+    fireEvent.click(screen.getByRole('button', { name: /next step/i }));
+    expect(layer.style.transform).toBe('scale(1) translate(0px, 0px)');
+    expect(layer.style.transition).toContain('transform');
+    expect(
+      screen.queryByRole('button', { name: /reset view/i })
+    ).not.toBeInTheDocument();
+
+    // Stepping back to a pan-zoom step zooms in again.
+    fireEvent.click(screen.getByRole('button', { name: /previous step/i }));
+    expect(layer.style.transform).toContain('scale(2)');
+  });
+
+  it('offers a reset-view button on a v2 pan-zoom step', () => {
+    const set: GuidedLearningSet = {
+      id: 'set-v2-reset',
+      title: 'V2 Reset Test',
+      schemaVersion: 2,
+      imageUrls: ['https://example.com/image.png'],
+      steps: [
+        {
+          id: 'zoom-step',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'pan-zoom',
+          panZoomScale: 3,
+        },
+      ],
+      mode: 'structured',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    render(<GuidedLearningPlayer set={set} />);
+    fireEvent.load(screen.getByAltText('V2 Reset Test'));
+
+    const layer = screen.getByTestId('gl-panzoom-layer');
     expect(layer.style.transform).toContain('scale(3)');
 
-    // Reset view animates back to identity and dismisses the button.
     fireEvent.click(screen.getByRole('button', { name: /reset view/i }));
     expect(layer.style.transform).toBe('scale(1) translate(0px, 0px)');
     expect(
@@ -490,7 +537,7 @@ describe('GuidedLearningPlayer', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('anchors overlays through the rendered transform when v2 zoom persists onto a non-pan-zoom step', () => {
+  it('anchors a v2 tooltip at raw coords after leaving a pan-zoom step', () => {
     const set: GuidedLearningSet = {
       id: 'set-v2-overlay',
       title: 'V2 Overlay Test',
@@ -511,7 +558,7 @@ describe('GuidedLearningPlayer', () => {
           yPct: 30,
           imageIndex: 0,
           interactionType: 'tooltip',
-          text: 'Persisted zoom',
+          text: 'Unzoomed',
         },
       ],
       mode: 'structured',
@@ -522,13 +569,7 @@ describe('GuidedLearningPlayer', () => {
     render(<GuidedLearningPlayer set={set} />);
     fireEvent.load(screen.getByAltText('V2 Overlay Test'));
 
-    // Zoom persists onto the tooltip step, panning its hotspot to center —
-    // the tooltip must anchor at the transformed (centered) position.
     fireEvent.click(screen.getByRole('button', { name: /next step/i }));
-    expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('50,50');
-
-    // Reset returns to identity — the tooltip must anchor at raw coords.
-    fireEvent.click(screen.getByRole('button', { name: /reset view/i }));
     expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
   });
 

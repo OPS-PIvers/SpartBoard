@@ -1,7 +1,7 @@
 // PlcAssessmentList — badges, filters, row actions, archive/restore and the share CTA.
 
 import React from 'react';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { act, render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import type {
@@ -110,6 +110,7 @@ vi.mock('@/hooks/usePlcQuizzes', () => ({
 }));
 
 const mockMoveEntry = vi.fn().mockResolvedValue(undefined);
+const mockReorderEntries = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/hooks/usePlcFolders', () => ({
   usePlcFolders: () => ({
     folders: [],
@@ -122,6 +123,7 @@ vi.mock('@/hooks/usePlcFolders', () => ({
     reorderSiblings: vi.fn(),
     moveItem: vi.fn(),
     moveEntry: mockMoveEntry,
+    reorderEntries: mockReorderEntries,
   }),
 }));
 
@@ -158,6 +160,30 @@ vi.mock('@/utils/plcPath', async (importActual) => {
     },
   };
 });
+
+const dndProps = vi.hoisted(() => ({
+  current: null as null | {
+    itemIds: string[];
+    onReorder?: (ids: string[]) => Promise<void> | void;
+  },
+}));
+vi.mock(
+  '@/components/common/library/LibraryDndContext',
+  async (importActual) => {
+    const actual =
+      await importActual<
+        typeof import('@/components/common/library/LibraryDndContext')
+      >();
+    return {
+      LibraryDndContext: (
+        props: React.ComponentProps<typeof actual.LibraryDndContext>
+      ) => {
+        dndProps.current = props;
+        return <actual.LibraryDndContext {...props} />;
+      },
+    };
+  }
+);
 
 import { PlcAssessmentList } from '@/components/plc/assessments/PlcAssessmentList';
 
@@ -607,5 +633,39 @@ describe('PlcAssessmentList', () => {
     mockLibrary = [];
     render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
     expect(screen.getByText('No assessments yet')).toBeInTheDocument();
+  });
+
+  it('saves a new order when a row is dropped on its neighbour', async () => {
+    mockReorderEntries.mockClear();
+    render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
+    const onReorder = dndProps.current?.onReorder;
+    expect(dndProps.current?.itemIds).toEqual([
+      'a-running',
+      'a-scored',
+      'a-idle',
+      'library:g-lib',
+    ]);
+    await act(async () => {
+      await onReorder?.(['a-scored', 'a-running', 'a-idle', 'library:g-lib']);
+    });
+    expect(mockReorderEntries).toHaveBeenCalledWith([
+      { plcQuizId: 'lib-2', assessmentId: 'a-scored', order: 0 },
+      { plcQuizId: null, assessmentId: 'a-running', order: 1 },
+      { plcQuizId: null, assessmentId: 'a-idle', order: 2 },
+      { plcQuizId: 'lib-1', assessmentId: null, order: 3 },
+    ]);
+  });
+
+  it('shows rows in their saved order', () => {
+    mockAssessmentsSlice.data = mockAssessmentsSlice.data.map((a) => ({
+      ...a,
+      order: a.id === 'a-scored' ? 0 : 1,
+    }));
+    mockLibrary = mockLibrary.map((e) => ({ ...e, order: 2 }));
+    render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
+    const titles = screen
+      .getAllByTestId('assessment-row')
+      .map((row) => row.querySelector('.font-bold')?.textContent);
+    expect(titles[0]).toBe('Fractions CFA');
   });
 });

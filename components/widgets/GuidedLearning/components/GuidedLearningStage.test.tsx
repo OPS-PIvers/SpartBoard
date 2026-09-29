@@ -112,6 +112,17 @@ describe('GuidedLearningStage geometry', () => {
     }
   );
 
+  it('loads a Drive slide at its original size', () => {
+    const drive = 'https://lh3.googleusercontent.com/d/abc';
+    const { container } = renderStage(1, {
+      set: { ...SET, imageUrls: [drive] },
+    });
+    expect(container.querySelector('[data-gl-stage] img')).toHaveAttribute(
+      'src',
+      `${drive}=s0`
+    );
+  });
+
   it('passes the geometry to renderEditLayer', () => {
     const handle = layout();
     renderStage(1, {

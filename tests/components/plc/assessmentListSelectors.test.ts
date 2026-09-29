@@ -11,6 +11,7 @@ import {
   filterAssessmentRows,
   filterRowsByFolder,
   hasTeamAverage,
+  reorderRows,
   sortQuestions,
   suggestedFolderNames,
 } from '@/components/plc/assessments/assessmentListSelectors';
@@ -256,6 +257,63 @@ describe('buildAssessmentRows', () => {
       'library:lib-b',
       'library:lib-a',
       'archived',
+    ]);
+  });
+});
+
+describe('manual order', () => {
+  const build = () =>
+    buildAssessmentRows({
+      assessments: [
+        makeAssessment({ id: 'a', syncGroupId: 'ga', order: 1 }),
+        makeAssessment({ id: 'b', syncGroupId: 'gb', order: 0 }),
+        makeAssessment({ id: 'new', syncGroupId: 'gn' }),
+        makeAssessment({ id: 'gone', syncGroupId: 'gx', status: 'closed' }),
+      ],
+      aggregates: [makeAggregate({ assessmentId: 'a', ranAt: 900 })],
+      libraryEntries: [
+        makeEntry({ id: 'l1', syncGroupId: 'lib', order: 2 }),
+        makeEntry({ id: 'l2', syncGroupId: 'gb', order: 7 }),
+      ],
+      memberUids: ['u1'],
+    });
+
+  it('puts unordered rows first, then manual order, archived last', () => {
+    expect(build().map((r) => r.id)).toEqual([
+      'new',
+      'b',
+      'a',
+      'library:lib',
+      'gone',
+    ]);
+  });
+
+  it('prefers the assessment order over its library entry', () => {
+    expect(build().find((r) => r.id === 'b')?.order).toBe(0);
+  });
+
+  it('reorders the full list and only returns rows whose position changed', () => {
+    const rows = build();
+    const changes = reorderRows(rows, ['new', 'a', 'b', 'library:lib', 'gone']);
+    expect(changes.map((c) => [c.row.id, c.order])).toEqual([
+      ['new', 0],
+      ['b', 2],
+      ['library:lib', 3],
+      ['gone', 4],
+    ]);
+    const settled = reorderRows(
+      rows.map((r, i) => ({ ...r, order: i })),
+      rows.map((r) => r.id)
+    );
+    expect(settled).toEqual([]);
+  });
+
+  it('keeps hidden rows in their slots when a filtered view is reordered', () => {
+    const rows = build().map((r, i) => ({ ...r, order: i }));
+    const changes = reorderRows(rows, ['library:lib', 'b']);
+    expect(changes.map((c) => [c.row.id, c.order])).toEqual([
+      ['library:lib', 1],
+      ['b', 3],
     ]);
   });
 });
