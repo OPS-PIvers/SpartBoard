@@ -73,19 +73,40 @@ export function resolveBellWindow(
   if (!bellPeriod) return null;
   const schedule = resolveBuildingSchedule(defaults, date);
   if (!schedule) return null;
-  const index = schedule.items.findIndex(
+  const exact = schedule.items.findIndex(
     (item) => item.isClassPeriod && item.periodId === bellPeriod.periodId
   );
-  if (index === -1) return null;
-  const t = computeEffectiveTimes(schedule.items)[index];
-  if (!t || t.isIdle || t.startSec < 0 || t.endSec <= t.startSec) return null;
+  // A bare "5" tag spans every section of that period (5A, 5B, ...).
+  const family = /^\d+$/.test(normalizePeriodKey(bellPeriod.periodId))
+    ? normalizePeriodKey(bellPeriod.periodId)
+    : null;
+  const indexes =
+    exact !== -1
+      ? [exact]
+      : family
+        ? schedule.items.flatMap((item, i) =>
+            item.isClassPeriod &&
+            item.periodId &&
+            periodFamily(item.periodId) === family
+              ? [i]
+              : []
+          )
+        : [];
+  const times = computeEffectiveTimes(schedule.items);
+  const spans = indexes
+    .map((i) => times[i])
+    .filter((t) => t && !t.isIdle && t.startSec >= 0 && t.endSec > t.startSec);
+  if (spans.length === 0) return null;
   // Local-field arithmetic, so a DST change that day still lands on the bell.
   const at = (sec: number): number => {
     const d = new Date(date);
     d.setHours(0, 0, sec, 0);
     return d.getTime();
   };
-  return { openAt: at(t.startSec), closeAt: at(t.endSec) };
+  return {
+    openAt: at(Math.min(...spans.map((t) => t.startSec))),
+    closeAt: at(Math.max(...spans.map((t) => t.endSec))),
+  };
 }
 
 /** A building's bell schedule from the admin's Schedule widget defaults, legacy building keys included. */
@@ -135,7 +156,12 @@ export function normalizePeriodKey(raw: string): string {
     .replace(/^0+(?=\w)/, '');
 }
 
-/** The one teacher bell period a ClassLink class's OneRoster periods name, or null when none or several match. */
+/** The period number a section id belongs to: "5A" and "P5b" are both "5". */
+export function periodFamily(raw: string): string {
+  return normalizePeriodKey(raw).replace(/^(\d+)[a-z]*$/, '$1');
+}
+
+/** The teacher bell period a ClassLink class's OneRoster periods name, or null when none or several match. */
 export function matchBellPeriod(
   periods: readonly string[] | undefined,
   options: readonly BuildingBellPeriodOption[] | undefined
@@ -145,6 +171,16 @@ export function matchBellPeriod(
   const hits = options.filter((o) =>
     wanted.has(normalizePeriodKey(o.periodId))
   );
-  if (hits.length !== 1) return null;
-  return { buildingId: hits[0].buildingId, periodId: hits[0].periodId };
+  if (hits.length === 1)
+    return { buildingId: hits[0].buildingId, periodId: hits[0].periodId };
+  if (hits.length > 1) return null;
+  // No exact id: a bare "5" tags the whole period when its sections share one building.
+  const families = [...wanted].filter((k) => /^\d+$/.test(k));
+  const sections = options.filter((o) =>
+    families.includes(periodFamily(o.periodId))
+  );
+  const buildings = new Set(sections.map((o) => o.buildingId));
+  const matched = new Set(sections.map((o) => periodFamily(o.periodId)));
+  if (buildings.size !== 1 || matched.size !== 1) return null;
+  return { buildingId: sections[0].buildingId, periodId: [...matched][0] };
 }
