@@ -136,7 +136,7 @@ describe('useLibraryView', () => {
     expect(result.current.reorderLockedReason).toBeDefined();
   });
 
-  it('reorder locks when sort.key is not manual', () => {
+  it('stays unlocked under another sort when a manual sort exists', () => {
     const { result } = renderHook(() => useLibraryView(baseOptions()));
     act(() => {
       result.current.toolbarProps.onSortChange({
@@ -144,8 +144,56 @@ describe('useLibraryView', () => {
         dir: 'desc',
       });
     });
+    expect(result.current.reorderLocked).toBe(false);
+  });
+
+  it('locks under another sort when there is no manual sort', () => {
+    const { manual: _manual, ...rest } = baseOptions().sortComparators;
+    const { result } = renderHook(() =>
+      useLibraryView({
+        ...baseOptions(),
+        sortComparators: rest,
+        initialSort: { key: 'createdAt', dir: 'desc' },
+      })
+    );
     expect(result.current.reorderLocked).toBe(true);
-    expect(result.current.reorderLockedReason).toBeDefined();
+    let accepted = true;
+    act(() => {
+      accepted = result.current.prepareReorder();
+    });
+    expect(accepted).toBe(false);
+    expect(result.current.state.sort.key).toBe('createdAt');
+  });
+
+  it('prepareReorder switches the sort to manual', () => {
+    const { result } = renderHook(() => useLibraryView(baseOptions()));
+    act(() => {
+      result.current.toolbarProps.onSortChange({ key: 'title', dir: 'asc' });
+    });
+    let accepted = false;
+    act(() => {
+      accepted = result.current.prepareReorder();
+    });
+    expect(accepted).toBe(true);
+    expect(result.current.state.sort).toEqual({ key: 'manual', dir: 'asc' });
+  });
+
+  it('prepareReorder refuses while a search is active', () => {
+    const { result } = renderHook(() =>
+      useLibraryView({
+        ...baseOptions(),
+        initialSort: { key: 'title', dir: 'asc' },
+      })
+    );
+    act(() => {
+      result.current.toolbarProps.onSearchChange('Alpha');
+    });
+    let accepted = true;
+    act(() => {
+      accepted = result.current.prepareReorder();
+    });
+    expect(accepted).toBe(false);
+    expect(result.current.state.sort.key).toBe('title');
   });
 
   it('visibleItems is referentially stable when inputs do not change', () => {

@@ -1847,10 +1847,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const handleReorderDrop = useCallback(
     async (nextOrderedIds: string[]): Promise<void> => {
       if (!onReorderQuizzes) return;
-      if (libraryView.reorderLocked) return;
-      await onReorderQuizzes(nextOrderedIds);
+      if (!libraryView.prepareReorder()) return;
+      await reorder.handleReorder(nextOrderedIds);
     },
-    [libraryView.reorderLocked, onReorderQuizzes]
+    [libraryView, onReorderQuizzes, reorder]
   );
 
   // ─── Bulk handlers (Step 8) ───────────────────────────────────────────────

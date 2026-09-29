@@ -370,6 +370,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         ...(existingMeta?.folderId !== undefined
           ? { folderId: existingMeta.folderId }
           : {}),
+        ...(existingMeta?.order !== undefined
+          ? { order: existingMeta.order }
+          : {}),
         ...(existingSync
           ? {
               sync: {

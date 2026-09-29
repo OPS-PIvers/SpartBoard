@@ -1048,6 +1048,12 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     return actions;
   }
 
+  // A card-to-card drop switches the view to Manual; a drop during search is a no-op.
+  const handleLibraryReorderDrop = (ids: string[]): void => {
+    if (!view.prepareReorder()) return;
+    void reorderHook.handleReorder(ids);
+  };
+
   /* ── Tab content ──────────────────────────────────────────────────────── */
 
   let tabContent: React.ReactElement;
@@ -1175,9 +1181,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             items={view.visibleItems}
             getId={getRowId}
             renderCard={renderCard}
-            onReorder={
-              isGlobalView ? undefined : (ids) => reorderHook.handleReorder(ids)
-            }
+            onReorder={isGlobalView ? undefined : handleLibraryReorderDrop}
             dragDisabled={isGlobalView || selectionMode}
             reorderLocked={
               enableCardDrag ? false : !isGlobalView && view.reorderLocked
@@ -1328,14 +1332,6 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       {tabContent}
     </LibraryShell>
   );
-
-  // Card-to-card drops are only meaningful when the view is in manual reorder
-  // mode (empty search, sort === 'manual'). Gate the reorder commit so a drop
-  // in a filtered/sorted view is a no-op, while folder drops remain live.
-  const handleLibraryReorderDrop = (ids: string[]): void => {
-    if (view.reorderLocked) return;
-    void reorderHook.handleReorder(ids);
-  };
 
   const folderPickerDialog = folderPickerTarget ? (
     <FolderPickerPopover

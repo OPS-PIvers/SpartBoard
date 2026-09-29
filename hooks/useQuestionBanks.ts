@@ -327,9 +327,8 @@ export const useQuestionBanks = (
     async (orderedIds: string[]): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
       const batch = writeBatch(db);
-      const now = Date.now();
       orderedIds.forEach((id, index) => {
-        batch.update(bankMetaRef(userId, id), { order: index, updatedAt: now });
+        batch.update(bankMetaRef(userId, id), { order: index });
       });
       await batch.commit();
     },

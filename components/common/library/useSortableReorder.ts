@@ -8,7 +8,8 @@
  * messages (cleared on the next successful commit).
  *
  * The `orderedItems` state stays in sync with the `items` prop whenever the
- * incoming id set changes — computed during render via a prev-id-comparison
+ * incoming id set or order changes (outside an in-flight commit) — computed
+ * during render via a prev-id-comparison
  * pattern (no useEffect). This is the "adjusting state while rendering"
  * escape hatch from the React docs.
  */
@@ -85,6 +86,9 @@ export function useSortableReorder<TItem>(
 
     if (!sameIdSet(previousIds, currentIds)) {
       // Id set changed upstream — drop optimistic ordering and re-seed.
+      setOrderedItems(items);
+    } else if (!isCommitting && !sameIdList(previousIds, currentIds)) {
+      // Upstream order itself changed (sort switch, saved reorder) — adopt it.
       setOrderedItems(items);
     } else if (!sameIdList(currentOrderedIds, currentIds)) {
       // Same ids, but the upstream order differs from our optimistic view.

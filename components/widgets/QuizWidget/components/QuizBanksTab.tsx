@@ -202,10 +202,10 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   );
   const handleReorderDrop = useCallback(
     async (nextOrderedIds: string[]): Promise<void> => {
-      if (!onReorderBanks || libraryView.reorderLocked) return;
-      await onReorderBanks(nextOrderedIds);
+      if (!onReorderBanks || !libraryView.prepareReorder()) return;
+      await reorder.handleReorder(nextOrderedIds);
     },
-    [libraryView.reorderLocked, onReorderBanks]
+    [libraryView, onReorderBanks, reorder]
   );
 
   const handleBulkMove = useCallback(

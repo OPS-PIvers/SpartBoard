@@ -1356,7 +1356,6 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       orderedIds.forEach((id, index) => {
         batch.update(doc(db, 'users', user.uid, QUIZZES_COLLECTION, id), {
           order: index,
-          updatedAt: Date.now(),
         });
       });
       try {
