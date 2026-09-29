@@ -1,7 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useContext, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import type { LibraryPrimaryAction } from './types';
+import { LibraryPreviewSlotContext } from './LibraryPreviewSlotContext';
 
 interface LibraryPreviewPaneProps {
   /** When false the pane is unmounted; when true it slides in. */
@@ -29,10 +31,10 @@ interface LibraryPreviewPaneProps {
 }
 
 /**
- * Right-side detail pane for library managers. Renders inside the manager's
- * tab content area as a sibling of the grid, not as a portal — that keeps
- * the pane scoped to the widget's container query so a small widget gets
- * a small pane and a fullscreen widget gets a large one.
+ * Right-side detail pane for library managers. Inside a `LibraryShell` it
+ * portals into the shell's preview slot, beside (not inside) the scrolling
+ * tab content, so it stays full height and the list keeps its end padding.
+ * The slot is still inside the widget, so container queries keep scoping it.
  *
  * The pane animates in from the right via `animate-in slide-in-from-right`;
  * closing unmounts the pane immediately with no exit animation (React keeps
@@ -56,6 +58,7 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
   children,
   widthPx = 360,
 }) => {
+  const previewSlot = useContext(LibraryPreviewSlotContext);
   // Esc-to-close. Scoped to the document via capture-phase so the pane
   // intercepts Esc *before* any ancestor document-level listener (e.g. the
   // PLC dashboard's fullscreen-tile collapser) sees it. `stopImmediate`
@@ -109,7 +112,7 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
   // user has explicitly opened a preview.
   const safeWidthPx = Number.isFinite(widthPx) && widthPx > 0 ? widthPx : 360;
 
-  return (
+  const pane = (
     <aside
       role="complementary"
       aria-label="Item preview"
@@ -241,4 +244,5 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
       )}
     </aside>
   );
+  return previewSlot ? createPortal(pane, previewSlot) : pane;
 };

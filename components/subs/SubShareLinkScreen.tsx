@@ -42,7 +42,7 @@ export const SubShareLinkScreen: React.FC<SubShareLinkScreenProps> = ({
 
   if (target.status === 'error') {
     return (
-      <div className="min-h-screen bg-slate-50">
+      <div className="h-screen overflow-y-auto bg-slate-50">
         <ExpiredOrErrorPanel
           message={target.message}
           hint="Pick your building to see what else is shared with subs today."

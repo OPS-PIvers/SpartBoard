@@ -134,7 +134,7 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
             })}
           </div>
         ) : (
-          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pb-2">
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
               {sortedStudents.map((student) => {
                 const isAbsent = absentIds.has(student.id);

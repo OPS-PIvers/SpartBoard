@@ -724,7 +724,7 @@ const SearchTab: React.FC<SearchTabProps> = ({
     )}
 
     {results.length > 0 && (
-      <div className="grid gap-2 max-h-72 overflow-y-auto custom-scrollbar">
+      <div className="grid gap-2 max-h-72 overflow-y-auto custom-scrollbar pb-1">
         {results.map((r) => {
           const picked = pickedUrl.includes(r.videoId);
           return (

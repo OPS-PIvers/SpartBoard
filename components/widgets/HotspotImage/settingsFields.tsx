@@ -215,7 +215,7 @@ const HotspotBaseImageField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
           {t('savedLibrary')}
         </p>
         {savedLibrary.length > 0 ? (
-          <div className="max-h-40 space-y-2 overflow-y-auto pr-2">
+          <div className="max-h-40 space-y-2 overflow-y-auto pr-2 pb-1">
             {savedLibrary.map((item, libraryIndex) => {
               const rowKey = `row-${libraryIndex + 1}`;
               return (
@@ -310,7 +310,7 @@ export const HotspotImagePinsField: React.FC<{ ctx: CustomRenderCtx }> = ({
       role="group"
       aria-labelledby={ctx.labelId}
       aria-describedby={ctx.describedBy}
-      className="flex max-h-96 flex-col gap-3 overflow-y-auto pr-1"
+      className="flex max-h-96 flex-col gap-3 overflow-y-auto pr-1 pb-1"
     >
       {hotspots.map((hotspot, index) => {
         const rowKey = `row-${index + 1}`;

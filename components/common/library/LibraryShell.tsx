@@ -20,6 +20,7 @@ import {
   LibraryFolderPanelContext,
   type FolderPanelMode,
 } from './LibraryFolderPanelContext';
+import { LibraryPreviewSlotContext } from './LibraryPreviewSlotContext';
 import { SegmentedTabs } from '@/components/common/sessionViews/SegmentedTabs';
 import { TOOLS } from '@/config/tools';
 import { LIBRARY_HEADER_ACCENTS } from './libraryAccents';
@@ -211,6 +212,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
   // buttons never push off-screen. A crude width threshold based on the number
   // of buttons keeps parity with the inline/overflow logic on library cards.
   const rootRef = useRef<HTMLElement>(null);
+  const [previewSlot, setPreviewSlot] = useState<HTMLDivElement | null>(null);
   const [rootWidth, setRootWidth] = useState<number | null>(null);
   useEffect(() => {
     const el = rootRef.current;
@@ -458,13 +460,22 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
         <div
           role="tabpanel"
           aria-label={`${widgetLabel} ${tab} tab content`}
-          className="flex-1 min-w-0 overflow-y-auto"
-          style={{
-            paddingInline: 'min(16px, 3.5cqmin)',
-            paddingBlock: 'min(14px, 3cqmin)',
-          }}
+          className="flex flex-1 min-w-0 min-h-0"
         >
-          {children}
+          <div
+            className="flex-1 min-w-0 overflow-y-auto"
+            style={{
+              paddingInline: 'min(16px, 3.5cqmin)',
+              paddingBlock: 'min(14px, 3cqmin)',
+            }}
+            data-testid="library-scroll"
+          >
+            <LibraryPreviewSlotContext.Provider value={previewSlot}>
+              {children}
+            </LibraryPreviewSlotContext.Provider>
+          </div>
+          {/* Preview panes portal here so they sit outside the scroller at full height. */}
+          <div ref={setPreviewSlot} className="contents" />
         </div>
       </div>
     </section>

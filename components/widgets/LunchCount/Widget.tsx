@@ -1072,7 +1072,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                 activeClassName="bg-slate-100 border-brand-blue-primary ring-4 ring-brand-blue-lighter/20"
               >
                 <div
-                  className={`flex flex-col items-center ${stats.remaining > 0 ? 'h-full' : ''}`}
+                  className={`flex flex-col items-center ${stats.remaining > 0 ? 'min-h-full' : ''}`}
                 >
                   <div
                     className="flex items-center"

@@ -249,7 +249,7 @@ export const RemoteWidgetCard: React.FC<RemoteWidgetCardProps> = ({
       </div>
 
       {/* Widget Controls */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto [&>*]:min-h-full [&>.h-full]:h-auto">
         {renderControls(widget, updateWidget)}
       </div>
     </div>

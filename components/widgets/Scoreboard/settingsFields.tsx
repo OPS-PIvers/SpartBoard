@@ -488,7 +488,7 @@ export const ScoreboardSettings: React.FC<{
           )}
         </div>
 
-        <div className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+        <div className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar pb-1">
           {teams.map((team, teamIndex) => (
             <div
               key={team.id}

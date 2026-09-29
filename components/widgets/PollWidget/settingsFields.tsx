@@ -614,7 +614,7 @@ export const PollSettings: React.FC<{
                 {t('widgetSettings.poll.options')}
               </SettingsLabel>
               <div
-                className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1"
+                className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1 pb-1"
                 aria-labelledby={`pollwidget-options-label-${widget.id}`}
               >
                 {options.map((option, idx) => (

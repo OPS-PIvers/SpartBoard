@@ -596,7 +596,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
             </div>
           )}
         </div>
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="flex-1 overflow-y-auto custom-scrollbar pb-2">
           {notes.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center text-xs text-slate-500 py-10 px-4">
               <StickyNote className="w-7 h-7 text-slate-300 mb-2" />

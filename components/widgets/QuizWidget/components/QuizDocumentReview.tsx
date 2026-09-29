@@ -297,7 +297,7 @@ const ReviewTable: React.FC<
       {targetSlots?.header(allQuestions, applyTargets)}
       {standardSlots?.header(allQuestions, applyTargets)}
 
-      <ul className="max-h-[22rem] space-y-2 overflow-y-auto">
+      <ul className="max-h-[22rem] space-y-2 overflow-y-auto pb-1">
         {allQuestions.map((q, index) => {
           if (showOnlyFlagged && !isFlagged(q)) return null;
           const included = !excluded.has(q.id);
