@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import config from '../../tailwind.config.js';
+import config from '@/tailwind.config.js';
 
 const ROOT = join(__dirname, '../..');
 const SOURCE_DIRS = ['components', 'context', 'hooks', 'utils', 'config'];
