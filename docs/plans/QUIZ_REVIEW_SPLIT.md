@@ -78,6 +78,7 @@ Both widgets work from the same quiz library, so a teacher writes a quiz once an
   It gates the Review widget, the Quiz simplification and the Settings tab removal together:
   - With the flag off, a teacher sees Quiz exactly as it is today and has no Review.
   - With it on, both changes happen at once, so nobody loses teacher-paced before they have Review.
+
 - **D7.** Review also gets its own Feature Permissions row (`canAccessWidget('review')`). A teacher sees Review only if they have that widget permission and `quiz-review-split` is on.
 
 ### Quiz after the split
@@ -91,6 +92,7 @@ Both widgets work from the same quiz library, so a teacher writes a quiz once an
   - scoreboard sync: the `QuizSettingsScreen` section and the `Widget.tsx` push
 
   Quiz keeps Present to class (self-paced view), hand raise, the phone remote, focus mode and every other assessment option.
+
 - **D10.** The quiz editor's **Settings tab is removed**, so the editor keeps Questions, Stimuli and Languages.
   - `QuizMetadata.behavior` is no longer read or written for new work, and it is no longer copied to PLC teammates. Existing values stay in place, ignored.
 - **D11.** Assessment settings live only on the assignment.
@@ -119,6 +121,7 @@ Both widgets work from the same quiz library, so a teacher writes a quiz once an
   - Present to class
 
   Review has **no** phone remote control.
+
 - **D17.** Question-bank draws: one draw for the whole class in teacher-paced, resolved at launch. In self-paced, each student gets their own draw, as Quiz does now, and their repeats come from their own set.
 - **D18.** Sections show as divider cards (title and passage) when a section starts, and questions stay in section order.
   - Teacher-paced: the divider shows on the board and on devices, and choose-N-of-M sections play every question.
