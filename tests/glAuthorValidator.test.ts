@@ -5,7 +5,7 @@ import {
   loadTourAnchors,
   readWidgetTypes,
   validateGlSet,
-} from '../.claude/skills/gl-author/scripts/validate_gl_json.mjs';
+} from '@/.claude/skills/gl-author/scripts/validate_gl_json.mjs';
 import { TOOLS } from '@/config/tools';
 import { parseTourAnchorRef, TOUR_ANCHORS } from '@/config/tourAnchors';
 

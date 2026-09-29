@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   readWidgetTypes,
   validateGlSet,
-} from '../.claude/skills/gl-author/scripts/validate_gl_json.mjs';
+} from '@/.claude/skills/gl-author/scripts/validate_gl_json.mjs';
 import { parseTourAnchorRef, TOUR_ANCHORS } from '@/config/tourAnchors';
 import { anchorProblem } from '@/components/tours/tourHealth';
 import { parseGuidedLearningJson } from '@/components/widgets/GuidedLearning/utils/glTransfer';
