@@ -95,6 +95,8 @@ export interface QuizImportAdapterDeps {
   canSuggestTargets?: boolean;
   /** Turn printed section headings into quiz sections (QUIZ_EXAMVIEW_IMPORT E16). */
   canUseSections?: boolean;
+  /** Turn a test's case studies and passages into stimuli (`quiz-import-passages`). */
+  canFindPassages?: boolean;
   /**
    * Uploads a read document's pictures to the teacher's Drive and links them
    * to the questions that use them (D13). Called at save, not at read, so a
@@ -455,6 +457,7 @@ export function createQuizImportAdapter(
             key: source.keyFile,
             ...(source.useAi === false ? { useAi: false } : {}),
             ...(multiAnswer ? { multiAnswer } : {}),
+            ...(deps.canFindPassages ? { passages: true } : {}),
             ...(deps.fetchRemoteImage
               ? { fetchRemoteImage: deps.fetchRemoteImage }
               : {}),

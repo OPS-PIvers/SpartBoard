@@ -193,6 +193,94 @@ describe('a Matching section with a bank past F', () => {
   });
 });
 
+describe('a teacher-made test with a running header and a teacher key', () => {
+  const { questions, warnings } = parseDocument(
+    lines(
+      'VERSION A',
+      'SECTION 1 — Matching (Write the Letter on the Line Next to the Correct Number)',
+      'Terms:',
+      ...BANK,
+      'Definitions:',
+      ...ITEMS.slice(0, 6),
+      'VERSION A',
+      ...ITEMS.slice(6),
+      'VERSION A',
+      'SECTION 2 — Multiple Choice',
+      '12. Which is a cost?',
+      'A. Rent',
+      'B. Sales',
+      'VERSION A — TEACHER KEY',
+      'Section 1:',
+      ...KEY.map((k, i) => `${i + 1}. ${k} — ${TERMS[i]}`),
+      'Section 2:',
+      '12-A'
+    )
+  );
+
+  it('keeps the set whole across the page header', () => {
+    expect(warnings).toEqual([]);
+    expect(questions.map((q) => q.type)).toEqual(['Matching', 'MC']);
+    expect(questions[0].correctAnswer).toBe(PAIRS);
+    expect(questions[1].correctAnswer).toBe('Rent');
+  });
+
+  it('takes the heading’s parenthetical over label-only directions', () => {
+    expect(questions[0].text).toBe(
+      'Write the Letter on the Line Next to the Correct Number'
+    );
+  });
+});
+
+describe('lines that repeat without being a running header', () => {
+  it('keeps an answer printed on its own line', () => {
+    const { questions } = parseDocument(
+      lines(
+        '1. The sun is a star',
+        'TRUE',
+        '2. The moon is a planet',
+        'TRUE',
+        '3. Water boils at 100 °C',
+        'TRUE'
+      )
+    );
+    expect(questions.map((q) => q.text)).toEqual([
+      'The sun is a star TRUE',
+      'The moon is a planet TRUE',
+      'Water boils at 100 °C TRUE',
+    ]);
+  });
+
+  it('keeps an all-caps line repeated close together', () => {
+    const { questions } = parseDocument(
+      lines(
+        '1. Label the parts',
+        'SEE DIAGRAM',
+        '2. Name the organ',
+        'SEE DIAGRAM',
+        '3. Name the bone',
+        'SEE DIAGRAM'
+      )
+    );
+    expect(questions).toHaveLength(3);
+    expect(questions[2].text).toBe('Name the bone SEE DIAGRAM');
+  });
+
+  it('skips a header printed on every PDF page', () => {
+    const { questions } = parseDocument([
+      { text: 'VERSION A', page: 1, y: 700 },
+      { text: '1. First question?', page: 1, y: 650 },
+      { text: 'VERSION A', page: 2, y: 700 },
+      { text: 'more of the first question.', page: 2, y: 650 },
+      { text: 'VERSION A', page: 3, y: 700 },
+      { text: '2. Second question?', page: 3, y: 650 },
+    ]);
+    expect(questions.map((q) => q.text)).toEqual([
+      'First question? more of the first question.',
+      'Second question?',
+    ]);
+  });
+});
+
 describe('key entries past F', () => {
   it('needs punctuation, so a unit label is not a key', () => {
     expect(listKeyItems(lines('10 m', '6 m', '8 m'))).toEqual([]);

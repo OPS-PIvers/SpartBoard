@@ -8,6 +8,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-imscc-import',
   'quiz-document-ai-reader',
   'quiz-import-suggested-targets',
+  'quiz-import-passages',
   'paper-answer-sheets',
   'roster-groups',
   'quiz-document-import',
