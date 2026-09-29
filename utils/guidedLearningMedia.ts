@@ -176,6 +176,11 @@ export function thumbnailUrl(
   return url;
 }
 
+/** A Drive slide at its original size; bare lh3 links are capped at 1600px. */
+export function fullSizeSlideUrl(url: string): string {
+  return DRIVE_SLIDE_URL.test(url) ? `${url}=s0` : url;
+}
+
 /** A 400px WebP of a static image; null for GIFs, SVGs, small images and decode failures. */
 export async function makeSlideThumbnail(file: File): Promise<Blob | null> {
   if (

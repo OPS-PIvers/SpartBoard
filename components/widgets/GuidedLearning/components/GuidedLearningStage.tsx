@@ -5,6 +5,7 @@ import React, {
   useId,
   useRef,
   useCallback,
+  useMemo,
 } from 'react';
 import { ImageOff, Minimize2, RotateCcw, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -32,6 +33,7 @@ import {
   type ImageOffset,
 } from '../utils/imageUtils';
 import { isGuidedLearningSetV2 } from '../utils/setMigration';
+import { fullSizeSlideUrl } from '@/utils/guidedLearningMedia';
 import { buildStageGeometry } from '../utils/stageGeometry';
 import { pointInRegion, regionRect } from '../utils/regionGeometry';
 import { placeBanner } from '../utils/calloutPlacement';
@@ -270,7 +272,11 @@ const StageBody: React.FC<
     currentStepId === undefined ? activeStepId : currentStepId;
   const currentStep = steps.find((s) => s.id === sequencedStepId) ?? null;
   const activeStep = steps.find((s) => s.id === activeStepId) ?? null;
-  const currentImageUrl = set.imageUrls[currentImageIndex] ?? set.imageUrls[0];
+  const slideUrls = useMemo(
+    () => set.imageUrls.map(fullSizeSlideUrl),
+    [set.imageUrls]
+  );
+  const currentImageUrl = slideUrls[currentImageIndex] ?? slideUrls[0];
   // Per-slide media kind — 'video' slides (uploaded MP4/WebM or screen
   // recordings) render in a muted looping <video>; missing entries are
   // images (legacy sets/sessions have no imageKinds field at all).
@@ -331,7 +337,7 @@ const StageBody: React.FC<
   const previousImageUrl =
     prevImageIndex !== null &&
     (set.imageKinds?.[prevImageIndex] ?? 'image') !== 'video'
-      ? (set.imageUrls[prevImageIndex] ?? null)
+      ? (slideUrls[prevImageIndex] ?? null)
       : null;
 
   // Re-measure whenever the slide changes — the <img> src is mutated in
@@ -376,7 +382,7 @@ const StageBody: React.FC<
   const decodedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (!slideLoading) return;
-    const urls = set.imageUrls;
+    const urls = slideUrls;
     const kinds = set.imageKinds;
     const cache = preloadedRef.current;
     const shown = urls[currentImageIndex];
@@ -406,21 +412,21 @@ const StageBody: React.FC<
         .decode?.()
         .catch(() => undefined);
     }
-  }, [slideLoading, set.imageUrls, set.imageKinds, currentImageIndex]);
+  }, [slideLoading, slideUrls, set.imageKinds, currentImageIndex]);
 
   useEffect(() => {
     if (slideLoading) return;
     // Warm the browser cache for image slides so step navigation doesn't
     // flash. Video slides are intentionally skipped — preloading every MP4
     // up front would burn bandwidth; the <video> element streams on demand.
-    set.imageUrls.forEach((url, i) => {
+    slideUrls.forEach((url, i) => {
       if ((set.imageKinds?.[i] ?? 'image') === 'video') return;
       const image = new Image();
       image.src = url;
       // Decode ahead of time so a slide swap paints immediately.
       void image.decode?.().catch(() => undefined);
     });
-  }, [slideLoading, set.imageUrls, set.imageKinds]);
+  }, [slideLoading, slideUrls, set.imageKinds]);
 
   useEffect(() => {
     if (

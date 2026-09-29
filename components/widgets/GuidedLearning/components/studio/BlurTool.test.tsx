@@ -15,6 +15,7 @@ import {
 } from '@/context/DialogContextValue';
 import { mockStageLayout } from '@/tests/utils/mockStageLayout';
 import { GuidedLearningStudio } from './GuidedLearningStudio';
+import { fullSizeSlideUrl } from '@/utils/guidedLearningMedia';
 
 const OLD_URL = 'https://lh3.googleusercontent.com/d/old-id';
 const NEW_URL = 'https://lh3.googleusercontent.com/d/new-id';
@@ -116,7 +117,9 @@ function renderStudio(kind: 'image' | 'video' = 'image') {
 const blurButton = () =>
   screen.getByRole('button', { name: 'Blur part of this slide (B)' });
 const showsSlide = (url: string) =>
-  Array.from(document.querySelectorAll('img')).some((img) => img.src === url);
+  Array.from(document.querySelectorAll('img')).some(
+    (img) => img.src === fullSizeSlideUrl(url)
+  );
 
 function drawArea() {
   const layer = screen.getByTestId('gl-blur-layer');

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { withSlideFileRefs } from './slideMedia';
-import { pickThumbnailUrl, thumbnailUrl } from '@/utils/guidedLearningMedia';
+import {
+  fullSizeSlideUrl,
+  pickThumbnailUrl,
+  thumbnailUrl,
+} from '@/utils/guidedLearningMedia';
 
 const storageUrl = (path: string) =>
   `https://firebasestorage.googleapis.com/v0/b/bkt/o/${encodeURIComponent(path)}?alt=media&token=t`;
@@ -70,6 +74,13 @@ describe('thumbnails', () => {
       'T'
     );
     expect(thumbnailUrl('https://s/other')).toBe('https://s/other');
+  });
+
+  it('asks Drive for the original size, leaving other URLs alone', () => {
+    const drive = 'https://lh3.googleusercontent.com/d/abc';
+    expect(fullSizeSlideUrl(drive)).toBe(`${drive}=s0`);
+    expect(fullSizeSlideUrl(`${drive}=w400`)).toBe(`${drive}=w400`);
+    expect(fullSizeSlideUrl('https://s/slide.png')).toBe('https://s/slide.png');
   });
 
   it('picks the first image slide’s thumbnail for the library card', () => {
