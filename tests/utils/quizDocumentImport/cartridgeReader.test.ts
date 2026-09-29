@@ -486,6 +486,34 @@ describe('readCartridge — a cc_profile instead of question_type', () => {
   });
 });
 
+describe('readCartridge — HTML entities written raw in the XML', () => {
+  it('keeps the accented text of a Schoology export instead of finding no questions', async () => {
+    const item = `
+      <item ident="9">
+        <itemmetadata><qtimetadata><qtimetadatafield>
+          <fieldlabel>cc_profile</fieldlabel><fieldentry>cc.true_false.v0p1</fieldentry>
+        </qtimetadatafield></qtimetadata></itemmetadata>
+        <presentation>
+          <material><mattext texttype="text/html">&lt;p&gt;&iquest;Est&aacute;n aqu&iacute;? Ma&ntilde;ana &amp; hoy&lt;/p&gt;</mattext></material>
+          <response_lid ident="10" rcardinality="Single"><render_choice>
+            <response_label ident="33"><material><mattext texttype="text/plain">True</mattext></material></response_label>
+            <response_label ident="34"><material><mattext texttype="text/plain">False</mattext></material></response_label>
+          </render_choice></response_lid>
+        </presentation>
+        <resprocessing>
+          <outcomes><decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/></outcomes>
+          <respcondition continue="No">
+            <conditionvar><varequal respident="10">33</varequal></conditionvar>
+            <setvar action="Set" varname="SCORE">100</setvar>
+          </respcondition>
+        </resprocessing>
+      </item>`;
+    const quiz = await readCartridge(await oneQuiz(item), 'fallback');
+    expect(quiz.questions[0].text).toBe('¿Están aquí? Mañana & hoy');
+    expect(quiz.questions[0].correctAnswer).toBe('True');
+  });
+});
+
 describe('readQuizDocument — .imscc', () => {
   it('routes an .imscc to the cartridge reader', async () => {
     const quiz = await readQuizDocument(await oneQuiz(mcItem()));
