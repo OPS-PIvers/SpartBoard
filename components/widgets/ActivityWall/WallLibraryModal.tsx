@@ -214,7 +214,7 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
       onClose={onClose}
       title="Activity Walls"
       maxWidth="max-w-4xl"
-      contentClassName="px-0 pb-0"
+      contentClassName="px-0 pb-0 flex flex-col"
     >
       <LibraryShell
         widgetLabel="Activity Wall"

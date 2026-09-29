@@ -936,7 +936,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     (useExternalDnd || Boolean(onReorderActivities)) && !selectionMode;
 
   const renderLibraryTab = (): React.ReactElement => (
-    <div className="flex h-full min-h-0" style={{ gap: 'min(12px, 3cqmin)' }}>
+    <div className="flex" style={{ gap: 'min(12px, 3cqmin)' }}>
       <div className="flex-1 min-w-0 flex flex-col">
         {error && (
           <div
