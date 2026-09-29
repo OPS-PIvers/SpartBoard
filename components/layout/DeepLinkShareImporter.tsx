@@ -8,6 +8,7 @@ import {
 } from '@/hooks/useQuizAssignments';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useRubrics } from '@/hooks/useRubrics';
+import { useQuestionBanks } from '@/hooks/useQuestionBanks';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { usePlcs } from '@/hooks/usePlcs';
 import { QuizAssignmentImportModeModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentImportModeModal';
@@ -57,10 +58,15 @@ export const DeepLinkShareImporter: React.FC = () => {
     clearPendingRubricShare,
   } = useDashboard();
 
-  const { importSharedQuiz, saveQuiz, deleteQuiz, attachSyncLinkage } = useQuiz(
-    user?.uid
-  );
+  const {
+    importSharedQuiz,
+    saveQuiz,
+    deleteQuiz,
+    attachSyncLinkage,
+    saveDriveSnapshot,
+  } = useQuiz(user?.uid);
   const { importSharedRubric } = useRubrics(user?.uid);
+  const { saveBank } = useQuestionBanks(user?.uid);
   const { importSharedAssignment, peekSharedAssignment } = useQuizAssignments(
     user?.uid
   );
@@ -159,7 +165,7 @@ export const DeepLinkShareImporter: React.FC = () => {
     // where the same shareId could be imported 2-3× concurrently.
     const shareId = pendingQuizShareId;
     clearPendingQuizShare();
-    void importSharedQuiz(shareId)
+    void importSharedQuiz(shareId, saveBank)
       .then(() => {
         addToast('Shared quiz imported to your library!', 'success');
         openQuizWidgetToTab('library');
@@ -182,6 +188,7 @@ export const DeepLinkShareImporter: React.FC = () => {
     pendingQuizShareId,
     user,
     importSharedQuiz,
+    saveBank,
     addToast,
     clearPendingQuizShare,
     openQuizWidgetToTab,
@@ -277,6 +284,8 @@ export const DeepLinkShareImporter: React.FC = () => {
         {
           mode,
           attachSyncLinkage,
+          saveBank,
+          saveDriveSnapshot,
         }
       )
         .then((newAssignmentId) => {
@@ -316,6 +325,8 @@ export const DeepLinkShareImporter: React.FC = () => {
       saveQuiz,
       deleteQuiz,
       attachSyncLinkage,
+      saveBank,
+      saveDriveSnapshot,
       addToast,
       openQuizWidgetToTab,
       setPendingAssignmentSetup,

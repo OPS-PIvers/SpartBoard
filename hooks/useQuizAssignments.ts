@@ -69,6 +69,7 @@ import type {
   QuizAssignmentStatus,
   QuizAssignmentSyncLinkage,
   QuizData,
+  QuestionBankData,
   QuizMetadataSyncLinkage,
   QuizOrderEntry,
   QuizPublicQuestion,
@@ -99,6 +100,12 @@ import {
 } from '@/utils/quizSessionContent';
 import { isFreeResponseType } from '@/types';
 import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
+import { quizHasBankSlots, resolveQuizAssignment } from '@/utils/questionBanks';
+import {
+  buildSharedQuizContent,
+  restoreSharedQuizContent,
+  type LoadBankContentsForQuiz,
+} from '@/utils/quizShareContent';
 import {
   projectSessionStimuli,
   readAloudTextByStimulusId,
@@ -349,7 +356,8 @@ export interface UseQuizAssignmentsResult {
   /** Publish this assignment as a shareable link. Returns the /share/assignment/{id} URL. */
   shareAssignment: (
     assignmentId: string,
-    quizData: QuizData
+    quizData: QuizData,
+    loadBankContents?: LoadBankContentsForQuiz
   ) => Promise<string>;
   /**
    * Peek at a `/shared_assignments/{shareId}` doc without importing. Used
@@ -428,6 +436,10 @@ export interface UseQuizAssignmentsResult {
         quizId: string,
         linkage: QuizMetadataSyncLinkage
       ) => Promise<void>;
+      /** Stores the banks a shared bank-draw quiz carries in the importer's library. */
+      saveBank?: (bank: QuestionBankData) => Promise<unknown>;
+      /** Saves the frozen bank pool to Drive so grading sees every drawn question. */
+      saveDriveSnapshot?: (quiz: QuizData) => Promise<string>;
     }
   ) => Promise<string>;
   /**
@@ -2133,8 +2145,10 @@ export const useQuizAssignments = (
   const shareAssignment = useCallback<
     UseQuizAssignmentsResult['shareAssignment']
   >(
-    async (assignmentId, quizData) => {
+    async (assignmentId, quizData, loadBankContents) => {
       if (!userId) throw new Error('Not authenticated');
+      // Load the banks first so a missing one fails before any sync-group write.
+      const content = await buildSharedQuizContent(quizData, loadBankContents);
       const snap = await getDoc(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
       );
@@ -2218,12 +2232,7 @@ export const useQuizAssignments = (
       }
 
       const payload: Omit<SharedQuizAssignment, 'id'> = {
-        title: quizData.title,
-        questions: quizData.questions,
-        ...(quizData.stimuli && quizData.stimuli.length > 0
-          ? { stimuli: quizData.stimuli }
-          : {}),
-        ...(quizData.language ? { language: quizData.language } : {}),
+        ...content,
         createdAt: quizData.createdAt,
         updatedAt: quizData.updatedAt,
         assignmentSettings: {
@@ -2285,9 +2294,17 @@ export const useQuizAssignments = (
       const effectiveMode: SharedAssignmentImportMode =
         requestedMode === 'sync' && shared.syncGroupId ? 'sync' : 'copy';
 
-      let initialQuestions = normalizeQuizQuestions(shared.questions);
+      // Copies keep everything the share carries (bank draws, sections,
+      // printable stimuli); a synced import takes the canonical doc's content.
+      const restored =
+        effectiveMode === 'copy'
+          ? await restoreSharedQuizContent(shared, options?.saveBank)
+          : null;
+      let initialQuestions = normalizeQuizQuestions(
+        restored?.content.questions ?? shared.questions ?? []
+      );
       let initialTitle = shared.title;
-      let initialStimuli = shared.stimuli;
+      let initialStimuli = restored?.content.stimuli ?? shared.stimuli;
       let initialLanguage = shared.language;
       let canonicalVersion: number | undefined = undefined;
       if (effectiveMode === 'sync' && shared.syncGroupId) {
@@ -2310,6 +2327,7 @@ export const useQuizAssignments = (
 
       const now = Date.now();
       const newQuiz: QuizData = {
+        ...(restored?.content ?? {}),
         id: crypto.randomUUID(),
         title: initialTitle,
         questions: initialQuestions,
@@ -2458,21 +2476,54 @@ export const useQuizAssignments = (
       // orphaned quiz id surfaced so the caller can be specific.
       let created: { id: string; code: string };
       try {
+        // Bank draws freeze into a pool with a Drive snapshot, the same way
+        // the Assign flow does it, so the paused assignment isn't empty.
+        let assignQuestions = newQuiz.questions;
+        let assignStimuli = newQuiz.stimuli;
+        let assignDriveFileId = savedMeta.driveFileId;
+        let resolvedDriveFileId: string | undefined;
+        let sessionBankSlots: QuizSessionBankSlot[] | undefined;
+        if (
+          restored &&
+          quizHasBankSlots(newQuiz) &&
+          importedSettings.sessionMode === 'student' &&
+          options?.saveDriveSnapshot
+        ) {
+          const resolved = resolveQuizAssignment(newQuiz, restored.banks);
+          resolvedDriveFileId = await options.saveDriveSnapshot({
+            ...newQuiz,
+            questions: resolved.questions,
+            stimuli: resolved.stimuli,
+            bankSlots: undefined,
+            order: undefined,
+          });
+          assignQuestions = resolved.questions;
+          assignStimuli = resolved.stimuli;
+          assignDriveFileId = resolvedDriveFileId;
+          sessionBankSlots = resolved.sessionSlots;
+        }
         created = await createAssignment(
           {
             id: savedMeta.id,
             title: newQuiz.title,
-            driveFileId: savedMeta.driveFileId,
-            questions: newQuiz.questions,
-            ...(newQuiz.stimuli ? { stimuli: newQuiz.stimuli } : {}),
+            driveFileId: assignDriveFileId,
+            questions: assignQuestions,
+            ...(assignStimuli ? { stimuli: assignStimuli } : {}),
             ...(newQuiz.language ? { language: newQuiz.language } : {}),
+            ...(newQuiz.sections?.length
+              ? { order: newQuiz.order, sections: newQuiz.sections }
+              : {}),
           },
-          importedSettings,
+          {
+            ...importedSettings,
+            ...(resolvedDriveFileId ? { resolvedDriveFileId } : {}),
+          },
           {
             initialStatus: 'paused',
             ...(assignmentSyncedFrom
               ? { syncedFrom: assignmentSyncedFrom }
               : {}),
+            ...(sessionBankSlots ? { bankSlots: sessionBankSlots } : {}),
           }
         );
       } catch (err) {
