@@ -284,8 +284,7 @@ export function entriesOnLine(text: string, multi = false): KeyEntry[] {
   if (list) {
     return [[Number(list[1]), listedLetters(list[2]).join(', ')]];
   }
-  const withText =
-    LETTER_WITH_TEXT.exec(trimmed) ?? LATE_LETTER_WITH_TEXT.exec(trimmed);
+  const withText = LETTER_WITH_TEXT.exec(trimmed);
   if (withText) return [[Number(withText[1]), withText[2].toUpperCase()]];
   const found: KeyEntry[] = [];
   for (const m of trimmed.matchAll(KEY_ENTRY)) {
@@ -435,6 +434,9 @@ function entriesAt(
   }
 
   if (headed) {
+    // Only under a key heading, so a stem like "2. J. K. Rowling wrote..." stays a question.
+    const late = LATE_LETTER_WITH_TEXT.exec(text);
+    if (late) return { entries: [[Number(late[1]), late[2]]], used: 1 };
     const numbered = NUMBERED_ENTRY.exec(text);
     if (numbered && (!askedNumbers || askedNumbers.has(Number(numbered[1])))) {
       return {
