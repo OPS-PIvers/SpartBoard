@@ -162,7 +162,7 @@ export function getMaxAnsweredPoints(
   let total = 0;
   for (const a of representative.values()) {
     const q = qMap.get(a.questionId);
-    if (q && !r._notChosen?.includes(q.id)) total += q.points ?? 1;
+    if (q) total += questionPointsFor(q, r);
   }
   return total;
 }
