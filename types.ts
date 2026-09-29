@@ -6062,6 +6062,16 @@ export interface SharedQuizAssignment {
   stimuli?: QuizStimulus[];
   /** Mirrors `QuizData.language`. */
   language?: string;
+  /** Printable stimuli, sections and bank draws; absent on older shares. */
+  paperSheetStimuli?: PaperSheetStimulus[];
+  order?: QuizOrderEntry[];
+  sections?: QuizSection[];
+  bankSlots?: QuizBankSlot[];
+  /** Banks the slots draw from, inlined; see `utils/quizShareContent.ts`. */
+  banks?: (Pick<
+    QuestionBankData,
+    'id' | 'title' | 'questions' | 'stimuli' | 'targets'
+  > & { key: string })[];
   createdAt: number;
   updatedAt: number;
   assignmentSettings: QuizAssignmentSettings;

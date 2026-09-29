@@ -2421,7 +2421,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         onShare={async (meta) => {
           let url: string;
           try {
-            url = await shareQuiz(meta);
+            url = await shareQuiz(meta, loadBankContentsForQuiz);
           } catch (err) {
             addToast(
               err instanceof Error ? err.message : 'Share failed',
@@ -2884,7 +2884,11 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           try {
             const data = await loadQuiz(meta);
             if (!data) return;
-            const url = await shareAssignment(a.id, data);
+            const url = await shareAssignment(
+              a.id,
+              data,
+              loadBankContentsForQuiz
+            );
             try {
               await navigator.clipboard.writeText(url);
               addToast('Assignment share link copied!', 'success');

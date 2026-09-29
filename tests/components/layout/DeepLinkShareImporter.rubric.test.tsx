@@ -65,6 +65,10 @@ vi.mock('@/hooks/useVideoActivityAssignments', () => ({
   useVideoActivityAssignments: () => ({ importSharedAssignment: vi.fn() }),
 }));
 
+vi.mock('@/hooks/useQuestionBanks', () => ({
+  useQuestionBanks: () => ({ saveBank: vi.fn() }),
+}));
+
 vi.mock('@/hooks/usePlcs', () => ({
   usePlcs: () => ({ plcs: [], loading: false }),
 }));

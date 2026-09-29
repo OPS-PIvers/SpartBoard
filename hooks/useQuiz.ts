@@ -22,6 +22,7 @@ import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from './useGoogleDrive';
 import {
   QuizData,
+  type QuestionBankData,
   QuizMetadata,
   type QuizMetadataSyncLinkage,
   type QuizBehaviorSettings,
@@ -48,6 +49,12 @@ import {
   countQuestionsNeedingKey,
 } from '@/utils/quizNeedsKey';
 import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
+import {
+  buildSharedQuizContent,
+  restoreSharedQuizContent,
+  type LoadBankContentsForQuiz,
+  type SharedQuizContent,
+} from '@/utils/quizShareContent';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
 import {
@@ -125,9 +132,16 @@ export interface UseQuizResult {
    */
   createQuizTemplate: (token?: string | null) => Promise<string>;
   /** Share a quiz publicly and return the share URL */
-  shareQuiz: (quizMeta: QuizMetadata) => Promise<string>;
+  shareQuiz: (
+    quizMeta: QuizMetadata,
+    loadBankContents?: LoadBankContentsForQuiz
+  ) => Promise<string>;
   /** Import a shared quiz into the current user's library */
-  importSharedQuiz: (shareId: string) => Promise<void>;
+  /** `saveBank` stores the banks a shared bank-draw quiz carries; without it the slots stay unresolved. */
+  importSharedQuiz: (
+    shareId: string,
+    saveBank?: (bank: QuestionBankData) => Promise<unknown>
+  ) => Promise<void>;
   /**
    * Pull the latest canonical content for a synced quiz into the local
    * Drive file. Used by the "Sync available" pill on the library card.
@@ -797,12 +811,16 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
   );
 
   const shareQuiz = useCallback(
-    async (quizMeta: QuizMetadata): Promise<string> => {
+    async (
+      quizMeta: QuizMetadata,
+      loadBankContents?: LoadBankContentsForQuiz
+    ): Promise<string> => {
       if (!userId) throw new Error('Not authenticated');
       const drive = getDriveService();
       const quizData = await drive.loadQuiz(quizMeta.driveFileId);
+      const content = await buildSharedQuizContent(quizData, loadBankContents);
       const shareRef = await addDoc(collection(db, 'shared_quizzes'), {
-        ...quizData,
+        ...content,
         originalAuthor: userId,
         sharedAt: Date.now(),
       });
@@ -812,26 +830,23 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
   );
 
   const importSharedQuiz = useCallback(
-    async (shareId: string): Promise<void> => {
+    async (
+      shareId: string,
+      saveBank?: (bank: QuestionBankData) => Promise<unknown>
+    ): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
       const snap = await getDoc(doc(db, 'shared_quizzes', shareId));
       if (!snap.exists()) throw new Error('Shared quiz not found');
-      const shared = snap.data() as QuizData & {
+      const shared = snap.data() as SharedQuizContent & {
         originalAuthor: string;
         sharedAt: number;
       };
+      const { content } = await restoreSharedQuizContent(shared, saveBank);
       // Create a fresh copy for this user
       const newQuiz: QuizData = {
+        ...content,
         id: crypto.randomUUID(),
-        title: shared.title,
-        questions: normalizeQuizQuestions(shared.questions),
-        ...(shared.stimuli && shared.stimuli.length > 0
-          ? { stimuli: shared.stimuli }
-          : {}),
-        ...(shared.paperSheetStimuli?.length
-          ? { paperSheetStimuli: shared.paperSheetStimuli }
-          : {}),
-        ...(shared.language ? { language: shared.language } : {}),
+        questions: normalizeQuizQuestions(content.questions),
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
