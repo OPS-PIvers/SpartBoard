@@ -23,30 +23,30 @@ export const BuildingPickerScreen: React.FC<BuildingPickerScreenProps> = ({
   }, [adminBuildings]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-brand-blue-dark text-white flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       <header className="flex items-center justify-between px-8 py-5">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-lg bg-brand-blue-primary flex items-center justify-center">
             <GraduationCap className="w-5 h-5 text-white" />
           </div>
           <div>
             <div className="text-sm font-bold tracking-tight">SpartBoard</div>
-            <div className="text-[11px] text-white/60 -mt-0.5">
+            <div className="text-[11px] text-slate-500 -mt-0.5">
               Substitute Portal
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3 text-xs text-white/70">
+        <div className="flex items-center gap-3 text-xs text-slate-500">
           <span>
             Signed in as{' '}
-            <span className="text-white font-medium">
+            <span className="text-slate-800 font-medium">
               {user?.email ?? 'unknown'}
             </span>
           </span>
           <button
             type="button"
             onClick={() => void signOut()}
-            className="inline-flex items-center gap-1.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 px-2.5 py-1 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-2.5 py-1 transition-colors cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
             Sign out
@@ -66,20 +66,20 @@ export const BuildingPickerScreen: React.FC<BuildingPickerScreenProps> = ({
                 key={b.id}
                 type="button"
                 onClick={() => onPick(b.id)}
-                className="group relative text-left rounded-2xl bg-white/5 hover:bg-white/10 backdrop-blur-md border border-white/10 hover:border-white/30 transition-all p-5 focus:outline-none focus:ring-2 focus:ring-white/40 cursor-pointer"
+                className="group relative text-left rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 hover:border-brand-blue-primary/40 shadow-sm hover:shadow-md transition-all p-5 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 cursor-pointer"
               >
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-blue-light to-brand-blue-primary flex items-center justify-center shadow-lg shadow-brand-blue-primary/30">
+                <div className="w-12 h-12 rounded-xl bg-brand-blue-primary flex items-center justify-center">
                   <School className="w-6 h-6 text-white" />
                 </div>
                 <div className="mt-4">
-                  <div className="text-base font-bold text-white leading-tight">
+                  <div className="text-base font-bold text-slate-900 leading-tight">
                     {b.name}
                   </div>
-                  <div className="mt-1 text-[11px] uppercase tracking-wider text-white/50 font-medium">
+                  <div className="mt-1 text-[11px] uppercase tracking-wider text-slate-500 font-medium">
                     {b.gradeLabel ? `Grades ${b.gradeLabel}` : ' '}
                   </div>
                 </div>
-                <div className="mt-4 text-xs text-brand-blue-lighter group-hover:text-white transition-colors">
+                <div className="mt-4 text-xs font-medium text-brand-blue-primary group-hover:text-brand-blue-dark transition-colors">
                   Continue →
                 </div>
               </button>

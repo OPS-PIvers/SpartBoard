@@ -62,15 +62,15 @@ export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
   });
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       <header className="flex items-center justify-between px-8 py-5">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-lg bg-brand-blue-primary flex items-center justify-center">
             <GraduationCap className="w-5 h-5 text-white" />
           </div>
           <div>
             <div className="text-sm font-bold tracking-tight">SpartBoard</div>
-            <div className="text-[11px] text-white/60 -mt-0.5">
+            <div className="text-[11px] text-slate-500 -mt-0.5">
               Substitute Portal
             </div>
           </div>
@@ -78,7 +78,7 @@ export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
         <button
           type="button"
           onClick={onChangeBuilding}
-          className="inline-flex items-center gap-1.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 px-2.5 py-1.5 text-xs text-white/80 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-2.5 py-1.5 text-xs transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           Change building
@@ -89,16 +89,16 @@ export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
         <div className="max-w-6xl mx-auto">
           <div className="flex items-end justify-between flex-wrap gap-4 mb-8">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/5 border border-white/10 px-3 py-1 text-[11px] text-white/70 uppercase tracking-wider mb-2">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-3 py-1 text-[11px] text-slate-600 uppercase tracking-wider mb-2">
                 <School className="w-3.5 h-3.5" />
                 {building?.name ?? 'Unknown building'}
               </div>
               <h1 className="text-3xl font-bold tracking-tight">
                 Boards available today
               </h1>
-              <p className="mt-1 text-sm text-white/60">{today}</p>
+              <p className="mt-1 text-sm text-slate-500">{today}</p>
             </div>
-            <div className="text-xs text-white/50">
+            <div className="text-xs text-slate-500">
               {loading
                 ? 'Loading…'
                 : countLabel && `${countLabel} shared with subs`}
@@ -106,13 +106,13 @@ export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
           </div>
 
           {error && (
-            <div className="mb-6 rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-200">
+            <div className="mb-6 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
               Couldn&apos;t load boards: {error}
             </div>
           )}
 
           {collectionsErrored && (
-            <div className="mb-6 rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-200">
+            <div className="mb-6 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
               {t('subCollections.loadError', {
                 defaultValue:
                   "Couldn't load shared Collections. Refresh to try again.",
@@ -121,25 +121,25 @@ export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
           )}
 
           {loading ? (
-            <div className="flex items-center justify-center py-24 text-white/50">
+            <div className="flex items-center justify-center py-24 text-slate-400">
               <Loader2 className="w-6 h-6 animate-spin" />
             </div>
           ) : entries.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-12 text-center">
-              <div className="mx-auto w-14 h-14 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                <School className="w-7 h-7 text-white/40" />
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-12 text-center">
+              <div className="mx-auto w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+                <School className="w-7 h-7 text-slate-400" />
               </div>
-              <h2 className="text-lg font-bold text-white">
+              <h2 className="text-lg font-bold text-slate-900">
                 No boards shared yet
               </h2>
-              <p className="mt-2 text-sm text-white/60 max-w-md mx-auto">
+              <p className="mt-2 text-sm text-slate-600 max-w-md mx-auto">
                 No teachers in this building have shared a substitute board
                 today. Check with the office or try a different building.
               </p>
               <button
                 type="button"
                 onClick={onChangeBuilding}
-                className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 text-xs font-bold text-white transition-colors cursor-pointer"
+                className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 Change building

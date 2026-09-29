@@ -34,7 +34,7 @@ export const SubShareLinkScreen: React.FC<SubShareLinkScreenProps> = ({
 
   if (target.status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center text-white/60 bg-slate-900">
+      <div className="min-h-screen flex items-center justify-center text-slate-400 bg-slate-50">
         <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
@@ -42,7 +42,7 @@ export const SubShareLinkScreen: React.FC<SubShareLinkScreenProps> = ({
 
   if (target.status === 'error') {
     return (
-      <div className="min-h-screen bg-slate-900">
+      <div className="min-h-screen bg-slate-50">
         <ExpiredOrErrorPanel
           message={target.message}
           hint="Pick your building to see what else is shared with subs today."

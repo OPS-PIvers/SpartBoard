@@ -72,7 +72,7 @@ export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-white/60 bg-slate-900">
+      <div className="min-h-screen flex items-center justify-center text-slate-400 bg-slate-50">
         <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
@@ -80,7 +80,7 @@ export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
 
   if (!!error || !share || isExpired) {
     return (
-      <div className="min-h-screen bg-slate-900">
+      <div className="min-h-screen bg-slate-50">
         <ExpiredOrErrorPanel
           message={
             isExpired
@@ -141,7 +141,7 @@ export const SubBoardScreenContent: React.FC<SubBoardScreenContentProps> = ({
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-slate-900">
+    <div className="min-h-screen relative overflow-hidden bg-slate-50">
       <SubProfileToolbar
         teacherName={teacherName}
         teacherInitials={initials}
@@ -213,15 +213,15 @@ export const ExpiredOrErrorPanel: React.FC<{
   actionLabel?: string;
 }> = ({ message, onBack, hint, actionLabel }) => (
   <main className="min-h-screen flex items-center justify-center px-8">
-    <div className="max-w-md text-center text-white">
+    <div className="max-w-md text-center text-slate-900">
       <h2 className="text-2xl font-bold tracking-tight">{message}</h2>
-      <p className="mt-2 text-sm text-white/60">
+      <p className="mt-2 text-sm text-slate-600">
         {hint ?? 'Returning you to the teacher directory.'}
       </p>
       <button
         type="button"
         onClick={onBack}
-        className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 text-xs font-bold text-white transition-colors cursor-pointer"
+        className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-slate-50 border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
       >
         <ArrowLeft className="w-3.5 h-3.5" />
         {actionLabel ?? 'Back to directory'}

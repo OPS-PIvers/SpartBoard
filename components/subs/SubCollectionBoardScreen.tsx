@@ -195,7 +195,7 @@ export const SubCollectionBoardScreen: React.FC<
   // Expiry takes the screen down; a failed read of the next board does not.
   if (expired || (!!error && !shown)) {
     return (
-      <div className="min-h-screen bg-slate-900">
+      <div className="min-h-screen bg-slate-50">
         <ExpiredOrErrorPanel
           message={
             expired ? 'This share has expired.' : (error ?? 'Board not found.')
@@ -209,13 +209,13 @@ export const SubCollectionBoardScreen: React.FC<
   if (!shown) {
     if (loading) {
       return (
-        <div className="min-h-screen flex items-center justify-center text-white/60 bg-slate-900">
+        <div className="min-h-screen flex items-center justify-center text-slate-400 bg-slate-50">
           <Loader2 className="w-8 h-8 animate-spin" />
         </div>
       );
     }
     return (
-      <div className="min-h-screen bg-slate-900">
+      <div className="min-h-screen bg-slate-50">
         <ExpiredOrErrorPanel
           message="Board not found."
           onBack={onBackToDirectory}
@@ -265,7 +265,7 @@ export const SubCollectionBoardScreen: React.FC<
       {loading && (
         <div
           role="status"
-          className="fixed bottom-6 right-4 z-dock flex items-center gap-2 rounded-full bg-slate-900/70 backdrop-blur-sm border border-white/15 px-3 py-1.5 text-xs text-slate-200"
+          className="fixed bottom-6 right-4 z-dock flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-sm border border-slate-200 shadow-md px-3 py-1.5 text-xs text-slate-600"
         >
           <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
           {t('subShare.nav.opening', { defaultValue: 'Opening…' })}
@@ -274,7 +274,7 @@ export const SubCollectionBoardScreen: React.FC<
       {!!error && (
         <div
           role="alert"
-          className="fixed bottom-6 right-4 z-dock flex max-w-sm items-center gap-2 rounded-full bg-amber-500/25 backdrop-blur-sm border border-amber-300/40 px-3 py-1.5 text-xs text-white"
+          className="fixed bottom-6 right-4 z-dock flex max-w-sm items-center gap-2 rounded-full bg-amber-50 border border-amber-300 shadow-md px-3 py-1.5 text-xs text-amber-900"
         >
           <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden />
           <span className="font-bold">
@@ -292,7 +292,7 @@ export const SubCollectionBoardScreen: React.FC<
               );
               setAttempt(attempt + 1);
             }}
-            className="shrink-0 rounded-full bg-white/20 hover:bg-white/30 px-2 py-0.5 font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            className="shrink-0 rounded-full bg-amber-100 hover:bg-amber-200 px-2 py-0.5 font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
           >
             {t('subShare.nav.tryAgain', { defaultValue: 'Try again' })}
           </button>

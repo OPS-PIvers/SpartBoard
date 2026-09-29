@@ -94,18 +94,18 @@ export const SubProfileToolbar: React.FC<SubProfileToolbarProps> = ({
       {open && (
         <div
           role="menu"
-          className="mt-2 w-72 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/50 overflow-hidden"
+          className="mt-2 w-72 rounded-2xl bg-white border border-slate-200 shadow-2xl shadow-slate-900/15 overflow-hidden"
         >
-          <div className="px-4 py-3 border-b border-white/10">
-            <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-white/40 font-medium">
+          <div className="px-4 py-3 border-b border-slate-100">
+            <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-slate-400 font-medium">
               <Info className="w-3 h-3" />
               About this share
             </div>
-            <div className="mt-1.5 text-sm font-bold text-white">
+            <div className="mt-1.5 text-sm font-bold text-slate-900">
               {teacherName}
             </div>
-            <div className="text-xs text-white/60">{boardName}</div>
-            <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-amber-300/90">
+            <div className="text-xs text-slate-500">{boardName}</div>
+            <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-amber-700">
               <Clock className="w-3 h-3" />
               {formatExpiresAt(expiresAt)}
             </div>
@@ -141,7 +141,7 @@ export const SubProfileToolbar: React.FC<SubProfileToolbarProps> = ({
             />
           </div>
 
-          <div className="border-t border-white/10 py-1">
+          <div className="border-t border-slate-100 py-1">
             <MenuItem
               icon={LogOut}
               label="Sign out"
@@ -180,14 +180,14 @@ const MenuItem: React.FC<MenuItemProps> = ({
     onClick={onClick}
     className={`w-full flex items-start gap-3 px-4 py-2.5 text-left transition-colors cursor-pointer ${
       danger
-        ? 'text-red-300 hover:bg-red-500/10'
-        : 'text-white/90 hover:bg-white/5'
+        ? 'text-red-600 hover:bg-red-50'
+        : 'text-slate-700 hover:bg-slate-50'
     }`}
   >
     <Icon className="w-4 h-4 mt-0.5 shrink-0" />
     <div className="flex-1 min-w-0">
       <div className="text-sm font-medium leading-tight">{label}</div>
-      <div className="text-[11px] text-white/50 leading-tight mt-0.5">
+      <div className="text-[11px] text-slate-500 leading-tight mt-0.5">
         {description}
       </div>
     </div>
