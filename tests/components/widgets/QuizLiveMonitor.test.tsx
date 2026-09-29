@@ -414,7 +414,7 @@ describe('QuizLiveMonitor (rebuilt)', () => {
     }
   });
 
-  it('swaps the Pause button for one chip per period on a per-period session', () => {
+  it('swaps the Pause button for class controls on a per-period session', () => {
     const session = makeSession({
       sessionMode: 'student',
       accessMode: 'assessment',
@@ -450,21 +450,22 @@ describe('QuizLiveMonitor (rebuilt)', () => {
       onUpdateConfig: vi.fn(),
     };
     const { rerender } = render(<QuizLiveMonitor {...props} />);
+    expect(screen.getByRole('combobox', { name: 'Class' })).toHaveValue('cl-1');
     expect(
-      screen.getByRole('button', { name: /Pause Period 1, now Live/ })
+      screen.getByRole('button', { name: /^3\s+Closed/ })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /Start Period 3, now Closed/ })
+      screen.getByRole('button', { name: 'More time for Period 1' })
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /^Pause$/ })
-    ).not.toBeInTheDocument();
     rerender(
       <QuizLiveMonitor
         {...props}
         session={makeSession({ sessionMode: 'student' })}
       />
     );
+    expect(
+      screen.queryByRole('combobox', { name: 'Class' })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Pause$/ })).toBeInTheDocument();
   });
 

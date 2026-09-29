@@ -61,6 +61,7 @@ import { CurrentQuestionCard } from './CurrentQuestionCard';
 import { StatusBuckets, BucketKey } from './StatusBuckets';
 import { RosterList } from './RosterList';
 import { PeriodAccessStrip } from './PeriodAccessStrip';
+import { PeriodAction, PeriodOthers, PeriodPicker } from './PeriodBar';
 import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
 import { hasPeriodAccess } from '@/utils/periodAccess';
 import { QuestionResults, QuestionDetail } from './QuestionResults';
@@ -238,6 +239,33 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       periodFailed(err);
     }
   };
+  const periodBar = chipsFilter &&
+    session.periodAccess && {
+      periodAccess: session.periodAccess,
+      selected:
+        data.selectedPeriods.length === 1
+          ? (Object.keys(session.periodAccess).find(
+              (key) => periodNameFor(key) === data.selectedPeriods[0]
+            ) ?? '')
+          : '',
+      onSelect: (key: string) =>
+        data.setSelectedPeriods(key ? [periodNameFor(key)] : []),
+      onStart: (keys: string[]) =>
+        startPeriods(() =>
+          keys.length === 1
+            ? periodActions.startPeriod(keys[0])
+            : periodActions.startAll()
+        ),
+      onPause: (keys: string[]) =>
+        runPeriod(() =>
+          keys.length === 1
+            ? periodActions.pausePeriod(keys[0])
+            : periodActions.pauseAll()
+        ),
+      onExtend: (key: string, by: number | null) =>
+        runPeriod(() => periodActions.extendPeriod(key, by)),
+      extendMs: EXTEND_MS,
+    };
 
   // Reset local navigation when the monitored session changes.
   const [prevSessionId, setPrevSessionId] = useState(session.id);
@@ -660,22 +688,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       >
         {screen.name === 'home' && (
           <div className="flex flex-col" style={{ gap: 'min(10px, 2.5cqmin)' }}>
-            {showStrip && (
+            {showStrip && !periodBar && (
               <PeriodAccessStrip
                 periodAccess={session.periodAccess}
-                {...(chipsFilter &&
-                  data.periodNames.length > 1 && {
-                    isViewing: (key: string) =>
-                      data.selectedPeriods.includes(periodNameFor(key)),
-                    onView: (key: string) => {
-                      const p = periodNameFor(key);
-                      data.setSelectedPeriods(
-                        data.selectedPeriods.includes(p)
-                          ? data.selectedPeriods.filter((x) => x !== p)
-                          : [...data.selectedPeriods, p]
-                      );
-                    },
-                  })}
                 extendMs={EXTEND_MS}
                 onStart={(key) =>
                   startPeriods(() => periodActions.startPeriod(key))
@@ -730,6 +745,15 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               doneCount={data.counts.done}
               onAdvance={onAdvance}
               widgetId={widgetId}
+              periodControls={
+                periodBar
+                  ? {
+                      picker: <PeriodPicker {...periodBar} />,
+                      action: <PeriodAction {...periodBar} />,
+                      others: <PeriodOthers {...periodBar} />,
+                    }
+                  : undefined
+              }
             />
             <StatusBuckets
               counts={data.counts}
