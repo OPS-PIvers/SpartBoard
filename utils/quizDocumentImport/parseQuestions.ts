@@ -21,7 +21,6 @@ import {
 } from './answerKey';
 import {
   EXAMVIEW_TYPE_HEADING,
-  MATCHING_DIRECTIONS,
   applyExamViewAfterKey,
   applyExamViewTypes,
   examViewKindOf,
@@ -93,6 +92,41 @@ const PASSAGE_CUE =
 const SHORT_LEAD_IN = 150;
 
 const tidy = (s: string): string => s.replace(/\s+/g, ' ').trim();
+
+/** A matching bank's term, `A.` through `Z.`, `(k)` or `k)`, with a space after it. */
+const TERM = /^\s*\(?([A-Za-z])[.)](?:\s+|$)(.*)$/;
+/** Two or more spaces before the next term's letter. */
+const SPACED_TERM = /(?<!\s)\s{2,}(?=\(?[A-Za-z][.)](?:\s|$))/;
+/** "Match each term…", "Directions: Match the…", which open a term list. */
+const MATCH_DIRECTIONS = /^\s*(?:directions\s*[:.\-–—]\s*)?match\b/i;
+/** A letter written in an item's answer blank, `__C__ definition`. */
+const FILLED_BLANK = /^_+\s*([A-Za-z])\s*_+\s*/;
+
+/** A line's lettered terms, and any text before the first one; null when it holds none. */
+function matchingTerms(
+  line: DocLine
+): { lead?: string; terms: ExtractedOption[] } | null {
+  const pieces = lineSegments(line)
+    .flatMap((s) => s.text.split(SPACED_TERM))
+    .map((t) => t.trim())
+    .filter(Boolean);
+  const lead: string[] = [];
+  const terms: ExtractedOption[] = [];
+  for (const piece of pieces) {
+    const m = TERM.exec(piece);
+    if (m) terms.push({ letter: m[1].toUpperCase(), text: tidy(m[2]) });
+    else if (terms.length > 0) {
+      const last = terms[terms.length - 1];
+      last.text = tidy(`${last.text} ${piece}`);
+    } else lead.push(piece);
+  }
+  if (terms.length === 0) return null;
+  return lead.length > 0 ? { lead: tidy(lead.join(' ')), terms } : { terms };
+}
+
+/** A section whose heading names it Matching. */
+const namedMatching = (name: string | undefined): boolean =>
+  /\bmatching\b/i.test(name ?? '');
 
 const isOptionText = (text: string): boolean =>
   OPTION_PAREN.test(text) || OPTION.test(text);
@@ -253,6 +287,8 @@ interface MatchingGroup {
   terms: ExtractedOption[];
   directions?: string;
   items: number;
+  /** The term list came after its items, so the next item starts another set. */
+  termsAfterItems?: boolean;
 }
 
 interface Draft {
@@ -413,9 +449,19 @@ function finish(
   const printed = [stemText(draft), ...(draft.partLines ?? [])]
     .filter(Boolean)
     .join('\n');
-  let text = draft.instruction
-    ? `${tidy(draft.instruction)} ${printed}`
-    : printed;
+  let text =
+    draft.instruction && !draft.matching
+      ? `${tidy(draft.instruction)} ${printed}`
+      : printed;
+  let blankAnswer: string | undefined;
+  if (draft.matching) {
+    // A letter written in the answer blank is the key.
+    blankAnswer = FILLED_BLANK.exec(text)?.[1]?.toUpperCase();
+    text = text
+      .replace(FILLED_BLANK, '')
+      .replace(/^_{2,}\s*/, '')
+      .replace(/\s*_{2,}$/, '');
+  }
   if (draft.skippedFrom !== undefined) {
     warnings.push(
       `The numbering skips from ${draft.skippedFrom} to ${draft.item}. Check that no question is missing.`
@@ -496,6 +542,8 @@ function finish(
     ...(draft.part ? { part: draft.part } : {}),
   };
 
+  const matchingDirections =
+    draft.matching?.directions ?? draft.section.directions;
   const question: ExtractedQuestion = {
     number: position,
     ref,
@@ -520,15 +568,14 @@ function finish(
     ...(draft.matching
       ? {
           matchingGroup: draft.matching.id,
-          ...(draft.matching.directions
-            ? { matchingDirections: draft.matching.directions }
-            : {}),
+          ...(matchingDirections ? { matchingDirections } : {}),
         }
       : {}),
   };
+  const inlineAnswer = draft.inlineAnswer ?? blankAnswer;
   // The key at the back is merged afterwards and wins over this; ExamView's goes in as a key.
-  return draft.inlineAnswer && type !== 'Ordering' && !examView
-    ? applyKeyAnswer(question, draft.inlineAnswer, 'document', multi)
+  return inlineAnswer && type !== 'Ordering' && !examView
+    ? applyKeyAnswer(question, inlineAnswer, 'document', multi)
     : question;
 }
 
@@ -607,9 +654,11 @@ function sectionHeading(
       ungraded: UNGRADED_SECTION.test(trimmed),
     };
   }
-  const words = trimmed.split(' ').length;
+  // "Matching (Write the letter on the line…)": the parenthetical is directions, not the name.
+  const bare = trimmed.replace(/\s*\([^()]*\)$/, '') || trimmed;
+  const words = bare.split(' ').length;
   if (words > 8) return null;
-  if (NAMED_SECTION.test(trimmed)) {
+  if (NAMED_SECTION.test(bare)) {
     return { name: trimmed, ungraded: UNGRADED_SECTION.test(trimmed) };
   }
   // An all-caps line of a few words: "VOCABULARY", "PART ONE — READING".
@@ -772,6 +821,16 @@ export function parseDocument(
     }
   };
 
+  const newGroup = (directions?: string): MatchingGroup => ({
+    id: `m${drafts.length + 1}`,
+    terms: [],
+    items: 0,
+    ...(directions ? { directions } : {}),
+  });
+
+  /** The line that opened the current question, for a term printed beside it. */
+  let openedAt = -1;
+
   const openQuestion = (item: number, text: string, line: DocLine): Draft => {
     // Text between a heading and its first question is the section's directions (E16).
     const directions =
@@ -832,13 +891,18 @@ export function parseDocument(
         ? { targetLine: line }
         : {}),
     };
-    const group = section.matching;
+    let group = section.matching;
+    if (group?.termsAfterItems) {
+      // A set printed items first is over; only a Matching section starts another.
+      group = namedMatching(section.name) ? newGroup() : undefined;
+      section.matching = group;
+    } else if (!group && namedMatching(section.name)) {
+      group = newGroup();
+      section.matching = group;
+    }
     if (group) {
       group.items += 1;
       current.matching = group;
-      current.options = [...group.terms]
-        .sort((a, b) => a.letter.localeCompare(b.letter))
-        .map((t) => ({ ...t, marked: false, line, wraps: [] }));
     }
     lastOption = null;
     drafts.push(current);
@@ -966,9 +1030,47 @@ export function parseDocument(
       return;
     }
 
+    // A matching set's lettered terms, above or below its items (E6).
+    const inMatching =
+      section.matching !== undefined || namedMatching(section.name);
+    const bank = inMatching ? matchingTerms(line) : null;
+    if (bank && !bank.lead && (!open || open.matching)) {
+      const letters = bank.terms.map((t) => t.letter);
+      const group = section.matching;
+      const repeats =
+        group?.terms.some((t) => letters.includes(t.letter)) ?? false;
+      if (
+        group &&
+        repeats &&
+        open?.matching === group &&
+        !namedMatching(section.name)
+      ) {
+        // Directions alone opened the set, so letters starting over are this question's own choices.
+        group.items -= 1;
+        open.matching = undefined;
+        section.matching = undefined;
+      } else {
+        let into = group;
+        if (!into || repeats) {
+          into = newGroup();
+          section.matching = into;
+        }
+        // A term in the column beside an item isn't a list printed after the items.
+        const besideItem =
+          index === openedAt + 1 &&
+          columnLines.has(line) &&
+          columnLines.has(lines[openedAt]);
+        if (into.items > 0 && !besideItem) into.termsAfterItems = true;
+        into.terms.push(...bank.terms);
+        endQuestion();
+        return;
+      }
+    }
+
     // A heading can't interrupt a sentence that is still running.
     const midSentence =
       open &&
+      !open.matching &&
       open.options.length === 0 &&
       !/(?:[.?!:)]|_{3,})\s*$/.test(open.textParts.join(' ').trim());
     const heading = midSentence ? null : sectionHeading(text, examView);
@@ -977,32 +1079,21 @@ export function parseDocument(
       return;
     }
 
-    // ExamView prints a matching set's lettered terms once, above its items (E6).
-    if (examView && examViewKindOf(section.name) === 'matching') {
-      if (MATCHING_DIRECTIONS.test(text)) {
-        endQuestion();
-        section.matching = {
-          id: `m${drafts.length + 1}`,
-          terms: [],
-          directions: tidy(text),
-          items: 0,
-        };
-        return;
-      }
-      const term = matchOption(line);
-      if (term && (!open || open.matching)) {
-        let group = section.matching;
-        if (!group || group.items > 0) {
-          group = { id: `m${drafts.length + 1}`, terms: [], items: 0 };
-          section.matching = group;
-        }
-        endQuestion();
-        group.terms.push({ letter: term.letter, text: term.text });
-        return;
-      }
+    // "Match each term…" opens a term list, under a Matching heading or not.
+    if (
+      MATCH_DIRECTIONS.test(text) &&
+      !matchQuestionOpening(text) &&
+      (!open || open.matching || open.options.length > 0)
+    ) {
+      endQuestion();
+      section.matching = newGroup(tidy(text));
+      return;
     }
 
-    const opening = matchQuestionOpening(text);
+    // `1. ____ definition    G. term`: the term beside the item joins its set.
+    const beside =
+      inMatching && matchQuestionOpening(text) ? matchingTerms(line) : null;
+    const opening = matchQuestionOpening(beside?.lead ?? text);
     const numberX =
       opening && !opening.labelled ? numberPosition(line) : undefined;
     if (opening && atNumberPosition(numberXs, numberX)) {
@@ -1022,6 +1113,10 @@ export function parseDocument(
       if (restart || first || skip >= 1) {
         if (restart) startSection();
         const opened = openQuestion(n, opening.text, line);
+        openedAt = index;
+        if (beside?.lead && opened.matching) {
+          opened.matching.terms.push(...beside.terms);
+        }
         if (!restart && !first && skip > 1) opened.skippedFrom = n - skip;
         if (
           numberX !== undefined &&
@@ -1034,7 +1129,7 @@ export function parseDocument(
     }
 
     const range = RANGE_INSTRUCTION.exec(text);
-    if (range && (!open || open.options.length > 0)) {
+    if (range && (!open || open.matching || open.options.length > 0)) {
       endQuestion();
       settlePreamble();
       preamble = {
@@ -1114,6 +1209,20 @@ export function parseDocument(
     }
     open.imageIds.push(...(line.imageIds ?? []));
   });
+
+  // Every item in a set answers from its whole term list, wherever that was printed.
+  for (const draft of drafts) {
+    const group = draft.matching;
+    if (!group) continue;
+    if (group.terms.length === 0) {
+      draft.matching = undefined;
+      continue;
+    }
+    const line = draft.rawLines[0] ?? { text: '' };
+    draft.options = [...group.terms]
+      .sort((a, b) => a.letter.localeCompare(b.letter))
+      .map((t) => ({ ...t, marked: false, line, wraps: [] }));
+  }
 
   // After the last question nothing is appended but a plain wrap (R8).
   const final = drafts[drafts.length - 1];
