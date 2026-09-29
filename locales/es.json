@@ -1139,6 +1139,7 @@
       "restore": "Restaurar",
       "renamePrompt": "Nuevo nombre para esta evaluación",
       "renameFailed": "No se pudo renombrar la evaluación. Inténtalo de nuevo.",
+      "reorderFailed": "No se pudo guardar el nuevo orden. Inténtalo de nuevo.",
       "archivedToast": "«{{title}}» archivada.",
       "archiveFailed": "No se pudo archivar la evaluación. Inténtalo de nuevo.",
       "restoredToast": "«{{title}}» restaurada.",

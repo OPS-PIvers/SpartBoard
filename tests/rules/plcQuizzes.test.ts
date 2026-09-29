@@ -350,6 +350,28 @@ describe('plcs/{plcId}/quizzes — update', () => {
     );
   });
 
+  it('allows a member to set an integer order and read it back', async () => {
+    const ref = doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`);
+    await assertSucceeds(updateDoc(ref, { order: 2 }));
+    await assertSucceeds(getDoc(ref));
+  });
+
+  it('rejects a non-integer order', async () => {
+    await assertFails(
+      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
+        order: 'first',
+      })
+    );
+  });
+
+  it('rejects an order write from a non-member', async () => {
+    await assertFails(
+      updateDoc(doc(asNonMember(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
+        order: 0,
+      })
+    );
+  });
+
   it('an editor can set archived: true via update', async () => {
     await assertSucceeds(
       updateDoc(doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {

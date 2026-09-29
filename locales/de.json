@@ -1139,6 +1139,7 @@
       "restore": "Wiederherstellen",
       "renamePrompt": "Neuer Name für diese Bewertung",
       "renameFailed": "Die Bewertung konnte nicht umbenannt werden. Bitte erneut versuchen.",
+      "reorderFailed": "Die neue Reihenfolge konnte nicht gespeichert werden. Bitte erneut versuchen.",
       "archivedToast": "„{{title}}“ archiviert.",
       "archiveFailed": "Die Bewertung konnte nicht archiviert werden. Bitte erneut versuchen.",
       "restoredToast": "„{{title}}“ wiederhergestellt.",

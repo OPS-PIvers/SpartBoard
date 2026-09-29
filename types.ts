@@ -678,6 +678,8 @@ export interface PlcQuizEntry {
   folderId?: string | null;
   /** Set by Archive on the Assessments list. */
   archived?: boolean;
+  /** Manual position on the Assessments list; absent sorts by status. */
+  order?: number;
 }
 
 /**
@@ -1014,6 +1016,8 @@ export interface PlcCommonAssessment {
   dirtyAt?: number | null;
   /** Folder in `plcs/{plcId}/folders`; null/absent = root, derived from the library entry via syncGroupId when absent. */
   folderId?: string | null;
+  /** Manual position on the Assessments list; falls back to the library entry's. */
+  order?: number;
 }
 
 /** One answer-choice row of a pooled MC distribution. Labels are option text, never student text. */

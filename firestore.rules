@@ -2708,7 +2708,7 @@ service cloud.firestore {
                'id', 'title', 'kind', 'syncGroupId', 'unitLabel',
                'opensAt', 'dueAt', 'status',
                'createdBy', 'createdAt', 'updatedAt', 'deletedAt',
-               'sourceQuizId', 'dirtyAt', 'folderId'
+               'sourceQuizId', 'dirtyAt', 'folderId', 'order'
              ])
           && sameId()
           && unchanged('createdBy')
@@ -2732,6 +2732,7 @@ service cloud.firestore {
                || incoming().folderId == null
                || isStr('folderId')
              )
+          && optInt(incoming(), 'order')
           // Server-written dirtyAt and the sourceQuizId pointer must round-trip
           // unchanged: clients can neither forge nor clear them.
           && incoming().get('sourceQuizId', null)
@@ -2875,10 +2876,11 @@ service cloud.firestore {
                'sharedBy', 'sharedByEmail', 'sharedByName',
                'sharedAt', 'updatedAt', 'deletedAt',
                'sessionMode', 'sessionOptions', 'attemptLimit', 'quizId',
-               'folderId', 'archived'
+               'folderId', 'archived', 'order'
              ])
           && plcQuizRunSettingsOk()
           && optBool(incoming(), 'archived')
+          && optInt(incoming(), 'order')
           && sameId()
           && unchanged('syncGroupId')
           && unchanged('sharedBy')

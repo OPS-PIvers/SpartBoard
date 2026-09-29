@@ -51,6 +51,8 @@ export interface AssessmentListRow {
   folderId: string | null;
   /** Id of the matched PLC library entry, or `null` when there isn't one. */
   plcQuizId: string | null;
+  /** Manual drag position; `null` until the list is first reordered. */
+  order: number | null;
   /** Distinct target/standard snapshots present in the aggregate. */
   targets: QuestionTargetTag[];
 }
@@ -125,6 +127,13 @@ function aggregateTargets(
 function sortRows(rows: AssessmentListRow[]): AssessmentListRow[] {
   return [...rows].sort((a, b) => {
     if (a.archived !== b.archived) return a.archived ? 1 : -1;
+    // Unordered rows (new since the last drag) lead, then the manual order.
+    if ((a.order === null) !== (b.order === null)) {
+      return a.order === null ? -1 : 1;
+    }
+    if (a.order !== null && b.order !== null && a.order !== b.order) {
+      return a.order - b.order;
+    }
     const order = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
     if (order !== 0) return order;
     const aTime =
@@ -184,6 +193,7 @@ export function buildAssessmentRows(
       updatedAt: assessment.updatedAt,
       folderId: assessment.folderId ?? library?.folderId ?? null,
       plcQuizId: library?.id ?? null,
+      order: assessment.order ?? library?.order ?? null,
       targets: aggregateTargets(aggregate),
     });
   }
@@ -209,11 +219,32 @@ export function buildAssessmentRows(
       updatedAt: 0,
       folderId: entry.folderId ?? null,
       plcQuizId: entry.id,
+      order: entry.order ?? null,
       targets: [],
     });
   }
 
   return sortRows(rows);
+}
+
+/** Rows whose `order` must change after a drag inside the filtered view, which keeps hidden rows in their slots. */
+export function reorderRows(
+  all: readonly AssessmentListRow[],
+  nextVisibleIds: readonly string[]
+): { row: AssessmentListRow; order: number }[] {
+  const visible = new Set(nextVisibleIds);
+  const byId = new Map(all.map((row) => [row.id, row]));
+  const queue = nextVisibleIds.filter((id) => byId.has(id));
+  const next = all.map((row) => {
+    if (!visible.has(row.id)) return row;
+    const id = queue.shift();
+    return (id !== undefined ? byId.get(id) : undefined) ?? row;
+  });
+  const changes: { row: AssessmentListRow; order: number }[] = [];
+  next.forEach((row, index) => {
+    if (row.order !== index) changes.push({ row, order: index });
+  });
+  return changes;
 }
 
 /** Apply the status chip plus a case-insensitive title search. */

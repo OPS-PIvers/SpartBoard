@@ -1139,6 +1139,7 @@
       "restore": "Restore",
       "renamePrompt": "New name for this assessment",
       "renameFailed": "Couldn’t rename that assessment. Try again.",
+      "reorderFailed": "Couldn’t save the new order. Try again.",
       "archivedToast": "“{{title}}” archived.",
       "archiveFailed": "Couldn’t archive that assessment. Try again.",
       "restoredToast": "“{{title}}” restored.",
