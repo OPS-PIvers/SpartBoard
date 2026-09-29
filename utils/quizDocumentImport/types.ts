@@ -236,6 +236,8 @@ export type RemoteImageFetcher = (
 /** Reader switches; `multiAnswer` lets a read produce choose-all-that-apply questions. */
 export interface ReaderOptions {
   multiAnswer?: boolean;
+  /** Long text blocks become passage stimuli without a "read the passage" cue. */
+  passages?: boolean;
   /** Lets an LMS export bring in pictures hosted outside the zip. */
   fetchRemoteImage?: RemoteImageFetcher;
 }

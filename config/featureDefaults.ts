@@ -464,6 +464,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Case studies and passages in an imported test become stimuli. Admin-only until Paul has imported with it.
+  'quiz-import-passages': {
+    label: 'Passages found on quiz import',
+    icon: FileText,
+    description: 'Turns passages in imported tests into stimuli.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Print/scan paper answer sheets. Admin-only until opened up; the district
   // switch (admin_settings/paper_answer_sheets) must also be on.
   'paper-answer-sheets': {

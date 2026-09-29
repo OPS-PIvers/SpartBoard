@@ -193,6 +193,44 @@ describe('a Matching section with a bank past F', () => {
   });
 });
 
+describe('a teacher-made test with a running header and a teacher key', () => {
+  const { questions, warnings } = parseDocument(
+    lines(
+      'VERSION A',
+      'SECTION 1 — Matching (Write the Letter on the Line Next to the Correct Number)',
+      'Terms:',
+      ...BANK,
+      'Definitions:',
+      ...ITEMS.slice(0, 8),
+      'VERSION A',
+      ...ITEMS.slice(8),
+      'VERSION A',
+      'SECTION 2 — Multiple Choice',
+      '12. Which is a cost?',
+      'A. Rent',
+      'B. Sales',
+      'VERSION A — TEACHER KEY',
+      'Section 1:',
+      ...KEY.map((k, i) => `${i + 1}. ${k} — ${TERMS[i]}`),
+      'Section 2:',
+      '12-A'
+    )
+  );
+
+  it('keeps the set whole across the page header', () => {
+    expect(warnings).toEqual([]);
+    expect(questions.map((q) => q.type)).toEqual(['Matching', 'MC']);
+    expect(questions[0].correctAnswer).toBe(PAIRS);
+    expect(questions[1].correctAnswer).toBe('Rent');
+  });
+
+  it('takes the heading’s parenthetical over label-only directions', () => {
+    expect(questions[0].text).toBe(
+      'Write the Letter on the Line Next to the Correct Number'
+    );
+  });
+});
+
 describe('key entries past F', () => {
   it('needs punctuation, so a unit label is not a key', () => {
     expect(listKeyItems(lines('10 m', '6 m', '8 m'))).toEqual([]);
