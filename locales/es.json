@@ -1610,6 +1610,8 @@
     "bulkAllFailed": "No se pudo actualizar ningún elemento — inténtalo de nuevo",
     "noBoardsInSelection": "No hay Tableros en la selección — las Colecciones no se pueden usar aquí",
     "createCollectionFailed": "No se pudo crear la Colección",
+    "renameCollectionFailed": "No se pudo cambiar el nombre de la Colección",
+    "deleteCollectionFailed": "No se pudo eliminar la Colección",
     "header": {
       "createFromTemplate": "+ desde Plantilla"
     },

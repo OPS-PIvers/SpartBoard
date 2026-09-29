@@ -1610,6 +1610,8 @@
     "bulkAllFailed": "Aucun élément n'a pu être mis à jour — veuillez réessayer",
     "noBoardsInSelection": "Aucun Tableau dans la sélection — les Collections ne peuvent pas être utilisées ici",
     "createCollectionFailed": "Impossible de créer la Collection",
+    "renameCollectionFailed": "Impossible de renommer la Collection",
+    "deleteCollectionFailed": "Impossible de supprimer la Collection",
     "header": {
       "createFromTemplate": "+ depuis un Modèle"
     },

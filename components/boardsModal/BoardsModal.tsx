@@ -720,7 +720,17 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
                   confirmLabel: 'Save',
                   placeholder: c.name,
                 });
-                if (next?.trim()) await renameCollection(c.id, next.trim());
+                if (!next?.trim()) return;
+                try {
+                  await renameCollection(c.id, next.trim());
+                } catch {
+                  addToast(
+                    t('boardsModal.renameCollectionFailed', {
+                      defaultValue: 'Failed to rename Collection',
+                    }),
+                    'error'
+                  );
+                }
               }}
               onMove={() => {
                 setSingleMoveCollectionId(c.id);
@@ -741,7 +751,17 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
                   }),
                   { title: 'Delete', variant: 'danger', confirmLabel: 'Delete' }
                 );
-                if (ok) await deleteCollection(c.id, 'move-to-parent');
+                if (!ok) return;
+                try {
+                  await deleteCollection(c.id, 'move-to-parent');
+                } catch {
+                  addToast(
+                    t('boardsModal.deleteCollectionFailed', {
+                      defaultValue: 'Failed to delete Collection',
+                    }),
+                    'error'
+                  );
+                }
               }}
             />
           );

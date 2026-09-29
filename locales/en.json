@@ -2713,6 +2713,8 @@
     "bulkAllFailed": "No items could be updated — please retry",
     "noBoardsInSelection": "No Boards in selection — Collections can't be used here",
     "createCollectionFailed": "Failed to create Collection",
+    "renameCollectionFailed": "Failed to rename Collection",
+    "deleteCollectionFailed": "Failed to delete Collection",
     "header": {
       "createFromTemplate": "+ from Template"
     },
