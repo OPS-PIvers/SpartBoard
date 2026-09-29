@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   Folder,
   LayoutDashboard,
@@ -91,6 +92,7 @@ export const SubSharesPanel: React.FC<SubSharesPanelProps> = ({
                 <button
                   type="button"
                   onClick={() => onCopyLink(share)}
+                  {...tourAttr('boards.sub-share-copy-link')}
                   className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100"
                 >
                   <Link2 className="w-3.5 h-3.5" aria-hidden />
