@@ -25,9 +25,10 @@ import {
   TARGETS_CSV_TEMPLATE,
   downloadTextFile,
   setMasteryCutoffs,
+  tagFromBenchmark,
   unarchiveTarget,
 } from '@/utils/learningTargets';
-import { filterBenchmarks } from '@/hooks/useStandardsCatalog';
+import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import { useSubjects } from '@/hooks/useSubjects';
 import { ALL_GRADES } from '@/utils/gradeMatch';
 
@@ -48,90 +49,63 @@ const PRIMARY_BTN =
 const SECONDARY_BTN =
   'inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50';
 
-/** Searchable checklist of benchmarks; selection is a list of benchmark ids. */
+/** Chosen benchmarks as chips, plus the shared standards picker; selection is a list of benchmark ids. */
 const StandardsPicker: React.FC<{
   standards: StandardBenchmark[];
   selected: string[];
   onChange: (ids: string[]) => void;
 }> = ({ standards, selected, onChange }) => {
   const { t } = useTranslation();
-  const [query, setQuery] = useState('');
-  const matches = useMemo(() => {
-    if (!query.trim()) return [];
-    return filterBenchmarks(standards, { query }).slice(0, 25);
-  }, [standards, query]);
+  const [open, setOpen] = useState(false);
   const byId = useMemo(
     () => new Map(standards.map((s) => [s.id, s])),
     [standards]
   );
-  const toggle = (id: string) =>
-    onChange(
-      selected.includes(id)
-        ? selected.filter((s) => s !== id)
-        : [...selected, id]
-    );
+  const initial = useMemo(
+    () =>
+      selected.flatMap((id) => {
+        const b = byId.get(id);
+        return b ? [tagFromBenchmark(b)] : [];
+      }),
+    [selected, byId]
+  );
 
   return (
-    <div className="space-y-2">
-      {selected.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {selected.map((id) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => toggle(id)}
-              className="inline-flex items-center gap-1 rounded-full bg-brand-blue-lighter px-2 py-0.5 text-xxs font-bold text-brand-blue-primary hover:bg-brand-blue-light/30"
-              title={byId.get(id)?.text ?? id}
-            >
-              {byId.get(id)?.code ?? id}
-              <X className="h-3 w-3" aria-hidden="true" />
-            </button>
-          ))}
-        </div>
-      )}
-      <input
-        type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={t('learningTargets.searchStandards', {
-          defaultValue: 'Search standards by code or text…',
-        })}
-        className={INPUT_CLASS}
-        aria-label={t('learningTargets.searchStandards', {
-          defaultValue: 'Search standards by code or text…',
-        })}
-      />
-      {query.trim() && (
-        <ul className="max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white divide-y divide-slate-100">
-          {matches.length === 0 && (
-            <li className="px-3 py-2 text-xs text-slate-500">
-              {t('learningTargets.noStandardsMatch', {
-                defaultValue: 'No standards match.',
-              })}
-            </li>
-          )}
-          {matches.map((b) => {
-            const checked = selected.includes(b.id);
-            return (
-              <li key={b.id}>
-                <label className="flex cursor-pointer items-start gap-2 px-3 py-1.5 text-xs hover:bg-slate-50">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggle(b.id)}
-                    className="mt-0.5"
-                  />
-                  <span className="min-w-0">
-                    <span className="font-mono font-bold text-slate-700">
-                      {b.code}
-                    </span>
-                    <span className="ml-1.5 text-slate-600">{b.text}</span>
-                  </span>
-                </label>
-              </li>
-            );
+    <div className="flex flex-wrap items-center gap-1.5">
+      {selected.map((id) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => onChange(selected.filter((s) => s !== id))}
+          className="inline-flex items-center gap-1 rounded-full bg-brand-blue-lighter px-2 py-0.5 text-xxs font-bold text-brand-blue-primary hover:bg-brand-blue-light/30"
+          title={byId.get(id)?.text ?? id}
+        >
+          {byId.get(id)?.code ?? id}
+          <X className="h-3 w-3" aria-hidden="true" />
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={SECONDARY_BTN}
+      >
+        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+        {t('learningTargets.addStandards', { defaultValue: 'Standards' })}
+      </button>
+      {open && (
+        <TargetPicker
+          open
+          benchmarksOnly
+          title={t('learningTargets.addStandards', {
+            defaultValue: 'Standards',
           })}
-        </ul>
+          initial={initial}
+          onApply={(tags) => {
+            onChange(tags.map((tag) => tag.id));
+            setOpen(false);
+          }}
+          onClose={() => setOpen(false)}
+        />
       )}
     </div>
   );

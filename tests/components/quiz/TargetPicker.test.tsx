@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import type { StandardBenchmark } from '@/types';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 
@@ -108,6 +108,7 @@ describe('TargetPicker', () => {
   const onApply = vi.fn();
   beforeEach(() => {
     onApply.mockClear();
+    localStorage.clear();
     authState.effectiveGrades = ['9', '10', '11', '12'];
     authState.subjectsTaught = ['ela'];
   });
@@ -130,11 +131,15 @@ describe('TargetPicker', () => {
     expect(screen.getByRole('combobox', { name: 'Content area' })).toHaveValue(
       'ela'
     );
-    expect(screen.getByRole('button', { name: '10' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
-    // Strands open, standards collapsed: R9 and W1 visible, benchmarks hidden.
+    expect(screen.getByRole('combobox', { name: 'Grade' })).toHaveValue('mine');
+    expect(
+      screen.getByRole('option', { name: 'Grades 9-12' })
+    ).toBeInTheDocument();
+    // Strands start collapsed.
+    expect(screen.queryByText('R9')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Reading/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Writing/ }));
+    // Standards collapsed: R9 and W1 visible, benchmarks hidden.
     expect(screen.getByText('R9')).toBeInTheDocument();
     expect(screen.getByText('W1')).toBeInTheDocument();
     expect(screen.queryByText('Analyze ads')).toBeNull();
@@ -145,6 +150,7 @@ describe('TargetPicker', () => {
 
   it('expands a standard to its grade-visible benchmarks and selects at either level', () => {
     renderPicker();
+    fireEvent.click(screen.getByRole('button', { name: /Reading/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Expand R9' }));
     expect(screen.getByText('Evaluate sources')).toBeInTheDocument();
     expect(screen.queryByText('Analyze ads')).toBeNull();
@@ -171,10 +177,13 @@ describe('TargetPicker', () => {
 
   it('"All grades" and the subject dropdown widen the tree; search keeps the tree shape', () => {
     renderPicker();
-    fireEvent.click(screen.getByRole('button', { name: 'All grades' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Grade' }), {
+      target: { value: 'all' },
+    });
     fireEvent.change(screen.getByRole('combobox', { name: 'Content area' }), {
       target: { value: 'all' },
     });
+    fireEvent.click(screen.getByRole('button', { name: /Citizenship/ }));
     expect(
       screen.getByRole('heading', { name: 'Social Studies' })
     ).toBeInTheDocument();
@@ -190,21 +199,58 @@ describe('TargetPicker', () => {
     expect(screen.queryByText('Public Policy')).toBeNull();
   });
 
-  it('filters targets by effective grade and subject but always shows unfilterable ones', () => {
-    renderPicker();
-    const mine = screen.getByRole('heading', { name: 'My targets' })
-      .parentElement as HTMLElement;
-    expect(within(mine).getByText('Everywhere target')).toBeInTheDocument();
-    expect(within(mine).queryByText('Grade 6 target')).toBeNull();
-    expect(within(mine).queryByText('Civics target')).toBeNull();
+  it('shows one source at a time and remembers the last one', () => {
+    const { unmount } = renderPicker();
+    expect(screen.getByRole('combobox', { name: 'Source' })).toHaveValue(
+      'standards'
+    );
+    expect(screen.queryByText('Everywhere target')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'All grades' }));
-    expect(within(mine).getByText('Grade 6 target')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Source' }), {
+      target: { value: 'personal' },
+    });
+    expect(screen.getByText('Everywhere target')).toBeInTheDocument();
+    expect(screen.queryByText('Reading')).toBeNull();
+    unmount();
+
+    renderPicker();
+    expect(screen.getByRole('combobox', { name: 'Source' })).toHaveValue(
+      'personal'
+    );
+  });
+
+  it('filters targets by effective grade and subject but always shows unfilterable ones', () => {
+    localStorage.setItem('spart.targetPicker.source', 'personal');
+    renderPicker();
+    expect(screen.getByText('Everywhere target')).toBeInTheDocument();
+    expect(screen.queryByText('Grade 6 target')).toBeNull();
+    expect(screen.queryByText('Civics target')).toBeNull();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Grade' }), {
+      target: { value: 'all' },
+    });
+    expect(screen.getByText('Grade 6 target')).toBeInTheDocument();
     fireEvent.change(screen.getByRole('combobox', { name: 'Content area' }), {
       target: { value: 'social-studies' },
     });
-    expect(within(mine).getByText('Civics target')).toBeInTheDocument();
-    expect(within(mine).queryByText('Grade 6 target')).toBeInTheDocument();
+    expect(screen.getByText('Civics target')).toBeInTheDocument();
+    expect(screen.queryByText('Grade 6 target')).toBeInTheDocument();
+  });
+
+  it('benchmarksOnly hides the source picker and standard-level checkboxes', () => {
+    localStorage.setItem('spart.targetPicker.source', 'personal');
+    renderPicker({ benchmarksOnly: true });
+    expect(screen.queryByRole('combobox', { name: 'Source' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Reading/ }));
+    expect(
+      screen.queryByRole('checkbox', { name: /Media Literacy/ })
+    ).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Expand R9' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Evaluate sources/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(onApply.mock.calls[0][0]).toEqual([
+      expect.objectContaining({ id: 'ela:9.1.9.1' }),
+    ]);
   });
 
   it('shows every content area when the profile lists none or several', () => {

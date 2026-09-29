@@ -17,6 +17,8 @@ interface StandardsTreeProps {
   subjectLabel: (id: string) => string;
   isSelected: (id: string) => boolean;
   onToggle: (tag: QuestionTargetTag) => void;
+  /** Offer a checkbox on standards as well as benchmarks. */
+  standardSelectable?: boolean;
 }
 
 const CHECKBOX = 'mt-1 accent-brand-blue-primary';
@@ -29,8 +31,9 @@ export const StandardsTree: React.FC<StandardsTreeProps> = ({
   subjectLabel,
   isSelected,
   onToggle,
+  standardSelectable = true,
 }) => {
-  // Manual toggles win; otherwise strands are open and standards follow the search.
+  // Manual toggles win; otherwise strands and standards open only to show search matches.
   const [manual, setManual] = useState<Map<string, boolean>>(() => new Map());
   const flip = (key: string, fallback: boolean) =>
     setManual((prev) => {
@@ -38,7 +41,8 @@ export const StandardsTree: React.FC<StandardsTreeProps> = ({
       next.set(key, !(prev.get(key) ?? fallback));
       return next;
     });
-  const strandOpen = (strand: StrandNode) => manual.get(strand.key) ?? true;
+  const strandOpen = (strand: StrandNode) =>
+    manual.get(strand.key) ?? searching;
   const standardOpen = (standard: StandardNode) =>
     manual.get(standard.key) ??
     (searching && tree.matchedStandards.has(standard.key));
@@ -47,6 +51,17 @@ export const StandardsTree: React.FC<StandardsTreeProps> = ({
     const tag = tagFromStandard(standard.benchmarks[0]);
     const open = standardOpen(standard);
     const panelId = `std-${standard.key.replace(/[^a-z0-9]+/gi, '-')}`;
+    const heading = (
+      <span className="min-w-0 flex-1 text-sm text-slate-800">
+        <span className="font-mono font-semibold text-slate-600 mr-1.5">
+          {standard.code}
+        </span>
+        <span className="font-semibold">{tag.label}</span>
+        <span className="ml-1.5 text-xs text-slate-500">
+          {standard.benchmarks.length}
+        </span>
+      </span>
+    );
     return (
       <li key={standard.key}>
         <div className="flex items-start gap-1 rounded hover:bg-slate-100">
@@ -63,26 +78,30 @@ export const StandardsTree: React.FC<StandardsTreeProps> = ({
               aria-hidden="true"
             />
           </button>
-          <label className="flex flex-1 items-start gap-2 py-1.5 pr-2 cursor-pointer">
-            <input
-              type="checkbox"
-              className={CHECKBOX}
-              checked={isSelected(tag.id)}
-              onChange={() => onToggle(tag)}
-            />
-            <span className="min-w-0 flex-1 text-sm text-slate-800">
-              <span className="font-mono font-semibold text-slate-600 mr-1.5">
-                {standard.code}
-              </span>
-              <span className="font-semibold">{tag.label}</span>
-              <span className="ml-1.5 text-xs text-slate-500">
-                {standard.benchmarks.length}
-              </span>
-            </span>
-          </label>
+          {standardSelectable ? (
+            <label className="flex flex-1 items-start gap-2 py-1.5 pr-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className={CHECKBOX}
+                checked={isSelected(tag.id)}
+                onChange={() => onToggle(tag)}
+              />
+              {heading}
+            </label>
+          ) : (
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-hidden="true"
+              onClick={() => flip(standard.key, open)}
+              className="flex flex-1 items-start py-1.5 pr-2 text-left"
+            >
+              {heading}
+            </button>
+          )}
         </div>
         {open && (
-          <ul id={panelId} className="ml-7 border-l border-slate-200 pl-1">
+          <ul id={panelId} className="ml-3 border-l border-slate-200 pl-4">
             {standard.benchmarks.map((b) => {
               const benchTag = tagFromBenchmark(b);
               return (
@@ -94,11 +113,11 @@ export const StandardsTree: React.FC<StandardsTreeProps> = ({
                       checked={isSelected(b.id)}
                       onChange={() => onToggle(benchTag)}
                     />
-                    <span className="min-w-0 flex-1 text-sm text-slate-800">
+                    <span className="min-w-0 flex-1 line-clamp-2 text-sm text-slate-800">
                       <span className="font-mono font-semibold text-slate-600 mr-1.5">
                         {b.code}
                       </span>
-                      <span className="line-clamp-2">{b.text}</span>
+                      {b.text}
                     </span>
                     <span className="shrink-0 mt-0.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-xxs font-bold text-slate-600">
                       {b.grade}
@@ -135,7 +154,7 @@ export const StandardsTree: React.FC<StandardsTreeProps> = ({
           </span>
         </button>
         {open && (
-          <ul id={panelId} className="ml-2">
+          <ul id={panelId} className="ml-3.5 border-l border-slate-200 pl-3">
             {strand.standards.map(renderStandard)}
           </ul>
         )}
