@@ -67,6 +67,8 @@ interface TestAndKeyUploaderProps {
   keyBehindLink?: boolean;
   /** Renders the submit button here instead, e.g. a modal footer. */
   submitContainer?: Element | null;
+  /** Centers each zone's title and file name. */
+  centered?: boolean;
   /** Test seams. */
   looksLikeKey?: (file: Blob, name: string) => Promise<boolean>;
   decode?: (file: File) => Promise<File>;
@@ -105,6 +107,7 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
   children,
   keyBehindLink = false,
   submitContainer,
+  centered = false,
   looksLikeKey = looksLikeAnswerKey,
   decode = decodeIfHeic,
 }) => {
@@ -377,6 +380,7 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
           <DropZone
             zone="test"
             name="test questions"
+            centered={centered}
             title={
               keyCollapsed
                 ? 'Test questions & answer key (optional)'
@@ -415,6 +419,7 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
           <DropZone
             zone="key"
             name="answer key"
+            centered={centered}
             title={showTest ? 'Answer key (optional)' : 'Answer key'}
             hint="PDF, Word, .odt, .rtf or photos"
             accept={`${DOCUMENT_ACCEPT},${PHOTO_ACCEPT}`}
@@ -468,6 +473,7 @@ interface DropZoneProps {
   zone: Zone;
   /** Lowercase noun for control labels, e.g. "answer key". */
   name: string;
+  centered: boolean;
   title: string;
   hint: string;
   accept: string;
@@ -487,6 +493,7 @@ interface DropZoneProps {
 const DropZone: React.FC<DropZoneProps> = ({
   zone,
   name,
+  centered,
   title,
   hint,
   accept,
@@ -519,8 +526,17 @@ const DropZone: React.FC<DropZoneProps> = ({
           : 'border-slate-300 bg-slate-50/60'
       }`}
     >
-      <div className="flex items-baseline justify-between gap-2">
-        <h3 id={titleId} className="text-sm font-bold text-slate-800">
+      <div
+        className={
+          centered
+            ? 'grid grid-cols-[1fr_auto_1fr] items-baseline gap-2'
+            : 'flex items-baseline justify-between gap-2'
+        }
+      >
+        <h3
+          id={titleId}
+          className={`text-sm font-bold text-slate-800 ${centered ? 'col-start-2 text-center' : ''}`}
+        >
           {title}
         </h3>
         {content && (
@@ -529,7 +545,7 @@ const DropZone: React.FC<DropZoneProps> = ({
             onClick={onRemove}
             disabled={disabled}
             aria-label={`Remove ${name}`}
-            className="text-xs font-bold text-slate-500 hover:text-brand-red-primary disabled:opacity-40"
+            className="justify-self-end text-xs font-bold text-slate-500 hover:text-brand-red-primary disabled:opacity-40"
           >
             Remove
           </button>
@@ -537,7 +553,9 @@ const DropZone: React.FC<DropZoneProps> = ({
       </div>
 
       {content?.kind === 'document' && (
-        <p className="flex items-center gap-2 truncate text-sm font-semibold text-slate-700">
+        <p
+          className={`flex items-center gap-2 truncate text-sm font-semibold text-slate-700 ${centered ? 'justify-center' : ''}`}
+        >
           <FileText className="h-4 w-4 shrink-0 text-slate-500" />
           <span className="truncate">{content.fileName}</span>
         </p>

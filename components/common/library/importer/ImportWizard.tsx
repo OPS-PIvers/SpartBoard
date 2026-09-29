@@ -555,6 +555,7 @@ export function ImportWizard<TData>({
             busyLabel="Importing…"
             onSubmit={readTestAndKey}
             keyBehindLink
+            centered
             submitContainer={submitSlot}
           >
             {supportsAiReader && (
@@ -991,7 +992,7 @@ export function ImportWizard<TData>({
       customHeader={customHeader}
       footer={footer}
       footerClassName="shrink-0 border-t border-slate-200 rounded-b-2xl"
-      maxWidth="max-w-2xl"
+      maxWidth={pairedSources ? 'max-w-3xl' : 'max-w-2xl'}
       className="font-sans"
       contentClassName="px-6 py-5 bg-slate-50"
       ariaLabelledby="import-wizard-title"
