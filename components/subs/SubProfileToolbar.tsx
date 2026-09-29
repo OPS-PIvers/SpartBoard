@@ -66,9 +66,9 @@ export const SubProfileToolbar: React.FC<SubProfileToolbarProps> = ({
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={`Board menu — ${teacherName}, ${boardName}`}
-        className="flex items-center gap-3 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-xl border border-white/25 shadow-lg shadow-black/20 px-3 py-2 transition-all cursor-pointer"
+        className="flex items-center gap-3 rounded-full bg-white/85 hover:bg-white backdrop-blur-xl border border-slate-200/70 shadow-lg shadow-slate-900/15 px-3 py-2 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
       >
-        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/80">
+        <div className="w-8 h-8 rounded-full bg-brand-blue-primary/10 flex items-center justify-center text-brand-blue-primary">
           <Menu className="w-4 h-4" />
         </div>
         <div
@@ -77,15 +77,15 @@ export const SubProfileToolbar: React.FC<SubProfileToolbarProps> = ({
           {teacherInitials}
         </div>
         <div className="text-left pr-1 hidden sm:block">
-          <div className="text-xs font-bold text-white leading-tight">
+          <div className="text-xs font-bold text-slate-800 leading-tight">
             {teacherName}
           </div>
-          <div className="text-[10px] text-white/70 leading-tight truncate max-w-[12rem]">
+          <div className="text-[10px] text-slate-500 leading-tight truncate max-w-[12rem]">
             {boardName}
           </div>
         </div>
         <ChevronDown
-          className={`w-3.5 h-3.5 text-white/70 transition-transform ${
+          className={`w-3.5 h-3.5 text-slate-500 transition-transform ${
             open ? 'rotate-180' : ''
           }`}
         />

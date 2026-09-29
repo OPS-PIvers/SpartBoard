@@ -158,7 +158,7 @@ export const SubBoardScreenContent: React.FC<SubBoardScreenContentProps> = ({
           status={rosterStatus}
           onLoad={() => void loadRosters()}
         />
-        <div className="hidden md:flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/15 px-3 py-1.5 text-[11px] text-white/80 pointer-events-none">
+        <div className="hidden md:flex items-center gap-2 rounded-full bg-white/85 backdrop-blur-xl border border-slate-200/70 shadow-md px-3 py-1.5 text-[11px] font-medium text-slate-600 pointer-events-none">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
           Substitute view. Widgets are locked.
         </div>
@@ -180,7 +180,7 @@ const RosterLoadButton: React.FC<{
     return (
       <div
         role="status"
-        className="flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/15 px-3 py-1.5 text-xs text-white/80"
+        className="flex items-center gap-2 rounded-full bg-white/85 backdrop-blur-xl border border-slate-200/70 shadow-md px-3 py-1.5 text-xs text-slate-600"
       >
         <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
         Loading class list…
@@ -193,10 +193,10 @@ const RosterLoadButton: React.FC<{
     <button
       type="button"
       onClick={onLoad}
-      className={`flex items-center gap-2 rounded-full backdrop-blur-xl border px-3 py-1.5 text-xs font-bold text-white shadow-lg shadow-black/20 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+      className={`flex items-center gap-2 rounded-full backdrop-blur-xl border px-3 py-1.5 text-xs font-bold shadow-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
         failed
-          ? 'bg-amber-500/25 hover:bg-amber-500/35 border-amber-300/40'
-          : 'bg-white/15 hover:bg-white/25 border-white/25'
+          ? 'bg-amber-50/95 hover:bg-amber-100 border-amber-300 text-amber-800'
+          : 'bg-white/85 hover:bg-white border-slate-200/70 text-brand-blue-primary'
       }`}
     >
       <Icon className="w-3.5 h-3.5" aria-hidden />
