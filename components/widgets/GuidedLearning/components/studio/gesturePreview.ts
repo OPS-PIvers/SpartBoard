@@ -98,7 +98,7 @@ export function createGesturePreview(
     size: (w, h) =>
       cards.forEach((el) => {
         el.setAttribute('data-gl-previewing', '');
-        const fit = measureCalloutFit(el, w, h);
+        const fit = measureCalloutFit(el as HTMLElement, w, h);
         el.style.setProperty(FIT_BODY_VAR, `${fit.bodyPx}px`);
         el.style.width = `${w}px`;
         el.style.minHeight = `${fit.heightPx}px`;
