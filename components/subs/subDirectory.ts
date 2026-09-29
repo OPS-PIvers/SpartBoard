@@ -49,7 +49,7 @@ export function collectionBoardLinks(
     ? [...c.boards].sort((a, b) => a.order - b.order).map((b) => b.id)
     : c.boardIds;
   return ordered.map((id) => {
-    const name = named.get(id)?.name.trim();
+    const name = named.get(id)?.name?.trim();
     return name ? { id, name } : { id };
   });
 }

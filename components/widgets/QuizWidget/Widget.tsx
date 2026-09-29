@@ -1,4 +1,6 @@
 import React, {
+  lazy,
+  Suspense,
   useState,
   useCallback,
   useEffect,
@@ -75,7 +77,6 @@ import { createQuizImportAdapter } from './adapters/quizImportAdapter';
 import { extractQuizFromDocument } from '@/utils/quizDocumentImport/aiReaderApi';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
-import { QuizStudentView } from '@/components/quiz/QuizStudentView';
 import { QuizResults } from './components/QuizResults';
 import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettingsModal';
 import { SharePlcResultsModal } from './components/SharePlcResultsModal';
@@ -168,6 +169,12 @@ import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
 import { revealValueFor } from '@/utils/quizFibAlternates';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
+
+const QuizStudentView = lazy(() =>
+  import('@/components/quiz/QuizStudentView').then((m) => ({
+    default: m.QuizStudentView,
+  }))
+);
 
 /**
  * Session-options shape used when minting a view-only Quiz share. Typed as
@@ -1855,12 +1862,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   return (
     <>
       {studentView && (
-        <QuizStudentView
-          quiz={studentView.quiz}
-          behavior={studentView.behavior}
-          tabAwayTimerOn={canAccessFeature('tab-away-timer')}
-          onExit={() => setStudentView(null)}
-        />
+        <Suspense fallback={null}>
+          <QuizStudentView
+            quiz={studentView.quiz}
+            behavior={studentView.behavior}
+            tabAwayTimerOn={canAccessFeature('tab-away-timer')}
+            onExit={() => setStudentView(null)}
+          />
+        </Suspense>
       )}
       <QuizManager
         userId={user?.uid}
