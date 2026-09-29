@@ -61,7 +61,7 @@ import { CurrentQuestionCard } from './CurrentQuestionCard';
 import { StatusBuckets, BucketKey } from './StatusBuckets';
 import { RosterList } from './RosterList';
 import { PeriodAccessStrip } from './PeriodAccessStrip';
-import { PeriodAction, PeriodOthers, PeriodPicker } from './PeriodBar';
+import { PeriodBar } from './PeriodBar';
 import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
 import { hasPeriodAccess } from '@/utils/periodAccess';
 import { QuestionResults, QuestionDetail } from './QuestionResults';
@@ -239,6 +239,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       periodFailed(err);
     }
   };
+  // The class picker shows one class or all, so drop a multi-class filter.
+  if (chipsFilter && data.selectedPeriods.length > 1)
+    data.setSelectedPeriods([]);
   const periodBar = chipsFilter &&
     session.periodAccess && {
       periodAccess: session.periodAccess,
@@ -745,15 +748,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               doneCount={data.counts.done}
               onAdvance={onAdvance}
               widgetId={widgetId}
-              periodControls={
-                periodBar
-                  ? {
-                      picker: <PeriodPicker {...periodBar} />,
-                      action: <PeriodAction {...periodBar} />,
-                      others: <PeriodOthers {...periodBar} />,
-                    }
-                  : undefined
-              }
+              periodControls={periodBar && <PeriodBar {...periodBar} />}
             />
             <StatusBuckets
               counts={data.counts}

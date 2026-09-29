@@ -2,11 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { PeriodAccess } from '@/types';
 import { PeriodAccessStrip } from '@/components/widgets/QuizWidget/components/monitor/PeriodAccessStrip';
-import {
-  PeriodAction,
-  PeriodOthers,
-  PeriodPicker,
-} from '@/components/widgets/QuizWidget/components/monitor/PeriodBar';
+import { PeriodBar } from '@/components/widgets/QuizWidget/components/monitor/PeriodBar';
 
 vi.mock('@/utils/serverTime', () => ({ getServerNow: () => NOW }));
 
@@ -98,13 +94,7 @@ const renderBar = (
     onExtend: vi.fn().mockResolvedValue(undefined),
   };
   const props = { periodAccess, selected, extendMs: 600_000, ...h };
-  render(
-    <>
-      <PeriodPicker {...props} />
-      <PeriodAction {...props} />
-      <PeriodOthers {...props} />
-    </>
-  );
+  render(<PeriodBar {...props} />);
   return h;
 };
 

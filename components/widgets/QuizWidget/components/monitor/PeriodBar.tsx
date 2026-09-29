@@ -67,10 +67,11 @@ const statusText = (access: PeriodAccess, state: EffectivePeriodState) => {
 };
 
 /** Class picker and the picked class's status, for the start of the monitor bar. */
-export const PeriodPicker: React.FC<
-  Pick<PeriodBarProps, 'periodAccess' | 'selected' | 'onSelect'>
-> = ({ periodAccess, selected, onSelect }) => {
-  const rows = useEntries(periodAccess);
+type Row = ReturnType<typeof useEntries>[number];
+
+const PeriodPicker: React.FC<
+  Pick<PeriodBarProps, 'selected' | 'onSelect'> & { rows: Row[] }
+> = ({ rows, selected, onSelect }) => {
   const current = rows.find((r) => r.key === selected);
   const liveCount = rows.filter((r) => r.state === 'open').length;
   const text = { fontSize: 'min(13px, 4.5cqmin)' };
@@ -107,10 +108,10 @@ export const PeriodPicker: React.FC<
 };
 
 /** The classes not on screen, each with its state; tap one to show it. */
-export const PeriodOthers: React.FC<
-  Pick<PeriodBarProps, 'periodAccess' | 'selected' | 'onSelect'>
-> = ({ periodAccess, selected, onSelect }) => {
-  const rows = useEntries(periodAccess).filter((r) => r.key !== selected);
+const PeriodOthers: React.FC<
+  Pick<PeriodBarProps, 'selected' | 'onSelect'> & { rows: Row[] }
+> = ({ rows: all, selected, onSelect }) => {
+  const rows = all.filter((r) => r.key !== selected);
   return (
     <div
       role="group"
@@ -135,15 +136,9 @@ export const PeriodOthers: React.FC<
 };
 
 /** Start or Pause for the picked class, or every class under All classes. */
-export const PeriodAction: React.FC<Omit<PeriodBarProps, 'onSelect'>> = ({
-  periodAccess,
-  selected,
-  onStart,
-  onPause,
-  onExtend,
-  extendMs,
-}) => {
-  const rows = useEntries(periodAccess);
+const PeriodAction: React.FC<
+  Omit<PeriodBarProps, 'onSelect' | 'periodAccess'> & { rows: Row[] }
+> = ({ rows, selected, onStart, onPause, onExtend, extendMs }) => {
   const [busy, setBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -275,6 +270,26 @@ export const PeriodAction: React.FC<Omit<PeriodBarProps, 'onSelect'>> = ({
           ))}
         </div>
       )}
+    </div>
+  );
+};
+
+/** Class picker with its Start/Pause, then the other classes, for the top of the monitor bar. */
+export const PeriodBar: React.FC<PeriodBarProps> = ({
+  periodAccess,
+  ...props
+}) => {
+  const rows = useEntries(periodAccess);
+  return (
+    <div className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
+      <div
+        className="flex flex-wrap items-center justify-between"
+        style={{ gap: 'min(8px, 2cqmin)' }}
+      >
+        <PeriodPicker rows={rows} {...props} />
+        <PeriodAction rows={rows} {...props} />
+      </div>
+      <PeriodOthers rows={rows} {...props} />
     </div>
   );
 };

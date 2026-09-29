@@ -16,12 +16,8 @@ interface CurrentQuestionCardProps {
   onAdvance: () => Promise<void>;
   /** This widget instance's id, for live-tour anchor scoping. */
   widgetId?: string;
-  /** Class picker, its Start/Pause and the other classes, shown at the card's top. */
-  periodControls?: {
-    picker: React.ReactNode;
-    action: React.ReactNode;
-    others: React.ReactNode;
-  };
+  /** Class controls, shown at the top of the card. */
+  periodControls?: React.ReactNode;
 }
 
 // Blue Lighter panel per the approved design — flat fill, no accent stripes.
@@ -49,18 +45,6 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
   const isSelfPaced = session.sessionMode === 'student';
   const isLast = session.currentQuestionIndex >= session.totalQuestions - 1;
   const pct = total > 0 ? Math.round((answered / total) * 100) : 0;
-  const periodRow = periodControls && (
-    <div className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
-      <div
-        className="flex flex-wrap items-center justify-between"
-        style={{ gap: 'min(8px, 2cqmin)' }}
-      >
-        {periodControls.picker}
-        {periodControls.action}
-      </div>
-      {periodControls.others}
-    </div>
-  );
 
   if (session.status === 'ended') {
     return (
@@ -166,7 +150,7 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
           gap: 'min(10px, 2.5cqmin)',
         }}
       >
-        {periodRow}
+        {periodControls}
         {summary}
       </div>
     );
@@ -177,7 +161,7 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
       className="bg-brand-blue-lighter rounded-xl flex flex-col"
       style={{ padding: 'min(16px, 3.5cqmin)', gap: 'min(10px, 2.5cqmin)' }}
     >
-      {periodRow}
+      {periodControls}
       <div
         className="flex items-baseline justify-between"
         style={{ gap: 'min(8px, 2cqmin)' }}
