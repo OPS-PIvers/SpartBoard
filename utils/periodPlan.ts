@@ -32,10 +32,10 @@ export function periodKeyForRoster(roster: PeriodRoster): string {
   return `roster:${roster.id}`;
 }
 
-/** SSO or the ClassLink PIN bridge gives this roster's students a class claim. */
 /** The mode a multi-period assign starts in until the teacher picks one. */
 export const DEFAULT_PERIOD_PLAN: PeriodPlan = { mode: 'assessment' };
 
+/** SSO or the ClassLink PIN bridge gives this roster's students a class claim. */
 export function rosterIsVerified(roster: PeriodRoster): boolean {
   return !!roster.classlinkClassId || !!roster.testClassId;
 }
