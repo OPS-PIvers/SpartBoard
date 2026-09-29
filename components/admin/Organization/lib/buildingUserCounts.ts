@@ -1,4 +1,7 @@
-import { canonicalBuildingId } from '@/config/buildings';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingIds,
+} from '@/config/buildings';
 import type { BuildingRecord, UserRecord } from '@/types/organization';
 
 /**
@@ -18,8 +21,8 @@ export function withDerivedUserCounts(
   const counts = new Map<string, number>();
   for (const u of users) {
     if (u.status === 'inactive') continue;
-    for (const bid of u.buildingIds) {
-      const id = canonicalBuildingId(bid);
+    // Dedupe after canonicalizing so a member holding both `high` and `orono-high-school` counts once.
+    for (const id of canonicalizeBuildingIds(u.buildingIds)) {
       counts.set(id, (counts.get(id) ?? 0) + 1);
     }
   }

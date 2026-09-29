@@ -26,7 +26,7 @@ import {
   isTransientStatus,
   call,
   releaseAttempts,
-} from '../scripts/releaseFirestoreRules.mjs';
+} from '@/scripts/releaseFirestoreRules.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, '..');

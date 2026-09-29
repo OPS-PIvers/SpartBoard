@@ -1,0 +1,909 @@
+{
+  "set": "mn-music-2018",
+  "subject": "music",
+  "source": "MN_Music_Standards.csv",
+  "revision": "2018 Adopted (MDE spreadsheet, Perpich mirror Nov 2020)",
+  "count": 90,
+  "benchmarks": [
+    {
+      "id": "mn-music-2018:3.0.2.2.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.0.2.2.1",
+      "grade": "K",
+      "strand": "2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Improvise musical sounds in response to teacher cues."
+    },
+    {
+      "id": "mn-music-2018:3.1.2.2.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.1.2.2.1",
+      "grade": "1",
+      "strand": "2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Generate musical ideas using a limited set of rhythms or pitches."
+    },
+    {
+      "id": "mn-music-2018:3.2.2.2.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.2.2.2.1",
+      "grade": "2",
+      "strand": "2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Generate rhythmic or melodic patterns."
+    },
+    {
+      "id": "mn-music-2018:3.3.2.2.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.3.2.2.1",
+      "grade": "3",
+      "strand": "2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Create or improvise rhythmic or melodic patterns containing long sounds, short sounds and rests."
+    },
+    {
+      "id": "mn-music-2018:3.4.2.2.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.4.2.2.1",
+      "grade": "4",
+      "strand": "2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Create or improvise melodic phrases using specified tonalities."
+    },
+    {
+      "id": "mn-music-2018:3.5.2.2.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.5.2.2.1",
+      "grade": "5",
+      "strand": "2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Create or improvise rhythmic or melodic phrases using specific tonalities, meters or chord changes."
+    },
+    {
+      "id": "mn-music-2018:3.6.2.2.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.6.2.2.1",
+      "grade": "6",
+      "strand": "2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Create or improvise musical ideas that can be combined into a melody."
+    },
+    {
+      "id": "mn-music-2018:3.7.2.2.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.7.2.2.1",
+      "grade": "7",
+      "strand": "2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Create or improvise musical ideas that can be combined into a melody with expressive elements.\nFor example: Dynamics, articulation, tempo."
+    },
+    {
+      "id": "mn-music-2018:3.8.2.2.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.8.2.2.1",
+      "grade": "8",
+      "strand": "2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Generate rhythmic, melodic, or harmonic musical ideas that include expressive elements.\n\nFor example: Dynamics, articulation, timbre."
+    },
+    {
+      "id": "mn-music-2018:3.9.2.2.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.9.2.2.1",
+      "grade": "9-12",
+      "strand": "2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Improvise, arrange, or modify phrases that demonstrate understanding of musical elements."
+    },
+    {
+      "id": "mn-music-2018:3.0.2.3.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.0.2.3.1",
+      "grade": "K",
+      "strand": "2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Choose a musical sound to share."
+    },
+    {
+      "id": "mn-music-2018:3.1.2.3.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.1.2.3.1",
+      "grade": "1",
+      "strand": "2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Choose musical ideas to share using a limited set of rhythms or pitches."
+    },
+    {
+      "id": "mn-music-2018:3.2.2.3.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.2.2.3.1",
+      "grade": "2",
+      "strand": "2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Preserve personal rhythmic or melodic patterns using a system of notation or recording technology."
+    },
+    {
+      "id": "mn-music-2018:3.3.2.3.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.3.2.3.1",
+      "grade": "3",
+      "strand": "2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Organize chosen musical patterns into phrases using a system of notation or recording technology."
+    },
+    {
+      "id": "mn-music-2018:3.4.2.3.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.4.2.3.1",
+      "grade": "4",
+      "strand": "2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Organize chosen musical phrases into a short composition using a system of notation or recording technology."
+    },
+    {
+      "id": "mn-music-2018:3.5.2.3.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.5.2.3.1",
+      "grade": "5",
+      "strand": "2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Organize chosen musical phrases into a given form using a system of notation or recording technology."
+    },
+    {
+      "id": "mn-music-2018:3.6.2.3.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.6.2.3.1",
+      "grade": "6",
+      "strand": "2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Develop a composition consisting of a melody using a system of notation or recording technology."
+    },
+    {
+      "id": "mn-music-2018:3.7.2.3.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.7.2.3.1",
+      "grade": "7",
+      "strand": "2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Develop a composition consisting of a melody with expressive elements using a system of notation or recording technology."
+    },
+    {
+      "id": "mn-music-2018:3.8.2.3.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.8.2.3.1",
+      "grade": "8",
+      "strand": "2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Develop a composition in a specific form that includes expressive elements using notation or recording technology."
+    },
+    {
+      "id": "mn-music-2018:3.9.2.3.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.9.2.3.1",
+      "grade": "9-12",
+      "strand": "2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Select multiple musical ideas, original or existing, to create drafts of music using notation or technology, where appropriate."
+    },
+    {
+      "id": "mn-music-2018:3.0.2.4.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.0.2.4.1",
+      "grade": "K",
+      "strand": "2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Change selected musical sounds using teacher feedback."
+    },
+    {
+      "id": "mn-music-2018:3.1.2.4.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.1.2.4.1",
+      "grade": "1",
+      "strand": "2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Change selected musical ideas using teacher feedback."
+    },
+    {
+      "id": "mn-music-2018:3.2.2.4.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.2.2.4.1",
+      "grade": "2",
+      "strand": "2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Change selected rhythmic or melodic patterns using feedback from others."
+    },
+    {
+      "id": "mn-music-2018:3.3.2.4.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.3.2.4.1",
+      "grade": "3",
+      "strand": "2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Arrange musical patterns using feedback from others."
+    },
+    {
+      "id": "mn-music-2018:3.4.2.4.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.4.2.4.1",
+      "grade": "4",
+      "strand": "2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Revise a musical composition as a group using feedback from others."
+    },
+    {
+      "id": "mn-music-2018:3.5.2.4.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.5.2.4.1",
+      "grade": "5",
+      "strand": "2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Revise a musical composition using feedback from others and self-reflection."
+    },
+    {
+      "id": "mn-music-2018:3.6.2.4.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.6.2.4.1",
+      "grade": "6",
+      "strand": "2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Revise a musical composition using self-reflection."
+    },
+    {
+      "id": "mn-music-2018:3.7.2.4.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.7.2.4.1",
+      "grade": "7",
+      "strand": "2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Revise a composition to include expressive elements."
+    },
+    {
+      "id": "mn-music-2018:3.8.2.4.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.8.2.4.1",
+      "grade": "8",
+      "strand": "2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Revise a composition draft into a completed work."
+    },
+    {
+      "id": "mn-music-2018:3.9.2.4.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.9.2.4.1",
+      "grade": "9-12",
+      "strand": "2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Revise or arrange a composition to become a completed musical work using current technology (as available) to preserve the composition."
+    },
+    {
+      "id": "mn-music-2018:3.0.3.5.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.0.3.5.1",
+      "grade": "K",
+      "strand": "3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Demonstrate moving, singing, and playing instruments with others."
+    },
+    {
+      "id": "mn-music-2018:3.1.3.5.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.1.3.5.1",
+      "grade": "1",
+      "strand": "3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Demonstrate moving, singing, and playing instruments with others, and alone."
+    },
+    {
+      "id": "mn-music-2018:3.2.3.5.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.2.3.5.1",
+      "grade": "2",
+      "strand": "3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Develop vocal and instrumental skills to perform a variety of music."
+    },
+    {
+      "id": "mn-music-2018:3.3.3.5.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.3.3.5.1",
+      "grade": "3",
+      "strand": "3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Refine vocal and instrumental skills to perform a variety of music."
+    },
+    {
+      "id": "mn-music-2018:3.4.3.5.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.4.3.5.1",
+      "grade": "4",
+      "strand": "3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Apply developing vocal and instrumental skills to improve performance."
+    },
+    {
+      "id": "mn-music-2018:3.5.3.5.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.5.3.5.1",
+      "grade": "5",
+      "strand": "3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Demonstrate vocal or instrumental skills appropriate to the performance of music's cultural context."
+    },
+    {
+      "id": "mn-music-2018:3.6.3.5.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.6.3.5.1",
+      "grade": "6",
+      "strand": "3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Collaborate as an ensemble to refine and prepare music for presentation or performance."
+    },
+    {
+      "id": "mn-music-2018:3.7.3.5.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.7.3.5.1",
+      "grade": "7",
+      "strand": "3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Demonstrate an understanding of various genres and styles of music by applying musical elements to prepare for a performance."
+    },
+    {
+      "id": "mn-music-2018:3.8.3.5.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.8.3.5.1",
+      "grade": "8",
+      "strand": "3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Demonstrate persistence and cooperation in refining musical selections for performance."
+    },
+    {
+      "id": "mn-music-2018:3.9.3.5.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.9.3.5.1",
+      "grade": "9-12",
+      "strand": "3. Present",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Utilize multiple rehearsal strategies to refine performance, using technology where appropriate."
+    },
+    {
+      "id": "mn-music-2018:3.0.3.6.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.0.3.6.1",
+      "grade": "K",
+      "strand": "3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Make a musical choice while singing, playing instruments, or moving to explore the effects of musical elements.\nFor example: High/low; loud/soft; fast/slow."
+    },
+    {
+      "id": "mn-music-2018:3.1.3.6.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.1.3.6.1",
+      "grade": "1",
+      "strand": "3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Follow the teacher to start, stop and stay together throughout an established musical form."
+    },
+    {
+      "id": "mn-music-2018:3.2.3.6.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.2.3.6.1",
+      "grade": "2",
+      "strand": "3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Perform music with and for others, using technical accuracy and expression."
+    },
+    {
+      "id": "mn-music-2018:3.3.3.6.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.3.3.6.1",
+      "grade": "3",
+      "strand": "3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Perform music for a specific purpose, using technical accuracy, expression, and interpretation."
+    },
+    {
+      "id": "mn-music-2018:3.4.3.6.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.4.3.6.1",
+      "grade": "4",
+      "strand": "3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Perform music by accurately responding to musical terms."
+    },
+    {
+      "id": "mn-music-2018:3.5.3.6.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.5.3.6.1",
+      "grade": "5",
+      "strand": "3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Perform music by responding to notation and active listening."
+    },
+    {
+      "id": "mn-music-2018:3.6.3.6.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.6.3.6.1",
+      "grade": "6",
+      "strand": "3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Perform music for an audience by responding to notation and applying musical elements and technical skills.\nFor example: Audience being a classmate, friend, online platform, or a large group."
+    },
+    {
+      "id": "mn-music-2018:3.7.3.6.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.7.3.6.1",
+      "grade": "7",
+      "strand": "3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Perform music for an audience by responding to notation, using expressive skills. For example: Audience being a classmate, friend, online platform, or a large group."
+    },
+    {
+      "id": "mn-music-2018:3.8.3.6.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.8.3.6.1",
+      "grade": "8",
+      "strand": "3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Perform music for an audience with technical accuracy and stylistic expression to convey the composer's possible intent.\n\nFor example: Audience being a classmate, friend, online platform, or a large group."
+    },
+    {
+      "id": "mn-music-2018:3.9.3.6.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.9.3.6.1",
+      "grade": "9-12",
+      "strand": "3. Present",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Perform contrasting musical selections for an audience, conveying meaning through interpretation of the musical elements and expressive qualities. For example: audience being a classmate, friend, online platform, or a large group"
+    },
+    {
+      "id": "mn-music-2018:3.0.4.7.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.0.4.7.1",
+      "grade": "K",
+      "strand": "4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Identify musical opposites while listening to and interacting with a variety of music."
+    },
+    {
+      "id": "mn-music-2018:3.1.4.7.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.1.4.7.1",
+      "grade": "1",
+      "strand": "4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Identify steady beat while listening to and interacting with a variety of music."
+    },
+    {
+      "id": "mn-music-2018:3.2.4.7.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.2.4.7.1",
+      "grade": "2",
+      "strand": "4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Identify repeating patterns and expressive elements while listening to and interacting with a variety of music."
+    },
+    {
+      "id": "mn-music-2018:3.3.4.7.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.3.4.7.1",
+      "grade": "3",
+      "strand": "4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Identify and describe elements that make contrasting musical selections different from each other."
+    },
+    {
+      "id": "mn-music-2018:3.4.4.7.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.4.4.7.1",
+      "grade": "4",
+      "strand": "4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Identify and describe elements that create contrasting performances of the same musical selection."
+    },
+    {
+      "id": "mn-music-2018:3.5.4.7.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.5.4.7.1",
+      "grade": "5",
+      "strand": "4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Identify the elements used in a musical selection to convey its possible intent."
+    },
+    {
+      "id": "mn-music-2018:3.6.4.7.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.6.4.7.1",
+      "grade": "6",
+      "strand": "4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Describe how musical elements contribute to meaning in a musical selection."
+    },
+    {
+      "id": "mn-music-2018:3.7.4.7.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.7.4.7.1",
+      "grade": "7",
+      "strand": "4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Identify the musical or technical skills needed in musical selections to convey meaning or possible intent including cultural or historical contexts."
+    },
+    {
+      "id": "mn-music-2018:3.8.4.7.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.8.4.7.1",
+      "grade": "8",
+      "strand": "4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Analyze and discuss the use of elements in musical selections to convey meaning or possible intent including cultural or historical contexts."
+    },
+    {
+      "id": "mn-music-2018:3.9.4.7.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.9.4.7.1",
+      "grade": "9-12",
+      "strand": "4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Interpret musical elements and cultural or historical contexts embedded within a musical selection to express possible meanings of the composer or performer."
+    },
+    {
+      "id": "mn-music-2018:3.0.4.8.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.0.4.8.1",
+      "grade": "K",
+      "strand": "4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Identify which of two contrasting musical selections is preferred, and tell why."
+    },
+    {
+      "id": "mn-music-2018:3.1.4.8.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.1.4.8.1",
+      "grade": "1",
+      "strand": "4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Identify differences between two contrasting musical selections."
+    },
+    {
+      "id": "mn-music-2018:3.2.4.8.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.2.4.8.1",
+      "grade": "2",
+      "strand": "4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Apply personal preferences in evaluation when listening to music."
+    },
+    {
+      "id": "mn-music-2018:3.3.4.8.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.3.4.8.1",
+      "grade": "3",
+      "strand": "4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Explain personal preference of music selections by identifying music elements that generate personal interest."
+    },
+    {
+      "id": "mn-music-2018:3.4.4.8.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.4.4.8.1",
+      "grade": "4",
+      "strand": "4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Apply teacher-provided criteria to evaluate musical selections or performances, citing specific elements and characteristics."
+    },
+    {
+      "id": "mn-music-2018:3.5.4.8.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.5.4.8.1",
+      "grade": "5",
+      "strand": "4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Apply collaboratively developed and teacher-provided criteria to evaluate musical selections or performances, citing specific elements and characteristics."
+    },
+    {
+      "id": "mn-music-2018:3.6.4.8.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.6.4.8.1",
+      "grade": "6",
+      "strand": "4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Apply collaboratively developed criteria to evaluate musical selections or performances, citing specific elements and characteristics."
+    },
+    {
+      "id": "mn-music-2018:3.7.4.8.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.7.4.8.1",
+      "grade": "7",
+      "strand": "4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Identify and use a variety of techniques to evaluate the qualities of a musical performance. For example: Student generated criteria; rubric; rating scale."
+    },
+    {
+      "id": "mn-music-2018:3.8.4.8.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.8.4.8.1",
+      "grade": "8",
+      "strand": "4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Identify and describe the musical and technical skills evident in a performance."
+    },
+    {
+      "id": "mn-music-2018:3.9.4.8.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.9.4.8.1",
+      "grade": "9-12",
+      "strand": "4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Evaluate music performances using commonly accepted standards, to demonstrate an understanding of musical elements. For example: MSHSL adjudication forms; student generated criteria; rubric; rating scale."
+    },
+    {
+      "id": "mn-music-2018:3.0.5.9.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.0.5.9.1",
+      "grade": "K",
+      "strand": "5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Sing or play instruments using a familiar song that you have learned."
+    },
+    {
+      "id": "mn-music-2018:3.1.5.9.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.1.5.9.1",
+      "grade": "1",
+      "strand": "5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Identify an emotion experienced when singing, playing instruments or listening to music."
+    },
+    {
+      "id": "mn-music-2018:3.2.5.9.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.2.5.9.1",
+      "grade": "2",
+      "strand": "5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Identify a part of a musical selection that connects with you personally."
+    },
+    {
+      "id": "mn-music-2018:3.3.5.9.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.3.5.9.1",
+      "grade": "3",
+      "strand": "5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Describe a memory, feeling, or story associated with music that is listened to or performed."
+    },
+    {
+      "id": "mn-music-2018:3.4.5.9.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.4.5.9.1",
+      "grade": "4",
+      "strand": "5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Describe emotions experienced when performing or listening to a musical selection and relate it a personal experiences."
+    },
+    {
+      "id": "mn-music-2018:3.5.5.9.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.5.5.9.1",
+      "grade": "5",
+      "strand": "5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Compare and contrast emotions experienced when performing or listening to two different musical selections."
+    },
+    {
+      "id": "mn-music-2018:3.6.5.9.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.6.5.9.1",
+      "grade": "6",
+      "strand": "5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Share how specific musical selections relate to personal, social and emotional experiences."
+    },
+    {
+      "id": "mn-music-2018:3.7.5.9.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.7.5.9.1",
+      "grade": "7",
+      "strand": "5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Describe why various musical choices are made when creating or performing music."
+    },
+    {
+      "id": "mn-music-2018:3.8.5.9.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.8.5.9.1",
+      "grade": "8",
+      "strand": "5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Describe how interests, knowledge, and skills relate to personal choices in the creation or performance of music."
+    },
+    {
+      "id": "mn-music-2018:3.9.5.9.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.9.5.9.1",
+      "grade": "9-12",
+      "strand": "5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Synthesize knowledge and personal experiences when responding to, creating, or performing musical work."
+    },
+    {
+      "id": "mn-music-2018:3.0.5.10.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.0.5.10.1",
+      "grade": "K",
+      "strand": "5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Sing, play instruments, or listen to music from various cultures."
+    },
+    {
+      "id": "mn-music-2018:3.1.5.10.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.1.5.10.1",
+      "grade": "1",
+      "strand": "5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Sing, play instruments or listen to music from various cultures, including music from Minnesota American Indian tribes and communities."
+    },
+    {
+      "id": "mn-music-2018:3.2.5.10.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.2.5.10.1",
+      "grade": "2",
+      "strand": "5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Sing and play instruments from different genres of music from various time periods and places."
+    },
+    {
+      "id": "mn-music-2018:3.3.5.10.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.3.5.10.1",
+      "grade": "3",
+      "strand": "5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Describe cultural uses of music from different time periods and places."
+    },
+    {
+      "id": "mn-music-2018:3.4.5.10.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.4.5.10.1",
+      "grade": "4",
+      "strand": "5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Compare and contrast cultural uses of music from different time periods and places."
+    },
+    {
+      "id": "mn-music-2018:3.5.5.10.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.5.5.10.1",
+      "grade": "5",
+      "strand": "5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Describe relationships of musical genres to cultural or historical contexts."
+    },
+    {
+      "id": "mn-music-2018:3.6.5.10.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.6.5.10.1",
+      "grade": "6",
+      "strand": "5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Explain ways that music is used to represent cultural identity, including Minnesota American Indian tribes and communities."
+    },
+    {
+      "id": "mn-music-2018:3.7.5.10.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.7.5.10.1",
+      "grade": "7",
+      "strand": "5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Identify cultural or historical influences on musical compositions."
+    },
+    {
+      "id": "mn-music-2018:3.8.5.10.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.8.5.10.1",
+      "grade": "8",
+      "strand": "5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Describe how music connects individuals and societies to history, culture, heritage, and community."
+    },
+    {
+      "id": "mn-music-2018:3.9.5.10.1",
+      "set": "mn-music-2018",
+      "subject": "music",
+      "code": "3.9.5.10.1",
+      "grade": "9-12",
+      "strand": "5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Demonstrate an understanding of how musical selections are influenced by or impact personal, societal, cultural, or historical contexts."
+    }
+  ]
+}

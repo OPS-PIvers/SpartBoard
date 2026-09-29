@@ -158,6 +158,18 @@ describe('readCartridgeBanks', () => {
     expect(result.banks.map((b) => b.questions.length)).toEqual([2, 1, 0, 2]);
   });
 
+  it('reads every quiz instead when asked for tests, skipping banks', async () => {
+    const result = await readCartridgeBanks(await exportZip(), 'fallback', {
+      read: 'tests',
+    });
+    expect(result.skippedBanks).toBe(4);
+    expect(result.skippedTests).toBe(0);
+    expect(
+      result.banks.map((b) => [...b.folderPath, b.title].join(' > '))
+    ).toEqual(['Unit 2 > Unit 3 Test']);
+    expect(result.banks[0].questions.map((q) => q.text)).toEqual(['Test only']);
+  });
+
   it('keeps paragraph breaks and reads a table one row per line', async () => {
     const { banks } = await readCartridgeBanks(await exportZip(), 'x');
     expect(banks[0].questions[1].text).toBe(

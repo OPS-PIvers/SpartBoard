@@ -3617,7 +3617,15 @@ export interface QuizQuestion {
 
 // --- LEARNING TARGETS AND STANDARDS ---
 
-export type StandardSubject = 'ela' | 'social-studies';
+export type StandardSubject =
+  | 'ela'
+  | 'social-studies'
+  | 'math'
+  | 'science'
+  | 'pe-health'
+  | 'art'
+  | 'music'
+  | 'world-language';
 
 /** One benchmark in the seeded `standards_catalog`. Doc id = `${set}:${code}`. */
 export interface StandardBenchmark {
@@ -8980,6 +8988,7 @@ export type GlobalFeature =
   | 'question-bank-ai'
   /** Import every question bank in a Schoology collection export (.imscc) at once. */
   | 'question-bank-imscc-import'
+  | 'quiz-imscc-import'
   /** Paper answer sheets; only meaningful while the district switch is on. */
   | 'paper-answer-sheets'
   /** Saved class groups inside board widgets; AND-ed with the district switch. */

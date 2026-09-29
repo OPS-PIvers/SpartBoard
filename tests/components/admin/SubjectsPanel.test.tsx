@@ -32,19 +32,23 @@ describe('SubjectsPanel', () => {
     expect(
       screen.getByRole('button', { name: 'Archive Social Studies' })
     ).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Archive Math' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Archive Math' })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Archive World Language' })
+    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Archive Other' })).toBeEnabled();
   });
 
   it('archives an editable subject and keeps the rest intact', async () => {
     render(<SubjectsPanel />);
-    fireEvent.click(screen.getByRole('button', { name: 'Archive Math' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Archive Other' }));
     await waitFor(() => expect(setDoc).toHaveBeenCalledTimes(1));
     const [path, payload] = setDoc.mock.calls[0] as [
       string,
       { subjects: Array<{ id: string; archived?: boolean }> },
     ];
     expect(path).toBe('admin_settings/subjects');
-    expect(payload.subjects.find((s) => s.id === 'math')?.archived).toBe(true);
+    expect(payload.subjects.find((s) => s.id === 'other')?.archived).toBe(true);
     expect(payload.subjects).toHaveLength(DEFAULT_SUBJECTS.length);
   });
 

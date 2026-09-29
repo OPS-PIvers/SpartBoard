@@ -1,0 +1,1699 @@
+{
+  "set": "mn-theatre-2018",
+  "subject": "art",
+  "source": "MN_Theatre_Standards.csv",
+  "revision": "2018 Adopted (MDE spreadsheet, Perpich mirror Nov 2020)",
+  "count": 169,
+  "benchmarks": [
+    {
+      "id": "mn-theatre-2018:4.0.2.2.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.0.2.2.1",
+      "grade": "K",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Invent and inhabit an imaginary place in dramatic play or a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.1.2.2.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.1.2.2.1",
+      "grade": "1",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Suggest character choices in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.2.2.2.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.2.2.2.1",
+      "grade": "2",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Develop new plot details for a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.3.2.2.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.3.2.2.1",
+      "grade": "3",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Create roles, settings and stories for work."
+    },
+    {
+      "id": "mn-theatre-2018:4.4.2.2.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.4.2.2.1",
+      "grade": "4",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Express and generate details of settings and story elements that support the given circumstances in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.5.2.2.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.5.2.2.1",
+      "grade": "5",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Identify physical qualities that might explain a character's personality traits in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.6.2.2.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.6.2.2.1",
+      "grade": "6",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Analyze the different stage types and how they may affect the presentation of a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.7.2.2.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.7.2.2.1",
+      "grade": "7",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Describe multiple perspectives and solutions to staging challenges in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.8.2.2.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.8.2.2.1",
+      "grade": "8",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Choose and justify multiple solutions to staging challenges for a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.9.2.2.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.9.2.2.1",
+      "grade": "9-12",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Apply research (including available technology) to construct the visual composition for a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.0.2.2.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.0.2.2.2",
+      "grade": "K",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Create props, puppets, or costume pieces for dramatic play."
+    },
+    {
+      "id": "mn-theatre-2018:4.1.2.2.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.1.2.2.2",
+      "grade": "1",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Collaborate with peers to suggest costumes and props for a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.2.2.2.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.2.2.2.2",
+      "grade": "2",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Collaborate with peers to develop settings for a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.3.2.2.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.3.2.2.2",
+      "grade": "3",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Express and devise ideas for costumes, props and sets in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.4.2.2.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.4.2.2.2",
+      "grade": "4",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Design one or more technical theater elements (using available technology) that support the story and given circumstances in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.5.2.2.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.5.2.2.2",
+      "grade": "5",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Propose and create designs using multiple technical theater elements (using available technology) to support the story and given circumstances in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.6.2.2.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.6.2.2.2",
+      "grade": "6",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Propose and create a comprehensive design using all technical theater elements and available technology to support the story and given circumstances in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.7.2.2.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.7.2.2.2",
+      "grade": "7",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Explain possible solutions to design challenges in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.8.2.2.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.8.2.2.2",
+      "grade": "8",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Identify design challenges of a specific performance space and create solutions to present a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.9.2.2.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.9.2.2.2",
+      "grade": "9-12",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Investigate the impact of technology on design choices in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.0.2.2.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.0.2.2.3",
+      "grade": "K",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Use movement to retell a story in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.1.2.2.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.1.2.2.3",
+      "grade": "1",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Identify ways gestures and movement may be used to create or retell a story."
+    },
+    {
+      "id": "mn-theatre-2018:4.2.2.2.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.2.2.2.3",
+      "grade": "2",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Identify ways voice, sounds, and technology may be used to create or retell a story."
+    },
+    {
+      "id": "mn-theatre-2018:4.3.2.2.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.3.2.2.3",
+      "grade": "3",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Collaborate with peers to determine how characters might move and speak to support the story in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.4.2.2.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.4.2.2.3",
+      "grade": "4",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "3.Demonstrate how a character might move and act to support the story and given circumstances in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.5.2.2.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.5.2.2.3",
+      "grade": "5",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Explain how a character's thoughts affect the story and given circumstances in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.6.2.2.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.6.2.2.3",
+      "grade": "6",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Explain how a scripted or improvised character responds to the given circumstances in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.7.2.2.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.7.2.2.3",
+      "grade": "7",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Describe a scripted or improvised character's motivations and objectives in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.8.2.2.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.8.2.2.3",
+      "grade": "8",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Develop a scripted or improvised character by articulating the character's thoughts, objectives, and motivations in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.9.2.2.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.9.2.2.3",
+      "grade": "9-12",
+      "strand": "Theatre: 2. Create",
+      "standard": "2. Generate and develop original artistic ideas.",
+      "text": "Analyze how a character becomes authentic in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.0.2.3.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.0.2.3.1",
+      "grade": "K",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Interact with peers to contribute to a dramatic play or a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.1.2.3.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.1.2.3.1",
+      "grade": "1",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Contribute to the development of a sequential plot in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.2.2.3.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.2.2.3.1",
+      "grade": "2",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Collaborate with peers to create dialogue for a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.3.2.3.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.3.2.3.1",
+      "grade": "3",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Devise original ideas for a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.4.2.3.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.4.2.3.2",
+      "grade": "4",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Collaborate with peers to make group decisions and identify responsibilities required to present a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.5.2.3.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.5.2.3.1",
+      "grade": "5",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Devise original ideas by working collaboratively with peers to discuss characters and their given circumstances."
+    },
+    {
+      "id": "mn-theatre-2018:4.6.2.3.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.6.2.3.1",
+      "grade": "6",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Revise original ideas and artistic choices in a devised or scripted work."
+    },
+    {
+      "id": "mn-theatre-2018:4.7.2.3.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.7.2.3.1",
+      "grade": "7",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Defend original ideas and artistic choices for a work based on critical analysis, background knowledge, and historical and cultural context."
+    },
+    {
+      "id": "mn-theatre-2018:4.8.2.3.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.8.2.3.1",
+      "grade": "8",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Apply critical analysis, background knowledge, research, and historical and cultural context to the development of an original work."
+    },
+    {
+      "id": "mn-theatre-2018:4.9.2.3.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.9.2.3.1",
+      "grade": "9-12",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Synthesize original ideas into an original work, utilizing critical analysis, historical and cultural context, and research."
+    },
+    {
+      "id": "mn-theatre-2018:4.0.2.3.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.0.2.3.2",
+      "grade": "K",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Express original ideas in dramatic play or a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.1.2.3.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.1.2.3.2",
+      "grade": "1",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Participate and work with peers in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.2.2.3.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.2.2.3.2",
+      "grade": "2",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Contribute ideas and collaborate with a group to advance a story in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.3.2.3.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.3.2.3.2",
+      "grade": "3",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Compare ideas with peers and make decisions to develop and refine a group work."
+    },
+    {
+      "id": "mn-theatre-2018:4.4.2.3.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.4.2.3.1",
+      "grade": "4",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Collaborate with peers to devise original ideas for a work by asking questions about characters and plots."
+    },
+    {
+      "id": "mn-theatre-2018:4.5.2.3.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.5.2.3.2",
+      "grade": "5",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Participate in specified responsibilities required to present a work informally to an audience."
+    },
+    {
+      "id": "mn-theatre-2018:4.6.2.3.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.6.2.3.2",
+      "grade": "6",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Collaborate with others to revise and improve a scripted or devised work."
+    },
+    {
+      "id": "mn-theatre-2018:4.7.2.3.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.7.2.3.2",
+      "grade": "7",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Demonstrate respect for self and others and their roles in preparing or devising a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.8.2.3.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.8.2.3.2",
+      "grade": "8",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Collaborate as a creative team to make interpretive choices for a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.9.2.3.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.9.2.3.2",
+      "grade": "9-12",
+      "strand": "Theatre: 2. Create",
+      "standard": "3. Create original artistic work.",
+      "text": "Explain the collaborative and interdependent roles of the actor, director, playwright, designers and the community."
+    },
+    {
+      "id": "mn-theatre-2018:4.1.2.4.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.1.2.4.1",
+      "grade": "1",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Contribute to the adaptation of a story for a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.2.2.4.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.2.2.4.1",
+      "grade": "2",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Contribute to revising dialogue for a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.3.2.4.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.3.2.4.1",
+      "grade": "3",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Collaborate with peers to revise, refine, and adapt ideas to a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.4.2.4.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.4.2.4.1",
+      "grade": "4",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Revise to enhance an improvised or scripted work using repetition and collaborative review."
+    },
+    {
+      "id": "mn-theatre-2018:4.5.2.4.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.5.2.4.1",
+      "grade": "5",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Revise to enhance an improvised or scripted work through rehearsal."
+    },
+    {
+      "id": "mn-theatre-2018:4.6.2.4.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.6.2.4.1",
+      "grade": "6",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Use feedback to analyze choices while refining a devised or scripted work."
+    },
+    {
+      "id": "mn-theatre-2018:4.7.2.4.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.7.2.4.1",
+      "grade": "7",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Revise choices based on feedback in a devised or scripted work."
+    },
+    {
+      "id": "mn-theatre-2018:4.8.2.4.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.8.2.4.1",
+      "grade": "8",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Analyze and rehearse to revise a devised or scripted work."
+    },
+    {
+      "id": "mn-theatre-2018:4.9.2.4.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.9.2.4.1",
+      "grade": "9-12",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Rehearse and revise a devised or scripted work using theatrical staging conventions."
+    },
+    {
+      "id": "mn-theatre-2018:4.0.2.4.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.0.2.4.2",
+      "grade": "K",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Identify different types of sounds and movements in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.1.2.4.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.1.2.4.2",
+      "grade": "1",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Identify similarities and differences among sounds and movements in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.2.2.4.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.2.2.4.2",
+      "grade": "2",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Use and adapt sounds (using available technology) and movements for a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.3.2.4.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.3.2.4.2",
+      "grade": "3",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Demonstrate physical and vocal choices for an improvised or scripted work."
+    },
+    {
+      "id": "mn-theatre-2018:4.4.2.4.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.4.2.4.2",
+      "grade": "4",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Develop movement and vocal choices for characters in an improvised or scripted work."
+    },
+    {
+      "id": "mn-theatre-2018:4.5.2.4.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.5.2.4.2",
+      "grade": "5",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Select and refine movement and vocal techniques for character development in an improvised or scripted work, based on feedback."
+    },
+    {
+      "id": "mn-theatre-2018:4.6.2.4.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.6.2.4.2",
+      "grade": "6",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Use feedback to refine effectiveness of a character's physical and vocal traits in an improvised or scripted work."
+    },
+    {
+      "id": "mn-theatre-2018:4.7.2.4.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.7.2.4.2",
+      "grade": "7",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Refine effective physical and vocal traits of a character in an improvised or scripted work."
+    },
+    {
+      "id": "mn-theatre-2018:4.8.2.4.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.8.2.4.2",
+      "grade": "8",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Refine effective physical, vocal, and physiological traits of characters in an improvised or scripted work, based on self-reflection and feedback."
+    },
+    {
+      "id": "mn-theatre-2018:4.9.2.4.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.9.2.4.2",
+      "grade": "9-12",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Refine physical, vocal and physiological choices to develop a performance that is believable, authentic, and appropriate to a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.0.2.4.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.0.2.4.3",
+      "grade": "K",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Describe different design and technical choices for a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.1.2.4.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.1.2.4.3",
+      "grade": "1",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Select different design and technical (using available technology) choices for a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.2.2.4.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.2.2.4.3",
+      "grade": "2",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Experiment with design and technical (using available technology) choices for an improvised or scripted work."
+    },
+    {
+      "id": "mn-theatre-2018:4.3.2.4.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.3.2.4.3",
+      "grade": "3",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Revise design and technical (using available technology) choices to support an improvised or scripted work."
+    },
+    {
+      "id": "mn-theatre-2018:4.4.2.4.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.4.2.4.3",
+      "grade": "4",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Collaborate with peers on solutions to design and technical challenges (using available technology) in rehearsals for a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.5.2.4.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.5.2.4.3",
+      "grade": "5",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Create and justify solutions to design and technical challenges (using available technology) that arise in rehearsal for a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.6.2.4.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.6.2.4.3",
+      "grade": "6",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Analyze and revise planned technical design choices (using available technology) during the rehearsal process for a devised or scripted work."
+    },
+    {
+      "id": "mn-theatre-2018:4.7.2.4.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.7.2.4.3",
+      "grade": "7",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Compare and contrast multiple planned technical design elements (using available technology) during the rehearsal process for a devised or scripted work."
+    },
+    {
+      "id": "mn-theatre-2018:4.8.2.4.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.8.2.4.3",
+      "grade": "8",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Implement and refine a planned technical design (using available technology) during the rehearsal process for devised or scripted work."
+    },
+    {
+      "id": "mn-theatre-2018:4.9.2.4.3",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.9.2.4.3",
+      "grade": "9-12",
+      "strand": "Theatre: 2. Create",
+      "standard": "4. Revise and complete original artistic work.",
+      "text": "Refine a technical design (including available technology) to support the story and emotional impact of a devised or scripted work."
+    },
+    {
+      "id": "mn-theatre-2018:4.0.3.5.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.0.3.5.1",
+      "grade": "K",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Identify characters and setting in dramatic play or a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.1.3.5.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.1.3.5.1",
+      "grade": "1",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Use movement and voice to communicate emotions in a guided drama experience for an audience of peers."
+    },
+    {
+      "id": "mn-theatre-2018:4.2.3.5.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.2.3.5.1",
+      "grade": "2",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Contribute to group guided drama experiences and informally explain your contributions with peers."
+    },
+    {
+      "id": "mn-theatre-2018:4.3.3.5.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.3.3.5.1",
+      "grade": "3",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Rehearse a work and perform it for peers."
+    },
+    {
+      "id": "mn-theatre-2018:4.4.3.5.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.4.3.5.1",
+      "grade": "4",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Revise the dialogue and action to improve the story in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.5.3.5.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.5.3.5.1",
+      "grade": "5",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Develop underlying thoughts and emotions to create dialogue and action in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.6.3.5.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.6.3.5.1",
+      "grade": "6",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Identify the essential events in a story or script that make up the dramatic structure of a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.7.3.5.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.7.3.5.1",
+      "grade": "7",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Consider various staging choices to enhance the story of a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.8.3.5.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.8.3.5.1",
+      "grade": "8",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Demonstrate different pacing to generate clear character communication in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.9.3.5.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.9.3.5.1",
+      "grade": "9-12",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Explain and demonstrate how character relationships and character choices assist in telling the story of a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.0.3.5.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.0.3.5.2",
+      "grade": "K",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Use body, voice and imagination during a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.1.3.5.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.1.3.5.2",
+      "grade": "1",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Use body, voice and imagination to convey character traits and emotions in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.2.3.5.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.2.3.5.2",
+      "grade": "2",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Demonstrate how movement, voice, and sounds (including available technology) are incorporated into a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.3.3.5.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.3.3.5.2",
+      "grade": "3",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Modify voice and body to expand and perform as a character in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.4.3.5.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.4.3.5.2",
+      "grade": "4",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Demonstrate specific vocal and physical choices to develop a character in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.5.3.5.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.5.3.5.2",
+      "grade": "5",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Demonstrate prepared vocal and physical choices to convey meaning in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.6.3.5.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.6.3.5.2",
+      "grade": "6",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Apply various physical choices to communicate character in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.7.3.5.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.7.3.5.2",
+      "grade": "7",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Analyze and explain a character's objectives in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.8.3.5.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.8.3.5.2",
+      "grade": "8",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Apply various character objectives and tactics to overcome an obstacle in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.9.3.5.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.9.3.5.2",
+      "grade": "9-12",
+      "strand": "Theatre: 3. Perform",
+      "standard": "5. Develop and refine artistic techniques and work for performance.",
+      "text": "Analyze how different resources influence making unique character choices for a work.\nFor example: Resources may include the script; research from various sources; the director's concept; technical choices."
+    },
+    {
+      "id": "mn-theatre-2018:4.0.3.6.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.0.3.6.1",
+      "grade": "K",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Identify the use of voice and sound in a dramatic play or guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.1.3.6.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.1.3.6.1",
+      "grade": "1",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Identify the use of basic physical movements in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.2.3.6.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.2.3.6.1",
+      "grade": "2",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Develop the connection among body, voice, sounds, and imagination in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.3.3.6.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.3.3.6.1",
+      "grade": "3",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "1.Utilize a variety of physical, vocal, and imaginative exercises in a group setting for a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.4.3.6.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.4.3.6.1",
+      "grade": "4",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Rehearse different acting exercises in a group setting for a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.5.3.6.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.5.3.6.1",
+      "grade": "5",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Choose specific acting exercises that can be applied to a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.6.3.6.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.6.3.6.1",
+      "grade": "6",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Identify how acting exercises and techniques can be applied to a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.7.3.6.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.7.3.6.1",
+      "grade": "7",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Analyze how a variety of acting exercises and techniques can be applied in a rehearsal or performance."
+    },
+    {
+      "id": "mn-theatre-2018:4.8.3.6.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.8.3.6.1",
+      "grade": "8",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Apply acting techniques to develop skills in a rehearsal or performance, including adjusting to audience response and unforeseen situations that arise."
+    },
+    {
+      "id": "mn-theatre-2018:4.9.3.6.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.9.3.6.1",
+      "grade": "9-12",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Use various acting techniques to expand skills in a rehearsal or performance."
+    },
+    {
+      "id": "mn-theatre-2018:4.0.3.6.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.0.3.6.2",
+      "grade": "K",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Name and observe various technical elements in dramatic play or a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.1.3.6.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.1.3.6.2",
+      "grade": "1",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Identify technical elements (including available technology) that can be used in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.2.3.6.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.2.3.6.2",
+      "grade": "2",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Identify the basic technical elements in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.3.3.6.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.3.3.6.2",
+      "grade": "3",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Demonstrate basic use of technical elements (using available technology) that can be included in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.4.3.6.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.4.3.6.2",
+      "grade": "4",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Customize various technical elements (using available technology) for a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.5.3.6.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.5.3.6.2",
+      "grade": "5",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Modify and justify the use of specific technical elements (using available technology) in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.6.3.6.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.6.3.6.2",
+      "grade": "6",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Explain how technical elements are integrated into a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.7.3.6.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.7.3.6.2",
+      "grade": "7",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Determine a variety of technical elements (using available technology) that can be applied to a design for a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.8.3.6.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.8.3.6.2",
+      "grade": "8",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Apply a variety of technical elements (using available technology) to create a design for a rehearsal or production."
+    },
+    {
+      "id": "mn-theatre-2018:4.9.3.6.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.9.3.6.2",
+      "grade": "9-12",
+      "strand": "Theatre: 3. Perform",
+      "standard": "6. Make artistic choices in order to convey meaning through performance.",
+      "text": "Research and apply technical elements (using available technology) to create a design for a production."
+    },
+    {
+      "id": "mn-theatre-2018:4.0.4.7.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.0.4.7.1",
+      "grade": "K",
+      "strand": "Theatre: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Express an emotional response in dramatic play or a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.1.4.7.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.1.4.7.1",
+      "grade": "1",
+      "strand": "Theatre: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Describe how personal emotions, actions, and choices compare with the emotions, actions and choices of characters in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.2.4.7.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.2.4.7.1",
+      "grade": "2",
+      "strand": "Theatre: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Identify causes and consequences of character actions and emotions in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.3.4.7.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.3.4.7.1",
+      "grade": "3",
+      "strand": "Theatre: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Examine connections between oneself and a character's emotions in a work, and develop the character using physical characteristics and prop or costume choices."
+    },
+    {
+      "id": "mn-theatre-2018:4.4.4.7.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.4.4.7.1",
+      "grade": "4",
+      "strand": "Theatre: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Compare and contrast the traits of characters in a work and their impact on emotions, considering physical characteristics, props or costume choices."
+    },
+    {
+      "id": "mn-theatre-2018:4.5.4.7.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.5.4.7.1",
+      "grade": "5",
+      "strand": "Theatre: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Investigate the effects of emotions on posture, gesture, breathing, and vocal intonation in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.6.4.7.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.6.4.7.1",
+      "grade": "6",
+      "strand": "Theatre: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Explain personal aesthetics, preferences, and reactions to artistic choices through participation in or observation of a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.7.4.7.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.7.4.7.1",
+      "grade": "7",
+      "strand": "Theatre: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Compare and contrast personal and peer reactions to artistic choices and aesthetics in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.8.4.7.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.8.4.7.1",
+      "grade": "8",
+      "strand": "Theatre: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Analyze how artistic choices and personal aesthetics and preferences impact meaning and the audience."
+    },
+    {
+      "id": "mn-theatre-2018:4.9.4.7.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.9.4.7.1",
+      "grade": "9-12",
+      "strand": "Theatre: 4. Respond",
+      "standard": "7. Analyze and construct interpretations of artistic work.",
+      "text": "Analyze and interpret a work, considering historical and cultural contexts as well as personal aesthetics, preferences, and beliefs."
+    },
+    {
+      "id": "mn-theatre-2018:4.0.4.8.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.0.4.8.1",
+      "grade": "K",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Identify props and costumes used in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.1.4.8.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.1.4.8.1",
+      "grade": "1",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Describe the props and costumes used in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.2.4.8.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.2.4.8.1",
+      "grade": "2",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Describe how understanding of characters, settings, or events is influenced by a prop or costume in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.3.4.8.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.3.4.8.1",
+      "grade": "3",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Analyze the technical elements used in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.4.4.8.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.4.4.8.1",
+      "grade": "4",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Describe how technical elements or technology may support a theme or idea in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.5.4.8.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.5.4.8.1",
+      "grade": "5",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Explain how technical elements support the theme of a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.6.4.8.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.6.4.8.1",
+      "grade": "6",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Analyze a work using criteria, providing supporting evidence."
+    },
+    {
+      "id": "mn-theatre-2018:4.7.4.8.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.7.4.8.1",
+      "grade": "7",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Use criteria to evaluate a work and explain preferences, providing supporting evidence."
+    },
+    {
+      "id": "mn-theatre-2018:4.8.4.8.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.8.4.8.1",
+      "grade": "8",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Respond to a work using supporting evidence, personal aesthetics, and artistic criteria."
+    },
+    {
+      "id": "mn-theatre-2018:4.9.4.8.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.9.4.8.1",
+      "grade": "9-12",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Evaluate a work using supporting evidence and criteria, while considering other art forms, history, culture, and other disciplines."
+    },
+    {
+      "id": "mn-theatre-2018:4.0.4.8.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.0.4.8.2",
+      "grade": "K",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Identify the experience of characters in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.1.4.8.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.1.4.8.2",
+      "grade": "1",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Identify artistic choices made in a work through participation and observation."
+    },
+    {
+      "id": "mn-theatre-2018:4.2.4.8.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.2.4.8.2",
+      "grade": "2",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Describe artistic choices made in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.3.4.8.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.3.4.8.2",
+      "grade": "3",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Give examples explaining why artistic choices are made in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.4.4.8.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.4.4.8.2",
+      "grade": "4",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Describe personal reactions to artistic choices in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.5.4.8.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.5.4.8.2",
+      "grade": "5",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Describe and infer personal and social reactions to artistic choices in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.6.4.8.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.6.4.8.2",
+      "grade": "6",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Describe the aesthetics of the production elements in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.7.4.8.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.7.4.8.2",
+      "grade": "7",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Analyze the production elements used in a work to assess the artists' aesthetic choices."
+    },
+    {
+      "id": "mn-theatre-2018:4.8.4.8.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.8.4.8.2",
+      "grade": "8",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Apply the production elements used in a work to assess aesthetic choices."
+    },
+    {
+      "id": "mn-theatre-2018:4.9.4.8.2",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.9.4.8.2",
+      "grade": "9-12",
+      "strand": "Theatre: 4. Respond",
+      "standard": "8. Evaluate artistic work by applying criteria.",
+      "text": "Evaluate the aesthetics of the production elements displayed in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.0.5.9.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.0.5.9.1",
+      "grade": "K",
+      "strand": "Theatre: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Identify similarities between characters and one's personal experience in dramatic play or a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.1.5.9.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.1.5.9.1",
+      "grade": "1",
+      "strand": "Theatre: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Identify character emotions in a guided drama experience and relate it to personal experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.2.5.9.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.2.5.9.1",
+      "grade": "2",
+      "strand": "Theatre: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Relate character experiences to personal experiences in a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.3.5.9.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.3.5.9.1",
+      "grade": "3",
+      "strand": "Theatre: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Identify how theater connects one personally to a community or culture."
+    },
+    {
+      "id": "mn-theatre-2018:4.4.5.9.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.4.5.9.1",
+      "grade": "4",
+      "strand": "Theatre: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Explain the ways a work reflects the perspectives of a community or culture."
+    },
+    {
+      "id": "mn-theatre-2018:4.5.5.9.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.5.5.9.1",
+      "grade": "5",
+      "strand": "Theatre: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Connect personal experiences and knowledge to community and culture in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.6.5.9.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.6.5.9.1",
+      "grade": "6",
+      "strand": "Theatre: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Explain how the actions and motivations of characters in a work impact and reflect perspectives of a community or culture."
+    },
+    {
+      "id": "mn-theatre-2018:4.7.5.9.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.7.5.9.1",
+      "grade": "7",
+      "strand": "Theatre: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Incorporate multiple perspectives and diverse community ideas in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.8.5.9.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.8.5.9.1",
+      "grade": "8",
+      "strand": "Theatre: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Examine a community issue through multiple perspectives in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.9.5.9.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.9.5.9.1",
+      "grade": "9-12",
+      "strand": "Theatre: 5. Connect",
+      "standard": "9. Integrate knowledge and personal experiences while responding to, creating, and presenting artistic work.",
+      "text": "Explain how cultural perspectives, community ideas, social issues, and personal beliefs are reflected or challenged in a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.0.5.10.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.0.5.10.1",
+      "grade": "K",
+      "strand": "Theatre: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Identify skills and knowledge from other areas of study that connect to dramatic play or a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.1.5.10.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.1.5.10.1",
+      "grade": "1",
+      "strand": "Theatre: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Analyze skills and knowledge from other areas of study to a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.2.5.10.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.2.5.10.1",
+      "grade": "2",
+      "strand": "Theatre: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Apply appropriate skills and knowledge from other areas of study and arts areas to a guided drama experience."
+    },
+    {
+      "id": "mn-theatre-2018:4.3.5.10.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.3.5.10.1",
+      "grade": "3",
+      "strand": "Theatre: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Analyze connections between community, social issues (including contributions of Minnesota American Indian tribes and communities) and other content areas to a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.4.5.10.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.4.5.10.1",
+      "grade": "4",
+      "strand": "Theatre: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Connect a work with community, social issues and other content areas."
+    },
+    {
+      "id": "mn-theatre-2018:4.5.5.10.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.5.5.10.1",
+      "grade": "5",
+      "strand": "Theatre: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Investigate historical, global and social issues expressed in a work, including contributions of Minnesota American Indian tribes and communities."
+    },
+    {
+      "id": "mn-theatre-2018:4.6.5.10.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.6.5.10.1",
+      "grade": "6",
+      "strand": "Theatre: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Select themes or social issues (including contributions of Minnesota American Indian tribes and communities) and express them through a work."
+    },
+    {
+      "id": "mn-theatre-2018:4.7.5.10.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.7.5.10.1",
+      "grade": "7",
+      "strand": "Theatre: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Incorporate other art forms to strengthen the meaning and conflict in a work with a particular personal, societal, cultural, global, or historical context, including contributions of Minnesota American Indian tribes and communities."
+    },
+    {
+      "id": "mn-theatre-2018:4.8.5.10.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.8.5.10.1",
+      "grade": "8",
+      "strand": "Theatre: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Research the context(s) of different theater works and connect them with personal, societal, cultural, historical or global issues, including contributions of Minnesota American Indian tribes and communities."
+    },
+    {
+      "id": "mn-theatre-2018:4.9.5.10.1",
+      "set": "mn-theatre-2018",
+      "subject": "art",
+      "code": "4.9.5.10.1",
+      "grade": "9-12",
+      "strand": "Theatre: 5. Connect",
+      "standard": "10. Demonstrate an understanding that artistic works influence and are influenced by personal, societal, cultural, and historical contexts, including the contributions of Minnesota American Indian tribes and communities.",
+      "text": "Determine how personal, societal, cultural, global, and historical contexts (including those of Minnesota American Indian tribes and communities) affect creative choices for a work."
+    }
+  ]
+}

@@ -4397,3 +4397,29 @@ rather than "no data") is also still open.
 - Notes:
   - `gh` is absent and `/mnt/skills/user/` does not exist. GitHub access went through MCP, and the standards came from CLAUDE.md.
   - No lint, type-check or test runs were made because no code was changed.
+
+## 2026-09-29
+- PRs reviewed (8):
+  - #3587 docs(debugger): run 84 log
+  - #3586 fix(quiz): count bonus scores over 100 in the top score-distribution band
+  - #3585 fix(quiz): exclude excused questions from live scoreboard denominator
+  - #3584 fix(boards): toast when renaming or deleting a Collection fails
+  - #3583 fix(admin): count members once per building when they hold legacy and canonical ids
+  - #3582 fix(functions): pinned SSRF agent lookup breaks link previews and image import
+  - #3581 docs(unifier): run 101 log
+  - #3580 refactor(tests): D4 — @/ alias for cross-directory test imports, lint-enforced
+- Comments processed: 3 total — 0 fixed, 0 explained. No inline review threads existed; the only feedback was three claude[bot] approval summaries (#3586, #3584, #3582), which needed no reply.
+- Fixes pushed: none
+- Reviews posted: 8
+- Merge readiness:
+  - Ready: #3587, #3586, #3585, #3584, #3582, #3580.
+  - Ready with minor notes:
+    - #3583: the new co-located `buildingUserCounts.test.ts` repeats two cases from `tests/utils/buildingUserCounts.test.ts`. Move the one new case there and drop the file.
+    - #3581: it logs #3580 as shipped, so merge it with #3580 or after it.
+- Notes:
+  - `gh` is absent and `/mnt/skills/user/` does not exist. GitHub access went through MCP, and the standards came from CLAUDE.md.
+  - No lint, type-check or test runs were made because no code was changed.
+  - Non-blocking follow-ups raised in reviews:
+    - #3582: the real-socket test should close the server in `finally`.
+    - #3580: the rule doesn't catch `vi.mock('../')` or dynamic imports.
+    - #3585: a possible asymmetry for unserved questions, unconfirmed.

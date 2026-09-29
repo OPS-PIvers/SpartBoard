@@ -104,6 +104,25 @@ const PDF_BYTES = new File([new Uint8Array([1, 2, 3])], 'Unit 3 Test.pdf', {
 });
 
 describe('ImportWizard — test document source', () => {
+  it('sends a collection export in the test zone to the bulk source', async () => {
+    const { adapter, parseSpy } = makeAdapter();
+    const onFile = vi.fn();
+    renderWizard({
+      ...adapter,
+      bulkSource: {
+        title: 'Schoology export (.imscc)',
+        description: 'Every quiz.',
+        accept: '.imscc',
+        onFile,
+      },
+    });
+    await readTest(new File(['PK'], 'History.imscc'));
+    expect(onFile).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'History.imscc' })
+    );
+    expect(parseSpy).not.toHaveBeenCalled();
+  });
+
   it('hides the tile for an adapter that does not support documents', () => {
     const { adapter } = makeAdapter({ supportedSources: ['csv'] });
     renderWizard(adapter);

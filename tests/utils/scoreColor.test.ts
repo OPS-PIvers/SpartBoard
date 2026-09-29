@@ -36,4 +36,13 @@ describe('SCORE_DISTRIBUTION_BANDS', () => {
       expect(hits).toHaveLength(1);
     }
   });
+
+  it('keeps a score above 100 (speed or streak bonus) in the top band', () => {
+    for (const score of [101, 130, 250]) {
+      const hits = SCORE_DISTRIBUTION_BANDS.filter(
+        (b) => score >= b.min && score <= b.max
+      );
+      expect(hits.map((b) => b.min)).toEqual([90]);
+    }
+  });
 });
