@@ -743,6 +743,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Quiz library "Student view": the real student player with focus-mode toggles, local-only.
+  'quiz-student-view': {
+    label: 'Quiz student view',
+    icon: Eye,
+    description: 'Teachers take a quiz exactly as students see it.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Per-widget AI switches: hide and meter each widget's AI; `gemini-functions` is the hard server gate.
   quiz: {
     label: 'Quiz: AI',

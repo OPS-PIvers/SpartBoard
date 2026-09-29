@@ -32,6 +32,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'paper-handwritten-responses',
   'claude-connector',
   'video-activity-live',
+  'quiz-student-view',
   'guided-learning-ai',
   'blooms-ai',
 ];
