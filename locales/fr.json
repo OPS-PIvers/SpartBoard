@@ -1637,6 +1637,7 @@
     "copyMode": "Copier",
     "copyModeHint": "Ils reçoivent leur propre copie à modifier.",
     "substituteMode": "Remplaçant (lecture seule)",
+    "subShare": "Partager avec un remplaçant",
     "substituteModeHint": "Apparaît dans le portail des remplaçants pour la période choisie.",
     "expiresIn": "Expire dans",
     "building": "Bâtiment",

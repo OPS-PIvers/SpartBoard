@@ -39,6 +39,7 @@ const REQUIRED_KEYS = [
   'copyModeHint',
   'substituteMode',
   'substituteModeHint',
+  'subShare',
   'expiresIn',
   'building',
   'buildingRequired',

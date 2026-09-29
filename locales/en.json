@@ -2740,6 +2740,7 @@
     "copyMode": "Copy",
     "copyModeHint": "They get their own copy to edit.",
     "substituteMode": "Substitute (view-only)",
+    "subShare": "Share with a sub",
     "substituteModeHint": "Shows in the Substitute Portal for the time you set.",
     "expiresIn": "Expires in",
     "building": "Building",

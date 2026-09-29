@@ -238,3 +238,39 @@ describe('ShareLinkCreatorModal — substitute option and the new sub-share flow
     ).toBeNull();
   });
 });
+
+describe('ShareLinkCreatorModal — Share with a sub entry', () => {
+  afterEach(() => {
+    hasSubShareCollections = false;
+    cleanup();
+  });
+
+  it('offers Share with a sub to a teacher with the new flow and opens it', () => {
+    hasSubShareCollections = true;
+    const onShareWithSub = vi.fn();
+    render(
+      <ShareLinkCreatorModal
+        dashboard={dashboard}
+        isOpen
+        onClose={vi.fn()}
+        onShareWithSub={onShareWithSub}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Share with a sub/ }));
+    expect(onShareWithSub).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not offer Share with a sub without the new flow', () => {
+    render(
+      <ShareLinkCreatorModal
+        dashboard={dashboard}
+        isOpen
+        onClose={vi.fn()}
+        onShareWithSub={vi.fn()}
+      />
+    );
+    expect(
+      screen.queryByRole('button', { name: /Share with a sub/ })
+    ).toBeNull();
+  });
+});
