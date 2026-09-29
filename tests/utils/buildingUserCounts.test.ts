@@ -95,4 +95,11 @@ describe('withDerivedUserCounts', () => {
     const result = withDerivedUserCounts(buildings, users);
     expect(result[0]?.users).toBe(2);
   });
+
+  it('counts a member once when they hold both the legacy and canonical id', () => {
+    const buildings = [building('high')];
+    const users = [member('active', ['high', 'orono-high-school'])];
+    const result = withDerivedUserCounts(buildings, users);
+    expect(result[0]?.users).toBe(1);
+  });
 });
