@@ -101,7 +101,11 @@ const StandardsPicker: React.FC<{
           })}
           initial={initial}
           onApply={(tags) => {
-            onChange(tags.map((tag) => tag.id));
+            // Keep linked ids the loaded catalog can't show.
+            onChange([
+              ...selected.filter((id) => !byId.has(id)),
+              ...tags.map((tag) => tag.id),
+            ]);
             setOpen(false);
           }}
           onClose={() => setOpen(false)}
