@@ -1610,6 +1610,8 @@
     "bulkAllFailed": "Keine Elemente konnten aktualisiert werden – bitte erneut versuchen",
     "noBoardsInSelection": "Keine Tafeln in der Auswahl – Sammlungen können hier nicht verwendet werden",
     "createCollectionFailed": "Sammlung konnte nicht erstellt werden",
+    "renameCollectionFailed": "Sammlung konnte nicht umbenannt werden",
+    "deleteCollectionFailed": "Sammlung konnte nicht gelöscht werden",
     "header": {
       "createFromTemplate": "+ aus Vorlage"
     },
