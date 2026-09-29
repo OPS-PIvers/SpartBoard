@@ -28,6 +28,7 @@ import { useTranslation } from 'react-i18next';
 import { tourAttr } from '@/config/tourAnchors';
 import {
   Plus,
+  PencilLine,
   FileUp,
   Play,
   Edit2,
@@ -2035,8 +2036,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     ) : undefined;
 
   // ─── Shell header actions ─────────────────────────────────────────────────
-  // Import and Paper test live behind New Quiz's caret, never as their own
-  // buttons (plan Q10).
+  // New Quiz always opens a menu so every create path starts in one place.
   const primaryAction =
     managerTab === 'library'
       ? {
@@ -2044,6 +2044,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           icon: Plus,
           onClick: onNew,
           menuItems: [
+            { label: 'Create', icon: PencilLine, onClick: onNew },
             { label: 'Import', icon: FileUp, onClick: onImport },
             ...(onNewPaperTest
               ? [
