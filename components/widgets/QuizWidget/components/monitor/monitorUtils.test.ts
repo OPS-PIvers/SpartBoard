@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { QuizQuestion, QuizResponse } from '@/types';
 import {
+  shortPeriodLabels,
   STUCK_THRESHOLD_MS,
   compareStudents,
   isStuck,
@@ -187,5 +188,24 @@ describe('buildDistribution', () => {
     const dist = buildDistribution(fib, responses, grade);
     expect(dist.rows[0]).toEqual({ label: '3/4', count: 2, isCorrect: true });
     expect(dist.rows[1]).toEqual({ label: '1/4', count: 1, isCorrect: false });
+  });
+});
+
+describe('shortPeriodLabels', () => {
+  it('drops the words every class name shares', () => {
+    expect(
+      shortPeriodLabels([
+        '(S1) Wooley, L SPANISH II A(5) (18618)',
+        '(S1) Wooley, L SPANISH II A(6) (18690)',
+      ])
+    ).toEqual(['A(5) (18618)', 'A(6) (18690)']);
+  });
+
+  it('keeps full names when nothing is shared or there is one class', () => {
+    expect(shortPeriodLabels(['Period 1', 'Block 2'])).toEqual([
+      'Period 1',
+      'Block 2',
+    ]);
+    expect(shortPeriodLabels(['Spanish II A(5)'])).toEqual(['Spanish II A(5)']);
   });
 });

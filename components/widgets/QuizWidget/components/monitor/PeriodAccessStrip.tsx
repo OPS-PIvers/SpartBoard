@@ -8,6 +8,7 @@ import {
   effectivePeriodState,
   type EffectivePeriodState,
 } from '@/utils/periodAccess';
+import { shortPeriodLabels } from './monitorUtils';
 
 const STATE_TEXT: Record<
   EffectivePeriodState,
@@ -38,21 +39,57 @@ const formatClock = (ms: number): string =>
 
 export interface PeriodAccessStripProps {
   periodAccess: Record<string, PeriodAccess>;
+  /** Whether the monitor is showing this period's students; omit to hide the view toggle. */
+  isViewing?: (key: string) => boolean;
+  onView?: (key: string) => void;
   onStart: (key: string) => Promise<void>;
   onPause: (key: string) => Promise<void>;
   onExtend: (key: string, by: number | null) => Promise<void>;
   extendMs: number;
 }
 
+const ChipText: React.FC<{ label: string; status: string }> = ({
+  label,
+  status,
+}) => (
+  <>
+    <span className="font-semibold">{label}</span>
+    <span>{status}</span>
+  </>
+);
+
+const PinNote: React.FC<{ live: boolean }> = ({ live }) => (
+  <span
+    className={live ? 'text-white/85' : 'text-brand-gray-primary'}
+    title="Students join with a PIN, which isn't verified"
+  >
+    · PIN
+  </span>
+);
+
 const Chip: React.FC<{
   periodKey: string;
   access: PeriodAccess;
+  shortLabel: string;
   now: number;
   busy: boolean;
+  viewing: boolean | undefined;
+  onView: (() => void) | undefined;
   onToggle: () => void;
   onExtend: (by: number | null) => void;
   extendMs: number;
-}> = ({ periodKey, access, now, busy, onToggle, onExtend, extendMs }) => {
+}> = ({
+  periodKey,
+  access,
+  shortLabel,
+  now,
+  busy,
+  viewing,
+  onView,
+  onToggle,
+  onExtend,
+  extendMs,
+}) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   useClickOutside(menuRef, () => setMenuOpen(false));
@@ -73,18 +110,27 @@ const Chip: React.FC<{
         live
           ? 'bg-brand-blue-primary border-brand-blue-primary text-white'
           : 'bg-white border-brand-gray-lighter text-brand-gray-dark'
-      }`}
+      } ${viewing ? 'ring-2 ring-brand-blue-dark ring-offset-1' : ''}`}
       style={{ fontSize: 'min(11px, 3.8cqmin)' }}
       data-period-key={periodKey}
+      title={access.label}
     >
       <button
         onClick={onToggle}
         disabled={busy}
         aria-label={`${action} ${access.label}, now ${status}`}
-        className="inline-flex items-center rounded-full disabled:opacity-60"
+        className={`inline-flex items-center rounded-full disabled:opacity-60 ${
+          onView
+            ? live
+              ? 'border-r border-white/30'
+              : 'border-r border-brand-gray-lighter'
+            : ''
+        }`}
         style={{
           gap: 'min(4px, 1cqmin)',
-          padding: 'min(3px, 0.8cqmin) min(8px, 2cqmin)',
+          padding: onView
+            ? 'min(3px, 0.8cqmin) min(6px, 1.5cqmin) min(3px, 0.8cqmin) min(8px, 2cqmin)'
+            : 'min(3px, 0.8cqmin) min(8px, 2cqmin)',
         }}
       >
         {busy ? (
@@ -97,19 +143,27 @@ const Chip: React.FC<{
             }}
           />
         ) : (
-          <span aria-hidden>{text.mark}</span>
+          <span aria-hidden>{onView ? (live ? '❚❚' : '▶') : text.mark}</span>
         )}
-        <span className="font-semibold">{access.label}</span>
-        <span>{status}</span>
-        {!access.verified && (
-          <span
-            className={live ? 'text-white/85' : 'text-brand-gray-primary'}
-            title="Students join with a PIN, which isn't verified"
-          >
-            · PIN
-          </span>
-        )}
+        {!onView && <ChipText label={access.label} status={status} />}
+        {!onView && !access.verified && <PinNote live={live} />}
       </button>
+      {onView && (
+        <button
+          onClick={onView}
+          aria-pressed={viewing}
+          aria-label={`Show ${access.label}`}
+          className="inline-flex items-center"
+          style={{
+            gap: 'min(4px, 1cqmin)',
+            padding:
+              'min(3px, 0.8cqmin) min(8px, 2cqmin) min(3px, 0.8cqmin) min(6px, 1.5cqmin)',
+          }}
+        >
+          <ChipText label={shortLabel} status={status} />
+          {!access.verified && <PinNote live={live} />}
+        </button>
+      )}
       {counting && (
         <button
           onClick={() => setMenuOpen((v) => !v)}
@@ -169,6 +223,8 @@ const Chip: React.FC<{
 /** One chip per period: tap to start or pause it, and adjust a live period's close time. */
 export const PeriodAccessStrip: React.FC<PeriodAccessStripProps> = ({
   periodAccess,
+  isViewing,
+  onView,
   onStart,
   onPause,
   onExtend,
@@ -177,6 +233,7 @@ export const PeriodAccessStrip: React.FC<PeriodAccessStripProps> = ({
   const entries = Object.entries(periodAccess).sort(([, a], [, b]) =>
     a.label.localeCompare(b.label, undefined, { numeric: true })
   );
+  const shortLabels = shortPeriodLabels(entries.map(([, a]) => a.label));
   const ticking = entries.some(
     ([, a]) => a.closeAt != null || a.openAt != null
   );
@@ -199,11 +256,14 @@ export const PeriodAccessStrip: React.FC<PeriodAccessStripProps> = ({
       className="flex flex-wrap items-center"
       style={{ gap: 'min(4px, 1cqmin)' }}
     >
-      {entries.map(([key, access]) => (
+      {entries.map(([key, access], i) => (
         <Chip
           key={key}
           periodKey={key}
           access={access}
+          shortLabel={shortLabels[i]}
+          viewing={isViewing?.(key)}
+          onView={onView ? () => onView(key) : undefined}
           now={now}
           busy={busyKey === key}
           extendMs={extendMs}
