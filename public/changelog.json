@@ -1,6 +1,62 @@
 {
   "entries": [
     {
+      "version": "2026.09.30.1",
+      "date": "2026-09-30",
+      "title": "Change a quiz's settings after you assign it",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quizzes",
+          "items": [
+            {
+              "text": "You can change an assigned quiz's settings while it is running. Open it from In Progress and change attempts, shuffling and feedback under Assessment Settings."
+            },
+            {
+              "text": "When you change a due date, students see the new date on their assignments page straight away."
+            },
+            {
+              "text": "On the Results Students screen you can sort by last name as well as by score, and show points in place of percentages. The choice is remembered for next time."
+            },
+            {
+              "text": "Export to Sheets, Open Sheet and Send to Scoreboard now sit along the bottom of Results where you can see them, instead of in the menu."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Question banks",
+          "items": [
+            {
+              "text": "You can attach a passage or image to questions in a bank, and to a random draw from a bank in a quiz."
+            },
+            {
+              "text": "Question counts in your library and editor now include the questions drawn from banks, and Preview shows one sample draw."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Flashcards",
+          "items": [
+            {
+              "text": "The Flashcards library lists your sets in rows, the same way as your quizzes and video activities."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "fix",
+          "text": "Duplicating a quiz keeps its random draws from question banks. They used to be dropped from the copy."
+        },
+        {
+          "type": "fix",
+          "text": "Hiding student names on Results also hides them from the sort order, so sorting by last name no longer gives away who is who."
+        }
+      ]
+    },
+    {
       "version": "2026.09.21.1",
       "date": "2026-09-21",
       "title": "Link a highlight to the part of the rubric it proves",
