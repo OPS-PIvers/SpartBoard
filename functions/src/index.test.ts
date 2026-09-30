@@ -3229,6 +3229,8 @@ describe('index barrel — deployed export set', () => {
     // Video Activity answer key
     'checkVideoActivityAnswerV1',
     'scrubVideoActivitySessionKeyV1',
+    // Quiz score on submit
+    'scoreQuizOnSubmitV1',
     // Organizations
     'createOrganizationInvites',
     'claimOrganizationInvite',
