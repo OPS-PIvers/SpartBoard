@@ -19,7 +19,12 @@ import { getServerNow, syncServerTime } from '@/utils/serverTime';
 import { StudentPageShell } from './StudentPageShell';
 import { StudentSidebar } from './StudentSidebar';
 import { StudentOverview } from './StudentOverview';
-import { StudentClassView } from './StudentClassView';
+import { StudentClassView, type StudentClassTab } from './StudentClassView';
+import { useStudentGradebookEnabled } from '@/hooks/useStudentGrades';
+import {
+  myAssignmentsPath,
+  parseMyAssignmentsPath,
+} from '@/utils/myAssignmentsPath';
 import { type AssignmentFilterMode } from './AssignmentFilterTabs';
 import type { CompletionState } from './AssignmentListItem';
 
@@ -89,8 +94,32 @@ const MyAssignmentsPage: React.FC = () => {
     syncServerTime(pseudonymUid);
   }, [pseudonymUid]);
 
+  const gradesEnabled = useStudentGradebookEnabled();
+  const [initialPath] = useState(() =>
+    typeof window === 'undefined'
+      ? parseMyAssignmentsPath('')
+      : parseMyAssignmentsPath(window.location.pathname)
+  );
+
   // Active class selection — null = "All classes" overview.
-  const [activeClassId, setActiveClassId] = useState<string | null>(null);
+  const [activeClassId, setActiveClassId] = useState<string | null>(
+    initialPath.classId
+  );
+  const [classTab, setClassTab] = useState<StudentClassTab>(initialPath.tab);
+  const syncPath = useCallback(
+    (classId: string | null, tab: StudentClassTab) => {
+      if (!gradesEnabled || typeof window === 'undefined') return;
+      window.history.replaceState(null, '', myAssignmentsPath(classId, tab));
+    },
+    [gradesEnabled]
+  );
+  const handleTabChange = useCallback(
+    (tab: StudentClassTab) => {
+      setClassTab(tab);
+      syncPath(activeClassId, tab);
+    },
+    [activeClassId, syncPath]
+  );
 
   // Slide-out sidebar visibility. Defaults open on desktop, closed on mobile
   // — once the student toggles, we respect their choice. Initial state is
@@ -103,15 +132,20 @@ const MyAssignmentsPage: React.FC = () => {
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
   // On mobile, picking a class auto-closes the sidebar so the student lands
   // on the chosen view immediately. Desktop keeps it open across navigations.
-  const handleSelectClass = useCallback((classId: string | null) => {
-    setActiveClassId(classId);
-    if (
-      typeof window !== 'undefined' &&
-      !window.matchMedia('(min-width: 768px)').matches
-    ) {
-      setSidebarOpen(false);
-    }
-  }, []);
+  const handleSelectClass = useCallback(
+    (classId: string | null) => {
+      setActiveClassId(classId);
+      setClassTab('assignments');
+      syncPath(classId, 'assignments');
+      if (
+        typeof window !== 'undefined' &&
+        !window.matchMedia('(min-width: 768px)').matches
+      ) {
+        setSidebarOpen(false);
+      }
+    },
+    [syncPath]
+  );
 
   // Hamburger-button ref so we can restore focus when the sidebar closes.
   // The closed sidebar is `inert`, which means any focus left inside its
@@ -357,6 +391,7 @@ const MyAssignmentsPage: React.FC = () => {
           />
         ) : (
           <StudentClassView
+            key={effectiveClassId}
             classId={effectiveClassId}
             classEntry={directory.byId[effectiveClassId]}
             todayDate={todayDate}
@@ -368,6 +403,9 @@ const MyAssignmentsPage: React.FC = () => {
             directoryById={directory.byId}
             onCompletionResolved={onCompletionResolved}
             pendingVerificationKeys={visibleScope.pendingVerificationKeys}
+            gradesEnabled={gradesEnabled}
+            tab={classTab}
+            onTabChange={handleTabChange}
           />
         )}
       </StudentPageShell>

@@ -130,6 +130,8 @@ describe('scoreQuizResponse', () => {
       {
         targetId: 't1',
         kind: 'standard',
+        code: '5.NF.1',
+        label: 'Fractions',
         earned: 0,
         possible: 2,
       },

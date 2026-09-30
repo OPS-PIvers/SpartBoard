@@ -228,6 +228,8 @@ function addEvidence(
     const row = acc.get(t.id) ?? {
       targetId: t.id,
       kind: t.kind,
+      ...(t.code ? { code: t.code } : {}),
+      ...(t.label ? { label: t.label } : {}),
       ...(t.standardIds?.length ? { standardIds: t.standardIds } : {}),
       ...(t.parentId ? { parentId: t.parentId } : {}),
       earned: 0,

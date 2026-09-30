@@ -8,11 +8,7 @@ import {
   ORG_GRADEBOOK_SETTINGS_ID,
   PLC_GRADEBOOK_META_ID,
   buildStudentGradeEntry,
-  combineEvidence,
-  evidenceForCell,
-  isPublishedFor,
-  proficiencyLevel,
-  resolveFinalScore,
+  buildStudentStandards,
   resolveScale,
   type AttemptPolicy,
   type GradebookColumnConfig,
@@ -230,28 +226,7 @@ export function studentStandards(
   scale: ProficiencyScale,
   now: number
 ): StudentStandardEntry[] {
-  const byTarget = new Map<string, { pct: number; at: number }[]>();
-  for (const { row, mark, column } of inputs) {
-    if (!row.assigned || !isPublishedFor(row, mark)) continue;
-    const final = resolveFinalScore(row, mark, column, {
-      flagDefs: settings.flags,
-      autoFlags: settings.autoFlags,
-      now,
-    });
-    for (const e of evidenceForCell(row, final, column)) {
-      const list = byTarget.get(e.targetId) ?? [];
-      list.push({ pct: e.pct, at: e.at });
-      byTarget.set(e.targetId, list);
-    }
-  }
-  const out: StudentStandardEntry[] = [];
-  for (const [targetId, points] of byTarget) {
-    const pct = combineEvidence(points, settings.method);
-    const level = proficiencyLevel(pct, scale);
-    if (pct !== null && level !== null)
-      out.push({ targetId, pct: Math.round(pct * 100) / 100, level });
-  }
-  return out.sort((a, b) => (a.targetId < b.targetId ? -1 : 1));
+  return buildStudentStandards(inputs, settings, scale, now);
 }
 
 const projectionPath = (studentUid: string, classId: string): string =>
