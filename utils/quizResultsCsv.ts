@@ -29,15 +29,11 @@ export function buildQuizResultsCsv(
   >(responses, questions, makeQuizGradeFn(options.fibGrading), {
     ...options,
     formatAnswer: formatQuizAnswerText,
+    extraColumn: options.finalScore
+      ? { header: 'Final score', cell: options.finalScore }
+      : undefined,
   });
-  const { finalScore } = options;
-  const lines = finalScore
-    ? [
-        [...headers, 'Final score'],
-        ...dataRows.map((row, i) => [...row, finalScore(responses[i])]),
-      ]
-    : [headers, ...dataRows];
-  return lines
+  return [headers, ...dataRows]
     .map((line) => line.map((cell) => quoteCsvCell(cell ?? '')).join(','))
     .join('\r\n');
 }
