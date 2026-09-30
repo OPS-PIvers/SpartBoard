@@ -206,6 +206,13 @@ describe('fetchLinkPreview', () => {
     ).rejects.toMatchObject({ code: 'failed-precondition' });
   });
 
+  it('rejects a malformed redirect Location as failed-precondition', async () => {
+    axiosGet.mockRejectedValueOnce(makeRedirectError(302, 'https://'));
+    await expect(
+      call({ auth: AUTH, data: { url: 'https://example.com/bad' } })
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+  });
+
   it('pins the connection to the DNS-validated address instead of re-resolving', async () => {
     dnsLookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
     axiosGet.mockResolvedValue({
