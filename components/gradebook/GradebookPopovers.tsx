@@ -7,6 +7,7 @@ import { GradebookCellPopover } from './popovers/GradebookCellPopover';
 import { GradebookHeaderPopover } from './popovers/GradebookHeaderPopover';
 import { GradebookPushScoresButton } from './popovers/GradebookPushScoresButton';
 import type { GradebookCellData, GradebookColumnRef } from './popovers/types';
+import { ColumnStandardsSelect } from './targets/ColumnStandardsSelect';
 
 const findAnchor = (attr: string, value: string): HTMLElement | null =>
   document.querySelector<HTMLElement>(`[${attr}="${CSS.escape(value)}"]`);
@@ -73,6 +74,14 @@ export const GradebookPopovers: React.FC<{
       columnCells={columnCells}
       onClose={closePopover}
       onNotify={gb.toast}
+      standardsControl={
+        <ColumnStandardsSelect
+          targets={column.config?.targets ?? []}
+          onChange={(targets) =>
+            void gb.updateColumn(column.sessionId, { targets })
+          }
+        />
+      }
       pushControl={
         <GradebookPushScoresButton
           column={columnRef(column)}
