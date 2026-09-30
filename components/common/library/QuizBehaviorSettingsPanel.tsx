@@ -28,6 +28,15 @@ import type { AssignModeOption } from './types';
 import { SESSION_MODES } from './sessionModes';
 import { QUIZ_STUDENT_MODE_LABEL } from '@/utils/quizBehavior';
 
+/**
+ * Which options the panel shows:
+ * - `full`: mode picker and gamification (assign and editor with the split off).
+ * - `live`: no mode picker, gamification kept (a launched assignment's mode is fixed).
+ * - `quiz`: assessment only; no mode picker, board reveal or gamification (split on, D8/D9).
+ * - `review`: reserved for the Review launch; behaves as `live` until that lands.
+ */
+export type QuizBehaviorPanelVariant = 'full' | 'live' | 'quiz' | 'review';
+
 export interface QuizBehaviorSettingsPanelProps {
   value: QuizBehaviorSettings;
   onChange: (next: QuizBehaviorSettings) => void;
@@ -36,8 +45,8 @@ export interface QuizBehaviorSettingsPanelProps {
    * Default false.
    */
   modeLocked?: boolean;
-  /** Hides the mode selector (a launched assignment keeps its mode). */
-  hideModeSelector?: boolean;
+  /** Which options show; defaults to `full`. */
+  variant?: QuizBehaviorPanelVariant;
   /** Shows the "Read aloud" toggle; the host resolves the 'quiz-read-aloud' gate. */
   readAloudAvailable?: boolean;
   /** Admin raise-hand gate; the checkbox is hidden unless this is 'teacher-choice'. */
@@ -52,12 +61,14 @@ export const QuizBehaviorSettingsPanel: React.FC<
   value,
   onChange,
   modeLocked = false,
-  hideModeSelector = false,
+  variant = 'full',
   readAloudAvailable = false,
   handRaiseMode = DEFAULT_QUIZ_HAND_RAISE_MODE,
   hasManualGrading = false,
 }) => {
   const { t } = useTranslation();
+  const assessmentOnly = variant === 'quiz';
+  const hideModeSelector = variant !== 'full';
   // Read via context so a provider-less host hides the row instead of throwing.
   const authContext = useContext(AuthContext);
   const tabAwayTimerOn =
@@ -135,6 +146,7 @@ export const QuizBehaviorSettingsPanel: React.FC<
         modeLocked={modeLocked}
         showCopyPasteToggle
         showLearningTargetsToggle
+        hideCorrectOnBoard={assessmentOnly}
         feedbackLeadingSlot={
           scoreOnSubmitOn && (
             <ToggleRow
@@ -189,7 +201,9 @@ export const QuizBehaviorSettingsPanel: React.FC<
         }
         attemptLimit={value.attemptLimit}
         onAttemptLimitChange={(v) => onChange({ ...value, attemptLimit: v })}
-        shuffleQuestionsAvailable={value.sessionMode === 'student'}
+        shuffleQuestionsAvailable={
+          assessmentOnly || value.sessionMode === 'student'
+        }
         shuffleQuestionsHint={`${QUIZ_STUDENT_MODE_LABEL} only.`}
         afterTabWarningsSlot={
           (value.sessionOptions.tabWarningsEnabled ?? true) && (
@@ -257,67 +271,69 @@ export const QuizBehaviorSettingsPanel: React.FC<
                 hint={t('quizReadAloud.help', 'Signed-in students only.')}
               />
             )}
-            <CollapsibleSection label="Gamification">
-              <ToggleRow
-                compact
-                label="Speed Bonus Points"
-                checked={value.sessionOptions.speedBonusEnabled ?? false}
-                onChange={(v) =>
-                  onChange({
-                    ...value,
-                    sessionOptions: {
-                      ...value.sessionOptions,
-                      speedBonusEnabled: v,
-                    },
-                  })
-                }
-                hint="Up to 50% bonus for fast answers"
-              />
-              <ToggleRow
-                compact
-                label="Streak Bonuses"
-                checked={value.sessionOptions.streakBonusEnabled ?? false}
-                onChange={(v) =>
-                  onChange({
-                    ...value,
-                    sessionOptions: {
-                      ...value.sessionOptions,
-                      streakBonusEnabled: v,
-                    },
-                  })
-                }
-              />
-              <ToggleRow
-                compact
-                label="Podium Between Questions"
-                checked={
-                  value.sessionOptions.showPodiumBetweenQuestions ?? false
-                }
-                onChange={(v) =>
-                  onChange({
-                    ...value,
-                    sessionOptions: {
-                      ...value.sessionOptions,
-                      showPodiumBetweenQuestions: v,
-                    },
-                  })
-                }
-              />
-              <ToggleRow
-                compact
-                label="Sound Effects"
-                checked={value.sessionOptions.soundEffectsEnabled ?? false}
-                onChange={(v) =>
-                  onChange({
-                    ...value,
-                    sessionOptions: {
-                      ...value.sessionOptions,
-                      soundEffectsEnabled: v,
-                    },
-                  })
-                }
-              />
-            </CollapsibleSection>
+            {!assessmentOnly && (
+              <CollapsibleSection label="Gamification">
+                <ToggleRow
+                  compact
+                  label="Speed Bonus Points"
+                  checked={value.sessionOptions.speedBonusEnabled ?? false}
+                  onChange={(v) =>
+                    onChange({
+                      ...value,
+                      sessionOptions: {
+                        ...value.sessionOptions,
+                        speedBonusEnabled: v,
+                      },
+                    })
+                  }
+                  hint="Up to 50% bonus for fast answers"
+                />
+                <ToggleRow
+                  compact
+                  label="Streak Bonuses"
+                  checked={value.sessionOptions.streakBonusEnabled ?? false}
+                  onChange={(v) =>
+                    onChange({
+                      ...value,
+                      sessionOptions: {
+                        ...value.sessionOptions,
+                        streakBonusEnabled: v,
+                      },
+                    })
+                  }
+                />
+                <ToggleRow
+                  compact
+                  label="Podium Between Questions"
+                  checked={
+                    value.sessionOptions.showPodiumBetweenQuestions ?? false
+                  }
+                  onChange={(v) =>
+                    onChange({
+                      ...value,
+                      sessionOptions: {
+                        ...value.sessionOptions,
+                        showPodiumBetweenQuestions: v,
+                      },
+                    })
+                  }
+                />
+                <ToggleRow
+                  compact
+                  label="Sound Effects"
+                  checked={value.sessionOptions.soundEffectsEnabled ?? false}
+                  onChange={(v) =>
+                    onChange({
+                      ...value,
+                      sessionOptions: {
+                        ...value.sessionOptions,
+                        soundEffectsEnabled: v,
+                      },
+                    })
+                  }
+                />
+              </CollapsibleSection>
+            )}
           </>
         }
       />

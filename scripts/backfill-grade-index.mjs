@@ -44,6 +44,15 @@ const SESSION_COLLECTION = {
   'activity-wall': 'activity_wall_sessions',
 };
 
+// Mirrors isReviewQuiz in functions/src/gradebook/gradeRowMath.ts (session fields only).
+function isReviewSession(d) {
+  if (d.widgetKind === 'quiz' || d.widgetKind === 'review') {
+    return d.widgetKind === 'review';
+  }
+  if (d.mode === 'view-only') return false;
+  return ['teacher', 'auto', 'game'].includes(d.sessionMode);
+}
+
 if (!projectId) {
   console.error('Pass --project dev|prod (or a project id).');
   process.exit(1);
@@ -87,10 +96,14 @@ let inBatch = 0;
 const base = Date.now() - 365 * 86_400_000;
 for (const [kind, collection] of Object.entries(SESSION_COLLECTION)) {
   if (onlyKind && kind !== onlyKind) continue;
-  const snap = await db.collection(collection).select('teacherUid').get();
+  const snap = await db
+    .collection(collection)
+    .select('teacherUid', 'widgetKind', 'sessionMode', 'mode')
+    .get();
   let count = 0;
   for (const doc of snap.docs) {
     if (typeof doc.data().teacherUid !== 'string') continue;
+    if (kind === 'quiz' && isReviewSession(doc.data())) continue;
     count++;
     if (!apply) continue;
     batch.set(db.collection('grade_index_sessions').doc(doc.id), {

@@ -26,7 +26,7 @@
  */
 
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   render,
   screen,
@@ -77,12 +77,29 @@ vi.mock('@/hooks/useSessionViewCount', () => ({
   useSessionViewCount: () => ({ count: 0 }),
 }));
 
+let mockReviewSplit = false;
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1', displayName: 'Test Teacher' },
     canSeeShareTracking: vi.fn(() => false),
     canAccessQuizMediaResponse: vi.fn(() => false),
-    canAccessFeature: vi.fn(() => false),
+    canAccessFeature: vi.fn((id: string) =>
+      id === 'quiz-review-split' ? mockReviewSplit : false
+    ),
+  }),
+}));
+
+vi.mock('@/hooks/useLastQuizAssignSettings', () => ({
+  useLastQuizAssignSettings: (_uid: string, enabled: boolean) => ({
+    lastUsed: enabled
+      ? {
+          sessionMode: 'student',
+          sessionOptions: { blockCopyPaste: true, streakBonusEnabled: true },
+          attemptLimit: 5,
+        }
+      : null,
+    loaded: true,
+    save: vi.fn(),
   }),
 }));
 
@@ -1005,5 +1022,35 @@ describe('QuizManager assign — behavior seeded from the latest quiz doc', () =
     const behavior = (onAssign as ReturnType<typeof vi.fn>).mock
       .calls[0][1] as QuizBehaviorSettings;
     expect(behavior.sessionOptions.readAloudAll).toBe(true);
+  });
+});
+
+describe('QuizManager assign with quiz-review-split on (D11)', () => {
+  beforeEach(() => {
+    mockReviewSplit = true;
+  });
+  afterEach(() => {
+    mockReviewSplit = false;
+  });
+
+  it("prefills from the teacher's last-used settings, not the quiz's", async () => {
+    const onAssign = vi.fn();
+    const meta = makeQuizMeta({
+      behavior: { ...DEFAULT_QUIZ_BEHAVIOR, attemptLimit: 3 },
+    });
+    renderManager(meta, onAssign);
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: /chapter 5 review/i,
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    const behavior = onAssign.mock.calls[0][1] as QuizBehaviorSettings;
+    expect(behavior.attemptLimit).toBe(5);
+    expect(behavior.sessionOptions.blockCopyPaste).toBe(true);
+    expect(behavior.sessionOptions.streakBonusEnabled).toBe(false);
   });
 });

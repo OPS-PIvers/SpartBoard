@@ -48,6 +48,8 @@ interface QuizAssignmentSettingsModalProps {
   onShareResults?: () => void;
   /** Clears the PLC results link (linked assignments). */
   onStopSharing?: () => void | Promise<void>;
+  /** Quiz-kind assignment with the Review split on: hide gamification and board reveal (D9). */
+  assessmentOnly?: boolean;
 }
 
 /** Options object driven through AssignModal's `options` generic. */
@@ -134,6 +136,7 @@ export const QuizAssignmentSettingsModal: React.FC<
   canShareWithPlc = false,
   onShareResults,
   onStopSharing,
+  assessmentOnly = false,
 }) => {
   const [options, setOptions] = useState<SettingsOptions>(() =>
     initialOptionsFor(assignment, rosters)
@@ -314,14 +317,14 @@ export const QuizAssignmentSettingsModal: React.FC<
             icon={ClipboardCheck}
             summary={
               <span data-testid="assignment-behavior-summary">
-                {formatBehaviorSummary(behavior)}
+                {formatBehaviorSummary(behavior, { omitMode: assessmentOnly })}
               </span>
             }
           >
             <QuizBehaviorSettingsPanel
               value={behavior}
               onChange={setBehavior}
-              hideModeSelector
+              variant={assessmentOnly ? 'quiz' : 'live'}
               handRaiseMode="force-off"
             />
           </CollapsibleSection>

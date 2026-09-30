@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { QuizQuestion, QuizSession } from '@/types';
 import { StimulusRenderer } from '@/components/quiz/QuizStimulusView';
 import { resolveStimuli } from '@/utils/quizStimuli';
+import { sectionStartingAt } from '@/utils/reviewLaunch';
 
 interface PresentPacedAnsweringProps {
   session: QuizSession;
@@ -48,9 +49,35 @@ export const PresentPacedAnswering: React.FC<PresentPacedAnsweringProps> = ({
       : null;
 
   const stimuli = resolveStimuli(question.stimulusIds, session.stimuli);
+  const section =
+    session.widgetKind === 'review'
+      ? sectionStartingAt(session, question.id)
+      : undefined;
 
   return (
     <>
+      {section && (
+        <div
+          data-testid="present-section-divider"
+          className="max-w-[80vw] border-b border-white/20"
+          style={{ paddingBottom: '2vh' }}
+        >
+          <p
+            className="font-sans font-bold text-white"
+            style={{ fontSize: 'clamp(1.2rem, 3vw, 2.8rem)' }}
+          >
+            {section.title}
+          </p>
+          {section.directions && (
+            <p
+              className="font-sans text-white/75 whitespace-pre-line"
+              style={{ fontSize: 'clamp(0.9rem, 1.8vw, 1.6rem)' }}
+            >
+              {section.directions}
+            </p>
+          )}
+        </div>
+      )}
       <p
         className="font-sans font-semibold text-white max-w-[80vw] leading-snug"
         style={{ fontSize: 'clamp(1.6rem, 5vw, 4.5rem)', textWrap: 'balance' }}

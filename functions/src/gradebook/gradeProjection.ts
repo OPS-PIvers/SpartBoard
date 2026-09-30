@@ -307,10 +307,36 @@ export async function writeProjectionEntry(
   });
 }
 
-const NO_EXTRA: ProjectionExtra = {
-  standards: null,
-  scale: DEFAULT_PROFICIENCY_SCALE,
-};
+/** This student's standards in one class, from every row but `skipSessionId` plus `own`. */
+async function classStandards(
+  db: Firestore,
+  row: IndexRow,
+  settings: GradebookSettingsBody,
+  scale: ProficiencyScale,
+  own: RowInputs | null,
+  now: number
+): Promise<StudentStandardEntry[] | null> {
+  if (!settings.studentVisibility.standards) return null;
+  const rows = await db
+    .collection(GRADE_INDEX)
+    .where('studentUid', '==', row.studentUid)
+    .get();
+  const classRows = rows.docs
+    .map((d) => d.data() as IndexRow)
+    .filter(
+      (r) =>
+        r.classId === row.classId &&
+        r.ownerUid === row.ownerUid &&
+        r.sessionId !== row.sessionId
+    );
+  const others = await Promise.all(classRows.map((r) => loadRowInputs(db, r)));
+  return studentStandards(
+    own ? [own, ...others] : others,
+    settings,
+    scale,
+    now
+  );
+}
 
 /** Re-projects one row (or clears it when the row is gone). */
 export async function projectRow(
@@ -320,6 +346,11 @@ export async function projectRow(
   now = Date.now()
 ): Promise<void> {
   if (before?.classId && (!after || after.classId !== before.classId)) {
+    const { settings, scale } = await loadClassSettings(
+      db,
+      before.ownerUid,
+      before.rosterId
+    );
     await writeProjectionEntry(
       db,
       {
@@ -329,12 +360,14 @@ export async function projectRow(
       },
       before.sessionId,
       null,
-      NO_EXTRA,
+      {
+        standards: await classStandards(db, before, settings, scale, null, now),
+        scale,
+      },
       now
     );
   }
   if (!after?.classId) return;
-  const classId = after.classId;
   const [inputs, { settings, scale }] = await Promise.all([
     loadRowInputs(db, after),
     loadClassSettings(db, after.ownerUid, after.rosterId),
@@ -346,34 +379,29 @@ export async function projectRow(
     settings,
     now
   );
-  let standards: StudentStandardEntry[] | null = null;
-  if (settings.studentVisibility.standards) {
-    const rows = await db
-      .collection(GRADE_INDEX)
-      .where('studentUid', '==', after.studentUid)
-      .get();
-    const classRows = rows.docs
-      .map((d) => d.data() as IndexRow)
-      .filter(
-        (r) =>
-          r.classId === classId &&
-          r.ownerUid === after.ownerUid &&
-          r.sessionId !== after.sessionId
-      );
-    const others = await Promise.all(
-      classRows.map((r) => loadRowInputs(db, r))
-    );
-    standards = studentStandards([inputs, ...others], settings, scale, now);
-  }
+  const standards = await classStandards(
+    db,
+    after,
+    settings,
+    scale,
+    inputs,
+    now
+  );
   await writeProjectionEntry(
     db,
-    { studentUid: after.studentUid, classId, ownerUid: after.ownerUid },
+    {
+      studentUid: after.studentUid,
+      classId: after.classId,
+      ownerUid: after.ownerUid,
+    },
     after.sessionId,
     entry,
     { standards, scale },
     now
   );
 }
+
+const REPROJECT_CHUNK = 10;
 
 /** Re-projects every row a query returns, optionally narrowed in memory. */
 export async function reprojectRows(
@@ -382,14 +410,21 @@ export async function reprojectRows(
   keep: (row: IndexRow) => boolean = () => true
 ): Promise<number> {
   const snap = await query.get();
-  let n = 0;
-  for (const doc of snap.docs) {
-    const row = doc.data() as IndexRow;
-    if (!keep(row)) continue;
-    await projectRow(db, row, null);
-    n++;
+  const rows = snap.docs.map((d) => d.data() as IndexRow).filter(keep);
+  // One student's rows share a projection doc, so they run in order; students run in parallel.
+  const byStudent = new Map<string, IndexRow[]>();
+  for (const r of rows) {
+    byStudent.set(r.studentUid, [...(byStudent.get(r.studentUid) ?? []), r]);
   }
-  return n;
+  const groups = [...byStudent.values()];
+  for (let i = 0; i < groups.length; i += REPROJECT_CHUNK) {
+    await Promise.all(
+      groups.slice(i, i + REPROJECT_CHUNK).map(async (group) => {
+        for (const r of group) await projectRow(db, r, null);
+      })
+    );
+  }
+  return rows.length;
 }
 
 export const rowsForSession = (

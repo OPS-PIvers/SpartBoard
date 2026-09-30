@@ -29,7 +29,7 @@ import {
   act,
   waitFor,
 } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { PlcNewQuizAssignmentModal } from '@/components/plc/PlcNewQuizAssignmentModal';
 import type { Plc, ClassRoster, QuizMetadata } from '@/types';
@@ -100,6 +100,7 @@ vi.mock('@/hooks/usePlcQuizzes', () => ({
   })),
 }));
 
+let mockReviewSplit = false;
 vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(() => ({
     user: {
@@ -107,7 +108,22 @@ vi.mock('@/context/useAuth', () => ({
       displayName: 'Ms. Smith',
       email: 'smith@school.edu',
     },
+    canAccessFeature: (id: string) =>
+      id === 'quiz-review-split' ? mockReviewSplit : false,
   })),
+}));
+
+const mockLastUsed = {
+  sessionMode: 'student' as const,
+  sessionOptions: { blockCopyPaste: true, speedBonusEnabled: true },
+  attemptLimit: 3,
+};
+vi.mock('@/hooks/useLastQuizAssignSettings', () => ({
+  useLastQuizAssignSettings: (_uid: string, enabled: boolean) => ({
+    lastUsed: enabled ? mockLastUsed : null,
+    loaded: true,
+    save: vi.fn(),
+  }),
 }));
 
 vi.mock('@/context/useDashboard', () => ({
@@ -449,5 +465,54 @@ describe('PlcNewQuizAssignmentModal (Task 10 — slimmed configure step)', () =>
     await waitFor(() => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('PlcNewQuizAssignmentModal with quiz-review-split on (D12)', () => {
+  beforeEach(() => {
+    mockReviewSplit = true;
+    mockCreateAssignment.mockClear();
+    mockCreateAssignment.mockResolvedValue({ id: 'assign-new', code: '9999' });
+    mockLoadQuizData.mockResolvedValue({
+      id: 'quiz-1',
+      title: 'Cell Division',
+      questions: [],
+      createdAt: 1000,
+      updatedAt: 2000,
+    });
+  });
+  afterEach(() => {
+    mockReviewSplit = false;
+  });
+
+  it('shows the inline settings instead of the quiz editor hint', async () => {
+    await renderAndPickQuiz();
+    expect(
+      screen.getByTestId('quiz-assign-settings-inline')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/edit in the quiz editor/i)).toBeNull();
+    expect(screen.queryByTestId('plc-quiz-behavior-summary')).toBeNull();
+  });
+
+  it("assigns with the teacher's last-used settings, not the quiz's, minus gamification", async () => {
+    await renderAndPickQuiz();
+    act(() => {
+      fireEvent.click(
+        screen.getByRole('button', { name: /create assignment/i })
+      );
+    });
+    await waitFor(() => {
+      expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
+    });
+    const [, settings] = mockCreateAssignment.mock.calls[0] as [
+      unknown,
+      Record<string, unknown>,
+    ];
+    const opts = settings.sessionOptions as Record<string, unknown>;
+    expect(settings.sessionMode).toBe('student');
+    expect(settings.attemptLimit).toBe(3);
+    expect(opts.blockCopyPaste).toBe(true);
+    expect(opts.speedBonusEnabled).toBe(false);
+    expect(opts.showResultToStudent).toBeUndefined();
   });
 });

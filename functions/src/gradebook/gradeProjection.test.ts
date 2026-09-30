@@ -33,6 +33,7 @@ import {
   gradeIndexMark,
   handlePointerWrite,
   handleSharedConfigWrite,
+  handleStudentDocWrite,
 } from './gradeIndexTriggers';
 import { makeStubFirestore, type StubData } from '../testing/stubFirestore';
 import { DEFAULT_PROFICIENCY_SCALE } from '../gradebookCore';
@@ -205,6 +206,27 @@ describe('projectRow', () => {
     expect(stub.has('student_grades/u1/classes/c2')).toBe(false);
   });
 
+  it('keeps the class standards when one entry goes', async () => {
+    const stub = makeStubFirestore({
+      'users/t1/gradebook_classes/r1': {
+        configRef: { source: 'personal', configId: 'cfg1' },
+      },
+      'users/t1/gradebook_settings/cfg1': {
+        studentVisibility: { standards: true },
+        method: 'mean',
+      },
+      'grade_index/qs2__u1': row({ sessionId: 'qs2' }) as unknown as StubData,
+    });
+    const db = stub.db as unknown as Db;
+    await projectRow(db, row(), null, NOW);
+    await projectRow(db, row({ sessionId: 'qs2' }), null, NOW);
+    await projectRow(db, null, row(), NOW);
+    expect(Object.keys(stub.get(PATH)?.entries as object)).toEqual(['qs2']);
+    expect(stub.get(PATH)?.standards).toEqual([
+      { targetId: 'tgt', pct: 50, level: 2 },
+    ]);
+  });
+
   it('keeps other assignments when one entry goes', async () => {
     const stub = makeStubFirestore({
       [PATH]: { entries: { other: { pct: 50 }, qs1: { pct: 80 } } },
@@ -314,6 +336,32 @@ describe('triggers', () => {
     vi.mocked(admin.firestore).mockReturnValue(stub.db as never);
     await handleSharedConfigWrite('plc', 'plc1');
     expect(entryOf(stub)).toMatchObject({ status: 'hidden', pct: null });
+  });
+
+  it('queues the session when a student write fails', async () => {
+    const stub = makeStubFirestore({
+      'admin_settings/gradebook_index': { enabled: true },
+      'quiz_sessions/qs1': { teacherUid: 't1' },
+    });
+    const db = stub.db as unknown as { collection: (n: string) => unknown };
+    const collection = db.collection.bind(db);
+    db.collection = (name: string) => {
+      if (name === 'users') throw new Error('unavailable');
+      return collection(name);
+    };
+    vi.mocked(admin.firestore).mockReturnValue(stub.db as never);
+    const response = { studentUid: 'u1', status: 'completed', submittedAt: 1 };
+    stub.store.set('quiz_sessions/qs1/responses/u1', response);
+    await handleStudentDocWrite('quiz', {
+      params: { sessionId: 'qs1', docId: 'u1' },
+      data: {
+        before: { exists: false, data: () => undefined },
+        after: { exists: true, data: () => response },
+      },
+    });
+    expect(stub.get('grade_index_sessions/qs1')).toMatchObject({
+      kind: 'quiz',
+    });
   });
 
   it('queues the session when a targeting pointer changes', async () => {

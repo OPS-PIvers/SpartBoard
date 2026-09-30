@@ -2848,7 +2848,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Check if user can access a specific widget
   // Wrapped in useCallback to prevent unnecessary re-renders since this function
   // is passed through context and used in component dependencies
-  const canAccessWidget = useCallback(
+  const canAccessWidgetPermission = useCallback(
     (widgetType: WidgetType, customBuildings?: string[]): boolean => {
       // In bypass mode, always allow everything
       if (isAuthBypass) return true;
@@ -3026,6 +3026,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return resolvePermissionAccess(permission, user.email);
     },
     [user, globalPermissions, resolvePermissionAccess, isAdmin, userTier]
+  );
+
+  // Plan D7: Review needs its widget permission AND the `quiz-review-split` flag.
+  const canAccessWidget = useCallback(
+    (widgetType: WidgetType, customBuildings?: string[]): boolean =>
+      (widgetType !== 'review' || canAccessFeature('quiz-review-split')) &&
+      canAccessWidgetPermission(widgetType, customBuildings),
+    [canAccessFeature, canAccessWidgetPermission]
   );
 
   const getAssignmentMode = useCallback(

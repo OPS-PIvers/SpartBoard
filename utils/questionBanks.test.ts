@@ -17,7 +17,9 @@ import {
   orderServedQuestions,
   quizMaxPointsWithSlots,
   quizOrder,
+  quizServedQuestionCount,
   resolveQuizAssignment,
+  sampleQuizDraw,
   validateBankSlots,
   type BankContent,
 } from './questionBanks';
@@ -250,6 +252,40 @@ describe('resolveQuizAssignment', () => {
         banks
       )
     ).toThrow(BankSlotResolutionError);
+  });
+});
+
+describe('quizServedQuestionCount / sampleQuizDraw', () => {
+  const quiz = {
+    questions: [q('f1'), q('f2')],
+    bankSlots: [
+      slot({ count: 1, targetFilter: ['RL.1'] }),
+      slot({ id: 'slot-2', count: 1, targetFilter: ['RL.2'] }),
+    ],
+    order: [
+      { kind: 'question' as const, id: 'f1' },
+      { kind: 'slot' as const, id: 'slot-1' },
+      { kind: 'question' as const, id: 'f2' },
+      { kind: 'slot' as const, id: 'slot-2' },
+    ],
+  };
+
+  it('counts fixed questions plus every random slot draw', () => {
+    expect(quizServedQuestionCount(quiz)).toBe(4);
+    expect(quizServedQuestionCount({ questions: [q('f1')] })).toBe(1);
+  });
+
+  it('replaces slots with one drawn attempt in serving order', () => {
+    const sample = sampleQuizDraw(quiz, banks, identity);
+    expect(sample.questions.map((x) => x.id)).toEqual(['f1', 'b1', 'f2', 'b4']);
+    expect(sample.questions[1].points).toBe(3);
+    expect(sample.bankSlots).toBeUndefined();
+    expect(sample.order).toBeUndefined();
+  });
+
+  it('returns a quiz without slots unchanged', () => {
+    const plain = { questions: [q('f1')] };
+    expect(sampleQuizDraw(plain, banks)).toBe(plain);
   });
 });
 

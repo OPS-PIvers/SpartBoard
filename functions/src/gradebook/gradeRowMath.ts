@@ -352,6 +352,17 @@ function pctOf(earned: number, max: number): number | null {
   return max > 0 ? Math.round((earned / max) * 100) : null;
 }
 
+/** Mirrors getAssignmentWidgetKind: Review sessions stay out of the gradebook (QUIZ_REVIEW_SPLIT D13). */
+export function isReviewQuiz(session: Doc, assignment: Doc = {}): boolean {
+  const pick = (f: string) => asString(session[f]) || asString(assignment[f]);
+  const widgetKind = pick('widgetKind');
+  if (widgetKind === 'quiz' || widgetKind === 'review') {
+    return widgetKind === 'review';
+  }
+  if (pick('mode') === 'view-only') return false;
+  return ['teacher', 'auto', 'game'].includes(pick('sessionMode'));
+}
+
 /** Per-student publish: a `resultsOverride` wins over the session's publish state. */
 export function isPublished(session: Doc, perStudent: Doc): boolean {
   const mode = asString(asRecord(perStudent.resultsOverride).mode);

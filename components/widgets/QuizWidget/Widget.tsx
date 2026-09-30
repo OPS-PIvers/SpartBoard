@@ -17,7 +17,10 @@ import {
   QuizSessionBankSlot,
   ScoreboardTeam,
   QuizBehaviorSettings,
+  QuizWidgetKind,
 } from '@/types';
+import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
+import { useReviewLaunch } from './useReviewLaunch';
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
 import { quizAssignBlocker } from '@/utils/activityCompleteness';
 import { useDashboard } from '@/context/useDashboard';
@@ -32,6 +35,7 @@ import {
   BankSlotResolutionError,
   quizHasBankSlots,
   resolveQuizAssignment,
+  sampleQuizDraw,
 } from '@/utils/questionBanks';
 import {
   reconcileBankSlotsForPlcShare,
@@ -145,13 +149,14 @@ import {
   savePendingReview,
 } from '@/utils/paperBatchStore';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
-import { Loader2, AlertTriangle, LogIn } from 'lucide-react';
+import { Loader2, AlertTriangle, LogIn, Gamepad2 } from 'lucide-react';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { usePlcs } from '@/hooks/usePlcs';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { getPlcMemberEmail } from '@/utils/plc';
-import { getQuizBehavior } from '@/utils/quizBehavior';
+import { getQuizBehavior, toAssessmentBehavior } from '@/utils/quizBehavior';
+import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
 import {
   useSetAssignmentTargets,
   type SkipReason,
@@ -187,7 +192,10 @@ const QuizStudentView = lazy(() =>
  * tab warnings, no bonuses, no result reveal) — none of them have meaning
  * when there are no submissions to score or compare.
  */
-const VIEW_ONLY_SESSION_OPTIONS: Required<QuizSessionOptions> = {
+// Review's board size never applies to a view-only share.
+const VIEW_ONLY_SESSION_OPTIONS: Required<
+  Omit<QuizSessionOptions, 'boardRankLimit'>
+> = {
   tabWarningsEnabled: false,
   tabWarningThreshold: 'off',
   // Tab warnings are off, so the away clock never runs.
@@ -214,7 +222,10 @@ const VIEW_ONLY_SESSION_OPTIONS: Required<QuizSessionOptions> = {
 
 const QUIZZES_COLLECTION = 'quizzes';
 
-const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
+const TeacherQuizWidget: React.FC<{
+  widget: WidgetData;
+  variant?: QuizWidgetKind;
+}> = ({ widget, variant = 'quiz' }) => {
   const {
     updateWidget,
     addWidget,
@@ -252,6 +263,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     canAccessFeature('quiz-document-ai-reader') &&
     canUseQuizAi;
   const config = widget.config as QuizConfig;
+  const reviewSplit = canAccessFeature('quiz-review-split');
+  const isReview = variant === 'review';
+  // Only tag new docs while the split is on, so flag-off data is unchanged (D2).
+  const kindTag = reviewSplit ? { widgetKind: variant } : {};
+  const { save: saveLastAssignSettings } = useLastQuizAssignSettings(
+    user?.uid,
+    reviewSplit && !isReview
+  );
 
   // Opens the Google Picker so the teacher selects a Sheet to import. Picking
   // grants per-file `drive.file` access to that one sheet, so the import reads
@@ -525,6 +544,15 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   }, [quizzes, assignments]);
   const { groups: syncedGroups } = useSyncedQuizGroupsByIds(syncGroupIds);
 
+  // D3: with the split on, each widget's archive lists only its own kind.
+  const kindAssignments = useMemo(
+    () =>
+      reviewSplit
+        ? assignments.filter((a) => getAssignmentWidgetKind(a) === variant)
+        : assignments,
+    [assignments, reviewSplit, variant]
+  );
+
   // Ephemeral modal state for per-assignment settings editing.
   // D12: assignment whose results are being retroactively pooled with a PLC.
   const [sharePlcResultsTarget, setSharePlcResultsTarget] =
@@ -713,6 +741,28 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     [loadQuizData, addToast]
   );
 
+  // Previews show one sample attempt, so bank slots become drawn questions.
+  const withSampleBankDraw = useCallback(
+    async (data: QuizData): Promise<QuizData> => {
+      if (!quizHasBankSlots(data)) return data;
+      try {
+        return sampleQuizDraw(data, await loadBankContentsForQuiz(data));
+      } catch (err) {
+        if (err instanceof BankSlotResolutionError) {
+          for (const problem of err.problems)
+            addToast(problem.message, 'error');
+        } else {
+          logError('QuizWidget.preview.sampleBankDraw', err, {
+            quizId: data.id,
+          });
+          addToast('Could not load the question banks for this quiz.', 'error');
+        }
+        return data;
+      }
+    },
+    [loadBankContentsForQuiz, addToast]
+  );
+
   // Bank-draw assignments grade against their frozen Drive copy, not the library quiz.
   const answerKeyMeta = useCallback(
     (
@@ -740,6 +790,47 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     },
     [loadQuizData, addToast]
   );
+
+  const reviewLaunch = useReviewLaunch({
+    config,
+    rosters,
+    loadQuiz: loadQuizQuietly,
+    loadBankContentsForQuiz,
+    saveDriveSnapshot,
+    createAssignment,
+    addToast,
+    onLaunched: ({
+      assignmentId,
+      code,
+      meta,
+      rosterIds,
+      resolvedDriveFileId,
+    }) => {
+      void (async () => {
+        const data = await loadQuiz(
+          answerKeyMeta(
+            meta,
+            resolvedDriveFileId ? { resolvedDriveFileId } : undefined
+          )
+        );
+        if (!data) return;
+        const nextMap = { ...(config.lastRosterIdsByQuizId ?? {}) };
+        if (rosterIds.length > 0) nextMap[meta.id] = rosterIds;
+        else delete nextMap[meta.id];
+        updateWidget(widget.id, {
+          config: {
+            ...config,
+            view: 'monitor',
+            selectedQuizId: meta.id,
+            selectedQuizTitle: meta.title,
+            activeAssignmentId: assignmentId,
+            activeLiveSessionCode: code,
+            lastRosterIdsByQuizId: nextMap,
+          } as QuizConfig,
+        });
+      })();
+    },
+  });
 
   /**
    * Phase 2 — share an existing personal quiz with a chosen PLC.
@@ -1041,6 +1132,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     setView,
   ]);
 
+  // D9: a Quiz-kind session under the split has no scoreboard sync, reveal or podium.
+  const liveAssessmentOnly =
+    reviewSplit &&
+    !!liveSession &&
+    getAssignmentWidgetKind(liveSession) === 'quiz';
+  const scoreboardSyncOn =
+    (config.liveScoreboardEnabled ?? false) && !liveAssessmentOnly;
+
   // ─── Live Scoreboard Sync ──────────────────────────────────────────────────
   const liveScoreboardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
@@ -1097,7 +1196,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   );
 
   useEffect(() => {
-    if (!config.liveScoreboardEnabled || !loadedQuizData || !liveSession) {
+    if (!scoreboardSyncOn || !loadedQuizData || !liveSession) {
       // Reset fingerprint when disabled so re-enabling triggers an immediate sync
       prevResponsesJsonRef.current = '';
       return;
@@ -1263,7 +1362,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     // config object and activeDashboard.widgets are read via refs to avoid
     // infinite re-trigger cycles (this effect writes to both).
   }, [
-    config.liveScoreboardEnabled,
+    scoreboardSyncOn,
     config.liveScoreboardScoring,
     config.liveScoreboardMode,
     config.liveScoreboardWidgetId,
@@ -1826,6 +1925,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }
         config={config}
         rosters={rosters}
+        assessmentOnly={liveAssessmentOnly}
         onUpdateConfig={handleUpdateQuizConfig}
         onRemoveStudent={removeStudent}
         onUnlockStudent={unlockStudentAttempt}
@@ -1873,7 +1973,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           />
         </Suspense>
       )}
+      {reviewLaunch.modal}
       <QuizManager
+        variant={variant}
+        onStartReview={
+          isReview && reviewSplit
+            ? (meta) => void reviewLaunch.open(meta)
+            : undefined
+        }
         userId={user?.uid}
         widgetId={widget.id}
         periodAccess={assignPeriodCtx}
@@ -1899,7 +2006,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }}
         onImport={() => setView('import')}
         onPrintPaperSheets={
-          paperSheets.enabled
+          paperSheets.enabled && !isReview
             ? async (meta) => {
                 const data = await loadQuiz(meta);
                 if (!data) return;
@@ -1910,7 +2017,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             : undefined
         }
         onImportPaperScan={
-          paperSheets.enabled && user?.uid
+          paperSheets.enabled && !isReview && user?.uid
             ? async (meta) => {
                 const data = await loadQuiz(meta);
                 if (!data) return;
@@ -1939,7 +2046,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             : undefined
         }
         onNewPaperTest={
-          paperSheets.enabled
+          paperSheets.enabled && !isReview
             ? () => {
                 const now = Date.now();
                 setPaperPrintIsNew(true);
@@ -1964,7 +2071,9 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }}
         onPreview={async (meta) => {
           const data = await loadQuiz(meta);
-          if (data) setView('preview');
+          if (!data) return;
+          setLoadedQuizData(await withSampleBankDraw(data));
+          setView('preview');
         }}
         onStudentView={
           canAccessFeature('quiz-student-view')
@@ -1972,7 +2081,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 const data = await loadQuiz(meta);
                 if (data)
                   setStudentView({
-                    quiz: data,
+                    quiz: await withSampleBankDraw(data),
                     behavior: getQuizBehavior(meta),
                   });
               }
@@ -2007,7 +2116,13 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }
           // Behavior comes from the assign modal — the quiz's saved settings
           // plus any per-assignment overrides the teacher made there.
-          const { sessionMode: mode, sessionOptions, attemptLimit } = behavior;
+          const {
+            sessionMode: mode,
+            sessionOptions,
+            attemptLimit,
+          } = reviewSplit && !isReview
+            ? toAssessmentBehavior(behavior)
+            : behavior;
 
           // Bank slots freeze into a Drive snapshot so grading sees the pool.
           let assignQuestions = data.questions;
@@ -2250,6 +2365,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 ...(resolvedDriveFileId ? { resolvedDriveFileId } : {}),
               },
               {
+                ...kindTag,
                 // A per-period session is gated by its periods, not a global pause.
                 initialStatus: sessionPeriodAccess ? 'active' : 'paused',
                 ...(sessionPeriodAccess
@@ -2288,6 +2404,13 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   : {}),
               }
             );
+            if (reviewSplit && !isReview) {
+              saveLastAssignSettings({
+                sessionMode: mode,
+                sessionOptions,
+                attemptLimit,
+              });
+            }
 
             // M17 B3 acceptance criterion: class-wide (`targetMode: 'class'`)
             // assignments never invoke the CF — zero behavior change from
@@ -2510,7 +2633,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               sessionOptions: VIEW_ONLY_SESSION_OPTIONS,
               attemptLimit: null,
             },
-            { initialStatus: 'paused', mode: 'view-only' }
+            { ...kindTag, initialStatus: 'paused', mode: 'view-only' }
           );
           return `${window.location.origin}/quiz?code=${encodeURIComponent(code)}`;
         }}
@@ -2754,7 +2877,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
           }
         }}
-        assignments={assignments}
+        assignments={kindAssignments}
         assignmentsLoading={assignmentsLoading}
         activeAssignmentLockedCount={activeAssignmentLockedCount}
         onArchiveCopyUrl={(a) => {
@@ -2869,9 +2992,13 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             } as QuizConfig,
           });
         }}
-        onArchiveEditSettings={(a) => {
-          setEditingAssignment(a);
-        }}
+        onArchiveEditSettings={
+          isReview && reviewSplit
+            ? undefined
+            : (a) => {
+                setEditingAssignment(a);
+              }
+        }
         onArchiveSharePlcResults={(a) => setSharePlcResultsTarget(a)}
         onArchiveStopSharingPlc={handleStopSharingPlc}
         canAssignToClassroom={canAssignToClassroom}
@@ -3201,6 +3328,9 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           canShareWithPlc={plcs.length > 0}
           onShareResults={() => setSharePlcResultsTarget(editingAssignment)}
           onStopSharing={() => handleStopSharingPlc(editingAssignment)}
+          assessmentOnly={
+            reviewSplit && getAssignmentWidgetKind(editingAssignment) === 'quiz'
+          }
           onClose={() => setEditingAssignment(null)}
           onSave={async (patch) => {
             try {
@@ -3757,6 +3887,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               // No classIds and paused: never a live door for students.
               // publishPaperResultsV1 ends it once results go out (Q34).
               {
+                ...kindTag,
                 initialStatus: 'paused',
                 ...(plc && groupId ? { plcPoolSyncGroupId: groupId } : {}),
               }
@@ -3873,4 +4004,12 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) =>
     <SubShareQuizWidget widget={widget} />
   ) : (
     <TeacherQuizWidget widget={widget} />
+  );
+
+/** Live review games over the same quiz library (docs/plans/QUIZ_REVIEW_SPLIT.md). Never shared with subs (D13). */
+export const ReviewWidget: React.FC<{ widget: WidgetData }> = ({ widget }) =>
+  useInSubShare() ? (
+    <ScaledEmptyState icon={Gamepad2} title="Not available to substitutes" />
+  ) : (
+    <TeacherQuizWidget widget={widget} variant="review" />
   );

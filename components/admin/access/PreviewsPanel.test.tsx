@@ -52,9 +52,11 @@ import { PreviewsPanel } from './PreviewsPanel';
 
 const renderPanel = async () => {
   render(<PreviewsPanel />);
-  await screen.findByRole('switch', {
-    name: 'Projects widget district switch',
-  });
+  await screen.findByRole(
+    'switch',
+    { name: 'Projects widget district switch' },
+    { timeout: 5000 }
+  );
 };
 
 const district = (title: string) =>

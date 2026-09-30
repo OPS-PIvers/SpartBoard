@@ -1,5 +1,6 @@
 import React from 'react';
 import { QuizLeaderboardEntry } from '@/types';
+import { rankOrdinal } from '@/utils/reviewLaunch';
 
 interface PresentStandingsProps {
   entries: QuizLeaderboardEntry[];
@@ -10,8 +11,6 @@ interface PresentStandingsProps {
   limit?: number;
   heading?: string;
 }
-
-const ORDINALS = ['1st', '2nd', '3rd', '4th', '5th'];
 
 /** Projector shows first names only — a full roster name is more exposure. */
 const firstName = (name: string): string => name.trim().split(/\s+/)[0] ?? name;
@@ -25,6 +24,9 @@ export const PresentStandings: React.FC<PresentStandingsProps> = ({
 }) => {
   const rows = entries.slice(0, limit);
   if (rows.length === 0) return null;
+  // A long Review ranking wraps into columns so it fits the projector.
+  const dense = rows.length > 5;
+  const columns = Math.min(4, Math.ceil(rows.length / 8));
   return (
     <div className="flex flex-col items-center" style={{ gap: '1.2vh' }}>
       <p
@@ -33,18 +35,37 @@ export const PresentStandings: React.FC<PresentStandingsProps> = ({
       >
         {heading}
       </p>
-      {rows.map((entry, i) => (
-        <p
-          key={`${entry.studentUid ?? entry.pin ?? entry.rank}`}
-          className="font-sans font-semibold tabular-nums text-white"
-          style={{ fontSize: 'clamp(1.1rem, 2.6vw, 2.4rem)' }}
-        >
-          {ORDINALS[i] ?? `${entry.rank}th`}
-          {showNames && entry.name ? ` · ${firstName(entry.name)}` : ''} —{' '}
-          {entry.score}
-          {unit === 'pts' ? ' pts' : '%'}
-        </p>
-      ))}
+      <div
+        className={dense ? 'grid text-left' : 'contents'}
+        style={
+          dense
+            ? {
+                gridAutoFlow: 'column',
+                gridTemplateRows: `repeat(${Math.ceil(rows.length / columns)}, auto)`,
+                columnGap: '4vw',
+                rowGap: '0.6vh',
+              }
+            : undefined
+        }
+      >
+        {rows.map((entry, i) => (
+          <p
+            key={`${entry.studentUid ?? entry.pin ?? entry.rank}`}
+            className="font-sans font-semibold tabular-nums text-white"
+            style={{
+              fontSize: dense
+                ? 'clamp(0.9rem, 1.6vw, 1.6rem)'
+                : 'clamp(1.1rem, 2.6vw, 2.4rem)',
+            }}
+          >
+            {rankOrdinal(i + 1)}
+            {showNames && entry.name
+              ? ` · ${firstName(entry.name)}`
+              : ''} — {entry.score}
+            {unit === 'pts' ? ' pts' : '%'}
+          </p>
+        ))}
+      </div>
     </div>
   );
 };

@@ -41,6 +41,8 @@ interface WriteEvent {
 }
 
 const TRIGGER_OPTS = { memory: '256MiB' as const, maxInstances: 20 };
+// Config edits re-project whole classes, so they get the long timeout.
+const FANOUT_OPTS = { ...TRIGGER_OPTS, timeoutSeconds: 540 };
 
 const dataOf = (side: Change['before'] | undefined): Doc | undefined =>
   side?.exists ? (side.data() ?? undefined) : undefined;
@@ -77,7 +79,14 @@ export async function handleStudentDocWrite(
   };
   if (!docWriteMatters(write)) return;
   await guarded('student doc', { kind, sessionId, docId }, async () => {
-    await applyDocWrite(admin.firestore(), write);
+    const db = admin.firestore();
+    try {
+      await applyDocWrite(db, write);
+    } catch (err) {
+      // Let the recompute worker heal the row instead of dropping the update.
+      await markSessionDirty(db, kind, sessionId);
+      throw err;
+    }
   });
 }
 
@@ -282,7 +291,7 @@ export async function handleColumnWrite(event: WriteEvent): Promise<void> {
 }
 
 export const gradeIndexColumn = onDocumentWritten(
-  { ...TRIGGER_OPTS, document: `${GRADEBOOK_COLUMNS}/{sessionId}` },
+  { ...FANOUT_OPTS, document: `${GRADEBOOK_COLUMNS}/{sessionId}` },
   (event) => handleColumnWrite(event as unknown as WriteEvent)
 );
 
@@ -310,7 +319,7 @@ export async function handleClassSettingsWrite(
 }
 
 export const gradeIndexClassSettings = onDocumentWritten(
-  { ...TRIGGER_OPTS, document: 'users/{uid}/gradebook_classes/{rosterId}' },
+  { ...FANOUT_OPTS, document: 'users/{uid}/gradebook_classes/{rosterId}' },
   (event) => handleClassSettingsWrite(event as unknown as WriteEvent)
 );
 
@@ -333,7 +342,7 @@ export async function handleConfigWrite(event: WriteEvent): Promise<void> {
 }
 
 export const gradeIndexConfig = onDocumentWritten(
-  { ...TRIGGER_OPTS, document: 'users/{uid}/gradebook_settings/{configId}' },
+  { ...FANOUT_OPTS, document: 'users/{uid}/gradebook_settings/{configId}' },
   (event) => handleConfigWrite(event as unknown as WriteEvent)
 );
 
@@ -359,12 +368,12 @@ export async function handleSharedConfigWrite(
 }
 
 export const gradeIndexPlcConfig = onDocumentWritten(
-  { ...TRIGGER_OPTS, document: 'plcs/{plcId}/meta/gradebookSettings' },
+  { ...FANOUT_OPTS, document: 'plcs/{plcId}/meta/gradebookSettings' },
   (event) => handleSharedConfigWrite('plc', event.params.plcId)
 );
 
 export const gradeIndexDistrictConfig = onDocumentWritten(
-  { ...TRIGGER_OPTS, document: 'gradebook_district_configs/{configId}' },
+  { ...FANOUT_OPTS, document: 'gradebook_district_configs/{configId}' },
   (event) => handleSharedConfigWrite('district', event.params.configId)
 );
 

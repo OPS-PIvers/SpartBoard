@@ -30,6 +30,7 @@ import {
   FileText,
   ClipboardList,
   FolderKanban,
+  Gamepad2,
   Wand2,
   Quote,
   Wind,
@@ -392,6 +393,14 @@ export const TOOLS: ToolMetadata[] = [
     color: 'bg-emerald-600',
     category: 'interaction',
     keywords: ['test', 'assessment', 'kahoot', 'questions', 'live quiz'],
+  },
+  {
+    type: 'review',
+    icon: Gamepad2,
+    label: 'Review',
+    color: 'bg-cyan-600',
+    category: 'interaction',
+    keywords: ['review game', 'kahoot', 'blooket', 'live quiz', 'game'],
   },
   {
     type: 'flashcards',

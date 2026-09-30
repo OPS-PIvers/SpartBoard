@@ -1,1 +1,1 @@
-export { QuizWidget } from './Widget';
+export { QuizWidget, ReviewWidget } from './Widget';

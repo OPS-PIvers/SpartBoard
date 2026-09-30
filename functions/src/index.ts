@@ -160,6 +160,9 @@ export {
 // ── Quiz score on submit (server-graded against a teacher-private key) ─────
 export { scoreQuizOnSubmitV1 } from './quizScoreOnSubmit';
 
+// ── Review self-paced game (server-graded per answer; QUIZ_REVIEW_SPLIT.md D31) ─
+export { checkQuizGameAnswerV1 } from './checkQuizGameAnswer';
+
 // ── Organization invitations + membership write-through (Phase 4) ──────────
 export {
   createOrganizationInvites,
