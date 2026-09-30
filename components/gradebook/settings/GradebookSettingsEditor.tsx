@@ -1,5 +1,5 @@
 import React from 'react';
-import { EyeOff, Lock, Trash2, User, Users } from 'lucide-react';
+import { ChevronDown, EyeOff, Lock, Trash2, User, Users } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import {
   DEFAULT_PROFICIENCY_SCALE,
@@ -48,18 +48,42 @@ const METHODS: { value: ProficiencyMethod; label: string }[] = [
   { value: 'highest', label: 'Highest' },
 ];
 
-const FIELD =
-  'h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30 disabled:bg-slate-50 disabled:text-slate-500';
+export const FIELD =
+  'h-9 px-2.5 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30 disabled:bg-slate-50 disabled:text-slate-500';
 const ICON_BTN =
-  'h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30 disabled:opacity-50 disabled:pointer-events-none';
+  'h-[30px] w-[30px] inline-flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30 disabled:opacity-50 disabled:pointer-events-none';
 const LINK_BTN =
   'text-xs font-semibold text-brand-blue-primary hover:underline focus:outline-none focus-visible:underline';
 export const SECTION =
-  'bg-white border border-slate-200 rounded-xl p-5 flex flex-col gap-3 shadow-sm';
+  'bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-3 shadow-[0_1px_2px_rgba(0,0,0,.05)]';
 const H3 = 'text-sm font-bold text-slate-800 flex items-center gap-2';
 
 const newId = (prefix: string): string =>
   `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+/** Native select drawn like the prototype: no system arrow, a slate chevron. */
+export const SelectBox: React.FC<
+  React.SelectHTMLAttributes<HTMLSelectElement> & { wrapClassName?: string }
+> = ({
+  className = '',
+  wrapClassName = 'flex-1 min-w-0 max-w-[320px]',
+  children,
+  ...rest
+}) => (
+  <span className={`relative inline-flex ${wrapClassName}`}>
+    <select
+      className={`${FIELD} w-full cursor-pointer appearance-none pr-[30px] disabled:cursor-default ${className}`}
+      {...rest}
+    >
+      {children}
+    </select>
+    <ChevronDown
+      size={16}
+      aria-hidden
+      className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
+    />
+  </span>
+);
 
 /** Text or number field that commits on blur or Enter and resets when the stored value changes. */
 const CommitInput: React.FC<
@@ -94,6 +118,7 @@ const PctInput: React.FC<{
   min?: number;
   max?: number;
   placeholder?: string;
+  compact?: boolean;
 }> = ({
   value,
   onCommit,
@@ -102,6 +127,7 @@ const PctInput: React.FC<{
   min = 0,
   max = 100,
   placeholder,
+  compact = false,
 }) => (
   <span className="inline-flex items-center gap-1.5 text-sm text-slate-500">
     <CommitInput
@@ -114,7 +140,7 @@ const PctInput: React.FC<{
       disabled={disabled}
       placeholder={placeholder}
       aria-label={label}
-      className="w-[76px]"
+      className={compact ? '!h-8 w-[76px]' : 'w-[76px]'}
     />
     <span>%</span>
   </span>
@@ -126,7 +152,7 @@ const LabeledToggle: React.FC<{
   disabled: boolean;
   children: string;
 }> = ({ checked, onChange, disabled, children }) => (
-  <div className="flex items-center gap-2 text-sm text-slate-600">
+  <div className="flex items-center gap-2 text-[13px] text-slate-600">
     <Toggle
       checked={checked}
       onChange={onChange}
@@ -201,9 +227,9 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
           <table className="w-full table-fixed text-sm">
             <thead>
               <tr className="bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                <th className="px-2 py-2">Flag</th>
-                <th className="px-2 py-2 w-[52px]">Key</th>
-                <th className="px-2 py-2 w-[128px]">
+                <th className="border-b border-slate-200 p-2">Flag</th>
+                <th className="border-b border-slate-200 p-2 w-[52px]">Key</th>
+                <th className="border-b border-slate-200 p-2 w-[128px]">
                   <span className="inline-flex items-center gap-1.5">
                     Value
                     <span className="relative group inline-flex">
@@ -226,8 +252,10 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                     </span>
                   </span>
                 </th>
-                <th className="px-2 py-2 w-[84px]">Visibility</th>
-                <th className="px-2 py-2 w-[44px]">
+                <th className="border-b border-slate-200 p-2 w-[84px]">
+                  Visibility
+                </th>
+                <th className="border-b border-slate-200 p-2 w-[44px]">
                   <span className="sr-only">Remove</span>
                 </th>
               </tr>
@@ -236,8 +264,8 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
               {body.flags.map((f, i) => {
                 const v = VIS[f.visibility] ?? VIS.teacher;
                 return (
-                  <tr key={f.id} className="border-t border-slate-100">
-                    <td className="p-2">
+                  <tr key={f.id} className="border-b border-slate-100">
+                    <td className="px-2 py-2.5">
                       <span className="flex items-center gap-2">
                         <button
                           type="button"
@@ -251,7 +279,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                           }
                           title="Change color"
                           aria-label={`Change ${f.name} color`}
-                          className={`h-[22px] min-w-[22px] px-1 rounded-md text-xs font-bold leading-none inline-grid place-items-center shrink-0 disabled:cursor-default ${flagChipClasses(f.color)}`}
+                          className={`h-[22px] min-w-[22px] px-1 rounded text-[11px] font-bold leading-none inline-grid place-items-center shrink-0 disabled:cursor-default ${flagChipClasses(f.color)}`}
                         >
                           {f.key}
                         </button>
@@ -260,7 +288,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                           disabled={ro}
                           maxLength={40}
                           aria-label="Flag name"
-                          className="w-full min-w-0"
+                          className="!h-8 w-full min-w-0"
                           onCommit={(raw) => {
                             const name = raw.trim();
                             if (name) setFlag(i, { name }, 'Flag name');
@@ -268,13 +296,13 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                         />
                       </span>
                     </td>
-                    <td className="p-2">
+                    <td className="px-2 py-2.5">
                       <CommitInput
                         value={f.key}
                         disabled={ro}
                         maxLength={1}
                         aria-label={`${f.name} key`}
-                        className="w-9 text-center font-bold uppercase"
+                        className="!h-8 w-10 !px-0 text-center font-semibold uppercase"
                         onCommit={(raw) => {
                           const res = checkFlagKey(raw, body.flags, f.id);
                           if (res.ok) setFlag(i, { key: res.key }, 'Flag key');
@@ -282,7 +310,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                         }}
                       />
                     </td>
-                    <td className="p-2">
+                    <td className="px-2 py-2.5">
                       {f.value === 'excluded' ? (
                         <span
                           title="Left out of the average"
@@ -295,6 +323,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                           value={f.value}
                           disabled={ro}
                           placeholder="None"
+                          compact
                           label={`${f.name} value`}
                           onCommit={(raw) =>
                             setFlag(
@@ -311,7 +340,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                         />
                       )}
                     </td>
-                    <td className="p-2">
+                    <td className="px-2 py-2.5">
                       <span className="relative group inline-flex">
                         <button
                           type="button"
@@ -330,7 +359,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                               'Flag visibility'
                             )
                           }
-                          className={`${ICON_BTN} ${f.visibility === 'students' ? 'bg-brand-blue-lighter text-brand-blue-dark hover:bg-brand-blue-lighter' : f.visibility === 'off' ? 'text-slate-400' : 'text-slate-700'}`}
+                          className={`${ICON_BTN} ${f.visibility === 'students' ? 'bg-brand-blue-lighter !text-brand-blue-primary' : f.visibility === 'off' ? 'text-slate-400' : 'text-slate-600'}`}
                         >
                           <v.Icon size={16} aria-hidden />
                         </button>
@@ -342,10 +371,10 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                         </span>
                       </span>
                     </td>
-                    <td className="p-2">
+                    <td className="px-2 py-2.5">
                       {ro ? null : f.builtIn ? (
                         <span
-                          className={`${ICON_BTN} text-slate-300 hover:bg-transparent`}
+                          className={`${ICON_BTN} !text-slate-300 hover:bg-transparent`}
                           title="Built in, used by automatic Late and Missing"
                         >
                           <Lock size={14} aria-hidden />
@@ -355,7 +384,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                           type="button"
                           title="Remove flag"
                           aria-label={`Remove ${f.name}`}
-                          className={`${ICON_BTN} hover:text-brand-red-primary`}
+                          className={`${ICON_BTN} hover:bg-rose-50 hover:!text-brand-red`}
                           onClick={() =>
                             set(
                               { flags: body.flags.filter((_, n) => n !== i) },
@@ -364,7 +393,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                             )
                           }
                         >
-                          <Trash2 size={14} aria-hidden />
+                          <Trash2 size={16} aria-hidden />
                         </button>
                       )}
                     </td>
@@ -402,7 +431,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
           <h3 id="gb-set-overall" className={H3}>
             Overall grade
           </h3>
-          <div className="flex items-center gap-2 text-sm text-slate-600">
+          <div className="flex items-center gap-2 text-[13px] text-slate-600">
             <Toggle
               checked={body.categoriesEnabled}
               onChange={(categoriesEnabled) =>
@@ -436,7 +465,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
           <>
             <div className="flex flex-col gap-2">
               {body.categories.map((c, i) => (
-                <div key={c.id} className="flex items-center gap-3">
+                <div key={c.id} className="flex items-center gap-2">
                   <CommitInput
                     value={c.name}
                     disabled={ro}
@@ -466,7 +495,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                       disabled={body.categories.length < 2}
                       title="Remove category"
                       aria-label={`Remove ${c.name}`}
-                      className={`${ICON_BTN} hover:text-brand-red-primary`}
+                      className={`${ICON_BTN} hover:bg-rose-50 hover:!text-brand-red`}
                       onClick={() => {
                         const rest = body.categories.filter((_, n) => n !== i);
                         set(
@@ -476,7 +505,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                         );
                       }}
                     >
-                      <Trash2 size={14} aria-hidden />
+                      <Trash2 size={16} aria-hidden />
                     </button>
                   )}
                 </div>
@@ -524,15 +553,14 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
         <div className="flex items-center gap-3">
           <label
             htmlFor="gb-set-scale"
-            className="min-w-[130px] text-sm font-medium text-slate-600"
+            className="min-w-[130px] text-[13px] font-medium text-slate-600"
           >
             Scale
           </label>
-          <select
+          <SelectBox
             id="gb-set-scale"
             value={scaleValue}
             disabled={ro}
-            className={`${FIELD} flex-1 min-w-0 max-w-[320px]`}
             onChange={(e) => {
               const v = e.target.value;
               if (v === 'custom')
@@ -551,9 +579,9 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                 {o.label}
               </option>
             ))}
-          </select>
+          </SelectBox>
         </div>
-        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-2.5 gap-y-2">
           {([0, 1, 2] as const).map((lvl) => (
             <React.Fragment key={lvl}>
               <CommitInput
@@ -576,7 +604,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                   setCustom({ ...shownScale, levelNames: names }, 'Level name');
                 }}
               />
-              <span className="text-sm text-slate-500">
+              <span className="text-[13px] text-slate-500">
                 {lvl < 2 ? 'at or above' : 'below'}
               </span>
               {lvl < 2 ? (
@@ -609,15 +637,14 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
         <div className="flex items-center gap-3">
           <label
             htmlFor="gb-set-method"
-            className="min-w-[130px] text-sm font-medium text-slate-600"
+            className="min-w-[130px] text-[13px] font-medium text-slate-600"
           >
             Combine evidence
           </label>
-          <select
+          <SelectBox
             id="gb-set-method"
             value={body.method}
             disabled={ro}
-            className={`${FIELD} flex-1 min-w-0 max-w-[320px]`}
             onChange={(e) =>
               set(
                 { method: e.target.value as ProficiencyMethod },
@@ -630,7 +657,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                 {m.label}
               </option>
             ))}
-          </select>
+          </SelectBox>
         </div>
       </section>
 

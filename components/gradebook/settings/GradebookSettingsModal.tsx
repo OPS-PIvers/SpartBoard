@@ -33,7 +33,11 @@ import {
   type GradebookClassOption,
   type GradebookConfigEntry,
 } from '@/utils/gradebook/settingsConfig';
-import { GradebookSettingsEditor, SECTION } from './GradebookSettingsEditor';
+import {
+  GradebookSettingsEditor,
+  SECTION,
+  SelectBox,
+} from './GradebookSettingsEditor';
 
 export interface GradebookSettingsModalProps {
   isOpen: boolean;
@@ -69,7 +73,7 @@ const ICON_BTN =
   'h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30';
 const FIELD =
   'h-9 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30';
-const ROW_LABEL = 'min-w-[130px] text-sm font-medium text-slate-600';
+const ROW_LABEL = 'min-w-[130px] text-[13px] font-medium text-slate-600';
 
 /** Presentational settings modal (D16); `GradebookSettingsModal` wires it to Firestore. */
 export const GradebookSettingsModalView: React.FC<
@@ -248,7 +252,12 @@ export const GradebookSettingsModalView: React.FC<
             Gradebook settings
           </h2>
           <span className="flex-1" />
-          <Btn variant="primary" size="sm" onClick={onClose}>
+          <Btn
+            variant="primary"
+            size="sm"
+            className="!h-[34px] !px-3.5 !text-[13px]"
+            onClick={onClose}
+          >
             Done
           </Btn>
         </header>
@@ -277,10 +286,9 @@ export const GradebookSettingsModalView: React.FC<
                 }}
               />
             ) : (
-              <select
+              <SelectBox
                 id="gb-cfg"
                 value={shown.key}
-                className={`${FIELD} flex-1 min-w-0 max-w-[320px]`}
                 onChange={(e) => {
                   setPickedKey(e.target.value);
                   setConfirmDelete(false);
@@ -303,7 +311,7 @@ export const GradebookSettingsModalView: React.FC<
                     </optgroup>
                   ) : null
                 )}
-              </select>
+              </SelectBox>
             )}
             <span className="flex gap-0.5">
               {!ro && (
@@ -364,7 +372,7 @@ export const GradebookSettingsModalView: React.FC<
           </div>
 
           {confirmDelete && (
-            <div className="flex flex-wrap items-center gap-2.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-900">
+            <div className="flex flex-wrap items-center gap-2.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-[13px] leading-snug text-slate-700">
               <span className="flex-1">
                 Delete <b>{shown.name}</b>?
                 {explicitUsers.length > 0 &&
@@ -407,7 +415,7 @@ export const GradebookSettingsModalView: React.FC<
                 </span>
                 <ChevronDown
                   size={16}
-                  className="shrink-0 text-slate-400"
+                  className={`shrink-0 text-slate-400 transition-transform ${applyOpen ? 'rotate-180' : ''}`}
                   aria-hidden
                 />
               </button>
@@ -469,7 +477,7 @@ export const GradebookSettingsModalView: React.FC<
                 role="menuitemcheckbox"
                 aria-checked={on}
                 onClick={() => onApply(c)}
-                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-slate-50 focus:bg-slate-50 focus:outline-none ${on ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
+                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] leading-5 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none ${on ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
               >
                 <span className="w-4 shrink-0 text-brand-blue-primary">
                   {on && <Check size={16} aria-hidden />}
