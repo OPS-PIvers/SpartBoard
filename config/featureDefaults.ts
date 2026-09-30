@@ -790,6 +790,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Quiz assign/edit: a due date per selected class. Admin-only until Paul has used it.
+  'quiz-per-class-due-dates': {
+    label: 'Due date per class',
+    icon: CalendarClock,
+    description: 'Give each class on a quiz assignment its own due date.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Projects board: a group's name opens the view its students see.
   'projects-group-view': {
     label: 'Projects group view',

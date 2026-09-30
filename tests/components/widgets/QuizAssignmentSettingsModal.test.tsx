@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QuizAssignmentSettingsModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentSettingsModal';
 import { combineDateAndTime } from '@/utils/localDate';
 import type { ClassRoster, QuizAssignment } from '@/types';
+import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 
 function makePlcAssignment(
   overrides: Partial<QuizAssignment> = {}
@@ -470,5 +471,98 @@ describe('QuizAssignmentSettingsModal — PLC results sharing (D12)', () => {
     expect(patch).not.toHaveProperty('teacherName');
     expect(patch).not.toHaveProperty('plcSheetUrl');
     expect(screen.queryByText('Auto-Generated PLC Sheet')).toBeNull();
+  });
+});
+
+describe('QuizAssignmentSettingsModal — per-class due dates', () => {
+  const rosters = [
+    makeRoster({ id: 'r1', name: 'Period 1' }),
+    makeRoster({ id: 'r2', name: 'Period 2' }),
+  ];
+  const withFlag = (ui: React.ReactElement, on = true) => (
+    <AuthContext.Provider
+      value={
+        {
+          canAccessFeature: (id: string) =>
+            on && id === 'quiz-per-class-due-dates',
+        } as unknown as AuthContextType
+      }
+    >
+      {ui}
+    </AuthContext.Provider>
+  );
+
+  it('hides the switch without the flag', () => {
+    render(
+      withFlag(
+        <QuizAssignmentSettingsModal
+          assignment={makePlcAssignment({ rosterIds: ['r1', 'r2'] })}
+          rosters={rosters}
+          onSave={vi.fn()}
+          onClose={vi.fn()}
+        />,
+        false
+      )
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Each class' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('saves a date per class with the earliest as dueAt', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      withFlag(
+        <QuizAssignmentSettingsModal
+          assignment={makePlcAssignment({ rosterIds: ['r1', 'r2'] })}
+          rosters={rosters}
+          onSave={onSave}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Each class' }));
+    fireEvent.change(screen.getByLabelText('Period 1 due date'), {
+      target: { value: '2026-06-02' },
+    });
+    fireEvent.change(screen.getByLabelText('Period 2 due date'), {
+      target: { value: '2026-06-01' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
+    expect(patch.dueAtByRosterId).toEqual({
+      r1: combineDateAndTime('2026-06-02', '23:59'),
+      r2: combineDateAndTime('2026-06-01', '23:59'),
+    });
+    expect(patch.dueAt).toBe(combineDateAndTime('2026-06-01', '23:59'));
+  });
+
+  it('switching back to one date clears the per-class map', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      withFlag(
+        <QuizAssignmentSettingsModal
+          assignment={makePlcAssignment({
+            rosterIds: ['r1', 'r2'],
+            dueAt: combineDateAndTime('2026-06-01', '09:00'),
+            dueAtHasTime: true,
+            dueAtByRosterId: {
+              r1: combineDateAndTime('2026-06-01', '09:00') ?? 0,
+              r2: combineDateAndTime('2026-06-03', '09:00') ?? 0,
+            },
+          })}
+          rosters={rosters}
+          onSave={onSave}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'One date' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
+    expect(patch).toHaveProperty('dueAtByRosterId', undefined);
+    expect(patch.dueAt).toBe(combineDateAndTime('2026-06-01', '09:00'));
   });
 });

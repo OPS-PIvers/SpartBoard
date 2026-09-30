@@ -177,6 +177,8 @@ export interface CreateAssignmentOptions {
    * via `deriveSessionTargetsFromRosters`.
    */
   classPeriodByClassId?: Record<string, string>;
+  /** Per-class due dates by class id, mirrored to the session for students. */
+  dueAtByClassId?: Record<string, number>;
   /**
    * Synced-group linkage. When provided, both the assignment doc and
    * the session doc carry `sync: { groupId, syncedVersion }`, so the
@@ -306,7 +308,9 @@ export interface UseQuizAssignmentsResult {
   /** Update editable settings (className, PLC fields, session toggles). */
   updateAssignmentSettings: (
     assignmentId: string,
-    patch: Partial<QuizAssignmentSettings>
+    patch: Partial<QuizAssignmentSettings>,
+    /** Per-class due dates by class id, when `patch.dueAtByRosterId` is set. */
+    dueAtByClassId?: Record<string, number>
   ) => Promise<void>;
   /**
    * Retarget an existing assignment at a new set of rosters. Mirrors
@@ -1362,6 +1366,10 @@ export const useQuizAssignments = (
         ...(settings.dueAtHasTime
           ? { dueAtHasTime: settings.dueAtHasTime }
           : {}),
+        ...(settings.dueAtByRosterId &&
+        Object.keys(settings.dueAtByRosterId).length > 0
+          ? { dueAtByRosterId: settings.dueAtByRosterId }
+          : {}),
         attemptLimit: settings.attemptLimit ?? null,
         ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
         // Synced linkage: present iff the assignment was created from a
@@ -1547,6 +1555,10 @@ export const useQuizAssignments = (
         // students, so mirror it here alongside the window (the archive doc
         // above already carries it).
         ...(settings.dueAt != null ? { dueAt: settings.dueAt } : {}),
+        ...(options?.dueAtByClassId &&
+        Object.keys(options.dueAtByClassId).length > 0
+          ? { dueAtByClassId: options.dueAtByClassId }
+          : {}),
         // PLC pooling marker (docs/plans/shipped/PLC_ASSESSMENT_DATA.md §3.1); the
         // server keys the shared assessment on `syncGroupId`.
         ...(settings.plc
@@ -1991,7 +2003,7 @@ export const useQuizAssignments = (
   const updateAssignmentSettings = useCallback<
     UseQuizAssignmentsResult['updateAssignmentSettings']
   >(
-    async (assignmentId, patch) => {
+    async (assignmentId, patch, dueAtByClassId) => {
       if (!userId) throw new Error('Not authenticated');
       const now = Date.now();
       // Firestore is initialized with `ignoreUndefinedProperties: true`
@@ -2011,6 +2023,12 @@ export const useQuizAssignments = (
       if (clearingPlc) {
         assignmentPatch.plc = deleteField();
       }
+      const clearingPerClassDue =
+        Object.prototype.hasOwnProperty.call(patch, 'dueAtByRosterId') &&
+        patch.dueAtByRosterId === undefined;
+      if (clearingPerClassDue) {
+        assignmentPatch.dueAtByRosterId = deleteField();
+      }
       const batch = writeBatch(db);
       batch.update(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
@@ -2023,11 +2041,16 @@ export const useQuizAssignments = (
       if ('periodName' in patch) sessionPatch.periodName = patch.periodName;
       if ('attemptLimit' in patch)
         sessionPatch.attemptLimit = patch.attemptLimit ?? null;
+      // /my-assignments reads due dates off the session doc.
+      if ('dueAt' in patch) sessionPatch.dueAt = patch.dueAt ?? null;
+      if (clearingPerClassDue) sessionPatch.dueAtByClassId = deleteField();
+      else if (dueAtByClassId) sessionPatch.dueAtByClassId = dueAtByClassId;
       if (patch.sessionOptions) {
         // Mirror only edited keys so flag-gated create-time fields (tab-away) aren't switched on.
-        const prevOptions: Record<string, unknown> =
-          assignmentsRef.current.find((a) => a.id === assignmentId)
-            ?.sessionOptions ?? {};
+        const prevOptions: Record<string, unknown> = {
+          ...assignmentsRef.current.find((a) => a.id === assignmentId)
+            ?.sessionOptions,
+        };
         const changed = Object.fromEntries(
           Object.entries(patch.sessionOptions).filter(
             ([key, value]) => prevOptions[key] !== value
