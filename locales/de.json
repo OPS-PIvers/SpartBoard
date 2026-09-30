@@ -2833,6 +2833,7 @@
     "question_sorting": "Sortieren",
     "questionText": "Frage",
     "questionTextPlaceholder": "Was möchten Sie fragen?",
+    "learningTargets": "Lernziele",
     "answerChoices": "Antwortmöglichkeiten",
     "markCorrect": "Antwort {{n}} als richtig markieren",
     "choiceN": "Antwort {{n}}",

@@ -7432,6 +7432,8 @@ export interface GuidedLearningStep {
   /** Banner color tone for banner overlay (default 'blue') */
   bannerTone?: 'blue' | 'red' | 'neutral';
   question?: GuidedLearningQuestion;
+  /** Learning-target tags on a question step; teacher-only, never mirrored to `publicSteps`. */
+  targets?: QuestionTargetTag[];
   /** Seconds before auto-advance in guided mode */
   autoAdvanceDuration?: number;
   /** Click zone / spotlight / zoom focus. Absent = default circle centred on xPct/yPct. */
@@ -10343,6 +10345,8 @@ export interface GuidedLearningAssignment
   removedStudentRefs?: StudentTargetRef[];
   /** Answer keys by step id, frozen at assign so a later set edit never rescores. */
   answerKeys?: Record<string, GuidedLearningAnswerKey>;
+  /** Learning-target tags by question step id, frozen at assign for gradebook evidence. */
+  stepTargets?: Record<string, QuestionTargetTag[]>;
 }
 
 /** The scoring half of a question, stored on the teacher-only assignment doc. */

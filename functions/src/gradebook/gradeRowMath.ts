@@ -3,6 +3,7 @@ import {
   gradeGroupAnswer,
   parsePublicQuestion,
   parseSyncedQuestion,
+  parseTargets,
   selectRepresentativeAnswers,
   type GroupQuestion,
   type ManualGrade,
@@ -516,10 +517,46 @@ export function scoreVideoResponse(
   };
 }
 
+/** Step id → tags from the assignment's frozen `stepTargets` map. */
+export function parseStepTargets(
+  raw: unknown
+): Map<string, QuestionTargetSnapshot[]> {
+  const out = new Map<string, QuestionTargetSnapshot[]>();
+  for (const [stepId, tags] of Object.entries(asRecord(raw))) {
+    const parsed = parseTargets(tags);
+    if (parsed.length > 0) out.set(stepId, parsed);
+  }
+  return out;
+}
+
+/** One point per tagged question step; an answer not yet marked right or wrong gives no evidence. */
+export function guidedLearningEvidence(
+  gradable: Set<string>,
+  answers: Doc[],
+  stepTargets: Map<string, QuestionTargetSnapshot[]>
+): TargetEvidence[] {
+  const acc = new Map<string, TargetEvidence>();
+  const byStep = new Map<string, Doc>();
+  for (const a of answers) {
+    const id = asString(a.stepId);
+    if (id && !byStep.has(id)) byStep.set(id, a);
+  }
+  for (const [stepId, targets] of stepTargets) {
+    if (gradable.size > 0 && !gradable.has(stepId)) continue;
+    const answer = byStep.get(stepId);
+    if (answer && typeof answer.isCorrect !== 'boolean') continue;
+    addEvidence(acc, targets, answer?.isCorrect === true ? 1 : 0, 1);
+  }
+  return [...acc.values()].sort((a, b) =>
+    a.targetId < b.targetId ? -1 : a.targetId > b.targetId ? 1 : 0
+  );
+}
+
 /** Guided learning: gradable steps are the ones carrying a question; one point each. */
 export function scoreGuidedLearningResponse(
   session: Doc,
-  response: Doc
+  response: Doc,
+  stepTargets: Map<string, QuestionTargetSnapshot[]> = new Map()
 ): RowScore {
   const steps = Array.isArray(session.publicSteps) ? session.publicSteps : [];
   const gradable = new Set(
@@ -565,7 +602,7 @@ export function scoreGuidedLearningResponse(
   return {
     classId,
     published,
-    targetEvidence: [],
+    targetEvidence: guidedLearningEvidence(gradable, answers, stepTargets),
     rawPct,
     points:
       rawPct !== null && max !== null ? round2((rawPct / 100) * max) : null,

@@ -3956,6 +3956,7 @@
     "question_sorting": "Sorting",
     "questionText": "Question",
     "questionTextPlaceholder": "What do you want to ask?",
+    "learningTargets": "Learning targets",
     "answerChoices": "Answer choices",
     "markCorrect": "Mark choice {{n}} as correct",
     "choiceN": "Choice {{n}}",
