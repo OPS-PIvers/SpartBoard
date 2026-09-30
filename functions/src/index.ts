@@ -209,6 +209,34 @@ export {
 } from './markPlcAssessmentDirty';
 export { recomputePlcAssessments } from './recomputePlcAssessments';
 
+// Gradebook grade index and student projection (docs/plans/GRADEBOOK.md D10, D37); off until admin_settings/gradebook_index.enabled.
+export {
+  gradeIndexQuizResponse,
+  gradeIndexVideoResponse,
+  gradeIndexGuidedLearningResponse,
+  gradeIndexFlashcardProgress,
+  gradeIndexProjectGrade,
+  gradeIndexMiniAppSubmission,
+  gradeIndexWallSubmission,
+  gradeIndexQuizSession,
+  gradeIndexVideoSession,
+  gradeIndexGuidedLearningSession,
+  gradeIndexFlashcardSession,
+  gradeIndexProjectRun,
+  gradeIndexMiniAppSession,
+  gradeIndexWallSession,
+  gradeIndexQuizKey,
+  gradeIndexQuizAssignment,
+  gradeIndexVideoKey,
+  gradeIndexProjectGroup,
+  gradeIndexProjection,
+  gradeIndexMark,
+  gradeIndexColumn,
+  gradeIndexClassSettings,
+  gradeIndexConfig,
+  gradeIndexRecompute,
+} from './gradebook/gradeIndexTriggers';
+
 // ── Slim, PII-free discovery mirror (onWrite of a PLC root keeps
 // /plcIndex/{plcId} in sync) so the org "PLCs in my building" directory never
 // exposes teacher emails/displayNames. Decision 1.1 hardening. ──────────────
