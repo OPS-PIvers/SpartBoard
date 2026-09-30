@@ -213,10 +213,13 @@ async function loadRowInputs(db: Firestore, row: IndexRow): Promise<RowInputs> {
       .get(),
     db.collection(GRADEBOOK_COLUMNS).doc(row.sessionId).get(),
   ]);
+  const mark = parseMark(markSnap.data());
+  const column = parseColumn(columnSnap.data());
+  // Only the session's teacher's own mark and column count.
   return {
     row,
-    mark: parseMark(markSnap.data()),
-    column: parseColumn(columnSnap.data()),
+    mark: mark?.ownerUid === row.ownerUid ? mark : null,
+    column: column?.ownerUid === row.ownerUid ? column : null,
   };
 }
 

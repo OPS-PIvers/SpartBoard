@@ -86,6 +86,7 @@ describe('projectRow', () => {
   it('shows a published final score with the override applied', async () => {
     const stub = makeStubFirestore({
       'gradebook_marks/qs1__u1': {
+        ownerUid: 't1',
         override: { points: 9, at: 1 },
         comment: { text: 'Nice work', shared: true, at: 1 },
       },
@@ -109,6 +110,7 @@ describe('projectRow', () => {
   it('never carries an unpublished score or a private comment', async () => {
     const stub = makeStubFirestore({
       'gradebook_marks/qs1__u1': {
+        ownerUid: 't1',
         comment: { text: 'private', shared: false, at: 1 },
         flags: ['missing'],
       },
@@ -134,15 +136,38 @@ describe('projectRow', () => {
 
   it('follows a per-student unpublish', async () => {
     const stub = makeStubFirestore({
-      'gradebook_marks/qs1__u1': { publishOverride: 'unpublished' },
+      'gradebook_marks/qs1__u1': {
+        ownerUid: 't1',
+        publishOverride: 'unpublished',
+      },
     });
     await projectRow(stub.db as unknown as Db, row(), null, NOW);
     expect(entryOf(stub)).toMatchObject({ status: 'hidden', pct: null });
   });
 
+  it('ignores a mark written by someone other than the teacher', async () => {
+    const stub = makeStubFirestore({
+      'gradebook_marks/qs1__u1': {
+        ownerUid: 'intruder',
+        override: { points: 0, at: 1 },
+        publishOverride: 'unpublished',
+      },
+      'gradebook_columns/qs1': { ownerUid: 'intruder', maxPointsOverride: 100 },
+    });
+    await projectRow(stub.db as unknown as Db, row(), null, NOW);
+    expect(entryOf(stub)).toMatchObject({
+      status: 'scored',
+      points: 8,
+      pct: 80,
+    });
+  });
+
   it('hides teacher-only flags', async () => {
     const stub = makeStubFirestore({
-      'gradebook_marks/qs1__u1': { flags: ['late'] },
+      'gradebook_marks/qs1__u1': {
+        ownerUid: 't1',
+        flags: ['late'],
+      },
     });
     await projectRow(stub.db as unknown as Db, row(), null, NOW);
     expect(entryOf(stub)?.flags).toEqual([]);
@@ -213,7 +238,10 @@ describe('projectRow', () => {
           },
         ],
       },
-      'gradebook_marks/qs1__u1': { flags: ['late'] },
+      'gradebook_marks/qs1__u1': {
+        ownerUid: 't1',
+        flags: ['late'],
+      },
     });
     await projectRow(stub.db as unknown as Db, row(), null, NOW);
     expect(entryOf(stub)?.flags).toEqual([
@@ -251,6 +279,7 @@ describe('triggers', () => {
       'admin_settings/gradebook_index': { enabled: true },
       'grade_index/qs1__u1': row() as unknown as StubData,
       'gradebook_marks/qs1__u1': {
+        ownerUid: 't1',
         comment: { text: 'See me', shared: true, at: 1 },
       },
     });
