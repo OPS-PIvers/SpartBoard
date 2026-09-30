@@ -39,10 +39,12 @@ export function useStudentCardLayout(): CardLayout & {
     saveCardLayouts({
       [STUDENT_CARD_LAYOUT_KEY]: next.order,
       [STUDENT_CARD_HIDDEN_KEY]: next.hidden,
-    }).catch(() => {
-      setPending(null);
-      toast('Could not save the card layout');
-    });
+    })
+      .then(() => setPending(null))
+      .catch(() => {
+        setPending(null);
+        toast('Could not save the card layout');
+      });
   };
 
   return { ...layout, save };
