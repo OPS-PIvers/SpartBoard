@@ -24,8 +24,10 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1' },
     ensureGoogleScope: vi.fn(),
+    canAccessFeature: () => false,
   }),
 }));
+vi.mock('@/hooks/usePlcs', () => ({ usePlcs: () => ({ plcs: [] }) }));
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
     addToast: vi.fn(),

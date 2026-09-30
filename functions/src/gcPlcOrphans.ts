@@ -156,6 +156,7 @@ export const SOFT_DELETE_SUBCOLLECTIONS = [
   'assessments',
   'meetings',
   'comments',
+  'flashcard_sets',
 ] as const;
 
 /** The two canonical synced-group collections + their version subcollection. */

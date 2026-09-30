@@ -8162,6 +8162,8 @@ export interface FlashcardAssignment
   openAt?: number | null;
   closeAt?: number | null;
   dueAt?: number | null;
+  /** PLC this assignment's class-level results are shared with. */
+  plcShare?: { plcId: string; sharedAt: number } | null;
 }
 
 /** `flashcard_sessions/{assignmentId}/progress/{studentUid}`. */
@@ -8183,6 +8185,47 @@ export interface FlashcardProgress extends FlashcardStudyState {
   total?: number;
   answerLog?: FlashcardAnswerLogEntry[];
   flags?: FlashcardFlag[];
+}
+
+/** `plcs/{plcId}/flashcard_sets/{setId}`: a set shared with a PLC, payload inline. */
+export interface PlcFlashcardSetEntry extends Omit<
+  FlashcardSet,
+  'folderId' | 'publicShareId' | 'claudeReviewPendingAt'
+> {
+  sharedBy: string;
+  sharedByEmail: string;
+  sharedByName: string;
+  sharedAt: number;
+  deletedAt?: number | null;
+}
+
+/** One card's class tally in a shared flashcard result. */
+export interface PlcFlashcardCardTally {
+  term: string;
+  definition: string;
+  correct: number;
+  answered: number;
+}
+
+/** `plcs/{plcId}/flashcard_results/{assignmentId}`: class-level results, no student ids. */
+export interface PlcFlashcardResultEntry {
+  id: string;
+  setId: string;
+  setTitle: string;
+  kind: FlashcardAssignmentKind;
+  classLabel: string;
+  /** Students with progress. */
+  students: number;
+  /** Submitted (check) or started (study). */
+  completed: number;
+  /** Average score (check) or average mastered (study), 0-100. */
+  averagePercent: number;
+  cards: PlcFlashcardCardTally[];
+  sharedBy: string;
+  sharedByEmail: string;
+  sharedByName: string;
+  sharedAt: number;
+  updatedAt: number;
 }
 
 /** Per-board state only. Set content lives in the teacher's Firestore library. */
@@ -9147,6 +9190,8 @@ export type GlobalFeature =
   | 'plc-home-v2'
   /** Flag free-response answers so an anonymized copy appears on the PLC page for norming. */
   | 'plc-norming-flags'
+  /** Share flashcard sets and class-level flashcard results with a PLC. */
+  | 'plc-flashcards'
   /** Choose-all-that-apply quiz questions in the quiz editor and AI drafting. */
   | 'quiz-choose-all'
   /** Quiz multiple choice editor as one option list with a correct-answer marker per option. */

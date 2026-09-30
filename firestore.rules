@@ -3161,6 +3161,95 @@ service cloud.firestore {
           && plcCanEditContent(plcId);
       }
 
+      // PLC Flashcards library. Inline payload like rubrics: any non-viewer member
+      // shares/unshares; identity + attribution immutable post-create.
+      match /flashcard_sets/{plcSetId} {
+        allow read: if request.auth != null
+          && plcMember(plcId);
+
+        allow create: if request.auth != null
+          && plcCanEditContent(plcId)
+          && incoming().keys().hasOnly([
+               'id', 'title', 'description', 'termLanguage',
+               'definitionLanguage', 'cards', 'createdAt', 'updatedAt',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'deletedAt'
+             ])
+          && plcSetId == incoming().id
+          && incoming().sharedBy == authUid()
+          && isStr('title')
+          && isStr('termLanguage')
+          && isStr('definitionLanguage')
+          && isList('cards')
+          && incoming().cards.size() <= 1000
+          && isStr('sharedByEmail')
+          && isStr('sharedByName')
+          && isInt('sharedAt')
+          && isInt('createdAt')
+          && isInt('updatedAt')
+          && plcSubDeletedAtOk();
+
+        allow update: if request.auth != null
+          && plcCanEditContent(plcId)
+          && incoming().keys().hasOnly([
+               'id', 'title', 'description', 'termLanguage',
+               'definitionLanguage', 'cards', 'createdAt', 'updatedAt',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'deletedAt'
+             ])
+          && sameId()
+          && unchanged('sharedBy')
+          && unchanged('sharedByEmail')
+          && unchanged('sharedByName')
+          && unchanged('sharedAt')
+          && unchanged('createdAt')
+          && isStr('title')
+          && isStr('termLanguage')
+          && isStr('definitionLanguage')
+          && isList('cards')
+          && incoming().cards.size() <= 1000
+          && isInt('updatedAt')
+          && plcSubDeletedAtOk();
+
+        allow delete: if request.auth != null
+          && plcCanEditContent(plcId);
+      }
+
+      // Class-level flashcard results a teacher shares with the PLC. No student ids;
+      // only the sharing teacher writes, refreshes or removes their own summary.
+      match /flashcard_results/{plcResultId} {
+        allow read: if request.auth != null
+          && plcMember(plcId);
+
+        allow create, update: if request.auth != null
+          && plcCanEditContent(plcId)
+          && incoming().keys().hasOnly([
+               'id', 'setId', 'setTitle', 'kind', 'classLabel',
+               'students', 'completed', 'averagePercent', 'cards',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'updatedAt'
+             ])
+          && plcResultId == incoming().id
+          && incoming().sharedBy == authUid()
+          && (request.method == 'create' || existing().sharedBy == authUid())
+          && isStr('setId')
+          && isStr('setTitle')
+          && incoming().kind in ['check', 'study']
+          && isStr('classLabel')
+          && isInt('students')
+          && isInt('completed')
+          && isNumber('averagePercent')
+          && isList('cards')
+          && incoming().cards.size() <= 1000
+          && isStr('sharedByEmail')
+          && isStr('sharedByName')
+          && isInt('sharedAt')
+          && isInt('updatedAt');
+
+        allow delete: if request.auth != null
+          && existing().sharedBy == authUid();
+      }
+
       // PLC-authored Assignments (Phase 3). Templates any member can pick up onto
       // their board, pointing at a canonical synced_quizzes/{groupId} (content
       // lives there). Posture mirrors the Quiz Library — any member authors /

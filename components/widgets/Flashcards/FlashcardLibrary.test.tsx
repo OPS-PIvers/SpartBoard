@@ -297,3 +297,60 @@ describe('FlashcardLibrary folder move error handling', () => {
     );
   });
 });
+
+describe('FlashcardLibrary PLC sharing', () => {
+  const set: FlashcardSet = {
+    id: 'set-1',
+    title: 'Spanish verbs',
+    termLanguage: 'es',
+    definitionLanguage: 'en-US',
+    cards: [],
+    createdAt: 1,
+    updatedAt: 1,
+  };
+
+  it('hides PLC actions without the handlers', () => {
+    renderLibrary({ tab: 'library', sets: [set] });
+    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    expect(
+      screen.queryByRole('menuitem', { name: 'Share with PLC' })
+    ).toBeNull();
+  });
+
+  it('shares a set with a PLC', () => {
+    const onShareWithPlc = vi.fn();
+    renderLibrary({ tab: 'library', sets: [set], onShareWithPlc });
+    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Share with PLC' }));
+    expect(onShareWithPlc).toHaveBeenCalledWith(set);
+  });
+
+  it('shares assignment results with a PLC', () => {
+    const share = vi.fn();
+    renderLibrary({
+      assignments: [assignment()],
+      onAssignmentShareWithPlc: share,
+      onAssignmentStopSharingWithPlc: vi.fn(),
+    });
+    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: 'Share results with PLC' })
+    );
+    expect(share).toHaveBeenCalledWith(assignment());
+  });
+
+  it('offers Stop sharing on a shared assignment', () => {
+    const stop = vi.fn();
+    const shared = assignment({ plcShare: { plcId: 'plc-1', sharedAt: 1 } });
+    renderLibrary({
+      assignments: [shared],
+      onAssignmentShareWithPlc: vi.fn(),
+      onAssignmentStopSharingWithPlc: stop,
+    });
+    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: 'Stop sharing with PLC' })
+    );
+    expect(stop).toHaveBeenCalledWith(shared);
+  });
+});

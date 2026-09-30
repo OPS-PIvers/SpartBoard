@@ -6,6 +6,7 @@ import {
   BookOpen,
   ClipboardCheck,
   Film,
+  Layers,
   Library,
   type LucideIcon,
 } from 'lucide-react';
@@ -15,8 +16,15 @@ import { PlcAssessmentDetail } from '@/components/plc/assessments/PlcAssessmentD
 import { PlcVideoActivitiesTabsBody } from './PlcVideoActivitiesTabsBody';
 import { PlcRubricLibraryBody } from './PlcRubricLibraryBody';
 import { PlcQuestionBanksBody } from './PlcQuestionBanksBody';
+import { PlcFlashcardsBody } from './PlcFlashcardsBody';
+import { useAuth } from '@/context/useAuth';
 
-type AssessmentType = 'quiz' | 'bank' | 'video-activity' | 'rubric';
+type AssessmentType =
+  | 'quiz'
+  | 'bank'
+  | 'video-activity'
+  | 'rubric'
+  | 'flashcards';
 
 interface TypeNavDef {
   id: AssessmentType;
@@ -50,6 +58,12 @@ const TYPE_NAV: readonly TypeNavDef[] = [
     labelKey: 'plcDashboard.assessmentsTypes.rubrics',
     labelDefault: 'Rubrics',
   },
+  {
+    id: 'flashcards',
+    icon: Layers,
+    labelKey: 'plcDashboard.assessmentsTypes.flashcards',
+    labelDefault: 'Flashcards',
+  },
 ] as const;
 
 interface PlcAssessmentsBodyProps {
@@ -67,6 +81,8 @@ export const PlcAssessmentsBody: React.FC<PlcAssessmentsBodyProps> = ({
 }) => {
   const { t } = useTranslation();
   const features = useMemo(() => getPlcFeatures(plc), [plc]);
+  const { canAccessFeature } = useAuth();
+  const flashcardsEnabled = canAccessFeature('plc-flashcards');
 
   // Rubrics have no feature flag — they ride along with the section.
   const enabledTypes = useMemo(
@@ -74,9 +90,10 @@ export const PlcAssessmentsBody: React.FC<PlcAssessmentsBodyProps> = ({
       TYPE_NAV.filter((f) => {
         if (f.id === 'quiz' || f.id === 'bank') return features.quizzes;
         if (f.id === 'video-activity') return features.videoActivities;
+        if (f.id === 'flashcards') return flashcardsEnabled;
         return true;
       }),
-    [features.quizzes, features.videoActivities]
+    [features.quizzes, features.videoActivities, flashcardsEnabled]
   );
 
   const [activeType, setActiveType] = useState<AssessmentType>(
@@ -163,6 +180,7 @@ export const PlcAssessmentsBody: React.FC<PlcAssessmentsBodyProps> = ({
             )}
             {effectiveType === 'bank' && <PlcQuestionBanksBody plc={plc} />}
             {effectiveType === 'rubric' && <PlcRubricLibraryBody plc={plc} />}
+            {effectiveType === 'flashcards' && <PlcFlashcardsBody plc={plc} />}
           </div>
         </div>
       )}

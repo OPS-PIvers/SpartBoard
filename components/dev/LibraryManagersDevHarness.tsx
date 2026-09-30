@@ -153,7 +153,11 @@ const FLASHCARD_SETS: FlashcardSet[] = range((i) => ({
   title: `Vocabulary set ${i + 1}`,
   termLanguage: 'en',
   definitionLanguage: 'en',
-  cards: [],
+  cards: range((c) => ({
+    id: `c-${c}`,
+    term: `t${c}`,
+    definition: `d${c}`,
+  })).slice(0, 8 + (i % 17)),
   createdAt: NOW - i * 3600_000,
   updatedAt: NOW - i * 3600_000,
 }));
@@ -334,6 +338,9 @@ const FlashcardsView: React.FC = () => {
       onAssignmentEnd={noop}
       onAssignmentReopen={noop}
       onAssignmentDelete={noop}
+      onShareWithPlc={noop}
+      onAssignmentShareWithPlc={noop}
+      onAssignmentStopSharingWithPlc={noop}
     />
   );
 };

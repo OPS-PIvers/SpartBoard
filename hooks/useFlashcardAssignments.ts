@@ -8,6 +8,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  updateDoc,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -70,6 +71,11 @@ export interface UseFlashcardAssignmentsResult {
   ) => Promise<void>;
   /** Hides released Check scores again. */
   unpublishScores: (assignmentId: string) => Promise<void>;
+  /** Records (or clears) which PLC this assignment's results are shared with. */
+  setPlcShare: (
+    assignmentId: string,
+    plcShare: FlashcardAssignment['plcShare']
+  ) => Promise<void>;
 }
 
 const nonEmptyStrings = (values: string[] | undefined): string[] =>
@@ -375,6 +381,23 @@ export const useFlashcardAssignments = (
     [writeScorePatch]
   );
 
+  const setPlcShare = useCallback<UseFlashcardAssignmentsResult['setPlcShare']>(
+    async (assignmentId, plcShare) => {
+      if (!userId) throw new Error('Not authenticated');
+      await updateDoc(
+        doc(
+          db,
+          'users',
+          userId,
+          FLASHCARD_ASSIGNMENTS_COLLECTION,
+          assignmentId
+        ),
+        { plcShare: plcShare ?? deleteField(), updatedAt: Date.now() }
+      );
+    },
+    [userId]
+  );
+
   return {
     assignments,
     loading,
@@ -385,5 +408,6 @@ export const useFlashcardAssignments = (
     deleteAssignment,
     publishScores,
     unpublishScores,
+    setPlcShare,
   };
 };
