@@ -211,20 +211,62 @@ export function useGradebookMarkWrites(rosterId: string) {
     [uid, rosterId]
   );
 
+  const commitOne = useCallback(
+    async (
+      column: GradebookColumnRef,
+      cell: GradebookCellData,
+      patch: MarkPatch,
+      label: string
+    ): Promise<{ batchId: string; after: GradebookMark }> => {
+      const w = plan(column, cell, patch);
+      const batchId = newBatchId();
+      if (!w) throw new Error('Not authenticated');
+      await commit([w], batchId, label);
+      return { batchId, after: w.after };
+    },
+    [plan, commit]
+  );
+
   const single = useCallback(
     async (
       column: GradebookColumnRef,
       cell: GradebookCellData,
       patch: MarkPatch,
       label: string
-    ): Promise<string> => {
-      const w = plan(column, cell, patch);
-      const batchId = newBatchId();
-      if (!w) throw new Error('Not authenticated');
-      await commit([w], batchId, label);
-      return batchId;
+    ): Promise<string> => (await commitOne(column, cell, patch, label)).batchId,
+    [commitOne]
+  );
+
+  /** Saves a score and a comment in turn, the second built on the first's result so neither is lost. */
+  const saveEdits = useCallback(
+    async (
+      column: GradebookColumnRef,
+      cell: GradebookCellData,
+      edits: {
+        points?: number | null;
+        comment?: { text: string; shared: boolean };
+      }
+    ): Promise<void> => {
+      let current = cell;
+      if (edits.points !== undefined) {
+        const { after } = await commitOne(
+          column,
+          current,
+          overridePatch(edits.points),
+          edits.points === null ? 'Revert score' : 'Score override'
+        );
+        current = { ...current, mark: after };
+      }
+      if (edits.comment) {
+        await commitOne(
+          column,
+          current,
+          commentPatch(edits.comment.text, edits.comment.shared),
+          'Comment'
+        );
+      }
     },
-    [plan, commit]
+    [commitOne]
   );
 
   const setOverride = useCallback(
@@ -236,7 +278,7 @@ export function useGradebookMarkWrites(rosterId: string) {
       single(
         column,
         cell,
-        { override: points === null ? null : { points, at: Date.now() } },
+        overridePatch(points),
         points === null ? 'Revert score' : 'Score override'
       ),
     [single]
@@ -248,15 +290,7 @@ export function useGradebookMarkWrites(rosterId: string) {
       cell: GradebookCellData,
       text: string,
       shared: boolean
-    ) => {
-      const trimmed = text.trim();
-      return single(
-        column,
-        cell,
-        { comment: trimmed ? { text: trimmed, shared, at: Date.now() } : null },
-        'Comment'
-      );
-    },
+    ) => single(column, cell, commentPatch(text, shared), 'Comment'),
     [single]
   );
 
@@ -377,6 +411,7 @@ export function useGradebookMarkWrites(rosterId: string) {
   return {
     setOverride,
     setComment,
+    saveEdits,
     toggleFlag,
     setPublish,
     fillDown,
@@ -384,6 +419,17 @@ export function useGradebookMarkWrites(rosterId: string) {
     undoBatch,
     undoLast: undoBatch,
     undoScope,
+  };
+}
+
+function overridePatch(points: number | null): MarkPatch {
+  return { override: points === null ? null : { points, at: Date.now() } };
+}
+
+function commentPatch(text: string, shared: boolean): MarkPatch {
+  const trimmed = text.trim();
+  return {
+    comment: trimmed ? { text: trimmed, shared, at: Date.now() } : null,
   };
 }
 

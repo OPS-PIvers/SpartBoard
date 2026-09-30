@@ -103,11 +103,13 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
     const commentChanged =
       text !== (old?.text ?? '') ||
       (text !== '' && shared !== (old?.shared ?? false));
-    if (scoreChanged && parsed !== null) {
-      writes.setOverride(column, cell, parsed).catch(fail);
-    }
-    if (commentChanged) {
-      writes.setComment(column, cell, text, shared).catch(fail);
+    if ((scoreChanged && parsed !== null) || commentChanged) {
+      writes
+        .saveEdits(column, cell, {
+          points: scoreChanged && parsed !== null ? parsed : undefined,
+          comment: commentChanged ? { text, shared } : undefined,
+        })
+        .catch(fail);
     }
     return true;
   };

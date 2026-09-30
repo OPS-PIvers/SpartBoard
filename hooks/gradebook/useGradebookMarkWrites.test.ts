@@ -177,6 +177,21 @@ describe('flagPatch', () => {
 });
 
 describe('useGradebookMarkWrites', () => {
+  it('keeps both the score and the comment when both change', async () => {
+    const { result } = renderHook(() => useGradebookMarkWrites('r1'));
+    await act(() =>
+      result.current.saveEdits(column, cell('u1', row()), {
+        points: 7,
+        comment: { text: 'Nice', shared: true },
+      })
+    );
+    const marks = sets.filter((s) => s.path === 'gradebook_marks/s1__u1');
+    expect(marks.at(-1)?.data).toMatchObject({
+      override: { points: 7 },
+      comment: { text: 'Nice', shared: true },
+    });
+  });
+
   it('creates the mark with history in one batch', async () => {
     const { result } = renderHook(() => useGradebookMarkWrites('r1'));
     await act(() => result.current.setOverride(column, cell('u1', row()), 7));
