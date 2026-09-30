@@ -66,6 +66,8 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
   const initialScore = final.status === 'scored' ? fmtPoints(final.points) : '';
 
   const [score, setScore] = useState(prefill ?? initialScore);
+  // The score this popover last wrote, so closing after Fill down or Revert doesn't write it again.
+  const [savedScore, setSavedScore] = useState<string | null>(null);
   const [commentText, setCommentText] = useState(mark?.comment?.text ?? '');
   const [shared, setShared] = useState(mark?.comment?.shared ?? false);
   const [flagAnchor, setFlagAnchor] = useState<HTMLElement | null>(null);
@@ -91,7 +93,9 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
   const commit = (): boolean => {
     if (notAssigned) return true;
     const scoreChanged =
-      !completion && score.trim() !== initialScore && score.trim() !== '';
+      !completion &&
+      score.trim() !== (savedScore ?? initialScore) &&
+      score.trim() !== '';
     if (scoreChanged && !scoreValid) {
       onNotify?.(
         `Score not saved. Enter 0 to ${max === null ? 'the total' : fmtPoints(max * 2)}.`
@@ -166,6 +170,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
         <LinkBtn
           onClick={() => {
             setScore(fmtPoints(final.rawPoints));
+            setSavedScore(fmtPoints(final.rawPoints));
             writes.setOverride(column, cell, null).catch(fail);
           }}
         >
@@ -308,6 +313,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
                         )
                         .catch(fail);
                       setScore(fmtPoints(parsed));
+                      setSavedScore(fmtPoints(parsed));
                     }}
                     className="grid h-[30px] w-[30px] place-items-center rounded-md text-slate-400 hover:enabled:bg-brand-blue-lighter hover:enabled:text-brand-blue-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary disabled:opacity-40"
                   >
