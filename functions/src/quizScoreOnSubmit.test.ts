@@ -206,6 +206,26 @@ describe('handleScoreQuizOnSubmit', () => {
     ).resolves.toEqual({ score: 80 });
   });
 
+  it('scores each attempt once, even if the score is cleared', async () => {
+    const docs = world({ response: { completedAttempts: 1 } });
+    const db = makeDb(docs);
+    await handleScoreQuizOnSubmit(db, 'stu', { sessionId: 's1' });
+    expect(docs[RESPONSE].scoredOnSubmitAttempt).toBe(1);
+    docs[RESPONSE] = {
+      ...docs[RESPONSE],
+      score: null,
+      answers: [{ questionId: 'q1', answer: 'Rome', answeredAt: 3 }],
+    };
+    await expect(
+      handleScoreQuizOnSubmit(db, 'stu', { sessionId: 's1' })
+    ).resolves.toEqual({ score: null });
+    expect(docs[RESPONSE].score).toBeNull();
+    docs[RESPONSE] = { ...docs[RESPONSE], completedAttempts: 2 };
+    await expect(
+      handleScoreQuizOnSubmit(db, 'stu', { sessionId: 's1' })
+    ).resolves.toEqual({ score: 0 });
+  });
+
   it('rejects a caller with no response', async () => {
     await expect(
       handleScoreQuizOnSubmit(makeDb(world()), 'other', { sessionId: 's1' })

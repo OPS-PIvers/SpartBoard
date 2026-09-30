@@ -284,6 +284,24 @@ describe('a blank-line section keyed by letter with no bank', () => {
   });
 });
 
+describe('a blank-line true/false section', () => {
+  it('keeps T and F keys as written answers, not fill in the blank', () => {
+    const { questions } = parseDocument(
+      lines(
+        '1. _____ The sun is a star.',
+        '2. _____ The moon is a planet.',
+        'ANSWER KEY:',
+        '1. T',
+        '2. F'
+      )
+    );
+    expect(questions.map((q) => q.type)).toEqual([
+      'free-response',
+      'free-response',
+    ]);
+  });
+});
+
 describe('lines that repeat without being a running header', () => {
   it('keeps an answer printed on its own line', () => {
     const { questions } = parseDocument(

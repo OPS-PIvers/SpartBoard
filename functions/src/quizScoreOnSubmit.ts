@@ -229,9 +229,19 @@ export async function handleScoreQuizOnSubmit(
     const data = snap.data() ?? {};
     if (typeof data.score === 'number') return { score: data.score };
     if (data.status !== 'completed') return { score: null };
+    // One score per attempt: a cleared score with edited answers must not re-grade.
+    const attempt =
+      typeof data.completedAttempts === 'number' ? data.completedAttempts : 0;
+    const stamped: unknown = data.scoredOnSubmitAttempt;
+    if (typeof stamped === 'number' && attempt <= stamped)
+      return { score: null };
     const result = scoreAttempt(data, ctx);
     if (!result) return { score: null };
-    tx.update(responseRef, { score: result.score, answers: result.answers });
+    tx.update(responseRef, {
+      score: result.score,
+      answers: result.answers,
+      scoredOnSubmitAttempt: attempt,
+    });
     return { score: result.score };
   });
 }

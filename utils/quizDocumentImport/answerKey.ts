@@ -736,8 +736,13 @@ export function applyKeyAnswer(
       return note(question, `Key’s sample answer: ${answer}`);
     }
     const blanks = question.text.match(BLANK_RUN)?.length ?? 0;
-    // "_____ A physical characteristic…" keyed G: the letter points at a list, whichever letter it is.
-    if (blanks > 0 && /^[A-Z]$/.test(answer)) {
+    // "_____ A physical characteristic…" keyed G: the letter points at a list; T and F stay true/false.
+    if (
+      blanks > 0 &&
+      /^[A-Z]$/.test(answer) &&
+      !TRUE_ANSWER.test(answer) &&
+      !FALSE_ANSWER.test(answer)
+    ) {
       return note(
         { ...question, type: 'FIB', correctAnswer: answer },
         `The answer key gives the letter ${answer}, so this came in as fill in the blank. Students only see the lettered list if it is in the quiz, so add it as a text or build these items as one matching question.`
