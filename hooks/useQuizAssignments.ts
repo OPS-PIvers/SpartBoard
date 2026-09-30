@@ -650,7 +650,8 @@ const scoreKeyRef = (userId: string, assignmentId: string) =>
 
 /** Flatten session-option toggles onto the session doc's mirror fields. */
 function sessionOptionsToSessionPatch(
-  o: QuizSessionOptions
+  o: QuizSessionOptions,
+  gates: { timeLimitOn: boolean; scoreOnSubmitOn: boolean }
 ): Record<string, unknown> {
   const patch: Record<string, unknown> = {};
   if (o.tabWarningsEnabled !== undefined)
@@ -683,9 +684,9 @@ function sessionOptionsToSessionPatch(
   if (o.shuffleAnswerOptions !== undefined)
     patch.shuffleAnswerOptions = o.shuffleAnswerOptions;
   if (o.readAloudAll !== undefined) patch.readAloudAll = o.readAloudAll;
-  if (o.showScoreOnSubmit !== undefined)
+  if (o.showScoreOnSubmit !== undefined && gates.scoreOnSubmitOn)
     patch.showScoreOnSubmit = o.showScoreOnSubmit;
-  if (o.timeLimitMinutes !== undefined)
+  if (o.timeLimitMinutes !== undefined && gates.timeLimitOn)
     patch.timeLimitMinutes = clampQuizTimeLimitMinutes(o.timeLimitMinutes);
   // `handRaiseEnabled` is deliberately NOT mirrored: it is resolved against the
   // admin gate at create time only, so a later patch (e.g. a PLC sync) can't
@@ -2087,7 +2088,13 @@ export const useQuizAssignments = (
             ([key, value]) => prevOptions[key] !== value
           )
         ) as QuizSessionOptions;
-        Object.assign(sessionPatch, sessionOptionsToSessionPatch(changed));
+        Object.assign(
+          sessionPatch,
+          sessionOptionsToSessionPatch(changed, {
+            timeLimitOn,
+            scoreOnSubmitOn,
+          })
+        );
       }
       // Clearing `plc` must also drop the session's plcId/syncGroupId/plcLinkedAt (mirrors stopSharingAssignmentWithPlc) — markPlcAssessmentDirty reads those, not assignment.plc, to keep pooling responses.
       if (clearingPlc) {
@@ -2103,7 +2110,7 @@ export const useQuizAssignments = (
       }
       await batch.commit();
     },
-    [userId]
+    [userId, timeLimitOn, scoreOnSubmitOn]
   );
 
   const setAssignmentRosters = useCallback<
@@ -2940,7 +2947,10 @@ export const useQuizAssignments = (
           ? {
               sessionMode: behavior.sessionMode,
               attemptLimit: behavior.attemptLimit,
-              ...sessionOptionsToSessionPatch(behavior.sessionOptions),
+              ...sessionOptionsToSessionPatch(behavior.sessionOptions, {
+                timeLimitOn,
+                scoreOnSubmitOn,
+              }),
               // A mode flip restarts the cursor the way session-create would.
               ...(modeChanged
                 ? {
@@ -3049,7 +3059,7 @@ export const useQuizAssignments = (
         taggedResponseCount: responsesToTag.length,
       };
     },
-    [userId, projectPublicQuestionForMode, scoreOnSubmitOn]
+    [userId, projectPublicQuestionForMode, scoreOnSubmitOn, timeLimitOn]
   );
 
   const unpublishAssignmentScores = useCallback<
