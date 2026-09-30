@@ -35,14 +35,16 @@ export function useStudentCardLayout(): CardLayout & {
         };
 
   const save = (next: CardLayout): void => {
-    setPending({ rosterId, layout: next });
+    const mine = { rosterId, layout: next };
+    setPending(mine);
+    const clear = (): void => setPending((p) => (p === mine ? null : p));
     saveCardLayouts({
       [STUDENT_CARD_LAYOUT_KEY]: next.order,
       [STUDENT_CARD_HIDDEN_KEY]: next.hidden,
     })
-      .then(() => setPending(null))
+      .then(clear)
       .catch(() => {
-        setPending(null);
+        clear();
         toast('Could not save the card layout');
       });
   };
