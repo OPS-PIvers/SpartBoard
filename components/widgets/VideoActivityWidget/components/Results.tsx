@@ -994,9 +994,17 @@ export const Results: React.FC<ResultsProps> = ({
                             <FinalScoreNote
                               final={final}
                               flagDefs={finalOverlay.flagDefs}
+                              excusedShown
                             />
                           )}
-                          {finalPct !== null ? (
+                          {final?.status === 'excluded' ? (
+                            <span
+                              className="font-black shrink-0 text-slate-500"
+                              style={{ fontSize: 'min(14px, 4.5cqmin)' }}
+                            >
+                              Excused
+                            </span>
+                          ) : finalPct !== null ? (
                             <ScorePill score={finalPct} display="percent" />
                           ) : scoreable ? (
                             <ScorePill score={score} display="percent" />
