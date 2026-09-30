@@ -48,6 +48,7 @@ export const GradebookGrid: React.FC = () => {
   } = gb;
   const wrapRef = useRef<HTMLDivElement>(null);
   const [focus, setFocus] = useState<Focus | null>(null);
+  const [hoverCol, setHoverCol] = useState<string | null>(null);
 
   // Open on the newest assignments (D19); re-run when the class changes.
   const scrolledFor = useRef<string | null>(null);
@@ -175,7 +176,9 @@ export const GradebookGrid: React.FC = () => {
   const classOverall = average(students.map((s) => overall(s.uid).pct));
 
   const td = 'border-b border-r border-slate-100 p-0';
-  const hd = 'border-b border-r border-slate-600 bg-slate-700 p-0';
+  const hd = 'border-b border-r border-white/10 p-0';
+  const litCol = (id: string) =>
+    id === hoverCol || id === focus?.sessionId || id === popover?.sessionId;
   const stickyName =
     'sticky left-0 w-[200px] min-w-[200px] max-w-[200px] text-left';
   const stickyOverall =
@@ -187,11 +190,21 @@ export const GradebookGrid: React.FC = () => {
       className="min-h-0 flex-1 scroll-pb-12 scroll-pl-[288px] scroll-pt-24 overflow-auto rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(29,42,93,.06),0_1px_3px_rgba(29,42,93,.08)]"
       onKeyDown={onGridKeyDown}
     >
-      <table className="min-w-full border-separate border-spacing-0 tabular-nums">
+      <table
+        className="min-w-full border-separate border-spacing-0 tabular-nums"
+        onMouseOver={(e) => {
+          const col =
+            (e.target as HTMLElement)
+              .closest('[data-gb-col]')
+              ?.getAttribute('data-gb-col') ?? null;
+          if (col !== hoverCol) setHoverCol(col);
+        }}
+        onMouseLeave={() => setHoverCol(null)}
+      >
         <thead>
           <tr>
             <th
-              className={`${hd} ${stickyName} sticky top-0 z-30 align-bottom`}
+              className={`${hd} ${stickyName} sticky top-0 z-30 bg-brand-blue-primary align-bottom`}
             >
               <button
                 type="button"
@@ -208,7 +221,7 @@ export const GradebookGrid: React.FC = () => {
               </button>
             </th>
             <th
-              className={`${hd} ${stickyOverall} sticky top-0 z-30 border-r-slate-500 align-bottom`}
+              className={`${hd} ${stickyOverall} sticky top-0 z-30 border-r-white/20 bg-brand-blue-primary align-bottom`}
             >
               <button
                 type="button"
@@ -227,7 +240,12 @@ export const GradebookGrid: React.FC = () => {
               return (
                 <th
                   key={c.sessionId}
-                  className={`${hd} sticky top-0 z-20 align-bottom`}
+                  data-gb-col={c.sessionId}
+                  className={`${hd} sticky top-0 z-20 align-bottom ${
+                    litCol(c.sessionId)
+                      ? 'bg-brand-blue-dark'
+                      : 'bg-brand-blue-primary'
+                  }`}
                 >
                   <button
                     type="button"
@@ -235,9 +253,7 @@ export const GradebookGrid: React.FC = () => {
                     onClick={() => openHeader(c.sessionId)}
                     aria-expanded={open}
                     aria-haspopup="dialog"
-                    className={`flex w-28 flex-col gap-1 px-2.5 py-2.5 text-left ${
-                      open ? 'bg-brand-blue-primary' : 'hover:bg-slate-600'
-                    }`}
+                    className="flex w-28 flex-col gap-1 px-2.5 py-2.5 text-left"
                   >
                     <span className="flex min-h-[18px] items-center gap-1.5">
                       <span
@@ -256,7 +272,7 @@ export const GradebookGrid: React.FC = () => {
                     <span className="line-clamp-2 text-[12.5px] font-semibold leading-tight text-white [text-wrap:balance]">
                       {c.title}
                     </span>
-                    <span className="text-[11px] font-normal text-slate-300">
+                    <span className="text-[11px] font-normal text-white/75">
                       {c.dueAt ? dateFmt.format(c.dueAt) : ' '}
                     </span>
                   </button>
@@ -306,7 +322,13 @@ export const GradebookGrid: React.FC = () => {
                     active?.sessionId === c.sessionId && active.uid === s.uid;
                   const na = cell.final.status === 'not-assigned';
                   return (
-                    <td key={c.sessionId} className={`${td} ${rowBg}`}>
+                    <td
+                      key={c.sessionId}
+                      data-gb-col={c.sessionId}
+                      className={`${td} ${
+                        litCol(c.sessionId) ? 'bg-[#dde3f5]' : rowBg
+                      }`}
+                    >
                       <button
                         type="button"
                         data-gb-cell={cellAnchorId(c.sessionId, s.uid)}
@@ -356,7 +378,10 @@ export const GradebookGrid: React.FC = () => {
             {columns.map((c) => (
               <td
                 key={c.sessionId}
-                className="sticky bottom-0 z-20 border-r border-t border-slate-200 border-t-slate-300 bg-slate-200 py-2.5 text-center"
+                data-gb-col={c.sessionId}
+                className={`sticky bottom-0 z-20 border-r border-t border-slate-200 border-t-slate-300 py-2.5 text-center ${
+                  litCol(c.sessionId) ? 'bg-[#c9d1ec]' : 'bg-slate-200'
+                }`}
               >
                 <Private>{colAverage(c)}</Private>
               </td>
