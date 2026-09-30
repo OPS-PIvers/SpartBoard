@@ -88,6 +88,17 @@ import {
 } from '@/utils/videoActivityLive';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useVideoActivityKeyQuestions } from '@/hooks/useVideoActivityKeyQuestions';
+import {
+  ResultsOverrideBadge,
+  StudentResultsControl,
+} from '@/components/widgets/QuizWidget/components/results/StudentResultsControl';
+import type { StudentResultsActions } from '@/components/widgets/QuizWidget/components/results/studentResultsSelection';
+import {
+  clearResultsOverride,
+  hideResultsForStudents,
+  publishVideoActivityResultsForStudents,
+  VA_SESSIONS_COLLECTION,
+} from '@/utils/studentResultsPublish';
 
 const KEY_LOADING_TOAST =
   'Still loading the answer key — try again in a moment.';
@@ -180,6 +191,30 @@ export const Results: React.FC<ResultsProps> = ({
     () => notAskedVideoActivityQuestionIds(session, questions),
     [session, questions]
   );
+  const classVisibility = session.scoreVisibility ?? 'none';
+  const resultsActions = useMemo<StudentResultsActions | null>(() => {
+    if (!canAccessFeature('gradebook')) return null;
+    return {
+      publish: (keys, visibility, expiresAt) => {
+        if (keyLoading || keyFailed) {
+          return Promise.reject(
+            new Error(keyFailed ? KEY_FAILED_TOAST : KEY_LOADING_TOAST)
+          );
+        }
+        return publishVideoActivityResultsForStudents(
+          session.id,
+          questions,
+          keys,
+          visibility,
+          expiresAt
+        );
+      },
+      hide: (keys) =>
+        hideResultsForStudents(VA_SESSIONS_COLLECTION, session.id, keys),
+      clear: (keys) =>
+        clearResultsOverride(VA_SESSIONS_COLLECTION, session.id, keys),
+    };
+  }, [canAccessFeature, keyLoading, keyFailed, session.id, questions]);
   const notAsked = useMemo(() => new Set(notAskedIds), [notAskedIds]);
   const showMakeUp =
     isLive &&
@@ -924,6 +959,17 @@ export const Results: React.FC<ResultsProps> = ({
                               —
                             </span>
                           )}
+                          {resultsActions && r._responseKey && (
+                            <StudentResultsControl
+                              responseKey={r._responseKey}
+                              override={r.resultsOverride}
+                              completed={typeof r.completedAt === 'number'}
+                              displayName={displayName || 'this student'}
+                              classVisibility={classVisibility}
+                              actions={resultsActions}
+                              addToast={addToast}
+                            />
+                          )}
                         </>
                       }
                     >
@@ -944,6 +990,9 @@ export const Results: React.FC<ResultsProps> = ({
                           tone={r.completedAt ? 'success' : 'warn'}
                           label={r.completedAt ? 'Completed' : 'In progress'}
                         />
+                        {resultsActions && (
+                          <ResultsOverrideBadge override={r.resultsOverride} />
+                        )}
                         <span
                           className="text-slate-400"
                           style={{ fontSize: 'min(10px, 3cqmin)' }}

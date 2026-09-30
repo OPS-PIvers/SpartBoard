@@ -4759,6 +4759,8 @@ service cloud.firestore {
           incoming().get('completedAttempts', 0) == 0 &&
           incoming().get('tabSwitchWarnings', 0) == 0 &&
           incoming().get('tabExits', null) == null &&
+          // Per-student publication is teacher-written only.
+          incoming().get('resultsOverride', null) == null &&
           vaGate() &&
           // Block submissions on view-only sessions (mode is frozen at creation)
           vaS().get('mode', 'submissions') == 'submissions' &&
@@ -5035,6 +5037,8 @@ service cloud.firestore {
           incoming().studentAnonymousId == authUid() &&
           incoming().sessionId == sessionId &&
           incoming().score == null &&
+          // Per-student publication is teacher-written only.
+          incoming().get('resultsOverride', null) == null &&
           glClassGate() &&
           // Block submissions on view-only sessions (mode is frozen at creation)
           glSessionMode() == 'submissions' &&

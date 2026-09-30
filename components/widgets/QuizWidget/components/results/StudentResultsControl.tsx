@@ -3,15 +3,9 @@ import { Eye, EyeOff, Loader2, MoreVertical, Users } from 'lucide-react';
 import { OverflowMenu, SessionBadge } from '@/components/common/sessionViews';
 import type { OverflowMenuItem } from '@/components/common/sessionViews';
 import { PUBLISH_LEVEL_OPTIONS } from '@/components/common/library/publishScoreLevels';
-import type {
-  QuizResponse,
-  QuizResultsOverride,
-  QuizScoreVisibility,
-  Toast,
-} from '@/types';
+import type { QuizResultsOverride, QuizScoreVisibility, Toast } from '@/types';
 import { resultsOverrideState } from '@/utils/quizResultsVisibility';
 import { logError } from '@/utils/logError';
-import { getResponseDocKey } from '@/hooks/useQuizSession';
 import { ShowResultsDialog } from './ShowResultsDialog';
 import type { StudentResultsActions } from './studentResultsSelection';
 
@@ -56,7 +50,11 @@ export const ResultsOverrideBadge: React.FC<{
 };
 
 export interface StudentResultsControlProps {
-  response: QuizResponse;
+  /** Response doc id under `/responses`. */
+  responseKey: string;
+  override: QuizResultsOverride | undefined;
+  /** Only a finished response can be shown. */
+  completed: boolean;
   displayName: string;
   /** The class-wide level, so "Follow class" can say what that means. */
   classVisibility: QuizScoreVisibility;
@@ -64,23 +62,26 @@ export interface StudentResultsControlProps {
   addToast: (message: string, type?: Toast['type']) => void;
   /** 'menu' is the row kebab; 'panel' is the expanded-row control. */
   layout?: 'menu' | 'panel';
+  /** Kebab trigger styling, for dark surfaces. */
+  triggerClassName?: string;
 }
 
 /** Show, hide, or return one student's results to the class setting. */
 export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
-  response,
+  responseKey: key,
+  override,
+  completed,
   displayName,
   classVisibility,
   actions,
   addToast,
   layout = 'menu',
+  triggerClassName = 'rounded-md text-brand-gray-primary hover:bg-brand-gray-lightest hover:text-brand-blue-dark',
 }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busy, setBusy] = useState<'hide' | 'clear' | null>(null);
-  const key = getResponseDocKey(response);
-  const override = response.resultsOverride;
   const state = resultsOverrideState(override);
-  const canShow = response.status === 'completed';
+  const canShow = completed;
 
   const run = async (kind: 'hide' | 'clear') => {
     setBusy(kind);
@@ -163,7 +164,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           items={items}
           ariaLabel={`Results options for ${displayName}`}
           triggerIcon={MoreVertical}
-          triggerClassName="rounded-md text-brand-gray-primary hover:bg-brand-gray-lightest hover:text-brand-blue-dark"
+          triggerClassName={triggerClassName}
         />
         {dialog}
       </>
