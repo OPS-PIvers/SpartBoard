@@ -119,6 +119,21 @@ describe('copyBankQuestions', () => {
       { ...(bank.stimuli ?? [])[0], id: 'new-3' },
     ]);
   });
+
+  it('keeps a stimulus set together as one shared copy', () => {
+    const setBank: BankContent = {
+      ...bank,
+      questions: bank.questions.map((x) => ({ ...x, stimulusIds: ['stim-1'] })),
+    };
+    const copied = copyBankQuestions(setBank, ['b1', 'b2', 'b3']);
+    const ids = copied.questions.map((x) => x.stimulusIds);
+    expect(copied.stimuli).toHaveLength(1);
+    expect(ids).toEqual([
+      [copied.stimuli[0].id],
+      [copied.stimuli[0].id],
+      [copied.stimuli[0].id],
+    ]);
+  });
 });
 
 describe('quizOrder', () => {
@@ -243,6 +258,26 @@ describe('resolveQuizAssignment', () => {
     expect(
       quizMaxPointsWithSlots({ questions: [], bankSlots: [slot({ count: 4 })] })
     ).toBe(12);
+  });
+
+  it('adds slot stimuli to every drawn question and drops unknown ids', () => {
+    const resolved = resolveQuizAssignment(
+      {
+        questions: [q('f1')],
+        stimuli: [{ id: 'passage', type: 'text', url: '', label: 'P' }],
+        bankSlots: [slot({ count: 4, stimulusIds: ['passage', 'gone'] })],
+      },
+      banks
+    );
+    const pool = resolved.questions.filter((x) => x.id !== 'f1');
+    expect(pool.map((x) => x.stimulusIds)).toEqual([
+      ['passage'],
+      ['passage'],
+      ['passage'],
+      ['passage', 'stim-1'],
+    ]);
+    expect(resolved.questions[0].stimulusIds).toBeUndefined();
+    expect(resolved.stimuli.map((s) => s.id)).toEqual(['passage', 'stim-1']);
   });
 
   it('throws BankSlotResolutionError with the problems attached', () => {
