@@ -55,6 +55,12 @@ export const getTitle = (
     const cfg = widget.config as QuizConfig;
     return cfg.selectedQuizTitle ? `Quiz: ${cfg.selectedQuizTitle}` : 'Quiz';
   }
+  if (widget.type === 'review') {
+    const cfg = widget.config as QuizConfig;
+    return cfg.selectedQuizTitle
+      ? `Review: ${cfg.selectedQuizTitle}`
+      : 'Review';
+  }
   if (widget.type === 'starter-pack') return 'Starter Pack';
   return widget.type.charAt(0).toUpperCase() + widget.type.slice(1);
 };

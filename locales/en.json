@@ -1389,6 +1389,12 @@
       "assignmentArchive": "View assignment archive",
       "managerView": "Reset to manager view"
     },
+    "review": {
+      "management": "Review management",
+      "widgetLabel": "Widget label",
+      "assignmentArchive": "View archive",
+      "managerView": "Reset to manager view"
+    },
     "breathing": {
       "pattern": "Pattern",
       "boxBreathing": "Box Breathing",

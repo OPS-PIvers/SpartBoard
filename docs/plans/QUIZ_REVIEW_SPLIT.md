@@ -248,6 +248,12 @@ Stacked in order. Each targets `dev-paul`.
   - The key doc reuses #3619's teacher-only rule.
   - Make sure a device can't write game points or verdicts itself.
   - Run `check:rules-size` if any rule changes.
+- Server contract (built in S4b, `functions/src/checkQuizGameAnswer.ts`):
+  - Input `{ sessionId, questionId, answer, startedAt? }`, where `startedAt` is the server-clock ms the device showed the question.
+  - It refuses unless `sessionMode` is `'game'` and the session teacher has `quiz-review-split`.
+  - The clock is `gameEndsAt` (a Timestamp or ms) and `gamePausedAt` (set while paused) on the session; `status: 'ended'` stops it. Refusals carry `details.reason`: `game-not-started`, `game-paused`, `game-over`, `same-question-twice`.
+  - It writes `response.game` (`points`, `streak`, `answered`, `correct`, `firstTry`, `lastCorrect`, `last`) and appends the first try per question to `answers`. Rules refuse student writes to either in a game session.
+  - A retried call for the question just answered returns the first result without scoring again.
 
 ### PR 5: Self-paced board view and Review results
 

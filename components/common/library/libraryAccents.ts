@@ -3,6 +3,7 @@ import type { WidgetType } from '@/types';
 // A darker shade of each widget's dock colour, so white header text stays above 4.5:1. No purples.
 export const LIBRARY_HEADER_ACCENTS: Partial<Record<WidgetType, string>> = {
   quiz: '#047857', // emerald-700
+  review: '#0e7490', // cyan-700
   'video-activity': '#b91c1c', // red-700
   'guided-learning': '#b45309', // amber-700
   miniApp: '#334155', // slate-700
