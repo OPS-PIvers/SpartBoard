@@ -4035,6 +4035,10 @@ service cloud.firestore {
           // auto-submit sweep, not data loss.
           (incoming().get('lastWriteAt', null) == null ||
            incoming().lastWriteAt == request.time) &&
+          // The time-limit clock starts server-side; time-up is set only on submit.
+          (incoming().get('attemptStartedAt', null) == null ||
+           incoming().attemptStartedAt == request.time) &&
+          incoming().get('timeUp', null) == null &&
           // Students cannot forge a score on creation
           incoming().score == null &&
           // Students cannot forge prior completions
@@ -4126,8 +4130,22 @@ service cloud.firestore {
            // addedKeys and bypass the whitelist entirely.
            // Review games: answers come only from checkQuizGameAnswerV1 (`game` is off the list below).
            (!changed(['answers']) || sessionData().get('sessionMode', '') != 'game') &&
-           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits']) &&
+           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp']) &&
            tabExitsOk() &&
+           // Time-limit clock: server-stamped, and only restarted by a new attempt
+           // (completed -> joined) or stamped where none exists yet.
+           (!changed(['attemptStartedAt']) ||
+            (incoming().attemptStartedAt == request.time &&
+             (existing().get('attemptStartedAt', null) == null ||
+              (existing().get('status', '') == 'completed' &&
+               incoming().get('status', '') == 'joined')))) &&
+           // `timeUp` is set only on the submit itself, and cleared by a new attempt.
+           (!changed(['timeUp']) ||
+            (incoming().get('timeUp', null) == true &&
+             incoming().get('status', '') == 'completed' &&
+             existing().get('status', '') != 'completed') ||
+            (incoming().get('timeUp', null) == null &&
+             incoming().get('status', '') == 'joined')) &&
            // M17 served-subset snapshot: a student may only stamp
            // servedQuestionIds when it exactly equals the override subset the
            // setAssignmentTargetsV1 CF fanned out to their own pointer doc —

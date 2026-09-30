@@ -368,3 +368,57 @@ export function makeVaResponses(): VideoActivityResponse[] {
     vaResponse('pin-Period 1-2005', '2005', [], false),
   ];
 }
+
+/* ─── Timed (overall time limit) fixtures ─────────────────────────────────── */
+
+const TIMED_STARTS: Record<string, number> = {
+  'pin-Period 3-1004': NOW - 17 * 60_000 - 48_000,
+  'pin-Period 3-1005': NOW - 4 * 60_000,
+  'pin-Period 3-1007': NOW - 29 * 60_000 - 20_000,
+  'pin-Period 3-1008': NOW - 22 * 60_000,
+};
+
+/** A self-paced session with a 30 minute limit. */
+export function makeTimedQuizSession(
+  status: QuizSessionStatus = 'active'
+): QuizSession {
+  return {
+    ...makeQuizSession(status),
+    sessionMode: 'student',
+    timeLimitMinutes: 30,
+  };
+}
+
+/** Responses with server-stamped attempt starts; 1006 ran out of time. */
+export function makeTimedQuizResponses(): QuizResponse[] {
+  return makeQuizResponses().map((r) => {
+    const key = r._responseKey ?? r.studentUid;
+    const start = TIMED_STARTS[key];
+    if (start != null) return { ...r, attemptStartedAt: fakeTimestamp(start) };
+    if (key === 'pin-Period 3-1006')
+      return {
+        ...r,
+        autoSubmitted: undefined,
+        tabSwitchWarnings: 0,
+        timeUp: true,
+      };
+    return r;
+  });
+}
+
+/** The student's own in-progress response with `remainingMs` left on the clock. */
+export function makeTimedStudentResponse(remainingMs: number): QuizResponse {
+  return {
+    _responseKey: 'pin-Period 3-1004',
+    studentUid: 'pin-Period 3-1004',
+    pin: '1004',
+    joinedAt: NOW - 30 * 60_000 + remainingMs,
+    status: 'in-progress',
+    answers: [],
+    score: null,
+    submittedAt: null,
+    classPeriod: 'Period 3',
+    attemptStartedAt: fakeTimestamp(NOW - 30 * 60_000 + remainingMs),
+    lastWriteAt: fakeTimestamp(NOW - 30_000),
+  };
+}

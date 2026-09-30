@@ -214,6 +214,7 @@ const VIEW_ONLY_SESSION_OPTIONS: Required<
   // No live teacher present on a view-only share, so raising a hand goes nowhere.
   handRaiseEnabled: false,
   showScoreOnSubmit: false,
+  timeLimitMinutes: null,
   // Shuffles are meaningless for view-only shares (no submissions, so no
   // student-specific rendering happens).
   shuffleQuestions: false,

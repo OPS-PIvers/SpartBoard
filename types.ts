@@ -4121,6 +4121,8 @@ export interface QuizSessionOptions extends BaseSessionOptions {
   handRaiseEnabled?: boolean;
   /** Score each attempt on submit and show it; ignored when a question needs manual grading. */
   showScoreOnSubmit?: boolean;
+  /** Overall time limit per attempt in minutes, self-paced only; null/absent = none. */
+  timeLimitMinutes?: number | null;
   /** Review: leaderboard rows on the board; absent keeps the legacy top 3. */
   boardRankLimit?: ReviewBoardRankLimit;
 }
@@ -4463,6 +4465,8 @@ export interface QuizSession
   showLearningTargets?: boolean;
   /** Students see their score as soon as the server grades a submitted attempt. */
   showScoreOnSubmit?: boolean;
+  /** Overall time limit per attempt in minutes, counted from `QuizResponse.attemptStartedAt`. */
+  timeLimitMinutes?: number | null;
   /**
    * Teacher-written map of questionId → correct answer text.
    * Students read from this after submitting; only populated when the
@@ -4978,6 +4982,10 @@ export interface QuizResponse {
    * behavior (don't retroactively auto-submit historical attempts).
    */
   lastWriteAt?: import('firebase/firestore').Timestamp;
+  /** Server-stamped start of the current attempt; the overall time limit counts from it. */
+  attemptStartedAt?: import('firebase/firestore').Timestamp;
+  /** The attempt was submitted because the overall time limit ran out. */
+  timeUp?: boolean;
   /**
    * Epoch ms at which this student acknowledged the Tennessen recording
    * notice. Response-level so the acknowledgement is provable even when the
@@ -9159,6 +9167,8 @@ export type GlobalFeature =
   | 'student-gradebook'
   /** Quiz keeps assessment only; live review games move to the Review widget. */
   | 'quiz-review-split'
+  /** Quiz assign/edit: an overall time limit per attempt with a student countdown. */
+  | 'quiz-time-limit'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'

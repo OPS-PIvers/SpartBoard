@@ -27,6 +27,8 @@ import { ToggleRow } from './AssignmentSettingsToggleGroup';
 import type { AssignModeOption } from './types';
 import { SESSION_MODES } from './sessionModes';
 import { QUIZ_STUDENT_MODE_LABEL } from '@/utils/quizBehavior';
+import { QUIZ_TIME_LIMIT_FEATURE } from '@/utils/quizTimeLimit';
+import { QuizTimeLimitRow } from './QuizTimeLimitRow';
 
 /**
  * Which options the panel shows:
@@ -75,6 +77,9 @@ export const QuizBehaviorSettingsPanel: React.FC<
     authContext?.canAccessFeature?.('tab-away-timer') === true;
   const scoreOnSubmitOn =
     authContext?.canAccessFeature?.('quiz-score-on-submit') === true;
+  const timeLimitOn =
+    authContext?.canAccessFeature?.(QUIZ_TIME_LIMIT_FEATURE) === true &&
+    (assessmentOnly || value.sessionMode === 'student');
   const scoreOnSubmit =
     !hasManualGrading && value.sessionOptions.showScoreOnSubmit === true;
   const modes: AssignModeOption[] = SESSION_MODES.map((m) => ({
@@ -201,6 +206,22 @@ export const QuizBehaviorSettingsPanel: React.FC<
         }
         attemptLimit={value.attemptLimit}
         onAttemptLimitChange={(v) => onChange({ ...value, attemptLimit: v })}
+        afterAttemptLimitSlot={
+          timeLimitOn && (
+            <QuizTimeLimitRow
+              minutes={value.sessionOptions.timeLimitMinutes}
+              onChange={(next) =>
+                onChange({
+                  ...value,
+                  sessionOptions: {
+                    ...value.sessionOptions,
+                    timeLimitMinutes: next,
+                  },
+                })
+              }
+            />
+          )
+        }
         shuffleQuestionsAvailable={
           assessmentOnly || value.sessionMode === 'student'
         }

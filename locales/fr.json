@@ -2088,6 +2088,13 @@
     "off": "Les élèves voient leur score quand tu publies les résultats.",
     "unavailable": "Indisponible avec des questions à réponse libre."
   },
+  "quizTimeLimit": {
+    "label": "Limite de temps",
+    "minutes": "Minutes",
+    "unit": "min",
+    "left": "Temps restant {{time}}",
+    "submitted": "Le temps est écoulé. Tes réponses ont été envoyées."
+  },
   "quizReadAloud": {
     "label": "Lire à voix haute",
     "help": "Élèves connectés uniquement.",
