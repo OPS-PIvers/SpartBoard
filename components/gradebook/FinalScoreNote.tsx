@@ -8,8 +8,6 @@ interface FinalScoreNoteProps {
   final: FinalScore;
   flagDefs: GradebookFlagDef[];
   className?: string;
-  /** The row already shows "Excused" in place of the score. */
-  excusedShown?: boolean;
 }
 
 // Same chip classes as the gradebook grid; auto flags are outlined (D15).
@@ -58,13 +56,11 @@ export const FinalScoreNote: React.FC<FinalScoreNoteProps> = ({
   final,
   flagDefs,
   className = 'text-slate-500',
-  excusedShown = false,
 }) => {
   const flags = final.flags
     .map((f) => ({ auto: f.auto, def: flagDefs.find((d) => d.id === f.id) }))
     .filter(
-      (f): f is { auto: boolean; def: GradebookFlagDef } =>
-        f.def !== undefined && !(excusedShown && f.def.value === 'excluded')
+      (f): f is { auto: boolean; def: GradebookFlagDef } => f.def !== undefined
     );
   const calculated =
     final.source === 'override' &&

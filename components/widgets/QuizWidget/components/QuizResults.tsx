@@ -3878,14 +3878,7 @@ const StudentsScreen: React.FC<{
                   <div className="text-right shrink-0">
                     {scoreable ? (
                       <>
-                        {final?.status === 'excluded' ? (
-                          <p
-                            className="font-black text-slate-500"
-                            style={{ fontSize: 'min(14px, 4.5cqmin)' }}
-                          >
-                            Excused
-                          </p>
-                        ) : finalPct !== null ? (
+                        {finalPct !== null ? (
                           <ScorePill score={finalPct} display="percent" />
                         ) : (
                           <ScorePill
@@ -3955,7 +3948,6 @@ const StudentsScreen: React.FC<{
                       <FinalScoreNote
                         final={final}
                         flagDefs={finalOverlay.flagDefs}
-                        excusedShown={scoreable}
                       />
                     )}
                   </div>
