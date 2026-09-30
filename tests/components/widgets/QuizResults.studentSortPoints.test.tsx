@@ -146,6 +146,20 @@ describe('QuizResults — Students sort and score display', () => {
     expect(rowNames()).toEqual(['Zoe Abbott', 'Ada Zeller']);
   });
 
+  it('keeps score order and drops the name sort while names are hidden', () => {
+    localStorage.setItem('spartboard.quizResults.hideNames.teacher-1', '1');
+    localStorage.setItem(
+      'spartboard.quizResults.studentView.teacher-1',
+      'lastName|percent'
+    );
+    renderStudents();
+    expect(screen.queryByRole('button', { name: 'Last name' })).toBeNull();
+    const rows = Array.from(document.querySelectorAll('[data-student-row]'));
+    expect(rows[0].textContent).not.toContain('Zeller');
+    expect(rows[0].textContent).toContain('100%');
+    expect(rows[1].textContent).toContain('50%');
+  });
+
   it('shows points in place of percentages and remembers the choice', () => {
     renderStudents();
     expect(screen.getByText('50%')).toBeInTheDocument();

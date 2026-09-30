@@ -2228,6 +2228,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               finalOverlay={finalOverlay}
               overlayNow={overlayNow}
               sortNameFor={printSortName}
+              hideNames={hideNames}
               view={studentView}
               onViewChange={changeStudentView}
             />
@@ -3657,6 +3658,8 @@ const StudentsScreen: React.FC<{
   overlayNow?: number;
   /** Last-name-first key for the name sort. */
   sortNameFor: (response: QuizResponse) => string;
+  /** Names are masked, so ordering by them would reveal who is who. */
+  hideNames: boolean;
   view: { sort: StudentSort; display: ScoreDisplay };
   onViewChange: (view: { sort: StudentSort; display: ScoreDisplay }) => void;
 }> = ({
@@ -3687,6 +3690,7 @@ const StudentsScreen: React.FC<{
   finalOverlay = null,
   overlayNow = 0,
   sortNameFor,
+  hideNames,
   view,
   onViewChange,
 }) => {
@@ -3710,6 +3714,7 @@ const StudentsScreen: React.FC<{
   const gamified = resultsInPoints(session);
   const isGame = isGameSession(session);
   const showPoints = view.display === 'points' && !gamified;
+  const sortByName = view.sort === 'lastName' && !hideNames;
 
   // Mirror QuizLiveMonitor.handleUnlockResultsForStudent — same toast copy
   // and same one-shot semantics (decrement warnings by 1; one more
@@ -3799,15 +3804,17 @@ const StudentsScreen: React.FC<{
             className="ml-auto flex items-center"
             style={{ gap: 'min(8px, 2cqmin)' }}
           >
-            <SegmentedToggle
-              label="Sort students"
-              value={view.sort}
-              options={[
-                ['score', 'Score'],
-                ['lastName', 'Last name'],
-              ]}
-              onChange={(sort) => onViewChange({ ...view, sort })}
-            />
+            {!hideNames && (
+              <SegmentedToggle
+                label="Sort students"
+                value={view.sort}
+                options={[
+                  ['score', 'Score'],
+                  ['lastName', 'Last name'],
+                ]}
+                onChange={(sort) => onViewChange({ ...view, sort })}
+              />
+            )}
             {!gamified && (
               <SegmentedToggle
                 label="Show scores as"
@@ -3839,8 +3846,9 @@ const StudentsScreen: React.FC<{
             canShowResultsScore(b, questions, session)
               ? resultsDisplayScore(b, questions, session, fibGrading)
               : -1;
+          if (hideNames) return scoreB - scoreA;
           const byName = collator.compare(sortNameFor(a), sortNameFor(b));
-          if (view.sort === 'lastName') return byName || scoreB - scoreA;
+          if (sortByName) return byName || scoreB - scoreA;
           return scoreB - scoreA || byName;
         })
         .map((r) => {
