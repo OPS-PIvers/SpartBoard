@@ -36,7 +36,6 @@ export const useSyncPlcFlashcardResult = (
       return undefined;
     }
     const timer = setTimeout(() => {
-      lastKey.current = key;
       writePlcFlashcardResult(plcShare.plcId, user.uid, {
         assignmentId: assignment.id,
         setId: assignment.setId,
@@ -46,11 +45,15 @@ export const useSyncPlcFlashcardResult = (
         sharedAt: plcShare.sharedAt,
         sharedByName: user.displayName ?? '',
         sharedByEmail: user.email ? user.email.toLowerCase() : '',
-      }).catch((err: unknown) =>
-        logError('useSyncPlcFlashcardResult', err, {
-          assignmentId: assignment.id,
+      })
+        .then(() => {
+          lastKey.current = key;
         })
-      );
+        .catch((err: unknown) =>
+          logError('useSyncPlcFlashcardResult', err, {
+            assignmentId: assignment.id,
+          })
+        );
     }, SYNC_DELAY_MS);
     return () => clearTimeout(timer);
   }, [assignment, key, plcShare, summary, user]);
