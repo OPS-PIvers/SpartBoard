@@ -30,7 +30,7 @@ vi.mock('@/context/useDashboard', () => ({
 }));
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ orgId: 'org-1' }),
+  useAuth: () => ({ orgId: 'org-1', canAccessFeature: () => false }),
 }));
 
 // Stub the heavy hook surfaces so the component renders without touching
