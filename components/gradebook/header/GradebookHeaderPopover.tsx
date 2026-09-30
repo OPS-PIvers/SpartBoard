@@ -23,6 +23,8 @@ export interface GradebookHeaderPopoverProps {
     column: GradebookColumnRef,
     action: 'publish' | 'unpublish'
   ) => void;
+  /** Fourth action in the header row: the LMS Push button (W3-F). */
+  pushControl?: React.ReactNode;
 }
 
 export const GradebookHeaderPopover: React.FC<
