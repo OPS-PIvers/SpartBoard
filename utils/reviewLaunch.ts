@@ -3,6 +3,7 @@ import type {
   QuizOrderEntry,
   QuizQuestion,
   QuizSession,
+  QuizSessionBankSlot,
   QuizStimulus,
   ReviewBoardRankLimit,
   ReviewLaunchSettings,
@@ -115,6 +116,79 @@ export function prepareReviewQuiz(
         }
       : {}),
     skippedCount: questions.length - playable.length,
+  };
+}
+
+/** Game lengths offered at launch, in minutes (plan D22). */
+export const GAME_MINUTE_CHOICES = [3, 5, 10, 15, 20] as const;
+export const DEFAULT_GAME_MINUTES = 10;
+export const MAX_GAME_MINUTES = 90;
+
+/** A game length the launch dialog accepts: whole minutes from 1 to 90. */
+export function clampGameMinutes(value: number | undefined): number {
+  if (value === undefined || !Number.isFinite(value))
+    return DEFAULT_GAME_MINUTES;
+  return Math.min(MAX_GAME_MINUTES, Math.max(1, Math.round(value)));
+}
+
+export interface PreparedReviewGame {
+  questions: QuizQuestion[];
+  stimuli?: QuizStimulus[];
+  /** Per-student bank draws (D17), with unscorable pool questions removed. */
+  bankSlots?: QuizSessionBankSlot[];
+  skippedCount: number;
+}
+
+/**
+ * Freeze a quiz for a self-paced game: banks resolve to pools each student
+ * draws from (D17), choose-N sections keep their count (D18), and questions
+ * that need a teacher grade are dropped (D19).
+ */
+export function prepareReviewGame(
+  quiz: QuizData,
+  banks: ReadonlyMap<string, BankContent> | null
+): PreparedReviewGame {
+  const hasSlots = quizHasBankSlots(quiz);
+  const resolved = hasSlots
+    ? resolveQuizAssignment(quiz, banks ?? new Map())
+    : null;
+  const all = resolved ? resolved.questions : quiz.questions;
+  const questions = all.filter((q) => !questionNeedsManualGrading(q));
+  const playable = new Set(questions.map((q) => q.id));
+  if (!resolved) {
+    return {
+      questions,
+      ...(quiz.stimuli ? { stimuli: quiz.stimuli } : {}),
+      skippedCount: all.length - questions.length,
+    };
+  }
+  const poolIds = new Set(
+    resolved.sessionSlots.flatMap((slot) => slot.poolQuestionIds)
+  );
+  const bankSlots = resolved.sessionSlots.flatMap((slot) => {
+    const pool = slot.poolQuestionIds.filter((id) => playable.has(id));
+    if (pool.length === 0) return [];
+    const firstIndex = questions.findIndex((q) => pool.includes(q.id));
+    const position = questions
+      .slice(0, firstIndex)
+      .filter((q) => !poolIds.has(q.id)).length;
+    return [
+      {
+        ...slot,
+        poolQuestionIds: pool,
+        count: Math.min(slot.count, pool.length),
+        position,
+      },
+    ];
+  });
+  const fixedSkipped = quiz.questions.filter(
+    (q) => !poolIds.has(q.id) && questionNeedsManualGrading(q)
+  ).length;
+  return {
+    questions,
+    stimuli: resolved.stimuli,
+    ...(bankSlots.length > 0 ? { bankSlots } : {}),
+    skippedCount: fixedSkipped,
   };
 }
 

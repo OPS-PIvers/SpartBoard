@@ -27,6 +27,7 @@ import {
   resolveSlotState,
 } from '@/utils/mediaGrading';
 import type { StudentName } from '@/hooks/useAssignmentPseudonyms';
+import { gameDisplayPoints } from '@/utils/quizGame';
 import {
   resolveResponseDisplayName,
   responseColorIndex,
@@ -603,4 +604,22 @@ export function buildLiveLeaderboard(
         rank: index + 1,
       }))
   );
+}
+
+/** Review game ranks from server-graded points (`response.game`), everyone included. */
+export function buildGameLeaderboard(
+  responses: QuizResponse[],
+  pinToName: Record<string, string>,
+  byStudentUid?: Map<string, StudentName>
+): QuizLeaderboardEntry[] {
+  return responses
+    .filter((response) => response.status !== 'joined' || !!response.game)
+    .map((response) => ({
+      ...(response.pin ? { pin: response.pin } : {}),
+      studentUid: response.studentUid,
+      name: resolveResponseDisplayName(response, pinToName, byStudentUid),
+      score: gameDisplayPoints(response.game?.points ?? 0),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
 }

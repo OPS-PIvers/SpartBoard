@@ -34,7 +34,7 @@ function renderModal(overrides: Partial<StartReviewModalProps> = {}) {
 }
 
 describe('StartReviewModal', () => {
-  it('offers teacher-paced now and the self-paced game as disabled', () => {
+  it('offers teacher-paced and the self-paced game', () => {
     renderModal();
     expect(screen.getByText('Start review')).toBeInTheDocument();
     expect(
@@ -42,7 +42,39 @@ describe('StartReviewModal', () => {
     ).toHaveAttribute('aria-pressed', 'true');
     expect(
       screen.getByRole('button', { name: /Self-paced game/ })
-    ).toBeDisabled();
+    ).toBeEnabled();
+  });
+
+  it('starts a 10 minute game with shuffle available and no podium', async () => {
+    const { onStart } = renderModal();
+    fireEvent.click(screen.getByRole('button', { name: /Self-paced game/ }));
+    expect(
+      screen.queryByRole('switch', {
+        name: 'Advance automatically when everyone has answered',
+      })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Game length' })).toHaveValue(
+      '10'
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^Start$/ }));
+    await waitFor(() => expect(onStart).toHaveBeenCalled());
+    const [settings] = onStart.mock.calls[0];
+    expect(settings.sessionMode).toBe('game');
+    expect(settings.gameMinutes ?? 10).toBe(10);
+  });
+
+  it('takes a custom game length', async () => {
+    const { onStart } = renderModal();
+    fireEvent.click(screen.getByRole('button', { name: /Self-paced game/ }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Game length' }), {
+      target: { value: 'custom' },
+    });
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Minutes' }), {
+      target: { value: '7' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Start$/ }));
+    await waitFor(() => expect(onStart).toHaveBeenCalled());
+    expect(onStart.mock.calls[0][0].gameMinutes).toBe(7);
   });
 
   it('starts teacher-paced with Top 5 by default', async () => {
