@@ -1495,7 +1495,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'library-shell.new-menu-item': {
-    label: 'Item in the library shell primary split-button menu',
+    label: 'Item in the library shell primary button menu',
     perField: true,
     panel: true,
   },

@@ -311,32 +311,60 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
               )}
               {primaryAction &&
                 (primaryAction.menuItems?.length ? (
-                  <div className="inline-flex shrink-0 items-stretch">
-                    {renderActionButton(
-                      primaryAction,
-                      'primary',
-                      labelsHidden,
-                      undefined,
-                      'rounded-r-none',
-                      accent != null,
+                  <OverflowMenu
+                    items={primaryAction.menuItems}
+                    ariaLabel={primaryAction.label}
+                    triggerTitle={
+                      labelsHidden ? primaryAction.label : undefined
+                    }
+                    triggerProps={
                       widgetType
                         ? tourTypeAttr('library-shell.new', widgetType)
                         : tourAttr('library-shell.new')
-                    )}
-                    <OverflowMenu
-                      items={primaryAction.menuItems}
-                      ariaLabel="More ways to create"
-                      triggerIcon={ChevronDown}
-                      stretch
-                      tourId="library-shell.new-menu-item"
-                      tourScope={widgetType ?? 'library'}
-                      triggerClassName={
-                        accent
-                          ? 'rounded-r-xl border-l border-slate-200 bg-white text-[color:var(--library-accent)] shadow-sm hover:bg-slate-100'
-                          : 'rounded-r-xl border-l border-brand-blue-lighter bg-white text-brand-blue-primary shadow-sm hover:bg-brand-blue-lighter'
-                      }
-                    />
-                  </div>
+                    }
+                    tourId="library-shell.new-menu-item"
+                    tourScope={widgetType ?? 'library'}
+                    triggerClassName={`gap-1.5 rounded-xl font-bold shadow-sm active:scale-95 ${
+                      accent
+                        ? 'bg-white hover:bg-slate-100 text-[color:var(--library-accent)]'
+                        : 'bg-white hover:bg-brand-blue-lighter text-brand-blue-primary'
+                    }`}
+                    triggerStyle={{
+                      paddingInline: labelsHidden ? '0' : 'min(12px, 2.6cqmin)',
+                      paddingBlock: 'min(8px, 1.8cqmin)',
+                      fontSize: 'min(14px, 4cqmin)',
+                      minWidth: labelsHidden ? 'min(36px, 10cqmin)' : undefined,
+                      height: labelsHidden ? 'min(36px, 10cqmin)' : undefined,
+                    }}
+                    triggerContent={
+                      <>
+                        {primaryAction.icon && (
+                          <primaryAction.icon
+                            style={{
+                              width: 'min(16px, 4.5cqmin)',
+                              height: 'min(16px, 4.5cqmin)',
+                            }}
+                            className="shrink-0"
+                          />
+                        )}
+                        {!labelsHidden && (
+                          <>
+                            <span className="truncate">
+                              {primaryAction.label}
+                            </span>
+                            <ChevronDown
+                              aria-hidden
+                              className="shrink-0 opacity-70"
+                              style={{
+                                width: 'min(14px, 4cqmin)',
+                                height: 'min(14px, 4cqmin)',
+                              }}
+                            />
+                          </>
+                        )}
+                      </>
+                    }
+                  />
                 ) : (
                   renderActionButton(
                     primaryAction,

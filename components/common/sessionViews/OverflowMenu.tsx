@@ -41,6 +41,11 @@ interface OverflowMenuProps {
   tourId?: TourAnchorId;
   /** Widget type / pseudo-type scope for `tourId`. Required to tag when `tourId` is set. */
   tourScope?: string;
+  /** Replaces the icon-only trigger with a labelled one, sized by its content. */
+  triggerContent?: React.ReactNode;
+  triggerStyle?: React.CSSProperties;
+  triggerTitle?: string;
+  triggerProps?: Record<string, string>;
 }
 
 /**
@@ -61,6 +66,10 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   stretch = false,
   tourId,
   tourScope,
+  triggerContent,
+  triggerStyle,
+  triggerTitle,
+  triggerProps,
 }) => {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(
@@ -150,16 +159,24 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
         aria-label={ariaLabel}
         aria-haspopup="menu"
         aria-expanded={open}
+        title={triggerTitle}
+        {...triggerProps}
         onClick={() => setOpen((o) => !o)}
         className={`inline-flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${triggerClassName}`}
-        style={{
-          width: stretch ? 'min(32px, 9cqmin)' : 'min(36px, 10cqmin)',
-          height: stretch ? undefined : 'min(36px, 10cqmin)',
-        }}
+        style={
+          triggerContent != null
+            ? triggerStyle
+            : {
+                width: stretch ? 'min(32px, 9cqmin)' : 'min(36px, 10cqmin)',
+                height: stretch ? undefined : 'min(36px, 10cqmin)',
+              }
+        }
       >
-        <TriggerIcon
-          style={{ width: 'min(18px, 5cqmin)', height: 'min(18px, 5cqmin)' }}
-        />
+        {triggerContent ?? (
+          <TriggerIcon
+            style={{ width: 'min(18px, 5cqmin)', height: 'min(18px, 5cqmin)' }}
+          />
+        )}
       </button>
       {open &&
         menuPos &&

@@ -78,7 +78,7 @@ export interface LibraryMenuAction {
 }
 
 /** Primary action on a card — always visible, never nested under overflow. */
-/** An alternative the primary action offers behind a caret. */
+/** One choice in a primary action's menu. */
 export interface LibraryActionMenuItem {
   label: string;
   icon?: LucideIcon;
@@ -87,7 +87,7 @@ export interface LibraryActionMenuItem {
 
 export interface LibraryPrimaryAction {
   label: string;
-  /** Renders a split button: the main click stays, a caret opens these. */
+  /** When set, the button opens this menu and `onClick` is not used. */
   menuItems?: LibraryActionMenuItem[];
   icon?: React.ComponentType<{
     size?: number;
