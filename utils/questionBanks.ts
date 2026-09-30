@@ -402,6 +402,40 @@ export function orderServedQuestions<T extends { id: string }>(
   return out;
 }
 
+/** Questions one attempt serves: fixed questions plus each random slot's count. */
+export function quizServedQuestionCount(
+  quiz: Pick<QuizData, 'questions' | 'bankSlots'>
+): number {
+  return randomBankSlots(quiz).reduce(
+    (sum, slot) => sum + (slot.count ?? 0),
+    quiz.questions.length
+  );
+}
+
+/** One sample attempt for teacher previews: bank slots replaced by a fresh draw. */
+export function sampleQuizDraw<
+  T extends Pick<QuizData, 'questions' | 'stimuli' | 'bankSlots' | 'order'>,
+>(
+  quiz: T,
+  banks: ReadonlyMap<string, BankContent>,
+  randomIndex?: RandomIndex
+): T {
+  if (!quizHasBankSlots(quiz)) return quiz;
+  const resolved = resolveQuizAssignment(quiz, banks);
+  const servedIds = drawServedQuestionIds(
+    resolved.questions.map((q) => q.id),
+    resolved.sessionSlots,
+    randomIndex
+  );
+  return {
+    ...quiz,
+    questions: orderServedQuestions(resolved.questions, servedIds),
+    stimuli: resolved.stimuli,
+    bankSlots: undefined,
+    order: undefined,
+  };
+}
+
 /** True when `servedIds` is a legal draw for these slots: right size, each pool honoured. */
 export function isValidDraw(
   publicQuestionIds: readonly string[],

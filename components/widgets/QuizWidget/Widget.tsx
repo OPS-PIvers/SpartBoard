@@ -34,6 +34,7 @@ import {
   BankSlotResolutionError,
   quizHasBankSlots,
   resolveQuizAssignment,
+  sampleQuizDraw,
 } from '@/utils/questionBanks';
 import {
   reconcileBankSlotsForPlcShare,
@@ -729,6 +730,28 @@ const TeacherQuizWidget: React.FC<{
       }
     },
     [loadQuizData, addToast]
+  );
+
+  // Previews show one sample attempt, so bank slots become drawn questions.
+  const withSampleBankDraw = useCallback(
+    async (data: QuizData): Promise<QuizData> => {
+      if (!quizHasBankSlots(data)) return data;
+      try {
+        return sampleQuizDraw(data, await loadBankContentsForQuiz(data));
+      } catch (err) {
+        if (err instanceof BankSlotResolutionError) {
+          for (const problem of err.problems)
+            addToast(problem.message, 'error');
+        } else {
+          logError('QuizWidget.preview.sampleBankDraw', err, {
+            quizId: data.id,
+          });
+          addToast('Could not load the question banks for this quiz.', 'error');
+        }
+        return data;
+      }
+    },
+    [loadBankContentsForQuiz, addToast]
   );
 
   // Bank-draw assignments grade against their frozen Drive copy, not the library quiz.
@@ -1983,7 +2006,9 @@ const TeacherQuizWidget: React.FC<{
         }}
         onPreview={async (meta) => {
           const data = await loadQuiz(meta);
-          if (data) setView('preview');
+          if (!data) return;
+          setLoadedQuizData(await withSampleBankDraw(data));
+          setView('preview');
         }}
         onStudentView={
           canAccessFeature('quiz-student-view')
@@ -1991,7 +2016,7 @@ const TeacherQuizWidget: React.FC<{
                 const data = await loadQuiz(meta);
                 if (data)
                   setStudentView({
-                    quiz: data,
+                    quiz: await withSampleBankDraw(data),
                     behavior: getQuizBehavior(meta),
                   });
               }

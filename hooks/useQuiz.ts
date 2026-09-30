@@ -44,6 +44,7 @@ import {
 } from './useSyncedQuizGroups';
 import { migrateQuizMetadataShape } from '@/utils/quizSyncMigration';
 import { buildQuizSearchText } from '@/utils/quizSearchText';
+import { quizServedQuestionCount } from '@/utils/questionBanks';
 import {
   clearSatisfiedNeedsKey,
   countQuestionsNeedingKey,
@@ -359,7 +360,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         id: quiz.id,
         title: quiz.title,
         driveFileId,
-        questionCount: quiz.questions.length,
+        questionCount: quizServedQuestionCount(quiz),
         searchText: buildQuizSearchText(quiz.questions),
         needsKeyCount: countQuestionsNeedingKey(updatedQuiz.questions),
         createdAt: quiz.createdAt,
@@ -728,6 +729,15 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
             }
           : {}),
         ...(sourceData.language ? { language: sourceData.language } : {}),
+        ...(sourceData.bankSlots?.length
+          ? { bankSlots: sourceData.bankSlots.map((s) => ({ ...s })) }
+          : {}),
+        ...(sourceData.order?.length
+          ? { order: sourceData.order.map((e) => ({ ...e })) }
+          : {}),
+        ...(sourceData.sections?.length
+          ? { sections: sourceData.sections.map((s) => ({ ...s })) }
+          : {}),
         createdAt: now,
         updatedAt: now,
       };
@@ -764,7 +774,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           id: fresh.id,
           title: fresh.title,
           driveFileId: createdDriveFileId,
-          questionCount: fresh.questions.length,
+          questionCount: quizServedQuestionCount(fresh),
           searchText: buildQuizSearchText(fresh.questions),
           needsKeyCount: countQuestionsNeedingKey(fresh.questions),
           createdAt: fresh.createdAt,
