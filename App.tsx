@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useEffect, useSyncExternalStore } from 'react';
 import { Loader2 } from 'lucide-react';
 import { SPA_NAVIGATE_EVENT, parsePlcPath } from './utils/plcPath';
+import { parseGradebookPath } from './utils/gradebookPath';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
 import { useReconcileExpiredSubShares } from './hooks/useReconcileExpiredSubShares';
@@ -189,6 +190,11 @@ const PlcRouteHost = lazy(() =>
     default: module.PlcRouteHost,
   }))
 );
+const GradebookRouteHost = lazy(() =>
+  import('./components/gradebook/GradebookRouteHost').then((module) => ({
+    default: module.GradebookRouteHost,
+  }))
+);
 const AdminWeatherFetcher = lazy(() =>
   import('./components/admin/AdminWeatherFetcher').then((module) => ({
     default: module.AdminWeatherFetcher,
@@ -244,6 +250,13 @@ const LibraryDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/LibraryDevHarness').then((module) => ({
         default: module.LibraryDevHarness,
+      }))
+    )
+  : null;
+const GradebookDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/GradebookDevHarness').then((module) => ({
+        default: module.GradebookDevHarness,
       }))
     )
   : null;
@@ -390,6 +403,7 @@ const AppContent: React.FC = () => {
     roleResolved,
     googleAccessToken,
     signOut,
+    canAccessFeature,
   } = useAuth();
   const {
     loading: dashLoading,
@@ -512,6 +526,10 @@ const AppContent: React.FC = () => {
   const plcParsed = pathname.startsWith('/plc') ? parsePlcPath(pathname) : null;
   const isPlcRoute =
     plcParsed !== null && (pathname === '/plc' || plcParsed.plcId !== null);
+  // Gradebook (GRADEBOOK.md D4): the same full-screen overlay pattern as PLC.
+  const gradebookParsed = canAccessFeature('gradebook')
+    ? parseGradebookPath(pathname)
+    : null;
 
   return (
     <Suspense fallback={<FullPageLoader />}>
@@ -529,6 +547,11 @@ const AppContent: React.FC = () => {
       {isPlcRoute && plcParsed && (
         <Suspense fallback={<FullPageLoader />}>
           <PlcRouteHost parsed={plcParsed} />
+        </Suspense>
+      )}
+      {gradebookParsed && (
+        <Suspense fallback={<FullPageLoader />}>
+          <GradebookRouteHost parsed={gradebookParsed} />
         </Suspense>
       )}
     </Suspense>
@@ -730,6 +753,20 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <LibraryDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: gradebook grid against fixtures, for layout checks.
+  if (
+    import.meta.env.DEV &&
+    GradebookDevHarness &&
+    isAuthBypass &&
+    pathname === '/gradebook-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <GradebookDevHarness />
       </Suspense>
     );
   }
