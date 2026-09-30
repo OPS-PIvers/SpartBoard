@@ -126,12 +126,13 @@ export const GradebookGrid: React.FC = () => {
     }
   };
 
-  const onPopoverClose = () => {
+  const onPopoverClose = (reason?: 'enter') => {
     const p = popover;
     gb.closePopover();
-    if (p?.type === 'cell') {
-      focusCell({ sessionId: p.sessionId, uid: p.studentUid });
-    }
+    if (p?.type !== 'cell') return;
+    const r = students.findIndex((s) => s.uid === p.studentUid);
+    const next = reason === 'enter' ? students[r + 1] : undefined;
+    focusCell({ sessionId: p.sessionId, uid: next?.uid ?? p.studentUid });
   };
 
   const sortName = () => {

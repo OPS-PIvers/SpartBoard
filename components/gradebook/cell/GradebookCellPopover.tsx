@@ -13,7 +13,8 @@ export interface GradebookCellPopoverProps {
   cell: GradebookCellData;
   columnCells: GradebookCellData[];
   prefill?: string;
-  onClose: () => void;
+  onClose: (reason?: 'enter') => void;
+  onNotify?: (message: string, undo?: () => void) => void;
   onOpenGrader?: (sessionId: string, studentUid: string) => void;
 }
 

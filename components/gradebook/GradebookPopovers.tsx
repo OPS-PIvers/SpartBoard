@@ -20,9 +20,9 @@ const columnRef = (c: GradebookColumn): GradebookColumnRef => ({
 });
 
 /** Mounts the cell and header popover slots against their anchors. */
-export const GradebookPopovers: React.FC<{ onCellClose: () => void }> = ({
-  onCellClose,
-}) => {
+export const GradebookPopovers: React.FC<{
+  onCellClose: (reason?: 'enter') => void;
+}> = ({ onCellClose }) => {
   const gb = useGradebook();
   const { popover, closePopover, allColumns, students, getCell } = gb;
   if (!popover) return null;
@@ -32,7 +32,7 @@ export const GradebookPopovers: React.FC<{ onCellClose: () => void }> = ({
   const columnCells: GradebookCellData[] = students.map((s) => {
     const cell = getCell(column.sessionId, s.uid);
     return {
-      student: { uid: s.uid, name: s.displayName },
+      student: { uid: s.uid, name: s.displayName, firstName: s.firstName },
       row: cell.row,
       mark: cell.mark,
       final: cell.final,
@@ -56,6 +56,7 @@ export const GradebookPopovers: React.FC<{ onCellClose: () => void }> = ({
         columnCells={columnCells}
         prefill={popover.prefill ?? undefined}
         onClose={onCellClose}
+        onNotify={gb.toast}
       />
     );
   }
@@ -70,6 +71,10 @@ export const GradebookPopovers: React.FC<{ onCellClose: () => void }> = ({
       column={columnRef(column)}
       columnCells={columnCells}
       onClose={closePopover}
+      onNotify={gb.toast}
+      sortedByColumn={
+        gb.view.sort.key === 'column' && gb.view.sort.ref === column.sessionId
+      }
       onAnalyze={(c) =>
         spaNavigate(buildGradebookPath(gb.rosterId, 'assignment', c.sessionId))
       }

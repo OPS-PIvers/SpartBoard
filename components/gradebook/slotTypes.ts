@@ -11,6 +11,7 @@ import type {
 export interface GradebookStudentRef {
   uid: string;
   name: string;
+  firstName: string;
 }
 
 export interface GradebookColumnRef {

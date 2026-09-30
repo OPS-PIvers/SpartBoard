@@ -12,6 +12,10 @@ export interface GradebookHeaderPopoverProps {
   column: GradebookColumnRef;
   columnCells: GradebookCellData[];
   onClose: () => void;
+  onNotify?: (message: string, undo?: () => void) => void;
+  sortedByColumn?: boolean;
+  onEditAssignment?: (column: GradebookColumnRef) => void;
+  onDeleteAssignment?: (column: GradebookColumnRef) => void;
   onOpenResults?: (column: GradebookColumnRef) => void;
   onAnalyze?: (column: GradebookColumnRef) => void;
   onSortByColumn?: (column: GradebookColumnRef) => void;
