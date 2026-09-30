@@ -4125,13 +4125,39 @@ export interface QuizSessionOptions extends BaseSessionOptions {
   boardRankLimit?: ReviewBoardRankLimit;
 }
 
+/** A Firestore Timestamp or epoch ms on the game clock fields. */
+export type GameClockStamp = number | { toMillis: () => number };
+
+/** Server-written game score on a response (functions/src/checkQuizGameAnswer.ts). */
+export interface QuizGameState {
+  points: number;
+  streak: number;
+  answered: number;
+  correct: number;
+  /** First try per question: true only for full credit (plan D25). */
+  firstTry: Record<string, boolean>;
+  /** Latest try per question, so a reloaded device rebuilds its repeat queue. */
+  lastCorrect: Record<string, boolean>;
+  last: {
+    questionId: string;
+    answer: string;
+    isCorrect: boolean;
+    points: number;
+    speedBonus: number;
+    firstTry: boolean;
+    at: number;
+  } | null;
+}
+
 /** Review board leaderboard size: a row count, or 'all' for everyone. */
 export type ReviewBoardRankLimit = 5 | 10 | 'all';
 
 /** Review's Start dialog settings, remembered per teacher (plan D15). */
 export interface ReviewLaunchSettings {
-  sessionMode: 'teacher' | 'auto';
+  sessionMode: 'teacher' | 'auto' | 'game';
   sessionOptions: QuizSessionOptions;
+  /** Self-paced game length in minutes (plan D22). */
+  gameMinutes?: number;
 }
 
 /**
@@ -4476,6 +4502,16 @@ export interface QuizSession
   pauseMessage?: string;
   /** Top-N leaderboard snapshot broadcast by the teacher for student view. */
   liveLeaderboard?: QuizLeaderboardEntry[];
+
+  // ─── Self-paced Review game clock (plan D22) ────────────────────────────────
+  /** Game length chosen at launch, before any added time. */
+  gameDurationMs?: number;
+  /** When the game ends; absent until the teacher starts it. Timestamp or ms. */
+  gameEndsAt?: GameClockStamp;
+  /** Set while the teacher has the game paused. */
+  gamePausedAt?: GameClockStamp | null;
+  /** Total time the teacher added with +1 min. */
+  gameAddedMs?: number;
 
   // ─── Multi-class period support ─────────────────────────────────────────────
   /** Selected class period roster names available for students to join. */
@@ -4967,6 +5003,8 @@ export interface QuizResponse {
    * Absent = the full question set was served.
    */
   servedQuestionIds?: string[];
+  /** Self-paced Review game score; only checkQuizGameAnswerV1 writes it. */
+  game?: QuizGameState;
   /**
    * Percentage score 0–100 if computed and persisted, or null if not yet graded.
    * Not currently written by either the student or the teacher app — scoring is
@@ -6762,6 +6800,8 @@ export interface VideoActivityResponse {
   unlocked?: boolean;
   /** Client timestamp (ms) when the teacher unlocked the attempt. */
   unlockedAt?: number;
+  /** Per-student results publication; absent = follows the class. Teacher-written only. */
+  resultsOverride?: QuizResultsOverride;
 }
 
 /**
@@ -7794,6 +7834,8 @@ export interface GuidedLearningResponse {
   classPeriod?: string;
   /** The `periodAccess` key the student's seat named; set on per-period sessions. */
   classId?: string;
+  /** Per-student results publication; absent = follows the class. Teacher-written only. */
+  resultsOverride?: QuizResultsOverride;
 }
 
 export interface GuidedLearningGlobalConfig {

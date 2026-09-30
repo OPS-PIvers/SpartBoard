@@ -46,6 +46,7 @@ export type StateKey =
   | 'ended'
   | 'populated'
   | 'empty'
+  | 'review-game'
   | AudioCaptureStateKey
   | RecordingControlStateKey
   | QuizEditorStateKey
@@ -93,6 +94,7 @@ const SESSION_STATE_LABELS: Record<string, string> = {
   ended: 'Ended',
   populated: 'Populated (results)',
   empty: 'Empty (results)',
+  'review-game': 'Review game (results)',
 };
 
 export const STATES: StateOption[] = [

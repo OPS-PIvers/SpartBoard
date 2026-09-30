@@ -162,6 +162,8 @@ export interface CreateAssignmentOptions {
   initialStatus?: QuizAssignmentStatus;
   /** Owning widget, mirrored onto assignment + session; omitted while the split flag is off. */
   widgetKind?: QuizWidgetKind;
+  /** Review game length (plan D22); only written for `sessionMode: 'game'`. */
+  gameDurationMs?: number;
   /**
    * ClassLink class `sourcedId`s this session targets. Empty/missing
    * keeps the session open to the legacy code/PIN-only flow. When
@@ -1302,12 +1304,18 @@ export const useQuizAssignments = (
         accessMode,
         periodAccess,
         widgetKind,
+        gameDurationMs,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
       const perPeriod =
         !!accessMode && !!periodAccess && Object.keys(periodAccess).length > 0;
       const hasBankSlots = !!bankSlots && bankSlots.length > 0;
-      if (hasBankSlots && settings.sessionMode !== 'student') {
+      // Review games draw per student too (plan D17).
+      if (
+        hasBankSlots &&
+        settings.sessionMode !== 'student' &&
+        settings.sessionMode !== 'game'
+      ) {
         throw new Error('Random bank draws need Assessment Mode');
       }
       // Defensive sanitization at the hook boundary: drop empty/non-string
@@ -1486,6 +1494,7 @@ export const useQuizAssignments = (
         publicQuestions: sessionPublicQuestions,
         ...(hasBankSlots ? { bankSlots } : {}),
         ...(sessionSections.length > 0 ? { sections: sessionSections } : {}),
+        ...(mode === 'game' && gameDurationMs ? { gameDurationMs } : {}),
         // Opts this session into server-side `unresponded` completeness writes;
         // sessions from older clients omit it and keep pre-feature finalize behaviour.
         completenessModel: 1,
@@ -1648,7 +1657,8 @@ export const useQuizAssignments = (
       );
       batch.set(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), sessionDoc);
       // Written whenever the flag is on, so switching the setting on later has a key to grade with.
-      if (scoreOnSubmitOn) {
+      // Review games always need it: checkQuizGameAnswerV1 grades from it (plan D31).
+      if (scoreOnSubmitOn || mode === 'game') {
         batch.set(scoreKeyRef(userId, assignmentId), {
           questions: buildScoreOnSubmitKey(sessionQuestions),
         });

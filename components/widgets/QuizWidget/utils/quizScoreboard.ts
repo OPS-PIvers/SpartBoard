@@ -27,6 +27,7 @@ import {
   resolveSlotState,
 } from '@/utils/mediaGrading';
 import type { StudentName } from '@/hooks/useAssignmentPseudonyms';
+import { gameDisplayPoints } from '@/utils/quizGame';
 import {
   resolveResponseDisplayName,
   responseColorIndex,
@@ -533,15 +534,19 @@ export function buildScoreboardTeams(
   byStudentUid?: Map<string, StudentName>,
   fibGrading?: FibGradingContext | null
 ): ScoreboardTeam[] {
+  // A Review game ranks by its server-graded points (plan D31).
+  const isGame = session?.sessionMode === 'game';
   return (
     completedResponses
       // Keep responses that can't be scored yet (answer key not loaded, or
       // question-id drift) off the board entirely rather than seating them at a
       // phantom 0 — see `canScoreResponse`.
-      .filter((r) => canScoreResponse(r, questions))
+      .filter((r) => isGame || canScoreResponse(r, questions))
       .map((r) => ({
         response: r,
-        score: getDisplayScore(r, questions, session, fibGrading),
+        score: isGame
+          ? gameDisplayPoints(r.game?.points ?? 0)
+          : getDisplayScore(r, questions, session, fibGrading),
       }))
       .sort((a, b) => b.score - a.score)
       .map(({ response, score }) => {
@@ -603,4 +608,22 @@ export function buildLiveLeaderboard(
         rank: index + 1,
       }))
   );
+}
+
+/** Review game ranks from server-graded points (`response.game`), everyone included. */
+export function buildGameLeaderboard(
+  responses: QuizResponse[],
+  pinToName: Record<string, string>,
+  byStudentUid?: Map<string, StudentName>
+): QuizLeaderboardEntry[] {
+  return responses
+    .filter((response) => response.status !== 'joined' || !!response.game)
+    .map((response) => ({
+      ...(response.pin ? { pin: response.pin } : {}),
+      studentUid: response.studentUid,
+      name: resolveResponseDisplayName(response, pinToName, byStudentUid),
+      score: gameDisplayPoints(response.game?.points ?? 0),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
 }

@@ -41,6 +41,7 @@ import {
   isLiveVideoActivitySession,
   scoredVideoActivityQuestions,
 } from '@/utils/videoActivityLive';
+import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
 import { isQuestionClosedError } from '@/utils/videoActivityLiveStudent';
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
@@ -973,7 +974,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     // completion screen mirrors Quiz behavior — submitted-only, no score
     // leak. Without this gate the student sees a percentage even when the
     // teacher set visibility to `'none'`.
-    const visibility = session?.scoreVisibility ?? 'none';
+    const visibility = resolveResultsVisibility(session, myResponse).visibility;
     const showScore = visibility !== 'none';
     // `isCorrect` comes from the server check at submit time, and Publish re-grades it.
     const correct = showScore

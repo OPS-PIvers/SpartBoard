@@ -50,6 +50,7 @@ import type {
 } from '@/utils/quizFibAnswers';
 import {
   buildLiveLeaderboard,
+  buildGameLeaderboard,
   getDisplayScore,
   isGamificationActive,
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
@@ -59,6 +60,7 @@ import { PresentSession } from '@/components/widgets/QuizWidget/components/prese
 import { boardRankRows, rankOrdinal } from '@/utils/reviewLaunch';
 import { useMonitorData } from './useMonitorData';
 import { CurrentQuestionCard } from './CurrentQuestionCard';
+import { GameClockCard } from './GameClockCard';
 import { StatusBuckets, BucketKey } from './StatusBuckets';
 import { RosterList } from './RosterList';
 import { PeriodAccessStrip } from './PeriodAccessStrip';
@@ -283,10 +285,30 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     setPresenting(false);
   }
 
+  const isGame = session.sessionMode === 'game';
   const scoringConfig = {
     speedBonusEnabled: session.speedBonusEnabled,
     streakBonusEnabled: session.streakBonusEnabled,
   };
+
+  // Review ranks everyone so each device finds its own row; names stay top 10 only.
+  const liveEntries = () =>
+    (isGame
+      ? buildGameLeaderboard(responses, data.pinToName, data.byStudentUid)
+      : buildLiveLeaderboard(
+          responses,
+          quizData.questions,
+          scoringConfig,
+          data.pinToName,
+          data.byStudentUid,
+          fibGrading,
+          session.boardRankLimit ? null : 10
+        )
+    ).map((entry) => {
+      if (entry.rank <= 10) return entry;
+      const { name: _hidden, ...rest } = entry;
+      return rest;
+    });
 
   // Broadcast the live leaderboard to the session doc (unchanged plumbing).
   const fingerprintRef = useRef<string | null>(null);
@@ -298,7 +320,8 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   useEffect(() => {
     const sessionRef = doc(db, 'quiz_sessions', session.id);
     const shouldBroadcast =
-      session.status === 'active' && isGamificationActive(scoringConfig);
+      session.status === 'active' &&
+      (isGame || isGamificationActive(scoringConfig));
     if (!shouldBroadcast) {
       if (session.status === 'ended' || clearedRef.current) return;
       clearedRef.current = true;
@@ -313,20 +336,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     }
     clearedRef.current = false;
     const timer = setTimeout(() => {
-      // Review ranks everyone so each device finds its own row; names stay top 10 only.
-      const entries = buildLiveLeaderboard(
-        responses,
-        quizData.questions,
-        scoringConfig,
-        data.pinToName,
-        data.byStudentUid,
-        fibGrading,
-        session.boardRankLimit ? null : 10
-      ).map((entry) => {
-        if (entry.rank <= 10) return entry;
-        const { name: _hidden, ...rest } = entry;
-        return rest;
-      });
+      const entries = liveEntries();
       const fingerprint = JSON.stringify(entries);
       if (fingerprint === fingerprintRef.current) return;
       fingerprintRef.current = fingerprint;
@@ -381,6 +391,11 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     if (!ok) return;
     setEnding(true);
     try {
+      // The game's final ranks land before devices switch to their end screen.
+      if (isGame)
+        await updateDoc(doc(db, 'quiz_sessions', session.id), {
+          liveLeaderboard: liveEntries(),
+        });
       await onEnd();
     } catch (err) {
       logError('QuizLiveMonitor.end', err);
@@ -754,16 +769,24 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 })}
               </div>
             )}
-            <CurrentQuestionCard
-              session={session}
-              currentQ={currentQ}
-              answered={data.answeredCurrent}
-              total={data.totalStudents}
-              doneCount={data.counts.done}
-              onAdvance={onAdvance}
-              widgetId={widgetId}
-              periodControls={periodBar && <PeriodBar {...periodBar} />}
-            />
+            {isGame ? (
+              <GameClockCard
+                session={session}
+                joined={data.totalStudents}
+                onError={(message) => addToast(message, 'error')}
+              />
+            ) : (
+              <CurrentQuestionCard
+                session={session}
+                currentQ={currentQ}
+                answered={data.answeredCurrent}
+                total={data.totalStudents}
+                doneCount={data.counts.done}
+                onAdvance={onAdvance}
+                widgetId={widgetId}
+                periodControls={periodBar && <PeriodBar {...periodBar} />}
+              />
+            )}
             <StatusBuckets
               counts={data.counts}
               handCount={session.handRaiseEnabled === true ? data.handCount : 0}
@@ -868,6 +891,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
         >
           {(onPause ?? onResume) &&
             !perPeriod &&
+            !isGame &&
             session.status !== 'ended' && (
               <button
                 onClick={handleTogglePause}

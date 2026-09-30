@@ -32,7 +32,13 @@ vi.mock('@/hooks/useAssignmentPseudonyms', () => ({
 vi.mock('@/hooks/useSessionViewCount', () => ({
   useSessionViewCount: (...args: unknown[]) => viewCountMock(...args),
 }));
-vi.mock('@/context/useAuth', () => ({ useAuth: () => ({ orgId: null }) }));
+let gradebookOn = false;
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({
+    orgId: null,
+    canAccessFeature: (id: string) => id === 'gradebook' && gradebookOn,
+  }),
+}));
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast: vi.fn() }),
 }));
@@ -170,5 +176,42 @@ describe('GuidedLearningResults — saved but not submitted', () => {
     expect(screen.getByText('Completed').parentElement).toHaveTextContent(
       'PIN: 22'
     );
+  });
+});
+
+describe('GuidedLearningResults — per-student results', () => {
+  const base = { sessionId: 's1', answers: [], startedAt: 1, score: null };
+
+  it('shows the override and a results menu only with the gradebook flag', async () => {
+    session({ classIds: [] });
+    mockResponses = [
+      {
+        ...base,
+        studentAnonymousId: 'u2',
+        pin: '22',
+        completedAt: 5,
+        resultsOverride: { mode: 'hidden', publishedAt: 1 },
+      },
+    ];
+    gradebookOn = false;
+    const { unmount } = render(
+      <GuidedLearningResults set={set} sessionId="s1" onClose={vi.fn()} />
+    );
+    await screen.findByText('Completed');
+    expect(screen.queryByText('Hidden')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Results options for PIN: 22' })
+    ).not.toBeInTheDocument();
+    unmount();
+
+    gradebookOn = true;
+    render(
+      <GuidedLearningResults set={set} sessionId="s1" onClose={vi.fn()} />
+    );
+    expect(await screen.findByText('Hidden')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Results options for PIN: 22' })
+    ).toBeInTheDocument();
+    gradebookOn = false;
   });
 });
