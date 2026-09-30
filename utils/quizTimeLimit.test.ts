@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  attemptClockRanOut,
   clampQuizTimeLimitMinutes,
   formatTimeLeft,
   resolveAttemptDeadline,
@@ -60,5 +61,27 @@ describe('timestampMillis', () => {
     expect(timestampMillis({ toMillis: () => 42 })).toBe(42);
     expect(timestampMillis(7)).toBe(7);
     expect(timestampMillis(null)).toBeNull();
+  });
+});
+
+describe('attemptClockRanOut', () => {
+  const start = 1_000_000;
+
+  it('is true for a time-up attempt', () => {
+    expect(attemptClockRanOut(true, start, 30, start)).toBe(true);
+  });
+
+  it('is true once the base limit has passed, even without timeUp', () => {
+    expect(attemptClockRanOut(undefined, start, 30, start + 30 * 60_000)).toBe(
+      true
+    );
+  });
+
+  it('is false while time remains or with no limit', () => {
+    expect(attemptClockRanOut(undefined, start, 30, start + 60_000)).toBe(
+      false
+    );
+    expect(attemptClockRanOut(undefined, start, null, start + 1e9)).toBe(false);
+    expect(attemptClockRanOut(undefined, null, 30, start + 1e9)).toBe(false);
   });
 });

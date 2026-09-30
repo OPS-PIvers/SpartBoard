@@ -30,6 +30,22 @@ export function resolveAttemptDeadline(
   return Number.isFinite(allowed) ? startedAtMs + allowed : null;
 }
 
+/** True when an attempt's base time limit has run out, so an unlock should restart its clock. */
+export function attemptClockRanOut(
+  timeUp: boolean | undefined,
+  startedAtMs: number | null,
+  limitMinutes: number | null | undefined,
+  now: number
+): boolean {
+  if (timeUp === true) return true;
+  const minutes = clampQuizTimeLimitMinutes(limitMinutes);
+  return (
+    minutes != null &&
+    startedAtMs != null &&
+    now - startedAtMs >= minutes * 60_000
+  );
+}
+
 /** `m:ss`, or `h:mm:ss` from an hour up. */
 export function formatTimeLeft(ms: number): string {
   const total = Math.max(0, Math.ceil(ms / 1000));

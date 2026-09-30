@@ -84,7 +84,11 @@ import {
 } from '@/utils/periodAccess';
 import { isInvalidWordRange } from '@/utils/wordLimit';
 import { getServerNow } from '@/utils/serverTime';
-import { clampQuizTimeLimitMinutes } from '@/utils/quizTimeLimit';
+import {
+  attemptClockRanOut,
+  clampQuizTimeLimitMinutes,
+  timestampMillis,
+} from '@/utils/quizTimeLimit';
 import { withNotChosen } from '@/utils/quizSections';
 import {
   FIB_BLANK_SEP,
@@ -1558,6 +1562,12 @@ export const useQuizSessionTeacher = (
             quizLedgerKey(sessionId, target.studentUid)
           )
         : null;
+      const clockRanOut = attemptClockRanOut(
+        target.timeUp,
+        timestampMillis(target.attemptStartedAt),
+        rawSession?.timeLimitMinutes,
+        Date.now()
+      );
       const currentAttempts = target.completedAttempts ?? 0;
       const refundedAttempts = Math.max(0, currentAttempts - 1);
 
@@ -1577,8 +1587,8 @@ export const useQuizSessionTeacher = (
         scoredOnSubmitAttempt: deleteField(),
         unlocked: true,
         unlockedAt: Date.now(),
-        // A timed-out attempt reopens with a fresh time limit.
-        ...(target.timeUp
+        // An attempt whose time already ran out reopens with a fresh limit.
+        ...(clockRanOut
           ? { timeUp: deleteField(), attemptStartedAt: serverTimestamp() }
           : {}),
         // Refresh lastWriteAt so the idle auto-submit Cloud Function
@@ -1597,7 +1607,7 @@ export const useQuizSessionTeacher = (
       }
       await batch.commit();
     },
-    [sessionId, responses]
+    [sessionId, responses, rawSession?.timeLimitMinutes]
   );
 
   const unlockResultsForStudent = useCallback(
