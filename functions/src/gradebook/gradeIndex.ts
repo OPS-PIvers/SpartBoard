@@ -643,6 +643,8 @@ export const RECOMPUTE_LIMIT = 200;
 export const RECOMPUTE_BUDGET_MS = 420_000;
 
 /** Drains the dirty queue; a session re-dirtied mid-run stays queued. */
+const MAX_RECOMPUTE_FAILURES = 5;
+
 export async function drainDirtySessions(
   db: Firestore,
   limit = RECOMPUTE_LIMIT
@@ -673,10 +675,19 @@ export async function drainDirtySessions(
       });
     } catch (err) {
       failed++;
+      const failures = (Number(data.failures) || 0) + 1;
       logger.error('gradeIndex: session recompute failed', {
         sessionId: doc.id,
         kind,
+        failures,
         error: err instanceof Error ? err.message : String(err),
+      });
+      // Move it behind newer work; give up after MAX_RECOMPUTE_FAILURES tries.
+      await db.runTransaction(async (tx) => {
+        const current = await tx.get(doc.ref);
+        if (!current.exists || current.data()?.dirtyAt !== data.dirtyAt) return;
+        if (failures >= MAX_RECOMPUTE_FAILURES) tx.delete(doc.ref);
+        else tx.update(doc.ref, { dirtyAt: Date.now(), failures });
       });
     }
   }

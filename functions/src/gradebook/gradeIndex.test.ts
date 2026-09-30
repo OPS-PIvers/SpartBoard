@@ -431,6 +431,27 @@ describe('recomputeSession and the dirty queue', () => {
     ).toEqual({ written: 0, deleted: 1 });
   });
 
+  it('moves a failing session behind newer work, then drops it', async () => {
+    const stub = seed({ 'quiz_sessions/qs1/responses/u1': completed() });
+    const db = stub.db as unknown as { collection: (n: string) => unknown };
+    const collection = db.collection.bind(db);
+    db.collection = (name: string) => {
+      if (name === 'users') throw new Error('unavailable');
+      return collection(name);
+    };
+    const typed = stub.db as unknown as Db;
+    await markSessionDirty(typed, 'quiz', 'qs1', 1);
+    expect(await drainDirtySessions(typed)).toEqual({
+      recomputed: 0,
+      failed: 1,
+    });
+    const queued = stub.get('grade_index_sessions/qs1');
+    expect(queued?.failures).toBe(1);
+    expect(queued?.dirtyAt).toBeGreaterThan(1);
+    for (let i = 0; i < 4; i++) await drainDirtySessions(typed);
+    expect(stub.has('grade_index_sessions/qs1')).toBe(false);
+  });
+
   it('drains queued sessions and clears the queue entry', async () => {
     const stub = seed({ 'quiz_sessions/qs1/responses/u1': completed() });
     const db = stub.db as unknown as Db;
