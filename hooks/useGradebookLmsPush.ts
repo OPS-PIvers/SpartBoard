@@ -33,7 +33,7 @@ import { logError } from '@/utils/logError';
 import type {
   GradebookCellData,
   GradebookColumnRef,
-} from '@/components/gradebook/slotTypes';
+} from '@/components/gradebook/popovers/types';
 
 export interface GradebookPushOutcome {
   ok: boolean;

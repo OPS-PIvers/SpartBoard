@@ -80,6 +80,8 @@ export interface GradebookMarkWriter {
   ) => Promise<void>;
   undo: () => Promise<void>;
   canUndo: boolean;
+  /** When the newest grid change was made, so Ctrl+Z can pick it over a popover edit. */
+  lastUndoAt: number;
 }
 
 export type GradebookPopover =

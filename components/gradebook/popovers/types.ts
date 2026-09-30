@@ -1,4 +1,3 @@
-// Props shared with the popover slice (PR #3644 `popovers/types.ts`); swap to its import when it lands.
 import type {
   FinalScore,
   GradebookColumnConfig,
@@ -10,6 +9,7 @@ import type {
 
 export interface GradebookStudentRef {
   uid: string;
+  /** Display name in the grid's current name format. */
   name: string;
   firstName: string;
 }
@@ -20,6 +20,7 @@ export interface GradebookColumnRef {
   title: string;
   dueAt: number | null;
   closeAt: number | null;
+  /** The `gradebook_columns` doc, or null before the teacher saves one. */
   config: GradebookColumnConfig | null;
 }
 
@@ -32,6 +33,10 @@ export interface GradebookCellData {
 
 export interface GradebookPopoverContext {
   rosterId: string;
+  /** The class's effective settings set (personal, PLC or district). */
   settings: GradebookSettingsBody;
   now: number;
 }
+
+/** Toast the grid shows after a change; `undo` reverts it. */
+export type GradebookNotify = (message: string, undo?: () => void) => void;
