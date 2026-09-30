@@ -1,5 +1,6 @@
 import type { QuizQuestion } from '@/types';
 import { groupAnswersByOption } from '@/utils/quizQuestionDrilldown';
+import { displayFibAnswer } from '@/utils/quizFibBlanks';
 
 export interface AnswerDistributionRow {
   label: string;
@@ -28,7 +29,7 @@ export function distributionFromAnswers<Q extends DistributionQuestion>(
   return {
     totalAnswered: entries.length,
     rows: groupAnswersByOption(question, entries).map((g) => ({
-      label: g.label,
+      label: displayFibAnswer(g.label),
       count: g.items.length,
       isCorrect: g.isKey ?? gradeAnswer(question, g.label).isCorrect,
     })),

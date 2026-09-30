@@ -26,6 +26,8 @@ import {
   formatRevealedAnswer,
   revealValueFor,
 } from '@/utils/quizFibAlternates';
+import { fibBlankCount, isMultiBlank } from '@/utils/quizFibBlanks';
+import { NumberedBlanksText } from '@/components/quiz/FibMultiBlankInput';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { resolveStimuli } from '@/utils/quizStimuli';
 import { StimulusRenderer } from '@/components/quiz/QuizStimulusView';
@@ -220,7 +222,11 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
               className="text-brand-blue-dark font-black leading-tight mt-3"
               style={{ fontSize: 'min(18px, 6cqmin)' }}
             >
-              {question.text}
+              {isMultiBlank(question) ? (
+                <NumberedBlanksText text={question.text} light />
+              ) : (
+                question.text
+              )}
             </p>
           </div>
 
@@ -266,7 +272,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
 
             {question.type === 'FIB' && (
               <FIBAnswerArea
-                correctAnswer={question.correctAnswer}
+                count={fibBlankCount(question)}
                 showAnswer={showAnswer}
                 onReveal={() => setShowAnswer(true)}
               />
@@ -586,21 +592,42 @@ const MultiAnswerArea: React.FC<{
 };
 
 const FIBAnswerArea: React.FC<{
-  correctAnswer: string;
+  count: number;
   showAnswer: boolean;
   onReveal: () => void;
-}> = ({ showAnswer, onReveal }) => (
+}> = ({ count, showAnswer, onReveal }) => (
   <div className="flex flex-col" style={{ gap: 'min(12px, 3cqmin)' }}>
-    <input
-      type="text"
-      disabled={showAnswer}
-      className="w-full bg-white border-2 border-brand-blue-primary/10 rounded-2xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-inner disabled:bg-brand-gray-lightest/50"
-      style={{
-        padding: 'min(12px, 3cqmin) min(16px, 4cqmin)',
-        fontSize: 'min(14px, 4.5cqmin)',
-      }}
-      placeholder="Type the answer here..."
-    />
+    {Array.from({ length: count }, (_, i) => (
+      <div
+        key={i}
+        className="flex items-center"
+        style={{ gap: 'min(8px, 2cqmin)' }}
+      >
+        {count > 1 && (
+          <span
+            className="shrink-0 inline-flex items-center justify-center rounded-full bg-amber-100 text-amber-800 font-black"
+            style={{
+              width: 'min(22px, 6cqmin)',
+              height: 'min(22px, 6cqmin)',
+              fontSize: 'min(11px, 3.2cqmin)',
+            }}
+          >
+            {i + 1}
+          </span>
+        )}
+        <input
+          type="text"
+          disabled={showAnswer}
+          aria-label={count > 1 ? `Blank ${i + 1}` : undefined}
+          className="w-full bg-white border-2 border-brand-blue-primary/10 rounded-2xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-inner disabled:bg-brand-gray-lightest/50"
+          style={{
+            padding: 'min(12px, 3cqmin) min(16px, 4cqmin)',
+            fontSize: 'min(14px, 4.5cqmin)',
+          }}
+          placeholder="Type the answer here..."
+        />
+      </div>
+    ))}
     {!showAnswer && (
       <button
         onClick={onReveal}

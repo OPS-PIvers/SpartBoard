@@ -6,6 +6,7 @@
  */
 
 import type { QuizQuestionType } from '@/types';
+import { splitBlanks } from '@/utils/quizFibBlanks';
 
 /** One column-separated piece of a line: a table cell, a tab stop, or a PDF x-gap. */
 export interface DocSegment {
@@ -214,7 +215,7 @@ export const questionNeedsKey = (q: ExtractedQuestion): boolean =>
   q.type !== 'free-response' &&
   // An unkeyed ordering item comes in as a written response (see toQuizData).
   q.type !== 'Ordering' &&
-  !q.correctAnswer.trim();
+  splitBlanks(q.correctAnswer).some((a) => !a.trim());
 
 /** An option as a choose-all key part; `|` separates the parts, so it can't appear inside one. */
 export const multiAnswerPart = (text: string): string =>

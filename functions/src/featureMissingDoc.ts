@@ -25,6 +25,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-choice-editor',
   'quiz-sections',
   'quiz-fib-alternates',
+  'quiz-fib-multi-blank',
   'modal-fullscreen',
   'quiz-results-tools',
   'quiz-grader-v2',

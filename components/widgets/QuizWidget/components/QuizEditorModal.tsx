@@ -166,6 +166,10 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       qa.text !== qb.text ||
       qa.type !== qb.type ||
       qa.correctAnswer !== qb.correctAnswer ||
+      (qa.alternateAnswers ?? []).join('\n') !==
+        (qb.alternateAnswers ?? []).join('\n') ||
+      JSON.stringify(qa.blankAlternates ?? []) !==
+        JSON.stringify(qb.blankAlternates ?? []) ||
       qa.timeLimit !== qb.timeLimit ||
       (qa.points ?? 1) !== (qb.points ?? 1) ||
       (qa.allowPartialCredit === true) !== (qb.allowPartialCredit === true) ||

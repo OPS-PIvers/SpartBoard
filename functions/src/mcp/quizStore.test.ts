@@ -18,6 +18,38 @@ const store = (q: FriendlyQuestion, existing?: StoredQuestion) =>
   toStoredQuestion(q, 1, existing, newId);
 
 describe('toStoredQuestion', () => {
+  it('stores fill_in_blank blanks as a multi-blank key and reads them back', () => {
+    const stored = store({
+      type: 'fill_in_blank',
+      text: 'Roses are ___ and violets are ___.',
+      blanks: [
+        { answer: 'red' },
+        { answer: 'blue', accepted_alternates: ['navy', ' '] },
+      ],
+      partial_credit: true,
+    });
+    expect(stored).toMatchObject({
+      type: 'FIB',
+      correctAnswer: 'red\u001Fblue',
+      blankAlternates: [{ answers: [] }, { answers: ['navy'] }],
+      allowPartialCredit: true,
+    });
+    expect(toFriendlyQuestion(stored)).toMatchObject({
+      blanks: [
+        { answer: 'red' },
+        { answer: 'blue', accepted_alternates: ['navy'] },
+      ],
+      partial_credit: true,
+    });
+    expect(() =>
+      store({
+        type: 'fill_in_blank',
+        text: '___ ___',
+        blanks: [{ answer: 'a' }, { answer: ' ' }],
+      })
+    ).toThrow(/every fill_in_blank blank needs an answer/);
+  });
+
   it('encodes every type in the client format', () => {
     expect(
       store({

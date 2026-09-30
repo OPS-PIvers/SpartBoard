@@ -27,6 +27,7 @@ import { resolvePinName } from '@/components/widgets/QuizWidget/utils/quizScoreb
 import { logError } from '@/utils/logError';
 import { formatTabAwayTotal } from '@/utils/tabExits';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import { displayFibAnswer } from '@/utils/quizFibBlanks';
 
 /**
  * Format a points value for export. Whole numbers stay as integers;
@@ -146,6 +147,8 @@ export function formatQuizAnswerText(
       .join('; ');
   } else if (raw && question.type === 'MA') {
     text = raw.split('|').filter(Boolean).join('; ');
+  } else if (raw && question.type === 'FIB') {
+    text = displayFibAnswer(raw);
   }
   const parts = [text.trim()];
   for (const art of answer.artifacts ?? []) {

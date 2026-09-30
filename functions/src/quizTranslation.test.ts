@@ -1026,6 +1026,25 @@ describe('FIB blank tokens', () => {
     ).toMatch(/accepted answer is required/);
   });
 
+  it('asks for one answer per blank on a multi-blank key', () => {
+    const multi = { ...fibQuestion(), correctAnswer: 'Paris\u001FSeine' };
+    const text = 'La capital de Francia es [[1]] y está en el [[2]].';
+    const payload = JSON.parse(
+      buildTranslationPrompt('Quiz', [multi], ['q5']).split('\n').pop() ?? ''
+    ) as { answer?: string }[];
+    expect(payload[0].answer).toBe('Paris | Seine');
+    expect(
+      validateQuizTranslation([multi], ['q5'], {
+        q5: { text, answer: 'París | Sena' },
+      })
+    ).toBeNull();
+    expect(
+      validateQuizTranslation([multi], ['q5'], {
+        q5: { text, answer: 'París' },
+      })
+    ).toMatch(/2 answers/);
+  });
+
   it('does not require an answer when the English FIB has none', () => {
     expect(
       validateQuizTranslation(

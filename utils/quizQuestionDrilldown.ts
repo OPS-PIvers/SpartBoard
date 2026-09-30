@@ -1,3 +1,4 @@
+import { displayFibAnswer } from '@/utils/quizFibBlanks';
 import {
   isFreeResponseType,
   type QuizQuestion,
@@ -241,7 +242,7 @@ function buildDistribution(
   );
   const rows = groups.map((g) => ({
     key: g.key,
-    label: g.label,
+    label: displayFibAnswer(g.label),
     // FIB: a translated accepted answer is correct only for the students it was served to.
     isCorrect:
       question.type === 'MC'

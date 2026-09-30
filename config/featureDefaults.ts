@@ -662,6 +662,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // More than one blank in a fill-in-the-blank quiz question. Admin-only until Paul has tried it.
+  'quiz-fib-multi-blank': {
+    label: 'Several blanks in fill in the blank',
+    icon: TextCursorInput,
+    description: 'An answer box for each blank.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Full-screen toggle on large pop-ups. Admin-only until Paul has tried it on a Chromebook.
   'modal-fullscreen': {
     label: 'Full screen for large pop-ups',
