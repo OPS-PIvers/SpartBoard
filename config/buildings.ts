@@ -262,7 +262,13 @@ export function getBuildingGradeLevels(
  * this as "show universal content only").
  */
 export function parseGradeLevels(grades: string): GradeLevel[] {
-  const normalized = grades.trim().toLowerCase().replace(/\s+/g, '');
+  const normalized = grades
+    .trim()
+    .toLowerCase()
+    .replace(/^grades?\s*/, '')
+    .replace(/\s+to\s+/g, '-')
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    .replace(/\s+/g, '');
   if (!normalized) return [];
 
   const known: Record<string, GradeLevel[]> = {
@@ -280,7 +286,7 @@ export function parseGradeLevels(grades: string): GradeLevel[] {
     '6-12': ['6-8', '9-12'],
     '7-12': ['6-8', '9-12'],
   };
-  if (known[normalized]) return known[normalized];
+  if (Object.hasOwn(known, normalized)) return known[normalized];
 
   // Try generic "N-M" numeric range.
   const match = normalized.match(/^(?:k|pre-?k|(\d+))-(\d+)$/);
