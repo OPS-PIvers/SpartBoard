@@ -13,16 +13,10 @@ import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import {
   DEFAULT_ATTEMPT_POLICY,
-  DEFAULT_GRADEBOOK_SETTINGS,
-  DEFAULT_PROFICIENCY_SCALE,
   GRADEBOOK_COLLECTIONS,
-  ORG_GRADEBOOK_SETTINGS_ID,
-  PLC_GRADEBOOK_META_ID,
   gradebookDocId,
-  resolveScale,
   type GradebookClassStateDoc,
   type GradebookColumnConfig,
-  type GradebookConfigRef,
   type GradebookHistoryEntry,
   type GradebookMark,
   type GradebookSettingsBody,
@@ -125,23 +119,19 @@ function useKeyedListener<T>(
 const docsOf = <T>(snap: { docs: { data: () => DocumentData }[] }): T[] =>
   snap.docs.map((d) => d.data() as T);
 
-function configDocPath(uid: string, ref: GradebookConfigRef): string[] {
-  if (ref.source === 'personal') {
-    return ['users', uid, GRADEBOOK_COLLECTIONS.userSettings, ref.configId];
-  }
-  if (ref.source === 'district') {
-    return [GRADEBOOK_COLLECTIONS.districtConfigs, ref.configId];
-  }
-  return ['plcs', ref.plcId, 'meta', PLC_GRADEBOOK_META_ID];
-}
-
 /** Firestore reads and writes for one gradebook class (D9, D10, D16, D18). */
 export function useGradebookSource(
   uid: string | null,
   rosterId: string | null,
   orgId: string | null,
-  buildingIds: readonly string[]
+  buildingIds: readonly string[],
+  resolved: {
+    settings: GradebookSettingsBody;
+    scale: ProficiencyScale;
+    loading: boolean;
+  }
 ): GradebookSource {
+  const { settings, scale } = resolved;
   const classKey = uid && rosterId ? `${uid}|${rosterId}` : '';
   const userKey = uid ?? '';
 
@@ -196,69 +186,6 @@ export function useGradebookSource(
       )
   );
 
-  const configRef = classState.value?.configRef ?? null;
-  const configKey =
-    uid && configRef ? `${uid}|${configDocPath(uid, configRef).join('/')}` : '';
-  const config = useKeyedListener<GradebookSettingsBody | null>(
-    configKey,
-    (set, fail) => {
-      if (!uid || !configRef) return () => undefined;
-      const [first, ...rest] = configDocPath(uid, configRef);
-      return onSnapshot(
-        doc(db, first, ...rest),
-        (snap) =>
-          set(snap.exists() ? (snap.data() as GradebookSettingsBody) : null),
-        fail
-      );
-    }
-  );
-  const settings = config.value ?? DEFAULT_GRADEBOOK_SETTINGS;
-
-  const org = useKeyedListener<ProficiencyScale | null>(userKey, (set, fail) =>
-    onSnapshot(
-      doc(db, 'admin_settings', ORG_GRADEBOOK_SETTINGS_ID),
-      (snap) => {
-        const d = snap.exists() ? (snap.data() as ProficiencyScale) : null;
-        set(
-          d && typeof d.proficient === 'number'
-            ? {
-                proficient: d.proficient,
-                approaching: d.approaching,
-                levelNames:
-                  d.levelNames ?? DEFAULT_PROFICIENCY_SCALE.levelNames,
-              }
-            : null
-        );
-      },
-      fail
-    )
-  );
-  const plcId = settings.scale.source === 'plc' ? settings.scale.plcId : '';
-  const plcCutoffs = useKeyedListener<{
-    proficient: number;
-    approaching: number;
-  } | null>(plcId, (set, fail) =>
-    onSnapshot(
-      doc(db, 'plcs', plcId, 'meta', 'learningTargets'),
-      (snap) => {
-        const c = snap.exists()
-          ? (
-              snap.data() as {
-                masteryCutoffs?: { proficient: number; approaching: number };
-              }
-            ).masteryCutoffs
-          : undefined;
-        set(c ?? null);
-      },
-      fail
-    )
-  );
-  const scale = resolveScale(
-    settings.scale,
-    org.value ?? DEFAULT_PROFICIENCY_SCALE,
-    plcCutoffs.value
-  );
-
   const periodSets = useKeyedListener<GradingPeriodSetDoc[]>(
     orgId ?? '',
     (set, fail) =>
@@ -289,7 +216,7 @@ export function useGradebookSource(
     !marks.loaded ||
     !columns.loaded ||
     !classState.loaded ||
-    (configKey !== '' && !config.loaded);
+    resolved.loading;
 
   return {
     status: error ? 'error' : loading ? 'loading' : 'ready',

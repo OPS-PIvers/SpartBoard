@@ -4121,6 +4121,17 @@ export interface QuizSessionOptions extends BaseSessionOptions {
   handRaiseEnabled?: boolean;
   /** Score each attempt on submit and show it; ignored when a question needs manual grading. */
   showScoreOnSubmit?: boolean;
+  /** Review: leaderboard rows on the board; absent keeps the legacy top 3. */
+  boardRankLimit?: ReviewBoardRankLimit;
+}
+
+/** Review board leaderboard size: a row count, or 'all' for everyone. */
+export type ReviewBoardRankLimit = 5 | 10 | 'all';
+
+/** Review's Start dialog settings, remembered per teacher (plan D15). */
+export interface ReviewLaunchSettings {
+  sessionMode: 'teacher' | 'auto';
+  sessionOptions: QuizSessionOptions;
 }
 
 /**
@@ -4440,6 +4451,8 @@ export interface QuizSession
   streakBonusEnabled?: boolean;
   /** Show a podium/leaderboard between questions (default false) */
   showPodiumBetweenQuestions?: boolean;
+  /** Review: board leaderboard size chosen at launch (plan D21). */
+  boardRankLimit?: ReviewBoardRankLimit;
   /** Play sound effects during the quiz (default false) */
   soundEffectsEnabled?: boolean;
   /**
@@ -5569,7 +5582,10 @@ export interface QuizGlobalConfig {
 }
 
 /** The Review widget runs the same quiz library, so it shares Quiz's config shape. */
-export type ReviewConfig = QuizConfig;
+export type ReviewConfig = QuizConfig & {
+  /** Last Start dialog settings; lives only in `savedWidgetPresets.review`, never on a board. */
+  lastLaunch?: ReviewLaunchSettings;
+};
 
 /** Widget configuration for the quiz widget (teacher side) */
 export interface QuizConfig {

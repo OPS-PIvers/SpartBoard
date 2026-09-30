@@ -3,6 +3,8 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useGradebookRoster } from '@/hooks/useGradebookRoster';
 import { useGradebookSource } from '@/hooks/useGradebookSource';
+import { useGradebookSettings } from '@/hooks/useGradebookSettings';
+import { resolveScale } from '@/utils/gradebook/gradebookCore';
 import { isGradebookRoster } from '@/utils/gradebookRoster';
 import { spaNavigate, spaReplace } from '@/utils/plcPath';
 import {
@@ -57,11 +59,27 @@ export const GradebookRouteHost: React.FC<{ parsed: ParsedGradebookPath }> = ({
   }, [roster]);
 
   const join = useGradebookRoster(roster, enabled);
+  // One resolver for the grid and the settings modal (D16 fallback order).
+  const gbSettings = useGradebookSettings(enabled);
+  const body = gbSettings.configForClass(roster?.id ?? '').body;
+  const plcScale =
+    body.scale.source === 'plc'
+      ? (gbSettings.scaleOptions.find(
+          (o) =>
+            body.scale.source === 'plc' && o.value === `plc:${body.scale.plcId}`
+        )?.scale ?? null)
+      : null;
   const source = useGradebookSource(
     enabled && user ? user.uid : null,
     roster?.id ?? null,
     orgId,
-    selectedBuildings
+    selectedBuildings,
+    {
+      settings: body,
+      scale:
+        plcScale ?? resolveScale(body.scale, gbSettings.districtScale, null),
+      loading: gbSettings.loading,
+    }
   );
   const toast = useCallback(
     (message: string, undo?: () => void) =>

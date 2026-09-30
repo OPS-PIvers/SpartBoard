@@ -157,8 +157,9 @@ import { useDialog } from '@/context/useDialog';
 import {
   getAssignBehaviorSeed,
   formatBehaviorSummary,
-  toAssessmentBehavior,
+  getQuizAssignPrefill,
 } from '@/utils/quizBehavior';
+import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
 import { needsKeyMessage } from '@/utils/quizNeedsKey';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { countRecordingSlots } from '@/utils/quizRecordingModes';
@@ -716,12 +717,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const { canAccessFeature } = useAuth();
   // D8/D9: with the split on, Quiz assigns are assessment only.
   const assessmentOnly = !isReview && canAccessFeature('quiz-review-split');
+  const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
+    userId,
+    assessmentOnly
+  );
   const seedBehavior = useCallback(
-    (quiz: QuizMetadata) => {
-      const seed = getAssignBehaviorSeed(quiz);
-      return assessmentOnly ? toAssessmentBehavior(seed) : seed;
-    },
-    [assessmentOnly]
+    (quiz: QuizMetadata) =>
+      assessmentOnly
+        ? getQuizAssignPrefill(lastAssignSettings)
+        : getAssignBehaviorSeed(quiz),
+    [assessmentOnly, lastAssignSettings]
   );
   const isViewOnly = !isReview && assignmentMode === 'view-only';
   const primaryActionLabel = isReview
@@ -1526,12 +1531,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         icon: BarChart3,
         onClick: () => void (onArchiveResults ?? noop)(a),
       });
-      secondaries.push({
-        id: 'settings',
-        label: 'Settings',
-        icon: SettingsIcon,
-        onClick: () => (onArchiveEditSettings ?? noop)(a),
-      });
+      // D32: Review rows have no settings dialog.
+      if (onArchiveEditSettings) {
+        secondaries.push({
+          id: 'settings',
+          label: 'Settings',
+          icon: SettingsIcon,
+          onClick: () => onArchiveEditSettings(a),
+        });
+      }
       secondaries.push({
         id: 'share',
         label: 'Share',
@@ -1648,12 +1656,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       icon: Monitor,
       onClick: () => void (onArchiveMonitor ?? noop)(a),
     });
-    secondaries.push({
-      id: 'settings',
-      label: 'Settings',
-      icon: SettingsIcon,
-      onClick: () => (onArchiveEditSettings ?? noop)(a),
-    });
+    if (onArchiveEditSettings) {
+      secondaries.push({
+        id: 'settings',
+        label: 'Settings',
+        icon: SettingsIcon,
+        onClick: () => onArchiveEditSettings(a),
+      });
+    }
     secondaries.push({
       id: 'share',
       label: 'Share',

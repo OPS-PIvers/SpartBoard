@@ -52,7 +52,7 @@ vi.mock('@/context/useAuth', () => ({
       email: 't@example.com',
       displayName: 'Teacher One',
     },
-    canAccessFeature: () => true,
+    canAccessFeature: (id: string) => id !== 'quiz-review-split',
     canAccessQuizMediaResponse: () => false,
     ensureGoogleScope: vi.fn().mockResolvedValue('sheets-token'),
   }),
