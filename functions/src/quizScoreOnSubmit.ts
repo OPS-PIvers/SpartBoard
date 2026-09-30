@@ -146,7 +146,7 @@ export function scoreAttempt(
 }
 
 /** Accepted translated FIB answers for the locale the teacher served this student. */
-function servedFibAnswers(
+export function servedFibAnswers(
   assignment: Record<string, unknown>,
   studentUid: string
 ): Record<string, string[]> {
