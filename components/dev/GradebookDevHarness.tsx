@@ -142,6 +142,16 @@ const ASSIGN: {
   },
 ];
 
+const TARGETS: Record<string, string[]> = {
+  a1: ['RL.1', 'L.4'],
+  a2: ['RL.2'],
+  a4: ['RL.1'],
+  a6: ['RL.3', 'RL.1'],
+  a7: ['RL.2'],
+  a9: ['W.1'],
+  a10: ['RL.1', 'RL.2', 'RL.3'],
+};
+
 function seeded(i: number, j: number): number {
   const x = Math.sin(i * 12.9898 + j * 78.233) * 43758.5453;
   return x - Math.floor(x);
@@ -182,7 +192,15 @@ function buildRows(): GradeIndexRow[] {
         closeAt: null,
         createdAt: a.due - 8 * 86400000,
         attempts: [],
-        targetEvidence: [],
+        targetEvidence:
+          points === null || missing || awaiting
+            ? []
+            : (TARGETS[a.id] ?? []).map((t, k) => ({
+                targetId: t,
+                kind: 'standard' as const,
+                earned: Math.min(4, Math.round(seeded(i + k, j) * 5)),
+                possible: 4,
+              })),
         published: a.published,
         assigned,
         updatedAt: NOW,
@@ -320,7 +338,10 @@ export const GradebookDevHarness: React.FC = () => {
     (text: string, undo?: () => void) => setToastMsg({ text, undo }),
     []
   );
-  const parsed = parseGradebookPath('/gradebook/roster-p2') ?? {
+  const parsed = parseGradebookPath(
+    new URLSearchParams(window.location.search).get('path') ??
+      '/gradebook/roster-p2'
+  ) ?? {
     rosterId: 'roster-p2',
     view: 'grid' as const,
     studentUid: null,
