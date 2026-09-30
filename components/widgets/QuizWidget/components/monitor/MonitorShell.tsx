@@ -754,7 +754,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       >
         {screen.name === 'home' && (
           <div
-            className={`flex flex-col ${isGame && boardView ? 'h-full' : ''}`}
+            className={`flex flex-col ${isGame && boardView ? 'min-h-full' : ''}`}
             style={{ gap: 'min(10px, 2.5cqmin)' }}
           >
             {showStrip && !periodBar && (
@@ -809,11 +809,13 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             {gameBoard ? (
               <div
                 className={`rounded-xl overflow-hidden border border-brand-gray-lightest ${
-                  boardView ? 'flex-1 min-h-0' : 'shrink-0'
+                  boardView ? 'relative flex-1' : 'relative shrink-0'
                 }`}
-                style={boardView ? undefined : { height: '55cqh' }}
+                style={{ height: boardView ? undefined : '55cqh' }}
               >
-                <GameBoard {...gameBoard} />
+                <div className="absolute inset-0">
+                  <GameBoard {...gameBoard} />
+                </div>
               </div>
             ) : (
               <CurrentQuestionCard
