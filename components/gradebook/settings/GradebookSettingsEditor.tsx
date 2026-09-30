@@ -32,6 +32,11 @@ interface EditorProps {
   onChange: SettingsChange;
   /** Refusals such as a bad flag key. */
   onNotice: (message: string) => void;
+  /** Lets one shared scale's cutoffs be edited in place (the PLC's own scale in its Gradebook section). */
+  sharedScaleEdit?: {
+    value: string;
+    onCommit: (scale: ProficiencyScale) => void;
+  };
 }
 
 const VIS_ORDER: FlagVisibility[] = ['off', 'teacher', 'students'];
@@ -172,6 +177,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
   scaleOptions,
   onChange,
   onNotice,
+  sharedScaleEdit,
 }) => {
   const ro = readOnly;
   const set = (
@@ -212,8 +218,11 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
       : (scaleOptions.find((o) => o.value === scaleValue)?.scale ??
         DEFAULT_PROFICIENCY_SCALE);
   const scaleEditable = !ro && body.scale.source === 'custom';
+  const sharedEditable = !ro && sharedScaleEdit?.value === scaleValue;
   const setCustom = (scale: ProficiencyScale, label: string) =>
     set({ scale: { source: 'custom', scale } }, label);
+  const setCutoffs = (scale: ProficiencyScale, label: string) =>
+    sharedEditable ? sharedScaleEdit?.onCommit(scale) : setCustom(scale, label);
   const vis = body.studentVisibility;
   const scoresOn = vis.scores && vis.flags && vis.comments;
 
@@ -612,7 +621,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                   value={
                     lvl === 0 ? shownScale.proficient : shownScale.approaching
                   }
-                  disabled={!scaleEditable}
+                  disabled={!scaleEditable && !sharedEditable}
                   min={lvl === 0 ? 1 : 0}
                   max={lvl === 0 ? 100 : 99}
                   label={`${shownScale.levelNames[lvl]} cutoff`}
@@ -623,7 +632,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                     else next.approaching = clampPct(Number(raw), 0, 99);
                     if (next.approaching >= next.proficient)
                       next.approaching = next.proficient - 1;
-                    setCustom(next, 'Cutoff');
+                    setCutoffs(next, 'Cutoff');
                   }}
                 />
               ) : (

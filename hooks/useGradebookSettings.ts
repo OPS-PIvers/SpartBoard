@@ -23,9 +23,14 @@ import {
   type ProficiencyScale,
 } from '@/utils/gradebook/gradebookCore';
 import {
-  cloneSettingsBody,
+  inBuildings,
+  parseDistrictConfig,
+  parseProficiencyScale as parseScale,
+  parseSettingsBody as parseBody,
+  pickSettingsBody as pickBody,
   defaultSettingsBody,
   resolveClassConfig,
+  type DistrictConfig,
   type GradebookConfigEntry,
 } from '@/utils/gradebook/settingsConfig';
 
@@ -64,47 +69,6 @@ export type UseGradebookSettingsResult = GradebookSettingsData &
     configForClass: (rosterId: string) => GradebookConfigEntry;
   };
 
-const SETTINGS_KEYS = [
-  'name',
-  'flags',
-  'categoriesEnabled',
-  'categories',
-  'scale',
-  'method',
-  'studentVisibility',
-  'autoFlags',
-] as const;
-
-function parseBody(raw: Record<string, unknown>, fallbackName: string) {
-  const base = defaultSettingsBody(fallbackName);
-  const out: Record<string, unknown> = { ...base };
-  for (const k of SETTINGS_KEYS) if (raw[k] !== undefined) out[k] = raw[k];
-  return out as unknown as GradebookSettingsBody;
-}
-
-function pickBody(body: GradebookSettingsBody): GradebookSettingsBody {
-  const out: Record<string, unknown> = {};
-  for (const k of SETTINGS_KEYS) out[k] = body[k];
-  return cloneSettingsBody(out as unknown as GradebookSettingsBody);
-}
-
-function parseScale(
-  raw: Record<string, unknown> | undefined
-): ProficiencyScale {
-  if (!raw) return DEFAULT_PROFICIENCY_SCALE;
-  const p = typeof raw.proficient === 'number' ? raw.proficient : null;
-  const a = typeof raw.approaching === 'number' ? raw.approaching : null;
-  const names = Array.isArray(raw.levelNames) ? raw.levelNames : null;
-  return {
-    proficient: p ?? DEFAULT_PROFICIENCY_SCALE.proficient,
-    approaching: a ?? DEFAULT_PROFICIENCY_SCALE.approaching,
-    levelNames:
-      names?.length === 3 && names.every((n) => typeof n === 'string')
-        ? (names as [string, string, string])
-        : DEFAULT_PROFICIENCY_SCALE.levelNames,
-  };
-}
-
 interface PlcSnapshot {
   set: GradebookSettingsBody | null;
   cutoffs: { proficient: number; approaching: number } | null;
@@ -128,14 +92,7 @@ export function useGradebookSettings(
     GradebookConfigRef | null
   > | null>(null);
   const [plcData, setPlcData] = useState<Record<string, PlcSnapshot>>({});
-  const [district, setDistrict] = useState<
-    {
-      id: string;
-      body: GradebookSettingsBody;
-      buildingIds: string[];
-      isDefault: boolean;
-    }[]
-  >([]);
+  const [district, setDistrict] = useState<DistrictConfig[]>([]);
   const [serverLoaded, setServerLoaded] = useState({
     personal: false,
     classes: false,
@@ -207,19 +164,7 @@ export function useGradebookSettings(
         where('orgId', '==', orgId)
       ),
       (snap) =>
-        setDistrict(
-          snap.docs.map((d) => {
-            const data = d.data();
-            return {
-              id: d.id,
-              body: parseBody(data, 'District settings'),
-              buildingIds: Array.isArray(data.buildingIds)
-                ? (data.buildingIds as string[])
-                : [],
-              isDefault: data.isDefault === true,
-            };
-          })
-        ),
+        setDistrict(snap.docs.map((d) => parseDistrictConfig(d.id, d.data()))),
       (err) => {
         logError('useGradebookSettings.district', err);
         setDistrict([]);
@@ -308,9 +253,8 @@ export function useGradebookSettings(
         readOnly: true,
       });
     }
-    const mine = new Set(selectedBuildings);
     for (const d of district) {
-      if (!d.buildingIds.some((b) => mine.has(b))) continue;
+      if (!inBuildings(d.buildingIds, selectedBuildings)) continue;
       out.push({
         key: `district:${d.id}`,
         ref: { source: 'district', configId: d.id },

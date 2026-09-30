@@ -20,6 +20,7 @@ import {
   X,
   BookOpenCheck,
   Library,
+  ClipboardList,
 } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
@@ -39,6 +40,8 @@ import { HelpCenterManager } from './HelpCenter/HelpCenterManager';
 import { StandardsPanel } from './StandardsPanel';
 import { SubjectsPanel } from './SubjectsPanel';
 import { AccessSearchProvider } from './access/AccessSearchProvider';
+import { GradebookAdminPanel } from './Gradebook/GradebookAdminPanel';
+import type { GlobalFeature } from '@/types';
 
 interface AdminSettingsProps {
   onClose: () => void;
@@ -127,6 +130,13 @@ const TAB_GROUPS = [
         fillHeight: true,
       },
       {
+        id: 'gradebook',
+        label: 'Gradebook',
+        icon: ClipboardList,
+        component: GradebookAdminPanel,
+        feature: 'gradebook',
+      },
+      {
         id: 'sub-presets',
         label: 'Sub Presets',
         icon: GraduationCap,
@@ -177,6 +187,8 @@ interface TabConfig {
   component: React.FC;
   fillHeight?: boolean;
   superAdminOnly?: boolean;
+  /** Hidden until this preview feature is on for the admin. */
+  feature?: GlobalFeature;
 }
 
 const TABS: readonly TabConfig[] = TAB_GROUPS.flatMap<TabConfig>(
@@ -184,12 +196,17 @@ const TABS: readonly TabConfig[] = TAB_GROUPS.flatMap<TabConfig>(
 );
 
 /** The groups and tabs this admin can open; empty groups drop out. */
-const visibleGroups = (isSuperAdmin: boolean) =>
+const visibleGroups = (
+  isSuperAdmin: boolean,
+  canAccessFeature: (id: GlobalFeature) => boolean
+) =>
   TAB_GROUPS.map((group) => ({
     id: group.id,
     label: group.label,
     tabs: (group.tabs as readonly TabConfig[]).filter(
-      (tab) => isSuperAdmin || !tab.superAdminOnly
+      (tab) =>
+        (isSuperAdmin || !tab.superAdminOnly) &&
+        (!tab.feature || canAccessFeature(tab.feature))
     ),
   })).filter((group) => group.tabs.length > 0);
 
@@ -237,14 +254,15 @@ const RailTab: React.FC<{
 );
 
 export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
-  const { isAdmin, user, userRoles, roleId, orgId } = useAuth();
+  const { isAdmin, user, userRoles, roleId, orgId, canAccessFeature } =
+    useAuth();
   const isSuperAdmin = isSuperAdminActor(
     user?.email,
     userRoles?.superAdmins,
     roleId,
     orgId
   );
-  const groups = visibleGroups(isSuperAdmin);
+  const groups = visibleGroups(isSuperAdmin, canAccessFeature);
   const tabs = groups.flatMap((group) => group.tabs);
   const [storedTab, setActiveTabState] = useState<TabId>(readLastTab);
   // A remembered tab this admin can't open falls back to Widgets.

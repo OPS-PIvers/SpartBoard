@@ -36,6 +36,7 @@ vi.mock('@/context/useAuth', () => ({
     userRoles: { superAdmins: auth.superAdmins },
     roleId: null,
     orgId: 'orono',
+    canAccessFeature: () => false,
   }),
 }));
 
