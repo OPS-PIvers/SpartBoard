@@ -39,6 +39,8 @@ export interface GradebookHeaderPopoverProps {
   sortedByColumn?: boolean;
   onEditAssignment?: (column: GradebookColumnRef) => void;
   onDeleteAssignment?: (column: GradebookColumnRef) => void;
+  /** The Standards picker (D29), mounted by the tagging slice. */
+  standardsControl?: React.ReactNode;
 }
 
 const LABEL = 'text-[13px] font-medium text-slate-600';
@@ -58,6 +60,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
   sortedByColumn,
   onEditAssignment,
   onDeleteAssignment,
+  standardsControl,
 }) => {
   const ids = useId();
   const markWrites = useGradebookMarkWrites(ctx.rosterId);
@@ -307,6 +310,12 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
             <option value="highest">Use highest</option>
             <option value="average">Average them</option>
           </Select>
+          {standardsControl && (
+            <>
+              <span className={LABEL}>Standards</span>
+              {standardsControl}
+            </>
+          )}
           <span />
           <Toggle
             checked={config?.countsTowardOverall ?? true}
