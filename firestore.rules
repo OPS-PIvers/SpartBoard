@@ -955,14 +955,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Rollout switch for the "Review before assigning" mark on Claude-made
-    // items — teachers read it to show the mark; admins turn it off.
-    // Gradebook district proficiency scale (GRADEBOOK.md D17): every teacher reads it; admins write via the wildcard.
+    // Gradebook district proficiency scale (GRADEBOOK.md D17): every teacher reads it; admins write.
     match /admin_settings/gradebook {
       allow read: if request.auth != null && notAnon() && !isStudentRoleUser();
       allow write: if isAdmin();
     }
 
+    // Rollout switch for the "Review before assigning" mark on Claude-made
+    // items — teachers read it to show the mark; admins turn it off.
     match /admin_settings/claude_review_reminders {
       allow read: if request.auth != null;
       allow write: if isAdmin();
