@@ -4423,3 +4423,28 @@ rather than "no data") is also still open.
     - #3582: the real-socket test should close the server in `finally`.
     - #3580: the rule doesn't catch `vi.mock('../')` or dynamic imports.
     - #3585: a possible asymmetry for unserved questions, unconfirmed.
+
+## 2026-09-30
+- PRs reviewed (8):
+  - #3630 docs(debugger): run 85 log
+  - #3629 fix(common): restore pre-lock body overflow instead of forcing 'unset'
+  - #3628 fix(dice): double-click while audio suspended no longer starts two roll intervals
+  - #3627 fix(hooks): don't re-cache a stale session view count after invalidation
+  - #3626 fix(config): parseGradeLevels handles en/em dashes, "Grades 3-5", "3 to 5"
+  - #3625 fix(functions): return failed-precondition for malformed link-preview redirect
+  - #3624 fix(plc): valid switch semantics on PLC settings rows
+  - #3622 Unifier: AccessLevelPicker radiogroup (D3) + run 102 log
+- Comments processed: 7 total — 0 fixed, 0 explained. No inline review threads or reviews existed; the only feedback was claude[bot] no-issues summaries, which needed no reply.
+- Fixes pushed: none
+- Reviews posted: 8
+- Merge readiness:
+  - Ready: #3627, #3626, #3625, #3624.
+  - Ready with minor notes:
+    - #3630: new Run Log rows are missing the PR column, the four items fixed tonight still say `open` in Status, and two backlog rows duplicate 2026-09-29 rows.
+    - #3629: `docs/routines/debugger.md` still lists this issue as open.
+    - #3628: the new test's `getDiceAudioCtx.mockReturnValue` persists after the test ends; use `mockReturnValueOnce`.
+    - #3622: below the `sm` breakpoint the level buttons have no accessible name (pre-existing); add `aria-label`.
+- Notes:
+  - `gh` is absent and `/mnt/skills/user/` does not exist. GitHub access went through MCP, and the standards came from CLAUDE.md.
+  - No lint, type-check or test runs were made because no code was changed.
+  - Optional test gaps raised: #3627 visibility-flush race, #3628 `resume()` rejection/unmount, #3626 an already-parsing case such as "K-5", #3624 a `PlcSettingsTab` switch-role test.
