@@ -188,6 +188,8 @@ const pointerWith = (
   sessionId: 'session-1',
   teacherUid: 'teacher-1',
   classId: 'class-1',
+  createdAt: 0,
+  updatedAt: 0,
   override: { timeMultiplier },
 });
 
