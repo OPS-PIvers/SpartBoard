@@ -10,6 +10,7 @@ import type {
   GuidedLearningResponse,
   GuidedLearningStep,
   QuizScoreVisibility,
+  ResultsProtection,
   VideoActivityAnswer,
   VideoActivityQuestion,
   VideoActivityResponse,
@@ -139,7 +140,8 @@ async function commitPatches(
 function shownOverride(
   visibility: ShownVisibility,
   expiresAt: number | null,
-  revealedAnswers: Record<string, string>
+  revealedAnswers: Record<string, string>,
+  protection: ResultsProtection | undefined
 ) {
   return {
     mode: 'shown',
@@ -149,6 +151,7 @@ function shownOverride(
     ...(visibility === 'score-responses-and-answers'
       ? { revealedAnswers }
       : {}),
+    ...(protection ? { protection } : {}),
   };
 }
 
@@ -185,7 +188,8 @@ export async function publishVideoActivityResultsForStudents(
   questions: VideoActivityQuestion[],
   responseKeys: string[],
   visibility: ShownVisibility,
-  expiresAt: number | null
+  expiresAt: number | null,
+  protection?: ResultsProtection
 ): Promise<PublishForStudentsResult> {
   const sessionSnap = await getDoc(doc(db, VA_SESSIONS_COLLECTION, sessionId));
   const deduped = dedupeQuestionsById(questions);
@@ -202,7 +206,12 @@ export async function publishVideoActivityResultsForStudents(
     responseKeys,
     (data) => ({
       ...gradeVideoActivityResponseForPublish(data, questionsById),
-      resultsOverride: shownOverride(visibility, expiresAt, revealedAnswers),
+      resultsOverride: shownOverride(
+        visibility,
+        expiresAt,
+        revealedAnswers,
+        protection
+      ),
     })
   );
 }
@@ -213,7 +222,8 @@ export async function publishGuidedLearningResultsForStudents(
   steps: GuidedLearningStep[],
   responseKeys: string[],
   visibility: ShownVisibility,
-  expiresAt: number | null
+  expiresAt: number | null,
+  protection?: ResultsProtection
 ): Promise<PublishForStudentsResult> {
   const deduped = dedupeStepsById(steps);
   const stepsById = new Map(deduped.map((s) => [s.id, s]));
@@ -229,7 +239,12 @@ export async function publishGuidedLearningResultsForStudents(
     responseKeys,
     (data) => ({
       ...gradeGuidedLearningResponseForPublish(data, stepsById, gradableCount),
-      resultsOverride: shownOverride(visibility, expiresAt, revealedAnswers),
+      resultsOverride: shownOverride(
+        visibility,
+        expiresAt,
+        revealedAnswers,
+        protection
+      ),
     })
   );
 }
@@ -260,4 +275,27 @@ export async function clearResultsOverride(
       patch: { resultsOverride: deleteField() },
     }))
   );
+}
+
+/** Lets a locked-out student back into their results; one more tab-away locks them again. */
+export async function unlockResultsForStudent(
+  collectionName: string,
+  sessionId: string,
+  responseKey: string
+): Promise<void> {
+  const ref = responseRef(collectionName, sessionId, responseKey);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error('Student response not found.');
+  const prev =
+    (snap.data() as { resultsTabWarnings?: number }).resultsTabWarnings ?? 0;
+  await commitPatches([
+    {
+      ref,
+      patch: {
+        resultsTabWarnings: Math.max(0, prev - 1),
+        resultsLockedOut: false,
+        resultsLockedOutAt: deleteField(),
+      },
+    },
+  ]);
 }

@@ -42,6 +42,7 @@ import {
   scoredVideoActivityQuestions,
 } from '@/utils/videoActivityLive';
 import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
+import { ResultsProtectionGate } from '@/components/student/ResultsProtectionGate';
 import { isQuestionClosedError } from '@/utils/videoActivityLiveStudent';
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
@@ -277,6 +278,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     periodKeys,
     contentPending,
     retakePending,
+    responseDocId,
   } = useVideoActivitySessionStudent();
 
   const isViewOnly = session?.mode === 'view-only';
@@ -974,8 +976,8 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     // completion screen mirrors Quiz behavior — submitted-only, no score
     // leak. Without this gate the student sees a percentage even when the
     // teacher set visibility to `'none'`.
-    const visibility = resolveResultsVisibility(session, myResponse).visibility;
-    const showScore = visibility !== 'none';
+    const published = resolveResultsVisibility(session, myResponse);
+    const showScore = published.visibility !== 'none';
     // `isCorrect` comes from the server check at submit time, and Publish re-grades it.
     const correct = showScore
       ? scoredQuestions.filter(
@@ -986,59 +988,73 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       : 0;
 
     return (
-      <div className="h-screen [height:100dvh] overflow-y-auto bg-gradient-to-b from-white to-slate-100">
-        <div className="min-h-full flex flex-col items-center justify-center p-4">
-          <div className="w-full max-w-sm">
-            <div className="bg-white rounded-2xl shadow-sm shadow-slate-900/5 border border-slate-200 overflow-hidden text-center">
-              <div className="bg-emerald-50 border-b border-emerald-200 px-5 py-6">
-                <Trophy className="w-10 h-10 text-emerald-600 mx-auto mb-2" />
-                <h2 className="text-emerald-700 font-black text-xl">
-                  Activity Complete!
-                </h2>
-              </div>
+      <ResultsProtectionGate
+        protection={showScore ? published.protection : undefined}
+        publishedAt={published.publishedAt}
+        responseDocPath={
+          session && responseDocId
+            ? `video_activity_sessions/${session.id}/responses/${responseDocId}`
+            : null
+        }
+        tabWarnings={myResponse?.resultsTabWarnings ?? 0}
+        lockedOut={myResponse?.resultsLockedOut === true}
+        pin={myResponse?.pin}
+        light
+      >
+        <div className="h-screen [height:100dvh] overflow-y-auto bg-gradient-to-b from-white to-slate-100">
+          <div className="min-h-full flex flex-col items-center justify-center p-4">
+            <div className="w-full max-w-sm">
+              <div className="bg-white rounded-2xl shadow-sm shadow-slate-900/5 border border-slate-200 overflow-hidden text-center">
+                <div className="bg-emerald-50 border-b border-emerald-200 px-5 py-6">
+                  <Trophy className="w-10 h-10 text-emerald-600 mx-auto mb-2" />
+                  <h2 className="text-emerald-700 font-black text-xl">
+                    Activity Complete!
+                  </h2>
+                </div>
 
-              <div className="p-6 flex flex-col gap-4">
-                <p className="text-slate-700 font-medium">Great work!</p>
+                <div className="p-6 flex flex-col gap-4">
+                  <p className="text-slate-700 font-medium">Great work!</p>
 
-                {showScore && totalQuestions > 0 && (
-                  <div className="bg-brand-blue-lighter border border-brand-blue-primary/15 rounded-2xl p-5">
-                    <p className="text-5xl font-black text-brand-blue-primary">
-                      {Math.round((correct / totalQuestions) * 100)}%
+                  {showScore && totalQuestions > 0 && (
+                    <div className="bg-brand-blue-lighter border border-brand-blue-primary/15 rounded-2xl p-5">
+                      <p className="text-5xl font-black text-brand-blue-primary">
+                        {Math.round((correct / totalQuestions) * 100)}%
+                      </p>
+                      <p className="text-slate-500 text-sm font-medium mt-1">
+                        {correct} of {totalQuestions} correct
+                      </p>
+                    </div>
+                  )}
+
+                  {answeredCount < totalQuestions && (
+                    <p className="text-slate-500 text-sm">
+                      {totalQuestions - answeredCount} question(s) were skipped.
                     </p>
-                    <p className="text-slate-500 text-sm font-medium mt-1">
-                      {correct} of {totalQuestions} correct
-                    </p>
+                  )}
+
+                  {hasReachedTabWarningThreshold(
+                    myResponse?.tabSwitchWarnings ?? 0,
+                    tabWarningThreshold
+                  ) && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-sm">
+                      Auto-submitted because you left the activity tab{' '}
+                      {tabWarningThreshold === 1
+                        ? 'once'
+                        : `${tabWarningThreshold} times`}
+                      .
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-center gap-2 text-emerald-600 text-sm font-bold">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Results submitted to your teacher
                   </div>
-                )}
-
-                {answeredCount < totalQuestions && (
-                  <p className="text-slate-500 text-sm">
-                    {totalQuestions - answeredCount} question(s) were skipped.
-                  </p>
-                )}
-
-                {hasReachedTabWarningThreshold(
-                  myResponse?.tabSwitchWarnings ?? 0,
-                  tabWarningThreshold
-                ) && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-sm">
-                    Auto-submitted because you left the activity tab{' '}
-                    {tabWarningThreshold === 1
-                      ? 'once'
-                      : `${tabWarningThreshold} times`}
-                    .
-                  </div>
-                )}
-
-                <div className="flex items-center justify-center gap-2 text-emerald-600 text-sm font-bold">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Results submitted to your teacher
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </ResultsProtectionGate>
     );
   }
 

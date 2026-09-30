@@ -39,6 +39,7 @@ import {
   hideResultsForStudents,
   publishGuidedLearningResultsForStudents,
   publishVideoActivityResultsForStudents,
+  unlockResultsForStudent,
 } from './studentResultsPublish';
 
 const vaQ = (id: string, correctAnswer: string, points = 1) =>
@@ -143,6 +144,49 @@ describe('publishGuidedLearningResultsForStudents', () => {
       expiresAt: 99,
       revealedAnswers: { s1: 'b', s2: 'a' },
     });
+    expect(writes[0].patch.resultsOverride).not.toHaveProperty('protection');
+  });
+
+  it('carries protection on the override when given', async () => {
+    docs.set('guided_learning_sessions/g1/responses/u1', {
+      completedAt: 5,
+      answers: [],
+    });
+    const protection = {
+      watermarkEnabled: true,
+      tabWarningEnabled: true,
+      tabWarningThreshold: 2,
+    };
+    await publishGuidedLearningResultsForStudents(
+      'g1',
+      [glMc('s1', 'b')],
+      ['u1'],
+      'score-only',
+      null,
+      protection
+    );
+    expect(writes[0].patch.resultsOverride).toMatchObject({ protection });
+  });
+});
+
+describe('unlockResultsForStudent', () => {
+  it('gives back one warning and clears the lock', async () => {
+    docs.set('video_activity_sessions/s1/responses/k', {
+      resultsTabWarnings: 3,
+      resultsLockedOut: true,
+    });
+    await unlockResultsForStudent('video_activity_sessions', 's1', 'k');
+    expect(writes[0].patch).toEqual({
+      resultsTabWarnings: 2,
+      resultsLockedOut: false,
+      resultsLockedOutAt: DELETE,
+    });
+  });
+
+  it('throws when the response is missing', async () => {
+    await expect(
+      unlockResultsForStudent('video_activity_sessions', 's1', 'gone')
+    ).rejects.toThrow('not found');
   });
 });
 

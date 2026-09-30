@@ -28,6 +28,7 @@ import {
   VideoActivitySessionOptions,
   VideoActivitySession,
   VideoActivitySessionMode,
+  RESULTS_PROTECTION_DEFAULTS,
 } from '@/types';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
@@ -120,7 +121,9 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     isAdmin,
     canAccessFeature,
     getAssignmentMode,
+    appSettings,
   } = useAuth();
+  const gradebookOn = canAccessFeature('gradebook');
   const claudeReview = useClaudeReview('video_activities');
   const vaAssignmentMode = getAssignmentMode('videoActivity');
   const config = widget.config as VideoActivityConfig;
@@ -1144,8 +1147,12 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             publishingAssignment.className ?? publishingAssignment.activityTitle
           }
           currentVisibility={publishingAssignment.scoreVisibility}
+          showProtection={gradebookOn}
+          initialProtection={
+            appSettings?.lastResultsProtection ?? RESULTS_PROTECTION_DEFAULTS
+          }
           onClose={() => setPublishingAssignment(null)}
-          onConfirm={async (visibility) => {
+          onConfirm={async (visibility, protection) => {
             const target = publishingAssignment;
             try {
               if (visibility === 'none') {
@@ -1188,7 +1195,8 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
               const result = await publishAssignmentScores(
                 target.id,
                 data,
-                visibility
+                visibility,
+                protection
               );
               addToast(
                 result.responsesUpdated > 0

@@ -45,6 +45,7 @@ import {
 import type {
   AssignmentMode,
   PlcAssignmentIndexEntry,
+  ResultsProtection,
   SharedVideoActivityAssignment,
   VideoActivityAnswer,
   VideoActivityAssignment,
@@ -207,7 +208,8 @@ export interface UseVideoActivityAssignmentsResult {
   publishAssignmentScores: (
     assignmentId: string,
     activityData: VideoActivityData,
-    visibility: Exclude<VideoActivityScoreVisibility, 'none'>
+    visibility: Exclude<VideoActivityScoreVisibility, 'none'>,
+    protection?: ResultsProtection
   ) => Promise<{
     responsesUpdated: number;
     /** The questions scores were computed over (asked ones only in a live session). */
@@ -969,6 +971,7 @@ export const useVideoActivityAssignments = (
       batch.update(sessionRef, {
         scoreVisibility: deleteField(),
         revealedAnswers: deleteField(),
+        protection: deleteField(),
       });
       await batch.commit();
     },
@@ -978,7 +981,7 @@ export const useVideoActivityAssignments = (
   const publishAssignmentScores = useCallback<
     UseVideoActivityAssignmentsResult['publishAssignmentScores']
   >(
-    async (assignmentId, activityData, visibility) => {
+    async (assignmentId, activityData, visibility, protection) => {
       if (!userId) throw new Error('Not authenticated');
       // Belt-and-suspenders against a future caller that bypasses the
       // type-level `Exclude<…, 'none'>` (see Quiz hook for the same
@@ -1049,6 +1052,8 @@ export const useVideoActivityAssignments = (
       });
       const sessionPatch: Record<string, unknown> = {
         scoreVisibility: visibility,
+        // Republishing without protection must not keep a stale one.
+        protection: protection ?? deleteField(),
       };
       if (visibility === 'score-responses-and-answers') {
         const revealedAnswers: Record<string, string> = {};

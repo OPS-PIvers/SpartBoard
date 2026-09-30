@@ -10,7 +10,12 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import type { QuizResponse, QuizScoreVisibility, Toast } from '@/types';
+import type {
+  QuizResponse,
+  QuizScoreVisibility,
+  ResultsProtection,
+  Toast,
+} from '@/types';
 import { getResponseDocKey } from '@/hooks/useQuizSession';
 import { logError } from '@/utils/logError';
 import { ShowResultsDialog } from './ShowResultsDialog';
@@ -87,13 +92,15 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
 
   const handleShow = async (
     visibility: Exclude<QuizScoreVisibility, 'none'>,
-    expiresAt: number | null
+    expiresAt: number | null,
+    protection: ResultsProtection
   ) => {
     try {
       const { responsesUpdated, skipped } = await actions.publish(
         completedKeys,
         visibility,
-        expiresAt
+        expiresAt,
+        protection
       );
       const notDone = selected.length - completedKeys.length + skipped;
       addToast(

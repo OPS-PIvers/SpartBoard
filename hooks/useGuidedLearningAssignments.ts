@@ -55,6 +55,7 @@ import type {
   GuidedLearningScoreVisibility,
   GuidedLearningSet,
   GuidedLearningStep,
+  ResultsProtection,
   StudentOverride,
   GuidedLearningSession,
 } from '@/types';
@@ -129,7 +130,8 @@ export interface UseGuidedLearningAssignmentsResult {
   publishAssignmentScores: (
     assignmentId: string,
     glData: GuidedLearningSet,
-    visibility: Exclude<GuidedLearningScoreVisibility, 'none'>
+    visibility: Exclude<GuidedLearningScoreVisibility, 'none'>,
+    protection?: ResultsProtection
   ) => Promise<{ responsesUpdated: number }>;
   /**
    * Revoke published score visibility for an assignment. Clears
@@ -422,6 +424,7 @@ export const useGuidedLearningAssignments = (
         // see a stale timestamp lingering after unpublish.
         scorePublishedAt: deleteField(),
         revealedAnswers: deleteField(),
+        protection: deleteField(),
       });
       await batch.commit();
     },
@@ -431,7 +434,7 @@ export const useGuidedLearningAssignments = (
   const publishAssignmentScores = useCallback<
     UseGuidedLearningAssignmentsResult['publishAssignmentScores']
   >(
-    async (assignmentId, glData, visibility) => {
+    async (assignmentId, glData, visibility, protection) => {
       if (!userId) throw new Error('Not authenticated');
       // Belt-and-suspenders against a future caller bypassing the
       // type-level `Exclude<…, 'none'>` (matches Quiz/VA pattern).
@@ -521,6 +524,8 @@ export const useGuidedLearningAssignments = (
         // "View results". `parsePublicationFields` requires BOTH fields,
         // and the student listener only subscribes to the session doc.
         scorePublishedAt: now,
+        // Republishing without protection must not keep a stale one.
+        protection: protection ?? deleteField(),
       };
       if (visibility === 'score-responses-and-answers') {
         const revealedAnswers: Record<string, string> = {};
