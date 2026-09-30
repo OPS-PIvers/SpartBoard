@@ -205,6 +205,27 @@ describe('projectRow', () => {
     expect(stub.has('student_grades/u1/classes/c2')).toBe(false);
   });
 
+  it('keeps the class standards when one entry goes', async () => {
+    const stub = makeStubFirestore({
+      'users/t1/gradebook_classes/r1': {
+        configRef: { source: 'personal', configId: 'cfg1' },
+      },
+      'users/t1/gradebook_settings/cfg1': {
+        studentVisibility: { standards: true },
+        method: 'mean',
+      },
+      'grade_index/qs2__u1': row({ sessionId: 'qs2' }) as unknown as StubData,
+    });
+    const db = stub.db as unknown as Db;
+    await projectRow(db, row(), null, NOW);
+    await projectRow(db, row({ sessionId: 'qs2' }), null, NOW);
+    await projectRow(db, null, row(), NOW);
+    expect(Object.keys(stub.get(PATH)?.entries as object)).toEqual(['qs2']);
+    expect(stub.get(PATH)?.standards).toEqual([
+      { targetId: 'tgt', pct: 50, level: 2 },
+    ]);
+  });
+
   it('keeps other assignments when one entry goes', async () => {
     const stub = makeStubFirestore({
       [PATH]: { entries: { other: { pct: 50 }, qs1: { pct: 80 } } },

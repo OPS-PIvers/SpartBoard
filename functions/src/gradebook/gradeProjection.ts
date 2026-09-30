@@ -320,10 +320,36 @@ export async function writeProjectionEntry(
   });
 }
 
-const NO_EXTRA: ProjectionExtra = {
-  standards: null,
-  scale: DEFAULT_PROFICIENCY_SCALE,
-};
+/** This student's standards in one class, from every row but `skipSessionId` plus `own`. */
+async function classStandards(
+  db: Firestore,
+  row: IndexRow,
+  settings: GradebookSettingsBody,
+  scale: ProficiencyScale,
+  own: RowInputs | null,
+  now: number
+): Promise<StudentStandardEntry[] | null> {
+  if (!settings.studentVisibility.standards) return null;
+  const rows = await db
+    .collection(GRADE_INDEX)
+    .where('studentUid', '==', row.studentUid)
+    .get();
+  const classRows = rows.docs
+    .map((d) => d.data() as IndexRow)
+    .filter(
+      (r) =>
+        r.classId === row.classId &&
+        r.ownerUid === row.ownerUid &&
+        r.sessionId !== row.sessionId
+    );
+  const others = await Promise.all(classRows.map((r) => loadRowInputs(db, r)));
+  return studentStandards(
+    own ? [own, ...others] : others,
+    settings,
+    scale,
+    now
+  );
+}
 
 /** Re-projects one row (or clears it when the row is gone). */
 export async function projectRow(
@@ -333,6 +359,11 @@ export async function projectRow(
   now = Date.now()
 ): Promise<void> {
   if (before?.classId && (!after || after.classId !== before.classId)) {
+    const { settings, scale } = await loadClassSettings(
+      db,
+      before.ownerUid,
+      before.rosterId
+    );
     await writeProjectionEntry(
       db,
       {
@@ -342,12 +373,14 @@ export async function projectRow(
       },
       before.sessionId,
       null,
-      NO_EXTRA,
+      {
+        standards: await classStandards(db, before, settings, scale, null, now),
+        scale,
+      },
       now
     );
   }
   if (!after?.classId) return;
-  const classId = after.classId;
   const [inputs, { settings, scale }] = await Promise.all([
     loadRowInputs(db, after),
     loadClassSettings(db, after.ownerUid, after.rosterId),
@@ -359,28 +392,21 @@ export async function projectRow(
     settings,
     now
   );
-  let standards: StudentStandardEntry[] | null = null;
-  if (settings.studentVisibility.standards) {
-    const rows = await db
-      .collection(GRADE_INDEX)
-      .where('studentUid', '==', after.studentUid)
-      .get();
-    const classRows = rows.docs
-      .map((d) => d.data() as IndexRow)
-      .filter(
-        (r) =>
-          r.classId === classId &&
-          r.ownerUid === after.ownerUid &&
-          r.sessionId !== after.sessionId
-      );
-    const others = await Promise.all(
-      classRows.map((r) => loadRowInputs(db, r))
-    );
-    standards = studentStandards([inputs, ...others], settings, scale, now);
-  }
+  const standards = await classStandards(
+    db,
+    after,
+    settings,
+    scale,
+    inputs,
+    now
+  );
   await writeProjectionEntry(
     db,
-    { studentUid: after.studentUid, classId, ownerUid: after.ownerUid },
+    {
+      studentUid: after.studentUid,
+      classId: after.classId,
+      ownerUid: after.ownerUid,
+    },
     after.sessionId,
     entry,
     { standards, scale },
