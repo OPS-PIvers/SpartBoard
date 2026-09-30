@@ -9,6 +9,9 @@ interface PresentSessionProps extends PresentData {
   onSavePauseMessage: (message: string) => void;
   onBlocked: () => void;
   onExit: () => void;
+  /** Review game: the monitor owns the names toggle so the widget board matches. */
+  showNames?: boolean;
+  onToggleNames?: () => void;
 }
 
 /**
@@ -21,9 +24,12 @@ export const PresentSession: React.FC<PresentSessionProps> = ({
   onSavePauseMessage,
   onBlocked,
   onExit,
+  showNames: controlledNames,
+  onToggleNames,
   ...data
 }) => {
-  const [showNames, setShowNames] = useState(false);
+  const [localNames, setLocalNames] = useState(false);
+  const showNames = controlledNames ?? localNames;
   const winRef = useRef<Window | null>(null);
 
   const media = useCallback((action: 'play' | 'pause') => {
@@ -41,7 +47,7 @@ export const PresentSession: React.FC<PresentSessionProps> = ({
     <>
       <PresentControls
         showNames={showNames}
-        onToggleNames={() => setShowNames((v) => !v)}
+        onToggleNames={onToggleNames ?? (() => setLocalNames((v) => !v))}
         hasMedia={hasMedia}
         onPlayMedia={() => media('play')}
         onPauseMedia={() => media('pause')}

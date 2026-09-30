@@ -12,6 +12,10 @@ import { PresentSelfPaced } from './PresentSelfPaced';
 import { PresentPaused } from './PresentPaused';
 import { PresentEnded } from './PresentEnded';
 import { boardRankRows } from '@/utils/reviewLaunch';
+import {
+  GameBoard,
+  GameBoardProps,
+} from '@/components/widgets/QuizWidget/components/game/GameBoard';
 
 export interface PresentData {
   session: QuizSession;
@@ -23,6 +27,8 @@ export interface PresentData {
   standings: QuizLeaderboardEntry[];
   isGamified: boolean;
   classAverage: number | null;
+  /** Self-paced Review game board; set only for game sessions. */
+  game?: Omit<GameBoardProps, 'showNames'>;
 }
 
 interface PresentScreenProps extends PresentData {
@@ -39,6 +45,7 @@ export const PresentScreen: React.FC<PresentScreenProps> = ({
   standings,
   isGamified,
   classAverage,
+  game,
   showNames,
 }) => {
   const isLobby =
@@ -53,6 +60,7 @@ export const PresentScreen: React.FC<PresentScreenProps> = ({
     !!currentQ &&
     !!session.revealedAnswers?.[currentQ.id];
 
+  const onBoard = !!game && session.status === 'active';
   let body: React.ReactNode;
   if (session.status === 'paused') {
     body = <PresentPaused session={session} />;
@@ -67,6 +75,12 @@ export const PresentScreen: React.FC<PresentScreenProps> = ({
         total={total}
         rankRows={rankRows}
       />
+    );
+  } else if (onBoard) {
+    body = (
+      <div className="w-full flex-1 min-h-0">
+        <GameBoard {...game} showNames={showNames} />
+      </div>
     );
   } else if (isLobby) {
     body = <PresentLobby session={session} joined={total} />;
@@ -108,22 +122,28 @@ export const PresentScreen: React.FC<PresentScreenProps> = ({
 
   return (
     <div
-      className="min-h-screen w-full bg-brand-blue-dark text-white flex flex-col"
+      className={`w-full flex flex-col ${
+        onBoard
+          ? 'h-screen bg-white text-brand-gray-darkest'
+          : 'min-h-screen bg-brand-blue-dark text-white'
+      }`}
       role="region"
       aria-label="Present to class"
     >
-      {!isLobby && (
+      {(!isLobby || onBoard) && (
         <header
           className="shrink-0 flex items-center justify-between"
           style={{ padding: '2.5vh 3vw' }}
         >
           <p
-            className="font-sans font-semibold text-white/70 truncate"
+            className={`font-sans font-semibold truncate ${
+              onBoard ? 'text-brand-gray-primary' : 'text-white/70'
+            }`}
             style={{ fontSize: 'clamp(0.9rem, 1.8vw, 1.6rem)' }}
           >
             {session.quizTitle}
           </p>
-          {!isSelfPaced && session.status === 'active' && (
+          {!isSelfPaced && !game && session.status === 'active' && (
             <p
               className="font-sans uppercase tracking-widest text-white/50 tabular-nums shrink-0"
               style={{ fontSize: 'clamp(0.7rem, 1.3vw, 1.2rem)' }}

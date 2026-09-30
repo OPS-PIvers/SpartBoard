@@ -18,10 +18,12 @@ import {
   MoreHorizontal,
   Pause,
   Play,
+  Plus,
   Projector,
   Settings,
   Square,
   Trophy,
+  Users,
   Volume2,
   VolumeX,
 } from 'lucide-react';
@@ -60,7 +62,10 @@ import { PresentSession } from '@/components/widgets/QuizWidget/components/prese
 import { boardRankRows, rankOrdinal } from '@/utils/reviewLaunch';
 import { useMonitorData } from './useMonitorData';
 import { CurrentQuestionCard } from './CurrentQuestionCard';
-import { GameClockCard } from './GameClockCard';
+import { useGameClockControls } from './useGameClockControls';
+import { GameBoard } from '@/components/widgets/QuizWidget/components/game/GameBoard';
+import { useServerNow } from '@/hooks/useServerNow';
+import { readGameClock, summarizeGameBoard } from '@/utils/quizGame';
 import { StatusBuckets, BucketKey } from './StatusBuckets';
 import { RosterList } from './RosterList';
 import { PeriodAccessStrip } from './PeriodAccessStrip';
@@ -191,6 +196,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
   const [openBucket, setOpenBucket] = useState<BucketKey | null>(null);
   const [presenting, setPresenting] = useState(false);
+  const [gameNames, setGameNames] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [ending, setEnding] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -283,9 +289,33 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     setScreen({ name: 'home' });
     setOpenBucket(null);
     setPresenting(false);
+    setGameNames(false);
   }
 
   const isGame = session.sessionMode === 'game';
+  const gameNow = useServerNow(
+    isGame && session.status !== 'ended' ? 250 : null
+  );
+  const gameControls = useGameClockControls(session, isGame, (message) =>
+    addToast(message, 'error')
+  );
+  const gameClock = readGameClock(session, gameNow);
+  const gameStats = isGame ? summarizeGameBoard(responses, gameNow) : null;
+  const gameEntries = useMemo(
+    () =>
+      isGame
+        ? buildGameLeaderboard(responses, data.pinToName, data.byStudentUid)
+        : [],
+    [isGame, responses, data.pinToName, data.byStudentUid]
+  );
+  const gameBoard = gameStats && {
+    clock: gameClock,
+    stats: gameStats,
+    entries: gameEntries,
+    rows: boardRankRows(session.boardRankLimit),
+    showNames: gameNames,
+    nowMs: gameNow,
+  };
   const scoringConfig = {
     speedBonusEnabled: session.speedBonusEnabled,
     streakBonusEnabled: session.streakBonusEnabled,
@@ -501,23 +531,27 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   // there is only ever one ranking path.
   const standings = useMemo(
     () =>
-      presenting
-        ? buildLiveLeaderboard(
-            responses,
-            quizData.questions,
-            {
-              speedBonusEnabled: session.speedBonusEnabled,
-              streakBonusEnabled: session.streakBonusEnabled,
-            },
-            data.pinToName,
-            data.byStudentUid,
-            fibGrading,
-            session.boardRankLimit ? null : 10
-          )
-        : [],
+      presenting && isGame
+        ? gameEntries
+        : presenting
+          ? buildLiveLeaderboard(
+              responses,
+              quizData.questions,
+              {
+                speedBonusEnabled: session.speedBonusEnabled,
+                streakBonusEnabled: session.streakBonusEnabled,
+              },
+              data.pinToName,
+              data.byStudentUid,
+              fibGrading,
+              session.boardRankLimit ? null : 10
+            )
+          : [],
     [
       fibGrading,
       presenting,
+      isGame,
+      gameEntries,
       session.boardRankLimit,
       responses,
       quizData.questions,
@@ -719,7 +753,10 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
         style={{ padding: 'min(12px, 3cqmin)' }}
       >
         {screen.name === 'home' && (
-          <div className="flex flex-col" style={{ gap: 'min(10px, 2.5cqmin)' }}>
+          <div
+            className={`flex flex-col ${isGame && boardView ? 'h-full' : ''}`}
+            style={{ gap: 'min(10px, 2.5cqmin)' }}
+          >
             {showStrip && !periodBar && (
               <PeriodAccessStrip
                 periodAccess={session.periodAccess}
@@ -769,12 +806,15 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 })}
               </div>
             )}
-            {isGame ? (
-              <GameClockCard
-                session={session}
-                joined={data.totalStudents}
-                onError={(message) => addToast(message, 'error')}
-              />
+            {gameBoard ? (
+              <div
+                className={`rounded-xl overflow-hidden border border-brand-gray-lightest ${
+                  boardView ? 'flex-1 min-h-0' : 'shrink-0'
+                }`}
+                style={boardView ? undefined : { height: '55cqh' }}
+              >
+                <GameBoard {...gameBoard} />
+              </div>
             ) : (
               <CurrentQuestionCard
                 session={session}
@@ -787,16 +827,20 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 periodControls={periodBar && <PeriodBar {...periodBar} />}
               />
             )}
-            <StatusBuckets
-              counts={data.counts}
-              handCount={session.handRaiseEnabled === true ? data.handCount : 0}
-              idleCount={data.idleCount}
-              openBucket={openBucket}
-              onToggle={(key) =>
-                setOpenBucket((cur) => (cur === key ? null : key))
-              }
-            />
-            {openBucket && (
+            {!(isGame && boardView) && (
+              <StatusBuckets
+                counts={data.counts}
+                handCount={
+                  session.handRaiseEnabled === true ? data.handCount : 0
+                }
+                idleCount={data.idleCount}
+                openBucket={openBucket}
+                onToggle={(key) =>
+                  setOpenBucket((cur) => (cur === key ? null : key))
+                }
+              />
+            )}
+            {openBucket && !(isGame && boardView) && (
               <RosterList
                 bucket={openBucket}
                 students={data.byBucket[openBucket]}
@@ -864,8 +908,15 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           counts={data.counts}
           total={data.totalStudents}
           standings={standings}
-          isGamified={data.isGamified}
-          classAverage={classAverage}
+          isGamified={isGame || data.isGamified}
+          classAverage={gameStats ? gameStats.firstTryPct : classAverage}
+          game={gameBoard ?? undefined}
+          {...(isGame
+            ? {
+                showNames: gameNames,
+                onToggleNames: () => setGameNames((v) => !v),
+              }
+            : {})}
           hasMedia={presentHasMedia}
           onSavePauseMessage={(message) =>
             handleUpdateSession({ pauseMessage: message })
@@ -930,6 +981,17 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 {session.status === 'paused' ? 'Resume' : 'Pause'}
               </button>
             )}
+          {isGame && session.status !== 'ended' && (
+            <GameControls
+              phase={gameClock.phase}
+              busy={gameControls.busy}
+              showNames={gameNames}
+              onStart={() => void gameControls.start()}
+              onTogglePause={() => void gameControls.togglePause()}
+              onAddMinute={() => void gameControls.addMinute()}
+              onToggleNames={() => setGameNames((v) => !v)}
+            />
+          )}
           <button
             onClick={handleEnd}
             disabled={ending}
@@ -957,7 +1019,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 }}
               />
             )}
-            End
+            {isGame ? 'End game' : 'End'}
           </button>
           <div ref={menuRef} className="relative ml-auto">
             <button
@@ -1076,3 +1138,95 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     </div>
   );
 };
+
+const footerButton =
+  'inline-flex items-center font-sans font-semibold rounded-md transition-colors disabled:opacity-60';
+const footerButtonStyle = {
+  gap: 'min(6px, 1.5cqmin)',
+  padding: 'min(8px, 2cqmin) min(14px, 3cqmin)',
+  fontSize: 'min(13px, 4.5cqmin)',
+};
+const footerIcon = {
+  width: 'min(14px, 4.5cqmin)',
+  height: 'min(14px, 4.5cqmin)',
+};
+
+/** Review game footer (plan D26): Start or Pause, +1 min and the names toggle. */
+const GameControls: React.FC<{
+  phase: 'waiting' | 'running' | 'paused' | 'over';
+  busy: boolean;
+  showNames: boolean;
+  onStart: () => void;
+  onTogglePause: () => void;
+  onAddMinute: () => void;
+  onToggleNames: () => void;
+}> = ({
+  phase,
+  busy,
+  showNames,
+  onStart,
+  onTogglePause,
+  onAddMinute,
+  onToggleNames,
+}) => (
+  <>
+    {phase === 'waiting' ? (
+      <button
+        type="button"
+        onClick={onStart}
+        disabled={busy}
+        className={`${footerButton} bg-brand-blue-primary hover:bg-brand-blue-light text-white`}
+        style={footerButtonStyle}
+      >
+        {busy ? (
+          <Loader2 className="animate-spin" style={footerIcon} />
+        ) : (
+          <Play style={footerIcon} aria-hidden />
+        )}
+        Start game
+      </button>
+    ) : (
+      <>
+        {phase !== 'over' && (
+          <button
+            type="button"
+            onClick={onTogglePause}
+            disabled={busy}
+            className={`${footerButton} bg-brand-blue-primary hover:bg-brand-blue-light text-white`}
+            style={footerButtonStyle}
+          >
+            {phase === 'paused' ? (
+              <Play style={footerIcon} aria-hidden />
+            ) : (
+              <Pause style={footerIcon} aria-hidden />
+            )}
+            {phase === 'paused' ? 'Resume' : 'Pause'}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onAddMinute}
+          disabled={busy}
+          className={`${footerButton} bg-white border border-brand-gray-lighter text-brand-gray-dark hover:border-brand-blue-light`}
+          style={footerButtonStyle}
+        >
+          <Plus style={footerIcon} aria-hidden />1 min
+        </button>
+      </>
+    )}
+    <button
+      type="button"
+      onClick={onToggleNames}
+      aria-pressed={showNames}
+      className={`${footerButton} border ${
+        showNames
+          ? 'bg-brand-blue-primary border-brand-blue-primary text-white'
+          : 'bg-white border-brand-gray-lighter text-brand-gray-dark hover:border-brand-blue-light'
+      }`}
+      style={footerButtonStyle}
+    >
+      <Users style={footerIcon} aria-hidden />
+      {showNames ? 'Names on' : 'Names off'}
+    </button>
+  </>
+);
