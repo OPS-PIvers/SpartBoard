@@ -35,8 +35,13 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   configRef.current = config;
   widgetIdRef.current = widget.id;
 
+  const rollingRef = useRef(false);
+  const mountedRef = useRef(true);
+
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
@@ -44,10 +49,18 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   }, []);
 
   const roll = async () => {
-    if (isRolling) return;
+    if (rollingRef.current) return;
+    rollingRef.current = true;
 
     const ctx = getDiceAudioCtx();
-    if (ctx && ctx.state === 'suspended') await ctx.resume();
+    if (ctx && ctx.state === 'suspended') {
+      try {
+        await ctx.resume();
+      } catch {
+        // roll silently if audio can't resume
+      }
+      if (!mountedRef.current) return;
+    }
 
     setIsRolling(true);
     let rolls = 0;
@@ -78,6 +91,7 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         updateWidget(currentWidgetId, {
           config: { ...currentConfig, lastRoll: finalValues } as DiceConfig,
         });
+        rollingRef.current = false;
         setIsRolling(false);
       }
     }, 80);
