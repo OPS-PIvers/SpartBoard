@@ -72,7 +72,9 @@ const escapeCsvCell = (v: string) => {
 
 export function buildGLResponsesCSV(
   responseList: GuidedLearningResponse[],
-  set: GuidedLearningSet
+  set: GuidedLearningSet,
+  /** Gradebook final score per student (D9); adds a Final score column when set. */
+  finalScore?: (response: GuidedLearningResponse) => string
 ): string {
   // Deduplicate question steps by id — keep first occurrence.
   // Check interactionType first so non-question step IDs don't consume a slot
@@ -93,6 +95,7 @@ export function buildGLResponsesCSV(
     'Score (%)',
     ...questionSteps.map((s, i) => `Q${i + 1}: ${s.question?.text ?? ''}`),
     ...questionSteps.map((s, i) => `Q${i + 1} Correct`),
+    ...(finalScore ? ['Final score'] : []),
   ];
 
   const rows = responseList.map((r) => {
@@ -130,6 +133,7 @@ export function buildGLResponsesCSV(
       r.score !== null ? String(r.score) : '',
       ...questionAnswers,
       ...questionCorrect,
+      ...(finalScore ? [finalScore(r)] : []),
     ];
   });
 
@@ -325,7 +329,8 @@ export interface UseGuidedLearningSessionTeacherResult {
   /** Export responses as a CSV blob string */
   exportResponsesAsCSV: (
     responses: GuidedLearningResponse[],
-    set: GuidedLearningSet
+    set: GuidedLearningSet,
+    finalScore?: (response: GuidedLearningResponse) => string
   ) => string;
 }
 

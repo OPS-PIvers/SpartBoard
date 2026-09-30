@@ -13,6 +13,8 @@ export interface QuizResultsCsvOptions {
   teacherName?: string;
   fibGrading?: FibGradingContext | null;
   timeAway?: boolean;
+  /** Gradebook final score per student (D9); adds a Final score column when set. */
+  finalScore?: (response: QuizResponse) => string;
 }
 
 /** The results sheet's columns for just these students, as CSV. */
@@ -28,7 +30,14 @@ export function buildQuizResultsCsv(
     ...options,
     formatAnswer: formatQuizAnswerText,
   });
-  return [headers, ...dataRows]
+  const { finalScore } = options;
+  const lines = finalScore
+    ? [
+        [...headers, 'Final score'],
+        ...dataRows.map((row, i) => [...row, finalScore(responses[i])]),
+      ]
+    : [headers, ...dataRows];
+  return lines
     .map((line) => line.map((cell) => quoteCsvCell(cell ?? '')).join(','))
     .join('\r\n');
 }

@@ -129,10 +129,7 @@ export async function loadFinalScoreOverlay(
   }
 }
 
-/**
- * D9 overlay for a Results view. Null (and no listeners) unless the gradebook
- * flag is on and the signed-in teacher owns the session.
- */
+/** D9 overlay for a Results view; null with no listeners unless the flag is on and the teacher owns the session. */
 export function useFinalScoreOverlay(
   target: FinalScoreOverlayTarget
 ): FinalScoreOverlay | null {

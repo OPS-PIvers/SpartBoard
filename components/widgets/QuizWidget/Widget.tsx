@@ -93,7 +93,13 @@ import {
   CLASSROOM_ASSIGN_ENABLED,
   CLASSROOM_ASSIGN_ADMIN_ONLY,
 } from '@/config/constants';
-import { buildQuizClassroomGradeEntries } from '@/utils/classroomGradePush';
+import {
+  buildQuizClassroomGradeEntries,
+  type ClassroomGradeEntry,
+} from '@/utils/classroomGradePush';
+import { loadFinalScoreOverlay } from '@/hooks/gradebook/useFinalScoreOverlay';
+import { applyFinalScoresToEntries } from '@/utils/gradebook/finalScoreOverlay';
+import { quizLiveRaw } from '@/utils/gradebook/liveRawScores';
 import type { FibGradingContext } from '@/utils/quizFibAnswers';
 import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import { hasValidMaxPoints } from '@/utils/runClassroomGradePush';
@@ -3390,6 +3396,35 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   );
                 }
               }
+              const finalOverlay = await loadFinalScoreOverlay(
+                {
+                  kind: 'quiz',
+                  sessionId: target.id,
+                  teacherUid: user?.uid,
+                  uid: user?.uid,
+                },
+                canAccessFeature('gradebook')
+              );
+              const withFinal = (
+                entries: ClassroomGradeEntry[],
+                responses: QuizResponse[],
+                maxPoints: number
+              ) => {
+                if (!finalOverlay) return entries;
+                const byUid = new Map(responses.map((r) => [r.studentUid, r]));
+                return applyFinalScoresToEntries(
+                  entries,
+                  maxPoints,
+                  finalOverlay,
+                  (uid) => {
+                    const r = byUid.get(uid);
+                    return r
+                      ? quizLiveRaw(r, data.questions, publishFibGrading)
+                      : null;
+                  },
+                  Date.now()
+                );
+              };
               // Chain the LMS grade push(es) — never throws (publish already
               // committed; a push failure is its own toast).
               await runPublishGradePush<QuizResponse>({
@@ -3407,21 +3442,34 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   // All attachments share the assignment's maxPoints.
                   const mp = classroomFinalAttachments[0]?.maxPoints;
                   return mp != null
-                    ? buildQuizClassroomGradeEntries(
+                    ? withFinal(
+                        buildQuizClassroomGradeEntries(
+                          responses,
+                          data.questions,
+                          mp,
+                          publishFibGrading
+                        ),
                         responses,
-                        data.questions,
-                        mp,
-                        publishFibGrading
+                        mp
                       )
                     : [];
                 },
-                buildSchoologyGrades: (responses) =>
-                  buildQuizClassroomGradeEntries(
-                    responses,
+                buildSchoologyGrades: (responses) => {
+                  const mp = quizMaxPoints(
                     data.questions,
-                    quizMaxPoints(data.questions, sessionSectionsFor(data)),
-                    publishFibGrading
-                  ),
+                    sessionSectionsFor(data)
+                  );
+                  return withFinal(
+                    buildQuizClassroomGradeEntries(
+                      responses,
+                      data.questions,
+                      mp,
+                      publishFibGrading
+                    ),
+                    responses,
+                    mp
+                  );
+                },
               });
               setPublishingAssignment(null);
             } catch (err) {

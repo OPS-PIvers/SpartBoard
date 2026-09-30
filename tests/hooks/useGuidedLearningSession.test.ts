@@ -434,3 +434,16 @@ describe('buildGLResponsesCSV — duplicate-step dedup', () => {
     expect(rows[1][6]).toBe('Yes');
   });
 });
+
+describe('buildGLResponsesCSV — gradebook final score', () => {
+  it('adds a Final score column only when a resolver is passed', () => {
+    const set = minimalSet([mcQuestionStep('s1', 'What is 1+1?', '2')]);
+    const response = minimalResponse([{ stepId: 's1', answer: '2' }]);
+    expect(parseCsv(buildGLResponsesCSV([response], set))[0]).toHaveLength(7);
+    const rows = parseCsv(
+      buildGLResponsesCSV([response], set, () => 'Excused')
+    );
+    expect(rows[0][7]).toBe('Final score');
+    expect(rows[1][7]).toBe('Excused');
+  });
+});

@@ -1,5 +1,4 @@
 import {
-  DEFAULT_GRADEBOOK_SETTINGS,
   resolveFinalScore,
   type FinalScore,
   type GradeIndexRow,
@@ -29,20 +28,6 @@ export interface LiveRawScore {
   max: number | null;
   state: GradeState;
   submittedAt: number | null;
-}
-
-export function emptyOverlay(
-  base: Pick<FinalScoreOverlay, 'kind' | 'sessionId' | 'ownerUid'>
-): FinalScoreOverlay {
-  return {
-    ...base,
-    marks: new Map(),
-    column: null,
-    flagDefs: DEFAULT_GRADEBOOK_SETTINGS.flags,
-    autoFlags: DEFAULT_GRADEBOOK_SETTINGS.autoFlags,
-    dueAt: null,
-    closeAt: null,
-  };
 }
 
 /** Results views see only the current attempt, so a highest/average policy reads as latest here. */
@@ -109,10 +94,7 @@ interface GradeEntry {
   pointsEarned: number;
 }
 
-/**
- * D9 for LMS pushes: same students as the legacy payload, Excused dropped and
- * overrides scaled onto the LMS denominator. Returns `entries` itself when nothing applies.
- */
+/** D9 for LMS pushes: legacy students only, Excused dropped, overrides scaled; returns `entries` itself when nothing applies. */
 export function applyFinalScoresToEntries<E extends GradeEntry>(
   entries: E[],
   maxPoints: number,
@@ -169,4 +151,12 @@ export function finalScoreLabel(
     default:
       return '';
   }
+}
+
+/** Percent the Results pill shows under D9, or null to keep the view's own score. */
+export function finalPillPct(final: FinalScore | null): number | null {
+  if (!final || final.status !== 'scored' || final.source === 'raw') {
+    return null;
+  }
+  return final.pct;
 }

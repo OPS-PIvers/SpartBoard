@@ -41,6 +41,7 @@ let authUser: Record<string, unknown> | null = null;
 const signInWithGoogle = vi.fn();
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
+    canAccessFeature: () => false,
     user: authUser,
     signInWithGoogle,
     googleAccessToken: 'drive-token',
