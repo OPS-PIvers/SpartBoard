@@ -229,6 +229,7 @@ export {
   gradeIndexQuizAssignment,
   gradeIndexVideoKey,
   gradeIndexProjectGroup,
+  gradeIndexStudentPointer,
   gradeIndexProjection,
   gradeIndexMark,
   gradeIndexColumn,

@@ -214,7 +214,12 @@ export function buildProjectionEntry(
           auto: final.autoFlags.includes(f.id),
         }))
     : [];
-  const showScore = published && vis.scores;
+  const excludedByVisibleFlag = flags.some(
+    (f) => flagById.get(f.id)?.excludes === true
+  );
+  // A teacher-only excluding flag must not reveal itself through the status.
+  const hiddenExclusion = final.status === 'excluded' && !excludedByVisibleFlag;
+  const showScore = published && vis.scores && !hiddenExclusion;
   const comment =
     published && vis.comments && mark?.comment?.shared
       ? mark.comment.text
@@ -329,16 +334,21 @@ export async function projectRow(
   );
 }
 
-/** Re-projects every row a query returns (a column, a class's settings). */
+/** Re-projects every row a query returns, optionally narrowed in memory. */
 export async function reprojectRows(
   db: Firestore,
-  query: admin.firestore.Query
+  query: admin.firestore.Query,
+  keep: (row: GradeIndexRow) => boolean = () => true
 ): Promise<number> {
   const snap = await query.get();
+  let n = 0;
   for (const doc of snap.docs) {
-    await projectRow(db, doc.data() as GradeIndexRow, null);
+    const row = doc.data() as GradeIndexRow;
+    if (!keep(row)) continue;
+    await projectRow(db, row, null);
+    n++;
   }
-  return snap.docs.length;
+  return n;
 }
 
 export const rowsForSession = (
@@ -355,4 +365,10 @@ export const rowsForClass = (
   db
     .collection(GRADE_INDEX)
     .where('ownerUid', '==', ownerUid)
-    .where('rosterId', '==', rosterId);
+    .where('rosterIds', 'array-contains', rosterId);
+
+/** The query above matches any row whose session targets the roster; keep this class's rows. */
+export const inRoster =
+  (rosterId: string) =>
+  (row: GradeIndexRow): boolean =>
+    row.rosterId === rosterId;

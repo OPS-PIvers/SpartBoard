@@ -445,9 +445,15 @@ export function scoreVideoResponse(
       : completedAt !== null
         ? 1
         : 0;
+  // A teacher-paced live session only scores the questions it asked.
+  const live = asRecord(session.live);
   const q = scoreQuestions({
     questions,
     answers,
+    servedQuestionIds:
+      Object.keys(live).length > 0
+        ? asStrings(live.askedQuestionIds)
+        : undefined,
     useStoredCorrectness: true,
   });
   const stored =
@@ -455,9 +461,8 @@ export function scoreVideoResponse(
       ? response.score
       : null;
   const classId = asString(response.classId) || null;
-  const published =
-    isPublished(session, response) ||
-    (stored !== null && session.scoreVisibility !== 'none');
+  // Unpublish leaves `score` on the response, so only the publish fields decide.
+  const published = isPublished(session, response);
   if (completedAt === null) {
     return {
       classId,
@@ -518,7 +523,7 @@ export function scoreGuidedLearningResponse(
       ? response.score
       : null;
   const classId = asString(response.classId) || null;
-  const published = isPublished(session, response) || stored !== null;
+  const published = isPublished(session, response);
   if (completedAt === null) {
     return {
       classId,

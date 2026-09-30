@@ -39,7 +39,7 @@ const SESSION_COLLECTION = {
   'video-activity': 'video_activity_sessions',
   'guided-learning': 'guided_learning_sessions',
   flashcards: 'flashcard_sessions',
-  project: 'project_runs',
+  projects: 'project_runs',
   'mini-app': 'mini_app_sessions',
   'activity-wall': 'activity_wall_sessions',
 };

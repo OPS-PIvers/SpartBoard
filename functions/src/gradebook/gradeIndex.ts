@@ -195,6 +195,7 @@ export function studentUidFor(
     case 'video-activity':
       return isPinKey(docId) ? null : asString(data.studentUid) || null;
     case 'guided-learning':
+      return asString(data.pin) ? null : docId;
     case 'flashcards':
       return docId;
     case 'mini-app':
@@ -255,24 +256,61 @@ function previousAttemptsOf(data: Doc | undefined): GradeAttempt[] {
   return Array.isArray(raw) ? (raw as GradeAttempt[]) : [];
 }
 
+function sameRow(row: GradeIndexRow, previous: Doc | undefined): boolean {
+  if (!previous) return false;
+  const { updatedAt: _a, ...next } = row as unknown as Doc;
+  const { updatedAt: _b, ...prev } = previous;
+  void _a;
+  void _b;
+  return stableStringify(next) === stableStringify(prev);
+}
+
 /** Write only when something besides `updatedAt` changed, so reruns cost no writes. */
 async function writeRow(
   db: Firestore,
   row: GradeIndexRow,
   previous: Doc | undefined
 ): Promise<boolean> {
-  if (previous) {
-    const { updatedAt: _a, ...next } = row as unknown as Doc;
-    const { updatedAt: _b, ...prev } = previous;
-    void _a;
-    void _b;
-    if (stableStringify(next) === stableStringify(prev)) return false;
-  }
+  if (sameRow(row, previous)) return false;
   await db
     .collection(GRADE_INDEX)
     .doc(rowId(row.sessionId, row.studentUid))
     .set(row as unknown as Doc);
   return true;
+}
+
+/** Recompute write: a row a trigger rewrote after `startedAt` is newer than this snapshot, so it stays. */
+async function writeRowIfNotNewer(
+  db: Firestore,
+  row: GradeIndexRow,
+  startedAt: number
+): Promise<boolean> {
+  const ref = db
+    .collection(GRADE_INDEX)
+    .doc(rowId(row.sessionId, row.studentUid));
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const current = snap.data();
+    if (sameRow(row, current)) return false;
+    if (typeof current?.updatedAt === 'number' && current.updatedAt > startedAt)
+      return false;
+    tx.set(ref, row as unknown as Doc);
+    return true;
+  });
+}
+
+/** The per-student doc as it is now, so a late or repeated event can't write stale data. */
+async function freshStudentDoc(
+  db: Firestore,
+  w: DocWrite
+): Promise<Doc | undefined> {
+  const snap = await db
+    .collection(SESSION_COLLECTION[w.kind])
+    .doc(w.sessionId)
+    .collection(STUDENT_SUBCOLLECTION[w.kind])
+    .doc(w.docId)
+    .get();
+  return snap.exists ? (snap.data() ?? undefined) : undefined;
 }
 
 export function stableStringify(v: unknown): string {
@@ -408,6 +446,8 @@ export async function applyDocWrite(
   const ctx = await loadSessionContext(db, w.kind, w.sessionId);
   if (!ctx) return 0;
   let writes = 0;
+  const after = await freshStudentDoc(db, w);
+  w = { ...w, after };
 
   if (w.kind === 'projects') {
     const { upserts, memberUids } = await projectRows(
@@ -477,6 +517,7 @@ export async function recomputeSession(
     .where('sessionId', '==', sessionId)
     .get();
   const existing = new Map(existingSnap.docs.map((d) => [d.id, d.data()]));
+  const startedAt = now;
   const ctx = await loadSessionContext(db, kind, sessionId);
   const keep = new Set<string>();
   let written = 0;
@@ -519,7 +560,8 @@ export async function recomputeSession(
     for (const row of rows) {
       const id = rowId(row.sessionId, row.studentUid);
       keep.add(id);
-      if (await writeRow(db, row, existing.get(id))) written++;
+      if (sameRow(row, existing.get(id))) continue;
+      if (await writeRowIfNotNewer(db, row, startedAt)) written++;
     }
   }
 
@@ -583,7 +625,9 @@ export async function markSessionDirty(
     .set({ kind, sessionId, dirtyAt: now });
 }
 
-export const RECOMPUTE_LIMIT = 100;
+export const RECOMPUTE_LIMIT = 200;
+/** Stops taking new sessions well before the 540 s timeout; the rest wait for the next run. */
+export const RECOMPUTE_BUDGET_MS = 420_000;
 
 /** Drains the dirty queue; a session re-dirtied mid-run stays queued. */
 export async function drainDirtySessions(
@@ -597,7 +641,9 @@ export async function drainDirtySessions(
     .get();
   let recomputed = 0;
   let failed = 0;
+  const started = Date.now();
   for (const doc of snap.docs) {
+    if (Date.now() - started > RECOMPUTE_BUDGET_MS) break;
     const data = doc.data();
     const kind = data.kind as GradeKind;
     if (!(kind in SESSION_COLLECTION)) {
