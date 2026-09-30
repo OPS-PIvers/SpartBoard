@@ -37,6 +37,7 @@ const reducedMotionPlugin = plugin(({ addBase }) => {
         '.animate-shimmer',
         '.animate-marquee',
         '.animate-gl-pulse-reminder',
+        '.animate-confetti-fall',
       ].join(', ')]: {
         animation: 'none !important',
       },
@@ -283,6 +284,20 @@ export default {
           '4%': { transform: 'scale(1.18) rotate(8deg)' },
           '6%': { transform: 'scale(1.12) rotate(-4deg)' },
         },
+        // Review board podium, gains and winner (one-shot).
+        'podium-rise': {
+          from: { transform: 'translateY(100%)', opacity: '0' },
+          to: { transform: 'translateY(0)', opacity: '1' },
+        },
+        'gain-pop': {
+          '0%': { transform: 'scale(0.6)', opacity: '0' },
+          '60%': { transform: 'scale(1.15)', opacity: '1' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        'confetti-fall': {
+          from: { transform: 'translateY(-10vh) rotate(0deg)' },
+          to: { transform: 'translateY(110vh) rotate(720deg)' },
+        },
       },
       animation: {
         'spin-slow': 'spin-slow 12s linear infinite',
@@ -290,6 +305,9 @@ export default {
         shimmer: 'shimmer 1.5s infinite',
         marquee: 'marquee 12s linear infinite',
         'gl-pulse-reminder': 'gl-pulse-reminder 6s ease-in-out infinite',
+        'podium-rise': 'podium-rise 600ms cubic-bezier(.2,.9,.3,1.1) both',
+        'gain-pop': 'gain-pop 400ms ease-out both',
+        'confetti-fall': 'confetti-fall 4s linear both',
       },
     },
   },

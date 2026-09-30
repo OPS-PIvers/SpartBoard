@@ -4,6 +4,8 @@ import { QuizLeaderboardEntry, QuizQuestion, QuizResponse } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import { buildDistribution } from '@/utils/answerDistribution';
 import { PresentStandings } from './PresentStandings';
+import { PresentPodium } from './PresentPodium';
+import { usePresentTheme } from './presentTheme';
 
 interface PresentPacedReviewProps {
   question: QuizQuestion;
@@ -15,6 +17,9 @@ interface PresentPacedReviewProps {
   unit: 'pts' | '%';
   /** Standings rows; Review sets this at launch (D21). */
   rankRows?: number;
+  /** Review's game board: split layout with the podium. */
+  game?: boolean;
+  previous?: QuizLeaderboardEntry[];
 }
 
 export const PresentPacedReview: React.FC<PresentPacedReviewProps> = ({
@@ -25,17 +30,20 @@ export const PresentPacedReview: React.FC<PresentPacedReviewProps> = ({
   showNames,
   unit,
   rankRows,
+  game = false,
+  previous,
 }) => {
+  const t = usePresentTheme();
   const { totalAnswered, rows } = buildDistribution(
     question,
     responses,
     gradeAnswer
   );
 
-  return (
+  const questionAndBars = (
     <>
       <p
-        className="font-sans font-semibold text-white max-w-[80vw] leading-snug"
+        className={`font-sans font-semibold max-w-[80vw] leading-snug ${t.strong}`}
         style={{ fontSize: 'clamp(1.2rem, 3.2vw, 3rem)', textWrap: 'balance' }}
       >
         {question.text}
@@ -58,7 +66,7 @@ export const PresentPacedReview: React.FC<PresentPacedReviewProps> = ({
               >
                 <span
                   className={`font-sans inline-flex items-center truncate ${
-                    correct ? 'text-emerald-300 font-semibold' : 'text-white/85'
+                    correct ? t.correctText : t.strong
                   }`}
                   style={{
                     fontSize: 'clamp(1rem, 2.2vw, 2rem)',
@@ -74,19 +82,19 @@ export const PresentPacedReview: React.FC<PresentPacedReviewProps> = ({
                   {row.label}
                 </span>
                 <span
-                  className="font-sans text-white/60 tabular-nums shrink-0"
+                  className={`font-sans tabular-nums shrink-0 ${t.muted}`}
                   style={{ fontSize: 'clamp(0.9rem, 1.8vw, 1.6rem)' }}
                 >
                   {row.count}
                 </span>
               </div>
               <div
-                className="bg-white/15 rounded-full overflow-hidden"
+                className={`rounded-full overflow-hidden ${t.track}`}
                 style={{ height: '1.6vh' }}
               >
                 <div
                   className={`h-full rounded-full ${
-                    correct ? 'bg-emerald-400' : 'bg-brand-blue-light'
+                    correct ? t.correctBar : t.bar
                   }`}
                   style={{ width: `${pct}%` }}
                 />
@@ -96,13 +104,43 @@ export const PresentPacedReview: React.FC<PresentPacedReviewProps> = ({
         })}
         {rows.length === 0 && (
           <p
-            className="font-sans text-white/60"
+            className={`font-sans ${t.muted}`}
             style={{ fontSize: 'clamp(1rem, 2.2vw, 2rem)' }}
           >
             No answers yet.
           </p>
         )}
       </div>
+    </>
+  );
+
+  if (game && rankRows) {
+    return (
+      <div
+        className="w-full flex-1 min-h-0 grid items-center"
+        style={{ gridTemplateColumns: '1fr 1fr', gap: '4vw' }}
+      >
+        <div
+          className="flex flex-col items-start text-left"
+          style={{ gap: '3vh' }}
+        >
+          {questionAndBars}
+        </div>
+        <PresentPodium
+          entries={standings}
+          previous={previous}
+          showNames={showNames}
+          unit={unit}
+          limit={rankRows}
+          size="split"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {questionAndBars}
       <PresentStandings
         entries={standings}
         showNames={showNames}
