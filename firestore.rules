@@ -3747,7 +3747,7 @@ service cloud.firestore {
     function gbOrgAdminWriteOk() {
       return isAdmin() && isOrgMember(incoming().orgId) &&
              (resource == null || isOrgMember(existing().orgId)) &&
-             incoming().buildingIds is list && incoming().buildingIds.size() <= 50;
+             isList('buildingIds') && incoming().buildingIds.size() <= 50;
     }
 
     // D10 index rows: written only by the server triggers.
