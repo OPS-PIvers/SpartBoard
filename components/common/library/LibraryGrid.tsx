@@ -37,7 +37,6 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import type { LibraryGridProps } from './types';
 import { LibraryGridLockContext } from './LibraryGridLockContext';
 
@@ -181,7 +180,7 @@ export function LibraryGrid<TItem>(
             {items.map((item, index) => renderCard(item, index))}
           </div>
         </SortableContext>
-        <DragOverlay modifiers={[snapCenterToCursor]}>
+        <DragOverlay>
           {activeItem != null ? (
             <LibraryGridLockContext.Provider
               value={{ locked: false, reason: undefined, dragDisabled: true }}
