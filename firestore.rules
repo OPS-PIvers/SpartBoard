@@ -3238,7 +3238,7 @@ service cloud.firestore {
           && isStr('classLabel')
           && isInt('students')
           && isInt('completed')
-          && incoming().averagePercent is number
+          && isNumber('averagePercent')
           && isList('cards')
           && incoming().cards.size() <= 1000
           && isStr('sharedByEmail')
