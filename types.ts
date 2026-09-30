@@ -3043,6 +3043,8 @@ export interface MiniAppSession extends PeriodAccessSessionFields {
    *  open/close window; read by class-wide students on /my-assignments,
    *  which sources due dates from this session doc, not the archive row. */
   dueAt?: number | null;
+  /** Per-class due dates by ClassLink/test class id; a matching class wins over `dueAt`. */
+  dueAtByClassId?: Record<string, number>;
   /** True when this assignment used per-student targeting (spec §2a). Class
    *  channel drops these client-side; not a security boundary. */
   individualTargeting?: boolean;
@@ -5833,6 +5835,8 @@ export interface QuizAssignmentSettings {
    * end-of-day. Absent = date-only (legacy/other create paths).
    */
   dueAtHasTime?: boolean;
+  /** Per-class due dates by roster id; `dueAt` then holds the earliest. Absent = one shared date. */
+  dueAtByRosterId?: Record<string, number>;
   /**
    * Drive file holding the resolved quiz (fixed questions + every pool
    * question with slot points) written at assign time when the quiz has bank
@@ -9077,6 +9081,8 @@ export type GlobalFeature =
   | 'quiz-score-on-submit'
   /** Projects board: tapping a group name opens that group's student view. */
   | 'projects-group-view'
+  /** Quiz assign/edit: a separate due date per selected class. */
+  | 'quiz-per-class-due-dates'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'

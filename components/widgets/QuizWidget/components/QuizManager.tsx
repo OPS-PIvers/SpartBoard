@@ -120,6 +120,8 @@ import {
   AssignTargetingSection,
   QuizBehaviorSettingsPanel,
   CollapsibleSection,
+  DueDateModeSwitch,
+  PerClassDueDateRows,
   EMPTY_ASSIGN_TARGETING_VALUE,
   toOverrideEditorQuestions,
   type AssignTargetingValue,
@@ -132,6 +134,7 @@ import {
   type LibraryBadgeTone,
   type LibrarySelectionApi,
 } from '@/components/common/library';
+import { earliestDueAt } from '@/utils/perClassDueDates';
 import { useRubrics } from '@/hooks/useRubrics';
 import {
   AssignDestinationModal,
@@ -325,7 +328,9 @@ interface QuizManagerProps {
      * `undefined` means the class-wide path never needed it, so the handler
      * still fetches once itself.
      */
-    preloadedQuizData?: QuizData | null
+    preloadedQuizData?: QuizData | null,
+    /** Per-class due dates by roster id; `dueAt` is then the earliest. */
+    dueAtByRosterId?: Record<string, number>
   ) => void;
   /**
    * Loads full quiz content (questions) for the assign modal's B2 override
@@ -840,6 +845,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   );
   // Due date for the current assign modal (epoch ms or null = no due date).
   const [assignDueAt, setAssignDueAt] = useState<number | null>(null);
+  // null = one shared due date; otherwise epoch ms by roster id.
+  const [assignDueByRoster, setAssignDueByRoster] = useState<Record<
+    string,
+    number | null
+  > | null>(null);
   // Per-assignment behavior overrides, seeded from the quiz's saved settings
   // when the modal opens. Edits here never write back to the quiz doc.
   const [assignBehavior, setAssignBehavior] =
@@ -893,6 +903,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     setPrevAssignTarget(assignTarget);
     if (assignTarget) {
       setAssignDueAt(null);
+      setAssignDueByRoster(null);
       setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
       setAssignQuizData(null);
       loadedAssignQuizDataForRef.current = null;
@@ -1811,18 +1822,24 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         ? { plcPoolSyncGroupId: assignPoolGroup.syncGroupId }
         : {}),
     };
+    const perClassDue =
+      assignDueByRoster !== null && validRosterIds.length > 1
+        ? perClassDueMap(assignDueByRoster, validRosterIds)
+        : undefined;
     onAssign(
       assignTarget,
       behavior,
       plcOptions,
       validRosterIds,
-      assignDueAt,
+      perClassDue ? earliestDueAt(perClassDue) : assignDueAt,
       assignTargeting,
       assignDestination,
-      assignQuizData
+      assignQuizData,
+      perClassDue
     );
     setAssignTarget(null);
     setAssignDueAt(null);
+    setAssignDueByRoster(null);
     setAssignBehavior(null);
     setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
     setTargetingPacingError(null);
@@ -2362,6 +2379,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onClose={() => {
             setAssignTarget(null);
             setAssignDueAt(null);
+            setAssignDueByRoster(null);
             setAssignBehavior(null);
             setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
             setTargetingPacingError(null);
@@ -2468,12 +2486,25 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   <AssignDueDateField
                     dueAt={assignDueAt}
                     onDueAtChange={setAssignDueAt}
+                    perClassRosters={
+                      canAccessFeature('quiz-per-class-due-dates')
+                        ? rosters.filter(
+                            (r) =>
+                              !r.loadError &&
+                              assignOptions.picker.rosterIds.includes(r.id)
+                          )
+                        : []
+                    }
+                    dueByRoster={assignDueByRoster}
+                    onDueByRosterChange={setAssignDueByRoster}
                   />
                 }
                 scheduleExtraSummary={
-                  assignDueAt == null
-                    ? null
-                    : `Due ${new Date(assignDueAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+                  assignDueByRoster !== null
+                    ? 'Due by class'
+                    : assignDueAt == null
+                      ? null
+                      : `Due ${new Date(assignDueAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
                 }
               />
               {targetingPacingError && (
@@ -3176,10 +3207,53 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
 /**
  * AssignDueDateField — due-date input for the standalone Quiz assign modal.
  */
+/** Set dates for the given rosters only. */
+function perClassDueMap(
+  map: Record<string, number | null>,
+  rosterIds: readonly string[]
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const id of rosterIds) {
+    const due = map[id];
+    if (typeof due === 'number') out[id] = due;
+  }
+  return out;
+}
+
 const AssignDueDateField: React.FC<{
   dueAt: number | null;
   onDueAtChange: (dueAt: number | null) => void;
-}> = ({ dueAt, onDueAtChange }) => {
+  /** Selected classes when per-class due dates are available; empty hides the switch. */
+  perClassRosters: readonly ClassRoster[];
+  dueByRoster: Record<string, number | null> | null;
+  onDueByRosterChange: (next: Record<string, number | null> | null) => void;
+}> = ({
+  dueAt,
+  onDueAtChange,
+  perClassRosters,
+  dueByRoster,
+  onDueByRosterChange,
+}) => {
+  const showSwitch = perClassRosters.length > 1;
+  const perClass = showSwitch && dueByRoster !== null;
+  const setPerClass = (next: boolean) => {
+    if (next === perClass) return;
+    if (next) {
+      onDueByRosterChange(
+        Object.fromEntries(perClassRosters.map((r) => [r.id, dueAt]))
+      );
+    } else {
+      onDueAtChange(
+        earliestDueAt(
+          perClassDueMap(
+            dueByRoster ?? {},
+            perClassRosters.map((r) => r.id)
+          )
+        )
+      );
+      onDueByRosterChange(null);
+    }
+  };
   // Use local-time helpers so the picker date matches the school's timezone (not UTC).
   const dateInputValue = splitDueAtToInputs(dueAt, true).date;
 
@@ -3194,20 +3268,33 @@ const AssignDueDateField: React.FC<{
 
   return (
     <div>
-      <label
-        htmlFor="assign-due-date-input"
-        className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1"
-      >
-        Due Date <span className="font-normal">(optional)</span>
-      </label>
-      <input
-        id="assign-due-date-input"
-        type="date"
-        data-testid="assign-due-date"
-        value={dateInputValue}
-        onChange={handleDateChange}
-        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-      />
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <label
+          htmlFor="assign-due-date-input"
+          className="block text-xxs font-bold text-slate-400 uppercase tracking-widest"
+        >
+          Due Date <span className="font-normal">(optional)</span>
+        </label>
+        {showSwitch && (
+          <DueDateModeSwitch perClass={perClass} onChange={setPerClass} />
+        )}
+      </div>
+      {perClass ? (
+        <PerClassDueDateRows
+          rosters={perClassRosters}
+          value={dueByRoster ?? {}}
+          onChange={onDueByRosterChange}
+        />
+      ) : (
+        <input
+          id="assign-due-date-input"
+          type="date"
+          data-testid="assign-due-date"
+          value={dateInputValue}
+          onChange={handleDateChange}
+          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+        />
+      )}
     </div>
   );
 };

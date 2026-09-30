@@ -1833,6 +1833,21 @@ export const ActiveQuiz: React.FC<{
     myResponse?.studentUid ?? auth.currentUser?.uid ?? 'anonymous-student';
   const attemptIndex = myResponse?.completedAttempts ?? 0;
   const studentShuffleSeed = `${baseShuffleSeed}:attempt-${attemptIndex}`;
+  // Shuffle settings are read once per attempt, so a teacher's mid-attempt edit can't reorder a student's screen.
+  const liveQuestionShuffle = session.shuffleQuestions === true;
+  const liveAnswerShuffle = session.shuffleAnswerOptions !== false;
+  const [attemptShuffle, setAttemptShuffle] = useState(() => ({
+    attemptIndex,
+    questions: liveQuestionShuffle,
+    answers: liveAnswerShuffle,
+  }));
+  if (attemptShuffle.attemptIndex !== attemptIndex) {
+    setAttemptShuffle({
+      attemptIndex,
+      questions: liveQuestionShuffle,
+      answers: liveAnswerShuffle,
+    });
+  }
 
   // M17 C3 — served subset of the session's questions for this student.
   // Only meaningful in self-paced mode (individually-targeted assignments
@@ -1858,7 +1873,7 @@ export const ActiveQuiz: React.FC<{
   // student would put the projected screen out of sync with student devices.
   // Legacy/in-flight sessions without the field default to off.
   const questionOrderShuffleEnabled =
-    isStudentPaced && session.shuffleQuestions === true;
+    isStudentPaced && attemptShuffle.questions;
   const orderedPublicQuestions = useMemo(() => {
     if (!questionOrderShuffleEnabled) return servedPublicQuestions;
     // A section's questions stay together, so each is shuffled on its own.
@@ -1884,7 +1899,7 @@ export const ActiveQuiz: React.FC<{
 
   // Answer-option shuffle. Defaults to ON when the field is absent so legacy
   // sessions that pre-date this toggle keep their always-on behavior.
-  const answerOptionShuffleEnabled = session.shuffleAnswerOptions !== false;
+  const answerOptionShuffleEnabled = attemptShuffle.answers;
   const currentQuestion = useMemo(() => {
     if (!baseQuestion) return baseQuestion;
     const served = isStudentPaced

@@ -79,6 +79,7 @@ import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
 import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettingsModal';
+import { dueAtByClassIdFromRosters } from '@/utils/perClassDueDates';
 import { SharePlcResultsModal } from './components/SharePlcResultsModal';
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -1987,7 +1988,8 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           dueAt: number | null,
           targeting: AssignTargetingValue,
           destination?: AssignDestination,
-          preloadedQuizData?: QuizData | null
+          preloadedQuizData?: QuizData | null,
+          dueAtByRosterId?: Record<string, number>
         ) => {
           // F1 fix — reuse the content QuizManager already fetched for the
           // B2 override editor (when the teacher expanded individual
@@ -2239,6 +2241,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 attemptLimit,
                 dueAt: dueAt ?? undefined,
                 dueAtHasTime: dueAt != null ? true : undefined,
+                ...(dueAtByRosterId ? { dueAtByRosterId } : {}),
                 teacherName: plcOptions.teacherName,
                 periodName:
                   plcOptions.periodNames?.[0] ?? plcOptions.periodName,
@@ -2259,6 +2262,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 classIds: derived.classIds,
                 rosterIds: derived.rosterIds,
                 classPeriodByClassId: derived.classPeriodByClassId,
+                ...(dueAtByRosterId
+                  ? {
+                      dueAtByClassId: dueAtByClassIdFromRosters(
+                        dueAtByRosterId,
+                        rosters
+                      ),
+                    }
+                  : {}),
                 mode: quizAssignmentMode,
                 ...(plcTemplateSyncGroupId ? { plcTemplateSyncGroupId } : {}),
                 ...(plcLinkage && plcOptions.plcPoolSyncGroupId
@@ -3226,7 +3237,13 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               if (Object.keys(settingsPatch).length > 0) {
                 await updateAssignmentSettings(
                   editingAssignment.id,
-                  settingsPatch
+                  settingsPatch,
+                  settingsPatch.dueAtByRosterId
+                    ? dueAtByClassIdFromRosters(
+                        settingsPatch.dueAtByRosterId,
+                        rosters
+                      )
+                    : undefined
                 );
               }
               if (rosterIds !== undefined) {

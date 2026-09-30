@@ -824,11 +824,12 @@ describe('Widget.onAssign — behavior snapshot passed through onAssign', () => 
       attemptLimit: 3,
     });
     // Args: (meta, behavior, plcOptions, rosterIds, dueAt, targeting,
-    // destination, preloadedQuizData). Class-wide path never expanded
-    // individual targeting so the last arg (F1 fix) is null.
-    expect(onAssign.mock.calls[0]).toHaveLength(8);
+    // destination, preloadedQuizData, dueAtByRosterId). Class-wide path never
+    // expanded individual targeting so preloadedQuizData (F1 fix) is null.
+    expect(onAssign.mock.calls[0]).toHaveLength(9);
     expect(onAssign.mock.calls[0][6]).toBe('spartboard');
     expect(onAssign.mock.calls[0][7]).toBeNull();
+    expect(onAssign.mock.calls[0][8]).toBeUndefined();
   });
 
   it('behavior summary shows the mode from the quiz behavior', async () => {
