@@ -29,6 +29,10 @@ import {
   normalizeClaudeReviewRemindersSettings,
 } from '@/config/claudeReviewReminders';
 import {
+  GRADEBOOK_INDEX_SETTINGS_DOC,
+  normalizeGradebookIndexSettings,
+} from '@/config/gradebookIndex';
+import {
   SUB_LAUNCH_AS_TEACHER_SETTINGS_DOC,
   normalizeSubLaunchAsTeacherSettings,
 } from '@/config/subLaunchAsTeacher';
@@ -96,5 +100,12 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     description:
       'Flag items Claude made or changed until the teacher opens them. On by default.',
     normalize: normalizeClaudeReviewRemindersSettings,
+  },
+  {
+    docId: GRADEBOOK_INDEX_SETTINGS_DOC,
+    feature: 'gradebook',
+    title: 'Gradebook score index',
+    description: 'Collect every score for the gradebook.',
+    normalize: normalizeGradebookIndexSettings,
   },
 ];
