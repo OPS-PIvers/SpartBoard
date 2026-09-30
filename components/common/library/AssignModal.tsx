@@ -40,8 +40,10 @@ export function AssignModal<TOptions>({
   onAssignmentNameChange,
   onAssign,
   confirmLabel = 'Assign',
+  eyebrow = 'Assign',
   confirmDisabled = false,
   confirmDisabledReason,
+  confirmTourAttrs,
   zIndex,
 }: AssignModalProps<TOptions>): React.ReactElement | null {
   const [submitting, setSubmitting] = useState(false);
@@ -73,7 +75,7 @@ export function AssignModal<TOptions>({
     <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0">
       <div className="min-w-0">
         <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest">
-          Assign
+          {eyebrow}
         </p>
         <h3
           id={MODAL_LABEL_ID}
@@ -108,6 +110,7 @@ export function AssignModal<TOptions>({
         type="button"
         onClick={() => void handleAssign()}
         disabled={confirmButtonDisabled}
+        {...confirmTourAttrs}
         title={
           confirmDisabled && confirmDisabledReason
             ? confirmDisabledReason
@@ -204,6 +207,7 @@ const ModeCard: React.FC<ModeCardProps> = ({ mode, selected, onSelect }) => {
       onClick={onSelect}
       disabled={mode.disabled}
       aria-pressed={selected}
+      {...mode.tourAttrs}
       className={`w-full text-left p-3 rounded-xl border-2 transition-all flex items-start gap-3 group ${
         selected
           ? 'border-brand-blue-primary bg-brand-blue-lighter/30'

@@ -31,6 +31,7 @@ import {
 } from '@/utils/studentTargetRef';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import { FlashcardAssignModal } from './FlashcardAssignModal';
+import { useFlashcardPlcSharing } from './useFlashcardPlcSharing';
 import {
   rosterHasSsoClass,
   type FlashcardAssignSubmission,
@@ -103,7 +104,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const config = widget.config as FlashcardsConfig;
-  const { user, ensureGoogleScope } = useAuth();
+  const { user, ensureGoogleScope, canAccessFeature } = useAuth();
   const claudeReview = useClaudeReview('flashcard_sets');
   const { addToast, updateWidget, rosters, updateRoster } = useDashboard();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
@@ -123,7 +124,13 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     deleteAssignment,
     publishScores,
     unpublishScores,
+    setPlcShare,
   } = useFlashcardAssignments(inShare ? undefined : user?.uid);
+  const plcSharing = useFlashcardPlcSharing({
+    enabled: !inShare && canAccessFeature('plc-flashcards'),
+    addToast,
+    setPlcShare,
+  });
   const folders = useFolders(inShare ? undefined : user?.uid, 'flashcards');
   const [editingSet, setEditingSet] = useState<FlashcardSet | null>(null);
   const handleEditSet = (set: FlashcardSet) => {
@@ -425,6 +432,20 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       }
     );
     if (!confirmed) return;
+    if (
+      assignment.plcShare &&
+      !(await plcSharing.stopSharingResults(assignment)) &&
+      !(await showConfirm(
+        'The results shared with your PLC could not be removed. Delete the assignment anyway?',
+        {
+          title: 'Delete assignment',
+          variant: 'danger',
+          confirmLabel: 'Delete',
+        }
+      ))
+    ) {
+      return;
+    }
     await runAssignmentAction(
       () => deleteAssignment(assignment.id),
       `“${assignment.setTitle}” deleted.`,
@@ -542,6 +563,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onBack={showLibrary}
                 onPublishScores={publishScores}
                 onUnpublishScores={unpublishScores}
+                syncPlcShare={plcSharing.enabled}
               />
             ) : view === 'present' && presentSet ? (
               inShare ? (
@@ -611,6 +633,17 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 }
                 onError={(message) => addToast(message, 'error')}
                 onAssignmentDelete={(a) => void handleAssignmentDelete(a)}
+                onShareWithPlc={
+                  plcSharing.enabled ? plcSharing.shareSet : undefined
+                }
+                onAssignmentShareWithPlc={
+                  plcSharing.enabled ? plcSharing.shareResults : undefined
+                }
+                onAssignmentStopSharingWithPlc={
+                  plcSharing.enabled
+                    ? (a) => void plcSharing.stopSharingResults(a)
+                    : undefined
+                }
               />
             )}
           </div>
@@ -651,6 +684,8 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
           }}
         />
       )}
+
+      {plcSharing.modal}
 
       {assigningSet && (
         <FlashcardAssignModal

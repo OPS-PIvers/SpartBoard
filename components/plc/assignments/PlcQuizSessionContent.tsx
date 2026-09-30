@@ -319,7 +319,7 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
         setAssignmentExportedResponseIds(assignment.id, ids)
       }
       studentResultsActions={{
-        publish: async (keys, visibility, expiresAt) => {
+        publish: async (keys, visibility, expiresAt, protection) => {
           // Bank-draw assignments grade against their frozen Drive copy.
           const answerKey =
             assignment.resolvedDriveFileId &&
@@ -331,7 +331,8 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
             answerKey,
             keys,
             visibility,
-            expiresAt
+            expiresAt,
+            protection
           );
         },
         hide: (keys) => hideResultsForStudents(assignment.id, keys),

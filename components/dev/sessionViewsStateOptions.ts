@@ -21,6 +21,10 @@ import {
   type MediaGradingStateKey,
 } from './MediaGradingDevView';
 import {
+  STUDENT_QUIZ_STATES,
+  type StudentQuizStateKey,
+} from './StudentQuizDevView';
+import {
   RESULTS_PLAYBACK_STATES,
   type ResultsPlaybackStateKey,
 } from './ResultsPlaybackDevView';
@@ -35,22 +39,26 @@ export type ViewKey =
   | 'recording-controls'
   | 'quiz-editor'
   | 'media-grading'
-  | 'results-playback';
+  | 'results-playback'
+  | 'quiz-student';
 
 export type StateKey =
   | 'waiting'
   | 'live'
   | 'reviewing'
   | 'self-paced'
+  | 'timed'
   | 'paused'
   | 'ended'
   | 'populated'
   | 'empty'
+  | 'review-game'
   | AudioCaptureStateKey
   | RecordingControlStateKey
   | QuizEditorStateKey
   | MediaGradingStateKey
-  | ResultsPlaybackStateKey;
+  | ResultsPlaybackStateKey
+  | StudentQuizStateKey;
 
 export const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'quiz-monitor', label: 'Quiz Monitor' },
@@ -63,6 +71,7 @@ export const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'quiz-editor', label: 'Quiz editor' },
   { key: 'media-grading', label: 'Media grading' },
   { key: 'results-playback', label: 'Results playback' },
+  { key: 'quiz-student', label: 'Quiz student' },
 ];
 
 export interface StateOption {
@@ -89,10 +98,12 @@ const SESSION_STATE_LABELS: Record<string, string> = {
   live: 'Live',
   reviewing: 'Reviewing (present)',
   'self-paced': 'Self-paced (present)',
+  timed: 'Timed (monitor)',
   paused: 'Paused',
   ended: 'Ended',
   populated: 'Populated (results)',
   empty: 'Empty (results)',
+  'review-game': 'Review game (results)',
 };
 
 export const STATES: StateOption[] = [
@@ -130,5 +141,10 @@ export const STATES: StateOption[] = [
     'results-playback',
     RESULTS_PLAYBACK_STATES as readonly StateKey[],
     (key) => `Playback: ${key}`
+  ),
+  ...qualify(
+    'quiz-student',
+    STUDENT_QUIZ_STATES as readonly StateKey[],
+    (key) => `Student: ${key.slice('sq-'.length)}`
   ),
 ];

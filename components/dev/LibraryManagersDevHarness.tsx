@@ -153,7 +153,11 @@ const FLASHCARD_SETS: FlashcardSet[] = range((i) => ({
   title: `Vocabulary set ${i + 1}`,
   termLanguage: 'en',
   definitionLanguage: 'en',
-  cards: [],
+  cards: range((c) => ({
+    id: `c-${c}`,
+    term: `t${c}`,
+    definition: `d${c}`,
+  })).slice(0, 8 + (i % 17)),
   createdAt: NOW - i * 3600_000,
   updatedAt: NOW - i * 3600_000,
 }));
@@ -188,16 +192,18 @@ export const LIBRARY_HARNESS_VIEWS = [
   'mini-app',
   'flashcards',
   'activity-wall',
+  'review',
 ] as const;
 type HarnessView = (typeof LIBRARY_HARNESS_VIEWS)[number];
 
-const QuizView: React.FC = () => {
+const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
   const [tab, setTab] = useState<QuizManagerTab>('library');
   const [quizzes, setQuizzes] = useState(QUIZZES);
   const reorderQuizzes = (ids: string[]): void =>
     setQuizzes((prev) => prev.map((q) => ({ ...q, order: ids.indexOf(q.id) })));
   return (
     <QuizManager
+      variant={variant}
       userId="mock-user-id"
       quizzes={quizzes}
       onReorderQuizzes={reorderQuizzes}
@@ -332,6 +338,9 @@ const FlashcardsView: React.FC = () => {
       onAssignmentEnd={noop}
       onAssignmentReopen={noop}
       onAssignmentDelete={noop}
+      onShareWithPlc={noop}
+      onAssignmentShareWithPlc={noop}
+      onAssignmentStopSharingWithPlc={noop}
     />
   );
 };
@@ -354,6 +363,8 @@ const ActivityWallView: React.FC = () => (
   />
 );
 
+const ReviewView: React.FC = () => <QuizView variant="review" />;
+
 const VIEW_COMPONENTS: Record<HarnessView, React.FC> = {
   quiz: QuizView,
   'video-activity': VideoActivityView,
@@ -361,6 +372,7 @@ const VIEW_COMPONENTS: Record<HarnessView, React.FC> = {
   'mini-app': MiniAppView,
   flashcards: FlashcardsView,
   'activity-wall': ActivityWallView,
+  review: ReviewView,
 };
 
 const readView = (): HarnessView => {

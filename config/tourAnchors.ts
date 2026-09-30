@@ -469,6 +469,50 @@ export const TOUR_ANCHORS = {
     label: 'Select mode toggle in the Quiz library',
     perWidget: true,
   },
+  'review-start.mode-paced': {
+    label: 'Teacher-paced card in the Start review dialog',
+    panel: true,
+  },
+  'review-start.mode-game': {
+    label: 'Self-paced game card in the Start review dialog',
+    panel: true,
+  },
+  'review-start.game-length': {
+    label: 'Game length row in the Start review dialog',
+    panel: true,
+  },
+  'review-start.auto-advance': {
+    label: 'Advance automatically toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.rank-limit': {
+    label: 'Leaderboard on board picker in the Start review dialog',
+    panel: true,
+  },
+  'review-start.confirm': {
+    label: 'Start button in the Start review dialog',
+    panel: true,
+  },
+  'review-game.board': {
+    label: 'Game board in the Review monitor',
+    perWidget: true,
+  },
+  'review-game.start': {
+    label: 'Start game button in the Review monitor',
+    perWidget: true,
+  },
+  'review-game.pause': {
+    label: 'Pause or resume game button in the Review monitor',
+    perWidget: true,
+  },
+  'review-game.add-minute': {
+    label: 'Add a minute button in the Review monitor',
+    perWidget: true,
+  },
+  'review-game.names': {
+    label: 'Names on or off button in the Review monitor',
+    perWidget: true,
+  },
   'quiz-settings.widget-label': {
     label: 'Widget label input in Quiz settings',
     perWidget: true,

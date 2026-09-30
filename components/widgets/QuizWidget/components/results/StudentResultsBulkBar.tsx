@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Copy,
-  Download,
   Eye,
   EyeOff,
   Loader2,
@@ -10,7 +9,12 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import type { QuizResponse, QuizScoreVisibility, Toast } from '@/types';
+import type {
+  QuizResponse,
+  QuizScoreVisibility,
+  ResultsProtection,
+  Toast,
+} from '@/types';
 import { getResponseDocKey } from '@/hooks/useQuizSession';
 import { logError } from '@/utils/logError';
 import { ShowResultsDialog } from './ShowResultsDialog';
@@ -29,8 +33,6 @@ interface StudentResultsBulkBarProps {
   addToast: (message: string, type?: Toast['type']) => void;
   /** Opens the results print with these students ticked; absent hides the action. */
   onPrint?: (responseKeys: string[]) => void;
-  /** Downloads these students' results; absent hides the action. */
-  onExport?: (responseKeys: string[]) => void;
   /** Reopens the quiz for these students; resolves true once done. */
   onReopen?: (responseKeys: string[]) => Promise<boolean>;
   /** Why Reopen is unavailable right now, shown on the disabled button. */
@@ -47,7 +49,6 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
   resolveName,
   addToast,
   onPrint,
-  onExport,
   onReopen,
   reopenBlockedReason = null,
 }) => {
@@ -87,13 +88,15 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
 
   const handleShow = async (
     visibility: Exclude<QuizScoreVisibility, 'none'>,
-    expiresAt: number | null
+    expiresAt: number | null,
+    protection: ResultsProtection | undefined
   ) => {
     try {
       const { responsesUpdated, skipped } = await actions.publish(
         completedKeys,
         visibility,
-        expiresAt
+        expiresAt,
+        protection
       );
       const notDone = selected.length - completedKeys.length + skipped;
       addToast(
@@ -218,17 +221,6 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
         >
           <Printer style={iconStyle} />
           Print selected
-        </button>
-      )}
-      {onExport && (
-        <button
-          type="button"
-          onClick={() => onExport(keys)}
-          className={buttonCls}
-          style={buttonStyle}
-        >
-          <Download style={iconStyle} />
-          Export
         </button>
       )}
       {onReopen && (

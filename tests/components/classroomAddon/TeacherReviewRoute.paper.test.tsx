@@ -28,6 +28,7 @@ vi.mock('@/utils/quizJoinCodes', () => ({
 }));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
+    canAccessFeature: () => false,
     user: {
       uid: 'teacher-1',
       email: 't@example.com',

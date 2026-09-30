@@ -22,6 +22,40 @@ describe('QuizBehaviorSettingsPanel', () => {
     expect(screen.getByText('Assessment Mode')).toBeInTheDocument();
   });
 
+  it('variant quiz hides the mode picker, board reveal and gamification (D8/D9)', () => {
+    render(
+      <QuizBehaviorSettingsPanel
+        variant="quiz"
+        value={{ ...defaultValue, sessionMode: 'teacher' }}
+        onChange={vi.fn()}
+      />
+    );
+    expect(screen.queryByText('Session Mode')).not.toBeInTheDocument();
+    expect(screen.queryByText('Gamification')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /answer feedback/i }));
+    expect(
+      screen.queryByText('Show correct answer on board')
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: /question randomization/i })
+    );
+    expect(
+      screen.getByRole('switch', { name: 'Shuffle Questions' })
+    ).not.toBeDisabled();
+  });
+
+  it('variant live hides only the mode picker', () => {
+    render(
+      <QuizBehaviorSettingsPanel
+        variant="live"
+        value={defaultValue}
+        onChange={vi.fn()}
+      />
+    );
+    expect(screen.queryByText('Session Mode')).not.toBeInTheDocument();
+    expect(screen.getByText('Gamification')).toBeInTheDocument();
+  });
+
   it('renders the toggle group (Focus mode is visible)', () => {
     render(
       <QuizBehaviorSettingsPanel value={defaultValue} onChange={vi.fn()} />

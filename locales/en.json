@@ -91,6 +91,7 @@
       "boards": "Boards & Collections",
       "backgrounds": "Backgrounds",
       "assignments": "Assignments",
+      "gradebook": "Gradebook",
       "classes": "My Classes",
       "plcs": "My PLCs",
       "widgets": "Widgets",
@@ -1386,6 +1387,12 @@
       "widgetLabel": "Widget label",
       "widgetLabelPlaceholder": "Quiz",
       "assignmentArchive": "View assignment archive",
+      "managerView": "Reset to manager view"
+    },
+    "review": {
+      "management": "Review management",
+      "widgetLabel": "Widget label",
+      "assignmentArchive": "View archive",
       "managerView": "Reset to manager view"
     },
     "breathing": {
@@ -3201,6 +3208,13 @@
     "off": "Students see their score when you publish results.",
     "unavailable": "Not available with free-response questions."
   },
+  "quizTimeLimit": {
+    "label": "Time limit",
+    "minutes": "Minutes",
+    "unit": "min",
+    "left": "Time left {{time}}",
+    "submitted": "Time's up. Your answers were submitted."
+  },
   "quizReadAloud": {
     "label": "Read aloud",
     "help": "Signed-in students only.",
@@ -3949,6 +3963,7 @@
     "question_sorting": "Sorting",
     "questionText": "Question",
     "questionTextPlaceholder": "What do you want to ask?",
+    "learningTargets": "Learning targets",
     "answerChoices": "Answer choices",
     "markCorrect": "Mark choice {{n}} as correct",
     "choiceN": "Choice {{n}}",

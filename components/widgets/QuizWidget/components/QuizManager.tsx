@@ -77,6 +77,7 @@ import {
   QuizBehaviorSettings,
   Plc,
   QuestionBankMetadata,
+  QuizWidgetKind,
 } from '@/types';
 import type { BankSource } from '@/hooks/useBankSources';
 import { QuizBanksTab } from './QuizBanksTab';
@@ -120,6 +121,8 @@ import {
   AssignTargetingSection,
   QuizBehaviorSettingsPanel,
   CollapsibleSection,
+  DueDateModeSwitch,
+  PerClassDueDateRows,
   EMPTY_ASSIGN_TARGETING_VALUE,
   toOverrideEditorQuestions,
   type AssignTargetingValue,
@@ -132,6 +135,7 @@ import {
   type LibraryBadgeTone,
   type LibrarySelectionApi,
 } from '@/components/common/library';
+import { earliestDueAt } from '@/utils/perClassDueDates';
 import { useRubrics } from '@/hooks/useRubrics';
 import {
   AssignDestinationModal,
@@ -153,7 +157,9 @@ import { useDialog } from '@/context/useDialog';
 import {
   getAssignBehaviorSeed,
   formatBehaviorSummary,
+  getQuizAssignPrefill,
 } from '@/utils/quizBehavior';
+import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
 import { needsKeyMessage } from '@/utils/quizNeedsKey';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { countRecordingSlots } from '@/utils/quizRecordingModes';
@@ -267,6 +273,10 @@ export type QuizManagerTab = 'library' | 'banks' | 'active' | 'archive';
 interface QuizManagerProps {
   /** Teacher's Firebase UID — used to scope the folders subcollection. */
   userId?: string;
+  /** Which widget hosts the library; `review` swaps Assign for Start. */
+  variant?: QuizWidgetKind;
+  /** Review's launch; while absent, Start stays disabled. */
+  onStartReview?: (quiz: QuizMetadata) => void;
   /** This widget instance's id, for live-tour anchor scoping. */
   widgetId?: string;
   /** Per-period start and windows in the assign modal; absent while the flag is off. */
@@ -325,7 +335,9 @@ interface QuizManagerProps {
      * `undefined` means the class-wide path never needed it, so the handler
      * still fetches once itself.
      */
-    preloadedQuizData?: QuizData | null
+    preloadedQuizData?: QuizData | null,
+    /** Per-class due dates by roster id; `dueAt` is then the earliest. */
+    dueAtByRosterId?: Record<string, number>
   ) => void;
   /**
    * Loads full quiz content (questions) for the assign modal's B2 override
@@ -698,9 +710,31 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   activeAssignmentLockedCount = 0,
   onReorderQuizzes,
   onError,
+  variant = 'quiz',
+  onStartReview,
 }) => {
-  const isViewOnly = assignmentMode === 'view-only';
-  const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
+  const isReview = variant === 'review';
+  const { canAccessFeature } = useAuth();
+  // D8/D9: with the split on, Quiz assigns are assessment only.
+  const assessmentOnly = !isReview && canAccessFeature('quiz-review-split');
+  const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
+    userId,
+    assessmentOnly
+  );
+  const seedBehavior = useCallback(
+    (quiz: QuizMetadata) =>
+      assessmentOnly
+        ? getQuizAssignPrefill(lastAssignSettings)
+        : getAssignBehaviorSeed(quiz),
+    [assessmentOnly, lastAssignSettings]
+  );
+  const isViewOnly = !isReview && assignmentMode === 'view-only';
+  const primaryActionLabel = isReview
+    ? 'Start'
+    : isViewOnly
+      ? 'Share'
+      : 'Assign';
+  const shellLabel = isReview ? 'Review' : 'Quiz';
   const noop = () => {
     /* action not wired */
   };
@@ -767,15 +801,20 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // break it — only Assign is gated (D6).
   const assignDisabledReason = useCallback(
     (quiz: QuizMetadata): string | undefined => {
+      if (isReview) return onStartReview ? undefined : 'Coming soon';
       if (isViewOnly) return undefined;
       const count = quizNeedsKeyCount(quiz);
       return count > 0 ? needsKeyAssignReason(count) : undefined;
     },
-    [isViewOnly]
+    [isViewOnly, isReview, onStartReview]
   );
 
   const openShareOrAssign = useCallback(
     (quiz: QuizMetadata) => {
+      if (isReview) {
+        onStartReview?.(quiz);
+        return;
+      }
       // Belt and braces: the row's Assign button is already disabled for a
       // quiz with unanswered questions, but a keyboard or programmatic path
       // must not create an assignment that can't be scored.
@@ -792,7 +831,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         }
       });
     },
-    [isViewOnly, claudeReview]
+    [isViewOnly, claudeReview, isReview, onStartReview]
   );
 
   // Route a chooser pick to the right flow. SpartBoard/Classroom both continue
@@ -808,10 +847,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         return;
       }
       setAssignDestination(destination);
-      setAssignBehavior(getAssignBehaviorSeed(quiz));
+      setAssignBehavior(seedBehavior(quiz));
       setAssignTarget(quiz);
     },
-    [chooserTarget]
+    [chooserTarget, seedBehavior]
   );
 
   const handleConfirmViewOnlyShare = useCallback(async () => {
@@ -840,6 +879,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   );
   // Due date for the current assign modal (epoch ms or null = no due date).
   const [assignDueAt, setAssignDueAt] = useState<number | null>(null);
+  // null = one shared due date; otherwise epoch ms by roster id.
+  const [assignDueByRoster, setAssignDueByRoster] = useState<Record<
+    string,
+    number | null
+  > | null>(null);
   // Per-assignment behavior overrides, seeded from the quiz's saved settings
   // when the modal opens. Edits here never write back to the quiz doc.
   const [assignBehavior, setAssignBehavior] =
@@ -874,7 +918,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     [assignQuizData]
   );
   const { rubrics: assignRubrics } = useRubrics(userId);
-  const { canAccessFeature } = useAuth();
   const handRaiseMode = useQuizHandRaiseMode();
   const translationAllowed = canAccessFeature(QUIZ_TRANSLATION_FEATURE);
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
@@ -893,6 +936,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     setPrevAssignTarget(assignTarget);
     if (assignTarget) {
       setAssignDueAt(null);
+      setAssignDueByRoster(null);
       setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
       setAssignQuizData(null);
       loadedAssignQuizDataForRef.current = null;
@@ -1487,12 +1531,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         icon: BarChart3,
         onClick: () => void (onArchiveResults ?? noop)(a),
       });
-      secondaries.push({
-        id: 'settings',
-        label: 'Settings',
-        icon: SettingsIcon,
-        onClick: () => (onArchiveEditSettings ?? noop)(a),
-      });
+      // D32: Review rows have no settings dialog.
+      if (onArchiveEditSettings) {
+        secondaries.push({
+          id: 'settings',
+          label: 'Settings',
+          icon: SettingsIcon,
+          onClick: () => onArchiveEditSettings(a),
+        });
+      }
       secondaries.push({
         id: 'share',
         label: 'Share',
@@ -1609,12 +1656,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       icon: Monitor,
       onClick: () => void (onArchiveMonitor ?? noop)(a),
     });
-    secondaries.push({
-      id: 'settings',
-      label: 'Settings',
-      icon: SettingsIcon,
-      onClick: () => (onArchiveEditSettings ?? noop)(a),
-    });
+    if (onArchiveEditSettings) {
+      secondaries.push({
+        id: 'settings',
+        label: 'Settings',
+        icon: SettingsIcon,
+        onClick: () => onArchiveEditSettings(a),
+      });
+    }
     secondaries.push({
       id: 'share',
       label: 'Share',
@@ -1758,7 +1807,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Assign confirm handler ───────────────────────────────────────────────
   const handleAssignConfirm = (): void => {
     if (!assignTarget) return;
-    const behavior = assignBehavior ?? getAssignBehaviorSeed(assignTarget);
+    const behavior = assignBehavior ?? seedBehavior(assignTarget);
     // M17 C3 F5 — per-student overrides are only honored in self-paced mode
     // (a teacher-paced `currentQuestionIndex` is shared class-wide and can't
     // diverge per student). Block the save rather than silently assigning
@@ -1811,18 +1860,24 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         ? { plcPoolSyncGroupId: assignPoolGroup.syncGroupId }
         : {}),
     };
+    const perClassDue =
+      assignDueByRoster !== null && validRosterIds.length > 1
+        ? perClassDueMap(assignDueByRoster, validRosterIds)
+        : undefined;
     onAssign(
       assignTarget,
       behavior,
       plcOptions,
       validRosterIds,
-      assignDueAt,
+      perClassDue ? earliestDueAt(perClassDue) : assignDueAt,
       assignTargeting,
       assignDestination,
-      assignQuizData
+      assignQuizData,
+      perClassDue
     );
     setAssignTarget(null);
     setAssignDueAt(null);
+    setAssignDueByRoster(null);
     setAssignBehavior(null);
     setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
     setTargetingPacingError(null);
@@ -2179,8 +2234,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   if (loading && managerTab === 'library') {
     return (
       <LibraryShell
-        widgetLabel="Quiz"
-        widgetType="quiz"
+        widgetLabel={shellLabel}
+        widgetType={variant}
         tab={managerTab}
         onTabChange={(t) => onTabChange?.(t)}
         counts={tabCounts}
@@ -2241,8 +2296,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Render ───────────────────────────────────────────────────────────────
   const shell = (
     <LibraryShell
-      widgetLabel="Quiz"
-      widgetType="quiz"
+      widgetLabel={shellLabel}
+      widgetType={variant}
       tab={managerTab}
       onTabChange={(t) => onTabChange?.(t)}
       counts={tabCounts}
@@ -2253,6 +2308,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     >
       {managerTab === 'library' && (
         <LibraryTabContent
+          tourWidgetType={variant}
           error={error}
           orderedItems={reorder.orderedItems}
           onAssignClick={(q) => openShareOrAssign(q)}
@@ -2300,6 +2356,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           emptyTitle={
             isViewOnly ? 'No active shares' : 'No quizzes in progress'
           }
+          tourWidgetType={isReview ? 'review' : 'quiz'}
           emptySub={
             isViewOnly
               ? 'Share a quiz from the Library tab.'
@@ -2318,6 +2375,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           emptyTitle={
             isViewOnly ? 'No archived shares' : 'No archived assignments'
           }
+          tourWidgetType={isReview ? 'review' : 'quiz'}
           emptySub={
             isViewOnly
               ? 'Ended share links will appear here.'
@@ -2362,6 +2420,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onClose={() => {
             setAssignTarget(null);
             setAssignDueAt(null);
+            setAssignDueByRoster(null);
             setAssignBehavior(null);
             setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
             setTargetingPacingError(null);
@@ -2394,7 +2453,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   icon={ClipboardCheck}
                   summary={
                     <span data-testid="quiz-behavior-summary">
-                      {formatBehaviorSummary(assignBehavior)}
+                      {formatBehaviorSummary(assignBehavior, {
+                        omitMode: assessmentOnly,
+                      })}
                     </span>
                   }
                 >
@@ -2402,6 +2463,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                     Applies to this assignment only.
                   </p>
                   <QuizBehaviorSettingsPanel
+                    variant={assessmentOnly ? 'quiz' : 'full'}
                     value={assignBehavior}
                     onChange={(next) => {
                       setTargetingPacingError(null);
@@ -2468,12 +2530,25 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   <AssignDueDateField
                     dueAt={assignDueAt}
                     onDueAtChange={setAssignDueAt}
+                    perClassRosters={
+                      canAccessFeature('quiz-per-class-due-dates')
+                        ? rosters.filter(
+                            (r) =>
+                              !r.loadError &&
+                              assignOptions.picker.rosterIds.includes(r.id)
+                          )
+                        : []
+                    }
+                    dueByRoster={assignDueByRoster}
+                    onDueByRosterChange={setAssignDueByRoster}
                   />
                 }
                 scheduleExtraSummary={
-                  assignDueAt == null
-                    ? null
-                    : `Due ${new Date(assignDueAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+                  assignDueByRoster !== null
+                    ? 'Due by class'
+                    : assignDueAt == null
+                      ? null
+                      : `Due ${new Date(assignDueAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
                 }
               />
               {targetingPacingError && (
@@ -2604,6 +2679,7 @@ const LibraryTabContent: React.FC<{
    * a secondary "Full preview" action.
    */
   onOpenFullPreview: (quiz: QuizMetadata) => void;
+  tourWidgetType: QuizWidgetKind;
 }> = ({
   error,
   orderedItems,
@@ -2630,6 +2706,7 @@ const LibraryTabContent: React.FC<{
   previewQuiz,
   onPreviewQuiz,
   onOpenFullPreview,
+  tourWidgetType,
 }) => {
   const emptyState =
     totalCount === 0 ? (
@@ -2732,7 +2809,7 @@ const LibraryTabContent: React.FC<{
               id={quiz.id}
               title={quiz.title}
               tourIndex={index}
-              tourWidgetType="quiz"
+              tourWidgetType={tourWidgetType}
               subtitle={renderSubtitle(quiz)}
               primaryAction={{
                 label: primaryActionLabel,
@@ -2893,6 +2970,7 @@ const AssignmentsList: React.FC<{
   >;
   emptyTitle: string;
   emptySub: string;
+  tourWidgetType: 'quiz' | 'review';
 }> = ({
   assignments,
   loading,
@@ -2902,6 +2980,7 @@ const AssignmentsList: React.FC<{
   skippedTargetsByAssignmentId,
   emptyTitle,
   emptySub,
+  tourWidgetType,
 }) => {
   if (loading) {
     return (
@@ -2936,6 +3015,7 @@ const AssignmentsList: React.FC<{
           syncedGroups={syncedGroups}
           skippedTargets={skippedTargetsByAssignmentId?.[a.id]}
           tourIndex={index}
+          tourWidgetType={tourWidgetType}
         />
       ))}
     </div>
@@ -2969,6 +3049,7 @@ interface QuizArchiveRowProps {
   /** M17 skipped-ref row marker (spec §5 B3) — see `skippedTargetsByAssignmentId`. */
   skippedTargets?: { ref: StudentTargetRef; reason: string }[];
   tourIndex?: number;
+  tourWidgetType: 'quiz' | 'review';
 }
 
 /**
@@ -2984,6 +3065,7 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   syncedGroups,
   skippedTargets,
   tourIndex,
+  tourWidgetType,
 }) => {
   const assignmentIsViewOnly = a.mode === 'view-only';
   // Skipped-ref durability (canonical rule) — prefer the in-memory names
@@ -3166,7 +3248,7 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
       }
       secondaryActions={secondaries}
       tourIndex={tourIndex}
-      tourWidgetType="quiz"
+      tourWidgetType={tourWidgetType}
     />
   );
 };
@@ -3176,10 +3258,53 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
 /**
  * AssignDueDateField — due-date input for the standalone Quiz assign modal.
  */
+/** Set dates for the given rosters only. */
+function perClassDueMap(
+  map: Record<string, number | null>,
+  rosterIds: readonly string[]
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const id of rosterIds) {
+    const due = map[id];
+    if (typeof due === 'number') out[id] = due;
+  }
+  return out;
+}
+
 const AssignDueDateField: React.FC<{
   dueAt: number | null;
   onDueAtChange: (dueAt: number | null) => void;
-}> = ({ dueAt, onDueAtChange }) => {
+  /** Selected classes when per-class due dates are available; empty hides the switch. */
+  perClassRosters: readonly ClassRoster[];
+  dueByRoster: Record<string, number | null> | null;
+  onDueByRosterChange: (next: Record<string, number | null> | null) => void;
+}> = ({
+  dueAt,
+  onDueAtChange,
+  perClassRosters,
+  dueByRoster,
+  onDueByRosterChange,
+}) => {
+  const showSwitch = perClassRosters.length > 1;
+  const perClass = showSwitch && dueByRoster !== null;
+  const setPerClass = (next: boolean) => {
+    if (next === perClass) return;
+    if (next) {
+      onDueByRosterChange(
+        Object.fromEntries(perClassRosters.map((r) => [r.id, dueAt]))
+      );
+    } else {
+      onDueAtChange(
+        earliestDueAt(
+          perClassDueMap(
+            dueByRoster ?? {},
+            perClassRosters.map((r) => r.id)
+          )
+        )
+      );
+      onDueByRosterChange(null);
+    }
+  };
   // Use local-time helpers so the picker date matches the school's timezone (not UTC).
   const dateInputValue = splitDueAtToInputs(dueAt, true).date;
 
@@ -3194,20 +3319,33 @@ const AssignDueDateField: React.FC<{
 
   return (
     <div>
-      <label
-        htmlFor="assign-due-date-input"
-        className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1"
-      >
-        Due Date <span className="font-normal">(optional)</span>
-      </label>
-      <input
-        id="assign-due-date-input"
-        type="date"
-        data-testid="assign-due-date"
-        value={dateInputValue}
-        onChange={handleDateChange}
-        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-      />
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <label
+          htmlFor="assign-due-date-input"
+          className="block text-xxs font-bold text-slate-400 uppercase tracking-widest"
+        >
+          Due Date <span className="font-normal">(optional)</span>
+        </label>
+        {showSwitch && (
+          <DueDateModeSwitch perClass={perClass} onChange={setPerClass} />
+        )}
+      </div>
+      {perClass ? (
+        <PerClassDueDateRows
+          rosters={perClassRosters}
+          value={dueByRoster ?? {}}
+          onChange={onDueByRosterChange}
+        />
+      ) : (
+        <input
+          id="assign-due-date-input"
+          type="date"
+          data-testid="assign-due-date"
+          value={dateInputValue}
+          onChange={handleDateChange}
+          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+        />
+      )}
     </div>
   );
 };

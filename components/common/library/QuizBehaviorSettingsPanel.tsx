@@ -27,6 +27,17 @@ import { ToggleRow } from './AssignmentSettingsToggleGroup';
 import type { AssignModeOption } from './types';
 import { SESSION_MODES } from './sessionModes';
 import { QUIZ_STUDENT_MODE_LABEL } from '@/utils/quizBehavior';
+import { QUIZ_TIME_LIMIT_FEATURE } from '@/utils/quizTimeLimit';
+import { QuizTimeLimitRow } from './QuizTimeLimitRow';
+
+/**
+ * Which options the panel shows:
+ * - `full`: mode picker and gamification (assign and editor with the split off).
+ * - `live`: no mode picker, gamification kept (a launched assignment's mode is fixed).
+ * - `quiz`: assessment only; no mode picker, board reveal or gamification (split on, D8/D9).
+ * - `review`: reserved for the Review launch; behaves as `live` until that lands.
+ */
+export type QuizBehaviorPanelVariant = 'full' | 'live' | 'quiz' | 'review';
 
 export interface QuizBehaviorSettingsPanelProps {
   value: QuizBehaviorSettings;
@@ -36,6 +47,8 @@ export interface QuizBehaviorSettingsPanelProps {
    * Default false.
    */
   modeLocked?: boolean;
+  /** Which options show; defaults to `full`. */
+  variant?: QuizBehaviorPanelVariant;
   /** Shows the "Read aloud" toggle; the host resolves the 'quiz-read-aloud' gate. */
   readAloudAvailable?: boolean;
   /** Admin raise-hand gate; the checkbox is hidden unless this is 'teacher-choice'. */
@@ -50,17 +63,23 @@ export const QuizBehaviorSettingsPanel: React.FC<
   value,
   onChange,
   modeLocked = false,
+  variant = 'full',
   readAloudAvailable = false,
   handRaiseMode = DEFAULT_QUIZ_HAND_RAISE_MODE,
   hasManualGrading = false,
 }) => {
   const { t } = useTranslation();
+  const assessmentOnly = variant === 'quiz';
+  const hideModeSelector = variant !== 'full';
   // Read via context so a provider-less host hides the row instead of throwing.
   const authContext = useContext(AuthContext);
   const tabAwayTimerOn =
     authContext?.canAccessFeature?.('tab-away-timer') === true;
   const scoreOnSubmitOn =
     authContext?.canAccessFeature?.('quiz-score-on-submit') === true;
+  const timeLimitOn =
+    authContext?.canAccessFeature?.(QUIZ_TIME_LIMIT_FEATURE) === true &&
+    (assessmentOnly || value.sessionMode === 'student');
   const scoreOnSubmit =
     !hasManualGrading && value.sessionOptions.showScoreOnSubmit === true;
   const modes: AssignModeOption[] = SESSION_MODES.map((m) => ({
@@ -77,59 +96,62 @@ export const QuizBehaviorSettingsPanel: React.FC<
   return (
     <>
       {/* Mode selector */}
-      <div className="space-y-3">
-        <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest">
-          Session Mode
-        </p>
-        <div className="grid gap-2">
-          {modes.map((mode) => {
-            const Icon = mode.icon;
-            const selected = mode.id === value.sessionMode;
-            return (
-              <button
-                key={mode.id}
-                type="button"
-                onClick={() => handleModeChange(mode.id)}
-                disabled={mode.disabled}
-                aria-pressed={selected}
-                className={`w-full text-left p-3 rounded-xl border-2 transition-all flex items-start gap-3 group ${
-                  selected
-                    ? 'border-brand-blue-primary bg-brand-blue-lighter/30'
-                    : 'border-slate-200 hover:border-brand-blue-primary hover:bg-brand-blue-lighter/20'
-                } ${mode.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {Icon && (
-                  <div
-                    className={`p-2 rounded-lg transition-colors shrink-0 ${
-                      selected
-                        ? 'bg-brand-blue-primary text-white'
-                        : 'bg-slate-100 text-brand-blue-primary'
-                    }`}
-                  >
-                    <Icon size={18} />
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="font-black text-sm text-slate-800 leading-tight">
-                    {mode.label}
-                  </p>
-                  {mode.description && (
-                    <p className="text-xs text-slate-500 mt-0.5 leading-snug">
-                      {mode.description}
-                    </p>
+      {!hideModeSelector && (
+        <div className="space-y-3">
+          <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest">
+            Session Mode
+          </p>
+          <div className="grid gap-2">
+            {modes.map((mode) => {
+              const Icon = mode.icon;
+              const selected = mode.id === value.sessionMode;
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => handleModeChange(mode.id)}
+                  disabled={mode.disabled}
+                  aria-pressed={selected}
+                  className={`w-full text-left p-3 rounded-xl border-2 transition-all flex items-start gap-3 group ${
+                    selected
+                      ? 'border-brand-blue-primary bg-brand-blue-lighter/30'
+                      : 'border-slate-200 hover:border-brand-blue-primary hover:bg-brand-blue-lighter/20'
+                  } ${mode.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {Icon && (
+                    <div
+                      className={`p-2 rounded-lg transition-colors shrink-0 ${
+                        selected
+                          ? 'bg-brand-blue-primary text-white'
+                          : 'bg-slate-100 text-brand-blue-primary'
+                      }`}
+                    >
+                      <Icon size={18} />
+                    </div>
                   )}
-                </div>
-              </button>
-            );
-          })}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-black text-sm text-slate-800 leading-tight">
+                      {mode.label}
+                    </p>
+                    {mode.description && (
+                      <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                        {mode.description}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Toggle group: integrity / feedback / randomization + gamification */}
       <AssignmentSettingsToggleGroup
         modeLocked={modeLocked}
         showCopyPasteToggle
         showLearningTargetsToggle
+        hideCorrectOnBoard={assessmentOnly}
         feedbackLeadingSlot={
           scoreOnSubmitOn && (
             <ToggleRow
@@ -184,7 +206,25 @@ export const QuizBehaviorSettingsPanel: React.FC<
         }
         attemptLimit={value.attemptLimit}
         onAttemptLimitChange={(v) => onChange({ ...value, attemptLimit: v })}
-        shuffleQuestionsAvailable={value.sessionMode === 'student'}
+        afterAttemptLimitSlot={
+          timeLimitOn && (
+            <QuizTimeLimitRow
+              minutes={value.sessionOptions.timeLimitMinutes}
+              onChange={(next) =>
+                onChange({
+                  ...value,
+                  sessionOptions: {
+                    ...value.sessionOptions,
+                    timeLimitMinutes: next,
+                  },
+                })
+              }
+            />
+          )
+        }
+        shuffleQuestionsAvailable={
+          assessmentOnly || value.sessionMode === 'student'
+        }
         shuffleQuestionsHint={`${QUIZ_STUDENT_MODE_LABEL} only.`}
         afterTabWarningsSlot={
           (value.sessionOptions.tabWarningsEnabled ?? true) && (
@@ -252,67 +292,69 @@ export const QuizBehaviorSettingsPanel: React.FC<
                 hint={t('quizReadAloud.help', 'Signed-in students only.')}
               />
             )}
-            <CollapsibleSection label="Gamification">
-              <ToggleRow
-                compact
-                label="Speed Bonus Points"
-                checked={value.sessionOptions.speedBonusEnabled ?? false}
-                onChange={(v) =>
-                  onChange({
-                    ...value,
-                    sessionOptions: {
-                      ...value.sessionOptions,
-                      speedBonusEnabled: v,
-                    },
-                  })
-                }
-                hint="Up to 50% bonus for fast answers"
-              />
-              <ToggleRow
-                compact
-                label="Streak Bonuses"
-                checked={value.sessionOptions.streakBonusEnabled ?? false}
-                onChange={(v) =>
-                  onChange({
-                    ...value,
-                    sessionOptions: {
-                      ...value.sessionOptions,
-                      streakBonusEnabled: v,
-                    },
-                  })
-                }
-              />
-              <ToggleRow
-                compact
-                label="Podium Between Questions"
-                checked={
-                  value.sessionOptions.showPodiumBetweenQuestions ?? false
-                }
-                onChange={(v) =>
-                  onChange({
-                    ...value,
-                    sessionOptions: {
-                      ...value.sessionOptions,
-                      showPodiumBetweenQuestions: v,
-                    },
-                  })
-                }
-              />
-              <ToggleRow
-                compact
-                label="Sound Effects"
-                checked={value.sessionOptions.soundEffectsEnabled ?? false}
-                onChange={(v) =>
-                  onChange({
-                    ...value,
-                    sessionOptions: {
-                      ...value.sessionOptions,
-                      soundEffectsEnabled: v,
-                    },
-                  })
-                }
-              />
-            </CollapsibleSection>
+            {!assessmentOnly && (
+              <CollapsibleSection label="Gamification">
+                <ToggleRow
+                  compact
+                  label="Speed Bonus Points"
+                  checked={value.sessionOptions.speedBonusEnabled ?? false}
+                  onChange={(v) =>
+                    onChange({
+                      ...value,
+                      sessionOptions: {
+                        ...value.sessionOptions,
+                        speedBonusEnabled: v,
+                      },
+                    })
+                  }
+                  hint="Up to 50% bonus for fast answers"
+                />
+                <ToggleRow
+                  compact
+                  label="Streak Bonuses"
+                  checked={value.sessionOptions.streakBonusEnabled ?? false}
+                  onChange={(v) =>
+                    onChange({
+                      ...value,
+                      sessionOptions: {
+                        ...value.sessionOptions,
+                        streakBonusEnabled: v,
+                      },
+                    })
+                  }
+                />
+                <ToggleRow
+                  compact
+                  label="Podium Between Questions"
+                  checked={
+                    value.sessionOptions.showPodiumBetweenQuestions ?? false
+                  }
+                  onChange={(v) =>
+                    onChange({
+                      ...value,
+                      sessionOptions: {
+                        ...value.sessionOptions,
+                        showPodiumBetweenQuestions: v,
+                      },
+                    })
+                  }
+                />
+                <ToggleRow
+                  compact
+                  label="Sound Effects"
+                  checked={value.sessionOptions.soundEffectsEnabled ?? false}
+                  onChange={(v) =>
+                    onChange({
+                      ...value,
+                      sessionOptions: {
+                        ...value.sessionOptions,
+                        soundEffectsEnabled: v,
+                      },
+                    })
+                  }
+                />
+              </CollapsibleSection>
+            )}
           </>
         }
       />

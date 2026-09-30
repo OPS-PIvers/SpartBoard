@@ -21,7 +21,7 @@ import { handleRadioGroupKeyDown } from './radioGroupKeyNav';
 export const SegmentedControl: <T extends string>(props: {
   value: T;
   onChange: (v: T) => void;
-  options: { value: T; label: string }[];
+  options: { value: T; label: string; badge?: React.ReactNode }[];
   ariaLabel?: string;
   role?: 'tablist' | 'radiogroup';
 }) => React.ReactElement = ({
@@ -53,13 +53,14 @@ export const SegmentedControl: <T extends string>(props: {
             aria-selected={itemRole === 'tab' ? selected : undefined}
             aria-checked={itemRole === 'radio' ? selected : undefined}
             onClick={() => onChange(opt.value)}
-            className={`h-8 px-3 rounded-md text-xs font-semibold transition-all ${
+            className={`${opt.badge ? 'inline-flex items-center gap-1.5 ' : ''}h-8 px-3 rounded-md text-xs font-semibold transition-all ${
               selected
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-600 hover:text-slate-800'
             }`}
           >
             {opt.label}
+            {opt.badge}
           </button>
         );
       })}

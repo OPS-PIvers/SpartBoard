@@ -19,13 +19,18 @@ export interface ScoreOnSubmitKeyQuestion {
   recording?: true;
 }
 
+/** True when this question needs a teacher grade; Review skips these (plan D19). */
+export function questionNeedsManualGrading(
+  q: Pick<QuizQuestion, 'type' | 'recording'>
+): boolean {
+  return isFreeResponseType(q.type) || questionHasRecordingSlot(q);
+}
+
 /** True when any question needs a teacher grade, so scores can't show on submit. */
 export function quizNeedsManualGrading(
   questions: readonly Pick<QuizQuestion, 'type' | 'recording'>[]
 ): boolean {
-  return questions.some(
-    (q) => isFreeResponseType(q.type) || questionHasRecordingSlot(q)
-  );
+  return questions.some(questionNeedsManualGrading);
 }
 
 /** The answer key fields the server grader reads, first-wins on duplicate ids. */

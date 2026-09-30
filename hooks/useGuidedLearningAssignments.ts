@@ -36,7 +36,13 @@ import {
   type SharedSource,
   useSharedSubscription,
 } from './useSharedSubscription';
-import { dedupeStepsById, isAnswerCorrect } from './useGuidedLearningSession';
+import { dedupeStepsById } from './useGuidedLearningSession';
+import {
+  formatCanonicalAnswer,
+  gradeGuidedLearningResponseForPublish,
+} from '@/utils/studentResultsPublish';
+
+export { formatCanonicalAnswer };
 import {
   GL_CONTENT_COLLECTION,
   GL_CONTENT_DOC,
@@ -49,6 +55,7 @@ import type {
   GuidedLearningScoreVisibility,
   GuidedLearningSet,
   GuidedLearningStep,
+  ResultsProtection,
   StudentOverride,
   GuidedLearningSession,
 } from '@/types';
@@ -56,38 +63,6 @@ import type {
 const GL_ASSIGNMENTS_COLLECTION = 'guided_learning_assignments';
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
 const GL_SESSION_RESPONSES_SUBCOLLECTION = 'responses';
-
-/**
- * Stringify a step's canonical correct answer for `session.revealedAnswers`.
- * `revealedAnswers` is `Record<stepId, string>` (mirrors Quiz/VA), so the
- * array-shaped answers for matching and sorting are flattened into a
- * human-readable string for the student review screen. Returns `null` for
- * steps that don't have a gradable question (info hotspots, etc.).
- *
- * Exhaustive over `GuidedLearningQuestionType`: a new type added to the
- * union surfaces as a TypeScript error on the `_exhaustiveCheck: never`
- * assignment, so callers can't silently drop coverage for a new question
- * shape.
- */
-export function formatCanonicalAnswer(step: GuidedLearningStep): string | null {
-  const q = step.question;
-  if (!q) return null;
-  switch (q.type) {
-    case 'multiple-choice':
-      return q.correctAnswer ?? null;
-    case 'matching':
-      if (!q.matchingPairs?.length) return null;
-      return q.matchingPairs.map((p) => `${p.left} → ${p.right}`).join('\n');
-    case 'sorting':
-      if (!q.sortingItems?.length) return null;
-      return q.sortingItems.join(' → ');
-    default: {
-      const _exhaustiveCheck: never = q.type;
-      void _exhaustiveCheck;
-      return null;
-    }
-  }
-}
 
 export interface CreateAssignmentInput {
   /** The session id (also becomes the assignment id). */
@@ -117,6 +92,7 @@ export interface CreateAssignmentInput {
   /** Per-period gate mirrored from the session for the hub. */
   periodGate?: Pick<GuidedLearningSession, 'accessMode' | 'periodAccess'>;
   answerKeys?: GuidedLearningAssignment['answerKeys'];
+  stepTargets?: GuidedLearningAssignment['stepTargets'];
 }
 
 export interface UseGuidedLearningAssignmentsResult {
@@ -155,7 +131,8 @@ export interface UseGuidedLearningAssignmentsResult {
   publishAssignmentScores: (
     assignmentId: string,
     glData: GuidedLearningSet,
-    visibility: Exclude<GuidedLearningScoreVisibility, 'none'>
+    visibility: Exclude<GuidedLearningScoreVisibility, 'none'>,
+    protection?: ResultsProtection
   ) => Promise<{ responsesUpdated: number }>;
   /**
    * Revoke published score visibility for an assignment. Clears
@@ -310,6 +287,9 @@ export const useGuidedLearningAssignments = (
         ...(input.answerKeys && Object.keys(input.answerKeys).length > 0
           ? { answerKeys: input.answerKeys }
           : {}),
+        ...(input.stepTargets && Object.keys(input.stepTargets).length > 0
+          ? { stepTargets: input.stepTargets }
+          : {}),
         ...(input.periodGate?.periodAccess
           ? {
               accessMode: input.periodGate.accessMode,
@@ -448,6 +428,7 @@ export const useGuidedLearningAssignments = (
         // see a stale timestamp lingering after unpublish.
         scorePublishedAt: deleteField(),
         revealedAnswers: deleteField(),
+        protection: deleteField(),
       });
       await batch.commit();
     },
@@ -457,7 +438,7 @@ export const useGuidedLearningAssignments = (
   const publishAssignmentScores = useCallback<
     UseGuidedLearningAssignmentsResult['publishAssignmentScores']
   >(
-    async (assignmentId, glData, visibility) => {
+    async (assignmentId, glData, visibility, protection) => {
       if (!userId) throw new Error('Not authenticated');
       // Belt-and-suspenders against a future caller bypassing the
       // type-level `Exclude<…, 'none'>` (matches Quiz/VA pattern).
@@ -517,40 +498,12 @@ export const useGuidedLearningAssignments = (
         const data = d.data() as GuidedLearningResponse;
         // Answers saved mid-activity aren't a submission until completedAt is set.
         if (typeof data.completedAt !== 'number') continue;
-        const answers = Array.isArray(data.answers) ? data.answers : [];
-        let correctCount = 0;
-        // Track which stepIds have already contributed to the score so a
-        // duplicate answer (Drive-sync duplication / arrayUnion race writing
-        // the same stepId twice into `answers`) can't inflate correctCount.
-        // Each answer still receives an `isCorrect` annotation for the
-        // student review screen, but only the first occurrence of a stepId
-        // contributes to the numerator — matching the identical fix in
-        // `useVideoActivityAssignments.publishAssignmentScores` and
-        // `useQuizAssignments.publishAssignmentScores`.
-        const scoredStepIds = new Set<string>();
-        const gradedAnswers: GuidedLearningResponse['answers'] = answers.map(
-          (a) => {
-            const step = stepsById.get(a.stepId);
-            if (!step || !step.question) {
-              // Step deleted or no longer gradable — clear any stale
-              // `isCorrect` so the response doesn't carry a value the
-              // canonical set no longer supports.
-              return { ...a, isCorrect: null };
-            }
-            const correct = isAnswerCorrect(step, a.answer);
-            if (!scoredStepIds.has(a.stepId)) {
-              scoredStepIds.add(a.stepId);
-              if (correct) correctCount += 1;
-            }
-            return { ...a, isCorrect: correct };
-          }
-        );
-        // Denominator: every gradable step in the canonical set. Counting
-        // unanswered gradable steps toward the total means a blank
-        // submission scores 0%, not undefined.
-        const denom = gradableStepIds.size;
-        const score =
-          denom === 0 ? 0 : Math.round((correctCount / denom) * 100);
+        const { score, answers: gradedAnswers } =
+          gradeGuidedLearningResponseForPublish(
+            data,
+            stepsById,
+            gradableStepIds.size
+          );
         updates.push({
           ref: d.ref,
           patch: { score, answers: gradedAnswers },
@@ -575,6 +528,8 @@ export const useGuidedLearningAssignments = (
         // "View results". `parsePublicationFields` requires BOTH fields,
         // and the student listener only subscribes to the session doc.
         scorePublishedAt: now,
+        // Republishing without protection must not keep a stale one.
+        protection: protection ?? deleteField(),
       };
       if (visibility === 'score-responses-and-answers') {
         const revealedAnswers: Record<string, string> = {};

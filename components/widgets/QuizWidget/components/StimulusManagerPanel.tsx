@@ -19,6 +19,7 @@ import {
   Loader2,
   Monitor,
   Paperclip,
+  Shuffle,
   Trash2,
   Upload,
   Volume2,
@@ -658,15 +659,21 @@ const StimulusCard: React.FC<{
 }> = ({ stimulus: s, state, readAloudAvailable }) => {
   const {
     questions,
+    bankSlots,
     updateStimulus,
     deleteStimulus,
     toggleStimulusOnQuestion,
+    toggleStimulusOnSlot,
     setStimulusOnAllQuestions,
   } = state;
   const [open, setOpen] = useState(false);
   const covered = questionsUsingStimulus(questions, s.id);
-  const allAttached =
-    questions.length > 0 && covered.length === questions.length;
+  const coveredSlots = bankSlots.filter((slot) =>
+    slot.stimulusIds?.includes(s.id)
+  );
+  const targetCount = questions.length + bankSlots.length;
+  const coveredCount = covered.length + coveredSlots.length;
+  const allAttached = targetCount > 0 && coveredCount === targetCount;
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg">
@@ -697,11 +704,18 @@ const StimulusCard: React.FC<{
           className="flex-1 min-w-0 bg-transparent border-0 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
         />
         <span className="shrink-0 text-xxs text-slate-400 tabular-nums">
-          {covered.length === 0
+          {coveredCount === 0
             ? 'unassigned'
             : allAttached
               ? 'all questions'
-              : `${covered.length} question${covered.length === 1 ? '' : 's'}`}
+              : [
+                  covered.length > 0 &&
+                    `${covered.length} question${covered.length === 1 ? '' : 's'}`,
+                  coveredSlots.length > 0 &&
+                    `${coveredSlots.length} bank draw${coveredSlots.length === 1 ? '' : 's'}`,
+                ]
+                  .filter(Boolean)
+                  .join(', ')}
         </span>
         <button
           type="button"
@@ -772,7 +786,7 @@ const StimulusCard: React.FC<{
               <span className={labelClass.replace('mb-1', 'mb-0')}>
                 Shown on
               </span>
-              {questions.length > 0 && (
+              {targetCount > 0 && (
                 <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -786,7 +800,7 @@ const StimulusCard: React.FC<{
                 </label>
               )}
             </div>
-            {questions.length === 0 ? (
+            {targetCount === 0 ? (
               <p className="text-xs text-slate-400">No questions yet.</p>
             ) : (
               <ul className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
@@ -812,6 +826,25 @@ const StimulusCard: React.FC<{
                     </label>
                   </li>
                 ))}
+                {bankSlots.map((slot) => (
+                  <li key={slot.id}>
+                    <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded px-1.5 py-1 hover:bg-slate-50">
+                      <input
+                        type="checkbox"
+                        checked={slot.stimulusIds?.includes(s.id) ?? false}
+                        onChange={() => toggleStimulusOnSlot(s.id, slot.id)}
+                        className="w-3.5 h-3.5 accent-brand-blue-primary"
+                      />
+                      <Shuffle
+                        className="w-3.5 h-3.5 text-slate-400 shrink-0"
+                        aria-label="Random from bank"
+                      />
+                      <span className="truncate">
+                        {slot.bankTitle} ({slot.count ?? 0} drawn)
+                      </span>
+                    </label>
+                  </li>
+                ))}
               </ul>
             )}
           </div>
@@ -827,11 +860,42 @@ export const QuestionStimulusSection: React.FC<{
   state: QuizEditorController;
   questionId: string;
 }> = ({ state, questionId }) => {
-  const { stimuli, questions, toggleStimulusOnQuestion } = state;
+  const question = state.questions.find((q) => q.id === questionId);
+  return (
+    <AttachStimulusSection
+      state={state}
+      attachedIds={question?.stimulusIds}
+      onToggle={(stimulusId) =>
+        state.toggleStimulusOnQuestion(stimulusId, questionId)
+      }
+    />
+  );
+};
+
+/** Attach section for a random bank slot: stimuli shown with every drawn question. */
+export const SlotStimulusSection: React.FC<{
+  state: QuizEditorController;
+  slotId: string;
+}> = ({ state, slotId }) => {
+  const slot = state.bankSlots.find((s) => s.id === slotId);
+  return (
+    <AttachStimulusSection
+      state={state}
+      attachedIds={slot?.stimulusIds}
+      onToggle={(stimulusId) => state.toggleStimulusOnSlot(stimulusId, slotId)}
+    />
+  );
+};
+
+const AttachStimulusSection: React.FC<{
+  state: QuizEditorController;
+  attachedIds: string[] | undefined;
+  onToggle: (stimulusId: string) => void;
+}> = ({ state, attachedIds, onToggle }) => {
+  const { stimuli, questions, bankSlots } = state;
   const intake = useStimulusIntake(state);
   const [open, setOpen] = useState(false);
-  const question = questions.find((q) => q.id === questionId);
-  const attachedCount = question?.stimulusIds?.length ?? 0;
+  const attachedCount = attachedIds?.length ?? 0;
 
   return (
     <div className="border border-slate-200 rounded-lg bg-white">
@@ -863,16 +927,21 @@ export const QuestionStimulusSection: React.FC<{
           ) : (
             <ul className="space-y-1">
               {stimuli.map((s) => {
-                const covered = questionsUsingStimulus(questions, s.id);
+                const usedOn = [
+                  ...questionsUsingStimulus(questions, s.id).map(
+                    (i) => `Q${i + 1}`
+                  ),
+                  ...bankSlots
+                    .filter((slot) => slot.stimulusIds?.includes(s.id))
+                    .map((slot) => slot.bankTitle),
+                ];
                 return (
                   <li key={s.id}>
                     <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded px-1.5 py-1 hover:bg-slate-50">
                       <input
                         type="checkbox"
-                        checked={question?.stimulusIds?.includes(s.id) ?? false}
-                        onChange={() =>
-                          toggleStimulusOnQuestion(s.id, questionId)
-                        }
+                        checked={attachedIds?.includes(s.id) ?? false}
+                        onChange={() => onToggle(s.id)}
                         className="w-3.5 h-3.5 accent-brand-blue-primary"
                       />
                       <span
@@ -883,9 +952,9 @@ export const QuestionStimulusSection: React.FC<{
                       <span className="flex-1 truncate">
                         {s.label || s.url}
                       </span>
-                      <span className="shrink-0 text-xxs text-slate-400 tabular-nums">
-                        {covered.length > 0
-                          ? `on ${covered.map((i) => `Q${i + 1}`).join(', ')}`
+                      <span className="shrink-0 max-w-[40%] truncate text-xxs text-slate-400 tabular-nums">
+                        {usedOn.length > 0
+                          ? `on ${usedOn.join(', ')}`
                           : 'unused'}
                       </span>
                     </label>
@@ -898,16 +967,14 @@ export const QuestionStimulusSection: React.FC<{
             <FileSourceButtons
               compact
               intake={intake}
-              onAdded={(added) =>
-                toggleStimulusOnQuestion(added.id, questionId)
-              }
+              onAdded={(added) => onToggle(added.id)}
             />
           </div>
           <UrlAddRow
             busy={intake.busy}
             onAdd={async (url) => {
               const added = await intake.addFromUrl(url);
-              if (added) toggleStimulusOnQuestion(added.id, questionId);
+              if (added) onToggle(added.id);
             }}
           />
         </div>

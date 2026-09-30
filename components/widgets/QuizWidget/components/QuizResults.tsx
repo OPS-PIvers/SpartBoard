@@ -14,7 +14,7 @@ import React, {
 import { TabExitsPopover } from '@/components/common/TabExitsPopover';
 import {
   ArrowLeft,
-  Download,
+  FileSpreadsheet,
   BarChart3,
   ChevronRight,
   CheckCircle2,
@@ -44,7 +44,19 @@ import {
   QuizQuestion,
   QuizConfig,
   isFreeResponseType,
+  type QuizWidgetKind,
 } from '@/types';
+import {
+  buildReviewRanking,
+  type ReviewRankRow,
+  canShowResultsScore,
+  classFirstTryAccuracy,
+  gameFirstTry,
+  isGameSession,
+  isResultsFinished,
+  resultsDisplayScore,
+  resultsInPoints,
+} from '@/utils/reviewResults';
 import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';
 import { useMyNormingFlags } from '@/hooks/usePlcNorming';
@@ -66,10 +78,8 @@ import {
   buildScoreboardTeams,
   canScoreResponse,
   getResponseScore,
-  getDisplayScore,
   getScoreSuffix,
   getEarnedPoints,
-  isGamificationActive,
   isResponseAwaitingGrade,
   resolvePinName,
   selectPushableResponses,
@@ -81,10 +91,8 @@ import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
 import {
   SessionBadge,
   ScorePill,
-  OverflowMenu,
   LaunchedBySubTag,
 } from '@/components/common/sessionViews';
-import type { OverflowMenuItem } from '@/components/common/sessionViews';
 import {
   SCORE_DISTRIBUTION_BANDS,
   scoreColorClasses,
@@ -103,7 +111,15 @@ import {
 } from './results/StudentResultsControl';
 import { StudentResultsBulkBar } from './results/StudentResultsBulkBar';
 import { DrilldownNameList } from './results/DrilldownNameList';
-import { buildQuizResultsCsv, downloadCsv } from '@/utils/quizResultsCsv';
+import { useFinalScoreOverlay } from '@/hooks/gradebook/useFinalScoreOverlay';
+import {
+  applyFinalScoresToEntries,
+  finalPillPct,
+  finalScoreFor,
+  type FinalScoreOverlay,
+} from '@/utils/gradebook/finalScoreOverlay';
+import { quizLiveRaw } from '@/utils/gradebook/liveRawScores';
+import { FinalScoreNote } from '@/components/gradebook/FinalScoreNote';
 import { StudentAnswerLine } from './results/StudentAnswerLine';
 import {
   computeQuestionStats,
@@ -312,6 +328,8 @@ interface QuizResultsProps {
   paperSheetsEnabled?: boolean;
   /** Per-student publishing handlers; the controls render only when provided. */
   studentResultsActions?: StudentResultsActions;
+  /** Review results: points and ranking, with no grading, publishing or grade push (D27). */
+  variant?: QuizWidgetKind;
 }
 
 const HIDE_NAMES_KEY = 'spartboard.quizResults.hideNames';
@@ -329,6 +347,40 @@ const writeHideNames = (uid: string | undefined, on: boolean): void => {
     localStorage.setItem(`${HIDE_NAMES_KEY}.${uid ?? 'anon'}`, on ? '1' : '0');
   } catch {
     // Storage blocked: the toggle still works for this visit.
+  }
+};
+
+type StudentSort = 'score' | 'lastName';
+type ScoreDisplay = 'percent' | 'points';
+const STUDENT_VIEW_KEY = 'spartboard.quizResults.studentView';
+
+const readStudentView = (
+  uid: string | undefined
+): { sort: StudentSort; display: ScoreDisplay } => {
+  try {
+    const raw = localStorage.getItem(`${STUDENT_VIEW_KEY}.${uid ?? 'anon'}`);
+    const [sort, display] = (raw ?? '').split('|');
+    return {
+      sort: sort === 'lastName' ? 'lastName' : 'score',
+      display: display === 'points' ? 'points' : 'percent',
+    };
+  } catch {
+    return { sort: 'score', display: 'percent' };
+  }
+};
+
+const writeStudentView = (
+  uid: string | undefined,
+  sort: StudentSort,
+  display: ScoreDisplay
+): void => {
+  try {
+    localStorage.setItem(
+      `${STUDENT_VIEW_KEY}.${uid ?? 'anon'}`,
+      `${sort}|${display}`
+    );
+  } catch {
+    // Storage blocked: the choice still holds for this visit.
   }
 };
 
@@ -368,7 +420,10 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   plcView = false,
   paperSheetsEnabled = false,
   studentResultsActions,
+  variant = 'quiz',
 }) => {
+  const isReview = variant === 'review';
+  const isGame = isGameSession(session);
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
   const fibGrading = useMemo<FibGradingContext>(
@@ -413,6 +468,31 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const normingLabels = normingEnabled
     ? plcs.find((p) => p.id === session?.plcId)?.normingLevelLabels
     : undefined;
+  const finalOverlay = useFinalScoreOverlay({
+    kind: 'quiz',
+    sessionId: session?.id,
+    teacherUid: session?.teacherUid,
+    dueAt: session?.dueAt,
+    closeAt: session?.closeAt,
+  });
+  const [overlayNow] = useState(() => Date.now());
+  const withFinalScores = (
+    entries: ClassroomGradeEntry[],
+    maxPoints: number
+  ): ClassroomGradeEntry[] => {
+    if (!finalOverlay) return entries;
+    const byUid = new Map(completed.map((r) => [r.studentUid, r]));
+    return applyFinalScoresToEntries(
+      entries,
+      maxPoints,
+      finalOverlay,
+      (uid) => {
+        const r = byUid.get(uid);
+        return r ? quizLiveRaw(r, quiz.questions, fibGrading) : null;
+      },
+      Date.now()
+    );
+  };
   const [exporting, setExporting] = useState(false);
   const [pushingGrades, setPushingGrades] = useState(false);
   const [pushingSchoologyGrades, setPushingSchoologyGrades] = useState(false);
@@ -459,6 +539,16 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     const next = !hideNames;
     setHideNames(next);
     writeHideNames(user?.uid, next);
+  };
+  const [studentView, setStudentView] = useState(() =>
+    readStudentView(user?.uid)
+  );
+  const changeStudentView = (next: {
+    sort: StudentSort;
+    display: ScoreDisplay;
+  }) => {
+    setStudentView(next);
+    writeStudentView(user?.uid, next.sort, next.display);
   };
   const selection = useStudentResultsSelection();
   // In-widget screen navigation, mirroring the live monitor's calm-default
@@ -759,23 +849,26 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     [responses, periodFilter]
   );
   const filteredCompleted = useMemo(
-    () => filteredResponses.filter((r) => r.status === 'completed'),
-    [filteredResponses]
+    () => filteredResponses.filter((r) => isResultsFinished(r, session)),
+    [filteredResponses, session]
   );
   // Only average responses we can actually score. A completed response that
   // can't be graded yet (answer key not loaded, or question-id drift) would
   // otherwise contribute a phantom 0 and drag the class average down — see
   // `canScoreResponse`.
   const filteredScoreable = useMemo(
-    () => filteredCompleted.filter((r) => canScoreResponse(r, quiz.questions)),
-    [filteredCompleted, quiz.questions]
+    () =>
+      filteredCompleted.filter((r) =>
+        canShowResultsScore(r, quiz.questions, session)
+      ),
+    [filteredCompleted, quiz.questions, session]
   );
   const filteredAvgScore =
     filteredScoreable.length > 0
       ? Math.round(
           filteredScoreable.reduce(
             (sum, r) =>
-              sum + getDisplayScore(r, quiz.questions, session, fibGrading),
+              sum + resultsDisplayScore(r, quiz.questions, session, fibGrading),
             0
           ) / filteredScoreable.length
         )
@@ -787,6 +880,24 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       filteredScoreable.some((r) => isResponseAwaitingGrade(r, quiz.questions)),
     [filteredScoreable, quiz.questions]
   );
+  const firstTryAccuracy = useMemo(
+    () => (isGame ? classFirstTryAccuracy(filteredCompleted) : null),
+    [isGame, filteredCompleted]
+  );
+  const ranking = useMemo(
+    () =>
+      isReview
+        ? buildReviewRanking(
+            filteredResponses,
+            quiz.questions,
+            session,
+            fibGrading
+          )
+        : [],
+    [isReview, filteredResponses, quiz.questions, session, fibGrading]
+  );
+  // A game's `answers` hold only each student's first try (D25).
+  const questionsLabel = isGame ? 'First-try results' : 'Question results';
   const targetStats = useMemo(
     () =>
       computeTargetStats(
@@ -874,31 +985,9 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
 
   // Printing to hand back (docs/plans/shipped/QUIZ_RESULTS_PRINT.md); never for PLC teammates (D7).
   const canPrintResults =
-    (canAccessFeature('quiz-results-print') || resultsTools) && !plcView;
-
-  const handleExportStudents = (keys: string[]) => {
-    const wanted = new Set(keys);
-    const rows = responses.filter((r) => wanted.has(getResponseDocKey(r)));
-    try {
-      downloadCsv(
-        buildQuizResultsCsv(rows, quiz.questions, {
-          pinToName: exportPinToName,
-          byStudentUid,
-          teacherName: config.teacherName,
-          fibGrading,
-          timeAway: canAccessFeature('tab-away-timer'),
-        }),
-        `${quiz.title} results`
-      );
-      addToast(
-        `Exported ${rows.length} student${rows.length === 1 ? '' : 's'}.`,
-        'success'
-      );
-    } catch (err) {
-      logError('QuizResults.exportStudents', err);
-      addToast('Could not export the selected students.', 'error');
-    }
-  };
+    (canAccessFeature('quiz-results-print') || resultsTools) &&
+    !plcView &&
+    !isReview;
 
   const handleReopenStudents = async (keys: string[]): Promise<boolean> => {
     if (!onReopenStudent) return false;
@@ -1611,6 +1700,22 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       addToast(NOTHING_TO_PUSH_TOAST, 'info');
       return;
     }
+    const finalGrades = finalOverlay
+      ? withFinalScores(
+          buildQuizClassroomGradeEntries(
+            completed,
+            quiz.questions,
+            maxPoints,
+            fibGrading
+          ),
+          maxPoints
+        )
+      : null;
+    if (finalGrades && finalGrades.length === 0) {
+      addToast(NOTHING_TO_PUSH_TOAST, 'info');
+      return;
+    }
+    const pushCount = finalGrades ? finalGrades.length : eligible.length;
 
     // Shared push flow (token mint → CF → result toast); QuizResults supplies
     // only its grade builder (correctness points scaled onto the frozen
@@ -1628,6 +1733,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       requestToken: () =>
         requestClassroomTeacherToken(user?.email ?? undefined),
       buildGrades: () =>
+        finalGrades ??
         buildQuizClassroomGradeEntries(
           completed,
           quiz.questions,
@@ -1636,7 +1742,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         ),
       confirm: () =>
         showConfirm(
-          `Push ${eligible.length} grade${eligible.length === 1 ? '' : 's'} to Google ` +
+          `Push ${pushCount} grade${pushCount === 1 ? '' : 's'} to Google ` +
             `Classroom${courseCount > 1 ? ` (${courseCount} courses)` : ''}? This writes draft grades to the assignment gradebook — ` +
             'you still review and return them in Classroom.',
           {
@@ -1681,11 +1787,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const handlePushSchoologyGrades = async () => {
     if (!ltiAttachment || !session?.id) return;
     const maxPoints = quizMaxPoints(quiz.questions, session?.sections);
-    const grades = buildQuizClassroomGradeEntries(
-      completed,
-      quiz.questions,
-      maxPoints,
-      fibGrading
+    const grades = withFinalScores(
+      buildQuizClassroomGradeEntries(
+        completed,
+        quiz.questions,
+        maxPoints,
+        fibGrading
+      ),
+      maxPoints
     );
     if (grades.length === 0) {
       addToast('No completed responses to push yet.', 'info');
@@ -1718,88 +1827,45 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     }
   };
 
-  // Overflow-menu items. The Sheet/Export family (Export, Re-export solo,
-  // Re-export/Update PLC, Open Sheet) and Send to Scoreboard all live here
-  // (decluttered out of the visible header per the approved design). Each
-  // item keeps the EXACT gate/handler/disabled condition it had as a visible
-  // header button — only the placement changes:
-  //   • Export            — shown when `!exportUrl`; handleExport; disabled
-  //                         while exporting or with zero responses.
-  //   • Re-export (solo)  — gated on `canShowSoloReExport`; handleExport.
-  //   • Re-export/Update  — gated on `canShowUpdateSheet`; handleUpdateSheet
-  //     (PLC)               (smart append-or-rebuild). Informative label.
-  //   • Open Sheet        — shown when `exportUrl` is truthy; opens the sheet
-  //                         in a new tab (was an <a target="_blank"> link).
-  //   • Send to Scoreboard— gated on `filteredCompleted.length > 0` (respects
-  //                         the active period filter).
-  // When a Schoology push applies it's the visible primary action, so it's
-  // NOT duplicated here; there is no Classroom-vs-Schoology overlap (an
-  // assignment is one or the other), so the visible primary push is Classroom
-  // when attached, else Schoology — and the overflow never carries a push
-  // that's already visible.
-  const overflowItems: OverflowMenuItem[] = [];
-  // Google Sheets export is a Google-API feature excluded from the free tier
-  // (docs/wide-distro-plan.md Phase 3). External (no-org/free-tier) users can't
-  // connect Drive (the Drive entry is hidden for them), so they have no token
-  // and the export would only surface a "sign in again" error — hide the
-  // affordance cleanly instead. `isExternalUser` is false while membership
-  // resolves, so org/internal members keep the button.
-  if (!exportUrl && !isExternalUser) {
-    overflowItems.push({
-      label: 'Export to Sheets',
-      icon: Download,
-      loading: exporting,
-      onClick: () => void handleExport(),
-      disabled: exporting || responses.length === 0,
-    });
-  }
-  if (exportUrl) {
-    const sheetUrl = exportUrl;
-    overflowItems.push({
-      label: 'Open Sheet',
-      icon: ExternalLink,
-      onClick: () => window.open(sheetUrl, '_blank', 'noopener,noreferrer'),
-    });
-  }
-  if (canShowSoloReExport) {
-    overflowItems.push({
-      label: 'Re-export sheet (creates a new sheet)',
-      icon: RefreshCw,
-      loading: exporting,
-      onClick: () => void handleExport(),
-      disabled: exporting,
-    });
-  }
-  if (canShowUpdateSheet) {
-    // Smart re-export: appends new responses when the sheet is behind,
-    // otherwise clears and rewrites the same sheet from scratch. Always
-    // enabled in PLC mode so the teacher always has a path to refresh — the
-    // label tells them which mode the next click will run in.
-    overflowItems.push({
-      label:
-        newResponsesToAppend.length === 0
-          ? 'Re-export sheet (rebuild from scratch)'
-          : `Re-export sheet (${newResponsesToAppend.length} new responses to append)`,
-      icon: RefreshCw,
-      loading: updatingSheet,
-      onClick: () => void handleUpdateSheet(),
-      disabled: updatingSheet,
-    });
-  }
-  if (filteredCompleted.length > 0) {
-    overflowItems.push({
-      label: 'Send to Scoreboard',
-      icon: Trophy,
-      onClick: handleScoreboardClick,
-    });
-  }
+  // Sheets is the only export; once a sheet exists the button opens it and the icon beside it rebuilds or appends.
+  const showSheetsExport = !exportUrl && !isExternalUser;
+  const sheetRefresh = canShowUpdateSheet
+    ? {
+        label:
+          newResponsesToAppend.length === 0
+            ? 'Re-export sheet (rebuild from scratch)'
+            : `Re-export sheet (${newResponsesToAppend.length} new responses to append)`,
+        busy: updatingSheet,
+        run: () => void handleUpdateSheet(),
+      }
+    : canShowSoloReExport
+      ? {
+          label: 'Re-export sheet (creates a new sheet)',
+          busy: exporting,
+          run: () => void handleExport(),
+        }
+      : null;
+  const footerButtonClass =
+    'inline-flex items-center bg-white border border-brand-gray-lighter hover:border-brand-blue-light text-brand-blue-primary font-sans font-semibold rounded-md transition-colors disabled:opacity-60';
+  const footerButtonStyle = {
+    gap: 'min(6px, 1.5cqmin)',
+    padding: 'min(8px, 2cqmin) min(14px, 3cqmin)',
+    fontSize: 'min(13px, 4.5cqmin)',
+  };
+  const footerIconButtonStyle = { padding: 'min(8px, 2cqmin)' };
+  const footerIcon = {
+    width: 'min(14px, 4.5cqmin)',
+    height: 'min(14px, 4.5cqmin)',
+  };
 
   // Visible primary push: Classroom when this assignment is add-on-attached
   // (and the admin gate permits), otherwise Schoology when LTI-launched. Same
   // gating conditions/handlers as before — only the placement changes.
   const showClassroomPush =
-    classroomAttachments.length > 0 && canAccessFeature('google-classroom');
-  const showSchoologyPush = !!ltiAttachment;
+    !isReview &&
+    classroomAttachments.length > 0 &&
+    canAccessFeature('google-classroom');
+  const showSchoologyPush = !isReview && !!ltiAttachment;
 
   // With zero responses the body shows the empty state, so the shell behaves
   // as home (title + back-out semantics) even if a drill-down was open when
@@ -1812,7 +1878,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     effectiveScreen === 'home'
       ? quiz.title
       : effectiveScreen === 'questions'
-        ? 'Question results'
+        ? questionsLabel
         : effectiveScreen === 'targets'
           ? 'Targets'
           : effectiveScreen === 'students'
@@ -2031,22 +2097,27 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                   className="font-sans font-semibold text-brand-blue-primary uppercase tracking-wider"
                   style={{ fontSize: 'min(10px, 3.5cqmin)' }}
                 >
-                  Class average
+                  {isGame ? 'First-try accuracy' : 'Class average'}
                 </p>
                 <p
                   className="font-sans font-bold text-brand-blue-dark tabular-nums"
                   style={{ fontSize: 'min(26px, 10cqmin)', lineHeight: 1.15 }}
                 >
-                  {filteredAvgScore !== null
-                    ? `${filteredAvgScore}${getScoreSuffix(session)}`
-                    : '—'}
+                  {isGame
+                    ? firstTryAccuracy !== null
+                      ? `${firstTryAccuracy}%`
+                      : '—'
+                    : filteredAvgScore !== null
+                      ? `${filteredAvgScore}${getScoreSuffix(session)}`
+                      : '—'}
                 </p>
                 <p
                   className="text-brand-blue-dark/70"
                   style={{ fontSize: 'min(11px, 3.8cqmin)' }}
                 >
-                  {filteredCompleted.length} of {filteredResponses.length}{' '}
-                  students finished
+                  {isGame
+                    ? `${filteredCompleted.length} student${filteredCompleted.length === 1 ? '' : 's'} played`
+                    : `${filteredCompleted.length} of ${filteredResponses.length} students finished`}
                 </p>
                 {filteredAvgScore !== null && avgIsProvisional && (
                   <p
@@ -2058,12 +2129,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                 )}
               </div>
 
-              <ScoreDistribution
-                completed={filteredCompleted}
-                questions={quiz.questions}
-                session={session}
-                fibGrading={fibGrading}
-              />
+              {!isReview && (
+                <ScoreDistribution
+                  completed={filteredCompleted}
+                  questions={quiz.questions}
+                  session={session}
+                  fibGrading={fibGrading}
+                />
+              )}
 
               {/* Drill-down rows */}
               <div
@@ -2071,7 +2144,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                 style={{ gap: 'min(6px, 1.5cqmin)' }}
               >
                 <DrillRow
-                  label="Question results"
+                  label={questionsLabel}
                   detail={`${quiz.questions.length} question${quiz.questions.length === 1 ? '' : 's'}`}
                   onClick={() => setScreen('questions')}
                 />
@@ -2093,6 +2166,10 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                   onClick={() => setScreen('students')}
                 />
               </div>
+
+              {isReview && ranking.length > 0 && (
+                <ReviewRanking rows={ranking} resolveName={resolveShownName} />
+              )}
             </div>
           )}
           {effectiveScreen === 'questions' && (
@@ -2138,11 +2215,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               studentResultsActions={studentResultsActions}
               onPrintStudents={canPrintResults ? openPrint : undefined}
               showStudentFeedback={resultsTools}
-              onExportStudents={
-                resultsTools && !plcView ? handleExportStudents : undefined
-              }
               onReopenStudents={
-                resultsTools && !plcView && onReopenStudent
+                resultsTools && !plcView && !isReview && onReopenStudent
                   ? handleReopenStudents
                   : undefined
               }
@@ -2151,6 +2225,12 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               onExpandedKeyChange={setExpandedStudentKey}
               focusKey={focusStudentKey}
               onFocused={() => setFocusStudentKey(null)}
+              finalOverlay={finalOverlay}
+              overlayNow={overlayNow}
+              // Hidden names sort by the masked label so the order can't hint at real last names.
+              sortNameFor={hideNames ? resolveShownName : printSortName}
+              view={studentView}
+              onViewChange={changeStudentView}
             />
           )}
         </div>
@@ -2165,7 +2245,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
             padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
           }}
         >
-          {hasWrittenQuestions && (
+          {hasWrittenQuestions && !isReview && (
             <button
               onClick={() => openGrader()}
               className="inline-flex items-center bg-white border border-brand-gray-lighter hover:border-brand-blue-light text-brand-blue-primary font-sans font-semibold rounded-md transition-colors"
@@ -2246,14 +2326,78 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               Push to Schoology
             </button>
           )}
-          {overflowItems.length > 0 && (
-            <div className="relative ml-auto shrink-0">
-              <OverflowMenu items={overflowItems} />
-            </div>
-          )}
-          {/* Anchored separately from the overflow menu so deleting the last
-              completed student (which empties overflowItems) can't unmount the
-              prompt mid-interaction. */}
+          <div
+            className="ml-auto flex items-center shrink-0"
+            style={{ gap: 'min(6px, 1.5cqmin)' }}
+          >
+            {filteredCompleted.length > 0 && (
+              <button
+                type="button"
+                onClick={handleScoreboardClick}
+                aria-label="Send to Scoreboard"
+                title="Send to Scoreboard"
+                className={footerButtonClass}
+                style={footerIconButtonStyle}
+              >
+                <Trophy aria-hidden style={footerIcon} />
+              </button>
+            )}
+            {sheetRefresh && (
+              <button
+                type="button"
+                onClick={sheetRefresh.run}
+                disabled={sheetRefresh.busy}
+                aria-label={sheetRefresh.label}
+                title={sheetRefresh.label}
+                className={footerButtonClass}
+                style={footerIconButtonStyle}
+              >
+                {sheetRefresh.busy ? (
+                  <Loader2
+                    aria-hidden
+                    className="animate-spin"
+                    style={footerIcon}
+                  />
+                ) : (
+                  <RefreshCw aria-hidden style={footerIcon} />
+                )}
+              </button>
+            )}
+            {exportUrl && (
+              <a
+                href={exportUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={footerButtonClass}
+                style={footerButtonStyle}
+              >
+                <ExternalLink aria-hidden style={footerIcon} />
+                Open Sheet
+              </a>
+            )}
+            {showSheetsExport && (
+              <button
+                type="button"
+                onClick={() => void handleExport()}
+                disabled={exporting || responses.length === 0}
+                className={footerButtonClass}
+                style={footerButtonStyle}
+              >
+                {exporting ? (
+                  <Loader2
+                    aria-hidden
+                    className="animate-spin"
+                    style={footerIcon}
+                  />
+                ) : (
+                  <FileSpreadsheet aria-hidden style={footerIcon} />
+                )}
+                Export to Sheets
+              </button>
+            )}
+          </div>
+          {/* Anchored separately from the footer buttons so deleting the last
+              completed student can't unmount the prompt mid-interaction. */}
           {showScoreboardPrompt && (
             <div className="relative shrink-0">
               <div
@@ -2446,6 +2590,46 @@ const DrillRow: React.FC<{
       />
     </span>
   </button>
+);
+
+const ReviewRanking: React.FC<{
+  rows: ReviewRankRow[];
+  resolveName: (response: QuizResponse) => string;
+}> = ({ rows, resolveName }) => (
+  <div className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
+    <p
+      className="font-sans font-semibold text-brand-blue-primary uppercase tracking-wider"
+      style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+    >
+      Final ranking
+    </p>
+    <ol className="flex flex-col" aria-label="Final ranking">
+      {rows.map((row) => (
+        <li
+          key={getResponseDocKey(row.response)}
+          className="flex items-center border-b border-brand-gray-lightest last:border-b-0"
+          style={{
+            gap: 'min(10px, 2.5cqmin)',
+            padding: 'min(6px, 1.5cqmin) min(4px, 1cqmin)',
+            fontSize: 'min(13px, 4.5cqmin)',
+          }}
+        >
+          <span
+            className="shrink-0 font-sans font-bold text-brand-blue-dark tabular-nums text-right"
+            style={{ width: 'min(28px, 8cqmin)' }}
+          >
+            {row.rank}
+          </span>
+          <span className="flex-1 min-w-0 truncate font-sans text-brand-gray-dark">
+            {resolveName(row.response)}
+          </span>
+          <span className="shrink-0 font-sans font-semibold text-brand-blue-dark tabular-nums">
+            {row.score.toLocaleString()} pts
+          </span>
+        </li>
+      ))}
+    </ol>
+  </div>
 );
 
 const ScoreDistribution: React.FC<{
@@ -3393,6 +3577,54 @@ const StudentDrilldownPanel: React.FC<{
   );
 };
 
+const collator = new Intl.Collator(undefined, {
+  sensitivity: 'base',
+  numeric: true,
+});
+
+function SegmentedToggle<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: ReadonlyArray<readonly [T, string]>;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="inline-flex overflow-hidden rounded-md border border-brand-gray-lighter"
+    >
+      {options.map(([v, text], i) => {
+        const on = v === value;
+        return (
+          <button
+            key={v}
+            type="button"
+            onClick={() => onChange(v)}
+            aria-pressed={on}
+            className={`font-sans font-semibold transition-colors ${i > 0 ? 'border-l border-brand-gray-lighter' : ''} ${
+              on
+                ? 'bg-brand-blue-lighter text-brand-blue-dark'
+                : 'bg-white text-brand-gray-primary hover:text-brand-gray-dark'
+            }`}
+            style={{
+              fontSize: 'min(11px, 3.5cqmin)',
+              padding: 'min(3px, 0.8cqmin) min(8px, 2cqmin)',
+            }}
+          >
+            {text}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 const StudentsScreen: React.FC<{
   quizTitle: string;
   responses: QuizResponse[];
@@ -3415,7 +3647,6 @@ const StudentsScreen: React.FC<{
   onPrintStudents?: (responseKeys: string[]) => void;
   /** Show written-answer comments and rubric levels in the open row. */
   showStudentFeedback: boolean;
-  onExportStudents?: (responseKeys: string[]) => void;
   onReopenStudents?: (responseKeys: string[]) => Promise<boolean>;
   reopenBlockedReason?: string | null;
   expandedKey: string | null;
@@ -3423,6 +3654,12 @@ const StudentsScreen: React.FC<{
   /** A row to scroll to and focus once, after a jump from item analysis. */
   focusKey: string | null;
   onFocused: () => void;
+  finalOverlay?: FinalScoreOverlay | null;
+  overlayNow?: number;
+  /** Last-name-first key for the name sort. */
+  sortNameFor: (response: QuizResponse) => string;
+  view: { sort: StudentSort; display: ScoreDisplay };
+  onViewChange: (view: { sort: StudentSort; display: ScoreDisplay }) => void;
 }> = ({
   quizTitle,
   responses,
@@ -3442,13 +3679,17 @@ const StudentsScreen: React.FC<{
   studentResultsActions,
   onPrintStudents,
   showStudentFeedback,
-  onExportStudents,
   onReopenStudents,
   reopenBlockedReason,
   expandedKey,
   onExpandedKeyChange,
   focusKey,
   onFocused,
+  finalOverlay = null,
+  overlayNow = 0,
+  sortNameFor,
+  view,
+  onViewChange,
 }) => {
   const { t } = useTranslation();
   const selection = useStudentResultsSelection();
@@ -3467,7 +3708,9 @@ const StudentsScreen: React.FC<{
   const [deletingKey, setDeletingKey] = useState<ResponseDocKey | null>(null);
   const [unlockingKey, setUnlockingKey] = useState<ResponseDocKey | null>(null);
   const maxPoints = quizMaxPoints(questions, session?.sections);
-  const gamified = isGamificationActive(session);
+  const gamified = resultsInPoints(session);
+  const isGame = isGameSession(session);
+  const showPoints = view.display === 'points' && !gamified;
 
   // Mirror QuizLiveMonitor.handleUnlockResultsForStudent — same toast copy
   // and same one-shot semantics (decrement warnings by 1; one more
@@ -3511,41 +3754,74 @@ const StudentsScreen: React.FC<{
         </p>
       )}
       {selection && resultsActions && responses.length > 0 && (
-        <>
-          <StudentResultsBulkBar
-            responses={responses}
-            selection={selection}
-            actions={resultsActions}
-            classVisibility={classVisibility}
-            resolveName={resolveCopyName}
-            addToast={addToast}
-            onPrint={onPrintStudents}
-            onExport={onExportStudents}
-            onReopen={onReopenStudents}
-            reopenBlockedReason={reopenBlockedReason}
-          />
-          <label
-            className="flex items-center font-sans text-brand-gray-primary cursor-pointer self-start"
-            style={{
-              gap: 'min(6px, 1.5cqmin)',
-              fontSize: 'min(11px, 3.5cqmin)',
-              paddingInline: 'min(10px, 2.5cqmin)',
-            }}
+        <StudentResultsBulkBar
+          responses={responses}
+          selection={selection}
+          actions={resultsActions}
+          classVisibility={classVisibility}
+          resolveName={resolveCopyName}
+          addToast={addToast}
+          onPrint={onPrintStudents}
+          onReopen={onReopenStudents}
+          reopenBlockedReason={reopenBlockedReason}
+        />
+      )}
+      {responses.length > 0 && (
+        <div
+          className="flex flex-wrap items-center"
+          style={{
+            gap: 'min(8px, 2cqmin)',
+            paddingLeft: 'min(10px, 2.5cqmin)',
+          }}
+        >
+          {selection && resultsActions && (
+            <label
+              className="flex items-center font-sans text-brand-gray-primary cursor-pointer"
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                fontSize: 'min(11px, 3.5cqmin)',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={() =>
+                  allSelected
+                    ? selection.clearSelection()
+                    : selection.addToSelection(allKeys)
+                }
+                className="accent-brand-blue-primary"
+                style={checkboxStyle}
+              />
+              Select all
+            </label>
+          )}
+          <div
+            className="ml-auto flex items-center"
+            style={{ gap: 'min(8px, 2cqmin)' }}
           >
-            <input
-              type="checkbox"
-              checked={allSelected}
-              onChange={() =>
-                allSelected
-                  ? selection.clearSelection()
-                  : selection.addToSelection(allKeys)
-              }
-              className="accent-brand-blue-primary"
-              style={checkboxStyle}
+            <SegmentedToggle
+              label="Sort students"
+              value={view.sort}
+              options={[
+                ['score', 'Score'],
+                ['lastName', 'Last name'],
+              ]}
+              onChange={(sort) => onViewChange({ ...view, sort })}
             />
-            Select all
-          </label>
-        </>
+            {!gamified && (
+              <SegmentedToggle
+                label="Show scores as"
+                value={view.display}
+                options={[
+                  ['percent', '%'],
+                  ['points', 'Points'],
+                ]}
+                onChange={(display) => onViewChange({ ...view, display })}
+              />
+            )}
+          </div>
+        </div>
       )}
       {responses
         .slice()
@@ -3556,19 +3832,24 @@ const StudentsScreen: React.FC<{
           // (no nested helper) so a closure isn't re-allocated per comparison.
           const scoreA =
             (a.status === 'completed' || a.status === 'in-progress') &&
-            canScoreResponse(a, questions)
-              ? getDisplayScore(a, questions, session, fibGrading)
+            canShowResultsScore(a, questions, session)
+              ? resultsDisplayScore(a, questions, session, fibGrading)
               : -1;
           const scoreB =
             (b.status === 'completed' || b.status === 'in-progress') &&
-            canScoreResponse(b, questions)
-              ? getDisplayScore(b, questions, session, fibGrading)
+            canShowResultsScore(b, questions, session)
+              ? resultsDisplayScore(b, questions, session, fibGrading)
               : -1;
-          return scoreB - scoreA;
+          const byName = collator.compare(sortNameFor(a), sortNameFor(b));
+          if (view.sort === 'lastName') return byName || scoreB - scoreA;
+          return scoreB - scoreA || byName;
         })
         .map((r) => {
-          const score = getDisplayScore(r, questions, session, fibGrading);
-          const earned = getEarnedPoints(r, questions, session, fibGrading);
+          const score = resultsDisplayScore(r, questions, session, fibGrading);
+          const earned = isGame
+            ? score
+            : getEarnedPoints(r, questions, session, fibGrading);
+          const firstTry = isGame ? gameFirstTry(r) : null;
           // A finished/in-progress response is only shown with a numeric
           // score once it can actually be graded — answer key loaded AND at
           // least one answer maps to a loaded question. Otherwise we render a
@@ -3576,11 +3857,27 @@ const StudentsScreen: React.FC<{
           // `canScoreResponse`).
           const scoreable =
             (r.status === 'completed' || r.status === 'in-progress') &&
-            canScoreResponse(r, questions);
+            canShowResultsScore(r, questions, session);
           // The total counts an ungraded written answer as 0, so flag it as
           // provisional rather than letting it read as the final grade.
           const awaitingGrade =
-            scoreable && isResponseAwaitingGrade(r, questions);
+            scoreable && !isGame && isResponseAwaitingGrade(r, questions);
+          const final =
+            finalOverlay && r.studentUid && !isGame
+              ? finalScoreFor(
+                  finalOverlay,
+                  r.studentUid,
+                  quizLiveRaw(r, questions, fibGrading),
+                  overlayNow
+                )
+              : null;
+          const finalPct = finalPillPct(final);
+          const finalPoints =
+            final?.source === 'override' &&
+            final.points !== null &&
+            final.max !== null
+              ? { points: Math.round(final.points * 10) / 10, max: final.max }
+              : null;
           const warnings = r.tabSwitchWarnings ?? 0;
           const resultsLockedOut = r.resultsLockedOut === true;
           const resultsTabWarnings = r.resultsTabWarnings ?? 0;
@@ -3791,17 +4088,37 @@ const StudentsScreen: React.FC<{
                   <div className="text-right shrink-0">
                     {scoreable ? (
                       <>
-                        <ScorePill
-                          score={gamified ? 0 : score}
-                          display="percent"
-                          gamified={gamified}
-                          points={earned}
-                        />
+                        {finalPct !== null ? (
+                          showPoints && finalPoints ? (
+                            <ScorePill
+                              score={finalPct}
+                              display="points"
+                              points={finalPoints.points}
+                              total={finalPoints.max}
+                            />
+                          ) : (
+                            <ScorePill score={finalPct} display="percent" />
+                          )
+                        ) : (
+                          <ScorePill
+                            score={gamified ? 0 : score}
+                            display={showPoints ? 'points' : 'percent'}
+                            gamified={gamified}
+                            points={earned}
+                            total={maxPoints}
+                          />
+                        )}
                         <p
                           className="text-brand-gray-primary tabular-nums"
                           style={{ fontSize: 'min(10px, 3cqmin)' }}
                         >
-                          {earned}/{maxPoints} pts
+                          {firstTry
+                            ? `${firstTry.correct}/${firstTry.tried} first try`
+                            : showPoints && (finalPct === null || finalPoints)
+                              ? `${Math.round(finalPct ?? score)}%`
+                              : finalPoints
+                                ? `${finalPoints.points}/${finalPoints.max} pts`
+                                : `${earned}/${maxPoints} pts`}
                           {r.status === 'in-progress' && ' (In Progress)'}
                         </p>
                         {awaitingGrade && (
@@ -3847,6 +4164,12 @@ const StudentsScreen: React.FC<{
                       >
                         {r.status}
                       </div>
+                    )}
+                    {final && finalOverlay && (
+                      <FinalScoreNote
+                        final={final}
+                        flagDefs={finalOverlay.flagDefs}
+                      />
                     )}
                   </div>
 
@@ -3898,7 +4221,9 @@ const StudentsScreen: React.FC<{
 
                     {resultsActions && (
                       <StudentResultsControl
-                        response={r}
+                        responseKey={getResponseDocKey(r) as string}
+                        override={r.resultsOverride}
+                        completed={r.status === 'completed'}
                         displayName={displayName}
                         classVisibility={classVisibility}
                         actions={resultsActions}
@@ -3953,7 +4278,9 @@ const StudentsScreen: React.FC<{
                     resultsActions ? (
                       <StudentResultsControl
                         layout="panel"
-                        response={r}
+                        responseKey={getResponseDocKey(r) as string}
+                        override={r.resultsOverride}
+                        completed={r.status === 'completed'}
                         displayName={displayName}
                         classVisibility={classVisibility}
                         actions={resultsActions}

@@ -18,10 +18,12 @@ import {
   MoreHorizontal,
   Pause,
   Play,
+  Plus,
   Projector,
   Settings,
   Square,
   Trophy,
+  Users,
   Volume2,
   VolumeX,
 } from 'lucide-react';
@@ -50,14 +52,20 @@ import type {
 } from '@/utils/quizFibAnswers';
 import {
   buildLiveLeaderboard,
+  buildGameLeaderboard,
   getDisplayScore,
   isGamificationActive,
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { Z_INDEX } from '@/config/zIndex';
 import { resolveStimuli } from '@/utils/quizStimuli';
 import { PresentSession } from '@/components/widgets/QuizWidget/components/present/PresentSession';
+import { boardRankRows, rankOrdinal } from '@/utils/reviewLaunch';
 import { useMonitorData } from './useMonitorData';
 import { CurrentQuestionCard } from './CurrentQuestionCard';
+import { useGameClockControls } from './useGameClockControls';
+import { GameBoard } from '@/components/widgets/QuizWidget/components/game/GameBoard';
+import { useServerNow } from '@/hooks/useServerNow';
+import { readGameClock, summarizeGameBoard } from '@/utils/quizGame';
 import { StatusBuckets, BucketKey } from './StatusBuckets';
 import { RosterList } from './RosterList';
 import { PeriodAccessStrip } from './PeriodAccessStrip';
@@ -97,6 +105,8 @@ export interface QuizLiveMonitorProps {
   onBack?: () => void;
   /** Hide the scoreboard-sync setting (contexts with no board behind). */
   hideLiveScoreboard?: boolean;
+  /** Quiz-kind session with the Review split on: no reveal, podium, sounds or scoreboard sync (D9). */
+  assessmentOnly?: boolean;
   /** M17 E2 F2: the active assignment's per-student accommodation overrides
    *  (teacher's own assignment doc), keyed by `StudentTargetRef` key — used
    *  by `RosterList` to resolve each row's effective tab-warning threshold. */
@@ -146,6 +156,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     onHideAnswer,
     onBack,
     hideLiveScoreboard = false,
+    assessmentOnly = false,
     overridesBySourcedId = null,
     localizedFibAnswers = null,
     overridesByStudentUid = null,
@@ -185,6 +196,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
   const [openBucket, setOpenBucket] = useState<BucketKey | null>(null);
   const [presenting, setPresenting] = useState(false);
+  const [gameNames, setGameNames] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [ending, setEnding] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -277,12 +289,57 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     setScreen({ name: 'home' });
     setOpenBucket(null);
     setPresenting(false);
+    setGameNames(false);
   }
 
+  const isGame = session.sessionMode === 'game';
+  const tourType = session.widgetKind ?? 'quiz';
+  const gameNow = useServerNow(
+    isGame && session.status !== 'ended' ? 250 : null
+  );
+  const gameControls = useGameClockControls(session, isGame, (message) =>
+    addToast(message, 'error')
+  );
+  const gameClock = readGameClock(session, gameNow);
+  const gameStats = isGame ? summarizeGameBoard(responses, gameNow) : null;
+  const gameEntries = useMemo(
+    () =>
+      isGame
+        ? buildGameLeaderboard(responses, data.pinToName, data.byStudentUid)
+        : [],
+    [isGame, responses, data.pinToName, data.byStudentUid]
+  );
+  const gameBoard = gameStats && {
+    clock: gameClock,
+    stats: gameStats,
+    entries: gameEntries,
+    rows: boardRankRows(session.boardRankLimit),
+    showNames: gameNames,
+    nowMs: gameNow,
+  };
   const scoringConfig = {
     speedBonusEnabled: session.speedBonusEnabled,
     streakBonusEnabled: session.streakBonusEnabled,
   };
+
+  // Review ranks everyone so each device finds its own row; names stay top 10 only.
+  const liveEntries = () =>
+    (isGame
+      ? buildGameLeaderboard(responses, data.pinToName, data.byStudentUid)
+      : buildLiveLeaderboard(
+          responses,
+          quizData.questions,
+          scoringConfig,
+          data.pinToName,
+          data.byStudentUid,
+          fibGrading,
+          session.boardRankLimit ? null : 10
+        )
+    ).map((entry) => {
+      if (entry.rank <= 10) return entry;
+      const { name: _hidden, ...rest } = entry;
+      return rest;
+    });
 
   // Broadcast the live leaderboard to the session doc (unchanged plumbing).
   const fingerprintRef = useRef<string | null>(null);
@@ -294,7 +351,8 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   useEffect(() => {
     const sessionRef = doc(db, 'quiz_sessions', session.id);
     const shouldBroadcast =
-      session.status === 'active' && isGamificationActive(scoringConfig);
+      session.status === 'active' &&
+      (isGame || isGamificationActive(scoringConfig));
     if (!shouldBroadcast) {
       if (session.status === 'ended' || clearedRef.current) return;
       clearedRef.current = true;
@@ -309,14 +367,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     }
     clearedRef.current = false;
     const timer = setTimeout(() => {
-      const entries = buildLiveLeaderboard(
-        responses,
-        quizData.questions,
-        scoringConfig,
-        data.pinToName,
-        data.byStudentUid,
-        fibGrading
-      );
+      const entries = liveEntries();
       const fingerprint = JSON.stringify(entries);
       if (fingerprint === fingerprintRef.current) return;
       fingerprintRef.current = fingerprint;
@@ -338,25 +389,26 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     session.status,
     session.speedBonusEnabled,
     session.streakBonusEnabled,
+    session.boardRankLimit,
   ]);
 
   // Sound cues on review phase and session end.
+  const soundsOn = (session.soundEffectsEnabled ?? false) && !assessmentOnly;
   const isReviewing = session.questionPhase === 'reviewing';
   const prevReviewingRef = useRef(isReviewing);
   useEffect(() => {
     if (!prevReviewingRef.current && isReviewing) {
-      if (session.soundEffectsEnabled && !soundMuted) playPodiumFanfare();
+      if (soundsOn && !soundMuted) playPodiumFanfare();
     }
     prevReviewingRef.current = isReviewing;
-  }, [isReviewing, session.soundEffectsEnabled, soundMuted]);
+  }, [isReviewing, soundsOn, soundMuted]);
   const prevStatusRef = useRef(session.status);
   useEffect(() => {
     if (prevStatusRef.current === 'active' && session.status === 'ended') {
-      if (session.soundEffectsEnabled && !soundMuted)
-        playQuizCompleteCelebration();
+      if (soundsOn && !soundMuted) playQuizCompleteCelebration();
     }
     prevStatusRef.current = session.status;
-  }, [session.status, session.soundEffectsEnabled, soundMuted]);
+  }, [session.status, soundsOn, soundMuted]);
 
   const handleEnd = async () => {
     const ok = await showConfirm(
@@ -370,6 +422,11 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     if (!ok) return;
     setEnding(true);
     try {
+      // The game's final ranks land before devices switch to their end screen.
+      if (isGame)
+        await updateDoc(doc(db, 'quiz_sessions', session.id), {
+          liveLeaderboard: liveEntries(),
+        });
       await onEnd();
     } catch (err) {
       logError('QuizLiveMonitor.end', err);
@@ -475,22 +532,28 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   // there is only ever one ranking path.
   const standings = useMemo(
     () =>
-      presenting
-        ? buildLiveLeaderboard(
-            responses,
-            quizData.questions,
-            {
-              speedBonusEnabled: session.speedBonusEnabled,
-              streakBonusEnabled: session.streakBonusEnabled,
-            },
-            data.pinToName,
-            data.byStudentUid,
-            fibGrading
-          )
-        : [],
+      presenting && isGame
+        ? gameEntries
+        : presenting
+          ? buildLiveLeaderboard(
+              responses,
+              quizData.questions,
+              {
+                speedBonusEnabled: session.speedBonusEnabled,
+                streakBonusEnabled: session.streakBonusEnabled,
+              },
+              data.pinToName,
+              data.byStudentUid,
+              fibGrading,
+              session.boardRankLimit ? null : 10
+            )
+          : [],
     [
       fibGrading,
       presenting,
+      isGame,
+      gameEntries,
+      session.boardRankLimit,
       responses,
       quizData.questions,
       session.speedBonusEnabled,
@@ -511,6 +574,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     session.stimuli
   ).some((s) => s.type === 'audio' || s.type === 'video');
   const canReveal =
+    !assessmentOnly &&
     (session.showCorrectOnBoard ?? false) &&
     session.sessionMode !== 'student' &&
     !!currentQ;
@@ -560,7 +624,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               },
         ]
       : []),
-    ...(session.soundEffectsEnabled
+    ...(soundsOn
       ? [
           {
             label: soundMuted ? 'Unmute sounds' : 'Mute sounds',
@@ -690,7 +754,10 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
         style={{ padding: 'min(12px, 3cqmin)' }}
       >
         {screen.name === 'home' && (
-          <div className="flex flex-col" style={{ gap: 'min(10px, 2.5cqmin)' }}>
+          <div
+            className={`flex flex-col ${isGame && boardView ? 'min-h-full' : ''}`}
+            style={{ gap: 'min(10px, 2.5cqmin)' }}
+          >
             {showStrip && !periodBar && (
               <PeriodAccessStrip
                 periodAccess={session.periodAccess}
@@ -740,26 +807,46 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 })}
               </div>
             )}
-            <CurrentQuestionCard
-              session={session}
-              currentQ={currentQ}
-              answered={data.answeredCurrent}
-              total={data.totalStudents}
-              doneCount={data.counts.done}
-              onAdvance={onAdvance}
-              widgetId={widgetId}
-              periodControls={periodBar && <PeriodBar {...periodBar} />}
-            />
-            <StatusBuckets
-              counts={data.counts}
-              handCount={session.handRaiseEnabled === true ? data.handCount : 0}
-              idleCount={data.idleCount}
-              openBucket={openBucket}
-              onToggle={(key) =>
-                setOpenBucket((cur) => (cur === key ? null : key))
-              }
-            />
-            {openBucket && (
+            {gameBoard ? (
+              <div
+                className={`rounded-xl overflow-hidden border border-brand-gray-lightest ${
+                  boardView ? 'relative flex-1' : 'relative shrink-0'
+                }`}
+                style={{ height: boardView ? undefined : '55cqh' }}
+              >
+                <div
+                  className="absolute inset-0"
+                  {...tourAttr('review-game.board', widgetId, tourType)}
+                >
+                  <GameBoard {...gameBoard} />
+                </div>
+              </div>
+            ) : (
+              <CurrentQuestionCard
+                session={session}
+                currentQ={currentQ}
+                answered={data.answeredCurrent}
+                total={data.totalStudents}
+                doneCount={data.counts.done}
+                onAdvance={onAdvance}
+                widgetId={widgetId}
+                periodControls={periodBar && <PeriodBar {...periodBar} />}
+              />
+            )}
+            {!(isGame && boardView) && (
+              <StatusBuckets
+                counts={data.counts}
+                handCount={
+                  session.handRaiseEnabled === true ? data.handCount : 0
+                }
+                idleCount={data.idleCount}
+                openBucket={openBucket}
+                onToggle={(key) =>
+                  setOpenBucket((cur) => (cur === key ? null : key))
+                }
+              />
+            )}
+            {openBucket && !(isGame && boardView) && (
               <RosterList
                 bucket={openBucket}
                 students={data.byBucket[openBucket]}
@@ -809,7 +896,8 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           <QuizSettingsScreen
             session={session}
             config={config}
-            hideLiveScoreboard={hideLiveScoreboard}
+            hideLiveScoreboard={hideLiveScoreboard || assessmentOnly}
+            assessmentOnly={assessmentOnly}
             hasNames={Object.keys(data.pinToName).length > 0}
             onUpdateSession={handleUpdateSession}
             onUpdateConfig={onUpdateConfig}
@@ -826,8 +914,15 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           counts={data.counts}
           total={data.totalStudents}
           standings={standings}
-          isGamified={data.isGamified}
-          classAverage={classAverage}
+          isGamified={isGame || data.isGamified}
+          classAverage={gameStats ? gameStats.firstTryPct : classAverage}
+          gameBoard={gameBoard ?? undefined}
+          {...(isGame
+            ? {
+                showNames: gameNames,
+                onToggleNames: () => setGameNames((v) => !v),
+              }
+            : {})}
           hasMedia={presentHasMedia}
           onSavePauseMessage={(message) =>
             handleUpdateSession({ pauseMessage: message })
@@ -845,7 +940,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
 
       {onHome && (
         <div
-          className="flex items-center border-t border-brand-gray-lightest shrink-0"
+          className="flex flex-wrap items-center border-t border-brand-gray-lightest shrink-0"
           style={{
             gap: 'min(8px, 2cqmin)',
             padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
@@ -853,11 +948,12 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
         >
           {(onPause ?? onResume) &&
             !perPeriod &&
+            !isGame &&
             session.status !== 'ended' && (
               <button
                 onClick={handleTogglePause}
                 disabled={toggling}
-                {...tourAttr('quiz.pause-resume', widgetId, 'quiz')}
+                {...tourAttr('quiz.pause-resume', widgetId, tourType)}
                 className="inline-flex items-center bg-brand-blue-primary hover:bg-brand-blue-light text-white font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
                 style={{
                   gap: 'min(6px, 1.5cqmin)',
@@ -891,11 +987,32 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 {session.status === 'paused' ? 'Resume' : 'Pause'}
               </button>
             )}
+          {isGame && session.status !== 'ended' && (
+            <GameControls
+              phase={gameClock.phase}
+              busy={gameControls.busy}
+              showNames={gameNames}
+              onStart={() => void gameControls.start()}
+              onTogglePause={() => void gameControls.togglePause()}
+              onAddMinute={() => void gameControls.addMinute()}
+              onToggleNames={() => setGameNames((v) => !v)}
+              tour={{
+                start: tourAttr('review-game.start', widgetId, tourType),
+                pause: tourAttr('review-game.pause', widgetId, tourType),
+                addMinute: tourAttr(
+                  'review-game.add-minute',
+                  widgetId,
+                  tourType
+                ),
+                names: tourAttr('review-game.names', widgetId, tourType),
+              }}
+            />
+          )}
           <button
             onClick={handleEnd}
             disabled={ending}
-            {...tourAttr('quiz.end-quiz', widgetId, 'quiz')}
-            className="inline-flex items-center bg-white border border-brand-gray-lighter hover:border-brand-red-light text-brand-red-primary font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
+            {...tourAttr('quiz.end-quiz', widgetId, tourType)}
+            className="inline-flex items-center whitespace-nowrap bg-white border border-brand-gray-lighter hover:border-brand-red-light text-brand-red-primary font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
             style={{
               gap: 'min(6px, 1.5cqmin)',
               padding: 'min(8px, 2cqmin) min(14px, 3cqmin)',
@@ -918,14 +1035,14 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 }}
               />
             )}
-            End
+            {isGame ? 'End game' : 'End'}
           </button>
           <div ref={menuRef} className="relative ml-auto">
             <button
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="More actions"
               aria-expanded={menuOpen}
-              {...tourAttr('quiz.more-actions', widgetId, 'quiz')}
+              {...tourAttr('quiz.more-actions', widgetId, tourType)}
               className="rounded-md border border-brand-gray-lighter text-brand-gray-dark hover:border-brand-blue-light transition-colors"
               style={{ padding: 'min(8px, 2cqmin)' }}
             >
@@ -957,7 +1074,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                       }}
                       {...(item.label === 'Reveal answer to class' ||
                       item.label === 'Hide revealed answer'
-                        ? tourAttr('quiz.reveal-answer', widgetId, 'quiz')
+                        ? tourAttr('quiz.reveal-answer', widgetId, tourType)
                         : {})}
                       className="flex items-center w-full text-left font-sans text-brand-gray-dark hover:bg-brand-blue-lighter transition-colors"
                       style={{
@@ -984,9 +1101,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
         </div>
       )}
 
-      {isReviewing && session.showPodiumBetweenQuestions && (
+      {isReviewing && session.showPodiumBetweenQuestions && !assessmentOnly && (
         <div
-          className="absolute inset-0 bg-brand-blue-dark/95 text-white flex flex-col items-center justify-center"
+          className="absolute inset-0 bg-brand-blue-dark/95 text-white flex flex-col items-center overflow-y-auto"
           style={{
             zIndex: Z_INDEX.widgetInternalOverlay,
             gap: 'min(12px, 3cqmin)',
@@ -994,7 +1111,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           }}
         >
           <Trophy
-            className="text-amber-400"
+            className="text-amber-400 shrink-0 mt-auto"
             aria-hidden
             style={{
               width: 'min(32px, 12cqmin)',
@@ -1020,19 +1137,121 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               ),
             }))
             .sort((a, b) => b.score - a.score)
-            .slice(0, 3)
+            .slice(0, boardRankRows(session.boardRankLimit))
             .map((s, i) => (
               <p
                 key={s.key}
                 className="font-sans tabular-nums"
                 style={{ fontSize: 'min(15px, 5.5cqmin)' }}
               >
-                {['1st', '2nd', '3rd'][i]} · {s.name} — {s.score}
+                {rankOrdinal(i + 1)} · {s.name} — {s.score}
                 {data.isGamified ? ' pts' : '%'}
               </p>
             ))}
+          <span aria-hidden className="mb-auto" />
         </div>
       )}
     </div>
   );
 };
+
+const footerButton =
+  'inline-flex items-center whitespace-nowrap font-sans font-semibold rounded-md transition-colors disabled:opacity-60';
+const footerButtonStyle = {
+  gap: 'min(6px, 1.5cqmin)',
+  padding: 'min(8px, 2cqmin) min(14px, 3cqmin)',
+  fontSize: 'min(13px, 4.5cqmin)',
+};
+const footerIcon = {
+  width: 'min(14px, 4.5cqmin)',
+  height: 'min(14px, 4.5cqmin)',
+};
+
+/** Review game footer (plan D26): Start or Pause, +1 min and the names toggle. */
+const GameControls: React.FC<{
+  phase: 'waiting' | 'running' | 'paused' | 'over';
+  busy: boolean;
+  showNames: boolean;
+  onStart: () => void;
+  onTogglePause: () => void;
+  onAddMinute: () => void;
+  onToggleNames: () => void;
+  tour: Record<
+    'start' | 'pause' | 'addMinute' | 'names',
+    Record<string, string>
+  >;
+}> = ({
+  phase,
+  busy,
+  showNames,
+  onStart,
+  onTogglePause,
+  onAddMinute,
+  onToggleNames,
+  tour,
+}) => (
+  <>
+    {phase === 'waiting' ? (
+      <button
+        type="button"
+        onClick={onStart}
+        disabled={busy}
+        {...tour.start}
+        className={`${footerButton} bg-brand-blue-primary hover:bg-brand-blue-light text-white`}
+        style={footerButtonStyle}
+      >
+        {busy ? (
+          <Loader2 className="animate-spin" style={footerIcon} />
+        ) : (
+          <Play style={footerIcon} aria-hidden />
+        )}
+        Start game
+      </button>
+    ) : (
+      <>
+        {phase !== 'over' && (
+          <button
+            type="button"
+            onClick={onTogglePause}
+            disabled={busy}
+            {...tour.pause}
+            className={`${footerButton} bg-brand-blue-primary hover:bg-brand-blue-light text-white`}
+            style={footerButtonStyle}
+          >
+            {phase === 'paused' ? (
+              <Play style={footerIcon} aria-hidden />
+            ) : (
+              <Pause style={footerIcon} aria-hidden />
+            )}
+            {phase === 'paused' ? 'Resume' : 'Pause'}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onAddMinute}
+          disabled={busy}
+          {...tour.addMinute}
+          className={`${footerButton} bg-white border border-brand-gray-lighter text-brand-gray-dark hover:border-brand-blue-light`}
+          style={footerButtonStyle}
+        >
+          <Plus style={footerIcon} aria-hidden />1 min
+        </button>
+      </>
+    )}
+    <button
+      type="button"
+      onClick={onToggleNames}
+      aria-pressed={showNames}
+      {...tour.names}
+      className={`${footerButton} border ${
+        showNames
+          ? 'bg-brand-blue-primary border-brand-blue-primary text-white'
+          : 'bg-white border-brand-gray-lighter text-brand-gray-dark hover:border-brand-blue-light'
+      }`}
+      style={footerButtonStyle}
+    >
+      <Users style={footerIcon} aria-hidden />
+      {showNames ? 'Names on' : 'Names off'}
+    </button>
+  </>
+);

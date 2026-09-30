@@ -81,6 +81,7 @@ vi.mock('@/context/useAuth', () => ({
     // preserve the "skip sheet creation" behavior these tests assert.
     ensureGoogleScope: vi.fn().mockResolvedValue(null),
     getAssignmentMode: () => 'submissions',
+    canAccessFeature: () => false,
   })),
 }));
 

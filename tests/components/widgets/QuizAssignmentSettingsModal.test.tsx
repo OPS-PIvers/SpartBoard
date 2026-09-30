@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QuizAssignmentSettingsModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentSettingsModal';
 import { combineDateAndTime } from '@/utils/localDate';
 import type { ClassRoster, QuizAssignment } from '@/types';
+import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 
 function makePlcAssignment(
   overrides: Partial<QuizAssignment> = {}
@@ -46,12 +47,12 @@ function makeRoster(overrides: Partial<ClassRoster> = {}): ClassRoster {
   } as ClassRoster;
 }
 
-describe('QuizAssignmentSettingsModal — behavior is read-only (freeze-live)', () => {
+describe('QuizAssignmentSettingsModal — behavior editable on a live assignment', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders a read-only behavior summary instead of editable behavior controls', () => {
+  it('shows the behavior summary on the collapsed section', () => {
     render(
       <QuizAssignmentSettingsModal
         assignment={makePlcAssignment({
@@ -64,43 +65,29 @@ describe('QuizAssignmentSettingsModal — behavior is read-only (freeze-live)', 
         onClose={vi.fn()}
       />
     );
-    // Should show the behavior summary text (from formatBehaviorSummary)
     const summary = screen.getByTestId('assignment-behavior-summary');
-    expect(summary).toBeInTheDocument();
     expect(summary.textContent).toContain('Teacher-paced');
     expect(summary.textContent).toContain('1 attempt');
+    expect(screen.queryByText(/edit in (the )?quiz/i)).not.toBeInTheDocument();
   });
 
-  it('shows an "Edit in quiz" hint (not an active nav button)', () => {
+  it('never offers the session mode selector', () => {
     render(
       <QuizAssignmentSettingsModal
-        assignment={makePlcAssignment()}
+        assignment={makePlcAssignment({ status: 'active' })}
         rosters={[] as ClassRoster[]}
         onSave={vi.fn()}
         onClose={vi.fn()}
       />
     );
-    expect(screen.getByText(/edit in (the )?quiz/i)).toBeInTheDocument();
-  });
-
-  it('does NOT render mode radio buttons or behavior toggle inputs', () => {
-    render(
-      <QuizAssignmentSettingsModal
-        assignment={makePlcAssignment({ status: 'inactive' })}
-        rosters={[] as ClassRoster[]}
-        onSave={vi.fn()}
-        onClose={vi.fn()}
-      />
+    fireEvent.click(
+      screen.getByRole('button', { name: /assessment settings/i })
     );
-    // No radiogroup for session mode
-    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
-    // No attempt-limit number input
-    expect(
-      screen.queryByRole('spinbutton', { name: /attempt/i })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Session Mode')).not.toBeInTheDocument();
+    expect(screen.getByText('Question Randomization')).toBeInTheDocument();
   });
 
-  it('save patch includes targeting fields but NOT behavior fields', async () => {
+  it('save patch leaves behavior out when it was not edited', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     render(
       <QuizAssignmentSettingsModal
@@ -119,13 +106,43 @@ describe('QuizAssignmentSettingsModal — behavior is read-only (freeze-live)', 
     fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
-    // Targeting fields SHOULD be present
     expect(patch).toHaveProperty('className');
     expect(patch).toHaveProperty('periodName');
     expect(patch).toHaveProperty('periodNames');
-    // Behavior fields MUST NOT be present
     expect(patch).not.toHaveProperty('sessionMode');
     expect(patch).not.toHaveProperty('sessionOptions');
+    expect(patch).not.toHaveProperty('attemptLimit');
+  });
+
+  it('save patch carries an edited shuffle toggle but never sessionMode', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({
+          status: 'active',
+          sessionMode: 'student',
+          sessionOptions: { shuffleAnswerOptions: true },
+          attemptLimit: 1,
+        })}
+        rosters={[] as ClassRoster[]}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /assessment settings/i })
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /question randomization/i })
+    );
+    fireEvent.click(
+      screen.getByRole('switch', { name: 'Shuffle Answer Options' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
+    expect(patch.sessionOptions).toEqual({ shuffleAnswerOptions: false });
+    expect(patch).not.toHaveProperty('sessionMode');
     expect(patch).not.toHaveProperty('attemptLimit');
   });
 
@@ -230,6 +247,47 @@ describe('QuizAssignmentSettingsModal — behavior is read-only (freeze-live)', 
     const summary = screen.getByTestId('assignment-behavior-summary');
     expect(summary.textContent).toContain('Auto-progress');
     expect(summary.textContent).toContain('unlimited attempts');
+  });
+});
+
+describe('QuizAssignmentSettingsModal — assessment only (Review split D9)', () => {
+  const renderModal = (assessmentOnly: boolean) =>
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({
+          status: 'active',
+          sessionMode: 'student',
+          sessionOptions: { speedBonusEnabled: true },
+          attemptLimit: 1,
+        })}
+        rosters={[] as ClassRoster[]}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+        assessmentOnly={assessmentOnly}
+      />
+    );
+
+  it('hides gamification, board reveal and the mode label', () => {
+    renderModal(true);
+    const summary = screen.getByTestId('assignment-behavior-summary');
+    expect(summary.textContent).not.toContain('Assessment Mode');
+    expect(summary.textContent?.startsWith('1 attempt')).toBe(true);
+    fireEvent.click(
+      screen.getByRole('button', { name: /assessment settings/i })
+    );
+    fireEvent.click(screen.getByRole('button', { name: /answer feedback/i }));
+    expect(screen.queryByText('Gamification')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Show correct answer on board')
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps gamification without the split', () => {
+    renderModal(false);
+    fireEvent.click(
+      screen.getByRole('button', { name: /assessment settings/i })
+    );
+    expect(screen.getByText('Gamification')).toBeInTheDocument();
   });
 });
 
@@ -454,5 +512,98 @@ describe('QuizAssignmentSettingsModal — PLC results sharing (D12)', () => {
     expect(patch).not.toHaveProperty('teacherName');
     expect(patch).not.toHaveProperty('plcSheetUrl');
     expect(screen.queryByText('Auto-Generated PLC Sheet')).toBeNull();
+  });
+});
+
+describe('QuizAssignmentSettingsModal — per-class due dates', () => {
+  const rosters = [
+    makeRoster({ id: 'r1', name: 'Period 1' }),
+    makeRoster({ id: 'r2', name: 'Period 2' }),
+  ];
+  const withFlag = (ui: React.ReactElement, on = true) => (
+    <AuthContext.Provider
+      value={
+        {
+          canAccessFeature: (id: string) =>
+            on && id === 'quiz-per-class-due-dates',
+        } as unknown as AuthContextType
+      }
+    >
+      {ui}
+    </AuthContext.Provider>
+  );
+
+  it('hides the switch without the flag', () => {
+    render(
+      withFlag(
+        <QuizAssignmentSettingsModal
+          assignment={makePlcAssignment({ rosterIds: ['r1', 'r2'] })}
+          rosters={rosters}
+          onSave={vi.fn()}
+          onClose={vi.fn()}
+        />,
+        false
+      )
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Each class' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('saves a date per class with the earliest as dueAt', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      withFlag(
+        <QuizAssignmentSettingsModal
+          assignment={makePlcAssignment({ rosterIds: ['r1', 'r2'] })}
+          rosters={rosters}
+          onSave={onSave}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Each class' }));
+    fireEvent.change(screen.getByLabelText('Period 1 due date'), {
+      target: { value: '2026-06-02' },
+    });
+    fireEvent.change(screen.getByLabelText('Period 2 due date'), {
+      target: { value: '2026-06-01' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
+    expect(patch.dueAtByRosterId).toEqual({
+      r1: combineDateAndTime('2026-06-02', '23:59'),
+      r2: combineDateAndTime('2026-06-01', '23:59'),
+    });
+    expect(patch.dueAt).toBe(combineDateAndTime('2026-06-01', '23:59'));
+  });
+
+  it('switching back to one date clears the per-class map', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      withFlag(
+        <QuizAssignmentSettingsModal
+          assignment={makePlcAssignment({
+            rosterIds: ['r1', 'r2'],
+            dueAt: combineDateAndTime('2026-06-01', '09:00'),
+            dueAtHasTime: true,
+            dueAtByRosterId: {
+              r1: combineDateAndTime('2026-06-01', '09:00') ?? 0,
+              r2: combineDateAndTime('2026-06-03', '09:00') ?? 0,
+            },
+          })}
+          rosters={rosters}
+          onSave={onSave}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'One date' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
+    expect(patch).toHaveProperty('dueAtByRosterId', undefined);
+    expect(patch.dueAt).toBe(combineDateAndTime('2026-06-01', '09:00'));
   });
 });

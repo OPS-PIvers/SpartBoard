@@ -116,6 +116,8 @@ export {
   commitRosterPinIndexV1,
   pinLoginV1,
 } from './studentIdentity';
+// Gradebook D8: roster student → stable uid for the gradebook grid.
+export { getGradebookRosterV1 } from './gradebook/getGradebookRosterV1';
 
 // ── Projects widget: group import (docs/plans/shipped/PROJECTS_WIDGET.md D8) ───────
 export { commitProjectGroupsV1 } from './projectGroups';
@@ -157,6 +159,9 @@ export {
 
 // ── Quiz score on submit (server-graded against a teacher-private key) ─────
 export { scoreQuizOnSubmitV1 } from './quizScoreOnSubmit';
+
+// ── Review self-paced game (server-graded per answer; QUIZ_REVIEW_SPLIT.md D31) ─
+export { checkQuizGameAnswerV1 } from './checkQuizGameAnswer';
 
 // ── Organization invitations + membership write-through (Phase 4) ──────────
 export {
@@ -203,6 +208,38 @@ export {
   markPlcAssessmentDirtyOnResponse,
 } from './markPlcAssessmentDirty';
 export { recomputePlcAssessments } from './recomputePlcAssessments';
+
+// Gradebook grade index and student projection (docs/plans/GRADEBOOK.md D10, D37); off until admin_settings/gradebook_index.enabled.
+export {
+  gradeIndexQuizResponse,
+  gradeIndexVideoResponse,
+  gradeIndexGuidedLearningResponse,
+  gradeIndexFlashcardProgress,
+  gradeIndexProjectGrade,
+  gradeIndexMiniAppSubmission,
+  gradeIndexWallSubmission,
+  gradeIndexQuizSession,
+  gradeIndexVideoSession,
+  gradeIndexGuidedLearningSession,
+  gradeIndexFlashcardSession,
+  gradeIndexProjectRun,
+  gradeIndexMiniAppSession,
+  gradeIndexWallSession,
+  gradeIndexQuizKey,
+  gradeIndexQuizAssignment,
+  gradeIndexVideoKey,
+  gradeIndexGuidedLearningAssignment,
+  gradeIndexProjectGroup,
+  gradeIndexStudentPointer,
+  gradeIndexProjection,
+  gradeIndexMark,
+  gradeIndexColumn,
+  gradeIndexClassSettings,
+  gradeIndexConfig,
+  gradeIndexPlcConfig,
+  gradeIndexDistrictConfig,
+  gradeIndexRecompute,
+} from './gradebook/gradeIndexTriggers';
 
 // ── Slim, PII-free discovery mirror (onWrite of a PLC root keeps
 // /plcIndex/{plcId} in sync) so the org "PLCs in my building" directory never

@@ -5,14 +5,15 @@ import {
   useMemo,
   useState,
 } from 'react';
-import type { QuizScoreVisibility } from '@/types';
+import type { QuizScoreVisibility, ResultsProtection } from '@/types';
 
 /** Per-student publishing callbacks, bound to one assignment by the widget. */
 export interface StudentResultsActions {
   publish: (
     responseKeys: string[],
     visibility: Exclude<QuizScoreVisibility, 'none'>,
-    expiresAt: number | null
+    expiresAt: number | null,
+    protection?: ResultsProtection
   ) => Promise<{ responsesUpdated: number; skipped: number }>;
   hide: (responseKeys: string[]) => Promise<void>;
   clear: (responseKeys: string[]) => Promise<void>;

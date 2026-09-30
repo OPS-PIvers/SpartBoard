@@ -45,7 +45,7 @@ import { useQuizEditorState } from './useQuizEditorState';
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
 import { QuizLanguageField } from './QuizLanguageField';
 import { sanitizeStimulusPointers } from '@/utils/quizStimuli';
-import { quizOrder } from '@/utils/questionBanks';
+import { quizOrder, quizServedQuestionCount } from '@/utils/questionBanks';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
@@ -235,7 +235,8 @@ const bankSlotsEqual = (a: QuizBankSlot[], b: QuizBankSlot[]): boolean => {
       sa.mode !== sb.mode ||
       (sa.count ?? 0) !== (sb.count ?? 0) ||
       (sa.points ?? 1) !== (sb.points ?? 1) ||
-      (sa.targetFilter ?? []).join('|') !== (sb.targetFilter ?? []).join('|')
+      (sa.targetFilter ?? []).join('|') !== (sb.targetFilter ?? []).join('|') ||
+      (sa.stimulusIds ?? []).join('|') !== (sb.stimulusIds ?? []).join('|')
     ) {
       return false;
     }
@@ -283,6 +284,10 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     aiAllowed ??
     (canAccessFeature('gemini-functions') && canAccessFeature('quiz'));
   const readAloudAvailable = canAccessFeature('quiz-read-aloud');
+  // D10: with the split on, settings live on the assignment; the saved behavior passes through untouched.
+  const settingsTabHidden = canAccessFeature('quiz-review-split');
+  // With the Settings tab gone, the read-aloud language picker lives on Languages.
+  const languageOnLanguagesTab = settingsTabHidden && readAloudAvailable;
   const handRaiseMode = useQuizHandRaiseMode();
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);
   const [keyFillOpen, setKeyFillOpen] = useState(false);
@@ -444,10 +449,11 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       // Belt-and-braces pointer cleanup: deleteStimulus already strips ids
       // live, but a save must never persist a dangling pointer.
       const cleanQuestions = sanitizeStimulusPointers(questions, stimuli);
+      const cleanSlots = sanitizeStimulusPointers(bankSlots, stimuli);
       // `order` only carries information when a slot or a section sits between questions.
       const cleanOrder = quizOrder({
         questions: cleanQuestions,
-        bankSlots,
+        bankSlots: cleanSlots,
         order,
         sections,
       });
@@ -462,7 +468,9 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
           questions: cleanQuestions,
           ...(stimuli.length > 0 ? { stimuli } : { stimuli: undefined }),
           ...(language ? { language } : { language: undefined }),
-          ...(bankSlots.length > 0 ? { bankSlots } : { bankSlots: undefined }),
+          ...(cleanSlots.length > 0
+            ? { bankSlots: cleanSlots }
+            : { bankSlots: undefined }),
           ...(bankSlots.length > 0 || cleanSections.length > 0
             ? { order: cleanOrder }
             : { order: undefined }),
@@ -500,11 +508,12 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   // Stable chrome elements so the shell's memoized header/footer don't
   // re-render on question-content keystrokes.
   const oversized = isBank && questions.length > QUESTION_BANK_SIZE_WARN;
+  const servedCount = quizServedQuestionCount({ questions, bankSlots });
   const subtitle = useMemo(
     () => (
       <span className="inline-flex items-center gap-2">
         <span>
-          {questions.length} {questions.length === 1 ? 'question' : 'questions'}
+          {servedCount} {servedCount === 1 ? 'question' : 'questions'}
         </span>
         {oversized && (
           <span
@@ -517,7 +526,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
         )}
       </span>
     ),
-    [questions.length, oversized]
+    [servedCount, oversized]
   );
   const headerExtras = useMemo(
     () =>
@@ -581,14 +590,17 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
 
   if (!quiz) return null;
 
-  const editorTabs = translationAvailable
-    ? (['questions', 'stimuli', 'settings', 'languages'] as const)
-    : (['questions', 'stimuli', 'settings'] as const);
+  const editorTabs = (
+    ['questions', 'stimuli', 'settings', 'languages'] as const
+  ).filter(
+    (tab) =>
+      (!isBank || tab === 'questions' || tab === 'stimuli') &&
+      (tab !== 'settings' || !settingsTabHidden) &&
+      (tab !== 'languages' || translationAvailable || languageOnLanguagesTab)
+  );
   // Access revoked mid-session: fall back rather than render Settings under Languages.
-  const resolvedTab = (editorTabs as readonly string[]).includes(editorTab)
-    ? editorTab
-    : 'questions';
-  const activeTab = isBank ? 'questions' : resolvedTab;
+  const resolvedTab = editorTabs.includes(editorTab) ? editorTab : 'questions';
+  const activeTab = resolvedTab;
 
   return (
     <EditorWorkspace
@@ -609,39 +621,39 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       footerExtras={footerExtras}
       contextPane={
         <div className="flex flex-col h-full">
-          {/* Questions / Settings segmented tab toggle (quiz mode only) */}
-          {!isBank && (
-            <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
-              {editorTabs.map((tab) => {
-                const disabled =
-                  tab === 'languages' && translationBlockedByBank;
-                return (
-                  <button
-                    key={tab}
-                    type="button"
-                    disabled={disabled}
-                    title={
-                      disabled
-                        ? t('quizTranslation.editor.disabled.bankSlots')
-                        : undefined
-                    }
-                    onClick={() => setEditorTab(tab)}
-                    className={`px-3 py-2 rounded-t-lg text-xs font-black uppercase tracking-wider transition-colors ${
-                      disabled
-                        ? 'text-slate-300 cursor-not-allowed'
-                        : activeTab === tab
-                          ? 'bg-brand-blue-primary text-white'
-                          : 'text-slate-500 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
-                    }`}
-                  >
-                    {tab === 'languages'
-                      ? t('quizTranslation.editor.tab')
-                      : tab.charAt(0).toUpperCase() + tab.slice(1)}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          {/* Questions / Stimuli / Settings segmented tab toggle */}
+          <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
+            {editorTabs.map((tab) => {
+              const disabled =
+                tab === 'languages' &&
+                translationBlockedByBank &&
+                !languageOnLanguagesTab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  disabled={disabled}
+                  title={
+                    disabled
+                      ? t('quizTranslation.editor.disabled.bankSlots')
+                      : undefined
+                  }
+                  onClick={() => setEditorTab(tab)}
+                  className={`px-3 py-2 rounded-t-lg text-xs font-black uppercase tracking-wider transition-colors ${
+                    disabled
+                      ? 'text-slate-300 cursor-not-allowed'
+                      : activeTab === tab
+                        ? 'bg-brand-blue-primary text-white'
+                        : 'text-slate-500 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
+                  }`}
+                >
+                  {tab === 'languages'
+                    ? t('quizTranslation.editor.tab')
+                    : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              );
+            })}
+          </div>
 
           {activeTab === 'questions' ? (
             <QuizEditorContextPane
@@ -649,6 +661,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               aiEnabled={aiEnabled}
               bankApi={isBank ? undefined : bankApi}
               shuffleQuestionsEnabled={
+                !settingsTabHidden &&
                 behavior.sessionMode === 'student' &&
                 behavior.sessionOptions.shuffleQuestions === true
               }
@@ -665,15 +678,24 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               readAloudAvailable={readAloudAvailable}
             />
           ) : activeTab === 'languages' ? (
-            <QuizLanguagesContextPane
-              quiz={quiz}
-              metadata={metadata ?? null}
-              api={translations}
-              selectedLocale={selectedLocale}
-              onSelectLocale={setSelectedLocale}
-              selectedQuestionId={selectedTranslationQuestionId}
-              onSelectQuestion={setSelectedTranslationQuestionId}
-            />
+            <>
+              {languageOnLanguagesTab && (
+                <div className="px-5 py-4 bg-white border-b border-slate-200 shrink-0">
+                  <QuizLanguageField value={language} onChange={setLanguage} />
+                </div>
+              )}
+              {translationAvailable && !translationBlockedByBank && (
+                <QuizLanguagesContextPane
+                  quiz={quiz}
+                  metadata={metadata ?? null}
+                  api={translations}
+                  selectedLocale={selectedLocale}
+                  onSelectLocale={setSelectedLocale}
+                  selectedQuestionId={selectedTranslationQuestionId}
+                  onSelectQuestion={setSelectedTranslationQuestionId}
+                />
+              )}
+            </>
           ) : (
             <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 px-5 py-5 space-y-5">
               {readAloudAvailable && (
@@ -698,14 +720,16 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
             bankApi={isBank ? undefined : bankApi}
           />
         ) : activeTab === 'languages' ? (
-          <QuizLanguagesDetailPane
-            quiz={quiz}
-            api={translations}
-            selectedLocale={selectedLocale}
-            onSelectLocale={setSelectedLocale}
-            selectedQuestionId={selectedTranslationQuestionId}
-            onSelectQuestion={setSelectedTranslationQuestionId}
-          />
+          translationAvailable && !translationBlockedByBank ? (
+            <QuizLanguagesDetailPane
+              quiz={quiz}
+              api={translations}
+              selectedLocale={selectedLocale}
+              onSelectLocale={setSelectedLocale}
+              selectedQuestionId={selectedTranslationQuestionId}
+              onSelectQuestion={setSelectedTranslationQuestionId}
+            />
+          ) : null
         ) : activeTab === 'stimuli' ? null : (
           <div className="flex items-center justify-center h-full text-slate-400 text-sm px-8 text-center">
             <p>Defaults for new sessions and assignments.</p>

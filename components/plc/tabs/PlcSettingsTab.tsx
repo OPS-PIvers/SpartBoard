@@ -22,6 +22,7 @@ import { useAuth } from '@/context/useAuth';
 import { PlcTrashBody } from '@/components/plc/settings/PlcTrashBody';
 import { PlcMeetingCadenceSection } from '@/components/plc/settings/PlcMeetingCadenceSection';
 import { PlcNormingLevelsSection } from '@/components/plc/norming/PlcNormingLevelsSection';
+import { PlcGradebookSection } from '@/components/plc/settings/PlcGradebookSection';
 
 interface PlcSettingsTabProps {
   plc: Plc;
@@ -223,6 +224,8 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
       {canAccessFeature('plc-norming-flags') && (
         <PlcNormingLevelsSection plc={plc} />
       )}
+
+      {canAccessFeature('gradebook') && <PlcGradebookSection plc={plc} />}
 
       {/* Notifications — opt-in weekly email digest (Decision 2.3). Any
           member can flip it; default OFF. */}

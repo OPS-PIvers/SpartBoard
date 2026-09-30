@@ -84,6 +84,11 @@ import {
 } from '@/utils/periodAccess';
 import { isInvalidWordRange } from '@/utils/wordLimit';
 import { getServerNow } from '@/utils/serverTime';
+import {
+  attemptClockRanOut,
+  clampQuizTimeLimitMinutes,
+  timestampMillis,
+} from '@/utils/quizTimeLimit';
 import { withNotChosen } from '@/utils/quizSections';
 import {
   FIB_BLANK_SEP,
@@ -1557,6 +1562,12 @@ export const useQuizSessionTeacher = (
             quizLedgerKey(sessionId, target.studentUid)
           )
         : null;
+      const clockRanOut = attemptClockRanOut(
+        target.timeUp,
+        timestampMillis(target.attemptStartedAt),
+        rawSession?.timeLimitMinutes,
+        Date.now()
+      );
       const currentAttempts = target.completedAttempts ?? 0;
       const refundedAttempts = Math.max(0, currentAttempts - 1);
 
@@ -1576,6 +1587,10 @@ export const useQuizSessionTeacher = (
         scoredOnSubmitAttempt: deleteField(),
         unlocked: true,
         unlockedAt: Date.now(),
+        // An attempt whose time already ran out reopens with a fresh limit.
+        ...(clockRanOut
+          ? { timeUp: deleteField(), attemptStartedAt: serverTimestamp() }
+          : {}),
         // Refresh lastWriteAt so the idle auto-submit Cloud Function
         // doesn't immediately re-finalize this freshly-unlocked attempt
         // on its next sweep. Without this, an unlock done >90 min after
@@ -1592,7 +1607,7 @@ export const useQuizSessionTeacher = (
       }
       await batch.commit();
     },
-    [sessionId, responses]
+    [sessionId, responses, rawSession?.timeLimitMinutes]
   );
 
   const unlockResultsForStudent = useCallback(
@@ -1896,7 +1911,7 @@ export interface UseQuizSessionStudentResult {
   ) => Promise<void>;
   /** Stamps the response-level Tennessen ack, provable without a committed take. */
   acknowledgeRecordingNotice: (at: number) => Promise<void>;
-  completeQuiz: () => Promise<void>;
+  completeQuiz: (opts?: { timeUp?: boolean }) => Promise<void>;
   /**
    * Increments the tab switch warning count for the student in Firestore.
    * Returns the updated count.
@@ -1909,6 +1924,8 @@ export interface UseQuizSessionStudentResult {
    * Server-stamps `handRaisedAt` when raising; writes null when lowering.
    */
   setHandRaised: (raised: boolean) => Promise<void>;
+  /** Stamps the attempt start for a response that has none (a time limit added mid-attempt). */
+  startAttemptClock: () => Promise<void>;
   /**
    * Record one completed play of a play-limited stimulus. `playKey` is the
    * attempt-scoped `stimulusPlayKey(attemptIndex, stimulusId)`.
@@ -2502,6 +2519,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         //     preserving `completedAttempts` (and the ledger entry) to
         //     enforce the cap on future submissions.
         const limit = sessionData.attemptLimit ?? null;
+        const hasTimeLimit =
+          sessionData.sessionMode === 'student' &&
+          clampQuizTimeLimitMinutes(sessionData.timeLimitMinutes) != null;
         if (existingSnap?.exists()) {
           const existing = existingSnap.data() as QuizResponse;
           if (existing.status === 'completed' && existing.unlocked) {
@@ -2563,6 +2583,8 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               score: null,
               submittedAt: null,
               preSyncVersion: 0,
+              ...(hasTimeLimit ? { attemptStartedAt: serverTimestamp() } : {}),
+              ...(existing.timeUp ? { timeUp: deleteField() } : {}),
               // A bank-draw session rolls a fresh draw for the next attempt.
               ...(Array.isArray(sessionData.bankSlots) &&
               sessionData.bankSlots.length > 0
@@ -2750,8 +2772,12 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           // the same `classPeriod` field so all downstream surfaces (period
           // dropdown, export sheet) read uniformly.
           const finalClassPeriod = classPeriod ?? resolvedPeriodName;
-          const newResponse: Omit<QuizResponse, 'lastWriteAt'> & {
+          const newResponse: Omit<
+            QuizResponse,
+            'lastWriteAt' | 'attemptStartedAt'
+          > & {
             lastWriteAt: FieldValue;
+            attemptStartedAt?: FieldValue;
           } = {
             studentUid,
             joinedAt: Date.now(),
@@ -2777,6 +2803,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             // at 0; the results UI renders the pre-sync chip only
             // when the value is > 0.
             preSyncVersion: 0,
+            ...(hasTimeLimit ? { attemptStartedAt: serverTimestamp() } : {}),
             ...(sanitizedPin ? { pin: sanitizedPin } : {}),
             ...(finalClassPeriod ? { classPeriod: finalClassPeriod } : {}),
             ...(resolvedClassId ? { classId: resolvedClassId } : {}),
@@ -3378,7 +3405,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     []
   );
 
-  const completeQuiz = useCallback(async () => {
+  const completeQuiz = useCallback(async (opts?: { timeUp?: boolean }) => {
     const sessionId = sessionIdRef.current;
     const responseKey = responseKeyRef.current;
     const quizId = quizIdRef.current;
@@ -3481,6 +3508,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       if (existing.unlocked) {
         responseUpdates.unlocked = false;
       }
+      if (opts?.timeUp) responseUpdates.timeUp = true;
       tx.update(responseRef, responseUpdates);
 
       if (ledgerRef && ledgerSnap) {
@@ -3524,6 +3552,22 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     await updateDoc(responseRef, {
       handRaisedAt: raised ? serverTimestamp() : null,
     });
+  }, []);
+
+  const startAttemptClock = useCallback(async (): Promise<void> => {
+    const sessionId = sessionIdRef.current;
+    const responseKey = responseKeyRef.current;
+    if (!sessionId || !responseKey) return;
+    await updateDoc(
+      doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      ),
+      { attemptStartedAt: serverTimestamp() }
+    );
   }, []);
 
   /**
@@ -3745,6 +3789,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     reportTabSwitch,
     saveTabExits,
     setHandRaised,
+    startAttemptClock,
     recordStimulusPlay,
     reportStimulusError,
     setServedQuestionIds,

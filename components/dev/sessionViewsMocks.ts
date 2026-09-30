@@ -368,3 +368,117 @@ export function makeVaResponses(): VideoActivityResponse[] {
     vaResponse('pin-Period 1-2005', '2005', [], false),
   ];
 }
+
+/* ─── Timed (overall time limit) fixtures ─────────────────────────────────── */
+
+const TIMED_STARTS: Record<string, number> = {
+  'pin-Period 3-1004': NOW - 17 * 60_000 - 48_000,
+  'pin-Period 3-1005': NOW - 4 * 60_000,
+  'pin-Period 3-1007': NOW - 29 * 60_000 - 20_000,
+  'pin-Period 3-1008': NOW - 22 * 60_000,
+};
+
+/** A self-paced session with a 30 minute limit. */
+export function makeTimedQuizSession(
+  status: QuizSessionStatus = 'active'
+): QuizSession {
+  return {
+    ...makeQuizSession(status),
+    sessionMode: 'student',
+    timeLimitMinutes: 30,
+  };
+}
+
+/** Responses with server-stamped attempt starts; 1006 ran out of time. */
+export function makeTimedQuizResponses(): QuizResponse[] {
+  return makeQuizResponses().map((r) => {
+    const key = r._responseKey ?? r.studentUid;
+    const start = TIMED_STARTS[key];
+    if (start != null) return { ...r, attemptStartedAt: fakeTimestamp(start) };
+    if (key === 'pin-Period 3-1006')
+      return {
+        ...r,
+        autoSubmitted: undefined,
+        tabSwitchWarnings: 0,
+        timeUp: true,
+      };
+    return r;
+  });
+}
+
+/** The student's own in-progress response with `remainingMs` left on the clock. */
+export function makeTimedStudentResponse(remainingMs: number): QuizResponse {
+  return {
+    _responseKey: 'pin-Period 3-1004',
+    studentUid: 'pin-Period 3-1004',
+    pin: '1004',
+    joinedAt: NOW - 30 * 60_000 + remainingMs,
+    status: 'in-progress',
+    answers: [],
+    score: null,
+    submittedAt: null,
+    classPeriod: 'Period 3',
+    attemptStartedAt: fakeTimestamp(NOW - 30 * 60_000 + remainingMs),
+    lastWriteAt: fakeTimestamp(NOW - 30_000),
+  };
+}
+
+/* ─── Review game results ────────────────────────────────────────────────── */
+
+export function makeReviewGameSession(): QuizSession {
+  return {
+    ...makeQuizSession('ended'),
+    sessionMode: 'game',
+    widgetKind: 'review',
+    speedBonusEnabled: true,
+    streakBonusEnabled: true,
+  };
+}
+
+// First tries live in `answers`; `game` holds every try's points (plan D25).
+function reviewPlayer(
+  pin: string,
+  q1: string,
+  q2: string,
+  points: number,
+  answered: number
+): QuizResponse {
+  const q1Right = q1 === '3/4';
+  const q2Right = q2 === '1/2';
+  return {
+    ...quizCompleted(`pin-Period 3-${pin}`, pin, q1, q2),
+    answers: [
+      {
+        questionId: QUIZ_Q1_ID,
+        answer: q1,
+        answeredAt: NOW - 480_000,
+        isCorrect: q1Right,
+      },
+      {
+        questionId: QUIZ_Q2_ID,
+        answer: q2,
+        answeredAt: NOW - 470_000,
+        isCorrect: q2Right,
+      },
+    ],
+    game: {
+      points,
+      streak: 0,
+      answered,
+      correct: Math.round(answered * 0.7),
+      firstTry: { [QUIZ_Q1_ID]: q1Right, [QUIZ_Q2_ID]: q2Right },
+      lastCorrect: { [QUIZ_Q1_ID]: true, [QUIZ_Q2_ID]: true },
+      last: null,
+    },
+  };
+}
+
+export function makeReviewGameResponses(): QuizResponse[] {
+  return [
+    reviewPlayer('1001', '3/4', '1/2', 18.4, 22),
+    reviewPlayer('1002', '3/4', '2/4', 15.25, 19),
+    reviewPlayer('1003', '1/4', '1/2', 15.25, 18),
+    reviewPlayer('1007', '1/4', '4/8', 9.8, 14),
+    reviewPlayer('1008', '3/4', '1/2', 21.05, 24),
+  ];
+}

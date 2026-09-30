@@ -1087,6 +1087,7 @@ describe('useQuizAssignments - updateAssignmentSettings', () => {
 
 describe('useQuizAssignments - syncAssignmentToLatest', () => {
   const batchUpdate = vi.fn();
+  const batchDelete = vi.fn();
   const batchCommit = vi.fn();
   const mockGetDocs = getDocs as Mock;
   // The sync path reads the assignment doc then the session doc, in that order;
@@ -1104,9 +1105,11 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     );
     mockOnSnapshot.mockReturnValue(() => undefined);
     batchUpdate.mockReset();
+    batchDelete.mockReset();
     batchCommit.mockReset().mockResolvedValue(undefined);
     mockWriteBatch.mockReturnValue({
       update: batchUpdate,
+      delete: batchDelete,
       commit: batchCommit,
     });
   });
@@ -1220,6 +1223,10 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
       'eb',
     ]);
     expect(patch.quizTitleLocalized).toEqual({ es: 'Titulo' });
+    // Score-on-submit flag off: the key can't be refreshed, so it is dropped.
+    expect(batchDelete).toHaveBeenCalledWith(
+      `users/${TEACHER_UID}/quiz_assignments/${ASSIGNMENT_ID}/key/answers`
+    );
   });
 
   it('re-derives localizedFibAnswers on the assignment doc', async () => {
@@ -2016,6 +2023,53 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         questionPhase: 'answering',
       })
     );
+  });
+
+  it('does not mirror a time limit or score on submit to a teacher without those flags', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [],
+      version: 5,
+      behavior: {
+        sessionMode: 'student',
+        sessionOptions: {
+          shuffleQuestions: true,
+          timeLimitMinutes: 20,
+          showScoreOnSubmit: true,
+        },
+        attemptLimit: null,
+      },
+    });
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        teacherUid: TEACHER_UID,
+        status: 'paused',
+        sessionMode: 'student',
+        sessionOptions: {},
+        attemptLimit: 1,
+        sync: { groupId: 'group-1', syncedVersion: 4 },
+      }),
+    });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    expect(sessionCall?.[1]).toEqual(
+      expect.objectContaining({ shuffleQuestions: true })
+    );
+    expect(sessionCall?.[1]).not.toHaveProperty('timeLimitMinutes');
+    expect(sessionCall?.[1]).not.toHaveProperty('showScoreOnSubmit');
   });
 
   it('leaves run-settings alone on a non-paused assignment', async () => {

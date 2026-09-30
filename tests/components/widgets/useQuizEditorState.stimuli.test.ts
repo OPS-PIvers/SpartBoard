@@ -79,3 +79,34 @@ describe('useQuizEditorState stimuli actions', () => {
     expect(updated?.playLimit).toBe(3);
   });
 });
+
+describe('useQuizEditorState stimuli on random bank slots', () => {
+  const slotQuiz: QuizData = {
+    ...quiz,
+    bankSlots: [
+      {
+        id: 'slot-1',
+        bankId: 'bank-1',
+        bankTitle: 'Reading bank',
+        mode: 'random',
+        count: 3,
+      },
+    ],
+  };
+
+  it('toggles a stimulus on a slot', () => {
+    const { result } = renderHook(() => useQuizEditorState({ quiz: slotQuiz }));
+    act(() => result.current.toggleStimulusOnSlot('s2', 'slot-1'));
+    expect(result.current.bankSlots[0].stimulusIds).toEqual(['s2']);
+    act(() => result.current.toggleStimulusOnSlot('s2', 'slot-1'));
+    expect(result.current.bankSlots[0].stimulusIds).toBeUndefined();
+  });
+
+  it('all-questions attach and delete both reach slots', () => {
+    const { result } = renderHook(() => useQuizEditorState({ quiz: slotQuiz }));
+    act(() => result.current.setStimulusOnAllQuestions('s2', true));
+    expect(result.current.bankSlots[0].stimulusIds).toEqual(['s2']);
+    act(() => result.current.deleteStimulus('s2'));
+    expect(result.current.bankSlots[0].stimulusIds).toBeUndefined();
+  });
+});

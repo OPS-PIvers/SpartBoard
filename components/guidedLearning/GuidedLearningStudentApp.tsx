@@ -42,6 +42,8 @@ import { GuidedLearningResponse, GuidedLearningSession } from '@/types';
 import { GuidedLearningPlayer } from '@/components/widgets/GuidedLearning/components/GuidedLearningPlayer';
 import { useServerNow } from '@/hooks/useServerNow';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
+import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
+import { ResultsProtectionGate } from '@/components/student/ResultsProtectionGate';
 import {
   GuidedLearningPeriodLockedScreen,
   GuidedLearningPeriodPausedOverlay,
@@ -541,14 +543,25 @@ const StudentExperience: React.FC<{
     myResponse &&
     typeof myResponse.completedAt === 'number'
   ) {
-    const visibility = session.scoreVisibility ?? 'none';
+    const { visibility, revealedAnswers, protection, publishedAt } =
+      resolveResultsVisibility(session, myResponse);
     if (visibility !== 'none') {
       return (
-        <PublishedGLReview
-          session={session}
-          myResponse={myResponse}
-          visibility={visibility}
-        />
+        <ResultsProtectionGate
+          protection={protection}
+          publishedAt={publishedAt}
+          responseDocPath={`guided_learning_sessions/${session.id}/responses/${myResponse.studentAnonymousId}`}
+          tabWarnings={myResponse.resultsTabWarnings ?? 0}
+          lockedOut={myResponse.resultsLockedOut === true}
+          pin={myResponse.pin}
+        >
+          <PublishedGLReview
+            session={session}
+            myResponse={myResponse}
+            visibility={visibility}
+            revealedAnswers={revealedAnswers}
+          />
+        </ResultsProtectionGate>
       );
     }
     return (
@@ -568,7 +581,7 @@ const StudentExperience: React.FC<{
         session={session}
         score={score}
         isViewOnly={isViewOnly}
-        visibility={session.scoreVisibility ?? 'none'}
+        visibility={resolveResultsVisibility(session, myResponse).visibility}
         onReplay={() => {
           // Drop responses + bump key so the player fully remounts with
           // fresh state at step 0 / image 0. Keep `started` true so the
@@ -1101,7 +1114,9 @@ export const PublishedGLReview: React.FC<{
   session: GuidedLearningSession;
   myResponse: GuidedLearningResponse;
   visibility: NonNullable<GuidedLearningSession['scoreVisibility']>;
-}> = ({ session, myResponse, visibility }) => {
+  /** Answer key for this student; defaults to the class-wide one. */
+  revealedAnswers?: Record<string, string>;
+}> = ({ session, myResponse, visibility, revealedAnswers }) => {
   const { t } = useTranslation();
   const showResponses =
     visibility === 'score-and-responses' ||
@@ -1159,7 +1174,7 @@ export const PublishedGLReview: React.FC<{
                   const ans = answersByStep.get(step.id);
                   const isCorrect = ans?.isCorrect === true;
                   const canonical = showAnswers
-                    ? session.revealedAnswers?.[step.id]
+                    ? (revealedAnswers ?? session.revealedAnswers)?.[step.id]
                     : undefined;
                   const studentAnswer = formatStudentAnswer(ans?.answer);
                   return (

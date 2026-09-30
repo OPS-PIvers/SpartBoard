@@ -91,6 +91,7 @@
       "boards": "Tableaux",
       "backgrounds": "Arrière-plans",
       "assignments": "Devoirs",
+      "gradebook": "Carnet de notes",
       "classes": "Mes Classes",
       "plcs": "Mes CAP",
       "widgets": "Widgets",
@@ -2088,6 +2089,13 @@
     "off": "Les élèves voient leur score quand tu publies les résultats.",
     "unavailable": "Indisponible avec des questions à réponse libre."
   },
+  "quizTimeLimit": {
+    "label": "Limite de temps",
+    "minutes": "Minutes",
+    "unit": "min",
+    "left": "Temps restant {{time}}",
+    "submitted": "Le temps est écoulé. Tes réponses ont été envoyées."
+  },
   "quizReadAloud": {
     "label": "Lire à voix haute",
     "help": "Élèves connectés uniquement.",
@@ -2832,6 +2840,7 @@
     "question_sorting": "Classement",
     "questionText": "Question",
     "questionTextPlaceholder": "Que voulez-vous demander ?",
+    "learningTargets": "Objectifs d'apprentissage",
     "answerChoices": "Choix de réponses",
     "markCorrect": "Marquer le choix {{n}} comme correct",
     "choiceN": "Choix {{n}}",

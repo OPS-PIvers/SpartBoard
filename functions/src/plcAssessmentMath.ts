@@ -275,7 +275,7 @@ function parentStandardTag(
   };
 }
 
-function parseTargets(raw: unknown): QuestionTargetSnapshot[] {
+export function parseTargets(raw: unknown): QuestionTargetSnapshot[] {
   if (!Array.isArray(raw)) return [];
   const byId = new Map<string, QuestionTargetSnapshot>();
   for (const value of raw) {

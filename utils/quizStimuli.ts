@@ -79,7 +79,7 @@ export function stimulusMediaUrl(s: QuizStimulus): string {
  * Returns the same array when nothing changed so React state and dirty
  * checks aren't churned.
  */
-export function sanitizeStimulusPointers<T extends QuizQuestion>(
+export function sanitizeStimulusPointers<T extends { stimulusIds?: string[] }>(
   questions: T[],
   stimuli: QuizStimulus[] | undefined
 ): T[] {

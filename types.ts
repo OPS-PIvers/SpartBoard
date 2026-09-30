@@ -63,7 +63,8 @@ export type WidgetType =
   | 'need-do-put-then'
   | 'stations'
   | 'flashcards'
-  | 'projects';
+  | 'projects'
+  | 'review';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -3043,6 +3044,8 @@ export interface MiniAppSession extends PeriodAccessSessionFields {
    *  open/close window; read by class-wide students on /my-assignments,
    *  which sources due dates from this session doc, not the archive row. */
   dueAt?: number | null;
+  /** Per-class due dates by ClassLink/test class id; a matching class wins over `dueAt`. */
+  dueAtByClassId?: Record<string, number>;
   /** True when this assignment used per-student targeting (spec §2a). Class
    *  channel drops these client-side; not a security boundary. */
   individualTargeting?: boolean;
@@ -3812,6 +3815,8 @@ export interface QuizBankSlot {
   targetFilter?: string[];
   /** random mode: points applied to every drawn question (default 1) */
   points?: number;
+  /** random mode: ids of `QuizData.stimuli` shown with every drawn question */
+  stimulusIds?: string[];
 }
 
 /** Position of fixed questions and slots in the quiz editor list. */
@@ -4047,7 +4052,9 @@ export interface QuizTranslationIndexEntry {
 }
 
 export type QuizSessionStatus = 'waiting' | 'active' | 'paused' | 'ended';
-export type QuizSessionMode = 'teacher' | 'auto' | 'student';
+export type QuizSessionMode = 'teacher' | 'auto' | 'student' | 'game';
+/** Which widget owns a quiz assignment; absent on legacy docs (see `getAssignmentWidgetKind`). */
+export type QuizWidgetKind = 'quiz' | 'review';
 
 /**
  * Common session-level toggles applicable to any assignment widget that
@@ -4116,6 +4123,45 @@ export interface QuizSessionOptions extends BaseSessionOptions {
   handRaiseEnabled?: boolean;
   /** Score each attempt on submit and show it; ignored when a question needs manual grading. */
   showScoreOnSubmit?: boolean;
+  /** Overall time limit per attempt in minutes, self-paced only; null/absent = none. */
+  timeLimitMinutes?: number | null;
+  /** Review: leaderboard rows on the board; absent keeps the legacy top 3. */
+  boardRankLimit?: ReviewBoardRankLimit;
+}
+
+/** A Firestore Timestamp or epoch ms on the game clock fields. */
+export type GameClockStamp = number | { toMillis: () => number };
+
+/** Server-written game score on a response (functions/src/checkQuizGameAnswer.ts). */
+export interface QuizGameState {
+  points: number;
+  streak: number;
+  answered: number;
+  correct: number;
+  /** First try per question: true only for full credit (plan D25). */
+  firstTry: Record<string, boolean>;
+  /** Latest try per question, so a reloaded device rebuilds its repeat queue. */
+  lastCorrect: Record<string, boolean>;
+  last: {
+    questionId: string;
+    answer: string;
+    isCorrect: boolean;
+    points: number;
+    speedBonus: number;
+    firstTry: boolean;
+    at: number;
+  } | null;
+}
+
+/** Review board leaderboard size: a row count, or 'all' for everyone. */
+export type ReviewBoardRankLimit = 5 | 10 | 'all';
+
+/** Review's Start dialog settings, remembered per teacher (plan D15). */
+export interface ReviewLaunchSettings {
+  sessionMode: 'teacher' | 'auto' | 'game';
+  sessionOptions: QuizSessionOptions;
+  /** Self-paced game length in minutes (plan D22). */
+  gameMinutes?: number;
 }
 
 /**
@@ -4324,6 +4370,8 @@ export interface QuizSession
   plcLinkedAt?: number;
   status: QuizSessionStatus;
   sessionMode: QuizSessionMode;
+  /** Owning widget, written on create while `quiz-review-split` is on. */
+  widgetKind?: QuizWidgetKind;
   /** -1 = lobby/waiting room, 0+ = currently displayed question index */
   currentQuestionIndex: number;
   startedAt: number | null;
@@ -4419,6 +4467,8 @@ export interface QuizSession
   showLearningTargets?: boolean;
   /** Students see their score as soon as the server grades a submitted attempt. */
   showScoreOnSubmit?: boolean;
+  /** Overall time limit per attempt in minutes, counted from `QuizResponse.attemptStartedAt`. */
+  timeLimitMinutes?: number | null;
   /**
    * Teacher-written map of questionId → correct answer text.
    * Students read from this after submitting; only populated when the
@@ -4433,6 +4483,8 @@ export interface QuizSession
   streakBonusEnabled?: boolean;
   /** Show a podium/leaderboard between questions (default false) */
   showPodiumBetweenQuestions?: boolean;
+  /** Review: board leaderboard size chosen at launch (plan D21). */
+  boardRankLimit?: ReviewBoardRankLimit;
   /** Play sound effects during the quiz (default false) */
   soundEffectsEnabled?: boolean;
   /**
@@ -4456,6 +4508,16 @@ export interface QuizSession
   pauseMessage?: string;
   /** Top-N leaderboard snapshot broadcast by the teacher for student view. */
   liveLeaderboard?: QuizLeaderboardEntry[];
+
+  // ─── Self-paced Review game clock (plan D22) ────────────────────────────────
+  /** Game length chosen at launch, before any added time. */
+  gameDurationMs?: number;
+  /** When the game ends; absent until the teacher starts it. Timestamp or ms. */
+  gameEndsAt?: GameClockStamp;
+  /** Set while the teacher has the game paused. */
+  gamePausedAt?: GameClockStamp | null;
+  /** Total time the teacher added with +1 min. */
+  gameAddedMs?: number;
 
   // ─── Multi-class period support ─────────────────────────────────────────────
   /** Selected class period roster names available for students to join. */
@@ -4922,6 +4984,10 @@ export interface QuizResponse {
    * behavior (don't retroactively auto-submit historical attempts).
    */
   lastWriteAt?: import('firebase/firestore').Timestamp;
+  /** Server-stamped start of the current attempt; the overall time limit counts from it. */
+  attemptStartedAt?: import('firebase/firestore').Timestamp;
+  /** The attempt was submitted because the overall time limit ran out. */
+  timeUp?: boolean;
   /**
    * Epoch ms at which this student acknowledged the Tennessen recording
    * notice. Response-level so the acknowledgement is provable even when the
@@ -4947,6 +5013,8 @@ export interface QuizResponse {
    * Absent = the full question set was served.
    */
   servedQuestionIds?: string[];
+  /** Self-paced Review game score; only checkQuizGameAnswerV1 writes it. */
+  game?: QuizGameState;
   /**
    * Percentage score 0–100 if computed and persisted, or null if not yet graded.
    * Not currently written by either the student or the teacher app — scoring is
@@ -5114,6 +5182,8 @@ export type QuizResultsOverride =
       expiresAt?: number | null;
       /** Answer key, present only at the `score-responses-and-answers` level. */
       revealedAnswers?: Record<string, string>;
+      /** Protection for this student; absent on older overrides, which use the class one. */
+      protection?: ResultsProtection;
     }
   | {
       mode: 'hidden';
@@ -5561,6 +5631,12 @@ export interface QuizGlobalConfig {
   buildingDefaults?: Record<string, QuizBuildingConfig>;
 }
 
+/** The Review widget runs the same quiz library, so it shares Quiz's config shape. */
+export type ReviewConfig = QuizConfig & {
+  /** Last Start dialog settings; lives only in `savedWidgetPresets.review`, never on a board. */
+  lastLaunch?: ReviewLaunchSettings;
+};
+
 /** Widget configuration for the quiz widget (teacher side) */
 export interface QuizConfig {
   view: 'manager' | 'import' | 'editor' | 'preview' | 'results' | 'monitor';
@@ -5833,6 +5909,8 @@ export interface QuizAssignmentSettings {
    * end-of-day. Absent = date-only (legacy/other create paths).
    */
   dueAtHasTime?: boolean;
+  /** Per-class due dates by roster id; `dueAt` then holds the earliest. Absent = one shared date. */
+  dueAtByRosterId?: Record<string, number>;
   /**
    * Drive file holding the resolved quiz (fixed questions + every pool
    * question with slot points) written at assign time when the quiz has bank
@@ -5854,6 +5932,8 @@ export interface QuizAssignment
     PeriodAccessSessionFields {
   /** Assignment UUID — also the sessionId. */
   id: string;
+  /** Owning widget, written on create while `quiz-review-split` is on. */
+  widgetKind?: QuizWidgetKind;
   /**
    * FIB answer keys translated at assign time, `{ [questionId]: { [locale]: string[] } }`.
    * Teacher-owned only: the session doc is world-readable to students, so it never carries this.
@@ -6460,7 +6540,7 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
 
 /** VA counterpart of QuizBehaviorSettings. */
 export interface VideoActivityBehaviorSettings {
-  sessionMode: QuizSessionMode;
+  sessionMode: Exclude<QuizSessionMode, 'game'>;
   sessionOptions: Omit<
     VideoActivitySessionOptions,
     'attemptLimit' | 'dueAt' | 'dueAtHasTime'
@@ -6589,6 +6669,8 @@ export interface VideoActivitySession
    * Mirrors `QuizSession.revealedAnswers`.
    */
   revealedAnswers?: Record<string, string>;
+  /** Results protection from the class publish; cleared on unpublish. */
+  protection?: ResultsProtection;
   /**
    * Optional sync-group linkage. Mirrors `QuizSession.sync`. Set when the
    * assignment was created from (or imported as) a synced share so peer
@@ -6732,6 +6814,13 @@ export interface VideoActivityResponse {
   unlocked?: boolean;
   /** Client timestamp (ms) when the teacher unlocked the attempt. */
   unlockedAt?: number;
+  /** Per-student results publication; absent = follows the class. Teacher-written only. */
+  resultsOverride?: QuizResultsOverride;
+  /** Results-view tab-away count; students only raise it, the teacher's unlock lowers it. */
+  resultsTabWarnings?: number;
+  /** True once `resultsTabWarnings` reaches the protection threshold. */
+  resultsLockedOut?: boolean;
+  resultsLockedOutAt?: number;
 }
 
 /**
@@ -7353,6 +7442,8 @@ export interface GuidedLearningStep {
   /** Banner color tone for banner overlay (default 'blue') */
   bannerTone?: 'blue' | 'red' | 'neutral';
   question?: GuidedLearningQuestion;
+  /** Learning-target tags on a question step; teacher-only, never mirrored to `publicSteps`. */
+  targets?: QuestionTargetTag[];
   /** Seconds before auto-advance in guided mode */
   autoAdvanceDuration?: number;
   /** Click zone / spotlight / zoom focus. Absent = default circle centred on xPct/yPct. */
@@ -7737,6 +7828,8 @@ export interface GuidedLearningSession
    * answer keys to the client.
    */
   revealedAnswers?: Record<string, string>;
+  /** Results protection from the class publish; cleared on unpublish. */
+  protection?: ResultsProtection;
   /** Mirrors `GuidedLearningAssignment.openAt`/`closeAt`. Absent = always open. */
   openAt?: number | null;
   closeAt?: number | null;
@@ -7764,6 +7857,13 @@ export interface GuidedLearningResponse {
   classPeriod?: string;
   /** The `periodAccess` key the student's seat named; set on per-period sessions. */
   classId?: string;
+  /** Per-student results publication; absent = follows the class. Teacher-written only. */
+  resultsOverride?: QuizResultsOverride;
+  /** Results-view tab-away count; students only raise it, the teacher's unlock lowers it. */
+  resultsTabWarnings?: number;
+  /** True once `resultsTabWarnings` reaches the protection threshold. */
+  resultsLockedOut?: boolean;
+  resultsLockedOutAt?: number;
 }
 
 export interface GuidedLearningGlobalConfig {
@@ -8062,6 +8162,8 @@ export interface FlashcardAssignment
   openAt?: number | null;
   closeAt?: number | null;
   dueAt?: number | null;
+  /** PLC this assignment's class-level results are shared with. */
+  plcShare?: { plcId: string; sharedAt: number } | null;
 }
 
 /** `flashcard_sessions/{assignmentId}/progress/{studentUid}`. */
@@ -8083,6 +8185,47 @@ export interface FlashcardProgress extends FlashcardStudyState {
   total?: number;
   answerLog?: FlashcardAnswerLogEntry[];
   flags?: FlashcardFlag[];
+}
+
+/** `plcs/{plcId}/flashcard_sets/{setId}`: a set shared with a PLC, payload inline. */
+export interface PlcFlashcardSetEntry extends Omit<
+  FlashcardSet,
+  'folderId' | 'publicShareId' | 'claudeReviewPendingAt'
+> {
+  sharedBy: string;
+  sharedByEmail: string;
+  sharedByName: string;
+  sharedAt: number;
+  deletedAt?: number | null;
+}
+
+/** One card's class tally in a shared flashcard result. */
+export interface PlcFlashcardCardTally {
+  term: string;
+  definition: string;
+  correct: number;
+  answered: number;
+}
+
+/** `plcs/{plcId}/flashcard_results/{assignmentId}`: class-level results, no student ids. */
+export interface PlcFlashcardResultEntry {
+  id: string;
+  setId: string;
+  setTitle: string;
+  kind: FlashcardAssignmentKind;
+  classLabel: string;
+  /** Students with progress. */
+  students: number;
+  /** Submitted (check) or started (study). */
+  completed: number;
+  /** Average score (check) or average mastered (study), 0-100. */
+  averagePercent: number;
+  cards: PlcFlashcardCardTally[];
+  sharedBy: string;
+  sharedByEmail: string;
+  sharedByName: string;
+  sharedAt: number;
+  updatedAt: number;
 }
 
 /** Per-board state only. Set content lives in the teacher's Firestore library. */
@@ -8517,7 +8660,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                                 ? FlashcardsConfig
                                                                                                                                 : T extends 'projects'
                                                                                                                                   ? ProjectsConfig
-                                                                                                                                  : never;
+                                                                                                                                  : T extends 'review'
+                                                                                                                                    ? ReviewConfig
+                                                                                                                                    : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -9045,6 +9190,8 @@ export type GlobalFeature =
   | 'plc-home-v2'
   /** Flag free-response answers so an anonymized copy appears on the PLC page for norming. */
   | 'plc-norming-flags'
+  /** Share flashcard sets and class-level flashcard results with a PLC. */
+  | 'plc-flashcards'
   /** Choose-all-that-apply quiz questions in the quiz editor and AI drafting. */
   | 'quiz-choose-all'
   /** Quiz multiple choice editor as one option list with a correct-answer marker per option. */
@@ -9077,6 +9224,16 @@ export type GlobalFeature =
   | 'quiz-score-on-submit'
   /** Projects board: tapping a group name opens that group's student view. */
   | 'projects-group-view'
+  /** Quiz assign/edit: a separate due date per selected class. */
+  | 'quiz-per-class-due-dates'
+  /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
+  | 'gradebook'
+  /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
+  | 'student-gradebook'
+  /** Quiz keeps assessment only; live review games move to the Review widget. */
+  | 'quiz-review-split'
+  /** Quiz assign/edit: an overall time limit per attempt with a student countdown. */
+  | 'quiz-time-limit'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'
@@ -10245,6 +10402,8 @@ export interface GuidedLearningAssignment
   removedStudentRefs?: StudentTargetRef[];
   /** Answer keys by step id, frozen at assign so a later set edit never rescores. */
   answerKeys?: Record<string, GuidedLearningAnswerKey>;
+  /** Learning-target tags by question step id, frozen at assign for gradebook evidence. */
+  stepTargets?: Record<string, QuestionTargetTag[]>;
 }
 
 /** The scoring half of a question, stored on the teacher-only assignment doc. */

@@ -26,6 +26,7 @@ import {
   Link2,
   Sparkles,
   ClipboardList,
+  BookOpenCheck,
 } from 'lucide-react';
 import { GoogleDriveIcon } from '@/components/common/GoogleDriveIcon';
 import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
@@ -117,7 +118,14 @@ export const Sidebar: React.FC = () => {
   const [activeSection, setActiveSection] = useState<MenuSection>('main');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const { user, signOut, isAdmin, appSettings, isExternalUser } = useAuth();
+  const {
+    user,
+    signOut,
+    isAdmin,
+    appSettings,
+    isExternalUser,
+    canAccessFeature,
+  } = useAuth();
   const {
     dashboards,
     activeDashboard,
@@ -530,24 +538,45 @@ export const Sidebar: React.FC = () => {
                     </span>
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
-                  <button
-                    {...tourAttr('sidebar.assignments')}
-                    onClick={() => {
-                      setShowAssignmentsHub(true);
-                      setIsOpen(false);
-                    }}
-                    className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
-                      <ClipboardList className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
-                    </div>
-                    <span className="flex-grow text-[13px]">
-                      {t('sidebar.nav.assignments', {
-                        defaultValue: 'Assignments',
-                      })}
-                    </span>
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
-                  </button>
+                  {/* Gradebook replaces Assignments; the hub stays for teachers without the flag. */}
+                  {canAccessFeature('gradebook') ? (
+                    <button
+                      onClick={() => {
+                        spaNavigate('/gradebook');
+                        setIsOpen(false);
+                      }}
+                      className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                        <BookOpenCheck className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
+                      </div>
+                      <span className="flex-grow text-[13px]">
+                        {t('sidebar.nav.gradebook', {
+                          defaultValue: 'Gradebook',
+                        })}
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
+                    </button>
+                  ) : (
+                    <button
+                      {...tourAttr('sidebar.assignments')}
+                      onClick={() => {
+                        setShowAssignmentsHub(true);
+                        setIsOpen(false);
+                      }}
+                      className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                        <ClipboardList className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
+                      </div>
+                      <span className="flex-grow text-[13px]">
+                        {t('sidebar.nav.assignments', {
+                          defaultValue: 'Assignments',
+                        })}
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
+                    </button>
+                  )}
                   {/* Org-only surfaces: My Classes (incl. ClassLink import),
                       My PLCs, and My Building(s). Hidden for external (no-org/
                       free-tier) users — buildings/PLCs/ClassLink are all org

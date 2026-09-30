@@ -277,6 +277,18 @@ describe('scoreAttempt', () => {
     ).toBe(100);
   });
 
+  it('refuses a served question the key does not have', () => {
+    expect(
+      scoreAttempt(
+        {
+          servedQuestionIds: ['q1', 'q-new'],
+          answers: [{ questionId: 'q1', answer: 'Paris' }],
+        },
+        ctx
+      )
+    ).toBeNull();
+  });
+
   it('uses the latest take of a question', () => {
     expect(
       scoreAttempt(

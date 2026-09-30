@@ -17,7 +17,9 @@ import {
   orderServedQuestions,
   quizMaxPointsWithSlots,
   quizOrder,
+  quizServedQuestionCount,
   resolveQuizAssignment,
+  sampleQuizDraw,
   validateBankSlots,
   type BankContent,
 } from './questionBanks';
@@ -115,6 +117,21 @@ describe('copyBankQuestions', () => {
     expect(copied.questions[1].stimulusIds).toEqual(['new-3']);
     expect(copied.stimuli).toEqual([
       { ...(bank.stimuli ?? [])[0], id: 'new-3' },
+    ]);
+  });
+
+  it('keeps a stimulus set together as one shared copy', () => {
+    const setBank: BankContent = {
+      ...bank,
+      questions: bank.questions.map((x) => ({ ...x, stimulusIds: ['stim-1'] })),
+    };
+    const copied = copyBankQuestions(setBank, ['b1', 'b2', 'b3']);
+    const ids = copied.questions.map((x) => x.stimulusIds);
+    expect(copied.stimuli).toHaveLength(1);
+    expect(ids).toEqual([
+      [copied.stimuli[0].id],
+      [copied.stimuli[0].id],
+      [copied.stimuli[0].id],
     ]);
   });
 });
@@ -243,6 +260,26 @@ describe('resolveQuizAssignment', () => {
     ).toBe(12);
   });
 
+  it('adds slot stimuli to every drawn question and drops unknown ids', () => {
+    const resolved = resolveQuizAssignment(
+      {
+        questions: [q('f1')],
+        stimuli: [{ id: 'passage', type: 'text', url: '', label: 'P' }],
+        bankSlots: [slot({ count: 4, stimulusIds: ['passage', 'gone'] })],
+      },
+      banks
+    );
+    const pool = resolved.questions.filter((x) => x.id !== 'f1');
+    expect(pool.map((x) => x.stimulusIds)).toEqual([
+      ['passage'],
+      ['passage'],
+      ['passage'],
+      ['passage', 'stim-1'],
+    ]);
+    expect(resolved.questions[0].stimulusIds).toBeUndefined();
+    expect(resolved.stimuli.map((s) => s.id)).toEqual(['passage', 'stim-1']);
+  });
+
   it('throws BankSlotResolutionError with the problems attached', () => {
     expect(() =>
       resolveQuizAssignment(
@@ -250,6 +287,40 @@ describe('resolveQuizAssignment', () => {
         banks
       )
     ).toThrow(BankSlotResolutionError);
+  });
+});
+
+describe('quizServedQuestionCount / sampleQuizDraw', () => {
+  const quiz = {
+    questions: [q('f1'), q('f2')],
+    bankSlots: [
+      slot({ count: 1, targetFilter: ['RL.1'] }),
+      slot({ id: 'slot-2', count: 1, targetFilter: ['RL.2'] }),
+    ],
+    order: [
+      { kind: 'question' as const, id: 'f1' },
+      { kind: 'slot' as const, id: 'slot-1' },
+      { kind: 'question' as const, id: 'f2' },
+      { kind: 'slot' as const, id: 'slot-2' },
+    ],
+  };
+
+  it('counts fixed questions plus every random slot draw', () => {
+    expect(quizServedQuestionCount(quiz)).toBe(4);
+    expect(quizServedQuestionCount({ questions: [q('f1')] })).toBe(1);
+  });
+
+  it('replaces slots with one drawn attempt in serving order', () => {
+    const sample = sampleQuizDraw(quiz, banks, identity);
+    expect(sample.questions.map((x) => x.id)).toEqual(['f1', 'b1', 'f2', 'b4']);
+    expect(sample.questions[1].points).toBe(3);
+    expect(sample.bankSlots).toBeUndefined();
+    expect(sample.order).toBeUndefined();
+  });
+
+  it('returns a quiz without slots unchanged', () => {
+    const plain = { questions: [q('f1')] };
+    expect(sampleQuizDraw(plain, banks)).toBe(plain);
   });
 });
 

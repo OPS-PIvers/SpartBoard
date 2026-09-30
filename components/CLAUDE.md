@@ -24,6 +24,12 @@ Permanent helper text was cut across the app in September 2026 (`docs/plans/ship
 - Choosing one number from a range (which PDF page) is a number input with its max. Choosing several (which questions are written) is a number input plus Add, listing each pick as a row with a remove button.
 - The `no-restricted-syntax` lint rule fails on buttons mapped from `Array.from({ length })` or a 10+ number literal. Real per-item controls (a star rating, an image pager, a named tab per cycle day) take an `eslint-disable-next-line` with the reason.
 
+## Picking from a list
+
+- One choice is a native `<select>`, or a segmented control when there are two or three short options that should stay visible.
+- Several choices are a select-style button that shows the picks as plain text and opens a checklist menu (a check per row, the menu stays open while picking). A long list, like standards, adds a search box at the top of the menu.
+- Never lay out options as a wrapping row of pills or chips, for picking or for showing active filters: it reads as clutter and misaligns the form. Pills are only for read-only status badges.
+
 ## Design Context
 
 ### Users

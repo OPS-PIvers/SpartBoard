@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { resolveStudentDueAt } from '@/utils/perClassDueDates';
 import {
   collection,
   doc,
@@ -386,6 +387,11 @@ export const isClosedProjectRun = (
  * (rather than a closure inside the subscription effect) so the fan-out
  * hydration path (M17 C1) can build the same shape from a one-off `getDoc`.
  */
+const isNumberRecord = (v: unknown): v is Record<string, number> =>
+  typeof v === 'object' &&
+  v !== null &&
+  Object.values(v).every((n) => typeof n === 'number');
+
 function buildAssignmentSummary(
   kind: SessionKind,
   channel: AssignmentChannel,
@@ -430,7 +436,11 @@ function buildAssignmentSummary(
     individualTargeting: record.individualTargeting === true ? true : undefined,
     openAt: typeof record.openAt === 'number' ? record.openAt : undefined,
     closeAt: typeof record.closeAt === 'number' ? record.closeAt : undefined,
-    dueAt: typeof record.dueAt === 'number' ? record.dueAt : undefined,
+    dueAt: resolveStudentDueAt(
+      typeof record.dueAt === 'number' ? record.dueAt : undefined,
+      isNumberRecord(record.dueAtByClassId) ? record.dueAtByClassId : undefined,
+      intersected
+    ),
     acceptingResponses: acceptingFlag(
       kind === 'projects' ? record.acceptingUpdates : record.acceptingResponses
     ),

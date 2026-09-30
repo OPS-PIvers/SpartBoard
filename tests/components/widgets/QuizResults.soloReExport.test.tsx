@@ -155,25 +155,20 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
       />
     );
 
-    // The Re-Export and Open Sheet actions now live in the overflow (kebab)
-    // menu — open it before asserting they're present.
-    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
-
     expect(
-      screen.getByRole('menuitem', {
+      screen.getByRole('button', {
         name: /re-export sheet \(creates a new sheet\)/i,
       })
     ).toBeInTheDocument();
     // OPEN SHEET is offered alongside it so the teacher can still navigate
     // to (or recover) the previous sheet if needed.
     expect(
-      screen.getByRole('menuitem', { name: /open sheet/i })
+      screen.getByRole('link', { name: /open sheet/i })
     ).toBeInTheDocument();
   });
 
-  it('clicking Open Sheet opens the export URL in a new tab', () => {
+  it('Open Sheet links to the export URL in a new tab', () => {
     const exportUrl = 'https://docs.google.com/spreadsheets/d/OLD/edit';
-    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
 
     render(
       <QuizResults
@@ -185,17 +180,9 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
       />
     );
 
-    // Open Sheet now lives in the overflow menu: open the kebab, then click it.
-    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
-    fireEvent.click(screen.getByRole('menuitem', { name: /open sheet/i }));
-
-    expect(openSpy).toHaveBeenCalledWith(
-      exportUrl,
-      '_blank',
-      'noopener,noreferrer'
-    );
-
-    openSpy.mockRestore();
+    const link = screen.getByRole('link', { name: /open sheet/i });
+    expect(link).toHaveAttribute('href', exportUrl);
+    expect(link).toHaveAttribute('target', '_blank');
   });
 
   it('clicking Re-Export calls exportResultsToSheet with plcMode false and shows a re-export toast', async () => {
@@ -217,10 +204,8 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
       />
     );
 
-    // Re-Export now lives in the overflow menu: open the kebab, then click it.
-    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
     fireEvent.click(
-      screen.getByRole('menuitem', {
+      screen.getByRole('button', {
         name: /re-export sheet \(creates a new sheet\)/i,
       })
     );
@@ -271,12 +256,7 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
       />
     );
 
-    // First-export path uses the plain "Export to Sheets" overflow item (not
-    // Re-Export): open the kebab, then click it.
-    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
-    fireEvent.click(
-      screen.getByRole('menuitem', { name: /export to sheets/i })
-    );
+    fireEvent.click(screen.getByRole('button', { name: /export to sheets/i }));
 
     await waitFor(() => {
       expect(mockExportResultsToSheet).toHaveBeenCalledTimes(1);
@@ -308,10 +288,8 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
       />
     );
 
-    // Re-Export now lives in the overflow menu: open the kebab, then click it.
-    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
     fireEvent.click(
-      screen.getByRole('menuitem', {
+      screen.getByRole('button', {
         name: /re-export sheet \(creates a new sheet\)/i,
       })
     );

@@ -95,6 +95,9 @@ export const STUDIO_STEP_FIELDS = [
   'tour',
 ] as const satisfies readonly (keyof GuidedLearningStep)[];
 
+const targetIdsKey = (s: GuidedLearningStep): string =>
+  (s.targets ?? []).map((t) => t.id).join('|');
+
 function stepsEqual(a: GuidedLearningStep[], b: GuidedLearningStep[]): boolean {
   if (a === b) return true;
   if (a.length !== b.length) return false;
@@ -127,6 +130,7 @@ function stepsEqual(a: GuidedLearningStep[], b: GuidedLearningStep[]): boolean {
     }
     if (!questionsEqual(sa.question, sb.question)) return false;
     if (!studioFieldsEqual(sa, sb)) return false;
+    if (targetIdsKey(sa) !== targetIdsKey(sb)) return false;
   }
   return true;
 }

@@ -1,27 +1,28 @@
 /**
  * QuizAssignmentSettingsModal — edit the settings for a single assignment.
  *
- * Wave 2-QZ / Task 12 (freeze-live): behavior settings are now READ-ONLY on
- * a launched assignment — they were snapshotted at create time from the quiz.
- * To change behavior, edit the quiz (Settings tab); it affects future
- * assignments only. This modal now shows:
- *   • A read-only behavior summary (formatBehaviorSummary) with an
- *     "Edit in quiz" hint.
- *   • An editable due-date input.
- *   • Editable targeting fields: class name, periods.
- *   • PLC results sharing status with Share / Stop sharing actions (D12);
- *     the link itself is written by the widget's share hooks, not this patch.
- * The save patch no longer includes sessionMode / sessionOptions / attemptLimit.
+ * Behavior (attempts, shuffles, integrity, feedback, gamification) is editable
+ * on a launched assignment; the session mode stays fixed. Also edits the due
+ * date, targeting fields, and PLC results sharing (D12).
  */
 
-import React, { useState } from 'react';
-import { Share2 } from 'lucide-react';
+import React, { useContext, useState } from 'react';
+import { ClipboardCheck, Share2 } from 'lucide-react';
 import type {
   QuizAssignment,
   QuizAssignmentSettings,
+  QuizBehaviorSettings,
   ClassRoster,
 } from '@/types';
-import { AssignModal } from '@/components/common/library';
+import {
+  AssignModal,
+  CollapsibleSection,
+  DueDateModeSwitch,
+  PerClassDueDateRows,
+  QuizBehaviorSettingsPanel,
+} from '@/components/common/library';
+import { AuthContext } from '@/context/AuthContextValue';
+import { earliestDueAt } from '@/utils/perClassDueDates';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
   makeEmptyPickerValue,
@@ -47,6 +48,8 @@ interface QuizAssignmentSettingsModalProps {
   onShareResults?: () => void;
   /** Clears the PLC results link (linked assignments). */
   onStopSharing?: () => void | Promise<void>;
+  /** Quiz-kind assignment with the Review split on: hide gamification and board reveal (D9). */
+  assessmentOnly?: boolean;
 }
 
 /** Options object driven through AssignModal's `options` generic. */
@@ -98,6 +101,18 @@ function hydratePickerValue(
     : makeEmptyPickerValue();
 }
 
+/** Keeps only set dates, optionally limited to the given roster ids. */
+function numericDueMap(
+  map: Record<string, number | null>,
+  onlyIds?: ReadonlySet<string>
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [id, due] of Object.entries(map)) {
+    if (typeof due === 'number' && (!onlyIds || onlyIds.has(id))) out[id] = due;
+  }
+  return out;
+}
+
 function initialOptionsFor(
   a: QuizAssignment,
   rosters: ClassRoster[]
@@ -121,17 +136,67 @@ export const QuizAssignmentSettingsModal: React.FC<
   canShareWithPlc = false,
   onShareResults,
   onStopSharing,
+  assessmentOnly = false,
 }) => {
   const [options, setOptions] = useState<SettingsOptions>(() =>
     initialOptionsFor(assignment, rosters)
   );
 
-  // Build read-only behavior summary from the assignment's frozen behavior.
-  const behaviorSummary = formatBehaviorSummary({
+  const [initialBehavior] = useState<QuizBehaviorSettings>(() => ({
     sessionMode: assignment.sessionMode,
     sessionOptions: assignment.sessionOptions ?? {},
     attemptLimit: assignment.attemptLimit ?? null,
-  });
+  }));
+  const [behavior, setBehavior] =
+    useState<QuizBehaviorSettings>(initialBehavior);
+  // null = one shared due date; otherwise epoch ms by roster id.
+  const [dueByRoster, setDueByRoster] = useState<Record<
+    string,
+    number | null
+  > | null>(() =>
+    assignment.dueAtByRosterId ? { ...assignment.dueAtByRosterId } : null
+  );
+  const perClassDueOn =
+    useContext(AuthContext)?.canAccessFeature?.('quiz-per-class-due-dates') ===
+    true;
+  const selectedRostersForDue = resolveSelectedRosters(options.picker, rosters);
+  const showDueModeSwitch =
+    dueByRoster !== null || (perClassDueOn && selectedRostersForDue.length > 1);
+  const perClassDue = dueByRoster !== null && showDueModeSwitch;
+
+  const setPerClassDue = (next: boolean) => {
+    if (next === perClassDue) return;
+    if (next) {
+      const shared = dueInputsToEpoch(options.dueDate, options.dueTime);
+      setDueByRoster(
+        Object.fromEntries(selectedRostersForDue.map((r) => [r.id, shared]))
+      );
+    } else {
+      const earliest = earliestDueAt(numericDueMap(dueByRoster ?? {}));
+      const inputs = splitDueAtToInputs(earliest, true);
+      setOptions((p) => ({ ...p, dueDate: inputs.date, dueTime: inputs.time }));
+      setDueByRoster(null);
+    }
+  };
+
+  const dueFields = (): Partial<QuizAssignmentSettings> => {
+    if (perClassDue) {
+      const selectedIds = new Set(selectedRostersForDue.map((r) => r.id));
+      const map = numericDueMap(dueByRoster ?? {}, selectedIds);
+      const earliest = earliestDueAt(map);
+      return earliest === null
+        ? { dueAt: null, dueAtHasTime: false, dueAtByRosterId: undefined }
+        : { dueAt: earliest, dueAtHasTime: true, dueAtByRosterId: map };
+    }
+    return {
+      dueAt: dueInputsToEpoch(options.dueDate, options.dueTime),
+      // The time picker always yields an explicit local time, so mark the value
+      // as time-bearing (when a date is set) — distinguishes it from legacy
+      // date-only dueAts so the round-trip/Classroom conversion reads it right.
+      dueAtHasTime: !!options.dueDate,
+      ...(assignment.dueAtByRosterId ? { dueAtByRosterId: undefined } : {}),
+    };
+  };
 
   const handleAssign = async () => {
     // Intentionally pass empty strings (not undefined) so that clearing a
@@ -150,20 +215,20 @@ export const QuizAssignmentSettingsModal: React.FC<
     const selectedRosters = resolveSelectedRosters(options.picker, rosters);
     const targets = deriveSessionTargetsFromRosters(selectedRosters);
 
-    // Freeze-live: behavior fields (sessionMode, sessionOptions, attemptLimit)
-    // are intentionally OMITTED from the patch. They were frozen at create
-    // time and must only change by editing the source quiz (affects future
-    // assignments). Omitting them means Firestore leaves those fields untouched.
     const patch: Partial<QuizAssignmentSettings> = {
       className: options.className.trim(),
       rosterIds: targets.rosterIds,
       periodName: targets.periodNames[0] ?? '',
       periodNames: targets.periodNames,
-      dueAt: dueInputsToEpoch(options.dueDate, options.dueTime),
-      // The time picker always yields an explicit local time, so mark the value
-      // as time-bearing (when a date is set) — distinguishes it from legacy
-      // date-only dueAts so the round-trip/Classroom conversion reads it right.
-      dueAtHasTime: !!options.dueDate,
+      ...dueFields(),
+      // Behavior rides the patch only when edited; sessionMode never does.
+      ...(JSON.stringify(behavior.sessionOptions) !==
+      JSON.stringify(initialBehavior.sessionOptions)
+        ? { sessionOptions: behavior.sessionOptions }
+        : {}),
+      ...(behavior.attemptLimit !== initialBehavior.attemptLimit
+        ? { attemptLimit: behavior.attemptLimit }
+        : {}),
     };
     try {
       await onSave(patch);
@@ -197,59 +262,72 @@ export const QuizAssignmentSettingsModal: React.FC<
 
           {/* Due date + time */}
           <div>
-            <label
-              htmlFor="assignment-settings-due-date"
-              className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1"
-            >
-              Due Date <span className="font-normal">(optional)</span>
-            </label>
-            <div className="flex gap-2">
-              <input
-                id="assignment-settings-due-date"
-                type="date"
-                data-testid="assignment-due-date"
-                value={options.dueDate}
-                onChange={(e) =>
-                  setOptions((p) => ({ ...p, dueDate: e.target.value }))
-                }
-                className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <input
-                type="time"
-                data-testid="assignment-due-time"
-                aria-label="Due time"
-                value={options.dueTime}
-                disabled={!options.dueDate}
-                onChange={(e) =>
-                  setOptions((p) => ({
-                    ...p,
-                    dueTime: e.target.value || DEFAULT_DUE_TIME,
-                  }))
-                }
-                className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <label
+                htmlFor="assignment-settings-due-date"
+                className="block text-xxs font-bold text-slate-400 uppercase tracking-widest"
+              >
+                Due Date <span className="font-normal">(optional)</span>
+              </label>
+              {showDueModeSwitch && (
+                <DueDateModeSwitch
+                  perClass={perClassDue}
+                  onChange={setPerClassDue}
+                />
+              )}
             </div>
+            {perClassDue ? (
+              <PerClassDueDateRows
+                rosters={selectedRostersForDue}
+                value={dueByRoster ?? {}}
+                onChange={setDueByRoster}
+              />
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  id="assignment-settings-due-date"
+                  type="date"
+                  data-testid="assignment-due-date"
+                  value={options.dueDate}
+                  onChange={(e) =>
+                    setOptions((p) => ({ ...p, dueDate: e.target.value }))
+                  }
+                  className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <input
+                  type="time"
+                  data-testid="assignment-due-time"
+                  aria-label="Due time"
+                  value={options.dueTime}
+                  disabled={!options.dueDate}
+                  onChange={(e) =>
+                    setOptions((p) => ({
+                      ...p,
+                      dueTime: e.target.value || DEFAULT_DUE_TIME,
+                    }))
+                  }
+                  className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
+            )}
           </div>
 
-          {/* Read-only behavior summary — freeze-live: behavior is frozen at
-              create time. To change it, edit the quiz settings (affects future
-              assignments). */}
-          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
-                Behavior
-              </p>
-              <span className="text-xxs text-slate-400">
-                Edit in the quiz editor
+          <CollapsibleSection
+            label="Assessment Settings"
+            icon={ClipboardCheck}
+            summary={
+              <span data-testid="assignment-behavior-summary">
+                {formatBehaviorSummary(behavior, { omitMode: assessmentOnly })}
               </span>
-            </div>
-            <p
-              data-testid="assignment-behavior-summary"
-              className="text-sm text-slate-600 leading-snug"
-            >
-              {behaviorSummary}
-            </p>
-          </div>
+            }
+          >
+            <QuizBehaviorSettingsPanel
+              value={behavior}
+              onChange={setBehavior}
+              variant={assessmentOnly ? 'quiz' : 'live'}
+              handRaiseMode="force-off"
+            />
+          </CollapsibleSection>
         </>
       }
       plcSlot={

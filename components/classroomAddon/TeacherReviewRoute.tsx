@@ -36,6 +36,9 @@ import {
 } from 'lucide-react';
 import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import { useFinalScoreOverlay } from '@/hooks/gradebook/useFinalScoreOverlay';
+import { applyFinalScoresToEntries } from '@/utils/gradebook/finalScoreOverlay';
+import { quizLiveRaw } from '@/utils/gradebook/liveRawScores';
 import { useQuiz } from '@/hooks/useQuiz';
 import {
   useQuizAssignments,
@@ -77,6 +80,7 @@ import { requestAndExchangeAuthCode } from '@/utils/googleOAuthRefresh';
 import { WRITTEN_RETURN_OPTIONS } from '@/components/common/library/publishScoreLevels';
 import {
   buildQuizClassroomGradeEntries,
+  type ClassroomGradeEntry,
   formatGradePushToast,
 } from '@/utils/classroomGradePush';
 import {
@@ -494,6 +498,31 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     writtenReturnMode,
   ]);
 
+  const finalOverlay = useFinalScoreOverlay({
+    kind: 'quiz',
+    sessionId,
+    teacherUid: session?.teacherUid,
+    dueAt: session?.dueAt,
+    closeAt: session?.closeAt,
+  });
+  const withFinalScores = useCallback(
+    (entries: ClassroomGradeEntry[], maxPoints: number) => {
+      if (!finalOverlay) return entries;
+      const byUid = new Map(responses.map((r) => [r.studentUid, r]));
+      return applyFinalScoresToEntries(
+        entries,
+        maxPoints,
+        finalOverlay,
+        (uid) => {
+          const r = byUid.get(uid);
+          return r ? quizLiveRaw(r, questions, fibGrading) : null;
+        },
+        Date.now()
+      );
+    },
+    [finalOverlay, responses, questions, fibGrading]
+  );
+
   const pushGrades = useCallback(async () => {
     const attachment = session?.classroomAttachment;
     if (!attachment || !quizData) return;
@@ -541,11 +570,14 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
       requestToken: () =>
         requestClassroomTeacherToken(user?.email ?? loginHint),
       buildGrades: () =>
-        buildQuizClassroomGradeEntries(
-          responses,
-          questions,
-          attachment.maxPoints,
-          fibGrading
+        withFinalScores(
+          buildQuizClassroomGradeEntries(
+            responses,
+            questions,
+            attachment.maxPoints,
+            fibGrading
+          ),
+          attachment.maxPoints
         ),
       logTag: 'ClassroomAddonTeacherReview.pushGrades',
       logContext: { sessionId },
@@ -596,17 +628,21 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     user?.email,
     loginHint,
     sessionId,
+    withFinalScores,
   ]);
 
   // Schoology (LTI AGS) push — same grade builder as the dashboard Results view.
   const pushSchoologyGrades = useCallback(async () => {
     if (!session?.ltiAttachment || !sessionId || !quizData) return;
     const maxPoints = quizMaxPoints(questions, session?.sections);
-    const grades = buildQuizClassroomGradeEntries(
-      responses.filter((r) => r.status === 'completed'),
-      questions,
-      maxPoints,
-      fibGrading
+    const grades = withFinalScores(
+      buildQuizClassroomGradeEntries(
+        responses.filter((r) => r.status === 'completed'),
+        questions,
+        maxPoints,
+        fibGrading
+      ),
+      maxPoints
     );
     if (grades.length === 0) {
       setStatusMsg('No completed responses to push yet.');
@@ -650,6 +686,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     questions,
     responses,
     fibGrading,
+    withFinalScores,
   ]);
 
   // ── Render ────────────────────────────────────────────────────────────────

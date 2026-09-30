@@ -1,17 +1,23 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Loader2, MoreVertical, Users } from 'lucide-react';
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  LockOpen,
+  MoreVertical,
+  Users,
+} from 'lucide-react';
 import { OverflowMenu, SessionBadge } from '@/components/common/sessionViews';
 import type { OverflowMenuItem } from '@/components/common/sessionViews';
 import { PUBLISH_LEVEL_OPTIONS } from '@/components/common/library/publishScoreLevels';
 import type {
-  QuizResponse,
   QuizResultsOverride,
   QuizScoreVisibility,
+  ResultsProtection,
   Toast,
 } from '@/types';
 import { resultsOverrideState } from '@/utils/quizResultsVisibility';
 import { logError } from '@/utils/logError';
-import { getResponseDocKey } from '@/hooks/useQuizSession';
 import { ShowResultsDialog } from './ShowResultsDialog';
 import type { StudentResultsActions } from './studentResultsSelection';
 
@@ -56,7 +62,11 @@ export const ResultsOverrideBadge: React.FC<{
 };
 
 export interface StudentResultsControlProps {
-  response: QuizResponse;
+  /** Response doc id under `/responses`. */
+  responseKey: string;
+  override: QuizResultsOverride | undefined;
+  /** Only a finished response can be shown. */
+  completed: boolean;
   displayName: string;
   /** The class-wide level, so "Follow class" can say what that means. */
   classVisibility: QuizScoreVisibility;
@@ -64,28 +74,37 @@ export interface StudentResultsControlProps {
   addToast: (message: string, type?: Toast['type']) => void;
   /** 'menu' is the row kebab; 'panel' is the expanded-row control. */
   layout?: 'menu' | 'panel';
+  /** Kebab trigger styling, for dark surfaces. */
+  triggerClassName?: string;
+  /** Offers Unlock in the menu when the student is locked out of their results. */
+  onUnlock?: () => Promise<void>;
 }
 
 /** Show, hide, or return one student's results to the class setting. */
 export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
-  response,
+  responseKey: key,
+  override,
+  completed,
   displayName,
   classVisibility,
   actions,
   addToast,
   layout = 'menu',
+  triggerClassName = 'rounded-md text-brand-gray-primary hover:bg-brand-gray-lightest hover:text-brand-blue-dark',
+  onUnlock,
 }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [busy, setBusy] = useState<'hide' | 'clear' | null>(null);
-  const key = getResponseDocKey(response);
-  const override = response.resultsOverride;
+  const [busy, setBusy] = useState<'hide' | 'clear' | 'unlock' | null>(null);
   const state = resultsOverrideState(override);
-  const canShow = response.status === 'completed';
+  const canShow = completed;
 
-  const run = async (kind: 'hide' | 'clear') => {
+  const run = async (kind: 'hide' | 'clear' | 'unlock') => {
     setBusy(kind);
     try {
-      if (kind === 'hide') {
+      if (kind === 'unlock') {
+        await onUnlock?.();
+        addToast(`Results unlocked for ${displayName}.`, 'success');
+      } else if (kind === 'hide') {
         await actions.hide([key]);
         addToast(`Results hidden from ${displayName}.`, 'success');
       } else {
@@ -102,10 +121,11 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
 
   const handleShow = async (
     visibility: Exclude<QuizScoreVisibility, 'none'>,
-    expiresAt: number | null
+    expiresAt: number | null,
+    protection: ResultsProtection | undefined
   ) => {
     try {
-      await actions.publish([key], visibility, expiresAt);
+      await actions.publish([key], visibility, expiresAt, protection);
       addToast(`Results shown to ${displayName}.`, 'success');
       setDialogOpen(false);
     } catch (err) {
@@ -125,6 +145,9 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
       initialVisibility={
         override?.mode === 'shown' ? override.visibility : classVisibility
       }
+      initialProtection={
+        override?.mode === 'shown' ? override.protection : undefined
+      }
       onClose={() => setDialogOpen(false)}
       onConfirm={handleShow}
     />
@@ -132,6 +155,14 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
 
   if (layout === 'menu') {
     const items: OverflowMenuItem[] = [];
+    if (onUnlock)
+      items.push({
+        id: 'unlock',
+        label: 'Unlock results',
+        icon: LockOpen,
+        loading: busy === 'unlock',
+        onClick: () => void run('unlock'),
+      });
     if (canShow)
       items.push({
         id: 'show',
@@ -163,7 +194,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           items={items}
           ariaLabel={`Results options for ${displayName}`}
           triggerIcon={MoreVertical}
-          triggerClassName="rounded-md text-brand-gray-primary hover:bg-brand-gray-lightest hover:text-brand-blue-dark"
+          triggerClassName={triggerClassName}
         />
         {dialog}
       </>

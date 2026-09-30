@@ -13,9 +13,12 @@ import {
   FileText,
   FileUp,
   Gauge,
+  GraduationCap,
   Flag,
   Footprints,
+  Gamepad2,
   Languages,
+  Layers,
   LayoutDashboard,
   Library,
   Link2,
@@ -32,6 +35,7 @@ import {
   Smartphone,
   Sparkles,
   StickyNote,
+  Table2,
   Target,
   TextCursorInput,
   Timer,
@@ -618,6 +622,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // PLC sharing for flashcard sets and results. Admin-only until Paul has tried it.
+  'plc-flashcards': {
+    label: 'PLC flashcards',
+    icon: Layers,
+    description: 'Share flashcard sets and results with a PLC.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Choose-all-that-apply quiz questions. Admin-only until Paul has run one with a class.
   'quiz-choose-all': {
     label: 'Choose-all-that-apply quiz questions',
@@ -790,6 +805,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Quiz assign/edit: a due date per selected class. Admin-only until Paul has used it.
+  'quiz-per-class-due-dates': {
+    label: 'Due date per class',
+    icon: CalendarClock,
+    description: 'Give each class on a quiz assignment its own due date.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Projects board: a group's name opens the view its students see.
   'projects-group-view': {
     label: 'Projects group view',
@@ -797,6 +824,52 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     description: "Tap a group on the board to see its students' view.",
     stage: 'preview',
     afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Gradebook route and its data layer (docs/plans/GRADEBOOK.md D5).
+  gradebook: {
+    label: 'Gradebook',
+    icon: Table2,
+    description:
+      'Every class score in one grid, with overrides, flags and analysis.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D38).
+  'student-gradebook': {
+    label: 'Student Grades tab',
+    icon: GraduationCap,
+    description: 'Students see their published scores in My Assignments.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'quiz-review-split': {
+    label: 'Quiz and Review split',
+    icon: Gamepad2,
+    description: 'Quiz keeps assessments; live review games move to Review.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Quiz overall time limit per attempt. Admin-only until Paul has used it with a class.
+  'quiz-time-limit': {
+    label: 'Quiz time limit',
+    icon: Timer,
+    description: 'Set an overall time limit on a quiz assignment.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -935,6 +1008,7 @@ export const WIDGET_DEFAULT_ACCESS_LEVEL: Partial<
   flashcards: 'admin',
   // D46 — off the teacher dock until an admin opens it.
   projects: 'admin',
+  review: 'admin',
 };
 
 export const getWidgetDefaultAccessLevel = (

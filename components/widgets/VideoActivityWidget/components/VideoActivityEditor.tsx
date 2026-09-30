@@ -19,6 +19,8 @@ import { VideoActivityQuestion } from '@/types';
 import { SortableList } from '@/components/common/SortableList';
 import { AIGeneratorOverlay } from '@/components/common/AIGeneratorOverlay';
 import { extractYouTubeId } from '@/utils/youtube';
+import { useAuth } from '@/context/useAuth';
+import { TargetsField } from '@/components/quiz/targets/TargetsField';
 import { Timeline } from './Timeline';
 import {
   mmSsToSeconds,
@@ -344,6 +346,8 @@ export const VideoActivityEditorDetailPane = React.memo(
       updateQuestion,
       updateIncorrect,
     } = state;
+    const { canAccessFeature } = useAuth();
+    const targetsEnabled = canAccessFeature('gradebook');
 
     const navigator =
       questions.length > 0 ? (
@@ -410,6 +414,14 @@ export const VideoActivityEditorDetailPane = React.memo(
               className={`${inputClass} resize-none`}
             />
           </div>
+
+          {targetsEnabled && (
+            <TargetsField
+              targets={q.targets}
+              labelClassName={labelClass}
+              onChange={(targets) => updateQuestion(q.id, { targets })}
+            />
+          )}
 
           {/* Type picker */}
           <div>

@@ -11,6 +11,10 @@
  * submissions) or Inactive (URL dead, responses preserved).
  */
 
+import {
+  QUIZ_TIME_LIMIT_FEATURE,
+  clampQuizTimeLimitMinutes,
+} from '@/utils/quizTimeLimit';
 import { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import {
   collection,
@@ -84,6 +88,7 @@ import type {
   QuizTranslation,
   QuizSessionBankSlot,
   QuizSessionMode,
+  QuizWidgetKind,
   QuizSessionOptions,
   QuizStimulus,
   ResultsProtection,
@@ -159,6 +164,10 @@ export type SharedAssignmentImportMode = 'sync' | 'copy';
 export interface CreateAssignmentOptions {
   /** Defaults to `'active'`. */
   initialStatus?: QuizAssignmentStatus;
+  /** Owning widget, mirrored onto assignment + session; omitted while the split flag is off. */
+  widgetKind?: QuizWidgetKind;
+  /** Review game length (plan D22); only written for `sessionMode: 'game'`. */
+  gameDurationMs?: number;
   /**
    * ClassLink class `sourcedId`s this session targets. Empty/missing
    * keeps the session open to the legacy code/PIN-only flow. When
@@ -177,6 +186,8 @@ export interface CreateAssignmentOptions {
    * via `deriveSessionTargetsFromRosters`.
    */
   classPeriodByClassId?: Record<string, string>;
+  /** Per-class due dates by class id, mirrored to the session for students. */
+  dueAtByClassId?: Record<string, number>;
   /**
    * Synced-group linkage. When provided, both the assignment doc and
    * the session doc carry `sync: { groupId, syncedVersion }`, so the
@@ -306,7 +317,9 @@ export interface UseQuizAssignmentsResult {
   /** Update editable settings (className, PLC fields, session toggles). */
   updateAssignmentSettings: (
     assignmentId: string,
-    patch: Partial<QuizAssignmentSettings>
+    patch: Partial<QuizAssignmentSettings>,
+    /** Per-class due dates by class id, when `patch.dueAtByRosterId` is set. */
+    dueAtByClassId?: Record<string, number>
   ) => Promise<void>;
   /**
    * Retarget an existing assignment at a new set of rosters. Mirrors
@@ -522,7 +535,8 @@ export interface UseQuizAssignmentsResult {
     quizData: QuizData,
     responseKeys: string[],
     visibility: Exclude<QuizScoreVisibility, 'none'>,
-    expiresAt: number | null
+    expiresAt: number | null,
+    protection?: ResultsProtection
   ) => Promise<{ responsesUpdated: number; skipped: number }>;
   /** Hide results from chosen students, whatever the class setting is. */
   hideResultsForStudents: (
@@ -636,7 +650,8 @@ const scoreKeyRef = (userId: string, assignmentId: string) =>
 
 /** Flatten session-option toggles onto the session doc's mirror fields. */
 function sessionOptionsToSessionPatch(
-  o: QuizSessionOptions
+  o: QuizSessionOptions,
+  gates: { timeLimitOn: boolean; scoreOnSubmitOn: boolean }
 ): Record<string, unknown> {
   const patch: Record<string, unknown> = {};
   if (o.tabWarningsEnabled !== undefined)
@@ -669,8 +684,10 @@ function sessionOptionsToSessionPatch(
   if (o.shuffleAnswerOptions !== undefined)
     patch.shuffleAnswerOptions = o.shuffleAnswerOptions;
   if (o.readAloudAll !== undefined) patch.readAloudAll = o.readAloudAll;
-  if (o.showScoreOnSubmit !== undefined)
+  if (o.showScoreOnSubmit !== undefined && gates.scoreOnSubmitOn)
     patch.showScoreOnSubmit = o.showScoreOnSubmit;
+  if (o.timeLimitMinutes !== undefined && gates.timeLimitOn)
+    patch.timeLimitMinutes = clampQuizTimeLimitMinutes(o.timeLimitMinutes);
   // `handRaiseEnabled` is deliberately NOT mirrored: it is resolved against the
   // admin gate at create time only, so a later patch (e.g. a PLC sync) can't
   // switch raise hand on inside a force-off building. Running sessions keep
@@ -1146,6 +1163,8 @@ export const useQuizAssignments = (
     authContext?.canAccessFeature?.('tab-away-timer') === true;
   const scoreOnSubmitOn =
     authContext?.canAccessFeature?.('quiz-score-on-submit') === true;
+  const timeLimitOn =
+    authContext?.canAccessFeature?.(QUIZ_TIME_LIMIT_FEATURE) === true;
   // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
   const allowAnonymousJoin =
     authContext?.canAccessFeature?.('anonymous-join') !== false;
@@ -1294,12 +1313,19 @@ export const useQuizAssignments = (
         translationIndex,
         accessMode,
         periodAccess,
+        widgetKind,
+        gameDurationMs,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
       const perPeriod =
         !!accessMode && !!periodAccess && Object.keys(periodAccess).length > 0;
       const hasBankSlots = !!bankSlots && bankSlots.length > 0;
-      if (hasBankSlots && settings.sessionMode !== 'student') {
+      // Review games draw per student too (plan D17).
+      if (
+        hasBankSlots &&
+        settings.sessionMode !== 'student' &&
+        settings.sessionMode !== 'game'
+      ) {
         throw new Error('Random bank draws need Assessment Mode');
       }
       // Defensive sanitization at the hook boundary: drop empty/non-string
@@ -1337,6 +1363,7 @@ export const useQuizAssignments = (
 
       const assignment: QuizAssignment = {
         id: assignmentId,
+        ...(widgetKind ? { widgetKind } : {}),
         quizId: quiz.id,
         quizTitle: quiz.title,
         quizDriveFileId: quiz.driveFileId,
@@ -1361,6 +1388,10 @@ export const useQuizAssignments = (
         ...(settings.dueAt != null ? { dueAt: settings.dueAt } : {}),
         ...(settings.dueAtHasTime
           ? { dueAtHasTime: settings.dueAtHasTime }
+          : {}),
+        ...(settings.dueAtByRosterId &&
+        Object.keys(settings.dueAtByRosterId).length > 0
+          ? { dueAtByRosterId: settings.dueAtByRosterId }
           : {}),
         attemptLimit: settings.attemptLimit ?? null,
         ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
@@ -1393,6 +1424,7 @@ export const useQuizAssignments = (
 
       const mode = settings.sessionMode;
       const opts = settings.sessionOptions;
+      const sessionTimeLimit = clampQuizTimeLimitMinutes(opts.timeLimitMinutes);
       // Dedupe once so totalQuestions and publicQuestions can't drift apart.
       const sessionReadAloudText = readAloudTextByStimulusId({
         questions: sessionQuestions,
@@ -1452,6 +1484,7 @@ export const useQuizAssignments = (
 
       const session: QuizSession = {
         id: assignmentId,
+        ...(widgetKind ? { widgetKind } : {}),
         assignmentId,
         quizId: quiz.id,
         quizTitle: quiz.title,
@@ -1472,6 +1505,7 @@ export const useQuizAssignments = (
         publicQuestions: sessionPublicQuestions,
         ...(hasBankSlots ? { bankSlots } : {}),
         ...(sessionSections.length > 0 ? { sections: sessionSections } : {}),
+        ...(mode === 'game' && gameDurationMs ? { gameDurationMs } : {}),
         // Opts this session into server-side `unresponded` completeness writes;
         // sessions from older clients omit it and keep pre-feature finalize behaviour.
         completenessModel: 1,
@@ -1508,6 +1542,9 @@ export const useQuizAssignments = (
         !quizNeedsManualGrading(sessionQuestions)
           ? { showScoreOnSubmit: true }
           : {}),
+        ...(timeLimitOn && mode === 'student' && sessionTimeLimit != null
+          ? { timeLimitMinutes: sessionTimeLimit }
+          : {}),
         revealedAnswers: {},
         // Phase 2 gamification
         speedBonusEnabled: opts.speedBonusEnabled ?? false,
@@ -1515,6 +1552,7 @@ export const useQuizAssignments = (
         // Default matches DEFAULT_QUIZ_BEHAVIOR (off) for legacy quizzes
         // with no saved behavior.
         showPodiumBetweenQuestions: opts.showPodiumBetweenQuestions ?? false,
+        ...(opts.boardRankLimit ? { boardRankLimit: opts.boardRankLimit } : {}),
         soundEffectsEnabled: opts.soundEffectsEnabled ?? false,
         // Per-student per-attempt shuffling. `shuffleAnswerOptions` defaults
         // to true to preserve the always-on behavior that pre-dates this
@@ -1547,6 +1585,10 @@ export const useQuizAssignments = (
         // students, so mirror it here alongside the window (the archive doc
         // above already carries it).
         ...(settings.dueAt != null ? { dueAt: settings.dueAt } : {}),
+        ...(options?.dueAtByClassId &&
+        Object.keys(options.dueAtByClassId).length > 0
+          ? { dueAtByClassId: options.dueAtByClassId }
+          : {}),
         // PLC pooling marker (docs/plans/shipped/PLC_ASSESSMENT_DATA.md §3.1); the
         // server keys the shared assessment on `syncGroupId`.
         ...(settings.plc
@@ -1629,7 +1671,8 @@ export const useQuizAssignments = (
       );
       batch.set(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), sessionDoc);
       // Written whenever the flag is on, so switching the setting on later has a key to grade with.
-      if (scoreOnSubmitOn) {
+      // Review games always need it: checkQuizGameAnswerV1 grades from it (plan D31).
+      if (scoreOnSubmitOn || mode === 'game') {
         batch.set(scoreKeyRef(userId, assignmentId), {
           questions: buildScoreOnSubmitKey(sessionQuestions),
         });
@@ -1712,6 +1755,7 @@ export const useQuizAssignments = (
       tabAwayTimerOn,
       allowAnonymousJoin,
       scoreOnSubmitOn,
+      timeLimitOn,
     ]
   );
 
@@ -1991,7 +2035,7 @@ export const useQuizAssignments = (
   const updateAssignmentSettings = useCallback<
     UseQuizAssignmentsResult['updateAssignmentSettings']
   >(
-    async (assignmentId, patch) => {
+    async (assignmentId, patch, dueAtByClassId) => {
       if (!userId) throw new Error('Not authenticated');
       const now = Date.now();
       // Firestore is initialized with `ignoreUndefinedProperties: true`
@@ -2011,6 +2055,12 @@ export const useQuizAssignments = (
       if (clearingPlc) {
         assignmentPatch.plc = deleteField();
       }
+      const clearingPerClassDue =
+        Object.prototype.hasOwnProperty.call(patch, 'dueAtByRosterId') &&
+        patch.dueAtByRosterId === undefined;
+      if (clearingPerClassDue) {
+        assignmentPatch.dueAtByRosterId = deleteField();
+      }
       const batch = writeBatch(db);
       batch.update(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
@@ -2023,10 +2073,27 @@ export const useQuizAssignments = (
       if ('periodName' in patch) sessionPatch.periodName = patch.periodName;
       if ('attemptLimit' in patch)
         sessionPatch.attemptLimit = patch.attemptLimit ?? null;
+      // /my-assignments reads due dates off the session doc.
+      if ('dueAt' in patch) sessionPatch.dueAt = patch.dueAt ?? null;
+      if (clearingPerClassDue) sessionPatch.dueAtByClassId = deleteField();
+      else if (dueAtByClassId) sessionPatch.dueAtByClassId = dueAtByClassId;
       if (patch.sessionOptions) {
+        // Mirror only edited keys so flag-gated create-time fields (tab-away) aren't switched on.
+        const prevOptions: Record<string, unknown> = {
+          ...assignmentsRef.current.find((a) => a.id === assignmentId)
+            ?.sessionOptions,
+        };
+        const changed = Object.fromEntries(
+          Object.entries(patch.sessionOptions).filter(
+            ([key, value]) => prevOptions[key] !== value
+          )
+        ) as QuizSessionOptions;
         Object.assign(
           sessionPatch,
-          sessionOptionsToSessionPatch(patch.sessionOptions)
+          sessionOptionsToSessionPatch(changed, {
+            timeLimitOn,
+            scoreOnSubmitOn,
+          })
         );
       }
       // Clearing `plc` must also drop the session's plcId/syncGroupId/plcLinkedAt (mirrors stopSharingAssignmentWithPlc) — markPlcAssessmentDirty reads those, not assignment.plc, to keep pooling responses.
@@ -2043,7 +2110,7 @@ export const useQuizAssignments = (
       }
       await batch.commit();
     },
-    [userId]
+    [userId, timeLimitOn, scoreOnSubmitOn]
   );
 
   const setAssignmentRosters = useCallback<
@@ -2880,7 +2947,10 @@ export const useQuizAssignments = (
           ? {
               sessionMode: behavior.sessionMode,
               attemptLimit: behavior.attemptLimit,
-              ...sessionOptionsToSessionPatch(behavior.sessionOptions),
+              ...sessionOptionsToSessionPatch(behavior.sessionOptions, {
+                timeLimitOn,
+                scoreOnSubmitOn,
+              }),
               // A mode flip restarts the cursor the way session-create would.
               ...(modeChanged
                 ? {
@@ -2931,10 +3001,13 @@ export const useQuizAssignments = (
         };
         firstBatch.set(contentRef, syncedContent);
       }
+      // Without the flag the key can't be refreshed, so drop it rather than grade with stale answers.
       if (scoreOnSubmitOn) {
         firstBatch.set(scoreKeyRef(userId, assignmentId), {
           questions: buildScoreOnSubmitKey(canonicalQuestions),
         });
+      } else {
+        firstBatch.delete(scoreKeyRef(userId, assignmentId));
       }
       const syncReadAloud =
         (behavior?.sessionOptions ?? assignment.sessionOptions)
@@ -2945,7 +3018,7 @@ export const useQuizAssignments = (
       // Assignment + session (+ content) writes already used; fill the rest.
       const firstChunkSize = Math.min(
         responsesToTag.length,
-        MAX_BATCH_WRITES - (inContent ? 3 : 2) - (scoreOnSubmitOn ? 1 : 0)
+        MAX_BATCH_WRITES - (inContent ? 4 : 3)
       );
       for (let i = 0; i < firstChunkSize; i++) {
         firstBatch.update(responsesToTag[i].ref, {
@@ -2986,7 +3059,7 @@ export const useQuizAssignments = (
         taggedResponseCount: responsesToTag.length,
       };
     },
-    [userId, projectPublicQuestionForMode, scoreOnSubmitOn]
+    [userId, projectPublicQuestionForMode, scoreOnSubmitOn, timeLimitOn]
   );
 
   const unpublishAssignmentScores = useCallback<
@@ -3287,7 +3360,14 @@ export const useQuizAssignments = (
   const publishResultsForStudents = useCallback<
     UseQuizAssignmentsResult['publishResultsForStudents']
   >(
-    async (assignmentId, quizData, responseKeys, visibility, expiresAt) => {
+    async (
+      assignmentId,
+      quizData,
+      responseKeys,
+      visibility,
+      expiresAt,
+      protection
+    ) => {
       if (!userId) throw new Error('Not authenticated');
       if ((visibility as string) === 'none') {
         throw new Error(
@@ -3335,6 +3415,7 @@ export const useQuizAssignments = (
             publishedAt: now,
             expiresAt,
             ...(revealedAnswers ? { revealedAnswers } : {}),
+            ...(protection ? { protection } : {}),
           },
         };
       };

@@ -209,6 +209,8 @@ export interface AssignmentSettingsToggleGroupProps {
    * this off. Defaults to false.
    */
   showCopyPasteToggle?: boolean;
+  /** Hide "Show correct answer on board" (Quiz after the Review split has no board reveal). */
+  hideCorrectOnBoard?: boolean;
   /** Quiz-only: expose the learning-target grouping toggle in Answer Feedback. */
   showLearningTargetsToggle?: boolean;
   /** Rows rendered first inside Answer Feedback (Quiz's "Show score on submit"). */
@@ -219,6 +221,8 @@ export interface AssignmentSettingsToggleGroupProps {
    * during-taking auto-submit threshold control; VA leaves it unset.
    */
   afterTabWarningsSlot?: React.ReactNode;
+  /** Rendered right after the attempt limit row (Quiz: overall time limit). */
+  afterAttemptLimitSlot?: React.ReactNode;
   /**
    * Optional content rendered after the standard sections. Quiz uses this
    * for the gamification block; VA uses this for rewind/penalty/score
@@ -239,8 +243,10 @@ export const AssignmentSettingsToggleGroup: React.FC<
   shuffleQuestionsAvailable = true,
   shuffleQuestionsHint = 'Self-paced only.',
   hideShuffleQuestions = false,
+  hideCorrectOnBoard = false,
   excludeSections,
   trailingSlot,
+  afterAttemptLimitSlot,
   integritySectionLabel,
   showCopyPasteToggle = false,
   showLearningTargetsToggle = false,
@@ -279,6 +285,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
               onChange={onAttemptLimitChange}
             />
           )}
+          {afterAttemptLimitSlot}
           <ToggleRow
             label="Focus mode"
             checked={options.tabWarningsEnabled ?? true}
@@ -334,12 +341,14 @@ export const AssignmentSettingsToggleGroup: React.FC<
             onChange={(v) => update('showCorrectAnswerToStudent', v)}
             disabled={!options.showResultToStudent}
           />
-          <ToggleRow
-            compact
-            label="Show correct answer on board"
-            checked={options.showCorrectOnBoard ?? false}
-            onChange={(v) => update('showCorrectOnBoard', v)}
-          />
+          {!hideCorrectOnBoard && (
+            <ToggleRow
+              compact
+              label="Show correct answer on board"
+              checked={options.showCorrectOnBoard ?? false}
+              onChange={(v) => update('showCorrectOnBoard', v)}
+            />
+          )}
           {showLearningTargetsToggle && (
             <ToggleRow
               compact

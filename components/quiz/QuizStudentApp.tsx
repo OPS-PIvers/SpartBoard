@@ -60,6 +60,7 @@ import {
   ChevronRight,
   ListChecks,
   FileScan,
+  Clock,
 } from 'lucide-react';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import {
@@ -75,6 +76,8 @@ import { AnonymousJoinBlockedScreen } from '@/components/common/AnonymousJoinBlo
 import { shouldGateToSso } from '@/utils/studentJoinRouting';
 import { logError } from '@/utils/logError';
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
+import { resolveAttemptDeadline, timestampMillis } from '@/utils/quizTimeLimit';
+import { QuizTimeLimitClock } from './QuizTimeLimitClock';
 import { useServerNow } from '@/hooks/useServerNow';
 import {
   hasPeriodAccess,
@@ -117,6 +120,7 @@ import {
   isAnswerSubmitted,
   type ResponseArtifact,
   type UnrespondedReason,
+  type ResultsProtection,
 } from '@/types';
 import {
   countCommittedTakes,
@@ -229,6 +233,9 @@ import {
 // Lazy-load the rich-text editor so the bundle for legacy quiz types isn't
 // pulled into the initial student-app payload. Loaded on first render of a
 // free-response question.
+const QuizGamePlay = React.lazy(() =>
+  import('./game/QuizGamePlay').then((m) => ({ default: m.QuizGamePlay }))
+);
 const WrittenResponseEditor = React.lazy(() =>
   import('./WrittenResponseEditor').then((m) => ({
     default: m.WrittenResponseEditor,
@@ -462,6 +469,7 @@ const QuizJoinFlow: React.FC<{
     reportTabSwitch,
     saveTabExits,
     setHandRaised,
+    startAttemptClock,
     recordStimulusPlay,
     reportStimulusError,
     setServedQuestionIds,
@@ -831,10 +839,13 @@ const QuizJoinFlow: React.FC<{
     [submitAnswer, isViewOnly]
   );
 
-  const handleComplete = useCallback(async () => {
-    if (isViewOnly) return;
-    await completeQuiz();
-  }, [completeQuiz, isViewOnly]);
+  const handleComplete = useCallback(
+    async (opts?: { timeUp?: boolean }) => {
+      if (isViewOnly) return;
+      await (opts ? completeQuiz(opts) : completeQuiz());
+    },
+    [completeQuiz, isViewOnly]
+  );
 
   // Tennessen acknowledgment. localStorage is the once-per-device fast path;
   // `recordingNoticeAckedAt` on the response doc is the durable proof and
@@ -1266,6 +1277,23 @@ const QuizJoinFlow: React.FC<{
     );
   }
 
+  // Self-paced Review game: its own clock, queue and screens (QUIZ_REVIEW_SPLIT.md PR 4).
+  if (session.sessionMode === 'game' && myResponse) {
+    return (
+      <React.Suspense fallback={<FullPageLoader message="Loading…" light />}>
+        <QuizGamePlay
+          session={session}
+          myResponse={myResponse}
+          servedQuestions={servedPublicQuestions}
+          override={myOverride}
+          pin={pin}
+          onSetHandRaised={setHandRaised}
+          reportTabSwitch={reportTabSwitch}
+        />
+      </React.Suspense>
+    );
+  }
+
   // Paused — teacher has temporarily paused the session. URL is still live,
   // submissions are blocked until the session is resumed.
   if (session.status === 'paused') {
@@ -1322,6 +1350,7 @@ const QuizJoinFlow: React.FC<{
           visibility={published.visibility}
           revealedAnswers={published.revealedAnswers}
           publishedAt={published.publishedAt}
+          protection={published.protection}
           pin={pin}
           embedded={embedded}
           watermarkNameOverride={watermarkNameOverride}
@@ -1420,6 +1449,7 @@ const QuizJoinFlow: React.FC<{
         reportTabSwitch={reportTabSwitch}
         saveTabExits={saveTabExits}
         onSetHandRaised={setHandRaised}
+        onStartAttemptClock={isViewOnly ? undefined : startAttemptClock}
         handRaised={!!myResponse?.handRaisedAt}
         warningCount={warningCount}
         onRecordStimulusPlay={recordStimulusPlay}
@@ -1552,10 +1582,12 @@ export const ActiveQuiz: React.FC<{
   /** Tennessen acknowledgment for this assignment; null until acknowledged. */
   noticeAckedAt: number | null;
   onAcknowledgeNotice: () => void;
-  onComplete: () => Promise<void>;
+  onComplete: (opts?: { timeUp?: boolean }) => Promise<void>;
   reportTabSwitch: () => Promise<number>;
   saveTabExits?: (exits: TabExit[]) => Promise<void>;
   onSetHandRaised: (raised: boolean) => Promise<void>;
+  /** Stamps a missing attempt start once a time limit applies. */
+  onStartAttemptClock?: () => Promise<void>;
   handRaised: boolean;
   warningCount: number;
   onRecordStimulusPlay: (playKey: string) => Promise<void>;
@@ -1586,6 +1618,7 @@ export const ActiveQuiz: React.FC<{
   reportTabSwitch,
   saveTabExits,
   onSetHandRaised,
+  onStartAttemptClock,
   handRaised,
   warningCount,
   onRecordStimulusPlay,
@@ -1713,6 +1746,58 @@ export const ActiveQuiz: React.FC<{
     return () => window.clearInterval(id);
   }, [closeAtForAttempt, myResponse?.status, attemptCloseAutoSubmit]);
 
+  // Overall time limit: counts from the server-stamped attempt start, scaled by extended time.
+  const attemptDeadline =
+    session.sessionMode === 'student'
+      ? resolveAttemptDeadline(
+          timestampMillis(myResponse?.attemptStartedAt),
+          session.timeLimitMinutes,
+          override?.timeMultiplier
+        )
+      : null;
+  // A limit added to a live assignment starts the clock for attempts already underway.
+  const needsAttemptClock =
+    session.sessionMode === 'student' &&
+    session.timeLimitMinutes != null &&
+    myResponse != null &&
+    myResponse.status !== 'completed' &&
+    myResponse.lastWriteAt != null &&
+    myResponse.attemptStartedAt == null;
+  const attemptClockRequestedRef = useRef(false);
+  useEffect(() => {
+    if (!needsAttemptClock || !onStartAttemptClock) return;
+    if (attemptClockRequestedRef.current) return;
+    attemptClockRequestedRef.current = true;
+    onStartAttemptClock().catch((err: unknown) => {
+      console.error('[QuizStudentApp] attempt clock stamp failed:', err);
+    });
+  }, [needsAttemptClock, onStartAttemptClock]);
+  const [timeUpSubmitted, setTimeUpSubmitted] = useState(false);
+  const timeUpTriggeredRef = useRef(false);
+  const attemptTimeUpSubmit = useCallback(async () => {
+    timeUpTriggeredRef.current = true;
+    document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
+    try {
+      await onComplete({ timeUp: true });
+      setTimeUpSubmitted(true);
+    } catch (err) {
+      console.error('[QuizStudentApp] time-limit auto-submit failed:', err);
+      timeUpTriggeredRef.current = false;
+    }
+  }, [onComplete]);
+  useEffect(() => {
+    if (attemptDeadline == null) return;
+    if (myResponse?.status === 'completed') return;
+    const check = () => {
+      if (timeUpTriggeredRef.current) return;
+      if (getServerNow() < attemptDeadline) return;
+      void attemptTimeUpSubmit();
+    };
+    check();
+    const id = window.setInterval(check, 1000);
+    return () => window.clearInterval(id);
+  }, [attemptDeadline, myResponse?.status, attemptTimeUpSubmit]);
+
   // The Visibility Tracker — only active when tabWarningsEnabled
   const tabWarningsEnabled = session.tabWarningsEnabled !== false;
   // Effective auto-submit threshold (M17 B4): per-student override > session > default 3.
@@ -1833,6 +1918,21 @@ export const ActiveQuiz: React.FC<{
     myResponse?.studentUid ?? auth.currentUser?.uid ?? 'anonymous-student';
   const attemptIndex = myResponse?.completedAttempts ?? 0;
   const studentShuffleSeed = `${baseShuffleSeed}:attempt-${attemptIndex}`;
+  // Shuffle settings are read once per attempt, so a teacher's mid-attempt edit can't reorder a student's screen.
+  const liveQuestionShuffle = session.shuffleQuestions === true;
+  const liveAnswerShuffle = session.shuffleAnswerOptions !== false;
+  const [attemptShuffle, setAttemptShuffle] = useState(() => ({
+    attemptIndex,
+    questions: liveQuestionShuffle,
+    answers: liveAnswerShuffle,
+  }));
+  if (attemptShuffle.attemptIndex !== attemptIndex) {
+    setAttemptShuffle({
+      attemptIndex,
+      questions: liveQuestionShuffle,
+      answers: liveAnswerShuffle,
+    });
+  }
 
   // M17 C3 — served subset of the session's questions for this student.
   // Only meaningful in self-paced mode (individually-targeted assignments
@@ -1858,7 +1958,7 @@ export const ActiveQuiz: React.FC<{
   // student would put the projected screen out of sync with student devices.
   // Legacy/in-flight sessions without the field default to off.
   const questionOrderShuffleEnabled =
-    isStudentPaced && session.shuffleQuestions === true;
+    isStudentPaced && attemptShuffle.questions;
   const orderedPublicQuestions = useMemo(() => {
     if (!questionOrderShuffleEnabled) return servedPublicQuestions;
     // A section's questions stay together, so each is shuffled on its own.
@@ -1884,7 +1984,7 @@ export const ActiveQuiz: React.FC<{
 
   // Answer-option shuffle. Defaults to ON when the field is absent so legacy
   // sessions that pre-date this toggle keep their always-on behavior.
-  const answerOptionShuffleEnabled = session.shuffleAnswerOptions !== false;
+  const answerOptionShuffleEnabled = attemptShuffle.answers;
   const currentQuestion = useMemo(() => {
     if (!baseQuestion) return baseQuestion;
     const served = isStudentPaced
@@ -3171,6 +3271,21 @@ export const ActiveQuiz: React.FC<{
         </div>
       )}
 
+      {timeUpSubmitted && (
+        <div
+          role="status"
+          className={`sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b text-xs ${unlockedBannerCls}`}
+        >
+          <Clock className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            {t(
+              'quizTimeLimit.submitted',
+              "Time's up. Your answers were submitted."
+            )}
+          </span>
+        </div>
+      )}
+
       {/* Auto-submit failed (offline, or the post-closeAt grace window
           passed before the write landed). Honest, non-blocking, with a
           retry the student can act on — the response is still
@@ -3324,6 +3439,13 @@ export const ActiveQuiz: React.FC<{
               <span className="text-xs text-slate-500">
                 {currentIndex + 1} / {effectiveTotalQuestions}
               </span>
+              {attemptDeadline != null &&
+                myResponse?.status !== 'completed' && (
+                  <QuizTimeLimitClock
+                    deadline={attemptDeadline}
+                    light={light}
+                  />
+                )}
             </div>
             {timeLeft !== null && !submitted && (
               <div
@@ -4583,6 +4705,7 @@ const ResultsScreen: React.FC<{
         visibility={published.visibility}
         revealedAnswers={published.revealedAnswers}
         publishedAt={published.publishedAt}
+        protection={published.protection}
         pin={pin}
         embedded={embedded}
         watermarkNameOverride={watermarkNameOverride}
@@ -4666,6 +4789,8 @@ export const PublishedScoreReview: React.FC<{
   revealedAnswers?: Record<string, string>;
   /** Publish time for the watermark; falls back to the session's. */
   publishedAt?: number;
+  /** This student's results protection; falls back to the session's. */
+  protection?: ResultsProtection;
   pin: string;
   /**
    * Inside the Classroom add-on iframe: on tab-warning lockout, render an
@@ -4690,6 +4815,7 @@ export const PublishedScoreReview: React.FC<{
   visibility,
   revealedAnswers,
   publishedAt: publishedAtProp,
+  protection: protectionProp,
   pin,
   embedded = false,
   watermarkNameOverride,
@@ -4697,6 +4823,7 @@ export const PublishedScoreReview: React.FC<{
   drawIds,
   loadPaperCrop,
 }) => {
+  const protection = protectionProp ?? session.protection;
   const { t } = useTranslation();
   // Async / self-paced assignments (e.g. a Google Classroom attachment) review
   // their results on a LIGHT surface — matching the add-on + brand spec; a LIVE
@@ -4847,7 +4974,7 @@ export const PublishedScoreReview: React.FC<{
   // PIN; otherwise we use a generic 'Student' label. The watermark is
   // informational — its job is to discourage shared screenshots, not to
   // authenticate.
-  const watermarkEnabled = session.protection?.watermarkEnabled === true;
+  const watermarkEnabled = protection?.watermarkEnabled === true;
   // When the session has no `scorePublishedAt` (legacy or mid-publish), fall
   // back to a per-mount snapshot of `Date.now()`. `useState(fn)` runs `fn`
   // exactly once at mount, giving us a stable timestamp without calling
@@ -4879,8 +5006,8 @@ export const PublishedScoreReview: React.FC<{
   // mount so a stale count from a previous session doesn't auto-pop the modal
   // on first render. Lockout flips trigger a redirect to /my-assignments,
   // where the row will render in its locked state.
-  const tabWarningEnabled = session.protection?.tabWarningEnabled === true;
-  const threshold = session.protection?.tabWarningThreshold ?? 3;
+  const tabWarningEnabled = protection?.tabWarningEnabled === true;
+  const threshold = protection?.tabWarningThreshold ?? 3;
   const currentWarnings = myResponse.resultsTabWarnings ?? 0;
   const lockedOut = myResponse.resultsLockedOut === true;
 

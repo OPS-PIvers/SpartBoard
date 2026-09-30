@@ -72,6 +72,13 @@ service cloud.firestore {
     function notDecreased(k) {
       return incoming().get(k, 0) >= existing().get(k, 0);
     }
+    // VA/GL published-results tab-away counters: a student raises the count
+    // and may lock, never lower it or unlock (the teacher does that).
+    function resultsGuardWrite() {
+      return changedOnly(['resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt']) &&
+        notDecreased('resultsTabWarnings') &&
+        (!changed(['resultsLockedOut']) || incoming().get('resultsLockedOut', false) == true);
+    }
     // Tab-away exit log: a student appends one exit or closes their open last
     // one; earlier entries never change, and the log stops at 50.
     function tabExitOk(e) {
@@ -952,6 +959,12 @@ service cloud.firestore {
     // it to decide whether to offer the import source; admins flip it.
     match /admin_settings/quiz_document_import {
       allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Gradebook district proficiency scale (GRADEBOOK.md D17): every teacher reads it; admins write.
+    match /admin_settings/gradebook {
+      allow read: if request.auth != null && notAnon() && !isStudentRoleUser();
       allow write: if isAdmin();
     }
 
@@ -2939,7 +2952,15 @@ service cloud.firestore {
                          <= incoming().masteryCutoffs.proficient
                   )
              );
-        allow delete: if false;
+        // Gradebook shared configuration (GRADEBOOK.md D16): leads and co-leads only.
+        allow create, update: if gbTeacher()
+          && metaId == 'gradebookSettings'
+          && isPlcMembershipManager(get(/databases/$(database)/documents/plcs/$(plcId)).data)
+          && gbSettingsOk(incoming(), ['updatedBy'])
+          && incoming().updatedBy == authUid();
+        allow delete: if gbTeacher()
+          && metaId == 'gradebookSettings'
+          && isPlcMembershipManager(get(/databases/$(database)/documents/plcs/$(plcId)).data);
       }
 
       // PLC question-bank headers (plan §5): pointer at /synced_question_banks/{groupId}.
@@ -3138,6 +3159,95 @@ service cloud.firestore {
         // Non-viewer member can unshare (PLC-owned model); viewers denied.
         allow delete: if request.auth != null
           && plcCanEditContent(plcId);
+      }
+
+      // PLC Flashcards library. Inline payload like rubrics: any non-viewer member
+      // shares/unshares; identity + attribution immutable post-create.
+      match /flashcard_sets/{plcSetId} {
+        allow read: if request.auth != null
+          && plcMember(plcId);
+
+        allow create: if request.auth != null
+          && plcCanEditContent(plcId)
+          && incoming().keys().hasOnly([
+               'id', 'title', 'description', 'termLanguage',
+               'definitionLanguage', 'cards', 'createdAt', 'updatedAt',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'deletedAt'
+             ])
+          && plcSetId == incoming().id
+          && incoming().sharedBy == authUid()
+          && isStr('title')
+          && isStr('termLanguage')
+          && isStr('definitionLanguage')
+          && isList('cards')
+          && incoming().cards.size() <= 1000
+          && isStr('sharedByEmail')
+          && isStr('sharedByName')
+          && isInt('sharedAt')
+          && isInt('createdAt')
+          && isInt('updatedAt')
+          && plcSubDeletedAtOk();
+
+        allow update: if request.auth != null
+          && plcCanEditContent(plcId)
+          && incoming().keys().hasOnly([
+               'id', 'title', 'description', 'termLanguage',
+               'definitionLanguage', 'cards', 'createdAt', 'updatedAt',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'deletedAt'
+             ])
+          && sameId()
+          && unchanged('sharedBy')
+          && unchanged('sharedByEmail')
+          && unchanged('sharedByName')
+          && unchanged('sharedAt')
+          && unchanged('createdAt')
+          && isStr('title')
+          && isStr('termLanguage')
+          && isStr('definitionLanguage')
+          && isList('cards')
+          && incoming().cards.size() <= 1000
+          && isInt('updatedAt')
+          && plcSubDeletedAtOk();
+
+        allow delete: if request.auth != null
+          && plcCanEditContent(plcId);
+      }
+
+      // Class-level flashcard results a teacher shares with the PLC. No student ids;
+      // only the sharing teacher writes, refreshes or removes their own summary.
+      match /flashcard_results/{plcResultId} {
+        allow read: if request.auth != null
+          && plcMember(plcId);
+
+        allow create, update: if request.auth != null
+          && plcCanEditContent(plcId)
+          && incoming().keys().hasOnly([
+               'id', 'setId', 'setTitle', 'kind', 'classLabel',
+               'students', 'completed', 'averagePercent', 'cards',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'updatedAt'
+             ])
+          && plcResultId == incoming().id
+          && incoming().sharedBy == authUid()
+          && (request.method == 'create' || existing().sharedBy == authUid())
+          && isStr('setId')
+          && isStr('setTitle')
+          && incoming().kind in ['check', 'study']
+          && isStr('classLabel')
+          && isInt('students')
+          && isInt('completed')
+          && isNumber('averagePercent')
+          && isList('cards')
+          && incoming().cards.size() <= 1000
+          && isStr('sharedByEmail')
+          && isStr('sharedByName')
+          && isInt('sharedAt')
+          && isInt('updatedAt');
+
+        allow delete: if request.auth != null
+          && existing().sharedBy == authUid();
       }
 
       // PLC-authored Assignments (Phase 3). Templates any member can pick up onto
@@ -3666,6 +3776,156 @@ service cloud.firestore {
       }
     }
 
+    // ---- Gradebook (docs/plans/GRADEBOOK.md data model) ----
+    // Teacher docs are owner-only in v1; editorUids is stored empty for later co-teaching (D12).
+    function gbTeacher() {
+      return request.auth != null && notAnon() && !isStudentRoleUser() && notDeactivated();
+    }
+    function gbOwned() {
+      return request.auth != null && existing().ownerUid == authUid();
+    }
+    // A mark or column may only be created on the caller's own session.
+    function gbSessionOwned(d) {
+      return get(/databases/$(database)/documents/$({
+        'quiz': 'quiz_sessions',
+        'video-activity': 'video_activity_sessions',
+        'guided-learning': 'guided_learning_sessions',
+        'flashcards': 'flashcard_sessions',
+        'projects': 'project_runs',
+        'mini-app': 'mini_app_sessions',
+        'activity-wall': 'activity_wall_sessions'
+      }[d.kind])/$(d.sessionId)).data.teacherUid == authUid();
+    }
+    function gbCreateOk(d) {
+      return gbTeacher() && d.ownerUid == authUid() && d.editorUids == [] && gbSessionOwned(d);
+    }
+    function gbUpdateOk() {
+      return gbTeacher() && existing().ownerUid == authUid() &&
+             !changed(['ownerUid', 'editorUids', 'kind', 'sessionId', 'studentUid']);
+    }
+    function gbMarkOk(d) {
+      return d.keys().hasOnly(['kind', 'sessionId', 'studentUid', 'ownerUid', 'editorUids', 'rosterIds',
+               'override', 'comment', 'flags', 'suppressedAuto', 'publishOverride', 'updatedAt']) &&
+             d.studentUid is string && d.rosterIds is list && d.rosterIds.size() <= 20 &&
+             (d.get('override', null) == null ||
+              (d.override.keys().hasOnly(['points', 'at']) && d.override.points is number && d.override.at is int)) &&
+             (d.get('comment', null) == null ||
+              (d.comment.keys().hasOnly(['text', 'shared', 'at']) && d.comment.text is string &&
+               d.comment.text.size() <= 5000 && d.comment.shared is bool && d.comment.at is int)) &&
+             d.flags is list && d.flags.size() <= 30 &&
+             d.suppressedAuto is list && d.suppressedAuto.size() <= 5 &&
+             d.get('publishOverride', null) in [null, 'published', 'unpublished'] &&
+             d.updatedAt is int;
+    }
+    function gbColumnOk(d) {
+      return d.keys().hasOnly(['kind', 'sessionId', 'ownerUid', 'editorUids', 'category', 'countsTowardOverall',
+               'maxPointsOverride', 'attemptPolicy', 'targets', 'hiddenInRosterIds', 'updatedAt']) &&
+             (d.get('category', null) == null || d.category is string) &&
+             d.countsTowardOverall is bool &&
+             (d.get('maxPointsOverride', null) == null ||
+              (d.maxPointsOverride is number && d.maxPointsOverride > 0)) &&
+             d.attemptPolicy in ['latest', 'highest', 'average'] &&
+             d.targets is list && d.targets.size() <= 100 &&
+             d.hiddenInRosterIds is list && d.hiddenInRosterIds.size() <= 50 &&
+             d.updatedAt is int;
+    }
+    // D16 settings body shared by personal, PLC and district configurations; `extra` names the doc's own keys.
+    function gbSettingsOk(d, extra) {
+      return d.keys().hasOnly(['name', 'flags', 'categoriesEnabled', 'categories', 'scale', 'method',
+               'studentVisibility', 'autoFlags', 'updatedAt'].concat(extra)) &&
+             d.name is string && d.name.size() > 0 && d.name.size() <= 80 &&
+             d.flags is list && d.flags.size() <= 26 &&
+             d.categoriesEnabled is bool && d.categories is list && d.categories.size() <= 20 &&
+             d.scale is map && d.method in ['mean', 'recent', 'highest', 'decaying'] &&
+             d.studentVisibility is map && d.autoFlags is bool && d.updatedAt is int;
+    }
+    // Admin-written, org-scoped docs (district configurations, grading period sets).
+    function gbOrgAdminWriteOk() {
+      return isAdmin() && isOrgMember(incoming().orgId) &&
+             (resource == null || isOrgMember(existing().orgId)) &&
+             isList('buildingIds') && incoming().buildingIds.size() <= 50;
+    }
+
+    // D10 index rows: written only by the server triggers.
+    match /grade_index/{rowId} {
+      allow read: if gbOwned();
+      allow write: if false;
+    }
+
+    // D9 overlay, one per assignment x student.
+    match /gradebook_marks/{markId} {
+      allow read: if gbOwned();
+      allow delete: if gbTeacher() && gbOwned();
+      allow create: if gbCreateOk(incoming()) && gbMarkOk(incoming()) &&
+        markId == incoming().sessionId + '__' + incoming().studentUid;
+      allow update: if gbUpdateOk() && gbMarkOk(incoming());
+
+      // D24 change log: append-only, by the mark's owner.
+      match /history/{entryId} {
+        allow read: if gbOwned();
+        allow create: if gbTeacher() &&
+          incoming().keys().hasOnly(['ownerUid', 'byUid', 'at', 'field', 'before', 'after', 'batchId']) &&
+          incoming().ownerUid == authUid() && incoming().byUid == authUid() &&
+          isInt('at') && incoming().field in ['override', 'comment', 'flags', 'publish', 'fill'] &&
+          (incoming().get('batchId', null) == null || isStr('batchId')) &&
+          getAfter(/databases/$(database)/documents/gradebook_marks/$(markId)).data.ownerUid == authUid();
+        allow update, delete: if false;
+      }
+    }
+
+    // D22 per-column grading setup.
+    match /gradebook_columns/{sessionId} {
+      allow read: if gbOwned();
+      allow delete: if gbTeacher() && gbOwned();
+      allow create: if gbCreateOk(incoming()) && gbColumnOk(incoming()) &&
+        incoming().sessionId == sessionId;
+      allow update: if gbUpdateOk() && gbColumnOk(incoming());
+    }
+
+    // D16 personal configurations and per-class view state.
+    match /users/{userId}/gradebook_settings/{configId} {
+      allow read, delete: if ownsUserTeacher(userId);
+      allow create, update: if ownsUserTeacher(userId) &&
+        gbSettingsOk(incoming(), ['ownerUid', 'editorUids', 'isDefault']) &&
+        incoming().ownerUid == userId && incoming().editorUids == [] &&
+        optBool(incoming(), 'isDefault');
+    }
+    match /users/{userId}/gradebook_classes/{rosterId} {
+      allow read, delete: if ownsUserTeacher(userId);
+      allow create, update: if ownsUserTeacher(userId) &&
+        incoming().keys().hasOnly(['rosterId', 'ownerUid', 'editorUids', 'configRef', 'sort',
+          'nameFormat', 'cellFormat', 'cardLayouts', 'updatedAt']) &&
+        incoming().rosterId == rosterId && incoming().ownerUid == userId &&
+        incoming().editorUids == [] && isInt('updatedAt');
+    }
+
+    // D16 district configurations, read by teachers in the same org (the client filters by building).
+    match /gradebook_district_configs/{configId} {
+      allow read: if request.auth != null && (isOrgMember(existing().orgId) || isSuperAdmin());
+      allow delete: if isAdmin() && isOrgMember(existing().orgId);
+      allow create, update: if gbOrgAdminWriteOk() &&
+        gbSettingsOk(incoming(), ['orgId', 'buildingIds', 'isDefault']) && isBool('isDefault');
+    }
+
+    // D18 grading periods per building.
+    match /grading_period_sets/{setId} {
+      allow read: if request.auth != null && (isOrgMember(existing().orgId) || isSuperAdmin());
+      allow delete: if isAdmin() && isOrgMember(existing().orgId);
+      allow create, update: if gbOrgAdminWriteOk() &&
+        incoming().keys().hasOnly(['name', 'orgId', 'buildingIds', 'periods', 'updatedAt']) &&
+        isStr('name') && isList('periods') && incoming().periods.size() <= 12 && isInt('updatedAt');
+    }
+
+    // D37 student projection: server-written, read only by that signed-in student.
+    match /student_grades/{studentUid} {
+      allow read, write: if false;
+
+      match /classes/{classId} {
+        allow read: if request.auth != null && authUid() == studentUid && isStudentRoleUser();
+        allow write: if false;
+      }
+    }
+
     // Per-student assignment pointers (M17). One doc per (student, assignment), written
     // EXCLUSIVELY by setAssignmentTargetsV1 and the deletion cleanup triggers via Admin
     // SDK - no client write path exists (the pseudonym uid derivation needs the
@@ -3871,6 +4131,10 @@ service cloud.firestore {
           // auto-submit sweep, not data loss.
           (incoming().get('lastWriteAt', null) == null ||
            incoming().lastWriteAt == request.time) &&
+          // The time-limit clock starts server-side; time-up is set only on submit.
+          (incoming().get('attemptStartedAt', null) == null ||
+           incoming().attemptStartedAt == request.time) &&
+          incoming().get('timeUp', null) == null &&
           // Students cannot forge a score on creation
           incoming().score == null &&
           // Students cannot forge prior completions
@@ -3894,6 +4158,10 @@ service cloud.firestore {
           // Per-student publication and the answer key are teacher-written only.
           incoming().get('resultsOverride', null) == null &&
           incoming().get('revealedAnswers', null) == null &&
+          // Review games: checkQuizGameAnswerV1 alone writes points, verdicts and answers.
+          incoming().get('game', null) == null &&
+          (sessionData().get('sessionMode', '') != 'game' ||
+           incoming().get('answers', []).size() == 0) &&
           // studentRole users must be enrolled in the session's class
           passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
@@ -3956,8 +4224,24 @@ service cloud.firestore {
            // Use `affectedKeys()` (added + removed + changed), not `changedKeys()` - the latter
            // only covers keys present on BOTH sides, so a smuggled NEW field would land in
            // addedKeys and bypass the whitelist entirely.
-           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits']) &&
+           // Review games: answers come only from checkQuizGameAnswerV1 (`game` is off the list below).
+           (!changed(['answers']) || sessionData().get('sessionMode', '') != 'game') &&
+           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp']) &&
            tabExitsOk() &&
+           // Time-limit clock: server-stamped, and only restarted by a new attempt
+           // (completed -> joined) or stamped where none exists yet.
+           (!changed(['attemptStartedAt']) ||
+            (incoming().attemptStartedAt == request.time &&
+             (existing().get('attemptStartedAt', null) == null ||
+              (existing().get('status', '') == 'completed' &&
+               incoming().get('status', '') == 'joined')))) &&
+           // `timeUp` is set only on the submit itself, and cleared by a new attempt.
+           (!changed(['timeUp']) ||
+            (incoming().get('timeUp', null) == true &&
+             incoming().get('status', '') == 'completed' &&
+             existing().get('status', '') != 'completed') ||
+            (incoming().get('timeUp', null) == null &&
+             incoming().get('status', '') == 'joined')) &&
            // M17 served-subset snapshot: a student may only stamp
            // servedQuestionIds when it exactly equals the override subset the
            // setAssignmentTargetsV1 CF fanned out to their own pointer doc —
@@ -4589,6 +4873,8 @@ service cloud.firestore {
           incoming().get('completedAttempts', 0) == 0 &&
           incoming().get('tabSwitchWarnings', 0) == 0 &&
           incoming().get('tabExits', null) == null &&
+          // Per-student publication is teacher-written only.
+          incoming().get('resultsOverride', null) == null &&
           vaGate() &&
           // Block submissions on view-only sessions (mode is frozen at creation)
           vaS().get('mode', 'submissions') == 'submissions' &&
@@ -4610,6 +4896,8 @@ service cloud.firestore {
         allow update: if request.auth != null && (
           // Teacher branch.
           vaOwner(vaS()) ||
+          // Student results-view counters; allowed after close like quiz's.
+          (existing().studentUid == authUid() && vaGate() && resultsGuardWrite()) ||
           // Student branch — same invariants as before PR3.
           (
             existing().studentUid == authUid() &&
@@ -4865,6 +5153,8 @@ service cloud.firestore {
           incoming().studentAnonymousId == authUid() &&
           incoming().sessionId == sessionId &&
           incoming().score == null &&
+          // Per-student publication is teacher-written only.
+          incoming().get('resultsOverride', null) == null &&
           glClassGate() &&
           // Block submissions on view-only sessions (mode is frozen at creation)
           glSessionMode() == 'submissions' &&
@@ -4879,6 +5169,8 @@ service cloud.firestore {
         allow update: if request.auth != null && (
           // Teacher branch.
           glIsTeacher() ||
+          // Student results-view counters; allowed after close like quiz's.
+          (studentUid == authUid() && glClassGate() && resultsGuardWrite()) ||
           // Student branch — unchanged.
           (
             studentUid == authUid() &&
