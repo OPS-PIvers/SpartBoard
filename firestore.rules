@@ -3204,6 +3204,8 @@ service cloud.firestore {
           && unchanged('sharedAt')
           && unchanged('createdAt')
           && isStr('title')
+          && isStr('termLanguage')
+          && isStr('definitionLanguage')
           && isList('cards')
           && incoming().cards.size() <= 1000
           && isInt('updatedAt')

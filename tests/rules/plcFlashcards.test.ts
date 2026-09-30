@@ -198,6 +198,9 @@ describe('plcs/{plcId}/flashcard_sets — write', () => {
     await assertFails(
       updateDoc(doc(asMemberB(), setPath), { sharedBy: MEMBER_B_UID })
     );
+    await assertFails(
+      updateDoc(doc(asMemberB(), setPath), { termLanguage: 5 })
+    );
   });
 
   it('a viewer cannot unshare or delete', async () => {
