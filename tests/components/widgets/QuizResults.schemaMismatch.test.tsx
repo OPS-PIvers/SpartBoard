@@ -178,11 +178,7 @@ describe('QuizResults — PLC schema mismatch recovery', () => {
       />
     );
 
-    // Export now lives in the overflow menu: open the kebab, then click it.
-    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
-    fireEvent.click(
-      screen.getByRole('menuitem', { name: /export to sheets/i })
-    );
+    fireEvent.click(screen.getByRole('button', { name: /export to sheets/i }));
 
     // The banner has to call out *what* differs so the teacher / admin can
     // tell at a glance whether the gap is a column-count drift or a single
@@ -215,11 +211,7 @@ describe('QuizResults — PLC schema mismatch recovery', () => {
       />
     );
 
-    // Export now lives in the overflow menu: open the kebab, then click it.
-    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
-    fireEvent.click(
-      screen.getByRole('menuitem', { name: /export to sheets/i })
-    );
+    fireEvent.click(screen.getByRole('button', { name: /export to sheets/i }));
 
     await waitFor(() => {
       expect(
@@ -258,11 +250,7 @@ describe('QuizResults — PLC schema mismatch recovery', () => {
       />
     );
 
-    // Export now lives in the overflow menu: open the kebab, then click it.
-    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
-    fireEvent.click(
-      screen.getByRole('menuitem', { name: /export to sheets/i })
-    );
+    fireEvent.click(screen.getByRole('button', { name: /export to sheets/i }));
 
     await waitFor(() => {
       expect(
