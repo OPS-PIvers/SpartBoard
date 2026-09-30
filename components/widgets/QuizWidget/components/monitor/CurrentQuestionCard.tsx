@@ -140,6 +140,9 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
           style={{ fontSize: 'min(13px, 4.5cqmin)' }}
         >
           {QUIZ_STUDENT_MODE_LABEL} · {session.totalQuestions} questions
+          {isSelfPaced && session.timeLimitMinutes != null
+            ? ` · ${session.timeLimitMinutes} min limit`
+            : ''}
         </p>
         <p
           className="font-sans font-semibold text-brand-blue-dark tabular-nums"

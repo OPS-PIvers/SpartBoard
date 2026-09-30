@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   AlertTriangle,
   Clock,
+  Timer,
   Hand,
   ImageOff,
   Lock,
@@ -25,6 +26,12 @@ import {
   compareStudents,
   matchesFilter,
 } from './monitorUtils';
+import {
+  QUIZ_TIME_LIMIT_WARN_MS,
+  formatTimeLeft,
+  resolveAttemptDeadline,
+  timestampMillis,
+} from '@/utils/quizTimeLimit';
 import {
   hasReachedTabWarningThreshold,
   resolveStudentTabWarningThreshold,
@@ -81,6 +88,33 @@ const ToggleChip: React.FC<{
     {label}
   </button>
 );
+
+const iconSize = {
+  width: 'min(12px, 4cqmin)',
+  height: 'min(12px, 4cqmin)',
+};
+
+/** Time left on a student's overall quiz time limit; ticks on its own so the list doesn't. */
+const TimeLeft: React.FC<{ deadline: number }> = ({ deadline }) => {
+  const now = useServerNow(1000);
+  const left = Math.max(0, deadline - now);
+  const text = formatTimeLeft(left);
+  return (
+    <span
+      className={`inline-flex items-center font-sans tabular-nums ${
+        left <= QUIZ_TIME_LIMIT_WARN_MS
+          ? 'text-amber-700 font-semibold'
+          : 'text-brand-gray-primary'
+      }`}
+      title="Time left"
+      aria-label={`Time left ${text}`}
+      style={{ gap: 'min(2px, 0.5cqmin)', fontSize: 'min(11px, 3.8cqmin)' }}
+    >
+      <Timer aria-hidden style={iconSize} />
+      {text}
+    </span>
+  );
+};
 
 const RowMenu: React.FC<{
   student: MonitorStudent;
@@ -429,6 +463,17 @@ export const RosterList: React.FC<RosterListProps> = ({
           overridesBySourcedId,
           targetRefKeyByStudentUid
         );
+        const refKey = targetRefKeyByStudentUid?.get(r.studentUid);
+        const deadline =
+          session.sessionMode === 'student'
+            ? resolveAttemptDeadline(
+                timestampMillis(r.attemptStartedAt),
+                session.timeLimitMinutes,
+                refKey
+                  ? overridesBySourcedId?.[refKey]?.timeMultiplier
+                  : undefined
+              )
+            : null;
         const locked =
           !r.unlocked &&
           ((r.status === 'completed' &&
@@ -478,6 +523,22 @@ export const RosterList: React.FC<RosterListProps> = ({
                   style={{ fontSize: 'min(11px, 3.8cqmin)' }}
                 >
                   Q{s.onQuestion}
+                </span>
+              )}
+              {r.status !== 'completed' && deadline != null && (
+                <TimeLeft deadline={deadline} />
+              )}
+              {bucket === 'done' && r.timeUp && (
+                <span
+                  className="inline-flex items-center text-brand-gray-primary font-sans"
+                  title="Submitted when time ran out"
+                  style={{
+                    gap: 'min(2px, 0.5cqmin)',
+                    fontSize: 'min(11px, 3.8cqmin)',
+                  }}
+                >
+                  <Timer aria-hidden style={iconSize} />
+                  Time up
                 </span>
               )}
               {showFlags && s.idle != null && (

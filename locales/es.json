@@ -2089,6 +2089,13 @@
     "off": "Los estudiantes ven su calificación cuando publicas los resultados.",
     "unavailable": "No disponible con preguntas de respuesta libre."
   },
+  "quizTimeLimit": {
+    "label": "Límite de tiempo",
+    "minutes": "Minutos",
+    "unit": "min",
+    "left": "Tiempo restante {{time}}",
+    "submitted": "Se acabó el tiempo. Tus respuestas se entregaron."
+  },
   "quizReadAloud": {
     "label": "Leer en voz alta",
     "help": "Solo para estudiantes con sesión iniciada.",

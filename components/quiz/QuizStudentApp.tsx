@@ -60,6 +60,7 @@ import {
   ChevronRight,
   ListChecks,
   FileScan,
+  Clock,
 } from 'lucide-react';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import {
@@ -75,6 +76,8 @@ import { AnonymousJoinBlockedScreen } from '@/components/common/AnonymousJoinBlo
 import { shouldGateToSso } from '@/utils/studentJoinRouting';
 import { logError } from '@/utils/logError';
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
+import { resolveAttemptDeadline, timestampMillis } from '@/utils/quizTimeLimit';
+import { QuizTimeLimitClock } from './QuizTimeLimitClock';
 import { useServerNow } from '@/hooks/useServerNow';
 import {
   hasPeriodAccess,
@@ -466,6 +469,7 @@ const QuizJoinFlow: React.FC<{
     reportTabSwitch,
     saveTabExits,
     setHandRaised,
+    startAttemptClock,
     recordStimulusPlay,
     reportStimulusError,
     setServedQuestionIds,
@@ -835,10 +839,13 @@ const QuizJoinFlow: React.FC<{
     [submitAnswer, isViewOnly]
   );
 
-  const handleComplete = useCallback(async () => {
-    if (isViewOnly) return;
-    await completeQuiz();
-  }, [completeQuiz, isViewOnly]);
+  const handleComplete = useCallback(
+    async (opts?: { timeUp?: boolean }) => {
+      if (isViewOnly) return;
+      await (opts ? completeQuiz(opts) : completeQuiz());
+    },
+    [completeQuiz, isViewOnly]
+  );
 
   // Tennessen acknowledgment. localStorage is the once-per-device fast path;
   // `recordingNoticeAckedAt` on the response doc is the durable proof and
@@ -1442,6 +1449,7 @@ const QuizJoinFlow: React.FC<{
         reportTabSwitch={reportTabSwitch}
         saveTabExits={saveTabExits}
         onSetHandRaised={setHandRaised}
+        onStartAttemptClock={isViewOnly ? undefined : startAttemptClock}
         handRaised={!!myResponse?.handRaisedAt}
         warningCount={warningCount}
         onRecordStimulusPlay={recordStimulusPlay}
@@ -1574,10 +1582,12 @@ export const ActiveQuiz: React.FC<{
   /** Tennessen acknowledgment for this assignment; null until acknowledged. */
   noticeAckedAt: number | null;
   onAcknowledgeNotice: () => void;
-  onComplete: () => Promise<void>;
+  onComplete: (opts?: { timeUp?: boolean }) => Promise<void>;
   reportTabSwitch: () => Promise<number>;
   saveTabExits?: (exits: TabExit[]) => Promise<void>;
   onSetHandRaised: (raised: boolean) => Promise<void>;
+  /** Stamps a missing attempt start once a time limit applies. */
+  onStartAttemptClock?: () => Promise<void>;
   handRaised: boolean;
   warningCount: number;
   onRecordStimulusPlay: (playKey: string) => Promise<void>;
@@ -1608,6 +1618,7 @@ export const ActiveQuiz: React.FC<{
   reportTabSwitch,
   saveTabExits,
   onSetHandRaised,
+  onStartAttemptClock,
   handRaised,
   warningCount,
   onRecordStimulusPlay,
@@ -1734,6 +1745,58 @@ export const ActiveQuiz: React.FC<{
     const id = window.setInterval(check, 5000);
     return () => window.clearInterval(id);
   }, [closeAtForAttempt, myResponse?.status, attemptCloseAutoSubmit]);
+
+  // Overall time limit: counts from the server-stamped attempt start, scaled by extended time.
+  const attemptDeadline =
+    session.sessionMode === 'student'
+      ? resolveAttemptDeadline(
+          timestampMillis(myResponse?.attemptStartedAt),
+          session.timeLimitMinutes,
+          override?.timeMultiplier
+        )
+      : null;
+  // A limit added to a live assignment starts the clock for attempts already underway.
+  const needsAttemptClock =
+    session.sessionMode === 'student' &&
+    session.timeLimitMinutes != null &&
+    myResponse != null &&
+    myResponse.status !== 'completed' &&
+    myResponse.lastWriteAt != null &&
+    myResponse.attemptStartedAt == null;
+  const attemptClockRequestedRef = useRef(false);
+  useEffect(() => {
+    if (!needsAttemptClock || !onStartAttemptClock) return;
+    if (attemptClockRequestedRef.current) return;
+    attemptClockRequestedRef.current = true;
+    onStartAttemptClock().catch((err: unknown) => {
+      console.error('[QuizStudentApp] attempt clock stamp failed:', err);
+    });
+  }, [needsAttemptClock, onStartAttemptClock]);
+  const [timeUpSubmitted, setTimeUpSubmitted] = useState(false);
+  const timeUpTriggeredRef = useRef(false);
+  const attemptTimeUpSubmit = useCallback(async () => {
+    timeUpTriggeredRef.current = true;
+    document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
+    try {
+      await onComplete({ timeUp: true });
+      setTimeUpSubmitted(true);
+    } catch (err) {
+      console.error('[QuizStudentApp] time-limit auto-submit failed:', err);
+      timeUpTriggeredRef.current = false;
+    }
+  }, [onComplete]);
+  useEffect(() => {
+    if (attemptDeadline == null) return;
+    if (myResponse?.status === 'completed') return;
+    const check = () => {
+      if (timeUpTriggeredRef.current) return;
+      if (getServerNow() < attemptDeadline) return;
+      void attemptTimeUpSubmit();
+    };
+    check();
+    const id = window.setInterval(check, 1000);
+    return () => window.clearInterval(id);
+  }, [attemptDeadline, myResponse?.status, attemptTimeUpSubmit]);
 
   // The Visibility Tracker — only active when tabWarningsEnabled
   const tabWarningsEnabled = session.tabWarningsEnabled !== false;
@@ -3208,6 +3271,21 @@ export const ActiveQuiz: React.FC<{
         </div>
       )}
 
+      {timeUpSubmitted && (
+        <div
+          role="status"
+          className={`sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b text-xs ${unlockedBannerCls}`}
+        >
+          <Clock className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            {t(
+              'quizTimeLimit.submitted',
+              "Time's up. Your answers were submitted."
+            )}
+          </span>
+        </div>
+      )}
+
       {/* Auto-submit failed (offline, or the post-closeAt grace window
           passed before the write landed). Honest, non-blocking, with a
           retry the student can act on — the response is still
@@ -3361,6 +3439,13 @@ export const ActiveQuiz: React.FC<{
               <span className="text-xs text-slate-500">
                 {currentIndex + 1} / {effectiveTotalQuestions}
               </span>
+              {attemptDeadline != null &&
+                myResponse?.status !== 'completed' && (
+                  <QuizTimeLimitClock
+                    deadline={attemptDeadline}
+                    light={light}
+                  />
+                )}
             </div>
             {timeLeft !== null && !submitted && (
               <div

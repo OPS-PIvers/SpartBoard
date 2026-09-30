@@ -2089,6 +2089,13 @@
     "off": "Schüler/innen sehen ihre Punktzahl, wenn du die Ergebnisse veröffentlichst.",
     "unavailable": "Nicht verfügbar bei Freitextfragen."
   },
+  "quizTimeLimit": {
+    "label": "Zeitlimit",
+    "minutes": "Minuten",
+    "unit": "Min.",
+    "left": "Verbleibende Zeit {{time}}",
+    "submitted": "Die Zeit ist um. Deine Antworten wurden abgegeben."
+  },
   "quizReadAloud": {
     "label": "Vorlesen",
     "help": "Nur für angemeldete Schüler.",

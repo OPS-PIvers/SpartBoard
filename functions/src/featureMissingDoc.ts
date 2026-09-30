@@ -41,6 +41,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'gradebook',
   'student-gradebook',
   'quiz-review-split',
+  'quiz-time-limit',
   'guided-learning-ai',
   'blooms-ai',
 ];

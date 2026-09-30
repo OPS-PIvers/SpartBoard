@@ -221,6 +221,8 @@ export interface AssignmentSettingsToggleGroupProps {
    * during-taking auto-submit threshold control; VA leaves it unset.
    */
   afterTabWarningsSlot?: React.ReactNode;
+  /** Rendered right after the attempt limit row (Quiz: overall time limit). */
+  afterAttemptLimitSlot?: React.ReactNode;
   /**
    * Optional content rendered after the standard sections. Quiz uses this
    * for the gamification block; VA uses this for rewind/penalty/score
@@ -244,6 +246,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
   hideCorrectOnBoard = false,
   excludeSections,
   trailingSlot,
+  afterAttemptLimitSlot,
   integritySectionLabel,
   showCopyPasteToggle = false,
   showLearningTargetsToggle = false,
@@ -282,6 +285,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
               onChange={onAttemptLimitChange}
             />
           )}
+          {afterAttemptLimitSlot}
           <ToggleRow
             label="Focus mode"
             checked={options.tabWarningsEnabled ?? true}
