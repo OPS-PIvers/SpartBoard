@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   collection,
   doc,
@@ -11,7 +11,7 @@ import {
 import { db, isConfigured } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { AuthContext } from '@/context/AuthContextValue';
-import type { WidgetType } from '@/types';
+import type { GlobalFeature, WidgetType } from '@/types';
 import type { HelpCategory, HelpResourceItem } from '@/types/helpCenter';
 import {
   normalizeHelpCenterConfig,
@@ -33,6 +33,30 @@ export interface UseHelpResourcesResult {
   error: string | null;
 }
 
+// Widgets hidden behind a preview flag; mirrors canAccessWidget in AuthContext.
+const FLAG_GATED_WIDGETS: Partial<Record<WidgetType, GlobalFeature>> = {
+  review: 'quiz-review-split',
+};
+
+/** False for an item tagged only with flag-gated widgets the viewer can't open. */
+export const isHelpItemVisibleTo = (
+  item: HelpResourceItem,
+  canAccessFeature: (featureId: GlobalFeature) => boolean
+): boolean =>
+  item.widgetTypes.length === 0 ||
+  !item.widgetTypes.every((type) => {
+    const feature = FLAG_GATED_WIDGETS[type];
+    return feature !== undefined && !canAccessFeature(feature);
+  });
+
+const denyFeature = () => false;
+
+// Reads the context directly so help still renders outside an AuthProvider (tests, standalone surfaces).
+const useHelpItemGate = (): ((item: HelpResourceItem) => boolean) => {
+  const canAccessFeature = useContext(AuthContext)?.canAccessFeature;
+  return (item) => isHelpItemVisibleTo(item, canAccessFeature ?? denyFeature);
+};
+
 const mergeById = (
   globalItems: HelpResourceItem[],
   orgItems: HelpResourceItem[]
@@ -48,6 +72,7 @@ export const useHelpResources = ({
   allOrgs = false,
 }: UseHelpResourcesOptions): UseHelpResourcesResult => {
   const { orgId } = useAuth();
+  const isVisibleToViewer = useHelpItemGate();
   const [categories, setCategories] = useState<HelpCategory[]>([]);
   const [globalItems, setGlobalItems] = useState<HelpResourceItem[]>([]);
   const [allItems, setAllItems] = useState<HelpResourceItem[]>([]);
@@ -171,7 +196,9 @@ export const useHelpResources = ({
   const merged = allOrgs ? allItems : mergeById(globalItems, effectiveOrgItems);
   const visible = includeHidden
     ? merged
-    : merged.filter((item) => item.visible !== false);
+    : merged.filter(
+        (item) => item.visible !== false && isVisibleToViewer(item)
+      );
   const effectiveConfigLoaded = isConfigured ? configLoaded : true;
   const effectiveAllLoaded = isConfigured ? allLoaded : true;
   const effectiveGlobalLoaded = isConfigured ? globalLoaded : true;
@@ -310,7 +337,14 @@ export const useSharedHelpItems = (): HelpResourceItem[] => {
     }
   }, [orgId]);
 
-  return state.items;
+  const canAccessFeature = useContext(AuthContext)?.canAccessFeature;
+  return useMemo(
+    () =>
+      state.items.filter((item) =>
+        isHelpItemVisibleTo(item, canAccessFeature ?? denyFeature)
+      ),
+    [state.items, canAccessFeature]
+  );
 };
 
 export const useHelpItemsForWidget = (

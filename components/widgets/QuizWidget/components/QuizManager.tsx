@@ -2308,6 +2308,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     >
       {managerTab === 'library' && (
         <LibraryTabContent
+          tourWidgetType={variant}
           error={error}
           orderedItems={reorder.orderedItems}
           onAssignClick={(q) => openShareOrAssign(q)}
@@ -2355,6 +2356,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           emptyTitle={
             isViewOnly ? 'No active shares' : 'No quizzes in progress'
           }
+          tourWidgetType={isReview ? 'review' : 'quiz'}
           emptySub={
             isViewOnly
               ? 'Share a quiz from the Library tab.'
@@ -2373,6 +2375,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           emptyTitle={
             isViewOnly ? 'No archived shares' : 'No archived assignments'
           }
+          tourWidgetType={isReview ? 'review' : 'quiz'}
           emptySub={
             isViewOnly
               ? 'Ended share links will appear here.'
@@ -2676,6 +2679,7 @@ const LibraryTabContent: React.FC<{
    * a secondary "Full preview" action.
    */
   onOpenFullPreview: (quiz: QuizMetadata) => void;
+  tourWidgetType: QuizWidgetKind;
 }> = ({
   error,
   orderedItems,
@@ -2702,6 +2706,7 @@ const LibraryTabContent: React.FC<{
   previewQuiz,
   onPreviewQuiz,
   onOpenFullPreview,
+  tourWidgetType,
 }) => {
   const emptyState =
     totalCount === 0 ? (
@@ -2804,7 +2809,7 @@ const LibraryTabContent: React.FC<{
               id={quiz.id}
               title={quiz.title}
               tourIndex={index}
-              tourWidgetType="quiz"
+              tourWidgetType={tourWidgetType}
               subtitle={renderSubtitle(quiz)}
               primaryAction={{
                 label: primaryActionLabel,
@@ -2965,6 +2970,7 @@ const AssignmentsList: React.FC<{
   >;
   emptyTitle: string;
   emptySub: string;
+  tourWidgetType: 'quiz' | 'review';
 }> = ({
   assignments,
   loading,
@@ -2974,6 +2980,7 @@ const AssignmentsList: React.FC<{
   skippedTargetsByAssignmentId,
   emptyTitle,
   emptySub,
+  tourWidgetType,
 }) => {
   if (loading) {
     return (
@@ -3008,6 +3015,7 @@ const AssignmentsList: React.FC<{
           syncedGroups={syncedGroups}
           skippedTargets={skippedTargetsByAssignmentId?.[a.id]}
           tourIndex={index}
+          tourWidgetType={tourWidgetType}
         />
       ))}
     </div>
@@ -3041,6 +3049,7 @@ interface QuizArchiveRowProps {
   /** M17 skipped-ref row marker (spec §5 B3) — see `skippedTargetsByAssignmentId`. */
   skippedTargets?: { ref: StudentTargetRef; reason: string }[];
   tourIndex?: number;
+  tourWidgetType: 'quiz' | 'review';
 }
 
 /**
@@ -3056,6 +3065,7 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   syncedGroups,
   skippedTargets,
   tourIndex,
+  tourWidgetType,
 }) => {
   const assignmentIsViewOnly = a.mode === 'view-only';
   // Skipped-ref durability (canonical rule) — prefer the in-memory names
@@ -3238,7 +3248,7 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
       }
       secondaryActions={secondaries}
       tourIndex={tourIndex}
-      tourWidgetType="quiz"
+      tourWidgetType={tourWidgetType}
     />
   );
 };
