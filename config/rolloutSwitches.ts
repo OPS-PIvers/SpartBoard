@@ -103,6 +103,7 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
   },
   {
     docId: GRADEBOOK_INDEX_SETTINGS_DOC,
+    feature: 'gradebook',
     title: 'Gradebook score index',
     description: 'Collect every score for the gradebook.',
     normalize: normalizeGradebookIndexSettings,

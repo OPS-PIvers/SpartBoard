@@ -232,6 +232,8 @@ export {
   gradeIndexColumn,
   gradeIndexClassSettings,
   gradeIndexConfig,
+  gradeIndexPlcConfig,
+  gradeIndexDistrictConfig,
   gradeIndexRecompute,
 } from './gradebook/gradeIndexTriggers';
 

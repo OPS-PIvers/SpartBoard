@@ -3290,6 +3290,8 @@ describe('index barrel — deployed export set', () => {
     'gradeIndexColumn',
     'gradeIndexClassSettings',
     'gradeIndexConfig',
+    'gradeIndexPlcConfig',
+    'gradeIndexDistrictConfig',
     'gradeIndexRecompute',
     'migratePlcs',
     'mirrorPlcIndex',

@@ -1,31 +1,37 @@
 // Writes the student-readable projection `student_grades/{studentUid}/classes/{classId}` (docs/plans/GRADEBOOK.md D35-D37).
 import type * as admin from 'firebase-admin';
 import {
-  DEFAULT_COLUMN,
-  DEFAULT_CONFIG,
-  DEFAULT_FLAGS,
-  EXCUSED_FLAG_ID,
+  DEFAULT_ATTEMPT_POLICY,
+  DEFAULT_GRADEBOOK_SETTINGS,
+  DEFAULT_PROFICIENCY_SCALE,
+  GRADEBOOK_COLLECTIONS,
+  ORG_GRADEBOOK_SETTINGS_ID,
+  PLC_GRADEBOOK_META_ID,
+  buildStudentGradeEntry,
+  combineEvidence,
+  evidenceForCell,
+  isPublishedFor,
+  proficiencyLevel,
   resolveFinalScore,
-} from './resolveFinalScore';
+  resolveScale,
+  type AttemptPolicy,
+  type GradebookColumnConfig,
+  type GradebookMark,
+  type GradebookSettingsBody,
+  type ProficiencyScale,
+  type StudentGradeEntry,
+  type StudentStandardEntry,
+} from '../gradebookCore';
 import { rowId } from './gradeRowMath';
 import { GRADE_INDEX, stableStringify } from './gradeIndex';
-import type {
-  AttemptPolicy,
-  FlagVisibility,
-  GradeIndexRow,
-  GradebookColumnMirror,
-  GradebookConfigMirror,
-  GradebookFlagMirror,
-  GradebookMarkMirror,
-  TargetEvidence,
-} from './types';
+import type { IndexRow } from './types';
 
 type Firestore = admin.firestore.Firestore;
 type Doc = Record<string, unknown>;
 
-export const STUDENT_GRADES = 'student_grades';
-export const GRADEBOOK_MARKS = 'gradebook_marks';
-export const GRADEBOOK_COLUMNS = 'gradebook_columns';
+export const STUDENT_GRADES = GRADEBOOK_COLLECTIONS.studentGrades;
+export const GRADEBOOK_MARKS = GRADEBOOK_COLLECTIONS.marks;
+export const GRADEBOOK_COLUMNS = GRADEBOOK_COLLECTIONS.columns;
 
 const asRecord = (v: unknown): Doc =>
   typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Doc) : {};
@@ -37,299 +43,344 @@ const asStrings = (v: unknown): string[] =>
 const finite = (v: unknown): number | null =>
   typeof v === 'number' && Number.isFinite(v) ? v : null;
 
-export function parseMark(raw: unknown): GradebookMarkMirror | null {
+/** Tolerant read of a teacher-written mark; malformed fields drop to their empty value. */
+export function parseMark(raw: unknown): GradebookMark | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const r = asRecord(raw);
   const override = asRecord(r.override);
   const comment = asRecord(r.comment);
   const points = finite(override.points);
   const text = asString(comment.text);
+  const publish = r.publishOverride;
   return {
-    override: points !== null ? { points } : null,
-    comment: text ? { text, shared: comment.shared === true } : null,
+    kind: r.kind as GradebookMark['kind'],
+    sessionId: asString(r.sessionId),
+    studentUid: asString(r.studentUid),
+    ownerUid: asString(r.ownerUid),
+    editorUids: asStrings(r.editorUids),
+    rosterIds: asStrings(r.rosterIds),
+    override: points !== null ? { points, at: finite(override.at) ?? 0 } : null,
+    comment: text
+      ? { text, shared: comment.shared === true, at: finite(comment.at) ?? 0 }
+      : null,
     flags: asStrings(r.flags),
     suppressedAuto: asStrings(r.suppressedAuto),
     publishOverride:
-      typeof r.publishOverride === 'boolean' ? r.publishOverride : null,
+      publish === 'published' || publish === 'unpublished' ? publish : null,
+    updatedAt: finite(r.updatedAt) ?? 0,
   };
 }
 
 const POLICIES: AttemptPolicy[] = ['latest', 'highest', 'average'];
 
-export function parseColumn(raw: unknown): GradebookColumnMirror | null {
+export function parseColumn(raw: unknown): GradebookColumnConfig | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const r = asRecord(raw);
   const policy = asString(r.attemptPolicy) as AttemptPolicy;
   const max = finite(r.maxPointsOverride);
   return {
-    maxPointsOverride: max !== null && max > 0 ? max : null,
-    attemptPolicy: POLICIES.includes(policy) ? policy : 'latest',
+    kind: r.kind as GradebookColumnConfig['kind'],
+    sessionId: asString(r.sessionId),
+    ownerUid: asString(r.ownerUid),
+    editorUids: asStrings(r.editorUids),
+    category: asString(r.category) || null,
     countsTowardOverall: r.countsTowardOverall !== false,
+    maxPointsOverride: max !== null && max > 0 ? max : null,
+    attemptPolicy: POLICIES.includes(policy) ? policy : DEFAULT_ATTEMPT_POLICY,
+    targets: Array.isArray(r.targets)
+      ? (r.targets as GradebookColumnConfig['targets'])
+      : [],
+    hiddenInRosterIds: asStrings(r.hiddenInRosterIds),
+    updatedAt: finite(r.updatedAt) ?? 0,
   };
 }
 
-function parseVisibility(v: unknown, fallback: FlagVisibility): FlagVisibility {
-  if (v === 'off' || v === 'hidden' || v === 'none' || v === false)
-    return 'off';
-  if (v === 'teacher' || v === 'teacher-only' || v === 'teacherOnly')
-    return 'teacher';
-  if (
-    v === 'students' ||
-    v === 'teachers-and-students' ||
-    v === 'all' ||
-    v === true
-  )
-    return 'students';
-  return fallback;
-}
-
-function parseFlag(raw: unknown): GradebookFlagMirror | null {
+/** A settings configuration with every missing field filled from the defaults. */
+export function parseSettings(raw: unknown): GradebookSettingsBody {
+  if (typeof raw !== 'object' || raw === null)
+    return DEFAULT_GRADEBOOK_SETTINGS;
   const r = asRecord(raw);
-  const key = asString(r.key);
-  const name = asString(r.name);
-  const id = asString(r.id) || name.toLowerCase();
-  if (!id) return null;
-  const builtin = DEFAULT_FLAGS.find((f) => f.id === id);
-  return {
-    id,
-    key: key || builtin?.key || '',
-    name: name || builtin?.name || id,
-    color: asString(r.color) || builtin?.color || 'slate',
-    value: finite(r.value),
-    excludes:
-      r.excludes === true || r.value === 'excluded' || id === EXCUSED_FLAG_ID,
-    visibility: parseVisibility(r.visibility, builtin?.visibility ?? 'teacher'),
-  };
-}
-
-/** Tolerant parse of a settings configuration; anything missing falls back to the built-in defaults. */
-export function parseConfig(raw: unknown): GradebookConfigMirror {
-  if (typeof raw !== 'object' || raw === null) return DEFAULT_CONFIG;
-  const r = asRecord(raw);
-  const flags = Array.isArray(r.flags)
-    ? r.flags.map(parseFlag).filter((f): f is GradebookFlagMirror => f !== null)
-    : DEFAULT_CONFIG.flags;
+  const d = DEFAULT_GRADEBOOK_SETTINGS;
   const vis = asRecord(r.studentVisibility);
-  const d = DEFAULT_CONFIG.studentVisibility;
   const bool = (v: unknown, fallback: boolean): boolean =>
     typeof v === 'boolean' ? v : fallback;
   return {
-    flags,
-    autoFlags: bool(r.autoFlags, DEFAULT_CONFIG.autoFlags),
+    ...d,
+    ...(r as Partial<GradebookSettingsBody>),
+    flags: Array.isArray(r.flags)
+      ? (r.flags as GradebookSettingsBody['flags'])
+      : d.flags,
+    autoFlags: bool(r.autoFlags, d.autoFlags),
     studentVisibility: {
-      scores: bool(vis.scores, d.scores),
-      flags: bool(vis.flags, d.flags),
-      comments: bool(vis.comments, d.comments),
-      standards: bool(vis.standards, d.standards),
+      scores: bool(vis.scores, d.studentVisibility.scores),
+      flags: bool(vis.flags, d.studentVisibility.flags),
+      comments: bool(vis.comments, d.studentVisibility.comments),
+      standards: bool(vis.standards, d.studentVisibility.standards),
     },
   };
 }
 
-/** `gradebook_classes/{rosterId}.configRef`: a personal id, or `{ kind, id }` for personal, district or PLC. */
+const isId = (v: string): boolean => v.length > 0 && !v.includes('/');
+
+/** The doc a class's `configRef` points at; null for the built-in defaults. */
 export function configPathFor(
   ownerUid: string,
   configRef: unknown
 ): string | null {
-  if (typeof configRef === 'string' && configRef)
-    return `users/${ownerUid}/gradebook_settings/${configRef}`;
   const r = asRecord(configRef);
-  const kind = asString(r.kind) || asString(r.type);
-  const id = asString(r.id) || asString(r.configId) || asString(r.plcId);
-  if (!id || id.includes('/')) return null;
-  if (kind === 'district') return `gradebook_district_configs/${id}`;
-  if (kind === 'plc') return `plcs/${id}/meta/gradebookSettings`;
-  return `users/${ownerUid}/gradebook_settings/${id}`;
+  const source = asString(r.source);
+  const configId = asString(r.configId);
+  const plcId = asString(r.plcId);
+  if (source === 'personal' && isId(configId))
+    return `users/${ownerUid}/${GRADEBOOK_COLLECTIONS.userSettings}/${configId}`;
+  if (source === 'district' && isId(configId))
+    return `${GRADEBOOK_COLLECTIONS.districtConfigs}/${configId}`;
+  if (source === 'plc' && isId(plcId))
+    return `plcs/${plcId}/meta/${PLC_GRADEBOOK_META_ID}`;
+  return null;
 }
 
-export async function loadClassConfig(
+function parseScale(raw: unknown): ProficiencyScale | null {
+  const r = asRecord(raw);
+  const proficient = finite(r.proficient);
+  const approaching = finite(r.approaching);
+  const names = asStrings(r.levelNames);
+  if (proficient === null || approaching === null) return null;
+  return {
+    proficient,
+    approaching,
+    levelNames:
+      names.length === 3
+        ? [names[0], names[1], names[2]]
+        : DEFAULT_PROFICIENCY_SCALE.levelNames,
+  };
+}
+
+export interface ClassSettings {
+  settings: GradebookSettingsBody;
+  scale: ProficiencyScale;
+}
+
+/** The class's configuration and the proficiency scale it names (D16, D17). */
+export async function loadClassSettings(
   db: Firestore,
   ownerUid: string,
   rosterId: string | null
-): Promise<GradebookConfigMirror> {
-  if (!rosterId) return DEFAULT_CONFIG;
-  const cls = await db
-    .doc(`users/${ownerUid}/gradebook_classes/${rosterId}`)
-    .get();
-  const path = configPathFor(ownerUid, cls.data()?.configRef);
-  if (!path) return DEFAULT_CONFIG;
-  const cfg = await db.doc(path).get();
-  return cfg.exists ? parseConfig(cfg.data()) : DEFAULT_CONFIG;
-}
-
-export interface ProjectionFlag {
-  id: string;
-  key: string;
-  name: string;
-  color: string;
-  auto: boolean;
-}
-
-/** One assignment on the student's Grades tab; holds only what D35 lets a student see. */
-export interface ProjectionEntry {
-  kind: string;
-  title: string;
-  ownerUid: string;
-  dueAt: number | null;
-  submittedAt: number | null;
-  published: boolean;
-  status: string | null;
-  pct: number | null;
-  points: number | null;
-  max: number | null;
-  flags: ProjectionFlag[];
-  comment: string | null;
-  targets?: Array<
-    Pick<
-      TargetEvidence,
-      'targetId' | 'kind' | 'label' | 'code' | 'earned' | 'possible'
-    >
-  >;
-}
-
-/** Null when the student would see nothing for this assignment. */
-export function buildProjectionEntry(
-  row: GradeIndexRow,
-  mark: GradebookMarkMirror | null,
-  column: GradebookColumnMirror | null,
-  config: GradebookConfigMirror,
-  now: number
-): ProjectionEntry | null {
-  if (!row.assigned) return null;
-  const final = resolveFinalScore(row, mark, column, config, now);
-  const published = mark?.publishOverride ?? row.published;
-  const vis = config.studentVisibility;
-  const flagById = new Map(config.flags.map((f) => [f.id, f]));
-  const flags: ProjectionFlag[] = vis.flags
-    ? final.flags
-        .map((id) => flagById.get(id))
-        .filter(
-          (f): f is GradebookFlagMirror =>
-            f !== undefined && f.visibility === 'students'
-        )
-        .map((f) => ({
-          id: f.id,
-          key: f.key,
-          name: f.name,
-          color: f.color,
-          auto: final.autoFlags.includes(f.id),
-        }))
-    : [];
-  const excludedByVisibleFlag = flags.some(
-    (f) => flagById.get(f.id)?.excludes === true
-  );
-  // A teacher-only excluding flag must not reveal itself through the status.
-  const hiddenExclusion = final.status === 'excluded' && !excludedByVisibleFlag;
-  const showScore = published && vis.scores && !hiddenExclusion;
-  const comment =
-    published && vis.comments && mark?.comment?.shared
-      ? mark.comment.text
-      : null;
-  if (!showScore && flags.length === 0 && comment === null) return null;
-  const entry: ProjectionEntry = {
-    kind: row.kind,
-    title: row.title,
-    ownerUid: row.ownerUid,
-    dueAt: row.dueAt,
-    submittedAt: row.submittedAt,
-    published: showScore,
-    status: showScore ? final.status : null,
-    pct: showScore ? final.pct : null,
-    points: showScore ? final.points : null,
-    max: showScore ? final.max : null,
-    flags,
-    comment,
-  };
-  // Flag-valued and excused scores are never proficiency evidence (D17).
-  if (
-    showScore &&
-    vis.standards &&
-    final.source !== 'flag' &&
-    final.status === 'scored'
-  ) {
-    entry.targets = row.targetEvidence.map((t) => ({
-      targetId: t.targetId,
-      kind: t.kind,
-      label: t.label,
-      ...(t.code ? { code: t.code } : {}),
-      earned: t.earned,
-      possible: t.possible,
-    }));
+): Promise<ClassSettings> {
+  let settings = DEFAULT_GRADEBOOK_SETTINGS;
+  if (rosterId) {
+    const cls = await db
+      .doc(`users/${ownerUid}/${GRADEBOOK_COLLECTIONS.userClasses}/${rosterId}`)
+      .get();
+    const path = configPathFor(ownerUid, cls.data()?.configRef);
+    if (path) {
+      const cfg = await db.doc(path).get();
+      if (cfg.exists) settings = parseSettings(cfg.data());
+    }
   }
-  return entry;
+  if (!settings.studentVisibility.standards)
+    return { settings, scale: DEFAULT_PROFICIENCY_SCALE };
+  const org = await db.doc(`admin_settings/${ORG_GRADEBOOK_SETTINGS_ID}`).get();
+  const district = parseScale(org.data()) ?? DEFAULT_PROFICIENCY_SCALE;
+  let plcCutoffs: { proficient: number; approaching: number } | null = null;
+  if (settings.scale.source === 'plc' && isId(settings.scale.plcId)) {
+    const lt = await db
+      .doc(`plcs/${settings.scale.plcId}/meta/learningTargets`)
+      .get();
+    const c = asRecord(lt.data()?.masteryCutoffs);
+    const proficient = finite(c.proficient);
+    const approaching = finite(c.approaching);
+    if (proficient !== null && approaching !== null)
+      plcCutoffs = { proficient, approaching };
+  }
+  return {
+    settings,
+    scale: resolveScale(settings.scale, district, plcCutoffs),
+  };
+}
+
+interface RowInputs {
+  row: IndexRow;
+  mark: GradebookMark | null;
+  column: GradebookColumnConfig | null;
+}
+
+async function loadRowInputs(db: Firestore, row: IndexRow): Promise<RowInputs> {
+  const [markSnap, columnSnap] = await Promise.all([
+    db
+      .collection(GRADEBOOK_MARKS)
+      .doc(rowId(row.sessionId, row.studentUid))
+      .get(),
+    db.collection(GRADEBOOK_COLUMNS).doc(row.sessionId).get(),
+  ]);
+  return {
+    row,
+    mark: parseMark(markSnap.data()),
+    column: parseColumn(columnSnap.data()),
+  };
+}
+
+/** Per-target proficiency from this student's published work in the class only. */
+export function studentStandards(
+  inputs: RowInputs[],
+  settings: GradebookSettingsBody,
+  scale: ProficiencyScale,
+  now: number
+): StudentStandardEntry[] {
+  const byTarget = new Map<string, { pct: number; at: number }[]>();
+  for (const { row, mark, column } of inputs) {
+    if (!row.assigned || !isPublishedFor(row, mark)) continue;
+    const final = resolveFinalScore(row, mark, column, {
+      flagDefs: settings.flags,
+      autoFlags: settings.autoFlags,
+      now,
+    });
+    for (const e of evidenceForCell(row, final, column)) {
+      const list = byTarget.get(e.targetId) ?? [];
+      list.push({ pct: e.pct, at: e.at });
+      byTarget.set(e.targetId, list);
+    }
+  }
+  const out: StudentStandardEntry[] = [];
+  for (const [targetId, points] of byTarget) {
+    const pct = combineEvidence(points, settings.method);
+    const level = proficiencyLevel(pct, scale);
+    if (pct !== null && level !== null)
+      out.push({ targetId, pct: Math.round(pct * 100) / 100, level });
+  }
+  return out.sort((a, b) => (a.targetId < b.targetId ? -1 : 1));
 }
 
 const projectionPath = (studentUid: string, classId: string): string =>
-  `${STUDENT_GRADES}/${studentUid}/classes/${classId}`;
+  `${STUDENT_GRADES}/${studentUid}/${GRADEBOOK_COLLECTIONS.studentClasses}/${classId}`;
+
+interface ProjectionTarget {
+  studentUid: string;
+  classId: string;
+  ownerUid: string;
+}
+
+interface ProjectionExtra {
+  standards: StudentStandardEntry[] | null;
+  scale: ProficiencyScale;
+}
 
 /** Sets or removes one entry; the doc is deleted when its last entry goes. */
 export async function writeProjectionEntry(
   db: Firestore,
-  studentUid: string,
-  classId: string,
+  target: ProjectionTarget,
   sessionId: string,
-  entry: ProjectionEntry | null,
+  entry: StudentGradeEntry | null,
+  extra: ProjectionExtra,
   now: number
 ): Promise<boolean> {
-  const ref = db.doc(projectionPath(studentUid, classId));
+  const ref = db.doc(projectionPath(target.studentUid, target.classId));
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const data = snap.data() ?? {};
     const entries = { ...asRecord(data.entries) };
     const prev = entries[sessionId] as Doc | undefined;
+    let changed = false;
     if (entry === null) {
-      if (!prev) return false;
-      delete entries[sessionId];
+      if (prev) {
+        delete entries[sessionId];
+        changed = true;
+      }
     } else {
       const { updatedAt: _u, ...prevBody } = prev ?? {};
       void _u;
-      if (prev && stableStringify(prevBody) === stableStringify(entry))
-        return false;
-      // `updatedAt` moves only when what the student sees changes, which drives the New badge.
-      entries[sessionId] = { ...entry, updatedAt: now };
+      if (!prev || stableStringify(prevBody) !== stableStringify(entry)) {
+        // `updatedAt` moves only when what the student sees changes, which drives the New badge (D36).
+        entries[sessionId] = { ...entry, updatedAt: now };
+        changed = true;
+      }
     }
+    if (
+      snap.exists &&
+      stableStringify(data.standards ?? null) !==
+        stableStringify(extra.standards)
+    )
+      changed = true;
+    if (!changed) return false;
     if (Object.keys(entries).length === 0) tx.delete(ref);
-    else tx.set(ref, { studentUid, classId, entries, updatedAt: now });
+    else
+      tx.set(ref, {
+        studentUid: target.studentUid,
+        classId: target.classId,
+        ownerUid: target.ownerUid,
+        entries,
+        standards: extra.standards,
+        levelNames: extra.scale.levelNames,
+        updatedAt: now,
+      });
     return true;
   });
 }
 
+const NO_EXTRA: ProjectionExtra = {
+  standards: null,
+  scale: DEFAULT_PROFICIENCY_SCALE,
+};
+
 /** Re-projects one row (or clears it when the row is gone). */
 export async function projectRow(
   db: Firestore,
-  after: GradeIndexRow | null,
-  before: GradeIndexRow | null,
+  after: IndexRow | null,
+  before: IndexRow | null,
   now = Date.now()
 ): Promise<void> {
   if (before?.classId && (!after || after.classId !== before.classId)) {
     await writeProjectionEntry(
       db,
-      before.studentUid,
-      before.classId,
+      {
+        studentUid: before.studentUid,
+        classId: before.classId,
+        ownerUid: before.ownerUid,
+      },
       before.sessionId,
       null,
+      NO_EXTRA,
       now
     );
   }
   if (!after?.classId) return;
-  const id = rowId(after.sessionId, after.studentUid);
-  const [markSnap, columnSnap, config] = await Promise.all([
-    db.collection(GRADEBOOK_MARKS).doc(id).get(),
-    db.collection(GRADEBOOK_COLUMNS).doc(after.sessionId).get(),
-    loadClassConfig(db, after.ownerUid, after.rosterId),
+  const classId = after.classId;
+  const [inputs, { settings, scale }] = await Promise.all([
+    loadRowInputs(db, after),
+    loadClassSettings(db, after.ownerUid, after.rosterId),
   ]);
-  const entry = buildProjectionEntry(
+  const entry = buildStudentGradeEntry(
     after,
-    parseMark(markSnap.data()),
-    parseColumn(columnSnap.data()) ?? DEFAULT_COLUMN,
-    config,
+    inputs.mark,
+    inputs.column,
+    settings,
     now
   );
+  let standards: StudentStandardEntry[] | null = null;
+  if (settings.studentVisibility.standards) {
+    const rows = await db
+      .collection(GRADE_INDEX)
+      .where('studentUid', '==', after.studentUid)
+      .get();
+    const classRows = rows.docs
+      .map((d) => d.data() as IndexRow)
+      .filter(
+        (r) =>
+          r.classId === classId &&
+          r.ownerUid === after.ownerUid &&
+          r.sessionId !== after.sessionId
+      );
+    const others = await Promise.all(
+      classRows.map((r) => loadRowInputs(db, r))
+    );
+    standards = studentStandards([inputs, ...others], settings, scale, now);
+  }
   await writeProjectionEntry(
     db,
-    after.studentUid,
-    after.classId,
+    { studentUid: after.studentUid, classId, ownerUid: after.ownerUid },
     after.sessionId,
     entry,
+    { standards, scale },
     now
   );
 }
@@ -338,12 +389,12 @@ export async function projectRow(
 export async function reprojectRows(
   db: Firestore,
   query: admin.firestore.Query,
-  keep: (row: GradeIndexRow) => boolean = () => true
+  keep: (row: IndexRow) => boolean = () => true
 ): Promise<number> {
   const snap = await query.get();
   let n = 0;
   for (const doc of snap.docs) {
-    const row = doc.data() as GradeIndexRow;
+    const row = doc.data() as IndexRow;
     if (!keep(row)) continue;
     await projectRow(db, row, null);
     n++;
@@ -357,6 +408,7 @@ export const rowsForSession = (
 ): admin.firestore.Query =>
   db.collection(GRADE_INDEX).where('sessionId', '==', sessionId);
 
+/** Uses the (ownerUid, rosterIds CONTAINS) index the teacher grid query also needs. */
 export const rowsForClass = (
   db: Firestore,
   ownerUid: string,
@@ -370,5 +422,5 @@ export const rowsForClass = (
 /** The query above matches any row whose session targets the roster; keep this class's rows. */
 export const inRoster =
   (rosterId: string) =>
-  (row: GradeIndexRow): boolean =>
+  (row: IndexRow): boolean =>
     row.rosterId === rosterId;

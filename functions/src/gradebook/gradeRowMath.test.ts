@@ -130,8 +130,6 @@ describe('scoreQuizResponse', () => {
       {
         targetId: 't1',
         kind: 'standard',
-        label: 'Fractions',
-        code: '5.NF.1',
         earned: 0,
         possible: 2,
       },
@@ -341,7 +339,7 @@ describe('due dates and rows', () => {
     expect(effectiveDueAt(meta, 'c2', 300)).toBe(300);
   });
 
-  it('flags late work and keeps the roster of the class', () => {
+  it('uses the class due date and keeps the roster of the class', () => {
     const score: RowScore = {
       classId: 'c2',
       published: false,
@@ -362,8 +360,8 @@ describe('due dates and rows', () => {
       pointerDueAt: null,
       now: 1,
     });
+    expect(row.submittedAt! > row.dueAt!).toBe(true);
     expect(row).toMatchObject({
-      late: true,
       dueAt: 200,
       rosterId: 'r2',
       title: 'Unit 1',
@@ -371,8 +369,39 @@ describe('due dates and rows', () => {
       editorUids: [],
     });
     expect(row.attempts).toEqual([
-      { n: 1, pct: 90, points: 9, max: 10, submittedAt: 250 },
+      { n: 1, at: 250, points: 9, max: 10, state: 'scored' },
     ]);
+  });
+});
+
+describe('retakes', () => {
+  it('keeps showing the last submitted attempt while a retake is open', () => {
+    const meta = parseSessionMeta('quiz', 's', { teacherUid: 't' });
+    const row = assembleRow({
+      meta,
+      studentUid: 'u',
+      score: {
+        classId: null,
+        published: false,
+        targetEvidence: [],
+        rawPct: null,
+        points: null,
+        max: 10,
+        state: 'in-progress',
+        submittedAt: null,
+        attemptNumber: 2,
+      },
+      previousAttempts: [{ n: 1, at: 50, points: 7, max: 10, state: 'scored' }],
+      assigned: true,
+      pointerDueAt: null,
+      now: 99,
+    });
+    expect(row).toMatchObject({
+      state: 'scored',
+      points: 7,
+      rawPct: 70,
+      submittedAt: 50,
+    });
   });
 });
 
@@ -392,11 +421,11 @@ describe('mergeAttempts', () => {
 
   it('keeps each attempt and replaces a regraded one', () => {
     const one = mergeAttempts([], s({}));
-    const two = mergeAttempts(one, s({ attemptNumber: 2, rawPct: 70 }));
-    const regraded = mergeAttempts(two, s({ attemptNumber: 2, rawPct: 80 }));
-    expect(regraded.map((a) => [a.n, a.pct])).toEqual([
-      [1, 50],
-      [2, 80],
+    const two = mergeAttempts(one, s({ attemptNumber: 2, points: 7 }));
+    const regraded = mergeAttempts(two, s({ attemptNumber: 2, points: 8 }));
+    expect(regraded.map((a) => [a.n, a.points])).toEqual([
+      [1, 5],
+      [2, 8],
     ]);
   });
 
