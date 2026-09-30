@@ -6800,6 +6800,8 @@ export interface VideoActivityResponse {
   unlocked?: boolean;
   /** Client timestamp (ms) when the teacher unlocked the attempt. */
   unlockedAt?: number;
+  /** Per-student results publication; absent = follows the class. Teacher-written only. */
+  resultsOverride?: QuizResultsOverride;
 }
 
 /**
@@ -7832,6 +7834,8 @@ export interface GuidedLearningResponse {
   classPeriod?: string;
   /** The `periodAccess` key the student's seat named; set on per-period sessions. */
   classId?: string;
+  /** Per-student results publication; absent = follows the class. Teacher-written only. */
+  resultsOverride?: QuizResultsOverride;
 }
 
 export interface GuidedLearningGlobalConfig {

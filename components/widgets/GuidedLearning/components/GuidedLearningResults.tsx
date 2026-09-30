@@ -15,6 +15,7 @@ import { db } from '@/config/firebase';
 import {
   GuidedLearningSet,
   type GuidedLearningPublicStep,
+  type GuidedLearningScoreVisibility,
   type PeriodAccessSessionFields,
   type SubLaunchedSessionFields,
 } from '@/types';
@@ -40,6 +41,17 @@ import {
   GL_CONTENT_DOC,
 } from '@/utils/guidedLearningSessionContent';
 import { scoringStepsForSession } from '../utils/resultsScoring';
+import {
+  ResultsOverrideBadge,
+  StudentResultsControl,
+} from '@/components/widgets/QuizWidget/components/results/StudentResultsControl';
+import type { StudentResultsActions } from '@/components/widgets/QuizWidget/components/results/studentResultsSelection';
+import {
+  clearResultsOverride,
+  GL_SESSIONS_COLLECTION,
+  hideResultsForStudents,
+  publishGuidedLearningResultsForStudents,
+} from '@/utils/studentResultsPublish';
 
 type PeriodSession = PeriodAccessSessionFields & {
   id: string;
@@ -105,6 +117,8 @@ export const GuidedLearningResults: React.FC<Props> = ({
   const [launchedBy, setLaunchedBy] =
     useState<SubLaunchedSessionFields['launchedBy']>(undefined);
   const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [classVisibility, setClassVisibility] =
+    useState<GuidedLearningScoreVisibility>('none');
   const [sessionSteps, setSessionSteps] = useState<
     GuidedLearningPublicStep[] | null
   >(null);
@@ -126,6 +140,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
               stepsInContent?: boolean;
               teacherUid?: string;
               launchedBy?: SubLaunchedSessionFields['launchedBy'];
+              scoreVisibility?: GuidedLearningScoreVisibility;
             })
           | undefined;
         let frozen = Array.isArray(data?.publicSteps) ? data.publicSteps : null;
@@ -151,6 +166,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
         setPeriodSession(toPeriodSession(sessionId, data));
         setPlayerV2(data?.playerV2 === true);
         setLaunchedBy(data?.launchedBy);
+        setClassVisibility(data?.scoreVisibility ?? 'none');
         setStartedAt(
           typeof data?.createdAt === 'number' ? data.createdAt : null
         );
@@ -233,7 +249,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
     viewOnly && playerV2
   );
 
-  const { orgId } = useAuth();
+  const { orgId, canAccessFeature } = useAuth();
   const { byStudentUid } = useAssignmentPseudonymsMulti(
     sessionId,
     sessionClassIds,
@@ -308,6 +324,28 @@ export const GuidedLearningResults: React.FC<Props> = ({
       responseStats: rStats,
     };
   }, [sessionSteps, set.steps, responses]);
+
+  const resultsActions = useMemo<StudentResultsActions | null>(() => {
+    if (viewOnly || !canAccessFeature('gradebook')) return null;
+    return {
+      publish: (keys, visibility, expiresAt) => {
+        if (!sessionLoaded) {
+          return Promise.reject(new Error('Session is still loading.'));
+        }
+        return publishGuidedLearningResultsForStudents(
+          sessionId,
+          questionSteps,
+          keys,
+          visibility,
+          expiresAt
+        );
+      },
+      hide: (keys) =>
+        hideResultsForStudents(GL_SESSIONS_COLLECTION, sessionId, keys),
+      clear: (keys) =>
+        clearResultsOverride(GL_SESSIONS_COLLECTION, sessionId, keys),
+    };
+  }, [viewOnly, canAccessFeature, sessionLoaded, sessionId, questionSteps]);
 
   const handleExport = () => {
     const csv = exportResponsesAsCSV(responses, {
@@ -689,15 +727,39 @@ export const GuidedLearningResults: React.FC<Props> = ({
                             >
                               {r.completedAt ? 'Completed' : 'In progress'}
                             </span>
+                            {resultsActions && (
+                              <span style={{ marginLeft: 'min(8px, 2cqmin)' }}>
+                                <ResultsOverrideBadge
+                                  override={r.resultsOverride}
+                                />
+                              </span>
+                            )}
                           </div>
-                          {questionSteps.length > 0 && (
-                            <span
-                              className="text-slate-300"
-                              style={{ fontSize: 'min(12px, 4.5cqmin)' }}
-                            >
-                              {qCorrect}/{questionSteps.length} correct
-                            </span>
-                          )}
+                          <div
+                            className="flex items-center"
+                            style={{ gap: 'min(6px, 1.5cqmin)' }}
+                          >
+                            {questionSteps.length > 0 && (
+                              <span
+                                className="text-slate-300"
+                                style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                              >
+                                {qCorrect}/{questionSteps.length} correct
+                              </span>
+                            )}
+                            {resultsActions && (
+                              <StudentResultsControl
+                                responseKey={r.studentAnonymousId}
+                                override={r.resultsOverride}
+                                completed={typeof r.completedAt === 'number'}
+                                displayName={label}
+                                classVisibility={classVisibility}
+                                actions={resultsActions}
+                                addToast={addToast}
+                                triggerClassName="rounded-md text-slate-300 hover:bg-white/10 hover:text-white"
+                              />
+                            )}
+                          </div>
                         </div>
                       );
                     })}
