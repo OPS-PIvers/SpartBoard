@@ -153,7 +153,7 @@ import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTarget
 import { usePlcs } from '@/hooks/usePlcs';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { getPlcMemberEmail } from '@/utils/plc';
-import { getQuizBehavior } from '@/utils/quizBehavior';
+import { getQuizBehavior, toAssessmentBehavior } from '@/utils/quizBehavior';
 import {
   useSetAssignmentTargets,
   type SkipReason,
@@ -1059,6 +1059,14 @@ const TeacherQuizWidget: React.FC<{
     setView,
   ]);
 
+  // D9: a Quiz-kind session under the split has no scoreboard sync, reveal or podium.
+  const liveAssessmentOnly =
+    reviewSplit &&
+    !!liveSession &&
+    getAssignmentWidgetKind(liveSession) === 'quiz';
+  const scoreboardSyncOn =
+    (config.liveScoreboardEnabled ?? false) && !liveAssessmentOnly;
+
   // ─── Live Scoreboard Sync ──────────────────────────────────────────────────
   const liveScoreboardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
@@ -1115,7 +1123,7 @@ const TeacherQuizWidget: React.FC<{
   );
 
   useEffect(() => {
-    if (!config.liveScoreboardEnabled || !loadedQuizData || !liveSession) {
+    if (!scoreboardSyncOn || !loadedQuizData || !liveSession) {
       // Reset fingerprint when disabled so re-enabling triggers an immediate sync
       prevResponsesJsonRef.current = '';
       return;
@@ -1281,7 +1289,7 @@ const TeacherQuizWidget: React.FC<{
     // config object and activeDashboard.widgets are read via refs to avoid
     // infinite re-trigger cycles (this effect writes to both).
   }, [
-    config.liveScoreboardEnabled,
+    scoreboardSyncOn,
     config.liveScoreboardScoring,
     config.liveScoreboardMode,
     config.liveScoreboardWidgetId,
@@ -1844,6 +1852,7 @@ const TeacherQuizWidget: React.FC<{
         }
         config={config}
         rosters={rosters}
+        assessmentOnly={liveAssessmentOnly}
         onUpdateConfig={handleUpdateQuizConfig}
         onRemoveStudent={removeStudent}
         onUnlockStudent={unlockStudentAttempt}
@@ -2026,7 +2035,13 @@ const TeacherQuizWidget: React.FC<{
           }
           // Behavior comes from the assign modal — the quiz's saved settings
           // plus any per-assignment overrides the teacher made there.
-          const { sessionMode: mode, sessionOptions, attemptLimit } = behavior;
+          const {
+            sessionMode: mode,
+            sessionOptions,
+            attemptLimit,
+          } = reviewSplit && !isReview
+            ? toAssessmentBehavior(behavior)
+            : behavior;
 
           // Bank slots freeze into a Drive snapshot so grading sees the pool.
           let assignQuestions = data.questions;
@@ -3221,6 +3236,9 @@ const TeacherQuizWidget: React.FC<{
           canShareWithPlc={plcs.length > 0}
           onShareResults={() => setSharePlcResultsTarget(editingAssignment)}
           onStopSharing={() => handleStopSharingPlc(editingAssignment)}
+          assessmentOnly={
+            reviewSplit && getAssignmentWidgetKind(editingAssignment) === 'quiz'
+          }
           onClose={() => setEditingAssignment(null)}
           onSave={async (patch) => {
             try {

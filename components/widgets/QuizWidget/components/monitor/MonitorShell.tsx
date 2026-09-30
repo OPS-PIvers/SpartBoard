@@ -97,6 +97,8 @@ export interface QuizLiveMonitorProps {
   onBack?: () => void;
   /** Hide the scoreboard-sync setting (contexts with no board behind). */
   hideLiveScoreboard?: boolean;
+  /** Quiz-kind session with the Review split on: no reveal, podium, sounds or scoreboard sync (D9). */
+  assessmentOnly?: boolean;
   /** M17 E2 F2: the active assignment's per-student accommodation overrides
    *  (teacher's own assignment doc), keyed by `StudentTargetRef` key — used
    *  by `RosterList` to resolve each row's effective tab-warning threshold. */
@@ -146,6 +148,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     onHideAnswer,
     onBack,
     hideLiveScoreboard = false,
+    assessmentOnly = false,
     overridesBySourcedId = null,
     localizedFibAnswers = null,
     overridesByStudentUid = null,
@@ -341,22 +344,22 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   ]);
 
   // Sound cues on review phase and session end.
+  const soundsOn = (session.soundEffectsEnabled ?? false) && !assessmentOnly;
   const isReviewing = session.questionPhase === 'reviewing';
   const prevReviewingRef = useRef(isReviewing);
   useEffect(() => {
     if (!prevReviewingRef.current && isReviewing) {
-      if (session.soundEffectsEnabled && !soundMuted) playPodiumFanfare();
+      if (soundsOn && !soundMuted) playPodiumFanfare();
     }
     prevReviewingRef.current = isReviewing;
-  }, [isReviewing, session.soundEffectsEnabled, soundMuted]);
+  }, [isReviewing, soundsOn, soundMuted]);
   const prevStatusRef = useRef(session.status);
   useEffect(() => {
     if (prevStatusRef.current === 'active' && session.status === 'ended') {
-      if (session.soundEffectsEnabled && !soundMuted)
-        playQuizCompleteCelebration();
+      if (soundsOn && !soundMuted) playQuizCompleteCelebration();
     }
     prevStatusRef.current = session.status;
-  }, [session.status, session.soundEffectsEnabled, soundMuted]);
+  }, [session.status, soundsOn, soundMuted]);
 
   const handleEnd = async () => {
     const ok = await showConfirm(
@@ -511,6 +514,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     session.stimuli
   ).some((s) => s.type === 'audio' || s.type === 'video');
   const canReveal =
+    !assessmentOnly &&
     (session.showCorrectOnBoard ?? false) &&
     session.sessionMode !== 'student' &&
     !!currentQ;
@@ -560,7 +564,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               },
         ]
       : []),
-    ...(session.soundEffectsEnabled
+    ...(soundsOn
       ? [
           {
             label: soundMuted ? 'Unmute sounds' : 'Mute sounds',
@@ -809,7 +813,8 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           <QuizSettingsScreen
             session={session}
             config={config}
-            hideLiveScoreboard={hideLiveScoreboard}
+            hideLiveScoreboard={hideLiveScoreboard || assessmentOnly}
+            assessmentOnly={assessmentOnly}
             hasNames={Object.keys(data.pinToName).length > 0}
             onUpdateSession={handleUpdateSession}
             onUpdateConfig={onUpdateConfig}
@@ -984,7 +989,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
         </div>
       )}
 
-      {isReviewing && session.showPodiumBetweenQuestions && (
+      {isReviewing && session.showPodiumBetweenQuestions && !assessmentOnly && (
         <div
           className="absolute inset-0 bg-brand-blue-dark/95 text-white flex flex-col items-center justify-center"
           style={{
