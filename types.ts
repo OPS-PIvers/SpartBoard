@@ -3815,6 +3815,8 @@ export interface QuizBankSlot {
   targetFilter?: string[];
   /** random mode: points applied to every drawn question (default 1) */
   points?: number;
+  /** random mode: ids of `QuizData.stimuli` shown with every drawn question */
+  stimulusIds?: string[];
 }
 
 /** Position of fixed questions and slots in the quiz editor list. */

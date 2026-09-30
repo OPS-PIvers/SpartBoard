@@ -49,7 +49,10 @@ import {
   OrderingAnswerEditor,
 } from './MatchingOrderingEditor';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
-import { QuestionStimulusSection } from './StimulusManagerPanel';
+import {
+  QuestionStimulusSection,
+  SlotStimulusSection,
+} from './StimulusManagerPanel';
 import {
   ResponseFormatControl,
   SpokenResponseSettings,
@@ -862,6 +865,9 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         bankApi={bankApi}
         onUpdate={updateBankSlot}
         onRemove={removeBankSlot}
+        stimulusSection={
+          <SlotStimulusSection state={state} slotId={selectedSlot.id} />
+        }
       />
     );
   }

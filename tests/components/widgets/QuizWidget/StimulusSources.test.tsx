@@ -66,6 +66,8 @@ const Harness: React.FC<{ perQuestion?: boolean }> = ({ perQuestion }) => {
   }, [stimuli]);
   const state = {
     questions: [question],
+    bankSlots: [],
+    toggleStimulusOnSlot: vi.fn(),
     stimuli,
     addStimulus: (s: QuizStimulus) => setStimuli((p) => [...p, s]),
     updateStimulus: vi.fn(),

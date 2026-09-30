@@ -271,6 +271,7 @@ export function resolveQuizAssignment(
   const questions: QuizQuestion[] = [];
   const stimuli: QuizStimulus[] = [...(quiz.stimuli ?? [])];
   const stimulusIds = new Set(stimuli.map((s) => s.id));
+  const quizStimulusIds = new Set(stimulusIds);
   const sessionSlots: QuizSessionBankSlot[] = [];
   const usedIds = new Set<string>();
   let fixedSeen = 0;
@@ -289,6 +290,9 @@ export function resolveQuizAssignment(
     const bank = banks.get(bankSlotKey(slot));
     if (!bank) continue;
     const points = slot.points ?? 1;
+    const slotStimulusIds = (slot.stimulusIds ?? []).filter((sid) =>
+      quizStimulusIds.has(sid)
+    );
     const poolQuestionIds: string[] = [];
     for (const source of eligibleBankQuestions(bank, slot.targetFilter)) {
       // A bank question drawn by two slots keeps its first slot's points.
@@ -311,6 +315,13 @@ export function resolveQuizAssignment(
         }
         if (kept.length > 0) frozen.stimulusIds = kept;
         else delete frozen.stimulusIds;
+      }
+      if (slotStimulusIds.length > 0) {
+        const own = frozen.stimulusIds ?? [];
+        frozen.stimulusIds = [
+          ...slotStimulusIds.filter((sid) => !own.includes(sid)),
+          ...own,
+        ];
       }
       questions.push(frozen);
       poolQuestionIds.push(frozen.id);

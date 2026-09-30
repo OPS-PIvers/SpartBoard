@@ -39,6 +39,21 @@ const nextSelectionAfterRemove = (
   return next[Math.min(Math.max(idx, 0), next.length - 1)]?.id ?? null;
 };
 
+/** The slot with `stimulusId` attached or detached; the same object when nothing changes. */
+const withSlotStimulus = (
+  slot: QuizBankSlot,
+  stimulusId: string,
+  attached: boolean
+): QuizBankSlot => {
+  const current = slot.stimulusIds ?? [];
+  if (current.includes(stimulusId) === attached) return slot;
+  const next = attached
+    ? [...current, stimulusId]
+    : current.filter((sid) => sid !== stimulusId);
+  const { stimulusIds: _drop, ...rest } = slot;
+  return next.length > 0 ? { ...rest, stimulusIds: next } : rest;
+};
+
 const DEFAULT_AI_TYPE_COUNTS: Record<QuizGenType, number> = {
   MC: 5,
   FIB: 0,
@@ -125,7 +140,9 @@ export interface QuizEditorController {
   deleteStimulus: (id: string) => void;
   /** Attach/detach one stimulus on one question. */
   toggleStimulusOnQuestion: (stimulusId: string, questionId: string) => void;
-  /** Attach the stimulus to every question (or detach from all). */
+  /** Attach/detach one stimulus on every question a random bank slot draws. */
+  toggleStimulusOnSlot: (stimulusId: string, slotId: string) => void;
+  /** Attach the stimulus to every question and bank slot (or detach from all). */
   setStimulusOnAllQuestions: (stimulusId: string, attached: boolean) => void;
   // AI generation
   showAiPrompt: boolean;
@@ -565,7 +582,27 @@ export function useQuizEditorState({
         return { ...q, stimulusIds: kept.length > 0 ? kept : undefined };
       })
     );
+    setBankSlots((slots) =>
+      slots.map((slot) => withSlotStimulus(slot, id, false))
+    );
   }, []);
+
+  const toggleStimulusOnSlot = useCallback(
+    (stimulusId: string, slotId: string) => {
+      setBankSlots((prev) =>
+        prev.map((slot) =>
+          slot.id === slotId
+            ? withSlotStimulus(
+                slot,
+                stimulusId,
+                !(slot.stimulusIds ?? []).includes(stimulusId)
+              )
+            : slot
+        )
+      );
+    },
+    []
+  );
 
   const toggleStimulusOnQuestion = useCallback(
     (stimulusId: string, questionId: string) => {
@@ -602,6 +639,9 @@ export function useQuizEditorState({
             stimulusIds: nextIds.length > 0 ? nextIds : undefined,
           };
         })
+      );
+      setBankSlots((prev) =>
+        prev.map((slot) => withSlotStimulus(slot, stimulusId, attached))
       );
     },
     []
@@ -765,6 +805,7 @@ export function useQuizEditorState({
     updateStimulus,
     deleteStimulus,
     toggleStimulusOnQuestion,
+    toggleStimulusOnSlot,
     setStimulusOnAllQuestions,
     showAiPrompt,
     setShowAiPrompt,

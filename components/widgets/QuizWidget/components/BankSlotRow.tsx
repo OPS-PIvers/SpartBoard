@@ -101,6 +101,7 @@ interface BankSlotDetailProps {
   bankApi?: QuizEditorBankApi;
   onUpdate: (id: string, patch: Partial<QuizBankSlot>) => void;
   onRemove: (id: string) => void;
+  stimulusSection?: React.ReactNode;
 }
 
 type LoadState =
@@ -113,6 +114,7 @@ export const BankSlotDetail: React.FC<BankSlotDetailProps> = ({
   bankApi,
   onUpdate,
   onRemove,
+  stimulusSection,
 }) => {
   const source = findSlotSource(bankApi?.sources, slot);
   const sourceKey = source?.key ?? null;
@@ -263,6 +265,8 @@ export const BankSlotDetail: React.FC<BankSlotDetailProps> = ({
             </p>
           )}
         </div>
+
+        {stimulusSection}
 
         <button
           type="button"

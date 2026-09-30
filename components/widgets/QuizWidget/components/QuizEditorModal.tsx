@@ -235,7 +235,8 @@ const bankSlotsEqual = (a: QuizBankSlot[], b: QuizBankSlot[]): boolean => {
       sa.mode !== sb.mode ||
       (sa.count ?? 0) !== (sb.count ?? 0) ||
       (sa.points ?? 1) !== (sb.points ?? 1) ||
-      (sa.targetFilter ?? []).join('|') !== (sb.targetFilter ?? []).join('|')
+      (sa.targetFilter ?? []).join('|') !== (sb.targetFilter ?? []).join('|') ||
+      (sa.stimulusIds ?? []).join('|') !== (sb.stimulusIds ?? []).join('|')
     ) {
       return false;
     }
@@ -448,10 +449,11 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       // Belt-and-braces pointer cleanup: deleteStimulus already strips ids
       // live, but a save must never persist a dangling pointer.
       const cleanQuestions = sanitizeStimulusPointers(questions, stimuli);
+      const cleanSlots = sanitizeStimulusPointers(bankSlots, stimuli);
       // `order` only carries information when a slot or a section sits between questions.
       const cleanOrder = quizOrder({
         questions: cleanQuestions,
-        bankSlots,
+        bankSlots: cleanSlots,
         order,
         sections,
       });
@@ -466,7 +468,9 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
           questions: cleanQuestions,
           ...(stimuli.length > 0 ? { stimuli } : { stimuli: undefined }),
           ...(language ? { language } : { language: undefined }),
-          ...(bankSlots.length > 0 ? { bankSlots } : { bankSlots: undefined }),
+          ...(cleanSlots.length > 0
+            ? { bankSlots: cleanSlots }
+            : { bankSlots: undefined }),
           ...(bankSlots.length > 0 || cleanSections.length > 0
             ? { order: cleanOrder }
             : { order: undefined }),
@@ -590,12 +594,13 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     ['questions', 'stimuli', 'settings', 'languages'] as const
   ).filter(
     (tab) =>
+      (!isBank || tab === 'questions' || tab === 'stimuli') &&
       (tab !== 'settings' || !settingsTabHidden) &&
       (tab !== 'languages' || translationAvailable || languageOnLanguagesTab)
   );
   // Access revoked mid-session: fall back rather than render Settings under Languages.
   const resolvedTab = editorTabs.includes(editorTab) ? editorTab : 'questions';
-  const activeTab = isBank ? 'questions' : resolvedTab;
+  const activeTab = resolvedTab;
 
   return (
     <EditorWorkspace
@@ -616,8 +621,8 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       footerExtras={footerExtras}
       contextPane={
         <div className="flex flex-col h-full">
-          {/* Questions / Settings segmented tab toggle (quiz mode only) */}
-          {!isBank && (
+          {/* Questions / Stimuli / Settings segmented tab toggle */}
+          {
             <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
               {editorTabs.map((tab) => {
                 const disabled =
@@ -650,7 +655,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
                 );
               })}
             </div>
-          )}
+          }
 
           {activeTab === 'questions' ? (
             <QuizEditorContextPane

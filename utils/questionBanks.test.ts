@@ -245,6 +245,26 @@ describe('resolveQuizAssignment', () => {
     ).toBe(12);
   });
 
+  it('adds slot stimuli to every drawn question and drops unknown ids', () => {
+    const resolved = resolveQuizAssignment(
+      {
+        questions: [q('f1')],
+        stimuli: [{ id: 'passage', type: 'text', url: '', label: 'P' }],
+        bankSlots: [slot({ count: 4, stimulusIds: ['passage', 'gone'] })],
+      },
+      banks
+    );
+    const pool = resolved.questions.filter((x) => x.id !== 'f1');
+    expect(pool.map((x) => x.stimulusIds)).toEqual([
+      ['passage'],
+      ['passage'],
+      ['passage'],
+      ['passage', 'stim-1'],
+    ]);
+    expect(resolved.questions[0].stimulusIds).toBeUndefined();
+    expect(resolved.stimuli.map((s) => s.id)).toEqual(['passage', 'stim-1']);
+  });
+
   it('throws BankSlotResolutionError with the problems attached', () => {
     expect(() =>
       resolveQuizAssignment(
