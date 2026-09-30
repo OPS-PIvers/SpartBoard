@@ -1789,13 +1789,14 @@ const TeacherQuizWidget: React.FC<{
         studentResultsActions={
           activeAssignmentId && !(isReview && reviewSplit)
             ? {
-                publish: (keys, visibility, expiresAt) =>
+                publish: (keys, visibility, expiresAt, protection) =>
                   publishResultsForStudents(
                     activeAssignmentId,
                     loadedQuizData,
                     keys,
                     visibility,
-                    expiresAt
+                    expiresAt,
+                    protection
                   ),
                 hide: (keys) =>
                   hideResultsForStudents(activeAssignmentId, keys),

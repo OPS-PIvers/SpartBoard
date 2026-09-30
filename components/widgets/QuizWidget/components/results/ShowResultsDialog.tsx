@@ -2,7 +2,13 @@ import React, { useState } from 'react';
 import { Eye, Loader2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { PUBLISH_LEVEL_OPTIONS } from '@/components/common/library/publishScoreLevels';
-import type { QuizScoreVisibility } from '@/types';
+import {
+  RESULTS_PROTECTION_DEFAULTS,
+  type QuizScoreVisibility,
+  type ResultsProtection,
+} from '@/types';
+import { ResultsProtectionFieldset } from '@/components/common/library/ResultsProtectionFieldset';
+import { useAuth } from '@/context/useAuth';
 import {
   resultsExpiryFromPreset,
   type ResultsExpiryPreset,
@@ -21,19 +27,27 @@ interface ShowResultsDialogProps {
   /** One name, or "3 students", for the heading. */
   targetLabel: string;
   initialVisibility?: QuizScoreVisibility;
+  initialProtection?: ResultsProtection;
   onClose: () => void;
   onConfirm: (
     visibility: ShownVisibility,
-    expiresAt: number | null
+    expiresAt: number | null,
+    protection: ResultsProtection | undefined
   ) => Promise<void>;
 }
 
 export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
   targetLabel,
   initialVisibility,
+  initialProtection,
   onClose,
   onConfirm,
 }) => {
+  const { canAccessFeature } = useAuth();
+  const showProtection = canAccessFeature('gradebook');
+  const [protection, setProtection] = useState<ResultsProtection>(
+    () => initialProtection ?? RESULTS_PROTECTION_DEFAULTS
+  );
   const [visibility, setVisibility] = useState<ShownVisibility>(
     initialVisibility && initialVisibility !== 'none'
       ? initialVisibility
@@ -46,7 +60,11 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
     if (submitting) return;
     setSubmitting(true);
     try {
-      await onConfirm(visibility, resultsExpiryFromPreset(expiry));
+      await onConfirm(
+        visibility,
+        resultsExpiryFromPreset(expiry),
+        showProtection ? protection : undefined
+      );
     } finally {
       setSubmitting(false);
     }
@@ -150,6 +168,14 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
             ))}
           </div>
         </fieldset>
+
+        {showProtection && (
+          <ResultsProtectionFieldset
+            value={protection}
+            onChange={setProtection}
+            disabled={submitting}
+          />
+        )}
 
         <p className="text-xs text-slate-500">
           Grades are not sent to Google Classroom or Schoology.

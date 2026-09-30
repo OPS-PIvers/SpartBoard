@@ -5172,6 +5172,8 @@ export type QuizResultsOverride =
       expiresAt?: number | null;
       /** Answer key, present only at the `score-responses-and-answers` level. */
       revealedAnswers?: Record<string, string>;
+      /** Protection for this student; absent on older overrides, which use the class one. */
+      protection?: ResultsProtection;
     }
   | {
       mode: 'hidden';
@@ -6657,6 +6659,8 @@ export interface VideoActivitySession
    * Mirrors `QuizSession.revealedAnswers`.
    */
   revealedAnswers?: Record<string, string>;
+  /** Results protection from the class publish; cleared on unpublish. */
+  protection?: ResultsProtection;
   /**
    * Optional sync-group linkage. Mirrors `QuizSession.sync`. Set when the
    * assignment was created from (or imported as) a synced share so peer
@@ -6802,6 +6806,11 @@ export interface VideoActivityResponse {
   unlockedAt?: number;
   /** Per-student results publication; absent = follows the class. Teacher-written only. */
   resultsOverride?: QuizResultsOverride;
+  /** Results-view tab-away count; students only raise it, the teacher's unlock lowers it. */
+  resultsTabWarnings?: number;
+  /** True once `resultsTabWarnings` reaches the protection threshold. */
+  resultsLockedOut?: boolean;
+  resultsLockedOutAt?: number;
 }
 
 /**
@@ -7807,6 +7816,8 @@ export interface GuidedLearningSession
    * answer keys to the client.
    */
   revealedAnswers?: Record<string, string>;
+  /** Results protection from the class publish; cleared on unpublish. */
+  protection?: ResultsProtection;
   /** Mirrors `GuidedLearningAssignment.openAt`/`closeAt`. Absent = always open. */
   openAt?: number | null;
   closeAt?: number | null;
@@ -7836,6 +7847,11 @@ export interface GuidedLearningResponse {
   classId?: string;
   /** Per-student results publication; absent = follows the class. Teacher-written only. */
   resultsOverride?: QuizResultsOverride;
+  /** Results-view tab-away count; students only raise it, the teacher's unlock lowers it. */
+  resultsTabWarnings?: number;
+  /** True once `resultsTabWarnings` reaches the protection threshold. */
+  resultsLockedOut?: boolean;
+  resultsLockedOutAt?: number;
 }
 
 export interface GuidedLearningGlobalConfig {
