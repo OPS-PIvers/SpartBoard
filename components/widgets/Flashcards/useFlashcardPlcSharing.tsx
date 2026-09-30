@@ -90,11 +90,17 @@ export const useFlashcardPlcSharing = ({
   const stopSharingResults = async (
     assignment: FlashcardAssignment
   ): Promise<boolean> => {
-    const plcId = assignment.plcShare?.plcId;
-    if (!plcId) return true;
+    const share = assignment.plcShare;
+    if (!share) return true;
     try {
-      await deletePlcFlashcardResult(plcId, assignment.id);
+      // Clear the share first so a pending results sync can't recreate the doc after the delete.
       await setPlcShare(assignment.id, null);
+      try {
+        await deletePlcFlashcardResult(share.plcId, assignment.id);
+      } catch (error) {
+        await setPlcShare(assignment.id, share).catch(() => undefined);
+        throw error;
+      }
       addToast('Results no longer shared.', 'success');
       return true;
     } catch (error) {
