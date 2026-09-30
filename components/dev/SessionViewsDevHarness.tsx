@@ -64,6 +64,8 @@ import {
 import {
   makeQuizSession,
   makeQuizResponses,
+  makeReviewGameResponses,
+  makeReviewGameSession,
   makeQuizData,
   makeQuizConfig,
   makeVaSession,
@@ -214,6 +216,19 @@ const SessionView: React.FC<{
         isGamified
         classAverage={82}
         showNames={showNames}
+      />
+    );
+  }
+
+  if (view === 'quiz-results' && state === 'review-game') {
+    return (
+      <QuizResults
+        quiz={makeQuizData()}
+        responses={makeReviewGameResponses()}
+        config={makeQuizConfig()}
+        session={makeReviewGameSession()}
+        onBack={() => undefined}
+        variant="review"
       />
     );
   }
