@@ -1,6 +1,5 @@
 import React from 'react';
 import { ClipboardList, Loader2, X } from 'lucide-react';
-import { useIsMobile } from '@/hooks/useIsMobile';
 import { spaNavigate } from '@/utils/plcPath';
 import {
   buildGradebookPath,
@@ -9,7 +8,6 @@ import {
 import { useGradebook } from './GradebookContext';
 import { GradebookSubBar } from './GradebookSubBar';
 import { GradebookGrid } from './GradebookGrid';
-import { GradebookPhoneView } from './GradebookPhoneView';
 import { GradebookAnalysis } from './analysis/GradebookAnalysis';
 import { GradebookAnalyzeModal } from './analysis/GradebookAnalyzeModal';
 import { GradebookStudentView } from './student/GradebookStudentView';
@@ -100,7 +98,6 @@ export const GradebookPage: React.FC<{
   onClose: () => void;
 }> = ({ parsed, onClose }) => {
   const gb = useGradebook();
-  const isMobile = useIsMobile();
   const tab = parsed.view === 'analysis' ? 'analysis' : 'grid';
   const onGrid = parsed.view === 'grid' || parsed.view === 'assignment';
 
@@ -157,12 +154,6 @@ export const GradebookPage: React.FC<{
         title="No assignments in this view"
         body="Change the grading period or filters."
       />
-    );
-  } else if (isMobile) {
-    body = (
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-10 pt-4">
-        <GradebookPhoneView />
-      </div>
     );
   } else {
     body = (
