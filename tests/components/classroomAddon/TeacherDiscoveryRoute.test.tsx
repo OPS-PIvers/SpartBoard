@@ -46,6 +46,7 @@ vi.mock('@/context/useAuth', () => ({
     signInWithGoogle: vi.fn(),
     googleAccessToken: 'drive-token',
     ensureGoogleScope: vi.fn(() => null),
+    canAccessFeature: () => false,
   }),
 }));
 

@@ -6800,6 +6800,8 @@ export interface VideoActivityResponse {
   unlocked?: boolean;
   /** Client timestamp (ms) when the teacher unlocked the attempt. */
   unlockedAt?: number;
+  /** Per-student results publication; absent = follows the class. Teacher-written only. */
+  resultsOverride?: QuizResultsOverride;
 }
 
 /**
@@ -7832,6 +7834,8 @@ export interface GuidedLearningResponse {
   classPeriod?: string;
   /** The `periodAccess` key the student's seat named; set on per-period sessions. */
   classId?: string;
+  /** Per-student results publication; absent = follows the class. Teacher-written only. */
+  resultsOverride?: QuizResultsOverride;
 }
 
 export interface GuidedLearningGlobalConfig {
@@ -9149,6 +9153,10 @@ export type GlobalFeature =
   | 'projects-group-view'
   /** Quiz assign/edit: a separate due date per selected class. */
   | 'quiz-per-class-due-dates'
+  /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
+  | 'gradebook'
+  /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
+  | 'student-gradebook'
   /** Quiz keeps assessment only; live review games move to the Review widget. */
   | 'quiz-review-split'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */

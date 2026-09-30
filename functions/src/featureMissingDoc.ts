@@ -38,6 +38,8 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-score-on-submit',
   'projects-group-view',
   'quiz-per-class-due-dates',
+  'gradebook',
+  'student-gradebook',
   'quiz-review-split',
   'guided-learning-ai',
   'blooms-ai',

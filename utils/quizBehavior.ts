@@ -78,6 +78,15 @@ export function toAssessmentBehavior(
   };
 }
 
+/** Plan D11: with the split on, assign opens from the teacher's last-used settings, not the quiz's. */
+export function getQuizAssignPrefill(
+  lastUsed: QuizBehaviorSettings | null
+): QuizBehaviorSettings {
+  return toAssessmentBehavior(
+    structuredClone(lastUsed ?? DEFAULT_QUIZ_BEHAVIOR)
+  );
+}
+
 /** Human-readable label for a quiz session mode. */
 export function formatSessionMode(mode: QuizSessionMode): string {
   if (mode === 'teacher') return 'Teacher-paced';

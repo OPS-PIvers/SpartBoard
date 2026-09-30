@@ -57,6 +57,7 @@ import {
   formatGameClock,
   gameDisplayPoints,
   gamePlayOrder,
+  gameStampMillis,
   nextGameQuestion,
   readGameClock,
 } from '@/utils/quizGame';
@@ -247,8 +248,10 @@ export const QuizGamePlay: React.FC<QuizGamePlayProps> = ({
   const [cycles, setCycles] = useState(0);
   const [current, setCurrent] = useState<{
     id: string;
+    servedAt: number;
     startedAt: number;
   } | null>(null);
+  const [pauseMark, setPauseMark] = useState<number | null>(null);
   // Questions the grader won't take (not in the key or the draw); never served again.
   const [dropped, setDropped] = useState<ReadonlySet<string>>(new Set());
   const [skipped, setSkipped] = useState<string | null>(null);
@@ -269,6 +272,18 @@ export const QuizGamePlay: React.FC<QuizGamePlayProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const running = clock.phase === 'running';
+
+  // Freeze the question's own timer while the game is paused.
+  if (clock.phase === 'paused' && pauseMark === null)
+    setPauseMark(gameStampMillis(session.gamePausedAt) ?? now);
+  if (clock.phase !== 'paused' && pauseMark !== null) {
+    if (current)
+      setCurrent({
+        ...current,
+        startedAt: current.startedAt + Math.max(0, now - pauseMark),
+      });
+    setPauseMark(null);
+  }
 
   // Pick the next question once the previous one is settled.
   const upcoming =
@@ -292,7 +307,8 @@ export const QuizGamePlay: React.FC<QuizGamePlayProps> = ({
   if (upcoming?.questionId && !divider) {
     setQueue(upcoming.queue);
     setCycles(upcoming.cycles);
-    setCurrent({ id: upcoming.questionId, startedAt: getServerNow() });
+    const at = getServerNow();
+    setCurrent({ id: upcoming.questionId, servedAt: at, startedAt: at });
     setDraft('');
     setError(null);
   }
@@ -389,12 +405,12 @@ export const QuizGamePlay: React.FC<QuizGamePlayProps> = ({
       )
     : '';
   useEffect(() => {
-    if (!timedOut || !running || !current) return;
-    const key = `${current.id}:${current.startedAt}`;
+    if (!timedOut || !running || !current || submitting) return;
+    const key = `${current.id}:${current.servedAt}`;
     if (timedOutFor.current === key) return;
     timedOutFor.current = key;
     void submit(timeoutAnswer);
-  }, [timedOut, running, current, submit, timeoutAnswer]);
+  }, [timedOut, running, current, submitting, submit, timeoutAnswer]);
 
   // Focus mode: report each tab exit to the teacher's monitor.
   const tabWarnings = session.tabWarningsEnabled !== false;
@@ -546,7 +562,7 @@ export const QuizGamePlay: React.FC<QuizGamePlayProps> = ({
   } else if (shownQuestion && current) {
     body = (
       <GameQuestion
-        key={`${current.id}:${current.startedAt}`}
+        key={`${current.id}:${current.servedAt}`}
         question={shownQuestion}
         stimuli={resolveStimuli(shownQuestion.stimulusIds, session.stimuli)}
         draft={draft}

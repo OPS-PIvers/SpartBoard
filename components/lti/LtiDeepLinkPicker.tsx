@@ -59,6 +59,7 @@ import { useRubrics } from '@/hooks/useRubrics';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import type {
   PlcLinkage,
+  QuizBehaviorSettings,
   QuizData,
   VideoActivitySessionOptions,
   VideoActivitySessionSettings,
@@ -79,7 +80,10 @@ import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import {
   getAssignBehaviorSeed,
   formatBehaviorSummary,
+  getQuizAssignPrefill,
 } from '@/utils/quizBehavior';
+import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
+import { QuizAssignSettingsInline } from '@/components/common/library/QuizAssignSettingsInline';
 import {
   getVideoActivityBehavior,
   formatVideoActivityBehaviorSummary,
@@ -302,7 +306,20 @@ const LtiDeepLinkFlow: React.FC = () => {
     >
   >(new Map());
 
-  const { user, signInWithGoogle, googleAccessToken } = useAuth();
+  const { user, signInWithGoogle, googleAccessToken, canAccessFeature } =
+    useAuth();
+  // D12: with the split on, settings come from the teacher's last-used, editable inline.
+  const reviewSplit = canAccessFeature('quiz-review-split');
+  const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
+    user?.uid,
+    reviewSplit
+  );
+  const [editedAssignSettings, setEditedAssignSettings] =
+    useState<QuizBehaviorSettings | null>(null);
+  const splitAssignSettings = useMemo(
+    () => editedAssignSettings ?? getQuizAssignPrefill(lastAssignSettings),
+    [editedAssignSettings, lastAssignSettings]
+  );
   // First-party Google session required (uid + Drive token) — NOT just any
   // Firebase session. A leftover studentRole custom-token session restored in
   // the partitioned iframe has a uid but no google.com provider/Drive token;
@@ -440,6 +457,7 @@ const LtiDeepLinkFlow: React.FC = () => {
   // teacher can see what students will get before adding it.
   const behaviorSummary = useMemo(() => {
     if (kind === 'quiz') {
+      if (reviewSplit) return null;
       return selectedQuiz
         ? formatBehaviorSummary(getAssignBehaviorSeed(selectedQuiz))
         : null;
@@ -449,7 +467,7 @@ const LtiDeepLinkFlow: React.FC = () => {
           getVideoActivityBehavior(selectedActivity)
         )
       : null;
-  }, [kind, selectedQuiz, selectedActivity]);
+  }, [kind, selectedQuiz, selectedActivity, reviewSplit]);
 
   const canAdd = kind === 'quiz' ? !!selectedQuizId : !!selectedActivityId;
 
@@ -638,8 +656,9 @@ const LtiDeepLinkFlow: React.FC = () => {
         );
 
         // Assessment Mode always; options and attempt limit come from the quiz.
-        const { sessionMode, sessionOptions, attemptLimit } =
-          getAssignBehaviorSeed(selectedQuiz);
+        const { sessionMode, sessionOptions, attemptLimit } = reviewSplit
+          ? splitAssignSettings
+          : getAssignBehaviorSeed(selectedQuiz);
 
         const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
         const plcLinkage = resolvePlcLinkage();
@@ -759,6 +778,8 @@ const LtiDeepLinkFlow: React.FC = () => {
     [
       ltiClassContext,
       selectedQuiz,
+      reviewSplit,
+      splitAssignSettings,
       loadQuizData,
       createAssignment,
       contextId,
@@ -1156,6 +1177,12 @@ const LtiDeepLinkFlow: React.FC = () => {
                     {behaviorSummary}
                   </span>
                 </p>
+              )}
+              {kind === 'quiz' && reviewSplit && (
+                <QuizAssignSettingsInline
+                  value={splitAssignSettings}
+                  onChange={setEditedAssignSettings}
+                />
               )}
 
               <div>
