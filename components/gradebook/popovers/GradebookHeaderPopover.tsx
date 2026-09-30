@@ -128,7 +128,11 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
       .then((res) =>
         onNotify?.(
           `Marked ${res.count} empty ${res.count === 1 ? 'cell' : 'cells'} ${opt.label} on ${column.title}`,
-          () => void markWrites.undoBatch(res.batchId)
+          () =>
+            void markWrites
+              .undoBatch(res.batchId)
+              .then((label) => label && onNotify?.('Undone'))
+              .catch(() => onNotify?.('Could not undo that change'))
         )
       )
       .catch(fail);

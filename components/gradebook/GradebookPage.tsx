@@ -116,7 +116,7 @@ export const GradebookPage: React.FC<{
         e.preventDefault();
         popoverWrites
           .undoBatch(popoverUndo.batchId)
-          .then(() => gb.toast('Undone'))
+          .then((label) => label && gb.toast('Undone'))
           .catch(() => gb.toast('Could not undo that change'));
         return;
       }

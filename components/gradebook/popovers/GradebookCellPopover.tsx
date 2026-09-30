@@ -118,6 +118,12 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
     return true;
   };
 
+  const undo = (batchId: string) =>
+    writes
+      .undoBatch(batchId)
+      .then((label) => label && onNotify?.('Undone'))
+      .catch(() => onNotify?.('Could not undo that change'));
+
   const close = () => {
     commit();
     onClose();
@@ -308,7 +314,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
                         .then((res) =>
                           onNotify?.(
                             `Filled ${res.count} ${res.count === 1 ? 'cell' : 'cells'} below with ${fmtPoints(parsed)}${max === null ? '' : `/${fmtPoints(max)}`}`,
-                            () => void writes.undoBatch(res.batchId)
+                            () => void undo(res.batchId)
                           )
                         )
                         .catch(fail);
@@ -385,7 +391,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
                 .then((batchId) =>
                   onNotify?.(
                     `${published ? 'Unpublished' : 'Published'} for ${student.firstName}`,
-                    () => void writes.undoBatch(batchId)
+                    () => void undo(batchId)
                   )
                 )
                 .catch(fail);
