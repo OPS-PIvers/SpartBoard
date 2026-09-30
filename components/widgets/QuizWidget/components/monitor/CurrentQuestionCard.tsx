@@ -6,6 +6,7 @@ import { CollapsibleStimuli } from '@/components/quiz/QuizStimulusView';
 import { formatRevealedAnswer } from '@/utils/quizFibAlternates';
 import { tourAttr } from '@/config/tourAnchors';
 import { QUIZ_STUDENT_MODE_LABEL } from '@/utils/quizBehavior';
+import { sectionStartingAt } from '@/utils/reviewLaunch';
 
 interface CurrentQuestionCardProps {
   session: QuizSession;
@@ -45,6 +46,11 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
   const isSelfPaced = session.sessionMode === 'student';
   const isLast = session.currentQuestionIndex >= session.totalQuestions - 1;
   const pct = total > 0 ? Math.round((answered / total) * 100) : 0;
+  // D18: a Review question that opens a section shows its divider first.
+  const section =
+    session.widgetKind === 'review' && currentQ
+      ? sectionStartingAt(session, currentQ.id)
+      : undefined;
 
   if (session.status === 'ended') {
     return (
@@ -181,6 +187,24 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
           {answered} of {total} answered
         </span>
       </div>
+      {section && (
+        <div data-testid="monitor-section-divider">
+          <p
+            className="font-sans font-bold text-brand-blue-primary"
+            style={{ fontSize: 'min(14px, 5cqmin)' }}
+          >
+            {section.title}
+          </p>
+          {section.directions && (
+            <p
+              className="text-brand-gray-primary whitespace-pre-line"
+              style={{ fontSize: 'min(12px, 4cqmin)' }}
+            >
+              {section.directions}
+            </p>
+          )}
+        </div>
+      )}
       <p
         className="font-sans font-semibold text-brand-blue-dark"
         style={{ fontSize: 'min(17px, 6cqmin)', lineHeight: 1.3 }}

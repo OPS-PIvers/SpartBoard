@@ -1531,12 +1531,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         icon: BarChart3,
         onClick: () => void (onArchiveResults ?? noop)(a),
       });
-      secondaries.push({
-        id: 'settings',
-        label: 'Settings',
-        icon: SettingsIcon,
-        onClick: () => (onArchiveEditSettings ?? noop)(a),
-      });
+      // D32: Review rows have no settings dialog.
+      if (onArchiveEditSettings) {
+        secondaries.push({
+          id: 'settings',
+          label: 'Settings',
+          icon: SettingsIcon,
+          onClick: () => onArchiveEditSettings(a),
+        });
+      }
       secondaries.push({
         id: 'share',
         label: 'Share',
@@ -1653,12 +1656,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       icon: Monitor,
       onClick: () => void (onArchiveMonitor ?? noop)(a),
     });
-    secondaries.push({
-      id: 'settings',
-      label: 'Settings',
-      icon: SettingsIcon,
-      onClick: () => (onArchiveEditSettings ?? noop)(a),
-    });
+    if (onArchiveEditSettings) {
+      secondaries.push({
+        id: 'settings',
+        label: 'Settings',
+        icon: SettingsIcon,
+        onClick: () => onArchiveEditSettings(a),
+      });
+    }
     secondaries.push({
       id: 'share',
       label: 'Share',

@@ -526,6 +526,8 @@ export interface AssignModalProps<TOptions> {
   }) => Promise<void> | void;
   /** Override confirm button label (default: "Assign"). */
   confirmLabel?: string;
+  /** Small label above the title (default: "Assign"). */
+  eyebrow?: string;
   /** Inline disabled reason (e.g. missing required field). */
   confirmDisabled?: boolean;
   confirmDisabledReason?: string;
