@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import { DiceWidget } from './Widget';
 import {
   useGlobalStyle,
@@ -228,5 +228,39 @@ describe('DiceWidget', () => {
     expect(faceValues()).toEqual([4, 2]);
 
     vi.useRealTimers();
+  });
+
+  it('double-click while audio is suspended starts only one roll', async () => {
+    vi.useFakeTimers();
+    try {
+      const releases: Array<() => void> = [];
+      const resume = vi.fn(
+        () =>
+          new Promise<void>((r) => {
+            releases.push(r);
+          })
+      );
+      const audio = await import('./utils/audio');
+      vi.mocked(audio.getDiceAudioCtx).mockReturnValue({
+        state: 'suspended',
+        resume,
+      } as unknown as AudioContext);
+
+      render(<DiceWidget widget={createWidgetData(1)} />);
+      const btn = screen.getByRole('button');
+      fireEvent.click(btn);
+      fireEvent.click(btn);
+      await act(async () => {
+        releases.forEach((r) => r());
+        await Promise.resolve();
+      });
+      act(() => {
+        vi.advanceTimersByTime(80 * 12);
+      });
+      expect(mockUpdateWidget).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
