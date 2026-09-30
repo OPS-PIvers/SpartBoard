@@ -64,6 +64,7 @@ export function getAssignBehaviorSeed(
 export function formatSessionMode(mode: QuizSessionMode): string {
   if (mode === 'teacher') return 'Teacher-paced';
   if (mode === 'auto') return 'Auto-progress';
+  if (mode === 'game') return 'Self-paced game';
   return QUIZ_STUDENT_MODE_LABEL;
 }
 

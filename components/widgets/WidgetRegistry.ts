@@ -142,6 +142,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   ),
   pdf: lazyNamed(() => import('./PdfWidget'), 'PdfWidget'),
   quiz: lazyNamed(() => import('./QuizWidget'), 'QuizWidget'),
+  review: lazyNamed(() => import('./QuizWidget'), 'ReviewWidget'),
   flashcards: lazyNamed(
     () => import('./Flashcards/Widget'),
     'FlashcardsWidget'
@@ -325,6 +326,7 @@ export const WIDGET_SETTINGS_SCHEMAS: Partial<
     import('./RecessGear/settings.schema').then((m) => m.default),
   pdf: () => import('./PdfWidget/settings.schema').then((m) => m.default),
   quiz: () => import('./QuizWidget/settings.schema').then((m) => m.default),
+  review: () => import('./QuizWidget/settings.schema').then((m) => m.default),
   breathing: () => import('./Breathing/settings.schema').then((m) => m.default),
   mathTools: () => import('./MathTools/settings.schema').then((m) => m.default),
   mathTool: () =>
@@ -636,6 +638,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
     padding: 0,
   },
   quiz: {
+    baseWidth: 620,
+    baseHeight: 560,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  review: {
     baseWidth: 620,
     baseHeight: 560,
     canSpread: true,

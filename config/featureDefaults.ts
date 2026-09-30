@@ -15,6 +15,7 @@ import {
   Gauge,
   Flag,
   Footprints,
+  Gamepad2,
   Languages,
   LayoutDashboard,
   Library,
@@ -813,6 +814,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'quiz-review-split': {
+    label: 'Quiz and Review split',
+    icon: Gamepad2,
+    description: 'Quiz keeps assessments; live review games move to Review.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Per-widget AI switches: hide and meter each widget's AI; `gemini-functions` is the hard server gate.
   quiz: {
     label: 'Quiz: AI',
@@ -947,6 +959,7 @@ export const WIDGET_DEFAULT_ACCESS_LEVEL: Partial<
   flashcards: 'admin',
   // D46 — off the teacher dock until an admin opens it.
   projects: 'admin',
+  review: 'admin',
 };
 
 export const getWidgetDefaultAccessLevel = (
