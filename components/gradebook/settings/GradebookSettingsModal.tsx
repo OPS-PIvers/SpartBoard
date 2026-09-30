@@ -5,7 +5,7 @@ import {
   ChevronDown,
   Copy,
   Pencil,
-  Settings,
+  Settings2,
   Trash2,
 } from 'lucide-react';
 import {
@@ -555,7 +555,7 @@ export const GradebookSettingsButton: React.FC<
         onClick={() => setOpen(true)}
         className={`${ICON_BTN} ${className}`}
       >
-        <Settings size={18} aria-hidden />
+        <Settings2 size={18} aria-hidden />
       </button>
       <GradebookSettingsModal
         {...rest}
