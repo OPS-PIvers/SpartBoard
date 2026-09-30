@@ -4,6 +4,7 @@
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { GRADEBOOK_MARK_BATCH } from '@/utils/gradebook/gradebookModel';
 import {
   initializeTestEnvironment,
   assertSucceeds,
@@ -338,6 +339,24 @@ describe('gradebook_marks history', () => {
         )
       )
     );
+  });
+
+  it('takes a full bulk batch of marks with history', async () => {
+    const db = teacherDb();
+    const batch = writeBatch(db);
+    for (let i = 0; i < GRADEBOOK_MARK_BATCH; i++) {
+      const id = `${SESSION}__s${i}`;
+      batch.set(
+        doc(db, `gradebook_marks/${id}`),
+        mark({ studentUid: `s${i}` })
+      );
+      batch.set(doc(db, `gradebook_marks/${id}/history/a`), history());
+      batch.set(
+        doc(db, `gradebook_marks/${id}/history/b`),
+        history({ field: 'flags', before: [], after: ['m'] })
+      );
+    }
+    await assertSucceeds(batch.commit());
   });
 
   it('is append-only and owner-only', async () => {

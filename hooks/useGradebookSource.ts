@@ -31,6 +31,7 @@ import {
   type GradingPeriodSetDoc,
   type ProficiencyScale,
 } from '@/utils/gradebook/gradebookCore';
+import { GRADEBOOK_MARK_BATCH } from '@/utils/gradebook/gradebookModel';
 
 export type GradebookHistoryDraft = Omit<
   GradebookHistoryEntry,
@@ -302,9 +303,9 @@ export function useGradebookSource(
     saveMarks: async (saves, batchId) => {
       if (!uid) return;
       // A history create reads its mark with getAfter, so each mark and its history share a batch.
-      for (let i = 0; i < saves.length; i += 100) {
+      for (let i = 0; i < saves.length; i += GRADEBOOK_MARK_BATCH) {
         const batch = writeBatch(db);
-        for (const s of saves.slice(i, i + 100)) {
+        for (const s of saves.slice(i, i + GRADEBOOK_MARK_BATCH)) {
           const id = gradebookDocId(s.mark.sessionId, s.mark.studentUid);
           const markRef = doc(db, GRADEBOOK_COLLECTIONS.marks, id);
           batch.set(markRef, s.mark);

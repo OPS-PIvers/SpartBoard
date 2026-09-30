@@ -34,6 +34,9 @@ export interface GradebookColumn {
 export type NameFormat = 'last-first' | 'first-last';
 export type CellFormat = 'percent' | 'points';
 
+/** Marks per write batch: each history entry's getAfter is a rules access, capped at 20 per batch. */
+export const GRADEBOOK_MARK_BATCH = 8;
+
 export const DEFAULT_GRADEBOOK_SORT: GradebookSort = {
   key: 'last',
   dir: 'asc',
