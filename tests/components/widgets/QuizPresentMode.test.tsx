@@ -342,6 +342,27 @@ describe('PresentScreen', () => {
     ).toBeInTheDocument();
   });
 
+  it('ends a Review on the light podium board', () => {
+    render(
+      <PresentScreen
+        {...presentData({
+          session: makeSession({
+            status: 'ended',
+            widgetKind: 'review',
+            boardRankLimit: 5,
+          }),
+        })}
+        showNames
+      />
+    );
+    expect(
+      screen.getByRole('region', { name: 'Present to class' })
+    ).toHaveClass('bg-white');
+    expect(screen.getByLabelText('1st place')).toBeInTheDocument();
+    expect(screen.getByText('Ada')).toBeInTheDocument();
+    expect(screen.queryByText(/Final standings/)).not.toBeInTheDocument();
+  });
+
   it('plays projector stimuli on the uncounted path', () => {
     const question = {
       ...makeQuizData().questions[0],
