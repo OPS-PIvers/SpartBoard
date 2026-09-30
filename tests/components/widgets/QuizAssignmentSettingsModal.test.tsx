@@ -250,6 +250,47 @@ describe('QuizAssignmentSettingsModal — behavior editable on a live assignment
   });
 });
 
+describe('QuizAssignmentSettingsModal — assessment only (Review split D9)', () => {
+  const renderModal = (assessmentOnly: boolean) =>
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({
+          status: 'active',
+          sessionMode: 'student',
+          sessionOptions: { speedBonusEnabled: true },
+          attemptLimit: 1,
+        })}
+        rosters={[] as ClassRoster[]}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+        assessmentOnly={assessmentOnly}
+      />
+    );
+
+  it('hides gamification, board reveal and the mode label', () => {
+    renderModal(true);
+    const summary = screen.getByTestId('assignment-behavior-summary');
+    expect(summary.textContent).not.toContain('Assessment Mode');
+    expect(summary.textContent?.startsWith('1 attempt')).toBe(true);
+    fireEvent.click(
+      screen.getByRole('button', { name: /assessment settings/i })
+    );
+    fireEvent.click(screen.getByRole('button', { name: /answer feedback/i }));
+    expect(screen.queryByText('Gamification')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Show correct answer on board')
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps gamification without the split', () => {
+    renderModal(false);
+    fireEvent.click(
+      screen.getByRole('button', { name: /assessment settings/i })
+    );
+    expect(screen.getByText('Gamification')).toBeInTheDocument();
+  });
+});
+
 describe('QuizAssignmentSettingsModal — unified class picker (rosterIds)', () => {
   beforeEach(() => {
     vi.clearAllMocks();

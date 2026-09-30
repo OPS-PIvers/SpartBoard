@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_QUIZ_BEHAVIOR, getQuizBehavior } from '@/utils/quizBehavior';
+import {
+  DEFAULT_QUIZ_BEHAVIOR,
+  formatBehaviorSummary,
+  getQuizBehavior,
+  toAssessmentBehavior,
+} from '@/utils/quizBehavior';
 import type { QuizMetadata } from '@/types';
 
 describe('getQuizBehavior', () => {
@@ -45,5 +50,43 @@ describe('getQuizBehavior', () => {
     expect(DEFAULT_QUIZ_BEHAVIOR.sessionOptions.showLearningTargets).toBe(
       false
     );
+  });
+});
+
+describe('toAssessmentBehavior (Review split D8/D9)', () => {
+  it('forces self-paced and strips gamification and board reveal', () => {
+    const out = toAssessmentBehavior({
+      sessionMode: 'teacher',
+      attemptLimit: 2,
+      sessionOptions: {
+        shuffleQuestions: true,
+        showCorrectOnBoard: true,
+        speedBonusEnabled: true,
+        streakBonusEnabled: true,
+        showPodiumBetweenQuestions: true,
+        soundEffectsEnabled: true,
+        showScoreOnSubmit: true,
+      },
+    });
+    expect(out.sessionMode).toBe('student');
+    expect(out.attemptLimit).toBe(2);
+    expect(out.sessionOptions).toMatchObject({
+      shuffleQuestions: true,
+      showScoreOnSubmit: true,
+      showCorrectOnBoard: false,
+      speedBonusEnabled: false,
+      streakBonusEnabled: false,
+      showPodiumBetweenQuestions: false,
+      soundEffectsEnabled: false,
+    });
+  });
+
+  it('formatBehaviorSummary can omit the mode label', () => {
+    expect(formatBehaviorSummary(DEFAULT_QUIZ_BEHAVIOR)).toMatch(
+      /^Assessment Mode · 1 attempt/
+    );
+    expect(
+      formatBehaviorSummary(DEFAULT_QUIZ_BEHAVIOR, { omitMode: true })
+    ).toBe('1 attempt · shuffles answers');
   });
 });
