@@ -46,12 +46,12 @@ function makeRoster(overrides: Partial<ClassRoster> = {}): ClassRoster {
   } as ClassRoster;
 }
 
-describe('QuizAssignmentSettingsModal — behavior is read-only (freeze-live)', () => {
+describe('QuizAssignmentSettingsModal — behavior editable on a live assignment', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders a read-only behavior summary instead of editable behavior controls', () => {
+  it('shows the behavior summary on the collapsed section', () => {
     render(
       <QuizAssignmentSettingsModal
         assignment={makePlcAssignment({
@@ -64,43 +64,29 @@ describe('QuizAssignmentSettingsModal — behavior is read-only (freeze-live)', 
         onClose={vi.fn()}
       />
     );
-    // Should show the behavior summary text (from formatBehaviorSummary)
     const summary = screen.getByTestId('assignment-behavior-summary');
-    expect(summary).toBeInTheDocument();
     expect(summary.textContent).toContain('Teacher-paced');
     expect(summary.textContent).toContain('1 attempt');
+    expect(screen.queryByText(/edit in (the )?quiz/i)).not.toBeInTheDocument();
   });
 
-  it('shows an "Edit in quiz" hint (not an active nav button)', () => {
+  it('never offers the session mode selector', () => {
     render(
       <QuizAssignmentSettingsModal
-        assignment={makePlcAssignment()}
+        assignment={makePlcAssignment({ status: 'active' })}
         rosters={[] as ClassRoster[]}
         onSave={vi.fn()}
         onClose={vi.fn()}
       />
     );
-    expect(screen.getByText(/edit in (the )?quiz/i)).toBeInTheDocument();
-  });
-
-  it('does NOT render mode radio buttons or behavior toggle inputs', () => {
-    render(
-      <QuizAssignmentSettingsModal
-        assignment={makePlcAssignment({ status: 'inactive' })}
-        rosters={[] as ClassRoster[]}
-        onSave={vi.fn()}
-        onClose={vi.fn()}
-      />
+    fireEvent.click(
+      screen.getByRole('button', { name: /assessment settings/i })
     );
-    // No radiogroup for session mode
-    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
-    // No attempt-limit number input
-    expect(
-      screen.queryByRole('spinbutton', { name: /attempt/i })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Session Mode')).not.toBeInTheDocument();
+    expect(screen.getByText('Question Randomization')).toBeInTheDocument();
   });
 
-  it('save patch includes targeting fields but NOT behavior fields', async () => {
+  it('save patch leaves behavior out when it was not edited', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     render(
       <QuizAssignmentSettingsModal
@@ -119,13 +105,43 @@ describe('QuizAssignmentSettingsModal — behavior is read-only (freeze-live)', 
     fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
-    // Targeting fields SHOULD be present
     expect(patch).toHaveProperty('className');
     expect(patch).toHaveProperty('periodName');
     expect(patch).toHaveProperty('periodNames');
-    // Behavior fields MUST NOT be present
     expect(patch).not.toHaveProperty('sessionMode');
     expect(patch).not.toHaveProperty('sessionOptions');
+    expect(patch).not.toHaveProperty('attemptLimit');
+  });
+
+  it('save patch carries an edited shuffle toggle but never sessionMode', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({
+          status: 'active',
+          sessionMode: 'student',
+          sessionOptions: { shuffleAnswerOptions: true },
+          attemptLimit: 1,
+        })}
+        rosters={[] as ClassRoster[]}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /assessment settings/i })
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /question randomization/i })
+    );
+    fireEvent.click(
+      screen.getByRole('switch', { name: 'Shuffle Answer Options' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
+    expect(patch.sessionOptions).toEqual({ shuffleAnswerOptions: false });
+    expect(patch).not.toHaveProperty('sessionMode');
     expect(patch).not.toHaveProperty('attemptLimit');
   });
 

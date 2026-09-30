@@ -36,6 +36,8 @@ export interface QuizBehaviorSettingsPanelProps {
    * Default false.
    */
   modeLocked?: boolean;
+  /** Hides the mode selector (a launched assignment keeps its mode). */
+  hideModeSelector?: boolean;
   /** Shows the "Read aloud" toggle; the host resolves the 'quiz-read-aloud' gate. */
   readAloudAvailable?: boolean;
   /** Admin raise-hand gate; the checkbox is hidden unless this is 'teacher-choice'. */
@@ -50,6 +52,7 @@ export const QuizBehaviorSettingsPanel: React.FC<
   value,
   onChange,
   modeLocked = false,
+  hideModeSelector = false,
   readAloudAvailable = false,
   handRaiseMode = DEFAULT_QUIZ_HAND_RAISE_MODE,
   hasManualGrading = false,
@@ -77,53 +80,55 @@ export const QuizBehaviorSettingsPanel: React.FC<
   return (
     <>
       {/* Mode selector */}
-      <div className="space-y-3">
-        <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest">
-          Session Mode
-        </p>
-        <div className="grid gap-2">
-          {modes.map((mode) => {
-            const Icon = mode.icon;
-            const selected = mode.id === value.sessionMode;
-            return (
-              <button
-                key={mode.id}
-                type="button"
-                onClick={() => handleModeChange(mode.id)}
-                disabled={mode.disabled}
-                aria-pressed={selected}
-                className={`w-full text-left p-3 rounded-xl border-2 transition-all flex items-start gap-3 group ${
-                  selected
-                    ? 'border-brand-blue-primary bg-brand-blue-lighter/30'
-                    : 'border-slate-200 hover:border-brand-blue-primary hover:bg-brand-blue-lighter/20'
-                } ${mode.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {Icon && (
-                  <div
-                    className={`p-2 rounded-lg transition-colors shrink-0 ${
-                      selected
-                        ? 'bg-brand-blue-primary text-white'
-                        : 'bg-slate-100 text-brand-blue-primary'
-                    }`}
-                  >
-                    <Icon size={18} />
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="font-black text-sm text-slate-800 leading-tight">
-                    {mode.label}
-                  </p>
-                  {mode.description && (
-                    <p className="text-xs text-slate-500 mt-0.5 leading-snug">
-                      {mode.description}
-                    </p>
+      {!hideModeSelector && (
+        <div className="space-y-3">
+          <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest">
+            Session Mode
+          </p>
+          <div className="grid gap-2">
+            {modes.map((mode) => {
+              const Icon = mode.icon;
+              const selected = mode.id === value.sessionMode;
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => handleModeChange(mode.id)}
+                  disabled={mode.disabled}
+                  aria-pressed={selected}
+                  className={`w-full text-left p-3 rounded-xl border-2 transition-all flex items-start gap-3 group ${
+                    selected
+                      ? 'border-brand-blue-primary bg-brand-blue-lighter/30'
+                      : 'border-slate-200 hover:border-brand-blue-primary hover:bg-brand-blue-lighter/20'
+                  } ${mode.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {Icon && (
+                    <div
+                      className={`p-2 rounded-lg transition-colors shrink-0 ${
+                        selected
+                          ? 'bg-brand-blue-primary text-white'
+                          : 'bg-slate-100 text-brand-blue-primary'
+                      }`}
+                    >
+                      <Icon size={18} />
+                    </div>
                   )}
-                </div>
-              </button>
-            );
-          })}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-black text-sm text-slate-800 leading-tight">
+                      {mode.label}
+                    </p>
+                    {mode.description && (
+                      <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                        {mode.description}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Toggle group: integrity / feedback / randomization + gamification */}
       <AssignmentSettingsToggleGroup

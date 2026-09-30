@@ -2024,10 +2024,16 @@ export const useQuizAssignments = (
       if ('attemptLimit' in patch)
         sessionPatch.attemptLimit = patch.attemptLimit ?? null;
       if (patch.sessionOptions) {
-        Object.assign(
-          sessionPatch,
-          sessionOptionsToSessionPatch(patch.sessionOptions)
-        );
+        // Mirror only edited keys so flag-gated create-time fields (tab-away) aren't switched on.
+        const prevOptions: Record<string, unknown> =
+          assignmentsRef.current.find((a) => a.id === assignmentId)
+            ?.sessionOptions ?? {};
+        const changed = Object.fromEntries(
+          Object.entries(patch.sessionOptions).filter(
+            ([key, value]) => prevOptions[key] !== value
+          )
+        ) as QuizSessionOptions;
+        Object.assign(sessionPatch, sessionOptionsToSessionPatch(changed));
       }
       // Clearing `plc` must also drop the session's plcId/syncGroupId/plcLinkedAt (mirrors stopSharingAssignmentWithPlc) — markPlcAssessmentDirty reads those, not assignment.plc, to keep pooling responses.
       if (clearingPlc) {
