@@ -17,10 +17,21 @@ import { GradebookExportMenu } from './export/GradebookExportMenu';
 
 type Menu = 'view' | 'filter' | 'help' | null;
 
-const selectCls =
-  'h-[34px] rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-[13px] font-semibold text-slate-700 focus:border-brand-blue-primary focus:outline-none focus:ring-[3px] focus:ring-brand-blue-primary/30';
-const menuSelectCls =
-  'h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none focus:ring-[3px] focus:ring-brand-blue-primary/30';
+const selectCls = `appearance-none h-[34px] rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-[13px] font-semibold text-slate-700 focus:border-brand-blue-primary focus:outline-none focus:ring-[3px] focus:ring-brand-blue-primary/30`;
+const menuSelectCls = `appearance-none h-10 w-full rounded-lg border border-slate-300 bg-white pl-3 pr-8 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none focus:ring-[3px] focus:ring-brand-blue-primary/30`;
+/** Native select with the prototype's chevron. */
+const Sel: React.FC<
+  React.SelectHTMLAttributes<HTMLSelectElement> & { wrapClassName?: string }
+> = ({ wrapClassName = '', ...rest }) => (
+  <span className={`relative inline-flex ${wrapClassName}`}>
+    <select {...rest} />
+    <ChevronDown
+      className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+      aria-hidden
+    />
+  </span>
+);
+
 const iconBtn = (pressed: boolean) =>
   `grid h-[34px] w-[34px] place-items-center rounded-lg ${
     pressed
@@ -131,7 +142,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
 
   return (
     <div className="flex min-h-[52px] shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-4 py-2 md:px-6">
-      <select
+      <Sel
         aria-label="Class"
         value={rosterId}
         onChange={(e) => spaNavigate(buildGradebookPath(e.target.value))}
@@ -142,8 +153,8 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
             {r.name}
           </option>
         ))}
-      </select>
-      <select
+      </Sel>
+      <Sel
         aria-label="Grading period"
         value={periodId ?? 'all'}
         onChange={(e) =>
@@ -157,7 +168,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
           </option>
         ))}
         <option value="all">All periods</option>
-      </select>
+      </Sel>
       <span className="flex-1" />
       {onGrid && (
         <>
@@ -284,9 +295,10 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
           </div>
           <div>
             <Label htmlFor="gb-sort">Sort rows</Label>
-            <select
+            <Sel
               id="gb-sort"
               className={menuSelectCls}
+              wrapClassName="w-full"
               value={sortValue(view.sort)}
               onChange={(e) => onSortChange(e.target.value)}
             >
@@ -317,7 +329,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
                   ))}
                 </optgroup>
               )}
-            </select>
+            </Sel>
           </div>
         </div>
       </CellPopover>
@@ -331,9 +343,10 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
         <div className="flex flex-col gap-4">
           <div>
             <Label htmlFor="gb-fcat">Category</Label>
-            <select
+            <Sel
               id="gb-fcat"
               className={menuSelectCls}
+              wrapClassName="w-full"
               value={filters.categoryId ?? 'all'}
               onChange={(e) =>
                 setFilters({
@@ -347,13 +360,14 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
                   {c.name}
                 </option>
               ))}
-            </select>
+            </Sel>
           </div>
           <div>
             <Label htmlFor="gb-fkind">Activity type</Label>
-            <select
+            <Sel
               id="gb-fkind"
               className={menuSelectCls}
+              wrapClassName="w-full"
               value={filters.kind ?? 'all'}
               onChange={(e) =>
                 setFilters({
@@ -367,7 +381,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
                   {GRADEBOOK_KIND_META[k].label}
                 </option>
               ))}
-            </select>
+            </Sel>
           </div>
           <ToggleRow
             checked={filters.needsGrading}

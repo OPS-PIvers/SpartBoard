@@ -225,7 +225,6 @@ export const GradebookGrid: React.FC = () => {
               </button>
             </th>
             {columns.map((c) => {
-              const Icon = GRADEBOOK_KIND_META[c.kind].icon;
               const open =
                 popover?.type === 'header' && popover.sessionId === c.sessionId;
               return (
@@ -245,10 +244,10 @@ export const GradebookGrid: React.FC = () => {
                   >
                     <span className="flex min-h-[18px] items-center gap-1.5">
                       <span
-                        className="grid h-[18px] w-[22px] place-items-center rounded-full bg-slate-200 text-slate-600"
+                        className="rounded-full bg-slate-200 px-1.5 py-px text-[10px] font-bold tracking-wide text-slate-600"
                         title={GRADEBOOK_KIND_META[c.kind].label}
                       >
-                        <Icon className="h-3 w-3" aria-hidden />
+                        {GRADEBOOK_KIND_META[c.kind].letter}
                       </span>
                       {c.hasUnpublished && (
                         <span

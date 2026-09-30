@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpenCheck, Loader2, X } from 'lucide-react';
+import { ClipboardList, Loader2, X } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { spaNavigate } from '@/utils/plcPath';
 import {
@@ -33,8 +33,8 @@ export const GradebookShell: React.FC<{
     aria-labelledby="gradebook-title"
     onKeyDown={onKeyDown}
   >
-    <header className="flex h-14 shrink-0 items-center gap-3 bg-gradient-to-r from-brand-blue-primary to-brand-blue-dark px-4 text-white shadow-sm md:h-16">
-      <BookOpenCheck
+    <header className="flex h-14 shrink-0 items-center gap-3 bg-brand-blue-primary px-4 text-white shadow-sm md:h-16">
+      <ClipboardList
         className="hidden h-5 w-5 text-white/70 md:block"
         aria-hidden
       />
