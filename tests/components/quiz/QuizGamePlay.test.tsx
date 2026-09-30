@@ -2,7 +2,13 @@
 
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import '@/i18n';
 import type { QuizPublicQuestion, QuizResponse, QuizSession } from '@/types';
 
@@ -119,6 +125,51 @@ describe('QuizGamePlay', () => {
     renderGame({ gameEndsAt: now + 90_000, gamePausedAt: now });
     expect(screen.getByText('Paused')).toBeInTheDocument();
     expect(screen.getByTestId('game-clock')).toHaveTextContent('1:30');
+  });
+
+  it('freezes a question timer while the game is paused', () => {
+    vi.useFakeTimers();
+    try {
+      const timed = [{ ...questions[0], timeLimit: 20 }, questions[1]];
+      const start = Date.now();
+      const props = {
+        myResponse: response,
+        servedQuestions: timed,
+        pin: '1234',
+        onSetHandRaised: vi.fn().mockResolvedValue(undefined),
+        reportTabSwitch: vi.fn().mockResolvedValue(0),
+      };
+      const s = session({
+        publicQuestions: timed,
+        gameEndsAt: start + 600_000,
+      });
+      const { rerender } = render(<QuizGamePlay session={s} {...props} />);
+      act(() => {
+        vi.advanceTimersByTime(5_000);
+      });
+      rerender(
+        <QuizGamePlay
+          session={{ ...s, gamePausedAt: start + 5_000 }}
+          {...props}
+        />
+      );
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      rerender(
+        <QuizGamePlay
+          session={{ ...s, gameEndsAt: start + 660_000, gamePausedAt: null }}
+          {...props}
+        />
+      );
+      act(() => {
+        vi.advanceTimersByTime(1_000);
+      });
+      expect(callable).not.toHaveBeenCalled();
+      expect(screen.getByText('First question')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('shows the final rank when time is up', () => {
