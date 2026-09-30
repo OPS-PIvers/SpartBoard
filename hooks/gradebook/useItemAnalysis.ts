@@ -94,13 +94,16 @@ export function useItemAnalysis(
   studentUids: string[]
 ): ItemAnalysisRow[] | null | 'none' {
   const googleAccessToken = useContext(AuthContext)?.googleAccessToken ?? null;
-  const [vaSession, setVaSession] = useState<VideoActivitySession | null>(null);
-  const [vaResponses, setVaResponses] = useState<
-    VideoActivityResponse[] | null
-  >(null);
+  const [va, setVa] = useState<{
+    key: string;
+    session: VideoActivitySession;
+    responses: VideoActivityResponse[];
+  } | null>(null);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const uidKey = studentUids.join(',');
   const key = `${kind}:${sessionId}:${uidKey}`;
+  const vaSession = va?.key === key ? va.session : null;
+  const vaResponses = va?.key === key ? va.responses : null;
   const vaKey = useVideoActivityKeyQuestions(vaSession ?? EMPTY_VA);
 
   useEffect(() => {
@@ -142,12 +145,13 @@ export function useItemAnalysis(
         ]);
         if (cancelled) return;
         if (!s.exists()) return done('none');
-        setVaSession({ ...(s.data() as VideoActivitySession), id: s.id });
-        setVaResponses(
-          snap.docs
+        setVa({
+          key,
+          session: { ...(s.data() as VideoActivitySession), id: s.id },
+          responses: snap.docs
             .map((d) => d.data() as VideoActivityResponse)
-            .filter((r) => inClass.has(r.studentUid))
-        );
+            .filter((r) => inClass.has(r.studentUid)),
+        });
       })().catch(fail);
     } else {
       done('none');
