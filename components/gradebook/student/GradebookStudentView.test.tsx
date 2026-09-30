@@ -147,7 +147,10 @@ describe('GradebookStudentView', () => {
   });
 
   it('arrow keys change student only while no popover is open', () => {
-    setup('u1');
+    setup('u1', {
+      user: { uid: 't' } as AuthContextType['user'],
+      canAccessFeature: () => false,
+    });
     const replace = vi.spyOn(window.history, 'replaceState');
     fireEvent.keyDown(window, { key: 'ArrowLeft' });
     expect(replace).toHaveBeenCalledTimes(1);
