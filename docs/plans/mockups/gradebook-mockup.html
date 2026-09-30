@@ -114,14 +114,14 @@
   .gb th, .gb td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 0; background: var(--surface); }
   .gb thead th { position: sticky; top: 0; z-index: 3; vertical-align: bottom; }
   .gb tfoot th, .gb tfoot td { position: sticky; bottom: 0; z-index: 3; background: var(--surface-2); font-size: 12px; color: var(--muted); padding: 6px 8px; text-align: center; border-top: 1px solid var(--line); }
-  .gb .namecol { position: sticky; left: 0; z-index: 4; min-width: 210px; text-align: left; }
+  .gb .namecol { position: sticky; left: 0; z-index: 4; width: 200px; min-width: 200px; max-width: 200px; text-align: left; }
   .gb thead .namecol, .gb tfoot .namecol { z-index: 6; }
-  .gb .overall { position: sticky; right: 0; z-index: 4; min-width: 96px; border-left: 2px solid var(--line); }
+  .gb .overall { position: sticky; left: 200px; z-index: 4; width: 84px; min-width: 84px; border-right: 2px solid var(--line); }
   .gb thead .overall, .gb tfoot .overall { z-index: 6; }
   .namehead { display: flex; gap: 6px; padding: 8px 10px; align-items: center; }
   .namehead button { border: 0; background: transparent; font-weight: 600; padding: 0; }
   .namehead small { color: var(--muted); font-weight: 400; }
-  .ahead { border: 0; background: transparent; width: 116px; text-align: left; padding: 8px 8px 8px; display: flex; flex-direction: column; gap: 3px; }
+  .ahead { border: 0; background: transparent; width: 104px; text-align: left; padding: 8px 8px 8px; display: flex; flex-direction: column; gap: 3px; }
   .ahead:hover { background: var(--surface-2); }
   .atitle { font-weight: 600; font-size: 12.5px; line-height: 1.25; text-wrap: balance; }
   .ameta { font-size: 11px; color: var(--muted); }
@@ -133,12 +133,12 @@
   .sname:hover { color: var(--accent); text-decoration: underline; }
   .smeta { font-size: 11px; color: var(--muted); display: flex; gap: 8px; }
   .smeta .m { color: var(--beg); }
-  .cell { position: relative; width: 116px; height: 46px; border: 0; background: transparent; display: grid; place-items: center; font-size: 14px; font-weight: 500; }
+  .cell { position: relative; width: 104px; height: 42px; border: 0; background: transparent; display: grid; place-items: center; font-size: 14px; font-weight: 500; }
   .cell:hover { box-shadow: inset 0 0 0 2px var(--accent-soft); }
   .cell:focus-visible, .cell.focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
-  .cell[data-band='p'] { background: color-mix(in srgb, var(--prof) 13%, transparent); }
-  .cell[data-band='a'] { background: color-mix(in srgb, var(--appr) 15%, transparent); }
-  .cell[data-band='b'] { background: color-mix(in srgb, var(--beg) 13%, transparent); }
+  .cell[data-band='p'] .v { color: var(--prof); }
+  .cell[data-band='a'] .v { color: var(--appr); }
+  .cell[data-band='b'] .v { color: var(--beg); }
   .cell .v.live { font-style: italic; text-decoration: underline dotted var(--appr); text-underline-offset: 3px; }
   .cell .v.ovr { color: var(--accent); font-weight: 700; }
   .cell .sub { font-size: 10.5px; color: var(--muted); font-weight: 400; }
@@ -151,7 +151,7 @@
   .cdot { position: absolute; left: 0; bottom: 0; width: 0; height: 0; border-left: 9px solid var(--slate); border-top: 9px solid transparent; }
   .cdot.shared { border-left-color: var(--accent); }
   .att { position: absolute; bottom: 3px; right: 5px; font-size: 9.5px; color: var(--muted); }
-  .ovcell { font-size: 15px; font-weight: 600; text-align: center; padding: 6px; }
+  .ovcell { font-size: 14px; font-weight: 600; text-align: center; padding: 6px; }
   .ovcell small { display: block; font-size: 10.5px; font-weight: 400; color: var(--muted); }
   .ovhead { border: 0; background: transparent; font-weight: 600; padding: 8px; width: 100%; }
 
@@ -237,6 +237,28 @@
   .previewbar { background: var(--accent); color: var(--surface); border-radius: var(--r); padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   .previewbar .btn { color: var(--fg); }
 
+  .iconbtn { width: 34px; height: 34px; display: inline-grid; place-items: center; border: 1px solid transparent; background: transparent; border-radius: 8px; color: var(--muted); font-weight: 600; }
+  .iconbtn:hover { background: var(--surface-2); color: var(--fg); }
+  .iconbtn[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent); }
+  .count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--surface); font-size: 11px; font-weight: 600; }
+  .atop { display: flex; align-items: center; gap: 6px; min-height: 18px; }
+  .ki { font-style: normal; width: 18px; height: 18px; border-radius: 5px; display: inline-grid; place-items: center; background: var(--surface-2); color: var(--muted); font-size: 10px; font-weight: 700; }
+  .dotpub { width: 7px; height: 7px; border-radius: 50%; background: var(--appr); }
+  .mc { font-size: 11px; color: var(--beg); }
+  .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  details.dsec { border-top: 1px solid var(--line); padding-top: 8px; }
+  details.dsec summary { cursor: pointer; font-size: 13px; font-weight: 500; color: var(--muted); list-style: none; display: flex; justify-content: space-between; }
+  details.dsec summary::-webkit-details-marker { display: none; }
+  details.dsec summary::after { content: '+'; }
+  details.dsec[open] summary::after { content: '\2013'; }
+  details.dsec > div { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .menu { display: flex; flex-direction: column; gap: 12px; }
+  .menu > div { display: flex; flex-direction: column; gap: 6px; }
+  .fpill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); border: 0; }
+  .fpill span { font-weight: 700; padding: 0 4px; }
+  .filterbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .keys { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12.5px; }
+  .keys kbd { font-family: inherit; font-size: 11.5px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; justify-self: start; }
   body.privacy .pv { filter: blur(6px); }
   @media (max-width: 800px) {
     .card, .card.w4, .card.w8, .card.w3 { grid-column: span 12; }
@@ -350,7 +372,7 @@
     { id: 'A', name: 'Absent', effect: 'none', student: false, color: 'var(--teal)' },
   ];
   const S = {
-    cls: 'p2', privacy: false, tab: 'grid', view: 'grid', sid: null, fmt: 'pct', tint: true, nameFmt: 'last', sort: { key: 'name', dir: 1 },
+    cls: 'p2', privacy: false, tab: 'grid', view: 'grid', sid: null, fmt: 'pct', tint: false, nameFmt: 'last', sort: { key: 'name', dir: 1 },
     period: 'q1', fcat: 'all', fkind: 'all', needs: false, focus: null, pop: null,
     marks: {}, cols: {},
     settings: { source: 'personal', flags: DEFAULT_FLAGS.map((f) => ({ ...f })), cats: [{ name: 'Assessments', w: 60 }, { name: 'Practice', w: 40 }], useCats: true, method: 'decay', auto: true, showScores: true, showStandards: false },
@@ -499,10 +521,15 @@
     }
   }
   const opt = (v, label, cur) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${label}</option>`;
+  const ICON = {
+    eye: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+    down: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
+    gear: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>',
+  };
+  const activeFilterCount = () => (S.fcat !== 'all') + (S.fkind !== 'all') + (S.needs ? 1 : 0) + (ASSIGN.some((a) => col(a.id).hidden) ? 1 : 0);
   function renderTop() {
-    const hidden = ASSIGN.filter((a) => col(a.id).hidden).length;
+    const onGrid = S.view === 'grid' && S.tab === 'grid'; const nf = activeFilterCount();
     return `
-    <p class="proto-note">Prototype with invented students and scores. Click cells, column headers and names. Keys: arrows, a number, Enter, M X L I A, Ctrl+Z, P for privacy.</p>
     <div class="topbar">
       <div class="brand"><span class="dot"></span>Gradebook</div>
       <select id="clsSel" aria-label="Class">${Object.entries(CLASSES).map(([k, c]) => opt(k, c.name, S.cls)).join('')}</select>
@@ -511,40 +538,34 @@
         <button role="tab" data-act="tab" data-tab="analysis" aria-selected="${S.tab === 'analysis' && S.view !== 'student'}">Data analysis</button>
       </div>
       <span class="spacer"></span>
-      <label class="ctl">Grading period <select id="periodSel">${opt('q1', 'Quarter 1 (Sep 2 – Nov 6)', S.period)}${opt('q2', 'Quarter 2', S.period)}${opt('all', 'All', S.period)}</select></label>
-      <button class="btn" data-act="privacy" aria-pressed="${!!S.privacy}" title="Blur names and scores (P)">Privacy</button>
-      <button class="btn" data-act="export">Export</button>
-      <button class="btn" data-act="settings">Settings</button>
-    </div>
-    ${S.view === 'grid' && S.tab === 'grid' ? `
-    <div class="toolbar">
-      <div class="seg" role="group" aria-label="Cell format"><button data-act="fmt" data-v="pct" aria-pressed="${S.fmt === 'pct'}">%</button><button data-act="fmt" data-v="pts" aria-pressed="${S.fmt === 'pts'}">Points</button></div>
-      <button class="btn" data-act="tint" aria-pressed="${S.tint}">Proficiency colors</button>
-      <select id="fcat" aria-label="Category">${opt('all', 'All categories', S.fcat)}${S.settings.cats.map((c) => opt(c.name, c.name, S.fcat)).join('')}</select>
-      <select id="fkind" aria-label="Activity type">${opt('all', 'All activity types', S.fkind)}${Object.entries(KIND).map(([k, v]) => opt(k, v.label, S.fkind)).join('')}</select>
-      <button class="btn" data-act="needs" aria-pressed="${S.needs}">Needs grading</button>
-      <select id="sortSel" aria-label="Sort rows">${opt('name', 'Sort: name', S.sort.key === 'name' ? 'name' : '')}${opt('overall', 'Sort: overall', S.sort.key === 'overall' ? 'overall' : '')}${opt('missing', 'Sort: missing count', S.sort.key === 'missing' ? 'missing' : '')}</select>
-      ${hidden ? `<button class="btn ghost" data-act="unhide">${hidden} hidden column${hidden > 1 ? 's' : ''} · Show</button>` : ''}
-      <span class="spacer"></span>
-      <span class="small muted">Italic dotted = not published · outlined flag = automatic</span>
-    </div>` : ''}`;
+      ${onGrid ? `<button class="btn ghost" data-act="menu" data-m="view" aria-haspopup="true">View</button><button class="btn ghost" data-act="menu" data-m="filter" aria-haspopup="true">Filter${nf ? ` <span class="count">${nf}</span>` : ''}</button>` : ''}
+      <select id="periodSel" aria-label="Grading period">${opt('q1', 'Quarter 1', S.period)}${opt('q2', 'Quarter 2', S.period)}${opt('all', 'All periods', S.period)}</select>
+      <button class="iconbtn" data-act="privacy" aria-pressed="${!!S.privacy}" aria-label="Privacy blur" title="Privacy blur (P)">${ICON.eye}</button>
+      <button class="iconbtn" data-act="export" aria-label="Export" title="Export">${ICON.down}</button>
+      <button class="iconbtn" data-act="settings" aria-label="Settings" title="Settings">${ICON.gear}</button>
+      <button class="iconbtn" data-act="menu" data-m="help" aria-label="Help and shortcuts" title="Help and shortcuts">?</button>
+    </div>`;
   }
 
   function cellHtml(s, a) {
     const i = info(s.id, a.id);
     const label = `${nm(s)}, ${a.title}`;
-    if (i.na) return `<td><button class="cell na" data-act="cell" data-s="${s.id}" data-a="${a.id}" aria-label="${esc(label)}: not assigned">Not assigned</button></td>`;
-    let inner = '';
-    if (a.completion) inner = i.done ? '<span class="v">✓</span>' : '<span class="empty">—</span>';
-    else if (i.awaiting) inner = '<span class="await">Needs grading</span>';
-    else if (i.pct == null) inner = '<span class="empty">—</span>';
-    else inner = `<span class="v pv ${i.m.override != null ? 'ovr' : ''} ${!i.pub ? 'live' : ''}">${fmtCell(i)}</span>`;
-    const chips = i.flags.length ? `<span class="chips">${i.flags.map((f) => { const d = flagDef(f.id); return d ? `<i class="chip ${f.auto ? 'auto' : ''}" style="--c:${d.color}" title="${d.name}${f.auto ? ' (automatic)' : ''}">${d.id}</i>` : ''; }).join('')}</span>` : '';
-    const cm = i.m.comment ? `<i class="cdot ${i.m.comment.shared ? 'shared' : ''}" title="${i.m.comment.shared ? 'Comment shared with student' : 'Private comment'}"></i>` : '';
-    const at = i.r.attempts.length > 1 ? `<span class="att">×${i.r.attempts.length}</span>` : '';
-    const bandAttr = S.tint && i.pct != null && !a.completion && !i.excluded ? `data-band="${band(i.pct)}"` : '';
     const focus = S.focus && S.focus.s === s.id && S.focus.a === a.id;
-    return `<td><button class="cell ${focus ? 'focus' : ''}" ${bandAttr} data-act="cell" data-s="${s.id}" data-a="${a.id}" tabindex="${focus ? 0 : -1}" aria-label="${esc(label)}">${inner}${chips}${cm}${at}</button></td>`;
+    if (i.na) return `<td><button class="cell na ${focus ? 'focus' : ''}" data-act="cell" data-s="${s.id}" data-a="${a.id}" tabindex="${focus ? 0 : -1}" aria-label="${esc(label)}: not assigned" title="Not assigned"></button></td>`;
+    let inner;
+    if (a.completion) inner = i.done ? '<span class="v">✓</span>' : '<span class="empty">–</span>';
+    else if (i.awaiting) inner = '<span class="await">To grade</span>';
+    else if (i.pct == null) inner = '<span class="empty">–</span>';
+    else inner = `<span class="v pv ${i.m.override != null ? 'ovr' : ''} ${!i.pub ? 'live' : ''}">${fmtCell(i)}</span>`;
+    let chip = '';
+    if (i.flags.length) {
+      const d = flagDef(i.flags[0].id);
+      const names = i.flags.map((f) => ((flagDef(f.id) || {}).name || f.id) + (f.auto ? ' (automatic)' : '')).join(', ');
+      if (d) chip = `<span class="chips"><i class="chip ${i.flags[0].auto ? 'auto' : ''}" style="--c:${d.color}" title="${names}">${d.id}${i.flags.length > 1 ? '+' : ''}</i></span>`;
+    }
+    const cm = i.m.comment ? `<i class="cdot ${i.m.comment.shared ? 'shared' : ''}" title="${i.m.comment.shared ? 'Comment shared with student' : 'Private comment'}"></i>` : '';
+    const bandAttr = S.tint && i.pct != null && !a.completion && !i.excluded ? `data-band="${band(i.pct)}"` : '';
+    return `<td><button class="cell ${focus ? 'focus' : ''}" ${bandAttr} data-act="cell" data-s="${s.id}" data-a="${a.id}" tabindex="${focus ? 0 : -1}" aria-label="${esc(label)}">${inner}${chip}${cm}</button></td>`;
   }
 
   function renderGrid() {
@@ -552,19 +573,20 @@
     if (!colsV.length) return `<div class="empty-state"><b>No assignments in this view</b>Change the grading period or filters.</div>`;
     const studs = sortedStudents();
     const sortLbl = S.sort.key === 'name' ? (S.sort.dir > 0 ? 'A–Z' : 'Z–A') : '';
-    const head = `<tr><th class="namecol"><div class="namehead"><button data-act="namesort" title="Sort by name">Student <small>${sortLbl}</small></button><span class="spacer"></span><button class="btn ghost small" data-act="namefmt" style="font-weight:400">${S.nameFmt === 'last' ? 'Last, First' : 'First Last'}</button></div></th>
-      ${colsV.map((a) => { const c = col(a.id); const pub = c.pub; return `<th><button class="ahead" data-act="head" data-a="${a.id}"><span class="kind"><i>${KIND[a.kind].i}</i>${KIND[a.kind].label}${c.cat ? ' · ' + c.cat : ''}</span><span class="atitle">${esc(a.title)}</span><span class="ameta">Due ${fdate(a.dueDate)}${a.completion ? ' · completion' : ' · ' + (c.maxOverride || a.max) + ' pts'}${!c.counts && !a.completion ? ' · not counted' : ''}</span>${a.completion ? '' : `<span class="ameta ${pub ? '' : 'unpub'}">${pub ? 'Published' : 'Not published'}</span>`}</button></th>`; }).join('')}
-      <th class="overall"><button class="ovhead" data-act="sortoverall">Overall ${S.sort.key === 'overall' ? (S.sort.dir < 0 ? '↓' : '↑') : ''}</button></th></tr>`;
+    const bandColor = (p) => `var(--${{ p: 'prof', a: 'appr', b: 'beg' }[band(p)]})`;
+    const head = `<tr><th class="namecol"><div class="namehead"><button data-act="namesort" title="Sort by name">Student <small>${sortLbl}</small></button></div></th>
+      <th class="overall"><button class="ovhead" data-act="sortoverall" title="Sort by overall">Overall${S.sort.key === 'overall' ? (S.sort.dir < 0 ? ' ↓' : ' ↑') : ''}</button></th>
+      ${colsV.map((a) => { const c = col(a.id); return `<th><button class="ahead" data-act="head" data-a="${a.id}"><span class="atop"><i class="ki" title="${KIND[a.kind].label}">${KIND[a.kind].i}</i>${!c.pub && !a.completion ? '<span class="dotpub" title="Not published"></span>' : ''}</span><span class="atitle">${esc(a.title)}</span><span class="ameta">${fdate(a.dueDate)}</span></button></th>`; }).join('')}</tr>`;
     const body = studs.map((s) => {
       const o = overall(s.id); const mc = missingCount(s.id);
-      return `<tr><th class="namecol"><div class="srow"><button class="sname pv" data-act="student" data-s="${s.id}">${esc(nm(s))}</button><span class="smeta">${mc ? `<span class="m">${mc} missing</span>` : ''}<span>${s.group}</span></span></div></th>
-        ${colsV.map((a) => cellHtml(s, a)).join('')}
-        <td class="overall"><div class="ovcell pv" ${S.tint && o.pct != null ? `style="color:var(--${{ p: 'prof', a: 'appr', b: 'beg' }[band(o.pct)]})"` : ''}>${o.pct == null ? '—' : o.pct.toFixed(1) + '%'}<small>${o.pct == null ? '' : bandName[band(o.pct)]}</small></div></td></tr>`;
+      return `<tr><th class="namecol"><div class="srow"><button class="sname pv" data-act="student" data-s="${s.id}">${esc(nm(s))}</button>${mc ? `<span class="mc">${mc} missing</span>` : ''}</div></th>
+        <td class="overall"><div class="ovcell pv" ${S.tint && o.pct != null ? `style="color:${bandColor(o.pct)}"` : ''}>${o.pct == null ? '–' : o.pct.toFixed(1) + '%'}</div></td>
+        ${colsV.map((a) => cellHtml(s, a)).join('')}</tr>`;
     }).join('');
-    const foot = `<tr><th class="namecol" style="text-align:left">Class average</th>${colsV.map((a) => {
-      if (a.completion) { const n = cls().students.filter((s) => info(s.id, a.id).done).length; return `<td>${n}/${cls().students.length} done</td>`; }
-      return `<td class="pv">${fmtPct(avg(cls().students.map((s) => { const i = info(s.id, a.id); return i.counted || (i.pct != null && !i.excluded) ? i.pct : null; })))}</td>`;
-    }).join('')}<td class="overall pv">${fmtPct(avg(cls().students.map((s) => overall(s.id).pct)))}</td></tr>`;
+    const foot = `<tr><th class="namecol" style="text-align:left">Class average</th><td class="overall pv">${fmtPct(avg(cls().students.map((s) => overall(s.id).pct)))}</td>${colsV.map((a) => {
+      if (a.completion) { const n = cls().students.filter((s) => info(s.id, a.id).done).length; return `<td>${n}/${cls().students.length}</td>`; }
+      return `<td class="pv">${fmtPct(avg(cls().students.map((s) => { const i = info(s.id, a.id); return i.pct != null && !i.excluded ? i.pct : null; })))}</td>`;
+    }).join('')}</tr>`;
     return `<div class="gridwrap" id="gridwrap"><table class="gb"><thead>${head}</thead><tbody>${body}</tbody><tfoot>${foot}</tfoot></table></div>`;
   }
 
@@ -581,81 +603,104 @@
     if (!p) return null;
     if (p.type === 'cell') return document.querySelector(`[data-act="cell"][data-s="${p.s}"][data-a="${p.a}"]`) || document.querySelector(`[data-edit="${p.s}|${p.a}"]`);
     if (p.type === 'head') return document.querySelector(`[data-act="head"][data-a="${p.a}"]`);
+    if (MENUS.includes(p.type)) return document.querySelector(`[data-act="menu"][data-m="${p.type}"]`);
     return null;
   }
+  const MENUS = ['view', 'filter', 'anfilter', 'help'];
+  const carry = (type, id) => (S.pop && S.pop.type === type && S.pop.id === id ? S.pop : {});
+  const isOpen = (k, dflt) => { const o = S.pop.open || {}; return (k in o ? o[k] : dflt) ? 'open' : ''; };
+  pop.addEventListener('toggle', (e) => { if (S.pop && e.target.dataset && e.target.dataset.k) (S.pop.open = S.pop.open || {})[e.target.dataset.k] = e.target.open; }, true);
   function openCellPop(sid, aid, anchor, prefill) {
-    S.pop = { type: 'cell', s: sid, a: aid, prefill, fill: S.pop && S.pop.type === 'cell' && S.pop.s === sid && S.pop.a === aid ? S.pop.fill : null, hist: S.pop && S.pop.hist };
+    const prev = carry('cell', sid + '|' + aid);
+    S.pop = { type: 'cell', id: sid + '|' + aid, s: sid, a: aid, prefill, fill: prev.fill != null ? prev.fill : null, open: prev.open || {} };
     const s = stu(sid); const i = info(sid, aid); const a = i.a;
-    let status = [];
-    if (i.na) status.push('Not assigned to this student');
-    else if (i.r.submittedAt) { status.push('Submitted ' + fdate(i.r.submittedAt)); if (i.r.submittedAt > a.dueDate) status.push(`late by ${Math.ceil((i.r.submittedAt - a.dueDate) / DAY)} day(s)`); }
-    else status.push(a.dueDate > TODAY ? 'Not submitted yet · due ' + fdate(a.dueDate) : 'No submission');
-    if (!a.completion && !i.na) status.push(i.pub ? 'Published' : 'Not published');
-    const ptsVal = S.pop.prefill != null ? S.pop.prefill : i.pct != null ? +((i.pct / 100) * i.max).toFixed(1) : '';
+    const status = [];
+    if (i.na) status.push('Not assigned');
+    else if (i.r.submittedAt) { status.push('Submitted ' + fdate(i.r.submittedAt)); if (i.r.submittedAt > a.dueDate) status.push(`${Math.ceil((i.r.submittedAt - a.dueDate) / DAY)} day(s) late`); }
+    else status.push(a.dueDate > TODAY ? 'Due ' + fdate(a.dueDate) : 'No submission');
+    if (!a.completion && !i.na && !i.pub) status.push('not published');
+    const ptsVal = prefill != null ? prefill : S.pop.fill != null ? S.pop.fill : i.pct != null ? +((i.pct / 100) * i.max).toFixed(1) : '';
     const hist = (i.m && i.m.hist) || [];
     const fillCount = cls().students.filter((x) => { const j = info(x.id, aid); return !j.na && j.r.state === 'none' && j.m.override == null && !j.excluded && (!j.m.flags || !j.m.flags.length || j.zeroed); }).length;
-    pop.innerHTML = `
-      <div><h3 class="pv">${esc(nm(s))}</h3><div class="sub">${esc(a.title)} · ${status.join(' · ')}</div></div>
-      ${i.na ? `<div class="confirm">This assignment was sent before ${esc(s.first)} joined the class.<div class="row"><button class="btn primary" data-act="toast" data-msg="Assigned to ${esc(s.first)}">Assign to student</button></div></div>` : `
-      ${a.completion ? `<div class="psec"><span class="lbl">Completion</span><div>${i.done ? '✓ Submitted. Completion columns never count toward the overall grade.' : 'No submission yet.'}</div></div>` : `
-      <div class="psec"><label for="ovIn">Score</label>
-        <div class="row"><input id="ovIn" type="number" min="0" max="${i.max}" step="0.5" style="width:84px" value="${ptsVal}"/><span>/ ${i.max}</span>
-        <button class="btn primary" data-act="ov-save">Save</button>
-        ${i.m.override != null ? `<button class="btn" data-act="ov-revert">Revert</button>` : ''}</div>
-        ${i.m.override != null ? `<div class="small"><span class="badge">Overridden</span> Calculated score <span class="strike">${i.computed == null ? 'none' : Math.round(i.computed) + '%'}</span></div>` : ''}
-        ${i.awaiting ? `<div class="small"><span class="badge warn">Awaiting grade</span> 2 written answers are ungraded.</div>` : ''}
-        ${a.kind === 'quiz' ? `<button class="btn ghost" data-act="grade-answers" style="align-self:flex-start">Grade answers ↗</button>` : ''}
-      </div>`}
-      <div class="psec"><span class="lbl">Flags</span><div class="row">
-        ${S.settings.flags.map((f) => { const on = i.flags.find((x) => x.id === f.id); return `<button class="fchip" style="--c:${f.color}" data-act="flag" data-f="${f.id}" aria-pressed="${!!on}"><i class="chip ${on && on.auto ? 'auto' : ''}" style="--c:${f.color}">${f.id}</i>${f.name}${on && on.auto ? ' <em>auto</em>' : ''}</button>`; }).join('')}
-      </div></div>
-      <div class="psec"><label for="cmIn">Comment</label>
-        <textarea id="cmIn" placeholder="Private note">${esc((i.m.comment && i.m.comment.text) || '')}</textarea>
-        <div class="row"><label class="ctl"><input type="checkbox" id="cmShare" ${i.m.comment && i.m.comment.shared ? 'checked' : ''}/> Share with student</label><span class="spacer"></span><button class="btn" data-act="cm-save">Save comment</button></div>
-      </div>
-      ${!a.completion ? `<div class="psec"><span class="lbl">Actions</span>
-        ${S.pop.fill ? `<div class="confirm">Fill ${fillCount} empty cell${fillCount === 1 ? '' : 's'} in ${esc(a.title)} with ${S.pop.fill}/${i.max}? Cells with work, a score or an excusing flag are left alone.<div class="row"><button class="btn primary" data-act="fill-go" ${fillCount ? '' : 'disabled'}>Fill ${fillCount}</button><button class="btn" data-act="fill-cancel">Cancel</button></div></div>` :
-        `<div class="row"><button class="btn" data-act="fill-start">Fill empty cells with this score</button><button class="btn" data-act="pub-stu">${i.pub ? 'Unpublish for student' : 'Publish for student'}</button></div>`}
-      </div>` : ''}
-      ${i.r.attempts.length > 1 ? `<div class="psec"><span class="lbl">Attempts · policy: ${col(aid).policy}</span>${i.r.attempts.map((p, n) => `<div class="small">Attempt ${n + 1}: ${Math.round(p)}%</div>`).join('')}</div>` : ''}
-      <div class="psec"><button class="btn ghost" data-act="hist" style="align-self:flex-start">History (${hist.length})</button>
-        ${S.pop.hist ? (hist.length ? `<ol class="hist">${hist.map((h) => `<li>${esc(h.at)} · You · ${esc(h.what)}</li>`).join('')}</ol>` : '<div class="small muted">No changes yet.</div>') : ''}</div>`}`;
+    const head = `<div><h3 class="pv">${esc(nm(s))}</h3><div class="sub">${esc(a.title)} · ${status.join(' · ')}</div></div>`;
+    if (i.na) { pop.innerHTML = head + `<div class="small">Sent before ${esc(s.first)} joined the class.</div><button class="btn primary" style="align-self:flex-start" data-act="toast" data-msg="Assigned to ${esc(s.first)}">Assign to student</button>`; pop.hidden = false; place(anchor); return; }
+    pop.innerHTML = `${head}
+      ${a.completion ? `<div class="small">${i.done ? 'Submitted. Completion only, not part of the grade.' : 'No submission yet.'}</div>` : `
+      <div class="row"><input id="ovIn" type="number" min="0" max="${i.max}" step="0.5" style="width:80px" value="${ptsVal}" aria-label="Score"/><span>/ ${i.max}</span>
+        <button class="btn primary" data-act="ov-save">Save</button>${i.m.override != null ? `<button class="btn ghost" data-act="ov-revert">Revert</button>` : ''}</div>
+      ${i.m.override != null ? `<div class="small muted">Overridden · calculated <span class="strike">${i.computed == null ? 'none' : Math.round(i.computed) + '%'}</span></div>` : ''}
+      ${i.awaiting ? `<div class="small"><span class="badge warn">To grade</span> 2 written answers are ungraded.</div>` : ''}`}
+      <div class="row">${S.settings.flags.map((f) => { const on = i.flags.find((x) => x.id === f.id); return `<button class="fchip" style="--c:${f.color}" data-act="flag" data-f="${f.id}" aria-pressed="${!!on}" title="${f.name}${on && on.auto ? ' (automatic)' : ''}"><i class="chip ${on && on.auto ? 'auto' : ''}" style="--c:${f.color}">${f.id}</i>${f.name}</button>`; }).join('')}</div>
+      <details class="dsec" data-k="comment" ${isOpen('comment', !!i.m.comment)}><summary>Comment${i.m.comment ? (i.m.comment.shared ? ' · shared' : ' · private') : ''}</summary><div>
+        <textarea id="cmIn" placeholder="Private note" aria-label="Comment">${esc((i.m.comment && i.m.comment.text) || '')}</textarea>
+        <div class="row"><label class="ctl"><input type="checkbox" id="cmShare" ${i.m.comment && i.m.comment.shared ? 'checked' : ''}/> Share with student</label><span class="spacer"></span><button class="btn" data-act="cm-save">Save</button></div>
+      </div></details>
+      ${a.completion ? '' : `<details class="dsec" data-k="more" ${isOpen('more', !!S.pop.fill)}><summary>More</summary><div>
+        ${S.pop.fill != null ? `<div class="confirm">Fill ${fillCount} empty cell${fillCount === 1 ? '' : 's'} with ${S.pop.fill}/${i.max}? Cells with work, a score or an excusing flag are left alone.<div class="row"><button class="btn primary" data-act="fill-go" ${fillCount ? '' : 'disabled'}>Fill ${fillCount}</button><button class="btn" data-act="fill-cancel">Cancel</button></div></div>` : `<button class="btn ghost" style="align-self:flex-start" data-act="fill-start">Fill empty cells with this score</button>`}
+        <button class="btn ghost" style="align-self:flex-start" data-act="pub-stu">${i.pub ? 'Unpublish for this student' : 'Publish for this student'}</button>
+        ${a.kind === 'quiz' ? `<button class="btn ghost" style="align-self:flex-start" data-act="grade-answers">Grade answers</button>` : ''}
+      </div></details>`}
+      ${i.r.attempts.length > 1 ? `<details class="dsec" data-k="att" ${isOpen('att', false)}><summary>Attempts (${i.r.attempts.length}) · ${col(aid).policy}</summary><div>${i.r.attempts.map((p, n) => `<div class="small">Attempt ${n + 1}: ${Math.round(p)}%</div>`).join('')}</div></details>` : ''}
+      <details class="dsec" data-k="hist" ${isOpen('hist', false)}><summary>History (${hist.length})</summary><div>${hist.length ? `<ol class="hist">${hist.map((h) => `<li>${esc(h.at)} · You · ${esc(h.what)}</li>`).join('')}</ol>` : '<div class="small muted">No changes yet.</div>'}</div></details>`;
     pop.hidden = false; place(anchor);
     if (prefill != null) { const inp = document.getElementById('ovIn'); if (inp) { inp.focus(); const v = inp.value; inp.value = ''; inp.value = v; } }
   }
   function openHeadPop(aid, anchor) {
-    S.pop = { type: 'head', a: aid, bulk: S.pop && S.pop.type === 'head' && S.pop.a === aid ? S.pop.bulk : null };
+    const prev = carry('head', aid);
+    S.pop = { type: 'head', id: aid, a: aid, bulk: prev.bulk || null, open: prev.open || {} };
     const a = A[aid]; const c = col(aid); const st = cls().students;
     const inf = st.map((s) => info(s.id, aid)); const sub = inf.filter((i) => i.r.state !== 'none' && !i.na).length; const asg = inf.filter((i) => !i.na).length;
     const nonSub = inf.filter((i) => !i.na && i.r.state === 'none').length;
     pop.innerHTML = `
-      <div><h3>${esc(a.title)}</h3><div class="sub">${KIND[a.kind].label} · due ${fdate(a.dueDate)} · ${sub}/${asg} submitted${a.completion ? '' : ' · average ' + fmtPct(avg(inf.map((i) => (i.excluded ? null : i.pct))))}</div></div>
+      <div><h3>${esc(a.title)}</h3><div class="sub">${KIND[a.kind].label} · due ${fdate(a.dueDate)} · ${sub}/${asg} submitted${a.completion ? '' : ' · ' + (c.maxOverride || a.max) + ' pts · avg ' + fmtPct(avg(inf.map((i) => (i.excluded ? null : i.pct))))}${a.completion || c.pub ? '' : ' · <span class="unpub">not published</span>'}</div></div>
       <div class="row">
-        ${a.completion ? '' : `<button class="btn" data-act="open-results">Open results</button><button class="btn" data-act="analyze">Analyze</button>`}
-        ${a.completion ? `<button class="btn" data-act="open-results">Open submissions</button>` : `<button class="btn ${c.pub ? '' : 'primary'}" data-act="pub-col">${c.pub ? 'Unpublish' : 'Publish'} scores</button>`}
-        <button class="btn ghost" data-act="sort-col">Sort by this column</button>
+        <button class="btn" data-act="open-results">${a.completion ? 'Open submissions' : 'Open results'}</button>
+        ${a.completion ? '' : `<button class="btn" data-act="analyze">Analyze</button><button class="btn ${c.pub ? '' : 'primary'}" data-act="pub-col">${c.pub ? 'Unpublish' : 'Publish'}</button>`}
       </div>
-      ${a.completion ? '' : `
-      <div class="psec"><span class="lbl">Grading setup</span>
+      ${a.completion ? '' : `<details class="dsec" data-k="setup" ${isOpen('setup', false)}><summary>Grading setup · ${c.cat}${c.counts ? '' : ', not counted'}</summary><div>
         <div class="row"><label class="ctl">Category <select id="hCat">${S.settings.cats.map((x) => opt(x.name, x.name, c.cat)).join('')}</select></label>
         <label class="ctl"><input type="checkbox" id="hCounts" ${c.counts ? 'checked' : ''}/> Counts toward overall</label></div>
-        <div class="row"><label class="ctl">Out of <input type="number" id="hMax" min="1" style="width:70px" value="${c.maxOverride || a.max}"/> pts</label>
+        <div class="row"><label class="ctl">Out of <input type="number" id="hMax" min="1" style="width:66px" value="${c.maxOverride || a.max}"/> pts</label>
         <label class="ctl">Attempts <select id="hPolicy">${opt('latest', 'Latest', c.policy)}${opt('highest', 'Highest', c.policy)}${opt('average', 'Average', c.policy)}</select></label></div>
         <div class="row">${TARGETS.map((t) => `<button class="fchip" style="--c:var(--accent)" data-act="htarget" data-t="${t.id}" aria-pressed="${c.targets.includes(t.id)}" title="${t.label}">${t.id}</button>`).join('')}</div>
-      </div>`}
-      <div class="psec"><span class="lbl">Whole column</span>
+      </div></details>`}
+      <details class="dsec" data-k="bulk" ${isOpen('bulk', !!S.pop.bulk)}><summary>Whole column</summary><div>
         ${S.pop.bulk ? `<div class="confirm">${S.pop.bulk.msg}<div class="row"><button class="btn primary" data-act="bulk-go">${S.pop.bulk.cta}</button><button class="btn" data-act="bulk-cancel">Cancel</button></div></div>` : `
-        <div class="row">
-          ${a.completion ? '' : `<button class="btn" data-act="bulk" data-k="fill">Fill empty cells…</button>`}
-          <button class="btn" data-act="bulk" data-k="missing" ${nonSub ? '' : 'disabled'}>Mark ${nonSub} non-submitters Missing</button>
-          <button class="btn" data-act="bulk" data-k="excuse">Excuse column</button>
-          <button class="btn" data-act="hide-col">Hide column</button>
-        </div>`}
-      </div>
-      ${a.completion ? '' : `<div class="psec"><span class="lbl">LMS</span>${a.lms ? `<button class="btn" data-act="push" style="align-self:flex-start">Push final scores to ${a.lms}</button><div class="small muted">Sends overrides and flags. Awaiting-grade students are skipped. Excused students are never sent a 0.</div>` : '<div class="small muted">Not attached to Classroom or Schoology.</div>'}</div>`}`;
+        <button class="btn ghost" style="align-self:flex-start" data-act="sort-col">Sort rows by this column</button>
+        ${a.completion ? '' : `<button class="btn ghost" style="align-self:flex-start" data-act="bulk" data-k="fill">Fill empty cells with 0</button>`}
+        <button class="btn ghost" style="align-self:flex-start" data-act="bulk" data-k="missing" ${nonSub ? '' : 'disabled'}>Mark ${nonSub} non-submitters Missing</button>
+        <button class="btn ghost" style="align-self:flex-start" data-act="bulk" data-k="excuse">Excuse for everyone</button>
+        <button class="btn ghost" style="align-self:flex-start" data-act="hide-col">Hide column</button>
+        ${a.lms ? `<button class="btn ghost" style="align-self:flex-start" data-act="push">Push final scores to ${a.lms}</button>` : ''}`}
+      </div></details>`;
     pop.hidden = false; place(anchor);
   }
-  const reopen = () => { const p = S.pop; if (!p) return; const an = findAnchor(p); if (!an) { closePop(); return; } if (p.type === 'cell') openCellPop(p.s, p.a, an); else openHeadPop(p.a, an); };
+  function openMenu(m, anchor) {
+    const prev = carry(m, m); S.pop = { type: m, id: m, open: prev.open || {} };
+    const f = S.an; const groups = [...new Set(cls().students.map((s) => s.group))];
+    const hiddenCols = ASSIGN.filter((a) => col(a.id).hidden);
+    const H = {
+      view: `<div><span class="lbl">Scores</span><div class="seg" role="group"><button data-act="fmt" data-v="pct" aria-pressed="${S.fmt === 'pct'}">Percent</button><button data-act="fmt" data-v="pts" aria-pressed="${S.fmt === 'pts'}">Points</button></div>
+          <label class="ctl"><input type="checkbox" id="tintChk" ${S.tint ? 'checked' : ''}/> Proficiency colors</label></div>
+        <div><span class="lbl">Names</span><div class="seg" role="group"><button data-act="setname" data-v="last" aria-pressed="${S.nameFmt === 'last'}">Last, First</button><button data-act="setname" data-v="first" aria-pressed="${S.nameFmt === 'first'}">First Last</button></div></div>
+        <div><span class="lbl">Sort rows</span><select id="sortSel" aria-label="Sort rows">${opt('name', 'Name', S.sort.key === 'name' ? 'name' : '')}${opt('overall', 'Overall', S.sort.key === 'overall' ? 'overall' : '')}${opt('missing', 'Missing count', S.sort.key === 'missing' ? 'missing' : '')}</select></div>`,
+      filter: `<div><span class="lbl">Category</span><select id="fcat" aria-label="Category">${opt('all', 'All', S.fcat)}${S.settings.cats.map((c) => opt(c.name, c.name, S.fcat)).join('')}</select></div>
+        <div><span class="lbl">Activity type</span><select id="fkind" aria-label="Activity type">${opt('all', 'All', S.fkind)}${Object.entries(KIND).map(([k, v]) => opt(k, v.label, S.fkind)).join('')}</select></div>
+        <label class="ctl"><input type="checkbox" id="needsChk" ${S.needs ? 'checked' : ''}/> Only columns that need grading</label>
+        ${hiddenCols.length ? `<div><span class="lbl">Hidden columns</span>${hiddenCols.map((a) => `<div class="small">${esc(a.title)}</div>`).join('')}<button class="btn ghost" style="align-self:flex-start" data-act="unhide">Show all</button></div>` : ''}`,
+      anfilter: `<div><span class="lbl">Category</span><select id="anCat">${opt('all', 'All', f.cat)}${S.settings.cats.map((c) => opt(c.name, c.name, f.cat)).join('')}</select></div>
+        <div><span class="lbl">Activity type</span><select id="anKind">${opt('all', 'All', f.kind)}${Object.entries(KIND).filter(([, v]) => !v.completion).map(([k, v]) => opt(k, v.label, f.kind)).join('')}</select></div>
+        <div><span class="lbl">Learning target</span><select id="anTarget">${opt('all', 'All', f.target)}${TARGETS.map((t) => opt(t.id, t.id + ' ' + t.label, f.target)).join('')}</select></div>
+        <div><span class="lbl">Roster group</span><select id="anGroup">${opt('all', 'All', f.group)}${groups.map((g) => opt(g, g, f.group)).join('')}</select></div>
+        <div><span class="lbl">Flag</span><select id="anFlag">${opt('all', 'Any', f.flag)}${S.settings.flags.map((x) => opt(x.id, 'Has ' + x.name, f.flag)).join('')}</select></div>
+        <div><span class="lbl">Accommodations</span><select id="anAcc" title="Screen only. Never exported.">${opt('all', 'Any', f.acc)}${opt('yes', 'With', f.acc)}${opt('no', 'Without', f.acc)}</select></div>`,
+      help: `<div class="small muted">Prototype with invented students and scores.</div>
+        <div class="keys"><kbd>Arrows</kbd><span>Move between cells</span><kbd>0–9</kbd><span>Start typing a score</span><kbd>Enter</kbd><span>Open the cell</span><kbd>M X L I A</kbd><span>Toggle a flag</span><kbd>Ctrl+Z</kbd><span>Undo</span><kbd>P</kbd><span>Privacy blur</span></div>
+        <div class="keys"><span class="v live" style="font-style:italic;text-decoration:underline dotted var(--appr)">85%</span><span>Not published yet</span><span class="dotpub" style="align-self:center"></span><span>Column has unpublished scores</span><span class="chip auto" style="--c:var(--beg);position:static">M</span><span>Flag applied automatically</span><span class="chip" style="--c:var(--beg);position:static">M+</span><span>More than one flag</span></div>`,
+    };
+    pop.innerHTML = `<div class="menu">${H[m]}</div>`; pop.hidden = false; place(anchor);
+  }
+  const reopen = () => { const p = S.pop; if (!p) return; const an = findAnchor(p); if (!an) { closePop(); return; } if (p.type === 'cell') openCellPop(p.s, p.a, an); else if (p.type === 'head') openHeadPop(p.a, an); else openMenu(p.type, an); };
   const now = () => fdate(TODAY);
   const logH = (sid, aid, what) => { const m = mark(sid, aid, true); (m.hist = m.hist || []).unshift({ at: now(), what }); };
   const rerender = () => { const w = document.getElementById('gridwrap'); if (w) S.gridScroll = { l: w.scrollLeft, t: w.scrollTop }; render(); reopen(); };
@@ -673,9 +718,9 @@
       <button class="btn" data-act="stu-nav" data-d="-1" aria-label="Previous student" ${idx <= 0 ? 'disabled' : ''}>‹</button>
       <h2 class="pv">${esc(s.first)} ${esc(s.last)}</h2>
       <button class="btn" data-act="stu-nav" data-d="1" aria-label="Next student" ${idx >= studs.length - 1 ? 'disabled' : ''}>›</button>
-      <span class="badge">${s.group}</span>${s.acc ? '<span class="badge warn" title="Screen only. Never exported.">Accommodations</span>' : ''}
+
       <span class="spacer"></span>
-      <button class="btn" data-act="customize" aria-pressed="${S.customize}">${S.customize ? 'Done' : 'Customize cards'}</button>
+      <button class="btn ghost" data-act="customize" aria-pressed="${S.customize}">${S.customize ? 'Done' : 'Customize cards'}</button>
       <button class="btn primary" data-act="portal">Preview as student</button>
     </div>
     <div class="kpis">
@@ -763,6 +808,16 @@
   // ---------- Analysis ----------
   function anStudents(c = S.cls) { const f = S.an; return CLASSES[c].students.filter((s) => (f.group === 'all' || s.group === f.group) && (f.acc === 'all' || (f.acc === 'yes') === !!s.acc) && (f.flag === 'all' || ASSIGN.some((a) => info(s.id, a.id, c).flags.some((x) => x.id === f.flag)))); }
   function anAssign(c = S.cls) { const f = S.an; return ASSIGN.filter((a) => inPeriod(a) && !a.completion && (f.cat === 'all' || col(a.id, c).cat === f.cat) && (f.kind === 'all' || a.kind === f.kind) && (f.target === 'all' || col(a.id, c).targets.includes(f.target))); }
+  function anActive() {
+    const f = S.an; const out = [];
+    if (f.cat !== 'all') out.push({ k: 'cat', label: f.cat });
+    if (f.kind !== 'all') out.push({ k: 'kind', label: KIND[f.kind].label });
+    if (f.target !== 'all') out.push({ k: 'target', label: f.target });
+    if (f.group !== 'all') out.push({ k: 'group', label: f.group });
+    if (f.flag !== 'all') out.push({ k: 'flag', label: 'Has ' + flagDef(f.flag).name });
+    if (f.acc !== 'all') out.push({ k: 'acc', label: f.acc === 'yes' ? 'With accommodations' : 'Without accommodations' });
+    return out;
+  }
   function renderAnalysis() {
     const f = S.an; const st = anStudents(); const as = anAssign();
     const groups = [...new Set(cls().students.map((s) => s.group))];
@@ -772,13 +827,9 @@
     const tlist = f.target === 'all' ? TARGETS : TARGETS.filter((t) => t.id === f.target);
     const other = S.cls === 'p2' ? 'p4' : 'p2';
     return `
-    <div class="toolbar filterbar">
-      <select id="anCat" aria-label="Category">${opt('all', 'All categories', f.cat)}${S.settings.cats.map((c) => opt(c.name, c.name, f.cat)).join('')}</select>
-      <select id="anKind" aria-label="Activity type">${opt('all', 'All activity types', f.kind)}${Object.entries(KIND).filter(([, v]) => !v.completion).map(([k, v]) => opt(k, v.label, f.kind)).join('')}</select>
-      <select id="anTarget" aria-label="Target">${opt('all', 'All targets', f.target)}${TARGETS.map((t) => opt(t.id, t.id + ' ' + t.label, f.target)).join('')}</select>
-      <select id="anGroup" aria-label="Roster group">${opt('all', 'All groups', f.group)}${groups.map((g) => opt(g, g, f.group)).join('')}</select>
-      <select id="anFlag" aria-label="Flag">${opt('all', 'Any flags', f.flag)}${S.settings.flags.map((x) => opt(x.id, 'Has ' + x.name, f.flag)).join('')}</select>
-      <select id="anAcc" aria-label="Accommodations (screen only)" title="Screen only. Never exported.">${opt('all', 'Accommodations: any', f.acc)}${opt('yes', 'With accommodations', f.acc)}${opt('no', 'Without accommodations', f.acc)}</select>
+    <div class="filterbar">
+      <button class="btn" data-act="menu" data-m="anfilter" aria-haspopup="true">Filters${anActive().length ? ` <span class="count">${anActive().length}</span>` : ''}</button>
+      ${anActive().map((x) => `<button class="fpill" data-act="an-rm" data-k="${x.k}" aria-label="Remove filter ${esc(x.label)}">${esc(x.label)}<span aria-hidden="true">×</span></button>`).join('')}
       <label class="ctl"><input type="checkbox" id="anCompare" ${f.compare ? 'checked' : ''}/> Compare with ${CLASSES[other].name.split('· ')[1]}</label>
       <span class="spacer"></span><span class="small muted">${st.length} students · ${as.length} assignments</span>
     </div>
@@ -920,7 +971,7 @@
     const t = e.target.closest('[data-act]');
     if (!t) { if (!e.target.closest('#pop')) closePop(); return; }
     const act = t.dataset.act; const P = S.pop;
-    if (!t.closest('#pop') && !['cell', 'head', 'edit-cell', 'undo'].includes(act)) closePop();
+    if (!t.closest('#pop') && !['cell', 'head', 'edit-cell', 'undo', 'menu'].includes(act)) closePop();
     switch (act) {
       case 'tab': S.tab = t.dataset.tab; S.view = 'grid'; S.scrollToEnd = true; render(); break;
       case 'cell': { const w = document.getElementById('gridwrap'); if (w) S.gridScroll = { l: w.scrollLeft, t: w.scrollTop }; S.focus = { s: t.dataset.s, a: t.dataset.a }; S.pop = null; openCellPop(t.dataset.s, t.dataset.a, t); break; }
@@ -930,13 +981,13 @@
       case 'back': S.view = 'grid'; S.tab = 'grid'; render(); break;
       case 'stu-nav': { const l = sortedStudents(); const n = l.findIndex((s) => s.id === S.sid) + +t.dataset.d; if (l[n]) { S.sid = l[n].id; render(); } break; }
       case 'fmt': S.fmt = t.dataset.v; rerender(); break;
-      case 'tint': S.tint = !S.tint; rerender(); break;
-      case 'needs': S.needs = !S.needs; render(); break;
+      case 'setname': S.nameFmt = t.dataset.v; rerender(); break;
+      case 'menu': { const m = t.dataset.m; if (S.pop && S.pop.type === m) closePop(); else openMenu(m, t); break; }
+      case 'an-rm': S.an[t.dataset.k] = 'all'; rerender(); break;
       case 'privacy': S.privacy = !S.privacy; render(); break;
       case 'namesort': S.sort = { key: 'name', dir: S.sort.key === 'name' ? -S.sort.dir : 1 }; rerender(); break;
-      case 'namefmt': S.nameFmt = S.nameFmt === 'last' ? 'first' : 'last'; rerender(); break;
       case 'sortoverall': S.sort = { key: 'overall', dir: S.sort.key === 'overall' ? -S.sort.dir : -1 }; rerender(); break;
-      case 'unhide': pushUndo('Show hidden columns'); ASSIGN.forEach((a) => (col(a.id).hidden = false)); render(); break;
+      case 'unhide': pushUndo('Show hidden columns'); ASSIGN.forEach((a) => (col(a.id).hidden = false)); rerender(); break;
       case 'export': toast('Exported current view to CSV (Last, First · percent · flags as codes). Accommodations are never included.'); break;
       case 'settings': settingsModal(); break;
       case 'close-modal': closeModal(); render(); break;
@@ -959,9 +1010,8 @@
       case 'cm-save': { pushUndo('Comment'); const m = mark(P.s, P.a, true); const text = document.getElementById('cmIn').value.trim(); const shared = document.getElementById('cmShare').checked; m.comment = text ? { text, shared } : undefined; logH(P.s, P.a, text ? `Comment saved${shared ? ', shared with student' : ''}` : 'Comment removed'); toast('Comment saved', true); rerender(); break; }
       case 'fill-start': { const v = parseFloat(document.getElementById('ovIn').value); if (isNaN(v)) { toast('Enter a score first'); break; } P.fill = v; reopen(); break; }
       case 'fill-cancel': P.fill = null; reopen(); break;
-      case 'fill-go': { const i0 = info(P.s, P.a); pushUndo('Fill empty cells'); let n = 0; cls().students.forEach((x) => { const j = info(x.id, P.a); if (!j.na && j.r.state === 'none' && j.m.override == null && !j.excluded && (!j.m.flags || !j.m.flags.length || j.zeroed)) { mark(x.id, P.a, true).override = (P.fill / i0.max) * 100; logH(x.id, P.a, `Filled with ${P.fill}/${i0.max} (bulk)`); n++; } }); P.fill = null; toast(`Filled ${n} cells`, true); rerender(); break; }
+      case 'fill-go': { const i0 = info(P.s, P.a); pushUndo('Fill empty cells'); let n = 0; cls().students.forEach((x) => { const j = info(x.id, P.a); if (!j.na && j.r.state === 'none' && j.m.override == null && !j.excluded && (!j.m.flags || !j.m.flags.length || j.zeroed)) { mark(x.id, P.a, true).override = (P.fill / i0.max) * 100; logH(x.id, P.a, `Filled with ${P.fill}/${i0.max} (bulk)`); n++; } }); P.fill = null; toast(`Filled ${n} cell${n === 1 ? '' : 's'}`, true); rerender(); break; }
       case 'pub-stu': { const i = info(P.s, P.a); pushUndo('Publish for student'); const m = mark(P.s, P.a, true); m.pub = !i.pub; logH(P.s, P.a, m.pub ? 'Published for this student' : 'Unpublished for this student'); toast(m.pub ? 'Published for ' + stu(P.s).first : 'Unpublished for ' + stu(P.s).first, true); rerender(); break; }
-      case 'hist': P.hist = !P.hist; reopen(); break;
       // header popover
       case 'open-results': closePop(); resultsModal(P.a); break;
       case 'analyze': closePop(); analyzeModal(P.a); break;
@@ -990,8 +1040,9 @@
     const map = { clsSel: () => { S.cls = t.value; S.scrollToEnd = true; S.focus = null; }, periodSel: () => (S.period = t.value), fcat: () => (S.fcat = t.value), fkind: () => (S.fkind = t.value),
       sortSel: () => (S.sort = { key: t.value, dir: t.value === 'name' ? 1 : -1 }),
       anCat: () => (S.an.cat = t.value), anKind: () => (S.an.kind = t.value), anTarget: () => (S.an.target = t.value), anGroup: () => (S.an.group = t.value), anFlag: () => (S.an.flag = t.value), anAcc: () => (S.an.acc = t.value), anCompare: () => (S.an.compare = t.checked),
-      exMetric: () => (S.an.metric = t.value), exBy: () => (S.an.by = t.value), wi: () => (S.whatIf = +t.value) };
-    if (map[t.id]) { map[t.id](); closePop(); render(); return; }
+      exMetric: () => (S.an.metric = t.value), exBy: () => (S.an.by = t.value), wi: () => (S.whatIf = +t.value),
+      tintChk: () => (S.tint = t.checked), needsChk: () => (S.needs = t.checked) };
+    if (map[t.id]) { map[t.id](); if (P && MENUS.includes(P.type)) rerender(); else { closePop(); render(); } return; }
     if (P && P.type === 'head') {
       const c = col(P.a);
       if (t.id === 'hCat') { pushUndo('Category'); c.cat = t.value; }

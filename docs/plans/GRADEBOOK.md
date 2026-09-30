@@ -122,16 +122,18 @@ SpartBoard stays a working gradebook. The district SIS keeps the official report
 
 - **D19.** Layout:
   - Columns run oldest to newest by `dueAt` (fallback as in D18). On open the grid scrolls to the newest.
-  - The name column and the Overall column are pinned.
-  - Filters: category, activity type, "needs grading".
-  - A cell shows a percent by default, with a points toggle, an optional mastery-band tint, flag chips in the corner and a dot when there's a comment.
+  - Overall is the column directly right of the name. Both are frozen, so they stay in place while the assignment columns scroll horizontally.
+  - Chrome stays minimal: the top bar holds only the class, the tabs, the grading period and three icon buttons (privacy, export, settings). View options (percent or points, proficiency colors, name format, sort) sit in one **View** menu, and filters (category, activity type, needs grading) in one **Filter** menu that shows a count when a filter is on.
+  - A column header shows only the activity-type icon, the title and the due date, plus a dot when scores are unpublished. Category, points and publish details live in the header popover.
+  - A row shows the name and a missing count when there is one; roster groups stay out of the grid.
+  - A cell shows a percent by default. Proficiency colors are off by default and tint only the number when on. Flags appear as one small corner chip (a count when several apply), and a comment as a corner mark.
 - **D20.** Sorting:
   - The default is last name A–Z.
   - The name header cycles "Last, First" / "First Last" and the sort key.
   - Any column header, or Overall, sorts by score.
   - Extra sorts: missing count, a flag, a roster group.
   - Saved per teacher per class.
-- **D21.** Cell popover, anchored to the cell:
+- **D21.** Cell popover, anchored to the cell. Score and flags are always open; comment, actions, attempts and history are collapsed rows that expand in place (a comment row opens itself when a comment exists):
   - **Score override** for the whole assignment. The computed score shows struck through beside it, with **Revert**. **Grade answers** opens that student's quiz grader for per-question changes, and those changes flow back into the computed score.
   - **Comment**, private by default, with a **Share with student** toggle. A shared comment appears once that student's results are published.
   - **Flags**: toggle chips, with auto flags marked.
@@ -139,7 +141,7 @@ SpartBoard stays a working gradebook. The district SIS keeps the official report
   - **Publish / Unpublish for this student.**
   - **Attempts** list (D11).
   - **History** (D24).
-- **D22.** Header popover:
+- **D22.** Header popover. Open, Analyze and Publish are the visible buttons; Grading setup and Whole column are collapsed sections:
   - **Open**: the existing Quiz, VA or GL Results component in a large modal over the gradebook. Edits show in the grid live.
   - **Analyze**: the class-level modal (D28).
   - **Publish / Unpublish** for the whole class.
