@@ -26,7 +26,7 @@ import {
   rowsForSession,
 } from './gradeProjection';
 import { GRADE_INDEX } from './gradeIndex';
-import type { GradeIndexRow, GradeKind } from './types';
+import type { IndexRow, GradeKind } from './types';
 
 type Doc = Record<string, unknown>;
 
@@ -247,8 +247,8 @@ export const gradeIndexStudentPointer = onDocumentWritten(
 
 /** A row write refreshes that student's Grades-tab projection. */
 export async function handleRowWrite(event: WriteEvent): Promise<void> {
-  const before = dataOf(event.data?.before) as GradeIndexRow | undefined;
-  const after = dataOf(event.data?.after) as GradeIndexRow | undefined;
+  const before = dataOf(event.data?.before) as IndexRow | undefined;
+  const after = dataOf(event.data?.after) as IndexRow | undefined;
   await guarded('projection', { rowId: event.params.rowId }, () =>
     projectRow(admin.firestore(), after ?? null, before ?? null)
   );
@@ -264,7 +264,7 @@ export async function handleMarkWrite(event: WriteEvent): Promise<void> {
   await guarded('mark', { markId }, async () => {
     const db = admin.firestore();
     const row = await db.collection(GRADE_INDEX).doc(markId).get();
-    if (row.exists) await projectRow(db, row.data() as GradeIndexRow, null);
+    if (row.exists) await projectRow(db, row.data() as IndexRow, null);
   });
 }
 
@@ -335,6 +335,37 @@ export async function handleConfigWrite(event: WriteEvent): Promise<void> {
 export const gradeIndexConfig = onDocumentWritten(
   { ...TRIGGER_OPTS, document: 'users/{uid}/gradebook_settings/{configId}' },
   (event) => handleConfigWrite(event as unknown as WriteEvent)
+);
+
+/** A PLC or district configuration edit re-projects every class linked to it. */
+export async function handleSharedConfigWrite(
+  source: 'plc' | 'district',
+  id: string
+): Promise<void> {
+  await guarded('shared config', { source, id }, async () => {
+    const db = admin.firestore();
+    const field = source === 'plc' ? 'configRef.plcId' : 'configRef.configId';
+    const classes = await db
+      .collectionGroup('gradebook_classes')
+      .where('configRef.source', '==', source)
+      .where(field, '==', id)
+      .get();
+    for (const cls of classes.docs) {
+      const uid = cls.ref.parent.parent?.id;
+      if (!uid) continue;
+      await reprojectRows(db, rowsForClass(db, uid, cls.id), inRoster(cls.id));
+    }
+  });
+}
+
+export const gradeIndexPlcConfig = onDocumentWritten(
+  { ...TRIGGER_OPTS, document: 'plcs/{plcId}/meta/gradebookSettings' },
+  (event) => handleSharedConfigWrite('plc', event.params.plcId)
+);
+
+export const gradeIndexDistrictConfig = onDocumentWritten(
+  { ...TRIGGER_OPTS, document: 'gradebook_district_configs/{configId}' },
+  (event) => handleSharedConfigWrite('district', event.params.configId)
 );
 
 export async function runGradeIndexRecompute(

@@ -11,14 +11,14 @@ import {
 } from '../plcAssessmentMath';
 import { parseCompletedResponse } from '../recomputePlcAssessments';
 import { notChosenIds, parseChooseSections } from '../quizSectionsChosen';
+import { isCompletionOnly, type TargetEvidence } from '../gradebookCore';
 import type {
-  GradeAttempt,
-  GradeIndexRow,
+  BuildState,
   GradeKind,
-  GradeState,
+  IndexAttempt,
+  IndexRow,
   RowScore,
   SessionMeta,
-  TargetEvidence,
 } from './types';
 
 export const GRADE_INDEX_SCHEMA_VERSION = 1;
@@ -101,6 +101,7 @@ export function parseSessionMeta(
     openAt: toMillis(session.openAt),
     dueAt: toMillis(session.dueAt),
     closeAt: toMillis(session.closeAt),
+    createdAt: toMillis(session.createdAt) ?? toMillis(session.startedAt),
     individualTargeting: session.individualTargeting === true,
     rosterIdByClassId,
     dueAtByRosterId: numberMap(assignment.dueAtByRosterId),
@@ -127,19 +128,19 @@ export function effectiveDueAt(
 
 /** Adds this attempt's score to the ledger kept on the row; a regrade replaces the same attempt. */
 export function mergeAttempts(
-  previous: readonly GradeAttempt[],
+  previous: readonly IndexAttempt[],
   score: RowScore
-): GradeAttempt[] {
-  if (score.state !== 'scored' && score.state !== 'awaiting-grade') {
-    return [...previous].filter((a) => a.n < (score.attemptNumber ?? 1));
-  }
+): IndexAttempt[] {
   const n = score.attemptNumber ?? 1;
-  const current: GradeAttempt = {
+  if (score.state !== 'scored' && score.state !== 'awaiting-grade') {
+    return previous.filter((a) => a.n < n);
+  }
+  const current: IndexAttempt = {
     n,
-    pct: score.rawPct,
+    at: score.submittedAt ?? 0,
     points: score.points,
     max: score.max,
-    submittedAt: score.submittedAt,
+    state: score.state,
   };
   return [...previous.filter((a) => a.n !== n), current].sort(
     (a, b) => a.n - b.n
@@ -150,26 +151,43 @@ export interface AssembleInput {
   meta: SessionMeta;
   studentUid: string;
   score: RowScore;
-  previousAttempts: readonly GradeAttempt[];
+  previousAttempts: readonly IndexAttempt[];
   assigned: boolean;
   pointerDueAt: number | null;
   now: number;
+  /** Keeps `createdAt` stable across rebuilds when the session has none. */
+  previousCreatedAt?: number | null;
 }
 
-export function assembleRow(input: AssembleInput): GradeIndexRow {
-  const { meta, score } = input;
-  const completionOnly =
-    meta.kind === 'mini-app' || meta.kind === 'activity-wall';
+export function assembleRow(input: AssembleInput): IndexRow {
+  const { meta } = input;
+  let score = input.score;
   const classId =
     score.classId ?? (meta.classIds.length === 1 ? meta.classIds[0] : null);
   const dueAt = effectiveDueAt(meta, classId, input.pointerDueAt);
-  const attempts = completionOnly
+  const attempts = isCompletionOnly(meta.kind)
     ? []
     : mergeAttempts(input.previousAttempts, score);
+  // During a retake the cell keeps the last submitted attempt (D11).
+  const last = attempts[attempts.length - 1];
+  if (score.state === 'in-progress' && last) {
+    score = {
+      ...score,
+      state: last.state,
+      points: last.points,
+      max: last.max ?? score.max,
+      rawPct:
+        last.points !== null && last.max
+          ? round2((last.points / last.max) * 100)
+          : null,
+      submittedAt: last.at || null,
+    };
+  }
   return {
     kind: meta.kind,
     sessionId: meta.sessionId,
     assignmentId: meta.assignmentId,
+    studentUid: input.studentUid,
     ownerUid: meta.ownerUid,
     editorUids: [],
     rosterIds: meta.rosterIds,
@@ -178,19 +196,17 @@ export function assembleRow(input: AssembleInput): GradeIndexRow {
     rosterId:
       (classId ? meta.rosterIdByClassId[classId] : undefined) ??
       (meta.rosterIds.length === 1 ? meta.rosterIds[0] : null),
-    studentUid: input.studentUid,
     title: meta.title,
-    completionOnly,
     rawPct: score.rawPct,
     points: score.points,
     max: score.max,
-    state: score.state,
+    state: score.state === 'in-progress' ? 'not-attempted' : score.state,
     submittedAt: score.submittedAt,
-    openAt: meta.openAt,
     dueAt,
+    openAt: meta.openAt,
     closeAt: meta.closeAt,
-    late:
-      score.submittedAt !== null && dueAt !== null && score.submittedAt > dueAt,
+    createdAt:
+      meta.createdAt ?? meta.openAt ?? input.previousCreatedAt ?? input.now,
     attempts,
     targetEvidence: score.targetEvidence,
     published: score.published,
@@ -212,11 +228,8 @@ function addEvidence(
     const row = acc.get(t.id) ?? {
       targetId: t.id,
       kind: t.kind,
-      label: t.label,
-      ...(t.code ? { code: t.code } : {}),
       ...(t.standardIds?.length ? { standardIds: t.standardIds } : {}),
       ...(t.parentId ? { parentId: t.parentId } : {}),
-      ...(t.parentLabel ? { parentLabel: t.parentLabel } : {}),
       earned: 0,
       possible: 0,
     };
@@ -396,7 +409,7 @@ export function scoreQuizResponse(
   }
   const submittedAt = toMillis(response.submittedAt);
   const stored = parsed.score;
-  let state: GradeState = 'scored';
+  let state: BuildState = 'scored';
   let rawPct: number | null;
   if (stored !== null) rawPct = stored;
   else if (q.awaiting) {

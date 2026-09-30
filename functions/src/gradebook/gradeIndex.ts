@@ -2,6 +2,10 @@
 import type * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { withQuizSessionContent } from '../quizSessionContent';
+import {
+  GRADEBOOK_COLLECTIONS,
+  GRADEBOOK_SESSION_COLLECTIONS,
+} from '../gradebookCore';
 import { servedFibAnswers as servedFibAnswersByLocale } from '../quizScoreOnSubmit';
 import {
   assembleRow,
@@ -18,8 +22,8 @@ import {
   type QuizContext,
 } from './gradeRowMath';
 import type {
-  GradeAttempt,
-  GradeIndexRow,
+  IndexAttempt,
+  IndexRow,
   GradeKind,
   RowScore,
   SessionMeta,
@@ -28,19 +32,11 @@ import type {
 type Firestore = admin.firestore.Firestore;
 type Doc = Record<string, unknown>;
 
-export const GRADE_INDEX = 'grade_index';
+export const GRADE_INDEX = GRADEBOOK_COLLECTIONS.index;
 export const GRADE_INDEX_QUEUE = 'grade_index_sessions';
 export const GRADE_INDEX_SETTINGS_PATH = 'admin_settings/gradebook_index';
 
-export const SESSION_COLLECTION: Record<GradeKind, string> = {
-  quiz: 'quiz_sessions',
-  'video-activity': 'video_activity_sessions',
-  'guided-learning': 'guided_learning_sessions',
-  flashcards: 'flashcard_sessions',
-  projects: 'project_runs',
-  'mini-app': 'mini_app_sessions',
-  'activity-wall': 'activity_wall_sessions',
-};
+export const SESSION_COLLECTION = GRADEBOOK_SESSION_COLLECTIONS;
 
 /** The per-student subcollection each kind keeps under its session. */
 export const STUDENT_SUBCOLLECTION: Record<GradeKind, string> = {
@@ -236,27 +232,29 @@ async function buildRow(
   ctx: SessionContext,
   studentUid: string,
   score: RowScore,
-  previousAttempts: readonly GradeAttempt[],
+  previous: Doc | undefined,
   now: number
-): Promise<GradeIndexRow> {
+): Promise<IndexRow> {
   const targeting = await targetingFor(db, ctx.meta, studentUid);
   return assembleRow({
     meta: ctx.meta,
     studentUid,
     score,
-    previousAttempts,
+    previousAttempts: previousAttemptsOf(previous),
+    previousCreatedAt:
+      typeof previous?.createdAt === 'number' ? previous.createdAt : null,
     assigned: targeting.assigned,
     pointerDueAt: targeting.pointerDueAt,
     now,
   });
 }
 
-function previousAttemptsOf(data: Doc | undefined): GradeAttempt[] {
+function previousAttemptsOf(data: Doc | undefined): IndexAttempt[] {
   const raw = data?.attempts;
-  return Array.isArray(raw) ? (raw as GradeAttempt[]) : [];
+  return Array.isArray(raw) ? (raw as IndexAttempt[]) : [];
 }
 
-function sameRow(row: GradeIndexRow, previous: Doc | undefined): boolean {
+function sameRow(row: IndexRow, previous: Doc | undefined): boolean {
   if (!previous) return false;
   const { updatedAt: _a, ...next } = row as unknown as Doc;
   const { updatedAt: _b, ...prev } = previous;
@@ -268,7 +266,7 @@ function sameRow(row: GradeIndexRow, previous: Doc | undefined): boolean {
 /** Write only when something besides `updatedAt` changed, so reruns cost no writes. */
 async function writeRow(
   db: Firestore,
-  row: GradeIndexRow,
+  row: IndexRow,
   previous: Doc | undefined
 ): Promise<boolean> {
   if (sameRow(row, previous)) return false;
@@ -282,7 +280,7 @@ async function writeRow(
 /** Recompute write: a row a trigger rewrote after `startedAt` is newer than this snapshot, so it stays. */
 async function writeRowIfNotNewer(
   db: Firestore,
-  row: GradeIndexRow,
+  row: IndexRow,
   startedAt: number
 ): Promise<boolean> {
   const ref = db
@@ -357,8 +355,9 @@ async function projectRows(
   ctx: SessionContext,
   groupId: string,
   grade: Doc | undefined,
-  now: number
-): Promise<{ upserts: GradeIndexRow[]; memberUids: string[] }> {
+  now: number,
+  prevOf: (uid: string) => Promise<Doc | undefined>
+): Promise<{ upserts: IndexRow[]; memberUids: string[] }> {
   const groupSnap = await db
     .collection(SESSION_COLLECTION.projects)
     .doc(ctx.sessionId)
@@ -368,7 +367,7 @@ async function projectRows(
   const group = groupSnap.data() ?? {};
   const memberUids = asStrings(group.memberUids);
   if (!grade) return { upserts: [], memberUids };
-  const upserts: GradeIndexRow[] = [];
+  const upserts: IndexRow[] = [];
   for (const uid of memberUids) {
     upserts.push(
       await buildRow(
@@ -376,7 +375,7 @@ async function projectRows(
         ctx,
         uid,
         scoreProjectMember(grade, group, uid),
-        [],
+        await prevOf(uid),
         now
       )
     );
@@ -455,7 +454,11 @@ export async function applyDocWrite(
       ctx,
       w.docId,
       w.after,
-      now
+      now,
+      async (uid) =>
+        (
+          await db.collection(GRADE_INDEX).doc(rowId(w.sessionId, uid)).get()
+        ).data()
     );
     if (!w.after) {
       for (const uid of memberUids) await deleteRow(db, w.sessionId, uid);
@@ -494,14 +497,7 @@ export async function applyDocWrite(
     .doc(rowId(w.sessionId, studentUid))
     .get();
   const prev = prevSnap.data();
-  const row = await buildRow(
-    db,
-    ctx,
-    studentUid,
-    score,
-    previousAttemptsOf(prev),
-    now
-  );
+  const row = await buildRow(db, ctx, studentUid, score, prev, now);
   return (await writeRow(db, row, prev)) ? 1 : 0;
 }
 
@@ -528,10 +524,17 @@ export async function recomputeSession(
       .doc(sessionId)
       .collection(STUDENT_SUBCOLLECTION[kind])
       .get();
-    const rows: GradeIndexRow[] = [];
+    const rows: IndexRow[] = [];
     if (kind === 'projects') {
       for (const d of docs.docs) {
-        const { upserts } = await projectRows(db, ctx, d.id, d.data(), now);
+        const { upserts } = await projectRows(
+          db,
+          ctx,
+          d.id,
+          d.data(),
+          now,
+          (uid) => Promise.resolve(existing.get(rowId(sessionId, uid)))
+        );
         rows.push(...upserts);
       }
     } else {
@@ -548,13 +551,21 @@ export async function recomputeSession(
         const score = ctx.score(uid, data);
         if (!score) continue;
         const prev = existing.get(rowId(sessionId, uid));
-        rows.push(
-          await buildRow(db, ctx, uid, score, previousAttemptsOf(prev), now)
-        );
+        rows.push(await buildRow(db, ctx, uid, score, prev, now));
       }
       for (const [uid, at] of wallFirst) {
         const score = ctx.score(uid, { submittedAt: at });
-        if (score) rows.push(await buildRow(db, ctx, uid, score, [], now));
+        if (score)
+          rows.push(
+            await buildRow(
+              db,
+              ctx,
+              uid,
+              score,
+              existing.get(rowId(sessionId, uid)),
+              now
+            )
+          );
       }
     }
     for (const row of rows) {
