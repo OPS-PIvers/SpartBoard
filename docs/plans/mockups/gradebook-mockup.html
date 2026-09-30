@@ -3,276 +3,346 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link
   rel="stylesheet"
-  href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap"
+  href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap"
 />
 <style>
-  /* Layout: full-screen teacher page, header + toolbar, one scrolling grid with pinned name and Overall columns; student and analysis views are card grids. */
+  /* Layout: full-screen SpartBoard page (brand header, white sub-bar, slate-50 body) with one scrolling grid pinning Name and Overall; popovers, menus and modals use the admin primitives' tokens. */
   :root {
-    --bg: #f3f5fa;
-    --surface: #ffffff;
-    --surface-2: #eceff7;
-    --line: #dce1ec;
-    --fg: #18203a;
-    --muted: #5a6382;
-    --accent: #2d3f89;
-    --accent-soft: #e4e8f6;
-    --brand-red: #ad2122;
-    --prof: #1d8455;
-    --appr: #a86a10;
-    --beg: #c0392b;
-    --violet: #6d4bc2;
-    --teal: #127a86;
-    --slate: #64708f;
-    --shadow: 0 10px 30px rgba(24, 32, 58, 0.14);
-    --font: 'Lexend', 'Segoe UI', system-ui, sans-serif;
-    --r: 10px;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme='light']) {
-      --bg: #0e1322;
-      --surface: #161c30;
-      --surface-2: #1e2640;
-      --line: #2b3452;
-      --fg: #e7eaf5;
-      --muted: #9ba4c2;
-      --accent: #93a6ec;
-      --accent-soft: #232e5c;
-      --brand-red: #f07a7a;
-      --prof: #3fcf8e;
-      --appr: #f0b541;
-      --beg: #f27468;
-      --violet: #b69cff;
-      --teal: #4fd1dd;
-      --slate: #9aa6c6;
-      --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-      color-scheme: dark;
-    }
-  }
-  :root[data-theme='dark'] {
-    --bg: #0e1322;
-    --surface: #161c30;
-    --surface-2: #1e2640;
-    --line: #2b3452;
-    --fg: #e7eaf5;
-    --muted: #9ba4c2;
-    --accent: #93a6ec;
-    --accent-soft: #232e5c;
-    --brand-red: #f07a7a;
-    --prof: #3fcf8e;
-    --appr: #f0b541;
-    --beg: #f27468;
-    --violet: #b69cff;
-    --teal: #4fd1dd;
-    --slate: #9aa6c6;
-    --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-    color-scheme: dark;
+    color-scheme: light;
+    --brand-blue: #2d3f89; --brand-blue-dark: #1d2a5d; --brand-blue-light: #4356a0; --brand-blue-lighter: #eaecf5;
+    --brand-red: #ad2122; --brand-red-dark: #7a1718;
+    --s50: #f8fafc; --s100: #f1f5f9; --s200: #e2e8f0; --s300: #cbd5e1; --s400: #94a3b8; --s500: #64748b; --s600: #475569; --s700: #334155; --s800: #1e293b; --s900: #0f172a;
+    --em50: #ecfdf5; --em100: #d1fae5; --em600: #059669; --em800: #065f46;
+    --am50: #fffbeb; --am100: #fef3c7; --am600: #d97706; --am700: #b45309; --am800: #92400e;
+    --ro50: #fff1f2; --ro100: #ffe4e6; --ro200: #fecdd3; --ro800: #9f1239;
+    --shadow-card: 0 1px 2px rgba(29, 42, 93, .06), 0 1px 3px rgba(29, 42, 93, .08);
+    --shadow-pop: 0 10px 15px -3px rgba(29, 42, 93, .12), 0 4px 6px -4px rgba(29, 42, 93, .08);
+    --ring: 0 0 0 3px rgba(45, 63, 137, .3);
+    --font: 'Lexend', sans-serif;
+    /* aliases used by inline styles in the script */
+    --accent: var(--brand-blue); --accent-soft: var(--brand-blue-lighter); --surface: #fff; --surface-2: var(--s100); --line: var(--s200); --fg: var(--s800); --muted: var(--s500);
+    --prof: var(--em600); --appr: var(--am600); --beg: var(--brand-red); --slate: var(--s500); --violet: #7c3aed; --teal: #0891b2;
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
-  body {
-    background: var(--bg);
-    color: var(--fg);
-    font-family: var(--font);
-    font-size: 14px;
-    padding-inline: 16px;
-    padding-block: 12px 40px;
-    font-variant-numeric: tabular-nums;
-  }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--s50); color: var(--s800); font-family: var(--font); font-size: 14px; overflow: hidden; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
   button, select, input, textarea { font: inherit; color: inherit; }
   button { cursor: pointer; }
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .proto-note {
-    font-size: 12px; color: var(--muted); margin: 0 0 10px;
-  }
-  .app { max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
-  .topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-  .brand { font-weight: 600; font-size: 18px; display: flex; align-items: center; gap: 8px; }
-  .brand .dot { width: 10px; height: 10px; border-radius: 3px; background: var(--accent); }
-  .tabs { display: flex; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: 999px; }
-  .tabs button { border: 0; background: transparent; padding: 6px 14px; border-radius: 999px; color: var(--muted); font-weight: 500; }
-  .tabs button[aria-selected='true'] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  :focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: rgba(0,0,0,.1); border-radius: 10px; } ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,.2); }
+  svg { flex: none; }
+
+  /* Shell */
+  .app { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--s50); }
+  .hdr { flex: none; height: 56px; padding: 0 16px; display: flex; align-items: center; gap: 12px; color: #fff; background: linear-gradient(to right, var(--brand-blue), var(--brand-blue-dark)); box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+  .hdr h1 { margin: 0; font-size: 16px; font-weight: 700; margin-right: 8px; }
+  .hdr-ic { display: inline-grid; color: rgba(255,255,255,.7); }
+  .hdr-x { border: 0; background: transparent; color: #fff; padding: 6px; border-radius: 8px; display: inline-grid; }
+  .hdr-x:hover { background: rgba(255,255,255,.2); }
+  .tabs { display: flex; gap: 2px; padding: 3px; border-radius: 12px; background: rgba(255,255,255,.15); }
+  .tabs button { border: 0; background: transparent; padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 700; color: rgba(255,255,255,.8); white-space: nowrap; }
+  .tabs button:hover { color: #fff; }
+  .tabs button[aria-selected='true'] { background: #fff; color: var(--brand-blue-dark); box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+  .subbar { flex: none; min-height: 52px; padding: 8px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; background: #fff; border-bottom: 1px solid var(--s200); }
+  .subbar .vsep { width: 1px; height: 20px; background: var(--s200); margin: 0 4px; }
+  .content { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 16px 32px; display: flex; flex-direction: column; gap: 16px; }
+  .content.fill { overflow: hidden; padding-bottom: 16px; }
+  @media (min-width: 768px) { .hdr { height: 64px; } .content { padding: 24px 24px 40px; } .content.fill { padding-bottom: 24px; } .subbar { padding: 8px 24px; } }
   .spacer { flex: 1; }
-  .ctl { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
-  select, input[type='number'], input[type='text'], textarea {
-    background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; color: var(--fg);
-  }
-  .btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 6px 10px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
-  .btn:hover { border-color: var(--accent); }
-  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
-  .btn.ghost { background: transparent; }
-  .btn.danger { color: var(--beg); }
-  .btn[aria-pressed='true'] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-  .btn:disabled { opacity: .5; cursor: not-allowed; }
-  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; }
-  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-  .seg button { border: 0; background: var(--surface); padding: 5px 10px; font-size: 13px; color: var(--muted); }
-  .seg button[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+
+  /* Controls */
+  select, input[type='number'], input[type='text'], input[type='search'], textarea { background: #fff; border: 1px solid var(--s300); border-radius: 8px; color: var(--s800); font-size: 14px; }
+  select, input[type='number'], input[type='text'], input[type='search'] { height: 36px; padding: 0 10px; }
+  select { appearance: none; padding-right: 30px; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center; cursor: pointer; }
+  textarea { width: 100%; padding: 8px 10px; resize: vertical; line-height: 1.45; }
+  select:focus, input:focus, textarea:focus { outline: none; border-color: var(--brand-blue); box-shadow: var(--ring); }
+  ::placeholder { color: var(--s400); }
+  input[type='checkbox'] { accent-color: var(--brand-blue); width: 16px; height: 16px; margin: 0; }
+  .subbar select { height: 34px; font-size: 13px; font-weight: 600; color: var(--s700); border-color: var(--s200); }
+  .btn { height: 34px; padding: 0 14px; border: 1px solid var(--s300); background: #fff; color: var(--s700); border-radius: 8px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,.05); transition: background-color .15s, border-color .15s; white-space: nowrap; }
+  .btn:hover { background: var(--s50); }
+  .btn:active { transform: translateY(1px); }
+  .btn.sm { height: 30px; padding: 0 12px; font-size: 12px; }
+  .btn.primary { background: var(--brand-blue); border-color: var(--brand-blue); color: #fff; }
+  .btn.primary:hover { background: var(--brand-blue-dark); }
+  .btn.ghost { background: transparent; border-color: transparent; box-shadow: none; color: var(--s600); }
+  .btn.ghost:hover { background: var(--s100); }
+  .btn.danger-solid { background: var(--brand-red); border-color: var(--brand-red); color: #fff; }
+  .btn.danger-solid:hover { background: var(--brand-red-dark); }
+  .btn[aria-pressed='true'], .btn[aria-expanded='true'] { background: var(--brand-blue-lighter); border-color: rgba(45,63,137,.4); color: var(--brand-blue); }
+  .btn:disabled { opacity: .5; pointer-events: none; }
+  .iconbtn { width: 34px; height: 34px; display: inline-grid; place-items: center; border: 0; background: transparent; border-radius: 8px; color: var(--s500); font-weight: 700; }
+  .iconbtn.sm { width: 30px; height: 30px; border-radius: 6px; }
+  .iconbtn:hover { background: var(--s100); color: var(--s800); }
+  .iconbtn[aria-pressed='true'] { background: var(--brand-blue-lighter); color: var(--brand-blue); }
+  .iconbtn.danger:hover { background: var(--ro50); color: var(--brand-red); }
+  .link { border: 0; background: transparent; padding: 0; font-size: 12px; font-weight: 600; color: var(--brand-blue); }
+  .link:hover { color: var(--brand-blue-dark); text-decoration: underline; }
+  .link.warn { color: var(--am700); }
+  .seg { display: inline-flex; padding: 4px; background: var(--s100); border-radius: 8px; gap: 2px; }
+  .seg button { height: 28px; padding: 0 12px; border: 0; background: transparent; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--s600); }
+  .seg button[aria-pressed='true'] { background: #fff; color: var(--s900); box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--s600); cursor: pointer; position: relative; user-select: none; }
+  .toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .toggle .track { width: 32px; height: 18px; border-radius: 999px; background: var(--s300); position: relative; transition: background-color .2s; flex: none; }
+  .toggle .track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .2s; }
+  .toggle input:checked + .track { background: var(--brand-blue); }
+  .toggle input:checked + .track::after { transform: translateX(14px); }
+  .toggle input:focus-visible + .track { box-shadow: var(--ring); }
+  .ctl { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--s600); }
+  .count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--brand-blue); color: #fff; font-size: 11px; font-weight: 700; }
+  .lbl, .sechead, .fieldhead > label:first-child { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .025em; color: var(--s700); }
+  .muted { color: var(--s500); } .small { font-size: 12px; }
+  .strike { text-decoration: line-through; color: var(--s400); }
+  .ellip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
   /* Grid */
-  .gridwrap { overflow: auto; max-height: min(72vh, 760px); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+  .gridwrap { flex: 1; min-height: 0; overflow: auto; background: #fff; border: 1px solid var(--s200); border-radius: 12px; box-shadow: var(--shadow-card); }
   table.gb { border-collapse: separate; border-spacing: 0; min-width: 100%; }
-  .gb th, .gb td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 0; background: var(--surface); }
-  .gb thead th { position: sticky; top: 0; z-index: 3; vertical-align: bottom; }
-  .gb tfoot th, .gb tfoot td { position: sticky; bottom: 0; z-index: 3; background: var(--surface-2); font-size: 12px; color: var(--muted); padding: 6px 8px; text-align: center; border-top: 1px solid var(--line); }
+  .gb th, .gb td { border-bottom: 1px solid var(--s100); border-right: 1px solid var(--s100); padding: 0; background: #fff; }
+  .gb thead th { position: sticky; top: 0; z-index: 3; vertical-align: bottom; background: var(--s50); border-bottom: 1px solid var(--s200); }
+  .gb tfoot th, .gb tfoot td { position: sticky; bottom: 0; z-index: 3; background: var(--s50); font-size: 12px; font-weight: 600; color: var(--s600); padding: 10px 8px; text-align: center; border-top: 1px solid var(--s200); }
   .gb .namecol { position: sticky; left: 0; z-index: 4; width: 200px; min-width: 200px; max-width: 200px; text-align: left; }
   .gb thead .namecol, .gb tfoot .namecol { z-index: 6; }
-  .gb .overall { position: sticky; left: 200px; z-index: 4; width: 84px; min-width: 84px; border-right: 2px solid var(--line); }
+  .gb .overall { position: sticky; left: 200px; z-index: 4; width: 88px; min-width: 88px; border-right: 1px solid var(--s200); box-shadow: 4px 0 6px -4px rgba(29,42,93,.12); }
   .gb thead .overall, .gb tfoot .overall { z-index: 6; }
-  .namehead { display: flex; gap: 6px; padding: 8px 10px; align-items: center; }
-  .namehead button { border: 0; background: transparent; font-weight: 600; padding: 0; }
-  .namehead small { color: var(--muted); font-weight: 400; }
-  .ahead { border: 0; background: transparent; width: 104px; text-align: left; padding: 8px 8px 8px; display: flex; flex-direction: column; gap: 3px; }
-  .ahead:hover { background: var(--surface-2); }
-  .atitle { font-weight: 600; font-size: 12.5px; line-height: 1.25; text-wrap: balance; }
-  .ameta { font-size: 11px; color: var(--muted); }
-  .kind { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
-  .kind i { font-style: normal; width: 16px; height: 16px; border-radius: 4px; display: inline-grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 700; }
-  .unpub { color: var(--appr); }
-  .srow { display: flex; flex-direction: column; padding: 6px 10px; gap: 2px; }
-  .sname { border: 0; background: transparent; padding: 0; text-align: left; font-weight: 500; }
-  .sname:hover { color: var(--accent); text-decoration: underline; }
-  .smeta { font-size: 11px; color: var(--muted); display: flex; gap: 8px; }
-  .smeta .m { color: var(--beg); }
-  .cell { position: relative; width: 104px; height: 42px; border: 0; background: transparent; display: grid; place-items: center; font-size: 14px; font-weight: 500; }
-  .cell:hover { box-shadow: inset 0 0 0 2px var(--accent-soft); }
-  .cell:focus-visible, .cell.focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
-  .cell[data-band='p'] .v { color: var(--prof); }
-  .cell[data-band='a'] .v { color: var(--appr); }
-  .cell[data-band='b'] .v { color: var(--beg); }
-  .cell .v.live { font-style: italic; text-decoration: underline dotted var(--appr); text-underline-offset: 3px; }
-  .cell .v.ovr { color: var(--accent); font-weight: 700; }
-  .cell .sub { font-size: 10.5px; color: var(--muted); font-weight: 400; }
-  .cell .await { font-size: 11px; color: var(--appr); font-weight: 500; }
-  .cell .empty { color: var(--muted); font-weight: 300; }
-  .cell.na { background: repeating-linear-gradient(135deg, var(--surface-2) 0 6px, transparent 6px 12px); color: var(--muted); font-size: 11px; font-weight: 400; }
-  .chips { position: absolute; top: 3px; right: 3px; display: flex; gap: 2px; }
-  .chip { font-style: normal; font-size: 9.5px; font-weight: 700; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 4px; display: inline-grid; place-items: center; color: var(--surface); background: var(--c); }
-  .chip.auto { background: transparent; color: var(--c); box-shadow: inset 0 0 0 1.5px var(--c); }
-  .cdot { position: absolute; left: 0; bottom: 0; width: 0; height: 0; border-left: 9px solid var(--slate); border-top: 9px solid transparent; }
-  .cdot.shared { border-left-color: var(--accent); }
-  .att { position: absolute; bottom: 3px; right: 5px; font-size: 9.5px; color: var(--muted); }
-  .ovcell { font-size: 14px; font-weight: 600; text-align: center; padding: 6px; }
-  .ovcell small { display: block; font-size: 10.5px; font-weight: 400; color: var(--muted); }
-  .ovhead { border: 0; background: transparent; font-weight: 600; padding: 8px; width: 100%; }
+  .gb tbody tr:hover th, .gb tbody tr:hover td { background: var(--s50); }
+  .namehead { display: flex; padding: 10px 14px; align-items: center; }
+  .namehead button, .ovhead { border: 0; background: transparent; padding: 0; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .025em; color: var(--s500); display: inline-flex; align-items: center; gap: 4px; }
+  .namehead button:hover, .ovhead:hover { color: var(--brand-blue); }
+  .namehead small { font-weight: 600; color: var(--s400); text-transform: none; }
+  .ovhead { width: 100%; justify-content: center; padding: 10px 8px; }
+  .ahead { border: 0; background: transparent; width: 112px; text-align: left; padding: 10px 10px; display: flex; flex-direction: column; gap: 4px; border-radius: 0; }
+  .ahead:hover { background: var(--s100); }
+  .ahead[aria-expanded='true'] { background: var(--brand-blue-lighter); }
+  .atop { display: flex; align-items: center; gap: 6px; min-height: 18px; }
+  .ki { font-style: normal; border-radius: 999px; background: var(--s200); padding: 1px 6px; color: var(--s600); font-size: 10px; font-weight: 700; letter-spacing: .02em; }
+  .dotpub { width: 7px; height: 7px; border-radius: 50%; background: var(--am600); }
+  .atitle { font-weight: 600; font-size: 12.5px; line-height: 1.3; color: var(--s800); text-wrap: balance; }
+  .ameta { font-size: 11px; color: var(--s500); }
+  .srow { display: flex; flex-direction: column; padding: 8px 14px; gap: 1px; }
+  .sname { border: 0; background: transparent; padding: 0; text-align: left; font-weight: 500; color: var(--s800); font-size: 14px; }
+  .sname:hover { color: var(--brand-blue); text-decoration: underline; }
+  .mc { font-size: 11px; font-weight: 500; color: var(--brand-red); }
+  .cell { position: relative; width: 112px; height: 46px; border: 0; background: transparent; display: grid; place-items: center; font-size: 14px; font-weight: 500; color: var(--s800); }
+  .cell:hover { box-shadow: inset 0 0 0 2px var(--s200); }
+  .cell:focus-visible, .cell.focus { outline: none; box-shadow: inset 0 0 0 2px var(--brand-blue); }
+  .cell[data-band='p'] .v { color: var(--em600); }
+  .cell[data-band='a'] .v { color: var(--am600); }
+  .cell[data-band='b'] .v { color: var(--brand-red); }
+  .cell .v.live { font-style: italic; text-decoration: underline dotted var(--am600); text-underline-offset: 3px; }
+  .cell .v.ovr { color: var(--brand-blue); font-weight: 700; }
+  .cell .await { font-size: 11px; color: var(--am700); font-weight: 600; background: var(--am50); padding: 2px 8px; border-radius: 999px; }
+  .cell .empty { color: var(--s300); }
+  .cell.na { background: repeating-linear-gradient(135deg, var(--s100) 0 6px, transparent 6px 12px); }
+  .chips { position: absolute; top: 4px; right: 4px; display: flex; gap: 2px; }
+  .chip { font-style: normal; font-size: 9.5px; font-weight: 700; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 4px; display: inline-grid; place-items: center; color: #fff; background: var(--c); line-height: 1; }
+  .chip.auto { background: #fff; color: var(--c); box-shadow: inset 0 0 0 1.5px var(--c); }
+  .cdot { position: absolute; left: 0; bottom: 0; width: 0; height: 0; border-left: 8px solid var(--s400); border-top: 8px solid transparent; }
+  .cdot.shared { border-left-color: var(--brand-blue); }
+  .ovcell { font-size: 14px; font-weight: 700; text-align: center; padding: 6px; color: var(--s900); }
 
-  /* Popover, modal, toast */
-  .pop { position: fixed; z-index: 50; width: min(360px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
-  .pop h3 { margin: 0; font-size: 15px; }
-  .pop .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .psec { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 10px; }
-  .psec > label, .psec .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
-  .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-  .strike { text-decoration: line-through; color: var(--muted); }
-  .badge { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 500; }
-  .badge.warn { background: color-mix(in srgb, var(--appr) 18%, transparent); color: var(--appr); }
-  .badge.bad { background: color-mix(in srgb, var(--beg) 15%, transparent); color: var(--beg); }
-  .badge.good { background: color-mix(in srgb, var(--prof) 15%, transparent); color: var(--prof); }
-  .fchip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 10px 4px 6px; font-size: 12.5px; display: inline-flex; gap: 6px; align-items: center; }
-  .fchip .chip { position: static; }
-  .fchip[aria-pressed='true'] { border-color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); }
-  .fchip em { font-style: normal; font-size: 10.5px; color: var(--muted); }
-  textarea { width: 100%; min-height: 56px; resize: vertical; }
-  .confirm { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
-  .hist { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; margin: 0; padding-left: 16px; }
-  .scrim { position: fixed; inset: 0; background: rgba(10, 14, 28, .45); z-index: 60; display: grid; place-items: center; padding: 16px; }
-  .modal { background: var(--bg); border-radius: 14px; box-shadow: var(--shadow); width: min(980px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
-  .modal.side { width: min(560px, 100%); }
-  .modal header { display: flex; align-items: center; gap: 10px; }
-  .modal h2 { margin: 0; font-size: 18px; }
-  .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 10px 14px; border-radius: 10px; z-index: 80; display: flex; gap: 12px; align-items: center; font-size: 13px; box-shadow: var(--shadow); max-width: calc(100vw - 32px); }
-  .toast button { background: transparent; border: 0; color: var(--bg); font-weight: 600; text-decoration: underline; }
+  /* Popover and sub-menu */
+  .pop { position: fixed; z-index: 11000; width: min(380px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: auto; background: #fff; border: 1px solid var(--s200); border-radius: 12px; box-shadow: var(--shadow-pop); padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .pop.sub { z-index: 11010; width: 280px; padding: 6px; gap: 6px; }
+  .pop.menuwide { width: 300px; }
+  .phead { display: flex; align-items: flex-start; gap: 12px; }
+  .ptitle { flex: 1; min-width: 0; }
+  .pop h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--s900); line-height: 1.3; }
+  .pop .sub:not(.pop) { font-size: 12px; color: var(--s500); margin-top: 2px; line-height: 1.5; }
+  .tools { display: flex; gap: 2px; margin: -4px -6px 0 0; }
+  .scorerow { display: flex; align-items: center; gap: 8px; }
+  .scorebox { display: flex; align-items: center; height: 40px; border: 1px solid var(--s300); border-radius: 8px; background: #fff; padding-right: 4px; }
+  .scorebox:focus-within { border-color: var(--brand-blue); box-shadow: var(--ring); }
+  .scorebox input { border: 0; height: 38px; width: 72px; font-size: 16px; font-weight: 600; padding: 0 4px 0 12px; background: transparent; box-shadow: none !important; -moz-appearance: textfield; }
+  .scorebox input::-webkit-inner-spin-button, .scorebox input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .filldown { width: 30px; height: 30px; display: inline-grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--s400); }
+  .filldown:hover:not(:disabled) { background: var(--brand-blue-lighter); color: var(--brand-blue); }
+  .filldown:disabled { opacity: .4; cursor: default; }
+  .outof { font-size: 15px; color: var(--s500); font-weight: 500; }
+  .select { height: 36px; max-width: 100%; padding: 0 8px 0 10px; border: 1px solid var(--s300); border-radius: 8px; background: #fff; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--s800); text-align: left; min-width: 0; }
+  .select > svg:last-child { color: var(--s400); margin-left: auto; transition: transform .15s; }
+  .select[aria-expanded='true'] { border-color: var(--brand-blue); box-shadow: var(--ring); }
+  .select[aria-expanded='true'] > svg:last-child { transform: rotate(180deg); }
+  .select .ph { color: var(--s400); }
+  .flagsel { height: 40px; max-width: 170px; }
+  .flagsel .chip { position: static; }
+  .field { display: flex; flex-direction: column; gap: 8px; }
+  .fieldhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .fieldhead .toggle { font-size: 12px; }
+  .gnote { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--s700); background: var(--s50); border-radius: 8px; padding: 8px 10px; line-height: 1.4; }
+  .qtag { flex: none; font-size: 10px; font-weight: 700; color: var(--brand-blue); background: var(--brand-blue-lighter); border-radius: 4px; padding: 2px 6px; margin-top: 1px; }
+  .pfoot { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--s100); padding-top: 12px; }
+  .hist { font-size: 12px; color: var(--s600); display: flex; flex-direction: column; gap: 4px; margin: -4px 0 0; padding-left: 18px; }
+  .actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
+  .actions .btn { padding: 0 8px; }
+  .form { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px 12px; align-items: center; }
+  .form > label:not(.toggle) { font-size: 13px; color: var(--s600); font-weight: 500; }
+  .form select, .form input, .form .select { width: 100%; }
+  .section { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--s100); padding-top: 14px; }
+  .markrow { display: flex; align-items: center; gap: 8px; }
+  .markrow label { font-size: 13px; color: var(--s600); font-weight: 500; white-space: nowrap; width: 96px; flex: none; }
+  .markrow select { flex: 1; min-width: 0; }
+  .markrow .btn { height: 36px; }
+  .confirm { background: var(--s50); border: 1px solid var(--s200); border-radius: 8px; padding: 10px 12px; font-size: 13px; display: flex; flex-direction: column; gap: 10px; color: var(--s700); }
+  .confirm.row { flex-direction: row; align-items: center; flex-wrap: wrap; }
+  .confirm.danger { background: var(--ro50); border-color: var(--ro200); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .mlist { display: flex; flex-direction: column; }
+  .mlist.scroll { max-height: 280px; overflow-y: auto; }
+  .mitem { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: transparent; padding: 8px 10px; border-radius: 8px; text-align: left; font-size: 13px; color: var(--s700); }
+  .mitem:hover, .mitem:focus-visible { background: var(--s50); outline: none; }
+  .mitem[aria-checked='true'] { color: var(--s900); font-weight: 600; }
+  .mitem b { font-weight: 700; min-width: 40px; color: var(--s800); }
+  .mitem .chip { position: static; }
+  .mitem .grow { flex: 1; }
+  .mitem[aria-disabled='true'] { cursor: default; }
+  .mitem[aria-disabled='true']:hover { background: transparent; }
+  .mitem em { font-style: normal; font-size: 11px; color: var(--s400); }
+  .mitem kbd { font-family: inherit; font-size: 11px; color: var(--s400); border: 1px solid var(--s200); border-radius: 4px; padding: 0 5px; }
+  .check { width: 16px; height: 16px; display: inline-grid; place-items: center; color: var(--brand-blue); flex: none; }
+  .searchbox { position: relative; padding: 4px; }
+  .searchbox svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--s400); }
+  .searchbox input { width: 100%; height: 34px; padding-left: 32px; font-size: 13px; }
+  .menu { display: flex; flex-direction: column; gap: 14px; }
+  .menu > div { display: flex; flex-direction: column; gap: 8px; }
+  .keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 12.5px; color: var(--s700); align-items: center; }
+  .keys kbd { font-family: inherit; font-size: 11px; background: var(--s50); border: 1px solid var(--s200); border-radius: 4px; padding: 1px 6px; justify-self: start; color: var(--s600); }
 
-  /* Cards */
-  .cards { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; }
-  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; grid-column: span 6; }
+  /* Modal and toast */
+  .scrim { position: fixed; inset: 0; background: rgba(29, 42, 93, .45); z-index: 10000; display: grid; place-items: center; padding: 16px; }
+  .modal { background: var(--s50); border-radius: 16px; box-shadow: var(--shadow-pop); width: min(1000px, 100%); max-height: 92vh; overflow: auto; padding: 0 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+  .modal.side { width: min(600px, 100%); }
+  .modal > header { position: sticky; top: 0; z-index: 1; margin: 0 -24px; padding: 18px 24px; background: #fff; border-bottom: 1px solid var(--s100); display: flex; align-items: center; gap: 10px; }
+  .modal h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--s900); }
+  .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); background: var(--brand-blue-dark); color: #fff; padding: 10px 16px; border-radius: 8px; z-index: 14000; display: flex; gap: 14px; align-items: center; font-size: 13px; box-shadow: var(--shadow-pop); max-width: calc(100vw - 32px); }
+  .toast button { background: transparent; border: 0; color: #fff; font-weight: 700; text-decoration: underline; padding: 0; }
+
+  /* Cards, charts, badges */
+  .cards { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
+  .card { background: #fff; border: 1px solid var(--s200); border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.05); padding: 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; grid-column: span 6; }
   .card.w12 { grid-column: span 12; } .card.w4 { grid-column: span 4; } .card.w8 { grid-column: span 8; } .card.w3 { grid-column: span 3; }
-  .card h3 { margin: 0; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  .card h3 { margin: 0; font-size: 14px; font-weight: 700; color: var(--s800); display: flex; align-items: center; gap: 8px; }
   .card h3 .spacer { flex: 1; }
+  .card h3 select { height: 30px; font-size: 12px; }
   .cardctl { display: inline-flex; gap: 4px; }
-  .cardctl button { border: 1px solid var(--line); background: var(--surface-2); border-radius: 6px; font-size: 11px; padding: 2px 6px; }
+  .cardctl button { border: 1px solid var(--s200); background: #fff; border-radius: 6px; font-size: 11px; font-weight: 600; padding: 3px 8px; color: var(--s600); }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
   .kpi { display: flex; flex-direction: column; gap: 2px; }
-  .kpi b { font-size: 26px; font-weight: 600; }
-  .kpi span { font-size: 12px; color: var(--muted); }
-  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
-  .muted { color: var(--muted); }
-  .small { font-size: 12px; }
-  .bars { display: flex; flex-direction: column; gap: 6px; }
-  .bar { display: grid; grid-template-columns: minmax(90px, 34%) 1fr 52px; gap: 8px; align-items: center; font-size: 12.5px; }
-  .bar .track { height: 12px; background: var(--surface-2); border-radius: 4px; position: relative; overflow: hidden; }
-  .bar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--accent); }
-  .bar .fill.alt { background: color-mix(in srgb, var(--accent) 40%, transparent); top: 50%; }
+  .card.kpi { padding: 16px 18px; }
+  .kpi b { font-size: 24px; font-weight: 700; color: var(--s900); }
+  .kpi span { font-size: 12px; color: var(--s500); }
+  .bars { display: flex; flex-direction: column; gap: 8px; }
+  .bar { display: grid; grid-template-columns: minmax(90px, 34%) 1fr 52px; gap: 10px; align-items: center; font-size: 13px; color: var(--s700); }
+  .bar .track { height: 8px; background: var(--s100); border-radius: 999px; position: relative; overflow: hidden; }
+  .bar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: var(--brand-blue); }
+  .bar .fill.alt { background: rgba(45, 63, 137, .35); top: 50%; }
   .bar .fill.main2 { bottom: 50%; }
   .bar .lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .bar .val { text-align: right; }
-  svg text { fill: var(--muted); font-family: var(--font); font-size: 11px; }
+  .bar .val { text-align: right; font-weight: 700; color: var(--s800); }
+  svg text { fill: var(--s500); font-family: var(--font); font-size: 11px; }
   table.plain { border-collapse: collapse; width: 100%; font-size: 13px; }
-  table.plain th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; padding: 6px; border-bottom: 1px solid var(--line); }
-  table.plain td { padding: 7px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.plain th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .025em; color: var(--s500); font-weight: 600; padding: 8px; background: var(--s50); border-bottom: 1px solid var(--s200); }
+  table.plain td { padding: 10px 8px; border-bottom: 1px solid var(--s100); vertical-align: middle; color: var(--s700); }
+  .fchip { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; color: var(--s800); }
+  .fchip .chip { position: static; }
+  .card svg[viewBox] { max-height: 260px; }
   .tscroll { overflow-x: auto; }
-  .heat { display: grid; gap: 3px; }
-  .hc { height: 26px; border-radius: 5px; display: grid; place-items: center; font-size: 11px; font-weight: 600; border: 0; }
-  .hc[data-band='p'] { background: color-mix(in srgb, var(--prof) 70%, transparent); color: var(--surface); }
-  .hc[data-band='a'] { background: color-mix(in srgb, var(--appr) 65%, transparent); color: var(--surface); }
-  .hc[data-band='b'] { background: color-mix(in srgb, var(--beg) 70%, transparent); color: var(--surface); }
-  .hc[data-band='n'] { background: var(--surface-2); color: var(--muted); }
-  .hl { font-size: 11.5px; display: flex; align-items: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .ins { display: flex; gap: 10px; align-items: flex-start; padding: 8px; border-radius: 8px; background: var(--surface-2); border: 0; text-align: left; width: 100%; }
+  .badge { display: inline-flex; align-items: center; font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--s100); color: var(--s700); font-weight: 600; box-shadow: inset 0 0 0 1px var(--s200); white-space: nowrap; }
+  .badge.good { background: var(--em50); color: #047857; box-shadow: inset 0 0 0 1px #a7f3d0; }
+  .badge.warn { background: var(--am50); color: var(--am700); box-shadow: inset 0 0 0 1px #fde68a; }
+  .badge.bad { background: var(--ro50); color: #be123c; box-shadow: inset 0 0 0 1px var(--ro200); }
+  .heat { display: grid; gap: 4px; }
+  .hc { height: 28px; border-radius: 6px; display: grid; place-items: center; font-size: 11px; font-weight: 700; border: 0; }
+  .hc[data-band='p'] { background: var(--em100); color: var(--em800); }
+  .hc[data-band='a'] { background: var(--am100); color: var(--am800); }
+  .hc[data-band='b'] { background: var(--ro100); color: var(--ro800); }
+  .hc[data-band='n'] { background: var(--s100); color: var(--s400); }
+  .hl { font-size: 12px; display: flex; align-items: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--s700); }
+  .ins { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: var(--s50); border: 0; text-align: left; width: 100%; font-size: 13px; color: var(--s700); }
+  .ins:hover { background: var(--s100); }
   .ins .sev { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex: none; background: var(--c); }
+  .filterbar .vsep { width: 1px; height: 20px; background: var(--s200); margin: 0 4px; }
   .filterbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .shead { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-  .shead h2 { margin: 0; font-size: 20px; }
-  .empty-state { padding: 40px; text-align: center; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
-  .empty-state b { display: block; color: var(--fg); font-size: 15px; margin-bottom: 4px; }
+  .shead h2 { margin: 0; font-size: 20px; font-weight: 700; color: var(--s900); }
+  .empty-state { padding: 48px 24px; text-align: center; color: var(--s500); border: 2px dashed var(--s200); border-radius: 12px; font-size: 14px; }
+  .empty-state b { display: block; color: var(--s900); font-size: 15px; margin-bottom: 4px; }
+  .unpub { color: var(--am700); font-weight: 600; }
+
+  .setrow { display: flex; align-items: center; gap: 12px; }
+  .setrow > label { font-size: 13px; font-weight: 500; color: var(--s600); min-width: 130px; }
+  .setrow select { flex: 1; min-width: 0; max-width: 320px; }
+  .settbl td { padding: 8px; }
+  .settbl th { white-space: nowrap; }
+  .pctin { display: inline-flex; align-items: center; gap: 6px; color: var(--s500); font-size: 13px; }
+  .pctin input { width: 76px; }
+  .thtip { display: inline-flex; align-items: center; gap: 6px; }
+  .tip { position: relative; width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--s300); background: #fff; color: var(--s500); font-size: 10px; font-weight: 700; font-style: italic; font-family: Georgia, serif; display: inline-grid; place-items: center; padding: 0; text-transform: none; letter-spacing: 0; }
+  .tip:hover::after, .tip:focus-visible::after { content: attr(data-tip); position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); width: 220px; background: var(--s800); color: #fff; font: 500 12px/1.4 var(--font); font-style: normal; text-align: left; padding: 8px 10px; border-radius: 8px; box-shadow: var(--shadow-pop); z-index: 5; white-space: normal; }
+  .cfgcard { gap: 14px; }
+  .setrow.top { align-items: flex-start; }
+  .setrow.top > label { padding-top: 6px; }
+  .setrow .grow { flex: 1; max-width: 320px; }
+  .setrow .tools { margin: 0; }
+  .fname { display: flex; align-items: center; gap: 8px; }
+  .fname input { width: 100%; min-width: 0; height: 32px; }
+  .settbl { table-layout: fixed; }
+  .settbl th:nth-child(1) { width: auto; } .settbl th:nth-child(2) { width: 52px; } .settbl th:nth-child(3) { width: 128px; } .settbl th:nth-child(4) { width: 84px; } .settbl th:nth-child(5) { width: 40px; }
+  .settbl td { padding: 8px 6px; }
+  .chipbtn { position: static; border: 0; width: 22px; height: 22px; font-size: 11px; cursor: pointer; flex: none; }
+  .chipbtn:disabled { cursor: default; }
+  .keyin { width: 40px; height: 32px; text-align: center; text-transform: uppercase; font-weight: 600; padding: 0 !important; }
+  .settbl .pctin input { height: 32px; width: 80px; }
+  .visbtn { color: var(--s600); }
+  .visbtn[data-v='none'] { color: var(--s400); }
+  .visbtn[data-v='all'] { color: var(--brand-blue); background: var(--brand-blue-lighter); }
+  .visbtn:disabled { opacity: .6; cursor: default; }
+  .hastip { position: relative; }
+  .hastip:hover::after, .hastip:focus-visible::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); white-space: nowrap; background: var(--s800); color: #fff; font: 500 12px/1.3 var(--font); padding: 6px 8px; border-radius: 6px; box-shadow: var(--shadow-pop); z-index: 5; pointer-events: none; }
+  .ghostlock { color: var(--s300); cursor: default; }
+  .ghostlock:hover { background: transparent; color: var(--s300); }
+  .hdrtoggle { margin-left: 12px; font-weight: 400; font-size: 13px; }
+  .catlist { display: flex; flex-direction: column; gap: 8px; }
+  .catrow { display: flex; align-items: center; gap: 8px; }
+  .catrow input[type='text'] { flex: 1; min-width: 0; }
+  .levels { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 10px; align-items: center; }
+  .lvtxt { font-size: 13px; color: var(--s500); }
+  .badtext { color: var(--brand-red); font-weight: 600; }
+  input:disabled, select:disabled { background-color: var(--s50); color: var(--s500); cursor: not-allowed; }
+  .toggle:has(input:disabled) { opacity: .6; cursor: not-allowed; }
 
   /* Student portal */
-  .portal { display: grid; grid-template-columns: 220px 1fr; gap: 14px; }
-  .pside { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 10px; display: flex; flex-direction: column; gap: 4px; }
-  .pside div { padding: 8px 10px; border-radius: 8px; font-size: 13px; }
-  .pside .on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .portal { display: grid; grid-template-columns: 220px 1fr; gap: 16px; }
+  .pside { background: #fff; border: 1px solid var(--s200); border-radius: 16px; padding: 8px; display: flex; flex-direction: column; gap: 2px; align-self: start; }
+  .pside div { padding: 10px 12px; border-radius: 12px; font-size: 13px; color: var(--s600); }
+  .pside .on { background: var(--brand-blue); color: #fff; font-weight: 600; }
   .pmain { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-  .prow { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; }
-  .prow .score { font-size: 20px; font-weight: 600; text-align: right; }
-  .bubble { grid-column: 1 / -1; background: var(--surface-2); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
-  .new { font-size: 10.5px; font-weight: 700; color: var(--surface); background: var(--brand-red); border-radius: 4px; padding: 1px 5px; letter-spacing: .04em; }
-  .previewbar { background: var(--accent); color: var(--surface); border-radius: var(--r); padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-  .previewbar .btn { color: var(--fg); }
-
-  .iconbtn { width: 34px; height: 34px; display: inline-grid; place-items: center; border: 1px solid transparent; background: transparent; border-radius: 8px; color: var(--muted); font-weight: 600; }
-  .iconbtn:hover { background: var(--surface-2); color: var(--fg); }
-  .iconbtn[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent); }
-  .count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--surface); font-size: 11px; font-weight: 600; }
-  .atop { display: flex; align-items: center; gap: 6px; min-height: 18px; }
-  .ki { font-style: normal; width: 18px; height: 18px; border-radius: 5px; display: inline-grid; place-items: center; background: var(--surface-2); color: var(--muted); font-size: 10px; font-weight: 700; }
-  .dotpub { width: 7px; height: 7px; border-radius: 50%; background: var(--appr); }
-  .mc { font-size: 11px; color: var(--beg); }
-  .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
-  details.dsec { border-top: 1px solid var(--line); padding-top: 8px; }
-  details.dsec summary { cursor: pointer; font-size: 13px; font-weight: 500; color: var(--muted); list-style: none; display: flex; justify-content: space-between; }
-  details.dsec summary::-webkit-details-marker { display: none; }
-  details.dsec summary::after { content: '+'; }
-  details.dsec[open] summary::after { content: '\2013'; }
-  details.dsec > div { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-  .menu { display: flex; flex-direction: column; gap: 12px; }
-  .menu > div { display: flex; flex-direction: column; gap: 6px; }
-  .fpill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); border: 0; }
-  .fpill span { font-weight: 700; padding: 0 4px; }
-  .filterbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .keys { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12.5px; }
-  .keys kbd { font-family: inherit; font-size: 11.5px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; justify-self: start; }
+  .pmain .tabs { background: rgba(226, 232, 240, .5); }
+  .pmain .tabs button { color: var(--s500); }
+  .pmain .tabs button[aria-selected='true'] { color: var(--brand-blue-dark); }
+  .prow { background: #fff; border: 1px solid var(--s200); border-radius: 16px; padding: 14px 16px; display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; }
+  .prow .score { font-size: 20px; font-weight: 700; text-align: right; color: var(--s900); }
+  .bubble { grid-column: 1 / -1; background: var(--s50); border-radius: 12px; padding: 10px 12px; font-size: 13px; color: var(--s700); }
+  .new { font-size: 10px; font-weight: 700; color: #fff; background: var(--brand-red); border-radius: 4px; padding: 1px 5px; letter-spacing: .04em; }
+  .previewbar { background: linear-gradient(to right, var(--brand-blue), var(--brand-blue-dark)); color: #fff; border-radius: 12px; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   body.privacy .pv { filter: blur(6px); }
+  @media (max-width: 600px) { .gb .namecol { width: 150px; min-width: 150px; max-width: 150px; } .gb .overall { left: 150px; width: 72px; min-width: 72px; } .srow { padding: 8px 10px; } }
   @media (max-width: 800px) {
     .card, .card.w4, .card.w8, .card.w3 { grid-column: span 12; }
     .portal { grid-template-columns: 1fr; }
+    .hdr h1 { display: none; }
   }
   @media (prefers-reduced-motion: no-preference) {
-    .pop, .toast { animation: fade .12s ease-out; }
-    @keyframes fade { from { opacity: .6; transform: translateY(2px); } }
-    .toast { animation: none; }
+    .pop { animation: fade .15s ease-out; }
+    @keyframes fade { from { opacity: 0; transform: translateY(2px) scale(.98); } }
   }
 </style>
 
 <div class="app" id="app"></div>
 <div class="pop" id="pop" hidden></div>
+<div class="pop sub" id="pop2" hidden></div>
 <div id="modalRoot"></div>
 <div class="toast" id="toast" hidden></div>
 
@@ -288,30 +358,34 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  const TARGETS = [
-    { id: 'RL.1', label: 'Cite textual evidence' },
-    { id: 'RL.2', label: 'Determine a theme' },
-    { id: 'RL.3', label: 'Analyze character' },
-    { id: 'L.4', label: 'Vocabulary in context' },
-    { id: 'W.1', label: 'Write arguments' },
-  ];
+  const CATALOG = [
+    ['RL.1', 'Cite textual evidence'], ['RL.2', 'Determine a theme'], ['RL.3', 'Analyze character'], ['RL.4', 'Word meaning and tone'], ['RL.5', 'Compare text structures'],
+    ['RL.6', 'Point of view and irony'], ['RL.7', 'Film versus text'], ['RL.9', 'Modern works and myths'], ['RL.10', 'Read grade-level literature'],
+    ['RI.1', 'Cite evidence in informational text'], ['RI.2', 'Central idea'], ['RI.3', 'Connections among ideas'], ['RI.4', 'Technical word meaning'], ['RI.5', 'Paragraph structure'],
+    ['RI.6', "Author's point of view"], ['RI.7', 'Evaluate mediums'], ['RI.8', 'Evaluate an argument'], ['RI.9', 'Conflicting information'],
+    ['W.1', 'Write arguments'], ['W.2', 'Write to inform'], ['W.3', 'Write narratives'], ['W.4', 'Clear, coherent writing'], ['W.5', 'Plan, revise, edit'],
+    ['W.7', 'Short research projects'], ['W.8', 'Gather sources'], ['W.9', 'Draw evidence for writing'],
+    ['SL.1', 'Collaborative discussion'], ['SL.2', 'Analyze media purpose'], ['SL.4', 'Present claims'],
+    ['L.1', 'Grammar and usage'], ['L.2', 'Capitalization and spelling'], ['L.3', 'Voice and mood'], ['L.4', 'Vocabulary in context'], ['L.5', 'Figurative language'], ['L.6', 'Academic vocabulary'],
+  ].map(([id, label]) => ({ id, label }));
+  const TG = () => CATALOG.filter((t) => ASSIGN.some((a) => !col(a.id).deleted && col(a.id).targets.includes(t.id)));
   const KIND = {
     quiz: { label: 'Quiz', i: 'Q' }, video: { label: 'Video', i: 'V' }, gl: { label: 'Guided', i: 'G' },
     flash: { label: 'Flashcards', i: 'F' }, project: { label: 'Project', i: 'P' },
     mini: { label: 'Mini-app', i: 'M', completion: true }, wall: { label: 'Wall', i: 'W', completion: true },
   };
   const ASSIGN = [
-    { id: 'a1', title: 'Unit 1 Pre-check', kind: 'quiz', due: '2026-09-03', max: 10, cat: 'Assessments', targets: ['RL.1', 'L.4'], pub: true, q: 5 },
-    { id: 'a2', title: 'Theme in a Short Film', kind: 'video', due: '2026-09-05', max: 8, cat: 'Practice', targets: ['RL.2'], pub: true, q: 4 },
-    { id: 'a3', title: 'Unit 1 Vocabulary', kind: 'flash', due: '2026-09-09', max: 20, cat: 'Practice', targets: ['L.4'], pub: true, q: 20 },
-    { id: 'a4', title: 'Annotating a Text', kind: 'gl', due: '2026-09-11', max: 6, cat: 'Practice', targets: ['RL.1'], pub: true, q: 6 },
+    { id: 'a1', title: 'Unit 1 Pre-check', kind: 'quiz', due: '2026-09-03', max: 10, cat: 'Academic Achievement', targets: ['RL.1', 'L.4'], pub: true, q: 5 },
+    { id: 'a2', title: 'Theme in a Short Film', kind: 'video', due: '2026-09-05', max: 8, cat: 'Academic Practice', targets: ['RL.2'], pub: true, q: 4 },
+    { id: 'a3', title: 'Unit 1 Vocabulary', kind: 'flash', due: '2026-09-09', max: 20, cat: 'Academic Practice', targets: ['L.4'], pub: true, q: 20 },
+    { id: 'a4', title: 'Annotating a Text', kind: 'gl', due: '2026-09-11', max: 6, cat: 'Academic Practice', targets: ['RL.1'], pub: true, q: 6 },
     { id: 'a5', title: 'Favorite Opening Line', kind: 'wall', due: '2026-09-12', max: 0, cat: null, targets: [], pub: true, q: 0 },
-    { id: 'a6', title: 'Character Quiz', kind: 'quiz', due: '2026-09-16', max: 15, cat: 'Assessments', targets: ['RL.3', 'RL.1'], pub: true, q: 8, lms: 'Classroom' },
-    { id: 'a7', title: 'Symbolism Clip', kind: 'video', due: '2026-09-19', max: 8, cat: 'Practice', targets: ['RL.2'], pub: true, q: 4 },
+    { id: 'a6', title: 'Character Quiz', kind: 'quiz', due: '2026-09-16', max: 15, cat: 'Academic Achievement', targets: ['RL.3', 'RL.1'], pub: true, q: 8, lms: 'Classroom' },
+    { id: 'a7', title: 'Symbolism Clip', kind: 'video', due: '2026-09-19', max: 8, cat: 'Academic Practice', targets: ['RL.2'], pub: true, q: 4 },
     { id: 'a8', title: 'Plot Diagram Builder', kind: 'mini', due: '2026-09-22', max: 0, cat: null, targets: [], pub: true, q: 0 },
-    { id: 'a9', title: 'Argument Poster', kind: 'project', due: '2026-09-24', max: 40, cat: 'Assessments', targets: ['W.1', 'RL.1'], pub: true, q: 4 },
-    { id: 'a10', title: 'Unit 1 Test', kind: 'quiz', due: '2026-09-29', max: 30, cat: 'Assessments', targets: ['RL.1', 'RL.2', 'RL.3', 'L.4'], pub: false, q: 12, lms: 'Classroom' },
-    { id: 'a11', title: 'Evidence Hunt', kind: 'gl', due: '2026-10-06', max: 6, cat: 'Practice', targets: ['RL.1'], pub: false, q: 6 },
+    { id: 'a9', title: 'Argument Poster', kind: 'project', due: '2026-09-24', max: 40, cat: 'Academic Achievement', targets: ['W.1', 'RL.1'], pub: true, q: 4 },
+    { id: 'a10', title: 'Unit 1 Test', kind: 'quiz', due: '2026-09-29', max: 30, cat: 'Academic Achievement', targets: ['RL.1', 'RL.2', 'RL.3', 'L.4'], pub: false, q: 12, lms: 'Classroom' },
+    { id: 'a11', title: 'Evidence Hunt', kind: 'gl', due: '2026-10-06', max: 6, cat: 'Academic Practice', targets: ['RL.1'], pub: false, q: 6 },
   ].map((a) => ({ ...a, dueDate: due(a.due), completion: !!KIND[a.kind].completion }));
   const A = Object.fromEntries(ASSIGN.map((a) => [a.id, a]));
 
@@ -327,6 +401,10 @@
       ['Zoe', 'Olsen', 0.8, 'A'], ['Mateo', 'Perez', 0.7, 'B'], ['Hana', 'Qureshi', 0.9, 'C'], ['Jack', 'Rivera', 0.65, 'D'],
       ['Lily', 'Schmidt', 0.85, 'A'], ['Omar', 'Tahir', 0.72, 'B', { acc: true }], ['Nora', 'Umar', 0.93, 'C'], ['Leo', 'Vang', 0.6, 'D'],
       ['Emma', 'Walsh', 0.77, 'A'], ['Sam', 'Xiong', 0.82, 'B'], ['Ruby', 'Young', 0.69, 'C'], ['Finn', 'Zimmer', 0.74, 'D'],
+    ]) },
+    p6: { name: 'English 8 Honors · Period 6', seed: 31, students: mk([
+      ['Adele', 'Ahmed', 0.93, 'A'], ['Ben', 'Carlson', 0.86, 'B'], ['Cora', 'Dang', 0.9, 'C'], ['Dev', 'Ekberg', 0.8, 'D'],
+      ['Esme', 'Fuller', 0.95, 'A'], ['Gus', 'Hale', 0.78, 'B'], ['Iris', 'Jansen', 0.88, 'C'], ['Jonah', 'Klein', 0.84, 'D'],
     ]) },
   };
   const snap = (pct, max) => (max ? (Math.round((pct / 100) * max) / max) * 100 : pct);
@@ -365,22 +443,40 @@
 
   // ---------- State ----------
   const DEFAULT_FLAGS = [
-    { id: 'M', name: 'Missing', effect: 'zero', student: true, color: 'var(--beg)' },
-    { id: 'X', name: 'Excused', effect: 'exclude', student: true, color: 'var(--slate)' },
-    { id: 'L', name: 'Late', effect: 'none', student: false, color: 'var(--appr)' },
-    { id: 'I', name: 'Incomplete', effect: 'none', student: false, color: 'var(--violet)' },
-    { id: 'A', name: 'Absent', effect: 'none', student: false, color: 'var(--teal)' },
+    { id: 'M', key: 'M', name: 'Missing', value: 0, vis: 'all', color: '#be123c' },
+    { id: 'X', key: 'X', name: 'Excused', exclude: true, vis: 'all', color: 'var(--slate)' },
+    { id: 'L', key: 'L', name: 'Late', value: null, vis: 'teacher', color: 'var(--appr)' },
+    { id: 'I', key: 'I', name: 'Incomplete', value: null, vis: 'teacher', color: 'var(--violet)' },
+    { id: 'A', key: 'A', name: 'Absent', value: null, vis: 'teacher', color: 'var(--teal)' },
   ];
+  const DEFAULT_CATS = () => [{ name: 'Academic Achievement', w: 60 }, { name: 'Academic Practice', w: 40 }];
+  const LEVELS = ['Proficient', 'Approaching', 'Beginning'];
+  const SCALES = { district: { p: 80, a: 60, names: LEVELS }, plc: { p: 85, a: 70, names: LEVELS } };
+  const newSet = () => ({ flags: DEFAULT_FLAGS.map((f) => ({ ...f })), cats: DEFAULT_CATS(), useCats: true, method: 'decay', auto: true, showScores: true, showStandards: false, scale: { src: 'district', custom: { p: 80, a: 60, names: [...LEVELS] } } });
+  const CORE_FLAGS = ['M', 'X', 'L'];
+  const VIS_ORDER = ['none', 'teacher', 'all'];
+  const PALETTE = ['#be123c', '#d97706', '#059669', '#0891b2', '#2563eb', '#7c3aed', '#db2777', '#64748b'];
+  const PLC_SET = newSet(); PLC_SET.scale.src = 'plc'; PLC_SET.flags[2].value = 90;
+  const honors = newSet(); honors.cats = [{ name: 'Academic Achievement', w: 70 }, { name: 'Academic Practice', w: 30 }]; honors.scale = { src: 'custom', custom: { p: 85, a: 70, names: ['Mastered', 'Developing', 'Beginning'] } };
+  honors.flags.push({ id: 'c1', key: 'R', name: 'Revise', value: null, vis: 'all', color: '#2563eb' });
+  const CFGS = [{ id: 'c1', name: 'My settings', set: newSet() }, { id: 'c2', name: 'Honors', set: honors }];
+  const BUILTIN = { id: null, name: 'Default settings', set: newSet(), builtin: true };
+  const PLCS = [{ id: 'plc1', name: 'Grade 8 ELA PLC', set: PLC_SET, plc: true }];
+  const DISTRICT = [{ id: 'd1', name: 'Orono Middle School', set: newSet(), district: true }];
+  const cfgById = (id) => CFGS.concat(PLCS, DISTRICT).find((c) => c.id === id) || BUILTIN;
   const S = {
     cls: 'p2', privacy: false, tab: 'grid', view: 'grid', sid: null, fmt: 'pct', tint: false, nameFmt: 'last', sort: { key: 'name', dir: 1 },
     period: 'q1', fcat: 'all', fkind: 'all', needs: false, focus: null, pop: null,
     marks: {}, cols: {},
-    settings: { source: 'personal', flags: DEFAULT_FLAGS.map((f) => ({ ...f })), cats: [{ name: 'Assessments', w: 60 }, { name: 'Practice', w: 40 }], useCats: true, method: 'decay', auto: true, showScores: true, showStandards: false },
-    cards: ['perf', 'standards', 'habits', 'compare', 'list', 'insights'], hiddenCards: [], customize: false,
+    classCfg: { p2: 'c1', p4: 'c1', p6: 'c2' }, ecfg: 'c1', cfgRename: false, cfgDel: false,
+    cards: ['perf', 'habits', 'standards', 'compare', 'insights', 'list'], hiddenCards: [], customize: false,
     an: { cat: 'all', kind: 'all', target: 'all', group: 'all', flag: 'all', acc: 'all', compare: false, metric: 'avg', by: 'assignment' },
     expandTarget: null, whatIf: 27, seen: {},
   };
-  try { const saved = JSON.parse(localStorage.getItem('gb-cards') || 'null'); if (saved) { S.cards = saved.cards; S.hiddenCards = saved.hidden; } } catch (e) {}
+  Object.defineProperty(S, 'settings', { get: () => cfgById(S.classCfg[S.cls]).set });
+  const ECFG = () => cfgById(S.ecfg); const ES = () => ECFG().set;
+  const scale = () => { const sc = S.settings.scale; return sc.src === 'custom' ? sc.custom : SCALES[sc.src]; };
+  try { const saved = JSON.parse(localStorage.getItem('gb-cards-v2') || 'null'); if (saved) { S.cards = saved.cards; S.hiddenCards = saved.hidden; } } catch (e) {}
   // Seed a few teacher edits so the grid shows every state.
   const seedMarks = () => {
     S.marks['p2|s1|a9'] = { comment: { text: 'Strong claim and evidence. Push your counterargument further next time.', shared: true }, hist: [{ at: 'Sep 25', what: 'Comment added, shared with student' }] };
@@ -391,11 +487,11 @@
   seedMarks();
 
   const undo = [];
-  const pushUndo = (label) => { undo.push({ label, marks: JSON.stringify(S.marks), cols: JSON.stringify(S.cols), settings: JSON.stringify(S.settings) }); if (undo.length > 40) undo.shift(); };
+  const pushUndo = (label) => { undo.push({ label, marks: JSON.stringify(S.marks), cols: JSON.stringify(S.cols), settings: JSON.stringify({ cfgs: CFGS, plcs: PLCS.map((x) => x.set), classCfg: S.classCfg }) }); if (undo.length > 40) undo.shift(); };
   const doUndo = () => {
     const u = undo.pop(); if (!u) { toast('Nothing to undo'); return; }
-    S.marks = JSON.parse(u.marks); S.cols = JSON.parse(u.cols); S.settings = JSON.parse(u.settings);
-    closePop(); render(); toast('Undid: ' + u.label);
+    S.marks = JSON.parse(u.marks); S.cols = JSON.parse(u.cols); const st = JSON.parse(u.settings); CFGS.splice(0, CFGS.length, ...st.cfgs); PLCS.forEach((x, n) => { Object.keys(x.set).forEach((k) => delete x.set[k]); Object.assign(x.set, st.plcs[n]); }); S.classCfg = st.classCfg; if (!CFGS.concat(PLCS, DISTRICT).some((c) => c.id === S.ecfg)) S.ecfg = CFGS[0] ? CFGS[0].id : null; S.cfgDel = false;
+    closePop(true); render(); if (modalRoot.querySelector('.modal.side')) reSettings(); toast('Undid: ' + u.label);
   };
 
   const cls = () => CLASSES[S.cls];
@@ -404,9 +500,10 @@
   const key = (sid, aid, c = S.cls) => `${c}|${sid}|${aid}`;
   const col = (aid, c = S.cls) => { const k = c + '|' + aid; if (!S.cols[k]) { const a = A[aid]; S.cols[k] = { cat: a.cat, counts: !a.completion, maxOverride: null, policy: 'latest', targets: [...a.targets], hidden: false, pub: a.pub }; } return S.cols[k]; };
   const mark = (sid, aid, create, c = S.cls) => { const k = key(sid, aid, c); if (!S.marks[k] && create) S.marks[k] = { hist: [] }; return S.marks[k]; };
-  const flagDef = (id) => S.settings.flags.find((f) => f.id === id);
-  const band = (p) => (p == null ? 'n' : p >= 80 ? 'p' : p >= 60 ? 'a' : 'b');
-  const bandName = { p: 'Proficient', a: 'Approaching', b: 'Beginning', n: 'No evidence' };
+  const flagDef = (id) => S.settings.flags.find((f) => f.id === id && f.vis !== 'none');
+  const liveFlags = () => S.settings.flags.filter((f) => f.vis !== 'none');
+  const band = (p) => { const sc = scale(); return p == null ? 'n' : p >= sc.p ? 'p' : p >= sc.a ? 'a' : 'b'; };
+  const bandName = new Proxy({}, { get: (_, k) => (k === 'n' ? 'No evidence' : scale().names[{ p: 0, a: 1, b: 2 }[k]]) });
   const bandCls = { p: 'good', a: 'warn', b: 'bad', n: '' };
 
   function info(sid, aid, c = S.cls) {
@@ -419,22 +516,23 @@
       if (r.state === 'none' && a.dueDate < TODAY && m.override == null && !manual.includes('M') && !sup.includes('M')) flags.push({ id: 'M', auto: true });
       if (r.submittedAt && r.submittedAt > a.dueDate && !manual.includes('L') && !sup.includes('L')) flags.push({ id: 'L', auto: true });
     }
-    const effects = flags.map((f) => (flagDef(f.id) || {}).effect);
-    const excluded = effects.includes('exclude');
+    const defs = flags.map((f) => flagDef(f.id) || {});
+    const excluded = defs.some((d) => d.exclude);
+    const vals = defs.map((d) => d.value).filter((v) => v != null && v !== '');
     let computed = null;
     if (r.state === 'scored' && !a.completion) {
       const at = r.attempts.length ? r.attempts : [r.pct];
       computed = cc.policy === 'highest' ? Math.max(...at) : cc.policy === 'average' ? at.reduce((x, y) => x + y, 0) / at.length : at[at.length - 1];
     }
     let pct = m.override != null ? m.override : computed;
-    const zeroed = pct == null && !excluded && effects.includes('zero') && !a.completion;
-    if (zeroed) pct = 0;
+    const zeroed = pct == null && !excluded && vals.length > 0 && !a.completion;
+    if (zeroed) pct = Math.min(...vals);
     const pub = m.pub != null ? m.pub : cc.pub;
     const counted = !excluded && pct != null && cc.counts && !a.completion;
     return { a, r, m, max, flags, excluded, zeroed, computed, pct, pub, counted, done: a.completion && r.state === 'scored', awaiting: r.state === 'awaiting' && m.override == null };
   }
 
-  const inPeriod = (a) => (S.period === 'all' ? true : S.period === 'q1' ? a.dueDate <= new Date(2026, 10, 6) : a.dueDate > new Date(2026, 10, 6));
+  const inPeriod = (a) => !col(a.id).deleted && (S.period === 'all' ? true : S.period === 'q1' ? a.dueDate <= new Date(2026, 10, 6) : a.dueDate > new Date(2026, 10, 6));
   const visibleCols = () => ASSIGN.filter((a) => inPeriod(a) && !col(a.id).hidden && (S.fcat === 'all' || col(a.id).cat === S.fcat) && (S.fkind === 'all' || a.kind === S.fkind) && (!S.needs || cls().students.some((s) => info(s.id, a.id).awaiting)));
 
   function overall(sid, c = S.cls) {
@@ -487,14 +585,14 @@
     const out = [];
     CLASSES[c].students.forEach((s) => {
       if (onlySid && s.id !== onlySid) return;
-      const assess = ASSIGN.filter((a) => col(a.id, c).cat === 'Assessments').map((a) => info(s.id, a.id, c)).filter((i) => i.r.state === 'scored' && i.pct != null);
+      const assess = ASSIGN.filter((a) => col(a.id, c).cat === S.settings.cats[0].name).map((a) => info(s.id, a.id, c)).filter((i) => i.r.state === 'scored' && i.pct != null);
       const last = assess.slice(-3);
       if (last.length === 3 && last[2].pct - last[0].pct <= -15) out.push({ sev: 'var(--beg)', text: `${nm(s)} dropped ${Math.round(last[0].pct - last[2].pct)} points over the last 3 assessments`, sid: s.id, pv: true });
       const mc = missingCount(s.id, c);
       if (mc >= 3) out.push({ sev: 'var(--beg)', text: `${nm(s)} has ${mc} missing assignments`, sid: s.id, pv: true });
     });
     if (!onlySid) {
-      TARGETS.forEach((t) => {
+      TG().forEach((t) => {
         const low = CLASSES[c].students.filter((s) => band(prof(s.id, t.id, c)) === 'b');
         const share = low.length / CLASSES[c].students.length;
         if (share >= 0.25) out.push({ sev: 'var(--appr)', text: `${t.id} ${t.label}: ${Math.round(share * 100)}% of the class is Beginning. Reteach group: ${low.map((s) => s.first).join(', ')}`, target: t.id, pv: true });
@@ -502,7 +600,7 @@
       const aw = ASSIGN.map((a) => ({ a, n: CLASSES[c].students.filter((s) => info(s.id, a.id, c).awaiting).length })).filter((x) => x.n);
       aw.forEach((x) => out.push({ sev: 'var(--accent)', text: `${x.n} written answers need grading on ${x.a.title}`, aid: x.a.id }));
     } else {
-      TARGETS.forEach((t) => { const p = prof(onlySid, t.id, c); if (p != null && p < 60) out.push({ sev: 'var(--appr)', text: `${t.id} ${t.label} is Beginning (${Math.round(p)}%)`, target: t.id }); });
+      TG().forEach((t) => { const p = prof(onlySid, t.id, c); if (p != null && p < 60) out.push({ sev: 'var(--appr)', text: `${t.id} ${t.label} is Beginning (${Math.round(p)}%)`, target: t.id }); });
     }
     return out;
   }
@@ -511,8 +609,9 @@
   const app = document.getElementById('app');
   function render() {
     document.body.classList.toggle('privacy', !!S.privacy);
-    if (S.view === 'portal') { app.innerHTML = renderPortal(); return; }
-    app.innerHTML = renderTop() + (S.view === 'student' ? renderStudent() : S.tab === 'grid' ? renderGrid() : renderAnalysis());
+    if (S.view === 'portal') { app.innerHTML = `<main class="content">${renderPortal()}</main>`; return; }
+    const gridMode = S.view === 'grid' && S.tab === 'grid';
+    app.innerHTML = renderTop() + `<main class="content ${gridMode ? 'fill' : ''}">${S.view === 'student' ? renderStudent() : gridMode ? renderGrid() : renderAnalysis()}</main>`;
     if (S.view === 'grid' && S.tab === 'grid' && S.scrollToEnd !== false) {
       const w = document.querySelector('.gridwrap'); if (w) w.scrollLeft = w.scrollWidth;
       S.scrollToEnd = false;
@@ -521,29 +620,50 @@
     }
   }
   const opt = (v, label, cur) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${label}</option>`;
+  const ic = (d, n = 16) => `<svg width="${n}" height="${n}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
   const ICON = {
-    eye: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
-    down: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
-    gear: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>',
-  };
+    eye: ic('<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>', 18),
+    down: ic('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>', 18),
+    gear: ic('<path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>', 18),
+    help: ic('<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>', 18),
+    book: ic('<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>', 20),
+    x: ic('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>', 20),
+    chev: ic('<path d="m6 9 6 6 6-6"/>', 16),
+    check: ic('<path d="M20 6 9 17l-5-5"/>', 16),
+    search: ic('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>', 14),
+    filldown: ic('<path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/>', 16),
+    sort: ic('<path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/>', 16),
+    pencil: ic('<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>', 16),
+    eyeoff: ic('<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/>', 16),
+    trash: ic('<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>', 16),
+    copy: ic('<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>', 16),
+    lock: ic('<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>', 14),
+    user: ic('<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>', 16),
+    users: ic('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>', 16),
+    back: ic('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>', 16),
+  }
+  const VIS = { none: { label: 'Not visible', icon: ICON.eyeoff }, teacher: { label: 'Teacher only', icon: ICON.user }, all: { label: 'Teachers and students', icon: ICON.users } };;
   const activeFilterCount = () => (S.fcat !== 'all') + (S.fkind !== 'all') + (S.needs ? 1 : 0) + (ASSIGN.some((a) => col(a.id).hidden) ? 1 : 0);
   function renderTop() {
-    const onGrid = S.view === 'grid' && S.tab === 'grid'; const nf = activeFilterCount();
+    const onGrid = S.view === 'grid' && S.tab === 'grid'; const nf = activeFilterCount(); const m = S.pop && S.pop.type;
     return `
-    <div class="topbar">
-      <div class="brand"><span class="dot"></span>Gradebook</div>
-      <select id="clsSel" aria-label="Class">${Object.entries(CLASSES).map(([k, c]) => opt(k, c.name, S.cls)).join('')}</select>
+    <header class="hdr"><span class="hdr-ic">${ICON.book}</span><h1>Gradebook</h1>
       <div class="tabs" role="tablist">
-        <button role="tab" data-act="tab" data-tab="grid" aria-selected="${S.tab === 'grid' && S.view !== 'student'}">Gradebook</button>
-        <button role="tab" data-act="tab" data-tab="analysis" aria-selected="${S.tab === 'analysis' && S.view !== 'student'}">Data analysis</button>
+        <button role="tab" data-act="tab" data-tab="grid" aria-selected="${S.tab === 'grid'}">Grades</button>
+        <button role="tab" data-act="tab" data-tab="analysis" aria-selected="${S.tab === 'analysis'}">Data analysis</button>
       </div>
       <span class="spacer"></span>
-      ${onGrid ? `<button class="btn ghost" data-act="menu" data-m="view" aria-haspopup="true">View</button><button class="btn ghost" data-act="menu" data-m="filter" aria-haspopup="true">Filter${nf ? ` <span class="count">${nf}</span>` : ''}</button>` : ''}
+      <button class="hdr-x" data-act="toast" data-msg="Closes back to your board" aria-label="Close gradebook" title="Close">${ICON.x}</button>
+    </header>
+    <div class="subbar">
+      <select id="clsSel" aria-label="Class">${Object.entries(CLASSES).map(([k, c]) => opt(k, c.name, S.cls)).join('')}</select>
       <select id="periodSel" aria-label="Grading period">${opt('q1', 'Quarter 1', S.period)}${opt('q2', 'Quarter 2', S.period)}${opt('all', 'All periods', S.period)}</select>
+      <span class="spacer"></span>
+      ${onGrid ? `<button class="btn ghost" data-act="menu" data-m="view" aria-haspopup="true" aria-expanded="${m === 'view'}">View${ICON.chev}</button><button class="btn ghost" data-act="menu" data-m="filter" aria-haspopup="true" aria-expanded="${m === 'filter'}">Filter${nf ? ` <span class="count">${nf}</span>` : ''}${ICON.chev}</button><span class="vsep"></span>` : ''}
       <button class="iconbtn" data-act="privacy" aria-pressed="${!!S.privacy}" aria-label="Privacy blur" title="Privacy blur (P)">${ICON.eye}</button>
       <button class="iconbtn" data-act="export" aria-label="Export" title="Export">${ICON.down}</button>
       <button class="iconbtn" data-act="settings" aria-label="Settings" title="Settings">${ICON.gear}</button>
-      <button class="iconbtn" data-act="menu" data-m="help" aria-label="Help and shortcuts" title="Help and shortcuts">?</button>
+      <button class="iconbtn" data-act="menu" data-m="help" aria-label="Help and shortcuts" title="Help and shortcuts">${ICON.help}</button>
     </div>`;
   }
 
@@ -554,14 +674,14 @@
     if (i.na) return `<td><button class="cell na ${focus ? 'focus' : ''}" data-act="cell" data-s="${s.id}" data-a="${a.id}" tabindex="${focus ? 0 : -1}" aria-label="${esc(label)}: not assigned" title="Not assigned"></button></td>`;
     let inner;
     if (a.completion) inner = i.done ? '<span class="v">✓</span>' : '<span class="empty">–</span>';
-    else if (i.awaiting) inner = '<span class="await">To grade</span>';
+    else if (i.awaiting) inner = '<span class="await">Ungraded</span>';
     else if (i.pct == null) inner = '<span class="empty">–</span>';
     else inner = `<span class="v pv ${i.m.override != null ? 'ovr' : ''} ${!i.pub ? 'live' : ''}">${fmtCell(i)}</span>`;
     let chip = '';
     if (i.flags.length) {
       const d = flagDef(i.flags[0].id);
       const names = i.flags.map((f) => ((flagDef(f.id) || {}).name || f.id) + (f.auto ? ' (automatic)' : '')).join(', ');
-      if (d) chip = `<span class="chips"><i class="chip ${i.flags[0].auto ? 'auto' : ''}" style="--c:${d.color}" title="${names}">${d.id}${i.flags.length > 1 ? '+' : ''}</i></span>`;
+      if (d) chip = `<span class="chips"><i class="chip ${i.flags[0].auto ? 'auto' : ''}" style="--c:${d.color}" title="${names}">${esc(d.key)}${i.flags.length > 1 ? '+' : ''}</i></span>`;
     }
     const cm = i.m.comment ? `<i class="cdot ${i.m.comment.shared ? 'shared' : ''}" title="${i.m.comment.shared ? 'Comment shared with student' : 'Private comment'}"></i>` : '';
     const bandAttr = S.tint && i.pct != null && !a.completion && !i.excluded ? `data-band="${band(i.pct)}"` : '';
@@ -576,7 +696,7 @@
     const bandColor = (p) => `var(--${{ p: 'prof', a: 'appr', b: 'beg' }[band(p)]})`;
     const head = `<tr><th class="namecol"><div class="namehead"><button data-act="namesort" title="Sort by name">Student <small>${sortLbl}</small></button></div></th>
       <th class="overall"><button class="ovhead" data-act="sortoverall" title="Sort by overall">Overall${S.sort.key === 'overall' ? (S.sort.dir < 0 ? ' ↓' : ' ↑') : ''}</button></th>
-      ${colsV.map((a) => { const c = col(a.id); return `<th><button class="ahead" data-act="head" data-a="${a.id}"><span class="atop"><i class="ki" title="${KIND[a.kind].label}">${KIND[a.kind].i}</i>${!c.pub && !a.completion ? '<span class="dotpub" title="Not published"></span>' : ''}</span><span class="atitle">${esc(a.title)}</span><span class="ameta">${fdate(a.dueDate)}</span></button></th>`; }).join('')}</tr>`;
+      ${colsV.map((a) => { const c = col(a.id); return `<th><button class="ahead" data-act="head" data-a="${a.id}" aria-expanded="${!!(S.pop && S.pop.type === 'head' && S.pop.a === a.id)}"><span class="atop"><i class="ki" title="${KIND[a.kind].label}">${KIND[a.kind].i}</i>${!c.pub && !a.completion ? '<span class="dotpub" title="Not published"></span>' : ''}</span><span class="atitle">${esc(a.title)}</span><span class="ameta">${fdate(a.dueDate)}</span></button></th>`; }).join('')}</tr>`;
     const body = studs.map((s) => {
       const o = overall(s.id); const mc = missingCount(s.id);
       return `<tr><th class="namecol"><div class="srow"><button class="sname pv" data-act="student" data-s="${s.id}">${esc(nm(s))}</button>${mc ? `<span class="mc">${mc} missing</span>` : ''}</div></th>
@@ -591,14 +711,27 @@
   }
 
   // ---------- Popovers ----------
-  const pop = document.getElementById('pop');
+  const pop = document.getElementById('pop'); const pop2 = document.getElementById('pop2');
   function place(anchor) {
     const r = anchor.getBoundingClientRect(); const pw = pop.offsetWidth, ph = pop.offsetHeight;
     let left = Math.min(r.left, innerWidth - pw - 12); left = Math.max(12, left);
     let top = r.bottom + 6; if (top + ph > innerHeight - 12) top = Math.max(12, r.top - ph - 6);
     pop.style.left = left + 'px'; pop.style.top = top + 'px';
   }
-  function closePop() { pop.hidden = true; S.pop = null; }
+  function commitCell() {
+    const P = S.pop; const cm = document.getElementById('cmIn'); if (!P || P.type !== 'cell' || !cm) return false;
+    const i = info(P.s, P.a); const o = document.getElementById('ovIn'); const text = cm.value.trim(); const shared = document.getElementById('cmShare').checked;
+    const cur = i.pct != null ? +((i.pct / 100) * i.max).toFixed(1) : ''; const v = o ? o.value.trim() : '';
+    const bad = o && v !== '' && (isNaN(+v) || +v < 0 || +v > i.max * 2);
+    const scoreChanged = o && v !== '' && !bad && +v !== cur; const old = i.m.comment || {}; const cmChanged = text !== (old.text || '') || (!!text && shared !== !!old.shared);
+    if (bad) toast(`Score not saved. Enter 0 to ${i.max}.`);
+    if (!scoreChanged && !cmChanged) return false;
+    pushUndo('Edit ' + stu(P.s).first); const m = mark(P.s, P.a, true);
+    if (scoreChanged) { m.override = (+v / i.max) * 100; logH(P.s, P.a, `Score ${cur === '' ? 'blank' : cur + '/' + i.max} → ${+v}/${i.max}`); }
+    if (cmChanged) { m.comment = text ? { text, shared } : undefined; logH(P.s, P.a, text ? `Comment saved${shared ? ', shared' : ''}` : 'Comment removed'); }
+    toast(`Saved ${stu(P.s).first}'s ${scoreChanged ? 'score' : 'comment'}${scoreChanged && cmChanged ? ' and comment' : ''}`, true); return true;
+  }
+  function closePop(skipCommit) { const changed = !skipCommit && commitCell(); pop.hidden = true; pop2.hidden = true; pop2.style.width = ''; S.applyOpen = false; const had = S.pop && (S.pop.type === 'head' || MENUS.includes(S.pop.type)); S.pop = null; if (had) document.querySelectorAll('[aria-expanded="true"]').forEach((b) => b.setAttribute('aria-expanded', 'false')); if (changed) { const w = document.getElementById('gridwrap'); if (w) S.gridScroll = { l: w.scrollLeft, t: w.scrollTop }; render(); } }
   function findAnchor(p) {
     if (!p) return null;
     if (p.type === 'cell') return document.querySelector(`[data-act="cell"][data-s="${p.s}"][data-a="${p.a}"]`) || document.querySelector(`[data-edit="${p.s}|${p.a}"]`);
@@ -610,70 +743,109 @@
   const carry = (type, id) => (S.pop && S.pop.type === type && S.pop.id === id ? S.pop : {});
   const isOpen = (k, dflt) => { const o = S.pop.open || {}; return (k in o ? o[k] : dflt) ? 'open' : ''; };
   pop.addEventListener('toggle', (e) => { if (S.pop && e.target.dataset && e.target.dataset.k) (S.pop.open = S.pop.open || {})[e.target.dataset.k] = e.target.open; }, true);
+  const GNOTES = ['Strong evidence. Explain how it supports your claim.', 'Reread paragraph 3; the theme is stated there.', 'Good inference. Quote the line next time.', 'Say why, not just what happens.'];
+  const gradingNotes = (sid, aid) => { const a = A[aid]; const h = hash(sid + aid + 'n'); if (a.kind !== 'quiz' || h > 0.5 || RAW[S.cls][sid][aid].state === 'none') return []; return [{ q: 1 + (Math.floor(h * 97) % a.q), text: GNOTES[Math.floor(h * 131) % GNOTES.length] }]; };
+  const emptyCell = (j) => !j.na && j.r.state === 'none' && j.m.override == null && !j.excluded && !(j.m.flags || []).length;
+  const belowEmpty = (sid, aid) => { const l = sortedStudents(); return l.slice(l.findIndex((x) => x.id === sid) + 1).filter((x) => emptyCell(info(x.id, aid))); };
+  const flagChip = (f, auto) => `<i class="chip ${auto ? 'auto' : ''}" style="--c:${f.color}">${esc(f.key)}</i>`;
   function openCellPop(sid, aid, anchor, prefill) {
     const prev = carry('cell', sid + '|' + aid);
-    S.pop = { type: 'cell', id: sid + '|' + aid, s: sid, a: aid, prefill, fill: prev.fill != null ? prev.fill : null, open: prev.open || {} };
-    const s = stu(sid); const i = info(sid, aid); const a = i.a;
+    pop.classList.remove('menuwide'); S.pop = { type: 'cell', id: sid + '|' + aid, s: sid, a: aid, prefill, hist: !!prev.hist, sub: prev.sub || null, draft: prev.draft || null };
+    const s = stu(sid); const i = info(sid, aid); const a = i.a; const d = S.pop.draft;
     const status = [];
     if (i.na) status.push('Not assigned');
-    else if (i.r.submittedAt) { status.push('Submitted ' + fdate(i.r.submittedAt)); if (i.r.submittedAt > a.dueDate) status.push(`${Math.ceil((i.r.submittedAt - a.dueDate) / DAY)} day(s) late`); }
+    else if (i.r.submittedAt) { status.push('Submitted ' + fdate(i.r.submittedAt)); const late = Math.ceil((i.r.submittedAt - a.dueDate) / DAY); if (late > 0) status.push(`${late} day${late === 1 ? '' : 's'} late`); }
     else status.push(a.dueDate > TODAY ? 'Due ' + fdate(a.dueDate) : 'No submission');
-    if (!a.completion && !i.na && !i.pub) status.push('not published');
-    const ptsVal = prefill != null ? prefill : S.pop.fill != null ? S.pop.fill : i.pct != null ? +((i.pct / 100) * i.max).toFixed(1) : '';
+    if (!a.completion && !i.na && !i.pub) status.push('Not published');
+    const sub = `${esc(a.title)} · ${status.join(' · ')}${i.awaiting ? ` · <button class="link warn" data-act="grade-answers" title="Grade written answers">2 ungraded</button>` : ''}`;
+    const head = () => `<div class="phead"><div class="ptitle"><h3 class="pv">${esc(nm(s))}</h3><div class="sub">${sub}</div></div></div>`;
+    if (i.na) { pop.innerHTML = head() + `<div class="small muted">Sent before ${esc(s.first)} joined the class.</div><button class="btn primary" style="align-self:flex-start" data-act="toast" data-msg="Assigned to ${esc(s.first)}">Assign to ${esc(s.first)}</button>`; pop.hidden = false; place(anchor); return; }
+    const ptsVal = prefill != null ? prefill : d ? d.score : i.pct != null ? +((i.pct / 100) * i.max).toFixed(1) : '';
     const hist = (i.m && i.m.hist) || [];
-    const fillCount = cls().students.filter((x) => { const j = info(x.id, aid); return !j.na && j.r.state === 'none' && j.m.override == null && !j.excluded && (!j.m.flags || !j.m.flags.length || j.zeroed); }).length;
-    const head = `<div><h3 class="pv">${esc(nm(s))}</h3><div class="sub">${esc(a.title)} · ${status.join(' · ')}</div></div>`;
-    if (i.na) { pop.innerHTML = head + `<div class="small">Sent before ${esc(s.first)} joined the class.</div><button class="btn primary" style="align-self:flex-start" data-act="toast" data-msg="Assigned to ${esc(s.first)}">Assign to student</button>`; pop.hidden = false; place(anchor); return; }
-    pop.innerHTML = `${head}
-      ${a.completion ? `<div class="small">${i.done ? 'Submitted. Completion only, not part of the grade.' : 'No submission yet.'}</div>` : `
-      <div class="row"><input id="ovIn" type="number" min="0" max="${i.max}" step="0.5" style="width:80px" value="${ptsVal}" aria-label="Score"/><span>/ ${i.max}</span>
-        <button class="btn primary" data-act="ov-save">Save</button>${i.m.override != null ? `<button class="btn ghost" data-act="ov-revert">Revert</button>` : ''}</div>
-      ${i.m.override != null ? `<div class="small muted">Overridden · calculated <span class="strike">${i.computed == null ? 'none' : Math.round(i.computed) + '%'}</span></div>` : ''}
-      ${i.awaiting ? `<div class="small"><span class="badge warn">To grade</span> 2 written answers are ungraded.</div>` : ''}`}
-      <div class="row">${S.settings.flags.map((f) => { const on = i.flags.find((x) => x.id === f.id); return `<button class="fchip" style="--c:${f.color}" data-act="flag" data-f="${f.id}" aria-pressed="${!!on}" title="${f.name}${on && on.auto ? ' (automatic)' : ''}"><i class="chip ${on && on.auto ? 'auto' : ''}" style="--c:${f.color}">${f.id}</i>${f.name}</button>`; }).join('')}</div>
-      <details class="dsec" data-k="comment" ${isOpen('comment', !!i.m.comment)}><summary>Comment${i.m.comment ? (i.m.comment.shared ? ' · shared' : ' · private') : ''}</summary><div>
-        <textarea id="cmIn" placeholder="Private note" aria-label="Comment">${esc((i.m.comment && i.m.comment.text) || '')}</textarea>
-        <div class="row"><label class="ctl"><input type="checkbox" id="cmShare" ${i.m.comment && i.m.comment.shared ? 'checked' : ''}/> Share with student</label><span class="spacer"></span><button class="btn" data-act="cm-save">Save</button></div>
-      </div></details>
-      ${a.completion ? '' : `<details class="dsec" data-k="more" ${isOpen('more', !!S.pop.fill)}><summary>More</summary><div>
-        ${S.pop.fill != null ? `<div class="confirm">Fill ${fillCount} empty cell${fillCount === 1 ? '' : 's'} with ${S.pop.fill}/${i.max}? Cells with work, a score or an excusing flag are left alone.<div class="row"><button class="btn primary" data-act="fill-go" ${fillCount ? '' : 'disabled'}>Fill ${fillCount}</button><button class="btn" data-act="fill-cancel">Cancel</button></div></div>` : `<button class="btn ghost" style="align-self:flex-start" data-act="fill-start">Fill empty cells with this score</button>`}
-        <button class="btn ghost" style="align-self:flex-start" data-act="pub-stu">${i.pub ? 'Unpublish for this student' : 'Publish for this student'}</button>
-        ${a.kind === 'quiz' ? `<button class="btn ghost" style="align-self:flex-start" data-act="grade-answers">Grade answers</button>` : ''}
-      </div></details>`}
-      ${i.r.attempts.length > 1 ? `<details class="dsec" data-k="att" ${isOpen('att', false)}><summary>Attempts (${i.r.attempts.length}) · ${col(aid).policy}</summary><div>${i.r.attempts.map((p, n) => `<div class="small">Attempt ${n + 1}: ${Math.round(p)}%</div>`).join('')}</div></details>` : ''}
-      <details class="dsec" data-k="hist" ${isOpen('hist', false)}><summary>History (${hist.length})</summary><div>${hist.length ? `<ol class="hist">${hist.map((h) => `<li>${esc(h.at)} · You · ${esc(h.what)}</li>`).join('')}</ol>` : '<div class="small muted">No changes yet.</div>'}</div></details>`;
+    const below = belowEmpty(sid, aid).length;
+    const fl = i.flags.map((f) => ({ ...f, d: flagDef(f.id) })).filter((f) => f.d);
+    const flagBtn = `<button class="select flagsel" data-act="sub" data-sub="flags" aria-haspopup="true" aria-expanded="${S.pop.sub === 'flags'}">${fl.length ? `${flagChip(fl[0].d, fl[0].auto)}<span>${esc(fl[0].d.name)}${fl.length > 1 ? ` +${fl.length - 1}` : ''}</span>` : '<span class="ph">Flag</span>'}${ICON.chev}</button>`;
+    const metaBits = [];
+    if (i.m.override != null) metaBits.push(`Calculated <span class="strike">${i.computed == null ? 'none' : Math.round(i.computed) + '%'}</span> <button class="link" data-act="ov-revert">Revert</button>`);
+    if (i.r.attempts.length > 1) metaBits.push(`${i.r.attempts.length} attempts (${i.r.attempts.map((p) => Math.round(p) + '%').join(', ')}), using ${col(aid).policy}`);
+    const notes = gradingNotes(sid, aid);
+    const cm = i.m.comment || {}; const cmText = d ? d.comment : cm.text || ''; const cmShared = d ? d.shared : !!cm.shared;
+    pop.innerHTML = `${head()}
+      <div class="scorerow">${a.completion ? `<span class="small">${i.done ? 'Submitted · completion only' : 'Not submitted'}</span>` : `
+        <div class="scorebox"><input id="ovIn" type="number" min="0" max="${i.max}" step="0.5" value="${ptsVal}" aria-label="Score"/><button class="filldown" data-act="fill-below" ${below ? '' : 'disabled'} title="${below ? `Use this score for the ${below} empty cell${below === 1 ? '' : 's'} below` : 'No empty cells below'}" aria-label="Fill empty cells below">${ICON.filldown}</button></div>
+        <span class="outof">/ ${i.max}</span>`}
+        <span class="spacer"></span>${flagBtn}</div>
+      ${metaBits.length ? `<div class="small muted">${metaBits.join(' · ')}</div>` : ''}
+      <div class="field">
+        <div class="fieldhead"><label for="cmIn">Comment</label><label class="toggle"><input type="checkbox" id="cmShare" ${cmShared ? 'checked' : ''}/><span class="track"></span>Share with student</label></div>
+        ${notes.map((n) => `<div class="gnote"><span class="qtag">Q${n.q}</span><span>${esc(n.text)}</span></div>`).join('')}
+        <textarea id="cmIn" rows="2" placeholder="Add a comment" aria-label="Comment">${esc(cmText)}</textarea>
+      </div>
+      <div class="pfoot"><button class="link" data-act="hist-toggle" aria-expanded="${S.pop.hist}">History${hist.length ? ` (${hist.length})` : ''}</button><span class="spacer"></span>${a.completion ? '' : `<button class="link" data-act="pub-stu">${i.pub ? 'Unpublish' : 'Publish'} for ${esc(s.first)}</button>`}</div>
+      ${S.pop.hist ? (hist.length ? `<ol class="hist">${hist.map((h) => `<li>${esc(h.at)} · ${esc(h.what)}</li>`).join('')}</ol>` : '<div class="small muted">No changes yet.</div>') : ''}`;
     pop.hidden = false; place(anchor);
     if (prefill != null) { const inp = document.getElementById('ovIn'); if (inp) { inp.focus(); const v = inp.value; inp.value = ''; inp.value = v; } }
+    if (S.pop.sub) openSub(S.pop.sub);
   }
   function openHeadPop(aid, anchor) {
     const prev = carry('head', aid);
-    S.pop = { type: 'head', id: aid, a: aid, bulk: prev.bulk || null, open: prev.open || {} };
+    pop.classList.remove('menuwide'); S.pop = { type: 'head', id: aid, a: aid, del: !!prev.del, sub: prev.sub || null, q: prev.q || '', markSel: prev.markSel || 'M' };
     const a = A[aid]; const c = col(aid); const st = cls().students;
     const inf = st.map((s) => info(s.id, aid)); const sub = inf.filter((i) => i.r.state !== 'none' && !i.na).length; const asg = inf.filter((i) => !i.na).length;
-    const nonSub = inf.filter((i) => !i.na && i.r.state === 'none').length;
+    const sorted = S.sort.key === aid;
+    const empties = inf.filter(emptyCell).length;
+    const markOpts = (a.completion ? [] : [['zero', '0 points']]).concat(liveFlags().map((f) => [f.id, f.name]));
+    if (!markOpts.some(([v]) => v === S.pop.markSel)) S.pop.markSel = markOpts[0][0];
+    const tags = c.targets;
     pop.innerHTML = `
-      <div><h3>${esc(a.title)}</h3><div class="sub">${KIND[a.kind].label} · due ${fdate(a.dueDate)} · ${sub}/${asg} submitted${a.completion ? '' : ' · ' + (c.maxOverride || a.max) + ' pts · avg ' + fmtPct(avg(inf.map((i) => (i.excluded ? null : i.pct))))}${a.completion || c.pub ? '' : ' · <span class="unpub">not published</span>'}</div></div>
-      <div class="row">
-        <button class="btn" data-act="open-results">${a.completion ? 'Open submissions' : 'Open results'}</button>
+      <div class="phead"><div class="ptitle"><h3>${esc(a.title)}</h3><div class="sub">${KIND[a.kind].label} · due ${fdate(a.dueDate)} · ${sub}/${asg} submitted${a.completion ? '' : ' · avg ' + fmtPct(avg(inf.map((i) => (i.excluded ? null : i.pct))))}${a.completion || c.pub ? '' : ' · <span class="unpub">Not published</span>'}</div></div>
+        <div class="tools">
+          <button class="iconbtn sm" data-act="sort-col" aria-pressed="${sorted}" title="${sorted && S.sort.dir < 0 ? 'Sort low to high' : 'Sort high to low'}" aria-label="Sort by this column">${ICON.sort}</button>
+          <button class="iconbtn sm" data-act="edit-asg" title="Edit assignment" aria-label="Edit assignment">${ICON.pencil}</button>
+          <button class="iconbtn sm" data-act="hide-col" title="Hide column" aria-label="Hide column">${ICON.eyeoff}</button>
+          <button class="iconbtn sm danger" data-act="del-start" title="Delete assignment" aria-label="Delete assignment">${ICON.trash}</button>
+        </div></div>
+      ${S.pop.del ? `<div class="confirm danger"><span>Delete <b>${esc(a.title)}</b>? Student work and scores are removed for everyone.</span><div class="row"><button class="btn danger-solid sm" data-act="del-go">Delete</button><button class="btn sm" data-act="del-cancel">Cancel</button></div></div>` : ''}
+      <div class="actions">
+        <button class="btn" data-act="open-results">${a.completion ? 'Submissions' : 'Results'}</button>
         ${a.completion ? '' : `<button class="btn" data-act="analyze">Analyze</button><button class="btn ${c.pub ? '' : 'primary'}" data-act="pub-col">${c.pub ? 'Unpublish' : 'Publish'}</button>`}
+        ${a.lms ? `<button class="btn" data-act="push" title="Send final scores to Google Classroom">Push scores</button>` : ''}
       </div>
-      ${a.completion ? '' : `<details class="dsec" data-k="setup" ${isOpen('setup', false)}><summary>Grading setup · ${c.cat}${c.counts ? '' : ', not counted'}</summary><div>
-        <div class="row"><label class="ctl">Category <select id="hCat">${S.settings.cats.map((x) => opt(x.name, x.name, c.cat)).join('')}</select></label>
-        <label class="ctl"><input type="checkbox" id="hCounts" ${c.counts ? 'checked' : ''}/> Counts toward overall</label></div>
-        <div class="row"><label class="ctl">Out of <input type="number" id="hMax" min="1" style="width:66px" value="${c.maxOverride || a.max}"/> pts</label>
-        <label class="ctl">Attempts <select id="hPolicy">${opt('latest', 'Latest', c.policy)}${opt('highest', 'Highest', c.policy)}${opt('average', 'Average', c.policy)}</select></label></div>
-        <div class="row">${TARGETS.map((t) => `<button class="fchip" style="--c:var(--accent)" data-act="htarget" data-t="${t.id}" aria-pressed="${c.targets.includes(t.id)}" title="${t.label}">${t.id}</button>`).join('')}</div>
-      </div></details>`}
-      <details class="dsec" data-k="bulk" ${isOpen('bulk', !!S.pop.bulk)}><summary>Whole column</summary><div>
-        ${S.pop.bulk ? `<div class="confirm">${S.pop.bulk.msg}<div class="row"><button class="btn primary" data-act="bulk-go">${S.pop.bulk.cta}</button><button class="btn" data-act="bulk-cancel">Cancel</button></div></div>` : `
-        <button class="btn ghost" style="align-self:flex-start" data-act="sort-col">Sort rows by this column</button>
-        ${a.completion ? '' : `<button class="btn ghost" style="align-self:flex-start" data-act="bulk" data-k="fill">Fill empty cells with 0</button>`}
-        <button class="btn ghost" style="align-self:flex-start" data-act="bulk" data-k="missing" ${nonSub ? '' : 'disabled'}>Mark ${nonSub} non-submitters Missing</button>
-        <button class="btn ghost" style="align-self:flex-start" data-act="bulk" data-k="excuse">Excuse for everyone</button>
-        <button class="btn ghost" style="align-self:flex-start" data-act="hide-col">Hide column</button>
-        ${a.lms ? `<button class="btn ghost" style="align-self:flex-start" data-act="push">Push final scores to ${a.lms}</button>` : ''}`}
-      </div></details>`;
-    pop.hidden = false; place(anchor);
+      ${a.completion ? '' : `<div class="form">
+        <label for="hCat">Category</label><select id="hCat">${S.settings.cats.map((x) => opt(x.name, x.name, c.cat)).join('')}</select>
+        <label for="hMax">Total points</label><input type="number" id="hMax" min="1" value="${c.maxOverride || a.max}"/>
+        <label for="hPolicy" title="Which score counts when a student retakes it">Retakes</label><select id="hPolicy">${opt('latest', 'Use latest', c.policy)}${opt('highest', 'Use highest', c.policy)}${opt('average', 'Average them', c.policy)}</select>
+        <label>Standards</label><button class="select" data-act="sub" data-sub="std" aria-haspopup="true" aria-expanded="${S.pop.sub === 'std'}"><span class="${tags.length ? '' : 'ph'} ellip">${tags.length ? tags.join(', ') : 'None'}</span>${ICON.chev}</button>
+        <span></span><label class="toggle"><input type="checkbox" id="hCounts" ${c.counts ? 'checked' : ''}/><span class="track"></span>Counts toward overall</label>
+      </div>`}
+      <div class="section"><div class="sechead">Mark all</div>
+        <div class="markrow"><label for="markSel">Empty cells</label><select id="markSel">${markOpts.map(([v, l]) => opt(v, l, S.pop.markSel)).join('')}</select><button class="btn sm" data-act="mark-go" ${empties ? '' : 'disabled'}>Apply${empties ? ` to ${empties}` : ''}</button></div>
+      </div>`;
+    pop.hidden = false; place(anchor); anchor.setAttribute('aria-expanded', 'true');
+    if (S.pop.sub) openSub(S.pop.sub);
+  }
+  const closeSub = () => { pop2.hidden = true; pop2.style.width = ''; S.applyOpen = false; if (S.pop) S.pop.sub = null; document.querySelectorAll('#pop [data-act="sub"]').forEach((b) => b.setAttribute('aria-expanded', 'false')); };
+  function stdList() {
+    const c = col(S.pop.a); const q = (S.pop.q || '').toLowerCase();
+    const list = CATALOG.filter((t) => !q || (t.id + ' ' + t.label).toLowerCase().includes(q));
+    const sel = list.filter((t) => c.targets.includes(t.id)); const rest = list.filter((t) => !c.targets.includes(t.id));
+    return [...sel, ...rest].map((t) => { const on = c.targets.includes(t.id); return `<button class="mitem" role="menuitemcheckbox" aria-checked="${on}" data-act="htarget" data-t="${t.id}"><span class="check">${on ? ICON.check : ''}</span><b>${t.id}</b><span class="ellip">${esc(t.label)}</span></button>`; }).join('') || '<div class="small muted" style="padding:8px">No matches</div>';
+  }
+  function openSub(kind) {
+    const anchor = document.querySelector(`#pop [data-act="sub"][data-sub="${kind}"]`); if (!anchor) return;
+    S.pop.sub = kind; anchor.setAttribute('aria-expanded', 'true');
+    if (kind === 'flags') {
+      const i = info(S.pop.s, S.pop.a);
+      pop2.innerHTML = `<div class="mlist" role="menu">${liveFlags().map((f) => { const on = i.flags.find((x) => x.id === f.id); return `<button class="mitem" role="menuitemcheckbox" aria-checked="${!!on}" data-act="flag" data-f="${f.id}"><span class="check">${on ? ICON.check : ''}</span>${flagChip(f, on && on.auto)}<span class="grow">${esc(f.name)}</span>${on && on.auto ? '<em>auto</em>' : ''}<kbd>${esc(f.key)}</kbd></button>`; }).join('')}</div>`;
+    } else {
+      const n = col(S.pop.a).targets.length;
+      pop2.innerHTML = `<div class="searchbox">${ICON.search}<input id="stdQ" type="search" placeholder="Search ${CATALOG.length} standards" value="${esc(S.pop.q || '')}" aria-label="Search standards"/></div><div class="small muted" style="padding:0 4px">${n} selected</div><div class="mlist scroll" id="stdList" role="menu">${stdList()}</div>`;
+    }
+    pop2.hidden = false;
+    const r = anchor.getBoundingClientRect(); const pw = pop2.offsetWidth, ph = pop2.offsetHeight;
+    const left = Math.max(12, Math.min(r.right - pw, innerWidth - pw - 12)); const below = innerHeight - r.bottom - 16; const down = below >= Math.min(ph, 240) || below >= r.top;
+    pop2.style.maxHeight = (down ? below : r.top - 16) + 'px'; pop2.style.left = left + 'px'; pop2.style.top = (down ? r.bottom + 4 : Math.max(12, r.top - Math.min(ph, r.top - 16) - 4)) + 'px';
+    if (kind === 'std') { const q = document.getElementById('stdQ'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
   }
   function openMenu(m, anchor) {
     const prev = carry(m, m); S.pop = { type: m, id: m, open: prev.open || {} };
@@ -681,29 +853,30 @@
     const hiddenCols = ASSIGN.filter((a) => col(a.id).hidden);
     const H = {
       view: `<div><span class="lbl">Scores</span><div class="seg" role="group"><button data-act="fmt" data-v="pct" aria-pressed="${S.fmt === 'pct'}">Percent</button><button data-act="fmt" data-v="pts" aria-pressed="${S.fmt === 'pts'}">Points</button></div>
-          <label class="ctl"><input type="checkbox" id="tintChk" ${S.tint ? 'checked' : ''}/> Proficiency colors</label></div>
+          <label class="toggle"><input type="checkbox" id="tintChk" ${S.tint ? 'checked' : ''}/><span class="track"></span>Proficiency colors</label></div>
         <div><span class="lbl">Names</span><div class="seg" role="group"><button data-act="setname" data-v="last" aria-pressed="${S.nameFmt === 'last'}">Last, First</button><button data-act="setname" data-v="first" aria-pressed="${S.nameFmt === 'first'}">First Last</button></div></div>
         <div><span class="lbl">Sort rows</span><select id="sortSel" aria-label="Sort rows">${opt('name', 'Name', S.sort.key === 'name' ? 'name' : '')}${opt('overall', 'Overall', S.sort.key === 'overall' ? 'overall' : '')}${opt('missing', 'Missing count', S.sort.key === 'missing' ? 'missing' : '')}</select></div>`,
       filter: `<div><span class="lbl">Category</span><select id="fcat" aria-label="Category">${opt('all', 'All', S.fcat)}${S.settings.cats.map((c) => opt(c.name, c.name, S.fcat)).join('')}</select></div>
         <div><span class="lbl">Activity type</span><select id="fkind" aria-label="Activity type">${opt('all', 'All', S.fkind)}${Object.entries(KIND).map(([k, v]) => opt(k, v.label, S.fkind)).join('')}</select></div>
-        <label class="ctl"><input type="checkbox" id="needsChk" ${S.needs ? 'checked' : ''}/> Only columns that need grading</label>
+        <label class="toggle"><input type="checkbox" id="needsChk" ${S.needs ? 'checked' : ''}/><span class="track"></span>Only columns with ungraded work</label>
         ${hiddenCols.length ? `<div><span class="lbl">Hidden columns</span>${hiddenCols.map((a) => `<div class="small">${esc(a.title)}</div>`).join('')}<button class="btn ghost" style="align-self:flex-start" data-act="unhide">Show all</button></div>` : ''}`,
       anfilter: `<div><span class="lbl">Category</span><select id="anCat">${opt('all', 'All', f.cat)}${S.settings.cats.map((c) => opt(c.name, c.name, f.cat)).join('')}</select></div>
         <div><span class="lbl">Activity type</span><select id="anKind">${opt('all', 'All', f.kind)}${Object.entries(KIND).filter(([, v]) => !v.completion).map(([k, v]) => opt(k, v.label, f.kind)).join('')}</select></div>
-        <div><span class="lbl">Learning target</span><select id="anTarget">${opt('all', 'All', f.target)}${TARGETS.map((t) => opt(t.id, t.id + ' ' + t.label, f.target)).join('')}</select></div>
+        <div><span class="lbl">Learning target</span><select id="anTarget">${opt('all', 'All', f.target)}${TG().map((t) => opt(t.id, t.id + ' ' + t.label, f.target)).join('')}</select></div>
         <div><span class="lbl">Roster group</span><select id="anGroup">${opt('all', 'All', f.group)}${groups.map((g) => opt(g, g, f.group)).join('')}</select></div>
-        <div><span class="lbl">Flag</span><select id="anFlag">${opt('all', 'Any', f.flag)}${S.settings.flags.map((x) => opt(x.id, 'Has ' + x.name, f.flag)).join('')}</select></div>
+        <div><span class="lbl">Flag</span><select id="anFlag">${opt('all', 'Any', f.flag)}${liveFlags().map((x) => opt(x.id, 'Has ' + x.name, f.flag)).join('')}</select></div>
         <div><span class="lbl">Accommodations</span><select id="anAcc" title="Screen only. Never exported.">${opt('all', 'Any', f.acc)}${opt('yes', 'With', f.acc)}${opt('no', 'Without', f.acc)}</select></div>`,
       help: `<div class="small muted">Prototype with invented students and scores.</div>
-        <div class="keys"><kbd>Arrows</kbd><span>Move between cells</span><kbd>0–9</kbd><span>Start typing a score</span><kbd>Enter</kbd><span>Open the cell</span><kbd>M X L I A</kbd><span>Toggle a flag</span><kbd>Ctrl+Z</kbd><span>Undo</span><kbd>P</kbd><span>Privacy blur</span></div>
+        <div class="keys"><kbd>Arrows</kbd><span>Move between cells</span><kbd>0–9</kbd><span>Start typing a score</span><kbd>Enter</kbd><span>Open the cell</span><kbd>${liveFlags().map((f) => esc(f.key)).join(' ')}</kbd><span>Toggle a flag</span><kbd>Ctrl+Z</kbd><span>Undo</span><kbd>P</kbd><span>Privacy blur</span></div>
         <div class="keys"><span class="v live" style="font-style:italic;text-decoration:underline dotted var(--appr)">85%</span><span>Not published yet</span><span class="dotpub" style="align-self:center"></span><span>Column has unpublished scores</span><span class="chip auto" style="--c:var(--beg);position:static">M</span><span>Flag applied automatically</span><span class="chip" style="--c:var(--beg);position:static">M+</span><span>More than one flag</span></div>`,
     };
-    pop.innerHTML = `<div class="menu">${H[m]}</div>`; pop.hidden = false; place(anchor);
+    pop.classList.add('menuwide'); pop.innerHTML = `<div class="menu">${H[m]}</div>`; pop.hidden = false; place(anchor); anchor.setAttribute('aria-expanded', 'true');
   }
   const reopen = () => { const p = S.pop; if (!p) return; const an = findAnchor(p); if (!an) { closePop(); return; } if (p.type === 'cell') openCellPop(p.s, p.a, an); else if (p.type === 'head') openHeadPop(p.a, an); else openMenu(p.type, an); };
   const now = () => fdate(TODAY);
   const logH = (sid, aid, what) => { const m = mark(sid, aid, true); (m.hist = m.hist || []).unshift({ at: now(), what }); };
-  const rerender = () => { const w = document.getElementById('gridwrap'); if (w) S.gridScroll = { l: w.scrollLeft, t: w.scrollTop }; render(); reopen(); };
+  const rerender = () => { const w = document.getElementById('gridwrap'); if (w) S.gridScroll = { l: w.scrollLeft, t: w.scrollTop }; captureDraft(); render(); reopen(); };
+  const captureDraft = () => { const o = document.getElementById('ovIn'), c = document.getElementById('cmIn'); if (S.pop && S.pop.type === 'cell' && c) S.pop.draft = { score: o ? o.value : '', comment: c.value, shared: document.getElementById('cmShare').checked }; };
 
   // ---------- Student view ----------
   const CARD_META = { perf: ['Performance', 'w8'], standards: ['Standards and learning targets', 'w12'], habits: ['Work habits', 'w4'], compare: ['Compared with the class', 'w6'], list: ['Assignments', 'w12'], insights: ['Needs attention', 'w6'] };
@@ -714,7 +887,7 @@
     const cards = S.cards.filter((c) => S.customize || !S.hiddenCards.includes(c));
     return `
     <div class="shead">
-      <button class="btn" data-act="back">← Gradebook</button>
+      <button class="btn ghost" data-act="back">${ICON.back}Grades</button>
       <button class="btn" data-act="stu-nav" data-d="-1" aria-label="Previous student" ${idx <= 0 ? 'disabled' : ''}>‹</button>
       <h2 class="pv">${esc(s.first)} ${esc(s.last)}</h2>
       <button class="btn" data-act="stu-nav" data-d="1" aria-label="Next student" ${idx >= studs.length - 1 ? 'disabled' : ''}>›</button>
@@ -727,7 +900,7 @@
       <div class="card kpi" style="grid-column:auto"><b class="pv">${o.pct == null ? '—' : o.pct.toFixed(1) + '%'}</b><span>Overall · ${o.pct == null ? '' : bandName[band(o.pct)]}</span></div>
       <div class="card kpi" style="grid-column:auto"><b class="pv">${mc}</b><span>Missing</span></div>
       <div class="card kpi" style="grid-column:auto"><b class="pv">${lateN}</b><span>Late</span></div>
-      <div class="card kpi" style="grid-column:auto"><b class="pv">${TARGETS.filter((t) => band(prof(s.id, t.id)) === 'p').length}/${TARGETS.length}</b><span>Targets proficient</span></div>
+      <div class="card kpi" style="grid-column:auto"><b class="pv">${TG().filter((t) => band(prof(s.id, t.id)) === 'p').length}/${TG().length}</b><span>Targets proficient</span></div>
     </div>
     <div class="cards">${cards.map((c, n) => cardWrap(c, n, cards.length, s)).join('')}</div>`;
   }
@@ -742,26 +915,26 @@
       const o = overall(s.id); const pts = scoredCols().map((a) => ({ a, i: info(s.id, a.id), med: median(cls().students.map((x) => { const j = info(x.id, a.id); return j.excluded ? null : j.pct; })) }));
       const W = 560, H = 190, L = 34, R = 10, T = 10, B = 26; const xs = (n) => L + (n * (W - L - R)) / Math.max(1, pts.length - 1); const ys = (v) => T + (1 - v / 100) * (H - T - B);
       const line = (key) => pts.map((p, n) => ({ n, v: key(p) })).filter((p) => p.v != null).map((p, k) => `${k ? 'L' : 'M'}${xs(p.n).toFixed(1)},${ys(p.v).toFixed(1)}`).join(' ');
-      const whatA = { max: 30, cat: 'Assessments' };
+      const whatA = { max: 30, cat: S.settings.cats[0].name };
       const b = o.byCat; const cats = S.settings.cats;
       let proj = null;
-      if (o.pct != null) { const cp = { ...b }; cp.Assessments = { e: ((b.Assessments && b.Assessments.e) || 0) + clamp(S.whatIf, 0, 30), p: ((b.Assessments && b.Assessments.p) || 0) + whatA.max }; let ws = 0, acc = 0; cats.forEach((ct) => { const x = cp[ct.name]; if (x && x.p) { ws += ct.w; acc += ct.w * (x.e / x.p) * 100; } }); proj = acc / ws; }
+      if (o.pct != null) { const cp = { ...b }; const k0 = whatA.cat; cp[k0] = { e: ((b[k0] && b[k0].e) || 0) + clamp(S.whatIf, 0, 30), p: ((b[k0] && b[k0].p) || 0) + whatA.max }; let ws = 0, acc = 0; cats.forEach((ct) => { const x = cp[ct.name]; if (x && x.p) { ws += ct.w; acc += ct.w * (x.e / x.p) * 100; } }); proj = acc / ws; }
       return `<div class="bars">${cats.map((ct) => { const x = b[ct.name]; const p = x && x.p ? (x.e / x.p) * 100 : null; return `<div class="bar"><span class="lab">${ct.name} · ${ct.w}%</span><span class="track"><span class="fill pv" style="width:${p || 0}%"></span></span><span class="val pv">${fmtPct(p)}</span></div>`; }).join('')}</div>
       <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Score trend">
-        ${[0, 60, 80, 100].map((v) => `<line x1="${L}" x2="${W - R}" y1="${ys(v)}" y2="${ys(v)}" stroke="var(--line)" stroke-dasharray="${v === 60 || v === 80 ? '3 3' : ''}"/><text x="${L - 6}" y="${ys(v) + 4}" text-anchor="end">${v}</text>`).join('')}
+        ${[0, scale().a, scale().p, 100].map((v) => `<line x1="${L}" x2="${W - R}" y1="${ys(v)}" y2="${ys(v)}" stroke="var(--line)" stroke-dasharray="${v === scale().a || v === scale().p ? '3 3' : ''}"/><text x="${L - 6}" y="${ys(v) + 4}" text-anchor="end">${v}</text>`).join('')}
         <path d="${line((p) => p.med)}" fill="none" stroke="var(--slate)" stroke-width="1.5" stroke-dasharray="5 4"/>
         <path class="pv" d="${line((p) => (p.i.excluded || p.i.awaiting ? null : p.i.pct))}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
         ${pts.map((p, n) => (p.i.pct == null || p.i.excluded || p.i.awaiting ? '' : `<circle class="pv" cx="${xs(n)}" cy="${ys(p.i.pct)}" r="4" fill="${p.i.zeroed ? 'var(--beg)' : 'var(--accent)'}"><title>${esc(p.a.title)}: ${Math.round(p.i.pct)}%</title></circle>`)).join('')}
         ${pts.map((p, n) => `<text x="${xs(n)}" y="${H - 8}" text-anchor="middle">${fdate(p.a.dueDate).replace(' ', ' ')}</text>`).filter((_, n) => n % 2 === 0).join('')}
       </svg>
       <div class="small muted">Solid: ${esc(s.first)} · dashed: class median · red dot: Missing counted as 0</div>
-      <div class="confirm"><span class="lbl small">What if</span><div class="row"><label for="wi">If ${esc(s.first)} scores</label><input id="wi" type="number" min="0" max="30" style="width:70px" value="${S.whatIf}"/><span>/ 30 on the next Assessment, overall becomes <b class="pv">${fmtPct(proj)}</b></span></div></div>`;
+      <div class="confirm"><span class="lbl small">What if</span><div class="row"><label for="wi">If ${esc(s.first)} scores</label><input id="wi" type="number" min="0" max="30" style="width:70px" value="${S.whatIf}"/><span>/ 30 on the next ${esc(S.settings.cats[0].name)} assignment, overall becomes <b class="pv">${fmtPct(proj)}</b></span></div></div>`;
     },
     standards(s) {
       const method = { decay: 'Decaying average', mean: 'Mean', recent: 'Most recent', highest: 'Highest' }[S.settings.method];
-      return `<div class="small muted">${method} · Proficient 80+ · Approaching 60–79</div>
+      return `<div class="small muted">${method} · ${esc(scale().names[0])} ${scale().p}+ · ${esc(scale().names[1])} ${scale().a}–${scale().p - 1}</div>
       <div class="tscroll"><table class="plain"><thead><tr><th>Target</th><th>Level</th><th>Evidence over time</th><th></th></tr></thead><tbody>
-      ${TARGETS.map((t) => { const p = prof(s.id, t.id); const ev = evidence(s.id, t.id); const bnd = band(p); return `<tr><td><b>${t.id}</b> ${t.label}</td><td><span class="badge ${bandCls[bnd]} pv">${bandName[bnd]}${p == null ? '' : ' · ' + Math.round(p)}</span></td>
+      ${TG().map((t) => { const p = prof(s.id, t.id); const ev = evidence(s.id, t.id); const bnd = band(p); return `<tr><td><b>${t.id}</b> ${t.label}</td><td><span class="badge ${bandCls[bnd]} pv">${bandName[bnd]}${p == null ? '' : ' · ' + Math.round(p)}</span></td>
         <td><div class="heat" style="grid-template-columns:repeat(${Math.max(ev.length, 1)}, 34px)">${ev.map((e) => `<span class="hc pv" data-band="${band(e.pct)}" title="${esc(e.a.title)}: ${Math.round(e.pct)}%">${Math.round(e.pct)}</span>`).join('') || '<span class="small muted">None yet</span>'}</div></td>
         <td><button class="btn ghost small" data-act="expand-t" data-t="${t.id}">${S.expandTarget === t.id ? 'Hide' : 'Evidence'}</button></td></tr>
         ${S.expandTarget === t.id ? `<tr><td colspan="4"><div class="small">${ev.map((e) => `${esc(e.a.title)} (${fdate(e.a.dueDate)}): <b class="pv">${Math.round(e.pct)}%</b> on ${t.id} questions`).join('<br/>') || 'No evidence.'}</div></td></tr>` : ''}`; }).join('')}
@@ -823,14 +996,15 @@
     const groups = [...new Set(cls().students.map((s) => s.group))];
     const overs = st.map((s) => overall(s.id).pct).filter((v) => v != null);
     const missTot = st.reduce((n, s) => n + missingCount(s.id), 0);
-    const profAll = st.filter((s) => TARGETS.every((t) => { const p = prof(s.id, t.id); return p == null || p >= 80; })).length;
-    const tlist = f.target === 'all' ? TARGETS : TARGETS.filter((t) => t.id === f.target);
+    const profAll = st.filter((s) => TG().every((t) => { const p = prof(s.id, t.id); return p == null || p >= scale().p; })).length;
+    const tlist = f.target === 'all' ? TG() : TG().filter((t) => t.id === f.target);
     const other = S.cls === 'p2' ? 'p4' : 'p2';
     return `
     <div class="filterbar">
-      <button class="btn" data-act="menu" data-m="anfilter" aria-haspopup="true">Filters${anActive().length ? ` <span class="count">${anActive().length}</span>` : ''}</button>
-      ${anActive().map((x) => `<button class="fpill" data-act="an-rm" data-k="${x.k}" aria-label="Remove filter ${esc(x.label)}">${esc(x.label)}<span aria-hidden="true">×</span></button>`).join('')}
-      <label class="ctl"><input type="checkbox" id="anCompare" ${f.compare ? 'checked' : ''}/> Compare with ${CLASSES[other].name.split('· ')[1]}</label>
+      <button class="btn" data-act="menu" data-m="anfilter" aria-haspopup="true" aria-expanded="${!!(S.pop && S.pop.type === 'anfilter')}">Filters${anActive().length ? ` <span class="count">${anActive().length}</span>` : ''}${ICON.chev}</button>
+      ${anActive().length ? '<button class="link" data-act="an-clear">Clear</button>' : ''}
+      <span class="vsep"></span>
+      <label class="toggle"><input type="checkbox" id="anCompare" ${f.compare ? 'checked' : ''}/><span class="track"></span>Compare with ${CLASSES[other].name.split('· ')[1]}</label>
       <span class="spacer"></span><span class="small muted">${st.length} students · ${as.length} assignments</span>
     </div>
     <div class="kpis">
@@ -854,7 +1028,7 @@
       }).join('')}</div></section>
       <section class="card w6"><h3>Missing work</h3>${st.filter((s) => missingCount(s.id)).sort((a, b) => missingCount(b.id) - missingCount(a.id)).map((s) => `<div class="bar"><span class="lab"><button class="sname pv" data-act="student" data-s="${s.id}">${esc(nm(s))}</button></span><span class="small muted">${ASSIGN.filter((a) => info(s.id, a.id).flags.some((x) => x.id === 'M')).map((a) => esc(a.title)).join(', ')}</span><span class="val"><span class="badge bad pv">${missingCount(s.id)}</span></span></div>`).join('') || '<div class="small muted">No missing work.</div>'}</section>
       <section class="card w12"><h3>Explore<span class="spacer"></span>
-        <select id="exMetric" aria-label="Metric">${opt('avg', 'Average score', f.metric)}${opt('missing', 'Missing count', f.metric)}${opt('prof', '% scoring 80+', f.metric)}</select>
+        <select id="exMetric" aria-label="Metric">${opt('avg', 'Average score', f.metric)}${opt('missing', 'Missing count', f.metric)}${opt('prof', '% at ' + scale().names[0], f.metric)}</select>
         <select id="exBy" aria-label="Group by">${opt('assignment', 'by assignment', f.by)}${opt('kind', 'by activity type', f.by)}${opt('cat', 'by category', f.by)}${opt('target', 'by target', f.by)}${opt('group', 'by roster group', f.by)}</select></h3>
         <div class="bars">${explore(st, as).map((r) => `<div class="bar"><span class="lab">${esc(r.label)}</span><span class="track"><span class="fill" style="width:${r.w}%"></span></span><span class="val pv">${r.text}</span></div>`).join('')}</div>
       </section>
@@ -874,13 +1048,13 @@
     if (f.by === 'kind') groups = [...new Set(as.map((a) => a.kind))].map((k) => ({ label: KIND[k].label, as: as.filter((a) => a.kind === k), st }));
     if (f.by === 'cat') groups = S.settings.cats.map((c) => ({ label: c.name, as: as.filter((a) => col(a.id).cat === c.name), st }));
     if (f.by === 'group') groups = [...new Set(st.map((s) => s.group))].sort().map((g) => ({ label: g, as, st: st.filter((s) => s.group === g) }));
-    if (f.by === 'target') groups = TARGETS.map((t) => ({ label: t.id + ' ' + t.label, as: as.filter((a) => col(a.id).targets.includes(t.id)), st, t: t.id }));
+    if (f.by === 'target') groups = TG().map((t) => ({ label: t.id + ' ' + t.label, as: as.filter((a) => col(a.id).targets.includes(t.id)), st, t: t.id }));
     return groups.map((g) => {
       const cells = g.st.flatMap((s) => g.as.map((a) => info(s.id, a.id)));
       if (f.metric === 'missing') { const n = cells.filter((i) => i.flags.some((x) => x.id === 'M')).length; return { label: g.label, v: n, text: String(n) }; }
       const vals = g.t && f.metric === 'prof' ? g.st.map((s) => prof(s.id, g.t)) : cells.map((i) => (i.excluded || i.awaiting ? null : i.pct));
       if (f.metric === 'avg') { const v = avg(vals); return { label: g.label, v: v || 0, text: fmtPct(v) }; }
-      const v2 = vals.filter((x) => x != null); const p = v2.length ? (v2.filter((x) => x >= 80).length / v2.length) * 100 : 0; return { label: g.label, v: p, text: Math.round(p) + '%' };
+      const v2 = vals.filter((x) => x != null); const p = v2.length ? (v2.filter((x) => x >= scale().p).length / v2.length) * 100 : 0; return { label: g.label, v: p, text: Math.round(p) + '%' };
     }).map((r, _, arr) => ({ ...r, w: f.metric === 'missing' ? (r.v / Math.max(1, ...arr.map((x) => x.v))) * 100 : r.v }));
   }
 
@@ -907,25 +1081,64 @@
     modal(`<header><h2>${esc(a.title)} · Results</h2><span class="spacer"></span><button class="btn" data-act="close-modal">Close</button></header>
       <div class="empty-state"><b>The existing ${KIND[a.kind].label} Results view mounts here</b>Grading written answers or rubrics here updates the gradebook as soon as you close it.</div>`);
   }
+  function editModal(aid) {
+    const a = A[aid];
+    modal(`<header><h2>Edit ${esc(a.title)}</h2><span class="spacer"></span><button class="btn" data-act="close-modal">Close</button></header>
+      <div class="empty-state"><b>The existing ${KIND[a.kind].label} editor opens here</b>Title, due date and questions change in one place, and the column updates.</div>`);
+  }
   function settingsModal() {
-    const st = S.settings; const ro = st.source !== 'personal' ? 'disabled' : '';
-    modal(`<header><h2>Gradebook settings</h2><span class="spacer"></span><button class="btn" data-act="close-modal">Done</button></header>
-      <label class="ctl">Settings for this class <select id="setSource">${opt('personal', 'My settings', st.source)}${opt('plc', 'Follow: Grade 8 ELA PLC', st.source)}</select></label>
-      ${ro ? '<div class="confirm small">Following the PLC set. Your lead manages these settings, and changes apply here automatically.</div>' : ''}
-      <section class="card w12"><h3>Flags</h3><div class="tscroll"><table class="plain"><thead><tr><th>Flag</th><th>Key</th><th>Effect on score</th><th>Students see it</th></tr></thead><tbody>
-        ${st.flags.map((f, n) => `<tr><td><span class="fchip" style="--c:${f.color}"><i class="chip" style="--c:${f.color}">${f.id}</i>${esc(f.name)}</span></td><td>${f.id}</td>
-          <td><select data-set="effect" data-n="${n}" ${ro}>${opt('none', 'No effect', f.effect)}${opt('zero', 'Counts as 0', f.effect)}${opt('exclude', 'Left out of average', f.effect)}</select></td>
-          <td><input type="checkbox" data-set="student" data-n="${n}" ${f.student ? 'checked' : ''} ${ro} aria-label="Students see ${esc(f.name)}"/></td></tr>`).join('')}
+    const ec = ECFG(); const st = ec.set; const plc = !!(ec.plc || ec.district); const ro = plc || ec.builtin ? 'disabled' : '';
+    const sc = st.scale.src === 'custom' ? st.scale.custom : SCALES[st.scale.src]; const scEdit = !plc && st.scale.src === 'custom' ? '' : 'disabled';
+    const tot = st.cats.reduce((n, c) => n + (+c.w || 0), 0);
+    const users = Object.keys(CLASSES).filter((k) => S.classCfg[k] === ec.id).length;
+    modal(`<header><h2>Gradebook settings</h2><span class="spacer"></span><button class="btn primary" data-act="close-modal">Done</button></header>
+      <section class="card w12 cfgcard">
+        <div class="setrow"><label for="cfgSel">Configuration</label>
+          ${S.cfgRename ? `<input id="cfgName" type="text" value="${esc(ec.name)}" aria-label="Configuration name" class="grow"/>` : `<select id="cfgSel">${ec.builtin ? '<option selected disabled>Default settings</option>' : ''}<optgroup label="Personal">${CFGS.map((c) => opt(c.id, c.name, ec.id)).join('')}</optgroup><optgroup label="PLCs">${PLCS.map((c) => opt(c.id, c.name, ec.id)).join('')}</optgroup><optgroup label="District">${DISTRICT.map((c) => opt(c.id, c.name, ec.id)).join('')}</optgroup></select>`}
+          <span class="tools">
+            ${plc || ec.builtin ? '' : `<button class="iconbtn sm" data-act="cfg-rename" title="Rename" aria-label="Rename configuration">${ICON.pencil}</button>`}
+            <button class="iconbtn sm" data-act="cfg-dup" title="${plc ? 'Copy to my configurations' : 'Duplicate'}" aria-label="Duplicate configuration">${ICON.copy}</button>
+            ${plc || ec.builtin ? '' : `<button class="iconbtn sm danger" data-act="cfg-del" title="Delete" aria-label="Delete configuration">${ICON.trash}</button>`}
+          </span>
+          <button class="btn sm" data-act="cfg-new">+ New</button></div>
+        ${S.cfgDel ? `<div class="confirm danger row"><span style="flex:1">Delete <b>${esc(ec.name)}</b>?${users ? ` ${users} class${users === 1 ? ' goes' : 'es go'} back to the default settings.` : ''}</span><button class="btn danger-solid sm" data-act="cfg-del-go">Delete</button><button class="btn sm" data-act="cfg-del-no">Cancel</button></div>` : ''}
+        ${ec.builtin ? '<div class="small muted">Classes with no configuration use these defaults. Create one with + New to change them.</div>' : `<div class="setrow"><label>Applies to</label><button class="select grow" data-act="apply-menu" aria-haspopup="true" aria-expanded="${!!S.applyOpen}">${(() => { const on = Object.entries(CLASSES).filter(([k]) => S.classCfg[k] === ec.id).map(([, c]) => c.name); return on.length ? `<span class="ellip">${esc(on.join(', '))}</span>` : '<span class="ph">No classes</span>'; })()}${ICON.chev}</button></div>`}
+        ${ec.plc ? `<div class="small muted">Your PLC lead manages this configuration. <button class="link" data-act="toast" data-msg="Opens Grade 8 ELA PLC › Settings › Gradebook">Open in PLC</button></div>` : ec.district ? '<div class="small muted">Your district manages this configuration for your building.</div>' : ''}
+      </section>
+      <section class="card w12"><h3>Flags</h3><div class="tscroll"><table class="plain settbl"><thead><tr><th>Flag</th><th>Key</th><th><span class="thtip">Value <button class="tip" data-tip="The score a flag gives a cell with no score. Leave it blank for no effect." aria-label="About value">i</button></span></th><th>Visibility</th><th></th></tr></thead><tbody>
+        ${st.flags.map((f, n) => `<tr><td><span class="fname"><button class="chip chipbtn" style="--c:${f.color}" data-act="flag-color" data-n="${n}" ${ro} title="Change color" aria-label="Change ${esc(f.name)} color">${esc(f.key)}</button><input type="text" data-set="fname" data-n="${n}" value="${esc(f.name)}" ${ro} aria-label="Flag name"/></span></td>
+          <td><input class="keyin" type="text" maxlength="1" data-set="fkey" data-n="${n}" value="${esc(f.key)}" ${ro} aria-label="${esc(f.name)} key"/></td>
+          <td>${f.exclude ? '<span class="badge" title="Left out of the average">Excluded</span>' : `<span class="pctin"><input type="number" data-set="val" data-n="${n}" min="0" max="100" value="${f.value ?? ''}" placeholder="None" ${ro} aria-label="${esc(f.name)} value"/><span>%</span></span>`}</td>
+          <td><button class="iconbtn sm visbtn hastip" data-act="flag-vis" data-n="${n}" data-v="${f.vis}" data-tip="${VIS[f.vis].label}" aria-label="${esc(f.name)}: ${VIS[f.vis].label}" ${ro}>${VIS[f.vis].icon}</button></td>
+          <td>${plc ? '' : CORE_FLAGS.includes(f.id) ? `<span class="iconbtn sm ghostlock" title="Built in, used by automatic Late and Missing">${ICON.lock}</span>` : `<button class="iconbtn sm danger" data-act="flag-rm" data-n="${n}" title="Remove flag" aria-label="Remove ${esc(f.name)}">${ICON.trash}</button>`}</td></tr>`).join('')}
       </tbody></table></div>
-      <label class="ctl"><input type="checkbox" id="setAuto" ${st.auto ? 'checked' : ''} ${ro}/> Apply Late and Missing automatically from due dates</label></section>
-      <section class="card w12"><h3>Overall grade</h3><label class="ctl"><input type="checkbox" id="setCats" ${st.useCats ? 'checked' : ''} ${ro}/> Use weighted categories</label>
-        ${st.cats.map((c, n) => `<div class="row"><span style="min-width:110px">${c.name}</span><input type="number" data-set="w" data-n="${n}" value="${c.w}" min="0" max="100" style="width:70px" ${ro} aria-label="${c.name} weight"/>%</div>`).join('')}</section>
-      <section class="card w12"><h3>Learning target proficiency</h3><select id="setMethod" ${ro} aria-label="Proficiency method">${opt('decay', 'Decaying average (recent counts 65%)', st.method)}${opt('mean', 'Mean of all evidence', st.method)}${opt('recent', 'Most recent', st.method)}${opt('highest', 'Highest', st.method)}</select>
-        <div class="small muted">Proficient 80+ · Approaching 60–79 (from your PLC cutoffs)</div></section>
+      ${plc ? '' : '<div class="row"><button class="link" data-act="flag-add">+ Add flag</button></div>'}
+      <label class="toggle"><input type="checkbox" id="setAuto" ${st.auto ? 'checked' : ''} ${ro}/><span class="track"></span>Apply Late and Missing automatically from due dates</label></section>
+      <section class="card w12"><h3>Overall grade<label class="toggle hdrtoggle"><input type="checkbox" id="setCats" ${st.useCats ? 'checked' : ''} ${ro}/><span class="track"></span>Weighted categories</label><span class="spacer"></span>${plc || !st.useCats ? '' : '<button class="link" data-act="cat-reset">Restore defaults</button>'}</h3>
+        ${st.useCats ? `<div class="catlist">${st.cats.map((c, n) => `<div class="catrow"><input type="text" data-set="cname" data-n="${n}" value="${esc(c.name)}" ${ro} aria-label="Category name"/><span class="pctin"><input type="number" data-set="w" data-n="${n}" value="${c.w}" min="0" max="100" ${ro} aria-label="${esc(c.name)} weight"/><span>%</span></span>${plc ? '' : `<button class="iconbtn sm danger" data-act="cat-rm" data-n="${n}" ${st.cats.length < 2 ? 'disabled' : ''} title="Remove category" aria-label="Remove ${esc(c.name)}">${ICON.trash}</button>`}</div>`).join('')}</div>
+        <div class="row">${plc ? '' : '<button class="link" data-act="cat-add">+ Add category</button>'}<span class="spacer"></span><span class="small ${tot > 100 ? 'badtext' : 'muted'}">${tot > 100 ? 'Cannot exceed 100%' : `Total ${tot}%`}</span></div>` : '<div class="small muted">Overall is total points earned.</div>'}</section>
+      <section class="card w12"><h3>Learning target proficiency</h3>
+        <div class="setrow"><label for="setScale">Scale</label><select id="setScale" ${ro}>${opt('district', 'Orono district scale', st.scale.src)}${opt('plc', 'Grade 8 ELA PLC scale', st.scale.src)}${opt('custom', 'Custom', st.scale.src)}</select></div>
+        <div class="levels">
+          <input type="text" data-set="lname" data-n="0" value="${esc(sc.names[0])}" ${scEdit} aria-label="Top level name"/><span class="lvtxt">at or above</span><span class="pctin"><input type="number" data-set="cut" data-k="p" value="${sc.p}" min="1" max="100" ${scEdit} aria-label="${esc(sc.names[0])} cutoff"/><span>%</span></span>
+          <input type="text" data-set="lname" data-n="1" value="${esc(sc.names[1])}" ${scEdit} aria-label="Middle level name"/><span class="lvtxt">at or above</span><span class="pctin"><input type="number" data-set="cut" data-k="a" value="${sc.a}" min="0" max="99" ${scEdit} aria-label="${esc(sc.names[1])} cutoff"/><span>%</span></span>
+          <input type="text" data-set="lname" data-n="2" value="${esc(sc.names[2])}" ${scEdit} aria-label="Bottom level name"/><span class="lvtxt">below</span><span class="lvtxt"><b>${sc.a}%</b></span>
+        </div>
+        <div class="setrow"><label for="setMethod">Combine evidence</label><select id="setMethod" ${ro}>${opt('decay', 'Decaying average (recent counts 65%)', st.method)}${opt('mean', 'Mean of all evidence', st.method)}${opt('recent', 'Most recent', st.method)}${opt('highest', 'Highest', st.method)}</select></div></section>
       <section class="card w12"><h3>What students see on their Grades tab</h3>
-        <label class="ctl"><input type="checkbox" id="setScores" ${st.showScores ? 'checked' : ''} ${ro}/> Published scores, visible flags and shared comments</label>
-        <label class="ctl"><input type="checkbox" id="setStd" ${st.showStandards ? 'checked' : ''} ${ro}/> Standards mastery</label></section>
+        <label class="toggle"><input type="checkbox" id="setScores" ${st.showScores ? 'checked' : ''} ${ro}/><span class="track"></span>Published scores, visible flags and shared comments</label>
+        <label class="toggle"><input type="checkbox" id="setStd" ${st.showStandards ? 'checked' : ''} ${ro}/><span class="track"></span>Standards mastery</label></section>
       <div class="small muted">Grading periods come from your building (set by an admin).</div>`, true);
+    if (S.cfgRename) { const i = document.getElementById('cfgName'); i.focus(); i.select(); }
+    if (S.applyOpen) openApplyMenu();
+  }
+  function openApplyMenu() {
+    const anchor = modalRoot.querySelector('[data-act="apply-menu"]'); if (!anchor) return; const ec = ECFG();
+    pop2.innerHTML = `<div class="mlist" role="menu">${Object.entries(CLASSES).map(([k, c]) => { const on = S.classCfg[k] === ec.id; const cur = cfgById(S.classCfg[k]).builtin ? '' : cfgById(S.classCfg[k]).name;
+      return `<button class="mitem" role="menuitemcheckbox" aria-checked="${on}" data-act="cfg-apply" data-c="${k}"><span class="check">${on ? ICON.check : ''}</span><span class="grow">${esc(c.name)}</span>${on || !cur ? '' : `<em>${esc(cur)}</em>`}</button>`; }).join('')}</div>`;
+    pop2.hidden = false; pop2.style.maxHeight = '';
+    const r = anchor.getBoundingClientRect(); pop2.style.width = Math.max(280, r.width) + 'px'; pop2.style.left = r.left + 'px'; pop2.style.top = r.bottom + 4 + 'px';
+    anchor.setAttribute('aria-expanded', 'true');
   }
 
   // ---------- Student portal ----------
@@ -940,14 +1153,14 @@
       <div class="pmain">
         <div class="row"><h2 style="margin:0;font-size:20px">${cls().name}</h2><span class="spacer" style="flex:1"></span><div class="tabs"><button>Assignments</button><button aria-selected="true">Grades <span class="new">NEW</span></button></div></div>
         ${!st.showScores ? '<div class="empty-state"><b>No grades to show yet</b>Your teacher hasn\'t shared grades for this class.</div>' : rows.map(({ a, i }) => {
-          const flags = i.flags.filter((f) => (flagDef(f.id) || {}).student);
+          const flags = i.flags.filter((f) => (flagDef(f.id) || {}).vis === 'all');
           const shared = i.m && i.m.comment && i.m.comment.shared ? i.m.comment.text : null;
           return `<div class="prow"><div><div style="font-weight:600">${esc(a.title)} ${isNew(a) ? '<span class="new">NEW</span>' : ''}</div><div class="small muted">${KIND[a.kind].label} · due ${fdate(a.dueDate)}</div>
             <div class="row" style="margin-top:4px">${flags.map((f) => { const d = flagDef(f.id); return `<span class="badge" style="background:color-mix(in srgb, ${d.color} 15%, transparent);color:${d.color}">${d.name}</span>`; }).join('')}</div></div>
             <div class="score">${a.completion ? (i.done ? '✓' : '—') : i.excluded ? '<span class="small muted">Excused</span>' : i.pct == null ? '—' : `${+((i.pct / 100) * i.max).toFixed(1)}/${i.max}<div class="small muted" style="font-weight:400">${Math.round(i.pct)}%</div>`}</div>
             ${shared ? `<div class="bubble"><b>Teacher comment</b><br/>${esc(shared)}</div>` : ''}</div>`;
         }).join('')}
-        ${st.showStandards ? `<section class="card w12"><h3>My learning targets</h3>${TARGETS.map((t) => { const p = prof(s.id, t.id); const b = band(p); return `<div class="bar"><span class="lab"><b>${t.id}</b> ${t.label}</span><span class="track"><span class="fill" style="width:${p || 0}%;background:var(--${{ p: 'prof', a: 'appr', b: 'beg', n: 'line' }[b]})"></span></span><span class="val"><span class="badge ${bandCls[b]}">${bandName[b]}</span></span></div>`; }).join('')}</section>` : `<div class="confirm small">Teacher-only note: standards mastery is off for this class. Turn it on in Settings.</div>`}
+        ${st.showStandards ? `<section class="card w12"><h3>My learning targets</h3>${TG().map((t) => { const p = prof(s.id, t.id); const b = band(p); return `<div class="bar"><span class="lab"><b>${t.id}</b> ${t.label}</span><span class="track"><span class="fill" style="width:${p || 0}%;background:var(--${{ p: 'prof', a: 'appr', b: 'beg', n: 'line' }[b]})"></span></span><span class="val"><span class="badge ${bandCls[b]}">${bandName[b]}</span></span></div>`; }).join('')}</section>` : `<div class="confirm small">Teacher-only note: standards mastery is off for this class. Turn it on in Settings.</div>`}
         <div class="small muted">Unpublished work, private comments and hidden flags never reach the student.</div>
       </div>
     </div>`;
@@ -969,27 +1182,28 @@
   }
   document.addEventListener('click', (e) => {
     const t = e.target.closest('[data-act]');
-    if (!t) { if (!e.target.closest('#pop')) closePop(); return; }
+    if (!t) { if (!e.target.closest('#pop, #pop2')) closePop(); else if (!e.target.closest('#pop2')) closeSub(); return; }
     const act = t.dataset.act; const P = S.pop;
-    if (!t.closest('#pop') && !['cell', 'head', 'edit-cell', 'undo', 'menu'].includes(act)) closePop();
+    if (!t.closest('#pop, #pop2') && !['cell', 'head', 'edit-cell', 'undo', 'menu', 'apply-menu'].includes(act)) closePop();
+    if (t.closest('#pop') && act !== 'sub' && !pop2.hidden) closeSub();
     switch (act) {
       case 'tab': S.tab = t.dataset.tab; S.view = 'grid'; S.scrollToEnd = true; render(); break;
-      case 'cell': { const w = document.getElementById('gridwrap'); if (w) S.gridScroll = { l: w.scrollLeft, t: w.scrollTop }; S.focus = { s: t.dataset.s, a: t.dataset.a }; S.pop = null; openCellPop(t.dataset.s, t.dataset.a, t); break; }
-      case 'edit-cell': S.pop = null; openCellPop(t.dataset.s, t.dataset.a, t); break;
-      case 'head': S.pop = null; openHeadPop(t.dataset.a, t); break;
+      case 'cell': { const w = document.getElementById('gridwrap'); if (w) S.gridScroll = { l: w.scrollLeft, t: w.scrollTop }; const { s: sd, a: ad } = t.dataset; const same = P && P.type === 'cell' && P.s === sd && P.a === ad; S.focus = { s: sd, a: ad }; closePop(); if (!same) openCellPop(sd, ad, document.querySelector(`.cell[data-s="${sd}"][data-a="${ad}"]`)); break; }
+      case 'edit-cell': { const { s: sd, a: ad } = t.dataset; closePop(); openCellPop(sd, ad, document.querySelector(`[data-edit="${sd}|${ad}"]`)); break; }
+      case 'head': { const ad = t.dataset.a; const same = P && P.type === 'head' && P.a === ad; closePop(); if (!same) openHeadPop(ad, document.querySelector(`[data-act="head"][data-a="${ad}"]`)); break; }
       case 'student': S.view = 'student'; S.sid = t.dataset.s; S.expandTarget = null; render(); scrollTo(0, 0); break;
       case 'back': S.view = 'grid'; S.tab = 'grid'; render(); break;
       case 'stu-nav': { const l = sortedStudents(); const n = l.findIndex((s) => s.id === S.sid) + +t.dataset.d; if (l[n]) { S.sid = l[n].id; render(); } break; }
       case 'fmt': S.fmt = t.dataset.v; rerender(); break;
       case 'setname': S.nameFmt = t.dataset.v; rerender(); break;
-      case 'menu': { const m = t.dataset.m; if (S.pop && S.pop.type === m) closePop(); else openMenu(m, t); break; }
-      case 'an-rm': S.an[t.dataset.k] = 'all'; rerender(); break;
+      case 'menu': { const m = t.dataset.m; if (S.pop && S.pop.type === m) closePop(); else { closePop(); openMenu(m, document.querySelector(`[data-act="menu"][data-m="${m}"]`)); } break; }
+      case 'an-clear': ['cat', 'kind', 'target', 'group', 'flag', 'acc'].forEach((k) => (S.an[k] = 'all')); rerender(); toast('Filters cleared'); break;
       case 'privacy': S.privacy = !S.privacy; render(); break;
       case 'namesort': S.sort = { key: 'name', dir: S.sort.key === 'name' ? -S.sort.dir : 1 }; rerender(); break;
       case 'sortoverall': S.sort = { key: 'overall', dir: S.sort.key === 'overall' ? -S.sort.dir : -1 }; rerender(); break;
       case 'unhide': pushUndo('Show hidden columns'); ASSIGN.forEach((a) => (col(a.id).hidden = false)); rerender(); break;
       case 'export': toast('Exported current view to CSV (Last, First · percent · flags as codes). Accommodations are never included.'); break;
-      case 'settings': settingsModal(); break;
+      case 'settings': S.ecfg = S.classCfg[S.cls] || (CFGS[0] ? CFGS[0].id : null); S.cfgRename = false; S.cfgDel = false; settingsModal(); break;
       case 'close-modal': closeModal(); render(); break;
       case 'scrim': if (e.target === t) { closeModal(); render(); } break;
       case 'undo': doUndo(); break;
@@ -1002,41 +1216,60 @@
       case 'expand-t': S.expandTarget = S.expandTarget === t.dataset.t ? null : t.dataset.t; render(); break;
       case 'ins': if (t.dataset.s) { S.view = 'student'; S.sid = t.dataset.s; render(); } else if (t.dataset.t) { S.tab = 'analysis'; S.view = 'grid'; S.an.target = t.dataset.t; render(); } else if (t.dataset.a) { S.view = 'grid'; S.tab = 'grid'; S.needs = true; render(); } break;
       case 'analyze-a': analyzeModal(t.dataset.a); break;
+      case 'apply-menu': if (S.applyOpen) { S.applyOpen = false; pop2.hidden = true; t.setAttribute('aria-expanded', 'false'); } else { S.applyOpen = true; openApplyMenu(); } break;
+      case 'cfg-rename': S.cfgRename = true; reSettings(); break;
+      case 'cfg-new': case 'cfg-dup': { const src = ECFG(); const id = 'c' + Date.now(); const dup = t.dataset.act === 'cfg-dup';
+        pushUndo(dup ? 'Duplicate configuration' : 'New configuration'); CFGS.push({ id, name: dup ? src.name + (src.plc || src.district ? '' : ' copy') : 'New configuration', set: dup ? JSON.parse(JSON.stringify(src.set)) : newSet() });
+        S.ecfg = id; S.cfgRename = true; S.cfgDel = false; reSettings(); break; }
+      case 'cfg-del': S.cfgDel = true; reSettings(); break;
+      case 'cfg-del-no': S.cfgDel = false; reSettings(); break;
+      case 'cfg-del-go': { const ec = ECFG(); pushUndo('Delete ' + ec.name); Object.keys(S.classCfg).forEach((k) => { if (S.classCfg[k] === ec.id) S.classCfg[k] = null; }); CFGS.splice(CFGS.indexOf(ec), 1); S.ecfg = CFGS[0] ? CFGS[0].id : null; S.cfgDel = false; reSettings(); render(); toast(`Deleted ${ec.name}`, true); break; }
+      case 'cfg-apply': { const ec = ECFG(); const k = t.dataset.c; const prev = cfgById(S.classCfg[k]); const on = prev === ec; const cn = CLASSES[k].name;
+        pushUndo('Apply configuration'); S.classCfg[k] = on ? null : ec.id; S.applyOpen = true; reSettings(); render();
+        toast(on ? `${cn} now uses the default settings` : prev.builtin ? `${cn} now uses ${ec.name}` : `Moved ${cn} from ${prev.name} to ${ec.name}`, true); break; }
+      case 'flag-add': { const st = ES(); pushUndo('Add flag'); const used = st.flags.map((f) => f.key); const key = 'NRBTDGHJKQSUVWYZCEFO'.split('').find((c) => !used.includes(c)); st.flags.push({ id: 'f' + Date.now(), key, name: 'New flag', value: null, vis: 'teacher', color: PALETTE[st.flags.length % PALETTE.length] }); reSettings(); const ins = modalRoot.querySelectorAll('[data-set="fname"]'); ins[ins.length - 1].select(); break; }
+      case 'flag-rm': { const st = ES(); const f = st.flags[+t.dataset.n]; pushUndo('Remove ' + f.name); st.flags.splice(+t.dataset.n, 1); reSettings(); render(); toast(`Removed ${f.name}`, true); break; }
+      case 'flag-vis': { const f = ES().flags[+t.dataset.n]; pushUndo('Flag visibility'); f.vis = VIS_ORDER[(VIS_ORDER.indexOf(f.vis) + 1) % VIS_ORDER.length]; reSettings(); render(); const b = modalRoot.querySelector(`[data-act="flag-vis"][data-n="${t.dataset.n}"]`); if (b) b.focus(); break; }
+      case 'flag-color': { const f = ES().flags[+t.dataset.n]; f.color = PALETTE[(PALETTE.indexOf(f.color) + 1) % PALETTE.length]; reSettings(); render(); break; }
+      case 'cat-add': { pushUndo('Add category'); const st = ES(); let n = st.cats.length + 1; while (st.cats.some((c) => c.name === 'Category ' + n)) n++; st.cats.push({ name: 'Category ' + n, w: 0 }); reSettings(); const ins = modalRoot.querySelectorAll('[data-set="cname"]'); ins[ins.length - 1].select(); break; }
+      case 'cat-rm': { const st = ES(); const c = st.cats[+t.dataset.n]; pushUndo('Remove ' + c.name); st.cats.splice(+t.dataset.n, 1); let moved = 0; Object.values(S.cols).forEach((x) => { if (x.cat === c.name) { x.cat = st.cats[0].name; moved++; } }); reSettings(); render(); toast(`Removed ${c.name}${moved ? `; ${moved} assignment${moved === 1 ? '' : 's'} moved to ${st.cats[0].name}` : ''}`, true); break; }
+      case 'cat-reset': { const st = ES(); pushUndo('Restore default categories'); const names = st.cats.map((c) => c.name); st.cats = DEFAULT_CATS(); Object.values(S.cols).forEach((x) => { if (x.cat && !st.cats.some((c) => c.name === x.cat)) x.cat = names.indexOf(x.cat) === 0 ? st.cats[0].name : st.cats[1].name; }); reSettings(); render(); toast('Restored default categories', true); break; }
       // cell popover
-      case 'ov-save': { const v = parseFloat(document.getElementById('ovIn').value); const i = info(P.s, P.a); if (isNaN(v) || v < 0 || v > i.max * 2) { toast('Enter a score from 0 to ' + i.max); break; } pushUndo('Score override'); const m = mark(P.s, P.a, true); const before = i.pct == null ? 'blank' : +((i.pct / 100) * i.max).toFixed(1) + '/' + i.max; m.override = (v / i.max) * 100; logH(P.s, P.a, `Score overridden ${before} → ${v}/${i.max}`); P.prefill = null; toast('Score saved', true); rerender(); break; }
-      case 'ov-revert': { pushUndo('Revert override'); const m = mark(P.s, P.a, true); delete m.override; logH(P.s, P.a, 'Override reverted to calculated score'); toast('Reverted to calculated score', true); rerender(); break; }
-      case 'grade-answers': closePop(); resultsModal(P.a); break;
+      case 'ov-revert': { pushUndo('Revert override'); const m = mark(P.s, P.a, true); delete m.override; if (P.draft) P.draft.score = null; logH(P.s, P.a, 'Override reverted to calculated score'); toast('Reverted to calculated score', true); P.draft = null; rerender(); break; }
+      case 'grade-answers': { const aid = P.a; closePop(); resultsModal(aid); break; }
       case 'flag': applyCellFlag(P.s, P.a, t.dataset.f); rerender(); break;
-      case 'cm-save': { pushUndo('Comment'); const m = mark(P.s, P.a, true); const text = document.getElementById('cmIn').value.trim(); const shared = document.getElementById('cmShare').checked; m.comment = text ? { text, shared } : undefined; logH(P.s, P.a, text ? `Comment saved${shared ? ', shared with student' : ''}` : 'Comment removed'); toast('Comment saved', true); rerender(); break; }
-      case 'fill-start': { const v = parseFloat(document.getElementById('ovIn').value); if (isNaN(v)) { toast('Enter a score first'); break; } P.fill = v; reopen(); break; }
-      case 'fill-cancel': P.fill = null; reopen(); break;
-      case 'fill-go': { const i0 = info(P.s, P.a); pushUndo('Fill empty cells'); let n = 0; cls().students.forEach((x) => { const j = info(x.id, P.a); if (!j.na && j.r.state === 'none' && j.m.override == null && !j.excluded && (!j.m.flags || !j.m.flags.length || j.zeroed)) { mark(x.id, P.a, true).override = (P.fill / i0.max) * 100; logH(x.id, P.a, `Filled with ${P.fill}/${i0.max} (bulk)`); n++; } }); P.fill = null; toast(`Filled ${n} cell${n === 1 ? '' : 's'}`, true); rerender(); break; }
-      case 'pub-stu': { const i = info(P.s, P.a); pushUndo('Publish for student'); const m = mark(P.s, P.a, true); m.pub = !i.pub; logH(P.s, P.a, m.pub ? 'Published for this student' : 'Unpublished for this student'); toast(m.pub ? 'Published for ' + stu(P.s).first : 'Unpublished for ' + stu(P.s).first, true); rerender(); break; }
+      case 'sub': if (P.sub === t.dataset.sub) closeSub(); else { captureDraft(); openSub(t.dataset.sub); } break;
+      case 'hist-toggle': captureDraft(); P.hist = !P.hist; reopen(); break;
+      case 'fill-below': { const v = parseFloat(document.getElementById('ovIn').value); const i0 = info(P.s, P.a); if (isNaN(v) || v < 0) { toast('Enter a score first'); break; }
+        pushUndo('Fill empty cells below'); const pct = (v / i0.max) * 100; const own = mark(P.s, P.a, true);
+        if (i0.pct == null || Math.abs(i0.pct - pct) > 0.01) { own.override = pct; logH(P.s, P.a, `Score set to ${v}/${i0.max}`); }
+        const list = belowEmpty(P.s, P.a); list.forEach((x) => { mark(x.id, P.a, true).override = pct; logH(x.id, P.a, `Filled with ${v}/${i0.max}`); });
+        P.draft = null; toast(`Filled ${list.length} cell${list.length === 1 ? '' : 's'} below with ${v}/${i0.max}`, true); rerender(); break; }
+      case 'pub-stu': { captureDraft(); const i = info(P.s, P.a); pushUndo('Publish for student'); const m = mark(P.s, P.a, true); m.pub = !i.pub; logH(P.s, P.a, m.pub ? 'Published for this student' : 'Unpublished for this student'); toast(m.pub ? 'Published for ' + stu(P.s).first : 'Unpublished for ' + stu(P.s).first, true); rerender(); break; }
       // header popover
       case 'open-results': closePop(); resultsModal(P.a); break;
       case 'analyze': closePop(); analyzeModal(P.a); break;
       case 'pub-col': { const c = col(P.a); pushUndo('Publish column'); c.pub = !c.pub; toast(c.pub ? `Published to ${cls().students.length} students` : 'Scores unpublished', true); rerender(); break; }
-      case 'sort-col': S.sort = { key: P.a, dir: -1 }; closePop(); render(); break;
-      case 'htarget': { const c = col(P.a); pushUndo('Target tags'); c.targets = c.targets.includes(t.dataset.t) ? c.targets.filter((x) => x !== t.dataset.t) : [...c.targets, t.dataset.t]; rerender(); break; }
-      case 'bulk': { const k = t.dataset.k; const a = A[P.a];
-        if (k === 'fill') P.bulk = { k, msg: `Fill every empty, unsubmitted cell in ${esc(a.title)} with 0/${col(P.a).maxOverride || a.max}?`, cta: 'Fill with 0' };
-        if (k === 'missing') P.bulk = { k, msg: 'Flag every student with no submission as Missing? They count as 0 until work arrives.', cta: 'Mark Missing' };
-        if (k === 'excuse') P.bulk = { k, msg: `Excuse ${esc(a.title)} for every student? It will be left out of everyone's average.`, cta: 'Excuse all' };
-        reopen(); break; }
-      case 'bulk-cancel': P.bulk = null; reopen(); break;
-      case 'bulk-go': { const k = P.bulk.k; pushUndo('Column: ' + P.bulk.cta); let n = 0;
-        cls().students.forEach((x) => { const j = info(x.id, P.a); if (j.na) return; const m = mark(x.id, P.a, true);
-          if (k === 'fill' && j.r.state === 'none' && m.override == null && !j.excluded) { m.override = 0; n++; logH(x.id, P.a, 'Filled with 0 (bulk)'); }
-          if (k === 'missing' && j.r.state === 'none' && !(m.flags || []).includes('M')) { m.flags = [...(m.flags || []), 'M']; n++; logH(x.id, P.a, 'Flag Missing added (bulk)'); }
-          if (k === 'excuse' && !(m.flags || []).includes('X')) { m.flags = [...(m.flags || []), 'X']; n++; logH(x.id, P.a, 'Flag Excused added (bulk)'); } });
-        P.bulk = null; toast(`Updated ${n} students`, true); rerender(); break; }
+      case 'sort-col': S.sort = { key: P.a, dir: S.sort.key === P.a ? -S.sort.dir : -1 }; rerender(); break;
+      case 'edit-asg': { const aid = P.a; closePop(); editModal(aid); break; }
+      case 'del-start': P.del = true; reopen(); break;
+      case 'del-cancel': P.del = false; reopen(); break;
+      case 'del-go': { const a = A[P.a]; pushUndo('Delete ' + a.title); col(P.a).deleted = true; closePop(); toast(`Deleted ${a.title}`, true); render(); break; }
+      case 'htarget': { const c = col(P.a); pushUndo('Standards'); c.targets = c.targets.includes(t.dataset.t) ? c.targets.filter((x) => x !== t.dataset.t) : [...c.targets, t.dataset.t]; rerender(); break; }
+      case 'mark-go': { const v = P.markSel; const a = A[P.a]; const label = v === 'zero' ? '0 points' : flagDef(v).name; pushUndo('Mark all: ' + label); let n = 0;
+        cls().students.forEach((x) => { const j = info(x.id, P.a); if (!emptyCell(j)) return; const m = mark(x.id, P.a, true);
+          if (v === 'zero') m.override = 0; else { m.flags = [...(m.flags || []), v]; m.suppressed = (m.suppressed || []).filter((f) => f !== v); }
+          logH(x.id, P.a, `Marked ${label} (all empty cells)`); n++; });
+        toast(`Marked ${n} empty cell${n === 1 ? '' : 's'} ${label} on ${a.title}`, true); rerender(); break; }
       case 'hide-col': pushUndo('Hide column'); col(P.a).hidden = true; closePop(); toast('Column hidden', true); render(); break;
       case 'push': toast(`Pushed final scores to ${A[P.a].lms} (3 awaiting grade skipped)`); break;
     }
   });
-  function saveCards() { try { localStorage.setItem('gb-cards', JSON.stringify({ cards: S.cards, hidden: S.hiddenCards })); } catch (e) {} }
+  function reSettings() { const m = modalRoot.querySelector('.modal'); const sc = m ? m.scrollTop : 0; settingsModal(); const m2 = modalRoot.querySelector('.modal'); if (m2) m2.scrollTop = sc; }
+  function saveCards() { try { localStorage.setItem('gb-cards-v2', JSON.stringify({ cards: S.cards, hidden: S.hiddenCards })); } catch (e) {} }
   document.addEventListener('change', (e) => {
     const t = e.target; const P = S.pop;
+    if (t.id === 'stdQ' || t.id === 'ovIn' || t.id === 'cmIn' || t.id === 'cmShare') return;
     const map = { clsSel: () => { S.cls = t.value; S.scrollToEnd = true; S.focus = null; }, periodSel: () => (S.period = t.value), fcat: () => (S.fcat = t.value), fkind: () => (S.fkind = t.value),
       sortSel: () => (S.sort = { key: t.value, dir: t.value === 'name' ? 1 : -1 }),
       anCat: () => (S.an.cat = t.value), anKind: () => (S.an.kind = t.value), anTarget: () => (S.an.target = t.value), anGroup: () => (S.an.group = t.value), anFlag: () => (S.an.flag = t.value), anAcc: () => (S.an.acc = t.value), anCompare: () => (S.an.compare = t.checked),
@@ -1048,25 +1281,36 @@
       if (t.id === 'hCat') { pushUndo('Category'); c.cat = t.value; }
       if (t.id === 'hCounts') { pushUndo('Counts toward overall'); c.counts = t.checked; }
       if (t.id === 'hMax') { const v = +t.value; if (v > 0) { pushUndo('Max points'); c.maxOverride = v === A[P.a].max ? null : v; } }
-      if (t.id === 'hPolicy') { pushUndo('Attempt policy'); c.policy = t.value; }
+      if (t.id === 'hPolicy') { pushUndo('Retake policy'); c.policy = t.value; }
+      if (t.id === 'markSel') P.markSel = t.value;
       rerender(); return;
     }
-    const st = S.settings;
-    if (t.id === 'setSource') { st.source = t.value; if (t.value === 'plc') { st.method = 'decay'; st.flags[2].effect = 'none'; } settingsModal(); render(); return; }
-    if (t.dataset.set === 'effect') { pushUndo('Flag effect'); st.flags[+t.dataset.n].effect = t.value; }
-    if (t.dataset.set === 'student') st.flags[+t.dataset.n].student = t.checked;
+    const st = ES();
+    if (t.id === 'cfgSel') { S.ecfg = t.value; S.cfgDel = false; S.applyOpen = false; pop2.hidden = true; reSettings(); return; }
+    if (t.id === 'cfgName') { pushUndo('Rename configuration'); ECFG().name = t.value.trim() || ECFG().name; S.cfgRename = false; reSettings(); return; }
+    if (t.dataset.set === 'fname') { st.flags[+t.dataset.n].name = t.value.trim() || st.flags[+t.dataset.n].name; }
+    if (t.dataset.set === 'fkey') { const f = st.flags[+t.dataset.n]; const k = t.value.trim().toUpperCase(); const clash = st.flags.find((x) => x !== f && x.key === k);
+      if (!/^[A-Z]$/.test(k) || k === 'P' || clash) { toast(!/^[A-Z]$/.test(k) ? 'A key is one letter.' : k === 'P' ? 'P is the privacy shortcut.' : `${clash.name} already uses ${k}.`); } else { pushUndo('Flag key'); f.key = k; } }
+    if (t.dataset.set === 'val') { pushUndo('Flag value'); const v = t.value.trim(); st.flags[+t.dataset.n].value = v === '' ? null : clamp(+v, 0, 100); }
     if (t.dataset.set === 'w') st.cats[+t.dataset.n].w = +t.value;
+    if (t.dataset.set === 'cname') { const c = st.cats[+t.dataset.n]; const old = c.name; const nw = t.value.trim() || old; Object.values(S.cols).forEach((x) => { if (x.cat === old) x.cat = nw; }); c.name = nw; }
+    if (t.dataset.set === 'cut') { const cu = st.scale.custom; cu[t.dataset.k] = clamp(+t.value, 0, 100); if (cu.a >= cu.p) cu.a = cu.p - 1; }
+    if (t.dataset.set === 'lname') st.scale.custom.names[+t.dataset.n] = t.value.trim() || LEVELS[+t.dataset.n];
+    if (t.id === 'setScale') st.scale.src = t.value;
     if (t.id === 'setAuto') st.auto = t.checked;
     if (t.id === 'setCats') st.useCats = t.checked;
     if (t.id === 'setMethod') st.method = t.value;
     if (t.id === 'setScores') st.showScores = t.checked;
     if (t.id === 'setStd') st.showStandards = t.checked;
+    if (modalRoot.querySelector('.modal.side')) reSettings();
     render();
   });
+  document.addEventListener('input', (e) => { if (e.target.id === 'stdQ' && S.pop) { S.pop.q = e.target.value; document.getElementById('stdList').innerHTML = stdList(); } });
   document.addEventListener('keydown', (e) => {
     const typing = /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
-    if (e.key === 'Escape') { if (!pop.hidden) { closePop(); const c = document.querySelector('.cell.focus'); if (c) c.focus(); } else closeModal(); return; }
-    if (typing) { if (e.key === 'Enter' && e.target.id === 'ovIn') { e.preventDefault(); document.querySelector('[data-act="ov-save"]').click(); } return; }
+    if (e.key === 'Escape') { if (!pop2.hidden) { const b = document.querySelector('#pop [data-act="sub"][aria-expanded="true"]'); closeSub(); if (b) b.focus(); return; } if (!pop.hidden) { closePop(); const c = document.querySelector('.cell.focus'); if (c) c.focus(); } else closeModal(); return; }
+    if (typing && e.key === 'Enter' && (e.target.id === 'cfgName' || e.target.dataset.set)) { e.target.blur(); return; }
+    if (typing) { if (e.key === 'Enter' && e.target.id === 'ovIn') { e.preventDefault(); const { s: sd, a: ad } = S.pop; closePop(); const l = sortedStudents(); const nx = l[l.findIndex((x) => x.id === sd) + 1]; const tgt = document.querySelector(`.cell[data-s="${(nx || {}).id || sd}"][data-a="${ad}"]`); if (tgt) { S.focus = { s: tgt.dataset.s, a: ad }; document.querySelectorAll('.cell.focus').forEach((x) => { x.classList.remove('focus'); x.tabIndex = -1; }); tgt.classList.add('focus'); tgt.tabIndex = 0; tgt.focus(); } } return; }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); doUndo(); return; }
     if (e.key.toLowerCase() === 'p' && !e.ctrlKey && !e.metaKey) { S.privacy = !S.privacy; render(); return; }
     if (S.view !== 'grid' || S.tab !== 'grid') { if (S.view === 'student' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { const b = document.querySelector(`[data-act="stu-nav"][data-d="${e.key === 'ArrowLeft' ? -1 : 1}"]`); if (b && !b.disabled) b.click(); } return; }
@@ -1085,7 +1329,7 @@
     }
     if (e.key === 'Enter') { e.preventDefault(); openCellPop(cellEl.dataset.s, cellEl.dataset.a, cellEl); return; }
     if (/^[0-9]$/.test(e.key) && !A[cellEl.dataset.a].completion) { e.preventDefault(); S.pop = null; openCellPop(cellEl.dataset.s, cellEl.dataset.a, cellEl, e.key); return; }
-    const f = S.settings.flags.find((x) => x.id.toLowerCase() === e.key.toLowerCase());
+    const f = liveFlags().find((x) => x.key.toLowerCase() === e.key.toLowerCase());
     if (f) { e.preventDefault(); applyCellFlag(cellEl.dataset.s, cellEl.dataset.a, f.id); const s = cellEl.dataset.s, a = cellEl.dataset.a; S.focus = { s, a }; rerender(); const n = document.querySelector(`.cell[data-s="${s}"][data-a="${a}"]`); if (n) n.focus(); }
   });
   addEventListener('resize', () => { if (!pop.hidden) reopen(); });
