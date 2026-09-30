@@ -24,6 +24,7 @@ import {
   GAME_MINUTE_CHOICES,
   MAX_GAME_MINUTES,
 } from '@/utils/reviewLaunch';
+import { tourAttr } from '@/config/tourAnchors';
 
 const RANK_LIMITS: { value: ReviewBoardRankLimit; label: string }[] = [
   { value: 5, label: 'Top 5' },
@@ -91,6 +92,7 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
         'Show one question at a time on the board. Everyone answers together and sees the results before the next one.'
       ),
       icon: Presentation,
+      tourAttrs: tourAttr('review-start.mode-paced'),
     },
     {
       id: 'game',
@@ -100,6 +102,7 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
         'Students race through the questions on their own devices for a set time. Missed questions come back until time runs out.'
       ),
       icon: Timer,
+      tourAttrs: tourAttr('review-start.mode-game'),
     },
   ];
 
@@ -125,12 +128,14 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
         'reviewStart.nothingToPlay',
         'Every question needs a teacher grade.'
       )}
+      confirmTourAttrs={tourAttr('review-start.confirm')}
       onAssign={() => onStart(settings, picker.rosterIds)}
       extraSlot={
         <div data-testid="start-review-options" className="space-y-3">
           {isGame ? (
             <div
               data-testid="review-game-length"
+              {...tourAttr('review-start.game-length')}
               className="flex flex-wrap items-center justify-between gap-2"
             >
               <span className="text-sm font-bold text-brand-blue-dark">
@@ -178,19 +183,21 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
               </div>
             </div>
           ) : (
-            <ToggleRow
-              label={t(
-                'reviewStart.autoAdvance',
-                'Advance automatically when everyone has answered'
-              )}
-              checked={settings.sessionMode === 'auto'}
-              onChange={(v) =>
-                setSettings((prev) => ({
-                  ...prev,
-                  sessionMode: v ? 'auto' : 'teacher',
-                }))
-              }
-            />
+            <div {...tourAttr('review-start.auto-advance')}>
+              <ToggleRow
+                label={t(
+                  'reviewStart.autoAdvance',
+                  'Advance automatically when everyone has answered'
+                )}
+                checked={settings.sessionMode === 'auto'}
+                onChange={(v) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    sessionMode: v ? 'auto' : 'teacher',
+                  }))
+                }
+              />
+            </div>
           )}
           {skippedCount > 0 && (
             <p
@@ -216,7 +223,10 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
             value={picker}
             onChange={setPicker}
           />
-          <div className="flex items-center justify-between gap-3">
+          <div
+            className="flex items-center justify-between gap-3"
+            {...tourAttr('review-start.rank-limit')}
+          >
             <span className="text-sm font-bold text-brand-blue-dark">
               {t('reviewStart.rankLimit', 'Leaderboard on board')}
             </span>
