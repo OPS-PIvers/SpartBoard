@@ -3203,6 +3203,7 @@ describe('index barrel — deployed export set', () => {
     'getAssignmentPseudonymV1',
     'getStudentClassDirectoryV1',
     'getPseudonymsForAssignmentV1',
+    'getGradebookRosterV1',
     'commitRosterPinIndexV1',
     'controlSubAssignmentV1',
     'commitProjectGroupsV1',
