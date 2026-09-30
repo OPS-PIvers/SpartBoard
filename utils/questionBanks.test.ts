@@ -119,6 +119,21 @@ describe('copyBankQuestions', () => {
       { ...(bank.stimuli ?? [])[0], id: 'new-3' },
     ]);
   });
+
+  it('keeps a stimulus set together as one shared copy', () => {
+    const setBank: BankContent = {
+      ...bank,
+      questions: bank.questions.map((x) => ({ ...x, stimulusIds: ['stim-1'] })),
+    };
+    const copied = copyBankQuestions(setBank, ['b1', 'b2', 'b3']);
+    const ids = copied.questions.map((x) => x.stimulusIds);
+    expect(copied.stimuli).toHaveLength(1);
+    expect(ids).toEqual([
+      [copied.stimuli[0].id],
+      [copied.stimuli[0].id],
+      [copied.stimuli[0].id],
+    ]);
+  });
 });
 
 describe('quizOrder', () => {
