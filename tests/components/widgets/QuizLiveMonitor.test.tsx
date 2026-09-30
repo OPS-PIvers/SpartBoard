@@ -173,6 +173,7 @@ interface RenderOpts {
   onUpdateConfig?: (updates: Partial<QuizConfig>) => void;
   onEnd?: () => Promise<void>;
   onClearHand?: (key: string) => Promise<void>;
+  assessmentOnly?: boolean;
 }
 
 function renderMonitor(opts: RenderOpts = {}) {
@@ -194,6 +195,7 @@ function renderMonitor(opts: RenderOpts = {}) {
       rosters={rosters}
       onUpdateConfig={opts.onUpdateConfig ?? vi.fn()}
       onClearHand={opts.onClearHand}
+      assessmentOnly={opts.assessmentOnly}
     />
   );
 }
@@ -366,6 +368,29 @@ describe('QuizLiveMonitor (rebuilt)', () => {
     );
     expect(onUpdateConfig).toHaveBeenCalledWith({ monitorFilterBy: 'tabs' });
   });
+
+  it.each([false, true])(
+    'assessmentOnly=%s: settings drop podium, reveal and scoreboard sync only when set (D9)',
+    (assessmentOnly) => {
+      renderMonitor({
+        assessmentOnly,
+        session: { soundEffectsEnabled: true },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+      expect(!!screen.queryByText('Mute sounds')).toBe(!assessmentOnly);
+      fireEvent.click(screen.getByText('Quiz settings'));
+      for (const name of [
+        'Podium between questions',
+        'Answer reveal on board',
+        'Sync to scoreboard widget',
+      ]) {
+        expect(!!screen.queryByRole('switch', { name })).toBe(!assessmentOnly);
+      }
+      expect(
+        screen.getByRole('switch', { name: 'Board view' })
+      ).toBeInTheDocument();
+    }
+  );
 
   it('hides the Tab warnings toggle when the session has tab warnings disabled', () => {
     renderMonitor({

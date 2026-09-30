@@ -77,6 +77,7 @@ import {
   QuizBehaviorSettings,
   Plc,
   QuestionBankMetadata,
+  QuizWidgetKind,
 } from '@/types';
 import type { BankSource } from '@/hooks/useBankSources';
 import { QuizBanksTab } from './QuizBanksTab';
@@ -156,6 +157,7 @@ import { useDialog } from '@/context/useDialog';
 import {
   getAssignBehaviorSeed,
   formatBehaviorSummary,
+  toAssessmentBehavior,
 } from '@/utils/quizBehavior';
 import { needsKeyMessage } from '@/utils/quizNeedsKey';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
@@ -270,6 +272,10 @@ export type QuizManagerTab = 'library' | 'banks' | 'active' | 'archive';
 interface QuizManagerProps {
   /** Teacher's Firebase UID — used to scope the folders subcollection. */
   userId?: string;
+  /** Which widget hosts the library; `review` swaps Assign for Start. */
+  variant?: QuizWidgetKind;
+  /** Review's launch; while absent, Start stays disabled. */
+  onStartReview?: (quiz: QuizMetadata) => void;
   /** This widget instance's id, for live-tour anchor scoping. */
   widgetId?: string;
   /** Per-period start and windows in the assign modal; absent while the flag is off. */
@@ -703,9 +709,27 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   activeAssignmentLockedCount = 0,
   onReorderQuizzes,
   onError,
+  variant = 'quiz',
+  onStartReview,
 }) => {
-  const isViewOnly = assignmentMode === 'view-only';
-  const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
+  const isReview = variant === 'review';
+  const { canAccessFeature } = useAuth();
+  // D8/D9: with the split on, Quiz assigns are assessment only.
+  const assessmentOnly = !isReview && canAccessFeature('quiz-review-split');
+  const seedBehavior = useCallback(
+    (quiz: QuizMetadata) => {
+      const seed = getAssignBehaviorSeed(quiz);
+      return assessmentOnly ? toAssessmentBehavior(seed) : seed;
+    },
+    [assessmentOnly]
+  );
+  const isViewOnly = !isReview && assignmentMode === 'view-only';
+  const primaryActionLabel = isReview
+    ? 'Start'
+    : isViewOnly
+      ? 'Share'
+      : 'Assign';
+  const shellLabel = isReview ? 'Review' : 'Quiz';
   const noop = () => {
     /* action not wired */
   };
@@ -772,15 +796,20 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // break it — only Assign is gated (D6).
   const assignDisabledReason = useCallback(
     (quiz: QuizMetadata): string | undefined => {
+      if (isReview) return onStartReview ? undefined : 'Coming soon';
       if (isViewOnly) return undefined;
       const count = quizNeedsKeyCount(quiz);
       return count > 0 ? needsKeyAssignReason(count) : undefined;
     },
-    [isViewOnly]
+    [isViewOnly, isReview, onStartReview]
   );
 
   const openShareOrAssign = useCallback(
     (quiz: QuizMetadata) => {
+      if (isReview) {
+        onStartReview?.(quiz);
+        return;
+      }
       // Belt and braces: the row's Assign button is already disabled for a
       // quiz with unanswered questions, but a keyboard or programmatic path
       // must not create an assignment that can't be scored.
@@ -797,7 +826,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         }
       });
     },
-    [isViewOnly, claudeReview]
+    [isViewOnly, claudeReview, isReview, onStartReview]
   );
 
   // Route a chooser pick to the right flow. SpartBoard/Classroom both continue
@@ -813,10 +842,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         return;
       }
       setAssignDestination(destination);
-      setAssignBehavior(getAssignBehaviorSeed(quiz));
+      setAssignBehavior(seedBehavior(quiz));
       setAssignTarget(quiz);
     },
-    [chooserTarget]
+    [chooserTarget, seedBehavior]
   );
 
   const handleConfirmViewOnlyShare = useCallback(async () => {
@@ -884,7 +913,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     [assignQuizData]
   );
   const { rubrics: assignRubrics } = useRubrics(userId);
-  const { canAccessFeature } = useAuth();
   const handRaiseMode = useQuizHandRaiseMode();
   const translationAllowed = canAccessFeature(QUIZ_TRANSLATION_FEATURE);
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
@@ -1498,12 +1526,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         icon: BarChart3,
         onClick: () => void (onArchiveResults ?? noop)(a),
       });
-      secondaries.push({
-        id: 'settings',
-        label: 'Settings',
-        icon: SettingsIcon,
-        onClick: () => (onArchiveEditSettings ?? noop)(a),
-      });
+      // D32: Review rows have no settings dialog.
+      if (onArchiveEditSettings) {
+        secondaries.push({
+          id: 'settings',
+          label: 'Settings',
+          icon: SettingsIcon,
+          onClick: () => onArchiveEditSettings(a),
+        });
+      }
       secondaries.push({
         id: 'share',
         label: 'Share',
@@ -1620,12 +1651,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       icon: Monitor,
       onClick: () => void (onArchiveMonitor ?? noop)(a),
     });
-    secondaries.push({
-      id: 'settings',
-      label: 'Settings',
-      icon: SettingsIcon,
-      onClick: () => (onArchiveEditSettings ?? noop)(a),
-    });
+    if (onArchiveEditSettings) {
+      secondaries.push({
+        id: 'settings',
+        label: 'Settings',
+        icon: SettingsIcon,
+        onClick: () => onArchiveEditSettings(a),
+      });
+    }
     secondaries.push({
       id: 'share',
       label: 'Share',
@@ -1769,7 +1802,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Assign confirm handler ───────────────────────────────────────────────
   const handleAssignConfirm = (): void => {
     if (!assignTarget) return;
-    const behavior = assignBehavior ?? getAssignBehaviorSeed(assignTarget);
+    const behavior = assignBehavior ?? seedBehavior(assignTarget);
     // M17 C3 F5 — per-student overrides are only honored in self-paced mode
     // (a teacher-paced `currentQuestionIndex` is shared class-wide and can't
     // diverge per student). Block the save rather than silently assigning
@@ -2196,8 +2229,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   if (loading && managerTab === 'library') {
     return (
       <LibraryShell
-        widgetLabel="Quiz"
-        widgetType="quiz"
+        widgetLabel={shellLabel}
+        widgetType={variant}
         tab={managerTab}
         onTabChange={(t) => onTabChange?.(t)}
         counts={tabCounts}
@@ -2258,8 +2291,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Render ───────────────────────────────────────────────────────────────
   const shell = (
     <LibraryShell
-      widgetLabel="Quiz"
-      widgetType="quiz"
+      widgetLabel={shellLabel}
+      widgetType={variant}
       tab={managerTab}
       onTabChange={(t) => onTabChange?.(t)}
       counts={tabCounts}
@@ -2412,7 +2445,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   icon={ClipboardCheck}
                   summary={
                     <span data-testid="quiz-behavior-summary">
-                      {formatBehaviorSummary(assignBehavior)}
+                      {formatBehaviorSummary(assignBehavior, {
+                        omitMode: assessmentOnly,
+                      })}
                     </span>
                   }
                 >
@@ -2420,6 +2455,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                     Applies to this assignment only.
                   </p>
                   <QuizBehaviorSettingsPanel
+                    variant={assessmentOnly ? 'quiz' : 'full'}
                     value={assignBehavior}
                     onChange={(next) => {
                       setTargetingPacingError(null);

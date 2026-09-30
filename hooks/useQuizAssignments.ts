@@ -84,6 +84,7 @@ import type {
   QuizTranslation,
   QuizSessionBankSlot,
   QuizSessionMode,
+  QuizWidgetKind,
   QuizSessionOptions,
   QuizStimulus,
   ResultsProtection,
@@ -159,6 +160,8 @@ export type SharedAssignmentImportMode = 'sync' | 'copy';
 export interface CreateAssignmentOptions {
   /** Defaults to `'active'`. */
   initialStatus?: QuizAssignmentStatus;
+  /** Owning widget, mirrored onto assignment + session; omitted while the split flag is off. */
+  widgetKind?: QuizWidgetKind;
   /**
    * ClassLink class `sourcedId`s this session targets. Empty/missing
    * keeps the session open to the legacy code/PIN-only flow. When
@@ -1298,6 +1301,7 @@ export const useQuizAssignments = (
         translationIndex,
         accessMode,
         periodAccess,
+        widgetKind,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
       const perPeriod =
@@ -1341,6 +1345,7 @@ export const useQuizAssignments = (
 
       const assignment: QuizAssignment = {
         id: assignmentId,
+        ...(widgetKind ? { widgetKind } : {}),
         quizId: quiz.id,
         quizTitle: quiz.title,
         quizDriveFileId: quiz.driveFileId,
@@ -1460,6 +1465,7 @@ export const useQuizAssignments = (
 
       const session: QuizSession = {
         id: assignmentId,
+        ...(widgetKind ? { widgetKind } : {}),
         assignmentId,
         quizId: quiz.id,
         quizTitle: quiz.title,
@@ -1523,6 +1529,7 @@ export const useQuizAssignments = (
         // Default matches DEFAULT_QUIZ_BEHAVIOR (off) for legacy quizzes
         // with no saved behavior.
         showPodiumBetweenQuestions: opts.showPodiumBetweenQuestions ?? false,
+        ...(opts.boardRankLimit ? { boardRankLimit: opts.boardRankLimit } : {}),
         soundEffectsEnabled: opts.soundEffectsEnabled ?? false,
         // Per-student per-attempt shuffling. `shuffleAnswerOptions` defaults
         // to true to preserve the always-on behavior that pre-dates this

@@ -4058,6 +4058,10 @@ service cloud.firestore {
           // Per-student publication and the answer key are teacher-written only.
           incoming().get('resultsOverride', null) == null &&
           incoming().get('revealedAnswers', null) == null &&
+          // Review games: checkQuizGameAnswerV1 alone writes points, verdicts and answers.
+          incoming().get('game', null) == null &&
+          (sessionData().get('sessionMode', '') != 'game' ||
+           incoming().get('answers', []).size() == 0) &&
           // studentRole users must be enrolled in the session's class
           passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
@@ -4120,6 +4124,8 @@ service cloud.firestore {
            // Use `affectedKeys()` (added + removed + changed), not `changedKeys()` - the latter
            // only covers keys present on BOTH sides, so a smuggled NEW field would land in
            // addedKeys and bypass the whitelist entirely.
+           // Review games: answers come only from checkQuizGameAnswerV1 (`game` is off the list below).
+           (!changed(['answers']) || sessionData().get('sessionMode', '') != 'game') &&
            changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits']) &&
            tabExitsOk() &&
            // M17 served-subset snapshot: a student may only stamp

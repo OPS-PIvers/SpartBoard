@@ -577,7 +577,9 @@ export function buildLiveLeaderboard(
   session: QuizScoringSession,
   pinToName: Record<string, string>,
   byStudentUid?: Map<string, StudentName>,
-  fibGrading?: FibGradingContext | null
+  fibGrading?: FibGradingContext | null,
+  /** Rows kept; null keeps everyone (Review ranks the whole class). */
+  limit: number | null = 10
 ): QuizLeaderboardEntry[] {
   return (
     responses
@@ -595,7 +597,7 @@ export function buildLiveLeaderboard(
         score: getDisplayScore(response, questions, session, fibGrading),
       }))
       .sort((a, b) => b.score - a.score)
-      .slice(0, 10)
+      .slice(0, limit ?? undefined)
       .map((entry, index) => ({
         ...entry,
         rank: index + 1,

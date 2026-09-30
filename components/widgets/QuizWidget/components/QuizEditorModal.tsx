@@ -45,7 +45,7 @@ import { useQuizEditorState } from './useQuizEditorState';
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
 import { QuizLanguageField } from './QuizLanguageField';
 import { sanitizeStimulusPointers } from '@/utils/quizStimuli';
-import { quizOrder } from '@/utils/questionBanks';
+import { quizOrder, quizServedQuestionCount } from '@/utils/questionBanks';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
@@ -500,11 +500,12 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   // Stable chrome elements so the shell's memoized header/footer don't
   // re-render on question-content keystrokes.
   const oversized = isBank && questions.length > QUESTION_BANK_SIZE_WARN;
+  const servedCount = quizServedQuestionCount({ questions, bankSlots });
   const subtitle = useMemo(
     () => (
       <span className="inline-flex items-center gap-2">
         <span>
-          {questions.length} {questions.length === 1 ? 'question' : 'questions'}
+          {servedCount} {servedCount === 1 ? 'question' : 'questions'}
         </span>
         {oversized && (
           <span
@@ -517,7 +518,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
         )}
       </span>
     ),
-    [questions.length, oversized]
+    [servedCount, oversized]
   );
   const headerExtras = useMemo(
     () =>

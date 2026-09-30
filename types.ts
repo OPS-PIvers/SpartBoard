@@ -63,7 +63,8 @@ export type WidgetType =
   | 'need-do-put-then'
   | 'stations'
   | 'flashcards'
-  | 'projects';
+  | 'projects'
+  | 'review';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -4049,7 +4050,9 @@ export interface QuizTranslationIndexEntry {
 }
 
 export type QuizSessionStatus = 'waiting' | 'active' | 'paused' | 'ended';
-export type QuizSessionMode = 'teacher' | 'auto' | 'student';
+export type QuizSessionMode = 'teacher' | 'auto' | 'student' | 'game';
+/** Which widget owns a quiz assignment; absent on legacy docs (see `getAssignmentWidgetKind`). */
+export type QuizWidgetKind = 'quiz' | 'review';
 
 /**
  * Common session-level toggles applicable to any assignment widget that
@@ -4118,6 +4121,17 @@ export interface QuizSessionOptions extends BaseSessionOptions {
   handRaiseEnabled?: boolean;
   /** Score each attempt on submit and show it; ignored when a question needs manual grading. */
   showScoreOnSubmit?: boolean;
+  /** Review: leaderboard rows on the board; absent keeps the legacy top 3. */
+  boardRankLimit?: ReviewBoardRankLimit;
+}
+
+/** Review board leaderboard size: a row count, or 'all' for everyone. */
+export type ReviewBoardRankLimit = 5 | 10 | 'all';
+
+/** Review's Start dialog settings, remembered per teacher (plan D15). */
+export interface ReviewLaunchSettings {
+  sessionMode: 'teacher' | 'auto';
+  sessionOptions: QuizSessionOptions;
 }
 
 /**
@@ -4326,6 +4340,8 @@ export interface QuizSession
   plcLinkedAt?: number;
   status: QuizSessionStatus;
   sessionMode: QuizSessionMode;
+  /** Owning widget, written on create while `quiz-review-split` is on. */
+  widgetKind?: QuizWidgetKind;
   /** -1 = lobby/waiting room, 0+ = currently displayed question index */
   currentQuestionIndex: number;
   startedAt: number | null;
@@ -4435,6 +4451,8 @@ export interface QuizSession
   streakBonusEnabled?: boolean;
   /** Show a podium/leaderboard between questions (default false) */
   showPodiumBetweenQuestions?: boolean;
+  /** Review: board leaderboard size chosen at launch (plan D21). */
+  boardRankLimit?: ReviewBoardRankLimit;
   /** Play sound effects during the quiz (default false) */
   soundEffectsEnabled?: boolean;
   /**
@@ -5563,6 +5581,12 @@ export interface QuizGlobalConfig {
   buildingDefaults?: Record<string, QuizBuildingConfig>;
 }
 
+/** The Review widget runs the same quiz library, so it shares Quiz's config shape. */
+export type ReviewConfig = QuizConfig & {
+  /** Last Start dialog settings; lives only in `savedWidgetPresets.review`, never on a board. */
+  lastLaunch?: ReviewLaunchSettings;
+};
+
 /** Widget configuration for the quiz widget (teacher side) */
 export interface QuizConfig {
   view: 'manager' | 'import' | 'editor' | 'preview' | 'results' | 'monitor';
@@ -5858,6 +5882,8 @@ export interface QuizAssignment
     PeriodAccessSessionFields {
   /** Assignment UUID — also the sessionId. */
   id: string;
+  /** Owning widget, written on create while `quiz-review-split` is on. */
+  widgetKind?: QuizWidgetKind;
   /**
    * FIB answer keys translated at assign time, `{ [questionId]: { [locale]: string[] } }`.
    * Teacher-owned only: the session doc is world-readable to students, so it never carries this.
@@ -6464,7 +6490,7 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
 
 /** VA counterpart of QuizBehaviorSettings. */
 export interface VideoActivityBehaviorSettings {
-  sessionMode: QuizSessionMode;
+  sessionMode: Exclude<QuizSessionMode, 'game'>;
   sessionOptions: Omit<
     VideoActivitySessionOptions,
     'attemptLimit' | 'dueAt' | 'dueAtHasTime'
@@ -8521,7 +8547,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                                 ? FlashcardsConfig
                                                                                                                                 : T extends 'projects'
                                                                                                                                   ? ProjectsConfig
-                                                                                                                                  : never;
+                                                                                                                                  : T extends 'review'
+                                                                                                                                    ? ReviewConfig
+                                                                                                                                    : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -9087,6 +9115,8 @@ export type GlobalFeature =
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
   | 'student-gradebook'
+  /** Quiz keeps assessment only; live review games move to the Review widget. */
+  | 'quiz-review-split'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'
