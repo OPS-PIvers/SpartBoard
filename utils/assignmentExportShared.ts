@@ -101,6 +101,8 @@ export interface BuildResultsSheetDataOptions<
   timeAway?: boolean;
   /** Live video activity: questions the class was never asked; "Not asked" cells, out of every row's max. */
   notAskedQuestionIds?: string[];
+  /** Appends one column after the question columns, filled per response before rows are sorted. */
+  extraColumn?: { header: string; cell: (response: R) => string };
 }
 
 /** Sheets rejects any cell over 50,000 characters. */
@@ -275,6 +277,7 @@ export function buildResultsSheetData<
       }
       return cols;
     }),
+    ...(options?.extraColumn ? [options.extraColumn.header] : []),
   ];
 
   const dataRows = responses.map((r) => {
@@ -365,6 +368,7 @@ export function buildResultsSheetData<
       ...(options?.timeAway ? [formatTabAwayTotal(r.tabExits)] : []),
       submitted,
       ...answerCols,
+      ...(options?.extraColumn ? [options.extraColumn.cell(r)] : []),
     ];
   });
 

@@ -88,6 +88,14 @@ import {
 } from '@/utils/videoActivityLive';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useVideoActivityKeyQuestions } from '@/hooks/useVideoActivityKeyQuestions';
+import { useFinalScoreOverlay } from '@/hooks/gradebook/useFinalScoreOverlay';
+import {
+  applyFinalScoresToEntries,
+  finalPillPct,
+  finalScoreFor,
+} from '@/utils/gradebook/finalScoreOverlay';
+import { videoActivityLiveRaw } from '@/utils/gradebook/liveRawScores';
+import { FinalScoreNote } from '@/components/gradebook/FinalScoreNote';
 import {
   ResultsOverrideBadge,
   StudentResultsControl,
@@ -218,6 +226,31 @@ export const Results: React.FC<ResultsProps> = ({
     };
   }, [canAccessFeature, keyLoading, keyFailed, session.id, questions]);
   const notAsked = useMemo(() => new Set(notAskedIds), [notAskedIds]);
+  const finalOverlay = useFinalScoreOverlay({
+    kind: 'video-activity',
+    sessionId: session.id,
+    teacherUid: session.teacherUid,
+    dueAt: session.dueAt,
+    closeAt: session.closeAt,
+  });
+  const [overlayNow] = useState(() => Date.now());
+  const withFinalScores = (
+    entries: { pseudonymUid: string; pointsEarned: number }[],
+    maxPoints: number
+  ) => {
+    if (!finalOverlay) return entries;
+    const byUid = new Map(responses.map((r) => [r.studentUid, r]));
+    return applyFinalScoresToEntries(
+      entries,
+      maxPoints,
+      finalOverlay,
+      (uid) => {
+        const r = byUid.get(uid);
+        return r ? videoActivityLiveRaw(r, scoredQuestions) : null;
+      },
+      Date.now()
+    );
+  };
   const showMakeUp =
     isLive &&
     session.status === 'ended' &&
@@ -415,9 +448,8 @@ export const Results: React.FC<ResultsProps> = ({
     // scaling the Publish=Push chaining uses, so the two paths can't drift).
     // Unscoreable/incomplete responses are excluded so we never pop a consent
     // dialog for nothing — or PATCH a phantom 0 into the real gradebook.
-    const grades = buildVideoActivityGradeEntries(
-      responses,
-      scoredQuestions,
+    const grades = withFinalScores(
+      buildVideoActivityGradeEntries(responses, scoredQuestions, maxPoints),
       maxPoints
     );
     if (grades.length === 0) {
@@ -489,9 +521,8 @@ export const Results: React.FC<ResultsProps> = ({
     // built via the shared helper (same filter + scaling as the Classroom VA
     // push and the Publish=Push chaining) so nothing drifts.
     const maxPoints = videoActivityMaxPoints(questions);
-    const grades = buildVideoActivityGradeEntries(
-      responses,
-      scoredQuestions,
+    const grades = withFinalScores(
+      buildVideoActivityGradeEntries(responses, scoredQuestions, maxPoints),
       maxPoints
     );
     if (grades.length === 0) {
@@ -854,6 +885,16 @@ export const Results: React.FC<ResultsProps> = ({
                     r.answers
                   );
                   const correct = countCorrectAnswers(r, scoredQuestions);
+                  const final =
+                    finalOverlay && r.studentUid
+                      ? finalScoreFor(
+                          finalOverlay,
+                          r.studentUid,
+                          videoActivityLiveRaw(r, scoredQuestions),
+                          overlayNow
+                        )
+                      : null;
+                  const finalPct = finalPillPct(final);
                   const warnings = r.tabSwitchWarnings ?? 0;
                   // `formatStudentName` returns '' on roster miss and legacy rows may carry '' for `r.name`.
                   const displayName =
@@ -951,7 +992,15 @@ export const Results: React.FC<ResultsProps> = ({
                                     )
                                   )}
                           </div>
-                          {scoreable ? (
+                          {final && finalOverlay && (
+                            <FinalScoreNote
+                              final={final}
+                              flagDefs={finalOverlay.flagDefs}
+                            />
+                          )}
+                          {finalPct !== null ? (
+                            <ScorePill score={finalPct} display="percent" />
+                          ) : scoreable ? (
                             <ScorePill score={score} display="percent" />
                           ) : (
                             <span
