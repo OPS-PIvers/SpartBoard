@@ -19,6 +19,7 @@ import {
   GuidedLearningAssignment,
   StudentOverride,
   StudentTargetRef,
+  RESULTS_PROTECTION_DEFAULTS,
 } from '@/types';
 import { db, functions } from '@/config/firebase';
 import { useDashboard } from '@/context/useDashboard';
@@ -195,7 +196,9 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const { t } = useTranslation();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { showConfirm } = useDialog();
-  const { user, isAdmin, getAssignmentMode, canAccessFeature } = useAuth();
+  const { user, isAdmin, getAssignmentMode, canAccessFeature, appSettings } =
+    useAuth();
+  const gradebookOn = canAccessFeature('gradebook');
   const playerV2 = canAccessFeature('gl-player-v2');
   const studioEditor = canAccessFeature('gl-studio');
   const canUseAi =
@@ -1712,8 +1715,12 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         <PublishScoresModal
           assignmentTitle={publishingAssignment.setTitle}
           currentVisibility={publishingAssignment.scoreVisibility}
+          showProtection={gradebookOn}
+          initialProtection={
+            appSettings?.lastResultsProtection ?? RESULTS_PROTECTION_DEFAULTS
+          }
           onClose={() => setPublishingAssignment(null)}
-          onConfirm={async (visibility) => {
+          onConfirm={async (visibility, protection) => {
             const target = publishingAssignment;
             try {
               if (visibility === 'none') {
@@ -1746,7 +1753,8 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               const result = await publishAssignmentScores(
                 target.id,
                 withFrozenAnswerKeys(data, target.answerKeys),
-                visibility
+                visibility,
+                protection
               );
               addToast(
                 result.responsesUpdated > 0

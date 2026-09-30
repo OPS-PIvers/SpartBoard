@@ -497,6 +497,8 @@ export interface AssignModeOption {
   }>;
   /** Lock the mode selector (e.g. assignment is already live). */
   disabled?: boolean;
+  /** Live-tour anchor attributes for this mode card. */
+  tourAttrs?: Record<string, string>;
 }
 
 export interface AssignModalProps<TOptions> {
@@ -531,6 +533,8 @@ export interface AssignModalProps<TOptions> {
   /** Inline disabled reason (e.g. missing required field). */
   confirmDisabled?: boolean;
   confirmDisabledReason?: string;
+  /** Live-tour anchor attributes for the confirm button. */
+  confirmTourAttrs?: Record<string, string>;
   /** Override the modal's z-index tier (e.g. "z-dialog"). See Modal's `zIndex` prop. */
   zIndex?: string;
 }

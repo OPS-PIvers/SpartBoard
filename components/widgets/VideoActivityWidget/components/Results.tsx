@@ -105,6 +105,7 @@ import {
   clearResultsOverride,
   hideResultsForStudents,
   publishVideoActivityResultsForStudents,
+  unlockResultsForStudent,
   VA_SESSIONS_COLLECTION,
 } from '@/utils/studentResultsPublish';
 
@@ -203,7 +204,7 @@ export const Results: React.FC<ResultsProps> = ({
   const resultsActions = useMemo<StudentResultsActions | null>(() => {
     if (!canAccessFeature('gradebook')) return null;
     return {
-      publish: (keys, visibility, expiresAt) => {
+      publish: (keys, visibility, expiresAt, protection) => {
         if (keyLoading || keyFailed) {
           return Promise.reject(
             new Error(keyFailed ? KEY_FAILED_TOAST : KEY_LOADING_TOAST)
@@ -214,7 +215,8 @@ export const Results: React.FC<ResultsProps> = ({
           questions,
           keys,
           visibility,
-          expiresAt
+          expiresAt,
+          protection
         );
       },
       hide: (keys) =>
@@ -1017,6 +1019,16 @@ export const Results: React.FC<ResultsProps> = ({
                               classVisibility={classVisibility}
                               actions={resultsActions}
                               addToast={addToast}
+                              onUnlock={
+                                r.resultsLockedOut
+                                  ? () =>
+                                      unlockResultsForStudent(
+                                        VA_SESSIONS_COLLECTION,
+                                        session.id,
+                                        r._responseKey as string
+                                      )
+                                  : undefined
+                              }
                             />
                           )}
                         </>
@@ -1041,6 +1053,9 @@ export const Results: React.FC<ResultsProps> = ({
                         />
                         {resultsActions && (
                           <ResultsOverrideBadge override={r.resultsOverride} />
+                        )}
+                        {resultsActions && r.resultsLockedOut && (
+                          <SessionBadge tone="warn" label="Locked" />
                         )}
                         <span
                           className="text-slate-400"

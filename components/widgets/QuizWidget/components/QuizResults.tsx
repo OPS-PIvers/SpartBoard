@@ -44,7 +44,19 @@ import {
   QuizQuestion,
   QuizConfig,
   isFreeResponseType,
+  type QuizWidgetKind,
 } from '@/types';
+import {
+  buildReviewRanking,
+  type ReviewRankRow,
+  canShowResultsScore,
+  classFirstTryAccuracy,
+  gameFirstTry,
+  isGameSession,
+  isResultsFinished,
+  resultsDisplayScore,
+  resultsInPoints,
+} from '@/utils/reviewResults';
 import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';
 import { useMyNormingFlags } from '@/hooks/usePlcNorming';
@@ -66,10 +78,8 @@ import {
   buildScoreboardTeams,
   canScoreResponse,
   getResponseScore,
-  getDisplayScore,
   getScoreSuffix,
   getEarnedPoints,
-  isGamificationActive,
   isResponseAwaitingGrade,
   resolvePinName,
   selectPushableResponses,
@@ -322,6 +332,8 @@ interface QuizResultsProps {
   paperSheetsEnabled?: boolean;
   /** Per-student publishing handlers; the controls render only when provided. */
   studentResultsActions?: StudentResultsActions;
+  /** Review results: points and ranking, with no grading, publishing or grade push (D27). */
+  variant?: QuizWidgetKind;
 }
 
 const HIDE_NAMES_KEY = 'spartboard.quizResults.hideNames';
@@ -378,7 +390,10 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   plcView = false,
   paperSheetsEnabled = false,
   studentResultsActions,
+  variant = 'quiz',
 }) => {
+  const isReview = variant === 'review';
+  const isGame = isGameSession(session);
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
   const fibGrading = useMemo<FibGradingContext>(
@@ -794,23 +809,26 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     [responses, periodFilter]
   );
   const filteredCompleted = useMemo(
-    () => filteredResponses.filter((r) => r.status === 'completed'),
-    [filteredResponses]
+    () => filteredResponses.filter((r) => isResultsFinished(r, session)),
+    [filteredResponses, session]
   );
   // Only average responses we can actually score. A completed response that
   // can't be graded yet (answer key not loaded, or question-id drift) would
   // otherwise contribute a phantom 0 and drag the class average down — see
   // `canScoreResponse`.
   const filteredScoreable = useMemo(
-    () => filteredCompleted.filter((r) => canScoreResponse(r, quiz.questions)),
-    [filteredCompleted, quiz.questions]
+    () =>
+      filteredCompleted.filter((r) =>
+        canShowResultsScore(r, quiz.questions, session)
+      ),
+    [filteredCompleted, quiz.questions, session]
   );
   const filteredAvgScore =
     filteredScoreable.length > 0
       ? Math.round(
           filteredScoreable.reduce(
             (sum, r) =>
-              sum + getDisplayScore(r, quiz.questions, session, fibGrading),
+              sum + resultsDisplayScore(r, quiz.questions, session, fibGrading),
             0
           ) / filteredScoreable.length
         )
@@ -822,6 +840,24 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       filteredScoreable.some((r) => isResponseAwaitingGrade(r, quiz.questions)),
     [filteredScoreable, quiz.questions]
   );
+  const firstTryAccuracy = useMemo(
+    () => (isGame ? classFirstTryAccuracy(filteredCompleted) : null),
+    [isGame, filteredCompleted]
+  );
+  const ranking = useMemo(
+    () =>
+      isReview
+        ? buildReviewRanking(
+            filteredResponses,
+            quiz.questions,
+            session,
+            fibGrading
+          )
+        : [],
+    [isReview, filteredResponses, quiz.questions, session, fibGrading]
+  );
+  // A game's `answers` hold only each student's first try (D25).
+  const questionsLabel = isGame ? 'First-try results' : 'Question results';
   const targetStats = useMemo(
     () =>
       computeTargetStats(
@@ -909,7 +945,9 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
 
   // Printing to hand back (docs/plans/shipped/QUIZ_RESULTS_PRINT.md); never for PLC teammates (D7).
   const canPrintResults =
-    (canAccessFeature('quiz-results-print') || resultsTools) && !plcView;
+    (canAccessFeature('quiz-results-print') || resultsTools) &&
+    !plcView &&
+    !isReview;
 
   const handleExportStudents = (keys: string[]) => {
     const wanted = new Set(keys);
@@ -1869,8 +1907,10 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // (and the admin gate permits), otherwise Schoology when LTI-launched. Same
   // gating conditions/handlers as before — only the placement changes.
   const showClassroomPush =
-    classroomAttachments.length > 0 && canAccessFeature('google-classroom');
-  const showSchoologyPush = !!ltiAttachment;
+    !isReview &&
+    classroomAttachments.length > 0 &&
+    canAccessFeature('google-classroom');
+  const showSchoologyPush = !isReview && !!ltiAttachment;
 
   // With zero responses the body shows the empty state, so the shell behaves
   // as home (title + back-out semantics) even if a drill-down was open when
@@ -1883,7 +1923,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     effectiveScreen === 'home'
       ? quiz.title
       : effectiveScreen === 'questions'
-        ? 'Question results'
+        ? questionsLabel
         : effectiveScreen === 'targets'
           ? 'Targets'
           : effectiveScreen === 'students'
@@ -2102,22 +2142,27 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                   className="font-sans font-semibold text-brand-blue-primary uppercase tracking-wider"
                   style={{ fontSize: 'min(10px, 3.5cqmin)' }}
                 >
-                  Class average
+                  {isGame ? 'First-try accuracy' : 'Class average'}
                 </p>
                 <p
                   className="font-sans font-bold text-brand-blue-dark tabular-nums"
                   style={{ fontSize: 'min(26px, 10cqmin)', lineHeight: 1.15 }}
                 >
-                  {filteredAvgScore !== null
-                    ? `${filteredAvgScore}${getScoreSuffix(session)}`
-                    : '—'}
+                  {isGame
+                    ? firstTryAccuracy !== null
+                      ? `${firstTryAccuracy}%`
+                      : '—'
+                    : filteredAvgScore !== null
+                      ? `${filteredAvgScore}${getScoreSuffix(session)}`
+                      : '—'}
                 </p>
                 <p
                   className="text-brand-blue-dark/70"
                   style={{ fontSize: 'min(11px, 3.8cqmin)' }}
                 >
-                  {filteredCompleted.length} of {filteredResponses.length}{' '}
-                  students finished
+                  {isGame
+                    ? `${filteredCompleted.length} student${filteredCompleted.length === 1 ? '' : 's'} played`
+                    : `${filteredCompleted.length} of ${filteredResponses.length} students finished`}
                 </p>
                 {filteredAvgScore !== null && avgIsProvisional && (
                   <p
@@ -2129,12 +2174,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                 )}
               </div>
 
-              <ScoreDistribution
-                completed={filteredCompleted}
-                questions={quiz.questions}
-                session={session}
-                fibGrading={fibGrading}
-              />
+              {!isReview && (
+                <ScoreDistribution
+                  completed={filteredCompleted}
+                  questions={quiz.questions}
+                  session={session}
+                  fibGrading={fibGrading}
+                />
+              )}
 
               {/* Drill-down rows */}
               <div
@@ -2142,7 +2189,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                 style={{ gap: 'min(6px, 1.5cqmin)' }}
               >
                 <DrillRow
-                  label="Question results"
+                  label={questionsLabel}
                   detail={`${quiz.questions.length} question${quiz.questions.length === 1 ? '' : 's'}`}
                   onClick={() => setScreen('questions')}
                 />
@@ -2164,6 +2211,10 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                   onClick={() => setScreen('students')}
                 />
               </div>
+
+              {isReview && ranking.length > 0 && (
+                <ReviewRanking rows={ranking} resolveName={resolveShownName} />
+              )}
             </div>
           )}
           {effectiveScreen === 'questions' && (
@@ -2213,7 +2264,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                 resultsTools && !plcView ? handleExportStudents : undefined
               }
               onReopenStudents={
-                resultsTools && !plcView && onReopenStudent
+                resultsTools && !plcView && !isReview && onReopenStudent
                   ? handleReopenStudents
                   : undefined
               }
@@ -2238,7 +2289,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
             padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
           }}
         >
-          {hasWrittenQuestions && (
+          {hasWrittenQuestions && !isReview && (
             <button
               onClick={() => openGrader()}
               className="inline-flex items-center bg-white border border-brand-gray-lighter hover:border-brand-blue-light text-brand-blue-primary font-sans font-semibold rounded-md transition-colors"
@@ -2519,6 +2570,46 @@ const DrillRow: React.FC<{
       />
     </span>
   </button>
+);
+
+const ReviewRanking: React.FC<{
+  rows: ReviewRankRow[];
+  resolveName: (response: QuizResponse) => string;
+}> = ({ rows, resolveName }) => (
+  <div className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
+    <p
+      className="font-sans font-semibold text-brand-blue-primary uppercase tracking-wider"
+      style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+    >
+      Final ranking
+    </p>
+    <ol className="flex flex-col" aria-label="Final ranking">
+      {rows.map((row) => (
+        <li
+          key={getResponseDocKey(row.response)}
+          className="flex items-center border-b border-brand-gray-lightest last:border-b-0"
+          style={{
+            gap: 'min(10px, 2.5cqmin)',
+            padding: 'min(6px, 1.5cqmin) min(4px, 1cqmin)',
+            fontSize: 'min(13px, 4.5cqmin)',
+          }}
+        >
+          <span
+            className="shrink-0 font-sans font-bold text-brand-blue-dark tabular-nums text-right"
+            style={{ width: 'min(28px, 8cqmin)' }}
+          >
+            {row.rank}
+          </span>
+          <span className="flex-1 min-w-0 truncate font-sans text-brand-gray-dark">
+            {resolveName(row.response)}
+          </span>
+          <span className="shrink-0 font-sans font-semibold text-brand-blue-dark tabular-nums">
+            {row.score.toLocaleString()} pts
+          </span>
+        </li>
+      ))}
+    </ol>
+  </div>
 );
 
 const ScoreDistribution: React.FC<{
@@ -3544,7 +3635,8 @@ const StudentsScreen: React.FC<{
   const [deletingKey, setDeletingKey] = useState<ResponseDocKey | null>(null);
   const [unlockingKey, setUnlockingKey] = useState<ResponseDocKey | null>(null);
   const maxPoints = quizMaxPoints(questions, session?.sections);
-  const gamified = isGamificationActive(session);
+  const gamified = resultsInPoints(session);
+  const isGame = isGameSession(session);
 
   // Mirror QuizLiveMonitor.handleUnlockResultsForStudent — same toast copy
   // and same one-shot semantics (decrement warnings by 1; one more
@@ -3633,19 +3725,22 @@ const StudentsScreen: React.FC<{
           // (no nested helper) so a closure isn't re-allocated per comparison.
           const scoreA =
             (a.status === 'completed' || a.status === 'in-progress') &&
-            canScoreResponse(a, questions)
-              ? getDisplayScore(a, questions, session, fibGrading)
+            canShowResultsScore(a, questions, session)
+              ? resultsDisplayScore(a, questions, session, fibGrading)
               : -1;
           const scoreB =
             (b.status === 'completed' || b.status === 'in-progress') &&
-            canScoreResponse(b, questions)
-              ? getDisplayScore(b, questions, session, fibGrading)
+            canShowResultsScore(b, questions, session)
+              ? resultsDisplayScore(b, questions, session, fibGrading)
               : -1;
           return scoreB - scoreA;
         })
         .map((r) => {
-          const score = getDisplayScore(r, questions, session, fibGrading);
-          const earned = getEarnedPoints(r, questions, session, fibGrading);
+          const score = resultsDisplayScore(r, questions, session, fibGrading);
+          const earned = isGame
+            ? score
+            : getEarnedPoints(r, questions, session, fibGrading);
+          const firstTry = isGame ? gameFirstTry(r) : null;
           // A finished/in-progress response is only shown with a numeric
           // score once it can actually be graded — answer key loaded AND at
           // least one answer maps to a loaded question. Otherwise we render a
@@ -3653,13 +3748,13 @@ const StudentsScreen: React.FC<{
           // `canScoreResponse`).
           const scoreable =
             (r.status === 'completed' || r.status === 'in-progress') &&
-            canScoreResponse(r, questions);
+            canShowResultsScore(r, questions, session);
           // The total counts an ungraded written answer as 0, so flag it as
           // provisional rather than letting it read as the final grade.
           const awaitingGrade =
-            scoreable && isResponseAwaitingGrade(r, questions);
+            scoreable && !isGame && isResponseAwaitingGrade(r, questions);
           const final =
-            finalOverlay && r.studentUid
+            finalOverlay && r.studentUid && !isGame
               ? finalScoreFor(
                   finalOverlay,
                   r.studentUid,
@@ -3892,12 +3987,13 @@ const StudentsScreen: React.FC<{
                           className="text-brand-gray-primary tabular-nums"
                           style={{ fontSize: 'min(10px, 3cqmin)' }}
                         >
-                          {final?.source === 'override' &&
-                          final.points !== null &&
-                          final.max !== null
-                            ? `${Math.round(final.points * 10) / 10}/${final.max}`
-                            : `${earned}/${maxPoints}`}{' '}
-                          pts
+                          {firstTry
+                            ? `${firstTry.correct}/${firstTry.tried} first try`
+                            : final?.source === 'override' &&
+                                final.points !== null &&
+                                final.max !== null
+                              ? `${Math.round(final.points * 10) / 10}/${final.max} pts`
+                              : `${earned}/${maxPoints} pts`}
                           {r.status === 'in-progress' && ' (In Progress)'}
                         </p>
                         {awaitingGrade && (

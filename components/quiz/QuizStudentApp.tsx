@@ -117,6 +117,7 @@ import {
   isAnswerSubmitted,
   type ResponseArtifact,
   type UnrespondedReason,
+  type ResultsProtection,
 } from '@/types';
 import {
   countCommittedTakes,
@@ -1342,6 +1343,7 @@ const QuizJoinFlow: React.FC<{
           visibility={published.visibility}
           revealedAnswers={published.revealedAnswers}
           publishedAt={published.publishedAt}
+          protection={published.protection}
           pin={pin}
           embedded={embedded}
           watermarkNameOverride={watermarkNameOverride}
@@ -4618,6 +4620,7 @@ const ResultsScreen: React.FC<{
         visibility={published.visibility}
         revealedAnswers={published.revealedAnswers}
         publishedAt={published.publishedAt}
+        protection={published.protection}
         pin={pin}
         embedded={embedded}
         watermarkNameOverride={watermarkNameOverride}
@@ -4701,6 +4704,8 @@ export const PublishedScoreReview: React.FC<{
   revealedAnswers?: Record<string, string>;
   /** Publish time for the watermark; falls back to the session's. */
   publishedAt?: number;
+  /** This student's results protection; falls back to the session's. */
+  protection?: ResultsProtection;
   pin: string;
   /**
    * Inside the Classroom add-on iframe: on tab-warning lockout, render an
@@ -4725,6 +4730,7 @@ export const PublishedScoreReview: React.FC<{
   visibility,
   revealedAnswers,
   publishedAt: publishedAtProp,
+  protection: protectionProp,
   pin,
   embedded = false,
   watermarkNameOverride,
@@ -4732,6 +4738,7 @@ export const PublishedScoreReview: React.FC<{
   drawIds,
   loadPaperCrop,
 }) => {
+  const protection = protectionProp ?? session.protection;
   const { t } = useTranslation();
   // Async / self-paced assignments (e.g. a Google Classroom attachment) review
   // their results on a LIGHT surface — matching the add-on + brand spec; a LIVE
@@ -4882,7 +4889,7 @@ export const PublishedScoreReview: React.FC<{
   // PIN; otherwise we use a generic 'Student' label. The watermark is
   // informational — its job is to discourage shared screenshots, not to
   // authenticate.
-  const watermarkEnabled = session.protection?.watermarkEnabled === true;
+  const watermarkEnabled = protection?.watermarkEnabled === true;
   // When the session has no `scorePublishedAt` (legacy or mid-publish), fall
   // back to a per-mount snapshot of `Date.now()`. `useState(fn)` runs `fn`
   // exactly once at mount, giving us a stable timestamp without calling
@@ -4914,8 +4921,8 @@ export const PublishedScoreReview: React.FC<{
   // mount so a stale count from a previous session doesn't auto-pop the modal
   // on first render. Lockout flips trigger a redirect to /my-assignments,
   // where the row will render in its locked state.
-  const tabWarningEnabled = session.protection?.tabWarningEnabled === true;
-  const threshold = session.protection?.tabWarningThreshold ?? 3;
+  const tabWarningEnabled = protection?.tabWarningEnabled === true;
+  const threshold = protection?.tabWarningThreshold ?? 3;
   const currentWarnings = myResponse.resultsTabWarnings ?? 0;
   const lockedOut = myResponse.resultsLockedOut === true;
 

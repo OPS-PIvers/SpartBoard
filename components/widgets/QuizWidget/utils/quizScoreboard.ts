@@ -534,15 +534,19 @@ export function buildScoreboardTeams(
   byStudentUid?: Map<string, StudentName>,
   fibGrading?: FibGradingContext | null
 ): ScoreboardTeam[] {
+  // A Review game ranks by its server-graded points (plan D31).
+  const isGame = session?.sessionMode === 'game';
   return (
     completedResponses
       // Keep responses that can't be scored yet (answer key not loaded, or
       // question-id drift) off the board entirely rather than seating them at a
       // phantom 0 — see `canScoreResponse`.
-      .filter((r) => canScoreResponse(r, questions))
+      .filter((r) => isGame || canScoreResponse(r, questions))
       .map((r) => ({
         response: r,
-        score: getDisplayScore(r, questions, session, fibGrading),
+        score: isGame
+          ? gameDisplayPoints(r.game?.points ?? 0)
+          : getDisplayScore(r, questions, session, fibGrading),
       }))
       .sort((a, b) => b.score - a.score)
       .map(({ response, score }) => {

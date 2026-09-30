@@ -760,6 +760,34 @@
           "arrayConfig": "CONTAINS"
         }
       ]
+    },
+    {
+      "collectionGroup": "gradebook_classes",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "configRef.source",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "configRef.plcId",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "gradebook_classes",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "configRef.source",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "configRef.configId",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

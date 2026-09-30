@@ -72,6 +72,13 @@ service cloud.firestore {
     function notDecreased(k) {
       return incoming().get(k, 0) >= existing().get(k, 0);
     }
+    // VA/GL published-results tab-away counters: a student raises the count
+    // and may lock, never lower it or unlock (the teacher does that).
+    function resultsGuardWrite() {
+      return changedOnly(['resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt']) &&
+        notDecreased('resultsTabWarnings') &&
+        (!changed(['resultsLockedOut']) || incoming().get('resultsLockedOut', false) == true);
+    }
     // Tab-away exit log: a student appends one exit or closes their open last
     // one; earlier entries never change, and the log stops at 50.
     function tabExitOk(e) {
@@ -4782,6 +4789,8 @@ service cloud.firestore {
         allow update: if request.auth != null && (
           // Teacher branch.
           vaOwner(vaS()) ||
+          // Student results-view counters; allowed after close like quiz's.
+          (existing().studentUid == authUid() && vaGate() && resultsGuardWrite()) ||
           // Student branch — same invariants as before PR3.
           (
             existing().studentUid == authUid() &&
@@ -5053,6 +5062,8 @@ service cloud.firestore {
         allow update: if request.auth != null && (
           // Teacher branch.
           glIsTeacher() ||
+          // Student results-view counters; allowed after close like quiz's.
+          (studentUid == authUid() && glClassGate() && resultsGuardWrite()) ||
           // Student branch — unchanged.
           (
             studentUid == authUid() &&

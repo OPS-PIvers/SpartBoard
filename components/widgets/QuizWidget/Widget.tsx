@@ -20,6 +20,7 @@ import {
   QuizWidgetKind,
 } from '@/types';
 import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
+import { isGameSession } from '@/utils/reviewResults';
 import { useReviewLaunch } from './useReviewLaunch';
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
 import { quizAssignBlocker } from '@/utils/activityCompleteness';
@@ -1247,7 +1248,8 @@ const TeacherQuizWidget: React.FC<{
         const allResponses = responses;
 
         let newTeams: ScoreboardTeam[];
-        if (scoringMode === 'per-question') {
+        // A Review game has no running accuracy; it always syncs its points.
+        if (scoringMode === 'per-question' && !isGameSession(liveSession)) {
           // Per-question mode: running accuracy — percentage of answered questions
           // scored correctly (not total quiz points). This gives meaningful live
           // feedback before quiz completion, unlike the final score which divides
@@ -1789,16 +1791,18 @@ const TeacherQuizWidget: React.FC<{
             ? (ids) => setAssignmentExportedResponseIds(activeAssignmentId, ids)
             : undefined
         }
+        variant={isReview && reviewSplit ? 'review' : 'quiz'}
         studentResultsActions={
-          activeAssignmentId
+          activeAssignmentId && !(isReview && reviewSplit)
             ? {
-                publish: (keys, visibility, expiresAt) =>
+                publish: (keys, visibility, expiresAt, protection) =>
                   publishResultsForStudents(
                     activeAssignmentId,
                     loadedQuizData,
                     keys,
                     visibility,
-                    expiresAt
+                    expiresAt,
+                    protection
                   ),
                 hide: (keys) =>
                   hideResultsForStudents(activeAssignmentId, keys),
