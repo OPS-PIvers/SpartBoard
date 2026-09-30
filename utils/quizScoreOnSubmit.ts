@@ -13,6 +13,7 @@ export interface ScoreOnSubmitKeyQuestion {
   correctAnswer: string;
   incorrectAnswers: string[];
   alternateAnswers?: string[];
+  blankAlternates?: QuizQuestion['blankAlternates'];
   allowPartialCredit?: boolean;
   /** A recording slot needs a teacher grade, so the server never scores it. */
   recording?: true;
@@ -39,6 +40,9 @@ export function buildScoreOnSubmitKey(
     incorrectAnswers: q.incorrectAnswers ?? [],
     ...(q.alternateAnswers && q.alternateAnswers.length > 0
       ? { alternateAnswers: q.alternateAnswers }
+      : {}),
+    ...(q.blankAlternates && q.blankAlternates.length > 0
+      ? { blankAlternates: q.blankAlternates }
       : {}),
     ...(q.allowPartialCredit ? { allowPartialCredit: true } : {}),
     ...(questionHasRecordingSlot(q) ? { recording: true as const } : {}),

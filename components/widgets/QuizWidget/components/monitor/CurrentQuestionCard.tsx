@@ -77,6 +77,7 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
         className="bg-brand-blue-lighter rounded-xl flex flex-col"
         style={{ padding: 'min(16px, 3.5cqmin)', gap: 'min(10px, 2.5cqmin)' }}
       >
+        {periodControls}
         <p
           className="font-sans font-bold text-brand-blue-dark"
           style={{ fontSize: 'min(16px, 6cqmin)' }}

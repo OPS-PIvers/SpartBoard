@@ -10,7 +10,14 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import {
+  deleteDoc,
+  deleteField,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-quiz-score-on-submit';
 const TEACHER_UID = 'teacher-uid-sos';
@@ -90,5 +97,64 @@ describe('score-on-submit answer key', () => {
   it('denies signed-out reads', async () => {
     const db = testEnv.unauthenticatedContext().firestore();
     await assertFails(getDoc(doc(db, KEY_PATH)));
+  });
+});
+
+describe('score-on-submit attempt stamp on a response', () => {
+  const SESSION = 'quiz_sessions/s-sos';
+  const RESPONSE = `${SESSION}/responses/${STUDENT_UID}`;
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, SESSION), {
+        teacherUid: TEACHER_UID,
+        assignmentId: 'a1',
+        status: 'active',
+        code: 'SOSKEY',
+        showScoreOnSubmit: true,
+      });
+      await setDoc(doc(db, RESPONSE), {
+        studentUid: STUDENT_UID,
+        joinedAt: 1000,
+        score: 80,
+        answers: [],
+        status: 'completed',
+        completedAttempts: 1,
+        scoredOnSubmitAttempt: 1,
+        preSyncVersion: 0,
+      });
+    });
+  });
+
+  it('lets the student read their own response with the stamp', async () => {
+    await assertSucceeds(getDoc(doc(asStudent(), RESPONSE)));
+  });
+
+  it('lets the student clear their score without touching the stamp', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asStudent(), RESPONSE), { score: null })
+    );
+  });
+
+  it('never lets the student remove or lower the stamp', async () => {
+    const db = asStudent();
+    await assertFails(
+      updateDoc(doc(db, RESPONSE), {
+        score: null,
+        scoredOnSubmitAttempt: deleteField(),
+      })
+    );
+    await assertFails(
+      updateDoc(doc(db, RESPONSE), { score: null, scoredOnSubmitAttempt: 0 })
+    );
+  });
+
+  it('lets the teacher clear the stamp when unlocking', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(), RESPONSE), {
+        scoredOnSubmitAttempt: deleteField(),
+      })
+    );
   });
 });

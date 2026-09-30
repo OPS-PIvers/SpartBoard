@@ -1573,6 +1573,7 @@ export const useQuizSessionTeacher = (
         submittedAt: null,
         score: null,
         completedAttempts: refundedAttempts,
+        scoredOnSubmitAttempt: deleteField(),
         unlocked: true,
         unlockedAt: Date.now(),
         // Refresh lastWriteAt so the idle auto-submit Cloud Function

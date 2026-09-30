@@ -9,6 +9,7 @@
 import {
   closestCenter,
   pointerWithin,
+  rectIntersection,
   type CollisionDetection,
 } from '@dnd-kit/core';
 
@@ -52,6 +53,14 @@ export const folderAwareCollisionDetection: CollisionDetection = (args) => {
       droppableContainers: folderContainers,
     });
     if (pointerHits.length > 0) return pointerHits;
+    // Keyboard drags have no pointer, so the card's box picks the folder.
+    if (!args.pointerCoordinates) {
+      const rectHits = rectIntersection({
+        ...args,
+        droppableContainers: folderContainers,
+      });
+      if (rectHits.length > 0) return rectHits;
+    }
   }
 
   return closestCenter({ ...args, droppableContainers: cardContainers });
