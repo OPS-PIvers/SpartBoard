@@ -187,7 +187,7 @@ describe('Modal Component', () => {
 
     unmount1();
     // No modals open
-    expect(document.body.style.overflow).toBe('unset');
+    expect(document.body.style.overflow).toBe('');
   });
 
   it('uses ariaLabelledby if provided', () => {
