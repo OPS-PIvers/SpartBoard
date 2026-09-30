@@ -29,6 +29,7 @@ export const GradebookPopoverShell: React.FC<GradebookPopoverShellProps> = ({
     top: number;
     left: number;
     maxHeight: number;
+    hole: { top: number; left: number; width: number; height: number };
   } | null>(null);
 
   useClickOutside(panelRef, (e) => {
@@ -55,10 +56,23 @@ export const GradebookPopoverShell: React.FC<GradebookPopoverShellProps> = ({
       const down = below >= Math.min(ph, 240) || below >= above;
       const maxHeight = down ? below : above;
       const top = down ? r.bottom + GAP : r.top - GAP - Math.min(ph, maxHeight);
+      const hole = {
+        top: r.top,
+        left: r.left,
+        width: r.width,
+        height: r.height,
+      };
       setPos((p) =>
-        p && p.top === top && p.left === left && p.maxHeight === maxHeight
+        p &&
+        p.top === top &&
+        p.left === left &&
+        p.maxHeight === maxHeight &&
+        p.hole.top === hole.top &&
+        p.hole.left === hole.left &&
+        p.hole.width === hole.width &&
+        p.hole.height === hole.height
           ? p
-          : { top, left, maxHeight }
+          : { top, left, maxHeight, hole }
       );
     };
     place();
@@ -90,11 +104,11 @@ export const GradebookPopoverShell: React.FC<GradebookPopoverShellProps> = ({
 
   return createPortal(
     <>
-      {!submenu && (
+      {!submenu && pos && (
         <div
           aria-hidden
-          className="pointer-events-none fixed inset-0 bg-slate-900/15"
-          style={{ zIndex: Z_INDEX.popover - 1 }}
+          className="pointer-events-none fixed rounded-sm shadow-[0_0_0_200vmax_rgba(15,23,42,.15)]"
+          style={{ ...pos.hole, zIndex: Z_INDEX.popover - 1 }}
         />
       )}
       <div
