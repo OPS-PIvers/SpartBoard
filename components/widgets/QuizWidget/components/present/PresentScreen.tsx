@@ -11,6 +11,7 @@ import { PresentPacedReview } from './PresentPacedReview';
 import { PresentSelfPaced } from './PresentSelfPaced';
 import { PresentPaused } from './PresentPaused';
 import { PresentEnded } from './PresentEnded';
+import { boardRankRows } from '@/utils/reviewLaunch';
 
 export interface PresentData {
   session: QuizSession;
@@ -44,6 +45,9 @@ export const PresentScreen: React.FC<PresentScreenProps> = ({
     session.status === 'waiting' || session.currentQuestionIndex < 0;
   const isSelfPaced = session.sessionMode === 'student';
   const unit: 'pts' | '%' = isGamified ? 'pts' : '%';
+  const rankRows = session.boardRankLimit
+    ? boardRankRows(session.boardRankLimit)
+    : undefined;
   const revealed =
     (session.showCorrectOnBoard ?? false) &&
     !!currentQ &&
@@ -61,6 +65,7 @@ export const PresentScreen: React.FC<PresentScreenProps> = ({
         classAverage={classAverage}
         completed={counts.done}
         total={total}
+        rankRows={rankRows}
       />
     );
   } else if (isLobby) {
@@ -85,6 +90,7 @@ export const PresentScreen: React.FC<PresentScreenProps> = ({
         standings={standings}
         showNames={showNames}
         unit={unit}
+        rankRows={rankRows}
       />
     );
   } else if (currentQ) {

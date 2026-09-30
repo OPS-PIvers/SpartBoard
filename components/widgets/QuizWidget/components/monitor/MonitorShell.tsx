@@ -56,6 +56,7 @@ import {
 import { Z_INDEX } from '@/config/zIndex';
 import { resolveStimuli } from '@/utils/quizStimuli';
 import { PresentSession } from '@/components/widgets/QuizWidget/components/present/PresentSession';
+import { boardRankRows, rankOrdinal } from '@/utils/reviewLaunch';
 import { useMonitorData } from './useMonitorData';
 import { CurrentQuestionCard } from './CurrentQuestionCard';
 import { StatusBuckets, BucketKey } from './StatusBuckets';
@@ -309,14 +310,20 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     }
     clearedRef.current = false;
     const timer = setTimeout(() => {
+      // Review ranks everyone so each device finds its own row; names stay top 10 only.
       const entries = buildLiveLeaderboard(
         responses,
         quizData.questions,
         scoringConfig,
         data.pinToName,
         data.byStudentUid,
-        fibGrading
-      );
+        fibGrading,
+        session.boardRankLimit ? null : 10
+      ).map((entry) => {
+        if (entry.rank <= 10) return entry;
+        const { name: _hidden, ...rest } = entry;
+        return rest;
+      });
       const fingerprint = JSON.stringify(entries);
       if (fingerprint === fingerprintRef.current) return;
       fingerprintRef.current = fingerprint;
@@ -338,6 +345,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     session.status,
     session.speedBonusEnabled,
     session.streakBonusEnabled,
+    session.boardRankLimit,
   ]);
 
   // Sound cues on review phase and session end.
@@ -485,12 +493,14 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             },
             data.pinToName,
             data.byStudentUid,
-            fibGrading
+            fibGrading,
+            session.boardRankLimit ? null : 10
           )
         : [],
     [
       fibGrading,
       presenting,
+      session.boardRankLimit,
       responses,
       quizData.questions,
       session.speedBonusEnabled,
@@ -986,7 +996,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
 
       {isReviewing && session.showPodiumBetweenQuestions && (
         <div
-          className="absolute inset-0 bg-brand-blue-dark/95 text-white flex flex-col items-center justify-center"
+          className="absolute inset-0 bg-brand-blue-dark/95 text-white flex flex-col items-center overflow-y-auto"
           style={{
             zIndex: Z_INDEX.widgetInternalOverlay,
             gap: 'min(12px, 3cqmin)',
@@ -994,7 +1004,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           }}
         >
           <Trophy
-            className="text-amber-400"
+            className="text-amber-400 shrink-0 mt-auto"
             aria-hidden
             style={{
               width: 'min(32px, 12cqmin)',
@@ -1020,17 +1030,18 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               ),
             }))
             .sort((a, b) => b.score - a.score)
-            .slice(0, 3)
+            .slice(0, boardRankRows(session.boardRankLimit))
             .map((s, i) => (
               <p
                 key={s.key}
                 className="font-sans tabular-nums"
                 style={{ fontSize: 'min(15px, 5.5cqmin)' }}
               >
-                {['1st', '2nd', '3rd'][i]} · {s.name} — {s.score}
+                {rankOrdinal(i + 1)} · {s.name} — {s.score}
                 {data.isGamified ? ' pts' : '%'}
               </p>
             ))}
+          <span aria-hidden className="mb-auto" />
         </div>
       )}
     </div>
