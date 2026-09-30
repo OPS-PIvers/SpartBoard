@@ -99,6 +99,7 @@ describe('Projects — setting up groups', () => {
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { uid: 'teacher-1' },
       orgId: 'orono',
+      canAccessFeature: () => false,
     });
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       updateWidget,

@@ -9075,6 +9075,8 @@ export type GlobalFeature =
   | 'quiz-student-view'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
+  /** Projects board: tapping a group name opens that group's student view. */
+  | 'projects-group-view'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'

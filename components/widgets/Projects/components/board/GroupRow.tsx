@@ -34,6 +34,8 @@ interface GroupRowProps {
   watchWork: boolean;
   expanded: boolean;
   onToggleExpand: () => void;
+  /** Opens the group's student view; the chevron alone then toggles the details. */
+  onOpenGroup?: () => void;
   busyKeys: ReadonlySet<string>;
   openCellKey: string | null;
   onOpenCell: (groupId: string, stepId: string, anchor: HTMLElement) => void;
@@ -54,6 +56,7 @@ export const GroupRow: React.FC<GroupRowProps> = ({
   watchWork,
   expanded,
   onToggleExpand,
+  onOpenGroup,
   busyKeys,
   openCellKey,
   onOpenCell,
@@ -109,6 +112,38 @@ export const GroupRow: React.FC<GroupRowProps> = ({
           />
           {readOnly || !runId ? (
             nameChip
+          ) : onOpenGroup ? (
+            <span
+              className="flex min-w-0 items-center"
+              style={{ gap: 'min(3px, 0.8cqmin)' }}
+            >
+              <button
+                type="button"
+                onClick={onOpenGroup}
+                title="Student view"
+                aria-haspopup="dialog"
+                className="flex min-w-0 rounded-md text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+              >
+                {nameChip}
+              </button>
+              <button
+                type="button"
+                onClick={onToggleExpand}
+                aria-expanded={expanded}
+                aria-label={`${expanded ? 'Hide' : 'Show'} members and work for ${group.name}`}
+                className="shrink-0 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                style={{ padding: 'min(3px, 0.8cqmin)' }}
+              >
+                <ChevronRight
+                  aria-hidden
+                  className={`shrink-0 text-slate-400 transition-transform ${expanded ? 'rotate-90' : ''}`}
+                  style={{
+                    width: 'min(14px, 3.4cqmin)',
+                    height: 'min(14px, 3.4cqmin)',
+                  }}
+                />
+              </button>
+            </span>
           ) : (
             <button
               type="button"

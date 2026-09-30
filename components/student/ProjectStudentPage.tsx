@@ -14,6 +14,7 @@ import { StudentPageShell } from './StudentPageShell';
 import { ProjectGroupWork } from './project/ProjectGroupWork';
 import { ProjectOwnGroupSteps } from './project/ProjectOwnGroupSteps';
 import { ProjectRubricSheet } from './project/ProjectRubricSheet';
+import { ProjectScoreCard } from './project/ProjectScoreCard';
 import { parseProjectRunId } from './project/projectRoute';
 
 const Centered: React.FC<{
@@ -188,24 +189,7 @@ export const ProjectStudentPage: React.FC = () => {
           onError={setNotice}
         />
 
-        {grade && (
-          <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
-            <h3 className="text-sm font-bold text-emerald-900">Your score</h3>
-            <p className="mt-1 text-2xl font-black text-emerald-900">
-              {myOverride ? myOverride.points : grade.points}
-              <span className="text-base font-bold text-emerald-700">
-                {' '}
-                / {grade.maxPoints}
-              </span>
-            </p>
-            {myOverride?.note && (
-              <p className="mt-1 text-sm text-emerald-900">{myOverride.note}</p>
-            )}
-            {grade.comment && (
-              <p className="mt-2 text-sm text-emerald-900">{grade.comment}</p>
-            )}
-          </section>
-        )}
+        {grade && <ProjectScoreCard grade={grade} override={myOverride} />}
       </div>
     );
   };
