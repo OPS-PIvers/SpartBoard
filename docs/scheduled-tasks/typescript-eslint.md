@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-09-29_
+_Last audited: 2026-09-30_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-09-30: Daily audit (Wednesday), run from the main session. `pnpm type-check` (`tsc --noEmit`) exit 0; `pnpm lint` (root eslint plus `functions` lint, `--max-warnings 0`) exit 0. 0 errors, 0 warnings in any category (a/b/c). **Net: 0 new issues, 0 resolved.**_
 
 _2026-09-29: Daily audit (Tuesday), run from the main session. `scheduled-tasks` rebased onto `origin/dev-paul` (HEAD `9af6386c`) cleanly. Only Node v22.22.2 is available (`>=24` required); both commands print the routine engine warning but complete. `pnpm type-check`: 0 TypeScript errors. `pnpm lint` (root `lint:app` then `lint:functions`, both `--max-warnings 0`): 0 errors, 0 warnings. 0 new issues._
 

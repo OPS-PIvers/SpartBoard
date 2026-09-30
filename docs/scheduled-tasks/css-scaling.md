@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-09-29_
+_Last audited: 2026-09-30_
 _Last action: 2026-09-24 — MEDIUM `QuizStimulusView.tsx` zero-`cqmin` blocker resolved: added an optional `cqScaled?: boolean` prop (default `false`) threaded through every subcomponent in the file, applying `min(Xpx, Ycqmin)` inline styles only when set, so the two CQ-container consumers (`CurrentQuestionCard.tsx`, `QuizPreview.tsx`) now scale while the two non-CQ consumers (`QuizStudentApp.tsx`, `FreeResponseGrader.tsx`) keep today's fixed styling untouched — the same `cqScaled` pattern proven on `AssignTargetingSection.tsx`. 1250/1250 relevant tests pass. Item moved to Completed. PR opened against dev-paul._
 
 ---
@@ -39,6 +39,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-09-30: Daily audit (Wednesday). Scanned `components/widgets/**/Widget.tsx`: 0 `max-h-[Npx]`/`max-w-[Npx]` caps on content; `cqmin` uses remain the `min(Npx, Ncqmin)` capped form. Diffed `components/widgets` and `components/common` since the 2026-09-29 baseline (80 files): the only new arbitrary pixel cap is `max-h-[280px]` on a scrolling list in `MaterialsWidget/settingsFields.tsx` (settings drawer, not front-face content), so not filed. All existing Open items left as filed. **Net: 0 new issues, 0 resolved.**_
 
 _2026-09-29: Daily audit (Tuesday). 7 `Widget.tsx` files changed since baseline `a5072c05` (BloomsTaxonomy, DrawingWidget, Embed, GuidedLearning, QuizWidget, VideoActivityWidget, Webcam); the added lines contain no new `max-[Npx]`/`max-w-[Npx]` caps, inline pixel sizes, hardcoded `cqmin` or `overflow-hidden` content wrappers. Repo-wide, `components/widgets/*/Widget.tsx` has 0 `max-h/max-w-[Npx]` classes. Existing Open items not re-verified line-by-line this cycle. **Net: 0 new issues, 0 resolved.**_
 
