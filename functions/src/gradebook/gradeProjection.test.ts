@@ -223,7 +223,12 @@ describe('projectRow', () => {
     await projectRow(db, null, row(), NOW);
     expect(Object.keys(stub.get(PATH)?.entries as object)).toEqual(['qs2']);
     expect(stub.get(PATH)?.standards).toEqual([
-      { targetId: 'tgt', pct: 50, level: 2 },
+      {
+        targetId: 'tgt',
+        pct: 50,
+        level: 2,
+        evidence: [{ sessionId: 'qs2', pct: 50, at: NOW - DAY }],
+      },
     ]);
   });
 
