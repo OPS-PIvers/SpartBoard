@@ -622,40 +622,38 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       contextPane={
         <div className="flex flex-col h-full">
           {/* Questions / Stimuli / Settings segmented tab toggle */}
-          {
-            <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
-              {editorTabs.map((tab) => {
-                const disabled =
-                  tab === 'languages' &&
-                  translationBlockedByBank &&
-                  !languageOnLanguagesTab;
-                return (
-                  <button
-                    key={tab}
-                    type="button"
-                    disabled={disabled}
-                    title={
-                      disabled
-                        ? t('quizTranslation.editor.disabled.bankSlots')
-                        : undefined
-                    }
-                    onClick={() => setEditorTab(tab)}
-                    className={`px-3 py-2 rounded-t-lg text-xs font-black uppercase tracking-wider transition-colors ${
-                      disabled
-                        ? 'text-slate-300 cursor-not-allowed'
-                        : activeTab === tab
-                          ? 'bg-brand-blue-primary text-white'
-                          : 'text-slate-500 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
-                    }`}
-                  >
-                    {tab === 'languages'
-                      ? t('quizTranslation.editor.tab')
-                      : tab.charAt(0).toUpperCase() + tab.slice(1)}
-                  </button>
-                );
-              })}
-            </div>
-          }
+          <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
+            {editorTabs.map((tab) => {
+              const disabled =
+                tab === 'languages' &&
+                translationBlockedByBank &&
+                !languageOnLanguagesTab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  disabled={disabled}
+                  title={
+                    disabled
+                      ? t('quizTranslation.editor.disabled.bankSlots')
+                      : undefined
+                  }
+                  onClick={() => setEditorTab(tab)}
+                  className={`px-3 py-2 rounded-t-lg text-xs font-black uppercase tracking-wider transition-colors ${
+                    disabled
+                      ? 'text-slate-300 cursor-not-allowed'
+                      : activeTab === tab
+                        ? 'bg-brand-blue-primary text-white'
+                        : 'text-slate-500 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
+                  }`}
+                >
+                  {tab === 'languages'
+                    ? t('quizTranslation.editor.tab')
+                    : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              );
+            })}
+          </div>
 
           {activeTab === 'questions' ? (
             <QuizEditorContextPane
