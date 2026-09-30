@@ -441,6 +441,43 @@ describe('recomputeSession and the dirty queue', () => {
   });
 });
 
+describe('Review sessions', () => {
+  const recompute = (session: StubData, assignment: StubData = {}) => {
+    const stub = seed({
+      'quiz_sessions/qs1': { ...quizSession, ...session },
+      'users/t1/quiz_assignments/qs1': { questionSnapshot: [], ...assignment },
+      'quiz_sessions/qs1/responses/u1': completed(),
+      'grade_index/qs1__u1': { sessionId: 'qs1', studentUid: 'u1' },
+    });
+    return recomputeSession(stub.db as unknown as Db, 'quiz', 'qs1', NOW).then(
+      (result) => ({ result, has: stub.has('grade_index/qs1__u1') })
+    );
+  };
+
+  it('leaves out a session tagged as a Review', async () => {
+    expect(
+      await recompute({ widgetKind: 'review', sessionMode: 'student' })
+    ).toEqual({ result: { written: 0, deleted: 1 }, has: false });
+  });
+
+  it('leaves out an untagged game session', async () => {
+    expect((await recompute({ sessionMode: 'game' })).has).toBe(false);
+  });
+
+  it('leaves out an untagged teacher-paced session unless it is a view-only share', async () => {
+    expect((await recompute({ sessionMode: 'teacher' })).has).toBe(false);
+    expect(
+      (await recompute({ sessionMode: 'teacher' }, { mode: 'view-only' })).has
+    ).toBe(true);
+  });
+
+  it('keeps a teacher-paced session tagged as a Quiz', async () => {
+    expect(
+      (await recompute({ sessionMode: 'teacher', widgetKind: 'quiz' })).has
+    ).toBe(true);
+  });
+});
+
 describe('kill switch', () => {
   it('leaves everything untouched while admin_settings/gradebook_index is off', async () => {
     const stub = seed({ 'admin_settings/gradebook_index': { enabled: false } });

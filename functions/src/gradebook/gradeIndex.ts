@@ -20,6 +20,7 @@ import {
   scoreVideoResponse,
   toMillis,
   type QuizContext,
+  isReviewQuiz,
 } from './gradeRowMath';
 import type {
   IndexAttempt,
@@ -114,6 +115,7 @@ export async function loadSessionContext(
       assignmentRef.collection('key').doc('answers').get(),
     ]);
     const assignment = assignmentSnap.data() ?? {};
+    if (isReviewQuiz(session, assignment)) return null;
     const ctx: QuizContext = {
       questions: keyQuestions(
         keySnap.data()?.questions,
