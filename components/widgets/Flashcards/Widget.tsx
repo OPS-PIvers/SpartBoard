@@ -432,8 +432,19 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       }
     );
     if (!confirmed) return;
-    if (assignment.plcShare) {
-      await plcSharing.stopSharingResults(assignment);
+    if (
+      assignment.plcShare &&
+      !(await plcSharing.stopSharingResults(assignment)) &&
+      !(await showConfirm(
+        'The results shared with your PLC could not be removed. Delete the assignment anyway?',
+        {
+          title: 'Delete assignment',
+          variant: 'danger',
+          confirmLabel: 'Delete',
+        }
+      ))
+    ) {
+      return;
     }
     await runAssignmentAction(
       () => deleteAssignment(assignment.id),

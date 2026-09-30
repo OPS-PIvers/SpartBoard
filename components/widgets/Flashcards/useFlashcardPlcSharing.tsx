@@ -86,20 +86,23 @@ export const useFlashcardPlcSharing = ({
     setTarget(null);
   };
 
+  /** False when the shared result could not be removed. */
   const stopSharingResults = async (
     assignment: FlashcardAssignment
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     const plcId = assignment.plcShare?.plcId;
-    if (!plcId) return;
+    if (!plcId) return true;
     try {
       await deletePlcFlashcardResult(plcId, assignment.id);
       await setPlcShare(assignment.id, null);
       addToast('Results no longer shared.', 'success');
+      return true;
     } catch (error) {
       addToast(
         error instanceof Error ? error.message : 'Could not stop sharing.',
         'error'
       );
+      return false;
     }
   };
 
