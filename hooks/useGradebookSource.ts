@@ -101,7 +101,10 @@ function useKeyedListener<T>(
   useEffect(() => {
     if (!key) return undefined;
     return subscribe(
-      (value) => setState({ key, value }),
+      (value) => {
+        setState({ key, value });
+        setErrorKey((k) => (k === key ? null : k));
+      },
       (err) => {
         logError('useGradebookSource', err, { key });
         setErrorKey(key);
