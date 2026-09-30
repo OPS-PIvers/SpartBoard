@@ -293,6 +293,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   }
 
   const isGame = session.sessionMode === 'game';
+  const tourType = session.widgetKind ?? 'quiz';
   const gameNow = useServerNow(
     isGame && session.status !== 'ended' ? 250 : null
   );
@@ -813,7 +814,10 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 }`}
                 style={{ height: boardView ? undefined : '55cqh' }}
               >
-                <div className="absolute inset-0">
+                <div
+                  className="absolute inset-0"
+                  {...tourAttr('review-game.board', widgetId, tourType)}
+                >
                   <GameBoard {...gameBoard} />
                 </div>
               </div>
@@ -949,7 +953,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               <button
                 onClick={handleTogglePause}
                 disabled={toggling}
-                {...tourAttr('quiz.pause-resume', widgetId, 'quiz')}
+                {...tourAttr('quiz.pause-resume', widgetId, tourType)}
                 className="inline-flex items-center bg-brand-blue-primary hover:bg-brand-blue-light text-white font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
                 style={{
                   gap: 'min(6px, 1.5cqmin)',
@@ -992,12 +996,22 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               onTogglePause={() => void gameControls.togglePause()}
               onAddMinute={() => void gameControls.addMinute()}
               onToggleNames={() => setGameNames((v) => !v)}
+              tour={{
+                start: tourAttr('review-game.start', widgetId, tourType),
+                pause: tourAttr('review-game.pause', widgetId, tourType),
+                addMinute: tourAttr(
+                  'review-game.add-minute',
+                  widgetId,
+                  tourType
+                ),
+                names: tourAttr('review-game.names', widgetId, tourType),
+              }}
             />
           )}
           <button
             onClick={handleEnd}
             disabled={ending}
-            {...tourAttr('quiz.end-quiz', widgetId, 'quiz')}
+            {...tourAttr('quiz.end-quiz', widgetId, tourType)}
             className="inline-flex items-center whitespace-nowrap bg-white border border-brand-gray-lighter hover:border-brand-red-light text-brand-red-primary font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
             style={{
               gap: 'min(6px, 1.5cqmin)',
@@ -1028,7 +1042,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="More actions"
               aria-expanded={menuOpen}
-              {...tourAttr('quiz.more-actions', widgetId, 'quiz')}
+              {...tourAttr('quiz.more-actions', widgetId, tourType)}
               className="rounded-md border border-brand-gray-lighter text-brand-gray-dark hover:border-brand-blue-light transition-colors"
               style={{ padding: 'min(8px, 2cqmin)' }}
             >
@@ -1060,7 +1074,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                       }}
                       {...(item.label === 'Reveal answer to class' ||
                       item.label === 'Hide revealed answer'
-                        ? tourAttr('quiz.reveal-answer', widgetId, 'quiz')
+                        ? tourAttr('quiz.reveal-answer', widgetId, tourType)
                         : {})}
                       className="flex items-center w-full text-left font-sans text-brand-gray-dark hover:bg-brand-blue-lighter transition-colors"
                       style={{
@@ -1162,6 +1176,10 @@ const GameControls: React.FC<{
   onTogglePause: () => void;
   onAddMinute: () => void;
   onToggleNames: () => void;
+  tour: Record<
+    'start' | 'pause' | 'addMinute' | 'names',
+    Record<string, string>
+  >;
 }> = ({
   phase,
   busy,
@@ -1170,6 +1188,7 @@ const GameControls: React.FC<{
   onTogglePause,
   onAddMinute,
   onToggleNames,
+  tour,
 }) => (
   <>
     {phase === 'waiting' ? (
@@ -1177,6 +1196,7 @@ const GameControls: React.FC<{
         type="button"
         onClick={onStart}
         disabled={busy}
+        {...tour.start}
         className={`${footerButton} bg-brand-blue-primary hover:bg-brand-blue-light text-white`}
         style={footerButtonStyle}
       >
@@ -1194,6 +1214,7 @@ const GameControls: React.FC<{
             type="button"
             onClick={onTogglePause}
             disabled={busy}
+            {...tour.pause}
             className={`${footerButton} bg-brand-blue-primary hover:bg-brand-blue-light text-white`}
             style={footerButtonStyle}
           >
@@ -1209,6 +1230,7 @@ const GameControls: React.FC<{
           type="button"
           onClick={onAddMinute}
           disabled={busy}
+          {...tour.addMinute}
           className={`${footerButton} bg-white border border-brand-gray-lighter text-brand-gray-dark hover:border-brand-blue-light`}
           style={footerButtonStyle}
         >
@@ -1220,6 +1242,7 @@ const GameControls: React.FC<{
       type="button"
       onClick={onToggleNames}
       aria-pressed={showNames}
+      {...tour.names}
       className={`${footerButton} border ${
         showNames
           ? 'bg-brand-blue-primary border-brand-blue-primary text-white'
