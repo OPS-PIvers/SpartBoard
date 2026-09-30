@@ -265,7 +265,14 @@ describe('scoreVideoResponse', () => {
       questions
     );
     expect(r.targetEvidence).toEqual([
-      { targetId: 't1', kind: 'standard', earned: 1, possible: 1 },
+      {
+        targetId: 't1',
+        kind: 'standard',
+        code: '5.NF.1',
+        label: 'Fractions',
+        earned: 1,
+        possible: 1,
+      },
     ]);
   });
 });
@@ -345,6 +352,8 @@ describe('scoreGuidedLearningResponse', () => {
       {
         targetId: 't1',
         kind: 'standard',
+        code: '5.NF.1',
+        label: 'Fractions',
         earned: 1,
         possible: 3,
       },
