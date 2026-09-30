@@ -23,8 +23,8 @@ import {
   type UndoMarkSnapshot,
 } from './gradebookUndoStore';
 
-// Two writes per cell (mark + history) keep a chunk under the 500-write batch cap.
-const CELLS_PER_BATCH = 200;
+// Each history create's getAfter counts toward the 20 document accesses allowed per batch.
+const CELLS_PER_BATCH = 8;
 const MAX_ROSTER_IDS = 20;
 
 type MarkPatch = Partial<
