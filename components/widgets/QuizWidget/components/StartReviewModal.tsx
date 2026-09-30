@@ -18,6 +18,12 @@ import { CollapsibleSection } from '@/components/common/library/CollapsibleSecti
 import { TabWarningThresholdRow } from '@/components/common/library/TabWarningRows';
 import type { AssignModeOption } from '@/components/common/library/types';
 import type { QuizHandRaiseMode } from '@/utils/quizHandRaise';
+import {
+  clampGameMinutes,
+  DEFAULT_GAME_MINUTES,
+  GAME_MINUTE_CHOICES,
+  MAX_GAME_MINUTES,
+} from '@/utils/reviewLaunch';
 
 const RANK_LIMITS: { value: ReviewBoardRankLimit; label: string }[] = [
   { value: 5, label: 'Top 5' },
@@ -68,6 +74,13 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
       sessionOptions: { ...prev.sessionOptions, ...next },
     }));
   const rankLimit = opts.boardRankLimit ?? 5;
+  const isGame = settings.sessionMode === 'game';
+  const gameMinutes = settings.gameMinutes ?? DEFAULT_GAME_MINUTES;
+  const [customMinutes, setCustomMinutes] = useState(
+    !(GAME_MINUTE_CHOICES as readonly number[]).includes(gameMinutes)
+  );
+  const setGameMinutes = (value: number) =>
+    setSettings((prev) => ({ ...prev, gameMinutes: value }));
 
   const modes: AssignModeOption[] = [
     {
@@ -87,7 +100,6 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
         'Students race through the questions on their own devices for a set time. Missed questions come back until time runs out.'
       ),
       icon: Timer,
-      disabled: true,
     },
   ];
 
@@ -98,7 +110,13 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
       eyebrow={t('reviewStart.eyebrow', 'Start review')}
       itemTitle={quizTitle}
       modes={modes}
-      selectedMode="paced"
+      selectedMode={isGame ? 'game' : 'paced'}
+      onModeChange={(id) =>
+        setSettings((prev) => ({
+          ...prev,
+          sessionMode: id === 'game' ? 'game' : 'teacher',
+        }))
+      }
       options={settings}
       onOptionsChange={setSettings}
       confirmLabel={t('reviewStart.confirm', 'Start')}
@@ -110,19 +128,89 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
       onAssign={() => onStart(settings, picker.rosterIds)}
       extraSlot={
         <div data-testid="start-review-options" className="space-y-3">
-          <ToggleRow
-            label={t(
-              'reviewStart.autoAdvance',
-              'Advance automatically when everyone has answered'
-            )}
-            checked={settings.sessionMode === 'auto'}
-            onChange={(v) =>
-              setSettings((prev) => ({
-                ...prev,
-                sessionMode: v ? 'auto' : 'teacher',
-              }))
-            }
-          />
+          {isGame ? (
+            <div
+              data-testid="review-game-length"
+              className="flex flex-wrap items-center justify-between gap-2"
+            >
+              <span className="text-sm font-bold text-brand-blue-dark">
+                {t('reviewStart.gameLength', 'Game length')}
+              </span>
+              <div className="flex items-center gap-2">
+                <div
+                  role="group"
+                  aria-label={t('reviewStart.gameLength', 'Game length')}
+                  className="inline-flex rounded-lg border border-slate-200 bg-white overflow-hidden"
+                >
+                  {GAME_MINUTE_CHOICES.map((minutes) => {
+                    const active = !customMinutes && gameMinutes === minutes;
+                    return (
+                      <button
+                        key={minutes}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => {
+                          setCustomMinutes(false);
+                          setGameMinutes(minutes);
+                        }}
+                        className={
+                          'px-2.5 py-1.5 text-xs font-bold tabular-nums transition ' +
+                          (active
+                            ? 'bg-brand-blue-primary text-white'
+                            : 'text-slate-600 hover:bg-slate-50')
+                        }
+                      >
+                        {t('reviewStart.minutes', {
+                          count: minutes,
+                          defaultValue: '{{count}} min',
+                        })}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    aria-pressed={customMinutes}
+                    onClick={() => setCustomMinutes(true)}
+                    className={
+                      'px-2.5 py-1.5 text-xs font-bold transition ' +
+                      (customMinutes
+                        ? 'bg-brand-blue-primary text-white'
+                        : 'text-slate-600 hover:bg-slate-50')
+                    }
+                  >
+                    {t('reviewStart.customLength', 'Custom')}
+                  </button>
+                </div>
+                {customMinutes && (
+                  <input
+                    type="number"
+                    min={1}
+                    max={MAX_GAME_MINUTES}
+                    value={gameMinutes}
+                    aria-label={t('reviewStart.customMinutes', 'Minutes')}
+                    onChange={(e) =>
+                      setGameMinutes(clampGameMinutes(Number(e.target.value)))
+                    }
+                    className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm font-bold tabular-nums text-slate-700"
+                  />
+                )}
+              </div>
+            </div>
+          ) : (
+            <ToggleRow
+              label={t(
+                'reviewStart.autoAdvance',
+                'Advance automatically when everyone has answered'
+              )}
+              checked={settings.sessionMode === 'auto'}
+              onChange={(v) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  sessionMode: v ? 'auto' : 'teacher',
+                }))
+              }
+            />
+          )}
           {skippedCount > 0 && (
             <p
               role="status"
@@ -180,7 +268,7 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
           <AssignmentSettingsToggleGroup
             integritySectionLabel={t('reviewStart.integrity', 'Integrity')}
             showCopyPasteToggle
-            hideShuffleQuestions
+            hideShuffleQuestions={!isGame}
             options={opts}
             onOptionsChange={(next) => setOpts(next)}
             afterTabWarningsSlot={
@@ -223,12 +311,16 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
                     checked={opts.streakBonusEnabled ?? false}
                     onChange={(v) => setOpts({ streakBonusEnabled: v })}
                   />
-                  <ToggleRow
-                    compact
-                    label="Podium Between Questions"
-                    checked={opts.showPodiumBetweenQuestions ?? false}
-                    onChange={(v) => setOpts({ showPodiumBetweenQuestions: v })}
-                  />
+                  {!isGame && (
+                    <ToggleRow
+                      compact
+                      label="Podium Between Questions"
+                      checked={opts.showPodiumBetweenQuestions ?? false}
+                      onChange={(v) =>
+                        setOpts({ showPodiumBetweenQuestions: v })
+                      }
+                    />
+                  )}
                   <ToggleRow
                     compact
                     label="Sound Effects"

@@ -18,8 +18,10 @@ import {
 import { quizAssignBlocker } from '@/utils/activityCompleteness';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import {
+  clampGameMinutes,
   countUnscoredQuestions,
   DEFAULT_REVIEW_LAUNCH_SETTINGS,
+  prepareReviewGame,
   prepareReviewQuiz,
 } from '@/utils/reviewLaunch';
 import { logError } from '@/utils/logError';
@@ -80,9 +82,133 @@ export function useReviewLaunch({
     [loadQuiz, addToast]
   );
 
+  const startGame = useCallback(
+    async (settings: ReviewLaunchSettings, rosterIds: string[]) => {
+      if (!target) return;
+      const { meta, data } = target;
+      let prepared: ReturnType<typeof prepareReviewGame>;
+      try {
+        const banks = quizHasBankSlots(data)
+          ? await loadBankContentsForQuiz(data)
+          : null;
+        prepared = prepareReviewGame(data, banks);
+      } catch (err) {
+        if (err instanceof BankSlotResolutionError) {
+          for (const problem of err.problems)
+            addToast(problem.message, 'error');
+        } else {
+          logError('ReviewLaunch.resolveBanks', err, { quizId: meta.id });
+          addToast('Could not load the question banks for this quiz.', 'error');
+        }
+        return;
+      }
+      if (prepared.questions.length === 0) {
+        addToast('Every question needs a teacher grade.', 'error');
+        return;
+      }
+      // Results grade from Drive, so a pooled or trimmed set needs its own copy.
+      let resolvedDriveFileId: string | undefined;
+      if (prepared.skippedCount > 0 || prepared.bankSlots) {
+        try {
+          resolvedDriveFileId = await saveDriveSnapshot({
+            ...data,
+            questions: prepared.questions,
+            stimuli: prepared.stimuli,
+            bankSlots: undefined,
+            order: undefined,
+          });
+        } catch (err) {
+          logError('ReviewLaunch.saveDriveSnapshot', err, { quizId: meta.id });
+          addToast(
+            'Could not save the review copy to Google Drive. Check your Drive connection and try again.',
+            'error'
+          );
+          return;
+        }
+      }
+      const selected = rosters.filter((r) => rosterIds.includes(r.id));
+      const derived = deriveSessionTargetsFromRosters(selected);
+      const gameMinutes = clampGameMinutes(settings.gameMinutes);
+      try {
+        const { id, code } = await createAssignment(
+          {
+            id: meta.id,
+            title: meta.title,
+            driveFileId: resolvedDriveFileId ?? meta.driveFileId,
+            questions: prepared.questions,
+            ...(prepared.stimuli ? { stimuli: prepared.stimuli } : {}),
+            ...(data.language ? { language: data.language } : {}),
+            ...(data.sections?.length
+              ? { order: data.order, sections: data.sections }
+              : {}),
+          },
+          {
+            sessionMode: 'game',
+            // D13: no score on submit; the game has no podium between questions.
+            sessionOptions: {
+              ...settings.sessionOptions,
+              showScoreOnSubmit: false,
+              showPodiumBetweenQuestions: false,
+            },
+            attemptLimit: null,
+            teacherName: config.teacherName,
+            periodNames: derived.periodNames,
+            ...(derived.periodNames[0]
+              ? { periodName: derived.periodNames[0] }
+              : {}),
+            ...(resolvedDriveFileId ? { resolvedDriveFileId } : {}),
+          },
+          {
+            widgetKind: 'review',
+            gameDurationMs: gameMinutes * 60_000,
+            ...(prepared.bankSlots ? { bankSlots: prepared.bankSlots } : {}),
+            classIds: derived.classIds,
+            rosterIds: derived.rosterIds,
+            classPeriodByClassId: derived.classPeriodByClassId,
+            ...(meta.translations && !prepared.bankSlots
+              ? { translationIndex: meta.translations }
+              : {}),
+          }
+        );
+        const preset: Partial<ReviewConfig> = {
+          lastLaunch: { ...settings, gameMinutes },
+        };
+        saveWidgetPreset('review', preset);
+        setTarget(null);
+        onLaunched({
+          assignmentId: id,
+          code,
+          meta,
+          rosterIds,
+          ...(resolvedDriveFileId ? { resolvedDriveFileId } : {}),
+        });
+      } catch (err) {
+        addToast(
+          err instanceof Error ? err.message : 'Failed to start the review',
+          'error'
+        );
+      }
+    },
+    [
+      target,
+      rosters,
+      config.teacherName,
+      loadBankContentsForQuiz,
+      saveDriveSnapshot,
+      createAssignment,
+      saveWidgetPreset,
+      addToast,
+      onLaunched,
+    ]
+  );
+
   const start = useCallback(
     async (settings: ReviewLaunchSettings, rosterIds: string[]) => {
       if (!target) return;
+      if (settings.sessionMode === 'game') {
+        await startGame(settings, rosterIds);
+        return;
+      }
       const { meta, data } = target;
       let prepared: ReturnType<typeof prepareReviewQuiz>;
       try {
@@ -198,6 +324,7 @@ export function useReviewLaunch({
       saveWidgetPreset,
       addToast,
       onLaunched,
+      startGame,
     ]
   );
 
