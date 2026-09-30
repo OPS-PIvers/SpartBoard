@@ -704,10 +704,11 @@ function hmacSecret() {
   if (process.env.STUDENT_PSEUDONYM_HMAC_SECRET)
     return process.env.STUDENT_PSEUDONYM_HMAC_SECRET;
   try {
+    // Untrimmed: functions hash with the exact secret bytes, trailing whitespace included.
     return execSync(
       'gcloud secrets versions access latest --secret=STUDENT_PSEUDONYM_HMAC_SECRET --project=spartboard-dev',
       { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }
-    ).trim();
+    );
   } catch {
     console.error(
       'Could not read STUDENT_PSEUDONYM_HMAC_SECRET. Run `gcloud auth login`, or set it in the environment.'
