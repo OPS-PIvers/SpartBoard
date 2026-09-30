@@ -41,6 +41,8 @@ export interface GradebookHeaderPopoverProps {
   onDeleteAssignment?: (column: GradebookColumnRef) => void;
   /** The Standards picker (D29), mounted by the tagging slice. */
   standardsControl?: React.ReactNode;
+  /** The LMS Push button, mounted by the LMS push slice as the row's last action. */
+  pushControl?: React.ReactNode;
 }
 
 const LABEL = 'text-[13px] font-medium text-slate-600';
@@ -61,6 +63,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
   onEditAssignment,
   onDeleteAssignment,
   standardsControl,
+  pushControl,
 }) => {
   const ids = useId();
   const markWrites = useGradebookMarkWrites(ctx.rosterId);
@@ -229,12 +232,20 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
 
       <div className="grid auto-cols-fr grid-flow-col gap-2">
         {onOpenResults && (
-          <Btn className="px-2" onClick={() => onOpenResults(column)}>
+          <Btn
+            className="px-2"
+            title={completion ? 'Open submissions' : 'Open results'}
+            onClick={() => onOpenResults(column)}
+          >
             {completion ? 'Submissions' : 'Results'}
           </Btn>
         )}
         {!completion && onAnalyze && (
-          <Btn className="px-2" onClick={() => onAnalyze(column)}>
+          <Btn
+            className="px-2"
+            title="Analyze this assignment"
+            onClick={() => onAnalyze(column)}
+          >
             Analyze
           </Btn>
         )}
@@ -242,6 +253,11 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
           <Btn
             className="px-2"
             tone={published ? 'default' : 'primary'}
+            title={
+              published
+                ? 'Hide scores from students'
+                : 'Show scores to students'
+            }
             onClick={() =>
               onPublishColumn(column, published ? 'unpublish' : 'publish')
             }
@@ -249,6 +265,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
             {published ? 'Unpublish' : 'Publish'}
           </Btn>
         )}
+        {pushControl}
       </div>
 
       {!completion && (
