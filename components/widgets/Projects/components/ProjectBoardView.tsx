@@ -42,6 +42,7 @@ import { StateMark } from '../StateMark';
 import { BoardClassPicker } from './board/BoardClassPicker';
 import { GroupRow, type BoardGroup } from './board/GroupRow';
 import { StatusPopover } from './board/StatusPopover';
+import { GroupViewModal } from './board/GroupViewModal';
 
 const HEADER_PAD = 'min(4px, 1cqmin) min(3px, 0.8cqmin)';
 
@@ -72,7 +73,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
   const collapsed = config.boardCollapsed ?? config.showStatus === false;
 
   const { updateWidget, rosters, addToast, activeDashboard } = useDashboard();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const shared = useSubShareProject(projectId);
   const readOnly = shared.active;
   // A substitute can read neither the project nor its run, so in a share the
@@ -94,6 +95,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
   );
   const [openCell, setOpenCell] = useState<OpenCell | null>(null);
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
+  const [viewGroupId, setViewGroupId] = useState<string | null>(null);
   // A substitute can pick a class but must not write the teacher's board.
   const [localClassId, setLocalClassId] = useState<string | null>(null);
   const reviewButtonRef = useRef<HTMLButtonElement>(null);
@@ -132,6 +134,11 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
   const dense =
     visibleGroups.length > DENSE_GROUPS || steps.length > DENSE_STEPS;
   const watchAllWork = !readOnly && visibleGroups.length <= DOT_GROUP_LIMIT;
+  const groupView = !readOnly && canAccessFeature('projects-group-view');
+  const viewGroup =
+    groupView && viewGroupId
+      ? live.groups.find((g) => g.id === viewGroupId)
+      : undefined;
 
   const cardStyle = { backgroundColor: hexToRgba(cardColor, cardOpacity) };
   // Sticky cells sit over scrolled content, so they need a near-opaque fill.
@@ -318,7 +325,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
               {collapsed ? (
                 <th
                   scope="col"
-                  className="sticky top-0 z-[2] align-bottom font-semibold text-slate-600"
+                  className="sticky top-0 z-[2] align-bottom font-bold text-slate-800"
                   style={{ ...stickyStyle, padding: HEADER_PAD }}
                 >
                   <span
@@ -333,8 +340,8 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
                         <span
                           key={step.id}
                           title={step.title}
-                          className="flex-1 min-w-0 truncate text-center leading-tight"
-                          style={{ fontSize: 'min(11px, 3.2cqmin)' }}
+                          className="flex-1 min-w-0 break-words line-clamp-2 text-center leading-tight"
+                          style={{ fontSize: 'min(18px, 3cqmin)' }}
                         >
                           {step.title}
                         </span>
@@ -355,19 +362,19 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
                     key={step.id}
                     scope="col"
                     title={step.title}
-                    className="sticky top-0 z-[2] align-bottom text-center font-semibold text-slate-600"
+                    className="sticky top-0 z-[2] align-bottom text-center font-bold text-slate-800"
                     style={{
                       ...stickyStyle,
                       width: `${100 / steps.length}%`,
                       padding: HEADER_PAD,
                       fontSize: dense
-                        ? 'min(10px, 2.8cqmin)'
-                        : 'min(11px, 3.2cqmin)',
+                        ? 'min(16px, 2.8cqmin)'
+                        : 'min(22px, 3.4cqmin)',
                     }}
                   >
                     <span
-                      className={`block leading-tight ${
-                        dense ? 'truncate' : 'break-words line-clamp-2'
+                      className={`block leading-tight break-words ${
+                        dense ? 'line-clamp-2' : 'line-clamp-3'
                       }`}
                     >
                       {step.title}
@@ -393,6 +400,9 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
                   setExpandedGroupId((id) =>
                     id === group.id ? null : group.id
                   )
+                }
+                onOpenGroup={
+                  groupView ? () => setViewGroupId(group.id) : undefined
                 }
                 busyKeys={busyKeys}
                 openCellKey={
@@ -570,6 +580,17 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
             </span>
           ))}
         </div>
+      )}
+
+      {viewGroup && live.run && (
+        <GroupViewModal
+          run={live.run}
+          group={viewGroup}
+          onClose={() => setViewGroupId(null)}
+          onSetState={(stepId, state) =>
+            setStepState(viewGroup.id, stepId, state, 'teacher')
+          }
+        />
       )}
 
       {openCell && openGroup && openStep && !readOnly && (

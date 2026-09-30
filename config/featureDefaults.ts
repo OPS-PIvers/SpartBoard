@@ -790,6 +790,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Projects board: a group's name opens the view its students see.
+  'projects-group-view': {
+    label: 'Projects group view',
+    icon: Eye,
+    description: "Tap a group on the board to see its students' view.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Per-widget AI switches: hide and meter each widget's AI; `gemini-functions` is the hard server gate.
   quiz: {
     label: 'Quiz: AI',
