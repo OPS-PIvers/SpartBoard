@@ -185,10 +185,12 @@ describe('sortStudents', () => {
 });
 
 describe('display helpers', () => {
-  it('formats names both ways', () => {
+  it('formats names every way', () => {
     const s = { firstName: 'Ana', lastName: 'Ruiz' };
     expect(studentName(s, 'last-first')).toBe('Ruiz, Ana');
     expect(studentName(s, 'first-last')).toBe('Ana Ruiz');
+    expect(studentName(s, 'last-only')).toBe('Ruiz');
+    expect(studentName(s, 'first-only')).toBe('Ana');
     expect(studentName({ firstName: 'Ana', lastName: '' }, 'last-first')).toBe(
       'Ana'
     );

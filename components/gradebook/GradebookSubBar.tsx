@@ -9,7 +9,10 @@ import {
   GRADEBOOK_KINDS,
   type GradebookSort,
 } from '@/utils/gradebook/gradebookCore';
-import { flagChipClasses } from '@/utils/gradebook/gradebookModel';
+import {
+  flagChipClasses,
+  type NameFormat,
+} from '@/utils/gradebook/gradebookModel';
 import { useGradebook } from './GradebookContext';
 import { GRADEBOOK_KIND_META } from './kindMeta';
 import { GradebookSettingsButton } from './settings/GradebookSettingsModal';
@@ -259,17 +262,21 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
             </div>
           </div>
           <div>
-            <Label>Names</Label>
-            <SegmentedControl
-              role="radiogroup"
-              ariaLabel="Names"
+            <Label htmlFor="gb-names">Names</Label>
+            <Sel
+              id="gb-names"
+              className={menuSelectCls}
+              wrapClassName="w-full"
               value={view.nameFormat}
-              onChange={(v) => setView({ nameFormat: v })}
-              options={[
-                { value: 'last-first', label: 'Last, First' },
-                { value: 'first-last', label: 'First Last' },
-              ]}
-            />
+              onChange={(e) =>
+                setView({ nameFormat: e.target.value as NameFormat })
+              }
+            >
+              <option value="last-first">Last, First</option>
+              <option value="first-last">First Last</option>
+              <option value="last-only">Last only</option>
+              <option value="first-only">First only</option>
+            </Sel>
           </div>
           <div>
             <Label htmlFor="gb-sort">Sort rows</Label>

@@ -115,7 +115,9 @@ describe('GradebookGrid', () => {
   it('keeps sorting by last name when names switch to First Last', () => {
     setup(true);
     fireEvent.click(screen.getByRole('button', { name: /^View/ }));
-    fireEvent.click(screen.getByRole('radio', { name: 'First Last' }));
+    fireEvent.change(screen.getByLabelText('Names'), {
+      target: { value: 'first-last' },
+    });
     const names = screen.getAllByRole('rowheader').map((th) => th.textContent);
     expect(names[0]).toContain('Ben Adams');
     expect(names[1]).toContain('Ana Ruiz');

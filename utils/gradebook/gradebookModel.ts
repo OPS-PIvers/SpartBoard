@@ -5,6 +5,7 @@ import {
   isCompletionOnly,
   isPublishedFor,
   type FinalScore,
+  type GradebookClassStateDoc,
   type GradebookColumnConfig,
   type GradebookKind,
   type GradebookMark,
@@ -31,7 +32,7 @@ export interface GradebookColumn {
   hidden: boolean;
 }
 
-export type NameFormat = 'last-first' | 'first-last';
+export type NameFormat = GradebookClassStateDoc['nameFormat'];
 export type CellFormat = 'percent' | 'points';
 
 /** Marks per write batch: each history entry's getAfter is a rules access, capped at 20 per batch. */
@@ -151,6 +152,8 @@ export function studentName(
   const last = s.lastName.trim();
   if (!last) return first;
   if (!first) return last;
+  if (format === 'last-only') return last;
+  if (format === 'first-only') return first;
   return format === 'last-first' ? `${last}, ${first}` : `${first} ${last}`;
 }
 
