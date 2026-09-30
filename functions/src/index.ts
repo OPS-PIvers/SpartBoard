@@ -116,6 +116,8 @@ export {
   commitRosterPinIndexV1,
   pinLoginV1,
 } from './studentIdentity';
+// Gradebook D8: roster student → stable uid for the gradebook grid.
+export { getGradebookRosterV1 } from './gradebook/getGradebookRosterV1';
 
 // ── Projects widget: group import (docs/plans/shipped/PROJECTS_WIDGET.md D8) ───────
 export { commitProjectGroupsV1 } from './projectGroups';

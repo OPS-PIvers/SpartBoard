@@ -1266,7 +1266,7 @@ function roleIdOf(snap: admin.firestore.DocumentSnapshot): string {
   return typeof roleId === 'string' ? roleId.trim() : '';
 }
 
-async function loadTestClassMembership(
+export async function loadTestClassMembership(
   db: admin.firestore.Firestore,
   teacherEmail: string,
   testClassIds: readonly string[],
@@ -1317,7 +1317,7 @@ async function loadTestClassMembership(
   return { membership: out, authorized: true };
 }
 
-async function loadClassLinkMembership(
+export async function loadClassLinkMembership(
   teacherEmail: string,
   ownedClassIds: readonly string[],
   classlinkClientId: string,
