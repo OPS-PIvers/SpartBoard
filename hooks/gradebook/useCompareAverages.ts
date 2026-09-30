@@ -5,6 +5,8 @@ import {
   gradebookDocId,
   resolveFinalScore,
   type GradebookColumnConfig,
+  type GradebookSettingsBody,
+  type ProficiencyScale,
 } from '@/utils/gradebook/gradebookCore';
 import { countedPct, mean } from '@/utils/gradebook/gradebookAnalysis';
 
@@ -14,7 +16,9 @@ const NO_BUILDINGS: string[] = [];
 export function useCompareAverages(
   rosterId: string | null,
   configs: ReadonlyMap<string, GradebookColumnConfig | null>,
-  now: number
+  now: number,
+  settings: GradebookSettingsBody,
+  scale: ProficiencyScale
 ): Map<string, number | null> | null {
   // Read without throwing so the fixture harness (no auth provider) still renders.
   const auth = useContext(AuthContext);
@@ -22,7 +26,9 @@ export function useCompareAverages(
     rosterId ? (auth?.user?.uid ?? null) : null,
     rosterId,
     auth?.orgId ?? null,
-    auth?.selectedBuildings ?? NO_BUILDINGS
+    auth?.selectedBuildings ?? NO_BUILDINGS,
+    // Scores resolve with this class's flag settings so both columns count flags alike.
+    { settings, scale, loading: false }
   );
   return useMemo(() => {
     if (!rosterId || source.status !== 'ready') return null;

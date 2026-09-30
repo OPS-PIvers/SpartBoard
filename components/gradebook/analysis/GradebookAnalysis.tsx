@@ -76,7 +76,9 @@ export const GradebookAnalysis: React.FC = () => {
   const averages = useCompareAverages(
     compareOn && compareRoster ? compareRoster.id : null,
     configs,
-    gb.now
+    gb.now,
+    gb.settings,
+    gb.scale
   );
 
   const openStudent = (uid: string) =>
