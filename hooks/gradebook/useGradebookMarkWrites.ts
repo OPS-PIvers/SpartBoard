@@ -141,6 +141,7 @@ function historyValue(
 export function useGradebookMarkWrites(rosterId: string) {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
+  const undoScope = `${uid ?? ''}/${rosterId}`;
 
   const commit = useCallback(
     async (
@@ -175,6 +176,7 @@ export function useGradebookMarkWrites(rosterId: string) {
           after: w.after,
         }));
         gradebookUndoStore.push({
+          scope: undoScope,
           at: Date.now(),
           batchId,
           label: undoLabel,
@@ -182,7 +184,7 @@ export function useGradebookMarkWrites(rosterId: string) {
         });
       }
     },
-    [uid]
+    [uid, undoScope]
   );
 
   const plan = useCallback(
@@ -345,7 +347,7 @@ export function useGradebookMarkWrites(rosterId: string) {
   /** Restores every mark a change touched to its prior state, logged as one batch. */
   const undoBatch = useCallback(
     async (batchId?: string): Promise<string | null> => {
-      const entry = gradebookUndoStore.take(batchId);
+      const entry = gradebookUndoStore.take(undoScope, batchId);
       if (!entry || !uid) return null;
       const writes: PlannedWrite[] = entry.marks.map((m) => {
         const restored: GradebookMark = m.before ?? {
@@ -369,7 +371,7 @@ export function useGradebookMarkWrites(rosterId: string) {
       await commit(writes, `undo_${entry.batchId}`, null);
       return entry.label;
     },
-    [uid, commit]
+    [uid, commit, undoScope]
   );
 
   return {
@@ -381,6 +383,7 @@ export function useGradebookMarkWrites(rosterId: string) {
     markAll,
     undoBatch,
     undoLast: undoBatch,
+    undoScope,
   };
 }
 

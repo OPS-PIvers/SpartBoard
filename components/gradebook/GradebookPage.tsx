@@ -101,7 +101,7 @@ export const GradebookPage: React.FC<{
 }> = ({ parsed, onClose }) => {
   const gb = useGradebook();
   const popoverWrites = useGradebookMarkWrites(gb.rosterId);
-  const popoverUndo = useLastUndo();
+  const popoverUndo = useLastUndo(popoverWrites.undoScope);
   const tab = parsed.view === 'analysis' ? 'analysis' : 'grid';
   const onGrid = parsed.view === 'grid' || parsed.view === 'assignment';
 

@@ -252,7 +252,7 @@ describe('useGradebookMarkWrites', () => {
         }
       ).text
     ).toBe('hi');
-    expect(gradebookUndoStore.peek()).toBeNull();
+    expect(gradebookUndoStore.peek(result.current.undoScope)).toBeNull();
   });
 
   it('Mark all sets a flag on empty cells only', async () => {

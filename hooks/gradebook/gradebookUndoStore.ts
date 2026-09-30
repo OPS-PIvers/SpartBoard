@@ -10,6 +10,8 @@ export interface UndoMarkSnapshot {
 }
 
 export interface UndoEntry {
+  /** Teacher and class the change belongs to, so another class or account never undoes it. */
+  scope: string;
   at: number;
   batchId: string;
   label: string;
@@ -18,6 +20,11 @@ export interface UndoEntry {
 
 const MAX_ENTRIES = 30;
 let stack: UndoEntry[] = [];
+
+function lastIndex(match: (e: UndoEntry) => boolean): number {
+  for (let i = stack.length - 1; i >= 0; i--) if (match(stack[i])) return i;
+  return -1;
+}
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -29,19 +36,20 @@ export const gradebookUndoStore = {
     stack = [...stack.slice(-(MAX_ENTRIES - 1)), entry];
     emit();
   },
-  take: (batchId?: string): UndoEntry | null => {
-    const idx =
-      batchId === undefined
-        ? stack.length - 1
-        : stack.findIndex((e) => e.batchId === batchId);
+  take: (scope: string, batchId?: string): UndoEntry | null => {
+    const idx = lastIndex(
+      (e) =>
+        e.scope === scope && (batchId === undefined || e.batchId === batchId)
+    );
     if (idx < 0) return null;
     const entry = stack[idx];
     stack = stack.filter((_, i) => i !== idx);
     emit();
     return entry;
   },
-  peek: (): UndoEntry | null => {
-    return stack.length ? stack[stack.length - 1] : null;
+  peek: (scope: string): UndoEntry | null => {
+    const idx = lastIndex((e) => e.scope === scope);
+    return idx < 0 ? null : stack[idx];
   },
   clear: (): void => {
     stack = [];
@@ -56,10 +64,7 @@ export const gradebookUndoStore = {
 };
 
 /** The newest undoable change, for an Undo button or Ctrl+Z hint. */
-export function useLastUndo(): UndoEntry | null {
-  return useSyncExternalStore(
-    gradebookUndoStore.subscribe,
-    gradebookUndoStore.peek,
-    gradebookUndoStore.peek
-  );
+export function useLastUndo(scope: string): UndoEntry | null {
+  const read = () => gradebookUndoStore.peek(scope);
+  return useSyncExternalStore(gradebookUndoStore.subscribe, read, read);
 }
