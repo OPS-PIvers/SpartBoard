@@ -13,6 +13,8 @@ interface PresentPacedReviewProps {
   standings: QuizLeaderboardEntry[];
   showNames: boolean;
   unit: 'pts' | '%';
+  /** Standings rows; Review sets this at launch (D21). */
+  rankRows?: number;
 }
 
 export const PresentPacedReview: React.FC<PresentPacedReviewProps> = ({
@@ -22,6 +24,7 @@ export const PresentPacedReview: React.FC<PresentPacedReviewProps> = ({
   standings,
   showNames,
   unit,
+  rankRows,
 }) => {
   const { totalAnswered, rows } = buildDistribution(
     question,
@@ -100,7 +103,12 @@ export const PresentPacedReview: React.FC<PresentPacedReviewProps> = ({
           </p>
         )}
       </div>
-      <PresentStandings entries={standings} showNames={showNames} unit={unit} />
+      <PresentStandings
+        entries={standings}
+        showNames={showNames}
+        unit={unit}
+        limit={rankRows}
+      />
     </>
   );
 };
