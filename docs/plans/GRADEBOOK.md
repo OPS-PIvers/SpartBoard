@@ -2,7 +2,7 @@
 
 Grilled and settled 2026-09-30. Six phases, stacked PRs to `dev-paul` in the order below. Phases 1–5 sit behind the `gradebook` preview flag; phase 6 sits behind its own `student-gradebook` flag.
 
-Clickable prototype with fake data: [`mockups/gradebook-mockup.html`](mockups/gradebook-mockup.html).
+Clickable prototype with fake data: [`mockups/gradebook-mockup.html`](mockups/gradebook-mockup.html). Open it with `#admin` for Admin Settings › Gradebook or `#plc` for the PLC Gradebook section.
 
 ## Design reference
 

@@ -282,6 +282,27 @@
   .tip { position: relative; width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--s300); background: #fff; color: var(--s500); font-size: 10px; font-weight: 700; font-style: italic; font-family: Georgia, serif; display: inline-grid; place-items: center; padding: 0; text-transform: none; letter-spacing: 0; }
   .tip:hover::after, .tip:focus-visible::after { content: attr(data-tip); position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); width: 220px; background: var(--s800); color: #fff; font: 500 12px/1.4 var(--font); font-style: normal; text-align: left; padding: 8px 10px; border-radius: 8px; box-shadow: var(--shadow-pop); z-index: 5; white-space: normal; }
   .cfgcard { gap: 14px; }
+  .adm { display: flex; height: 100%; }
+  .arail { flex: none; width: 232px; background: var(--brand-blue-dark); padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+  .admtitle { color: #fff; font-weight: 700; font-size: 16px; padding: 4px 12px 12px; }
+  .agrp { color: rgba(255,255,255,.5); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; padding: 12px 12px 4px; }
+  .atab { border: 0; background: transparent; color: rgba(255,255,255,.7); text-align: left; padding: 9px 12px; border-radius: 12px; font-size: 14px; }
+  .atab:hover { background: rgba(255,255,255,.1); color: #fff; }
+  .atab[aria-selected='true'] { background: #fff; color: var(--brand-blue-dark); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+  .acontent { flex: 1; min-width: 0; overflow-y: auto; background: var(--s50); padding: 24px 24px 40px; }
+  .acol { max-width: 760px; width: 100%; display: flex; flex-direction: column; gap: 16px; }
+  .pset { border: 1px solid var(--s200); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .pset .pname { width: 220px; font-weight: 600; }
+  .pset .select { max-width: 320px; }
+  .ptbl { max-width: 560px; border-collapse: collapse; }
+  .ptbl input { width: 100%; }
+  .ptbl th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .025em; color: var(--s500); padding: 4px; }
+  .ptbl td { padding: 4px; }
+  input[type='date'] { height: 36px; padding: 0 10px; background: #fff; border: 1px solid var(--s300); border-radius: 8px; color: var(--s800); font-size: 14px; }
+  .plcsec { border-top: 1px solid var(--s200); padding-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .plcsec h3 { margin: 0; font-size: 14px; font-weight: 700; color: var(--s800); }
+  .setrow .select { flex: 1; max-width: 320px; }
+  .dlevels { grid-template-columns: 240px auto auto; justify-content: start; }
   .setrow.top { align-items: flex-start; }
   .setrow.top > label { padding-top: 6px; }
   .setrow .grow { flex: 1; max-width: 320px; }
@@ -462,7 +483,12 @@
   const CFGS = [{ id: 'c1', name: 'My settings', set: newSet() }, { id: 'c2', name: 'Honors', set: honors }];
   const BUILTIN = { id: null, name: 'Default settings', set: newSet(), builtin: true };
   const PLCS = [{ id: 'plc1', name: 'Grade 8 ELA PLC', set: PLC_SET, plc: true }];
-  const DISTRICT = [{ id: 'd1', name: 'Orono Middle School', set: newSet(), district: true }];
+  const DISTRICT = [{ id: 'd1', name: 'Orono Middle School', set: newSet(), district: true, bld: ['oms'], isDefault: true }, { id: 'd2', name: 'Orono High School', set: newSet(), district: true, bld: ['ohs'], isDefault: false }];
+  const BUILDINGS = [{ id: 'sch', name: 'Schumann Elementary' }, { id: 'oie', name: 'Orono Intermediate' }, { id: 'oms', name: 'Orono Middle School' }, { id: 'ohs', name: 'Orono High School' }];
+  const PSETS = [
+    { name: 'Secondary quarters', bld: ['oms', 'ohs'], periods: [['Q1', '2026-09-02', '2026-11-06'], ['Q2', '2026-11-09', '2027-01-22'], ['Q3', '2027-01-25', '2027-04-02'], ['Q4', '2027-04-05', '2027-06-04']].map(([label, start, end]) => ({ label, start, end })) },
+    { name: 'Elementary trimesters', bld: ['sch', 'oie'], periods: [] },
+  ];
   const cfgById = (id) => CFGS.concat(PLCS, DISTRICT).find((c) => c.id === id) || BUILTIN;
   const S = {
     cls: 'p2', privacy: false, tab: 'grid', view: 'grid', sid: null, fmt: 'pct', tint: false, nameFmt: 'last', sort: { key: 'name', dir: 1 },
@@ -610,6 +636,8 @@
   function render() {
     document.body.classList.toggle('privacy', !!S.privacy);
     if (S.view === 'portal') { app.innerHTML = `<main class="content">${renderPortal()}</main>`; return; }
+    if (S.view === 'admin') { app.innerHTML = renderAdmin(); return; }
+    if (S.view === 'plc') { app.innerHTML = renderPlc(); return; }
     const gridMode = S.view === 'grid' && S.tab === 'grid';
     app.innerHTML = renderTop() + `<main class="content ${gridMode ? 'fill' : ''}">${S.view === 'student' ? renderStudent() : gridMode ? renderGrid() : renderAnalysis()}</main>`;
     if (S.view === 'grid' && S.tab === 'grid' && S.scrollToEnd !== false) {
@@ -1086,6 +1114,32 @@
     modal(`<header><h2>Edit ${esc(a.title)}</h2><span class="spacer"></span><button class="btn" data-act="close-modal">Close</button></header>
       <div class="empty-state"><b>The existing ${KIND[a.kind].label} editor opens here</b>Title, due date and questions change in one place, and the column updates.</div>`);
   }
+  const TEACHER_SCALES = [['district', 'Orono district scale'], ['plc', 'Grade 8 ELA PLC scale'], ['custom', 'Custom']];
+  function settingsCards(st, ro, plc, sc, scEdit, tot, scaleOpts) {
+    return `      <section class="card w12"><h3>Flags</h3><div class="tscroll"><table class="plain settbl"><thead><tr><th>Flag</th><th>Key</th><th><span class="thtip">Value <button class="tip" data-tip="The score a flag gives a cell with no score. Leave it blank for no effect." aria-label="About value">i</button></span></th><th>Visibility</th><th></th></tr></thead><tbody>
+        ${st.flags.map((f, n) => `<tr><td><span class="fname"><button class="chip chipbtn" style="--c:${f.color}" data-act="flag-color" data-n="${n}" ${ro} title="Change color" aria-label="Change ${esc(f.name)} color">${esc(f.key)}</button><input type="text" data-set="fname" data-n="${n}" value="${esc(f.name)}" ${ro} aria-label="Flag name"/></span></td>
+          <td><input class="keyin" type="text" maxlength="1" data-set="fkey" data-n="${n}" value="${esc(f.key)}" ${ro} aria-label="${esc(f.name)} key"/></td>
+          <td>${f.exclude ? '<span class="badge" title="Left out of the average">Excluded</span>' : `<span class="pctin"><input type="number" data-set="val" data-n="${n}" min="0" max="100" value="${f.value ?? ''}" placeholder="None" ${ro} aria-label="${esc(f.name)} value"/><span>%</span></span>`}</td>
+          <td><button class="iconbtn sm visbtn hastip" data-act="flag-vis" data-n="${n}" data-v="${f.vis}" data-tip="${VIS[f.vis].label}" aria-label="${esc(f.name)}: ${VIS[f.vis].label}" ${ro}>${VIS[f.vis].icon}</button></td>
+          <td>${plc ? '' : CORE_FLAGS.includes(f.id) ? `<span class="iconbtn sm ghostlock" title="Built in, used by automatic Late and Missing">${ICON.lock}</span>` : `<button class="iconbtn sm danger" data-act="flag-rm" data-n="${n}" title="Remove flag" aria-label="Remove ${esc(f.name)}">${ICON.trash}</button>`}</td></tr>`).join('')}
+      </tbody></table></div>
+      ${plc ? '' : '<div class="row"><button class="link" data-act="flag-add">+ Add flag</button></div>'}
+      <label class="toggle"><input type="checkbox" id="setAuto" ${st.auto ? 'checked' : ''} ${ro}/><span class="track"></span>Apply Late and Missing automatically from due dates</label></section>
+      <section class="card w12"><h3>Overall grade<label class="toggle hdrtoggle"><input type="checkbox" id="setCats" ${st.useCats ? 'checked' : ''} ${ro}/><span class="track"></span>Weighted categories</label><span class="spacer"></span>${plc || !st.useCats ? '' : '<button class="link" data-act="cat-reset">Restore defaults</button>'}</h3>
+        ${st.useCats ? `<div class="catlist">${st.cats.map((c, n) => `<div class="catrow"><input type="text" data-set="cname" data-n="${n}" value="${esc(c.name)}" ${ro} aria-label="Category name"/><span class="pctin"><input type="number" data-set="w" data-n="${n}" value="${c.w}" min="0" max="100" ${ro} aria-label="${esc(c.name)} weight"/><span>%</span></span>${plc ? '' : `<button class="iconbtn sm danger" data-act="cat-rm" data-n="${n}" ${st.cats.length < 2 ? 'disabled' : ''} title="Remove category" aria-label="Remove ${esc(c.name)}">${ICON.trash}</button>`}</div>`).join('')}</div>
+        <div class="row">${plc ? '' : '<button class="link" data-act="cat-add">+ Add category</button>'}<span class="spacer"></span><span class="small ${tot > 100 ? 'badtext' : 'muted'}">${tot > 100 ? 'Cannot exceed 100%' : `Total ${tot}%`}</span></div>` : '<div class="small muted">Overall is total points earned.</div>'}</section>
+      <section class="card w12"><h3>Learning target proficiency</h3>
+        <div class="setrow"><label for="setScale">Scale</label><select id="setScale" ${ro}>${scaleOpts.map(([v, l]) => opt(v, l, st.scale.src)).join('')}</select></div>
+        <div class="levels">
+          <input type="text" data-set="lname" data-n="0" value="${esc(sc.names[0])}" ${scEdit} aria-label="Top level name"/><span class="lvtxt">at or above</span><span class="pctin"><input type="number" data-set="cut" data-k="p" value="${sc.p}" min="1" max="100" ${scEdit} aria-label="${esc(sc.names[0])} cutoff"/><span>%</span></span>
+          <input type="text" data-set="lname" data-n="1" value="${esc(sc.names[1])}" ${scEdit} aria-label="Middle level name"/><span class="lvtxt">at or above</span><span class="pctin"><input type="number" data-set="cut" data-k="a" value="${sc.a}" min="0" max="99" ${scEdit} aria-label="${esc(sc.names[1])} cutoff"/><span>%</span></span>
+          <input type="text" data-set="lname" data-n="2" value="${esc(sc.names[2])}" ${scEdit} aria-label="Bottom level name"/><span class="lvtxt">below</span><span class="lvtxt"><b>${sc.a}%</b></span>
+        </div>
+        <div class="setrow"><label for="setMethod">Combine evidence</label><select id="setMethod" ${ro}>${opt('decay', 'Decaying average (recent counts 65%)', st.method)}${opt('mean', 'Mean of all evidence', st.method)}${opt('recent', 'Most recent', st.method)}${opt('highest', 'Highest', st.method)}</select></div></section>
+      <section class="card w12"><h3>What students see on their Grades tab</h3>
+        <label class="toggle"><input type="checkbox" id="setScores" ${st.showScores ? 'checked' : ''} ${ro}/><span class="track"></span>Published scores, visible flags and shared comments</label>
+        <label class="toggle"><input type="checkbox" id="setStd" ${st.showStandards ? 'checked' : ''} ${ro}/><span class="track"></span>Standards mastery</label></section>`;
+  }
   function settingsModal() {
     const ec = ECFG(); const st = ec.set; const plc = !!(ec.plc || ec.district); const ro = plc || ec.builtin ? 'disabled' : '';
     const sc = st.scale.src === 'custom' ? st.scale.custom : SCALES[st.scale.src]; const scEdit = !plc && st.scale.src === 'custom' ? '' : 'disabled';
@@ -1103,31 +1157,9 @@
           <button class="btn sm" data-act="cfg-new">+ New</button></div>
         ${S.cfgDel ? `<div class="confirm danger row"><span style="flex:1">Delete <b>${esc(ec.name)}</b>?${users ? ` ${users} class${users === 1 ? ' goes' : 'es go'} back to the default settings.` : ''}</span><button class="btn danger-solid sm" data-act="cfg-del-go">Delete</button><button class="btn sm" data-act="cfg-del-no">Cancel</button></div>` : ''}
         ${ec.builtin ? '<div class="small muted">Classes with no configuration use these defaults. Create one with + New to change them.</div>' : `<div class="setrow"><label>Applies to</label><button class="select grow" data-act="apply-menu" aria-haspopup="true" aria-expanded="${!!S.applyOpen}">${(() => { const on = Object.entries(CLASSES).filter(([k]) => S.classCfg[k] === ec.id).map(([, c]) => c.name); return on.length ? `<span class="ellip">${esc(on.join(', '))}</span>` : '<span class="ph">No classes</span>'; })()}${ICON.chev}</button></div>`}
-        ${ec.plc ? `<div class="small muted">Your PLC lead manages this configuration. <button class="link" data-act="toast" data-msg="Opens Grade 8 ELA PLC › Settings › Gradebook">Open in PLC</button></div>` : ec.district ? '<div class="small muted">Your district manages this configuration for your building.</div>' : ''}
+        ${ec.plc ? `<div class="small muted">Your PLC lead manages this configuration. <button class="link" data-act="goto-plc">Open in PLC</button></div>` : ec.district ? '<div class="small muted">Your district manages this configuration for your building.</div>' : ''}
       </section>
-      <section class="card w12"><h3>Flags</h3><div class="tscroll"><table class="plain settbl"><thead><tr><th>Flag</th><th>Key</th><th><span class="thtip">Value <button class="tip" data-tip="The score a flag gives a cell with no score. Leave it blank for no effect." aria-label="About value">i</button></span></th><th>Visibility</th><th></th></tr></thead><tbody>
-        ${st.flags.map((f, n) => `<tr><td><span class="fname"><button class="chip chipbtn" style="--c:${f.color}" data-act="flag-color" data-n="${n}" ${ro} title="Change color" aria-label="Change ${esc(f.name)} color">${esc(f.key)}</button><input type="text" data-set="fname" data-n="${n}" value="${esc(f.name)}" ${ro} aria-label="Flag name"/></span></td>
-          <td><input class="keyin" type="text" maxlength="1" data-set="fkey" data-n="${n}" value="${esc(f.key)}" ${ro} aria-label="${esc(f.name)} key"/></td>
-          <td>${f.exclude ? '<span class="badge" title="Left out of the average">Excluded</span>' : `<span class="pctin"><input type="number" data-set="val" data-n="${n}" min="0" max="100" value="${f.value ?? ''}" placeholder="None" ${ro} aria-label="${esc(f.name)} value"/><span>%</span></span>`}</td>
-          <td><button class="iconbtn sm visbtn hastip" data-act="flag-vis" data-n="${n}" data-v="${f.vis}" data-tip="${VIS[f.vis].label}" aria-label="${esc(f.name)}: ${VIS[f.vis].label}" ${ro}>${VIS[f.vis].icon}</button></td>
-          <td>${plc ? '' : CORE_FLAGS.includes(f.id) ? `<span class="iconbtn sm ghostlock" title="Built in, used by automatic Late and Missing">${ICON.lock}</span>` : `<button class="iconbtn sm danger" data-act="flag-rm" data-n="${n}" title="Remove flag" aria-label="Remove ${esc(f.name)}">${ICON.trash}</button>`}</td></tr>`).join('')}
-      </tbody></table></div>
-      ${plc ? '' : '<div class="row"><button class="link" data-act="flag-add">+ Add flag</button></div>'}
-      <label class="toggle"><input type="checkbox" id="setAuto" ${st.auto ? 'checked' : ''} ${ro}/><span class="track"></span>Apply Late and Missing automatically from due dates</label></section>
-      <section class="card w12"><h3>Overall grade<label class="toggle hdrtoggle"><input type="checkbox" id="setCats" ${st.useCats ? 'checked' : ''} ${ro}/><span class="track"></span>Weighted categories</label><span class="spacer"></span>${plc || !st.useCats ? '' : '<button class="link" data-act="cat-reset">Restore defaults</button>'}</h3>
-        ${st.useCats ? `<div class="catlist">${st.cats.map((c, n) => `<div class="catrow"><input type="text" data-set="cname" data-n="${n}" value="${esc(c.name)}" ${ro} aria-label="Category name"/><span class="pctin"><input type="number" data-set="w" data-n="${n}" value="${c.w}" min="0" max="100" ${ro} aria-label="${esc(c.name)} weight"/><span>%</span></span>${plc ? '' : `<button class="iconbtn sm danger" data-act="cat-rm" data-n="${n}" ${st.cats.length < 2 ? 'disabled' : ''} title="Remove category" aria-label="Remove ${esc(c.name)}">${ICON.trash}</button>`}</div>`).join('')}</div>
-        <div class="row">${plc ? '' : '<button class="link" data-act="cat-add">+ Add category</button>'}<span class="spacer"></span><span class="small ${tot > 100 ? 'badtext' : 'muted'}">${tot > 100 ? 'Cannot exceed 100%' : `Total ${tot}%`}</span></div>` : '<div class="small muted">Overall is total points earned.</div>'}</section>
-      <section class="card w12"><h3>Learning target proficiency</h3>
-        <div class="setrow"><label for="setScale">Scale</label><select id="setScale" ${ro}>${opt('district', 'Orono district scale', st.scale.src)}${opt('plc', 'Grade 8 ELA PLC scale', st.scale.src)}${opt('custom', 'Custom', st.scale.src)}</select></div>
-        <div class="levels">
-          <input type="text" data-set="lname" data-n="0" value="${esc(sc.names[0])}" ${scEdit} aria-label="Top level name"/><span class="lvtxt">at or above</span><span class="pctin"><input type="number" data-set="cut" data-k="p" value="${sc.p}" min="1" max="100" ${scEdit} aria-label="${esc(sc.names[0])} cutoff"/><span>%</span></span>
-          <input type="text" data-set="lname" data-n="1" value="${esc(sc.names[1])}" ${scEdit} aria-label="Middle level name"/><span class="lvtxt">at or above</span><span class="pctin"><input type="number" data-set="cut" data-k="a" value="${sc.a}" min="0" max="99" ${scEdit} aria-label="${esc(sc.names[1])} cutoff"/><span>%</span></span>
-          <input type="text" data-set="lname" data-n="2" value="${esc(sc.names[2])}" ${scEdit} aria-label="Bottom level name"/><span class="lvtxt">below</span><span class="lvtxt"><b>${sc.a}%</b></span>
-        </div>
-        <div class="setrow"><label for="setMethod">Combine evidence</label><select id="setMethod" ${ro}>${opt('decay', 'Decaying average (recent counts 65%)', st.method)}${opt('mean', 'Mean of all evidence', st.method)}${opt('recent', 'Most recent', st.method)}${opt('highest', 'Highest', st.method)}</select></div></section>
-      <section class="card w12"><h3>What students see on their Grades tab</h3>
-        <label class="toggle"><input type="checkbox" id="setScores" ${st.showScores ? 'checked' : ''} ${ro}/><span class="track"></span>Published scores, visible flags and shared comments</label>
-        <label class="toggle"><input type="checkbox" id="setStd" ${st.showStandards ? 'checked' : ''} ${ro}/><span class="track"></span>Standards mastery</label></section>
+${settingsCards(st, ro, plc, sc, scEdit, tot, TEACHER_SCALES)}
       <div class="small muted">Grading periods come from your building (set by an admin).</div>`, true);
     if (S.cfgRename) { const i = document.getElementById('cfgName'); i.focus(); i.select(); }
     if (S.applyOpen) openApplyMenu();
@@ -1139,6 +1171,67 @@
     pop2.hidden = false; pop2.style.maxHeight = '';
     const r = anchor.getBoundingClientRect(); pop2.style.width = Math.max(280, r.width) + 'px'; pop2.style.left = r.left + 'px'; pop2.style.top = r.bottom + 4 + 'px';
     anchor.setAttribute('aria-expanded', 'true');
+  }
+
+  // ---------- Admin Settings › Gradebook (D16, D17, D18) ----------
+  const bldNames = (ids) => BUILDINGS.filter((b) => ids.includes(b.id)).map((b) => b.name).join(', ');
+  const selBtn = (act, i, text, ph) => `<button class="select grow" data-act="${act}" data-i="${i}" aria-haspopup="true">${text ? `<span class="ellip">${esc(text)}</span>` : `<span class="ph">${ph}</span>`}${ICON.chev}</button>`;
+  function renderAdmin() {
+    if (!DISTRICT.includes(ECFG())) S.ecfg = DISTRICT[0].id;
+    const ec = ECFG(); const st = ec.set; const d = SCALES.district;
+    const sc = st.scale.src === 'custom' ? st.scale.custom : SCALES[st.scale.src]; const scEdit = st.scale.src === 'custom' ? '' : 'disabled';
+    const tot = st.cats.reduce((n, c) => n + (+c.w || 0), 0);
+    const rail = [['Access', ['Widgets', 'Features', 'Previews']], ['Content', ['Background Manager', 'Announcements', 'Templates', 'Help Center', 'Standards', 'Content areas']], ['Organization', ['Organization', 'Gradebook', 'Sub Presets', 'Analytics']], ['Tools', ['Links']]];
+    return `<div class="adm">
+      <nav class="arail" aria-label="Admin Settings"><div class="admtitle">Admin Settings</div>${rail.map(([g, tabs]) => `<div class="agrp">${g}</div>${tabs.map((x) => `<button class="atab" ${x === 'Gradebook' ? 'aria-selected="true"' : 'data-act="toast" data-msg="Another admin tab"'}>${esc(x)}</button>`).join('')}`).join('')}
+        <span class="spacer"></span><button class="atab" data-act="adm-exit">Back to gradebook</button></nav>
+      <main class="acontent"><div class="acol">
+        <section class="card w12"><h3>Orono district scale</h3>
+          <div class="levels dlevels">${[0, 1, 2].map((n) => `<input type="text" data-set="dname" data-n="${n}" value="${esc(d.names[n])}" aria-label="${['Top', 'Middle', 'Bottom'][n]} level name"/><span class="lvtxt">${n < 2 ? 'at or above' : 'below'}</span>${n < 2 ? `<span class="pctin"><input type="number" data-set="dcut" data-k="${n ? 'a' : 'p'}" value="${n ? d.a : d.p}" min="${n ? 0 : 1}" max="${n ? 99 : 100}" aria-label="${esc(d.names[n])} cutoff"/><span>%</span></span>` : `<span class="lvtxt"><b>${d.a}%</b></span>`}`).join('')}</div></section>
+        <section class="card w12"><h3>Grading periods<span class="spacer"></span><button class="btn sm" data-act="pset-new">+ New period set</button></h3>
+          ${PSETS.length ? '' : '<div class="small muted">No grading periods</div>'}
+          ${PSETS.map((ps, i) => `<div class="pset">
+            <div class="row"><input type="text" class="pname" data-set="pname" data-i="${i}" value="${esc(ps.name)}" aria-label="Period set name"/>${selBtn('pset-bld', i, bldNames(ps.bld), 'No buildings')}<button class="iconbtn sm danger" data-act="pset-del" data-i="${i}" title="Delete" aria-label="Delete ${esc(ps.name)}">${ICON.trash}</button></div>
+            ${S.psetDel === i ? `<div class="confirm danger row"><span style="flex:1">Delete <b>${esc(ps.name)}</b>?</span><button class="btn danger-solid sm" data-act="pset-del-go" data-i="${i}">Delete</button><button class="btn sm" data-act="pset-del-no">Cancel</button></div>` : ''}
+            ${ps.periods.length ? `<table class="ptbl"><thead><tr><th>Period</th><th>Starts</th><th>Ends</th><th></th></tr></thead><tbody>${ps.periods.map((pr, n) => `<tr><td><input type="text" data-set="plabel" data-i="${i}" data-n="${n}" value="${esc(pr.label)}" aria-label="Period name"/></td><td><input type="date" data-set="pdate" data-k="start" data-i="${i}" data-n="${n}" value="${pr.start}" aria-label="${esc(pr.label)} start date"/></td><td><input type="date" data-set="pdate" data-k="end" data-i="${i}" data-n="${n}" value="${pr.end}" aria-label="${esc(pr.label)} end date"/></td><td><button class="iconbtn sm danger" data-act="period-rm" data-i="${i}" data-n="${n}" title="Remove period" aria-label="Remove ${esc(pr.label)}">${ICON.trash}</button></td></tr>`).join('')}</tbody></table>` : ''}
+            <div class="row"><button class="link" data-act="period-add" data-i="${i}">+ Add period</button>${ps.periods.length ? '' : `<button class="link" data-act="period-preset" data-i="${i}" data-k="q">+ Quarters</button><button class="link" data-act="period-preset" data-i="${i}" data-k="s">+ Semesters</button>`}</div>
+          </div>`).join('')}
+        </section>
+        <section class="card w12 cfgcard"><h3>District configurations</h3>
+          <div class="setrow"><label for="admCfg">Configuration</label><select id="admCfg">${DISTRICT.map((c) => opt(c.id, c.name, ec.id)).join('')}</select>
+            <span class="tools"><button class="iconbtn sm" data-act="toast" data-msg="Opens the name field" title="Rename" aria-label="Rename configuration">${ICON.pencil}</button><button class="iconbtn sm" data-act="toast" data-msg="Duplicated configuration" title="Duplicate" aria-label="Duplicate configuration">${ICON.copy}</button><button class="iconbtn sm danger" data-act="toast" data-msg="Confirms in place, then deletes" title="Delete" aria-label="Delete configuration">${ICON.trash}</button></span>
+            <button class="btn sm" data-act="toast" data-msg="Created configuration">+ New</button></div>
+          <div class="setrow"><label>Buildings</label>${selBtn('dcfg-bld', 0, bldNames(ec.bld), 'No buildings')}</div>
+          <div class="setrow"><label for="admDefault">Default for new classes</label><label class="toggle"><input type="checkbox" id="admDefault" ${ec.isDefault ? 'checked' : ''}/><span class="track"></span></label></div>
+        </section>
+        ${settingsCards(st, '', false, sc, scEdit, tot, [['district', 'Orono district scale'], ['custom', 'Custom']])}
+      </div></main></div>`;
+  }
+  function openBldMenu(anchor, ids, other) {
+    pop2.innerHTML = `<div class="mlist" role="menu">${BUILDINGS.map((b) => { const on = ids.includes(b.id); const o = other ? other(b.id) : '';
+      return `<button class="mitem" role="menuitemcheckbox" aria-checked="${on}" data-act="bld-tog" data-b="${b.id}"><span class="check">${on ? ICON.check : ''}</span><span class="grow">${esc(b.name)}</span>${on || !o ? '' : `<em>${esc(o)}</em>`}</button>`; }).join('')}</div>`;
+    pop2.hidden = false; const r = anchor.getBoundingClientRect(); pop2.style.width = Math.max(280, r.width) + 'px'; pop2.style.left = r.left + 'px'; pop2.style.top = r.bottom + 4 + 'px'; anchor.setAttribute('aria-expanded', 'true');
+  }
+
+  // ---------- PLC › Settings › Gradebook (D16) ----------
+  function renderPlc() {
+    S.ecfg = 'plc1'; const lead = S.plcRole !== 'member'; const ec = ECFG(); const st = ec.set; const ro = lead ? '' : 'disabled';
+    const sc = st.scale.src === 'custom' ? st.scale.custom : SCALES[st.scale.src];
+    const scEdit = lead && (st.scale.src === 'custom' || st.scale.src === 'plc') ? '' : 'disabled';
+    const tot = st.cats.reduce((n, c) => n + (+c.w || 0), 0);
+    const mine = Object.entries(CLASSES).filter(([k]) => S.classCfg[k] === 'plc1').map(([, c]) => c.name).join(', ');
+    return `<header class="hdr"><span class="hdr-ic">${ICON.users}</span><h1>Grade 8 ELA PLC</h1>
+      <div class="tabs" role="tablist"><button role="tab" data-act="toast" data-msg="PLC home">Home</button><button role="tab" data-act="toast" data-msg="PLC assessments">Assessments</button><button role="tab" aria-selected="true">Settings</button></div>
+      <span class="spacer"></span><div class="seg" aria-label="Preview role"><button data-act="plc-role" data-r="lead" aria-pressed="${lead}">Lead</button><button data-act="plc-role" data-r="member" aria-pressed="${!lead}">Member</button></div>
+      <button class="hdr-x" data-act="adm-exit" aria-label="Close" title="Close">${ICON.x}</button></header>
+    <main class="content"><div class="acol">
+      <div class="plcsec"><h3>Dashboard Sections</h3>${['Quiz Library', 'Video Activities', 'Notes', 'Shared Boards'].map((x) => `<label class="toggle"><input type="checkbox" checked/><span class="track"></span>${x}</label>`).join('')}</div>
+      <div class="plcsec"><div class="row"><h3>Gradebook</h3><span class="spacer"></span>${lead && !S.plcUnshared ? '<button class="btn sm" data-act="plc-stop">Stop sharing</button>' : ''}</div>
+        ${S.plcStop ? '<div class="confirm danger row"><span style="flex:1">Members\' classes on these settings go back to the default settings.</span><button class="btn danger-solid sm" data-act="plc-stop-go">Stop sharing</button><button class="btn sm" data-act="plc-stop-no">Cancel</button></div>' : ''}
+        ${S.plcUnshared ? (lead ? '<div><button class="btn primary sm" data-act="plc-share">Share gradebook settings</button></div>' : '<div class="small muted">Your PLC lead hasn\'t shared gradebook settings.</div>') : `
+        <div class="setrow"><label>Use in my gradebook</label><button class="select grow" data-act="plc-use" aria-haspopup="true">${mine ? `<span class="ellip">${esc(mine)}</span>` : '<span class="ph">No classes</span>'}${ICON.chev}</button></div>
+        ${settingsCards(st, ro, !lead, sc, scEdit, tot, [['district', 'Orono district scale'], ['plc', 'Grade 8 ELA PLC scale'], ['custom', 'Custom']])}`}
+      </div></div></main>`;
   }
 
   // ---------- Student portal ----------
@@ -1188,6 +1281,31 @@
     if (t.closest('#pop') && act !== 'sub' && !pop2.hidden) closeSub();
     switch (act) {
       case 'tab': S.tab = t.dataset.tab; S.view = 'grid'; S.scrollToEnd = true; render(); break;
+      case 'goto-plc': closeModal(); S.view = 'plc'; render(); break;
+      case 'adm-exit': S.view = 'grid'; S.tab = 'grid'; S.ecfg = 'c1'; history.replaceState(null, '', location.pathname); render(); break;
+      case 'plc-role': S.plcRole = t.dataset.r; render(); break;
+      case 'plc-stop': S.plcStop = true; render(); break;
+      case 'plc-stop-no': S.plcStop = false; render(); break;
+      case 'plc-stop-go': S.plcStop = false; S.plcUnshared = true; Object.keys(S.classCfg).forEach((k) => { if (S.classCfg[k] === 'plc1') S.classCfg[k] = null; }); render(); toast('Stopped sharing gradebook settings'); break;
+      case 'plc-share': S.plcUnshared = false; render(); toast('Shared gradebook settings with the PLC'); break;
+      case 'plc-use': { pop2.innerHTML = `<div class="mlist" role="menu">${Object.entries(CLASSES).map(([k, c]) => { const on = S.classCfg[k] === 'plc1'; const cur = cfgById(S.classCfg[k]).builtin ? '' : cfgById(S.classCfg[k]).name;
+          return `<button class="mitem" role="menuitemcheckbox" aria-checked="${on}" data-act="plc-use-tog" data-c="${k}"><span class="check">${on ? ICON.check : ''}</span><span class="grow">${esc(c.name)}</span>${on || !cur ? '' : `<em>${esc(cur)}</em>`}</button>`; }).join('')}</div>`;
+        pop2.hidden = false; const r = t.getBoundingClientRect(); pop2.style.width = Math.max(280, r.width) + 'px'; pop2.style.left = r.left + 'px'; pop2.style.top = r.bottom + 4 + 'px'; t.setAttribute('aria-expanded', 'true'); break; }
+      case 'plc-use-tog': { const k = t.dataset.c; const on = S.classCfg[k] === 'plc1'; const prev = cfgById(S.classCfg[k]); S.classCfg[k] = on ? null : 'plc1';
+        toast(on ? `${CLASSES[k].name} now uses the default settings` : prev.builtin ? `${CLASSES[k].name} now uses Grade 8 ELA PLC` : `Moved ${CLASSES[k].name} from ${prev.name} to Grade 8 ELA PLC`); render(); document.querySelector('[data-act="plc-use"]').click(); break; }
+      case 'pset-bld': { const i = +t.dataset.i; S.bldMenu = { kind: 'pset', i }; openBldMenu(t, PSETS[i].bld, (b) => (PSETS.find((x, j) => j !== i && x.bld.includes(b)) || {}).name); break; }
+      case 'dcfg-bld': S.bldMenu = { kind: 'dcfg' }; openBldMenu(t, ECFG().bld); break;
+      case 'bld-tog': { const b = t.dataset.b; const m = S.bldMenu; const nm = BUILDINGS.find((x) => x.id === b).name;
+        if (m.kind === 'pset') { const ps = PSETS[m.i]; if (ps.bld.includes(b)) { ps.bld = ps.bld.filter((x) => x !== b); toast(`${nm} no longer uses ${ps.name}`); } else { const o = PSETS.find((x) => x !== ps && x.bld.includes(b)); if (o) o.bld = o.bld.filter((x) => x !== b); ps.bld.push(b); toast(o ? `Moved ${nm} from ${o.name} to ${ps.name}` : `${nm} now uses ${ps.name}`); } render(); document.querySelector(`[data-act="pset-bld"][data-i="${m.i}"]`).click(); }
+        else { const ec = ECFG(); const on = ec.bld.includes(b); ec.bld = on ? ec.bld.filter((x) => x !== b) : [...ec.bld, b]; toast(on ? `${nm} teachers no longer see ${ec.name}` : `${nm} teachers now see ${ec.name}`); render(); document.querySelector('[data-act="dcfg-bld"]').click(); }
+        break; }
+      case 'pset-new': PSETS.push({ name: `Grading periods ${PSETS.length + 1}`, bld: [], periods: [] }); render(); toast('Created a period set'); break;
+      case 'pset-del': S.psetDel = +t.dataset.i; render(); break;
+      case 'pset-del-no': S.psetDel = null; render(); break;
+      case 'pset-del-go': { const ps = PSETS.splice(+t.dataset.i, 1)[0]; S.psetDel = null; render(); toast(`Deleted ${ps.name}`); break; }
+      case 'period-add': { const ps = PSETS[+t.dataset.i]; ps.periods.push({ label: `Period ${ps.periods.length + 1}`, start: '', end: '' }); render(); toast('Added a period'); break; }
+      case 'period-preset': { const ps = PSETS[+t.dataset.i]; ps.periods = (t.dataset.k === 'q' ? ['Q1', 'Q2', 'Q3', 'Q4'] : ['S1', 'S2']).map((label) => ({ label, start: '', end: '' })); render(); toast(t.dataset.k === 'q' ? 'Added quarters' : 'Added semesters'); break; }
+      case 'period-rm': { const ps = PSETS[+t.dataset.i]; const pr = ps.periods.splice(+t.dataset.n, 1)[0]; render(); toast(`Removed ${pr.label}`); break; }
       case 'cell': { const w = document.getElementById('gridwrap'); if (w) S.gridScroll = { l: w.scrollLeft, t: w.scrollTop }; const { s: sd, a: ad } = t.dataset; const same = P && P.type === 'cell' && P.s === sd && P.a === ad; S.focus = { s: sd, a: ad }; closePop(); if (!same) openCellPop(sd, ad, document.querySelector(`.cell[data-s="${sd}"][data-a="${ad}"]`)); break; }
       case 'edit-cell': { const { s: sd, a: ad } = t.dataset; closePop(); openCellPop(sd, ad, document.querySelector(`[data-edit="${sd}|${ad}"]`)); break; }
       case 'head': { const ad = t.dataset.a; const same = P && P.type === 'head' && P.a === ad; closePop(); if (!same) openHeadPop(ad, document.querySelector(`[data-act="head"][data-a="${ad}"]`)); break; }
@@ -1227,11 +1345,11 @@
       case 'cfg-apply': { const ec = ECFG(); const k = t.dataset.c; const prev = cfgById(S.classCfg[k]); const on = prev === ec; const cn = CLASSES[k].name;
         pushUndo('Apply configuration'); S.classCfg[k] = on ? null : ec.id; S.applyOpen = true; reSettings(); render();
         toast(on ? `${cn} now uses the default settings` : prev.builtin ? `${cn} now uses ${ec.name}` : `Moved ${cn} from ${prev.name} to ${ec.name}`, true); break; }
-      case 'flag-add': { const st = ES(); pushUndo('Add flag'); const used = st.flags.map((f) => f.key); const key = 'NRBTDGHJKQSUVWYZCEFO'.split('').find((c) => !used.includes(c)); st.flags.push({ id: 'f' + Date.now(), key, name: 'New flag', value: null, vis: 'teacher', color: PALETTE[st.flags.length % PALETTE.length] }); reSettings(); const ins = modalRoot.querySelectorAll('[data-set="fname"]'); ins[ins.length - 1].select(); break; }
+      case 'flag-add': { const st = ES(); pushUndo('Add flag'); const used = st.flags.map((f) => f.key); const key = 'NRBTDGHJKQSUVWYZCEFO'.split('').find((c) => !used.includes(c)); st.flags.push({ id: 'f' + Date.now(), key, name: 'New flag', value: null, vis: 'teacher', color: PALETTE[st.flags.length % PALETTE.length] }); reSettings(); const ins = document.querySelectorAll('[data-set="fname"]'); ins[ins.length - 1].select(); break; }
       case 'flag-rm': { const st = ES(); const f = st.flags[+t.dataset.n]; pushUndo('Remove ' + f.name); st.flags.splice(+t.dataset.n, 1); reSettings(); render(); toast(`Removed ${f.name}`, true); break; }
       case 'flag-vis': { const f = ES().flags[+t.dataset.n]; pushUndo('Flag visibility'); f.vis = VIS_ORDER[(VIS_ORDER.indexOf(f.vis) + 1) % VIS_ORDER.length]; reSettings(); render(); const b = modalRoot.querySelector(`[data-act="flag-vis"][data-n="${t.dataset.n}"]`); if (b) b.focus(); break; }
       case 'flag-color': { const f = ES().flags[+t.dataset.n]; f.color = PALETTE[(PALETTE.indexOf(f.color) + 1) % PALETTE.length]; reSettings(); render(); break; }
-      case 'cat-add': { pushUndo('Add category'); const st = ES(); let n = st.cats.length + 1; while (st.cats.some((c) => c.name === 'Category ' + n)) n++; st.cats.push({ name: 'Category ' + n, w: 0 }); reSettings(); const ins = modalRoot.querySelectorAll('[data-set="cname"]'); ins[ins.length - 1].select(); break; }
+      case 'cat-add': { pushUndo('Add category'); const st = ES(); let n = st.cats.length + 1; while (st.cats.some((c) => c.name === 'Category ' + n)) n++; st.cats.push({ name: 'Category ' + n, w: 0 }); reSettings(); const ins = document.querySelectorAll('[data-set="cname"]'); ins[ins.length - 1].select(); break; }
       case 'cat-rm': { const st = ES(); const c = st.cats[+t.dataset.n]; pushUndo('Remove ' + c.name); st.cats.splice(+t.dataset.n, 1); let moved = 0; Object.values(S.cols).forEach((x) => { if (x.cat === c.name) { x.cat = st.cats[0].name; moved++; } }); reSettings(); render(); toast(`Removed ${c.name}${moved ? `; ${moved} assignment${moved === 1 ? '' : 's'} moved to ${st.cats[0].name}` : ''}`, true); break; }
       case 'cat-reset': { const st = ES(); pushUndo('Restore default categories'); const names = st.cats.map((c) => c.name); st.cats = DEFAULT_CATS(); Object.values(S.cols).forEach((x) => { if (x.cat && !st.cats.some((c) => c.name === x.cat)) x.cat = names.indexOf(x.cat) === 0 ? st.cats[0].name : st.cats[1].name; }); reSettings(); render(); toast('Restored default categories', true); break; }
       // cell popover
@@ -1265,7 +1383,7 @@
       case 'push': toast(`Pushed final scores to ${A[P.a].lms} (3 awaiting grade skipped)`); break;
     }
   });
-  function reSettings() { const m = modalRoot.querySelector('.modal'); const sc = m ? m.scrollTop : 0; settingsModal(); const m2 = modalRoot.querySelector('.modal'); if (m2) m2.scrollTop = sc; }
+  function reSettings() { if (S.view === 'admin' || S.view === 'plc') { render(); return; } const m = modalRoot.querySelector('.modal'); const sc = m ? m.scrollTop : 0; settingsModal(); const m2 = modalRoot.querySelector('.modal'); if (m2) m2.scrollTop = sc; }
   function saveCards() { try { localStorage.setItem('gb-cards-v2', JSON.stringify({ cards: S.cards, hidden: S.hiddenCards })); } catch (e) {} }
   document.addEventListener('change', (e) => {
     const t = e.target; const P = S.pop;
@@ -1294,8 +1412,15 @@
     if (t.dataset.set === 'val') { pushUndo('Flag value'); const v = t.value.trim(); st.flags[+t.dataset.n].value = v === '' ? null : clamp(+v, 0, 100); }
     if (t.dataset.set === 'w') st.cats[+t.dataset.n].w = +t.value;
     if (t.dataset.set === 'cname') { const c = st.cats[+t.dataset.n]; const old = c.name; const nw = t.value.trim() || old; Object.values(S.cols).forEach((x) => { if (x.cat === old) x.cat = nw; }); c.name = nw; }
-    if (t.dataset.set === 'cut') { const cu = st.scale.custom; cu[t.dataset.k] = clamp(+t.value, 0, 100); if (cu.a >= cu.p) cu.a = cu.p - 1; }
+    if (t.dataset.set === 'cut') { const cu = st.scale.src === 'plc' ? SCALES.plc : st.scale.custom; cu[t.dataset.k] = clamp(+t.value, 0, 100); if (cu.a >= cu.p) cu.a = cu.p - 1; }
     if (t.dataset.set === 'lname') st.scale.custom.names[+t.dataset.n] = t.value.trim() || LEVELS[+t.dataset.n];
+    if (t.dataset.set === 'dcut') { const cu = SCALES.district; cu[t.dataset.k] = clamp(+t.value, 0, 100); if (cu.a >= cu.p) cu.a = cu.p - 1; toast('Changed the district scale'); }
+    if (t.dataset.set === 'dname') { SCALES.district.names[+t.dataset.n] = t.value.trim() || LEVELS[+t.dataset.n]; }
+    if (t.dataset.set === 'pname') { const ps = PSETS[+t.dataset.i]; ps.name = t.value.trim() || ps.name; }
+    if (t.dataset.set === 'plabel') { const pr = PSETS[+t.dataset.i].periods[+t.dataset.n]; pr.label = t.value.trim() || pr.label; }
+    if (t.dataset.set === 'pdate') { const pr = PSETS[+t.dataset.i].periods[+t.dataset.n]; const nx = { ...pr, [t.dataset.k]: t.value }; if (nx.start && nx.end && nx.end < nx.start) toast('The end date is before the start date.'); else pr[t.dataset.k] = t.value; }
+    if (t.id === 'admCfg') { S.ecfg = t.value; }
+    if (t.id === 'admDefault') { const ec = ECFG(); ec.isDefault = t.checked; if (t.checked) DISTRICT.forEach((d) => { if (d !== ec && d.bld.some((b) => ec.bld.includes(b))) d.isDefault = false; }); toast(t.checked ? `New classes in these buildings start on ${ec.name}` : `${ec.name} is no longer a default`); }
     if (t.id === 'setScale') st.scale.src = t.value;
     if (t.id === 'setAuto') st.auto = t.checked;
     if (t.id === 'setCats') st.useCats = t.checked;
@@ -1335,6 +1460,7 @@
   addEventListener('resize', () => { if (!pop.hidden) reopen(); });
 
   S.scrollToEnd = true;
+  if (location.hash === '#admin') S.view = 'admin'; else if (location.hash === '#plc') S.view = 'plc';
   render();
 })();
 </script>
