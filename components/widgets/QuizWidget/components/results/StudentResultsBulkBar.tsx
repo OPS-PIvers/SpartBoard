@@ -93,7 +93,7 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
   const handleShow = async (
     visibility: Exclude<QuizScoreVisibility, 'none'>,
     expiresAt: number | null,
-    protection: ResultsProtection
+    protection: ResultsProtection | undefined
   ) => {
     try {
       const { responsesUpdated, skipped } = await actions.publish(

@@ -122,7 +122,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
   const handleShow = async (
     visibility: Exclude<QuizScoreVisibility, 'none'>,
     expiresAt: number | null,
-    protection: ResultsProtection
+    protection: ResultsProtection | undefined
   ) => {
     try {
       await actions.publish([key], visibility, expiresAt, protection);

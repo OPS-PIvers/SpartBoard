@@ -8,6 +8,7 @@ import {
   type ResultsProtection,
 } from '@/types';
 import { ResultsProtectionFieldset } from '@/components/common/library/ResultsProtectionFieldset';
+import { useAuth } from '@/context/useAuth';
 import {
   resultsExpiryFromPreset,
   type ResultsExpiryPreset,
@@ -31,7 +32,7 @@ interface ShowResultsDialogProps {
   onConfirm: (
     visibility: ShownVisibility,
     expiresAt: number | null,
-    protection: ResultsProtection
+    protection: ResultsProtection | undefined
   ) => Promise<void>;
 }
 
@@ -42,6 +43,8 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
   onClose,
   onConfirm,
 }) => {
+  const { canAccessFeature } = useAuth();
+  const showProtection = canAccessFeature('gradebook');
   const [protection, setProtection] = useState<ResultsProtection>(
     () => initialProtection ?? RESULTS_PROTECTION_DEFAULTS
   );
@@ -57,7 +60,11 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
     if (submitting) return;
     setSubmitting(true);
     try {
-      await onConfirm(visibility, resultsExpiryFromPreset(expiry), protection);
+      await onConfirm(
+        visibility,
+        resultsExpiryFromPreset(expiry),
+        showProtection ? protection : undefined
+      );
     } finally {
       setSubmitting(false);
     }
@@ -162,11 +169,13 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
           </div>
         </fieldset>
 
-        <ResultsProtectionFieldset
-          value={protection}
-          onChange={setProtection}
-          disabled={submitting}
-        />
+        {showProtection && (
+          <ResultsProtectionFieldset
+            value={protection}
+            onChange={setProtection}
+            disabled={submitting}
+          />
+        )}
 
         <p className="text-xs text-slate-500">
           Grades are not sent to Google Classroom or Schoology.
