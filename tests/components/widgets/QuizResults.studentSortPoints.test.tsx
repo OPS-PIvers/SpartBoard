@@ -146,6 +146,13 @@ describe('QuizResults — Students sort and score display', () => {
     expect(rowNames()).toEqual(['Zoe Abbott', 'Ada Zeller']);
   });
 
+  it('sorts hidden names by their masked label, not the real last name', () => {
+    renderStudents();
+    fireEvent.click(screen.getByRole('button', { name: 'Hide student names' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Last name' }));
+    expect(rowNames()).toEqual(['Student 1', 'Student 2']);
+  });
+
   it('shows points in place of percentages and remembers the choice', () => {
     renderStudents();
     expect(screen.getByText('50%')).toBeInTheDocument();
