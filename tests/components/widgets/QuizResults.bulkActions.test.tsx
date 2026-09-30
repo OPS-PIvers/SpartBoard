@@ -69,16 +69,6 @@ vi.mock('@/utils/quizStudentReportPrint', async (importOriginal) => {
   };
 });
 
-const downloadCsv = vi.fn<(csv: string, name: string) => void>();
-vi.mock('@/utils/quizResultsCsv', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('@/utils/quizResultsCsv')>();
-  return {
-    ...actual,
-    downloadCsv: (csv: string, name: string) => downloadCsv(csv, name),
-  };
-});
-
 import { QuizResults } from '@/components/widgets/QuizWidget/components/QuizResults';
 
 const quiz: QuizData = {
@@ -161,38 +151,27 @@ const renderResults = (
   return utils;
 };
 
-describe('QuizResults — bulk Export and Reopen', () => {
+describe('QuizResults — bulk Reopen', () => {
   beforeEach(() => {
     features.clear();
-    downloadCsv.mockReset();
     localStorage.clear();
   });
 
-  it('hides Export and Reopen while the tools flag is off', () => {
+  it('hides Reopen while the tools flag is off', () => {
     renderResults(makeActions(), /^students/i, {
       onReopenStudent: vi.fn(),
     });
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select PIN 1111' }));
     const bar = screen.getByRole('toolbar');
-    expect(within(bar).queryByRole('button', { name: /Export/ })).toBeNull();
     expect(within(bar).queryByRole('button', { name: /Reopen/ })).toBeNull();
   });
 
-  it('exports only the selected students as CSV', () => {
+  it('offers no bulk CSV export', () => {
     features.add('quiz-results-tools');
     renderResults(makeActions());
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select PIN 1111' }));
-    fireEvent.click(
-      within(screen.getByRole('toolbar')).getByRole('button', {
-        name: /Export/,
-      })
-    );
-    expect(downloadCsv).toHaveBeenCalledOnce();
-    const [csv, name] = downloadCsv.mock.calls[0];
-    expect(name).toBe('Capitals results');
-    const lines = csv.split('\r\n');
-    expect(lines).toHaveLength(2);
-    expect(lines[1]).toContain('Rome');
+    const bar = screen.getByRole('toolbar');
+    expect(within(bar).queryByRole('button', { name: /Export/ })).toBeNull();
   });
 
   it('reopens each selected submitted student', async () => {
