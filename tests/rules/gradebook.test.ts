@@ -4,7 +4,6 @@
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
-import { GRADEBOOK_MARK_BATCH } from '@/utils/gradebook/gradebookModel';
 import {
   initializeTestEnvironment,
   assertSucceeds,
@@ -37,6 +36,8 @@ const ADMIN = 'admin-uid';
 const PLC = 'plc-gradebook';
 const SESSION = 'quiz-session-1';
 const OTHER_SESSION = 'quiz-session-2';
+// Mirrors GRADEBOOK_MARK_BATCH in utils/gradebook/gradebookModel.ts.
+const GRADEBOOK_MARK_BATCH = 8;
 const MARK_ID = `${SESSION}__${STUDENT}`;
 
 let testEnv: RulesTestEnvironment;
