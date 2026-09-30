@@ -210,12 +210,15 @@ export function useSessionViewCount(
       // Tag failed results with `failedAt` so the cache lookup above can
       // expire them after FAILURE_TTL_MS; a transient permission / network
       // error then auto-recovers without waiting on a tab-visibility flip.
-      cache.set(
-        key,
-        succeeded
-          ? { count: n, promise: null }
-          : { count: n, promise: null, failedAt: Date.now() }
-      );
+      // A bust while in flight dropped our slot; don't write the stale count back.
+      if (cache.get(key)?.promise === inFlight) {
+        cache.set(
+          key,
+          succeeded
+            ? { count: n, promise: null }
+            : { count: n, promise: null, failedAt: Date.now() }
+        );
+      }
       if (!cancelled) setRevision((r) => r + 1);
     });
 

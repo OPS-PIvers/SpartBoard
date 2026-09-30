@@ -238,4 +238,28 @@ describe('useSessionViewCount', () => {
     );
     warnSpy.mockRestore();
   });
+
+  it('does not cache a count whose query was invalidated mid-flight', async () => {
+    let resolveStale!: (v: { data: () => { count: number } }) => void;
+    getCountFromServerMock
+      .mockReturnValueOnce(
+        new Promise((r) => {
+          resolveStale = r;
+        })
+      )
+      .mockResolvedValueOnce({ data: () => ({ count: 5 }) });
+    const { result } = renderHook(() =>
+      useSessionViewCount('quiz_sessions', 'session-inflight-bust', true)
+    );
+    expect(getCountFromServerMock).toHaveBeenCalledTimes(1);
+
+    invalidateSessionViewCount('quiz_sessions', 'session-inflight-bust');
+    await act(async () => {
+      resolveStale({ data: () => ({ count: 3 }) });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(result.current.count).toBe(5));
+    expect(getCountFromServerMock).toHaveBeenCalledTimes(2);
+  });
 });
