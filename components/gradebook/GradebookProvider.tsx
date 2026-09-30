@@ -149,6 +149,13 @@ export const GradebookProvider: React.FC<GradebookProviderProps> = ({
     [rosterId, saveClassState, toast]
   );
 
+  const cardLayouts = classState?.cardLayouts;
+  const saveCardLayouts = useCallback(
+    (patch: Record<string, string[]>) =>
+      saveClassState({ cardLayouts: { ...cardLayouts, ...patch } }),
+    [cardLayouts, saveClassState]
+  );
+
   const [filterState, setFilterState] = useState<{
     rosterId: string;
     filters: GradebookFilters;
@@ -599,6 +606,7 @@ export const GradebookProvider: React.FC<GradebookProviderProps> = ({
     setPrivacy,
     view,
     setView,
+    saveCardLayouts,
     filters,
     setFilters,
     marks,

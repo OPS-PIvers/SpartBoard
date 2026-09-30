@@ -119,6 +119,8 @@ export interface GradebookContextValue {
   setPrivacy: (on: boolean) => void;
   view: GradebookViewState;
   setView: (patch: Partial<GradebookViewState>) => void;
+  /** Merges card layouts (student view, analysis) into the class state doc. */
+  saveCardLayouts: (patch: Record<string, string[]>) => Promise<void>;
   filters: GradebookFilters;
   setFilters: (patch: Partial<GradebookFilters>) => void;
   marks: GradebookMarkWriter;

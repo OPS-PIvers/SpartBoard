@@ -44,3 +44,32 @@ describe('buildQuizResultsCsv', () => {
     expect(csv).not.toMatch(/(^|,)=1\+1/m);
   });
 });
+
+describe('buildQuizResultsCsv final score', () => {
+  it('adds a Final score column only when a resolver is passed', () => {
+    const rows = [response('1111', 'Rome'), response('2222', 'Paris')];
+    const plain = buildQuizResultsCsv(rows, questions).split('\r\n');
+    expect(plain[0]).not.toContain('Final score');
+    const lines = buildQuizResultsCsv(rows, questions, {
+      finalScore: (r) => (r.pin === '1111' ? '90%' : 'Excused'),
+    }).split('\r\n');
+    expect(lines[0].endsWith('Final score')).toBe(true);
+    expect(lines[1].endsWith('90%')).toBe(true);
+    expect(lines[2].endsWith('Excused')).toBe(true);
+  });
+
+  it('keeps each final score with its student after name sorting', () => {
+    const lines = buildQuizResultsCsv(
+      [response('1111', 'Rome'), response('2222', 'Paris')],
+      questions,
+      {
+        pinToName: { '1111': 'Zed Young', '2222': 'Ada Lovelace' },
+        finalScore: (r) => (r.pin === '1111' ? '90%' : 'Excused'),
+      }
+    ).split('\r\n');
+    expect(lines[1]).toContain('Ada Lovelace');
+    expect(lines[1].endsWith('Excused')).toBe(true);
+    expect(lines[2]).toContain('Zed Young');
+    expect(lines[2].endsWith('90%')).toBe(true);
+  });
+});

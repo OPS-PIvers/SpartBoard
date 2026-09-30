@@ -14,6 +14,7 @@ import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import {
   GuidedLearningSet,
+  type GuidedLearningResponse,
   type GuidedLearningPublicStep,
   type GuidedLearningScoreVisibility,
   type PeriodAccessSessionFields,
@@ -41,6 +42,14 @@ import {
   GL_CONTENT_DOC,
 } from '@/utils/guidedLearningSessionContent';
 import { scoringStepsForSession } from '../utils/resultsScoring';
+import { useFinalScoreOverlay } from '@/hooks/gradebook/useFinalScoreOverlay';
+import {
+  finalPillPct,
+  finalScoreFor,
+  finalScoreLabel,
+} from '@/utils/gradebook/finalScoreOverlay';
+import { guidedLearningLiveRaw } from '@/utils/gradebook/liveRawScores';
+import { FinalScoreNote } from '@/components/gradebook/FinalScoreNote';
 import {
   ResultsOverrideBadge,
   StudentResultsControl,
@@ -114,6 +123,11 @@ export const GuidedLearningResults: React.FC<Props> = ({
     null
   );
   const [sessionLoaded, setSessionLoaded] = useState(false);
+  const [sessionOwner, setSessionOwner] = useState<{
+    teacherUid: string | null;
+    dueAt: number | null;
+    closeAt: number | null;
+  } | null>(null);
   const [playerV2, setPlayerV2] = useState(false);
   const [launchedBy, setLaunchedBy] =
     useState<SubLaunchedSessionFields['launchedBy']>(undefined);
@@ -142,6 +156,8 @@ export const GuidedLearningResults: React.FC<Props> = ({
               teacherUid?: string;
               launchedBy?: SubLaunchedSessionFields['launchedBy'];
               scoreVisibility?: GuidedLearningScoreVisibility;
+              dueAt?: number | null;
+              closeAt?: number | null;
             })
           | undefined;
         let frozen = Array.isArray(data?.publicSteps) ? data.publicSteps : null;
@@ -164,6 +180,11 @@ export const GuidedLearningResults: React.FC<Props> = ({
             : null;
         }
         setSessionSteps(frozen);
+        setSessionOwner({
+          teacherUid: data?.teacherUid ?? null,
+          dueAt: data?.dueAt ?? null,
+          closeAt: data?.closeAt ?? null,
+        });
         setPeriodSession(toPeriodSession(sessionId, data));
         setPlayerV2(data?.playerV2 === true);
         setLaunchedBy(data?.launchedBy);
@@ -349,11 +370,51 @@ export const GuidedLearningResults: React.FC<Props> = ({
     };
   }, [viewOnly, canAccessFeature, sessionLoaded, sessionId, questionSteps]);
 
+  const finalOverlay = useFinalScoreOverlay({
+    kind: 'guided-learning',
+    sessionId: viewOnly ? null : sessionId,
+    teacherUid: sessionOwner?.teacherUid,
+    dueAt: sessionOwner?.dueAt,
+    closeAt: sessionOwner?.closeAt,
+  });
+  const [overlayNow] = useState(() => Date.now());
+  const qCorrectByKey = new Map(
+    responseStats.map((s) => [s.response.studentAnonymousId, s.qCorrect])
+  );
+  const finalFor = (r: GuidedLearningResponse, now: number) =>
+    finalOverlay
+      ? finalScoreFor(
+          finalOverlay,
+          r.studentAnonymousId,
+          guidedLearningLiveRaw(
+            r,
+            qCorrectByKey.get(r.studentAnonymousId) ?? 0,
+            questionSteps.length
+          ),
+          now
+        )
+      : null;
+
   const handleExport = () => {
-    const csv = exportResponsesAsCSV(responses, {
-      ...set,
-      steps: questionSteps,
-    });
+    const csv = exportResponsesAsCSV(
+      responses,
+      {
+        ...set,
+        steps: questionSteps,
+      },
+      finalOverlay
+        ? (r) => {
+            const final = finalFor(r, Date.now());
+            return final
+              ? finalScoreLabel(
+                  final,
+                  (id) =>
+                    finalOverlay.flagDefs.find((f) => f.id === id)?.name ?? id
+                )
+              : '';
+          }
+        : undefined
+    );
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -699,6 +760,8 @@ export const GuidedLearningResults: React.FC<Props> = ({
                     style={{ gap: 'min(6px, 1.5cqmin)' }}
                   >
                     {responseStats.map(({ response: r, qCorrect }) => {
+                      const final = finalFor(r, overlayNow);
+                      const finalPct = finalPillPct(final);
                       const classLinkName = formatStudentName(
                         byStudentUid.get(r.studentAnonymousId)
                       );
@@ -759,6 +822,21 @@ export const GuidedLearningResults: React.FC<Props> = ({
                               >
                                 {qCorrect}/{questionSteps.length} correct
                               </span>
+                            )}
+                            {finalPct !== null && (
+                              <span
+                                className="text-white font-semibold tabular-nums"
+                                style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                              >
+                                {Math.round(finalPct)}%
+                              </span>
+                            )}
+                            {final && finalOverlay && (
+                              <FinalScoreNote
+                                final={final}
+                                flagDefs={finalOverlay.flagDefs}
+                                className="text-slate-300"
+                              />
                             )}
                             {resultsActions && (
                               <StudentResultsControl

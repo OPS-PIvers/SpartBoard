@@ -114,6 +114,16 @@ import {
 import { StudentResultsBulkBar } from './results/StudentResultsBulkBar';
 import { DrilldownNameList } from './results/DrilldownNameList';
 import { buildQuizResultsCsv, downloadCsv } from '@/utils/quizResultsCsv';
+import { useFinalScoreOverlay } from '@/hooks/gradebook/useFinalScoreOverlay';
+import {
+  applyFinalScoresToEntries,
+  finalPillPct,
+  finalScoreFor,
+  finalScoreLabel,
+  type FinalScoreOverlay,
+} from '@/utils/gradebook/finalScoreOverlay';
+import { quizLiveRaw } from '@/utils/gradebook/liveRawScores';
+import { FinalScoreNote } from '@/components/gradebook/FinalScoreNote';
 import { StudentAnswerLine } from './results/StudentAnswerLine';
 import {
   computeQuestionStats,
@@ -428,6 +438,31 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const normingLabels = normingEnabled
     ? plcs.find((p) => p.id === session?.plcId)?.normingLevelLabels
     : undefined;
+  const finalOverlay = useFinalScoreOverlay({
+    kind: 'quiz',
+    sessionId: session?.id,
+    teacherUid: session?.teacherUid,
+    dueAt: session?.dueAt,
+    closeAt: session?.closeAt,
+  });
+  const [overlayNow] = useState(() => Date.now());
+  const withFinalScores = (
+    entries: ClassroomGradeEntry[],
+    maxPoints: number
+  ): ClassroomGradeEntry[] => {
+    if (!finalOverlay) return entries;
+    const byUid = new Map(completed.map((r) => [r.studentUid, r]));
+    return applyFinalScoresToEntries(
+      entries,
+      maxPoints,
+      finalOverlay,
+      (uid) => {
+        const r = byUid.get(uid);
+        return r ? quizLiveRaw(r, quiz.questions, fibGrading) : null;
+      },
+      Date.now()
+    );
+  };
   const [exporting, setExporting] = useState(false);
   const [pushingGrades, setPushingGrades] = useState(false);
   const [pushingSchoologyGrades, setPushingSchoologyGrades] = useState(false);
@@ -925,6 +960,22 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           teacherName: config.teacherName,
           fibGrading,
           timeAway: canAccessFeature('tab-away-timer'),
+          finalScore: finalOverlay
+            ? (r) =>
+                r.studentUid
+                  ? finalScoreLabel(
+                      finalScoreFor(
+                        finalOverlay,
+                        r.studentUid,
+                        quizLiveRaw(r, quiz.questions, fibGrading),
+                        Date.now()
+                      ),
+                      (id) =>
+                        finalOverlay.flagDefs.find((f) => f.id === id)?.name ??
+                        id
+                    )
+                  : ''
+            : undefined,
         }),
         `${quiz.title} results`
       );
@@ -1649,6 +1700,22 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       addToast(NOTHING_TO_PUSH_TOAST, 'info');
       return;
     }
+    const finalGrades = finalOverlay
+      ? withFinalScores(
+          buildQuizClassroomGradeEntries(
+            completed,
+            quiz.questions,
+            maxPoints,
+            fibGrading
+          ),
+          maxPoints
+        )
+      : null;
+    if (finalGrades && finalGrades.length === 0) {
+      addToast(NOTHING_TO_PUSH_TOAST, 'info');
+      return;
+    }
+    const pushCount = finalGrades ? finalGrades.length : eligible.length;
 
     // Shared push flow (token mint → CF → result toast); QuizResults supplies
     // only its grade builder (correctness points scaled onto the frozen
@@ -1666,6 +1733,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       requestToken: () =>
         requestClassroomTeacherToken(user?.email ?? undefined),
       buildGrades: () =>
+        finalGrades ??
         buildQuizClassroomGradeEntries(
           completed,
           quiz.questions,
@@ -1674,7 +1742,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         ),
       confirm: () =>
         showConfirm(
-          `Push ${eligible.length} grade${eligible.length === 1 ? '' : 's'} to Google ` +
+          `Push ${pushCount} grade${pushCount === 1 ? '' : 's'} to Google ` +
             `Classroom${courseCount > 1 ? ` (${courseCount} courses)` : ''}? This writes draft grades to the assignment gradebook — ` +
             'you still review and return them in Classroom.',
           {
@@ -1719,11 +1787,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const handlePushSchoologyGrades = async () => {
     if (!ltiAttachment || !session?.id) return;
     const maxPoints = quizMaxPoints(quiz.questions, session?.sections);
-    const grades = buildQuizClassroomGradeEntries(
-      completed,
-      quiz.questions,
-      maxPoints,
-      fibGrading
+    const grades = withFinalScores(
+      buildQuizClassroomGradeEntries(
+        completed,
+        quiz.questions,
+        maxPoints,
+        fibGrading
+      ),
+      maxPoints
     );
     if (grades.length === 0) {
       addToast('No completed responses to push yet.', 'info');
@@ -2202,6 +2273,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               onExpandedKeyChange={setExpandedStudentKey}
               focusKey={focusStudentKey}
               onFocused={() => setFocusStudentKey(null)}
+              finalOverlay={finalOverlay}
+              overlayNow={overlayNow}
             />
           )}
         </div>
@@ -3514,6 +3587,8 @@ const StudentsScreen: React.FC<{
   /** A row to scroll to and focus once, after a jump from item analysis. */
   focusKey: string | null;
   onFocused: () => void;
+  finalOverlay?: FinalScoreOverlay | null;
+  overlayNow?: number;
 }> = ({
   quizTitle,
   responses,
@@ -3540,6 +3615,8 @@ const StudentsScreen: React.FC<{
   onExpandedKeyChange,
   focusKey,
   onFocused,
+  finalOverlay = null,
+  overlayNow = 0,
 }) => {
   const { t } = useTranslation();
   const selection = useStudentResultsSelection();
@@ -3676,6 +3753,16 @@ const StudentsScreen: React.FC<{
           // provisional rather than letting it read as the final grade.
           const awaitingGrade =
             scoreable && !isGame && isResponseAwaitingGrade(r, questions);
+          const final =
+            finalOverlay && r.studentUid && !isGame
+              ? finalScoreFor(
+                  finalOverlay,
+                  r.studentUid,
+                  quizLiveRaw(r, questions, fibGrading),
+                  overlayNow
+                )
+              : null;
+          const finalPct = finalPillPct(final);
           const warnings = r.tabSwitchWarnings ?? 0;
           const resultsLockedOut = r.resultsLockedOut === true;
           const resultsTabWarnings = r.resultsTabWarnings ?? 0;
@@ -3886,19 +3973,27 @@ const StudentsScreen: React.FC<{
                   <div className="text-right shrink-0">
                     {scoreable ? (
                       <>
-                        <ScorePill
-                          score={gamified ? 0 : score}
-                          display="percent"
-                          gamified={gamified}
-                          points={earned}
-                        />
+                        {finalPct !== null ? (
+                          <ScorePill score={finalPct} display="percent" />
+                        ) : (
+                          <ScorePill
+                            score={gamified ? 0 : score}
+                            display="percent"
+                            gamified={gamified}
+                            points={earned}
+                          />
+                        )}
                         <p
                           className="text-brand-gray-primary tabular-nums"
                           style={{ fontSize: 'min(10px, 3cqmin)' }}
                         >
                           {firstTry
                             ? `${firstTry.correct}/${firstTry.tried} first try`
-                            : `${earned}/${maxPoints} pts`}
+                            : final?.source === 'override' &&
+                                final.points !== null &&
+                                final.max !== null
+                              ? `${Math.round(final.points * 10) / 10}/${final.max} pts`
+                              : `${earned}/${maxPoints} pts`}
                           {r.status === 'in-progress' && ' (In Progress)'}
                         </p>
                         {awaitingGrade && (
@@ -3944,6 +4039,12 @@ const StudentsScreen: React.FC<{
                       >
                         {r.status}
                       </div>
+                    )}
+                    {final && finalOverlay && (
+                      <FinalScoreNote
+                        final={final}
+                        flagDefs={finalOverlay.flagDefs}
+                      />
                     )}
                   </div>
 

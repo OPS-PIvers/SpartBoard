@@ -45,6 +45,9 @@ import {
 } from '@/utils/videoActivityGrading';
 import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import { runPublishGradePush } from '@/utils/publishGradePush';
+import { loadFinalScoreOverlay } from '@/hooks/gradebook/useFinalScoreOverlay';
+import { applyFinalScoresToEntries } from '@/utils/gradebook/finalScoreOverlay';
+import { videoActivityLiveRaw } from '@/utils/gradebook/liveRawScores';
 import { useDashboard } from '@/context/useDashboard';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { buildPeriodAccess, DEFAULT_PERIOD_PLAN } from '@/utils/periodPlan';
@@ -1204,6 +1207,35 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
                   : 'Scores published. Students will see results once they submit.',
                 'success'
               );
+              const finalOverlay = await loadFinalScoreOverlay(
+                {
+                  kind: 'video-activity',
+                  sessionId: target.id,
+                  teacherUid: user?.uid,
+                  uid: user?.uid,
+                },
+                canAccessFeature('gradebook')
+              );
+              const withFinal = (
+                entries: { pseudonymUid: string; pointsEarned: number }[],
+                responses: VideoActivityResponse[],
+                maxPoints: number
+              ) => {
+                if (!finalOverlay) return entries;
+                const byUid = new Map(responses.map((r) => [r.studentUid, r]));
+                return applyFinalScoresToEntries(
+                  entries,
+                  maxPoints,
+                  finalOverlay,
+                  (uid) => {
+                    const r = byUid.get(uid);
+                    return r
+                      ? videoActivityLiveRaw(r, result.scoredQuestions)
+                      : null;
+                  },
+                  Date.now()
+                );
+              };
               // Chain the LMS grade push(es) — never throws (publish already
               // committed; a push failure is its own toast).
               await runPublishGradePush<VideoActivityResponse>({
@@ -1217,19 +1249,29 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
                 buildClassroomGrades: (responses) => {
                   const mp = classroomFinalAttachments[0]?.maxPoints;
                   return mp != null
-                    ? buildVideoActivityGradeEntries(
+                    ? withFinal(
+                        buildVideoActivityGradeEntries(
+                          responses,
+                          result.scoredQuestions,
+                          mp
+                        ),
                         responses,
-                        result.scoredQuestions,
                         mp
                       )
                     : [];
                 },
-                buildSchoologyGrades: (responses) =>
-                  buildVideoActivityGradeEntries(
+                buildSchoologyGrades: (responses) => {
+                  const mp = videoActivityMaxPoints(data.questions);
+                  return withFinal(
+                    buildVideoActivityGradeEntries(
+                      responses,
+                      result.scoredQuestions,
+                      mp
+                    ),
                     responses,
-                    result.scoredQuestions,
-                    videoActivityMaxPoints(data.questions)
-                  ),
+                    mp
+                  );
+                },
               });
               setPublishingAssignment(null);
             } catch (err) {
