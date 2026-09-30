@@ -5,6 +5,8 @@ interface QuizSettingsScreenProps {
   session: QuizSession;
   config: QuizConfig;
   hideLiveScoreboard: boolean;
+  /** Hides the podium and board-reveal rows (Quiz after the Review split). */
+  assessmentOnly?: boolean;
   hasNames: boolean;
   onUpdateSession: (updates: Partial<QuizSession>) => void;
   onUpdateConfig: (updates: Partial<QuizConfig>) => void;
@@ -69,6 +71,7 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
   session,
   config,
   hideLiveScoreboard,
+  assessmentOnly = false,
   hasNames,
   onUpdateSession,
   onUpdateConfig,
@@ -93,26 +96,30 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
         })
       }
     />
-    <SettingRow
-      label="Podium between questions"
-      on={session.showPodiumBetweenQuestions ?? false}
-      onToggle={() =>
-        onUpdateSession({
-          showPodiumBetweenQuestions: !(
-            session.showPodiumBetweenQuestions ?? false
-          ),
-        })
-      }
-    />
-    <SettingRow
-      label="Answer reveal on board"
-      on={session.showCorrectOnBoard ?? false}
-      onToggle={() =>
-        onUpdateSession({
-          showCorrectOnBoard: !(session.showCorrectOnBoard ?? false),
-        })
-      }
-    />
+    {!assessmentOnly && (
+      <>
+        <SettingRow
+          label="Podium between questions"
+          on={session.showPodiumBetweenQuestions ?? false}
+          onToggle={() =>
+            onUpdateSession({
+              showPodiumBetweenQuestions: !(
+                session.showPodiumBetweenQuestions ?? false
+              ),
+            })
+          }
+        />
+        <SettingRow
+          label="Answer reveal on board"
+          on={session.showCorrectOnBoard ?? false}
+          onToggle={() =>
+            onUpdateSession({
+              showCorrectOnBoard: !(session.showCorrectOnBoard ?? false),
+            })
+          }
+        />
+      </>
+    )}
     {!hideLiveScoreboard && (
       <>
         <SettingRow

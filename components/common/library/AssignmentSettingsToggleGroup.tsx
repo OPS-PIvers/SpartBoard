@@ -209,6 +209,8 @@ export interface AssignmentSettingsToggleGroupProps {
    * this off. Defaults to false.
    */
   showCopyPasteToggle?: boolean;
+  /** Hide "Show correct answer on board" (Quiz after the Review split has no board reveal). */
+  hideCorrectOnBoard?: boolean;
   /** Quiz-only: expose the learning-target grouping toggle in Answer Feedback. */
   showLearningTargetsToggle?: boolean;
   /** Rows rendered first inside Answer Feedback (Quiz's "Show score on submit"). */
@@ -239,6 +241,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
   shuffleQuestionsAvailable = true,
   shuffleQuestionsHint = 'Self-paced only.',
   hideShuffleQuestions = false,
+  hideCorrectOnBoard = false,
   excludeSections,
   trailingSlot,
   integritySectionLabel,
@@ -334,12 +337,14 @@ export const AssignmentSettingsToggleGroup: React.FC<
             onChange={(v) => update('showCorrectAnswerToStudent', v)}
             disabled={!options.showResultToStudent}
           />
-          <ToggleRow
-            compact
-            label="Show correct answer on board"
-            checked={options.showCorrectOnBoard ?? false}
-            onChange={(v) => update('showCorrectOnBoard', v)}
-          />
+          {!hideCorrectOnBoard && (
+            <ToggleRow
+              compact
+              label="Show correct answer on board"
+              checked={options.showCorrectOnBoard ?? false}
+              onChange={(v) => update('showCorrectOnBoard', v)}
+            />
+          )}
           {showLearningTargetsToggle && (
             <ToggleRow
               compact

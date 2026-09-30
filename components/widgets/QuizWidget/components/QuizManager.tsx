@@ -157,6 +157,7 @@ import { useDialog } from '@/context/useDialog';
 import {
   getAssignBehaviorSeed,
   formatBehaviorSummary,
+  toAssessmentBehavior,
 } from '@/utils/quizBehavior';
 import { needsKeyMessage } from '@/utils/quizNeedsKey';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
@@ -712,6 +713,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onStartReview,
 }) => {
   const isReview = variant === 'review';
+  const { canAccessFeature } = useAuth();
+  // D8/D9: with the split on, Quiz assigns are assessment only.
+  const assessmentOnly = !isReview && canAccessFeature('quiz-review-split');
+  const seedBehavior = useCallback(
+    (quiz: QuizMetadata) => {
+      const seed = getAssignBehaviorSeed(quiz);
+      return assessmentOnly ? toAssessmentBehavior(seed) : seed;
+    },
+    [assessmentOnly]
+  );
   const isViewOnly = !isReview && assignmentMode === 'view-only';
   const primaryActionLabel = isReview
     ? 'Start'
@@ -831,10 +842,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         return;
       }
       setAssignDestination(destination);
-      setAssignBehavior(getAssignBehaviorSeed(quiz));
+      setAssignBehavior(seedBehavior(quiz));
       setAssignTarget(quiz);
     },
-    [chooserTarget]
+    [chooserTarget, seedBehavior]
   );
 
   const handleConfirmViewOnlyShare = useCallback(async () => {
@@ -902,7 +913,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     [assignQuizData]
   );
   const { rubrics: assignRubrics } = useRubrics(userId);
-  const { canAccessFeature } = useAuth();
   const handRaiseMode = useQuizHandRaiseMode();
   const translationAllowed = canAccessFeature(QUIZ_TRANSLATION_FEATURE);
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
@@ -1792,7 +1802,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Assign confirm handler ───────────────────────────────────────────────
   const handleAssignConfirm = (): void => {
     if (!assignTarget) return;
-    const behavior = assignBehavior ?? getAssignBehaviorSeed(assignTarget);
+    const behavior = assignBehavior ?? seedBehavior(assignTarget);
     // M17 C3 F5 — per-student overrides are only honored in self-paced mode
     // (a teacher-paced `currentQuestionIndex` is shared class-wide and can't
     // diverge per student). Block the save rather than silently assigning
@@ -2435,7 +2445,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   icon={ClipboardCheck}
                   summary={
                     <span data-testid="quiz-behavior-summary">
-                      {formatBehaviorSummary(assignBehavior)}
+                      {formatBehaviorSummary(assignBehavior, {
+                        omitMode: assessmentOnly,
+                      })}
                     </span>
                   }
                 >
@@ -2443,6 +2455,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                     Applies to this assignment only.
                   </p>
                   <QuizBehaviorSettingsPanel
+                    variant={assessmentOnly ? 'quiz' : 'full'}
                     value={assignBehavior}
                     onChange={(next) => {
                       setTargetingPacingError(null);
