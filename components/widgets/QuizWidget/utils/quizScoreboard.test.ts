@@ -1050,8 +1050,8 @@ describe('quizScoreboard', () => {
         { '01': 'Alice' }
       );
       expect(entries.map((e) => [e.name, e.score, e.rank])).toEqual([
-        ['PIN 02', 30, 1],
-        ['Alice', 12, 2],
+        ['PIN 02', 3000, 1],
+        ['Alice', 1240, 2],
       ]);
     });
   });

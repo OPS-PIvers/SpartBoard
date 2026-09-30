@@ -55,6 +55,7 @@ import {
   EMPTY_GAME_STATE,
   findMyGameRank,
   formatGameClock,
+  gameDisplayPoints,
   gamePlayOrder,
   nextGameQuestion,
   readGameClock,
@@ -81,10 +82,16 @@ type GameRefusal =
   | 'game-over'
   | 'same-question-twice';
 
-const checkAnswer = httpsCallable<
-  { sessionId: string; questionId: string; answer: string; startedAt: number },
-  GameAnswerResult
->(functions, 'checkQuizGameAnswerV1');
+const checkAnswer = (input: {
+  sessionId: string;
+  questionId: string;
+  answer: string;
+  startedAt: number;
+}) =>
+  httpsCallable<typeof input, GameAnswerResult>(
+    functions,
+    'checkQuizGameAnswerV1'
+  )(input);
 
 const refusalOf = (err: unknown): GameRefusal | null => {
   const details = (err as { details?: { reason?: unknown } } | null)?.details;
@@ -452,7 +459,7 @@ export const QuizGamePlay: React.FC<QuizGamePlayProps> = ({
           <div className="grid w-full max-w-xs grid-cols-2 gap-3">
             <Stat
               label={t('quizGame.points', 'Points')}
-              value={Math.round(game.points)}
+              value={gameDisplayPoints(game.points)}
             />
             <Stat
               label={t('quizGame.correct', 'Correct')}
@@ -621,12 +628,15 @@ const GameHeader: React.FC<{
           data-testid="game-points"
           className="block text-xl font-black tabular-nums text-brand-blue-primary"
         >
-          {Math.round(points)}
+          {gameDisplayPoints(points)}
         </span>
       </span>
       {streak >= 2 && (
-        <span className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2 py-1 text-sm font-black text-amber-800">
-          <Flame className="h-4 w-4" aria-hidden />
+        <span
+          aria-label={`${streak} in a row`}
+          className="inline-flex items-center gap-1 text-lg font-black tabular-nums text-amber-700"
+        >
+          <Flame className="h-5 w-5" aria-hidden />
           {streak}
         </span>
       )}
@@ -879,12 +889,12 @@ const GameFeedback: React.FC<{
             : t('quizGame.wrong', 'Not quite')}
       </h2>
       <p className="text-2xl font-black tabular-nums text-brand-blue-primary">
-        +{Math.round(result.points)}
+        +{gameDisplayPoints(result.points)}
       </p>
       {(result.speedBonus > 0 || (streakOn && result.streak >= 2)) && (
-        <div className="flex flex-wrap justify-center gap-2 text-sm font-bold">
+        <div className="flex flex-wrap justify-center gap-4 text-base font-bold">
           {result.speedBonus > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-lg bg-sky-100 px-2 py-1 text-sky-800">
+            <span className="inline-flex items-center gap-1 text-sky-800">
               <Zap className="h-4 w-4" aria-hidden />
               {t('quizGame.speed', {
                 pct: result.speedBonus,
@@ -893,7 +903,7 @@ const GameFeedback: React.FC<{
             </span>
           )}
           {streakOn && result.streak >= 2 && (
-            <span className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2 py-1 text-amber-800">
+            <span className="inline-flex items-center gap-1 text-amber-800">
               <Flame className="h-4 w-4" aria-hidden />
               {t('quizGame.streak', {
                 count: result.streak,

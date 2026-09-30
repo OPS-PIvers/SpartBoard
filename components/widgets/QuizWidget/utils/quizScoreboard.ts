@@ -27,6 +27,7 @@ import {
   resolveSlotState,
 } from '@/utils/mediaGrading';
 import type { StudentName } from '@/hooks/useAssignmentPseudonyms';
+import { gameDisplayPoints } from '@/utils/quizGame';
 import {
   resolveResponseDisplayName,
   responseColorIndex,
@@ -617,7 +618,7 @@ export function buildGameLeaderboard(
       ...(response.pin ? { pin: response.pin } : {}),
       studentUid: response.studentUid,
       name: resolveResponseDisplayName(response, pinToName, byStudentUid),
-      score: Math.round(response.game?.points ?? 0),
+      score: gameDisplayPoints(response.game?.points ?? 0),
     }))
     .sort((a, b) => b.score - a.score)
     .map((entry, index) => ({ ...entry, rank: index + 1 }));

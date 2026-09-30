@@ -209,3 +209,8 @@ export function addGameTimePatch(
     gameAddedMs: (session.gameAddedMs ?? 0) + addMs,
   };
 }
+
+/** Game points on screen: a full-credit question is worth 100 before bonuses. */
+export function gameDisplayPoints(points: number): number {
+  return Math.round(points * 100);
+}

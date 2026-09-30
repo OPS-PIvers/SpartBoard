@@ -253,6 +253,8 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
             options={opts}
             onOptionsChange={(next) => setOpts(next)}
             afterTabWarningsSlot={
+              // A game has no submit, so tab exits are only reported.
+              !isGame &&
               (opts.tabWarningsEnabled ?? true) && (
                 <TabWarningThresholdRow
                   value={opts.tabWarningThreshold}
