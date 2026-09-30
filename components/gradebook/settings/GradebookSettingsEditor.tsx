@@ -1,0 +1,675 @@
+import React from 'react';
+import { EyeOff, Lock, Trash2, User, Users } from 'lucide-react';
+import { Toggle } from '@/components/common/Toggle';
+import {
+  DEFAULT_PROFICIENCY_SCALE,
+  type FlagVisibility,
+  type GradebookSettingsBody,
+  type ProficiencyMethod,
+  type ProficiencyScale,
+} from '@/utils/gradebook/gradebookCore';
+import { flagChipClasses, nextFlagColor } from '@/utils/gradebook/flagColors';
+import {
+  categoryTotal,
+  checkFlagKey,
+  clampPct,
+  newCategory,
+  newFlag,
+  restoreDefaultCategories,
+} from '@/utils/gradebook/settingsConfig';
+import type { GradebookScaleOption } from '@/hooks/useGradebookSettings';
+
+export type SettingsChange = (
+  next: GradebookSettingsBody,
+  undoLabel: string,
+  toast?: string
+) => void;
+
+interface EditorProps {
+  body: GradebookSettingsBody;
+  readOnly: boolean;
+  scaleOptions: GradebookScaleOption[];
+  onChange: SettingsChange;
+  /** Refusals such as a bad flag key. */
+  onNotice: (message: string) => void;
+}
+
+const VIS_ORDER: FlagVisibility[] = ['off', 'teacher', 'students'];
+const VIS: Record<FlagVisibility, { label: string; Icon: typeof EyeOff }> = {
+  off: { label: 'Not visible', Icon: EyeOff },
+  teacher: { label: 'Teacher only', Icon: User },
+  students: { label: 'Teachers and students', Icon: Users },
+};
+
+const METHODS: { value: ProficiencyMethod; label: string }[] = [
+  { value: 'decaying', label: 'Decaying average (recent counts 65%)' },
+  { value: 'mean', label: 'Mean of all evidence' },
+  { value: 'recent', label: 'Most recent' },
+  { value: 'highest', label: 'Highest' },
+];
+
+const FIELD =
+  'h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30 disabled:bg-slate-50 disabled:text-slate-500';
+const ICON_BTN =
+  'h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30 disabled:opacity-50 disabled:pointer-events-none';
+const LINK_BTN =
+  'text-xs font-semibold text-brand-blue-primary hover:underline focus:outline-none focus-visible:underline';
+export const SECTION =
+  'bg-white border border-slate-200 rounded-xl p-5 flex flex-col gap-3 shadow-sm';
+const H3 = 'text-sm font-bold text-slate-800 flex items-center gap-2';
+
+const newId = (prefix: string): string =>
+  `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+/** Text or number field that commits on blur or Enter and resets when the stored value changes. */
+const CommitInput: React.FC<
+  Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> & {
+    value: string;
+    onCommit: (value: string) => void;
+  }
+> = ({ value, onCommit, className = '', ...rest }) => (
+  <input
+    key={value}
+    defaultValue={value}
+    className={`${FIELD} ${className}`}
+    onBlur={(e) => {
+      if (e.currentTarget.value !== value) onCommit(e.currentTarget.value);
+    }}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter') e.currentTarget.blur();
+      if (e.key === 'Escape') {
+        e.currentTarget.value = value;
+        e.currentTarget.blur();
+      }
+    }}
+    {...rest}
+  />
+);
+
+const PctInput: React.FC<{
+  value: number | null;
+  onCommit: (v: string) => void;
+  disabled: boolean;
+  label: string;
+  min?: number;
+  max?: number;
+  placeholder?: string;
+}> = ({
+  value,
+  onCommit,
+  disabled,
+  label,
+  min = 0,
+  max = 100,
+  placeholder,
+}) => (
+  <span className="inline-flex items-center gap-1.5 text-sm text-slate-500">
+    <CommitInput
+      type="number"
+      inputMode="numeric"
+      min={min}
+      max={max}
+      value={value === null ? '' : String(value)}
+      onCommit={onCommit}
+      disabled={disabled}
+      placeholder={placeholder}
+      aria-label={label}
+      className="w-[76px]"
+    />
+    <span>%</span>
+  </span>
+);
+
+const LabeledToggle: React.FC<{
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled: boolean;
+  children: string;
+}> = ({ checked, onChange, disabled, children }) => (
+  <div className="flex items-center gap-2 text-sm text-slate-600">
+    <Toggle
+      checked={checked}
+      onChange={onChange}
+      disabled={disabled}
+      size="xs"
+      showLabels={false}
+      label={children}
+    />
+    <span>{children}</span>
+  </div>
+);
+
+/** D13, D14 and D17 settings body editor, shared by the teacher modal, PLC and admin surfaces. */
+export const GradebookSettingsEditor: React.FC<EditorProps> = ({
+  body,
+  readOnly,
+  scaleOptions,
+  onChange,
+  onNotice,
+}) => {
+  const ro = readOnly;
+  const set = (
+    patch: Partial<GradebookSettingsBody>,
+    label: string,
+    toast?: string
+  ) => onChange({ ...body, ...patch }, label, toast);
+  const setFlag = (
+    i: number,
+    patch: Partial<GradebookSettingsBody['flags'][number]>,
+    label: string
+  ) =>
+    set(
+      { flags: body.flags.map((f, n) => (n === i ? { ...f, ...patch } : f)) },
+      label
+    );
+  const setCat = (
+    i: number,
+    patch: Partial<GradebookSettingsBody['categories'][number]>,
+    label: string
+  ) =>
+    set(
+      {
+        categories: body.categories.map((c, n) =>
+          n === i ? { ...c, ...patch } : c
+        ),
+      },
+      label
+    );
+
+  const total = categoryTotal(body.categories);
+  const scaleValue =
+    body.scale.source === 'plc' ? `plc:${body.scale.plcId}` : body.scale.source;
+  const knownScale = scaleOptions.some((o) => o.value === scaleValue);
+  const shownScale: ProficiencyScale =
+    body.scale.source === 'custom'
+      ? body.scale.scale
+      : (scaleOptions.find((o) => o.value === scaleValue)?.scale ??
+        DEFAULT_PROFICIENCY_SCALE);
+  const scaleEditable = !ro && body.scale.source === 'custom';
+  const setCustom = (scale: ProficiencyScale, label: string) =>
+    set({ scale: { source: 'custom', scale } }, label);
+  const vis = body.studentVisibility;
+  const scoresOn = vis.scores && vis.flags && vis.comments;
+
+  return (
+    <>
+      <section className={SECTION} aria-labelledby="gb-set-flags">
+        <h3 id="gb-set-flags" className={H3}>
+          Flags
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full table-fixed text-sm">
+            <thead>
+              <tr className="bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                <th className="px-2 py-2">Flag</th>
+                <th className="px-2 py-2 w-[52px]">Key</th>
+                <th className="px-2 py-2 w-[128px]">
+                  <span className="inline-flex items-center gap-1.5">
+                    Value
+                    <span className="relative group inline-flex">
+                      <button
+                        type="button"
+                        aria-label="About value"
+                        aria-describedby="gb-value-tip"
+                        className="h-4 w-4 rounded-full border border-slate-300 bg-white text-[10px] font-bold italic font-serif text-slate-500 inline-grid place-items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+                      >
+                        i
+                      </button>
+                      <span
+                        id="gb-value-tip"
+                        role="tooltip"
+                        className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-1.5 w-56 rounded-lg bg-slate-800 px-2.5 py-2 text-xs font-medium normal-case text-white shadow-lg opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 z-10"
+                      >
+                        The score a flag gives a cell with no score. Leave it
+                        blank for no effect.
+                      </span>
+                    </span>
+                  </span>
+                </th>
+                <th className="px-2 py-2 w-[84px]">Visibility</th>
+                <th className="px-2 py-2 w-[44px]">
+                  <span className="sr-only">Remove</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {body.flags.map((f, i) => {
+                const v = VIS[f.visibility] ?? VIS.teacher;
+                return (
+                  <tr key={f.id} className="border-t border-slate-100">
+                    <td className="p-2">
+                      <span className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={ro}
+                          onClick={() =>
+                            setFlag(
+                              i,
+                              { color: nextFlagColor(f.color) },
+                              'Flag color'
+                            )
+                          }
+                          title="Change color"
+                          aria-label={`Change ${f.name} color`}
+                          className={`h-[22px] min-w-[22px] px-1 rounded-md text-xs font-bold leading-none inline-grid place-items-center shrink-0 disabled:cursor-default ${flagChipClasses(f.color)}`}
+                        >
+                          {f.key}
+                        </button>
+                        <CommitInput
+                          value={f.name}
+                          disabled={ro}
+                          maxLength={40}
+                          aria-label="Flag name"
+                          className="w-full min-w-0"
+                          onCommit={(raw) => {
+                            const name = raw.trim();
+                            if (name) setFlag(i, { name }, 'Flag name');
+                          }}
+                        />
+                      </span>
+                    </td>
+                    <td className="p-2">
+                      <CommitInput
+                        value={f.key}
+                        disabled={ro}
+                        maxLength={1}
+                        aria-label={`${f.name} key`}
+                        className="w-9 text-center font-bold uppercase"
+                        onCommit={(raw) => {
+                          const res = checkFlagKey(raw, body.flags, f.id);
+                          if (res.ok) setFlag(i, { key: res.key }, 'Flag key');
+                          else onNotice(res.message);
+                        }}
+                      />
+                    </td>
+                    <td className="p-2">
+                      {f.value === 'excluded' ? (
+                        <span
+                          title="Left out of the average"
+                          className="inline-flex h-6 items-center rounded-md bg-slate-100 px-2 text-xs font-semibold text-slate-600"
+                        >
+                          Excluded
+                        </span>
+                      ) : (
+                        <PctInput
+                          value={f.value}
+                          disabled={ro}
+                          placeholder="None"
+                          label={`${f.name} value`}
+                          onCommit={(raw) =>
+                            setFlag(
+                              i,
+                              {
+                                value:
+                                  raw.trim() === ''
+                                    ? null
+                                    : clampPct(Number(raw)),
+                              },
+                              'Flag value'
+                            )
+                          }
+                        />
+                      )}
+                    </td>
+                    <td className="p-2">
+                      <span className="relative group inline-flex">
+                        <button
+                          type="button"
+                          disabled={ro}
+                          aria-label={`${f.name}: ${v.label}`}
+                          onClick={() =>
+                            setFlag(
+                              i,
+                              {
+                                visibility:
+                                  VIS_ORDER[
+                                    (VIS_ORDER.indexOf(f.visibility) + 1) %
+                                      VIS_ORDER.length
+                                  ],
+                              },
+                              'Flag visibility'
+                            )
+                          }
+                          className={`${ICON_BTN} ${f.visibility === 'students' ? 'bg-brand-blue-lighter text-brand-blue-dark hover:bg-brand-blue-lighter' : f.visibility === 'off' ? 'text-slate-400' : 'text-slate-700'}`}
+                        >
+                          <v.Icon size={16} aria-hidden />
+                        </button>
+                        <span
+                          role="tooltip"
+                          className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-1 whitespace-nowrap rounded-lg bg-slate-800 px-2 py-1 text-xs font-medium text-white shadow-lg opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 z-10"
+                        >
+                          {v.label}
+                        </span>
+                      </span>
+                    </td>
+                    <td className="p-2">
+                      {ro ? null : f.builtIn ? (
+                        <span
+                          className={`${ICON_BTN} text-slate-300 hover:bg-transparent`}
+                          title="Built in, used by automatic Late and Missing"
+                        >
+                          <Lock size={14} aria-hidden />
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          title="Remove flag"
+                          aria-label={`Remove ${f.name}`}
+                          className={`${ICON_BTN} hover:text-brand-red-primary`}
+                          onClick={() =>
+                            set(
+                              { flags: body.flags.filter((_, n) => n !== i) },
+                              `Remove ${f.name}`,
+                              `Removed ${f.name}`
+                            )
+                          }
+                        >
+                          <Trash2 size={14} aria-hidden />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {!ro && body.flags.length < 26 && (
+          <div>
+            <button
+              type="button"
+              className={LINK_BTN}
+              onClick={() => {
+                const f = newFlag(body.flags, newId('f'));
+                if (f) set({ flags: [...body.flags, f] }, 'Add flag');
+              }}
+            >
+              + Add flag
+            </button>
+          </div>
+        )}
+        <LabeledToggle
+          checked={body.autoFlags}
+          disabled={ro}
+          onChange={(autoFlags) => set({ autoFlags }, 'Automatic flags')}
+        >
+          Apply Late and Missing automatically from due dates
+        </LabeledToggle>
+      </section>
+
+      <section className={SECTION} aria-labelledby="gb-set-overall">
+        <div className="flex items-center gap-3 flex-wrap">
+          <h3 id="gb-set-overall" className={H3}>
+            Overall grade
+          </h3>
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <Toggle
+              checked={body.categoriesEnabled}
+              onChange={(categoriesEnabled) =>
+                set({ categoriesEnabled }, 'Weighted categories')
+              }
+              disabled={ro}
+              size="xs"
+              showLabels={false}
+              label="Weighted categories"
+            />
+            <span>Weighted categories</span>
+          </div>
+          <span className="flex-1" />
+          {!ro && body.categoriesEnabled && (
+            <button
+              type="button"
+              className={LINK_BTN}
+              onClick={() =>
+                set(
+                  { categories: restoreDefaultCategories(body.categories) },
+                  'Restore default categories',
+                  'Restored default categories'
+                )
+              }
+            >
+              Restore defaults
+            </button>
+          )}
+        </div>
+        {body.categoriesEnabled ? (
+          <>
+            <div className="flex flex-col gap-2">
+              {body.categories.map((c, i) => (
+                <div key={c.id} className="flex items-center gap-3">
+                  <CommitInput
+                    value={c.name}
+                    disabled={ro}
+                    maxLength={60}
+                    aria-label="Category name"
+                    className="flex-1 min-w-0"
+                    onCommit={(raw) => {
+                      const name = raw.trim();
+                      if (name) setCat(i, { name }, 'Category name');
+                    }}
+                  />
+                  <PctInput
+                    value={c.weight}
+                    disabled={ro}
+                    label={`${c.name} weight`}
+                    onCommit={(raw) =>
+                      setCat(
+                        i,
+                        { weight: clampPct(Number(raw)) },
+                        'Category weight'
+                      )
+                    }
+                  />
+                  {!ro && (
+                    <button
+                      type="button"
+                      disabled={body.categories.length < 2}
+                      title="Remove category"
+                      aria-label={`Remove ${c.name}`}
+                      className={`${ICON_BTN} hover:text-brand-red-primary`}
+                      onClick={() => {
+                        const rest = body.categories.filter((_, n) => n !== i);
+                        set(
+                          { categories: rest },
+                          `Remove ${c.name}`,
+                          `Removed ${c.name}; its assignments moved to ${rest[0].name}`
+                        );
+                      }}
+                    >
+                      <Trash2 size={14} aria-hidden />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-3">
+              {!ro && body.categories.length < 20 && (
+                <button
+                  type="button"
+                  className={LINK_BTN}
+                  onClick={() =>
+                    set(
+                      {
+                        categories: [
+                          ...body.categories,
+                          newCategory(body.categories, newId('c')),
+                        ],
+                      },
+                      'Add category'
+                    )
+                  }
+                >
+                  + Add category
+                </button>
+              )}
+              <span className="flex-1" />
+              <span
+                className={`text-xs ${total > 100 ? 'font-semibold text-brand-red-primary' : 'text-slate-500'}`}
+              >
+                {total > 100 ? 'Cannot exceed 100%' : `Total ${total}%`}
+              </span>
+            </div>
+          </>
+        ) : (
+          <p className="text-xs text-slate-500">
+            Overall is total points earned.
+          </p>
+        )}
+      </section>
+
+      <section className={SECTION} aria-labelledby="gb-set-prof">
+        <h3 id="gb-set-prof" className={H3}>
+          Learning target proficiency
+        </h3>
+        <div className="flex items-center gap-3">
+          <label
+            htmlFor="gb-set-scale"
+            className="min-w-[130px] text-sm font-medium text-slate-600"
+          >
+            Scale
+          </label>
+          <select
+            id="gb-set-scale"
+            value={scaleValue}
+            disabled={ro}
+            className={`${FIELD} flex-1 min-w-0 max-w-[320px]`}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === 'custom')
+                setCustom(
+                  { ...shownScale, levelNames: [...shownScale.levelNames] },
+                  'Scale'
+                );
+              else if (v.startsWith('plc:'))
+                set({ scale: { source: 'plc', plcId: v.slice(4) } }, 'Scale');
+              else set({ scale: { source: 'district' } }, 'Scale');
+            }}
+          >
+            {!knownScale && <option value={scaleValue}>PLC scale</option>}
+            {scaleOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-2">
+          {([0, 1, 2] as const).map((lvl) => (
+            <React.Fragment key={lvl}>
+              <CommitInput
+                value={shownScale.levelNames[lvl]}
+                disabled={!scaleEditable}
+                maxLength={30}
+                aria-label={
+                  ['Top level name', 'Middle level name', 'Bottom level name'][
+                    lvl
+                  ]
+                }
+                onCommit={(raw) => {
+                  const names = [...shownScale.levelNames] as [
+                    string,
+                    string,
+                    string,
+                  ];
+                  names[lvl] =
+                    raw.trim() || DEFAULT_PROFICIENCY_SCALE.levelNames[lvl];
+                  setCustom({ ...shownScale, levelNames: names }, 'Level name');
+                }}
+              />
+              <span className="text-sm text-slate-500">
+                {lvl < 2 ? 'at or above' : 'below'}
+              </span>
+              {lvl < 2 ? (
+                <PctInput
+                  value={
+                    lvl === 0 ? shownScale.proficient : shownScale.approaching
+                  }
+                  disabled={!scaleEditable}
+                  min={lvl === 0 ? 1 : 0}
+                  max={lvl === 0 ? 100 : 99}
+                  label={`${shownScale.levelNames[lvl]} cutoff`}
+                  onCommit={(raw) => {
+                    const next = { ...shownScale };
+                    if (lvl === 0)
+                      next.proficient = clampPct(Number(raw), 1, 100);
+                    else next.approaching = clampPct(Number(raw), 0, 99);
+                    if (next.approaching >= next.proficient)
+                      next.approaching = next.proficient - 1;
+                    setCustom(next, 'Cutoff');
+                  }}
+                />
+              ) : (
+                <span className="text-sm font-bold text-slate-700">
+                  {shownScale.approaching}%
+                </span>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+        <div className="flex items-center gap-3">
+          <label
+            htmlFor="gb-set-method"
+            className="min-w-[130px] text-sm font-medium text-slate-600"
+          >
+            Combine evidence
+          </label>
+          <select
+            id="gb-set-method"
+            value={body.method}
+            disabled={ro}
+            className={`${FIELD} flex-1 min-w-0 max-w-[320px]`}
+            onChange={(e) =>
+              set(
+                { method: e.target.value as ProficiencyMethod },
+                'Combine evidence'
+              )
+            }
+          >
+            {METHODS.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </section>
+
+      <section className={SECTION} aria-labelledby="gb-set-students">
+        <h3 id="gb-set-students" className={H3}>
+          What students see on their Grades tab
+        </h3>
+        <LabeledToggle
+          checked={scoresOn}
+          disabled={ro}
+          onChange={(on) =>
+            set(
+              {
+                studentVisibility: {
+                  ...vis,
+                  scores: on,
+                  flags: on,
+                  comments: on,
+                },
+              },
+              'Student visibility'
+            )
+          }
+        >
+          Published scores, visible flags and shared comments
+        </LabeledToggle>
+        <LabeledToggle
+          checked={vis.standards}
+          disabled={ro}
+          onChange={(standards) =>
+            set(
+              { studentVisibility: { ...vis, standards } },
+              'Student visibility'
+            )
+          }
+        >
+          Standards mastery
+        </LabeledToggle>
+      </section>
+    </>
+  );
+};
