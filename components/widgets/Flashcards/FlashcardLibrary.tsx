@@ -6,6 +6,7 @@ import {
   EyeOff,
   FileUp,
   Layers,
+  Link2,
   Loader2,
   MonitorPlay,
   Pencil,
@@ -426,22 +427,22 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
                   </div>
                 }
                 primaryAction={{
-                  label: 'Edit',
-                  icon: Pencil,
-                  onClick: () => onEdit(set),
+                  label: 'Assign',
+                  icon: Link2,
+                  onClick: () => onAssign(set),
                 }}
                 secondaryActions={[
+                  {
+                    id: 'edit',
+                    label: 'Edit',
+                    icon: Pencil,
+                    onClick: () => onEdit(set),
+                  },
                   {
                     id: 'present',
                     label: 'Present',
                     icon: MonitorPlay,
                     onClick: () => onPresent(set),
-                  },
-                  {
-                    id: 'assign',
-                    label: 'Assign',
-                    icon: Send,
-                    onClick: () => onAssign(set),
                   },
                   {
                     id: 'share',
