@@ -2227,7 +2227,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               onFocused={() => setFocusStudentKey(null)}
               finalOverlay={finalOverlay}
               overlayNow={overlayNow}
-              sortNameFor={printSortName}
+              // Hidden names sort by the masked label so the order can't hint at real last names.
+              sortNameFor={hideNames ? resolveShownName : printSortName}
               view={studentView}
               onViewChange={changeStudentView}
             />
