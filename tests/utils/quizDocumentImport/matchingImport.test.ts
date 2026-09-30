@@ -194,7 +194,7 @@ describe('a Matching section with a bank past F', () => {
 });
 
 describe('a teacher-made test with a running header and a teacher key', () => {
-  const { questions, warnings } = parseDocument(
+  const { questions, warnings, keySummary } = parseDocument(
     lines(
       'VERSION A',
       'SECTION 1 — Matching (Write the Letter on the Line Next to the Correct Number)',
@@ -224,9 +224,62 @@ describe('a teacher-made test with a running header and a teacher key', () => {
     expect(questions[1].correctAnswer).toBe('Rent');
   });
 
+  it('counts the set as one matched question in the key summary', () => {
+    expect(keySummary).toMatchObject({
+      entries: KEY.length + 1,
+      matched: questions.length,
+    });
+  });
+
+  it('drops paper-only directions for the default text', () => {
+    expect(questions[0].text).toBe('Match each item with the correct term.');
+  });
+});
+
+describe('a matching heading with on-screen directions', () => {
   it('takes the heading’s parenthetical over label-only directions', () => {
-    expect(questions[0].text).toBe(
-      'Write the Letter on the Line Next to the Correct Number'
+    const { questions } = parseDocument(
+      lines(
+        'SECTION 1 — Matching (Use each term once.)',
+        'Terms:',
+        ...BANK,
+        'Definitions:',
+        ...ITEMS,
+        'ANSWER KEY',
+        ...KEY.map((k, i) => `${i + 1}. ${k}`)
+      )
+    );
+    expect(questions[0].text).toBe('Use each term once.');
+  });
+});
+
+describe('a blank-line section keyed by letter with no bank', () => {
+  const { questions } = parseDocument(
+    lines(
+      '1. _____ A physical characteristic of a product.',
+      '2. _____ Money left after all expenses are subtracted.',
+      '3. Write the formula: ________ − ________ = Net Profit',
+      'ANSWER KEY:',
+      '1. E',
+      '2. O',
+      '3. Cost of Goods, Operational Expenses'
+    )
+  );
+
+  it('reads every letter the same way, A–F included', () => {
+    expect(questions.slice(0, 2).map((q) => [q.type, q.correctAnswer])).toEqual(
+      [
+        ['FIB', 'E'],
+        ['FIB', 'O'],
+      ]
+    );
+    expect(questions[0].warnings.join(' ')).toMatch(/lettered list/);
+  });
+
+  it('keeps a two-blank question written and says why', () => {
+    expect(questions[2].type).toBe('free-response');
+    expect(questions[2].warnings).toContainEqual(
+      expect.stringMatching(/2 blanks.*Cost of Goods, Operational Expenses/)
     );
   });
 });

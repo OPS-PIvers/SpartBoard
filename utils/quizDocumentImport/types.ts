@@ -178,7 +178,7 @@ export interface KeySummary {
   source: 'document' | 'file';
   /** Key entries that gave an answer. */
   entries: number;
-  /** Entries that found their question. */
+  /** Questions that got an answer from the key. */
   matched: number;
   /** Printed labels of entries with no question, e.g. `2·3`. */
   unmatchedLabels: string[];
