@@ -44,7 +44,9 @@ const CARD_META: Record<StudentCardId, { title: string; span: string }> = {
 
 const isTyping = (t: EventTarget | null): boolean =>
   t instanceof HTMLElement &&
-  (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
+  (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) ||
+    t.isContentEditable ||
+    t.closest('[role="dialog"],[role="menu"]') !== null);
 
 /** D26 teacher-facing student view: KPIs and a customizable grid of cards. */
 export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
@@ -57,6 +59,7 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
   const student = idx >= 0 ? students[idx] : null;
   const layout = useStudentCardLayout();
   const [customize, setCustomize] = useState(false);
+  const popoverOpen = gb.popover !== null;
 
   const prevUid = students[idx - 1]?.uid ?? null;
   const nextUid = idx >= 0 ? (students[idx + 1]?.uid ?? null) : null;
@@ -66,7 +69,7 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (e.defaultPrevented || isTyping(e.target)) return;
+      if (e.defaultPrevented || popoverOpen || isTyping(e.target)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const uid =
         e.key === 'ArrowLeft'
@@ -78,7 +81,7 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [rosterId, prevUid, nextUid]);
+  }, [rosterId, prevUid, nextUid, popoverOpen]);
 
   const analysis = useMemo(() => {
     const data: AnalysisData = {

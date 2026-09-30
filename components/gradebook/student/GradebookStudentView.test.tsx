@@ -134,4 +134,15 @@ describe('GradebookStudentView', () => {
       'habits'
     );
   });
+
+  it('arrow keys change student only while no popover is open', () => {
+    setup('u1');
+    const replace = vi.spyOn(window.history, 'replaceState');
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(replace).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(replace).toHaveBeenCalledTimes(1);
+    replace.mockRestore();
+  });
 });
