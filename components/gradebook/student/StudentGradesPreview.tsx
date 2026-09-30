@@ -54,7 +54,7 @@ export const StudentGradesPreview: React.FC<StudentGradesPreviewProps> = ({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2.5 rounded-xl bg-gradient-to-r from-brand-blue-primary to-brand-blue-dark px-4 py-2.5 text-sm text-white">
+      <div className="flex flex-wrap items-center gap-2.5 rounded-xl bg-brand-blue-primary px-4 py-2.5 text-sm text-white">
         <b>
           Previewing as {firstName} {lastName}
         </b>
