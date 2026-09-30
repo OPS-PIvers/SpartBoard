@@ -20,6 +20,7 @@ import {
   QuizWidgetKind,
 } from '@/types';
 import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
+import { useReviewLaunch } from './useReviewLaunch';
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
 import { quizAssignBlocker } from '@/utils/activityCompleteness';
 import { useDashboard } from '@/context/useDashboard';
@@ -189,7 +190,10 @@ const QuizStudentView = lazy(() =>
  * tab warnings, no bonuses, no result reveal) — none of them have meaning
  * when there are no submissions to score or compare.
  */
-const VIEW_ONLY_SESSION_OPTIONS: Required<QuizSessionOptions> = {
+// Review's board size never applies to a view-only share.
+const VIEW_ONLY_SESSION_OPTIONS: Required<
+  Omit<QuizSessionOptions, 'boardRankLimit'>
+> = {
   tabWarningsEnabled: false,
   tabWarningThreshold: 'off',
   // Tab warnings are off, so the away clock never runs.
@@ -758,6 +762,47 @@ const TeacherQuizWidget: React.FC<{
     },
     [loadQuizData, addToast]
   );
+
+  const reviewLaunch = useReviewLaunch({
+    config,
+    rosters,
+    loadQuiz: loadQuizQuietly,
+    loadBankContentsForQuiz,
+    saveDriveSnapshot,
+    createAssignment,
+    addToast,
+    onLaunched: ({
+      assignmentId,
+      code,
+      meta,
+      rosterIds,
+      resolvedDriveFileId,
+    }) => {
+      void (async () => {
+        const data = await loadQuiz(
+          answerKeyMeta(
+            meta,
+            resolvedDriveFileId ? { resolvedDriveFileId } : undefined
+          )
+        );
+        if (!data) return;
+        const nextMap = { ...(config.lastRosterIdsByQuizId ?? {}) };
+        if (rosterIds.length > 0) nextMap[meta.id] = rosterIds;
+        else delete nextMap[meta.id];
+        updateWidget(widget.id, {
+          config: {
+            ...config,
+            view: 'monitor',
+            selectedQuizId: meta.id,
+            selectedQuizTitle: meta.title,
+            activeAssignmentId: assignmentId,
+            activeLiveSessionCode: code,
+            lastRosterIdsByQuizId: nextMap,
+          } as QuizConfig,
+        });
+      })();
+    },
+  });
 
   /**
    * Phase 2 — share an existing personal quiz with a chosen PLC.
@@ -1900,8 +1945,14 @@ const TeacherQuizWidget: React.FC<{
           />
         </Suspense>
       )}
+      {reviewLaunch.modal}
       <QuizManager
         variant={variant}
+        onStartReview={
+          isReview && reviewSplit
+            ? (meta) => void reviewLaunch.open(meta)
+            : undefined
+        }
         userId={user?.uid}
         widgetId={widget.id}
         periodAccess={assignPeriodCtx}
@@ -2904,9 +2955,13 @@ const TeacherQuizWidget: React.FC<{
             } as QuizConfig,
           });
         }}
-        onArchiveEditSettings={(a) => {
-          setEditingAssignment(a);
-        }}
+        onArchiveEditSettings={
+          isReview && reviewSplit
+            ? undefined
+            : (a) => {
+                setEditingAssignment(a);
+              }
+        }
         onArchiveSharePlcResults={(a) => setSharePlcResultsTarget(a)}
         onArchiveStopSharingPlc={handleStopSharingPlc}
         canAssignToClassroom={canAssignToClassroom}

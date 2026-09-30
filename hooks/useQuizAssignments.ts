@@ -1529,6 +1529,7 @@ export const useQuizAssignments = (
         // Default matches DEFAULT_QUIZ_BEHAVIOR (off) for legacy quizzes
         // with no saved behavior.
         showPodiumBetweenQuestions: opts.showPodiumBetweenQuestions ?? false,
+        ...(opts.boardRankLimit ? { boardRankLimit: opts.boardRankLimit } : {}),
         soundEffectsEnabled: opts.soundEffectsEnabled ?? false,
         // Per-student per-attempt shuffling. `shuffleAnswerOptions` defaults
         // to true to preserve the always-on behavior that pre-dates this

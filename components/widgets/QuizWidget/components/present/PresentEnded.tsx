@@ -10,6 +10,8 @@ interface PresentEndedProps {
   classAverage: number | null;
   completed: number;
   total: number;
+  /** Final standings rows; Review sets this at launch (D21). */
+  rankRows?: number;
 }
 
 export const PresentEnded: React.FC<PresentEndedProps> = ({
@@ -19,6 +21,7 @@ export const PresentEnded: React.FC<PresentEndedProps> = ({
   classAverage,
   completed,
   total,
+  rankRows = 5,
 }) => (
   <>
     <p
@@ -31,7 +34,7 @@ export const PresentEnded: React.FC<PresentEndedProps> = ({
       entries={standings}
       showNames={showNames}
       unit={unit}
-      limit={5}
+      limit={rankRows}
       heading="Final standings"
     />
     <p
