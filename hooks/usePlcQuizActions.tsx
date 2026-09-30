@@ -27,7 +27,12 @@ import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 import { logError } from '@/utils/logError';
 import { canEditPlcContent, getPlcMemberEmail } from '@/utils/plc';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
-import { DEFAULT_QUIZ_BEHAVIOR, getQuizBehavior } from '@/utils/quizBehavior';
+import {
+  DEFAULT_QUIZ_BEHAVIOR,
+  getQuizAssignPrefill,
+  getQuizBehavior,
+} from '@/utils/quizBehavior';
+import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
 import { PlcVersionHistoryPanel } from '@/components/plc/versions/PlcVersionHistoryPanel';
 import { PlcSyncConflictPrompt } from '@/components/plc/sync/PlcSyncConflictPrompt';
 import { PlcAssignmentImportModal } from '@/components/plc/PlcAssignmentImportModal';
@@ -80,7 +85,13 @@ export function usePlcQuizActions(
   onCloseDashboard: () => void
 ): PlcQuizActionsApi {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  // D11: with the split on, an assign uses this teacher's last-used settings, not the author's.
+  const reviewSplit = canAccessFeature('quiz-review-split');
+  const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
+    user?.uid,
+    reviewSplit
+  );
   const { addToast, rosters, setPendingAssignmentEdit } = useDashboard();
   const { quizzes: plcQuizzes, mirrorPlcQuizHeader } = usePlcQuizzes(plc.id);
   const {
@@ -433,15 +444,18 @@ export function usePlcQuizActions(
             ...(canonical.language ? { language: canonical.language } : {}),
           },
           {
-            ...(canonical.behavior ?? {
-              sessionOptions:
-                entry?.sessionOptions ?? DEFAULT_QUIZ_BEHAVIOR.sessionOptions,
-              // null = unlimited (explicit); only an absent value falls back.
-              attemptLimit:
-                entry && entry.attemptLimit !== undefined
-                  ? entry.attemptLimit
-                  : DEFAULT_QUIZ_BEHAVIOR.attemptLimit,
-            }),
+            ...(reviewSplit
+              ? getQuizAssignPrefill(lastAssignSettings)
+              : (canonical.behavior ?? {
+                  sessionOptions:
+                    entry?.sessionOptions ??
+                    DEFAULT_QUIZ_BEHAVIOR.sessionOptions,
+                  // null = unlimited (explicit); only an absent value falls back.
+                  attemptLimit:
+                    entry && entry.attemptLimit !== undefined
+                      ? entry.attemptLimit
+                      : DEFAULT_QUIZ_BEHAVIOR.attemptLimit,
+                })),
             // Assign always runs in Assessment Mode.
             sessionMode: 'student',
             ...(plcLinkage ? { plc: plcLinkage } : {}),
@@ -526,6 +540,8 @@ export function usePlcQuizActions(
       saveQuiz,
       t,
       user,
+      reviewSplit,
+      lastAssignSettings,
     ]
   );
 

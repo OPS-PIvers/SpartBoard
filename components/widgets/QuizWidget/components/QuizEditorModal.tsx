@@ -283,6 +283,8 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     aiAllowed ??
     (canAccessFeature('gemini-functions') && canAccessFeature('quiz'));
   const readAloudAvailable = canAccessFeature('quiz-read-aloud');
+  // D10: with the split on, settings live on the assignment; the saved behavior passes through untouched.
+  const settingsTabHidden = canAccessFeature('quiz-review-split');
   const handRaiseMode = useQuizHandRaiseMode();
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);
   const [keyFillOpen, setKeyFillOpen] = useState(false);
@@ -581,13 +583,15 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
 
   if (!quiz) return null;
 
-  const editorTabs = translationAvailable
-    ? (['questions', 'stimuli', 'settings', 'languages'] as const)
-    : (['questions', 'stimuli', 'settings'] as const);
+  const editorTabs = (
+    ['questions', 'stimuli', 'settings', 'languages'] as const
+  ).filter(
+    (tab) =>
+      (tab !== 'settings' || !settingsTabHidden) &&
+      (tab !== 'languages' || translationAvailable)
+  );
   // Access revoked mid-session: fall back rather than render Settings under Languages.
-  const resolvedTab = (editorTabs as readonly string[]).includes(editorTab)
-    ? editorTab
-    : 'questions';
+  const resolvedTab = editorTabs.includes(editorTab) ? editorTab : 'questions';
   const activeTab = isBank ? 'questions' : resolvedTab;
 
   return (
@@ -649,6 +653,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               aiEnabled={aiEnabled}
               bankApi={isBank ? undefined : bankApi}
               shuffleQuestionsEnabled={
+                !settingsTabHidden &&
                 behavior.sessionMode === 'student' &&
                 behavior.sessionOptions.shuffleQuestions === true
               }
@@ -660,10 +665,17 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               }
             />
           ) : activeTab === 'stimuli' ? (
-            <StimulusManagerPanel
-              state={editorState}
-              readAloudAvailable={readAloudAvailable}
-            />
+            <>
+              {settingsTabHidden && readAloudAvailable && (
+                <div className="px-5 pt-4 bg-slate-50 shrink-0">
+                  <QuizLanguageField value={language} onChange={setLanguage} />
+                </div>
+              )}
+              <StimulusManagerPanel
+                state={editorState}
+                readAloudAvailable={readAloudAvailable}
+              />
+            </>
           ) : activeTab === 'languages' ? (
             <QuizLanguagesContextPane
               quiz={quiz}

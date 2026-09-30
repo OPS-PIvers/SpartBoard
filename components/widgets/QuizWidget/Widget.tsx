@@ -154,6 +154,7 @@ import { usePlcs } from '@/hooks/usePlcs';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { getPlcMemberEmail } from '@/utils/plc';
 import { getQuizBehavior, toAssessmentBehavior } from '@/utils/quizBehavior';
+import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
 import {
   useSetAssignmentTargets,
   type SkipReason,
@@ -261,6 +262,10 @@ const TeacherQuizWidget: React.FC<{
   const isReview = variant === 'review';
   // Only tag new docs while the split is on, so flag-off data is unchanged (D2).
   const kindTag = reviewSplit ? { widgetKind: variant } : {};
+  const { save: saveLastAssignSettings } = useLastQuizAssignSettings(
+    user?.uid,
+    reviewSplit && !isReview
+  );
 
   // Opens the Google Picker so the teacher selects a Sheet to import. Picking
   // grants per-file `drive.file` access to that one sheet, so the import reads
@@ -2323,6 +2328,13 @@ const TeacherQuizWidget: React.FC<{
                   : {}),
               }
             );
+            if (reviewSplit && !isReview) {
+              saveLastAssignSettings({
+                sessionMode: mode,
+                sessionOptions,
+                attemptLimit,
+              });
+            }
 
             // M17 B3 acceptance criterion: class-wide (`targetMode: 'class'`)
             // assignments never invoke the CF — zero behavior change from

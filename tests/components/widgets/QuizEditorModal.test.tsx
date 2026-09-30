@@ -31,6 +31,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QuizEditorModal } from '@/components/widgets/QuizWidget/components/QuizEditorModal';
 import type { QuizBehaviorSettings, QuizData } from '@/types';
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
+import { useAuth } from '@/context/useAuth';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -337,5 +338,73 @@ describe('QuizEditorModal — Questions/Settings tab', () => {
       name: /assessment mode/i,
     });
     expect(assessmentBtn).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+describe('QuizEditorModal with quiz-review-split on (D10)', () => {
+  const splitAuth = (readAloud: boolean) =>
+    vi.mocked(useAuth).mockReturnValue({
+      user: { uid: 'uid-test', displayName: 'Test Teacher' },
+      canAccessFeature: vi.fn(
+        (id: string) =>
+          id === 'quiz-review-split' || (readAloud && id === 'quiz-read-aloud')
+      ),
+      canAccessQuizMediaResponse: vi.fn(() => false),
+    } as unknown as ReturnType<typeof useAuth>);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('has no Settings tab', () => {
+    splitAuth(false);
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={fakeQuiz}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: /^questions$/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^stimuli$/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^settings$/i })).toBeNull();
+  });
+
+  it("saves the quiz's existing behavior unchanged so flag-off teammates keep it", async () => {
+    splitAuth(false);
+    const saved: QuizBehaviorSettings = {
+      ...DEFAULT_QUIZ_BEHAVIOR,
+      sessionMode: 'teacher',
+      attemptLimit: 4,
+    };
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={fakeQuiz}
+        onClose={vi.fn()}
+        onSave={onSave}
+        behavior={saved}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save Quiz' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+    expect(onSave.mock.calls[0][1]).toEqual(saved);
+  });
+
+  it('moves the read-aloud language picker to the Stimuli tab', () => {
+    splitAuth(true);
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={fakeQuiz}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    expect(screen.queryByText('Language')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /^stimuli$/i }));
+    expect(screen.getByText('Language')).toBeInTheDocument();
   });
 });
