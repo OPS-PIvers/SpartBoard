@@ -140,7 +140,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       style={{ containerType: 'size' }}
     >
       <div
-        className="shrink-0 flex items-end justify-between border-b border-brand-gray-lightest"
+        className="shrink-0 flex flex-wrap items-end justify-between border-b border-brand-gray-lightest"
         style={{
           gap: 'min(24px, 4cqmin)',
           padding: 'min(20px, 3.5cqmin) min(28px, 5cqmin)',
@@ -169,7 +169,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   ? 'text-brand-gray-light'
                   : 'text-brand-gray-darkest'
             }`}
-            style={{ fontSize: 'min(120px, 20cqmin)' }}
+            style={{ fontSize: 'min(120px, 20cqmin, 17cqw)' }}
             role="timer"
             aria-live="off"
           >
@@ -178,7 +178,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
         <div
           className="flex items-end shrink-0"
-          style={{ gap: 'min(32px, 5cqmin)' }}
+          style={{ gap: 'min(32px, 5cqmin, 3.5cqw)' }}
         >
           <Stat label="Active" value={String(stats.active)} />
           <Stat label="Joined" value={String(stats.joined)} />
@@ -191,7 +191,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               className="bg-brand-blue-lighter rounded-full overflow-hidden"
               style={{
                 height: 'min(8px, 1.4cqmin)',
-                width: 'min(140px, 22cqmin)',
+                width: 'min(140px, 22cqmin, 18cqw)',
               }}
               role="meter"
               aria-label="First try accuracy"
@@ -294,7 +294,7 @@ const Stat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
     </span>
     <span
       className="font-black tabular-nums leading-none text-brand-gray-darkest"
-      style={{ fontSize: 'min(44px, 7.5cqmin)' }}
+      style={{ fontSize: 'min(44px, 7.5cqmin, 6.5cqw)' }}
     >
       {value}
     </span>

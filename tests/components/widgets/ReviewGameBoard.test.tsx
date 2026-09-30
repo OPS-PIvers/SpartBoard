@@ -98,7 +98,7 @@ describe('PresentScreen with a game', () => {
       <PresentScreen
         {...data}
         showNames={false}
-        game={{ ...baseProps, stats: { ...baseProps.stats } }}
+        gameBoard={{ ...baseProps, stats: { ...baseProps.stats } }}
       />
     );
     expect(screen.getByTestId('game-board')).toBeInTheDocument();
@@ -111,7 +111,7 @@ describe('PresentScreen with a game', () => {
         {...data}
         session={{ ...session, status: 'ended' } as QuizSession}
         showNames={false}
-        game={baseProps}
+        gameBoard={baseProps}
       />
     );
     expect(screen.queryByTestId('game-board')).toBeNull();

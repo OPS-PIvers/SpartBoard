@@ -912,7 +912,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           standings={standings}
           isGamified={isGame || data.isGamified}
           classAverage={gameStats ? gameStats.firstTryPct : classAverage}
-          game={gameBoard ?? undefined}
+          gameBoard={gameBoard ?? undefined}
           {...(isGame
             ? {
                 showNames: gameNames,
@@ -936,7 +936,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
 
       {onHome && (
         <div
-          className="flex items-center border-t border-brand-gray-lightest shrink-0"
+          className="flex flex-wrap items-center border-t border-brand-gray-lightest shrink-0"
           style={{
             gap: 'min(8px, 2cqmin)',
             padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
@@ -998,7 +998,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             onClick={handleEnd}
             disabled={ending}
             {...tourAttr('quiz.end-quiz', widgetId, 'quiz')}
-            className="inline-flex items-center bg-white border border-brand-gray-lighter hover:border-brand-red-light text-brand-red-primary font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
+            className="inline-flex items-center whitespace-nowrap bg-white border border-brand-gray-lighter hover:border-brand-red-light text-brand-red-primary font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
             style={{
               gap: 'min(6px, 1.5cqmin)',
               padding: 'min(8px, 2cqmin) min(14px, 3cqmin)',
@@ -1142,7 +1142,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
 };
 
 const footerButton =
-  'inline-flex items-center font-sans font-semibold rounded-md transition-colors disabled:opacity-60';
+  'inline-flex items-center whitespace-nowrap font-sans font-semibold rounded-md transition-colors disabled:opacity-60';
 const footerButtonStyle = {
   gap: 'min(6px, 1.5cqmin)',
   padding: 'min(8px, 2cqmin) min(14px, 3cqmin)',
