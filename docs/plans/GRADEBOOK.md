@@ -77,7 +77,7 @@ SpartBoard stays a working gradebook. The district SIS keeps the official report
 
   Closing returns to the board.
 
-- **D5.** Everything teacher-facing is behind the `gradebook` `GlobalFeature` (preview, admin). While it's in preview, the sidebar shows a Gradebook button beside Assignments. The PR that opens the flag to Public deletes `components/assignmentsHub/` and points its entry points at `/gradebook`.
+- **D5.** Everything teacher-facing is behind the `gradebook` `GlobalFeature` (preview, admin). While it's in preview, the sidebar shows Gradebook in place of Assignments for anyone with the flag; teachers without it keep Assignments. The PR that opens the flag to Public deletes `components/assignmentsHub/` and points its entry points at `/gradebook`.
 
 ### Data
 
