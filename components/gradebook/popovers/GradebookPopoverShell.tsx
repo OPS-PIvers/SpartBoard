@@ -1,6 +1,7 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { Z_INDEX } from '@/config/zIndex';
 
 const EDGE = 12;
 const GAP = 6;
@@ -28,6 +29,7 @@ export const GradebookPopoverShell: React.FC<GradebookPopoverShellProps> = ({
     top: number;
     left: number;
     maxHeight: number;
+    hole: { top: number; left: number; width: number; height: number };
   } | null>(null);
 
   useClickOutside(panelRef, (e) => {
@@ -54,10 +56,23 @@ export const GradebookPopoverShell: React.FC<GradebookPopoverShellProps> = ({
       const down = below >= Math.min(ph, 240) || below >= above;
       const maxHeight = down ? below : above;
       const top = down ? r.bottom + GAP : r.top - GAP - Math.min(ph, maxHeight);
+      const hole = {
+        top: r.top,
+        left: r.left,
+        width: r.width,
+        height: r.height,
+      };
       setPos((p) =>
-        p && p.top === top && p.left === left && p.maxHeight === maxHeight
+        p &&
+        p.top === top &&
+        p.left === left &&
+        p.maxHeight === maxHeight &&
+        p.hole.top === hole.top &&
+        p.hole.left === hole.left &&
+        p.hole.width === hole.width &&
+        p.hole.height === hole.height
           ? p
-          : { top, left, maxHeight }
+          : { top, left, maxHeight, hole }
       );
     };
     place();
@@ -88,26 +103,35 @@ export const GradebookPopoverShell: React.FC<GradebookPopoverShellProps> = ({
   };
 
   return createPortal(
-    <div
-      ref={panelRef}
-      role="dialog"
-      aria-label={ariaLabel}
-      tabIndex={-1}
-      onKeyDown={onKeyDown}
-      {...(submenu ? { [SUBMENU_ATTR]: '' } : {})}
-      style={{
-        top: pos?.top ?? -9999,
-        left: pos?.left ?? -9999,
-        maxHeight: pos?.maxHeight,
-      }}
-      className={`fixed flex flex-col overflow-y-auto rounded-xl border border-slate-200 bg-white text-sm text-slate-800 shadow-[0_10px_15px_-3px_rgba(29,42,93,.12),0_4px_6px_-4px_rgba(29,42,93,.08)] outline-none ${
-        submenu
-          ? 'z-popover-menu w-[280px] gap-1.5 p-1.5'
-          : 'z-popover w-[min(380px,calc(100vw-24px))] gap-3.5 p-4'
-      }`}
-    >
-      {children}
-    </div>,
+    <>
+      {!submenu && pos && (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed rounded-sm shadow-[0_0_0_200vmax_rgba(15,23,42,.15)]"
+          style={{ ...pos.hole, zIndex: Z_INDEX.popover - 1 }}
+        />
+      )}
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-label={ariaLabel}
+        tabIndex={-1}
+        onKeyDown={onKeyDown}
+        {...(submenu ? { [SUBMENU_ATTR]: '' } : {})}
+        style={{
+          top: pos?.top ?? -9999,
+          left: pos?.left ?? -9999,
+          maxHeight: pos?.maxHeight,
+        }}
+        className={`fixed flex flex-col overflow-y-auto rounded-xl border border-slate-300 bg-white text-sm text-slate-800 shadow-[0_24px_48px_-12px_rgba(15,23,42,.35),0_8px_16px_-8px_rgba(15,23,42,.2)] outline-none ${
+          submenu
+            ? 'z-popover-menu w-[280px] gap-1.5 p-1.5'
+            : 'z-popover w-[min(380px,calc(100vw-24px))] gap-3.5 p-4'
+        }`}
+      >
+        {children}
+      </div>
+    </>,
     document.body
   );
 };
