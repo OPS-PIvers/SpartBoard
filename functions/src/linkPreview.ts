@@ -226,7 +226,11 @@ export const fetchLinkPreview = onCall(
           if (!location || hop === MAX_REDIRECTS) {
             throw new HttpsError('failed-precondition', 'Too many redirects.');
           }
-          currentUrl = new URL(location, currentUrl);
+          try {
+            currentUrl = new URL(location, currentUrl);
+          } catch {
+            throw new HttpsError('failed-precondition', 'Invalid redirect.');
+          }
           continue;
         }
         console.error('Link preview fetch error:', error);
