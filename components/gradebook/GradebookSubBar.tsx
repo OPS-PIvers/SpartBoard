@@ -77,11 +77,7 @@ const ToggleRow: React.FC<{
 );
 
 const sortValue = (s: GradebookSort): string =>
-  s.key === 'last' || s.key === 'first'
-    ? 'name'
-    : s.ref
-      ? `${s.key}:${s.ref}`
-      : s.key;
+  s.ref ? `${s.key}:${s.ref}` : s.key;
 
 /** Class and period selects, View and Filter menus, and the four icon buttons (D19). */
 export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
@@ -120,14 +116,8 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
   const groups = roster.groups ?? [];
 
   const onSortChange = (v: string) => {
-    if (v === 'name') {
-      setView({
-        sort: {
-          key: view.nameFormat === 'first-last' ? 'first' : 'last',
-          dir: 'asc',
-          ref: null,
-        },
-      });
+    if (v === 'last' || v === 'first') {
+      setView({ sort: { key: v, dir: 'asc', ref: null } });
       return;
     }
     const [key, ref] = v.split(':');
@@ -274,19 +264,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
               role="radiogroup"
               ariaLabel="Names"
               value={view.nameFormat}
-              onChange={(v) =>
-                setView({
-                  nameFormat: v,
-                  ...(view.sort.key === 'last' || view.sort.key === 'first'
-                    ? {
-                        sort: {
-                          ...view.sort,
-                          key: v === 'first-last' ? 'first' : 'last',
-                        },
-                      }
-                    : {}),
-                })
-              }
+              onChange={(v) => setView({ nameFormat: v })}
               options={[
                 { value: 'last-first', label: 'Last, First' },
                 { value: 'first-last', label: 'First Last' },
@@ -302,7 +280,8 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
               value={sortValue(view.sort)}
               onChange={(e) => onSortChange(e.target.value)}
             >
-              <option value="name">Name</option>
+              <option value="last">Last name</option>
+              <option value="first">First name</option>
               <option value="overall">Overall</option>
               <option value="missing">Missing count</option>
               {view.sort.key === 'column' && view.sort.ref && (

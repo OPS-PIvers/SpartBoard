@@ -137,17 +137,12 @@ export const GradebookGrid: React.FC = () => {
 
   const sortName = () => {
     const s = view.sort;
-    const nameKey = view.nameFormat === 'first-last' ? 'first' : 'last';
     if (s.key === 'last' || s.key === 'first') {
       setView({
-        sort: {
-          key: nameKey,
-          dir: s.dir === 'asc' ? 'desc' : 'asc',
-          ref: null,
-        },
+        sort: { key: s.key, dir: s.dir === 'asc' ? 'desc' : 'asc', ref: null },
       });
     } else {
-      setView({ sort: { key: nameKey, dir: 'asc', ref: null } });
+      setView({ sort: { key: 'last', dir: 'asc', ref: null } });
     }
   };
   const sortOverall = () => {

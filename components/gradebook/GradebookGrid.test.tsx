@@ -16,6 +16,11 @@ import {
 import type { GradebookSource } from '@/hooks/useGradebookSource';
 import { GradebookProvider } from './GradebookProvider';
 import { GradebookGrid } from './GradebookGrid';
+import { GradebookSubBar } from './GradebookSubBar';
+
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
+}));
 
 const NOW = new Date(2026, 9, 1).getTime();
 const students: Student[] = [
@@ -56,7 +61,7 @@ const row = (uid: string, points: number | null): GradeIndexRow => ({
   updatedAt: 1,
 });
 
-function setup() {
+function setup(withSubBar = false) {
   const saveMarks = vi.fn<GradebookSource['saveMarks']>(() =>
     Promise.resolve()
   );
@@ -89,6 +94,7 @@ function setup() {
       toast={toast}
       now={NOW}
     >
+      {withSubBar && <GradebookSubBar onGrid />}
       <GradebookGrid />
     </GradebookProvider>
   );
@@ -104,6 +110,15 @@ describe('GradebookGrid', () => {
     expect(names[1]).toContain('Ruiz, Ana');
     expect(screen.getByLabelText('Adams, Ben, Unit quiz: 0%')).toBeTruthy();
     expect(screen.getByLabelText('Ruiz, Ana, Unit quiz: 80%')).toBeTruthy();
+  });
+
+  it('keeps sorting by last name when names switch to First Last', () => {
+    setup(true);
+    fireEvent.click(screen.getByRole('button', { name: /^View/ }));
+    fireEvent.click(screen.getByRole('radio', { name: 'First Last' }));
+    const names = screen.getAllByRole('rowheader').map((th) => th.textContent);
+    expect(names[0]).toContain('Ben Adams');
+    expect(names[1]).toContain('Ana Ruiz');
   });
 
   it('toggles a flag from the keyboard with history, then undoes it', async () => {
