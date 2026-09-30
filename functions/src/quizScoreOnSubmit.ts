@@ -109,7 +109,8 @@ export function scoreAttempt(
   const served = new Set(baseServed.filter((id) => !notChosen.has(id)));
   for (const id of served) {
     const q = byId.get(id);
-    if (q && (q.manual || q.correctAnswer === null)) return null;
+    // A served question missing from the key (stale key) can't be vouched for.
+    if (!q || q.manual || q.correctAnswer === null) return null;
   }
 
   const representative = representativeAnswers(answers);

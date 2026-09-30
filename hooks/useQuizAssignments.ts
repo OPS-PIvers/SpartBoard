@@ -2931,10 +2931,13 @@ export const useQuizAssignments = (
         };
         firstBatch.set(contentRef, syncedContent);
       }
+      // Without the flag the key can't be refreshed, so drop it rather than grade with stale answers.
       if (scoreOnSubmitOn) {
         firstBatch.set(scoreKeyRef(userId, assignmentId), {
           questions: buildScoreOnSubmitKey(canonicalQuestions),
         });
+      } else {
+        firstBatch.delete(scoreKeyRef(userId, assignmentId));
       }
       const syncReadAloud =
         (behavior?.sessionOptions ?? assignment.sessionOptions)
@@ -2945,7 +2948,7 @@ export const useQuizAssignments = (
       // Assignment + session (+ content) writes already used; fill the rest.
       const firstChunkSize = Math.min(
         responsesToTag.length,
-        MAX_BATCH_WRITES - (inContent ? 3 : 2) - (scoreOnSubmitOn ? 1 : 0)
+        MAX_BATCH_WRITES - (inContent ? 4 : 3)
       );
       for (let i = 0; i < firstChunkSize; i++) {
         firstBatch.update(responsesToTag[i].ref, {
