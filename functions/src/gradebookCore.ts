@@ -881,7 +881,7 @@ export interface GradebookClassStateDoc {
   /** Null uses the built-in defaults. */
   configRef: GradebookConfigRef | null;
   sort: GradebookSort | null;
-  nameFormat: 'last-first' | 'first-last';
+  nameFormat: 'last-first' | 'first-last' | 'last-only' | 'first-only';
   cellFormat: 'percent' | 'points';
   /** Card ids in order, per surface ('student', 'analysis'). */
   cardLayouts: Record<string, string[]>;

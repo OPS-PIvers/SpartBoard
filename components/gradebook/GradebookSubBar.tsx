@@ -9,7 +9,10 @@ import {
   GRADEBOOK_KINDS,
   type GradebookSort,
 } from '@/utils/gradebook/gradebookCore';
-import { flagChipClasses } from '@/utils/gradebook/gradebookModel';
+import {
+  flagChipClasses,
+  type NameFormat,
+} from '@/utils/gradebook/gradebookModel';
 import { useGradebook } from './GradebookContext';
 import { GRADEBOOK_KIND_META } from './kindMeta';
 import { GradebookSettingsButton } from './settings/GradebookSettingsModal';
@@ -77,11 +80,7 @@ const ToggleRow: React.FC<{
 );
 
 const sortValue = (s: GradebookSort): string =>
-  s.key === 'last' || s.key === 'first'
-    ? 'name'
-    : s.ref
-      ? `${s.key}:${s.ref}`
-      : s.key;
+  s.ref ? `${s.key}:${s.ref}` : s.key;
 
 /** Class and period selects, View and Filter menus, and the four icon buttons (D19). */
 export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
@@ -120,14 +119,8 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
   const groups = roster.groups ?? [];
 
   const onSortChange = (v: string) => {
-    if (v === 'name') {
-      setView({
-        sort: {
-          key: view.nameFormat === 'first-last' ? 'first' : 'last',
-          dir: 'asc',
-          ref: null,
-        },
-      });
+    if (v === 'last' || v === 'first') {
+      setView({ sort: { key: v, dir: 'asc', ref: null } });
       return;
     }
     const [key, ref] = v.split(':');
@@ -269,29 +262,21 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
             </div>
           </div>
           <div>
-            <Label>Names</Label>
-            <SegmentedControl
-              role="radiogroup"
-              ariaLabel="Names"
+            <Label htmlFor="gb-names">Names</Label>
+            <Sel
+              id="gb-names"
+              className={menuSelectCls}
+              wrapClassName="w-full"
               value={view.nameFormat}
-              onChange={(v) =>
-                setView({
-                  nameFormat: v,
-                  ...(view.sort.key === 'last' || view.sort.key === 'first'
-                    ? {
-                        sort: {
-                          ...view.sort,
-                          key: v === 'first-last' ? 'first' : 'last',
-                        },
-                      }
-                    : {}),
-                })
+              onChange={(e) =>
+                setView({ nameFormat: e.target.value as NameFormat })
               }
-              options={[
-                { value: 'last-first', label: 'Last, First' },
-                { value: 'first-last', label: 'First Last' },
-              ]}
-            />
+            >
+              <option value="last-first">Last, First</option>
+              <option value="first-last">First Last</option>
+              <option value="last-only">Last only</option>
+              <option value="first-only">First only</option>
+            </Sel>
           </div>
           <div>
             <Label htmlFor="gb-sort">Sort rows</Label>
@@ -302,7 +287,8 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
               value={sortValue(view.sort)}
               onChange={(e) => onSortChange(e.target.value)}
             >
-              <option value="name">Name</option>
+              <option value="last">Last name</option>
+              <option value="first">First name</option>
               <option value="overall">Overall</option>
               <option value="missing">Missing count</option>
               {view.sort.key === 'column' && view.sort.ref && (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Sidebar } from '@/components/layout/sidebar/Sidebar';
@@ -17,6 +17,8 @@ vi.mock('@/components/assignmentsHub/AssignmentsHubModal', () => ({
   ),
 }));
 
+let gradebookOn = false;
+
 const emptyDashboard: Dashboard = {
   id: 'd1',
   name: 'Board 1',
@@ -32,7 +34,7 @@ vi.mock('@/context/useAuth', () => ({
     isAdmin: false,
     appSettings: {},
     isExternalUser: false,
-    canAccessFeature: () => false,
+    canAccessFeature: (id: string) => id === 'gradebook' && gradebookOn,
     selectedBuildings: [],
   }),
 }));
@@ -97,6 +99,10 @@ vi.mock('@/hooks/useAppVersion', () => ({
 }));
 
 describe('Sidebar Assignments entry', () => {
+  beforeEach(() => {
+    gradebookOn = false;
+  });
+
   it('shows an Assignments entry with no badge/count and opens the hub modal', async () => {
     render(<Sidebar />);
 
@@ -116,5 +122,19 @@ describe('Sidebar Assignments entry', () => {
     expect(
       await screen.findByTestId('assignments-hub-modal')
     ).toBeInTheDocument();
+  });
+
+  it('replaces Assignments with Gradebook when the gradebook flag is on', async () => {
+    gradebookOn = true;
+    render(<Sidebar />);
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Open Menu' })
+    );
+
+    expect(
+      await screen.findByRole('button', { name: 'Gradebook' })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Assignments' })).toBeNull();
   });
 });

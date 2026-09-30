@@ -4,14 +4,14 @@ import { scoreColorClasses } from '@/utils/scoreColor';
 interface ScorePillProps {
   /** 0–100 percentage; ignored when display is 'count' or 'hidden'. */
   score: number;
-  display: 'percent' | 'count' | 'hidden';
+  display: 'percent' | 'count' | 'points' | 'hidden';
   /** Answered count, used when display is 'count'. */
   count?: number;
-  /** Total questions, used when display is 'count'. */
+  /** Total questions for 'count', or possible points for 'points'. */
   total?: number;
   /** Gamified sessions show raw points in brand-blue rather than a graded color. */
   gamified?: boolean;
-  /** Raw points to show when gamified. */
+  /** Raw points to show when gamified or when display is 'points'. */
   points?: number;
   /** Optional unit suffix appended to the value (e.g. ' pts' for gamified points). */
   suffix?: string;
@@ -40,6 +40,7 @@ export const ScorePill: React.FC<ScorePillProps> = ({
   let text: string;
   if (gamified) text = `${points ?? 0}`;
   else if (display === 'count') text = `${count ?? 0}/${total ?? 0}`;
+  else if (display === 'points') text = `${points ?? 0}/${total ?? 0}`;
   else
     text = `${Number.isFinite(score) ? Math.round(Math.max(0, Math.min(100, score))) : 0}%`;
   if (suffix) text += suffix;
