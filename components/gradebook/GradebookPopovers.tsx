@@ -3,9 +3,9 @@ import { spaNavigate } from '@/utils/plcPath';
 import { buildGradebookPath } from '@/utils/gradebookPath';
 import { useGradebook, type GradebookColumn } from './GradebookContext';
 import { cellAnchorId } from './cellFormat';
-import { GradebookCellPopover } from './cell/GradebookCellPopover';
-import { GradebookHeaderPopover } from './header/GradebookHeaderPopover';
-import type { GradebookCellData, GradebookColumnRef } from './slotTypes';
+import { GradebookCellPopover } from './popovers/GradebookCellPopover';
+import { GradebookHeaderPopover } from './popovers/GradebookHeaderPopover';
+import type { GradebookCellData, GradebookColumnRef } from './popovers/types';
 
 const findAnchor = (attr: string, value: string): HTMLElement | null =>
   document.querySelector<HTMLElement>(`[${attr}="${CSS.escape(value)}"]`);

@@ -73,6 +73,7 @@ const newBatchId = (): string =>
     : `b${Date.now()}${Math.random().toString(36).slice(2)}`;
 
 interface UndoStep {
+  at: number;
   label: string;
   field: GradebookHistoryField | null;
   before: GradebookMark[];
@@ -365,7 +366,11 @@ export const GradebookProvider: React.FC<GradebookProviderProps> = ({
 
   // ---- Mark writes, history and undo (D9, D24) ----
   const undoStack = useRef<UndoStep[]>([]);
-  const [undoDepth, setUndoDepth] = useState(0);
+  const [undoTop, setUndoTop] = useState({ depth: 0, at: 0 });
+  const syncUndoTop = useCallback(() => {
+    const s = undoStack.current;
+    setUndoTop({ depth: s.length, at: s[s.length - 1]?.at ?? 0 });
+  }, []);
   const saveMarks = source.saveMarks;
 
   const baseMark = useCallback(
@@ -441,7 +446,7 @@ export const GradebookProvider: React.FC<GradebookProviderProps> = ({
 
   const undo = useCallback(async () => {
     const step = undoStack.current.pop();
-    setUndoDepth(undoStack.current.length);
+    syncUndoTop();
     if (!step) return;
     const pairs = step.before.map((b) => ({
       before: baseMark(b.sessionId, b.studentUid),
@@ -456,10 +461,10 @@ export const GradebookProvider: React.FC<GradebookProviderProps> = ({
       toast('Undone');
     } catch {
       undoStack.current.push(step);
-      setUndoDepth(undoStack.current.length);
+      syncUndoTop();
       toast('Could not undo that change');
     }
-  }, [baseMark, writeMarks, toast]);
+  }, [baseMark, writeMarks, toast, syncUndoTop]);
 
   const applyPatches = useCallback(
     async (
@@ -479,14 +484,15 @@ export const GradebookProvider: React.FC<GradebookProviderProps> = ({
         return;
       }
       undoStack.current.push({
+        at: Date.now(),
         label: label ?? 'Change',
         field,
         before: pairs.map((p) => p.before),
       });
-      setUndoDepth(undoStack.current.length);
+      syncUndoTop();
       if (label) toast(label, () => void undo());
     },
-    [baseMark, writeMarks, toast, undo]
+    [baseMark, writeMarks, toast, undo, syncUndoTop]
   );
 
   const toggleFlag = useCallback(
@@ -528,9 +534,10 @@ export const GradebookProvider: React.FC<GradebookProviderProps> = ({
       bulk: (items, opts) => applyPatches(items, opts.field, opts.label),
       toggleFlag,
       undo,
-      canUndo: undoDepth > 0,
+      canUndo: undoTop.depth > 0,
+      lastUndoAt: undoTop.at,
     }),
-    [applyPatches, toggleFlag, undo, undoDepth]
+    [applyPatches, toggleFlag, undo, undoTop]
   );
 
   const saveColumn = source.saveColumn;

@@ -18,13 +18,12 @@ import type {
   GradebookCellData,
   GradebookColumnRef,
 } from '@/components/gradebook/popovers/types';
+import { GRADEBOOK_MARK_BATCH } from '@/utils/gradebook/gradebookModel';
 import {
   gradebookUndoStore,
   type UndoMarkSnapshot,
 } from './gradebookUndoStore';
 
-// Each history create's getAfter counts toward the 20 document accesses allowed per batch.
-const CELLS_PER_BATCH = 8;
 const MAX_ROSTER_IDS = 20;
 
 type MarkPatch = Partial<
@@ -152,9 +151,9 @@ export function useGradebookMarkWrites(rosterId: string) {
       if (!uid) throw new Error('Not authenticated');
       if (writes.length === 0) return;
       const at = Date.now();
-      for (let i = 0; i < writes.length; i += CELLS_PER_BATCH) {
+      for (let i = 0; i < writes.length; i += GRADEBOOK_MARK_BATCH) {
         const batch: WriteBatch = writeBatch(db);
-        for (const w of writes.slice(i, i + CELLS_PER_BATCH)) {
+        for (const w of writes.slice(i, i + GRADEBOOK_MARK_BATCH)) {
           const ref = doc(db, GRADEBOOK_COLLECTIONS.marks, w.markId);
           batch.set(ref, { ...w.after, updatedAt: at });
           batch.set(doc(collection(ref, GRADEBOOK_COLLECTIONS.history)), {
@@ -175,7 +174,12 @@ export function useGradebookMarkWrites(rosterId: string) {
           before: w.before,
           after: w.after,
         }));
-        gradebookUndoStore.push({ batchId, label: undoLabel, marks });
+        gradebookUndoStore.push({
+          at: Date.now(),
+          batchId,
+          label: undoLabel,
+          marks,
+        });
       }
     },
     [uid]

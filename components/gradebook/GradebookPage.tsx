@@ -5,6 +5,8 @@ import {
   buildGradebookPath,
   type ParsedGradebookPath,
 } from '@/utils/gradebookPath';
+import { useGradebookMarkWrites } from '@/hooks/gradebook/useGradebookMarkWrites';
+import { useLastUndo } from '@/hooks/gradebook/gradebookUndoStore';
 import { useGradebook } from './GradebookContext';
 import { GradebookSubBar } from './GradebookSubBar';
 import { GradebookGrid } from './GradebookGrid';
@@ -98,6 +100,8 @@ export const GradebookPage: React.FC<{
   onClose: () => void;
 }> = ({ parsed, onClose }) => {
   const gb = useGradebook();
+  const popoverWrites = useGradebookMarkWrites(gb.rosterId);
+  const popoverUndo = useLastUndo();
   const tab = parsed.view === 'analysis' ? 'analysis' : 'grid';
   const onGrid = parsed.view === 'grid' || parsed.view === 'assignment';
 
@@ -108,6 +112,14 @@ export const GradebookPage: React.FC<{
       e.key.toLowerCase() === 'z' &&
       !e.shiftKey
     ) {
+      if (popoverUndo && popoverUndo.at > gb.marks.lastUndoAt) {
+        e.preventDefault();
+        popoverWrites
+          .undoBatch(popoverUndo.batchId)
+          .then(() => gb.toast('Undone'))
+          .catch(() => gb.toast('Could not undo that change'));
+        return;
+      }
       if (!gb.marks.canUndo) return;
       e.preventDefault();
       void gb.marks.undo();

@@ -10,6 +10,7 @@ export interface UndoMarkSnapshot {
 }
 
 export interface UndoEntry {
+  at: number;
   batchId: string;
   label: string;
   marks: UndoMarkSnapshot[];
