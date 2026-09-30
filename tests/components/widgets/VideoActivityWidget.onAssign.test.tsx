@@ -417,18 +417,18 @@ describe('VideoActivityWidget onAssign — per-period access', () => {
       accessMode: string;
       periodAccess: Record<string, { state: string; label: string }>;
     };
-    expect(periodGate.accessMode).toBe('assignment');
+    expect(periodGate.accessMode).toBe('assessment');
     expect(Object.keys(periodGate.periodAccess).sort()).toEqual([
       'cl-3',
       'roster:r1',
     ]);
     expect(periodGate.periodAccess['cl-3']).toMatchObject({
-      state: 'open',
+      state: 'closed',
       label: 'Period 3',
     });
     await waitFor(() => expect(mockSetDoc).toHaveBeenCalled());
     expect(mockSetDoc.mock.calls[0][1]).toMatchObject({
-      accessMode: 'assignment',
+      accessMode: 'assessment',
       periodAccess: periodGate.periodAccess,
     });
   });

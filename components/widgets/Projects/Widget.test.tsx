@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import type {
   ProjectGroup,
   ProjectRun,
@@ -16,6 +22,7 @@ import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
 import { useProjectGroupWork } from '@/hooks/useProjectGroupWork';
 import { useProjectUploads } from '@/hooks/useProjectUploads';
 import { useProjectGroupEvents } from '@/hooks/useProjectGroupEvents';
+import { useProjectGrades } from '@/hooks/useProjectGrades';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { NO_STUDENT_SIGN_IN_WARNING } from './projectSteps';
 import { ProjectsWidget } from './Widget';
@@ -28,6 +35,7 @@ vi.mock('@/hooks/useProjectsWidgetSettings');
 vi.mock('@/hooks/useProjectGroupWork');
 vi.mock('@/hooks/useProjectUploads');
 vi.mock('@/hooks/useProjectGroupEvents');
+vi.mock('@/hooks/useProjectGrades');
 vi.mock('@/hooks/useAssignmentPseudonyms', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/hooks/useAssignmentPseudonyms')>()),
   useAssignmentPseudonymsMulti: vi.fn(),
@@ -120,6 +128,13 @@ describe('ProjectsWidget', () => {
     });
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { uid: 'teacher-1' },
+      canAccessFeature: () => false,
+    });
+    (useProjectGrades as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      gradesByGroupId: {},
+      loading: false,
+      error: null,
+      saveGrade: vi.fn(),
     });
     (
       useProjectsWidgetSettings as unknown as ReturnType<typeof vi.fn>
@@ -572,6 +587,74 @@ describe('ProjectsWidget', () => {
       screen.getByRole('button', { name: 'Group 1', expanded: true })
     );
     expect(screen.queryByText('Ada Lovelace')).not.toBeInTheDocument();
+  });
+
+  describe('with the group view flag on', () => {
+    beforeEach(() => {
+      (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        user: { uid: 'teacher-1' },
+        canAccessFeature: (id: string) => id === 'projects-group-view',
+      });
+    });
+
+    it("opens the group's student view from its name", async () => {
+      (
+        useProjectGroupWork as unknown as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
+        workLinks: [link],
+        legacySeed: undefined,
+        loading: false,
+      });
+      render(<ProjectsWidget widget={widget()} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Group 1' }));
+
+      const dialog = await screen.findByRole('dialog', {
+        name: 'Group 1: Ecosystem poster',
+      });
+      expect(
+        within(dialog).getByRole('list', { name: 'Your steps' })
+      ).toBeInTheDocument();
+      expect(within(dialog).getByText('Poster doc')).toBeInTheDocument();
+      expect(
+        within(dialog).queryByPlaceholderText(/Paste a link/i)
+      ).not.toBeInTheDocument();
+    });
+
+    it('lets the teacher mark an approval step done from the view', async () => {
+      render(<ProjectsWidget widget={widget()} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Group 1' }));
+      const dialog = await screen.findByRole('dialog', {
+        name: 'Group 1: Ecosystem poster',
+      });
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: /^Step 2, Draft/ })
+      );
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
+      await waitFor(() =>
+        expect(setStepState).toHaveBeenCalledWith(
+          'g1',
+          'step-2',
+          'done',
+          'teacher'
+        )
+      );
+    });
+
+    it('keeps the details behind the chevron', () => {
+      render(<ProjectsWidget widget={widget()} />);
+      fireEvent.click(
+        screen.getByRole('button', {
+          name: 'Show members and work for Group 1',
+        })
+      );
+      expect(
+        screen.getByRole('button', {
+          name: 'Hide members and work for Group 1',
+          expanded: true,
+        })
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
   });
 
   describe('inside a sub share', () => {

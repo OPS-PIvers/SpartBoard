@@ -155,6 +155,9 @@ export {
   scrubVideoActivitySessionKeyV1,
 } from './videoActivityKey';
 
+// ── Quiz score on submit (server-graded against a teacher-private key) ─────
+export { scoreQuizOnSubmitV1 } from './quizScoreOnSubmit';
+
 // ── Organization invitations + membership write-through (Phase 4) ──────────
 export {
   createOrganizationInvites,

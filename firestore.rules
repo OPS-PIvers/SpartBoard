@@ -789,6 +789,11 @@ service cloud.firestore {
                     && sameId();
     }
 
+    // Answer key scoreQuizOnSubmitV1 grades with. Owner-only; students never read it.
+    match /users/{userId}/quiz_assignments/{assignmentId}/key/{keyId} {
+      allow read, write: if ownsUser(userId);
+    }
+
     // M12 rubrics — teacher-owned reusable rubric library. Schema-locked to the
     // `Rubric` interface's top-level keys so graders can trust the shape at read
     // time (criterion internals are client-validated; CEL can't deep-validate

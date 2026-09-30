@@ -7,6 +7,7 @@
 
 import { isFreeResponseType, type QuizData, type QuizQuestion } from '@/types';
 import { multiAnswerCorrectOptions } from './quizMultiAnswer';
+import { isMultiBlank, splitBlanks } from './quizFibBlanks';
 
 /**
  * True when the question was imported without a key and nobody has supplied
@@ -23,6 +24,8 @@ function isMissingKey(q: QuizQuestion): boolean {
   if (isFreeResponseType(q.type)) return false;
   if (q.type === 'MA')
     return multiAnswerCorrectOptions(q.correctAnswer).length === 0;
+  if (isMultiBlank(q))
+    return splitBlanks(q.correctAnswer).some((a) => !a.trim());
   return !q.correctAnswer?.trim();
 }
 

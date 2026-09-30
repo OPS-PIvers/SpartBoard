@@ -33,21 +33,9 @@ export const folderDroppableId = (folderId: string | null): string =>
 /**
  * Collision detection that prioritizes folder droppables over card droppables.
  *
- * When the user drags a card over the FolderSidebar, dnd-kit's default
- * `closestCenter` picks whichever drop target has the closest centroid — and
- * the next card in the grid is almost always closer than a sidebar folder row.
- * This means drops land back on the grid (as reorder) instead of on the folder
- * (as a move). That's the bug behind "drag-to-folder doesn't work".
- *
- * Strategy:
- *   1. First try `pointerWithin` against folder droppables only — if the
- *      pointer is directly over a folder row, commit to that folder.
- *   2. If the pointer isn't over any folder but the drag *rect* intersects
- *      one, fall back to `rectIntersection` against folders — covers drags
- *      where the ghost card overlaps the sidebar while the pointer is still
- *      on the grid side of the edge.
- *   3. Otherwise, run `closestCenter` against the card droppables for normal
- *      reorder behavior.
+ * A folder only wins while the pointer is over it; otherwise `closestCenter`
+ * picks the card slot, so rows keep making room while the dragged card's box
+ * overlaps the sidebar.
  */
 export const folderAwareCollisionDetection: CollisionDetection = (args) => {
   const folderContainers = args.droppableContainers.filter((c) => {
@@ -65,12 +53,14 @@ export const folderAwareCollisionDetection: CollisionDetection = (args) => {
       droppableContainers: folderContainers,
     });
     if (pointerHits.length > 0) return pointerHits;
-
-    const rectHits = rectIntersection({
-      ...args,
-      droppableContainers: folderContainers,
-    });
-    if (rectHits.length > 0) return rectHits;
+    // Keyboard drags have no pointer, so the card's box picks the folder.
+    if (!args.pointerCoordinates) {
+      const rectHits = rectIntersection({
+        ...args,
+        droppableContainers: folderContainers,
+      });
+      if (rectHits.length > 0) return rectHits;
+    }
   }
 
   return closestCenter({ ...args, droppableContainers: cardContainers });

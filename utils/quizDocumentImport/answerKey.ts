@@ -629,6 +629,7 @@ export function keyFromLines(
 export type KeySource = 'document' | 'file';
 
 const isLetter = (answer: string): boolean => /^[A-F]$/.test(answer);
+const BLANK_RUN = /_{3,}/g;
 const TRUE_ANSWER = /^(?:t|true)$/i;
 const FALSE_ANSWER = /^(?:f|false)$/i;
 
@@ -733,6 +734,25 @@ export function applyKeyAnswer(
   if (question.type === 'free-response') {
     if (question.examView === 'written') {
       return note(question, `Key’s sample answer: ${answer}`);
+    }
+    const blanks = question.text.match(BLANK_RUN)?.length ?? 0;
+    // "_____ A physical characteristic…" keyed G: the letter points at a list; T and F stay true/false.
+    if (
+      blanks > 0 &&
+      /^[A-Z]$/.test(answer) &&
+      !TRUE_ANSWER.test(answer) &&
+      !FALSE_ANSWER.test(answer)
+    ) {
+      return note(
+        { ...question, type: 'FIB', correctAnswer: answer },
+        `The answer key gives the letter ${answer}, so this came in as fill in the blank. Students only see the lettered list if it is in the quiz, so add it as a text or build these items as one matching question.`
+      );
+    }
+    if (blanks > 1 && !isLetter(answer) && !isList) {
+      return note(
+        question,
+        `This question has ${blanks} blanks and fill in the blank takes one answer, so it stays a written response. The key’s answer: ${said}`
+      );
     }
     if (
       isLetter(answer) ||

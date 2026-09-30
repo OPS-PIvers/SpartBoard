@@ -2082,6 +2082,12 @@
       "barLabel": "Puntuación media {{pct}} %"
     }
   },
+  "quizScoreOnSubmit": {
+    "label": "Mostrar la calificación al entregar",
+    "on": "Los estudiantes ven su calificación en cuanto entregan.",
+    "off": "Los estudiantes ven su calificación cuando publicas los resultados.",
+    "unavailable": "No disponible con preguntas de respuesta libre."
+  },
   "quizReadAloud": {
     "label": "Leer en voz alta",
     "help": "Solo para estudiantes con sesión iniciada.",

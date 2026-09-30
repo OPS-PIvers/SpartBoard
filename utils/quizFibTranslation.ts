@@ -5,6 +5,7 @@
  */
 
 import type { QuestionTranslation, QuizQuestion } from '@/types';
+import { fibBlankCount, splitBlanks } from './quizFibBlanks';
 
 const FIB_BLANK_RE = /_{2,}/g;
 
@@ -21,9 +22,13 @@ export function fibTranslationIssue(
   entry: QuestionTranslation | undefined
 ): FibTranslationIssue | null {
   if (question.type !== 'FIB' || !entry) return null;
+  const typed = splitBlanks(entry.answer ?? '');
   if (
     (question.correctAnswer ?? '').trim() !== '' &&
-    (entry.answer ?? '').trim() === ''
+    Array.from(
+      { length: fibBlankCount(question) },
+      (_, i) => typed[i] ?? ''
+    ).some((a) => a.trim() === '')
   )
     return 'missingAnswer';
   if (countFibBlanks(entry.text) !== countFibBlanks(question.text ?? ''))

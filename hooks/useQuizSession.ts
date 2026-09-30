@@ -86,6 +86,12 @@ import { isInvalidWordRange } from '@/utils/wordLimit';
 import { getServerNow } from '@/utils/serverTime';
 import { withNotChosen } from '@/utils/quizSections';
 import {
+  FIB_BLANK_SEP,
+  fibBlankCount,
+  isMultiBlank,
+  scoreFibBlanks,
+} from '@/utils/quizFibBlanks';
+import {
   ANONYMOUS_JOIN_BLOCKED_MESSAGE,
   isAnonymousJoinBlocked,
 } from '@/utils/anonymousJoin';
@@ -518,6 +524,7 @@ export function toPublicQuestion(
         localized[loc].rubricSnapshot = tr.rubricSnapshot;
     }
   }
+  if (isMultiBlank(q)) base.blankCount = fibBlankCount(q);
   // Stimulus pointers are student-safe (the referenced entries carry no
   // answer data) and are needed to render/group stimuli client-side.
   if (q.stimulusIds && q.stimulusIds.length > 0) {
@@ -631,7 +638,13 @@ export function hasSubmittedContent(studentAnswer: string): boolean {
     previous = stripped;
     stripped = stripped.replace(/<[^<>]*>/g, '');
   } while (stripped !== previous);
-  return stripped.replace(/&nbsp;/gi, ' ').trim().length > 0;
+  return (
+    stripped
+      .replace(/&nbsp;/gi, ' ')
+      .split(FIB_BLANK_SEP)
+      .join('')
+      .trim().length > 0
+  );
 }
 
 /**
@@ -715,6 +728,21 @@ export function gradeAnswer(
   const correct = normalizeAnswer(question.correctAnswer);
   const given = normalizeAnswer(studentAnswer);
 
+  if (isMultiBlank(question)) {
+    const { correct: right, total } = scoreFibBlanks(
+      question,
+      studentAnswer,
+      normalizeAnswer,
+      acceptedAnswers
+    );
+    const exact = right === total;
+    return {
+      isCorrect: exact,
+      pointsEarned: partial ? (right / total) * max : exact ? max : 0,
+      pointsMax: max,
+      state,
+    };
+  }
   if (question.type === 'MC' || question.type === 'FIB') {
     const isCorrect =
       correct === given ||
@@ -1545,6 +1573,7 @@ export const useQuizSessionTeacher = (
         submittedAt: null,
         score: null,
         completedAttempts: refundedAttempts,
+        scoredOnSubmitAttempt: deleteField(),
         unlocked: true,
         unlockedAt: Date.now(),
         // Refresh lastWriteAt so the idle auto-submit Cloud Function

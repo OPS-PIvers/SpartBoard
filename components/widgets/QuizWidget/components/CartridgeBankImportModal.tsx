@@ -23,6 +23,7 @@ import {
   type RemoteImageFetcher,
 } from '@/utils/quizDocumentImport';
 import { titleFromFileName } from '@/utils/quizDocumentImport/fileKind';
+import { displayFibAnswer } from '@/utils/quizFibBlanks';
 import {
   EMPTY_BANK_REASON,
   EMPTY_QUIZ_REASON,
@@ -585,7 +586,7 @@ const QuestionList: React.FC<{ bank: CartridgeBank }> = ({ bank }) => (
         <p className="text-[11px] text-slate-400">
           {TYPE_LABEL[q.type] ?? q.type}
           {q.correctAnswer && q.type !== 'free-response'
-            ? ` · Answer: ${q.correctAnswer}`
+            ? ` · Answer: ${displayFibAnswer(q.correctAnswer)}`
             : ''}
         </p>
         {q.warnings.map((w) => (

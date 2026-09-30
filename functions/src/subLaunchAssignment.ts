@@ -184,6 +184,7 @@ const ANSWER_FIELDS = [
   'matchingDistractors',
   'acceptableVariants',
   'alternateAnswers',
+  'blankAlternates',
   'rubric',
   'revealedAnswers',
   'localizedFibAnswers',

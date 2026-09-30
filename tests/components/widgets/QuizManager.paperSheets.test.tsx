@@ -87,7 +87,7 @@ function renderLibrary(
 const openRowMenu = () => {
   const menu = screen.getAllByRole('button').find((b) => {
     const label = b.getAttribute('aria-label') ?? '';
-    return /more|options|menu/i.test(label) && label !== 'More ways to create';
+    return /more|options|menu/i.test(label) && label !== 'New Quiz';
   });
   if (!menu) throw new Error('row overflow menu not found');
   fireEvent.click(menu);
@@ -132,33 +132,30 @@ describe('QuizManager — paper answer sheets', () => {
     );
   });
 
-  it('offers Paper test behind the New Quiz caret, never as its own button or tab', () => {
+  it('New Quiz always opens a Create / Import / Paper test menu', () => {
     const onNewPaperTest = vi.fn();
     const onNew = vi.fn();
     renderLibrary({ onNewPaperTest, onNew });
     expect(screen.queryByRole('tab', { name: /paper/i })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Paper test' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'New Quiz' }));
-    expect(onNew).toHaveBeenCalledTimes(1);
-    expect(onNewPaperTest).not.toHaveBeenCalled();
-    fireEvent.click(
-      screen.getByRole('button', { name: 'More ways to create' })
-    );
+    expect(onNew).not.toHaveBeenCalled();
     const items = screen.getAllByRole('menuitem').map((el) => el.textContent);
-    expect(items).toEqual(['Import', 'Paper test']);
+    expect(items).toEqual(['Create', 'Import', 'Paper test']);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Paper test' }));
     expect(onNewPaperTest).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'New Quiz' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Create' }));
+    expect(onNew).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps Import in the caret menu when paper is off, with no Import button', () => {
+  it('offers Create and Import when paper is off, with no Import button', () => {
     const onImport = vi.fn();
     renderLibrary({ onImport });
     expect(screen.queryByRole('button', { name: 'Import' })).toBeNull();
-    fireEvent.click(
-      screen.getByRole('button', { name: 'More ways to create' })
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'New Quiz' }));
     expect(screen.getAllByRole('menuitem').map((el) => el.textContent)).toEqual(
-      ['Import']
+      ['Create', 'Import']
     );
     fireEvent.click(screen.getByRole('menuitem', { name: 'Import' }));
     expect(onImport).toHaveBeenCalledTimes(1);

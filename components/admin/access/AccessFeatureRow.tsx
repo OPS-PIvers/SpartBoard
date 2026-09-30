@@ -7,6 +7,7 @@ import type {
 } from '@/types';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 import { Toggle } from '@/components/common/Toggle';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { BetaUsersPanel } from '@/components/admin/BetaUsersPanel';
 import { MinTierSelect } from '@/components/admin/MinTierSelect';
 import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuildingMultiSelect';
@@ -98,13 +99,22 @@ export const AccessLevelPicker: React.FC<{
   onChange: (level: AccessLevel) => void;
   label: string;
 }> = ({ value, onChange, label }) => (
-  <div role="group" aria-label={`${label} access`} className="flex gap-1">
+  <div
+    role="radiogroup"
+    aria-label={`${label} access`}
+    className="flex gap-1"
+    onKeyDown={(e) =>
+      handleRadioGroupKeyDown(e, LEVELS, (opt) => onChange(opt.level))
+    }
+  >
     {LEVELS.map(({ level, label: text, Icon }) => (
       <button
         key={level}
         type="button"
+        role="radio"
+        aria-checked={value === level}
+        tabIndex={value === level ? 0 : -1}
         onClick={() => onChange(level)}
-        aria-pressed={value === level}
         className={`px-2 py-1 rounded-md border text-xs font-medium flex items-center gap-1 transition-colors ${
           value === level
             ? LEVEL_ACTIVE[level]

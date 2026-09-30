@@ -1,4 +1,10 @@
 import type { QuizQuestion } from '@/types';
+import {
+  FIB_BLANK_SEP,
+  formatBlanks,
+  isMultiBlank,
+  revealMultiBlank,
+} from './quizFibBlanks';
 
 // A revealed FIB key lists its accepted answers one per line; a typed blank can't hold a newline.
 const REVEAL_SEPARATOR = '\n';
@@ -22,8 +28,12 @@ export function fibAlternateAnswers(
 
 /** The value written to `revealedAnswers` for one question. */
 export function revealValueFor(
-  q: Pick<QuizQuestion, 'type' | 'correctAnswer' | 'alternateAnswers'>
+  q: Pick<
+    QuizQuestion,
+    'type' | 'correctAnswer' | 'alternateAnswers' | 'blankAlternates'
+  >
 ): string {
+  if (isMultiBlank(q)) return revealMultiBlank(q);
   const alternates = fibAlternateAnswers(q);
   return alternates.length === 0
     ? q.correctAnswer
@@ -37,6 +47,8 @@ export function splitRevealedAnswer(revealed: string): string[] {
 
 /** "color (also accepted: colour)" for a revealed FIB value; other values unchanged. */
 export function formatRevealedAnswer(revealed: string): string {
+  if (revealed.includes(FIB_BLANK_SEP))
+    return formatBlanks(revealed, formatRevealedAnswer);
   const [main, ...rest] = splitRevealedAnswer(revealed);
   return rest.length === 0
     ? revealed

@@ -25,6 +25,7 @@ interface StepCellProps {
   onToggle: () => void;
   onClose: () => void;
   onPick: (state: ProjectStepState) => void;
+  asTeacher: boolean;
 }
 
 const StepCell: React.FC<StepCellProps> = ({
@@ -37,11 +38,12 @@ const StepCell: React.FC<StepCellProps> = ({
   onToggle,
   onClose,
   onPick,
+  asTeacher,
 }) => {
   const wrapperRef = useRef<HTMLLIElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const locked = isApprovedLock(step, state);
-  const disabled = !canEdit || locked || busy;
+  const disabled = !canEdit || (locked && !asTeacher) || busy;
   const label = locked ? 'Approved' : STEP_STATE_LABELS[state];
 
   return (
@@ -85,6 +87,7 @@ const StepCell: React.FC<StepCellProps> = ({
           current={state}
           anchorRef={wrapperRef}
           onPick={onPick}
+          asTeacher={asTeacher}
           onClose={(restoreFocus) => {
             onClose();
             if (restoreFocus) triggerRef.current?.focus();
@@ -103,6 +106,8 @@ interface ProjectOwnGroupStepsProps {
   openStepId: string | null;
   onOpenStep: (stepId: string | null) => void;
   onPick: (step: ProjectStep, state: ProjectStepState) => void;
+  /** The teacher's view of this group: approval steps stay editable. */
+  asTeacher?: boolean;
 }
 
 /** D47 — the student's own group as a colored row of step cells in the board's colors. */
@@ -114,6 +119,7 @@ export const ProjectOwnGroupSteps: React.FC<ProjectOwnGroupStepsProps> = ({
   openStepId,
   onOpenStep,
   onPick,
+  asTeacher = false,
 }) => {
   const color = resolveGroupColor(group.color, group.order);
   return (
@@ -152,6 +158,7 @@ export const ProjectOwnGroupSteps: React.FC<ProjectOwnGroupStepsProps> = ({
                 }
                 onClose={() => onOpenStep(null)}
                 onPick={(state) => onPick(step, state)}
+                asTeacher={asTeacher}
               />
             ))}
           </ol>

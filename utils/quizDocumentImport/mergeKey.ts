@@ -217,14 +217,22 @@ export function mergeAnswerKey(
   const match = matcherFor(questions, items);
   const unmatched: string[] = [];
   let entries = 0;
-  let matched = 0;
+  // One question per matching set, since the set's items combine into one question below.
+  const answered = new Set<string>();
   let conflicts = 0;
 
   items.forEach((item, index) => {
     const targets = match(item, index);
     const hasAnswer = Boolean(item.answer) || Boolean(item.ordering?.length);
     if (hasAnswer) entries += 1;
-    if (hasAnswer && targets.length > 0) matched += 1;
+    if (hasAnswer) {
+      for (const t of targets) {
+        const group = questions[t].matchingGroup;
+        answered.add(
+          group && questions[t].type !== 'Matching' ? `g:${group}` : `q:${t}`
+        );
+      }
+    }
     if (targets.length === 0) {
       if (hasAnswer) unmatched.push(keyItemLabel(item));
       return;
@@ -286,7 +294,7 @@ export function mergeAnswerKey(
     keySummary: {
       source,
       entries,
-      matched,
+      matched: answered.size,
       unmatchedLabels: unmatched,
       conflicts,
     },

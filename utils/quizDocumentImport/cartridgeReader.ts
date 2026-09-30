@@ -8,6 +8,7 @@
  * comes with the questions rather than having to be found in the prose.
  */
 
+import { joinBlanks } from '@/utils/quizFibBlanks';
 import DOMPurify from 'dompurify';
 import JSZip from 'jszip';
 import type {
@@ -249,6 +250,39 @@ function matchingPairs(
   return { answer: pairs.join('|'), warnings };
 }
 
+/** Canvas "fill in multiple blanks": one response per `[name]` in the stem, which becomes `___`. */
+function fillInMultipleBlanks(
+  responseLids: Element[],
+  correct: Map<string, string[]>,
+  stemText: string
+): { text: string; answer: string; warnings: string[] } {
+  let text = stemText;
+  const answers: string[] = [];
+  const warnings: string[] = [];
+  for (const lid of responseLids) {
+    const name = childrenNamed(lid, 'material')
+      .map((m) => materialText(m).text)
+      .join(' ')
+      .trim();
+    if (name && text.includes(`[${name}]`))
+      text = text.split(`[${name}]`).join('___');
+    const choices = choicesOf(lid);
+    const ident = lid.getAttribute('ident') ?? '';
+    const wanted = offered(correct.get(ident) ?? [], choices);
+    const accepted = choices
+      .filter((c) => wanted.includes(c.ident))
+      .map((c) => c.text)
+      .filter(Boolean);
+    answers.push(accepted[0] ?? '');
+    if (accepted.length > 1) {
+      warnings.push(
+        `Blank ${answers.length} accepted ${accepted.length} answers (${accepted.join(', ')}); the first was kept.`
+      );
+    }
+  }
+  return { text, answer: joinBlanks(answers), warnings };
+}
+
 function toQuestion(
   item: Element,
   number: number,
@@ -331,6 +365,11 @@ function toQuestion(
     warnings.push(
       'This came in as an ordering question; the export does not record the order, so put the items in order in the editor.'
     );
+  } else if (type === 'FIB' && responseLids.length >= 2) {
+    const blanks = fillInMultipleBlanks(responseLids, correct, stem.text);
+    stem.text = blanks.text;
+    correctAnswer = blanks.answer;
+    warnings.push(...blanks.warnings);
   } else if (type === 'FIB') {
     const accepted = [...correct.values()].flat().filter(Boolean);
     correctAnswer = accepted[0] ?? '';

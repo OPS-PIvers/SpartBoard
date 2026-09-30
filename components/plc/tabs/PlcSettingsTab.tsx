@@ -174,6 +174,9 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
           return (
             <button
               key={row.key}
+              type="button"
+              role="switch"
+              aria-checked={enabled}
               onClick={() => void handleToggle(row.key)}
               disabled={anyBusy}
               className={`flex items-center gap-3 p-3 bg-white border rounded-xl text-left transition-colors ${
@@ -197,8 +200,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
                 </div>
               </div>
               <div
-                role="switch"
-                aria-checked={enabled}
+                aria-hidden="true"
                 className={`shrink-0 relative w-10 h-5 rounded-full transition-colors ${
                   enabled ? 'bg-brand-blue-primary' : 'bg-slate-300'
                 }`}
@@ -270,6 +272,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
             </div>
           </div>
           <div
+            aria-hidden="true"
             className={`shrink-0 relative w-10 h-5 rounded-full transition-colors ${
               digestOptIn ? 'bg-brand-blue-primary' : 'bg-slate-300'
             }`}

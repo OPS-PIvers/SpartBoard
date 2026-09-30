@@ -3542,7 +3542,7 @@ export interface QuizQuestion {
   text: string;
   type: QuizQuestionType;
   /**
-   * MC/FIB: the correct answer text.
+   * MC/FIB: the correct answer text. Multi-blank FIB: one answer per blank joined by `FIB_BLANK_SEP`.
    * Matching: pipe-separated pairs "term1:def1|term2:def2"
    * Ordering: pipe-separated items in correct order "item1|item2|item3"
    * MA: pipe-separated correct options "opt1|opt2"
@@ -3553,6 +3553,8 @@ export interface QuizQuestion {
   incorrectAnswers: string[];
   /** FIB only: other answers also marked correct (e.g. "colour" beside "color"). Never sent to students. */
   alternateAnswers?: string[];
+  /** Multi-blank FIB only: other accepted answers per blank, index-aligned with the blanks in `correctAnswer`. Never sent to students. */
+  blankAlternates?: { answers: string[] }[];
   /** MC/MA: editor-only display order over `[right options..., incorrectAnswers...]`; students still get a shuffle. */
   optionOrder?: number[];
   /**
@@ -4112,6 +4114,8 @@ export interface QuizSessionOptions extends BaseSessionOptions {
   readAloudAll?: boolean;
   /** Teacher opt-in for the student raise-hand button. Absent = off. */
   handRaiseEnabled?: boolean;
+  /** Score each attempt on submit and show it; ignored when a question needs manual grading. */
+  showScoreOnSubmit?: boolean;
 }
 
 /**
@@ -4142,6 +4146,8 @@ export interface QuizPublicQuestion {
   timeLimit: number;
   /** MC/MA: all answer choices pre-shuffled (correct identity unknown) */
   choices?: string[];
+  /** FIB only: number of blanks to fill, set only when there are two or more. */
+  blankCount?: number;
   /** Matching only: left-side terms (prompt side) */
   matchingLeft?: string[];
   /**
@@ -4411,6 +4417,8 @@ export interface QuizSession
   showCorrectOnBoard?: boolean;
   /** Group published answer feedback by the projected learning-target tags. */
   showLearningTargets?: boolean;
+  /** Students see their score as soon as the server grades a submitted attempt. */
+  showScoreOnSubmit?: boolean;
   /**
    * Teacher-written map of questionId → correct answer text.
    * Students read from this after submitting; only populated when the
@@ -9045,6 +9053,8 @@ export type GlobalFeature =
   | 'quiz-sections'
   /** "Also accept" alternate answers on fill-in-the-blank quiz questions. */
   | 'quiz-fib-alternates'
+  /** One answer box per blank on fill-in-the-blank quiz questions. */
+  | 'quiz-fib-multi-blank'
   /** "View full screen" toggle on large pop-ups (editors, graders). */
   | 'modal-fullscreen'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
@@ -9063,6 +9073,10 @@ export type GlobalFeature =
   | 'video-activity-live'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
   | 'quiz-student-view'
+  /** Quiz setting that shows students their score as soon as they submit. */
+  | 'quiz-score-on-submit'
+  /** Projects board: tapping a group name opens that group's student view. */
+  | 'projects-group-view'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'

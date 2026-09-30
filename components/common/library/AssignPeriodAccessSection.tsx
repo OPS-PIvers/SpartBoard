@@ -5,6 +5,7 @@ import type { AccessMode, RosterBellPeriod } from '@/types';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import type { BuildingBellPeriodOption } from '@/utils/bellSchedule';
 import {
+  DEFAULT_PERIOD_PLAN,
   rosterIsVerified,
   type EpochWindow,
   type PeriodPlan,
@@ -24,8 +25,6 @@ export interface AssignPeriodAccessContext {
     bellPeriod: RosterBellPeriod
   ) => Promise<void> | void;
 }
-
-const DEFAULT_PLAN: PeriodPlan = { mode: 'assignment' };
 
 const bellKey = (b: RosterBellPeriod): string =>
   `${b.buildingId}|${b.periodId}`;
@@ -170,7 +169,13 @@ export const AssignPeriodAccessSection: React.FC<{
   context: AssignPeriodAccessContext;
   /** The shared window's open time; bell times are read for that day, else today. */
   sharedOpenAt?: number;
-}> = ({ rosters, plan = DEFAULT_PLAN, onChange, context, sharedOpenAt }) => {
+}> = ({
+  rosters,
+  plan = DEFAULT_PERIOD_PLAN,
+  onChange,
+  context,
+  sharedOpenAt,
+}) => {
   const { t } = useTranslation();
   const [customizing, setCustomizing] = useState(
     Object.keys(plan.rows ?? {}).length > 0

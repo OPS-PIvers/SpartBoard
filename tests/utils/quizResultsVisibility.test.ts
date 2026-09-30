@@ -23,6 +23,28 @@ const shown = (
 });
 
 describe('resolveResultsVisibility', () => {
+  it('shows a server-scored attempt when the quiz shows scores on submit', () => {
+    const scored = { status: 'completed' as const, score: 80 };
+    expect(
+      resolveResultsVisibility({ showScoreOnSubmit: true }, scored, NOW)
+    ).toEqual({ visibility: 'score-only', source: 'class' });
+    expect(
+      resolveResultsVisibility(
+        { showScoreOnSubmit: true },
+        { status: 'completed', score: null },
+        NOW
+      ).visibility
+    ).toBe('none');
+    expect(resolveResultsVisibility({}, scored, NOW).visibility).toBe('none');
+    expect(
+      resolveResultsVisibility(
+        { showScoreOnSubmit: true },
+        { ...scored, resultsOverride: { mode: 'hidden', publishedAt: 1 } },
+        NOW
+      ).visibility
+    ).toBe('none');
+  });
+
   it('follows the class when there is no override', () => {
     expect(resolveResultsVisibility({}, {}, NOW)).toEqual({
       visibility: 'none',

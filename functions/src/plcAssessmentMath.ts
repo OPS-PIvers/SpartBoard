@@ -53,6 +53,8 @@ export interface GroupQuestion {
   correctAnswer: string | null;
   /** FIB only: other accepted answers from the synced key. */
   alternateAnswers?: string[];
+  /** Multi-blank FIB only: other accepted answers per blank. */
+  blankAlternates?: { answers: string[] }[];
   allowPartialCredit: boolean;
   /** Rubric criterion ids on the synced question; empty when no rubric. */
   rubricCriterionIds: string[];
@@ -296,7 +298,7 @@ function parseRubricCriterionIds(raw: unknown): string[] {
     .filter((id) => id.length > 0);
 }
 
-function parseSyncedQuestion(raw: unknown): GroupQuestion | null {
+export function parseSyncedQuestion(raw: unknown): GroupQuestion | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const r = raw as Record<string, unknown>;
   const id = asString(r.id);
@@ -326,6 +328,17 @@ function parseSyncedQuestion(raw: unknown): GroupQuestion | null {
           alternateAnswers: asStringArray(r.alternateAnswers).filter(
             (a) => a.trim().length > 0
           ),
+          ...(Array.isArray(r.blankAlternates)
+            ? {
+                blankAlternates: r.blankAlternates.map((b: unknown) => ({
+                  answers: asStringArray(
+                    typeof b === 'object' && b !== null
+                      ? (b as Record<string, unknown>).answers
+                      : undefined
+                  ),
+                })),
+              }
+            : {}),
         }
       : {}),
     allowPartialCredit: r.allowPartialCredit === true,
@@ -533,7 +546,40 @@ function hasSubmittedContent(answer: string): boolean {
     previous = stripped;
     stripped = stripped.replace(/<[^<>]*>/g, '');
   } while (stripped !== previous);
-  return stripped.replace(/&nbsp;/gi, ' ').trim().length > 0;
+  return (
+    stripped
+      .replace(/&nbsp;/gi, ' ')
+      .split(FIB_BLANK_SEP)
+      .join('')
+      .trim().length > 0
+  );
+}
+
+/** Joins per-blank values in a multi-blank key or answer; mirrors utils/quizFibBlanks.ts. */
+export const FIB_BLANK_SEP = '\u001F';
+
+/** Correct blanks in a multi-blank answer; mirrors `scoreFibBlanks` in utils/quizFibBlanks.ts. */
+export function scoreFibBlanksServer(
+  question: Pick<GroupQuestion, 'blankAlternates'> & { correctAnswer: string },
+  studentAnswer: string,
+  extra: readonly string[] = []
+): { correct: number; total: number } {
+  const mains = question.correctAnswer.split(FIB_BLANK_SEP);
+  const typed = studentAnswer.split(FIB_BLANK_SEP);
+  const extraParts = extra.map((e) => e.split(FIB_BLANK_SEP));
+  let correct = 0;
+  mains.forEach((main, i) => {
+    const t = normalizeAnswer(typed[i] ?? '');
+    if (t === '') return;
+    const pool = [
+      main,
+      ...(question.blankAlternates?.[i]?.answers ?? []),
+      ...extraParts.map((p) => p[i] ?? ''),
+    ];
+    if (pool.some((a) => a.trim() !== '' && normalizeAnswer(a) === t))
+      correct++;
+  });
+  return { correct, total: mains.length };
 }
 
 /** Longest run of `given` items appearing in `correct` order; mirrors the client grader. */
@@ -617,6 +663,26 @@ export function gradeGroupAnswer(
   const correct = normalizeAnswer(question.correctAnswer);
   const given = normalizeAnswer(studentAnswer);
   const partial = question.allowPartialCredit;
+  if (
+    question.type === 'FIB' &&
+    question.correctAnswer.includes(FIB_BLANK_SEP)
+  ) {
+    const { correct: right, total } = scoreFibBlanksServer(
+      {
+        correctAnswer: question.correctAnswer,
+        blankAlternates: question.blankAlternates,
+      },
+      studentAnswer,
+      acceptedAnswers
+    );
+    const exact = right === total;
+    return {
+      isCorrect: exact,
+      pointsEarned: partial ? (right / total) * max : exact ? max : 0,
+      pointsMax: max,
+      state,
+    };
+  }
   if (question.type === 'MA') {
     const right = new Set(
       multiAnswerParts(question.correctAnswer).map(normalizeAnswer)
@@ -704,7 +770,9 @@ export function questionScoring(question: GroupQuestion): QuestionScoring {
   if (
     (question.type === 'MA' ||
       question.type === 'Matching' ||
-      question.type === 'Ordering') &&
+      question.type === 'Ordering' ||
+      (question.type === 'FIB' &&
+        (question.correctAnswer ?? '').includes(FIB_BLANK_SEP))) &&
     question.allowPartialCredit
   )
     return 'points';

@@ -819,6 +819,36 @@ describe('gradeGroupAnswer', () => {
     expect(gradeGroupAnswer(fib, 'colr', undefined).isCorrect).toBe(false);
   });
 
+  it('grades multi-blank FIB per blank, with partial credit and per-blank alternates', () => {
+    const fib = q({
+      type: 'FIB',
+      points: 2,
+      correctAnswer: 'red\u001Fblue',
+      blankAlternates: [{ answers: [] }, { answers: ['navy'] }],
+    });
+    expect(gradeGroupAnswer(fib, 'Red\u001Fnavy', undefined)).toMatchObject({
+      isCorrect: true,
+      pointsEarned: 2,
+    });
+    expect(
+      gradeGroupAnswer(fib, 'red\u001Fgreen', undefined).pointsEarned
+    ).toBe(0);
+    expect(
+      gradeGroupAnswer(
+        { ...fib, allowPartialCredit: true },
+        'red\u001Fgreen',
+        undefined
+      ).pointsEarned
+    ).toBe(1);
+    expect(gradeGroupAnswer(fib, '\u001F', undefined).state).toBe(
+      'not-attempted'
+    );
+    expect(
+      gradeGroupAnswer(fib, 'rojo\u001Fazul', undefined, ['rojo\u001Fazul'])
+        .isCorrect
+    ).toBe(true);
+  });
+
   it('grades matching strictly or partially', () => {
     const m = q({ type: 'Matching', correctAnswer: 'a:1|b:2' });
     expect(gradeGroupAnswer(m, 'a:1|b:3', undefined).pointsEarned).toBe(0);

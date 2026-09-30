@@ -488,6 +488,16 @@ export const fibTokens = (text: string): string[] =>
   text.match(FIB_TOKEN_RE) ?? [];
 
 /** Put the original underscore runs back; an unknown token is left as-is. */
+// Joins per-blank answers in a multi-blank key; mirrors utils/quizFibBlanks.ts.
+const FIB_BLANK_SEP = '\u001F';
+
+/** 1 for a single-answer key. */
+const fibKeyBlanks = (key: string): number => key.split(FIB_BLANK_SEP).length;
+
+/** A multi-blank key as the model reads it: "red | blue". */
+const fibAnswerForPrompt = (key: string): string =>
+  key.split(FIB_BLANK_SEP).join(' | ');
+
 export function restoreFibStem(text: string, blanks: string[]): string {
   return text.replace(FIB_TOKEN_RE, (token) => {
     const index = Number(token.slice(2, -2));
@@ -586,6 +596,13 @@ export function validateQuizTranslation(
         (typeof t.answer !== 'string' || t.answer.trim() === '')
       )
         return `Question ${id}: a translated accepted answer is required.`;
+      const blanks = fibKeyBlanks(q.correctAnswer ?? '');
+      if (
+        blanks > 1 &&
+        (typeof t.answer !== 'string' ||
+          t.answer.split('|').filter((a) => a.trim() !== '').length !== blanks)
+      )
+        return `Question ${id}: the translated answer must list ${blanks} answers separated by " | ".`;
     }
 
     if (isFreeResponse(q.type) && q.rubricSnapshot) {
@@ -685,6 +702,7 @@ export function buildSystemInstruction(
     'Never introduce the characters "|" or ":" into matching or ordering strings.',
     'Fill-in-the-blank stems contain blank tokens like [[1]]. Reproduce every token verbatim, exactly once, adding none and dropping none; place each where the blank belongs in the target language.',
     'For a fill-in-the-blank question also translate "answer" — the accepted answer a student types.',
+    'When a fill-in-the-blank "answer" lists one answer per blank separated by " | ", keep the same number of answers in the same order, separated by " | ".',
     'Return JSON only, with one entry per requested question id and no extras.',
   ].join(' ');
 }
@@ -710,7 +728,7 @@ export function buildTranslationPrompt(
         ? tokenizeFibStem(q.text ?? '').text
         : (q.text ?? ''),
       ...(isFillInTheBlank(q.type) && (q.correctAnswer ?? '').trim() !== ''
-        ? { answer: q.correctAnswer }
+        ? { answer: fibAnswerForPrompt(q.correctAnswer ?? '') }
         : {}),
       ...(isMultipleChoice(q.type) ? { choices: filteredChoices(q) } : {}),
       ...(isMatching(q.type)
@@ -978,6 +996,11 @@ export async function translateQuiz(
       entry.text,
       tokenizeFibStem(q.text ?? '').blanks
     );
+    if (fibKeyBlanks(q.correctAnswer ?? '') > 1 && entry.answer)
+      entry.answer = entry.answer
+        .split('|')
+        .map((a) => a.trim())
+        .join(FIB_BLANK_SEP);
   }
 
   const sourceHashes: Record<string, string> = {};

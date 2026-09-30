@@ -33,6 +33,7 @@ import { EditorWorkspace } from '@/components/common/EditorWorkspace';
 import { useAuth } from '@/context/useAuth';
 import { useQuizHandRaiseMode } from '@/hooks/useQuizHandRaiseMode';
 import { QuizBehaviorSettingsPanel } from '@/components/common/library/QuizBehaviorSettingsPanel';
+import { quizNeedsManualGrading } from '@/utils/quizScoreOnSubmit';
 import {
   QuizAiOverlay,
   QuizEditorContextPane,
@@ -165,6 +166,10 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       qa.text !== qb.text ||
       qa.type !== qb.type ||
       qa.correctAnswer !== qb.correctAnswer ||
+      (qa.alternateAnswers ?? []).join('\n') !==
+        (qb.alternateAnswers ?? []).join('\n') ||
+      JSON.stringify(qa.blankAlternates ?? []) !==
+        JSON.stringify(qb.blankAlternates ?? []) ||
       qa.timeLimit !== qb.timeLimit ||
       (qa.points ?? 1) !== (qb.points ?? 1) ||
       (qa.allowPartialCredit === true) !== (qb.allowPartialCredit === true) ||
@@ -679,6 +684,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
                 onChange={setBehavior}
                 readAloudAvailable={readAloudAvailable}
                 handRaiseMode={handRaiseMode}
+                hasManualGrading={quizNeedsManualGrading(questions)}
               />
             </div>
           )}

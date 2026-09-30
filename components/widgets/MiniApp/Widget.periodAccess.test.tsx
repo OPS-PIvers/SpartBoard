@@ -148,7 +148,7 @@ describe('MiniAppWidget assign — per-period access', () => {
         periodAccess: Record<string, { label: string }>;
       };
     };
-    expect(options.periodGate.accessMode).toBe('assignment');
+    expect(options.periodGate.accessMode).toBe('assessment');
     expect(Object.keys(options.periodGate.periodAccess).sort()).toEqual([
       'cl-1',
       'cl-3',

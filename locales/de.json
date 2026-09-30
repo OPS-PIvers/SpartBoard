@@ -2082,6 +2082,12 @@
       "barLabel": "Durchschnittliche Punktzahl {{pct}} %"
     }
   },
+  "quizScoreOnSubmit": {
+    "label": "Punktzahl nach Abgabe zeigen",
+    "on": "Schüler/innen sehen ihre Punktzahl direkt nach der Abgabe.",
+    "off": "Schüler/innen sehen ihre Punktzahl, wenn du die Ergebnisse veröffentlichst.",
+    "unavailable": "Nicht verfügbar bei Freitextfragen."
+  },
   "quizReadAloud": {
     "label": "Vorlesen",
     "help": "Nur für angemeldete Schüler.",

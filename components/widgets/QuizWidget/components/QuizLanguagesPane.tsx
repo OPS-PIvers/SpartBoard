@@ -3,6 +3,7 @@
  * question, mark reviewed. Only reviewed + hash-fresh questions ever publish.
  */
 
+import { isMultiBlank, joinBlanks, splitBlanks } from '@/utils/quizFibBlanks';
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Languages, Loader2 } from 'lucide-react';
@@ -420,12 +421,25 @@ export const QuizLanguagesDetailPane: React.FC<QuizLanguagesPaneProps> = ({
             <p className="text-xxs font-semibold uppercase tracking-wider text-slate-500">
               {t('quizTranslation.editor.answerKey')}
             </p>
-            {row(
-              'answer',
-              question.correctAnswer,
-              entry?.answer ?? '',
-              (value) => edit({ answer: value })
-            )}
+            {isMultiBlank(question)
+              ? splitBlanks(question.correctAnswer).map((english, i) => {
+                  const parts = splitBlanks(entry?.answer ?? '');
+                  return row(`answer-${i}`, english, parts[i] ?? '', (value) =>
+                    edit({
+                      answer: joinBlanks(
+                        splitBlanks(question.correctAnswer).map((_, j) =>
+                          j === i ? value : (parts[j] ?? '')
+                        )
+                      ),
+                    })
+                  );
+                })
+              : row(
+                  'answer',
+                  question.correctAnswer,
+                  entry?.answer ?? '',
+                  (value) => edit({ answer: value })
+                )}
           </>
         )}
         {question.placeholder !== undefined &&

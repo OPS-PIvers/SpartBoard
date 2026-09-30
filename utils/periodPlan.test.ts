@@ -125,15 +125,19 @@ describe('buildPeriodGate', () => {
     expect(Object.keys(gate?.periodAccess ?? {})).toEqual(['cl-1', 't-3']);
   });
 
-  it('defaults to assignment mode with the shared window', () => {
+  it('defaults to in-class assessment with every period closed', () => {
     const gate = buildPeriodGate({
       plan: undefined,
       rosters: [sso, local],
       sharedWindow: { openAt: 5, closeAt: 9 },
       bellWindow,
     });
-    expect(gate?.accessMode).toBe('assignment');
-    expect(gate?.periodAccess['cl-1']).toMatchObject({ openAt: 5, closeAt: 9 });
+    expect(gate?.accessMode).toBe('assessment');
+    expect(gate?.periodAccess['cl-1']).toMatchObject({
+      state: 'closed',
+      openAt: null,
+      closeAt: null,
+    });
   });
 
   it('stays legacy with the flag off, one roster, or one shared class id', () => {

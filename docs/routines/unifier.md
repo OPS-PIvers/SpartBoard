@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 101_
-_Last run: 2026-09-29_
+_Run count: 102_
+_Last run: 2026-09-30_
 _Base branch: dev-paul_
 
 ---
@@ -569,6 +569,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-09-30 | `claude/kind-johnson-1fkdfr` | D3 Settings Labels | Shipped (run 102) — `components/admin/access/AccessFeatureRow.tsx` `AccessLevelPicker` (Admin/Beta/Public, also used by `WidgetPermissionCardBody`) converted `role="group"` + `aria-pressed` → `radiogroup`/`radio`/`aria-checked`/roving tabindex via `handleRadioGroupKeyDown`. Non-nullable value, single setter, no dismiss side effect; visuals unchanged. New `tests/components/admin/AccessLevelPicker.test.tsx`; related suites pass. Solo run; scoped checks only (CLAUDE.md forbids full validate). Remaining D3 candidates: `PaperBoxSizeField.tsx`, `ProjectStepStatePicker.tsx`. Mechanical. | PR (this branch) |
 | 2026-09-29 | `nightly/unify-d4-import-paths-2026-09-29` | D4 Import Paths | Shipped (run 101) — closed the run-100 backlog item: 3 test files (`ci.firestoreRulesRelease`, `glAuthorValidator`, `glAuthorExamples`) plus a 4th found on sweep (`tests/config/tailwindBrandTokens.test.ts`) converted from relative `../` to `@/` alias. New `no-restricted-imports` block for `tests/**` bans `^\.\./` (live-fire verified). Baseline validate green; 4 affected suites + tsc pass. Mechanical. | PR #3580 |
 | 2026-09-29 | — | D1/D2/D3/D5 | Not investigated (run 101) — one unification tonight per the run-100 backlog; D3 still has 3 clean candidates (`AccessFeatureRow.tsx` `AccessLevelPicker`, `PaperBoxSizeField.tsx`, `ProjectStepStatePicker.tsx`) queued for the next run. | — |
 | 2026-09-28 | `claude/admiring-gates-tmeimh` | D5 Toast Architecture | Shipped (run 100) — `FeaturesPanel.tsx`, `PreviewsPanel.tsx`, `AppSettingsView.tsx`, and one of `FeaturePermissionsManager.tsx`'s two `<Toast>` blocks converted from a local floating-overlay `<Toast>` to `addToast()`. A regression of the already-fixed D5-E3/E4/E7/E11 pattern, reintroduced by the "Admin Access reorg" (commit `3eaa99d`, PR #3476) which split `GlobalPermissionsManager` into a shared `useGlobalPermissionsEditor()` hook plus 3 new panels and copy-pasted the old raw `<Toast>` JSX into each. A 4th instance was caught only by the orchestrator independently re-reading `FeaturePermissionsManager.tsx`, not by the investigating subagent, which had folded the file into its already-catalogued D5-E9 exception without noticing it renders TWO separate `<Toast>` blocks for two different state sources. Fixed once at the shared hook (`showMessage` now calls `addToast` via `useDashboard()`, `message`/`setMessage` dropped from its return) rather than patching 4 call sites — enforced, not swept by hand. See the D5 backlog table for full detail. This run used the run-97-established adaptation for this single-branch, MCP-only-GitHub environment: all 5 dimensions dispatched as parallel read-only investigation agents (no worktrees needed, no file writes), then one candidate implemented directly. validate ✅ (baseline 1495/1495 root, 15696 tests + 5 skipped, 104/104 functions, 2339 tests → post-change identical counts) + build ✅ (client+SSR+prerender), both run directly by the orchestrator. | #3542 (draft, mechanical) |
