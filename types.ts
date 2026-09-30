@@ -9083,6 +9083,10 @@ export type GlobalFeature =
   | 'projects-group-view'
   /** Quiz assign/edit: a separate due date per selected class. */
   | 'quiz-per-class-due-dates'
+  /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
+  | 'gradebook'
+  /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
+  | 'student-gradebook'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'

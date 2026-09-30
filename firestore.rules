@@ -957,6 +957,12 @@ service cloud.firestore {
 
     // Rollout switch for the "Review before assigning" mark on Claude-made
     // items — teachers read it to show the mark; admins turn it off.
+    // Gradebook district proficiency scale (GRADEBOOK.md D17): every teacher reads it; admins write via the wildcard.
+    match /admin_settings/gradebook {
+      allow read: if request.auth != null && notAnon() && !isStudentRoleUser();
+      allow write: if isAdmin();
+    }
+
     match /admin_settings/claude_review_reminders {
       allow read: if request.auth != null;
       allow write: if isAdmin();
@@ -2939,7 +2945,15 @@ service cloud.firestore {
                          <= incoming().masteryCutoffs.proficient
                   )
              );
-        allow delete: if false;
+        // Gradebook shared configuration (GRADEBOOK.md D16): leads and co-leads only.
+        allow create, update: if gbTeacher()
+          && metaId == 'gradebookSettings'
+          && isPlcMembershipManager(get(/databases/$(database)/documents/plcs/$(plcId)).data)
+          && gbSettingsOk(incoming(), ['updatedBy'])
+          && incoming().updatedBy == authUid();
+        allow delete: if gbTeacher()
+          && metaId == 'gradebookSettings'
+          && isPlcMembershipManager(get(/databases/$(database)/documents/plcs/$(plcId)).data);
       }
 
       // PLC question-bank headers (plan §5): pointer at /synced_question_banks/{groupId}.
@@ -3663,6 +3677,156 @@ service cloud.firestore {
           );
         allow delete: if request.auth != null &&
           (authUid() == userId || isAdmin());
+      }
+    }
+
+    // ---- Gradebook (docs/plans/GRADEBOOK.md data model) ----
+    // Teacher docs are owner-only in v1; editorUids is stored empty for later co-teaching (D12).
+    function gbTeacher() {
+      return request.auth != null && notAnon() && !isStudentRoleUser() && notDeactivated();
+    }
+    function gbOwned() {
+      return request.auth != null && existing().ownerUid == authUid();
+    }
+    // A mark or column may only be created on the caller's own session.
+    function gbSessionOwned(d) {
+      return get(/databases/$(database)/documents/$({
+        'quiz': 'quiz_sessions',
+        'video-activity': 'video_activity_sessions',
+        'guided-learning': 'guided_learning_sessions',
+        'flashcards': 'flashcard_sessions',
+        'projects': 'project_runs',
+        'mini-app': 'mini_app_sessions',
+        'activity-wall': 'activity_wall_sessions'
+      }[d.kind])/$(d.sessionId)).data.teacherUid == authUid();
+    }
+    function gbCreateOk(d) {
+      return gbTeacher() && d.ownerUid == authUid() && d.editorUids == [] && gbSessionOwned(d);
+    }
+    function gbUpdateOk() {
+      return gbTeacher() && existing().ownerUid == authUid() &&
+             !changed(['ownerUid', 'editorUids', 'kind', 'sessionId', 'studentUid']);
+    }
+    function gbMarkOk(d) {
+      return d.keys().hasOnly(['kind', 'sessionId', 'studentUid', 'ownerUid', 'editorUids', 'rosterIds',
+               'override', 'comment', 'flags', 'suppressedAuto', 'publishOverride', 'updatedAt']) &&
+             d.studentUid is string && d.rosterIds is list && d.rosterIds.size() <= 20 &&
+             (d.get('override', null) == null ||
+              (d.override.keys().hasOnly(['points', 'at']) && d.override.points is number && d.override.at is int)) &&
+             (d.get('comment', null) == null ||
+              (d.comment.keys().hasOnly(['text', 'shared', 'at']) && d.comment.text is string &&
+               d.comment.text.size() <= 5000 && d.comment.shared is bool && d.comment.at is int)) &&
+             d.flags is list && d.flags.size() <= 30 &&
+             d.suppressedAuto is list && d.suppressedAuto.size() <= 5 &&
+             d.get('publishOverride', null) in [null, 'published', 'unpublished'] &&
+             d.updatedAt is int;
+    }
+    function gbColumnOk(d) {
+      return d.keys().hasOnly(['kind', 'sessionId', 'ownerUid', 'editorUids', 'category', 'countsTowardOverall',
+               'maxPointsOverride', 'attemptPolicy', 'targets', 'hiddenInRosterIds', 'updatedAt']) &&
+             (d.get('category', null) == null || d.category is string) &&
+             d.countsTowardOverall is bool &&
+             (d.get('maxPointsOverride', null) == null ||
+              (d.maxPointsOverride is number && d.maxPointsOverride > 0)) &&
+             d.attemptPolicy in ['latest', 'highest', 'average'] &&
+             d.targets is list && d.targets.size() <= 100 &&
+             d.hiddenInRosterIds is list && d.hiddenInRosterIds.size() <= 50 &&
+             d.updatedAt is int;
+    }
+    // D16 settings body shared by personal, PLC and district configurations; `extra` names the doc's own keys.
+    function gbSettingsOk(d, extra) {
+      return d.keys().hasOnly(['name', 'flags', 'categoriesEnabled', 'categories', 'scale', 'method',
+               'studentVisibility', 'autoFlags', 'updatedAt'].concat(extra)) &&
+             d.name is string && d.name.size() > 0 && d.name.size() <= 80 &&
+             d.flags is list && d.flags.size() <= 26 &&
+             d.categoriesEnabled is bool && d.categories is list && d.categories.size() <= 20 &&
+             d.scale is map && d.method in ['mean', 'recent', 'highest', 'decaying'] &&
+             d.studentVisibility is map && d.autoFlags is bool && d.updatedAt is int;
+    }
+    // Admin-written, org-scoped docs (district configurations, grading period sets).
+    function gbOrgAdminWriteOk() {
+      return isAdmin() && isOrgMember(incoming().orgId) &&
+             (resource == null || isOrgMember(existing().orgId)) &&
+             incoming().buildingIds is list && incoming().buildingIds.size() <= 50;
+    }
+
+    // D10 index rows: written only by the server triggers.
+    match /grade_index/{rowId} {
+      allow read: if gbOwned();
+      allow write: if false;
+    }
+
+    // D9 overlay, one per assignment x student.
+    match /gradebook_marks/{markId} {
+      allow read: if gbOwned();
+      allow delete: if gbTeacher() && gbOwned();
+      allow create: if gbCreateOk(incoming()) && gbMarkOk(incoming()) &&
+        markId == incoming().sessionId + '__' + incoming().studentUid;
+      allow update: if gbUpdateOk() && gbMarkOk(incoming());
+
+      // D24 change log: append-only, by the mark's owner.
+      match /history/{entryId} {
+        allow read: if gbOwned();
+        allow create: if gbTeacher() &&
+          incoming().keys().hasOnly(['ownerUid', 'byUid', 'at', 'field', 'before', 'after', 'batchId']) &&
+          incoming().ownerUid == authUid() && incoming().byUid == authUid() &&
+          isInt('at') && incoming().field in ['override', 'comment', 'flags', 'publish', 'fill'] &&
+          (incoming().get('batchId', null) == null || isStr('batchId')) &&
+          getAfter(/databases/$(database)/documents/gradebook_marks/$(markId)).data.ownerUid == authUid();
+        allow update, delete: if false;
+      }
+    }
+
+    // D22 per-column grading setup.
+    match /gradebook_columns/{sessionId} {
+      allow read: if gbOwned();
+      allow delete: if gbTeacher() && gbOwned();
+      allow create: if gbCreateOk(incoming()) && gbColumnOk(incoming()) &&
+        incoming().sessionId == sessionId;
+      allow update: if gbUpdateOk() && gbColumnOk(incoming());
+    }
+
+    // D16 personal configurations and per-class view state.
+    match /users/{userId}/gradebook_settings/{configId} {
+      allow read, delete: if ownsUserTeacher(userId);
+      allow create, update: if ownsUserTeacher(userId) &&
+        gbSettingsOk(incoming(), ['ownerUid', 'editorUids', 'isDefault']) &&
+        incoming().ownerUid == userId && incoming().editorUids == [] &&
+        optBool(incoming(), 'isDefault');
+    }
+    match /users/{userId}/gradebook_classes/{rosterId} {
+      allow read, delete: if ownsUserTeacher(userId);
+      allow create, update: if ownsUserTeacher(userId) &&
+        incoming().keys().hasOnly(['rosterId', 'ownerUid', 'editorUids', 'configRef', 'sort',
+          'nameFormat', 'cellFormat', 'cardLayouts', 'updatedAt']) &&
+        incoming().rosterId == rosterId && incoming().ownerUid == userId &&
+        incoming().editorUids == [] && isInt('updatedAt');
+    }
+
+    // D16 district configurations, read by teachers in the same org (the client filters by building).
+    match /gradebook_district_configs/{configId} {
+      allow read: if request.auth != null && (isOrgMember(existing().orgId) || isSuperAdmin());
+      allow delete: if isAdmin() && isOrgMember(existing().orgId);
+      allow create, update: if gbOrgAdminWriteOk() &&
+        gbSettingsOk(incoming(), ['orgId', 'buildingIds', 'isDefault']) && isBool('isDefault');
+    }
+
+    // D18 grading periods per building.
+    match /grading_period_sets/{setId} {
+      allow read: if request.auth != null && (isOrgMember(existing().orgId) || isSuperAdmin());
+      allow delete: if isAdmin() && isOrgMember(existing().orgId);
+      allow create, update: if gbOrgAdminWriteOk() &&
+        incoming().keys().hasOnly(['name', 'orgId', 'buildingIds', 'periods', 'updatedAt']) &&
+        isStr('name') && isList('periods') && incoming().periods.size() <= 12 && isInt('updatedAt');
+    }
+
+    // D37 student projection: server-written, read only by that signed-in student.
+    match /student_grades/{studentUid} {
+      allow read, write: if false;
+
+      match /classes/{classId} {
+        allow read: if request.auth != null && authUid() == studentUid && isStudentRoleUser();
+        allow write: if false;
       }
     }
 
