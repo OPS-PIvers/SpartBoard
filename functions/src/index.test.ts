@@ -3285,6 +3285,7 @@ describe('index barrel — deployed export set', () => {
     'gradeIndexQuizKey',
     'gradeIndexQuizAssignment',
     'gradeIndexVideoKey',
+    'gradeIndexGuidedLearningAssignment',
     'gradeIndexProjectGroup',
     'gradeIndexStudentPointer',
     'gradeIndexProjection',

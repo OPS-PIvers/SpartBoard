@@ -86,6 +86,7 @@ import { SetPrefetchCache } from './utils/setPrefetchCache';
 import type { GuidedLearningSaveGuard } from './utils/saveConflict';
 import {
   answerKeysForSteps,
+  stepTargetsForSteps,
   withFrozenAnswerKeys,
 } from './utils/resultsScoring';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
@@ -711,6 +712,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               dueAt: expandedTargeting.dueAt,
               ...(periodGate ? { periodGate } : {}),
               answerKeys: answerKeysForSteps(data.steps),
+              stepTargets: stepTargetsForSteps(data.steps),
             });
           } catch (err) {
             console.warn('[GuidedLearning] Failed to record assignment:', err);

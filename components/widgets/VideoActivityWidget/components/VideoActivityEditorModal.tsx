@@ -81,7 +81,11 @@ const questionsEqual = (
       (qa.points ?? 1) !== (qb.points ?? 1) ||
       (qa.allowPartialCredit ?? false) !== (qb.allowPartialCredit ?? false) ||
       !arrEq(qa.incorrectAnswers, qb.incorrectAnswers) ||
-      !arrEq(qa.acceptableVariants, qb.acceptableVariants)
+      !arrEq(qa.acceptableVariants, qb.acceptableVariants) ||
+      !arrEq(
+        qa.targets?.map((t) => t.id),
+        qb.targets?.map((t) => t.id)
+      )
     ) {
       return false;
     }

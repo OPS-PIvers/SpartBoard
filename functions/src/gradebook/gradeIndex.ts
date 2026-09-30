@@ -18,6 +18,7 @@ import {
   scoreProjectMember,
   scoreQuizResponse,
   scoreVideoResponse,
+  parseStepTargets,
   toMillis,
   type QuizContext,
   isReviewQuiz,
@@ -157,12 +158,24 @@ export async function loadSessionContext(
 
   const s = session;
   const meta = parseSessionMeta(kind, sessionId, s);
+  const stepTargets = parseStepTargets(
+    kind === 'guided-learning'
+      ? (
+          await db
+            .collection('users')
+            .doc(teacherUid)
+            .collection('guided_learning_assignments')
+            .doc(sessionId)
+            .get()
+        ).data()?.stepTargets
+      : undefined
+  );
   const scorers: Record<
     Exclude<GradeKind, 'quiz' | 'video-activity'>,
     SessionContext['score']
   > = {
     'guided-learning': (_uid, response) =>
-      scoreGuidedLearningResponse(s, response),
+      scoreGuidedLearningResponse(s, response, stepTargets),
     // Study sets are not a column (D6); only check mode is scored.
     flashcards: (_uid, progress) =>
       s.kind === 'check' ? scoreFlashcardProgress(s, progress) : null,
