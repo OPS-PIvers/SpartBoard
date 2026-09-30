@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-09-28_
+_Last audited: 2026-09-30_
 _Last action: never_
 
 ---
@@ -15,6 +15,10 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-09-30: Daily audit (Wednesday), run from the main session. `pnpm type-check` (`tsc --noEmit`) exit 0; `pnpm lint` (root eslint plus `functions` lint, `--max-warnings 0`) exit 0. 0 errors, 0 warnings in any category (a/b/c). **Net: 0 new issues, 0 resolved.**_
+
+_2026-09-29: Daily audit (Tuesday), run from the main session. `scheduled-tasks` rebased onto `origin/dev-paul` (HEAD `9af6386c`) cleanly. Only Node v22.22.2 is available (`>=24` required); both commands print the routine engine warning but complete. `pnpm type-check`: 0 TypeScript errors. `pnpm lint` (root `lint:app` then `lint:functions`, both `--max-warnings 0`): 0 errors, 0 warnings. 0 new issues._
 
 _2026-09-28: Daily audit (Monday), run from the main session (per CLAUDE.md, type-check/lint are never run from a subagent). `scheduled-tasks` rebased onto `origin/dev-paul` at session start (HEAD `20d87da` → `a5072c05`, 3 commits absorbed) — a clean fast-forward, no conflicts. Environment note (unchanged): only Node v22.22.2 is available here though `package.json` requires `>=24.0.0` — both commands print the routine `WARN Unsupported engine` line but run and complete normally. `pnpm run type-check` (`tsc --noEmit`, full root run, foregrounded): exit 0 — 0 TypeScript errors. `pnpm run lint` (root `lint:app` chained into `functions/`'s own `lint:functions`, both `--max-warnings 0`, run as a background process and tracked to completion via a task notification rather than a blocking poll): exit 0 — 0 ESLint errors, 0 warnings across the whole codebase, root and functions both. No structured `### [SEVERITY]` Open items exist in this journal to cross-reference or move to Completed (prior entries remain narrative daily-check logs, per this journal's established format) — 0 new issues found. Codebase remains fully type-safe and lint-clean._
 
