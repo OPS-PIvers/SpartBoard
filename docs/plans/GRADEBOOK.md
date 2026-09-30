@@ -58,7 +58,7 @@ SpartBoard stays a working gradebook. The district SIS keeps the official report
 - **Charts.** `recharts` is a dependency, used only in `components/admin/Analytics/AnalyticsManager.tsx`. PLC Home chose div bars (PLC_HOME_V2 D23).
 - **Student side.**
   - `/my-assignments` is SSO-only (`RequireStudentAuth` needs the `studentRole` claim) and shows no scores, only status chips.
-  - The quiz-response read rule does not check publish state, so a student can read score fields before publish. The client hides them; the rule doesn't.
+  - A student can read their own response doc, score fields included, before publish. The client hides them; the rule can't, because rules are whole-doc and every student app reads that doc to join, resume and submit. Unpublish also leaves `score` and `isCorrect` on responses, and quiz `grading` is written before publish.
   - Students cannot read any class-level aggregate.
 - **Full-page pattern.** PLC mounts `PlcRouteHost` as a `fixed inset-0` layer over the warm dashboard and navigates with `spaNavigate` (`App.tsx`, `utils/plcPath.ts`).
 
@@ -255,7 +255,10 @@ SpartBoard stays a working gradebook. The district SIS keeps the official report
 - **D37.** Students read only a server-written projection at `student_grades/{studentUid}/classes/{classId}`. It holds exactly what D35 allows and only that student can read it.
   - Unpublished scores, private comments, hidden flags and disabled sections never reach a student's browser.
   - The D10 function writes it from phase 1, so enabling the tab later needs no backfill.
-  - Separately, the quiz, VA and GL response read rules are tightened so a student can't read score fields before publish (its own PR, not flagged; it's a bug fix).
+  - Separately, students stop reaching unpublished score data by moving teacher-written grade data off the student-readable response doc, not by a read rule (the W1-F finding: a whole-doc denial breaks PIN join, resume, submit, the results view and My Assignments). Follow-up PR, not flagged:
+    - A grade doc at `{quiz|video_activity|guided_learning}_sessions/{id}/grades/{responseKey}` holds `score`, per-answer `isCorrect` from publish, quiz `grading` and teacher comments.
+    - Its read rule: teacher and sub monitor, or the owning student once published (session `scoreVisibility`, an unexpired quiz `resultsOverride` shown, or `showScoreOnSubmit` for the score alone).
+    - Publish, unpublish, retake, graders, paper callables, grade push, PLC recompute and the D10 trigger read and write it; the response keeps only student-written fields. VA in-play `isCorrect` stays on the response, since the student already sees it as instant feedback.
 - **D38.** Everything student-facing is behind its own `student-gradebook` `GlobalFeature`, opened only after the teacher side is trusted.
 
 ## Data model (proposed; finalize in PR 1)
