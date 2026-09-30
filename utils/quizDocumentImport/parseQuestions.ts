@@ -171,6 +171,18 @@ function setDirections(section: {
   return /\(([^()]+)\)\s*$/.exec(section.name ?? '')?.[1]?.trim();
 }
 
+/** "Write the letter on the line…" only makes sense on paper. */
+const PAPER_ONLY =
+  /\b(?:write|print|put|place)\b.*\b(?:letter|number|answer)s?\b|\b(?:on|in) the (?:line|blank|space)s?\b/i;
+
+/** Directions without their paper-only sentences; none left falls back to the default text. */
+function onScreen(directions: string | undefined): string | undefined {
+  const kept = (directions ?? '')
+    .split(/(?<=[.?!])\s+/)
+    .filter((s) => s.trim() && !PAPER_ONLY.test(s));
+  return kept.length > 0 ? kept.join(' ') : undefined;
+}
+
 /** Lines between two printings of a running header, at the least, off a PDF. */
 const HEADER_MIN_GAP = 5;
 /** An answer printed on its own line, which repeats without being a header. */
@@ -633,7 +645,7 @@ function finish(
   };
 
   const matchingDirections = draft.matching
-    ? (draft.matching.directions ?? setDirections(draft.section))
+    ? onScreen(draft.matching.directions ?? setDirections(draft.section))
     : undefined;
   const question: ExtractedQuestion = {
     number: position,
