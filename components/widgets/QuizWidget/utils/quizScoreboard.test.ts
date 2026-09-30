@@ -934,6 +934,32 @@ describe('quizScoreboard', () => {
   });
 
   describe('buildScoreboardTeams', () => {
+    it('ranks a Review game by its server points', () => {
+      const withGame = (pin: string, points: number) => ({
+        ...makeResponse(pin, [{ questionId: 'q1', answer: 'wrong' }]),
+        game: {
+          points,
+          streak: 0,
+          answered: 1,
+          correct: 0,
+          firstTry: {},
+          lastCorrect: {},
+          last: null,
+        },
+      });
+      const teams = buildScoreboardTeams(
+        [withGame('01', 2.5), withGame('02', 4)],
+        [],
+        'pin',
+        {},
+        { sessionMode: 'game' } as QuizSession
+      );
+      expect(teams.map((t) => [t.name, t.score])).toEqual([
+        ['PIN 02', 400],
+        ['PIN 01', 250],
+      ]);
+    });
+
     it('sorts teams by score descending', () => {
       const questions = [makeQuestion('q1', 'A'), makeQuestion('q2', 'B')];
       const responses = [
