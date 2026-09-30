@@ -56,6 +56,11 @@ const GradeRow: React.FC<{
   href?: string;
 }> = ({ row, isNew, href }) => {
   const due = formatDueDate(row.dueAt);
+  // The score column already says Excused.
+  const flags =
+    row.status === 'excluded'
+      ? row.flags.filter((f) => f.id !== 'excused')
+      : row.flags;
   const body = (
     <>
       <div className="min-w-0">
@@ -67,9 +72,9 @@ const GradeRow: React.FC<{
           {STUDENT_GRADE_KIND_LABELS[row.kind]}
           {due && ` · due ${due}`}
         </div>
-        {row.flags.length > 0 && (
+        {flags.length > 0 && (
           <div className="mt-1 flex flex-wrap gap-1.5">
-            {row.flags.map((f) => (
+            {flags.map((f) => (
               <span
                 key={f.id}
                 className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${FLAG_TINT[f.color] ?? FLAG_TINT.slate}`}
@@ -80,61 +85,68 @@ const GradeRow: React.FC<{
           </div>
         )}
       </div>
-      <div className="text-right text-xl font-bold text-slate-900">
+      <div className="text-right text-xl font-bold tabular-nums text-slate-900">
         <Score row={row} />
       </div>
       {row.comment && (
-        <div className="col-span-2 rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
-          <b>Teacher comment</b>
-          <br />
+        <p className="col-span-2 text-sm text-slate-700">
+          <span className="font-semibold text-slate-500">Teacher comment </span>
           {row.comment}
-        </div>
+        </p>
       )}
     </>
   );
   const cls =
-    'grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 rounded-2xl border border-slate-200 bg-white px-4 py-3.5';
-  return href ? (
-    <a
-      href={href}
-      className={`${cls} transition hover:border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary`}
-    >
-      {body}
-    </a>
-  ) : (
-    <div className={cls}>{body}</div>
+    'grid grid-cols-[1fr_auto] items-start gap-x-4 gap-y-1.5 px-5 py-4';
+  return (
+    <li>
+      {href ? (
+        <a
+          href={href}
+          className={`${cls} transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary`}
+        >
+          {body}
+        </a>
+      ) : (
+        <div className={cls}>{body}</div>
+      )}
+    </li>
   );
 };
 
-const StandardsCard: React.FC<{ data: StudentGradesData }> = ({ data }) => (
-  <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-    <h3 className="text-sm font-bold text-slate-800">My learning targets</h3>
-    {(data.standards ?? []).map((s) => {
-      const tone = SCORE_TONE_CLASSES[LEVEL_TONE[s.level]];
-      const name = s.label ?? s.code ?? 'Learning target';
-      return (
-        <div
-          key={s.targetId}
-          className="grid grid-cols-[minmax(90px,34%)_1fr_auto] items-center gap-2.5 text-sm text-slate-700"
-        >
-          <span className="truncate" title={name}>
-            {s.code && s.label && <b className="mr-1">{s.code}</b>}
-            {name}
-          </span>
-          <span className="relative h-2 overflow-hidden rounded-full bg-slate-100">
-            <span
-              className={`absolute inset-y-0 left-0 rounded-full ${tone.bar}`}
-              style={{ width: `${Math.max(0, Math.min(100, s.pct))}%` }}
-            />
-          </span>
-          <span
-            className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-semibold ${tone.band} ${tone.text}`}
+const Standards: React.FC<{ data: StudentGradesData }> = ({ data }) => (
+  <section className="flex flex-col gap-2">
+    <h3 className="px-1 text-sm font-bold text-slate-800">
+      My learning targets
+    </h3>
+    <div className="flex flex-col gap-3 rounded-xl bg-white px-5 py-4 shadow-sm ring-1 ring-slate-200">
+      {(data.standards ?? []).map((s) => {
+        const tone = SCORE_TONE_CLASSES[LEVEL_TONE[s.level]];
+        const name = s.label ?? s.code ?? 'Learning target';
+        return (
+          <div
+            key={s.targetId}
+            className="grid grid-cols-[minmax(90px,34%)_1fr_auto] items-center gap-2.5 text-sm text-slate-700"
           >
-            {data.levelNames[s.level]}
-          </span>
-        </div>
-      );
-    })}
+            <span className="truncate" title={name}>
+              {s.code && s.label && <b className="mr-1">{s.code}</b>}
+              {name}
+            </span>
+            <span className="relative h-2 overflow-hidden rounded-full bg-slate-100">
+              <span
+                className={`absolute inset-y-0 left-0 rounded-full ${tone.bar}`}
+                style={{ width: `${Math.max(0, Math.min(100, s.pct))}%` }}
+              />
+            </span>
+            <span
+              className={`whitespace-nowrap text-xs font-semibold ${tone.text}`}
+            >
+              {data.levelNames[s.level]}
+            </span>
+          </div>
+        );
+      })}
+    </div>
   </section>
 );
 
@@ -154,29 +166,29 @@ export const StudentGradesList: React.FC<StudentGradesListProps> = ({
   hrefFor,
   teacherPreview,
 }) => (
-  <div className="flex flex-col gap-3">
+  <div className="flex flex-col gap-6">
     {rows.length === 0 ? (
-      <div className="rounded-xl border-2 border-dashed border-slate-200 px-6 py-12 text-center text-sm text-slate-500">
+      <div className="py-12 text-center text-sm text-slate-500">
         <b className="mb-1 block text-[15px] text-slate-900">
           No grades to show yet
         </b>
         Your teacher hasn&apos;t shared grades for this class.
       </div>
     ) : (
-      rows.map((row) => (
-        <GradeRow
-          key={row.sessionId}
-          row={row}
-          isNew={isNew(row)}
-          href={hrefFor?.(row)}
-        />
-      ))
+      <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
+        {rows.map((row) => (
+          <GradeRow
+            key={row.sessionId}
+            row={row}
+            isNew={isNew(row)}
+            href={hrefFor?.(row)}
+          />
+        ))}
+      </ul>
     )}
-    {data.standards && data.standards.length > 0 && (
-      <StandardsCard data={data} />
-    )}
+    {data.standards && data.standards.length > 0 && <Standards data={data} />}
     {teacherPreview && data.standards === null && (
-      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-700">
+      <div className="text-xs text-slate-700">
         Standards mastery is off for this class. Turn it on in Settings.
       </div>
     )}

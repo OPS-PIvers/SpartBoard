@@ -67,10 +67,10 @@ export const StudentGradesPreview: React.FC<StudentGradesPreviewProps> = ({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
         <nav
           aria-label="My classes"
-          className="flex flex-col gap-0.5 self-start rounded-2xl border border-slate-200 bg-white p-2 text-sm"
+          className="flex flex-col gap-0.5 self-start text-sm"
         >
-          <div className="px-3 py-2.5 text-xs text-slate-500">My classes</div>
-          <div className="rounded-xl bg-brand-blue-primary px-3 py-2.5 font-semibold text-white">
+          <div className="px-3 py-2 text-xs text-slate-500">My classes</div>
+          <div className="rounded-lg bg-brand-blue-primary px-3 py-2 font-semibold text-white">
             {className}
           </div>
         </nav>
