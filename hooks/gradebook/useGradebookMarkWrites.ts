@@ -402,7 +402,12 @@ export function useGradebookMarkWrites(rosterId: string) {
           historyAfter: historyValue(restored, field),
         };
       });
-      await commit(writes, `undo_${entry.batchId}`, null);
+      try {
+        await commit(writes, `undo_${entry.batchId}`, null);
+      } catch (err) {
+        gradebookUndoStore.push(entry);
+        throw err;
+      }
       return entry.label;
     },
     [uid, commit, undoScope]
