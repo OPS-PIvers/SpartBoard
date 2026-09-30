@@ -17,7 +17,9 @@ import {
   QuizSessionBankSlot,
   ScoreboardTeam,
   QuizBehaviorSettings,
+  QuizWidgetKind,
 } from '@/types';
+import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
 import { quizAssignBlocker } from '@/utils/activityCompleteness';
 import { useDashboard } from '@/context/useDashboard';
@@ -145,7 +147,7 @@ import {
   savePendingReview,
 } from '@/utils/paperBatchStore';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
-import { Loader2, AlertTriangle, LogIn } from 'lucide-react';
+import { Loader2, AlertTriangle, LogIn, Gamepad2 } from 'lucide-react';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { usePlcs } from '@/hooks/usePlcs';
@@ -214,7 +216,10 @@ const VIEW_ONLY_SESSION_OPTIONS: Required<QuizSessionOptions> = {
 
 const QUIZZES_COLLECTION = 'quizzes';
 
-const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
+const TeacherQuizWidget: React.FC<{
+  widget: WidgetData;
+  variant?: QuizWidgetKind;
+}> = ({ widget, variant = 'quiz' }) => {
   const {
     updateWidget,
     addWidget,
@@ -252,6 +257,10 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     canAccessFeature('quiz-document-ai-reader') &&
     canUseQuizAi;
   const config = widget.config as QuizConfig;
+  const reviewSplit = canAccessFeature('quiz-review-split');
+  const isReview = variant === 'review';
+  // Only tag new docs while the split is on, so flag-off data is unchanged (D2).
+  const kindTag = reviewSplit ? { widgetKind: variant } : {};
 
   // Opens the Google Picker so the teacher selects a Sheet to import. Picking
   // grants per-file `drive.file` access to that one sheet, so the import reads
@@ -524,6 +533,15 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     return Array.from(ids);
   }, [quizzes, assignments]);
   const { groups: syncedGroups } = useSyncedQuizGroupsByIds(syncGroupIds);
+
+  // D3: with the split on, each widget's archive lists only its own kind.
+  const kindAssignments = useMemo(
+    () =>
+      reviewSplit
+        ? assignments.filter((a) => getAssignmentWidgetKind(a) === variant)
+        : assignments,
+    [assignments, reviewSplit, variant]
+  );
 
   // Ephemeral modal state for per-assignment settings editing.
   // D12: assignment whose results are being retroactively pooled with a PLC.
@@ -1874,6 +1892,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         </Suspense>
       )}
       <QuizManager
+        variant={variant}
         userId={user?.uid}
         widgetId={widget.id}
         periodAccess={assignPeriodCtx}
@@ -1899,7 +1918,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }}
         onImport={() => setView('import')}
         onPrintPaperSheets={
-          paperSheets.enabled
+          paperSheets.enabled && !isReview
             ? async (meta) => {
                 const data = await loadQuiz(meta);
                 if (!data) return;
@@ -1910,7 +1929,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             : undefined
         }
         onImportPaperScan={
-          paperSheets.enabled && user?.uid
+          paperSheets.enabled && !isReview && user?.uid
             ? async (meta) => {
                 const data = await loadQuiz(meta);
                 if (!data) return;
@@ -1939,7 +1958,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             : undefined
         }
         onNewPaperTest={
-          paperSheets.enabled
+          paperSheets.enabled && !isReview
             ? () => {
                 const now = Date.now();
                 setPaperPrintIsNew(true);
@@ -2250,6 +2269,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 ...(resolvedDriveFileId ? { resolvedDriveFileId } : {}),
               },
               {
+                ...kindTag,
                 // A per-period session is gated by its periods, not a global pause.
                 initialStatus: sessionPeriodAccess ? 'active' : 'paused',
                 ...(sessionPeriodAccess
@@ -2510,7 +2530,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               sessionOptions: VIEW_ONLY_SESSION_OPTIONS,
               attemptLimit: null,
             },
-            { initialStatus: 'paused', mode: 'view-only' }
+            { ...kindTag, initialStatus: 'paused', mode: 'view-only' }
           );
           return `${window.location.origin}/quiz?code=${encodeURIComponent(code)}`;
         }}
@@ -2754,7 +2774,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
           }
         }}
-        assignments={assignments}
+        assignments={kindAssignments}
         assignmentsLoading={assignmentsLoading}
         activeAssignmentLockedCount={activeAssignmentLockedCount}
         onArchiveCopyUrl={(a) => {
@@ -3757,6 +3777,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               // No classIds and paused: never a live door for students.
               // publishPaperResultsV1 ends it once results go out (Q34).
               {
+                ...kindTag,
                 initialStatus: 'paused',
                 ...(plc && groupId ? { plcPoolSyncGroupId: groupId } : {}),
               }
@@ -3873,4 +3894,12 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) =>
     <SubShareQuizWidget widget={widget} />
   ) : (
     <TeacherQuizWidget widget={widget} />
+  );
+
+/** Live review games over the same quiz library (docs/plans/QUIZ_REVIEW_SPLIT.md). Never shared with subs (D13). */
+export const ReviewWidget: React.FC<{ widget: WidgetData }> = ({ widget }) =>
+  useInSubShare() ? (
+    <ScaledEmptyState icon={Gamepad2} title="Not available to substitutes" />
+  ) : (
+    <TeacherQuizWidget widget={widget} variant="review" />
   );

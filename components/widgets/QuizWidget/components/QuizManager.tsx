@@ -77,6 +77,7 @@ import {
   QuizBehaviorSettings,
   Plc,
   QuestionBankMetadata,
+  QuizWidgetKind,
 } from '@/types';
 import type { BankSource } from '@/hooks/useBankSources';
 import { QuizBanksTab } from './QuizBanksTab';
@@ -270,6 +271,10 @@ export type QuizManagerTab = 'library' | 'banks' | 'active' | 'archive';
 interface QuizManagerProps {
   /** Teacher's Firebase UID — used to scope the folders subcollection. */
   userId?: string;
+  /** Which widget hosts the library; `review` swaps Assign for Start. */
+  variant?: QuizWidgetKind;
+  /** Review's launch; while absent, Start stays disabled. */
+  onStartReview?: (quiz: QuizMetadata) => void;
   /** This widget instance's id, for live-tour anchor scoping. */
   widgetId?: string;
   /** Per-period start and windows in the assign modal; absent while the flag is off. */
@@ -703,9 +708,17 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   activeAssignmentLockedCount = 0,
   onReorderQuizzes,
   onError,
+  variant = 'quiz',
+  onStartReview,
 }) => {
-  const isViewOnly = assignmentMode === 'view-only';
-  const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
+  const isReview = variant === 'review';
+  const isViewOnly = !isReview && assignmentMode === 'view-only';
+  const primaryActionLabel = isReview
+    ? 'Start'
+    : isViewOnly
+      ? 'Share'
+      : 'Assign';
+  const shellLabel = isReview ? 'Review' : 'Quiz';
   const noop = () => {
     /* action not wired */
   };
@@ -772,15 +785,20 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // break it — only Assign is gated (D6).
   const assignDisabledReason = useCallback(
     (quiz: QuizMetadata): string | undefined => {
+      if (isReview) return onStartReview ? undefined : 'Coming soon';
       if (isViewOnly) return undefined;
       const count = quizNeedsKeyCount(quiz);
       return count > 0 ? needsKeyAssignReason(count) : undefined;
     },
-    [isViewOnly]
+    [isViewOnly, isReview, onStartReview]
   );
 
   const openShareOrAssign = useCallback(
     (quiz: QuizMetadata) => {
+      if (isReview) {
+        onStartReview?.(quiz);
+        return;
+      }
       // Belt and braces: the row's Assign button is already disabled for a
       // quiz with unanswered questions, but a keyboard or programmatic path
       // must not create an assignment that can't be scored.
@@ -797,7 +815,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         }
       });
     },
-    [isViewOnly, claudeReview]
+    [isViewOnly, claudeReview, isReview, onStartReview]
   );
 
   // Route a chooser pick to the right flow. SpartBoard/Classroom both continue
@@ -2196,8 +2214,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   if (loading && managerTab === 'library') {
     return (
       <LibraryShell
-        widgetLabel="Quiz"
-        widgetType="quiz"
+        widgetLabel={shellLabel}
+        widgetType={variant}
         tab={managerTab}
         onTabChange={(t) => onTabChange?.(t)}
         counts={tabCounts}
@@ -2258,8 +2276,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Render ───────────────────────────────────────────────────────────────
   const shell = (
     <LibraryShell
-      widgetLabel="Quiz"
-      widgetType="quiz"
+      widgetLabel={shellLabel}
+      widgetType={variant}
       tab={managerTab}
       onTabChange={(t) => onTabChange?.(t)}
       counts={tabCounts}
