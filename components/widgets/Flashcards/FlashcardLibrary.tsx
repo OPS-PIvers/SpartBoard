@@ -15,6 +15,7 @@ import {
   Send,
   Share2,
   Trash2,
+  Users2,
 } from 'lucide-react';
 import type { FlashcardAssignment, FlashcardSet } from '@/types';
 import type { UseFoldersResult } from '@/hooks/useFolders';
@@ -61,6 +62,9 @@ interface FlashcardLibraryProps {
   onAssignmentDelete: (assignment: FlashcardAssignment) => void;
   /** Surfaces a failed folder move as a toast. */
   onError?: (message: string) => void;
+  onShareWithPlc?: (set: FlashcardSet) => void;
+  onAssignmentShareWithPlc?: (assignment: FlashcardAssignment) => void;
+  onAssignmentStopSharingWithPlc?: (assignment: FlashcardAssignment) => void;
 }
 
 const assignmentSubtitle = (assignment: FlashcardAssignment): string =>
@@ -122,6 +126,9 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onAssignmentReopen,
   onAssignmentDelete,
   onError,
+  onShareWithPlc,
+  onAssignmentShareWithPlc,
+  onAssignmentStopSharingWithPlc,
 }) => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [folderTarget, setFolderTarget] = useState<FlashcardSet | null>(null);
@@ -133,6 +140,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   const view = useLibraryView({
     items: folderFilteredSets,
     initialSort: { key: 'updated', dir: 'desc' },
+    initialViewMode: 'list',
     searchFields: (set) => [
       set.title,
       set.description ?? '',
@@ -238,6 +246,24 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
                         label: 'Publish scores',
                         icon: Send,
                         onClick: () => onAssignmentPublishScores(assignment),
+                      },
+                ]
+              : []),
+            ...(onAssignmentShareWithPlc && onAssignmentStopSharingWithPlc
+              ? [
+                  assignment.plcShare
+                    ? {
+                        id: 'stop-plc-share',
+                        label: 'Stop sharing with PLC',
+                        icon: Users2,
+                        onClick: () =>
+                          onAssignmentStopSharingWithPlc(assignment),
+                      }
+                    : {
+                        id: 'plc-share',
+                        label: 'Share results with PLC',
+                        icon: Users2,
+                        onClick: () => onAssignmentShareWithPlc(assignment),
                       },
                 ]
               : []),
@@ -425,6 +451,16 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
                     icon: Share2,
                     onClick: () => onShare(set),
                   },
+                  ...(onShareWithPlc
+                    ? [
+                        {
+                          id: 'share-with-plc',
+                          label: 'Share with PLC',
+                          icon: Users2,
+                          onClick: () => onShareWithPlc(set),
+                        },
+                      ]
+                    : []),
                   buildMoveToFolderAction({
                     onOpenPicker: () => setFolderTarget(set),
                   }),

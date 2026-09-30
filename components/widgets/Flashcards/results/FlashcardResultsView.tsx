@@ -21,6 +21,7 @@ import { ActionButton } from '@/components/common/sessionViews/ActionButton';
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import { PeriodAccessStrip } from '@/components/widgets/QuizWidget/components/monitor/PeriodAccessStrip';
 import { FlashcardStudyResults } from './FlashcardStudyResults';
+import { useSyncPlcFlashcardResult } from './useSyncPlcFlashcardResult';
 import { FlashcardCheckReview } from './FlashcardCheckReview';
 import {
   FlashcardPublishScoresModal,
@@ -35,6 +36,8 @@ interface FlashcardResultsViewProps {
     visibility: PublishableFlashcardVisibility
   ) => Promise<void>;
   onUnpublishScores: (assignmentId: string) => Promise<void>;
+  /** Refresh the PLC-shared summary while open. */
+  syncPlcShare?: boolean;
 }
 
 const isPublished = (
@@ -46,12 +49,19 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
   onBack,
   onPublishScores,
   onUnpublishScores,
+  syncPlcShare = false,
 }) => {
   const { orgId } = useAuth();
   const { rosters, addToast } = useDashboard();
   const { showConfirm } = useDialog();
   const { session, results, loading, error, resetStudent, resolveFlag } =
     useFlashcardResults(assignment.sessionId);
+  useSyncPlcFlashcardResult(
+    assignment,
+    session,
+    results,
+    syncPlcShare && !loading && !error
+  );
   const [classFilter, setClassFilter] = useState<string | null>(null);
   const [publishOpen, setPublishOpen] = useState(false);
   const now = useMinuteClock();
