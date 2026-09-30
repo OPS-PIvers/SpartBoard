@@ -34,6 +34,7 @@ import type {
   ClassRoster,
   Plc,
   PlcLinkage,
+  QuizBehaviorSettings,
   QuizMetadata,
   QuizSessionOptions,
 } from '@/types';
@@ -58,7 +59,10 @@ import { logError } from '@/utils/logError';
 import {
   getAssignBehaviorSeed,
   formatBehaviorSummary,
+  getQuizAssignPrefill,
 } from '@/utils/quizBehavior';
+import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
+import { QuizAssignSettingsInline } from '@/components/common/library/QuizAssignSettingsInline';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
   makeEmptyPickerValue,
@@ -106,7 +110,19 @@ export const PlcNewQuizAssignmentModal: React.FC<
   PlcNewQuizAssignmentModalProps
 > = ({ plc, assignmentMode = 'submissions', onClose, onCreated }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  // D12: with the split on, settings come from the teacher's last-used, editable inline.
+  const reviewSplit = canAccessFeature('quiz-review-split');
+  const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
+    user?.uid,
+    reviewSplit
+  );
+  const [editedAssignSettings, setEditedAssignSettings] =
+    useState<QuizBehaviorSettings | null>(null);
+  const splitAssignSettings = useMemo(
+    () => editedAssignSettings ?? getQuizAssignPrefill(lastAssignSettings),
+    [editedAssignSettings, lastAssignSettings]
+  );
   const { addToast, rosters } = useDashboard();
   const { quizzes, loadQuizData, attachSyncLinkage, isDriveConnected } =
     useQuiz(user?.uid);
@@ -267,7 +283,9 @@ export const PlcNewQuizAssignmentModal: React.FC<
       // Task 10: source sessionMode/sessionOptions/attemptLimit from the
       // quiz's behavior settings, always in Assessment Mode. No longer driven by
       // removed form controls.
-      const behavior = getAssignBehaviorSeed(pickedQuiz);
+      const behavior = reviewSplit
+        ? splitAssignSettings
+        : getAssignBehaviorSeed(pickedQuiz);
       const sessionOptions: QuizSessionOptions = behavior.sessionOptions;
 
       // Title-aware pooling (§8.1): prefer the PLC library group so every
@@ -372,6 +390,8 @@ export const PlcNewQuizAssignmentModal: React.FC<
     t,
     user,
     plcLibrary,
+    reviewSplit,
+    splitAssignSettings,
   ]);
 
   // ─── Step 1: pick from personal library ──────────────────────────────────
@@ -495,27 +515,33 @@ export const PlcNewQuizAssignmentModal: React.FC<
             />
           </div>
 
-          {/* Read-only behavior summary */}
-          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
-                {t('plcDashboard.newAssignment.quiz.behaviorLabel', {
-                  defaultValue: 'Behavior',
-                })}
+          {reviewSplit ? (
+            <QuizAssignSettingsInline
+              value={splitAssignSettings}
+              onChange={setEditedAssignSettings}
+            />
+          ) : (
+            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+                  {t('plcDashboard.newAssignment.quiz.behaviorLabel', {
+                    defaultValue: 'Behavior',
+                  })}
+                </p>
+                <span className="text-xxs text-slate-400">
+                  {t('plcDashboard.newAssignment.quiz.behaviorEditHint', {
+                    defaultValue: 'Edit in the quiz editor',
+                  })}
+                </span>
+              </div>
+              <p
+                data-testid="plc-quiz-behavior-summary"
+                className="text-sm text-slate-600 leading-snug"
+              >
+                {behaviorSummary}
               </p>
-              <span className="text-xxs text-slate-400">
-                {t('plcDashboard.newAssignment.quiz.behaviorEditHint', {
-                  defaultValue: 'Edit in the quiz editor',
-                })}
-              </span>
             </div>
-            <p
-              data-testid="plc-quiz-behavior-summary"
-              className="text-sm text-slate-600 leading-snug"
-            >
-              {behaviorSummary}
-            </p>
-          </div>
+          )}
 
           {/* PLC sharing slot (teacher name only — no sheet step) */}
           <PlcNewAssignmentSharingSlot

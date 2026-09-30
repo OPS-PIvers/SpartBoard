@@ -229,6 +229,9 @@ import {
 // Lazy-load the rich-text editor so the bundle for legacy quiz types isn't
 // pulled into the initial student-app payload. Loaded on first render of a
 // free-response question.
+const QuizGamePlay = React.lazy(() =>
+  import('./game/QuizGamePlay').then((m) => ({ default: m.QuizGamePlay }))
+);
 const WrittenResponseEditor = React.lazy(() =>
   import('./WrittenResponseEditor').then((m) => ({
     default: m.WrittenResponseEditor,
@@ -1263,6 +1266,23 @@ const QuizJoinFlow: React.FC<{
           aria-label="Loading questions"
         />
       </div>
+    );
+  }
+
+  // Self-paced Review game: its own clock, queue and screens (QUIZ_REVIEW_SPLIT.md PR 4).
+  if (session.sessionMode === 'game' && myResponse) {
+    return (
+      <React.Suspense fallback={<FullPageLoader message="Loading…" light />}>
+        <QuizGamePlay
+          session={session}
+          myResponse={myResponse}
+          servedQuestions={servedPublicQuestions}
+          override={myOverride}
+          pin={pin}
+          onSetHandRaised={setHandRaised}
+          reportTabSwitch={reportTabSwitch}
+        />
+      </React.Suspense>
     );
   }
 

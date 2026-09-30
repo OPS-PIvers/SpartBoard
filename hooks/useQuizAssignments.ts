@@ -84,6 +84,7 @@ import type {
   QuizTranslation,
   QuizSessionBankSlot,
   QuizSessionMode,
+  QuizWidgetKind,
   QuizSessionOptions,
   QuizStimulus,
   ResultsProtection,
@@ -159,6 +160,10 @@ export type SharedAssignmentImportMode = 'sync' | 'copy';
 export interface CreateAssignmentOptions {
   /** Defaults to `'active'`. */
   initialStatus?: QuizAssignmentStatus;
+  /** Owning widget, mirrored onto assignment + session; omitted while the split flag is off. */
+  widgetKind?: QuizWidgetKind;
+  /** Review game length (plan D22); only written for `sessionMode: 'game'`. */
+  gameDurationMs?: number;
   /**
    * ClassLink class `sourcedId`s this session targets. Empty/missing
    * keeps the session open to the legacy code/PIN-only flow. When
@@ -1298,12 +1303,19 @@ export const useQuizAssignments = (
         translationIndex,
         accessMode,
         periodAccess,
+        widgetKind,
+        gameDurationMs,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
       const perPeriod =
         !!accessMode && !!periodAccess && Object.keys(periodAccess).length > 0;
       const hasBankSlots = !!bankSlots && bankSlots.length > 0;
-      if (hasBankSlots && settings.sessionMode !== 'student') {
+      // Review games draw per student too (plan D17).
+      if (
+        hasBankSlots &&
+        settings.sessionMode !== 'student' &&
+        settings.sessionMode !== 'game'
+      ) {
         throw new Error('Random bank draws need Assessment Mode');
       }
       // Defensive sanitization at the hook boundary: drop empty/non-string
@@ -1341,6 +1353,7 @@ export const useQuizAssignments = (
 
       const assignment: QuizAssignment = {
         id: assignmentId,
+        ...(widgetKind ? { widgetKind } : {}),
         quizId: quiz.id,
         quizTitle: quiz.title,
         quizDriveFileId: quiz.driveFileId,
@@ -1460,6 +1473,7 @@ export const useQuizAssignments = (
 
       const session: QuizSession = {
         id: assignmentId,
+        ...(widgetKind ? { widgetKind } : {}),
         assignmentId,
         quizId: quiz.id,
         quizTitle: quiz.title,
@@ -1480,6 +1494,7 @@ export const useQuizAssignments = (
         publicQuestions: sessionPublicQuestions,
         ...(hasBankSlots ? { bankSlots } : {}),
         ...(sessionSections.length > 0 ? { sections: sessionSections } : {}),
+        ...(mode === 'game' && gameDurationMs ? { gameDurationMs } : {}),
         // Opts this session into server-side `unresponded` completeness writes;
         // sessions from older clients omit it and keep pre-feature finalize behaviour.
         completenessModel: 1,
@@ -1523,6 +1538,7 @@ export const useQuizAssignments = (
         // Default matches DEFAULT_QUIZ_BEHAVIOR (off) for legacy quizzes
         // with no saved behavior.
         showPodiumBetweenQuestions: opts.showPodiumBetweenQuestions ?? false,
+        ...(opts.boardRankLimit ? { boardRankLimit: opts.boardRankLimit } : {}),
         soundEffectsEnabled: opts.soundEffectsEnabled ?? false,
         // Per-student per-attempt shuffling. `shuffleAnswerOptions` defaults
         // to true to preserve the always-on behavior that pre-dates this
@@ -1641,7 +1657,8 @@ export const useQuizAssignments = (
       );
       batch.set(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), sessionDoc);
       // Written whenever the flag is on, so switching the setting on later has a key to grade with.
-      if (scoreOnSubmitOn) {
+      // Review games always need it: checkQuizGameAnswerV1 grades from it (plan D31).
+      if (scoreOnSubmitOn || mode === 'game') {
         batch.set(scoreKeyRef(userId, assignmentId), {
           questions: buildScoreOnSubmitKey(sessionQuestions),
         });

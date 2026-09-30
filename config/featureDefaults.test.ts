@@ -59,6 +59,10 @@ describe('widget access defaults', () => {
     expect(getWidgetDefaultAccessLevel('projects')).toBe('admin');
   });
 
+  it('keeps Review admin-only until a permission doc overrides it', () => {
+    expect(getWidgetDefaultAccessLevel('review')).toBe('admin');
+  });
+
   it('preserves the historical public default for other widgets', () => {
     expect(getWidgetDefaultAccessLevel('clock')).toBe('public');
   });

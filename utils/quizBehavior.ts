@@ -60,10 +60,38 @@ export function getAssignBehaviorSeed(
   return { ...structuredClone(getQuizBehavior(meta)), sessionMode: 'student' };
 }
 
+/** Plan D8/D9: a Quiz-kind assignment is self-paced with no gamification or board reveal. */
+export function toAssessmentBehavior(
+  behavior: QuizBehaviorSettings
+): QuizBehaviorSettings {
+  return {
+    ...behavior,
+    sessionMode: 'student',
+    sessionOptions: {
+      ...behavior.sessionOptions,
+      showCorrectOnBoard: false,
+      speedBonusEnabled: false,
+      streakBonusEnabled: false,
+      showPodiumBetweenQuestions: false,
+      soundEffectsEnabled: false,
+    },
+  };
+}
+
+/** Plan D11: with the split on, assign opens from the teacher's last-used settings, not the quiz's. */
+export function getQuizAssignPrefill(
+  lastUsed: QuizBehaviorSettings | null
+): QuizBehaviorSettings {
+  return toAssessmentBehavior(
+    structuredClone(lastUsed ?? DEFAULT_QUIZ_BEHAVIOR)
+  );
+}
+
 /** Human-readable label for a quiz session mode. */
 export function formatSessionMode(mode: QuizSessionMode): string {
   if (mode === 'teacher') return 'Teacher-paced';
   if (mode === 'auto') return 'Auto-progress';
+  if (mode === 'game') return 'Self-paced game';
   return QUIZ_STUDENT_MODE_LABEL;
 }
 
@@ -73,8 +101,13 @@ export function formatSessionMode(mode: QuizSessionMode): string {
  *
  * Example: "Teacher-paced · 1 attempt · shuffles answers"
  */
-export function formatBehaviorSummary(behavior: QuizBehaviorSettings): string {
-  const parts: string[] = [formatSessionMode(behavior.sessionMode)];
+export function formatBehaviorSummary(
+  behavior: QuizBehaviorSettings,
+  { omitMode = false }: { omitMode?: boolean } = {}
+): string {
+  const parts: string[] = omitMode
+    ? []
+    : [formatSessionMode(behavior.sessionMode)];
   if (behavior.attemptLimit === null) {
     parts.push('unlimited attempts');
   } else if (behavior.attemptLimit === 1) {
@@ -88,5 +121,8 @@ export function formatBehaviorSummary(behavior: QuizBehaviorSettings): string {
     parts.push('shuffles questions');
   if (behavior.sessionOptions.showResultToStudent) parts.push('shows results');
   if (behavior.sessionOptions.speedBonusEnabled) parts.push('speed bonus');
-  return parts.join(' · ');
+  const summary = parts.join(' · ');
+  return omitMode
+    ? summary.charAt(0).toUpperCase() + summary.slice(1)
+    : summary;
 }
