@@ -33,6 +33,7 @@ import { EditorWorkspace } from '@/components/common/EditorWorkspace';
 import { useAuth } from '@/context/useAuth';
 import { useQuizHandRaiseMode } from '@/hooks/useQuizHandRaiseMode';
 import { QuizBehaviorSettingsPanel } from '@/components/common/library/QuizBehaviorSettingsPanel';
+import { quizNeedsManualGrading } from '@/utils/quizScoreOnSubmit';
 import {
   QuizAiOverlay,
   QuizEditorContextPane,
@@ -679,6 +680,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
                 onChange={setBehavior}
                 readAloudAvailable={readAloudAvailable}
                 handRaiseMode={handRaiseMode}
+                hasManualGrading={quizNeedsManualGrading(questions)}
               />
             </div>
           )}

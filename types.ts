@@ -4112,6 +4112,8 @@ export interface QuizSessionOptions extends BaseSessionOptions {
   readAloudAll?: boolean;
   /** Teacher opt-in for the student raise-hand button. Absent = off. */
   handRaiseEnabled?: boolean;
+  /** Score each attempt on submit and show it; ignored when a question needs manual grading. */
+  showScoreOnSubmit?: boolean;
 }
 
 /**
@@ -4411,6 +4413,8 @@ export interface QuizSession
   showCorrectOnBoard?: boolean;
   /** Group published answer feedback by the projected learning-target tags. */
   showLearningTargets?: boolean;
+  /** Students see their score as soon as the server grades a submitted attempt. */
+  showScoreOnSubmit?: boolean;
   /**
    * Teacher-written map of questionId → correct answer text.
    * Students read from this after submitting; only populated when the
@@ -9063,6 +9067,8 @@ export type GlobalFeature =
   | 'video-activity-live'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
   | 'quiz-student-view'
+  /** Quiz setting that shows students their score as soon as they submit. */
+  | 'quiz-score-on-submit'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'

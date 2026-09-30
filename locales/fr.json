@@ -2082,6 +2082,12 @@
       "barLabel": "Score moyen {{pct}} %"
     }
   },
+  "quizScoreOnSubmit": {
+    "label": "Afficher le score à la remise",
+    "on": "Les élèves voient leur score dès qu'ils remettent.",
+    "off": "Les élèves voient leur score quand tu publies les résultats.",
+    "unavailable": "Indisponible avec des questions à réponse libre."
+  },
   "quizReadAloud": {
     "label": "Lire à voix haute",
     "help": "Élèves connectés uniquement.",

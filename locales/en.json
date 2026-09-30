@@ -3195,6 +3195,12 @@
     "next": "Next",
     "submit": "Submit quiz"
   },
+  "quizScoreOnSubmit": {
+    "label": "Show score on submit",
+    "on": "Students see their score as soon as they submit.",
+    "off": "Students see their score when you publish results.",
+    "unavailable": "Not available with free-response questions."
+  },
   "quizReadAloud": {
     "label": "Read aloud",
     "help": "Signed-in students only.",

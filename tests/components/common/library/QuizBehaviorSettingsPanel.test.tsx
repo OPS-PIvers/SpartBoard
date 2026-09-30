@@ -5,6 +5,7 @@ import type { QuizBehaviorSettings } from '@/types';
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
 
 import { QuizBehaviorSettingsPanel } from '@/components/common/library/QuizBehaviorSettingsPanel';
+import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 
 const defaultValue: QuizBehaviorSettings = {
   ...DEFAULT_QUIZ_BEHAVIOR,
@@ -327,5 +328,87 @@ describe('QuizBehaviorSettingsPanel', () => {
     expect(
       screen.queryByRole('switch', { name: /raise a hand/i })
     ).not.toBeInTheDocument();
+  });
+
+  describe('Show score on submit', () => {
+    const withFlag = (ui: React.ReactElement) =>
+      render(
+        <AuthContext.Provider
+          value={
+            {
+              canAccessFeature: (id: string) => id === 'quiz-score-on-submit',
+            } as unknown as AuthContextType
+          }
+        >
+          {ui}
+        </AuthContext.Provider>
+      );
+    const openFeedback = () =>
+      fireEvent.click(screen.getByRole('button', { name: /Answer Feedback/i }));
+
+    it('is hidden without the flag', () => {
+      render(
+        <QuizBehaviorSettingsPanel value={defaultValue} onChange={vi.fn()} />
+      );
+      openFeedback();
+      expect(
+        screen.queryByRole('switch', { name: /Show score on submit/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it('turns on and explains each state', () => {
+      const onChange = vi.fn();
+      const { rerender } = withFlag(
+        <QuizBehaviorSettingsPanel value={defaultValue} onChange={onChange} />
+      );
+      openFeedback();
+      expect(
+        screen.getByText('Students see their score when you publish results.')
+      ).toBeInTheDocument();
+      fireEvent.click(
+        screen.getByRole('switch', { name: /Show score on submit/i })
+      );
+      const next = onChange.mock.calls[0][0] as QuizBehaviorSettings;
+      expect(next.sessionOptions.showScoreOnSubmit).toBe(true);
+      rerender(
+        <AuthContext.Provider
+          value={
+            {
+              canAccessFeature: (id: string) => id === 'quiz-score-on-submit',
+            } as unknown as AuthContextType
+          }
+        >
+          <QuizBehaviorSettingsPanel value={next} onChange={onChange} />
+        </AuthContext.Provider>
+      );
+      expect(
+        screen.getByText('Students see their score as soon as they submit.')
+      ).toBeInTheDocument();
+    });
+
+    it('is disabled and off when a question needs a teacher grade', () => {
+      withFlag(
+        <QuizBehaviorSettingsPanel
+          value={{
+            ...defaultValue,
+            sessionOptions: {
+              ...defaultValue.sessionOptions,
+              showScoreOnSubmit: true,
+            },
+          }}
+          onChange={vi.fn()}
+          hasManualGrading
+        />
+      );
+      openFeedback();
+      const toggle = screen.getByRole('switch', {
+        name: /Show score on submit/i,
+      });
+      expect(toggle).toBeDisabled();
+      expect(toggle).toHaveAttribute('aria-checked', 'false');
+      expect(
+        screen.getByText('Not available with free-response questions.')
+      ).toBeInTheDocument();
+    });
   });
 });

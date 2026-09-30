@@ -204,6 +204,7 @@ const VIEW_ONLY_SESSION_OPTIONS: Required<QuizSessionOptions> = {
   soundEffectsEnabled: false,
   // No live teacher present on a view-only share, so raising a hand goes nowhere.
   handRaiseEnabled: false,
+  showScoreOnSubmit: false,
   // Shuffles are meaningless for view-only shares (no submissions, so no
   // student-specific rendering happens).
   shuffleQuestions: false,

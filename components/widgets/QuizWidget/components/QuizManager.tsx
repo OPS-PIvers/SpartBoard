@@ -157,6 +157,7 @@ import {
 import { needsKeyMessage } from '@/utils/quizNeedsKey';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { countRecordingSlots } from '@/utils/quizRecordingModes';
+import { quizNeedsManualGrading } from '@/utils/quizScoreOnSubmit';
 import {
   splitDueAtToInputs,
   dueInputsToEpoch,
@@ -2407,6 +2408,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                       setAssignBehavior(next);
                     }}
                     handRaiseMode={handRaiseMode}
+                    hasManualGrading={quizNeedsManualGrading(
+                      assignQuizData?.questions ?? []
+                    )}
                   />
                   {assignHasRecordingQuestions &&
                     assignBehavior.sessionMode !== 'student' && (

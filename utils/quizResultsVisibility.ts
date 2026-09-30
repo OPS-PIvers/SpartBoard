@@ -18,12 +18,16 @@ export interface EffectiveResultsVisibility {
 
 type SessionPublication = Pick<
   QuizSession,
-  'scoreVisibility' | 'scorePublishedAt' | 'revealedAnswers'
+  | 'scoreVisibility'
+  | 'scorePublishedAt'
+  | 'revealedAnswers'
+  | 'showScoreOnSubmit'
 >;
 type ResponsePublication = Pick<
   QuizResponse,
   'resultsOverride' | 'revealedAnswers'
->;
+> &
+  Partial<Pick<QuizResponse, 'score' | 'status'>>;
 
 export const isResultsOverrideExpired = (
   override: QuizResultsOverride,
@@ -76,7 +80,14 @@ export const resolveResultsVisibility = (
     };
   }
   const visibility = classResultsVisibility(session);
-  if (visibility === 'none') return { visibility, source: 'class' };
+  if (visibility === 'none') {
+    // Score on submit: the server graded this attempt, so the score shows before any publish.
+    const scored =
+      session?.showScoreOnSubmit === true &&
+      response?.status === 'completed' &&
+      typeof response.score === 'number';
+    return { visibility: scored ? 'score-only' : 'none', source: 'class' };
+  }
   return {
     visibility,
     publishedAt: session?.scorePublishedAt,
