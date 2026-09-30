@@ -79,21 +79,20 @@ export function gamePlayOrder(
   });
 }
 
-/** Reorders `ids` so no question follows itself, starting away from `lastId`. */
+/** Reorders `ids` so no question follows itself, starting away from `lastId`; drops what can't fit. */
 export function avoidBackToBack(
   ids: readonly string[],
   lastId: string | null
 ): string[] {
-  const out = [...ids];
-  for (let i = 0; i < out.length; i++) {
-    const prev = i === 0 ? lastId : out[i - 1];
-    if (out[i] !== prev) continue;
-    const swap = out.findIndex(
-      (id, j) =>
-        j > i && id !== prev && (i + 1 >= out.length || out[i + 1] !== id)
-    );
-    if (swap === -1) return out.slice(0, i);
-    [out[i], out[swap]] = [out[swap], out[i]];
+  const remaining = [...ids];
+  const out: string[] = [];
+  let prev = lastId;
+  while (remaining.length > 0) {
+    const index = remaining.findIndex((id) => id !== prev);
+    if (index === -1) break;
+    const [id] = remaining.splice(index, 1);
+    out.push(id);
+    prev = id;
   }
   return out;
 }
@@ -166,4 +165,47 @@ export function findMyGameRank(
   return mine
     ? { rank: mine.rank, score: mine.score, of: entries.length }
     : null;
+}
+
+/** Session fields that start the game clock now (teacher side). */
+export function startGamePatch(
+  session: Pick<QuizSession, 'gameDurationMs'>,
+  nowMs: number,
+  fallbackMs: number
+): { status: 'active'; startedAt: number; gameEndsAt: number } {
+  return {
+    status: 'active',
+    startedAt: nowMs,
+    gameEndsAt: nowMs + (session.gameDurationMs ?? fallbackMs),
+  };
+}
+
+/** The end time after resuming: pushed out by however long the game sat paused. */
+export function resumedEndsAt(
+  session: Pick<QuizSession, 'gameEndsAt' | 'gamePausedAt'>,
+  nowMs: number
+): number | null {
+  const endsAt = gameStampMillis(session.gameEndsAt);
+  if (endsAt === null) return null;
+  const pausedAt = gameStampMillis(session.gamePausedAt);
+  return pausedAt === null ? endsAt : endsAt + Math.max(0, nowMs - pausedAt);
+}
+
+/** +1 min: extends the clock, or restarts a clock that already ran out. */
+export function addGameTimePatch(
+  session: Pick<
+    QuizSession,
+    'gameEndsAt' | 'gamePausedAt' | 'gameAddedMs' | 'status'
+  >,
+  nowMs: number,
+  addMs = 60_000
+): { gameEndsAt: number; gameAddedMs: number } | null {
+  const endsAt = gameStampMillis(session.gameEndsAt);
+  if (endsAt === null || session.status === 'ended') return null;
+  const paused = gameStampMillis(session.gamePausedAt) !== null;
+  const base = !paused && endsAt < nowMs ? nowMs : endsAt;
+  return {
+    gameEndsAt: base + addMs,
+    gameAddedMs: (session.gameAddedMs ?? 0) + addMs,
+  };
 }

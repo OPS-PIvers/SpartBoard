@@ -604,3 +604,21 @@ export function buildLiveLeaderboard(
       }))
   );
 }
+
+/** Review game ranks from server-graded points (`response.game`), everyone included. */
+export function buildGameLeaderboard(
+  responses: QuizResponse[],
+  pinToName: Record<string, string>,
+  byStudentUid?: Map<string, StudentName>
+): QuizLeaderboardEntry[] {
+  return responses
+    .filter((response) => response.status !== 'joined' || !!response.game)
+    .map((response) => ({
+      ...(response.pin ? { pin: response.pin } : {}),
+      studentUid: response.studentUid,
+      name: resolveResponseDisplayName(response, pinToName, byStudentUid),
+      score: Math.round(response.game?.points ?? 0),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
+}

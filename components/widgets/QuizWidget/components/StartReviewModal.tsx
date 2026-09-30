@@ -137,50 +137,31 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
                 {t('reviewStart.gameLength', 'Game length')}
               </span>
               <div className="flex items-center gap-2">
-                <div
-                  role="group"
+                <select
                   aria-label={t('reviewStart.gameLength', 'Game length')}
-                  className="inline-flex rounded-lg border border-slate-200 bg-white overflow-hidden"
-                >
-                  {GAME_MINUTE_CHOICES.map((minutes) => {
-                    const active = !customMinutes && gameMinutes === minutes;
-                    return (
-                      <button
-                        key={minutes}
-                        type="button"
-                        aria-pressed={active}
-                        onClick={() => {
-                          setCustomMinutes(false);
-                          setGameMinutes(minutes);
-                        }}
-                        className={
-                          'px-2.5 py-1.5 text-xs font-bold tabular-nums transition ' +
-                          (active
-                            ? 'bg-brand-blue-primary text-white'
-                            : 'text-slate-600 hover:bg-slate-50')
-                        }
-                      >
-                        {t('reviewStart.minutes', {
-                          count: minutes,
-                          defaultValue: '{{count}} min',
-                        })}
-                      </button>
-                    );
-                  })}
-                  <button
-                    type="button"
-                    aria-pressed={customMinutes}
-                    onClick={() => setCustomMinutes(true)}
-                    className={
-                      'px-2.5 py-1.5 text-xs font-bold transition ' +
-                      (customMinutes
-                        ? 'bg-brand-blue-primary text-white'
-                        : 'text-slate-600 hover:bg-slate-50')
+                  value={customMinutes ? 'custom' : String(gameMinutes)}
+                  onChange={(e) => {
+                    if (e.target.value === 'custom') {
+                      setCustomMinutes(true);
+                      return;
                     }
-                  >
+                    setCustomMinutes(false);
+                    setGameMinutes(Number(e.target.value));
+                  }}
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-bold text-slate-700"
+                >
+                  {GAME_MINUTE_CHOICES.map((minutes) => (
+                    <option key={minutes} value={minutes}>
+                      {t('reviewStart.minutes', {
+                        count: minutes,
+                        defaultValue: '{{count}} min',
+                      })}
+                    </option>
+                  ))}
+                  <option value="custom">
                     {t('reviewStart.customLength', 'Custom')}
-                  </button>
-                </div>
+                  </option>
+                </select>
                 {customMinutes && (
                   <input
                     type="number"

@@ -42,6 +42,7 @@ import {
   buildLiveLeaderboard,
   resolvePinName,
   __resetPinNameWarnDedupe,
+  buildGameLeaderboard,
 } from './quizScoreboard';
 import type {
   QuizResponse,
@@ -1023,6 +1024,35 @@ describe('quizScoreboard', () => {
       );
       // Each: 5 * 1.5 = 7.5 → total 15 (raw points, not 150%)
       expect(teams[0].score).toBe(15);
+    });
+  });
+
+  describe('buildGameLeaderboard', () => {
+    it('ranks game points and skips students who have not answered', () => {
+      const withGame = (pin: string, points: number) => ({
+        ...makeResponse(pin, [], 'in-progress'),
+        game: {
+          points,
+          streak: 0,
+          answered: 1,
+          correct: 0,
+          firstTry: {},
+          lastCorrect: {},
+          last: null,
+        },
+      });
+      const entries = buildGameLeaderboard(
+        [
+          withGame('01', 12.4),
+          withGame('02', 30),
+          makeResponse('03', [], 'joined'),
+        ],
+        { '01': 'Alice' }
+      );
+      expect(entries.map((e) => [e.name, e.score, e.rank])).toEqual([
+        ['PIN 02', 30, 1],
+        ['Alice', 12, 2],
+      ]);
     });
   });
 

@@ -3,7 +3,9 @@ import type { QuizData, QuizQuestion } from '@/types';
 import type { BankContent } from '@/utils/questionBanks';
 import {
   boardRankRows,
+  clampGameMinutes,
   countUnscoredQuestions,
+  prepareReviewGame,
   prepareReviewQuiz,
   rankOrdinal,
   sectionStartingAt,
@@ -89,6 +91,63 @@ describe('prepareReviewQuiz', () => {
     expect(ids.slice(1, 3).every((id) => id.startsWith('p'))).toBe(true);
     expect(prepared.questions[1].points).toBe(3);
     expect(prepared.order?.every((e) => e.kind !== 'slot')).toBe(true);
+  });
+});
+
+describe('prepareReviewGame', () => {
+  it('keeps pools for per-student draws and drops unscorable questions', () => {
+    const bank: BankContent = {
+      id: 'bank',
+      title: 'Bank',
+      questions: [q('p1'), q('p2', 'free-response'), q('p3')],
+    };
+    const prepared = prepareReviewGame(
+      quiz({
+        questions: [q('a', 'free-response'), q('b')],
+        bankSlots: [
+          {
+            id: 'slot',
+            bankId: 'bank',
+            bankTitle: 'Bank',
+            mode: 'random',
+            count: 3,
+            points: 2,
+          },
+        ],
+        order: [
+          { kind: 'question', id: 'a' },
+          { kind: 'question', id: 'b' },
+          { kind: 'slot', id: 'slot' },
+        ],
+      }),
+      new Map([['bank', bank]])
+    );
+    expect(prepared.questions.map((x) => x.id)).toEqual(['b', 'p1', 'p3']);
+    expect(prepared.bankSlots).toEqual([
+      expect.objectContaining({
+        id: 'slot',
+        poolQuestionIds: ['p1', 'p3'],
+        count: 2,
+        position: 1,
+      }),
+    ]);
+    expect(prepared.skippedCount).toBe(1);
+  });
+
+  it('leaves a plain quiz alone apart from unscorable questions', () => {
+    const prepared = prepareReviewGame(
+      quiz({ questions: [q('a'), q('b', 'free-response')] }),
+      null
+    );
+    expect(prepared.questions.map((x) => x.id)).toEqual(['a']);
+    expect(prepared.bankSlots).toBeUndefined();
+  });
+
+  it('clamps the game length', () => {
+    expect(clampGameMinutes(undefined)).toBe(10);
+    expect(clampGameMinutes(0)).toBe(1);
+    expect(clampGameMinutes(500)).toBe(90);
+    expect(clampGameMinutes(7.4)).toBe(7);
   });
 });
 
