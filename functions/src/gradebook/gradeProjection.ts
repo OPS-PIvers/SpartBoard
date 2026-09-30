@@ -414,6 +414,8 @@ export async function projectRow(
   );
 }
 
+const REPROJECT_CHUNK = 10;
+
 /** Re-projects every row a query returns, optionally narrowed in memory. */
 export async function reprojectRows(
   db: Firestore,
@@ -421,14 +423,21 @@ export async function reprojectRows(
   keep: (row: IndexRow) => boolean = () => true
 ): Promise<number> {
   const snap = await query.get();
-  let n = 0;
-  for (const doc of snap.docs) {
-    const row = doc.data() as IndexRow;
-    if (!keep(row)) continue;
-    await projectRow(db, row, null);
-    n++;
+  const rows = snap.docs.map((d) => d.data() as IndexRow).filter(keep);
+  // One student's rows share a projection doc, so they run in order; students run in parallel.
+  const byStudent = new Map<string, IndexRow[]>();
+  for (const r of rows) {
+    byStudent.set(r.studentUid, [...(byStudent.get(r.studentUid) ?? []), r]);
   }
-  return n;
+  const groups = [...byStudent.values()];
+  for (let i = 0; i < groups.length; i += REPROJECT_CHUNK) {
+    await Promise.all(
+      groups.slice(i, i + REPROJECT_CHUNK).map(async (group) => {
+        for (const r of group) await projectRow(db, r, null);
+      })
+    );
+  }
+  return rows.length;
 }
 
 export const rowsForSession = (
