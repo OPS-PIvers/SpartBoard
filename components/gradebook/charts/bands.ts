@@ -21,22 +21,22 @@ export interface BandStyle {
 
 const LEVEL_STYLES: Record<BandLevel, Omit<BandStyle, 'level' | 'name'>> = {
   0: {
-    bar: 'bg-emerald-500',
+    bar: 'bg-emerald-600',
     cell: 'bg-emerald-100 text-emerald-800',
     text: 'text-emerald-700',
-    hex: '#10b981',
+    hex: '#059669',
   },
   1: {
-    bar: 'bg-amber-400',
+    bar: 'bg-amber-600',
     cell: 'bg-amber-100 text-amber-800',
     text: 'text-amber-700',
-    hex: '#f59e0b',
+    hex: '#d97706',
   },
   2: {
-    bar: 'bg-rose-500',
+    bar: 'bg-brand-red-primary',
     cell: 'bg-rose-100 text-rose-800',
     text: 'text-rose-700',
-    hex: '#f43f5e',
+    hex: '#ad2122',
   },
 };
 

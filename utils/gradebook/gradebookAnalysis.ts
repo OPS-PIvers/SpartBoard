@@ -38,8 +38,8 @@ export interface AnalysisData {
   students: AnalysisStudent[];
   /** Oldest first. */
   columns: AnalysisColumn[];
-  cell(sessionId: string, uid: string): AnalysisCell;
-  overallPct(uid: string): number | null;
+  cell: (sessionId: string, uid: string) => AnalysisCell;
+  overallPct: (uid: string) => number | null;
 }
 
 export interface AnalysisTarget {
@@ -296,7 +296,7 @@ export interface ExploreInput {
   targets: AnalysisTarget[];
   categories: { id: string; name: string }[];
   groups: RosterFacts['groups'];
-  kindLabel(kind: GradebookKind): string;
+  kindLabel: (kind: GradebookKind) => string;
 }
 
 /** D27 Explore pivot: one metric grouped one way, as bar rows. */
@@ -385,4 +385,53 @@ export function explore(input: ExploreInput): ExploreRow[] {
     ...r,
     width: metric === 'missing' ? (r.value / top) * 100 : r.value,
   }));
+}
+
+export interface ColumnSummary {
+  assigned: AnalysisStudent[];
+  submitted: number;
+  values: number[];
+  notSubmitted: AnalysisStudent[];
+  /** D28 target breakdown: class mean of each target's evidence on this column. */
+  targets: { target: AnalysisTarget; pct: number | null }[];
+}
+
+/** D28: the class-level numbers the Analyze modal shows for one column. */
+export function summarizeColumn(
+  data: AnalysisData,
+  column: AnalysisColumn,
+  targets: AnalysisTarget[]
+): ColumnSummary {
+  const cells = data.students.map((s) => ({
+    s,
+    ...data.cell(column.sessionId, s.uid),
+  }));
+  const assignedCells = cells.filter((c) => c.final.status !== 'not-assigned');
+  const done = (c: (typeof cells)[number]) =>
+    c.row !== null && c.row.submittedAt !== null;
+  const ids = columnTargetIds(column, data);
+  return {
+    assigned: assignedCells.map((c) => c.s),
+    submitted: assignedCells.filter(done).length,
+    values: assignedCells
+      .map((c) => countedPct(c.final))
+      .filter((v): v is number => v !== null),
+    notSubmitted: assignedCells
+      .filter((c) => !done(c) && c.final.status !== 'excluded')
+      .map((c) => c.s),
+    targets: targets
+      .filter((t) => ids.has(t.id))
+      .map((target) => ({
+        target,
+        pct: mean(
+          assignedCells.map((c) =>
+            mean(
+              evidenceForCell(c.row, c.final, column.config)
+                .filter((e) => e.targetId === target.id)
+                .map((e) => e.pct)
+            )
+          )
+        ),
+      })),
+  };
 }
