@@ -685,6 +685,14 @@ export interface StudentStandardEntry {
   label?: string;
   pct: number;
   level: ProficiencyLevel;
+  /** Oldest first, from published work. */
+  evidence: StudentStandardEvidence[];
+}
+
+export interface StudentStandardEvidence {
+  sessionId: string;
+  pct: number;
+  at: number;
 }
 
 export interface StudentStandardInput {
@@ -700,7 +708,7 @@ export function buildStudentStandards(
   scale: ProficiencyScale,
   now: number
 ): StudentStandardEntry[] {
-  const byTarget = new Map<string, { pct: number; at: number }[]>();
+  const byTarget = new Map<string, StudentStandardEvidence[]>();
   const names = new Map<string, { code?: string; label?: string }>();
   for (const { row, mark, column } of inputs) {
     for (const e of row.targetEvidence) {
@@ -718,7 +726,7 @@ export function buildStudentStandards(
     });
     for (const e of evidenceForCell(row, final, column)) {
       const list = byTarget.get(e.targetId) ?? [];
-      list.push({ pct: e.pct, at: e.at });
+      list.push({ sessionId: row.sessionId, pct: e.pct, at: e.at });
       byTarget.set(e.targetId, list);
     }
   }
@@ -734,6 +742,9 @@ export function buildStudentStandards(
       ...(name?.label ? { label: name.label } : {}),
       pct: Math.round(pct * 100) / 100,
       level,
+      evidence: points
+        .map((p) => ({ ...p, pct: Math.round(p.pct * 100) / 100 }))
+        .sort((a, b) => a.at - b.at),
     });
   }
   return out.sort((a, b) => (a.targetId < b.targetId ? -1 : 1));
@@ -749,6 +760,8 @@ export interface StudentGradesDoc {
   /** Null unless the class's settings show standards. */
   standards: StudentStandardEntry[] | null;
   levelNames: [string, string, string];
+  /** The scale's cutoffs; absent on docs written before the Learning targets view. */
+  cutoffs?: { proficient: number; approaching: number };
   updatedAt: number;
 }
 

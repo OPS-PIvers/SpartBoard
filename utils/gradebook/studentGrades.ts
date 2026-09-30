@@ -9,6 +9,7 @@ import {
   type GradebookSettingsBody,
   type ProficiencyScale,
   type StudentGradeEntry,
+  type ProficiencyLevel,
   type StudentStandardEntry,
 } from './gradebookCore';
 
@@ -27,6 +28,7 @@ export interface StudentGradesData {
   entries: Record<string, StudentGradeEntry & { updatedAt?: number }>;
   standards: StudentStandardEntry[] | null;
   levelNames: [string, string, string];
+  cutoffs: { proficient: number; approaching: number };
 }
 
 export interface StudentGradeRow extends StudentGradeEntry {
@@ -169,5 +171,49 @@ export function buildStudentGradesPreview(
         )
       : null,
     levelNames: input.scale.levelNames,
+    cutoffs: {
+      proficient: input.scale.proficient,
+      approaching: input.scale.approaching,
+    },
   };
+}
+
+export interface TargetEvidenceView {
+  sessionId: string;
+  title: string;
+  pct: number;
+  at: number;
+}
+
+export interface TargetView {
+  targetId: string;
+  code?: string;
+  label?: string;
+  pct: number;
+  level: ProficiencyLevel;
+  evidence: TargetEvidenceView[];
+}
+
+/** Learning targets view rows, with each piece of evidence named after its assignment. */
+export function studentTargets(data: StudentGradesData): TargetView[] {
+  return (data.standards ?? []).map((s) => ({
+    targetId: s.targetId,
+    code: s.code,
+    label: s.label,
+    pct: s.pct,
+    level: s.level,
+    evidence: (s.evidence ?? []).map((e) => ({
+      ...e,
+      title: data.entries[e.sessionId]?.title ?? 'Assignment',
+    })),
+  }));
+}
+
+export function levelForPct(
+  pct: number,
+  cutoffs: StudentGradesData['cutoffs']
+): ProficiencyLevel {
+  if (pct >= cutoffs.proficient) return 0;
+  if (pct >= cutoffs.approaching) return 1;
+  return 2;
 }

@@ -49,6 +49,10 @@ const EMPTY: StudentGradesData = {
   entries: {},
   standards: null,
   levelNames: DEFAULT_PROFICIENCY_SCALE.levelNames,
+  cutoffs: {
+    proficient: DEFAULT_PROFICIENCY_SCALE.proficient,
+    approaching: DEFAULT_PROFICIENCY_SCALE.approaching,
+  },
 };
 
 interface Snapshot {
@@ -85,6 +89,7 @@ export function useStudentGrades(
                   entries: d.entries ?? {},
                   standards: d.standards ?? null,
                   levelNames: d.levelNames ?? EMPTY.levelNames,
+                  cutoffs: d.cutoffs ?? EMPTY.cutoffs,
                 }
               : EMPTY,
           },

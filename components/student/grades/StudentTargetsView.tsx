@@ -1,29 +1,16 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import type { ProficiencyLevel } from '@/utils/gradebook/gradebookCore';
-import { formatDueDate } from '@/utils/gradebook/studentGrades';
+import {
+  formatDueDate,
+  levelForPct as levelOf,
+  studentTargets,
+  type StudentGradesData,
+  type TargetEvidenceView,
+  type TargetView,
+} from '@/utils/gradebook/studentGrades';
 
-export interface TargetEvidenceView {
-  sessionId: string;
-  title: string;
-  pct: number;
-  at: number;
-}
-
-export interface TargetView {
-  targetId: string;
-  code?: string;
-  label?: string;
-  pct: number;
-  level: ProficiencyLevel;
-  evidence: TargetEvidenceView[];
-}
-
-export interface TargetsData {
-  targets: TargetView[];
-  levelNames: [string, string, string];
-  cutoffs: { proficient: number; approaching: number };
-}
+type Cutoffs = StudentGradesData['cutoffs'];
 
 const LEVEL: Record<
   ProficiencyLevel,
@@ -49,12 +36,9 @@ const LEVEL: Record<
   },
 };
 
-const levelOf = (pct: number, c: TargetsData['cutoffs']): ProficiencyLevel =>
-  pct >= c.proficient ? 0 : pct >= c.approaching ? 1 : 2;
-
 const EvidenceChart: React.FC<{
   evidence: TargetEvidenceView[];
-  cutoffs: TargetsData['cutoffs'];
+  cutoffs: Cutoffs;
 }> = ({ evidence, cutoffs }) => {
   const [W, setW] = useState(420);
   const observe = useCallback((el: HTMLDivElement | null) => {
@@ -152,7 +136,7 @@ const EvidenceChart: React.FC<{
 
 const TargetRow: React.FC<{
   target: TargetView;
-  data: TargetsData;
+  data: StudentGradesData;
   open: boolean;
   onToggle: () => void;
 }> = ({ target, data, open, onToggle }) => {
@@ -228,15 +212,16 @@ const TargetRow: React.FC<{
   );
 };
 
-export const StudentTargetsView: React.FC<{ data: TargetsData }> = ({
+export const StudentTargetsView: React.FC<{ data: StudentGradesData }> = ({
   data,
 }) => {
+  const targets = useMemo(() => studentTargets(data), [data]);
   const [openId, setOpenId] = useState<string | null>(
-    data.targets[0]?.targetId ?? null
+    targets[0]?.targetId ?? null
   );
   const counts: [number, number, number] = [0, 0, 0];
-  for (const t of data.targets) counts[t.level]++;
-  if (data.targets.length === 0) {
+  for (const t of targets) counts[t.level]++;
+  if (targets.length === 0) {
     return (
       <div className="py-12 text-center text-sm text-slate-500">
         <b className="mb-1 block text-[15px] text-slate-900">
@@ -270,7 +255,7 @@ export const StudentTargetsView: React.FC<{ data: TargetsData }> = ({
         </div>
       </section>
       <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
-        {data.targets.map((t) => (
+        {targets.map((t) => (
           <TargetRow
             key={t.targetId}
             target={t}

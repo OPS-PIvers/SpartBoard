@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useAuth } from '@/context/useAuth';
 import { Btn } from '@/components/admin/Organization/components/primitives';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
@@ -6,6 +6,11 @@ import {
   NewBadge,
   StudentGradesList,
 } from '@/components/student/grades/StudentGradesList';
+import {
+  GradebookViewTabs,
+  type GradebookView,
+} from '@/components/student/grades/GradebookViewTabs';
+import { StudentTargetsView } from '@/components/student/grades/StudentTargetsView';
 import {
   buildStudentGradesPreview,
   studentGradeRows,
@@ -45,6 +50,7 @@ export const StudentGradesPreview: React.FC<StudentGradesPreviewProps> = ({
   inputs,
   onExit,
 }) => {
+  const [view, setView] = useState<GradebookView>('scores');
   const data = useMemo(() => buildStudentGradesPreview(inputs), [inputs]);
   const rows = useMemo(() => studentGradeRows(data), [data]);
   const isNew = (row: StudentGradeRow) =>
@@ -86,18 +92,27 @@ export const StudentGradesPreview: React.FC<StudentGradesPreviewProps> = ({
                 { value: 'assignments', label: 'Assignments' },
                 {
                   value: 'grades',
-                  label: 'Grades',
+                  label: 'Gradebook',
                   badge: anyNew ? <NewBadge /> : undefined,
                 },
               ]}
             />
           </div>
-          <StudentGradesList
-            data={data}
-            rows={rows}
-            isNew={isNew}
-            teacherPreview
-          />
+          {data.standards !== null && (
+            <div className="mt-3">
+              <GradebookViewTabs value={view} onChange={setView} />
+            </div>
+          )}
+          {data.standards !== null && view === 'targets' ? (
+            <StudentTargetsView data={data} />
+          ) : (
+            <StudentGradesList
+              data={data}
+              rows={rows}
+              isNew={isNew}
+              teacherPreview
+            />
+          )}
         </div>
       </div>
     </div>

@@ -243,6 +243,11 @@ interface ProjectionExtra {
   scale: ProficiencyScale;
 }
 
+const cutoffsOf = (s: ProficiencyScale) => ({
+  proficient: s.proficient,
+  approaching: s.approaching,
+});
+
 /** Sets or removes one entry; the doc is deleted when its last entry goes. */
 export async function writeProjectionEntry(
   db: Firestore,
@@ -279,6 +284,12 @@ export async function writeProjectionEntry(
         stableStringify(extra.standards)
     )
       changed = true;
+    if (
+      snap.exists &&
+      stableStringify(data.cutoffs ?? null) !==
+        stableStringify(cutoffsOf(extra.scale))
+    )
+      changed = true;
     if (!changed) return false;
     if (Object.keys(entries).length === 0) tx.delete(ref);
     else
@@ -289,6 +300,7 @@ export async function writeProjectionEntry(
         entries,
         standards: extra.standards,
         levelNames: extra.scale.levelNames,
+        cutoffs: cutoffsOf(extra.scale),
         updatedAt: now,
       });
     return true;

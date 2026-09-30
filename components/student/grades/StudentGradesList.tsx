@@ -1,6 +1,4 @@
 import React from 'react';
-import { SCORE_TONE_CLASSES, type ScoreTone } from '@/utils/scoreColor';
-import type { ProficiencyLevel } from '@/utils/gradebook/gradebookCore';
 import {
   STUDENT_GRADE_KIND_LABELS,
   formatDueDate,
@@ -18,12 +16,6 @@ const FLAG_TINT: Record<string, string> = {
   sky: 'bg-sky-50 text-sky-700 ring-sky-200',
   blue: 'bg-blue-50 text-blue-700 ring-blue-200',
   slate: 'bg-slate-100 text-slate-700 ring-slate-200',
-};
-
-const LEVEL_TONE: Record<ProficiencyLevel, ScoreTone> = {
-  0: 'success',
-  1: 'warn',
-  2: 'danger',
 };
 
 export const NewBadge: React.FC = () => (
@@ -114,42 +106,6 @@ const GradeRow: React.FC<{
   );
 };
 
-const Standards: React.FC<{ data: StudentGradesData }> = ({ data }) => (
-  <section className="flex flex-col gap-2">
-    <h3 className="px-1 text-sm font-bold text-slate-800">
-      My learning targets
-    </h3>
-    <div className="flex flex-col gap-3 rounded-xl bg-white px-5 py-4 shadow-sm ring-1 ring-slate-200">
-      {(data.standards ?? []).map((s) => {
-        const tone = SCORE_TONE_CLASSES[LEVEL_TONE[s.level]];
-        const name = s.label ?? s.code ?? 'Learning target';
-        return (
-          <div
-            key={s.targetId}
-            className="grid grid-cols-[minmax(90px,34%)_1fr_auto] items-center gap-2.5 text-sm text-slate-700"
-          >
-            <span className="truncate" title={name}>
-              {s.code && s.label && <b className="mr-1">{s.code}</b>}
-              {name}
-            </span>
-            <span className="relative h-2 overflow-hidden rounded-full bg-slate-100">
-              <span
-                className={`absolute inset-y-0 left-0 rounded-full ${tone.bar}`}
-                style={{ width: `${Math.max(0, Math.min(100, s.pct))}%` }}
-              />
-            </span>
-            <span
-              className={`whitespace-nowrap text-xs font-semibold ${tone.text}`}
-            >
-              {data.levelNames[s.level]}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  </section>
-);
-
 interface StudentGradesListProps {
   data: StudentGradesData;
   rows: StudentGradeRow[];
@@ -186,7 +142,6 @@ export const StudentGradesList: React.FC<StudentGradesListProps> = ({
         ))}
       </ul>
     )}
-    {data.standards && data.standards.length > 0 && <Standards data={data} />}
     {teacherPreview && data.standards === null && (
       <div className="text-xs text-slate-700">
         Standards mastery is off for this class. Turn it on in Settings.

@@ -22,6 +22,7 @@ const grades: { state: StudentGradesState } = {
       },
       standards: null,
       levelNames: ['Proficient', 'Approaching', 'Beginning'],
+      cutoffs: { proficient: 80, approaching: 60 },
     },
   },
 };
@@ -50,7 +51,7 @@ const props = {
 describe('StudentClassView Grades tab', () => {
   it('is unchanged while the flag is off', () => {
     render(<StudentClassView {...props} tab="grades" />);
-    expect(screen.queryByRole('tab', { name: /Grades/ })).toBeNull();
+    expect(screen.queryByRole('tab', { name: /Gradebook/ })).toBeNull();
     expect(screen.getByRole('tab', { name: /Active/ })).toBeTruthy();
     expect(screen.getByText('assignment list')).toBeTruthy();
   });
@@ -61,7 +62,7 @@ describe('StudentClassView Grades tab', () => {
     const { rerender } = render(
       <StudentClassView {...props} gradesEnabled onTabChange={onTabChange} />
     );
-    const gradesTab = screen.getByRole('tab', { name: /Grades/ });
+    const gradesTab = screen.getByRole('tab', { name: /Gradebook/ });
     expect(gradesTab.textContent).toContain('NEW');
     fireEvent.click(gradesTab);
     expect(onTabChange).toHaveBeenCalledWith('grades');
@@ -77,5 +78,32 @@ describe('StudentClassView Grades tab', () => {
     expect(screen.getByText('15/15')).toBeTruthy();
     expect(screen.getByText('Great work')).toBeTruthy();
     expect(screen.queryByText('assignment list')).toBeNull();
+  });
+
+  it('flips the Gradebook to Learning targets when the class shares them', () => {
+    const prev = grades.state;
+    if (prev.status !== 'ready') throw new Error('fixture');
+    grades.state = {
+      status: 'ready',
+      data: {
+        ...prev.data,
+        standards: [
+          {
+            targetId: 't1',
+            code: 'RL.1',
+            label: 'Cite textual evidence',
+            pct: 100,
+            level: 0,
+            evidence: [{ sessionId: 's1', pct: 100, at: 1 }],
+          },
+        ],
+      },
+    };
+    render(<StudentClassView {...props} gradesEnabled tab="grades" />);
+    expect(screen.queryByText('Cite textual evidence')).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Learning targets' }));
+    expect(screen.getByText('Cite textual evidence')).toBeTruthy();
+    expect(screen.getAllByText('Character Quiz').length).toBeGreaterThan(0);
+    grades.state = prev;
   });
 });

@@ -268,8 +268,17 @@ describe('projectRow', () => {
     });
     await projectRow(stub.db as unknown as Db, row(), null, NOW);
     expect(stub.get(PATH)?.standards).toEqual([
-      { targetId: 'tgt', pct: 50, level: 2 },
+      {
+        targetId: 'tgt',
+        pct: 50,
+        level: 2,
+        evidence: [{ sessionId: 'qs1', pct: 50, at: NOW - DAY }],
+      },
     ]);
+    expect(stub.get(PATH)?.cutoffs).toEqual({
+      proficient: DEFAULT_PROFICIENCY_SCALE.proficient,
+      approaching: DEFAULT_PROFICIENCY_SCALE.approaching,
+    });
   });
 });
 

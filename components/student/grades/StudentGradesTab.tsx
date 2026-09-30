@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import type { StudentGradesState } from '@/hooks/useStudentGrades';
 import {
@@ -9,6 +9,8 @@ import {
   type StudentGradeRow,
 } from '@/utils/gradebook/studentGrades';
 import { StudentGradesList } from './StudentGradesList';
+import { GradebookViewTabs, type GradebookView } from './GradebookViewTabs';
+import { StudentTargetsView } from './StudentTargetsView';
 
 interface StudentGradesTabProps {
   studentUid: string;
@@ -28,6 +30,7 @@ export const StudentGradesTab: React.FC<StudentGradesTabProps> = ({
   seenAtOpen,
   hrefBySession,
 }) => {
+  const [view, setView] = useState<GradebookView>('scores');
   const ready = grades.status === 'ready';
   useEffect(() => {
     if (ready) writeSeenMarks(studentUid, classId, seenMarksFor(rows));
@@ -53,12 +56,24 @@ export const StudentGradesTab: React.FC<StudentGradesTabProps> = ({
       </div>
     );
   }
+  const hasTargets = grades.data.standards !== null;
   return (
-    <StudentGradesList
-      data={grades.data}
-      rows={rows}
-      isNew={(row) => isNewRow(row, seenAtOpen)}
-      hrefFor={(row) => hrefBySession[row.sessionId]}
-    />
+    <div className="flex flex-col gap-6">
+      {hasTargets && (
+        <div>
+          <GradebookViewTabs value={view} onChange={setView} />
+        </div>
+      )}
+      {hasTargets && view === 'targets' ? (
+        <StudentTargetsView data={grades.data} />
+      ) : (
+        <StudentGradesList
+          data={grades.data}
+          rows={rows}
+          isNew={(row) => isNewRow(row, seenAtOpen)}
+          hrefFor={(row) => hrefBySession[row.sessionId]}
+        />
+      )}
+    </div>
   );
 };

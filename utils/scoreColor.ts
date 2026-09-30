@@ -18,7 +18,7 @@ export interface ScoreColorClasses {
   band: string;
 }
 
-export const SCORE_TONE_CLASSES: Record<ScoreTone, ScoreColorClasses> = {
+const TONE_CLASSES: Record<ScoreTone, ScoreColorClasses> = {
   success: {
     text: 'text-emerald-600',
     bar: 'bg-emerald-500',
@@ -45,7 +45,7 @@ export function scoreTone(score: number): ScoreTone {
 
 /** Tailwind class fragments (text / bar / band) for a 0–100 score. */
 export function scoreColorClasses(score: number): ScoreColorClasses {
-  return SCORE_TONE_CLASSES[scoreTone(score)];
+  return TONE_CLASSES[scoreTone(score)];
 }
 
 export interface ScoreDistributionBand {

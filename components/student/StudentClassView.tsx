@@ -128,7 +128,7 @@ export const StudentClassView: React.FC<StudentClassViewProps> = ({
                 { value: 'assignments', label: 'Assignments' },
                 {
                   value: 'grades',
-                  label: 'Grades',
+                  label: 'Gradebook',
                   badge: hasNewGrades ? <NewBadge /> : undefined,
                 },
               ]}
