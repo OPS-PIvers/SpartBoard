@@ -93,28 +93,23 @@ export function flagPatch(
   };
 }
 
-/** D21 fill down / D22 fill empty: only unsubmitted, unscored, non-excluded assigned cells. */
+/** An empty cell for fill down and Mark all: assigned, no work, no score and no manual flag. */
 export function isFillable(cell: GradebookCellData): boolean {
   if (cell.row && (!cell.row.assigned || cell.row.submittedAt !== null)) {
     return false;
   }
-  if (cell.mark?.override) return false;
+  if (cell.mark?.override || (cell.mark?.flags.length ?? 0) > 0) return false;
   const { status, source } = cell.final;
   return status === 'empty' || (status === 'scored' && source === 'flag');
 }
 
-/** D22 Mark all Missing: assigned students with no submission and no Missing flag yet. */
-export function isMissingCandidate(cell: GradebookCellData): boolean {
-  if (cell.row && (!cell.row.assigned || cell.row.submittedAt !== null)) {
-    return false;
-  }
-  if (
-    cell.final.status === 'not-assigned' ||
-    cell.final.status === 'excluded'
-  ) {
-    return false;
-  }
-  return !cell.final.flags.some((f) => f.id === 'missing' && !f.auto);
+/** The empty cells after this student in the grid's current row order (D21 fill down). */
+export function emptyCellsBelow(
+  cells: GradebookCellData[],
+  studentUid: string
+): GradebookCellData[] {
+  const idx = cells.findIndex((c) => c.student.uid === studentUid);
+  return cells.slice(idx + 1).filter(isFillable);
 }
 
 function historyFieldFor(patch: MarkPatch): GradebookHistoryField {
@@ -289,44 +284,55 @@ export function useGradebookMarkWrites(rosterId: string) {
     [single]
   );
 
-  const fillEmpty = useCallback(
+  /** D21 fill down: this cell's score (when it changed) plus every empty cell below, as one batch. */
+  const fillDown = useCallback(
     async (
       column: GradebookColumnRef,
-      cells: GradebookCellData[],
+      own: GradebookCellData,
+      below: GradebookCellData[],
       points: number
     ) => {
       const at = Date.now();
-      const writes = cells
+      const filled = below
         .filter(isFillable)
         .map((c) => plan(column, c, { override: { points, at } }, 'fill'))
         .filter((w): w is PlannedWrite => w !== null);
+      const ownChanged =
+        own.final.status !== 'scored' || own.final.points !== points;
+      const ownWrite = ownChanged
+        ? plan(column, own, { override: { points, at } })
+        : null;
+      const writes = ownWrite ? [ownWrite, ...filled] : filled;
       const batchId = newBatchId();
-      await commit(writes, batchId, `Fill ${writes.length} cells`);
-      return { batchId, count: writes.length };
+      await commit(writes, batchId, 'Fill empty cells below');
+      return { batchId, count: filled.length };
     },
     [plan, commit]
   );
 
-  /** Sets one manual flag on every given cell that lacks it (Mark all Missing, Excuse column). */
-  const flagAll = useCallback(
+  /** D22 Mark all: 0 points or one flag on every empty cell in the column. */
+  const markAll = useCallback(
     async (
       column: GradebookColumnRef,
       cells: GradebookCellData[],
-      flagId: string,
-      label: string
+      value: string
     ) => {
+      const at = Date.now();
       const writes = cells
-        .filter((c) => !(c.mark?.flags ?? []).includes(flagId))
+        .filter(isFillable)
         .map((c) => {
+          if (value === 'zero') {
+            return plan(column, c, { override: { points: 0, at } }, 'fill');
+          }
           const base = c.mark ?? blankMark(column, c, rosterId, uid ?? '');
           return plan(column, c, {
-            flags: [...base.flags, flagId],
-            suppressedAuto: base.suppressedAuto.filter((f) => f !== flagId),
+            flags: [...base.flags, value],
+            suppressedAuto: base.suppressedAuto.filter((f) => f !== value),
           });
         })
         .filter((w): w is PlannedWrite => w !== null);
       const batchId = newBatchId();
-      await commit(writes, batchId, label);
+      await commit(writes, batchId, 'Mark all');
       return { batchId, count: writes.length };
     },
     [plan, commit, rosterId, uid]
@@ -367,8 +373,8 @@ export function useGradebookMarkWrites(rosterId: string) {
     setComment,
     toggleFlag,
     setPublish,
-    fillEmpty,
-    flagAll,
+    fillDown,
+    markAll,
     undoBatch,
     undoLast: undoBatch,
   };

@@ -1,12 +1,19 @@
 import React from 'react';
+import { Check } from 'lucide-react';
 import type {
   ActiveFlag,
   GradebookFlagDef,
 } from '@/utils/gradebook/gradebookCore';
 import { flagSwatch } from './popoverFormat';
 
-/** The one-letter mark a cell and a flag row share; auto flags draw as an outline. */
-export const FlagKey: React.FC<{ flag: GradebookFlagDef; auto?: boolean }> = ({
+const FOCUS =
+  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary';
+
+export const INPUT_CLASS =
+  'h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-[13px] text-slate-800 focus:border-brand-blue-primary focus:outline-none focus:ring-[3px] focus:ring-brand-blue-primary/30';
+
+/** A flag's one-letter mark, as the grid cell draws it; auto flags are outlined. */
+export const FlagChip: React.FC<{ flag: GradebookFlagDef; auto?: boolean }> = ({
   flag,
   auto,
 }) => {
@@ -14,7 +21,7 @@ export const FlagKey: React.FC<{ flag: GradebookFlagDef; auto?: boolean }> = ({
   return (
     <span
       aria-hidden
-      className={`inline-grid h-5 min-w-5 place-items-center rounded px-1 text-[11px] font-bold ${
+      className={`inline-grid h-4 min-w-4 flex-none place-items-center rounded px-[3px] text-[9.5px] font-bold leading-none ${
         auto ? `bg-white ring-[1.5px] ring-inset ${sw.ring}` : sw.solid
       }`}
     >
@@ -23,110 +30,119 @@ export const FlagKey: React.FC<{ flag: GradebookFlagDef; auto?: boolean }> = ({
   );
 };
 
-export const SectionLabel: React.FC<{
-  children: React.ReactNode;
-  htmlFor?: string;
-}> = ({ children, htmlFor }) =>
-  htmlFor ? (
-    <label htmlFor={htmlFor} className="text-xs font-semibold text-slate-600">
-      {children}
-    </label>
-  ) : (
-    <span className="text-xs font-semibold text-slate-600">{children}</span>
-  );
+type BtnTone = 'default' | 'primary' | 'danger';
 
-type BtnTone = 'default' | 'primary' | 'quiet';
-
-export const PopButton: React.FC<
-  React.ButtonHTMLAttributes<HTMLButtonElement> & { tone?: BtnTone }
-> = ({ tone = 'default', className = '', ...rest }) => {
+export const Btn: React.FC<
+  React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    tone?: BtnTone;
+    size?: 'md' | 'sm';
+  }
+> = ({ tone = 'default', size = 'md', className = '', ...rest }) => {
   const tones: Record<BtnTone, string> = {
-    default:
-      'border border-slate-300 bg-white px-3 text-slate-800 hover:bg-slate-50',
-    primary: 'bg-brand-blue-primary px-3 text-white hover:bg-brand-blue-dark',
-    quiet: 'text-brand-blue-primary hover:underline',
+    default: 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
+    primary:
+      'border-brand-blue-primary bg-brand-blue-primary text-white hover:bg-brand-blue-dark',
+    danger:
+      'border-brand-red-primary bg-brand-red-primary text-white hover:bg-brand-red-dark',
   };
   return (
     <button
       type="button"
       {...rest}
-      className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-50 ${tones[tone]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border font-semibold shadow-sm transition-colors disabled:pointer-events-none disabled:opacity-50 ${
+        size === 'sm' ? 'h-[30px] px-3 text-xs' : 'h-[34px] px-3.5 text-[13px]'
+      } ${tones[tone]} ${FOCUS} ${className}`}
     />
   );
 };
 
-/** Inline confirm row for bulk actions: states the count, then Confirm / Cancel. */
-export const ConfirmRow: React.FC<{
-  message: string;
-  confirmLabel: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-  busy?: boolean;
+export const IconBtn: React.FC<
+  React.ButtonHTMLAttributes<HTMLButtonElement> & { danger?: boolean }
+> = ({ danger, className = '', ...rest }) => (
+  <button
+    type="button"
+    {...rest}
+    className={`inline-grid h-[30px] w-[30px] place-items-center rounded-md text-slate-500 transition-colors aria-pressed:bg-brand-blue-lighter aria-pressed:text-brand-blue-primary ${
+      danger
+        ? 'hover:bg-rose-50 hover:text-brand-red-primary'
+        : 'hover:bg-slate-100 hover:text-slate-800'
+    } ${FOCUS} ${className}`}
+  />
+);
+
+export const LinkBtn: React.FC<
+  React.ButtonHTMLAttributes<HTMLButtonElement> & { warn?: boolean }
+> = ({ warn, className = '', ...rest }) => (
+  <button
+    type="button"
+    {...rest}
+    className={`text-xs font-semibold hover:underline disabled:opacity-50 ${
+      warn
+        ? 'text-amber-700'
+        : 'text-brand-blue-primary hover:text-brand-blue-dark'
+    } ${FOCUS} ${className}`}
+  />
+);
+
+/** Switch-style checkbox used for Share with student and Counts toward overall. */
+export const Toggle: React.FC<{
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  children: React.ReactNode;
   disabled?: boolean;
-}> = ({ message, confirmLabel, onConfirm, onCancel, busy, disabled }) => (
-  <div className="flex flex-col gap-2 rounded-lg bg-slate-100 p-3">
-    <p className="text-sm text-slate-800">{message}</p>
-    <div className="flex gap-2">
-      <PopButton
-        tone="primary"
-        onClick={onConfirm}
-        disabled={(busy ?? false) || disabled}
-      >
-        {confirmLabel}
-      </PopButton>
-      <PopButton onClick={onCancel} disabled={busy}>
-        Cancel
-      </PopButton>
-    </div>
-  </div>
+  small?: boolean;
+}> = ({ checked, onChange, children, disabled, small }) => (
+  <label
+    className={`relative inline-flex cursor-pointer select-none items-center gap-2 text-slate-600 ${
+      small ? 'text-xs' : 'text-[13px]'
+    }`}
+  >
+    <input
+      type="checkbox"
+      className="peer absolute h-px w-px opacity-0"
+      checked={checked}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.checked)}
+    />
+    <span
+      aria-hidden
+      className="relative h-[18px] w-8 flex-none rounded-full bg-slate-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-3.5 after:w-3.5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-brand-blue-primary peer-checked:after:translate-x-3.5 peer-focus-visible:ring-[3px] peer-focus-visible:ring-brand-blue-primary/30"
+    />
+    {children}
+  </label>
 );
 
-/** Result of a bulk write with its one-step Undo (D24). */
-export const DoneRow: React.FC<{
-  message: string;
-  onUndo: () => void;
-  busy?: boolean;
-}> = ({ message, onUndo, busy }) => (
-  <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-100 px-3 py-2">
-    <span className="text-sm text-slate-800" role="status">
-      {message}
-    </span>
-    <PopButton tone="quiet" onClick={onUndo} disabled={busy}>
-      Undo
-    </PopButton>
-  </div>
-);
-
-/** Flag checklist: one row per enabled flag, auto flags labelled (D14, D15). */
-export const FlagChecklist: React.FC<{
+/** Flag checklist menu: check, chip, name, auto marker and the flag's key (D14, D15). */
+export const FlagMenuList: React.FC<{
   flags: GradebookFlagDef[];
   active: ActiveFlag[];
   onToggle: (flagId: string) => void;
   disabled?: boolean;
 }> = ({ flags, active, onToggle, disabled }) => (
-  <div className="grid grid-cols-2 gap-1" role="group" aria-label="Flags">
+  <div role="menu" className="flex flex-col">
     {flags.map((f) => {
       const on = active.find((a) => a.id === f.id);
       return (
         <button
           key={f.id}
           type="button"
-          role="checkbox"
+          role="menuitemcheckbox"
           aria-checked={!!on}
           disabled={disabled}
           onClick={() => onToggle(f.id)}
-          title={`${f.name} (${f.key})`}
-          className={`flex min-h-9 items-center gap-2 rounded-lg px-2 text-left text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary disabled:opacity-50 ${
-            on
-              ? 'bg-slate-100 font-medium text-slate-900'
-              : 'text-slate-600 hover:bg-slate-50'
+          className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none ${
+            on ? 'font-semibold text-slate-900' : 'text-slate-700'
           }`}
         >
-          <FlagKey flag={f} auto={on?.auto} />
-          <span className="truncate">{f.name}</span>
-          {on?.auto && (
-            <span className="ml-auto text-xs text-slate-500">Auto</span>
-          )}
+          <span className="grid h-4 w-4 flex-none place-items-center text-brand-blue-primary">
+            {on && <Check size={16} aria-hidden />}
+          </span>
+          <FlagChip flag={f} auto={on?.auto} />
+          <span className="flex-1">{f.name}</span>
+          {on?.auto && <span className="text-[11px] text-slate-400">auto</span>}
+          <kbd className="rounded border border-slate-200 px-1.5 font-sans text-[11px] text-slate-400">
+            {f.key}
+          </kbd>
         </button>
       );
     })}

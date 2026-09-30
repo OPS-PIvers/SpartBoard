@@ -1,22 +1,18 @@
 import React, { useId, useState } from 'react';
+import { ArrowDownToLine, ChevronDown } from 'lucide-react';
 import {
   gradebookDocId,
   isCompletionOnly,
   isPublishedFor,
 } from '@/utils/gradebook/gradebookCore';
 import {
-  isFillable,
+  emptyCellsBelow,
   useGradebookMarkWrites,
 } from '@/hooks/gradebook/useGradebookMarkWrites';
 import { useMarkHistory } from '@/hooks/gradebook/useMarkHistory';
+import { logError } from '@/utils/logError';
 import { GradebookPopoverShell } from './GradebookPopoverShell';
-import {
-  ConfirmRow,
-  DoneRow,
-  FlagChecklist,
-  PopButton,
-  SectionLabel,
-} from './popoverParts';
+import { FlagChip, FlagMenuList, LinkBtn, Toggle } from './popoverParts';
 import {
   describeHistory,
   fmtDate,
@@ -27,6 +23,7 @@ import {
 import type {
   GradebookCellData,
   GradebookColumnRef,
+  GradebookNotify,
   GradebookPopoverContext,
 } from './types';
 
@@ -37,16 +34,18 @@ export interface GradebookCellPopoverProps {
   ctx: GradebookPopoverContext;
   column: GradebookColumnRef;
   cell: GradebookCellData;
-  /** Every student's cell in this column, for fill down. */
+  /** This column's cells in the grid's current row order (fill down uses the ones below). */
   columnCells: GradebookCellData[];
   /** Digits typed on the cell before it opened (D23 inline override). */
   prefill?: string;
-  onClose: () => void;
+  /** 'enter' means the score was committed with Enter, so the grid moves down a row. */
+  onClose: (reason?: 'enter') => void;
+  onNotify?: GradebookNotify;
   /** Opens this student's quiz grader; hidden when absent. */
   onOpenGrader?: (sessionId: string, studentUid: string) => void;
 }
 
-/** D21 cell popover: override, flags, comment, fill down, per-student publish, attempts, history. */
+/** D21 cell popover. Score and comment save when it closes; flags and publish save at once. */
 export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
   anchor,
   ctx,
@@ -55,6 +54,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
   columnCells,
   prefill,
   onClose,
+  onNotify,
   onOpenGrader,
 }) => {
   const ids = useId();
@@ -63,46 +63,59 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
   const completion = isCompletionOnly(column.kind);
   const notAssigned = final.status === 'not-assigned';
   const max = final.max ?? column.config?.maxPointsOverride ?? row?.max ?? null;
+  const initialScore = final.status === 'scored' ? fmtPoints(final.points) : '';
 
-  const [score, setScore] = useState<string>(
-    prefill ?? (final.status === 'scored' ? fmtPoints(final.points) : '')
-  );
+  const [score, setScore] = useState(prefill ?? initialScore);
   const [commentText, setCommentText] = useState(mark?.comment?.text ?? '');
-  const [commentShared, setCommentShared] = useState(
-    mark?.comment?.shared ?? false
-  );
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fill, setFill] = useState<
-    | { stage: 'confirm'; points: number }
-    | { stage: 'done'; batchId: string; count: number }
-    | null
-  >(null);
+  const [shared, setShared] = useState(mark?.comment?.shared ?? false);
+  const [flagAnchor, setFlagAnchor] = useState<HTMLElement | null>(null);
+  const flagMenuOpen = flagAnchor !== null;
   const [showHistory, setShowHistory] = useState(false);
   const history = useMarkHistory(
     showHistory ? gradebookDocId(column.sessionId, student.uid) : null
   );
 
-  const run = async (fn: () => Promise<unknown>) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await fn();
-    } catch {
-      setError('Could not save. Try again.');
-    } finally {
-      setBusy(false);
-    }
+  const fail = (err: unknown) => {
+    logError('gradebook cell write', err);
+    onNotify?.('Could not save. Try again.');
   };
 
-  const parsedScore = score.trim() === '' ? null : Number(score);
+  const parsed = score.trim() === '' ? null : Number(score);
   const scoreValid =
-    parsedScore !== null &&
-    Number.isFinite(parsedScore) &&
-    parsedScore >= 0 &&
-    (max === null || parsedScore <= max * 2);
-  const unchangedScore =
-    mark?.override != null && parsedScore === mark.override.points;
+    parsed !== null &&
+    Number.isFinite(parsed) &&
+    parsed >= 0 &&
+    (max === null || parsed <= max * 2);
+
+  /** Saves a changed score and comment; returns false when the score is invalid. */
+  const commit = (): boolean => {
+    if (notAssigned) return true;
+    const scoreChanged =
+      !completion && score.trim() !== initialScore && score.trim() !== '';
+    if (scoreChanged && !scoreValid) {
+      onNotify?.(
+        `Score not saved. Enter 0 to ${max === null ? 'the total' : fmtPoints(max * 2)}.`
+      );
+      return false;
+    }
+    const text = commentText.trim();
+    const old = mark?.comment;
+    const commentChanged =
+      text !== (old?.text ?? '') ||
+      (text !== '' && shared !== (old?.shared ?? false));
+    if (scoreChanged && parsed !== null) {
+      writes.setOverride(column, cell, parsed).catch(fail);
+    }
+    if (commentChanged) {
+      writes.setComment(column, cell, text, shared).catch(fail);
+    }
+    return true;
+  };
+
+  const close = () => {
+    commit();
+    onClose();
+  };
 
   const statusParts: string[] = [];
   if (notAssigned) {
@@ -121,296 +134,287 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
     );
   }
   const published = row ? isPublishedFor(row, mark) : null;
-  if (!completion && !notAssigned && published !== null) {
-    statusParts.push(published ? 'Published' : 'Not published');
-  }
+  const showUnpublished = !completion && !notAssigned && published === false;
 
-  const fillCount = columnCells.filter(isFillable).length;
   const flagDefs = ctx.settings.flags.filter((f) => f.visibility !== 'off');
+  const activeDefs = final.flags
+    .map((a) => ({ a, def: flagDefs.find((f) => f.id === a.id) }))
+    .filter(
+      (
+        x
+      ): x is {
+        a: (typeof final.flags)[number];
+        def: (typeof flagDefs)[number];
+      } => x.def !== undefined
+    );
+  const below = emptyCellsBelow(columnCells, student.uid);
   const attempts = row?.attempts ?? [];
   const policy = column.config?.attemptPolicy ?? 'latest';
+
+  const meta: React.ReactNode[] = [];
+  if (mark?.override) {
+    meta.push(
+      <span key="calc">
+        Calculated{' '}
+        <s className="text-slate-400">
+          {final.rawPoints === null || !max
+            ? 'none'
+            : fmtPct((final.rawPoints / max) * 100)}
+        </s>{' '}
+        <LinkBtn
+          onClick={() => {
+            setScore(fmtPoints(final.rawPoints));
+            writes.setOverride(column, cell, null).catch(fail);
+          }}
+        >
+          Revert
+        </LinkBtn>
+      </span>
+    );
+  }
+  if (attempts.length > 1) {
+    const pcts = attempts
+      .map((a) =>
+        a.points !== null && a.max ? fmtPct((a.points / a.max) * 100) : 'none'
+      )
+      .join(', ');
+    const using =
+      policy === 'latest'
+        ? 'latest'
+        : policy === 'highest'
+          ? 'highest'
+          : 'average';
+    meta.push(
+      <span key="att">
+        {attempts.length} attempts ({pcts}), using {using}
+      </span>
+    );
+  }
+
+  const flagButton = (
+    <button
+      type="button"
+      aria-haspopup="menu"
+      aria-expanded={flagMenuOpen}
+      onClick={(e) => {
+        const target = e.currentTarget;
+        setFlagAnchor((a) => (a ? null : target));
+      }}
+      className="inline-flex h-10 min-w-0 max-w-[170px] items-center gap-1.5 rounded-lg border border-slate-300 bg-white pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 aria-expanded:border-brand-blue-primary aria-expanded:ring-[3px] aria-expanded:ring-brand-blue-primary/30 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
+    >
+      {activeDefs.length > 0 ? (
+        <>
+          <FlagChip flag={activeDefs[0].def} auto={activeDefs[0].a.auto} />
+          <span className="truncate">
+            {activeDefs[0].def.name}
+            {activeDefs.length > 1 ? ` +${activeDefs.length - 1}` : ''}
+          </span>
+        </>
+      ) : (
+        <span className="text-slate-400">Flag</span>
+      )}
+      <ChevronDown
+        size={16}
+        aria-hidden
+        className={`ml-auto flex-none text-slate-400 transition-transform ${flagMenuOpen ? 'rotate-180' : ''}`}
+      />
+    </button>
+  );
 
   return (
     <GradebookPopoverShell
       anchor={anchor}
-      onClose={onClose}
+      onClose={close}
       ariaLabel={`${student.name}, ${column.title}`}
     >
-      <div>
-        <h3 className="text-base font-semibold text-slate-900">
+      <div className="min-w-0">
+        <h3 className="text-[15px] font-bold leading-tight text-slate-900">
           {student.name}
         </h3>
-        <p className="text-xs text-slate-600">
+        <p className="mt-0.5 text-xs leading-normal text-slate-500">
           {column.title} · {statusParts.join(' · ')}
+          {showUnpublished && (
+            <>
+              {' · '}
+              <span className="font-semibold text-amber-700">
+                Not published
+              </span>
+            </>
+          )}
+          {final.status === 'awaiting' && onOpenGrader && (
+            <>
+              {' · '}
+              <LinkBtn
+                warn
+                onClick={() => onOpenGrader(column.sessionId, student.uid)}
+              >
+                Needs grading
+              </LinkBtn>
+            </>
+          )}
         </p>
       </div>
 
-      {notAssigned ? null : completion ? (
-        <p className="text-sm text-slate-700">
-          {final.status === 'complete' ? 'Submitted' : 'No submission yet'}
-        </p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          <SectionLabel htmlFor={`${ids}-score`}>Score</SectionLabel>
-          <form
-            className="flex items-center gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!scoreValid || unchangedScore) return;
-              void run(() => writes.setOverride(column, cell, parsedScore));
-            }}
-          >
-            <input
-              id={`${ids}-score`}
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step="any"
-              autoFocus={prefill !== undefined}
-              value={score}
-              onChange={(e) => setScore(e.target.value)}
-              className="h-9 w-24 rounded-lg border border-slate-300 px-2 text-sm tabular-nums focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-lighter"
-            />
-            <span className="text-slate-600">
-              / {max === null ? '?' : fmtPoints(max)}
-            </span>
-            <PopButton
-              type="submit"
-              tone="primary"
-              disabled={busy || !scoreValid || unchangedScore}
-            >
-              Save
-            </PopButton>
-            {mark?.override && (
-              <PopButton
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    await writes.setOverride(column, cell, null);
-                    setScore(fmtPoints(final.rawPoints));
-                  })
-                }
-              >
-                Revert
-              </PopButton>
-            )}
-          </form>
-          {mark?.override && (
-            <p className="text-xs text-slate-600">
-              Calculated{' '}
-              <s>
-                {final.rawPoints === null
-                  ? 'none'
-                  : `${fmtPoints(final.rawPoints)}${max ? ` (${fmtPct((final.rawPoints / max) * 100)})` : ''}`}
-              </s>
-            </p>
-          )}
-          {final.status === 'awaiting' && (
-            <p className="text-xs font-medium text-amber-800">Awaiting grade</p>
-          )}
-          {final.source === 'flag' && (
-            <p className="text-xs text-slate-600">
-              Set by the{' '}
-              {ctx.settings.flags.find((f) => f.id === final.flagId)?.name ??
-                'flag'}{' '}
-              flag
-            </p>
-          )}
-          {column.kind === 'quiz' &&
-            onOpenGrader &&
-            row?.submittedAt != null && (
-              <PopButton
-                tone="quiet"
-                className="self-start"
-                onClick={() => onOpenGrader(column.sessionId, student.uid)}
-              >
-                Grade answers
-              </PopButton>
-            )}
-        </div>
-      )}
-
-      {!notAssigned && flagDefs.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <SectionLabel>Flags</SectionLabel>
-          <FlagChecklist
-            flags={flagDefs}
-            active={final.flags}
-            disabled={busy}
-            onToggle={(flagId) =>
-              void run(() => writes.toggleFlag(column, cell, flagId))
-            }
-          />
-        </div>
-      )}
-
       {!notAssigned && (
-        <div className="flex flex-col gap-2">
-          <SectionLabel htmlFor={`${ids}-comment`}>Comment</SectionLabel>
-          <textarea
-            id={`${ids}-comment`}
-            rows={2}
-            maxLength={5000}
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            className="resize-y rounded-lg border border-slate-300 p-2 text-sm focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-lighter"
-          />
+        <>
           <div className="flex items-center gap-2">
-            <label className="flex min-h-9 items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={commentShared}
-                onChange={(e) => setCommentShared(e.target.checked)}
-                className="h-4 w-4 accent-brand-blue-primary"
-              />
-              Share with student
-            </label>
-            <PopButton
-              className="ml-auto"
-              disabled={
-                busy ||
-                (commentText.trim() === (mark?.comment?.text ?? '') &&
-                  commentShared === (mark?.comment?.shared ?? false))
-              }
-              onClick={() =>
-                void run(() =>
-                  writes.setComment(column, cell, commentText, commentShared)
-                )
-              }
-            >
-              Save comment
-            </PopButton>
+            {completion ? (
+              <span className="text-xs text-slate-600">
+                {final.status === 'complete'
+                  ? 'Submitted · completion only'
+                  : 'Not submitted'}
+              </span>
+            ) : (
+              <>
+                <div className="flex h-10 items-center rounded-lg border border-slate-300 bg-white pr-1 focus-within:border-brand-blue-primary focus-within:ring-[3px] focus-within:ring-brand-blue-primary/30">
+                  <input
+                    id={`${ids}-score`}
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step="any"
+                    aria-label="Score"
+                    autoFocus={prefill !== undefined}
+                    value={score}
+                    onChange={(e) => setScore(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (commit()) onClose('enter');
+                      }
+                    }}
+                    className="h-[38px] w-[72px] border-0 bg-transparent pl-3 pr-1 text-base font-semibold tabular-nums text-slate-900 [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={below.length === 0 || !scoreValid}
+                    aria-label="Fill empty cells below"
+                    title={
+                      below.length
+                        ? `Use this score for the ${below.length} empty ${below.length === 1 ? 'cell' : 'cells'} below`
+                        : 'No empty cells below'
+                    }
+                    onClick={() => {
+                      if (parsed === null) return;
+                      writes
+                        .fillDown(column, cell, below, parsed)
+                        .then((res) =>
+                          onNotify?.(
+                            `Filled ${res.count} ${res.count === 1 ? 'cell' : 'cells'} below with ${fmtPoints(parsed)}${max === null ? '' : `/${fmtPoints(max)}`}`,
+                            () => void writes.undoBatch(res.batchId)
+                          )
+                        )
+                        .catch(fail);
+                      setScore(fmtPoints(parsed));
+                    }}
+                    className="grid h-[30px] w-[30px] place-items-center rounded-md text-slate-400 hover:enabled:bg-brand-blue-lighter hover:enabled:text-brand-blue-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary disabled:opacity-40"
+                  >
+                    <ArrowDownToLine size={16} aria-hidden />
+                  </button>
+                </div>
+                <span className="text-[15px] font-medium text-slate-500">
+                  / {max === null ? '?' : fmtPoints(max)}
+                </span>
+              </>
+            )}
+            <span className="flex-1" />
+            {flagDefs.length > 0 && flagButton}
           </div>
-        </div>
-      )}
 
-      {!notAssigned && !completion && (
-        <div className="flex flex-col gap-2">
-          {fill?.stage === 'confirm' ? (
-            <ConfirmRow
-              message={`Fill ${fillCount} empty ${fillCount === 1 ? 'cell' : 'cells'} with ${fmtPoints(fill.points)}?`}
-              confirmLabel={`Fill ${fillCount}`}
-              busy={busy}
-              disabled={fillCount === 0}
-              onCancel={() => setFill(null)}
-              onConfirm={() =>
-                void run(async () => {
-                  const res = await writes.fillEmpty(
-                    column,
-                    columnCells,
-                    fill.points
-                  );
-                  setFill({ stage: 'done', ...res });
-                })
-              }
-            />
-          ) : fill?.stage === 'done' ? (
-            <DoneRow
-              message={`Filled ${fill.count} ${fill.count === 1 ? 'cell' : 'cells'}`}
-              busy={busy}
-              onUndo={() =>
-                void run(async () => {
-                  await writes.undoBatch(fill.batchId);
-                  setFill(null);
-                })
-              }
-            />
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              <PopButton
-                disabled={busy || !scoreValid || fillCount === 0}
-                title="Fills cells with no work, score or excusing flag"
-                onClick={() =>
-                  parsedScore !== null &&
-                  setFill({ stage: 'confirm', points: parsedScore })
-                }
-              >
-                Fill down
-              </PopButton>
-              {published !== null && (
-                <PopButton
-                  disabled={busy}
-                  onClick={() =>
-                    void run(() =>
-                      writes.setPublish(
-                        column,
-                        cell,
-                        published ? 'unpublished' : 'published'
-                      )
-                    )
-                  }
-                >
-                  {published ? 'Unpublish for student' : 'Publish for student'}
-                </PopButton>
-              )}
-            </div>
+          {meta.length > 0 && (
+            <p className="-mt-1 text-xs text-slate-500">
+              {meta.map((m, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && ' · '}
+                  {m}
+                </React.Fragment>
+              ))}
+            </p>
           )}
-        </div>
-      )}
 
-      {attempts.length > 1 && (
-        <div className="flex flex-col gap-1">
-          <SectionLabel>
-            Attempts ·{' '}
-            {policy === 'latest'
-              ? 'Latest'
-              : policy === 'highest'
-                ? 'Highest'
-                : 'Average'}{' '}
-            counts
-          </SectionLabel>
-          <ol className="flex flex-col gap-0.5 text-sm text-slate-700">
-            {attempts.map((a, i) => (
-              <li
-                key={`${a.at}-${i}`}
-                className="flex justify-between gap-2 tabular-nums"
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <label
+                htmlFor={`${ids}-comment`}
+                className="text-xs font-semibold uppercase tracking-wide text-slate-700"
               >
-                <span>
-                  {i + 1}. {fmtDate(a.at)}
-                </span>
-                <span>
-                  {a.state === 'awaiting-grade'
-                    ? 'Awaiting grade'
-                    : a.points === null || a.max === null
-                      ? 'None'
-                      : `${fmtPoints(a.points)} / ${fmtPoints(a.max)}`}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </div>
+                Comment
+              </label>
+              <Toggle small checked={shared} onChange={setShared}>
+                Share with student
+              </Toggle>
+            </div>
+            <textarea
+              id={`${ids}-comment`}
+              rows={2}
+              maxLength={5000}
+              placeholder="Add a comment"
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              className="resize-y rounded-lg border border-slate-300 px-2.5 py-2 text-[13px] text-slate-800 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-none focus:ring-[3px] focus:ring-brand-blue-primary/30"
+            />
+          </div>
+        </>
       )}
 
-      <div className="flex flex-col gap-1">
-        <PopButton
-          tone="quiet"
-          className="self-start"
+      <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
+        <LinkBtn
           aria-expanded={showHistory}
           onClick={() => setShowHistory((v) => !v)}
         >
           History
-        </PopButton>
-        {showHistory &&
-          (history.loading ? (
-            <p className="text-xs text-slate-500">Loading…</p>
-          ) : history.entries.length === 0 ? (
-            <p className="text-xs text-slate-500">No changes yet</p>
-          ) : (
-            <ol className="flex flex-col gap-1 text-xs text-slate-700">
-              {history.entries.map((e) => (
-                <li key={e.id}>
-                  <span className="text-slate-500">{fmtDateTime(e.at)}</span>{' '}
-                  {describeHistory(e, ctx.settings.flags)}
-                </li>
-              ))}
-            </ol>
-          ))}
+          {showHistory && history.entries.length > 0
+            ? ` (${history.entries.length})`
+            : ''}
+        </LinkBtn>
+        <span className="flex-1" />
+        {!completion && !notAssigned && published !== null && (
+          <LinkBtn
+            onClick={() => {
+              const next = published ? 'unpublished' : 'published';
+              writes
+                .setPublish(column, cell, next)
+                .then((batchId) =>
+                  onNotify?.(
+                    `${published ? 'Unpublished' : 'Published'} for ${student.firstName}`,
+                    () => void writes.undoBatch(batchId)
+                  )
+                )
+                .catch(fail);
+            }}
+          >
+            {published ? 'Unpublish' : 'Publish'} for {student.firstName}
+          </LinkBtn>
+        )}
       </div>
+      {showHistory &&
+        (history.loading ? null : history.entries.length === 0 ? (
+          <p className="-mt-1 text-xs text-slate-500">No changes yet</p>
+        ) : (
+          <ol className="-mt-1 flex list-decimal flex-col gap-1 pl-[18px] text-xs text-slate-600">
+            {history.entries.map((e) => (
+              <li key={e.id}>
+                {fmtDateTime(e.at)} · {describeHistory(e, ctx.settings.flags)}
+              </li>
+            ))}
+          </ol>
+        ))}
 
-      {error && (
-        <p role="alert" className="text-sm text-brand-red-primary">
-          {error}
-        </p>
+      {flagAnchor && (
+        <GradebookPopoverShell
+          submenu
+          anchor={flagAnchor}
+          onClose={() => setFlagAnchor(null)}
+          ariaLabel="Flags"
+        >
+          <FlagMenuList
+            flags={flagDefs}
+            active={final.flags}
+            onToggle={(flagId) =>
+              writes.toggleFlag(column, cell, flagId).catch(fail)
+            }
+          />
+        </GradebookPopoverShell>
       )}
     </GradebookPopoverShell>
   );

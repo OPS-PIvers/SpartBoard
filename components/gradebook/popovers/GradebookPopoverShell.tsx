@@ -4,12 +4,15 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 
 const EDGE = 12;
 const GAP = 6;
+const SUBMENU_ATTR = 'data-gb-submenu';
 
 interface GradebookPopoverShellProps {
   anchor: HTMLElement;
   onClose: () => void;
   ariaLabel: string;
   children: React.ReactNode;
+  /** A menu opened from inside a popover: narrower, right-aligned to its button. */
+  submenu?: boolean;
 }
 
 /** Anchored panel for the gradebook: below the anchor, flipped above when it would overflow. */
@@ -18,12 +21,20 @@ export const GradebookPopoverShell: React.FC<GradebookPopoverShellProps> = ({
   onClose,
   ariaLabel,
   children,
+  submenu,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [pos, setPos] = useState<{
+    top: number;
+    left: number;
+    maxHeight: number;
+  } | null>(null);
 
   useClickOutside(panelRef, (e) => {
-    if (!anchor.contains(e.target as Node)) onClose();
+    const target = e.target as Element;
+    if (anchor.contains(target)) return;
+    if (!submenu && target.closest?.(`[${SUBMENU_ATTR}]`)) return;
+    onClose();
   });
 
   useLayoutEffect(() => {
@@ -32,17 +43,21 @@ export const GradebookPopoverShell: React.FC<GradebookPopoverShellProps> = ({
     const place = () => {
       const r = anchor.getBoundingClientRect();
       const pw = panel.offsetWidth;
-      const ph = panel.offsetHeight;
+      const ph = panel.scrollHeight;
+      const start = submenu ? r.right - pw : r.left;
       const left = Math.max(
         EDGE,
-        Math.min(r.left, window.innerWidth - pw - EDGE)
+        Math.min(start, window.innerWidth - pw - EDGE)
       );
-      let top = r.bottom + GAP;
-      if (top + ph > window.innerHeight - EDGE) {
-        top = Math.max(EDGE, r.top - ph - GAP);
-      }
+      const below = window.innerHeight - r.bottom - GAP - EDGE;
+      const above = r.top - GAP - EDGE;
+      const down = below >= Math.min(ph, 240) || below >= above;
+      const maxHeight = down ? below : above;
+      const top = down ? r.bottom + GAP : r.top - GAP - Math.min(ph, maxHeight);
       setPos((p) =>
-        p && p.top === top && p.left === left ? p : { top, left }
+        p && p.top === top && p.left === left && p.maxHeight === maxHeight
+          ? p
+          : { top, left, maxHeight }
       );
     };
     place();
@@ -55,7 +70,7 @@ export const GradebookPopoverShell: React.FC<GradebookPopoverShellProps> = ({
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
     };
-  }, [anchor]);
+  }, [anchor, submenu]);
 
   useLayoutEffect(() => {
     const panel = panelRef.current;
@@ -79,11 +94,17 @@ export const GradebookPopoverShell: React.FC<GradebookPopoverShellProps> = ({
       aria-label={ariaLabel}
       tabIndex={-1}
       onKeyDown={onKeyDown}
+      {...(submenu ? { [SUBMENU_ATTR]: '' } : {})}
       style={{
         top: pos?.top ?? -9999,
         left: pos?.left ?? -9999,
+        maxHeight: pos?.maxHeight,
       }}
-      className="fixed z-popover flex max-h-[min(640px,calc(100dvh-24px))] w-[min(380px,calc(100vw-24px))] flex-col gap-4 overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 pb-5 text-sm text-slate-800 shadow-xl outline-none"
+      className={`fixed flex flex-col overflow-y-auto rounded-xl border border-slate-200 bg-white text-sm text-slate-800 shadow-[0_10px_15px_-3px_rgba(29,42,93,.12),0_4px_6px_-4px_rgba(29,42,93,.08)] outline-none ${
+        submenu
+          ? 'z-popover-menu w-[184px] gap-1.5 p-1.5'
+          : 'z-popover w-[min(380px,calc(100vw-24px))] gap-3.5 p-4'
+      }`}
     >
       {children}
     </div>,

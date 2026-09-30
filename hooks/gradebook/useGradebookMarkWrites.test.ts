@@ -40,7 +40,7 @@ vi.mock('@/context/useAuth', () => ({
 import {
   flagPatch,
   isFillable,
-  isMissingCandidate,
+  emptyCellsBelow,
   useGradebookMarkWrites,
 } from './useGradebookMarkWrites';
 import { gradebookUndoStore } from './gradebookUndoStore';
@@ -89,7 +89,7 @@ function cell(
   mark: GradebookMark | null = null
 ): GradebookCellData {
   return {
-    student: { uid, name: uid },
+    student: { uid, name: uid, firstName: uid },
     row: r,
     mark,
     final: resolveFinalScore(r, mark, null, {
@@ -123,8 +123,8 @@ beforeEach(() => {
   gradebookUndoStore.clear();
 });
 
-describe('fill and bulk eligibility', () => {
-  it('fills empty and auto-Missing cells but never submitted, overridden or excused ones', () => {
+describe('empty cells', () => {
+  it('counts empty and auto-Missing cells, never submitted, overridden, flagged or unassigned ones', () => {
     expect(isFillable(cell('a', row()))).toBe(true);
     expect(
       isFillable(
@@ -137,23 +137,19 @@ describe('fill and bulk eligibility', () => {
     expect(isFillable(cell('d', row(), mark({ flags: ['excused'] })))).toBe(
       false
     );
-    expect(isFillable(cell('e', row({ assigned: false })))).toBe(false);
-    expect(
-      isFillable(
-        cell('f', row({ state: 'awaiting-grade', submittedAt: NOW - 5 }))
-      )
-    ).toBe(false);
-  });
-
-  it('Mark all Missing skips submitters, unassigned and manual Missing', () => {
-    expect(isMissingCandidate(cell('a', row()))).toBe(true);
-    expect(isMissingCandidate(cell('b', row({ submittedAt: NOW - 5 })))).toBe(
+    expect(isFillable(cell('g', row(), mark({ flags: ['absent'] })))).toBe(
       false
     );
-    expect(isMissingCandidate(cell('c', row({ assigned: false })))).toBe(false);
-    expect(
-      isMissingCandidate(cell('d', row(), mark({ flags: ['missing'] })))
-    ).toBe(false);
+    expect(isFillable(cell('e', row({ assigned: false })))).toBe(false);
+  });
+
+  it('fill down only looks below the student in row order', () => {
+    const cells = ['u1', 'u2', 'u3'].map((u) =>
+      cell(u, row({ studentUid: u }))
+    );
+    expect(emptyCellsBelow(cells, 'u2').map((c) => c.student.uid)).toEqual([
+      'u3',
+    ]);
   });
 });
 
@@ -204,9 +200,10 @@ describe('useGradebookMarkWrites', () => {
     });
   });
 
-  it('fills a column as one batch and one undo restores every cell', async () => {
+  it('fills down as one batch and one undo restores every cell', async () => {
     const { result } = renderHook(() => useGradebookMarkWrites('r1'));
-    const cells = [
+    const own = cell('u0', row({ studentUid: 'u0' }));
+    const below = [
       cell('u1', row({ studentUid: 'u1' })),
       cell(
         'u2',
@@ -220,19 +217,22 @@ describe('useGradebookMarkWrites', () => {
       cell(
         'u3',
         row({ studentUid: 'u3' }),
-        mark({ studentUid: 'u3', flags: ['late'] })
+        mark({
+          studentUid: 'u3',
+          comment: { text: 'hi', shared: false, at: 1 },
+        })
       ),
     ];
     let res: { batchId: string; count: number } | undefined;
     await act(async () => {
-      res = await result.current.fillEmpty(column, cells, 0);
+      res = await result.current.fillDown(column, own, below, 5);
     });
     expect(res?.count).toBe(2);
     const hist = sets.filter((s) => s.path.includes('/history/'));
+    expect(hist).toHaveLength(3);
     expect(new Set(hist.map((h) => h.data.batchId))).toEqual(
       new Set([res?.batchId])
     );
-    expect(hist.every((h) => h.data.field === 'fill')).toBe(true);
 
     sets.length = 0;
     await act(async () => {
@@ -240,13 +240,32 @@ describe('useGradebookMarkWrites', () => {
     });
     const restored = sets.filter((s) => !s.path.includes('/history/'));
     expect(restored.map((s) => s.path).sort()).toEqual([
+      'gradebook_marks/s1__u0',
       'gradebook_marks/s1__u1',
       'gradebook_marks/s1__u3',
     ]);
     expect(restored.every((s) => s.data.override === null)).toBe(true);
-    expect(restored.find((s) => s.path.endsWith('u3'))?.data.flags).toEqual([
-      'late',
-    ]);
+    expect(
+      (
+        restored.find((s) => s.path.endsWith('u3'))?.data.comment as {
+          text: string;
+        }
+      ).text
+    ).toBe('hi');
     expect(gradebookUndoStore.peek()).toBeNull();
+  });
+
+  it('Mark all sets a flag on empty cells only', async () => {
+    const { result } = renderHook(() => useGradebookMarkWrites('r1'));
+    const cells = [
+      cell('u1', row({ studentUid: 'u1' })),
+      cell('u2', row({ studentUid: 'u2', submittedAt: NOW - 5 })),
+    ];
+    await act(async () => {
+      await result.current.markAll(column, cells, 'missing');
+    });
+    const marks = sets.filter((s) => !s.path.includes('/history/'));
+    expect(marks.map((m) => m.path)).toEqual(['gradebook_marks/s1__u1']);
+    expect(marks[0].data.flags).toEqual(['missing']);
   });
 });

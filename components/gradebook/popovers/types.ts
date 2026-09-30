@@ -11,6 +11,7 @@ export interface GradebookStudentRef {
   uid: string;
   /** Display name in the grid's current name format. */
   name: string;
+  firstName: string;
 }
 
 export interface GradebookColumnRef {
@@ -36,3 +37,6 @@ export interface GradebookPopoverContext {
   settings: GradebookSettingsBody;
   now: number;
 }
+
+/** Toast the grid shows after a change; `undo` reverts it. */
+export type GradebookNotify = (message: string, undo?: () => void) => void;
