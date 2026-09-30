@@ -36,6 +36,8 @@ const ADMIN = 'admin-uid';
 const PLC = 'plc-gradebook';
 const SESSION = 'quiz-session-1';
 const OTHER_SESSION = 'quiz-session-2';
+// Mirrors GRADEBOOK_MARK_BATCH in utils/gradebook/gradebookModel.ts.
+const GRADEBOOK_MARK_BATCH = 8;
 const MARK_ID = `${SESSION}__${STUDENT}`;
 
 let testEnv: RulesTestEnvironment;
@@ -338,6 +340,24 @@ describe('gradebook_marks history', () => {
         )
       )
     );
+  });
+
+  it('takes a full bulk batch of marks with history', async () => {
+    const db = teacherDb();
+    const batch = writeBatch(db);
+    for (let i = 0; i < GRADEBOOK_MARK_BATCH; i++) {
+      const id = `${SESSION}__s${i}`;
+      batch.set(
+        doc(db, `gradebook_marks/${id}`),
+        mark({ studentUid: `s${i}` })
+      );
+      batch.set(doc(db, `gradebook_marks/${id}/history/a`), history());
+      batch.set(
+        doc(db, `gradebook_marks/${id}/history/b`),
+        history({ field: 'flags', before: [], after: ['m'] })
+      );
+    }
+    await assertSucceeds(batch.commit());
   });
 
   it('is append-only and owner-only', async () => {

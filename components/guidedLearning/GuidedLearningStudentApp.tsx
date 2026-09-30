@@ -43,6 +43,7 @@ import { GuidedLearningPlayer } from '@/components/widgets/GuidedLearning/compon
 import { useServerNow } from '@/hooks/useServerNow';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
+import { ResultsProtectionGate } from '@/components/student/ResultsProtectionGate';
 import {
   GuidedLearningPeriodLockedScreen,
   GuidedLearningPeriodPausedOverlay,
@@ -542,18 +543,25 @@ const StudentExperience: React.FC<{
     myResponse &&
     typeof myResponse.completedAt === 'number'
   ) {
-    const { visibility, revealedAnswers } = resolveResultsVisibility(
-      session,
-      myResponse
-    );
+    const { visibility, revealedAnswers, protection, publishedAt } =
+      resolveResultsVisibility(session, myResponse);
     if (visibility !== 'none') {
       return (
-        <PublishedGLReview
-          session={session}
-          myResponse={myResponse}
-          visibility={visibility}
-          revealedAnswers={revealedAnswers}
-        />
+        <ResultsProtectionGate
+          protection={protection}
+          publishedAt={publishedAt}
+          responseDocPath={`guided_learning_sessions/${session.id}/responses/${myResponse.studentAnonymousId}`}
+          tabWarnings={myResponse.resultsTabWarnings ?? 0}
+          lockedOut={myResponse.resultsLockedOut === true}
+          pin={myResponse.pin}
+        >
+          <PublishedGLReview
+            session={session}
+            myResponse={myResponse}
+            visibility={visibility}
+            revealedAnswers={revealedAnswers}
+          />
+        </ResultsProtectionGate>
       );
     }
     return (

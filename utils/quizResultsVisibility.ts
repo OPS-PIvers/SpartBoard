@@ -3,6 +3,7 @@ import type {
   QuizResultsOverride,
   QuizScoreVisibility,
   QuizSession,
+  ResultsProtection,
 } from '@/types';
 
 export type ResultsOverrideState = 'follows' | 'shown' | 'hidden' | 'expired';
@@ -14,6 +15,8 @@ export interface EffectiveResultsVisibility {
   source: 'class' | 'student';
   /** Answer key to render, only at the `score-responses-and-answers` level. */
   revealedAnswers?: Record<string, string>;
+  /** Watermark and tab-away lockout for the results view; absent = none. */
+  protection?: ResultsProtection;
 }
 
 type SessionPublication = Pick<
@@ -22,6 +25,7 @@ type SessionPublication = Pick<
   | 'scorePublishedAt'
   | 'revealedAnswers'
   | 'showScoreOnSubmit'
+  | 'protection'
 >;
 type ResponsePublication = Pick<
   QuizResponse,
@@ -73,6 +77,7 @@ export const resolveResultsVisibility = (
       visibility: override.visibility,
       publishedAt: override.publishedAt,
       source: 'student',
+      protection: override.protection ?? session?.protection,
       revealedAnswers:
         override.visibility === 'score-responses-and-answers'
           ? (override.revealedAnswers ?? {})
@@ -92,6 +97,7 @@ export const resolveResultsVisibility = (
     visibility,
     publishedAt: session?.scorePublishedAt,
     source: 'class',
+    protection: session?.protection,
     // Older class publishes kept the key on the session doc only.
     revealedAnswers:
       visibility === 'score-responses-and-answers'

@@ -531,7 +531,8 @@ export interface UseQuizAssignmentsResult {
     quizData: QuizData,
     responseKeys: string[],
     visibility: Exclude<QuizScoreVisibility, 'none'>,
-    expiresAt: number | null
+    expiresAt: number | null,
+    protection?: ResultsProtection
   ) => Promise<{ responsesUpdated: number; skipped: number }>;
   /** Hide results from chosen students, whatever the class setting is. */
   hideResultsForStudents: (
@@ -3336,7 +3337,14 @@ export const useQuizAssignments = (
   const publishResultsForStudents = useCallback<
     UseQuizAssignmentsResult['publishResultsForStudents']
   >(
-    async (assignmentId, quizData, responseKeys, visibility, expiresAt) => {
+    async (
+      assignmentId,
+      quizData,
+      responseKeys,
+      visibility,
+      expiresAt,
+      protection
+    ) => {
       if (!userId) throw new Error('Not authenticated');
       if ((visibility as string) === 'none') {
         throw new Error(
@@ -3384,6 +3392,7 @@ export const useQuizAssignments = (
             publishedAt: now,
             expiresAt,
             ...(revealedAnswers ? { revealedAnswers } : {}),
+            ...(protection ? { protection } : {}),
           },
         };
       };

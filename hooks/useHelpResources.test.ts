@@ -5,7 +5,9 @@ import {
   useHelpResources,
   useHelpItemsForWidget,
   incrementHelpOpenCount,
+  isHelpItemVisibleTo,
 } from './useHelpResources';
+import type { HelpResourceItem } from '@/types/helpCenter';
 import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import {
   collection,
@@ -211,6 +213,50 @@ describe('useHelpResources', () => {
     );
     await waitFor(() => expect(withHidden.current.loading).toBe(false));
     expect(withHidden.current.items).toHaveLength(1);
+  });
+
+  it('hides Review help from viewers without quiz-review-split, except in the admin view', async () => {
+    const review = { ...rawGlobalItem, widgetTypes: ['review'] };
+    mockOnSnapshot.mockImplementation(
+      (
+        ref: { clauses?: unknown[] } | string,
+        onNext: (snap: { data?: () => unknown; docs?: unknown[] }) => void
+      ) => {
+        if (ref === 'help_center/config-ref') {
+          queueMicrotask(() => onNext({ data: () => undefined }));
+        } else {
+          queueMicrotask(() =>
+            onNext({ docs: [{ id: 'r1', data: () => review }] })
+          );
+        }
+        return () => undefined;
+      }
+    );
+    const flagOff = makeAuthWrapper({ canAccessFeature: () => false });
+    const flagOn = makeAuthWrapper({
+      canAccessFeature: (id) => id === 'quiz-review-split',
+    });
+
+    const { result: teacher } = renderHook(
+      () => useHelpResources({ includeHidden: false }),
+      { wrapper: flagOff }
+    );
+    await waitFor(() => expect(teacher.current.loading).toBe(false));
+    expect(teacher.current.items).toHaveLength(0);
+
+    const { result: admin } = renderHook(
+      () => useHelpResources({ includeHidden: true }),
+      { wrapper: flagOff }
+    );
+    await waitFor(() => expect(admin.current.loading).toBe(false));
+    expect(admin.current.items).toHaveLength(1);
+
+    const { result: previewer } = renderHook(
+      () => useHelpResources({ includeHidden: false }),
+      { wrapper: flagOn }
+    );
+    await waitFor(() => expect(previewer.current.loading).toBe(false));
+    expect(previewer.current.items).toHaveLength(1);
   });
 
   it('tolerates permission-denied on the org query and keeps global results', async () => {
@@ -481,5 +527,24 @@ describe('incrementHelpOpenCount', () => {
     await incrementHelpOpenCount('denied');
     expect(updateDoc).toHaveBeenCalledTimes(1);
     expect(warnSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('isHelpItemVisibleTo', () => {
+  const item = (widgetTypes: string[]) =>
+    ({ widgetTypes }) as unknown as HelpResourceItem;
+  const noFlags = () => false;
+
+  it('hides items tagged only with flag-gated widgets the viewer lacks', () => {
+    expect(isHelpItemVisibleTo(item(['review']), noFlags)).toBe(false);
+    expect(
+      isHelpItemVisibleTo(item(['review']), (id) => id === 'quiz-review-split')
+    ).toBe(true);
+  });
+
+  it('keeps untagged items and items tagged with any ungated widget', () => {
+    expect(isHelpItemVisibleTo(item([]), noFlags)).toBe(true);
+    expect(isHelpItemVisibleTo(item(['quiz']), noFlags)).toBe(true);
+    expect(isHelpItemVisibleTo(item(['quiz', 'review']), noFlags)).toBe(true);
   });
 });

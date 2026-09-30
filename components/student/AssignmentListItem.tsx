@@ -176,9 +176,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   const completion: CompletionState = isClosedProjectRun(assignment)
     ? 'completed'
     : checkedCompletion;
-  // Only the quiz kind has `resultsLockedOut` on its response doc. Other
-  // assignment kinds don't carry this field — strict equality below means a
-  // missing/undefined field never trips the locked state.
+  // Quiz, VA and GL responses can carry `resultsLockedOut`; a missing field never locks.
   const [lockedOut, setLockedOut] = useState(false);
   // Quiz, VA and GL: a per-student publish or hide, read from the same response doc.
   const [resultsOverride, setResultsOverride] =
@@ -222,13 +220,8 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
               : snap.exists();
         const next: CompletionState = done ? 'completed' : 'not-completed';
         setCompletion(next);
-        // Quiz-only: surface the teacher-controlled lockout flag so the row
-        // can render a Locked badge and intercept the tap. Strict equality
-        // keeps legacy responses (no field) out of the locked state.
-        if (assignment.kind === 'quiz' && snap.exists()) {
-          setLockedOut(snap.data()?.resultsLockedOut === true);
-        }
         if (OVERRIDE_KINDS.has(assignment.kind) && snap.exists()) {
+          setLockedOut(snap.data()?.resultsLockedOut === true);
           setResultsOverride(
             (snap.data()?.resultsOverride as QuizResultsOverride | undefined) ??
               null

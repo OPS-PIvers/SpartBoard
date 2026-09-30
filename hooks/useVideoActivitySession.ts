@@ -702,6 +702,8 @@ export interface UseVideoActivitySessionStudentResult {
   contentPending: boolean;
   /** A retake reset is waiting for the student's period to open (the rules freeze it until then). */
   retakePending: boolean;
+  /** Doc id of the student's own response, once joined. */
+  responseDocId: string | null;
 }
 
 /** `video_activity_sessions/{id}/content/questions`: what a per-period session hides until the period opens. */
@@ -1624,5 +1626,6 @@ export const useVideoActivitySessionStudent =
       periodKeys,
       contentPending: inContent && !content,
       retakePending,
+      responseDocId,
     };
   };

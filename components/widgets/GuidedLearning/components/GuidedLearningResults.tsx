@@ -51,6 +51,7 @@ import {
   GL_SESSIONS_COLLECTION,
   hideResultsForStudents,
   publishGuidedLearningResultsForStudents,
+  unlockResultsForStudent,
 } from '@/utils/studentResultsPublish';
 
 type PeriodSession = PeriodAccessSessionFields & {
@@ -328,7 +329,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
   const resultsActions = useMemo<StudentResultsActions | null>(() => {
     if (viewOnly || !canAccessFeature('gradebook')) return null;
     return {
-      publish: (keys, visibility, expiresAt) => {
+      publish: (keys, visibility, expiresAt, protection) => {
         if (!sessionLoaded) {
           return Promise.reject(new Error('Session is still loading.'));
         }
@@ -337,7 +338,8 @@ export const GuidedLearningResults: React.FC<Props> = ({
           questionSteps,
           keys,
           visibility,
-          expiresAt
+          expiresAt,
+          protection
         );
       },
       hide: (keys) =>
@@ -734,6 +736,17 @@ export const GuidedLearningResults: React.FC<Props> = ({
                                 />
                               </span>
                             )}
+                            {resultsActions && r.resultsLockedOut && (
+                              <span
+                                className="font-bold text-amber-300"
+                                style={{
+                                  fontSize: 'min(12px, 4.5cqmin)',
+                                  marginLeft: 'min(8px, 2cqmin)',
+                                }}
+                              >
+                                Locked
+                              </span>
+                            )}
                           </div>
                           <div
                             className="flex items-center"
@@ -756,6 +769,16 @@ export const GuidedLearningResults: React.FC<Props> = ({
                                 classVisibility={classVisibility}
                                 actions={resultsActions}
                                 addToast={addToast}
+                                onUnlock={
+                                  r.resultsLockedOut
+                                    ? () =>
+                                        unlockResultsForStudent(
+                                          GL_SESSIONS_COLLECTION,
+                                          sessionId,
+                                          r.studentAnonymousId
+                                        )
+                                    : undefined
+                                }
                                 triggerClassName="rounded-md text-slate-300 hover:bg-white/10 hover:text-white"
                               />
                             )}

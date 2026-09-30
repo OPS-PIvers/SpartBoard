@@ -43,6 +43,7 @@ export function AssignModal<TOptions>({
   eyebrow = 'Assign',
   confirmDisabled = false,
   confirmDisabledReason,
+  confirmTourAttrs,
   zIndex,
 }: AssignModalProps<TOptions>): React.ReactElement | null {
   const [submitting, setSubmitting] = useState(false);
@@ -109,6 +110,7 @@ export function AssignModal<TOptions>({
         type="button"
         onClick={() => void handleAssign()}
         disabled={confirmButtonDisabled}
+        {...confirmTourAttrs}
         title={
           confirmDisabled && confirmDisabledReason
             ? confirmDisabledReason
@@ -205,6 +207,7 @@ const ModeCard: React.FC<ModeCardProps> = ({ mode, selected, onSelect }) => {
       onClick={onSelect}
       disabled={mode.disabled}
       aria-pressed={selected}
+      {...mode.tourAttrs}
       className={`w-full text-left p-3 rounded-xl border-2 transition-all flex items-start gap-3 group ${
         selected
           ? 'border-brand-blue-primary bg-brand-blue-lighter/30'
