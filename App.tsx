@@ -765,9 +765,11 @@ const App: React.FC = () => {
     pathname === '/gradebook-dev'
   ) {
     return (
-      <Suspense fallback={<FullPageLoader />}>
-        <GradebookDevHarness />
-      </Suspense>
+      <AuthProvider>
+        <Suspense fallback={<FullPageLoader />}>
+          <GradebookDevHarness />
+        </Suspense>
+      </AuthProvider>
     );
   }
 
