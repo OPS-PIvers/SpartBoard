@@ -22,6 +22,7 @@
 import React, { useCallback, useState } from 'react';
 import { Loader2, Rocket } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { tourAttr } from '@/config/tourAnchors';
 import type { AssignModalProps, AssignModeOption } from './types';
 
 const MODAL_LABEL_ID = 'assign-modal-title';
@@ -107,6 +108,7 @@ export function AssignModal<TOptions>({
       <button
         type="button"
         onClick={() => void handleAssign()}
+        {...tourAttr('assign.confirm')}
         disabled={confirmButtonDisabled}
         title={
           confirmDisabled && confirmDisabledReason

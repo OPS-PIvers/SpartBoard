@@ -469,6 +469,18 @@ export const TOUR_ANCHORS = {
     label: 'Select mode toggle in the Quiz library',
     perWidget: true,
   },
+  'quiz.assign-spartboard': {
+    label: 'SpartBoard Only option in the Quiz assignment destination dialog',
+    panel: true,
+  },
+  'quiz.assign-options': {
+    label: 'Quiz assignment class and option controls',
+    panel: true,
+  },
+  'assign.confirm': {
+    label: 'Confirm button in an assignment dialog',
+    panel: true,
+  },
   'quiz-settings.widget-label': {
     label: 'Widget label input in Quiz settings',
     perWidget: true,

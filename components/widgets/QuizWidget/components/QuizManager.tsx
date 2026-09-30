@@ -2394,7 +2394,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           options={assignOptions}
           onOptionsChange={setAssignOptions}
           extraSlot={
-            <>
+            <div {...tourAttr('quiz.assign-options')}>
               {/* Who, then how, then when and per-student modifications */}
               <AssignClassPicker
                 collapsible
@@ -2527,7 +2527,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   })}
                 </p>
               )}
-            </>
+            </div>
           }
           plcSlot={
             <AssignPlcSlot
