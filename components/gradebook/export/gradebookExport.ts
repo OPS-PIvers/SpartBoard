@@ -6,13 +6,15 @@ import {
   type GradebookKind,
   type OverallResult,
 } from '@/utils/gradebook/gradebookCore';
-
-export type ExportNameFormat = 'last-first' | 'first-last';
-export type ExportScoreFormat = 'percent' | 'points';
+import {
+  studentName,
+  type CellFormat,
+  type NameFormat,
+} from '@/utils/gradebook/gradebookModel';
 
 export interface GradebookExportOptions {
-  nameFormat: ExportNameFormat;
-  scoreFormat: ExportScoreFormat;
+  nameFormat: NameFormat;
+  scoreFormat: CellFormat;
   /** Adds each cell's flag codes after its score (e.g. "0 M"). */
   flagsAsCodes: boolean;
 }
@@ -52,20 +54,10 @@ export type ExportCell = string | number;
 
 const round1 = (n: number): number => Math.round(n * 10) / 10;
 
-export function exportStudentName(
-  s: GradebookExportStudent,
-  format: ExportNameFormat
-): string {
-  const first = s.firstName.trim();
-  const last = s.lastName.trim();
-  if (!first || !last) return first || last;
-  return format === 'last-first' ? `${last}, ${first}` : `${first} ${last}`;
-}
-
 function scoreText(
   final: FinalScore,
   kind: GradebookKind,
-  format: ExportScoreFormat
+  format: CellFormat
 ): ExportCell {
   if (isCompletionOnly(kind)) return final.status === 'complete' ? 'Done' : '';
   switch (final.status) {
@@ -95,20 +87,14 @@ function withFlags(
   return [shown, letters.join(' ')].filter((p) => p !== '').join(' ');
 }
 
-function columnHeader(
-  c: GradebookExportColumn,
-  format: ExportScoreFormat
-): string {
+function columnHeader(c: GradebookExportColumn, format: CellFormat): string {
   if (isCompletionOnly(c.kind)) return c.title;
   if (format === 'points')
     return c.max !== null ? `${c.title} (${round1(c.max)})` : c.title;
   return `${c.title} (%)`;
 }
 
-function overallCell(
-  o: OverallResult | null,
-  format: ExportScoreFormat
-): ExportCell {
+function overallCell(o: OverallResult | null, format: CellFormat): ExportCell {
   if (!o) return '';
   if (format === 'points')
     return o.max > 0 ? `${round1(o.points)}/${round1(o.max)}` : '';
@@ -131,7 +117,7 @@ export function buildGradebookExportRows(
     options.scoreFormat === 'points' ? 'Overall (points)' : 'Overall (%)',
   ];
   const rows = view.students.map((s) => [
-    exportStudentName(s, options.nameFormat),
+    studentName(s, options.nameFormat),
     ...view.columns.map((c) => {
       const final = view.cell(s.uid, c.sessionId);
       const value = scoreText(final, c.kind, options.scoreFormat);
