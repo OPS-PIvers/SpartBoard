@@ -5,6 +5,7 @@ import { useGradebook, type GradebookColumn } from './GradebookContext';
 import { cellAnchorId } from './cellFormat';
 import { GradebookCellPopover } from './cell/GradebookCellPopover';
 import { GradebookHeaderPopover } from './header/GradebookHeaderPopover';
+import { GradebookPushScoresButton } from './header/GradebookPushScoresButton';
 import type { GradebookCellData, GradebookColumnRef } from './slotTypes';
 
 const findAnchor = (attr: string, value: string): HTMLElement | null =>
@@ -72,6 +73,13 @@ export const GradebookPopovers: React.FC<{
       columnCells={columnCells}
       onClose={closePopover}
       onNotify={gb.toast}
+      pushControl={
+        <GradebookPushScoresButton
+          column={columnRef(column)}
+          columnCells={columnCells}
+          onNotify={gb.toast}
+        />
+      }
       sortedByColumn={
         gb.view.sort.key === 'column' && gb.view.sort.ref === column.sessionId
       }
