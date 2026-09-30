@@ -257,6 +257,7 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] **C2**: `hooks/useLiveSession.ts:255-262` — add else branch to student status listener so teacher-removed students are ejected. (S/LOW)
 - [ ] **C3/C4/C5**: PIN-uniqueness TOCTOU race, >30-class SSO assignment query cap, join-code collision handling (`useLiveSession.ts` / `useStudentAssignments.ts`) — re-verify then fix. (M/MED)
 - [ ] **LO9**: synced-board drawings `hostUid` support (sync correctness). (L)
+- [ ] **Gradebook D37 grade doc**: move `score`, publish `isCorrect` and quiz `grading` off quiz, VA and GL response docs into a teacher-gated `grades/{responseKey}` doc so students can't read unpublished scores (`docs/plans/GRADEBOOK.md` D37). A read rule alone can't do it. (L/MED)
 - [ ] **T1–T5**: Firestore rules tests (PIN-session collections, short_links, quota collections) + E2E for PIN-join/quiz-session journeys. (L)
 
 ## 4. Performance & cost
