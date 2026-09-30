@@ -241,6 +241,30 @@ describe('scoreVideoResponse', () => {
   });
 });
 
+describe('video publish state', () => {
+  it('stays unpublished after Unpublish leaves the score behind', () => {
+    const r = scoreVideoResponse(
+      { scoreVisibility: 'score' },
+      { completedAt: 1, score: 80, answers: [] },
+      []
+    );
+    expect(r.published).toBe(false);
+  });
+
+  it('scores only the questions a live session asked', () => {
+    const questions = keyQuestions([
+      { id: 'v1', type: 'MC', text: 'x', correctAnswer: 'A' },
+      { id: 'v2', type: 'MC', text: 'y', correctAnswer: 'A' },
+    ]);
+    const r = scoreVideoResponse(
+      { live: { askedQuestionIds: ['v1'] } },
+      { completedAt: 1, answers: [{ questionId: 'v1', answer: 'A' }] },
+      questions
+    );
+    expect(r).toMatchObject({ rawPct: 100, max: 1 });
+  });
+});
+
 describe('scoreGuidedLearningResponse', () => {
   it('scores correct gradable steps over every gradable step', () => {
     const session = {

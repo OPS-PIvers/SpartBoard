@@ -8,6 +8,7 @@ import {
   SESSION_COLLECTION,
   STUDENT_SUBCOLLECTION,
   applyDocWrite,
+  docWriteMatters,
   drainDirtySessions,
   isGradeIndexEnabled,
   markSessionDirty,
@@ -18,6 +19,7 @@ import {
   GRADEBOOK_COLUMNS,
   GRADEBOOK_MARKS,
   configPathFor,
+  inRoster,
   projectRow,
   reprojectRows,
   rowsForClass,
@@ -66,14 +68,16 @@ export async function handleStudentDocWrite(
   event: WriteEvent
 ): Promise<void> {
   const { sessionId, docId } = event.params;
+  const write = {
+    kind,
+    sessionId,
+    docId,
+    before: dataOf(event.data?.before),
+    after: dataOf(event.data?.after),
+  };
+  if (!docWriteMatters(write)) return;
   await guarded('student doc', { kind, sessionId, docId }, async () => {
-    await applyDocWrite(admin.firestore(), {
-      kind,
-      sessionId,
-      docId,
-      before: dataOf(event.data?.before),
-      after: dataOf(event.data?.after),
-    });
+    await applyDocWrite(admin.firestore(), write);
   });
 }
 
@@ -203,6 +207,44 @@ export const gradeIndexProjectGroup = onDocumentWritten(
     )
 );
 
+const POINTER_KINDS = new Set<string>([
+  'quiz',
+  'video-activity',
+  'guided-learning',
+  'mini-app',
+  'flashcards',
+]);
+
+/** Individual targeting changes who is assigned and their due date (D25), so the session is rebuilt. */
+export async function handlePointerWrite(event: WriteEvent): Promise<void> {
+  const before = dataOf(event.data?.before);
+  const after = dataOf(event.data?.after);
+  const data = after ?? before ?? {};
+  const kind = typeof data.kind === 'string' ? data.kind : '';
+  const sessionId = typeof data.sessionId === 'string' ? data.sessionId : '';
+  if (!POINTER_KINDS.has(kind) || !sessionId || sessionId.includes('/')) return;
+  const watched = ['excluded', 'dueAt', 'sessionId'];
+  if (
+    before &&
+    after &&
+    watched.every(
+      (f) => stableStringify(before[f]) === stableStringify(after[f])
+    )
+  )
+    return;
+  await guarded('pointer', { sessionId }, () =>
+    markSessionDirty(admin.firestore(), kind as GradeKind, sessionId)
+  );
+}
+
+export const gradeIndexStudentPointer = onDocumentWritten(
+  {
+    ...TRIGGER_OPTS,
+    document: 'student_assignments/{studentUid}/items/{assignmentId}',
+  },
+  (event) => handlePointerWrite(event as unknown as WriteEvent)
+);
+
 /** A row write refreshes that student's Grades-tab projection. */
 export async function handleRowWrite(event: WriteEvent): Promise<void> {
   const before = dataOf(event.data?.before) as GradeIndexRow | undefined;
@@ -259,7 +301,11 @@ export async function handleClassSettingsWrite(
     return;
   await guarded('class settings', { uid, rosterId }, async () => {
     const db = admin.firestore();
-    await reprojectRows(db, rowsForClass(db, uid, rosterId));
+    await reprojectRows(
+      db,
+      rowsForClass(db, uid, rosterId),
+      inRoster(rosterId)
+    );
   });
 }
 
@@ -281,7 +327,7 @@ export async function handleConfigWrite(event: WriteEvent): Promise<void> {
       .get();
     for (const cls of classes.docs) {
       if (configPathFor(uid, cls.data().configRef) !== target) continue;
-      await reprojectRows(db, rowsForClass(db, uid, cls.id));
+      await reprojectRows(db, rowsForClass(db, uid, cls.id), inRoster(cls.id));
     }
   });
 }

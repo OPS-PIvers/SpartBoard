@@ -100,13 +100,65 @@ function seed(extra: Record<string, StubData> = {}) {
   });
 }
 
+const SUB: Record<string, string> = {
+  quiz: 'quiz_sessions/{s}/responses',
+  projects: 'project_runs/{s}/grades',
+  'activity-wall': 'activity_wall_sessions/{s}/submissions',
+};
+
+/** Mirrors the event into the store first, since the index re-reads the doc. */
+async function applyWrite(
+  stub: ReturnType<typeof makeStubFirestore>,
+  w: Parameters<typeof applyDocWrite>[1],
+  now: number
+) {
+  const path = `${SUB[w.kind].replace('{s}', w.sessionId)}/${w.docId}`;
+  if (w.after) stub.store.set(path, w.after);
+  else stub.store.delete(path);
+  return applyDocWrite(stub.db as unknown as Db, w, now);
+}
+
 beforeEach(() => __resetGradeIndexEnabledCache());
 
 describe('applyDocWrite', () => {
-  it('writes a scored quiz row', async () => {
+  it('uses the doc as it is now, not a late event payload', async () => {
     const stub = seed({ 'quiz_sessions/qs1/responses/u1': completed() });
+    const stale = completed({ status: 'in-progress', answers: [] });
     await applyDocWrite(
       stub.db as unknown as Db,
+      {
+        kind: 'quiz',
+        sessionId: 'qs1',
+        docId: 'u1',
+        before: completed(),
+        after: stale,
+      },
+      NOW
+    );
+    expect(stub.get('grade_index/qs1__u1')).toMatchObject({
+      state: 'scored',
+      rawPct: 100,
+    });
+  });
+
+  it('keeps a row a trigger rewrote after the recompute started', async () => {
+    const stub = seed({
+      'quiz_sessions/qs1/responses/u1': completed(),
+      'grade_index/qs1__u1': {
+        sessionId: 'qs1',
+        studentUid: 'u1',
+        updatedAt: NOW + 10,
+      },
+    });
+    expect(
+      await recomputeSession(stub.db as unknown as Db, 'quiz', 'qs1', NOW)
+    ).toEqual({ written: 0, deleted: 0 });
+  });
+
+  it('writes a scored quiz row', async () => {
+    const stub = seed({ 'quiz_sessions/qs1/responses/u1': completed() });
+    await applyWrite(
+      stub,
       {
         kind: 'quiz',
         sessionId: 'qs1',
@@ -135,8 +187,8 @@ describe('applyDocWrite', () => {
 
   it('skips anonymous PIN responses', async () => {
     const stub = seed();
-    const n = await applyDocWrite(
-      stub.db as unknown as Db,
+    const n = await applyWrite(
+      stub,
       {
         kind: 'quiz',
         sessionId: 'qs1',
@@ -169,9 +221,8 @@ describe('applyDocWrite', () => {
 
   it('keeps each attempt across a retake', async () => {
     const stub = seed();
-    const db = stub.db as unknown as Db;
-    await applyDocWrite(
-      db,
+    await applyWrite(
+      stub,
       {
         kind: 'quiz',
         sessionId: 'qs1',
@@ -182,8 +233,8 @@ describe('applyDocWrite', () => {
       NOW
     );
     const retake = completed({ status: 'in-progress', answers: [] });
-    await applyDocWrite(
-      db,
+    await applyWrite(
+      stub,
       {
         kind: 'quiz',
         sessionId: 'qs1',
@@ -197,8 +248,8 @@ describe('applyDocWrite', () => {
       completedAttempts: 2,
       answers: [{ questionId: 'q1', answer: 'B' }],
     });
-    await applyDocWrite(
-      db,
+    await applyWrite(
+      stub,
       {
         kind: 'quiz',
         sessionId: 'qs1',
@@ -220,9 +271,8 @@ describe('applyDocWrite', () => {
       'quiz_sessions/qs1': { ...quizSession, individualTargeting: true },
       'student_assignments/u2/items/qs1': { dueAt: NOW + DAY },
     });
-    const db = stub.db as unknown as Db;
-    await applyDocWrite(
-      db,
+    await applyWrite(
+      stub,
       {
         kind: 'quiz',
         sessionId: 'qs1',
@@ -232,8 +282,8 @@ describe('applyDocWrite', () => {
       },
       NOW
     );
-    await applyDocWrite(
-      db,
+    await applyWrite(
+      stub,
       {
         kind: 'quiz',
         sessionId: 'qs1',
@@ -254,8 +304,8 @@ describe('applyDocWrite', () => {
     const stub = seed({
       'grade_index/qs1__u1': { sessionId: 'qs1', studentUid: 'u1' },
     });
-    await applyDocWrite(
-      stub.db as unknown as Db,
+    await applyWrite(
+      stub,
       {
         kind: 'quiz',
         sessionId: 'qs1',
@@ -286,8 +336,8 @@ describe('applyDocWrite', () => {
       released: false,
       overridesByUid: { u2: { points: 20 } },
     };
-    await applyDocWrite(
-      stub.db as unknown as Db,
+    await applyWrite(
+      stub,
       {
         kind: 'projects',
         sessionId: 't1_p1',
@@ -321,9 +371,8 @@ describe('applyDocWrite', () => {
         submittedAt: 3,
       },
     });
-    const db = stub.db as unknown as Db;
-    await applyDocWrite(
-      db,
+    await applyWrite(
+      stub,
       {
         kind: 'activity-wall',
         sessionId: 't1_w1',
@@ -340,8 +389,8 @@ describe('applyDocWrite', () => {
     });
     stub.store.delete('activity_wall_sessions/t1_w1/submissions/a');
     stub.store.delete('activity_wall_sessions/t1_w1/submissions/b');
-    await applyDocWrite(
-      db,
+    await applyWrite(
+      stub,
       {
         kind: 'activity-wall',
         sessionId: 't1_w1',
@@ -425,7 +474,7 @@ describe('kill switch', () => {
   });
 
   it('runs the triggers once it is on', async () => {
-    const stub = seed();
+    const stub = seed({ 'quiz_sessions/qs1/responses/u1': completed() });
     vi.mocked(admin.firestore).mockReturnValue(stub.db as never);
     await (gradeIndexQuizResponse as unknown as Handler)({
       params: { sessionId: 'qs1', docId: 'u1' },
@@ -560,6 +609,28 @@ describe('buildProjectionEntry', () => {
     expect(
       buildProjectionEntry(row(), noMark, null, config, NOW)?.targets
     ).toHaveLength(1);
+  });
+
+  it('does not reveal a teacher-only excluding flag', () => {
+    const config = parseConfig({
+      flags: [
+        { id: 'excused', key: 'X', name: 'Excused', visibility: 'teacher' },
+      ],
+    });
+    const e = buildProjectionEntry(
+      row(),
+      {
+        override: null,
+        comment: null,
+        flags: ['excused'],
+        suppressedAuto: [],
+        publishOverride: null,
+      },
+      null,
+      config,
+      NOW
+    );
+    expect(e).toBeNull();
   });
 
   it('shows nothing for a not-assigned student', () => {
