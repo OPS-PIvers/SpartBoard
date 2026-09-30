@@ -38,7 +38,7 @@ export const QuizAssignSettingsInline: React.FC<
         </button>
       </div>
       {open && (
-        <div id={regionId}>
+        <div id={regionId} className="space-y-4">
           <QuizBehaviorSettingsPanel
             variant="quiz"
             value={value}

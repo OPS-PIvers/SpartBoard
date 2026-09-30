@@ -393,7 +393,7 @@ describe('QuizEditorModal with quiz-review-split on (D10)', () => {
     expect(onSave.mock.calls[0][1]).toEqual(saved);
   });
 
-  it('moves the read-aloud language picker to the Stimuli tab', () => {
+  it('moves the read-aloud language picker to the Languages tab', () => {
     splitAuth(true);
     render(
       <QuizEditorModal
@@ -405,6 +405,8 @@ describe('QuizEditorModal with quiz-review-split on (D10)', () => {
     );
     expect(screen.queryByText('Language')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /^stimuli$/i }));
+    expect(screen.queryByText('Language')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /^languages$/i }));
     expect(screen.getByText('Language')).toBeInTheDocument();
   });
 });

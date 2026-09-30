@@ -285,6 +285,8 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   const readAloudAvailable = canAccessFeature('quiz-read-aloud');
   // D10: with the split on, settings live on the assignment; the saved behavior passes through untouched.
   const settingsTabHidden = canAccessFeature('quiz-review-split');
+  // With the Settings tab gone, the read-aloud language picker lives on Languages.
+  const languageOnLanguagesTab = settingsTabHidden && readAloudAvailable;
   const handRaiseMode = useQuizHandRaiseMode();
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);
   const [keyFillOpen, setKeyFillOpen] = useState(false);
@@ -589,7 +591,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   ).filter(
     (tab) =>
       (tab !== 'settings' || !settingsTabHidden) &&
-      (tab !== 'languages' || translationAvailable)
+      (tab !== 'languages' || translationAvailable || languageOnLanguagesTab)
   );
   // Access revoked mid-session: fall back rather than render Settings under Languages.
   const resolvedTab = editorTabs.includes(editorTab) ? editorTab : 'questions';
@@ -619,7 +621,9 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
             <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
               {editorTabs.map((tab) => {
                 const disabled =
-                  tab === 'languages' && translationBlockedByBank;
+                  tab === 'languages' &&
+                  translationBlockedByBank &&
+                  !languageOnLanguagesTab;
                 return (
                   <button
                     key={tab}
@@ -666,27 +670,29 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               }
             />
           ) : activeTab === 'stimuli' ? (
+            <StimulusManagerPanel
+              state={editorState}
+              readAloudAvailable={readAloudAvailable}
+            />
+          ) : activeTab === 'languages' ? (
             <>
-              {settingsTabHidden && readAloudAvailable && (
-                <div className="px-5 pt-4 bg-slate-50 shrink-0">
+              {languageOnLanguagesTab && (
+                <div className="px-5 py-4 bg-white border-b border-slate-200 shrink-0">
                   <QuizLanguageField value={language} onChange={setLanguage} />
                 </div>
               )}
-              <StimulusManagerPanel
-                state={editorState}
-                readAloudAvailable={readAloudAvailable}
-              />
+              {translationAvailable && !translationBlockedByBank && (
+                <QuizLanguagesContextPane
+                  quiz={quiz}
+                  metadata={metadata ?? null}
+                  api={translations}
+                  selectedLocale={selectedLocale}
+                  onSelectLocale={setSelectedLocale}
+                  selectedQuestionId={selectedTranslationQuestionId}
+                  onSelectQuestion={setSelectedTranslationQuestionId}
+                />
+              )}
             </>
-          ) : activeTab === 'languages' ? (
-            <QuizLanguagesContextPane
-              quiz={quiz}
-              metadata={metadata ?? null}
-              api={translations}
-              selectedLocale={selectedLocale}
-              onSelectLocale={setSelectedLocale}
-              selectedQuestionId={selectedTranslationQuestionId}
-              onSelectQuestion={setSelectedTranslationQuestionId}
-            />
           ) : (
             <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 px-5 py-5 space-y-5">
               {readAloudAvailable && (
@@ -711,14 +717,16 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
             bankApi={isBank ? undefined : bankApi}
           />
         ) : activeTab === 'languages' ? (
-          <QuizLanguagesDetailPane
-            quiz={quiz}
-            api={translations}
-            selectedLocale={selectedLocale}
-            onSelectLocale={setSelectedLocale}
-            selectedQuestionId={selectedTranslationQuestionId}
-            onSelectQuestion={setSelectedTranslationQuestionId}
-          />
+          translationAvailable && !translationBlockedByBank ? (
+            <QuizLanguagesDetailPane
+              quiz={quiz}
+              api={translations}
+              selectedLocale={selectedLocale}
+              onSelectLocale={setSelectedLocale}
+              selectedQuestionId={selectedTranslationQuestionId}
+              onSelectQuestion={setSelectedTranslationQuestionId}
+            />
+          ) : null
         ) : activeTab === 'stimuli' ? null : (
           <div className="flex items-center justify-center h-full text-slate-400 text-sm px-8 text-center">
             <p>Defaults for new sessions and assignments.</p>
