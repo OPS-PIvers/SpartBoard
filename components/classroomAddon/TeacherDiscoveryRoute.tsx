@@ -45,6 +45,7 @@ import { useRubrics } from '@/hooks/useRubrics';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import type {
   PlcLinkage,
+  QuizBehaviorSettings,
   QuizData,
   VideoActivitySessionOptions,
   VideoActivitySessionSettings,
@@ -65,7 +66,10 @@ import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import {
   getAssignBehaviorSeed,
   formatBehaviorSummary,
+  getQuizAssignPrefill,
 } from '@/utils/quizBehavior';
+import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
+import { QuizAssignSettingsInline } from '@/components/common/library/QuizAssignSettingsInline';
 import {
   getVideoActivityBehavior,
   formatVideoActivityBehaviorSummary,
@@ -175,7 +179,20 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // already-created attachment (no addOnToken in that iframe).
   const existingAttachmentId = params.get('attachmentId') ?? '';
 
-  const { user, signInWithGoogle, googleAccessToken } = useAuth();
+  const { user, signInWithGoogle, googleAccessToken, canAccessFeature } =
+    useAuth();
+  // D12: with the split on, settings come from the teacher's last-used, editable inline.
+  const reviewSplit = canAccessFeature('quiz-review-split');
+  const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
+    user?.uid,
+    reviewSplit
+  );
+  const [editedAssignSettings, setEditedAssignSettings] =
+    useState<QuizBehaviorSettings | null>(null);
+  const splitAssignSettings = useMemo(
+    () => editedAssignSettings ?? getQuizAssignPrefill(lastAssignSettings),
+    [editedAssignSettings, lastAssignSettings]
+  );
   const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
   const { createAssignment, setAssignmentTargetSkippedCount } =
     useQuizAssignments(user?.uid);
@@ -335,6 +352,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // teacher can see what students will get before attaching.
   const behaviorSummary = useMemo(() => {
     if (kind === 'quiz') {
+      if (reviewSplit) return null;
       return selectedQuiz
         ? formatBehaviorSummary(getAssignBehaviorSeed(selectedQuiz))
         : null;
@@ -344,7 +362,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
           getVideoActivityBehavior(selectedActivity)
         )
       : null;
-  }, [kind, selectedQuiz, selectedActivity]);
+  }, [kind, selectedQuiz, selectedActivity, reviewSplit]);
 
   const signIn = useCallback(async () => {
     setBusy(true);
@@ -550,8 +568,9 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     const targeting = await resolveClassTargeting();
 
     // Assessment Mode always; options and attempt limit come from the quiz.
-    const { sessionMode, sessionOptions, attemptLimit } =
-      getAssignBehaviorSeed(selectedQuiz);
+    const { sessionMode, sessionOptions, attemptLimit } = reviewSplit
+      ? splitAssignSettings
+      : getAssignBehaviorSeed(selectedQuiz);
 
     const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
 
@@ -732,6 +751,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     assignTargeting,
     setAssignmentTargets,
     setAssignmentTargetSkippedCount,
+    reviewSplit,
+    splitAssignSettings,
   ]);
 
   const attachVideoActivity = useCallback(async () => {
@@ -1157,6 +1178,12 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                     {behaviorSummary}
                   </span>
                 </p>
+              )}
+              {kind === 'quiz' && reviewSplit && (
+                <QuizAssignSettingsInline
+                  value={splitAssignSettings}
+                  onChange={setEditedAssignSettings}
+                />
               )}
 
               <div>

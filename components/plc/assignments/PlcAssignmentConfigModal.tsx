@@ -25,7 +25,7 @@
  * NO board navigation, NO setPendingAssignmentEdit hand-off.
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Calendar, X } from 'lucide-react';
 import { AssignmentSettingsToggleGroup } from '@/components/common/library/AssignmentSettingsToggleGroup';
@@ -49,8 +49,11 @@ import { logError } from '@/utils/logError';
 import { dueInputsToEpoch, DEFAULT_DUE_TIME } from '@/utils/localDate';
 import {
   formatBehaviorSummary,
+  getQuizAssignPrefill,
   QUIZ_STUDENT_MODE_LABEL,
 } from '@/utils/quizBehavior';
+import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
+import { QuizAssignSettingsInline } from '@/components/common/library/QuizAssignSettingsInline';
 import { formatVideoActivityBehaviorSummary } from '@/utils/videoActivityBehavior';
 import type {
   Plc,
@@ -161,7 +164,19 @@ export const PlcAssignmentConfigModal: React.FC<
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { user, getAssignmentMode } = useAuth();
+  const { user, getAssignmentMode, canAccessFeature } = useAuth();
+  // D12: with the split on, settings come from the teacher's last-used, editable inline.
+  const reviewSplit = kind === 'quiz' && canAccessFeature('quiz-review-split');
+  const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
+    user?.uid,
+    reviewSplit
+  );
+  const [editedAssignSettings, setEditedAssignSettings] =
+    useState<QuizBehaviorSettings | null>(null);
+  const splitAssignSettings = useMemo(
+    () => editedAssignSettings ?? getQuizAssignPrefill(lastAssignSettings),
+    [editedAssignSettings, lastAssignSettings]
+  );
   const { addToast, rosters } = useDashboard();
   const { createAssignment: createQuizAssignment } = useQuizAssignments(
     user?.uid
@@ -255,7 +270,11 @@ export const PlcAssignmentConfigModal: React.FC<
         let effectiveSessionMode: QuizSessionMode;
         let effectiveSessionOptions: QuizSessionOptions;
         let effectiveAttemptLimit: number | null;
-        if (quizBehavior) {
+        if (reviewSplit) {
+          effectiveSessionMode = 'student';
+          effectiveSessionOptions = splitAssignSettings.sessionOptions;
+          effectiveAttemptLimit = splitAssignSettings.attemptLimit;
+        } else if (quizBehavior) {
           effectiveSessionMode = 'student';
           effectiveSessionOptions = quizBehavior.sessionOptions;
           effectiveAttemptLimit = quizBehavior.attemptLimit;
@@ -419,6 +438,8 @@ export const PlcAssignmentConfigModal: React.FC<
     activityRef,
     quizBehavior,
     vaBehavior,
+    reviewSplit,
+    splitAssignSettings,
     quizMode,
     quizOptions,
     vaOptions,
@@ -508,7 +529,12 @@ export const PlcAssignmentConfigModal: React.FC<
           </div>
 
           {/* Quiz-specific: behavior summary (Task 10) or legacy mode selector */}
-          {kind === 'quiz' && quizBehavior ? (
+          {reviewSplit ? (
+            <QuizAssignSettingsInline
+              value={splitAssignSettings}
+              onChange={setEditedAssignSettings}
+            />
+          ) : kind === 'quiz' && quizBehavior ? (
             /* Slimmed path: read-only behavior summary from quiz settings */
             <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
               <div className="flex items-center justify-between gap-2">
