@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import type {
   ActiveFlag,
   GradebookFlagDef,
@@ -140,11 +140,28 @@ export const FlagMenuList: React.FC<{
           <FlagChip flag={f} auto={on?.auto} />
           <span className="flex-1">{f.name}</span>
           {on?.auto && <span className="text-[11px] text-slate-400">auto</span>}
-          <kbd className="rounded border border-slate-200 px-1.5 font-sans text-[11px] text-slate-400">
+          <kbd className="rounded border border-slate-200 px-[5px] font-sans text-[11px] leading-4 text-slate-400">
             {f.key}
           </kbd>
         </button>
       );
     })}
+  </div>
+);
+
+/** Native select drawn like the prototype's: no OS arrow, a slate chevron at the right. */
+export const Select: React.FC<
+  React.SelectHTMLAttributes<HTMLSelectElement>
+> = ({ className = '', ...rest }) => (
+  <div className={`relative min-w-0 ${className}`}>
+    <select
+      {...rest}
+      className={`${INPUT_CLASS} w-full appearance-none pr-8`}
+    />
+    <ChevronDown
+      size={16}
+      aria-hidden
+      className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+    />
   </div>
 );

@@ -102,7 +102,7 @@ export const GradebookPopoverShell: React.FC<GradebookPopoverShellProps> = ({
       }}
       className={`fixed flex flex-col overflow-y-auto rounded-xl border border-slate-200 bg-white text-sm text-slate-800 shadow-[0_10px_15px_-3px_rgba(29,42,93,.12),0_4px_6px_-4px_rgba(29,42,93,.08)] outline-none ${
         submenu
-          ? 'z-popover-menu w-[184px] gap-1.5 p-1.5'
+          ? 'z-popover-menu w-[280px] gap-1.5 p-1.5'
           : 'z-popover w-[min(380px,calc(100vw-24px))] gap-3.5 p-4'
       }`}
     >

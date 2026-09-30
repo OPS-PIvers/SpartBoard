@@ -11,7 +11,7 @@ import {
 import { useGradebookColumnWrites } from '@/hooks/gradebook/useGradebookColumnWrites';
 import { logError } from '@/utils/logError';
 import { GradebookPopoverShell } from './GradebookPopoverShell';
-import { Btn, IconBtn, INPUT_CLASS, Toggle } from './popoverParts';
+import { Btn, IconBtn, INPUT_CLASS, Select, Toggle } from './popoverParts';
 import { KIND_LABELS, fmtDate, fmtPct, fmtPoints } from './popoverFormat';
 import type {
   GradebookCellData,
@@ -72,7 +72,11 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
     ...(completion ? [] : [{ value: 'zero', label: '0 points' }]),
     ...liveFlags.map((f) => ({ value: f.id, label: f.name })),
   ];
-  const [markValue, setMarkValue] = useState(markOptions[0]?.value ?? '');
+  const [markValue, setMarkValue] = useState(
+    markOptions.find((o) => o.value === 'missing')?.value ??
+      markOptions[0]?.value ??
+      ''
+  );
 
   const fail = (err: unknown) => {
     logError('gradebook column write', err);
@@ -252,9 +256,8 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
                 <label htmlFor={`${ids}-cat`} className={LABEL}>
                   Category
                 </label>
-                <select
+                <Select
                   id={`${ids}-cat`}
-                  className={INPUT_CLASS}
                   value={config?.category ?? ctx.settings.categories[0].id}
                   onChange={(e) =>
                     saveColumn(column, { category: e.target.value }).catch(fail)
@@ -265,7 +268,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
                       {c.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </>
             )}
           <label htmlFor={`${ids}-max`} className={LABEL}>
@@ -291,9 +294,8 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
           >
             Retakes
           </label>
-          <select
+          <Select
             id={`${ids}-policy`}
-            className={INPUT_CLASS}
             value={config?.attemptPolicy ?? 'latest'}
             onChange={(e) =>
               saveColumn(column, {
@@ -304,7 +306,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
             <option value="latest">Use latest</option>
             <option value="highest">Use highest</option>
             <option value="average">Average them</option>
-          </select>
+          </Select>
           <span />
           <Toggle
             checked={config?.countsTowardOverall ?? true}
@@ -329,9 +331,9 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
             >
               Empty cells
             </label>
-            <select
+            <Select
               id={`${ids}-mark`}
-              className={`${INPUT_CLASS} min-w-0 flex-1`}
+              className="flex-1"
               value={markValue}
               onChange={(e) => setMarkValue(e.target.value)}
             >
@@ -340,7 +342,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
                   {o.label}
                 </option>
               ))}
-            </select>
+            </Select>
             <Btn
               size="sm"
               className="h-9"
