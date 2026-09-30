@@ -69,6 +69,8 @@ export interface GradeAttempt {
 export interface TargetEvidence {
   targetId: string;
   kind: TargetKind;
+  code?: string;
+  label?: string;
   standardIds?: string[];
   parentId?: string;
   earned: number;
@@ -679,8 +681,73 @@ export interface StudentGradeEntry {
 
 export interface StudentStandardEntry {
   targetId: string;
+  code?: string;
+  label?: string;
   pct: number;
   level: ProficiencyLevel;
+  /** Oldest first, from published work. */
+  evidence: StudentStandardEvidence[];
+}
+
+export interface StudentStandardEvidence {
+  sessionId: string;
+  pct: number;
+  at: number;
+}
+
+export interface StudentStandardInput {
+  row: GradeIndexRow;
+  mark: GradebookMark | null;
+  column: GradebookColumnConfig | null;
+}
+
+/** D35: per-target proficiency from one student's published work in one class. */
+export function buildStudentStandards(
+  inputs: StudentStandardInput[],
+  settings: GradebookSettingsBody,
+  scale: ProficiencyScale,
+  now: number
+): StudentStandardEntry[] {
+  const byTarget = new Map<string, StudentStandardEvidence[]>();
+  const names = new Map<string, { code?: string; label?: string }>();
+  for (const { row, mark, column } of inputs) {
+    for (const e of row.targetEvidence) {
+      if (e.label && !names.has(e.targetId))
+        names.set(e.targetId, { code: e.code, label: e.label });
+    }
+    for (const t of column?.targets ?? []) {
+      if (!names.has(t.id)) names.set(t.id, { code: t.code, label: t.label });
+    }
+    if (!row.assigned || !isPublishedFor(row, mark)) continue;
+    const final = resolveFinalScore(row, mark, column, {
+      flagDefs: settings.flags,
+      autoFlags: settings.autoFlags,
+      now,
+    });
+    for (const e of evidenceForCell(row, final, column)) {
+      const list = byTarget.get(e.targetId) ?? [];
+      list.push({ sessionId: row.sessionId, pct: e.pct, at: e.at });
+      byTarget.set(e.targetId, list);
+    }
+  }
+  const out: StudentStandardEntry[] = [];
+  for (const [targetId, points] of byTarget) {
+    const pct = combineEvidence(points, settings.method);
+    const level = proficiencyLevel(pct, scale);
+    if (pct === null || level === null) continue;
+    const name = names.get(targetId);
+    out.push({
+      targetId,
+      ...(name?.code ? { code: name.code } : {}),
+      ...(name?.label ? { label: name.label } : {}),
+      pct: Math.round(pct * 100) / 100,
+      level,
+      evidence: points
+        .map((p) => ({ ...p, pct: Math.round(p.pct * 100) / 100 }))
+        .sort((a, b) => a.at - b.at),
+    });
+  }
+  return out.sort((a, b) => (a.targetId < b.targetId ? -1 : 1));
 }
 
 /** D37 `student_grades/{studentUid}/classes/{classId}`, server-written, read by that student only. */
@@ -693,6 +760,8 @@ export interface StudentGradesDoc {
   /** Null unless the class's settings show standards. */
   standards: StudentStandardEntry[] | null;
   levelNames: [string, string, string];
+  /** The scale's cutoffs; absent on docs written before the Learning targets view. */
+  cutoffs?: { proficient: number; approaching: number };
   updatedAt: number;
 }
 

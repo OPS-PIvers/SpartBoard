@@ -605,6 +605,30 @@ describe('student_grades', () => {
     await assertFails(getDoc(doc(teacherDb(), path)));
   });
 
+  it('serves the Grades tab reads and nothing wider', async () => {
+    await assertSucceeds(
+      getDoc(doc(studentDb(), 'global_permissions/student-gradebook'))
+    );
+    await assertFails(
+      getDocs(
+        collection(
+          studentDb('another-student'),
+          `student_grades/${STUDENT}/classes`
+        )
+      )
+    );
+    await assertFails(getDoc(doc(studentDb(), `student_grades/${STUDENT}`)));
+    const pinStudent = testEnv
+      .authenticatedContext(STUDENT, {
+        firebase: { sign_in_provider: 'anonymous' },
+      })
+      .firestore();
+    await assertFails(getDoc(doc(pinStudent, path)));
+    await assertFails(
+      getDoc(doc(testEnv.unauthenticatedContext().firestore(), path))
+    );
+  });
+
   it('denies every client write', async () => {
     await assertFails(setDoc(doc(studentDb(), path), { entries: {} }));
     await assertFails(setDoc(doc(teacherDb(), path), { entries: {} }));
