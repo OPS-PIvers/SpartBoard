@@ -4,11 +4,13 @@
 // page behind it when the dialog alone closes.
 
 let lockCount = 0;
+let previousOverflow = '';
 
 // Acquire a lock; hides body scroll on the first acquisition.
 export const acquireBodyScrollLock = (): void => {
   if (typeof document === 'undefined') return;
   if (lockCount === 0) {
+    previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
   }
   lockCount += 1;
@@ -20,7 +22,7 @@ export const releaseBodyScrollLock = (): void => {
   if (lockCount === 0) return;
   lockCount -= 1;
   if (lockCount === 0) {
-    document.body.style.overflow = 'unset';
+    document.body.style.overflow = previousOverflow;
   }
 };
 
