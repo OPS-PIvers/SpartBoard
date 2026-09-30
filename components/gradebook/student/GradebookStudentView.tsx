@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AuthContext } from '@/context/AuthContextValue';
 import { Btn } from '@/components/admin/Organization/components/primitives';
 import { useGradebook } from '@/components/gradebook/GradebookContext';
 import { GradebookPopovers } from '@/components/gradebook/GradebookPopovers';
@@ -14,6 +15,7 @@ import {
   type AnalysisData,
 } from '@/utils/gradebook/gradebookAnalysis';
 import { buildInsights } from '@/utils/gradebook/gradebookInsights';
+import type { PreviewInputs } from '@/utils/gradebook/studentGrades';
 import {
   proficientCount,
   standardsRows,
@@ -21,6 +23,10 @@ import {
   type StudentCardId,
 } from './studentViewModel';
 import { useStudentCardLayout } from './useStudentCardLayout';
+import {
+  PreviewAsStudentButton,
+  StudentGradesPreview,
+} from './StudentGradesPreview';
 import {
   AssignmentsCard,
   CompareCard,
@@ -58,8 +64,11 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
   const idx = students.findIndex((s) => s.uid === studentUid);
   const student = idx >= 0 ? students[idx] : null;
   const layout = useStudentCardLayout();
+  // The fixture harness has no auth provider.
+  const hasAuth = useContext(AuthContext) !== undefined;
   const [customize, setCustomize] = useState(false);
-  const popoverOpen = gb.popover !== null;
+  const [previewUid, setPreviewUid] = useState<string | null>(null);
+  const navLocked = gb.popover !== null || previewUid !== null;
 
   const prevUid = students[idx - 1]?.uid ?? null;
   const nextUid = idx >= 0 ? (students[idx + 1]?.uid ?? null) : null;
@@ -69,7 +78,7 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (e.defaultPrevented || popoverOpen || isTyping(e.target)) return;
+      if (e.defaultPrevented || navLocked || isTyping(e.target)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const uid =
         e.key === 'ArrowLeft'
@@ -81,7 +90,7 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [rosterId, prevUid, nextUid, popoverOpen]);
+  }, [rosterId, prevUid, nextUid, navLocked]);
 
   const analysis = useMemo(() => {
     const data: AnalysisData = {
@@ -134,6 +143,24 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
     [columns, getCell, studentUid, now]
   );
 
+  const previewInputs = useMemo((): PreviewInputs => {
+    const out: PreviewInputs = {
+      rows: [],
+      marksBySession: {},
+      columnsBySession: {},
+      settings,
+      scale,
+      now,
+    };
+    for (const c of gb.allColumns) {
+      const { row, mark } = getCell(c.sessionId, studentUid);
+      if (row) out.rows.push(row);
+      if (mark) out.marksBySession[c.sessionId] = mark;
+      if (c.config) out.columnsBySession[c.sessionId] = c.config;
+    }
+    return out;
+  }, [gb.allColumns, getCell, studentUid, settings, scale, now]);
+
   const back = (): void => spaNavigate(buildGradebookPath(rosterId));
 
   if (!student) {
@@ -146,6 +173,18 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
           This student is not in this class.
         </p>
       </div>
+    );
+  }
+
+  if (previewUid === studentUid) {
+    return (
+      <StudentGradesPreview
+        firstName={student.firstName}
+        lastName={student.lastName}
+        className={gb.roster.name}
+        inputs={previewInputs}
+        onExit={() => setPreviewUid(null)}
+      />
     );
   }
 
@@ -235,6 +274,9 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
         >
           {customize ? 'Done' : 'Customize cards'}
         </Btn>
+        {hasAuth && (
+          <PreviewAsStudentButton onClick={() => setPreviewUid(studentUid)} />
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

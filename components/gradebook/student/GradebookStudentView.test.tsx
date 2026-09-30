@@ -8,6 +8,8 @@ import {
   type GradeIndexRow,
 } from '@/utils/gradebook/gradebookCore';
 import type { GradebookSource } from '@/hooks/useGradebookSource';
+import { AuthContext } from '@/context/AuthContextValue';
+import type { AuthContextType } from '@/context/AuthContextValue';
 import { GradebookProvider } from '../GradebookProvider';
 import { GradebookStudentView } from './GradebookStudentView';
 
@@ -58,7 +60,7 @@ const row = (uid: string, points: number | null): GradeIndexRow => ({
   updatedAt: 1,
 });
 
-function setup(uid: string) {
+function setup(uid: string, auth?: Partial<AuthContextType>) {
   const saveClassState = vi.fn<GradebookSource['saveClassState']>(() =>
     Promise.resolve()
   );
@@ -75,7 +77,7 @@ function setup(uid: string) {
     saveColumn: vi.fn(() => Promise.resolve()),
     saveClassState,
   };
-  render(
+  const view = (
     <GradebookProvider
       uid="t"
       source={source}
@@ -92,6 +94,15 @@ function setup(uid: string) {
     >
       <GradebookStudentView studentUid={uid} />
     </GradebookProvider>
+  );
+  render(
+    auth ? (
+      <AuthContext.Provider value={auth as AuthContextType}>
+        {view}
+      </AuthContext.Provider>
+    ) : (
+      view
+    )
   );
   return { saveClassState };
 }
@@ -144,5 +155,22 @@ describe('GradebookStudentView', () => {
     fireEvent.keyDown(window, { key: 'ArrowLeft' });
     expect(replace).toHaveBeenCalledTimes(1);
     replace.mockRestore();
+  });
+
+  it('previews the student Grades tab when student-gradebook passes', () => {
+    setup('u1', { canAccessFeature: () => true });
+    fireEvent.click(screen.getByRole('button', { name: 'Preview as student' }));
+    expect(screen.getByText('Previewing as Ana Ruiz')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to gradebook' }));
+    expect(
+      screen.getByRole('button', { name: 'Customize cards' })
+    ).toBeTruthy();
+  });
+
+  it('hides Preview as student without the flag or an auth provider', () => {
+    setup('u1');
+    expect(
+      screen.queryByRole('button', { name: 'Preview as student' })
+    ).toBeNull();
   });
 });
