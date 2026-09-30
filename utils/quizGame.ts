@@ -214,3 +214,45 @@ export function addGameTimePatch(
 export function gameDisplayPoints(points: number): number {
   return Math.round(points * 100);
 }
+
+/** A device counts as active if it answered within this window. */
+export const GAME_ACTIVE_WINDOW_MS = 30_000;
+
+export interface GameBoardStats {
+  joined: number;
+  active: number;
+  /** First-try accuracy across the class, 0–100; null before any first try. */
+  firstTryPct: number | null;
+}
+
+/** Joined/active counts and live first-try accuracy for the game board (D25, D26). */
+export function summarizeGameBoard(
+  responses: readonly {
+    status?: string;
+    game?: Pick<QuizGameState, 'firstTry' | 'last'>;
+  }[],
+  nowMs: number
+): GameBoardStats {
+  let active = 0;
+  let tries = 0;
+  let right = 0;
+  for (const response of responses) {
+    const game = response.game;
+    if (!game) continue;
+    if (
+      response.status !== 'completed' &&
+      game.last &&
+      nowMs - game.last.at <= GAME_ACTIVE_WINDOW_MS
+    )
+      active += 1;
+    for (const ok of Object.values(game.firstTry)) {
+      tries += 1;
+      if (ok) right += 1;
+    }
+  }
+  return {
+    joined: responses.length,
+    active,
+    firstTryPct: tries > 0 ? Math.round((right / tries) * 100) : null,
+  };
+}

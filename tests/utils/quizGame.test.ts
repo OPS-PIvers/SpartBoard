@@ -12,6 +12,7 @@ import {
   readGameClock,
   resumedEndsAt,
   startGamePatch,
+  summarizeGameBoard,
 } from '@/utils/quizGame';
 import type { QuizGameState } from '@/types';
 
@@ -182,5 +183,30 @@ describe('findMyGameRank', () => {
       of: 2,
     });
     expect(findMyGameRank(entries, { pin: '99' })).toBeNull();
+  });
+});
+
+describe('summarizeGameBoard', () => {
+  const at = (ms: number, firstTry: Record<string, boolean>) => {
+    const game = played(firstTry, {}, 'a');
+    return { ...game, last: game.last && { ...game.last, at: ms } };
+  };
+
+  it('counts joined, recently active and first-try accuracy', () => {
+    const stats = summarizeGameBoard(
+      [
+        { status: 'in-progress', game: at(95_000, { a: true, b: false }) },
+        { status: 'in-progress', game: at(10_000, { a: true }) },
+        { status: 'joined' },
+      ],
+      100_000
+    );
+    expect(stats).toEqual({ joined: 3, active: 1, firstTryPct: 67 });
+  });
+
+  it('has no accuracy before any first try', () => {
+    expect(summarizeGameBoard([{ status: 'joined' }], 0).firstTryPct).toBe(
+      null
+    );
   });
 });

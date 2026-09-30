@@ -17,6 +17,10 @@ import {
   LIGHT_PRESENT_THEME,
   PresentThemeContext,
 } from './presentTheme';
+import {
+  GameBoard,
+  GameBoardProps,
+} from '@/components/widgets/QuizWidget/components/game/GameBoard';
 
 export interface PresentData {
   session: QuizSession;
@@ -28,6 +32,8 @@ export interface PresentData {
   standings: QuizLeaderboardEntry[];
   isGamified: boolean;
   classAverage: number | null;
+  /** Self-paced Review game board; set only for game sessions. */
+  gameBoard?: Omit<GameBoardProps, 'showNames'>;
 }
 
 interface PresentScreenProps extends PresentData {
@@ -44,6 +50,7 @@ export const PresentScreen: React.FC<PresentScreenProps> = ({
   standings,
   isGamified,
   classAverage,
+  gameBoard,
   showNames,
 }) => {
   const isLobby =
@@ -77,6 +84,7 @@ export const PresentScreen: React.FC<PresentScreenProps> = ({
     !!currentQ &&
     !!session.revealedAnswers?.[currentQ.id];
 
+  const onBoard = !!gameBoard && session.status === 'active';
   let body: React.ReactNode;
   if (session.status === 'paused') {
     body = <PresentPaused session={session} />;
@@ -92,6 +100,12 @@ export const PresentScreen: React.FC<PresentScreenProps> = ({
         rankRows={rankRows}
         game={game}
       />
+    );
+  } else if (onBoard) {
+    body = (
+      <div className="w-full flex-1 min-h-0">
+        <GameBoard {...gameBoard} showNames={showNames} />
+      </div>
     );
   } else if (isLobby) {
     body = <PresentLobby session={session} joined={total} />;
@@ -138,11 +152,11 @@ export const PresentScreen: React.FC<PresentScreenProps> = ({
   return (
     <PresentThemeContext.Provider value={theme}>
       <div
-        className={`min-h-screen w-full flex flex-col ${theme.root}`}
+        className={`${onBoard ? 'h-screen' : 'min-h-screen'} w-full flex flex-col ${theme.root}`}
         role="region"
         aria-label="Present to class"
       >
-        {!isLobby && (
+        {(!isLobby || onBoard) && (
           <header
             className="shrink-0 flex items-center justify-between"
             style={{ padding: '2.5vh 3vw' }}
@@ -153,7 +167,7 @@ export const PresentScreen: React.FC<PresentScreenProps> = ({
             >
               {session.quizTitle}
             </p>
-            {!isSelfPaced && session.status === 'active' && (
+            {!isSelfPaced && !gameBoard && session.status === 'active' && (
               <p
                 className={`font-sans uppercase tracking-widest tabular-nums shrink-0 ${theme.faint}`}
                 style={{ fontSize: 'clamp(0.7rem, 1.3vw, 1.2rem)' }}
