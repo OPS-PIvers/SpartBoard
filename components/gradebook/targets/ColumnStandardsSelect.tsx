@@ -132,10 +132,17 @@ const StandardsMenu: React.FC<{
   );
   const q = query.trim().toLowerCase();
   const rows = useMemo(() => {
-    const selected: TargetCatalogEntry[] = targets.map((tag) => ({
-      tag,
-      search: `${tag.code ?? ''} ${tag.label}`.toLowerCase(),
-    }));
+    const inCatalog = entries.filter((e) => selectedIds.has(e.tag.id));
+    const known = new Set(inCatalog.map((e) => e.tag.id));
+    const selected: TargetCatalogEntry[] = [
+      ...inCatalog,
+      ...targets
+        .filter((tag) => !known.has(tag.id))
+        .map((tag) => ({
+          tag,
+          search: `${tag.code ?? ''} ${tag.label}`.toLowerCase(),
+        })),
+    ];
     const rest = entries.filter((e) => !selectedIds.has(e.tag.id));
     return [...selected, ...rest]
       .filter((e) => !q || e.search.includes(q))
@@ -201,7 +208,7 @@ const StandardsMenu: React.FC<{
                 aria-checked={on}
                 onClick={() => toggle(tag)}
                 title={tag.label}
-                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none ${
+                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] leading-4 hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none ${
                   on ? 'font-semibold text-slate-900' : 'text-slate-700'
                 }`}
               >
