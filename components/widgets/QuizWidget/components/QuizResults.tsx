@@ -3892,7 +3892,12 @@ const StudentsScreen: React.FC<{
                           className="text-brand-gray-primary tabular-nums"
                           style={{ fontSize: 'min(10px, 3cqmin)' }}
                         >
-                          {earned}/{maxPoints} pts
+                          {final?.source === 'override' &&
+                          final.points !== null &&
+                          final.max !== null
+                            ? `${Math.round(final.points * 10) / 10}/${final.max}`
+                            : `${earned}/${maxPoints}`}{' '}
+                          pts
                           {r.status === 'in-progress' && ' (In Progress)'}
                         </p>
                         {awaitingGrade && (
