@@ -3,6 +3,7 @@ import { QuizQuestion, QuizSession } from '@/types';
 import { StimulusRenderer } from '@/components/quiz/QuizStimulusView';
 import { resolveStimuli } from '@/utils/quizStimuli';
 import { sectionStartingAt } from '@/utils/reviewLaunch';
+import { usePresentTheme } from './presentTheme';
 
 interface PresentPacedAnsweringProps {
   session: QuizSession;
@@ -48,6 +49,7 @@ export const PresentPacedAnswering: React.FC<PresentPacedAnsweringProps> = ({
       ? Math.max(0, limit - Math.floor((now - anchor.at) / 1000))
       : null;
 
+  const t = usePresentTheme();
   const stimuli = resolveStimuli(question.stimulusIds, session.stimuli);
   const section =
     session.widgetKind === 'review'
@@ -59,18 +61,18 @@ export const PresentPacedAnswering: React.FC<PresentPacedAnsweringProps> = ({
       {section && (
         <div
           data-testid="present-section-divider"
-          className="max-w-[80vw] border-b border-white/20"
+          className={`max-w-[80vw] border-b ${t.rule}`}
           style={{ paddingBottom: '2vh' }}
         >
           <p
-            className="font-sans font-bold text-white"
+            className={`font-sans font-bold ${t.strong}`}
             style={{ fontSize: 'clamp(1.2rem, 3vw, 2.8rem)' }}
           >
             {section.title}
           </p>
           {section.directions && (
             <p
-              className="font-sans text-white/75 whitespace-pre-line"
+              className={`font-sans whitespace-pre-line ${t.muted}`}
               style={{ fontSize: 'clamp(0.9rem, 1.8vw, 1.6rem)' }}
             >
               {section.directions}
@@ -79,7 +81,7 @@ export const PresentPacedAnswering: React.FC<PresentPacedAnsweringProps> = ({
         </div>
       )}
       <p
-        className="font-sans font-semibold text-white max-w-[80vw] leading-snug"
+        className={`font-sans font-semibold max-w-[80vw] leading-snug ${t.strong}`}
         style={{ fontSize: 'clamp(1.6rem, 5vw, 4.5rem)', textWrap: 'balance' }}
       >
         {question.text}
@@ -102,7 +104,7 @@ export const PresentPacedAnswering: React.FC<PresentPacedAnsweringProps> = ({
       <div className="flex items-baseline" style={{ gap: '4vw' }}>
         {remaining != null && (
           <p
-            className="font-sans font-bold text-white tabular-nums"
+            className={`font-sans font-bold tabular-nums ${t.strong}`}
             style={{ fontSize: 'clamp(2rem, 6vw, 5rem)' }}
             aria-label="Time remaining"
           >
@@ -110,7 +112,7 @@ export const PresentPacedAnswering: React.FC<PresentPacedAnsweringProps> = ({
           </p>
         )}
         <p
-          className="font-sans text-white/70 tabular-nums"
+          className={`font-sans tabular-nums ${t.muted}`}
           style={{ fontSize: 'clamp(1rem, 2.4vw, 2.2rem)' }}
         >
           {answered} of {total} answered
