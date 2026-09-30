@@ -117,6 +117,13 @@ const RESPONSE_SUBCOLLECTION: Record<AssignmentSummary['kind'], string | null> =
     projects: null,
   };
 
+/** Kinds whose response doc can carry a per-student `resultsOverride`. */
+const OVERRIDE_KINDS: ReadonlySet<AssignmentSummary['kind']> = new Set([
+  'quiz',
+  'video-activity',
+  'guided-learning',
+]);
+
 export type CompletionState = 'unknown' | 'completed' | 'not-completed';
 
 interface AssignmentListItemProps {
@@ -173,7 +180,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   // assignment kinds don't carry this field — strict equality below means a
   // missing/undefined field never trips the locked state.
   const [lockedOut, setLockedOut] = useState(false);
-  // Quiz-only: a per-student publish or hide, read from the same response doc.
+  // Quiz, VA and GL: a per-student publish or hide, read from the same response doc.
   const [resultsOverride, setResultsOverride] =
     useState<QuizResultsOverride | null>(null);
   const [mountedAt] = useState(() => Date.now());
@@ -220,6 +227,8 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
         // keeps legacy responses (no field) out of the locked state.
         if (assignment.kind === 'quiz' && snap.exists()) {
           setLockedOut(snap.data()?.resultsLockedOut === true);
+        }
+        if (OVERRIDE_KINDS.has(assignment.kind) && snap.exists()) {
           setResultsOverride(
             (snap.data()?.resultsOverride as QuizResultsOverride | undefined) ??
               null
@@ -264,7 +273,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   const isPending: boolean = !!pendingVerification && !isCompleted;
 
   const isGraded =
-    (assignment.kind === 'quiz'
+    (OVERRIDE_KINDS.has(assignment.kind)
       ? applyResultsOverride(
           assignment.gradingState,
           resultsOverride,

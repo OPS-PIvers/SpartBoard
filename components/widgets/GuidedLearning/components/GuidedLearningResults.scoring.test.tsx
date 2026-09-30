@@ -37,7 +37,9 @@ vi.mock('@/hooks/useAssignmentPseudonyms', () => ({
 vi.mock('@/hooks/useSessionViewCount', () => ({
   useSessionViewCount: () => ({ count: 0, loading: false }),
 }));
-vi.mock('@/context/useAuth', () => ({ useAuth: () => ({ orgId: null }) }));
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ orgId: null, canAccessFeature: () => false }),
+}));
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast: vi.fn(), rosters: [] }),
 }));

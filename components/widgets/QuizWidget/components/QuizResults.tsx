@@ -3898,7 +3898,9 @@ const StudentsScreen: React.FC<{
 
                     {resultsActions && (
                       <StudentResultsControl
-                        response={r}
+                        responseKey={getResponseDocKey(r) as string}
+                        override={r.resultsOverride}
+                        completed={r.status === 'completed'}
                         displayName={displayName}
                         classVisibility={classVisibility}
                         actions={resultsActions}
@@ -3953,7 +3955,9 @@ const StudentsScreen: React.FC<{
                     resultsActions ? (
                       <StudentResultsControl
                         layout="panel"
-                        response={r}
+                        responseKey={getResponseDocKey(r) as string}
+                        override={r.resultsOverride}
+                        completed={r.status === 'completed'}
                         displayName={displayName}
                         classVisibility={classVisibility}
                         actions={resultsActions}

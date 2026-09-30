@@ -36,7 +36,7 @@ import {
   pullSyncedVideoActivityContent,
 } from './useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
-import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import { gradeVideoActivityResponseForPublish } from '@/utils/studentResultsPublish';
 import { scoredVideoActivityQuestions } from '@/utils/videoActivityLive';
 import {
   mirrorPlcAssignmentStatus,
@@ -59,10 +59,7 @@ import type {
   VideoActivityScoreVisibility,
   VideoActivitySession,
 } from '@/types';
-import {
-  gradeVideoActivityAnswer,
-  dedupeQuestionsById,
-} from '@/utils/videoActivityGrading';
+import { dedupeQuestionsById } from '@/utils/videoActivityGrading';
 import {
   splitVideoActivitySessionQuestions,
   VA_KEY_DOC_ID,
@@ -1035,55 +1032,8 @@ export const useVideoActivityAssignments = (
       const updates: ResponseUpdate[] = [];
       for (const d of responseDocs) {
         const data = d.data() as VideoActivityResponse;
-        const answers = Array.isArray(data.answers) ? data.answers : [];
-        let pointsEarned = 0;
-        let pointsMax = 0;
-        // Pick one representative answer per questionId — highest takeIndex
-        // wins, ties (equal or absent takeIndex, e.g. an arrayUnion race or
-        // Drive-sync duplication) broken by earliest answeredAt — so a
-        // duplicate answer can't inflate pointsEarned and pointsMax. Each
-        // answer is still graded for its `isCorrect` flag, but only the
-        // representative contributes to the totals — matching the dedup
-        // already applied in the unanswered loop below.
-        const representativeAnswers = selectRepresentativeAnswers(answers);
-        const gradedAnswers: VideoActivityAnswer[] = answers.map((a) => {
-          const q = questionsById.get(a.questionId);
-          if (!q) {
-            // Question deleted between submission and publish — drop any
-            // stale `isCorrect` from a prior publish so the response
-            // doesn't carry a value the canonical activity no longer
-            // supports. Mirrors the Quiz pattern.
-            const { isCorrect: _stale, ...rest } = a;
-            void _stale;
-            return rest;
-          }
-          const result = gradeVideoActivityAnswer(q, a.answer);
-          if (representativeAnswers.get(a.questionId) === a) {
-            pointsEarned += result.pointsEarned;
-            pointsMax += result.pointsMax;
-          }
-          return { ...a, isCorrect: result.isCorrect };
-        });
-        // Count unanswered questions toward the denominator so a blank
-        // response scores 0%, not undefined. O(Q) Set lookup vs the
-        // O(Q*A) `.some` pattern matters on PLC-shared assignments.
-        //
-        // Iterate questionsById (already deduped) rather than the raw
-        // activityData.questions array. Drive-sync duplication and
-        // arrayUnion races can write the same question id twice into
-        // `activityData.questions`; without this guard each duplicated
-        // unanswered question inflates pointsMax and deflates the
-        // published score. Mirrors the identical fix in
-        // `computeVideoActivityScorePct` (videoActivityGrading.ts).
-        const answeredQuestionIds = new Set<string>();
-        for (const a of answers) answeredQuestionIds.add(a.questionId);
-        for (const [qId, q] of questionsById) {
-          if (!answeredQuestionIds.has(qId)) {
-            pointsMax += q.points ?? 1;
-          }
-        }
-        const score =
-          pointsMax === 0 ? 0 : Math.round((pointsEarned / pointsMax) * 100);
+        const { score, answers: gradedAnswers } =
+          gradeVideoActivityResponseForPublish(data, questionsById);
         updates.push({
           ref: d.ref,
           patch: { score, answers: gradedAnswers },
