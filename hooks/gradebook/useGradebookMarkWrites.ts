@@ -108,7 +108,12 @@ export function isMissingCandidate(cell: GradebookCellData): boolean {
   if (cell.row && (!cell.row.assigned || cell.row.submittedAt !== null)) {
     return false;
   }
-  if (cell.final.status === 'not-assigned') return false;
+  if (
+    cell.final.status === 'not-assigned' ||
+    cell.final.status === 'excluded'
+  ) {
+    return false;
+  }
   return !cell.final.flags.some((f) => f.id === 'missing' && !f.auto);
 }
 
@@ -214,7 +219,8 @@ export function useGradebookMarkWrites(rosterId: string) {
     ): Promise<string> => {
       const w = plan(column, cell, patch);
       const batchId = newBatchId();
-      if (w) await commit([w], batchId, label);
+      if (!w) throw new Error('Not authenticated');
+      await commit([w], batchId, label);
       return batchId;
     },
     [plan, commit]
