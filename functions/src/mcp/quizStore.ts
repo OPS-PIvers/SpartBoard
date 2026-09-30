@@ -23,6 +23,7 @@ export interface StoredQuestion {
   correctAnswer: string;
   incorrectAnswers: string[];
   alternateAnswers?: string[];
+  blankAlternates?: { answers: string[] }[];
   optionOrder?: number[];
   needsKey?: boolean;
   points?: number;
@@ -89,6 +90,7 @@ export interface FriendlyQuestion {
   incorrect_answers?: string[];
   correct_answers?: string[];
   accepted_alternates?: string[];
+  blanks?: { answer: string; accepted_alternates?: string[] }[];
   pairs?: { term: string; match: string }[];
   extra_matches?: string[];
   items_in_order?: string[];
@@ -123,6 +125,7 @@ const KEY_FIELDS = [
   'correctAnswer',
   'incorrectAnswers',
   'alternateAnswers',
+  'blankAlternates',
   'optionOrder',
   'matchingDistractors',
   'allowPartialCredit',
@@ -139,6 +142,11 @@ const TYPE_BOUND_EXTRAS = [
   'enforceWordLimit',
   'paperBoxSize',
 ] as const;
+
+/** Joins per-blank answers in a multi-blank key; mirrors utils/quizFibBlanks.ts. */
+const FIB_BLANK_SEP = '\u001F';
+
+const stripSep = (value: string): string => value.split(FIB_BLANK_SEP).join('');
 
 const clean = (values: string[] | undefined): string[] =>
   (values ?? []).map((v) => v.trim()).filter(Boolean);
@@ -219,7 +227,23 @@ export function toStoredQuestion(
       break;
     }
     case 'FIB': {
-      const correct = input.correct_answer?.trim() ?? '';
+      if ((input.blanks?.length ?? 0) >= 2) {
+        const blanks = (input.blanks ?? []).map((b) => ({
+          answer: stripSep(b.answer).trim(),
+          alternates: clean(b.accepted_alternates).map(stripSep),
+        }));
+        if (blanks.some((b) => !b.answer))
+          throw new ToolError(
+            `Question ${n}: every fill_in_blank blank needs an answer.`
+          );
+        base.correctAnswer = blanks.map((b) => b.answer).join(FIB_BLANK_SEP);
+        if (blanks.some((b) => b.alternates.length > 0))
+          base.blankAlternates = blanks.map((b) => ({ answers: b.alternates }));
+        if (input.partial_credit !== undefined)
+          base.allowPartialCredit = input.partial_credit;
+        break;
+      }
+      const correct = stripSep(input.correct_answer ?? '').trim();
       if (!correct)
         throw new ToolError(
           `Question ${n}: fill_in_blank needs correct_answer.`
@@ -303,6 +327,17 @@ export function toFriendlyQuestion(
         out.partial_credit = q.allowPartialCredit;
       break;
     case 'FIB':
+      if (q.correctAnswer.includes(FIB_BLANK_SEP)) {
+        out.blanks = q.correctAnswer.split(FIB_BLANK_SEP).map((answer, i) => {
+          const alts = q.blankAlternates?.[i]?.answers ?? [];
+          return alts.length
+            ? { answer, accepted_alternates: alts }
+            : { answer };
+        });
+        if (q.allowPartialCredit !== undefined)
+          out.partial_credit = q.allowPartialCredit;
+        break;
+      }
       out.correct_answer = q.correctAnswer;
       if (q.alternateAnswers?.length)
         out.accepted_alternates = q.alternateAnswers;
@@ -377,6 +412,8 @@ function isMissingKey(q: StoredQuestion): boolean {
       (q.correctAnswer ?? '').split('|').filter((s) => s.trim()).length === 0
     );
   }
+  if (q.type === 'FIB' && (q.correctAnswer ?? '').includes(FIB_BLANK_SEP))
+    return q.correctAnswer.split(FIB_BLANK_SEP).some((a) => !a.trim());
   return !q.correctAnswer?.trim();
 }
 

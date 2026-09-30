@@ -33,6 +33,7 @@ import { computeQuestionStats } from '@/utils/quizQuestionStats';
 import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
 import { normalizeQuizData } from '@/utils/quizQuestionNormalize';
 import { normalizeQuizTranslation } from '@/utils/quizTranslationNormalize';
+import { displayFibAnswer, fibKeyFromSheetCell } from '@/utils/quizFibBlanks';
 
 /**
  * Quiz's grader wrapper for `buildResultsSheetData`. Routes per-question
@@ -498,6 +499,7 @@ export class QuizDriveService {
    * For Matching: D = "term1:def1|term2:def2|term3:def3"
    * For Ordering: D = "item1|item2|item3" (in correct order)
    * For MA (choose all that apply): D = "right1|right2", E-H = wrong options
+   * For FIB with several ___ blanks: D = "blank1|blank2", one answer per blank
    */
   async importFromGoogleSheet(
     sheetId: string,
@@ -563,7 +565,10 @@ export class QuizDriveService {
         timeLimit: timeLimitRaw ? parseInt(timeLimitRaw, 10) || 0 : 0,
         text: questionText,
         type: questionType,
-        correctAnswer,
+        correctAnswer:
+          questionType === 'FIB'
+            ? fibKeyFromSheetCell(questionText, correctAnswer)
+            : correctAnswer,
         incorrectAnswers,
       });
     }
@@ -668,7 +673,10 @@ export class QuizDriveService {
         timeLimit: timeLimitRaw ? parseInt(timeLimitRaw, 10) || 0 : 0,
         text: questionText,
         type: questionType,
-        correctAnswer,
+        correctAnswer:
+          questionType === 'FIB'
+            ? fibKeyFromSheetCell(questionText, correctAnswer)
+            : correctAnswer,
         incorrectAnswers,
       });
     }
@@ -927,7 +935,7 @@ export class QuizDriveService {
         q.text.substring(0, 60),
         q.type,
         String(q.points ?? 1),
-        q.correctAnswer.substring(0, 40),
+        displayFibAnswer(q.correctAnswer).substring(0, 40),
         isAuto ? String(stats?.correct ?? 0) : '',
         String(stats?.answered ?? 0),
         isAuto ? `${correctPct}%` : '',

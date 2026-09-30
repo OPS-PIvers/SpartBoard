@@ -36,6 +36,16 @@ const quiz = (): QuizData => ({
       timeLimit: 30,
     },
     {
+      id: 'q-fib-multi',
+      type: 'FIB',
+      text: 'Roses are ___ and violets are ___.',
+      correctAnswer: 'red\u001Fblue',
+      incorrectAnswers: [],
+      blankAlternates: [{ answers: [] }, { answers: ['navy'] }],
+      allowPartialCredit: true,
+      timeLimit: 30,
+    },
+    {
       id: 'q-match',
       type: 'Matching',
       text: 'Match each term to its definition.',

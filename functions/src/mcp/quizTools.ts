@@ -89,6 +89,18 @@ const questionSchema = z.object({
     .max(10)
     .optional()
     .describe('fill_in_blank: other spellings to accept.'),
+  blanks: z
+    .array(
+      z.object({
+        answer: z.string().max(1000),
+        accepted_alternates: z.array(z.string().max(1000)).max(10).optional(),
+      })
+    )
+    .max(LIST_MAX)
+    .optional()
+    .describe(
+      'fill_in_blank with two or more blanks: one entry per ___ in the text, in order. Replaces correct_answer.'
+    ),
   pairs: z
     .array(z.object({ term: z.string().max(500), match: z.string().max(500) }))
     .max(LIST_MAX)
@@ -115,7 +127,7 @@ const questionSchema = z.object({
   partial_credit: z
     .boolean()
     .optional()
-    .describe('matching, ordering and choose_all.'),
+    .describe('matching, ordering, choose_all and fill_in_blank with blanks.'),
   placeholder: z
     .string()
     .max(200)
@@ -133,7 +145,7 @@ const questionSchema = z.object({
 });
 
 const QUESTION_HELP =
-  'Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates), matching (pairs + extra_matches), ordering (items_in_order), free_response (no key). Plain text.';
+  'Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates, or blanks when the text has several ___), matching (pairs + extra_matches), ordering (items_in_order), free_response (no key). Plain text.';
 
 const toolNames = (kind: QuizKind) =>
   kind === 'quiz'

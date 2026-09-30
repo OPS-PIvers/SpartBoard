@@ -185,6 +185,12 @@ import {
   formatRevealedAnswer,
   splitRevealedAnswer,
 } from '@/utils/quizFibAlternates';
+import {
+  cleanBlankAnswer,
+  FIB_BLANK_SEP,
+  revealedBlanksMatch,
+} from '@/utils/quizFibBlanks';
+import { FibMultiBlankInput, NumberedBlanksText } from './FibMultiBlankInput';
 import { isValidDraw, orderServedQuestions } from '@/utils/questionBanks';
 import { chooseServedDraw } from '@/utils/quizBankDraw';
 import { groupQuestionsByTargets } from '@/utils/quizTargetStats';
@@ -3401,7 +3407,14 @@ export const ActiveQuiz: React.FC<{
               <h2
                 className={`flex-1 text-xl font-bold leading-snug break-words whitespace-pre-line ${headingText}`}
               >
-                {displayQuestion.text}
+                {(currentQuestion.blankCount ?? 0) >= 2 ? (
+                  <NumberedBlanksText
+                    text={displayQuestion.text}
+                    light={light}
+                  />
+                ) : (
+                  displayQuestion.text
+                )}
               </h2>
               <ReadAloudButton
                 variant="prominent"
@@ -3415,7 +3428,11 @@ export const ActiveQuiz: React.FC<{
             <h2
               className={`text-xl font-bold mb-8 leading-snug break-words whitespace-pre-line ${headingText}`}
             >
-              {displayQuestion.text}
+              {(currentQuestion.blankCount ?? 0) >= 2 ? (
+                <NumberedBlanksText text={displayQuestion.text} light={light} />
+              ) : (
+                displayQuestion.text
+              )}
             </h2>
           )}
 
@@ -3726,24 +3743,49 @@ export const ActiveQuiz: React.FC<{
 
               {!recordingConfig && currentQuestion.type === 'FIB' && (
                 <div className="space-y-4 flex-1">
-                  <input
-                    type="text"
-                    value={liveAnswer ?? ''}
-                    onChange={(e) => setCacheForCurrent(e.target.value)}
-                    disabled={submitted && !isStudentPaced}
-                    placeholder="Type your answer…"
-                    className={`w-full px-5 py-4 border-2 rounded-2xl text-sm focus:outline-none focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
-                    onKeyDown={(e) => {
-                      if (e.key !== 'Enter') return;
-                      const trimmed = (submittableAnswer ?? '').trim();
-                      if (!trimmed) return;
-                      if (isStudentPaced) {
-                        void handleSubmitAndAdvance(trimmed);
-                      } else if (!submitted) {
-                        void handleSubmit(trimmed);
-                      }
-                    }}
-                  />
+                  {(currentQuestion.blankCount ?? 0) >= 2 ? (
+                    <FibMultiBlankInput
+                      key={currentQuestion.id}
+                      count={currentQuestion.blankCount ?? 0}
+                      value={liveAnswer ?? ''}
+                      onChange={setCacheForCurrent}
+                      disabled={submitted && !isStudentPaced}
+                      light={light}
+                      inputClassName={fibInputCls}
+                      onEnter={() => {
+                        const cleaned = cleanBlankAnswer(
+                          submittableAnswer ?? ''
+                        );
+                        if (!cleaned) return;
+                        if (isStudentPaced) {
+                          void handleSubmitAndAdvance(cleaned);
+                        } else if (!submitted) {
+                          void handleSubmit(cleaned);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={liveAnswer ?? ''}
+                      onChange={(e) => setCacheForCurrent(e.target.value)}
+                      disabled={submitted && !isStudentPaced}
+                      placeholder="Type your answer…"
+                      className={`w-full px-5 py-4 border-2 rounded-2xl text-sm focus:outline-none focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
+                      onKeyDown={(e) => {
+                        if (e.key !== 'Enter') return;
+                        const trimmed = cleanBlankAnswer(
+                          submittableAnswer ?? ''
+                        );
+                        if (!trimmed) return;
+                        if (isStudentPaced) {
+                          void handleSubmitAndAdvance(trimmed);
+                        } else if (!submitted) {
+                          void handleSubmit(trimmed);
+                        }
+                      }}
+                    />
+                  )}
                   <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
                     {isStudentPaced ? (
                       submitted &&
@@ -3762,13 +3804,14 @@ export const ActiveQuiz: React.FC<{
                           {saveError && <SaveErrorBanner message={saveError} />}
                           <button
                             onClick={() =>
-                              (submittableAnswer ?? '').trim() &&
+                              cleanBlankAnswer(submittableAnswer ?? '') &&
                               void handleSubmitAndAdvance(
-                                (submittableAnswer ?? '').trim()
+                                cleanBlankAnswer(submittableAnswer ?? '')
                               )
                             }
                             disabled={
-                              !(submittableAnswer ?? '').trim() || submitting
+                              !cleanBlankAnswer(submittableAnswer ?? '') ||
+                              submitting
                             }
                             className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                           >
@@ -3791,11 +3834,14 @@ export const ActiveQuiz: React.FC<{
                     ) : !submitted ? (
                       <button
                         onClick={() =>
-                          (submittableAnswer ?? '').trim() &&
-                          void handleSubmit((submittableAnswer ?? '').trim())
+                          cleanBlankAnswer(submittableAnswer ?? '') &&
+                          void handleSubmit(
+                            cleanBlankAnswer(submittableAnswer ?? '')
+                          )
                         }
                         disabled={
-                          !(submittableAnswer ?? '').trim() || submitting
+                          !cleanBlankAnswer(submittableAnswer ?? '') ||
+                          submitting
                         }
                         className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
                       >
@@ -5664,6 +5710,8 @@ function revealMatches(
       givenParts.every((p) => correctSet.has(p))
     );
   }
+  if (type === 'FIB' && revealed.includes(FIB_BLANK_SEP))
+    return revealedBlanksMatch(revealed, given, normalizeAnswer);
   if (type === 'FIB') {
     const typed = normalizeAnswer(given);
     return splitRevealedAnswer(revealed).some(

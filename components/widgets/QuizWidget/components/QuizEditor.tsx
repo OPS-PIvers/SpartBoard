@@ -61,6 +61,14 @@ import { PaperBoxSizeField } from './PaperBoxSizeField';
 import { usePaperAnswerSheetsSettings } from '@/hooks/usePaperAnswerSheetsSettings';
 import { PAPER_HANDWRITTEN_FEATURE } from '@/utils/paperWritten';
 import { AlternateAnswersEditor, MultiAnswerEditor } from './MultiAnswerEditor';
+import { FibBlanksEditor } from './FibBlanksEditor';
+import {
+  countTextBlanks,
+  fibBlankCount,
+  isMultiBlank,
+  joinBlanks,
+  reshapeFibBlanks,
+} from '@/utils/quizFibBlanks';
 import { ChoiceOptionsEditor } from './ChoiceOptionsEditor';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
@@ -789,6 +797,8 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   // editor is pixel-identical to today for everyone else.
   const mediaResponseAllowed = canAccessQuizMediaResponse();
   const choiceEditor = canAccessFeature('quiz-choice-editor');
+  const multiBlankAllowed = canAccessFeature('quiz-fib-multi-blank');
+  const promptRef = useRef<HTMLTextAreaElement>(null);
   const paperWrittenAllowed =
     canAccessFeature(PAPER_HANDWRITTEN_FEATURE) &&
     canAccessFeature('paper-answer-sheets');
@@ -896,10 +906,41 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
       <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
         {/* Question prompt */}
         <div>
-          <label className={labelClass}>Question prompt</label>
+          <div className="flex items-center justify-between">
+            <label className={labelClass}>Question prompt</label>
+            {q.type === 'FIB' && multiBlankAllowed && (
+              <button
+                type="button"
+                onClick={() => {
+                  const el = promptRef.current;
+                  const at = el?.selectionStart ?? q.text.length;
+                  const end = el?.selectionEnd ?? at;
+                  const before = q.text.slice(0, at);
+                  const pad = before && !/\s$/.test(before) ? ' ' : '';
+                  const text = `${before}${pad}___${q.text.slice(end)}`;
+                  updateQuestion(q.id, fibPromptUpdate(q, text, true));
+                  requestAnimationFrame(() => {
+                    const caret = at + pad.length + 3;
+                    el?.focus();
+                    el?.setSelectionRange(caret, caret);
+                  });
+                }}
+                className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:underline"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Blank
+              </button>
+            )}
+          </div>
           <textarea
+            ref={promptRef}
             value={q.text}
-            onChange={(e) => updateQuestion(q.id, { text: e.target.value })}
+            onChange={(e) =>
+              updateQuestion(
+                q.id,
+                fibPromptUpdate(q, e.target.value, multiBlankAllowed)
+              )
+            }
             rows={3}
             placeholder="e.g. What is the capital of France?"
             className={`${inputClass} resize-none`}
@@ -975,8 +1016,14 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   incorrectAnswers:
                     nextType === 'MC' || nextType === 'MA' ? ['', ''] : [],
                   alternateAnswers: undefined,
+                  blankAlternates: undefined,
                   optionOrder: undefined,
-                  correctAnswer: '',
+                  correctAnswer:
+                    nextType === 'FIB' &&
+                    multiBlankAllowed &&
+                    countTextBlanks(q.text) >= 2
+                      ? joinBlanks(Array(countTextBlanks(q.text)).fill(''))
+                      : '',
                   matchingDistractors: undefined,
                   // Reset written-specific fields when switching off written types
                   placeholder: isWritten ? q.placeholder : undefined,
@@ -1117,6 +1164,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
 
         {(q.type === 'Matching' ||
           q.type === 'Ordering' ||
+          isMultiBlank(q) ||
           (q.type === 'MA' && !choiceEditor)) && (
           <div className="flex items-start gap-2">
             <label
@@ -1124,9 +1172,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               title={
                 q.type === 'Matching'
                   ? 'Award partial points based on the number of correct pairs.'
-                  : q.type === 'MA'
-                    ? 'Each correct pick earns points and each wrong pick takes points away, so choosing everything earns nothing.'
-                    : 'Award partial points based on the longest correctly-ordered sequence.'
+                  : q.type === 'FIB'
+                    ? 'Award points for each blank filled in correctly.'
+                    : q.type === 'MA'
+                      ? 'Each correct pick earns points and each wrong pick takes points away, so choosing everything earns nothing.'
+                      : 'Award partial points based on the longest correctly-ordered sequence.'
               }
             >
               <input
@@ -1254,6 +1304,22 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 </button>
               )}
             </div>
+          </div>
+        ) : isMultiBlank(q) ? (
+          <div>
+            <FibBlanksEditor
+              question={q}
+              onChange={(updates) => updateQuestion(q.id, updates)}
+            />
+            {questionNeedsKey(q) && (
+              <p
+                role="status"
+                className="mt-1 flex items-center gap-1 text-xxs font-bold text-amber-700"
+              >
+                <AlertCircle className="w-3 h-3" aria-hidden />
+                No answer imported. Add one before assigning.
+              </p>
+            )}
           </div>
         ) : (
           <div>
@@ -1465,3 +1531,21 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
     </AIGeneratorOverlay>
   );
 };
+
+/** A prompt edit; a FIB key follows the blank count once it has two or more blanks. */
+function fibPromptUpdate(
+  q: QuizQuestion,
+  text: string,
+  multiBlankAllowed: boolean
+): Partial<QuizQuestion> {
+  if (q.type !== 'FIB') return { text };
+  const blanks = countTextBlanks(text);
+  if (isMultiBlank(q)) {
+    return blanks === fibBlankCount(q)
+      ? { text }
+      : { text, ...reshapeFibBlanks(q, blanks) };
+  }
+  const grew = blanks > countTextBlanks(q.text);
+  if (!multiBlankAllowed || blanks < 2 || !grew) return { text };
+  return { text, ...reshapeFibBlanks(q, blanks) };
+}
