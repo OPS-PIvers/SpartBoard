@@ -1,6 +1,7 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { Z_INDEX } from '@/config/zIndex';
 
 const EDGE = 12;
 const GAP = 6;
@@ -88,26 +89,35 @@ export const GradebookPopoverShell: React.FC<GradebookPopoverShellProps> = ({
   };
 
   return createPortal(
-    <div
-      ref={panelRef}
-      role="dialog"
-      aria-label={ariaLabel}
-      tabIndex={-1}
-      onKeyDown={onKeyDown}
-      {...(submenu ? { [SUBMENU_ATTR]: '' } : {})}
-      style={{
-        top: pos?.top ?? -9999,
-        left: pos?.left ?? -9999,
-        maxHeight: pos?.maxHeight,
-      }}
-      className={`fixed flex flex-col overflow-y-auto rounded-xl border border-slate-200 bg-white text-sm text-slate-800 shadow-[0_10px_15px_-3px_rgba(29,42,93,.12),0_4px_6px_-4px_rgba(29,42,93,.08)] outline-none ${
-        submenu
-          ? 'z-popover-menu w-[280px] gap-1.5 p-1.5'
-          : 'z-popover w-[min(380px,calc(100vw-24px))] gap-3.5 p-4'
-      }`}
-    >
-      {children}
-    </div>,
+    <>
+      {!submenu && (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 bg-slate-900/15"
+          style={{ zIndex: Z_INDEX.popover - 1 }}
+        />
+      )}
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-label={ariaLabel}
+        tabIndex={-1}
+        onKeyDown={onKeyDown}
+        {...(submenu ? { [SUBMENU_ATTR]: '' } : {})}
+        style={{
+          top: pos?.top ?? -9999,
+          left: pos?.left ?? -9999,
+          maxHeight: pos?.maxHeight,
+        }}
+        className={`fixed flex flex-col overflow-y-auto rounded-xl border border-slate-300 bg-white text-sm text-slate-800 shadow-[0_24px_48px_-12px_rgba(15,23,42,.35),0_8px_16px_-8px_rgba(15,23,42,.2)] outline-none ${
+          submenu
+            ? 'z-popover-menu w-[280px] gap-1.5 p-1.5'
+            : 'z-popover w-[min(380px,calc(100vw-24px))] gap-3.5 p-4'
+        }`}
+      >
+        {children}
+      </div>
+    </>,
     document.body
   );
 };
