@@ -205,6 +205,20 @@ export const gradeIndexVideoKey = onDocumentWritten(
     )
 );
 
+export const gradeIndexGuidedLearningAssignment = onDocumentWritten(
+  {
+    ...TRIGGER_OPTS,
+    document: 'users/{uid}/guided_learning_assignments/{sessionId}',
+  },
+  (event) =>
+    handleSideDocWrite(
+      'guided-learning',
+      event.params.sessionId,
+      event as unknown as WriteEvent,
+      ['stepTargets']
+    )
+);
+
 export const gradeIndexProjectGroup = onDocumentWritten(
   { ...TRIGGER_OPTS, document: 'project_runs/{sessionId}/groups/{groupId}' },
   (event) =>

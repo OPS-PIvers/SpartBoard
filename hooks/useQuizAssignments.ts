@@ -11,6 +11,10 @@
  * submissions) or Inactive (URL dead, responses preserved).
  */
 
+import {
+  QUIZ_TIME_LIMIT_FEATURE,
+  clampQuizTimeLimitMinutes,
+} from '@/utils/quizTimeLimit';
 import { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import {
   collection,
@@ -681,6 +685,8 @@ function sessionOptionsToSessionPatch(
   if (o.readAloudAll !== undefined) patch.readAloudAll = o.readAloudAll;
   if (o.showScoreOnSubmit !== undefined)
     patch.showScoreOnSubmit = o.showScoreOnSubmit;
+  if (o.timeLimitMinutes !== undefined)
+    patch.timeLimitMinutes = clampQuizTimeLimitMinutes(o.timeLimitMinutes);
   // `handRaiseEnabled` is deliberately NOT mirrored: it is resolved against the
   // admin gate at create time only, so a later patch (e.g. a PLC sync) can't
   // switch raise hand on inside a force-off building. Running sessions keep
@@ -1156,6 +1162,8 @@ export const useQuizAssignments = (
     authContext?.canAccessFeature?.('tab-away-timer') === true;
   const scoreOnSubmitOn =
     authContext?.canAccessFeature?.('quiz-score-on-submit') === true;
+  const timeLimitOn =
+    authContext?.canAccessFeature?.(QUIZ_TIME_LIMIT_FEATURE) === true;
   // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
   const allowAnonymousJoin =
     authContext?.canAccessFeature?.('anonymous-join') !== false;
@@ -1415,6 +1423,7 @@ export const useQuizAssignments = (
 
       const mode = settings.sessionMode;
       const opts = settings.sessionOptions;
+      const sessionTimeLimit = clampQuizTimeLimitMinutes(opts.timeLimitMinutes);
       // Dedupe once so totalQuestions and publicQuestions can't drift apart.
       const sessionReadAloudText = readAloudTextByStimulusId({
         questions: sessionQuestions,
@@ -1531,6 +1540,9 @@ export const useQuizAssignments = (
         opts.showScoreOnSubmit &&
         !quizNeedsManualGrading(sessionQuestions)
           ? { showScoreOnSubmit: true }
+          : {}),
+        ...(timeLimitOn && mode === 'student' && sessionTimeLimit != null
+          ? { timeLimitMinutes: sessionTimeLimit }
           : {}),
         revealedAnswers: {},
         // Phase 2 gamification
@@ -1742,6 +1754,7 @@ export const useQuizAssignments = (
       tabAwayTimerOn,
       allowAnonymousJoin,
       scoreOnSubmitOn,
+      timeLimitOn,
     ]
   );
 

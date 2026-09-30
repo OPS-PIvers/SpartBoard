@@ -4,6 +4,7 @@ import type {
   GuidedLearningSet,
   GuidedLearningQuestion,
   GuidedLearningStep,
+  QuestionTargetTag,
 } from '@/types';
 
 const isQuestion = (s: { interactionType: string; question?: unknown }) =>
@@ -64,6 +65,18 @@ export function answerKeysForSteps(
     };
   }
   return keys;
+}
+
+/** Each tagged question's targets by step id; empty when nothing is tagged. */
+export function stepTargetsForSteps(
+  steps: GuidedLearningStep[]
+): Record<string, QuestionTargetTag[]> {
+  const out: Record<string, QuestionTargetTag[]> = {};
+  for (const s of steps) {
+    if (!isQuestion(s) || !s.targets?.length || out[s.id]) continue;
+    out[s.id] = s.targets;
+  }
+  return out;
 }
 
 /** The set with each question's key replaced by the one frozen at assign, where the type still matches. */

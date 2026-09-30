@@ -4121,6 +4121,8 @@ export interface QuizSessionOptions extends BaseSessionOptions {
   handRaiseEnabled?: boolean;
   /** Score each attempt on submit and show it; ignored when a question needs manual grading. */
   showScoreOnSubmit?: boolean;
+  /** Overall time limit per attempt in minutes, self-paced only; null/absent = none. */
+  timeLimitMinutes?: number | null;
   /** Review: leaderboard rows on the board; absent keeps the legacy top 3. */
   boardRankLimit?: ReviewBoardRankLimit;
 }
@@ -4463,6 +4465,8 @@ export interface QuizSession
   showLearningTargets?: boolean;
   /** Students see their score as soon as the server grades a submitted attempt. */
   showScoreOnSubmit?: boolean;
+  /** Overall time limit per attempt in minutes, counted from `QuizResponse.attemptStartedAt`. */
+  timeLimitMinutes?: number | null;
   /**
    * Teacher-written map of questionId → correct answer text.
    * Students read from this after submitting; only populated when the
@@ -4978,6 +4982,10 @@ export interface QuizResponse {
    * behavior (don't retroactively auto-submit historical attempts).
    */
   lastWriteAt?: import('firebase/firestore').Timestamp;
+  /** Server-stamped start of the current attempt; the overall time limit counts from it. */
+  attemptStartedAt?: import('firebase/firestore').Timestamp;
+  /** The attempt was submitted because the overall time limit ran out. */
+  timeUp?: boolean;
   /**
    * Epoch ms at which this student acknowledged the Tennessen recording
    * notice. Response-level so the acknowledgement is provable even when the
@@ -7432,6 +7440,8 @@ export interface GuidedLearningStep {
   /** Banner color tone for banner overlay (default 'blue') */
   bannerTone?: 'blue' | 'red' | 'neutral';
   question?: GuidedLearningQuestion;
+  /** Learning-target tags on a question step; teacher-only, never mirrored to `publicSteps`. */
+  targets?: QuestionTargetTag[];
   /** Seconds before auto-advance in guided mode */
   autoAdvanceDuration?: number;
   /** Click zone / spotlight / zoom focus. Absent = default circle centred on xPct/yPct. */
@@ -9175,6 +9185,8 @@ export type GlobalFeature =
   | 'student-gradebook'
   /** Quiz keeps assessment only; live review games move to the Review widget. */
   | 'quiz-review-split'
+  /** Quiz assign/edit: an overall time limit per attempt with a student countdown. */
+  | 'quiz-time-limit'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'
@@ -10343,6 +10355,8 @@ export interface GuidedLearningAssignment
   removedStudentRefs?: StudentTargetRef[];
   /** Answer keys by step id, frozen at assign so a later set edit never rescores. */
   answerKeys?: Record<string, GuidedLearningAnswerKey>;
+  /** Learning-target tags by question step id, frozen at assign for gradebook evidence. */
+  stepTargets?: Record<string, QuestionTargetTag[]>;
 }
 
 /** The scoring half of a question, stored on the teacher-only assignment doc. */

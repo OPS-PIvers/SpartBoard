@@ -9,6 +9,7 @@ import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
 import { GL_MAX_VIDEO_BYTES } from '@/utils/guidedLearningMedia';
 import { INTERACTION_TYPES } from './editorShared/setOptions';
+import { TargetsField } from '@/components/quiz/targets/TargetsField';
 
 interface Props {
   step: GuidedLearningStep;
@@ -518,6 +519,7 @@ interface QuestionEditorProps {
 }
 
 const QuestionEditor: React.FC<QuestionEditorProps> = ({ step, onChange }) => {
+  const { canAccessFeature } = useAuth();
   const q = step.question ?? {
     type: 'multiple-choice' as GuidedLearningQuestionType,
     text: '',
@@ -564,6 +566,13 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ step, onChange }) => {
       )}
       {q.type === 'matching' && <MatchingEditor q={q} updateQ={updateQ} />}
       {q.type === 'sorting' && <SortingEditor q={q} updateQ={updateQ} />}
+      {canAccessFeature('gradebook') && (
+        <TargetsField
+          targets={step.targets}
+          labelClassName={labelClass}
+          onChange={(targets) => onChange({ ...step, targets })}
+        />
+      )}
     </div>
   );
 };

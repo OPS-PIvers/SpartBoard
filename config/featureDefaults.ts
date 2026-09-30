@@ -850,6 +850,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Quiz overall time limit per attempt. Admin-only until Paul has used it with a class.
+  'quiz-time-limit': {
+    label: 'Quiz time limit',
+    icon: Timer,
+    description: 'Set an overall time limit on a quiz assignment.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Per-widget AI switches: hide and meter each widget's AI; `gemini-functions` is the hard server gate.
   quiz: {
     label: 'Quiz: AI',

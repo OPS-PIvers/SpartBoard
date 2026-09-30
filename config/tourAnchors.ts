@@ -493,6 +493,26 @@ export const TOUR_ANCHORS = {
     label: 'Start button in the Start review dialog',
     panel: true,
   },
+  'review-game.board': {
+    label: 'Game board in the Review monitor',
+    perWidget: true,
+  },
+  'review-game.start': {
+    label: 'Start game button in the Review monitor',
+    perWidget: true,
+  },
+  'review-game.pause': {
+    label: 'Pause or resume game button in the Review monitor',
+    perWidget: true,
+  },
+  'review-game.add-minute': {
+    label: 'Add a minute button in the Review monitor',
+    perWidget: true,
+  },
+  'review-game.names': {
+    label: 'Names on or off button in the Review monitor',
+    perWidget: true,
+  },
   'quiz-settings.widget-label': {
     label: 'Widget label input in Quiz settings',
     perWidget: true,

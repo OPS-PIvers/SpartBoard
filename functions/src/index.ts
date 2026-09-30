@@ -228,6 +228,7 @@ export {
   gradeIndexQuizKey,
   gradeIndexQuizAssignment,
   gradeIndexVideoKey,
+  gradeIndexGuidedLearningAssignment,
   gradeIndexProjectGroup,
   gradeIndexStudentPointer,
   gradeIndexProjection,

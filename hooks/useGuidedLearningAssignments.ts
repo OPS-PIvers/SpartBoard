@@ -92,6 +92,7 @@ export interface CreateAssignmentInput {
   /** Per-period gate mirrored from the session for the hub. */
   periodGate?: Pick<GuidedLearningSession, 'accessMode' | 'periodAccess'>;
   answerKeys?: GuidedLearningAssignment['answerKeys'];
+  stepTargets?: GuidedLearningAssignment['stepTargets'];
 }
 
 export interface UseGuidedLearningAssignmentsResult {
@@ -285,6 +286,9 @@ export const useGuidedLearningAssignments = (
         ...(input.dueAt !== undefined ? { dueAt: input.dueAt } : {}),
         ...(input.answerKeys && Object.keys(input.answerKeys).length > 0
           ? { answerKeys: input.answerKeys }
+          : {}),
+        ...(input.stepTargets && Object.keys(input.stepTargets).length > 0
+          ? { stepTargets: input.stepTargets }
           : {}),
         ...(input.periodGate?.periodAccess
           ? {

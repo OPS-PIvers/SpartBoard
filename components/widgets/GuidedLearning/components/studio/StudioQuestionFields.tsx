@@ -13,6 +13,8 @@ import {
   inputClass,
   quietButtonClass,
 } from './panelControls';
+import { useAuth } from '@/context/useAuth';
+import { TargetsField } from '@/components/quiz/targets/TargetsField';
 
 type StepChange = (next: GuidedLearningStep, field?: string | false) => void;
 
@@ -43,6 +45,7 @@ export const StudioQuestionFields: React.FC<{
   onChange: StepChange;
 }> = ({ step, onChange }) => {
   const { t } = useTranslation();
+  const { canAccessFeature } = useAuth();
   const q = step.question ?? emptyQuestion();
   const update = (
     patch: Partial<GuidedLearningQuestion>,
@@ -74,6 +77,14 @@ export const StudioQuestionFields: React.FC<{
       )}
       {q.type === 'matching' && <PairsEditor q={q} update={update} />}
       {q.type === 'sorting' && <SortingEditor q={q} update={update} />}
+      {canAccessFeature('gradebook') && (
+        <TargetsField
+          targets={step.targets}
+          label={t('glStudio.learningTargets')}
+          labelClassName={fieldLabelClass}
+          onChange={(targets) => onChange({ ...step, targets }, false)}
+        />
+      )}
     </div>
   );
 };

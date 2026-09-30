@@ -21,6 +21,7 @@ import {
   assembleRow,
   effectiveDueAt,
   keyQuestions,
+  parseStepTargets,
   mergeAttempts,
   parseSessionMeta,
   scoreFlashcardProgress,
@@ -239,6 +240,34 @@ describe('scoreVideoResponse', () => {
       submittedAt: 9,
     });
   });
+
+  it('carries tags from the session key as target evidence', () => {
+    const questions = keyQuestions([
+      {
+        id: 'v1',
+        type: 'MC',
+        text: 'x',
+        correctAnswer: 'A',
+        points: 1,
+        targets: [target],
+      },
+      { id: 'v2', type: 'MC', text: 'y', correctAnswer: 'B', points: 1 },
+    ]);
+    const r = scoreVideoResponse(
+      {},
+      {
+        completedAt: 9,
+        answers: [
+          { questionId: 'v1', answer: 'A' },
+          { questionId: 'v2', answer: 'B' },
+        ],
+      },
+      questions
+    );
+    expect(r.targetEvidence).toEqual([
+      { targetId: 't1', kind: 'standard', earned: 1, possible: 1 },
+    ]);
+  });
 });
 
 describe('video publish state', () => {
@@ -282,6 +311,61 @@ describe('scoreGuidedLearningResponse', () => {
       ],
     });
     expect(r).toMatchObject({ state: 'scored', rawPct: 50, points: 1, max: 2 });
+  });
+
+  it('turns tagged question steps into one-point evidence', () => {
+    const session = {
+      publicSteps: [
+        { id: 'a', question: {} },
+        { id: 'b', question: {} },
+        { id: 'c', question: {} },
+        { id: 'd' },
+      ],
+    };
+    const stepTargets = parseStepTargets({
+      a: [target],
+      b: [target],
+      c: [target],
+      d: [target],
+      missing: 'junk',
+    });
+    const r = scoreGuidedLearningResponse(
+      session,
+      {
+        completedAt: 3,
+        answers: [
+          { stepId: 'a', isCorrect: true },
+          { stepId: 'b', isCorrect: false },
+        ],
+      },
+      stepTargets
+    );
+    // c is unanswered (counts 0/1); d is not a question step.
+    expect(r.targetEvidence).toEqual([
+      {
+        targetId: 't1',
+        kind: 'standard',
+        earned: 1,
+        possible: 3,
+      },
+    ]);
+  });
+
+  it('gives no evidence for answers not yet marked, or before completion', () => {
+    const session = { publicSteps: [{ id: 'a', question: {} }] };
+    const stepTargets = parseStepTargets({ a: [target] });
+    const ungraded = scoreGuidedLearningResponse(
+      session,
+      { completedAt: 3, answers: [{ stepId: 'a', isCorrect: null }] },
+      stepTargets
+    );
+    expect(ungraded.targetEvidence).toEqual([]);
+    const inProgress = scoreGuidedLearningResponse(
+      session,
+      { answers: [{ stepId: 'a', isCorrect: true }] },
+      stepTargets
+    );
+    expect(inProgress.targetEvidence).toEqual([]);
   });
 });
 

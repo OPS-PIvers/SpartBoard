@@ -56,6 +56,11 @@ import {
   type ResultsPlaybackStateKey,
 } from './ResultsPlaybackDevView';
 import {
+  StudentQuizDevView,
+  STUDENT_QUIZ_STATES,
+  type StudentQuizStateKey,
+} from './StudentQuizDevView';
+import {
   VIEWS,
   STATES,
   type ViewKey,
@@ -64,6 +69,8 @@ import {
 import {
   makeQuizSession,
   makeQuizResponses,
+  makeTimedQuizSession,
+  makeTimedQuizResponses,
   makeReviewGameResponses,
   makeReviewGameSession,
   makeQuizData,
@@ -84,6 +91,7 @@ const DEFAULT_STATE_FOR_VIEW: Record<ViewKey, StateKey> = {
   'quiz-editor': 'qe-gated',
   'media-grading': 'queue',
   'results-playback': 'playable',
+  'quiz-student': 'sq-timed',
 };
 
 const WIDTHS = [340, 520, 820];
@@ -164,13 +172,28 @@ const SessionView: React.FC<{
     return <ResultsPlaybackDevView state={playbackState} />;
   }
 
+  if (view === 'quiz-student') {
+    const studentState = (STUDENT_QUIZ_STATES as readonly string[]).includes(
+      state
+    )
+      ? (state as StudentQuizStateKey)
+      : 'sq-timed';
+    return <StudentQuizDevView state={studentState} />;
+  }
+
   if (view === 'quiz-monitor') {
     const status =
       state === 'paused' ? 'paused' : state === 'ended' ? 'ended' : 'active';
-    const responses = state === 'waiting' ? [] : makeQuizResponses();
+    const timed = state === 'timed';
+    const responses =
+      state === 'waiting'
+        ? []
+        : timed
+          ? makeTimedQuizResponses()
+          : makeQuizResponses();
     return (
       <QuizMonitorDev
-        session={makeQuizSession(status)}
+        session={timed ? makeTimedQuizSession(status) : makeQuizSession(status)}
         responses={responses}
         quizData={makeQuizData()}
         rosters={[]}
