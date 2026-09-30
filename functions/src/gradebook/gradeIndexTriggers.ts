@@ -79,7 +79,14 @@ export async function handleStudentDocWrite(
   };
   if (!docWriteMatters(write)) return;
   await guarded('student doc', { kind, sessionId, docId }, async () => {
-    await applyDocWrite(admin.firestore(), write);
+    const db = admin.firestore();
+    try {
+      await applyDocWrite(db, write);
+    } catch (err) {
+      // Let the recompute worker heal the row instead of dropping the update.
+      await markSessionDirty(db, kind, sessionId);
+      throw err;
+    }
   });
 }
 
