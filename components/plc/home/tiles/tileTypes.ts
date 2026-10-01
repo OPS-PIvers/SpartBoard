@@ -9,7 +9,8 @@ export type PlcHomeTileKind =
   | 'meeting'
   | 'actionsActivity'
   | 'docs'
-  | 'participation';
+  | 'participation'
+  | 'goals';
 
 export const PLC_HOME_TILE_KINDS: readonly PlcHomeTileKind[] = [
   'results',
@@ -17,6 +18,7 @@ export const PLC_HOME_TILE_KINDS: readonly PlcHomeTileKind[] = [
   'actionsActivity',
   'docs',
   'participation',
+  'goals',
 ];
 
 /** Provider subcollections a tile can ask to open while Home is active. */
@@ -43,6 +45,7 @@ export const PLC_HOME_TILE_SLICES: Record<
   actionsActivity: ['notes'],
   docs: ['notes', 'docs'],
   participation: [],
+  goals: [],
 };
 
 /** Signals the hero resolver and each tile's hero score read. */

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  EMPTY_PLC_HOME_LAYOUT,
+  PLC_HOME_GOALS_STARTER_TILES,
   PLC_HOME_STARTER_TILES,
   currentScoredCounts,
   effectiveTiles,
@@ -131,5 +133,15 @@ describe('seen counts (D27)', () => {
         new Set(['a', 'b'])
       )
     ).toEqual({ a: 7, b: 2 });
+  });
+});
+
+describe('goals starter', () => {
+  it('puts Goals first only when asked', () => {
+    expect(effectiveTiles(EMPTY_PLC_HOME_LAYOUT)[0].kind).toBe('results');
+    expect(
+      effectiveTiles(EMPTY_PLC_HOME_LAYOUT, PLC_HOME_GOALS_STARTER_TILES)[0]
+        .kind
+    ).toBe('goals');
   });
 });
