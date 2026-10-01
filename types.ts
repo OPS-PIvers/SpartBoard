@@ -2923,6 +2923,7 @@ export interface RoutineGuideStep {
   label?: string;
   icon?: string;
   color?: string;
+  imageUrl?: string;
   attachedWidget?: {
     type: WidgetType;
     label: string;
@@ -2930,30 +2931,47 @@ export interface RoutineGuideStep {
   };
 }
 
+export interface RoutineGuideInfo {
+  what?: string;
+  why?: string;
+  coreComponents?: string;
+}
+
 export interface RoutineGuideRoutine {
   id: string;
   name: string;
   gradeLevels: GradeLevel[];
+  categoryIds: string[];
   icon: string;
   color: string;
   steps: RoutineGuideStep[];
+  info?: RoutineGuideInfo;
 }
 
-export type RoutineGuideFilter = 'grade' | 'favorites' | 'all';
+export interface RoutineGuideCategory {
+  id: string;
+  label: string;
+}
+
+/** 'grade' | 'favorites' | 'all', or a category id. */
+export type RoutineGuideFilter = string;
 
 export interface RoutineGuideConfig {
   selectedRoutineId: string | null;
   stepIndex: number;
   view: 'step' | 'all';
+  /** 'display' is the launched routine on the board; 'browse' is the library. */
+  mode?: 'browse' | 'display';
   /** Account-wide via savedWidgetPresets, never written to the widget. */
   favorites?: string[];
   /** Account-wide via savedWidgetPresets, never written to the widget. */
   libraryFilter?: RoutineGuideFilter;
 }
 
-/** feature_permissions/routineGuide.config; `routines` unset means the built-in library. */
+/** feature_permissions/routineGuide.config; unset fields mean the built-in defaults. */
 export interface RoutineGuideGlobalConfig {
   routines?: RoutineGuideRoutine[];
+  categories?: RoutineGuideCategory[];
 }
 
 export interface TimeToolConfig {

@@ -1,6 +1,8 @@
 import {
   GradeLevel,
+  RoutineGuideCategory,
   RoutineGuideGlobalConfig,
+  RoutineGuideInfo,
   RoutineGuideRoutine,
   WidgetType,
 } from '@/types';
@@ -58,13 +60,22 @@ export const ROUTINE_GUIDE_GRADE_LEVELS: GradeLevel[] = [
   '9-12',
 ];
 
-/** Converts an Instructional Routines entry, dropping stickers and images. */
+export const DEFAULT_ROUTINE_GUIDE_CATEGORIES: RoutineGuideCategory[] = [
+  { id: 'general-literacy', label: 'General literacy' },
+  { id: 'disciplinary-literacy', label: 'Disciplinary literacy' },
+];
+
+const isElementaryOnly = (levels: GradeLevel[] | undefined): boolean =>
+  !!levels?.length && levels.every((l) => l === 'k-2' || l === '3-5');
+
+/** Converts an Instructional Routines entry, keeping step images and dropping stickers. */
 export const toRoutineGuideRoutine = (
   r: InstructionalRoutine
 ): RoutineGuideRoutine => ({
   id: r.id,
   name: r.name,
   gradeLevels: r.gradeLevels?.length ? r.gradeLevels : [],
+  categoryIds: isElementaryOnly(r.gradeLevels) ? ['general-literacy'] : [],
   icon: r.icon,
   color: getRoutineGuideColor(r.color).id,
   steps: r.steps.map((s, i) => ({
@@ -73,6 +84,7 @@ export const toRoutineGuideRoutine = (
     ...(s.label ? { label: s.label } : {}),
     ...(s.icon ? { icon: s.icon } : {}),
     color: getRoutineGuideColor(s.color).id,
+    ...(s.imageUrl ? { imageUrl: s.imageUrl } : {}),
     ...(s.attachedWidget
       ? {
           attachedWidget: {
@@ -95,10 +107,54 @@ export const resolveRoutineGuideLibrary = (
   config: RoutineGuideGlobalConfig | undefined
 ): RoutineGuideRoutine[] =>
   Array.isArray(config?.routines)
-    ? config.routines
+    ? config.routines.map((r) => ({ ...r, categoryIds: r.categoryIds ?? [] }))
     : BUILT_IN_ROUTINE_GUIDE_ROUTINES;
+
+export const resolveRoutineGuideCategories = (
+  config: RoutineGuideGlobalConfig | undefined
+): RoutineGuideCategory[] =>
+  Array.isArray(config?.categories)
+    ? config.categories
+    : DEFAULT_ROUTINE_GUIDE_CATEGORIES;
+
+/** Seeds the admin library from the built-ins plus any routines admins added to the Routines widget. */
+export const seedRoutineGuideLibrary = (
+  instructionalRoutines: InstructionalRoutine[]
+): RoutineGuideRoutine[] => {
+  const byId = new Map<string, RoutineGuideRoutine>();
+  INSTRUCTIONAL_ROUTINES.forEach((r) =>
+    byId.set(r.id, toRoutineGuideRoutine(r))
+  );
+  instructionalRoutines.forEach((r) =>
+    byId.set(r.id, toRoutineGuideRoutine(r))
+  );
+  return Array.from(byId.values());
+};
+
+/** Favorites first, then A to Z. */
+export const sortRoutinesForLibrary = (
+  routines: RoutineGuideRoutine[],
+  favorites: string[]
+): RoutineGuideRoutine[] =>
+  [...routines].sort((a, b) => {
+    const fa = favorites.includes(a.id) ? 0 : 1;
+    const fb = favorites.includes(b.id) ? 0 : 1;
+    return fa - fb || a.name.localeCompare(b.name);
+  });
 
 export const sortRoutinesByName = (
   routines: RoutineGuideRoutine[]
 ): RoutineGuideRoutine[] =>
   [...routines].sort((a, b) => a.name.localeCompare(b.name));
+
+export const ROUTINE_GUIDE_INFO_FIELDS: {
+  key: keyof RoutineGuideInfo;
+  label: string;
+}[] = [
+  { key: 'what', label: 'What it is' },
+  { key: 'why', label: 'Why' },
+  { key: 'coreComponents', label: 'Core components' },
+];
+
+export const hasRoutineInfo = (r: RoutineGuideRoutine): boolean =>
+  ROUTINE_GUIDE_INFO_FIELDS.some((f) => !!r.info?.[f.key]?.trim());

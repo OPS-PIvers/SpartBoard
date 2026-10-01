@@ -1,14 +1,17 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  Info,
   List,
   RectangleHorizontal,
   Rocket,
+  Search,
   Star,
 } from 'lucide-react';
 import {
+  RoutineGuideCategory,
   RoutineGuideConfig,
   RoutineGuideFilter,
   RoutineGuideGlobalConfig,
@@ -18,31 +21,38 @@ import {
 } from '@/types';
 import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
+import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { WidgetLayout } from '../WidgetLayout';
 import {
   getRoutineGuideColor,
+  hasRoutineInfo,
+  resolveRoutineGuideCategories,
   resolveRoutineGuideLibrary,
-  sortRoutinesByName,
+  sortRoutinesForLibrary,
 } from '@/config/routineGuide';
 import { RoutineIcon } from './RoutineIcon';
+import { RoutineInfoModal } from './RoutineInfoModal';
 
 // Keeps corner controls clear of DraggableWindow's 24px corner resize handles.
 const CORNER_CLEARANCE = 'max(26px, 3cqmin)';
 
-const FILTERS: { id: RoutineGuideFilter; label: string }[] = [
+const SCOPES: { id: RoutineGuideFilter; label: string }[] = [
   { id: 'grade', label: 'My grades' },
   { id: 'favorites', label: 'Favorites' },
-  { id: 'all', label: 'All' },
+  { id: 'all', label: 'All routines' },
 ];
 
-const LaunchButton: React.FC<{
-  step: RoutineGuideStep;
-  size: 'lg' | 'sm';
-}> = ({ step, size }) => {
+const iconBtn =
+  'shrink-0 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-900/5 hover:text-slate-800 transition-colors';
+const smallIcon = { width: 'min(18px, 5cqmin)', height: 'min(18px, 5cqmin)' };
+
+const ToolLaunchButton: React.FC<{ step: RoutineGuideStep; lg?: boolean }> = ({
+  step,
+  lg,
+}) => {
   const { addWidget } = useDashboardActions();
   const tool = step.attachedWidget;
   if (!tool) return null;
-  const lg = size === 'lg';
   return (
     <button
       type="button"
@@ -52,26 +62,52 @@ const LaunchButton: React.FC<{
       }}
       className="inline-flex items-center shrink-0 rounded-lg border border-slate-300 bg-white text-slate-700 font-bold hover:bg-slate-50 transition-colors"
       style={{
-        gap: lg ? 'min(8px, 2cqmin)' : 'min(6px, 1.5cqmin)',
+        gap: 'min(6px, 1.5cqmin)',
         padding: lg
           ? 'min(8px, 2cqmin) min(14px, 3.5cqmin)'
           : 'min(4px, 1cqmin) min(8px, 2cqmin)',
         fontSize: lg ? 'min(15px, 4.5cqmin)' : 'min(12px, 3.5cqmin)',
       }}
     >
-      <Rocket
-        style={{
-          width: lg ? 'min(16px, 4.5cqmin)' : 'min(13px, 3.5cqmin)',
-          height: lg ? 'min(16px, 4.5cqmin)' : 'min(13px, 3.5cqmin)',
-        }}
-      />
+      <Rocket style={{ width: '1.1em', height: '1.1em' }} />
       {tool.label}
     </button>
   );
 };
 
+const StepBadge: React.FC<{ step: RoutineGuideStep; size: string }> = ({
+  step,
+  size,
+}) => {
+  const color = getRoutineGuideColor(step.color);
+  if (step.imageUrl) {
+    return (
+      <img
+        src={step.imageUrl}
+        alt=""
+        className="shrink-0 object-cover rounded-lg border border-slate-200 bg-white"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+  return (
+    <span
+      className="shrink-0 rounded-full flex items-center justify-center"
+      style={{
+        width: size,
+        height: size,
+        backgroundColor: color.tint,
+        color: color.ink,
+      }}
+    >
+      <RoutineIcon name={step.icon} style={{ width: '55%', height: '55%' }} />
+    </span>
+  );
+};
+
 const RoutineLibrary: React.FC<{
   routines: RoutineGuideRoutine[];
+  categories: RoutineGuideCategory[];
   filter: RoutineGuideFilter;
   favorites: string[];
   onFilter: (f: RoutineGuideFilter) => void;
@@ -79,115 +115,218 @@ const RoutineLibrary: React.FC<{
   onSelect: (r: RoutineGuideRoutine) => void;
 }> = ({
   routines,
+  categories,
   filter,
   favorites,
   onFilter,
   onToggleFavorite,
   onSelect,
-}) => (
-  <div className="h-full w-full flex flex-col">
-    <div
-      role="tablist"
-      aria-label="Routine filter"
-      className="flex shrink-0 border-b border-slate-200"
-      style={{ padding: '0 min(12px, 3cqmin)', gap: 'min(16px, 4cqmin)' }}
-    >
-      {FILTERS.map((f) => {
-        const active = f.id === filter;
-        return (
-          <button
-            key={f.id}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onFilter(f.id)}
-            className={`font-bold border-b-2 -mb-px transition-colors ${
-              active
-                ? 'border-slate-800 text-slate-800'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
+}) => {
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const shown = q
+    ? routines.filter((r) => r.name.toLowerCase().includes(q))
+    : routines;
+  return (
+    <div className="h-full w-full flex flex-col">
+      <div
+        className="shrink-0 flex items-center border-b border-slate-200"
+        style={{
+          gap: 'min(8px, 2cqmin)',
+          padding: `min(8px, 2cqmin) ${CORNER_CLEARANCE}`,
+        }}
+      >
+        <label
+          className="flex-1 min-w-0 flex items-center rounded-lg border border-slate-300 bg-white"
+          style={{
+            gap: 'min(6px, 1.5cqmin)',
+            padding: 'min(5px, 1.25cqmin) min(8px, 2cqmin)',
+          }}
+        >
+          <Search className="shrink-0 text-slate-400" style={smallIcon} />
+          <input
+            type="search"
+            aria-label="Search routines"
+            placeholder="Search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="flex-1 min-w-0 bg-transparent outline-none text-slate-800"
+            style={{ fontSize: 'min(14px, 4.25cqmin)' }}
+          />
+        </label>
+        <select
+          aria-label="Show"
+          value={filter}
+          onChange={(e) => onFilter(e.target.value)}
+          className="shrink-0 rounded-lg border border-slate-300 bg-white text-slate-800 font-semibold"
+          style={{
+            fontSize: 'min(14px, 4.25cqmin)',
+            padding: 'min(5px, 1.25cqmin) min(6px, 1.5cqmin)',
+            maxWidth: '45%',
+          }}
+        >
+          {SCOPES.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.label}
+            </option>
+          ))}
+          {categories.length > 0 && (
+            <optgroup label="Categories">
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </optgroup>
+          )}
+        </select>
+      </div>
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+        {shown.length === 0 ? (
+          <p
+            className="text-center text-slate-500 font-medium"
             style={{
-              fontSize: 'min(13px, 4cqmin)',
-              padding: 'min(10px, 2.5cqmin) 0',
+              fontSize: 'min(14px, 4.5cqmin)',
+              padding: 'min(24px, 6cqmin)',
             }}
           >
-            {f.label}
-          </button>
-        );
-      })}
+            {filter === 'favorites' && !q ? 'No favorites yet' : 'No routines'}
+          </p>
+        ) : (
+          <ul
+            className="grid"
+            style={{
+              gridTemplateColumns:
+                'repeat(auto-fill, minmax(max(96px, 22cqw), 1fr))',
+              gap: 'min(10px, 2.5cqmin)',
+              padding:
+                'min(10px, 2.5cqmin) min(10px, 2.5cqmin) min(16px, 4cqmin)',
+            }}
+          >
+            {shown.map((r) => {
+              const color = getRoutineGuideColor(r.color);
+              const fav = favorites.includes(r.id);
+              return (
+                <li key={r.id} className="relative aspect-square">
+                  <button
+                    type="button"
+                    onClick={() => onSelect(r)}
+                    className="h-full w-full flex flex-col items-center justify-center text-center rounded-xl border border-slate-200 bg-white/80 hover:border-slate-400 hover:bg-white transition-colors"
+                    style={{ padding: '10%', gap: '8%' }}
+                  >
+                    <span
+                      className="rounded-xl flex items-center justify-center"
+                      style={{
+                        width: '42%',
+                        aspectRatio: '1',
+                        backgroundColor: color.tint,
+                        color: color.ink,
+                      }}
+                    >
+                      <RoutineIcon
+                        name={r.icon}
+                        style={{ width: '55%', height: '55%' }}
+                      />
+                    </span>
+                    <span
+                      className="font-bold text-slate-800 leading-tight line-clamp-2"
+                      style={{ fontSize: 'min(15px, 4.25cqmin)' }}
+                    >
+                      {r.name}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={
+                      fav ? `Unfavorite ${r.name}` : `Favorite ${r.name}`
+                    }
+                    aria-pressed={fav}
+                    onClick={() => onToggleFavorite(r.id)}
+                    className={`absolute top-0 right-0 transition-colors ${
+                      fav
+                        ? 'text-amber-500'
+                        : 'text-slate-300 hover:text-slate-500'
+                    }`}
+                    style={{ padding: 'min(8px, 2cqmin)' }}
+                  >
+                    <Star
+                      fill={fav ? 'currentColor' : 'none'}
+                      style={{
+                        width: 'min(16px, 4.5cqmin)',
+                        height: 'min(16px, 4.5cqmin)',
+                      }}
+                    />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </div>
-    <ul className="flex-1 min-h-0 overflow-y-auto custom-scrollbar divide-y divide-slate-200/70 pb-2">
-      {routines.map((r) => {
-        const color = getRoutineGuideColor(r.color);
-        const fav = favorites.includes(r.id);
+  );
+};
+
+const RoutinePreview: React.FC<{ routine: RoutineGuideRoutine }> = ({
+  routine,
+}) => (
+  <div className="h-full w-full overflow-y-auto custom-scrollbar pb-4">
+    <ol
+      aria-label="Visual"
+      className="flex overflow-x-auto custom-scrollbar"
+      style={{
+        gap: 'min(10px, 2.5cqmin)',
+        padding: `min(12px, 3cqmin) ${CORNER_CLEARANCE}`,
+      }}
+    >
+      {routine.steps.map((step, i) => {
+        const color = getRoutineGuideColor(step.color);
         return (
-          <li key={r.id} className="flex items-center">
-            <button
-              type="button"
-              onClick={() => onSelect(r)}
-              className="flex-1 min-w-0 flex items-center text-left hover:bg-slate-900/5 transition-colors"
-              style={{
-                gap: 'min(12px, 3cqmin)',
-                padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
-              }}
+          <li
+            key={step.id}
+            className="shrink-0 flex flex-col items-center text-center"
+            style={{ width: 'min(132px, 28cqmin)', gap: 'min(6px, 1.5cqmin)' }}
+          >
+            <StepBadge step={step} size="min(112px, 24cqmin)" />
+            <span
+              className="font-black uppercase tracking-wider"
+              style={{ fontSize: 'min(12px, 3.5cqmin)', color: color.ink }}
             >
-              <span
-                className="shrink-0 rounded-lg flex items-center justify-center"
-                style={{
-                  width: 'min(36px, 10cqmin)',
-                  height: 'min(36px, 10cqmin)',
-                  backgroundColor: color.tint,
-                  color: color.ink,
-                }}
-              >
-                <RoutineIcon
-                  name={r.icon}
-                  style={{
-                    width: 'min(20px, 5.5cqmin)',
-                    height: 'min(20px, 5.5cqmin)',
-                  }}
-                />
-              </span>
-              <span
-                className="flex-1 min-w-0 truncate font-bold text-slate-800"
-                style={{ fontSize: 'min(16px, 5cqmin)' }}
-              >
-                {r.name}
-              </span>
-            </button>
-            <button
-              type="button"
-              aria-label={fav ? `Unfavorite ${r.name}` : `Favorite ${r.name}`}
-              aria-pressed={fav}
-              onClick={() => onToggleFavorite(r.id)}
-              className={`shrink-0 transition-colors ${
-                fav ? 'text-amber-500' : 'text-slate-300 hover:text-slate-500'
-              }`}
-              style={{ padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)' }}
-            >
-              <Star
-                fill={fav ? 'currentColor' : 'none'}
-                style={{
-                  width: 'min(18px, 5cqmin)',
-                  height: 'min(18px, 5cqmin)',
-                }}
-              />
-            </button>
+              {i + 1}. {step.label ?? `Step ${i + 1}`}
+            </span>
           </li>
         );
       })}
-      {routines.length === 0 && (
+    </ol>
+    <ol
+      aria-label="Steps"
+      className="border-t border-slate-200"
+      style={{ padding: `min(8px, 2cqmin) ${CORNER_CLEARANCE} 0` }}
+    >
+      {routine.steps.map((step, i) => (
         <li
-          className="text-center text-slate-500 font-medium"
+          key={step.id}
+          className="flex items-start"
           style={{
-            fontSize: 'min(14px, 4.5cqmin)',
-            padding: 'min(24px, 6cqmin)',
+            gap: 'min(10px, 2.5cqmin)',
+            padding: 'min(6px, 1.5cqmin) 0',
           }}
         >
-          {filter === 'favorites' ? 'No favorites yet' : 'No routines'}
+          <span
+            className="shrink-0 font-black text-slate-400 tabular-nums text-right"
+            style={{ fontSize: 'min(15px, 4.5cqmin)', width: '1.4em' }}
+          >
+            {i + 1}
+          </span>
+          <span
+            className="flex-1 min-w-0 font-medium text-slate-700 leading-snug"
+            style={{ fontSize: 'min(15px, 4.5cqmin)' }}
+          >
+            {step.text}
+          </span>
         </li>
-      )}
-    </ul>
+      ))}
+    </ol>
   </div>
 );
 
@@ -204,22 +343,12 @@ const StepView: React.FC<{
     <div className="h-full w-full flex flex-col">
       <div
         className="flex-1 min-h-0 flex flex-col items-center justify-center text-center"
-        style={{ padding: 'min(16px, 4cqmin)', gap: 'min(14px, 3.5cqmin)' }}
+        style={{ padding: 'min(16px, 4cqmin)', gap: 'min(12px, 3cqmin)' }}
       >
-        <span
-          className="rounded-full flex items-center justify-center shrink-0"
-          style={{
-            width: 'min(96px, 24cqmin)',
-            height: 'min(96px, 24cqmin)',
-            backgroundColor: color.tint,
-            color: color.ink,
-          }}
-        >
-          <RoutineIcon
-            name={step.icon}
-            style={{ width: '50%', height: '50%' }}
-          />
-        </span>
+        <StepBadge
+          step={step}
+          size={step.imageUrl ? 'min(220px, 42cqmin)' : 'min(96px, 24cqmin)'}
+        />
         {step.label && (
           <span
             className="font-black uppercase tracking-wider"
@@ -230,11 +359,11 @@ const StepView: React.FC<{
         )}
         <p
           className="font-bold text-slate-800 leading-snug"
-          style={{ fontSize: 'min(34px, 8.5cqmin)' }}
+          style={{ fontSize: 'min(34px, 8cqmin)' }}
         >
           {step.text}
         </p>
-        <LaunchButton step={step} size="lg" />
+        <ToolLaunchButton step={step} lg />
       </div>
       <div
         className="shrink-0 flex items-center justify-between border-t border-slate-200"
@@ -276,7 +405,7 @@ const AllStepsView: React.FC<{
   index: number;
   onMove: (i: number) => void;
 }> = ({ steps, index, onMove }) => (
-  <ol className="h-full w-full overflow-y-auto custom-scrollbar pb-2">
+  <ol className="h-full w-full overflow-y-auto custom-scrollbar pb-4">
     {steps.map((step, i) => {
       const color = getRoutineGuideColor(step.color);
       const current = i === index;
@@ -298,7 +427,7 @@ const AllStepsView: React.FC<{
             }`}
             style={{
               gap: 'min(12px, 3cqmin)',
-              padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
+              padding: `min(10px, 2.5cqmin) ${CORNER_CLEARANCE}`,
             }}
           >
             <span
@@ -307,24 +436,11 @@ const AllStepsView: React.FC<{
                   ? 'font-black text-slate-900'
                   : 'font-bold text-slate-400'
               }`}
-              style={{ fontSize: 'min(16px, 5cqmin)', width: '1.5em' }}
+              style={{ fontSize: 'min(16px, 5cqmin)', width: '1.4em' }}
             >
               {i + 1}
             </span>
-            <span
-              className="shrink-0 rounded-full flex items-center justify-center"
-              style={{
-                width: 'min(36px, 10cqmin)',
-                height: 'min(36px, 10cqmin)',
-                backgroundColor: color.tint,
-                color: color.ink,
-              }}
-            >
-              <RoutineIcon
-                name={step.icon}
-                style={{ width: '55%', height: '55%' }}
-              />
-            </span>
+            <StepBadge step={step} size="min(40px, 11cqmin)" />
             <span className="flex-1 min-w-0">
               {step.label && (
                 <span
@@ -345,7 +461,7 @@ const AllStepsView: React.FC<{
                 {step.text}
               </span>
             </span>
-            <LaunchButton step={step} size="sm" />
+            <ToolLaunchButton step={step} />
           </div>
         </li>
       );
@@ -356,13 +472,14 @@ const AllStepsView: React.FC<{
 export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
   widget,
 }) => {
-  const { updateWidget } = useDashboardActions();
+  const { updateWidget, addWidget } = useDashboardActions();
   const {
     featurePermissions,
     userGradeLevels,
     savedWidgetPresets,
     saveWidgetPreset,
   } = useAuth();
+  const [infoOpen, setInfoOpen] = useState(false);
   const config = widget.config as RoutineGuideConfig;
   const prefs = savedWidgetPresets.routineGuide as
     | Partial<RoutineGuideConfig>
@@ -374,18 +491,26 @@ export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
     (p) => p.widgetType === 'routineGuide'
   )?.config as RoutineGuideGlobalConfig | undefined;
   const library = useMemo(
-    () => sortRoutinesByName(resolveRoutineGuideLibrary(globalConfig)),
+    () => resolveRoutineGuideLibrary(globalConfig),
+    [globalConfig]
+  );
+  const categories = useMemo(
+    () => resolveRoutineGuideCategories(globalConfig),
     [globalConfig]
   );
 
   const visible = useMemo(() => {
-    if (filter === 'favorites')
-      return library.filter((r) => favorites.includes(r.id));
-    if (filter === 'grade' && userGradeLevels.length > 0)
-      return library.filter((r) =>
-        r.gradeLevels.some((g) => userGradeLevels.includes(g))
-      );
-    return library;
+    const inGrades = (r: RoutineGuideRoutine) =>
+      userGradeLevels.length === 0 ||
+      r.gradeLevels.length === 0 ||
+      r.gradeLevels.some((g) => userGradeLevels.includes(g));
+    let list: RoutineGuideRoutine[];
+    if (filter === 'all') list = library;
+    else if (filter === 'favorites')
+      list = library.filter((r) => favorites.includes(r.id));
+    else if (filter === 'grade') list = library.filter(inGrades);
+    else list = library.filter((r) => r.categoryIds.includes(filter));
+    return sortRoutinesForLibrary(list, favorites);
   }, [library, filter, favorites, userGradeLevels]);
 
   const update = (patch: Partial<RoutineGuideConfig>) =>
@@ -394,6 +519,7 @@ export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
   const routine = config.selectedRoutineId
     ? library.find((r) => r.id === config.selectedRoutineId)
     : undefined;
+  const isDisplay = config.mode === 'display';
 
   if (!routine || routine.steps.length === 0) {
     return (
@@ -403,6 +529,7 @@ export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
         content={
           <RoutineLibrary
             routines={visible}
+            categories={categories}
             filter={filter}
             favorites={favorites}
             onFilter={(f) =>
@@ -432,103 +559,140 @@ export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
     `flex items-center justify-center rounded-md transition-colors ${
       active ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-900/5'
     }`;
+  const defaults = WIDGET_DEFAULTS.routineGuide;
 
   return (
-    <WidgetLayout
-      padding="p-0"
-      contentClassName="flex-1 min-h-0"
-      header={
-        <div
-          className="flex items-center border-b border-slate-200"
-          style={{
-            gap: 'min(10px, 2.5cqmin)',
-            padding: `min(8px, 2cqmin) ${CORNER_CLEARANCE}`,
-          }}
-        >
-          <button
-            type="button"
-            aria-label="All routines"
-            onClick={() => update({ selectedRoutineId: null, stepIndex: 0 })}
-            className="shrink-0 rounded-md text-slate-500 hover:bg-slate-900/5 hover:text-slate-800 transition-colors"
-            style={{ padding: 'min(6px, 1.5cqmin)' }}
-          >
-            <ArrowLeft
-              style={{
-                width: 'min(18px, 5cqmin)',
-                height: 'min(18px, 5cqmin)',
-              }}
-            />
-          </button>
-          <RoutineIcon
-            name={routine.icon}
-            className="shrink-0"
-            style={{
-              width: 'min(18px, 5cqmin)',
-              height: 'min(18px, 5cqmin)',
-              color: routineColor.ink,
-            }}
-          />
-          <h3
-            className="flex-1 min-w-0 truncate font-black text-slate-800"
-            style={{ fontSize: 'min(16px, 5cqmin)' }}
-          >
-            {routine.name}
-          </h3>
+    <>
+      <WidgetLayout
+        padding="p-0"
+        contentClassName="flex-1 min-h-0"
+        header={
           <div
-            role="group"
-            aria-label="Step view"
-            className="shrink-0 flex rounded-lg border border-slate-200 bg-white"
-            style={{ padding: 'min(2px, 0.5cqmin)', gap: 'min(2px, 0.5cqmin)' }}
+            className="flex items-center border-b border-slate-200"
+            style={{
+              gap: 'min(8px, 2cqmin)',
+              padding: `min(8px, 2cqmin) ${CORNER_CLEARANCE}`,
+            }}
           >
-            <button
-              type="button"
-              aria-label="Current step"
-              aria-pressed={view === 'step'}
-              onClick={() => update({ view: 'step' })}
-              className={viewBtn(view === 'step')}
-              style={{ padding: 'min(5px, 1.25cqmin)' }}
+            {!isDisplay && (
+              <button
+                type="button"
+                aria-label="All routines"
+                onClick={() =>
+                  update({ selectedRoutineId: null, stepIndex: 0 })
+                }
+                className={iconBtn}
+                style={{ padding: 'min(6px, 1.5cqmin)' }}
+              >
+                <ArrowLeft style={smallIcon} />
+              </button>
+            )}
+            <RoutineIcon
+              name={routine.icon}
+              className="shrink-0"
+              style={{ ...smallIcon, color: routineColor.ink }}
+            />
+            <h3
+              className="flex-1 min-w-0 truncate font-black text-slate-800"
+              style={{ fontSize: 'min(16px, 5cqmin)' }}
             >
-              <RectangleHorizontal
+              {routine.name}
+            </h3>
+            {hasRoutineInfo(routine) && (
+              <button
+                type="button"
+                aria-label={`About ${routine.name}`}
+                onClick={() => setInfoOpen(true)}
+                className={iconBtn}
+                style={{ padding: 'min(6px, 1.5cqmin)' }}
+              >
+                <Info style={smallIcon} />
+              </button>
+            )}
+            {isDisplay ? (
+              <div
+                role="group"
+                aria-label="Step view"
+                className="shrink-0 flex rounded-lg border border-slate-200 bg-white"
                 style={{
-                  width: 'min(16px, 4.5cqmin)',
-                  height: 'min(16px, 4.5cqmin)',
+                  padding: 'min(2px, 0.5cqmin)',
+                  gap: 'min(2px, 0.5cqmin)',
                 }}
-              />
-            </button>
-            <button
-              type="button"
-              aria-label="All steps"
-              aria-pressed={view === 'all'}
-              onClick={() => update({ view: 'all' })}
-              className={viewBtn(view === 'all')}
-              style={{ padding: 'min(5px, 1.25cqmin)' }}
-            >
-              <List
+              >
+                <button
+                  type="button"
+                  aria-label="Current step"
+                  aria-pressed={view === 'step'}
+                  onClick={() => update({ view: 'step' })}
+                  className={viewBtn(view === 'step')}
+                  style={{ padding: 'min(5px, 1.25cqmin)' }}
+                >
+                  <RectangleHorizontal style={smallIcon} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="All steps"
+                  aria-pressed={view === 'all'}
+                  onClick={() => update({ view: 'all' })}
+                  className={viewBtn(view === 'all')}
+                  style={{ padding: 'min(5px, 1.25cqmin)' }}
+                >
+                  <List style={smallIcon} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  addWidget('routineGuide', {
+                    w: defaults.w,
+                    h: defaults.h,
+                    config: {
+                      selectedRoutineId: routine.id,
+                      stepIndex: 0,
+                      view: 'step',
+                      mode: 'display',
+                    },
+                  })
+                }
+                className="shrink-0 inline-flex items-center rounded-lg bg-slate-800 text-white font-bold hover:bg-slate-900 transition-colors"
                 style={{
-                  width: 'min(16px, 4.5cqmin)',
-                  height: 'min(16px, 4.5cqmin)',
+                  gap: 'min(6px, 1.5cqmin)',
+                  padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                  fontSize: 'min(13px, 4cqmin)',
                 }}
-              />
-            </button>
+              >
+                <Rocket style={{ width: '1.1em', height: '1.1em' }} />
+                Launch
+              </button>
+            )}
           </div>
-        </div>
-      }
-      content={
-        view === 'all' ? (
-          <AllStepsView
-            steps={routine.steps}
-            index={stepIndex}
-            onMove={(i) => update({ stepIndex: i })}
-          />
-        ) : (
-          <StepView
-            step={routine.steps[stepIndex]}
-            index={stepIndex}
-            total={routine.steps.length}
-            onMove={(i) => update({ stepIndex: i })}
-          />
-        )
-      }
-    />
+        }
+        content={
+          !isDisplay ? (
+            <RoutinePreview routine={routine} />
+          ) : view === 'all' ? (
+            <AllStepsView
+              steps={routine.steps}
+              index={stepIndex}
+              onMove={(i) => update({ stepIndex: i })}
+            />
+          ) : (
+            <StepView
+              step={routine.steps[stepIndex]}
+              index={stepIndex}
+              total={routine.steps.length}
+              onMove={(i) => update({ stepIndex: i })}
+            />
+          )
+        }
+      />
+      {infoOpen && (
+        <RoutineInfoModal
+          routine={routine}
+          onClose={() => setInfoOpen(false)}
+        />
+      )}
+    </>
   );
 };
