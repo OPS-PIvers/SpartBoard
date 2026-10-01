@@ -311,7 +311,9 @@ const RoutineEditor: React.FC<{
                               label: tool.label,
                               ...(tool.config
                                 ? {
-                                    config: tool.config,
+                                    config: Object.fromEntries(
+                                      Object.entries(tool.config)
+                                    ),
                                   }
                                 : {}),
                             },
