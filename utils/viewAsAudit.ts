@@ -2,6 +2,7 @@
 import { getDoc, setDoc, type DocumentReference } from 'firebase/firestore';
 import {
   getViewAsTabState,
+  runAuditedWrite,
   updateViewAsTabState,
   viewAsAuditsWrite,
 } from '@/utils/viewAsTab';
@@ -43,7 +44,7 @@ export async function recordViewAsAudit(
       ? { after: capFields(input.after as Record<string, unknown>) }
       : {}),
   });
-  await setDoc(ref, data);
+  await runAuditedWrite(() => setDoc(ref, data));
 }
 
 function sameValue(a: unknown, b: unknown): boolean {
@@ -78,7 +79,7 @@ export async function viewAsDirectSave<T>(
 ): Promise<T> {
   if (!viewAsAuditsWrite()) return write();
   const before = await readFields(ref, fields).catch(() => null);
-  const result = await write();
+  const result = await runAuditedWrite(write);
   try {
     const after = await readFields(ref, fields);
     const keys = new Set([...Object.keys(before ?? {}), ...Object.keys(after)]);
