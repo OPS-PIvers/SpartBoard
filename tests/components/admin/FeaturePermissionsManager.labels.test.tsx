@@ -66,10 +66,28 @@ describe('FeaturePermissionsManager — label associations', () => {
 
     await screen.findAllByRole('switch');
     fireEvent.click(
+      document.querySelector(
+        '[aria-controls="widget-row-video-activity"]'
+      ) as Element
+    );
+    expect(
+      screen.getByRole('switch', { name: 'Video Activity: AI enabled' })
+    ).toBeInTheDocument();
+  });
+
+  it("lists a generic widget's switches in its config modal, not its row", async () => {
+    render(<FeaturePermissionsManager />);
+
+    await screen.findAllByRole('switch');
+    fireEvent.click(
       document.querySelector('[aria-controls="widget-row-poll"]') as Element
     );
     expect(
-      screen.getByRole('switch', { name: 'Smart Polls enabled' })
+      screen.queryByRole('switch', { name: 'Smart Polls enabled' })
+    ).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Configure Poll' }));
+    expect(
+      await screen.findByRole('switch', { name: 'Smart Polls enabled' })
     ).toBeInTheDocument();
   });
 });

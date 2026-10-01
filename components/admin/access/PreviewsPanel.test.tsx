@@ -42,8 +42,9 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: { email: 'admin@test.com' } }),
 }));
 
+const { addToast } = vi.hoisted(() => ({ addToast: vi.fn() }));
 vi.mock('@/context/useDashboard', () => ({
-  useDashboard: () => ({ addToast: vi.fn() }),
+  useDashboard: () => ({ addToast }),
 }));
 
 let savedPermissions: Record<string, unknown>[] = [];
@@ -89,6 +90,63 @@ describe('PreviewsPanel', () => {
     expect(screen.getByTestId('access-row-quiz-grader-v2')).toHaveTextContent(
       'Ready to retire'
     );
+  });
+
+  it('graduates a public keep flag in place and moves it off the tab', async () => {
+    savedPermissions = [
+      {
+        featureId: 'quiz-time-limit',
+        enabled: true,
+        accessLevel: 'public',
+        betaUsers: [],
+        buildings: [],
+      },
+    ];
+    await renderPanel();
+    fireEvent.click(screen.getByTestId('graduate-quiz-time-limit'));
+    await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
+    expect(setDocMock.mock.calls[0][0].path).toBe(
+      'global_permissions/quiz-time-limit'
+    );
+    expect(setDocMock.mock.calls[0][1]).toMatchObject({
+      accessLevel: 'public',
+      graduated: true,
+    });
+    await waitFor(() =>
+      expect(screen.queryByTestId('access-row-quiz-time-limit')).toBeNull()
+    );
+  });
+
+  it('offers no Graduate button until a keep flag is public', async () => {
+    savedPermissions = [
+      {
+        featureId: 'quiz-time-limit',
+        enabled: true,
+        accessLevel: 'admin',
+        betaUsers: [],
+        buildings: [],
+      },
+    ];
+    await renderPanel();
+    expect(
+      screen.getByTestId('access-row-quiz-time-limit')
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('graduate-quiz-time-limit')).toBeNull();
+  });
+
+  it('keeps a graduated flag off the Previews tab', async () => {
+    savedPermissions = [
+      {
+        featureId: 'quiz-time-limit',
+        enabled: true,
+        accessLevel: 'public',
+        betaUsers: [],
+        buildings: [],
+        graduated: true,
+      },
+    ];
+    await renderPanel();
+    expect(screen.queryByTestId('access-row-quiz-time-limit')).toBeNull();
   });
 
   it('keeps permanent features off the Previews tab', async () => {

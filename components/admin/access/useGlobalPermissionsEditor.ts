@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   addDoc,
   collection,
@@ -55,6 +55,10 @@ export const useGlobalPermissionsEditor = () => {
   const [permissions, setPermissions] = useState<
     Map<string, GlobalFeaturePermission>
   >(new Map());
+  // Last state read from or written to Firestore, for discarding unsaved edits.
+  const [stored, setStored] = useState<Map<string, GlobalFeaturePermission>>(
+    new Map()
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [unsavedChanges, setUnsavedChanges] = useState<Set<string>>(new Set());
@@ -81,6 +85,7 @@ export const useGlobalPermissionsEditor = () => {
           permMap.set(data.featureId, data);
         });
         setPermissions(permMap);
+        setStored(new Map(permMap));
       })
       .catch((error: unknown) => {
         console.error('Error loading global permissions:', error);
@@ -140,10 +145,45 @@ export const useGlobalPermissionsEditor = () => {
     [getPermission]
   );
 
-  const savePermission = async (featureId: GlobalFeature) => {
+  const graduated = useMemo(
+    () =>
+      new Set(
+        [...stored.values()]
+          .filter((p) => p.graduated === true)
+          .map((p) => p.featureId)
+      ) as ReadonlySet<GlobalFeature>,
+    [stored]
+  );
+
+  /** Drop unsaved edits to these features, back to their stored state. */
+  const discardChanges = useCallback(
+    (featureIds: readonly GlobalFeature[]) => {
+      setPermissions((prev) => {
+        const next = new Map(prev);
+        for (const id of featureIds) {
+          const original = stored.get(id);
+          if (original) next.set(id, original);
+          else next.delete(id);
+        }
+        return next;
+      });
+      setUnsavedChanges((prev) => {
+        const next = new Set(prev);
+        for (const id of featureIds) next.delete(id);
+        return next;
+      });
+    },
+    [stored]
+  );
+
+  const savePermission = async (
+    featureId: GlobalFeature,
+    extra?: Partial<GlobalFeaturePermission>,
+    successText?: string
+  ): Promise<boolean> => {
     try {
       setSaving((prev) => new Set(prev).add(featureId));
-      const permission = getPermission(featureId);
+      const permission = { ...getPermission(featureId), ...extra };
       // Firestore rejects `undefined`; "no minimum tier" is an absent field.
       const { minTier, ...withoutMinTier } = permission;
       await setDoc(
@@ -175,18 +215,26 @@ export const useGlobalPermissionsEditor = () => {
         }
       }
 
+      setPermissions((prev) => new Map(prev).set(featureId, permission));
+      setStored((prev) => new Map(prev).set(featureId, permission));
       setUnsavedChanges((prev) => {
         const next = new Set(prev);
         next.delete(featureId);
         return next;
       });
-      showMessage('success', `Saved ${FEATURE_DEFAULTS[featureId].label}`);
+      if (successText !== '')
+        showMessage(
+          'success',
+          successText ?? `Saved ${FEATURE_DEFAULTS[featureId].label}`
+        );
+      return true;
     } catch (error) {
       console.error('Error saving permission:', error);
       showMessage(
         'error',
         `Failed to save ${FEATURE_DEFAULTS[featureId].label}`
       );
+      return false;
     } finally {
       setSaving((prev) => {
         const next = new Set(prev);
@@ -206,5 +254,11 @@ export const useGlobalPermissionsEditor = () => {
     isSaved,
     updatePermission,
     savePermission,
+    graduated,
+    discardChanges,
   };
 };
+
+export type GlobalPermissionsEditor = ReturnType<
+  typeof useGlobalPermissionsEditor
+>;

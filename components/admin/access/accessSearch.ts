@@ -14,37 +14,62 @@ export const ACCESS_TAB_LABELS: Record<AccessTabId, string> = {
   previews: 'Previews',
 };
 
-export const FEATURES_TAB_FEATURES = ALL_GLOBAL_FEATURES.filter((id) => {
-  const def = FEATURE_DEFAULTS[id];
-  return def.stage === 'permanent' && !def.home && !def.widget;
-});
+/** Graduated `keep` previews, read from their saved access docs. */
+export type GraduatedSet = ReadonlySet<GlobalFeature>;
 
-/** Permanent features a widget owns, shown as switches on its Widgets row (plan PR 4). */
-export const widgetSubFeatures = (widget: string): GlobalFeature[] =>
+const NONE: GraduatedSet = new Set();
+
+/** Permanent in code, or a `keep` preview an admin graduated from the Previews tab. */
+export const isPermanentFeature = (
+  id: GlobalFeature,
+  graduated: GraduatedSet = NONE
+): boolean => {
+  const def = FEATURE_DEFAULTS[id];
+  return (
+    def.stage === 'permanent' ||
+    (def.afterLaunch === 'keep' && graduated.has(id))
+  );
+};
+
+export const featuresTabFeatures = (
+  graduated: GraduatedSet = NONE
+): GlobalFeature[] =>
+  ALL_GLOBAL_FEATURES.filter((id) => {
+    const def = FEATURE_DEFAULTS[id];
+    return isPermanentFeature(id, graduated) && !def.home && !def.widget;
+  });
+
+/** Permanent features a widget owns, shown in its config modal or on its Widgets row. */
+export const widgetSubFeatures = (
+  widget: string,
+  graduated: GraduatedSet = NONE
+): GlobalFeature[] =>
   ALL_GLOBAL_FEATURES.filter(
     (id) =>
-      FEATURE_DEFAULTS[id].stage === 'permanent' &&
+      isPermanentFeature(id, graduated) &&
       FEATURE_DEFAULTS[id].widget === widget
   );
 
 export const widgetSearchFields = (
   tool: { label: string; type: string; keywords?: string[] },
-  displayName?: string
+  displayName?: string,
+  graduated: GraduatedSet = NONE
 ): string[] => [
   tool.label,
   displayName ?? '',
   tool.type,
   ...(tool.keywords ?? []),
-  ...widgetSubFeatures(tool.type).flatMap((id) => [
+  ...widgetSubFeatures(tool.type, graduated).flatMap((id) => [
     FEATURE_DEFAULTS[id].label,
     FEATURE_DEFAULTS[id].description,
     id,
   ]),
 ];
 
-export const PREVIEW_FEATURES = ALL_GLOBAL_FEATURES.filter(
-  (id) => FEATURE_DEFAULTS[id].stage === 'preview'
-);
+export const previewFeatures = (
+  graduated: GraduatedSet = NONE
+): GlobalFeature[] =>
+  ALL_GLOBAL_FEATURES.filter((id) => !isPermanentFeature(id, graduated));
 
 export const switchForFeature = (
   id: GlobalFeature
@@ -79,24 +104,29 @@ export const matchesSearch = (
   return words.every((w) => haystack.includes(w));
 };
 
-const ROWS: Record<AccessTabId, readonly (readonly (string | undefined)[])[]> =
-  {
-    widgets: TOOLS.map((t) => widgetSearchFields(t)),
-    features: [
-      ...FEATURES_TAB_FEATURES.map(featureSearchFields),
-      ['Gemini models', 'model overrides', 'AI'],
-    ],
-    previews: [
-      ...PREVIEW_FEATURES.map(featureSearchFields),
-      ...ROLLOUT_ONLY_SWITCHES.map(rolloutSearchFields),
-    ],
-  };
+const rowsFor = (
+  graduated: GraduatedSet
+): Record<AccessTabId, readonly (readonly (string | undefined)[])[]> => ({
+  widgets: TOOLS.map((t) => widgetSearchFields(t, undefined, graduated)),
+  features: [
+    ...featuresTabFeatures(graduated).map(featureSearchFields),
+    ['Gemini models', 'model overrides', 'AI'],
+  ],
+  previews: [
+    ...previewFeatures(graduated).map(featureSearchFields),
+    ...ROLLOUT_ONLY_SWITCHES.map(rolloutSearchFields),
+  ],
+});
 
 /** Matching row count per Access tab, from static metadata so no tab has to mount. */
 export const countAccessMatches = (
-  query: string
-): Record<AccessTabId, number> => ({
-  widgets: ROWS.widgets.filter((f) => matchesSearch(query, f)).length,
-  features: ROWS.features.filter((f) => matchesSearch(query, f)).length,
-  previews: ROWS.previews.filter((f) => matchesSearch(query, f)).length,
-});
+  query: string,
+  graduated: GraduatedSet = NONE
+): Record<AccessTabId, number> => {
+  const rows = rowsFor(graduated);
+  return {
+    widgets: rows.widgets.filter((f) => matchesSearch(query, f)).length,
+    features: rows.features.filter((f) => matchesSearch(query, f)).length,
+    previews: rows.previews.filter((f) => matchesSearch(query, f)).length,
+  };
+};

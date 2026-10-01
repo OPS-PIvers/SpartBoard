@@ -9,8 +9,8 @@ import { AccessFeatureRow } from './AccessFeatureRow';
 import { AccessSearchEmpty, AdminSearchField } from './AdminSearchField';
 import { GeminiModelsCard } from './GeminiModelsCard';
 import {
-  FEATURES_TAB_FEATURES,
   featureSearchFields,
+  featuresTabFeatures,
   matchesSearch,
 } from './accessSearch';
 import { useAccessSearch } from './accessSearchContext';
@@ -38,7 +38,7 @@ export const FeaturesPanel: React.FC = () => {
     );
   }
 
-  const visible = FEATURES_TAB_FEATURES.filter((id) =>
+  const visible = featuresTabFeatures(editor.graduated).filter((id) =>
     matchesSearch(query, featureSearchFields(id))
   );
   const showModels = matchesSearch(query, GEMINI_MODEL_FIELDS);
@@ -57,7 +57,11 @@ export const FeaturesPanel: React.FC = () => {
     <div className="space-y-3">
       <AdminSearchField tab="features" placeholder="Search features" />
       {sections.length === 0 && (
-        <AccessSearchEmpty tab="features" fallback="No features." />
+        <AccessSearchEmpty
+          tab="features"
+          fallback="No features."
+          graduated={editor.graduated}
+        />
       )}
       {sections.map(({ key, ids }) => (
         <section key={key} className="space-y-2">
