@@ -9323,6 +9323,8 @@ export interface GlobalFeaturePermission {
    */
   minTier?: UserTier;
   config?: Record<string, unknown>;
+  /** Set by the Graduate button: a `keep` preview now sits with its widget or on the Features tab. */
+  graduated?: boolean;
 }
 
 /**

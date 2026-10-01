@@ -22,6 +22,8 @@ interface GenericConfigurationModalProps {
   ) => void;
   showMessage: (type: 'success' | 'error', text: string) => void;
   uploadWeatherImage: (rangeId: string, file: File) => Promise<string>;
+  /** The widget's graduated feature switches. */
+  features?: React.ReactNode;
 }
 
 export const GenericConfigurationModal: React.FC<
@@ -36,6 +38,7 @@ export const GenericConfigurationModal: React.FC<
   updatePermission,
   showMessage,
   uploadWeatherImage,
+  features,
 }) => {
   const header = (
     <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
@@ -114,6 +117,14 @@ export const GenericConfigurationModal: React.FC<
           showMessage={showMessage}
           uploadWeatherImage={uploadWeatherImage}
         />
+        {features && (
+          <section className="space-y-3">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+              Features
+            </h3>
+            {features}
+          </section>
+        )}
       </div>
     </Modal>
   );

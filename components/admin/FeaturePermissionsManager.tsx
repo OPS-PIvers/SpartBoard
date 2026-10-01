@@ -51,6 +51,31 @@ import {
 } from '@/components/admin/access/accessSearch';
 import { AccessFeatureRow } from '@/components/admin/access/AccessFeatureRow';
 import { useGlobalPermissionsEditor } from '@/components/admin/access/useGlobalPermissionsEditor';
+import { WidgetFeatureSwitches } from '@/components/admin/access/WidgetFeatureSwitches';
+import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
+import type { GlobalFeature } from '@/types';
+
+/** Widgets with their own config modal rather than the generic one. */
+const CUSTOM_MODAL_TYPES: readonly string[] = [
+  'blooms-taxonomy',
+  'calendar',
+  'catalyst',
+  'graphic-organizer',
+  'instructionalRoutines',
+  'miniApp',
+  'music',
+  'pdf',
+  'quiz',
+  'specialist-schedule',
+  'starter-pack',
+  'stickers',
+  'video-activity',
+  'work-symbols',
+];
+
+/** Config modals that list the widget's graduated switches; the rest keep them on the Widgets row. */
+const hostsFeatureSwitches = (type: string): boolean =>
+  type === 'quiz' || !CUSTOM_MODAL_TYPES.includes(type);
 
 export const FeaturePermissionsManager: React.FC = () => {
   const { showConfirm } = useDialog();
@@ -331,9 +356,13 @@ export const FeaturePermissionsManager: React.FC = () => {
             return false;
         }
       }
-      return matchesSearch(query, widgetSearchFields(tool, perm.displayName));
+      return matchesSearch(
+        query,
+        widgetSearchFields(tool, perm.displayName, globalEditor.graduated)
+      );
     });
   }, [
+    globalEditor.graduated,
     permissions,
     filterEnabled,
     filterAvailability,
@@ -341,6 +370,30 @@ export const FeaturePermissionsManager: React.FC = () => {
     buildings,
     query,
   ]);
+
+  const modalSwitchIds = (type: string): GlobalFeature[] =>
+    hostsFeatureSwitches(type)
+      ? widgetSubFeatures(type, globalEditor.graduated)
+      : [];
+
+  const modalSwitchesDirty = (type: string): boolean =>
+    modalSwitchIds(type).some((id) => globalEditor.unsavedChanges.has(id));
+
+  /** Persist a modal's edited switches alongside its widget config. */
+  const saveModalSwitches = async (type: string): Promise<boolean> => {
+    const dirty = modalSwitchIds(type).filter((id) =>
+      globalEditor.unsavedChanges.has(id)
+    );
+    const results = await Promise.all(
+      dirty.map((id) => globalEditor.savePermission(id, undefined, ''))
+    );
+    return results.every(Boolean);
+  };
+
+  const renderModalSwitches = (ids: GlobalFeature[]) =>
+    ids.length > 0 ? (
+      <WidgetFeatureSwitches featureIds={ids} editor={globalEditor} />
+    ) : null;
 
   const btnClass = (active: boolean) =>
     `px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
@@ -490,7 +543,9 @@ export const FeaturePermissionsManager: React.FC = () => {
               currentLevels.includes(l)
             );
 
-            const subIds = widgetSubFeatures(tool.type);
+            const subIds = hostsFeatureSwitches(tool.type)
+              ? []
+              : widgetSubFeatures(tool.type, globalEditor.graduated);
             return (
               <WidgetPermissionCardBody
                 key={tool.type}
@@ -636,95 +691,107 @@ export const FeaturePermissionsManager: React.FC = () => {
       {activeModalTool?.type === 'quiz' && (
         <QuizConfigurationModal
           isOpen={true}
-          onClose={() => setActiveModalTool(null)}
           permission={getPermission('quiz')}
-          onSave={(updates) => savePermission('quiz', updates)}
+          onSave={async (updates) =>
+            (await savePermission('quiz', updates)) &&
+            (await saveModalSwitches('quiz'))
+          }
+          onClose={() => {
+            globalEditor.discardChanges(modalSwitchIds('quiz'));
+            setActiveModalTool(null);
+          }}
+          features={renderModalSwitches(
+            modalSwitchIds('quiz').filter(
+              (id) => FEATURE_DEFAULTS[id].group !== 'languages'
+            )
+          )}
+          languageFeatures={renderModalSwitches(
+            modalSwitchIds('quiz').filter(
+              (id) => FEATURE_DEFAULTS[id].group === 'languages'
+            )
+          )}
+          featuresDirty={modalSwitchesDirty('quiz')}
         />
       )}
 
       {activeModalTool &&
-        ![
-          'blooms-taxonomy',
-          'calendar',
-          'catalyst',
-          'graphic-organizer',
-          'instructionalRoutines',
-          'miniApp',
-          'music',
-          'pdf',
-          'quiz',
-          'specialist-schedule',
-          'starter-pack',
-          'stickers',
-          'video-activity',
-          'work-symbols',
-        ].includes(activeModalTool.type) && (
+        !CUSTOM_MODAL_TYPES.includes(activeModalTool.type) && (
           <GenericConfigurationModal
             tool={activeModalTool}
             permission={getPermission(activeModalTool.type)}
+            features={renderModalSwitches(modalSwitchIds(activeModalTool.type))}
             onClose={async () => {
-              const toolType = activeModalTool?.type;
-              if (toolType && unsavedChanges.has(toolType)) {
-                const confirmed = await showConfirm(
-                  'You have unsaved changes. Are you sure you want to discard them?',
-                  {
-                    title: 'Discard Changes',
-                    variant: 'warning',
-                    confirmLabel: 'Discard',
-                  }
-                );
-                if (confirmed) {
-                  setUnsavedChanges((prev) => {
-                    const next = new Set(prev);
-                    next.delete(toolType);
-                    return next;
-                  });
-
-                  if (!isAuthBypass) {
-                    try {
-                      const docRef = doc(db, 'feature_permissions', toolType);
-                      const snap = await getDoc(docRef);
-                      let data: FeaturePermission;
-                      if (snap.exists()) {
-                        data = snap.data() as FeaturePermission;
-                        if (
-                          data.gradeLevels &&
-                          data.gradeLevels.includes('universal' as GradeLevel)
-                        ) {
-                          data.gradeLevels = ALL_GRADE_LEVELS;
-                        }
-                      } else {
-                        data = {
-                          widgetType: toolType,
-                          accessLevel: getWidgetDefaultAccessLevel(toolType),
-                          betaUsers: [],
-                          enabled: true,
-                        };
-                      }
-                      setPermissions((prev) =>
-                        new Map(prev).set(toolType, data)
-                      );
-                    } catch (err) {
-                      console.error('Failed to revert permission', err);
-                    } finally {
-                      setActiveModalTool(null);
-                    }
-                  } else {
-                    setActiveModalTool(null);
-                  }
+              const toolType = activeModalTool.type;
+              const widgetDirty = unsavedChanges.has(toolType);
+              if (!widgetDirty && !modalSwitchesDirty(toolType)) {
+                setActiveModalTool(null);
+                return;
+              }
+              const confirmed = await showConfirm(
+                'You have unsaved changes. Are you sure you want to discard them?',
+                {
+                  title: 'Discard Changes',
+                  variant: 'warning',
+                  confirmLabel: 'Discard',
                 }
-              } else {
+              );
+              if (!confirmed) return;
+              globalEditor.discardChanges(modalSwitchIds(toolType));
+              setUnsavedChanges((prev) => {
+                const next = new Set(prev);
+                next.delete(toolType);
+                return next;
+              });
+              if (!widgetDirty || isAuthBypass) {
+                setActiveModalTool(null);
+                return;
+              }
+              try {
+                const docRef = doc(db, 'feature_permissions', toolType);
+                const snap = await getDoc(docRef);
+                let data: FeaturePermission;
+                if (snap.exists()) {
+                  data = snap.data() as FeaturePermission;
+                  if (
+                    data.gradeLevels &&
+                    data.gradeLevels.includes('universal' as GradeLevel)
+                  ) {
+                    data.gradeLevels = ALL_GRADE_LEVELS;
+                  }
+                } else {
+                  data = {
+                    widgetType: toolType,
+                    accessLevel: getWidgetDefaultAccessLevel(toolType),
+                    betaUsers: [],
+                    enabled: true,
+                  };
+                }
+                setPermissions((prev) => new Map(prev).set(toolType, data));
+              } catch (err) {
+                console.error('Failed to revert permission', err);
+              } finally {
                 setActiveModalTool(null);
               }
             }}
             onSave={async () => {
-              const success = await savePermission(activeModalTool.type);
+              const type = activeModalTool.type;
+              const success =
+                (!unsavedChanges.has(type) || (await savePermission(type))) &&
+                (await saveModalSwitches(type));
               if (success) {
                 setActiveModalTool(null);
               }
             }}
-            isSaving={saving.has(activeModalTool.type)}
-            hasUnsavedChanges={unsavedChanges.has(activeModalTool.type)}
+            isSaving={
+              saving.has(activeModalTool.type) ||
+              modalSwitchIds(activeModalTool.type).some((id) =>
+                globalEditor.saving.has(id)
+              )
+            }
+            hasUnsavedChanges={
+              unsavedChanges.has(activeModalTool.type) ||
+              modalSwitchesDirty(activeModalTool.type)
+            }
             updatePermission={updatePermission}
             showMessage={showMessage}
             uploadWeatherImage={uploadWeatherImage}

@@ -5,6 +5,7 @@ import {
   ACCESS_TAB_LABELS,
   countAccessMatches,
   type AccessTabId,
+  type GraduatedSet,
 } from './accessSearch';
 
 export const AdminSearchField: React.FC<{
@@ -47,9 +48,10 @@ export const AdminSearchField: React.FC<{
 export const AccessSearchEmpty: React.FC<{
   tab: AccessTabId;
   fallback: string;
-}> = ({ tab, fallback }) => {
+  graduated?: GraduatedSet;
+}> = ({ tab, fallback, graduated }) => {
   const { query, goToTab } = useAccessSearch();
-  const counts = countAccessMatches(query);
+  const counts = countAccessMatches(query, graduated);
   const elsewhere = query.trim()
     ? (Object.keys(counts) as AccessTabId[]).filter(
         (t) => t !== tab && counts[t] > 0

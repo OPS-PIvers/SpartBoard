@@ -1,16 +1,17 @@
 import React, { useMemo } from 'react';
-import { FlaskConical, Loader2 } from 'lucide-react';
+import { FlaskConical, GraduationCap, Loader2 } from 'lucide-react';
 import type { GlobalFeature } from '@/types';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 import type { RolloutSwitch } from '@/config/rolloutSwitches';
+import { TOOLS } from '@/config/tools';
 import { Toggle } from '@/components/common/Toggle';
 import { AccessFeatureRow, Chip } from './AccessFeatureRow';
 import { AccessSearchEmpty, AdminSearchField } from './AdminSearchField';
 import {
-  PREVIEW_FEATURES,
   ROLLOUT_ONLY_SWITCHES,
   featureSearchFields,
   matchesSearch,
+  previewFeatures,
   rolloutSearchFields,
   switchForFeature,
 } from './accessSearch';
@@ -51,7 +52,19 @@ const PreviewRow: React.FC<{
   const permission = editor.getPermission(featureId);
   const saved = editor.isSaved(featureId);
   const ready = isReadyToGraduate(permission, saved, districtOn);
-  const retire = FEATURE_DEFAULTS[featureId].afterLaunch === 'retire';
+  const def = FEATURE_DEFAULTS[featureId];
+  const retire = def.afterLaunch === 'retire';
+  const graduating = editor.saving.has(featureId);
+  const graduate = () => {
+    const home = def.widget
+      ? `${TOOLS.find((t) => t.type === def.widget)?.label ?? def.widget} settings`
+      : 'Features';
+    void editor.savePermission(
+      featureId,
+      { graduated: true },
+      `Moved ${def.label} to ${home}`
+    );
+  };
   return (
     <AccessFeatureRow
       featureId={featureId}
@@ -62,13 +75,33 @@ const PreviewRow: React.FC<{
       onUpdate={(updates) => editor.updatePermission(featureId, updates)}
       onSave={() => void editor.savePermission(featureId)}
       showMessage={editor.showMessage}
-      lead={sw ? <DistrictSwitch sw={sw} state={district} /> : undefined}
+      lead={
+        <>
+          {sw && <DistrictSwitch sw={sw} state={district} />}
+          {ready && !retire && (
+            <button
+              type="button"
+              onClick={graduate}
+              disabled={graduating || editor.unsavedChanges.has(featureId)}
+              data-testid={`graduate-${featureId}`}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-green-300 bg-green-50 text-green-800 text-xs font-bold hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {graduating ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+              ) : (
+                <GraduationCap className="w-3.5 h-3.5" aria-hidden />
+              )}
+              Graduate
+            </button>
+          )}
+        </>
+      }
       extraChips={
-        ready
+        ready && retire
           ? [
-              <Chip key="ready" tone="green">
-                {retire ? 'Ready to retire' : 'Ready to graduate'}
-              </Chip>,
+              <span key="ready" title="Ask Claude to remove the old version">
+                <Chip tone="green">Ready to retire</Chip>
+              </span>,
             ]
           : []
       }
@@ -117,12 +150,12 @@ export const PreviewsPanel: React.FC = () => {
 
   const features = useMemo(
     () =>
-      PREVIEW_FEATURES.filter((id) =>
-        matchesSearch(query, featureSearchFields(id))
-      ).sort((a, b) =>
-        FEATURE_DEFAULTS[a].label.localeCompare(FEATURE_DEFAULTS[b].label)
-      ),
-    [query]
+      previewFeatures(editor.graduated)
+        .filter((id) => matchesSearch(query, featureSearchFields(id)))
+        .sort((a, b) =>
+          FEATURE_DEFAULTS[a].label.localeCompare(FEATURE_DEFAULTS[b].label)
+        ),
+    [query, editor.graduated]
   );
   const rolloutOnly = ROLLOUT_ONLY_SWITCHES.filter((sw) =>
     matchesSearch(query, rolloutSearchFields(sw))
@@ -140,7 +173,11 @@ export const PreviewsPanel: React.FC = () => {
     <div className="space-y-3">
       <AdminSearchField tab="previews" placeholder="Search previews" />
       {features.length === 0 && rolloutOnly.length === 0 ? (
-        <AccessSearchEmpty tab="previews" fallback="Nothing in preview." />
+        <AccessSearchEmpty
+          tab="previews"
+          fallback="Nothing in preview."
+          graduated={editor.graduated}
+        />
       ) : (
         <>
           {features.map((id) => (
