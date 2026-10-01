@@ -19,6 +19,7 @@ vi.mock('@/context/useAuth', () => ({
     userGradeLevels: ['k-2'],
     savedWidgetPresets: presets,
     saveWidgetPreset,
+    canAccessWidget: (type: string) => type !== 'blocked-tool',
   }),
 }));
 

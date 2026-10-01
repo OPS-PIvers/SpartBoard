@@ -31,7 +31,7 @@ import {
   sortRoutinesForLibrary,
 } from '@/config/routineGuide';
 import { RoutineIcon } from './RoutineIcon';
-import { AllSteps, AllStepsLayout } from './AllSteps';
+import { AllSteps } from './AllSteps';
 import { RoutineInfoModal } from './RoutineInfoModal';
 
 // Keeps corner controls clear of DraggableWindow's 24px corner resize handles.
@@ -52,8 +52,9 @@ const ToolLaunchButton: React.FC<{ step: RoutineGuideStep; lg?: boolean }> = ({
   lg,
 }) => {
   const { addWidget } = useDashboardActions();
+  const { canAccessWidget } = useAuth();
   const tool = step.attachedWidget;
-  if (!tool) return null;
+  if (!tool || !canAccessWidget(tool.type)) return null;
   return (
     <button
       type="button"
@@ -328,8 +329,6 @@ const StepView: React.FC<{
   );
 };
 
-const STEPS_LAYOUT: AllStepsLayout = 'columns';
-
 export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
   widget,
 }) => {
@@ -531,11 +530,10 @@ export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
         }
         content={
           !isDisplay ? (
-            <AllSteps steps={routine.steps} layout={STEPS_LAYOUT} />
+            <AllSteps steps={routine.steps} />
           ) : view === 'all' ? (
             <AllSteps
               steps={routine.steps}
-              layout={STEPS_LAYOUT}
               index={stepIndex}
               onMove={(i) => update({ stepIndex: i })}
               renderTool={(step) => <ToolLaunchButton step={step} />}
