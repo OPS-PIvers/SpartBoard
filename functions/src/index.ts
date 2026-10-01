@@ -251,6 +251,13 @@ export {
 // exposes teacher emails/displayNames. Decision 1.1 hardening. ──────────────
 export { mirrorPlcIndex } from './mirrorPlcIndex';
 
+// My Groups: admin-made building groups and their auto-roster (docs/plans/MY_GROUPS.md).
+export {
+  createBuildingGroupV1,
+  syncBuildingGroupV1,
+  onUserProfileBuildingsChangedV1,
+} from './plcBuildingGroups';
+
 // PLC norming flags: anonymized answer copies for norming (docs/plans/shipped/PLC_NORMING_FLAGS.md).
 export {
   setPlcNormingFlagV1,
