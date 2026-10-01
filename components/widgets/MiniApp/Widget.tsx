@@ -86,6 +86,7 @@ import { useInSubShare } from '@/hooks/useShareContent';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { withoutClaudeReview } from '@/utils/claudeReview';
+import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 
 // --- M17 B3: setAssignmentTargetsV1 client caller ---
 // Mirrors `functions/src/studentAssignmentTargets.ts` — kept local (not the
@@ -159,6 +160,7 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
   skippedStudentNames,
   periodAccess,
 }) => {
+  const outward = useViewAsOutward();
   const isViewOnly = mode === 'view-only';
   const link = createdSessionId
     ? `${window.location.origin}/miniapp/${createdSessionId}`
@@ -427,11 +429,18 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                 </p>
               )}
               <button
-                onClick={onConfirm}
+                onClick={() =>
+                  outward.run(
+                    isViewOnly ? 'Create share link' : 'Assign',
+                    onConfirm
+                  )
+                }
                 disabled={
                   isCreating ||
+                  outward.locked ||
                   (!isViewOnly && assignmentName.trim().length === 0)
                 }
+                title={outward.lockedTitle}
                 className="w-full flex items-center justify-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm disabled:opacity-60"
                 style={{
                   gap: 'min(8px, 2cqmin)',

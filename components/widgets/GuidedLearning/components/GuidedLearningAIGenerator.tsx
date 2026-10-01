@@ -42,6 +42,7 @@ import {
 import { blobToBase64 } from '@/utils/fileEncoding';
 import { prepareImageForUpload } from '@/utils/guidedLearningMedia';
 import { Z_INDEX } from '@/config/zIndex';
+import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 
 interface Props {
   onClose: () => void;
@@ -190,6 +191,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
   onGenerated,
   mediaHome,
 }) => {
+  const outward = useViewAsOutward();
   const { user, canAccessFeature } = useAuth();
   const { uploading, uploadGuidedLearningImage } = useStorage();
   const [images, setImages] = useState<GeneratorImage[]>([]);
@@ -352,7 +354,8 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
   }, []);
 
   const handleGenerate = async () => {
-    if (images.length === 0) return;
+    if (images.length === 0 || outward.locked) return;
+    if (outward.active && !(await outward.confirm('Generate with AI'))) return;
     // Snapshot the image order at kickoff so a late reorder or remove can't
     // desync the `imageIndex` values Gemini sees from the final `imageUrls`.
     const snapshot = images;
@@ -596,7 +599,8 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
 
       <button
         onClick={handleGenerate}
-        disabled={images.length === 0 || busy}
+        disabled={images.length === 0 || busy || outward.locked}
+        title={outward.lockedTitle}
         className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center"
         style={{
           marginTop: 'min(16px, 3.5cqmin)',

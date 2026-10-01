@@ -26,6 +26,7 @@ import { StudentIdleTimeoutGuard } from './components/student/StudentIdleTimeout
 import { isViewAsTab } from './utils/viewAsTab';
 import { ViewAsGate } from './context/ViewAsContext';
 import { ViewAsBanner } from './components/viewAs/ViewAsBanner';
+import { ViewAsSaveToast } from './components/viewAs/ViewAsSaveToast';
 
 // Lazy load heavy components for code splitting
 // Using named export pattern: import(...).then(module => ({ default: module.ExportName }))
@@ -569,6 +570,7 @@ const App: React.FC = () => {
         <DialogProvider>
           <AuthProvider>
             <ViewAsBanner />
+            <ViewAsSaveToast />
             <AuthenticatedApp />
           </AuthProvider>
           <DialogContainer />

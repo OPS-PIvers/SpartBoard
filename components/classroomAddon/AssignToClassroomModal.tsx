@@ -38,6 +38,7 @@ import {
   splitDueAtToInputs,
 } from '@/utils/localDate';
 import { findLinkedClassroomCourseId } from '@/utils/classroomCourseLinks';
+import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 
 interface AssignToClassroomModalProps {
   isOpen: boolean;
@@ -165,8 +166,12 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, userEmail, reloadNonce]);
 
+  const outward = useViewAsOutward();
+
   const handleAssign = useCallback(async () => {
     if (selectedCourseIds.length === 0) return;
+    if (outward.active && !(await outward.confirm('Post to Google Classroom')))
+      return;
     const uid = user?.uid;
     if (!uid) {
       addToast('You must be signed in to assign.', 'error');
@@ -303,6 +308,7 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
     addToast,
     onAssigned,
     onClose,
+    outward,
   ]);
 
   const customHeader = (
@@ -335,7 +341,8 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
       <button
         type="button"
         onClick={() => void handleAssign()}
-        disabled={selectedCourseIds.length === 0 || busy}
+        disabled={selectedCourseIds.length === 0 || busy || outward.locked}
+        title={outward.lockedTitle}
         className="inline-flex items-center gap-2 text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {phase === 'assigning' && (

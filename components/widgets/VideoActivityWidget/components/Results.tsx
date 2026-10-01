@@ -108,6 +108,7 @@ import {
   unlockResultsForStudent,
   VA_SESSIONS_COLLECTION,
 } from '@/utils/studentResultsPublish';
+import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 
 const KEY_LOADING_TOAST =
   'Still loading the answer key — try again in a moment.';
@@ -140,6 +141,7 @@ export const Results: React.FC<ResultsProps> = ({
   plc: _plc,
   onAssignMakeUp,
 }) => {
+  const outward = useViewAsOutward();
   const { ensureGoogleScope, user, orgId, canAccessFeature, isExternalUser } =
     useAuth();
   const tabAwayTimerOn = canAccessFeature('tab-away-timer');
@@ -332,6 +334,7 @@ export const Results: React.FC<ResultsProps> = ({
   };
 
   const handleExport = async () => {
+    if (outward.active && !(await outward.confirm('Export to Sheets'))) return;
     // VA results export always CREATES a new sheet (solo branch — no plcMode
     // passed below), so the non-sensitive `drive.file` login scope suffices —
     // no `spreadsheets`. Silent for all signed-in users (drive.file is the
@@ -584,7 +587,7 @@ export const Results: React.FC<ResultsProps> = ({
       icon: Download,
       loading: exporting,
       onClick: () => void handleExport(),
-      disabled: exporting || totalStudents === 0,
+      disabled: exporting || totalStudents === 0 || outward.locked,
     });
   }
   if (exportUrl) {

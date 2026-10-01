@@ -25,6 +25,8 @@ export interface ViewAsTabState {
   ended: boolean;
   /** Bumped on the first blocked write so the banner can show its one notice. */
   blockedNotice: number;
+  /** Bumped on each audited direct save so the tab can show its toast (D13). */
+  savedNotice: number;
 }
 
 let state: ViewAsTabState = {
@@ -32,6 +34,7 @@ let state: ViewAsTabState = {
   unlocked: false,
   ended: false,
   blockedNotice: 0,
+  savedNotice: 0,
 };
 const listeners = new Set<() => void>();
 
@@ -56,9 +59,9 @@ export function viewAsSuppressesBackgroundWrites(): boolean {
   return isViewAsTab;
 }
 
-/** D7 client guard for user-initiated saves; true means skip the write. */
+/** D7 client guard for user-initiated saves; true means skip the write. Unlocked saves pass (D13). */
 export function viewAsBlocksWrite(): boolean {
-  if (!isViewAsTab) return false;
+  if (!isViewAsTab || state.unlocked) return false;
   if (state.blockedNotice === 0) updateViewAsTabState({ blockedNotice: 1 });
   return true;
 }
@@ -118,4 +121,9 @@ export class ViewAsReadOnlyError extends Error {
 /** Throwing form of the D7 guard, for writes whose callers expect a result. */
 export function assertViewAsCanWrite(): void {
   if (viewAsBlocksWrite()) throw new ViewAsReadOnlyError();
+}
+
+/** True when a user-initiated save in this tab lands on the target and must be audited. */
+export function viewAsAuditsWrite(): boolean {
+  return isViewAsTab && state.unlocked && !state.ended;
 }

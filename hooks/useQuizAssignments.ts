@@ -152,6 +152,7 @@ import {
   quizNeedsManualGrading,
   SCORE_ON_SUBMIT_KEY_DOC,
 } from '@/utils/quizScoreOnSubmit';
+import { viewAsDirectSave } from '@/utils/viewAsAudit';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -2062,10 +2063,14 @@ export const useQuizAssignments = (
         assignmentPatch.dueAtByRosterId = deleteField();
       }
       const batch = writeBatch(db);
-      batch.update(
-        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-        assignmentPatch
+      const assignmentRef = doc(
+        db,
+        'users',
+        userId,
+        QUIZ_ASSIGNMENTS_COLLECTION,
+        assignmentId
       );
+      batch.update(assignmentRef, assignmentPatch);
       // Mirror period and session-option changes to the session doc so
       // students can read available periods and updated toggles.
       const sessionPatch: Record<string, unknown> = {};
@@ -2108,7 +2113,9 @@ export const useQuizAssignments = (
           sessionPatch
         );
       }
-      await batch.commit();
+      await viewAsDirectSave(assignmentRef, Object.keys(assignmentPatch), () =>
+        batch.commit()
+      );
     },
     [userId, timeLimitOn, scoreOnSubmitOn]
   );
@@ -2163,15 +2170,21 @@ export const useQuizAssignments = (
       };
 
       const batch = writeBatch(db);
-      batch.update(
-        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-        assignmentPatch
+      const assignmentRef = doc(
+        db,
+        'users',
+        userId,
+        QUIZ_ASSIGNMENTS_COLLECTION,
+        assignmentId
       );
+      batch.update(assignmentRef, assignmentPatch);
       batch.update(
         doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId),
         sessionPatch
       );
-      await batch.commit();
+      await viewAsDirectSave(assignmentRef, Object.keys(assignmentPatch), () =>
+        batch.commit()
+      );
     },
     [userId]
   );

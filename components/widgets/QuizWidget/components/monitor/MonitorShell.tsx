@@ -76,6 +76,7 @@ import { QuestionResults, QuestionDetail } from './QuestionResults';
 import { JoinCodeScreen } from './JoinCodeScreen';
 import { QuizSettingsScreen } from './QuizSettingsScreen';
 import { tourAttr } from '@/config/tourAnchors';
+import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 
 export interface QuizLiveMonitorProps {
   /** This widget instance's id, for live-tour anchor scoping. */
@@ -178,6 +179,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   );
 
   const { showConfirm } = useDialog();
+  const outward = useViewAsOutward();
   const { addToast } = useDashboard();
   // Read via context so a provider-less (sub portal) mount keeps today's behavior.
   const authContext = useContext(AuthContext);
@@ -411,6 +413,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   }, [session.status, soundsOn, soundMuted]);
 
   const handleEnd = async () => {
+    if (outward.locked) return;
     const ok = await showConfirm(
       'End this assignment? The student link stops working, but all responses are preserved in the archive.',
       {
@@ -420,6 +423,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       }
     );
     if (!ok) return;
+    outward.audit('End assignment');
     setEnding(true);
     try {
       // The game's final ranks land before devices switch to their end screen.
@@ -1010,7 +1014,8 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           )}
           <button
             onClick={handleEnd}
-            disabled={ending}
+            disabled={ending || outward.locked}
+            title={outward.lockedTitle}
             {...tourAttr('quiz.end-quiz', widgetId, tourType)}
             className="inline-flex items-center whitespace-nowrap bg-white border border-brand-gray-lighter hover:border-brand-red-light text-brand-red-primary font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
             style={{

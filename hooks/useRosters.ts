@@ -26,6 +26,7 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency';
 import { assignPins } from '@/utils/rosterPins';
+import { viewAsAuditCreated, viewAsDirectSave } from '@/utils/viewAsAudit';
 import { collapseTestSuffix } from '@/utils/testClassSuffix';
 
 /**
@@ -941,6 +942,7 @@ export const useRosters = (user: User | null) => {
         collection(db, 'users', user.uid, 'rosters'),
         firestoreData
       );
+      void viewAsAuditCreated(ref);
 
       // Upload students to Drive (if Drive is available)
       if (driveService && withPins.length > 0) {
@@ -1069,11 +1071,15 @@ export const useRosters = (user: User | null) => {
               nextContent,
               existingMeta?.driveFileId
             );
-            await updateDoc(doc(db, 'users', user.uid, 'rosters', id), {
+            const rosterRef = doc(db, 'users', user.uid, 'rosters', id);
+            const rosterUpdates = {
               ...metaUpdates,
               driveFileId,
               studentCount: nextContent.students.length,
-            });
+            };
+            await viewAsDirectSave(rosterRef, Object.keys(rosterUpdates), () =>
+              updateDoc(rosterRef, rosterUpdates)
+            );
             // Phase 3 — refresh the pin_index sidecar after a successful
             // Drive write. Uses the post-update name when the caller
             // renamed the roster, otherwise the existing meta's name.
@@ -1106,14 +1112,21 @@ export const useRosters = (user: User | null) => {
           }
         } else {
           // Drive unavailable — update count in Firestore at least
-          await updateDoc(doc(db, 'users', user.uid, 'rosters', id), {
+          const rosterRef = doc(db, 'users', user.uid, 'rosters', id);
+          const rosterUpdates = {
             ...metaUpdates,
             studentCount: nextContent.students.length,
-          });
+          };
+          await viewAsDirectSave(rosterRef, Object.keys(rosterUpdates), () =>
+            updateDoc(rosterRef, rosterUpdates)
+          );
         }
       } else if (Object.keys(metaUpdates).length > 0) {
         // No student/group/override changes — just update metadata fields
-        await updateDoc(doc(db, 'users', user.uid, 'rosters', id), metaUpdates);
+        const rosterRef = doc(db, 'users', user.uid, 'rosters', id);
+        await viewAsDirectSave(rosterRef, Object.keys(metaUpdates), () =>
+          updateDoc(rosterRef, metaUpdates)
+        );
       }
     },
     [user, driveService, uploadRosterFileToDrive, loadRosterFileFromDrive]
@@ -1253,9 +1266,10 @@ export const useRosters = (user: User | null) => {
       );
 
       try {
-        await updateDoc(doc(db, 'users', user.uid, 'rosters', rosterId), {
-          absent: payload,
-        });
+        const rosterRef = doc(db, 'users', user.uid, 'rosters', rosterId);
+        await viewAsDirectSave(rosterRef, ['absent'], () =>
+          updateDoc(rosterRef, { absent: payload })
+        );
       } catch (err) {
         console.error('Failed to persist absent list:', err);
         setRosters((prev) =>
@@ -1293,7 +1307,8 @@ export const useRosters = (user: User | null) => {
         });
       }
 
-      await deleteDoc(doc(db, 'users', user.uid, 'rosters', id));
+      const rosterRef = doc(db, 'users', user.uid, 'rosters', id);
+      await viewAsDirectSave(rosterRef, null, () => deleteDoc(rosterRef));
       studentsCacheRef.current.delete(id);
       if (activeRosterId === id) setActiveRoster(null);
     },

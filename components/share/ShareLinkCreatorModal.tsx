@@ -37,6 +37,7 @@ import { usePresetSubEmails } from '@/hooks/usePresetSubEmails';
 import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
 import type { Dashboard, SubstituteShareRoster } from '@/types';
 import type { SharedBoardImportMode } from '@/context/DashboardContextValue';
+import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 
 // `SharedBoardImportMode` excludes 'substitute' on purpose (substitute shares
 // are never imported into a teacher's account), so this widened union is the
@@ -137,6 +138,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
   onClose,
   onShareWithSub,
 }) => {
+  const outward = useViewAsOutward();
   const { t } = useTranslation();
   const {
     shareDashboard,
@@ -268,7 +270,14 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
   };
 
   const handleCreate = async () => {
-    if (!canShare || creating) return;
+    if (!canShare || creating || outward.locked) return;
+    if (
+      outward.active &&
+      !(await outward.confirm(
+        mode === 'substitute' ? 'Share with a substitute' : 'Share board'
+      ))
+    )
+      return;
 
     if (mode === 'substitute') {
       if (!subBuildingId) {
@@ -880,7 +889,8 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
           <button
             type="button"
             onClick={() => void handleCreate()}
-            disabled={!canShare || creating}
+            disabled={!canShare || creating || outward.locked}
+            title={outward.lockedTitle}
             className="w-full rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold text-sm py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {creating
