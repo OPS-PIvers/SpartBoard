@@ -1238,6 +1238,25 @@ export interface PlcAssessmentAggregate {
  * `attendeeUids` is seeded from presence at meeting time, editable before save.
  * Identity fields (`id`, `createdBy`) are immutable on update. Soft-deletable.
  */
+/** One practice under a group goal: a Routine Guide routine, or free text. */
+export interface PlcGoalPractice {
+  id: string;
+  routineId?: string;
+  text: string;
+}
+
+/** A My Groups goal at plcs/{plcId}/goals/{goalId}. */
+export interface PlcGoal {
+  id: string;
+  title: string;
+  measure?: string;
+  practices: PlcGoalPractice[];
+  order: number;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface PlcMeeting {
   id: string;
   /** serverTimestamp resolved to ms on read; when the meeting was held. */

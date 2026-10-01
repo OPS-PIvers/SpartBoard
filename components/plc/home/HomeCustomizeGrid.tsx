@@ -23,6 +23,7 @@ import { GripVertical, Plus, X } from 'lucide-react';
 import type { Plc } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { getPlcHomeTileDef, listAddableTileDefs } from './tiles/registry';
+import { useAuth } from '@/context/useAuth';
 import type { PlcHomeTileInstance } from './tiles/tileTypes';
 
 const SortableTileCard: React.FC<{
@@ -93,7 +94,8 @@ export const AddTileMenu: React.FC<{
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useClickOutside(ref, () => setOpen(false));
-  const addable = listAddableTileDefs(plc, tiles);
+  const { canAccessFeature } = useAuth();
+  const addable = listAddableTileDefs(plc, tiles, canAccessFeature);
 
   return (
     <div ref={ref} className="relative">

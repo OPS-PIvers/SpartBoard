@@ -2941,6 +2941,36 @@ service cloud.firestore {
           && plcCanEditContent(plcId);
       }
 
+      // My Groups goals: members read; non-viewer members write. A practice is an
+      // opaque map (routineId or free text) validated by the client parser.
+      match /goals/{goalId} {
+        allow read: if request.auth != null
+          && plcMember(plcId);
+
+        allow create, update: if request.auth != null
+          && plcCanEditContent(plcId)
+          && incoming().keys().hasOnly([
+               'id', 'title', 'measure', 'practices', 'order',
+               'createdBy', 'createdAt', 'updatedAt'
+             ])
+          && incoming().id == goalId
+          && isStr('title')
+          && incoming().title.size() <= 300
+          && (!('measure' in incoming()) || isStr('measure'))
+          && isList('practices')
+          && incoming().practices.size() <= 20
+          && optInt(incoming(), 'order')
+          && isStr('createdBy')
+          && (resource == null
+                ? incoming().createdBy == authUid()
+                : unchanged('createdBy') && unchanged('createdAt'))
+          && plcSubTimeFieldOk('createdAt')
+          && plcSubTimeFieldOk('updatedAt');
+
+        allow delete: if request.auth != null
+          && plcCanEditContent(plcId);
+      }
+
       // PLC Quiz Library (Phase 2). Lightweight headers pointing at canonical
       // /synced_quizzes/{groupId} docs (questions live there). Any member shares /
       // mirror-edits (title/questionCount) / unshares; orphan policy "PLC copy

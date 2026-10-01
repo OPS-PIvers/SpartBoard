@@ -6,15 +6,17 @@ import {
   CalendarDays,
   FileText,
   ListChecks,
+  Target,
   UsersRound,
   type LucideIcon,
 } from 'lucide-react';
-import type { Plc } from '@/types';
+import type { GlobalFeature, Plc } from '@/types';
 import { ResultsTile } from './ResultsTile';
 import { MeetingTile } from './MeetingTile';
 import { ActionsActivityTile } from './ActionsActivityTile';
 import { DocsTile } from './DocsTile';
 import { ParticipationTile } from './ParticipationTile';
+import { GoalsTile } from './GoalsTile';
 import {
   PLC_HOME_TILE_KINDS,
   PLC_HOME_TILE_SLICES,
@@ -34,6 +36,8 @@ export interface PlcHomeTileDef {
   multiple?: boolean;
   icon: LucideIcon;
   slices: readonly PlcHomeSlice[];
+  /** Preview flag the tile sits behind. */
+  feature?: GlobalFeature;
   isAvailable: (plc: Plc) => boolean;
   Component: React.FC<PlcHomeTileProps>;
 }
@@ -99,7 +103,32 @@ export const PLC_HOME_TILE_DEFS: Partial<
     isAvailable: always,
     Component: ParticipationTile,
   },
+  goals: {
+    kind: 'goals',
+    labelKey: 'plcGoals.title',
+    descriptionKey: 'plcGoals.description',
+    labelDefault: 'Goals',
+    descriptionDefault: "The group's goals and the practices behind them",
+    icon: Target,
+    slices: PLC_HOME_TILE_SLICES.goals,
+    feature: 'my-groups',
+    isAvailable: always,
+    Component: GoalsTile,
+  },
 };
+
+/** Available in this group and not behind a flag the viewer lacks. */
+export function isPlcHomeTileShown(
+  def: PlcHomeTileDef | undefined,
+  plc: Plc,
+  canAccessFeature: (feature: GlobalFeature) => boolean
+): def is PlcHomeTileDef {
+  return (
+    !!def &&
+    def.isAvailable(plc) &&
+    (!def.feature || canAccessFeature(def.feature))
+  );
+}
 
 export function getPlcHomeTileDef(
   kind: PlcHomeTileKind
@@ -110,14 +139,13 @@ export function getPlcHomeTileDef(
 /** Catalog entries: available here and not already on Home (unless repeatable). */
 export function listAddableTileDefs(
   plc: Plc,
-  tiles: readonly PlcHomeTileInstance[]
+  tiles: readonly PlcHomeTileInstance[],
+  canAccessFeature: (feature: GlobalFeature) => boolean
 ): PlcHomeTileDef[] {
   const present = new Set(tiles.map((t) => t.kind));
   return PLC_HOME_TILE_KINDS.map((kind) => PLC_HOME_TILE_DEFS[kind])
-    .filter((def): def is PlcHomeTileDef => def !== undefined)
-    .filter(
-      (def) =>
-        def.isAvailable(plc) &&
-        (def.multiple === true || !present.has(def.kind))
-    );
+    .filter((def): def is PlcHomeTileDef =>
+      isPlcHomeTileShown(def, plc, canAccessFeature)
+    )
+    .filter((def) => def.multiple === true || !present.has(def.kind));
 }

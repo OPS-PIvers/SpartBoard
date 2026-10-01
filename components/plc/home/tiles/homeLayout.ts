@@ -136,8 +136,17 @@ export function parsePlcHomeLayout(
   };
 }
 
-export function effectiveTiles(layout: PlcHomeLayout): PlcHomeTileInstance[] {
-  return layout.tiles ?? [...PLC_HOME_STARTER_TILES];
+/** My Groups puts Goals first for members who never customized Home. */
+export const PLC_HOME_GOALS_STARTER_TILES: readonly PlcHomeTileInstance[] = [
+  { id: 'starter-goals', kind: 'goals' },
+  ...PLC_HOME_STARTER_TILES,
+];
+
+export function effectiveTiles(
+  layout: PlcHomeLayout,
+  starter: readonly PlcHomeTileInstance[] = PLC_HOME_STARTER_TILES
+): PlcHomeTileInstance[] {
+  return layout.tiles ?? [...starter];
 }
 
 /** D27: an assessment's scored count rose since the counts frozen at this visit's start. */

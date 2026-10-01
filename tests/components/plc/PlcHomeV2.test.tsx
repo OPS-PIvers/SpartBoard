@@ -36,8 +36,36 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+let mockMyGroups = false;
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: 'uid-a' } }),
+  useAuth: () => ({
+    user: { uid: 'uid-a' },
+    canAccessFeature: (f: string) => f === 'my-groups' && mockMyGroups,
+  }),
+}));
+vi.mock('@/hooks/usePlcGoals', () => ({
+  PLC_GOAL_MAX_PRACTICES: 20,
+  usePlcGoals: () => ({
+    goals: [
+      {
+        id: 'g1',
+        title: 'Raise reading stamina',
+        measure: '80% at 20 minutes',
+        practices: [
+          { id: 'p1', routineId: 'chalk-talk', text: '' },
+          { id: 'p2', text: 'Daily reading block' },
+        ],
+        order: 0,
+        createdBy: 'uid-a',
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ],
+    loading: false,
+    error: null,
+    saveGoal: vi.fn(),
+    deleteGoal: vi.fn(),
+  }),
 }));
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast: vi.fn() }),
@@ -163,6 +191,20 @@ describe('PlcHomeV2', () => {
     }
     expect(document.querySelector('[data-hero="true"]')).toBeNull();
     expect(screen.queryByText('Your collaborative space')).toBeNull();
+  });
+
+  it('leads with Goals when My Groups is on, naming linked routines', () => {
+    mockMyGroups = true;
+    try {
+      render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} onOpenDoc={vi.fn()} />);
+      const regions = screen.getAllByRole('region');
+      expect(regions[0].getAttribute('aria-label')).toBe('Goals');
+      expect(screen.getByText('Raise reading stamina')).toBeTruthy();
+      expect(screen.getByText('Chalk Talk')).toBeTruthy();
+      expect(screen.getByText('Daily reading block')).toBeTruthy();
+    } finally {
+      mockMyGroups = false;
+    }
   });
 
   it('marks online members in the avatar cluster and opens Members', () => {
