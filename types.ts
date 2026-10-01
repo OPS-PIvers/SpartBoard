@@ -259,6 +259,23 @@ export interface RosterGroup {
  */
 export type PlcRole = 'lead' | 'coLead' | 'member' | 'viewer';
 
+/** What kind of team a group is. Absent on a PLC doc means 'plc'. */
+export type PlcGroupType = 'plc' | 'department' | 'mentoring' | 'building';
+
+export const PLC_GROUP_TYPES: readonly PlcGroupType[] = [
+  'plc',
+  'department',
+  'mentoring',
+  'building',
+];
+
+/** Types a teacher can pick; building groups are created by admins. */
+export const TEACHER_PLC_GROUP_TYPES: readonly PlcGroupType[] = [
+  'plc',
+  'department',
+  'mentoring',
+];
+
 /**
  * One entry in the canonical `Plc.members` map (keyed by uid). Replaces the
  * parallel `memberUids` / `memberEmails` arrays as the source of truth for
@@ -315,6 +332,8 @@ export interface Plc {
   orgId?: string | null;
   /** Optional building tenancy (Decision 1.1). `null`/absent when unscoped. */
   buildingId?: string | null;
+  /** Group type (My Groups). Read via `getPlcGroupType`; absent means 'plc'. */
+  groupType?: PlcGroupType;
   /**
    * Canonical membership map (Decision 1.2): uid → member record. New PLCs
    * always write this. Legacy PLCs may lack it — read membership via the
@@ -360,7 +379,7 @@ export interface Plc {
    * PLCs (and any newly added flags) default to enabled. Always read via
    * `getPlcFeatures(plc)` rather than `plc.features` directly.
    */
-  features?: PlcFeatureSettings;
+  features?: Partial<PlcFeatureSettings>;
   /**
    * Opt-in weekly email digest flag (Decision 2.3, §5). Default `false` —
    * absent/false means no digest is sent. Any PLC member may toggle it via the
@@ -423,6 +442,8 @@ export interface PlcFeatureSettings {
    * that does not want the feature, not an individual teacher's consent.
    */
   printForTeammates: boolean;
+  /** Meeting Mode section. Absent means on, except for mentoring and building groups. */
+  meeting?: boolean;
 }
 
 export const DEFAULT_PLC_FEATURE_SETTINGS: PlcFeatureSettings = {
@@ -433,13 +454,36 @@ export const DEFAULT_PLC_FEATURE_SETTINGS: PlcFeatureSettings = {
   printForTeammates: true,
 };
 
+/** The group's type; legacy PLCs have none and read as 'plc'. */
+export function getPlcGroupType(plc: Pick<Plc, 'groupType'>): PlcGroupType {
+  return plc.groupType ?? 'plc';
+}
+
+/** Mentoring and building groups start without Assessments, Targets or Meeting Mode. */
+export function getDefaultPlcFeatures(
+  groupType: PlcGroupType
+): PlcFeatureSettings {
+  if (groupType === 'mentoring' || groupType === 'building') {
+    return {
+      ...DEFAULT_PLC_FEATURE_SETTINGS,
+      quizzes: false,
+      videoActivities: false,
+      meeting: false,
+    };
+  }
+  return { ...DEFAULT_PLC_FEATURE_SETTINGS, meeting: true };
+}
+
 /**
- * Merge a (possibly absent or partial) `Plc.features` map against
- * `DEFAULT_PLC_FEATURE_SETTINGS`. Use this everywhere the dashboard reads
+ * Merge a (possibly absent or partial) `Plc.features` map against the
+ * defaults for the group's type. Use this everywhere the dashboard reads
  * feature flags so legacy PLCs and newly added flags default to enabled.
  */
 export function getPlcFeatures(plc: Plc): PlcFeatureSettings {
-  return { ...DEFAULT_PLC_FEATURE_SETTINGS, ...(plc.features ?? {}) };
+  return {
+    ...getDefaultPlcFeatures(getPlcGroupType(plc)),
+    ...(plc.features ?? {}),
+  };
 }
 
 /**
@@ -9241,7 +9285,8 @@ export type GlobalFeature =
   | 'mini-app-ai'
   | 'drawing-ai'
   | 'webcam-ai'
-  | 'blooms-ai';
+  | 'blooms-ai'
+  | 'my-groups';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

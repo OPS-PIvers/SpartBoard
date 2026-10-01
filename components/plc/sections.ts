@@ -143,6 +143,7 @@ export const PLC_SECTIONS: readonly PlcSectionDef[] = [
     icon: Presentation,
     labelKey: 'plcDashboard.tabs.meeting',
     labelDefault: 'Meeting Mode',
+    isEnabled: (features) => features.meeting !== false,
     fullBleed: true,
   },
   {

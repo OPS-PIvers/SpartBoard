@@ -1002,6 +1002,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // My PLCs becomes My Groups with group types (docs/plans/MY_GROUPS.md).
+  'my-groups': {
+    label: 'My Groups',
+    icon: UsersRound,
+    description: 'PLC, department and mentoring groups.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */

@@ -21,6 +21,8 @@ import {
   DEFAULT_PLC_FEATURE_SETTINGS,
   Plc,
   PlcFeatureSettings,
+  PlcGroupType,
+  PLC_GROUP_TYPES,
   PlcMeetingCadence,
   PlcNormingLevelLabels,
   PlcMember,
@@ -81,9 +83,13 @@ interface UsePlcsResult {
    */
   error: Error | null;
   /** Create a new PLC with the current user as lead + sole member. Returns the new doc id. */
-  createPlc: (name: string) => Promise<string>;
+  createPlc: (name: string, groupType?: PlcGroupType) => Promise<string>;
   /** Lead-only: rename the PLC. */
-  renamePlc: (plcId: string, name: string) => Promise<void>;
+  renamePlc: (
+    plcId: string,
+    name: string,
+    groupType?: PlcGroupType
+  ) => Promise<void>;
   /** Lead-only: remove a member by uid. Members removing themselves should call `leavePlc`. */
   removeMember: (plcId: string, uid: string) => Promise<void>;
   /** Non-lead self-removal. The lead must transfer leadership before leaving. */
@@ -344,6 +350,16 @@ function activeMemberEmails(
   return out;
 }
 
+const PLC_FEATURE_KEYS: readonly (keyof PlcFeatureSettings)[] = [
+  'quizzes',
+  'videoActivities',
+  'notes',
+  'todos',
+  'sharedBoards',
+  'printForTeammates',
+  'meeting',
+];
+
 function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
   if (
     typeof data.name !== 'string' ||
@@ -369,35 +385,13 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
   // should always merge against DEFAULT_PLC_FEATURE_SETTINGS via
   // `getPlcFeatures()` rather than reading this field directly, so an
   // absent field (legacy PLCs) and partial maps both default to enabled.
-  let features: PlcFeatureSettings | undefined;
+  let features: Partial<PlcFeatureSettings> | undefined;
   if (data.features && typeof data.features === 'object') {
     const raw = data.features as Record<string, unknown>;
-    features = {
-      quizzes:
-        typeof raw.quizzes === 'boolean'
-          ? raw.quizzes
-          : DEFAULT_PLC_FEATURE_SETTINGS.quizzes,
-      videoActivities:
-        typeof raw.videoActivities === 'boolean'
-          ? raw.videoActivities
-          : DEFAULT_PLC_FEATURE_SETTINGS.videoActivities,
-      notes:
-        typeof raw.notes === 'boolean'
-          ? raw.notes
-          : DEFAULT_PLC_FEATURE_SETTINGS.notes,
-      todos:
-        typeof raw.todos === 'boolean'
-          ? raw.todos
-          : DEFAULT_PLC_FEATURE_SETTINGS.todos,
-      sharedBoards:
-        typeof raw.sharedBoards === 'boolean'
-          ? raw.sharedBoards
-          : DEFAULT_PLC_FEATURE_SETTINGS.sharedBoards,
-      printForTeammates:
-        typeof raw.printForTeammates === 'boolean'
-          ? raw.printForTeammates
-          : DEFAULT_PLC_FEATURE_SETTINGS.printForTeammates,
-    };
+    features = {};
+    for (const key of PLC_FEATURE_KEYS) {
+      if (typeof raw[key] === 'boolean') features[key] = raw[key];
+    }
   }
   // digestOptIn: opt-in weekly digest flag (Decision 2.3). Default false —
   // only the literal boolean `true` opts a PLC in.
@@ -408,6 +402,7 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
   const orgId = typeof data.orgId === 'string' ? data.orgId : null;
   const buildingId =
     typeof data.buildingId === 'string' ? data.buildingId : null;
+  const groupType = PLC_GROUP_TYPES.find((g) => g === data.groupType);
   // members: canonical membership map (Decision 1.2). Legacy PLCs lack it —
   // an empty map is fine; `getPlcMembers` synthesizes from the denormalized
   // arrays in that case.
@@ -424,6 +419,7 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
     sharedSheetUrl,
     digestOptIn,
     ...(features ? { features } : {}),
+    ...(groupType ? { groupType } : {}),
     ...(meetingCadence ? { meetingCadence } : {}),
     ...(normingLevelLabels ? { normingLevelLabels } : {}),
     // serverTimestamp-tolerant (Decision 1.3): accept a Firestore Timestamp
@@ -582,7 +578,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   }, [user, enabled, asAdmin, isSuperAdmin, orgId]);
 
   const createPlc = useCallback(
-    async (name: string): Promise<string> => {
+    async (name: string, groupType?: PlcGroupType): Promise<string> => {
       if (!user) throw new Error(i18n.t('plc.errors.notSignedIn'));
       const trimmed = name.trim();
       if (!trimmed) throw new Error(i18n.t('plc.errors.nameRequired'));
@@ -614,6 +610,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
         name: trimmed,
         orgId,
         buildingId: creatorBuildingId,
+        ...(groupType && groupType !== 'plc' ? { groupType } : {}),
         // Canonical membership map (Decision 1.2). The creator is the sole
         // member and the lead. `joinedAt` is a serverTimestamp sentinel
         // resolved to millis on read by `parsePlcMembers`.
@@ -642,13 +639,17 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   );
 
   const renamePlc = useCallback(
-    async (plcId: string, name: string) => {
+    async (plcId: string, name: string, groupType?: PlcGroupType) => {
       if (!user) return;
       const trimmed = name.trim();
       if (!trimmed) throw new Error(i18n.t('plc.errors.nameRequired'));
       await setDoc(
         doc(db, PLCS_COLLECTION, plcId),
-        { name: trimmed, updatedAt: serverTimestamp() },
+        {
+          name: trimmed,
+          ...(groupType ? { groupType } : {}),
+          updatedAt: serverTimestamp(),
+        },
         { merge: true }
       );
     },

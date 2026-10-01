@@ -2201,6 +2201,15 @@ service cloud.firestore {
       return v == null || v is timestamp || v is int;
     }
 
+    // Lead may switch between teacher group types; building groups and auto-roster are admin-only.
+    function plcLeadGroupFieldsOk() {
+      let oldType = resource.data.get('groupType', 'plc');
+      let newType = request.resource.data.get('groupType', 'plc');
+      return request.resource.data.get('autoRoster', false) == resource.data.get('autoRoster', false)
+        && (newType == oldType
+            || (oldType != 'building' && newType in ['plc', 'department', 'mentoring']));
+    }
+
     // Tenancy field (orgId / buildingId, Decision 1.1) immutable-after-set: may be
     // backfilled once (null → value) or rewritten to the same value, never to a
     // different one — stops re-homing a PLC into another org's directory.
@@ -2555,6 +2564,9 @@ service cloud.firestore {
         && incoming().members[authUid()].role == 'lead'
         && incoming().members[authUid()].status == 'active'
         && incoming().members[authUid()].uid == authUid()
+        // Teachers pick plc, department or mentoring; building groups and auto-roster are admin-made.
+        && incoming().get('groupType', 'plc') in ['plc', 'department', 'mentoring']
+        && !('autoRoster' in incoming())
         && (
              !('orgId' in incoming())
              || incoming().orgId == null
@@ -2592,6 +2604,7 @@ service cloud.firestore {
           && plcUpdatedAtOk()
           && plcTenancyImmutableAfterSet('orgId')
           && plcTenancyImmutableAfterSet('buildingId')
+          && plcLeadGroupFieldsOk()
           // Block minting a second lead — members changes here are a single named
           // removal only (exactly-one-lead invariant, Decision 1.2).
           && plcBroadMembersOk()
