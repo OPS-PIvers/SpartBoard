@@ -524,7 +524,8 @@ export function PlcProvider({
   activeSection,
   children,
 }: PlcProviderProps) {
-  const { user, canAccessFeature } = useAuth();
+  const { user, canAccessFeature, globalPermissionsLoaded, isAdmin } =
+    useAuth();
   const {
     setMemberRole: setMemberRoleMut,
     transferLead: transferLeadMut,
@@ -535,7 +536,11 @@ export function PlcProvider({
 
   // --- Heavy subcollection listeners (gated on the active section) ---
   // Home v2 opens only the slices its tiles need (plan §6).
-  const homeV2 = activeSection === 'home' && canAccessFeature('plc-home-v2');
+  const homeV2 =
+    activeSection === 'home' &&
+    globalPermissionsLoaded &&
+    isAdmin !== null &&
+    canAccessFeature('plc-home-v2');
   const homeLayout = useHomeLayoutListener(plcId, homeV2);
   // Wait for the layout so a member who removed a tile never pays for its listener.
   const homeSlices =

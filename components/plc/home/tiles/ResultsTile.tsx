@@ -359,8 +359,11 @@ export const ResultsTile: React.FC<PlcHomeTileProps> = ({
   controls,
 }) => {
   const { t } = useTranslation();
-  const { data: aggregates } = usePlcAggregatesData();
-  const { data: assessments } = usePlcAssessmentsData();
+  const { data: aggregates, loading: aggregatesLoading } =
+    usePlcAggregatesData();
+  const { data: assessments, loading: assessmentsLoading } =
+    usePlcAssessmentsData();
+  const loading = aggregatesLoading || assessmentsLoading;
   const { data: meetings } = usePlcMeetingsData();
   const members = usePlcMembers();
   const { entries } = usePlcAssignmentIndex(ctx.plc.id, {
@@ -400,7 +403,7 @@ export const ResultsTile: React.FC<PlcHomeTileProps> = ({
         onClick: () => ctx.onNavigate('assessments'),
       }}
     >
-      {hero ? (
+      {loading ? null : hero ? (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
           <RollupView
             rollup={rollup}
