@@ -471,9 +471,11 @@ export const Sidebar: React.FC = () => {
                 <span className="text-sm font-bold tracking-wider uppercase text-slate-500 truncate">
                   {activeSection === 'main'
                     ? t('sidebar.header.classroomManager')
-                    : t(`sidebar.nav.${activeSection}`, {
-                        defaultValue: activeSection.replace('-', ' '),
-                      })}
+                    : activeSection === 'plcs' && canAccessFeature('my-groups')
+                      ? t('sidebar.nav.groups', { defaultValue: 'My Groups' })
+                      : t(`sidebar.nav.${activeSection}`, {
+                          defaultValue: activeSection.replace('-', ' '),
+                        })}
                 </span>
               </div>
               <IconButton

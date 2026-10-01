@@ -164,10 +164,15 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
           })}
         </h3>
         <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-          {t('plcDashboard.settings.description', {
-            defaultValue:
-              "Choose which sections appear in this PLC's dashboard. Any PLC member can update these.",
-          })}
+          {canAccessFeature('my-groups')
+            ? t('plcDashboard.settings.groupDescription', {
+                defaultValue:
+                  "Choose which sections appear on this group's page. Any member can update these.",
+              })
+            : t('plcDashboard.settings.description', {
+                defaultValue:
+                  "Choose which sections appear in this PLC's dashboard. Any PLC member can update these.",
+              })}
         </p>
       </div>
       <div className="flex flex-col gap-2">

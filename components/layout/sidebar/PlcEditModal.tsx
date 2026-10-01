@@ -360,9 +360,15 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
               </button>
             </form>
             <p className="text-xxs text-slate-400 mt-1.5 leading-relaxed">
-              {t('sidebar.plcs.inviteHelp', {
-                defaultValue: "They'll see the invite in their PLC sidebar.",
-              })}
+              {groups
+                ? t('sidebar.groups.inviteHelp', {
+                    defaultValue:
+                      "They'll see the invite under My Groups in their sidebar.",
+                  })
+                : t('sidebar.plcs.inviteHelp', {
+                    defaultValue:
+                      "They'll see the invite in their PLC sidebar.",
+                  })}
             </p>
           </div>
         )}
