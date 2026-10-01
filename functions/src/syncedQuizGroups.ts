@@ -175,7 +175,7 @@ export async function handleLeaveSyncedQuizGroup(
 export const joinSyncedQuizGroup = onCall<JoinSyncedQuizGroupRequest>(
   { region: 'us-central1' },
   async (request) => {
-    assertViewAsAllowed(request);
+    assertViewAsAllowed(request, { outward: true });
     const uid = request.auth?.uid;
     if (!uid) {
       throw new HttpsError('unauthenticated', 'Sign in to join a synced quiz.');

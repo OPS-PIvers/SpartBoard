@@ -150,7 +150,7 @@ export const joinSyncedVideoActivityGroup =
   onCall<JoinSyncedVideoActivityGroupRequest>(
     { region: 'us-central1' },
     async (request) => {
-      assertViewAsAllowed(request);
+      assertViewAsAllowed(request, { outward: true });
       const uid = request.auth?.uid;
       if (!uid) {
         throw new HttpsError(
