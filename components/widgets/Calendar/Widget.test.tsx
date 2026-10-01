@@ -155,6 +155,26 @@ describe('CalendarWidget', () => {
     expect(screen.queryByText('Morning Assembly')).not.toBeInTheDocument();
   });
 
+  it('orders same-day events by start time across sources', () => {
+    vi.setSystemTime(new Date('2026-06-15T06:00:00.000Z'));
+    const widget = buildWidget({
+      events: [
+        { date: '2026-06-15', time: '14:30', title: 'Afternoon Meeting' },
+        { date: '2026-06-15', time: '8:00 AM', title: 'Morning Duty' },
+        { date: '2026-06-15', title: 'All Day Spirit Day' },
+      ],
+    });
+    render(<CalendarWidget widget={widget} />);
+    const order = ['All Day Spirit Day', 'Morning Duty', 'Afternoon Meeting'];
+    const positions = order.map((t) => screen.getByText(t));
+    for (let i = 1; i < positions.length; i++) {
+      expect(
+        positions[i - 1].compareDocumentPosition(positions[i]) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    }
+  });
+
   describe('Path B — on-demand calendar.readonly acquisition', () => {
     it('never-granted: silent acquisition fails → NO auto-popup, shows Connect CTA', async () => {
       vi.useRealTimers();
