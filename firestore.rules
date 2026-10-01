@@ -26,7 +26,27 @@ service cloud.firestore {
       return request.auth != null &&
              request.auth.token.get('email', '') != '' &&
              request.auth.token.get('email_verified', false) == true &&
+             viewAsAdminOk() &&
              exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()));
+    }
+
+    // ---- Super admin "View as" (docs/plans/ADMIN_VIEW_AS.md D7) ----
+    // A view-as tab is signed in as its target with a server-minted `viewAs`
+    // claim { by, sid, ro, adminTarget, exp(ms) }. It may read until exp, and
+    // write only while unlocked (ro == false) and live. Admin powers never
+    // write from a view-as tab: an admin target is view-only (D3).
+    function viewAsLive() {
+      return request.time.toMillis() < request.auth.token.viewAs.get('exp', 0);
+    }
+    function isReadMethod() { return request.method in ['get', 'list']; }
+    function viewAsOk() {
+      return request.auth.token.get('viewAs', null) == null ||
+             (viewAsLive() &&
+              (isReadMethod() || request.auth.token.viewAs.get('ro', true) == false));
+    }
+    function viewAsAdminOk() {
+      return request.auth.token.get('viewAs', null) == null ||
+             (viewAsLive() && isReadMethod());
     }
 
     // A signed-in district address, verified. email_verified is required because
@@ -287,6 +307,7 @@ service cloud.firestore {
       return request.auth != null &&
              request.auth.token.email != null &&
              request.auth.token.get('email_verified', false) == true &&
+             viewAsAdminOk() &&
              (isLegacySuperAdmin() || isMemberSuperAdmin());
     }
 
@@ -370,6 +391,7 @@ service cloud.firestore {
     function isDomainAdmin(orgId) {
       return request.auth != null && request.auth.token.email != null &&
              request.auth.token.get('email_verified', false) == true &&
+             viewAsAdminOk() &&
              memberRole(orgId, request.auth.token.email.lower()) == 'domain_admin';
     }
 
@@ -377,6 +399,7 @@ service cloud.firestore {
     function isBuildingAdmin(orgId) {
       return request.auth != null && request.auth.token.email != null &&
              request.auth.token.get('email_verified', false) == true &&
+             viewAsAdminOk() &&
              memberRole(orgId, request.auth.token.email.lower()) == 'building_admin';
     }
 
@@ -418,11 +441,12 @@ service cloud.firestore {
     // before notDeactivated()'s get(). ownsUserTeacher also denies studentRole
     // tokens, which never own teacher-namespace docs.
     function ownsUser(userId) {
-      return request.auth != null && authUid() == userId && notDeactivated();
+      return request.auth != null && authUid() == userId && viewAsOk() &&
+             notDeactivated();
     }
     function ownsUserTeacher(userId) {
       return request.auth != null && authUid() == userId &&
-             !isStudentRoleUser() && notDeactivated();
+             !isStudentRoleUser() && viewAsOk() && notDeactivated();
     }
 
     // ---- Organizations collection (Phase 3: scoped writes enabled) ----
@@ -841,13 +865,13 @@ service cloud.firestore {
     // AuthContext's own membership listener has resolved status, and adding
     // the gate here would cost an extra get() on the hottest read path.
     match /users/{userId} {
-      allow read, write: if request.auth != null && authUid() == userId;
+      allow read, write: if request.auth != null && authUid() == userId && viewAsOk();
     }
 
     // User profile (building selection, etc.) — stored per user. Same
     // bootstrap-path exemption as /users/{userId} above.
     match /users/{userId}/userProfile/{profileId} {
-      allow read, write: if request.auth != null && authUid() == userId;
+      allow read, write: if request.auth != null && authUid() == userId && viewAsOk();
     }
 
     // Private server-managed credentials (e.g. encrypted Google OAuth
@@ -981,6 +1005,26 @@ service cloud.firestore {
     // serverTimestamp(), so no is-int validation here.
     match /admin_audit_log/{logId} {
       allow read, create: if isAdmin();
+      // An unlocked view-as tab logs its own saves, approvals and outward
+      // actions (ADMIN_VIEW_AS.md D16). Every identity field must match the
+      // server-minted claim; session lifecycle entries are server-only.
+      allow create: if request.auth != null &&
+                       request.auth.token.get('viewAs', null) != null &&
+                       viewAsOk() &&
+                       request.auth.token.viewAs.get('ro', true) == false &&
+                       incoming().keys().hasOnly(['action', 'sid', 'email', 'targetEmail',
+                         'targetUid', 'path', 'before', 'after', 'reason', 'timestamp']) &&
+                       incoming().action in ['view_as_save', 'view_as_approve', 'view_as_outward'] &&
+                       incoming().sid == request.auth.token.viewAs.sid &&
+                       incoming().email == request.auth.token.viewAs.by &&
+                       incoming().targetUid == authUid() &&
+                       incoming().targetEmail == request.auth.token.get('email', '').lower() &&
+                       incoming().timestamp == request.time;
+    }
+
+    // View-as sessions: Admin SDK writes only; super admins read them.
+    match /view_as_sessions/{sid} {
+      allow read: if isSuperAdmin();
     }
 
     // User Roles - stored in admin_settings for global access but restricted to admins
@@ -3729,7 +3773,7 @@ service cloud.firestore {
       // TODO: For Phase 2/Production, implement Cloud Functions to validate
       // join codes server-side and remove this broad read permission.
       allow read: if request.auth != null;
-      allow write: if request.auth != null && authUid() == userId; // Teacher controls it
+      allow write: if request.auth != null && authUid() == userId && viewAsOk(); // Teacher controls it
 
       match /students/{studentId} {
         // Student session records store only a PIN - no PII. The anonymous auth UID is the
@@ -3760,7 +3804,7 @@ service cloud.firestore {
         // to 'active', so a fabricated rejoin can't escape a freeze or self-freeze.
         allow update: if request.auth != null &&
           (
-            ((authUid() == userId || isAdmin()) &&
+            (((authUid() == userId && viewAsOk()) || isAdmin()) &&
              changedOnly(['status']) &&
              incoming().status in ['active', 'frozen', 'disconnected']) ||
             (authUid() == studentId &&
@@ -3772,7 +3816,7 @@ service cloud.firestore {
              isValidLiveStudentPayload(incoming()))
           );
         allow delete: if request.auth != null &&
-          (authUid() == userId || isAdmin());
+          ((authUid() == userId && viewAsOk()) || isAdmin());
       }
     }
 

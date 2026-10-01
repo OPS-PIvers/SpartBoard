@@ -3243,6 +3243,8 @@ describe('index barrel — deployed export set', () => {
     'organizationBuildingCounters',
     'resetOrganizationUserPassword',
     'deleteOrganizationUser',
+    'startViewAsSessionV1',
+    'updateViewAsSessionV1',
     'getOrgUserActivity',
     // PLC invites / rollout emails
     'plcInvitationEmail',

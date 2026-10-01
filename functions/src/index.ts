@@ -174,6 +174,7 @@ export { organizationMemberCounters } from './organizationMemberCounters';
 export { organizationBuildingCounters } from './organizationBuildingCounters';
 export { resetOrganizationUserPassword } from './organizationResetPassword';
 export { deleteOrganizationUser } from './organizationUserDelete';
+export { startViewAsSessionV1, updateViewAsSessionV1 } from './viewAs';
 export { getOrgUserActivity } from './organizationUserActivity';
 export { plcInvitationEmail } from './plcInviteEmails';
 export { rolloutRequestEmail } from './rolloutRequestEmail';
