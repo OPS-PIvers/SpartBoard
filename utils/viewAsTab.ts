@@ -150,3 +150,32 @@ export function assertViewAsCanWrite(): void {
 export function viewAsAuditsWrite(): boolean {
   return isViewAsTab && state.unlocked && !state.ended;
 }
+
+let auditedWriteDepth = 0;
+let outwardWindowEndsAt = 0;
+const OUTWARD_WINDOW_MS = 60_000;
+
+/** Marks Firestore writes started synchronously inside fn as audited, so the app-wide guard lets them through. */
+export function runAuditedWrite<T>(fn: () => T): T {
+  auditedWriteDepth += 1;
+  try {
+    return fn();
+  } finally {
+    auditedWriteDepth -= 1;
+  }
+}
+
+/** A confirmed outward action may write for a short window (D14). */
+export function openViewAsOutwardWindow(): void {
+  outwardWindowEndsAt = Date.now() + OUTWARD_WINDOW_MS;
+}
+
+/** App-wide guard on raw Firestore writes: in an unlocked tab only audited saves and confirmed outward actions pass. */
+export function viewAsBlocksRawWrite(): boolean {
+  if (!isViewAsTab) return false;
+  if (!state.unlocked || state.ended) {
+    viewAsBlocksWrite();
+    return true;
+  }
+  return auditedWriteDepth === 0 && Date.now() >= outwardWindowEndsAt;
+}

@@ -27,6 +27,7 @@ import { getLocalIsoDate } from '@/utils/localDate';
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency';
 import { assignPins } from '@/utils/rosterPins';
 import { viewAsAuditCreated, viewAsDirectSave } from '@/utils/viewAsAudit';
+import { runAuditedWrite } from '@/utils/viewAsTab';
 import { collapseTestSuffix } from '@/utils/testClassSuffix';
 import { noDriveMessage } from '@/utils/viewAsDrive';
 
@@ -941,9 +942,8 @@ export const useRosters = (user: User | null) => {
         createdAt: Date.now(),
         ...meta,
       };
-      const ref = await addDoc(
-        collection(db, 'users', user.uid, 'rosters'),
-        firestoreData
+      const ref = await runAuditedWrite(() =>
+        addDoc(collection(db, 'users', user.uid, 'rosters'), firestoreData)
       );
       void viewAsAuditCreated(ref);
 
@@ -954,9 +954,10 @@ export const useRosters = (user: User | null) => {
             students: withPins,
             ...emptyRosterFileExtras(),
           });
-          await updateDoc(doc(db, 'users', user.uid, 'rosters', ref.id), {
-            driveFileId,
-          });
+          const rosterRef = doc(db, 'users', user.uid, 'rosters', ref.id);
+          await viewAsDirectSave(rosterRef, ['driveFileId'], () =>
+            updateDoc(rosterRef, { driveFileId })
+          );
           studentsCacheRef.current.set(ref.id, {
             students: withPins,
             ...emptyRosterFileExtras(),
