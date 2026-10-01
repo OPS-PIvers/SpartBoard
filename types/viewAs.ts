@@ -81,3 +81,34 @@ export interface ViewAsAuditEntry {
   reason?: string;
   timestamp: unknown;
 }
+
+/** Every view-as audit action, in the order the View as log filters list them. */
+export const VIEW_AS_LOG_ACTIONS = [
+  'view_as_start',
+  'view_as_renew',
+  'view_as_unlock',
+  'view_as_end',
+  'view_as_save',
+  'view_as_approve',
+  'view_as_outward',
+  'view_as_revert',
+] as const satisfies readonly ViewAsAuditAction[];
+
+/**
+ * Revertable entries (view_as_save, view_as_approve): `path` is a doc path under
+ * `users/{targetUid}`, plus `#widgets/{widgetId}` for one board widget. `before` and
+ * `after` map each changed field (dotted for a doc, top-level for a widget) to its
+ * value; a key missing from one side means the field was absent.
+ */
+export interface RevertViewAsChangeRequest {
+  logId: string;
+  /** Revert although the field moved on, only while it still holds `seen`. */
+  force?: boolean;
+  seen?: Record<string, unknown>;
+}
+
+export type RevertViewAsChangeResponse =
+  | { status: 'reverted' }
+  | { status: 'conflict'; current: Record<string, unknown> }
+  | { status: 'missing' }
+  | { status: 'already' };
