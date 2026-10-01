@@ -41,6 +41,7 @@ import {
   SyncedVideoActivityVersionConflictError,
 } from './useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
+import { noDriveMessage } from '@/utils/viewAsDrive';
 
 // Re-export so consumers can catch the version-conflict error without
 // importing from the synced-groups module directly. Mirrors the
@@ -155,7 +156,9 @@ export const useVideoActivity = (
     }
     if (!googleAccessToken) {
       throw new Error(
-        'Not connected to Google Drive. Please sign in again to grant access.'
+        noDriveMessage(
+          'Not connected to Google Drive. Please sign in again to grant access.'
+        )
       );
     }
     return new QuizDriveService(googleAccessToken);

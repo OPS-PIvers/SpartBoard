@@ -104,6 +104,7 @@ import {
   viewAsSuppressesBackgroundWrites,
 } from '@/utils/viewAsTab';
 import { endViewAsSession } from '@/utils/viewAsSession';
+import { fetchViewAsDriveToken } from '@/utils/viewAsDrive';
 import { deriveUserTier, meetsMinTier } from '@/utils/userTier';
 import { isBetaUser as isBetaUserShared } from '@/utils/betaAccess';
 import { OPERATOR_ORG_ID } from '@/config/organization';
@@ -560,8 +561,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const refreshGoogleToken = useCallback(
     async (silent: boolean = true): Promise<string | null> => {
       if (isAuthBypass) return MOCK_ACCESS_TOKEN;
-      // Drive in View as is a later slice (plan D5); never borrow a Google session here.
-      if (isViewAsTab) return null;
+      // View as only ever uses the target's stored grant (plan D5); never a Google session or popup.
+      if (isViewAsTab) {
+        const viewAsToken = await fetchViewAsDriveToken();
+        if (!viewAsToken) return null;
+        const seconds =
+          Number.isFinite(viewAsToken.expiresIn) && viewAsToken.expiresIn > 0
+            ? viewAsToken.expiresIn
+            : 3600;
+        localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, viewAsToken.accessToken);
+        localStorage.setItem(
+          GOOGLE_TOKEN_EXPIRY_KEY,
+          (Date.now() + seconds * 1000).toString()
+        );
+        setGoogleAccessToken(viewAsToken.accessToken);
+        return viewAsToken.accessToken;
+      }
       if (silent && inFlightSilentRefreshRef.current) {
         return inFlightSilentRefreshRef.current;
       }
@@ -897,7 +912,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Skipped while Drive is disconnected — DriveDisconnectBanner owns that case
   // and its reconnect already routes through the code flow.
   useEffect(() => {
-    if (isAuthBypass || !user || !googleAccessToken) return;
+    if (isAuthBypass || isViewAsTab || !user || !googleAccessToken) return;
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
       | string
       | undefined;
@@ -1153,6 +1168,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // sessions and the user reloads without going through the sidebar.
   useEffect(() => {
     if (isAuthBypass || !user) return;
+    // View as fetches the target's token from the server, so it needs no GIS.
+    if (isViewAsTab) {
+      void refreshGoogleToken(true);
+      return;
+    }
 
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
       | string

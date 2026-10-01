@@ -3246,6 +3246,7 @@ describe('index barrel — deployed export set', () => {
     'startViewAsSessionV1',
     'updateViewAsSessionV1',
     'revertViewAsChangeV1',
+    'getViewAsDriveTokenV1',
     'getOrgUserActivity',
     // PLC invites / rollout emails
     'plcInvitationEmail',
