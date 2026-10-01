@@ -43,7 +43,8 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
   plc,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const groupWording = canAccessFeature('my-groups');
   const { addToast } = useDashboard();
   const { showConfirm } = useDialog();
   const canEdit = useCanEditPlcContent();
@@ -87,24 +88,33 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
       try {
         await shareBankWithPlc(meta, plc.id);
         addToast(
-          t('plcDashboard.bankLibrary.sharedToast', {
-            title: meta.title,
-            defaultValue: '"{{title}}" shared with this PLC.',
-          }),
+          groupWording
+            ? t('plcDashboard.bankLibrary.groupSharedToast', {
+                title: meta.title,
+                defaultValue: '"{{title}}" shared with this group.',
+              })
+            : t('plcDashboard.bankLibrary.sharedToast', {
+                title: meta.title,
+                defaultValue: '"{{title}}" shared with this PLC.',
+              }),
           'success'
         );
         setSharePickerOpen(false);
       } catch (err) {
         logError('PlcQuestionBanksBody.share', err, { plcId: plc.id, bankId });
         addToast(
-          t('plcDashboard.bankLibrary.shareFailed', {
-            defaultValue: 'Failed to share question bank with this PLC.',
-          }),
+          groupWording
+            ? t('plcDashboard.bankLibrary.groupShareFailed', {
+                defaultValue: 'Failed to share question bank with this group.',
+              })
+            : t('plcDashboard.bankLibrary.shareFailed', {
+                defaultValue: 'Failed to share question bank with this PLC.',
+              }),
           'error'
         );
       }
     },
-    [addToast, banks, plc.id, shareBankWithPlc, t]
+    [addToast, groupWording, banks, plc.id, shareBankWithPlc, t]
   );
 
   const handleImport = useCallback(
@@ -405,9 +415,15 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
 
       {sharePickerOpen && (
         <PlcSharePickerModal
-          title={t('plcDashboard.bankLibrary.sharePickerTitle', {
-            defaultValue: 'Share a question bank with this PLC',
-          })}
+          title={
+            groupWording
+              ? t('plcDashboard.bankLibrary.groupSharePickerTitle', {
+                  defaultValue: 'Share a question bank with this group',
+                })
+              : t('plcDashboard.bankLibrary.sharePickerTitle', {
+                  defaultValue: 'Share a question bank with this PLC',
+                })
+          }
           subtitle={plc.name}
           emptyMessage={t('plcDashboard.bankLibrary.sharePickerEmpty', {
             defaultValue:

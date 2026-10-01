@@ -49,7 +49,10 @@ beforeAll(() => {
 // ---------------------------------------------------------------------------
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: 'owner-1', displayName: 'Teacher One' } }),
+  useAuth: () => ({
+    user: { uid: 'owner-1', displayName: 'Teacher One' },
+    canAccessFeature: () => false,
+  }),
 }));
 
 const addToast = vi.fn();

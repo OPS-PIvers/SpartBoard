@@ -100,7 +100,8 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
   onNavigate,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const groupWording = canAccessFeature('my-groups');
   const { addToast } = useDashboard();
   const { resources, loading, error } = usePlcResources({ plcId: plc.id });
   const { createDoc } = usePlcDocs(plc.id);
@@ -175,10 +176,15 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
       await importOneClick(res);
       markUsed(res.id);
       addToast(
-        t('plcDashboard.resources.useSuccess', {
-          title: res.title,
-          defaultValue: '"{{title}}" added to this PLC.',
-        }),
+        groupWording
+          ? t('plcDashboard.resources.groupUseSuccess', {
+              title: res.title,
+              defaultValue: '"{{title}}" added to this group.',
+            })
+          : t('plcDashboard.resources.useSuccess', {
+              title: res.title,
+              defaultValue: '"{{title}}" added to this PLC.',
+            }),
         'success'
       );
     } catch (err) {
@@ -313,9 +319,13 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
                       {isDone && (
                         <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                           <Check className="w-3 h-3" />
-                          {t('plcDashboard.resources.usedStatus', {
-                            defaultValue: 'Added to your PLC',
-                          })}
+                          {groupWording
+                            ? t('plcDashboard.resources.groupUsedStatus', {
+                                defaultValue: 'Added to your group',
+                              })
+                            : t('plcDashboard.resources.usedStatus', {
+                                defaultValue: 'Added to your PLC',
+                              })}
                         </p>
                       )}
                     </div>

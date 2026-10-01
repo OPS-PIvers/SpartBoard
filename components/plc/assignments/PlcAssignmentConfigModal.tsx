@@ -165,6 +165,7 @@ export const PlcAssignmentConfigModal: React.FC<
 }) => {
   const { t } = useTranslation();
   const { user, getAssignmentMode, canAccessFeature } = useAuth();
+  const groupWording = canAccessFeature('my-groups');
   // D12: with the split on, settings come from the teacher's last-used, editable inline.
   const reviewSplit = kind === 'quiz' && canAccessFeature('quiz-review-split');
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
@@ -418,9 +419,13 @@ export const PlcAssignmentConfigModal: React.FC<
       addToast(
         err instanceof Error
           ? err.message
-          : t('plcDashboard.assignmentConfig.createFailed', {
-              defaultValue: 'Failed to create the PLC assignment.',
-            }),
+          : groupWording
+            ? t('plcDashboard.assignmentConfig.groupCreateFailed', {
+                defaultValue: 'Failed to create the group assignment.',
+              })
+            : t('plcDashboard.assignmentConfig.createFailed', {
+                defaultValue: 'Failed to create the PLC assignment.',
+              }),
         'error'
       );
     } finally {
@@ -428,6 +433,7 @@ export const PlcAssignmentConfigModal: React.FC<
       setSubmitting(false);
     }
   }, [
+    groupWording,
     user,
     onQuizSyncGroupCreated,
     rosters,

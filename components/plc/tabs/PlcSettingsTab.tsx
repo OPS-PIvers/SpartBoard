@@ -252,9 +252,13 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
           })}
         </h3>
         <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-          {t('plcDashboard.settings.digest.description', {
-            defaultValue: 'Control how this PLC stays in the loop.',
-          })}
+          {canAccessFeature('my-groups')
+            ? t('plcDashboard.settings.digest.groupDescription', {
+                defaultValue: 'Control how this group stays in the loop.',
+              })
+            : t('plcDashboard.settings.digest.description', {
+                defaultValue: 'Control how this PLC stays in the loop.',
+              })}
         </p>
         <button
           type="button"
