@@ -23,6 +23,7 @@ import {
   PlcFeatureSettings,
   PlcGroupType,
   PLC_GROUP_TYPES,
+  PLC_MEMBER_ADDED_BY,
   PlcMeetingCadence,
   PlcNormingLevelLabels,
   PlcMember,
@@ -237,6 +238,7 @@ function parsePlcMembers(value: unknown): Record<string, PlcMember> {
       continue;
     }
     const status = m.status === 'removed' ? 'removed' : 'active';
+    const addedBy = PLC_MEMBER_ADDED_BY.find((a) => a === m.addedBy);
     out[uid] = {
       uid: typeof m.uid === 'string' ? m.uid : uid,
       email: typeof m.email === 'string' ? m.email.trim().toLowerCase() : '',
@@ -244,6 +246,7 @@ function parsePlcMembers(value: unknown): Record<string, PlcMember> {
       role: role as PlcRole,
       joinedAt: tsToMillis(m.joinedAt),
       status,
+      ...(addedBy ? { addedBy } : {}),
     };
   }
   return out;
@@ -292,6 +295,8 @@ function readMembersForWrite(
         role: m.role,
         status: m.status,
         joinedAt: rawMembers[uid]?.joinedAt ?? serverTimestamp(),
+        // Written back unchanged so the rules' single-entry members diff still holds.
+        ...(m.addedBy ? { addedBy: m.addedBy } : {}),
       };
     }
     if (includeArrayOnly) {
@@ -403,6 +408,7 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
   const buildingId =
     typeof data.buildingId === 'string' ? data.buildingId : null;
   const groupType = PLC_GROUP_TYPES.find((g) => g === data.groupType);
+  const autoRoster = data.autoRoster === true;
   // members: canonical membership map (Decision 1.2). Legacy PLCs lack it —
   // an empty map is fine; `getPlcMembers` synthesizes from the denormalized
   // arrays in that case.
@@ -420,6 +426,7 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
     digestOptIn,
     ...(features ? { features } : {}),
     ...(groupType ? { groupType } : {}),
+    ...(autoRoster ? { autoRoster } : {}),
     ...(meetingCadence ? { meetingCadence } : {}),
     ...(normingLevelLabels ? { normingLevelLabels } : {}),
     // serverTimestamp-tolerant (Decision 1.3): accept a Firestore Timestamp

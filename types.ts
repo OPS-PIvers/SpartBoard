@@ -293,7 +293,17 @@ export interface PlcMember {
   /** ms since epoch, resolved from a Firestore `serverTimestamp()` on read. */
   joinedAt: number;
   status: 'active' | 'removed';
+  /** How the member joined; auto-roster removes only its own 'autoRoster' adds. */
+  addedBy?: PlcMemberAddedBy;
 }
+
+export type PlcMemberAddedBy = 'admin' | 'autoRoster' | 'invite';
+
+export const PLC_MEMBER_ADDED_BY: readonly PlcMemberAddedBy[] = [
+  'admin',
+  'autoRoster',
+  'invite',
+];
 
 export type PlcNormingLevel = 'high' | 'medium' | 'low' | 'review';
 
@@ -334,6 +344,8 @@ export interface Plc {
   buildingId?: string | null;
   /** Group type (My Groups). Read via `getPlcGroupType`; absent means 'plc'. */
   groupType?: PlcGroupType;
+  /** Building groups only: staff join from their selected building. Server-managed. */
+  autoRoster?: boolean;
   /**
    * Canonical membership map (Decision 1.2): uid → member record. New PLCs
    * always write this. Legacy PLCs may lack it — read membership via the
