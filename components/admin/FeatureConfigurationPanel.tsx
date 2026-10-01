@@ -60,6 +60,7 @@ import { LunchCountConfigurationPanel } from './LunchCountConfigurationPanel';
 import { NeedDoPutThenConfigurationPanel } from './NeedDoPutThenConfigurationPanel';
 import { StationsConfigurationPanel } from './StationsConfigurationPanel';
 import { FlashcardsConfigurationPanel } from './FlashcardsConfigurationPanel';
+import { RoutineGuideConfigurationPanel } from './RoutineGuideConfigurationPanel';
 import { Toggle } from '@/components/common/Toggle';
 
 // Shared prop shape for all "building-defaults" config panels
@@ -91,6 +92,8 @@ const LunchCountBuildingConfigPanel: BuildingConfigPanel = ({
 };
 
 const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
+  routineGuide:
+    RoutineGuideConfigurationPanel as unknown as BuildingConfigPanel,
   lunchCount: LunchCountBuildingConfigPanel,
   url: UrlConfigurationPanel as unknown as BuildingConfigPanel,
   soundboard: SoundboardConfigurationPanel as unknown as BuildingConfigPanel,

@@ -143,6 +143,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   pdf: lazyNamed(() => import('./PdfWidget'), 'PdfWidget'),
   quiz: lazyNamed(() => import('./QuizWidget'), 'QuizWidget'),
   review: lazyNamed(() => import('./QuizWidget'), 'ReviewWidget'),
+  routineGuide: lazyNamed(
+    () => import('./RoutineGuide/Widget'),
+    'RoutineGuideWidget'
+  ),
   flashcards: lazyNamed(
     () => import('./Flashcards/Widget'),
     'FlashcardsWidget'
@@ -647,6 +651,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   review: {
     baseWidth: 620,
     baseHeight: 560,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  routineGuide: {
+    baseWidth: 420,
+    baseHeight: 480,
     canSpread: true,
     skipScaling: true,
     padding: 0,

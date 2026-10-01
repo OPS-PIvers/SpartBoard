@@ -64,7 +64,8 @@ export type WidgetType =
   | 'stations'
   | 'flashcards'
   | 'projects'
-  | 'review';
+  | 'review'
+  | 'routineGuide';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -3018,6 +3019,63 @@ export interface InstructionalRoutinesConfig {
   scaleMultiplier: number;
   structure?: RoutineStructure;
   audience?: RoutineAudience;
+}
+
+export interface RoutineGuideStep {
+  id: string;
+  text: string;
+  label?: string;
+  icon?: string;
+  color?: string;
+  imageUrl?: string;
+  attachedWidget?: {
+    type: WidgetType;
+    label: string;
+    config?: Record<string, unknown>;
+  };
+}
+
+export interface RoutineGuideInfo {
+  what?: string;
+  why?: string;
+  coreComponents?: string;
+}
+
+export interface RoutineGuideRoutine {
+  id: string;
+  name: string;
+  gradeLevels: GradeLevel[];
+  categoryIds: string[];
+  icon: string;
+  color: string;
+  steps: RoutineGuideStep[];
+  info?: RoutineGuideInfo;
+}
+
+export interface RoutineGuideCategory {
+  id: string;
+  label: string;
+}
+
+/** 'grade' | 'favorites' | 'all', or a category id. */
+export type RoutineGuideFilter = string;
+
+export interface RoutineGuideConfig {
+  selectedRoutineId: string | null;
+  stepIndex: number;
+  view: 'step' | 'all';
+  /** 'display' is the launched routine on the board; 'browse' is the library. */
+  mode?: 'browse' | 'display';
+  /** Account-wide via savedWidgetPresets, never written to the widget. */
+  favorites?: string[];
+  /** Account-wide via savedWidgetPresets, never written to the widget. */
+  libraryFilter?: RoutineGuideFilter;
+}
+
+/** feature_permissions/routineGuide.config; unset fields mean the built-in defaults. */
+export interface RoutineGuideGlobalConfig {
+  routines?: RoutineGuideRoutine[];
+  categories?: RoutineGuideCategory[];
 }
 
 export interface TimeToolConfig {
@@ -8567,6 +8625,7 @@ export interface ProjectsConfig {
 
 // Union of all widget configs
 export type WidgetConfig =
+  | RoutineGuideConfig
   | UrlWidgetConfig
   | ClockConfig
   | TrafficConfig
@@ -8766,7 +8825,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                                   ? ProjectsConfig
                                                                                                                                   : T extends 'review'
                                                                                                                                     ? ReviewConfig
-                                                                                                                                    : never;
+                                                                                                                                    : T extends 'routineGuide'
+                                                                                                                                      ? RoutineGuideConfig
+                                                                                                                                      : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -9338,6 +9399,8 @@ export type GlobalFeature =
   | 'quiz-review-split'
   /** Quiz assign/edit: an overall time limit per attempt with a student countdown. */
   | 'quiz-time-limit'
+  /** Routine Guide widget, the instructional routines redesign. */
+  | 'routine-guide'
   /** Class groups with a weekly schedule that pop a reminder on the open board. */
   | 'group-reminders'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */

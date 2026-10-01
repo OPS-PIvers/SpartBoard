@@ -45,6 +45,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-time-limit',
   'group-reminders',
   'guided-learning-ai',
+  'routine-guide',
   'blooms-ai',
   'my-groups',
 ];

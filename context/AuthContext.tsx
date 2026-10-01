@@ -3103,6 +3103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const canAccessWidget = useCallback(
     (widgetType: WidgetType, customBuildings?: string[]): boolean =>
       (widgetType !== 'review' || canAccessFeature('quiz-review-split')) &&
+      (widgetType !== 'routineGuide' || canAccessFeature('routine-guide')) &&
       canAccessWidgetPermission(widgetType, customBuildings),
     [canAccessFeature, canAccessWidgetPermission]
   );

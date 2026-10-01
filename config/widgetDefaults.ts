@@ -315,6 +315,15 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     h: 360,
     config: {},
   },
+  routineGuide: {
+    w: 420,
+    h: 480,
+    config: {
+      selectedRoutineId: null,
+      stepIndex: 0,
+      view: 'step',
+    },
+  },
   instructionalRoutines: {
     w: 400,
     h: 480,
