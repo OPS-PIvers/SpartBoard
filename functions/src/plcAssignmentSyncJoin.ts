@@ -17,6 +17,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import type { SyncedParticipant } from './syncedQuizGroups';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -133,6 +134,7 @@ export const joinPlcAssignmentSyncGroup =
   onCall<JoinPlcAssignmentSyncGroupRequest>(
     { region: 'us-central1' },
     async (request) => {
+      assertViewAsAllowed(request, { outward: true });
       const uid = request.auth?.uid;
       if (!uid) {
         throw new HttpsError(

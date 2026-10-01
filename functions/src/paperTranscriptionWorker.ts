@@ -40,6 +40,7 @@ import {
   type PaperTranscriptionJob,
   type PaperTranscriptionJobStatus,
 } from './paperWrittenTypes';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 /** Longer than the 300 s function timeout, so a live run never loses its lease. */
 export const JOB_LEASE_MS = 6 * 60 * 1000;
@@ -849,6 +850,7 @@ export const retryPaperTranscriptionV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request, { outward: true });
     const caller = request.auth
       ? {
           uid: request.auth.uid,

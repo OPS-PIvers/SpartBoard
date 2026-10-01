@@ -30,6 +30,7 @@ import {
   toGlPublicStep,
   type GlKeyStep,
 } from './guidedLearningPublicStep';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 /** Only the kinds D8 puts in v1; Poll and Activity Wall stay unlaunchable. */
 const LAUNCHABLE_KINDS = [
@@ -1176,8 +1177,9 @@ export const launchSubAssignmentV1 = onCall(
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
-  async (request) =>
-    handleLaunchSubAssignment(
+  async (request) => {
+    assertViewAsAllowed(request, { outward: true });
+    return handleLaunchSubAssignment(
       admin.firestore(),
       request.auth
         ? {
@@ -1190,5 +1192,6 @@ export const launchSubAssignmentV1 = onCall(
           }
         : null,
       request.data
-    )
+    );
+  }
 );

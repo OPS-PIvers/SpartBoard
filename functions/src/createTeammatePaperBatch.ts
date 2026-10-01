@@ -39,6 +39,7 @@ import {
   GOOGLE_OAUTH_CLIENT_SECRET,
   GOOGLE_OAUTH_REFRESH_TOKEN_KEY,
 } from './secrets';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 const OFFLINE_GRANT_SECRETS = [
   GOOGLE_OAUTH_CLIENT_ID,
@@ -931,8 +932,9 @@ export const createTeammatePaperBatchV1 = onCall(
     secrets: OFFLINE_GRANT_SECRETS,
     invoker: 'public',
   },
-  async (request) =>
-    handleCreateTeammatePaperBatch(
+  async (request) => {
+    assertViewAsAllowed(request, { outward: true });
+    return handleCreateTeammatePaperBatch(
       admin.firestore(),
       request.auth
         ? {
@@ -945,7 +947,8 @@ export const createTeammatePaperBatchV1 = onCall(
         : null,
       request.data,
       buildLiveWriteDeps()
-    )
+    );
+  }
 );
 
 export const withdrawTeammatePaperBatchV1 = onCall(
@@ -955,8 +958,9 @@ export const withdrawTeammatePaperBatchV1 = onCall(
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
-  async (request) =>
-    handleWithdrawTeammatePaperBatch(
+  async (request) => {
+    assertViewAsAllowed(request, { outward: true });
+    return handleWithdrawTeammatePaperBatch(
       admin.firestore(),
       request.auth
         ? {
@@ -967,5 +971,6 @@ export const withdrawTeammatePaperBatchV1 = onCall(
           }
         : null,
       request.data
-    )
+    );
+  }
 );

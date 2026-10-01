@@ -5,6 +5,7 @@ import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { matchFlashcardAnswer } from './flashcardMatch';
 import { isPeriodFrozen } from './quizSessionContent';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 // Local mirrors of the root types.ts shapes; functions cannot import root code.
 type FlashcardMode = 'flashcards' | 'write' | 'test';
@@ -408,8 +409,9 @@ export const submitFlashcardCheckV1 = onCall(
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
-  (request) =>
-    handleSubmitFlashcardCheck(
+  (request) => {
+    assertViewAsAllowed(request);
+    return handleSubmitFlashcardCheck(
       admin.firestore(),
       request.auth
         ? {
@@ -420,7 +422,8 @@ export const submitFlashcardCheckV1 = onCall(
         : null,
       request.data,
       Date.now()
-    )
+    );
+  }
 );
 
 function claimClassIds(raw: unknown): string[] {

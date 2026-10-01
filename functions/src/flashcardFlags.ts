@@ -3,6 +3,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 const MAX_ID_LENGTH = 128;
 
@@ -140,8 +141,9 @@ export const resolveFlashcardFlagV1 = onCall(
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
-  (request) =>
-    handleResolveFlashcardFlag(
+  (request) => {
+    assertViewAsAllowed(request);
+    return handleResolveFlashcardFlag(
       admin.firestore(),
       request.auth
         ? {
@@ -150,5 +152,6 @@ export const resolveFlashcardFlagV1 = onCall(
           }
         : null,
       request.data
-    )
+    );
+  }
 );

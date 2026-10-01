@@ -13,6 +13,7 @@ import {
   type ReadAloudDeps,
 } from './quizReadAloud';
 import './functionsInit';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 export const GL_NARRATION_MAX_CHARS = 1500;
 
@@ -119,6 +120,7 @@ export const synthesizeGuidedLearningNarrationV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request, { outward: true });
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
     if (request.auth.token.studentRole === true)

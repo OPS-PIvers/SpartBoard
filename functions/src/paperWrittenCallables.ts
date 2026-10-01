@@ -23,6 +23,7 @@ import {
   type PaperPrivateAnswer,
   type PaperTranscriptionJob,
 } from './paperWrittenTypes';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 /** Crops are capped at 2 MB on upload; the slack covers Drive's copy. */
 export const MAX_CROP_BYTES = 3 * 1024 * 1024;
@@ -928,34 +929,39 @@ const CALLABLE_OPTS = {
 
 export const getPaperWrittenCropV1 = onCall(
   { ...CALLABLE_OPTS, memory: '512MiB', secrets: QUIZ_MEDIA_GOOGLE_SECRETS },
-  (request) =>
-    handleGetPaperWrittenCrop(
+  (request) => {
+    assertViewAsAllowed(request, { read: true });
+    return handleGetPaperWrittenCrop(
       buildDefaultPaperWrittenDeps(),
       callerOf(request.auth),
       request.data
-    )
+    );
+  }
 );
 
-export const updatePaperTranscriptV1 = onCall(CALLABLE_OPTS, (request) =>
-  handleUpdatePaperTranscript(
+export const updatePaperTranscriptV1 = onCall(CALLABLE_OPTS, (request) => {
+  assertViewAsAllowed(request);
+  return handleUpdatePaperTranscript(
     buildDefaultPaperWrittenDeps(),
     callerOf(request.auth),
     request.data
-  )
-);
+  );
+});
 
-export const applyPaperNewerScanV1 = onCall(CALLABLE_OPTS, (request) =>
-  handleApplyPaperNewerScan(
+export const applyPaperNewerScanV1 = onCall(CALLABLE_OPTS, (request) => {
+  assertViewAsAllowed(request);
+  return handleApplyPaperNewerScan(
     buildDefaultPaperWrittenDeps(),
     callerOf(request.auth),
     request.data
-  )
-);
+  );
+});
 
-export const transcribePaperBlankV1 = onCall(CALLABLE_OPTS, (request) =>
-  handleTranscribePaperBlank(
+export const transcribePaperBlankV1 = onCall(CALLABLE_OPTS, (request) => {
+  assertViewAsAllowed(request, { outward: true });
+  return handleTranscribePaperBlank(
     buildDefaultPaperWrittenDeps(),
     callerOf(request.auth),
     request.data
-  )
-);
+  );
+});

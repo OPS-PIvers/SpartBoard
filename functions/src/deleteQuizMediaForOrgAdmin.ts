@@ -38,6 +38,7 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import { isSuperAdminRoleId } from './authz';
 import './functionsInit';
 import { withQuizSessionContent } from './quizSessionContent';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -1086,6 +1087,7 @@ export const listQuizMediaForOrgAdmin = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<ListMediaResponse> => {
+    assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
@@ -1108,6 +1110,7 @@ export const deleteQuizMediaForOrgAdmin = onCall(
     secrets: QUIZ_MEDIA_ARCHIVE_SECRETS,
   },
   async (request): Promise<DeleteMediaResponse> => {
+    assertViewAsAllowed(request);
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }

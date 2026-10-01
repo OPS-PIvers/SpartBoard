@@ -27,6 +27,7 @@ import {
   type InviteEmailConfig,
   escapeHtml,
 } from './organizationInvites';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -170,6 +171,7 @@ export const resetOrganizationUserPassword = onCall(
     timeoutSeconds: 30,
   },
   async (request): Promise<ResetPasswordResponse> => {
+    assertViewAsAllowed(request, { outward: true });
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',

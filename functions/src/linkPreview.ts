@@ -16,6 +16,7 @@ import {
   type ResolvedAddress,
 } from './ssrfGuard';
 import './functionsInit';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 const MAX_REDIRECTS = 2;
 const MAX_RESPONSE_BYTES = 1_048_576;
@@ -146,6 +147,7 @@ export const fetchLinkPreview = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<LinkPreviewResult> => {
+    assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',

@@ -28,6 +28,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 // Guard against double-initialization. The main index.ts module calls
 // initializeApp() at load time; if that module is loaded first (normal
@@ -768,6 +769,7 @@ export const createOrganizationInvites = onCall(
     timeoutSeconds: 60,
   },
   async (request): Promise<CreateOrganizationInvitesResponse> => {
+    assertViewAsAllowed(request, { outward: true });
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',
@@ -1000,6 +1002,7 @@ export const claimOrganizationInvite = onCall(
     timeoutSeconds: 30,
   },
   async (request): Promise<ClaimOrganizationInviteResponse> => {
+    assertViewAsAllowed(request);
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',

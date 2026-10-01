@@ -17,6 +17,7 @@ import {
 } from './activityWallArchive';
 import type { DrivePermission } from './activityWallArchive';
 import './functionsInit';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 interface ArchiveActivityWallPhotoData {
   accessToken?: string;
@@ -172,6 +173,7 @@ export const archiveActivityWallPhoto = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
+    assertViewAsAllowed(request, { outward: true });
     const data = request.data as ArchiveActivityWallPhotoData;
     if (!request.auth) {
       throw new HttpsError(

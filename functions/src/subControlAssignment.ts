@@ -17,6 +17,7 @@ import {
   verifySubShare,
   type SubShareCaller,
 } from './subShareAccess';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 const CONTROLLABLE_KINDS = [
   'quiz',
@@ -249,8 +250,9 @@ export const controlSubAssignmentV1 = onCall(
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
-  async (request) =>
-    handleControlSubAssignment(
+  async (request) => {
+    assertViewAsAllowed(request, { outward: true });
+    return handleControlSubAssignment(
       admin.firestore(),
       request.auth
         ? {
@@ -263,5 +265,6 @@ export const controlSubAssignmentV1 = onCall(
           }
         : null,
       request.data
-    )
+    );
+  }
 );

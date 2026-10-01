@@ -17,6 +17,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import type { SyncedVideoActivityParticipant } from './syncedVideoActivityGroups';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -127,6 +128,7 @@ export const joinPlcVideoActivitySyncGroup =
   onCall<JoinPlcVideoActivitySyncGroupRequest>(
     { region: 'us-central1' },
     async (request) => {
+      assertViewAsAllowed(request, { outward: true });
       const uid = request.auth?.uid;
       if (!uid) {
         throw new HttpsError(

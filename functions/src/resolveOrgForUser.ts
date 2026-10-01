@@ -33,6 +33,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { normalizeEmailDomain, resolveOrgIdForDomain } from './classlinkShared';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -134,6 +135,7 @@ export const resolveOrgForUser = onCall(
     timeoutSeconds: 15,
   },
   async (request): Promise<ResolveOrgForUserResponse> => {
+    const viewAs = assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',
@@ -170,7 +172,9 @@ export const resolveOrgForUser = onCall(
         // (the client would fall back to the operator org and lose the
         // resolved orgId entirely). The next app load retries.
         try {
-          await autoEnrollMember(db, orgId, request.auth.uid, token);
+          // View as never provisions the target (ADMIN_VIEW_AS.md D6).
+          if (!viewAs)
+            await autoEnrollMember(db, orgId, request.auth.uid, token);
         } catch (err) {
           console.error(
             `[resolveOrgForUser] auto-enroll failed for org ${orgId}:`,

@@ -23,6 +23,7 @@
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 // Guard so this module can be loaded standalone in tests/tooling without
 // double-initializing when index.ts already ran initializeApp().
@@ -174,6 +175,7 @@ export async function handleLeaveSyncedQuizGroup(
 export const joinSyncedQuizGroup = onCall<JoinSyncedQuizGroupRequest>(
   { region: 'us-central1' },
   async (request) => {
+    assertViewAsAllowed(request, { outward: true });
     const uid = request.auth?.uid;
     if (!uid) {
       throw new HttpsError('unauthenticated', 'Sign in to join a synced quiz.');
@@ -189,6 +191,7 @@ export const joinSyncedQuizGroup = onCall<JoinSyncedQuizGroupRequest>(
 export const leaveSyncedQuizGroup = onCall<LeaveSyncedQuizGroupRequest>(
   { region: 'us-central1' },
   async (request) => {
+    assertViewAsAllowed(request);
     const uid = request.auth?.uid;
     if (!uid) {
       throw new HttpsError(
