@@ -21,6 +21,7 @@ import {
   BookOpenCheck,
   Library,
   ClipboardList,
+  History,
 } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
@@ -41,6 +42,7 @@ import { StandardsPanel } from './StandardsPanel';
 import { SubjectsPanel } from './SubjectsPanel';
 import { AccessSearchProvider } from './access/AccessSearchProvider';
 import { GradebookAdminPanel } from './Gradebook/GradebookAdminPanel';
+import { ViewAsLogPanel } from './ViewAsLog/ViewAsLogPanel';
 import type { GlobalFeature } from '@/types';
 
 interface AdminSettingsProps {
@@ -147,6 +149,13 @@ const TAB_GROUPS = [
         label: 'Analytics',
         icon: BarChart,
         component: AnalyticsManager,
+      },
+      {
+        id: 'view-as-log',
+        label: 'View as log',
+        icon: History,
+        component: ViewAsLogPanel,
+        superAdminOnly: true,
       },
     ],
   },

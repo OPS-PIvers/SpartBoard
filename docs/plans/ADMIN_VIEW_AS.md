@@ -111,6 +111,7 @@ Paul can already sign in to each person's real account, so this is a speed tool,
   - A new super-admin-only Admin Settings tab, "View-as log", filters by admin and by target.
   - Each change has a one-click **Revert**. It re-applies `before` only if the field still holds the logged `after`. Otherwise it shows the logged and current values side by side, and you decide.
   - Revert runs as a callable using the Admin SDK, not a view-as session.
+  - Revert keeps working with the kill switch off, so changes can be undone after an incident shutdown. It only touches `users/{targetUid}/**` (never `private`), and only entries whose `sid` matches a real session.
 - **D17.** Release.
   - An `admin_settings/view_as` kill switch is added to `config/rolloutSwitches.ts`, with its toggle on the Previews tab. It is on in dev and ships off in prod until Paul flips it.
   - The feature is super-admin-only, so it is exempt from the teacher preview flag.

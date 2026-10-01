@@ -1009,7 +1009,11 @@ service cloud.firestore {
     // sensitive settings changes. timestamp is set server-side via
     // serverTimestamp(), so no is-int validation here.
     match /admin_audit_log/{logId} {
-      allow read, create: if isAdmin();
+      // View-as entries carry teacher data: super admins read them, and only the server
+      // or a view-as tab (below) writes them.
+      allow read: if (isAdmin() && !existing().get('action', '').matches('view_as_.*')) ||
+                     isSuperAdmin();
+      allow create: if isAdmin() && !incoming().get('action', '').matches('view_as_.*');
       // An unlocked view-as tab logs its own saves, approvals and outward
       // actions (ADMIN_VIEW_AS.md D16). Every identity field must match the
       // server-minted claim; session lifecycle entries are server-only.
@@ -1024,6 +1028,8 @@ service cloud.firestore {
                        incoming().email == request.auth.token.viewAs.by &&
                        incoming().targetUid == authUid() &&
                        incoming().targetEmail == request.auth.token.get('email', '').lower() &&
+                       incoming().get('path', 'users/' + authUid()).matches('users/' + authUid() + '(/.*)?') &&
+                       !incoming().get('path', '').matches('users/[^/]+/private(/.*)?') &&
                        incoming().timestamp == request.time;
     }
 

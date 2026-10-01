@@ -3245,6 +3245,7 @@ describe('index barrel — deployed export set', () => {
     'deleteOrganizationUser',
     'startViewAsSessionV1',
     'updateViewAsSessionV1',
+    'revertViewAsChangeV1',
     'getOrgUserActivity',
     // PLC invites / rollout emails
     'plcInvitationEmail',
