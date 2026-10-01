@@ -17,7 +17,8 @@ export function useRoutineGuideGroups(filter: string) {
   const enabled = canAccessFeature('my-groups');
   const { plcs, loading } = usePlcs({ enabled });
   const groupId = enabled ? groupIdFromFilter(filter) : null;
-  const { goals, loading: goalsLoading } = usePlcGoals(groupId);
+  const member = !!groupId && plcs.some((p) => p.id === groupId);
+  const { goals, loading: goalsLoading } = usePlcGoals(member ? groupId : null);
 
   const groups = useMemo(
     () =>
@@ -42,7 +43,7 @@ export function useRoutineGuideGroups(filter: string) {
     groups,
     groupId,
     /** The selected group no longer lists this teacher (left or removed). */
-    missing: !!groupId && !loading && !groups.some((g) => g.id === groupId),
+    missing: !!groupId && !loading && !member,
     routineIds,
     loading: loading || goalsLoading,
   };
