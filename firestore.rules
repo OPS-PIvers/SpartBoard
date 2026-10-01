@@ -2201,9 +2201,6 @@ service cloud.firestore {
       return v == null || v is timestamp || v is int;
     }
 
-    // Tenancy field (orgId / buildingId, Decision 1.1) immutable-after-set: may be
-    // backfilled once (null → value) or rewritten to the same value, never to a
-    // different one — stops re-homing a PLC into another org's directory.
     // Lead may switch between teacher group types; building groups and auto-roster are admin-only.
     function plcLeadGroupFieldsOk() {
       let oldType = resource.data.get('groupType', 'plc');
@@ -2213,6 +2210,9 @@ service cloud.firestore {
             || (oldType != 'building' && newType in ['plc', 'department', 'mentoring']));
     }
 
+    // Tenancy field (orgId / buildingId, Decision 1.1) immutable-after-set: may be
+    // backfilled once (null → value) or rewritten to the same value, never to a
+    // different one — stops re-homing a PLC into another org's directory.
     function plcTenancyImmutableAfterSet(field) {
       let old = resource.data.get(field, null);
       let knew = request.resource.data.get(field, null);
