@@ -240,9 +240,15 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
   const symbol = group.symbol ?? defaultGroupSymbol();
   const reminder = group.reminder ?? defaultGroupReminder();
   const setSymbol = (patch: Partial<RosterGroupSymbol>) =>
-    setGroup((g) => ({ ...g, symbol: { ...symbol, ...patch } }));
+    setGroup((g) => ({
+      ...g,
+      symbol: { ...(g.symbol ?? defaultGroupSymbol()), ...patch },
+    }));
   const setReminder = (patch: Partial<RosterGroupReminder>) =>
-    setGroup((g) => ({ ...g, reminder: { ...reminder, ...patch } }));
+    setGroup((g) => ({
+      ...g,
+      reminder: { ...(g.reminder ?? defaultGroupReminder()), ...patch },
+    }));
 
   const members = new Set(group.studentIds);
   const memberNames = students

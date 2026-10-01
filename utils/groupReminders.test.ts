@@ -4,7 +4,6 @@ import {
   LATE_WINDOW_MS,
   dueReminders,
   formatReminderSummary,
-  msUntilNextReminder,
   parseGroupReminder,
   parseGroupSymbol,
   reminderFallsOn,
@@ -95,14 +94,6 @@ describe('dueReminders', () => {
         at('2026-09-28', '10:15').getTime() + LATE_WINDOW_MS + 1
       )
     ).toEqual([]);
-  });
-
-  it('reports the wait until the next reminder today', () => {
-    const now = at('2026-09-28', '10:00').getTime();
-    expect(msUntilNextReminder([roster(groups)], now)).toBe(15 * 60 * 1000);
-    expect(
-      msUntilNextReminder([roster(groups)], at('2026-09-29').getTime())
-    ).toBeNull();
   });
 });
 

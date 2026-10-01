@@ -211,24 +211,6 @@ export function dueReminders(
   return due.sort((a, b) => a.at - b.at);
 }
 
-/** Ms until the next reminder time today after `now`, or null when none is left. */
-export function msUntilNextReminder(
-  rosters: ClassRoster[],
-  now: number
-): number | null {
-  const today = new Date(now);
-  let next: number | null = null;
-  for (const roster of rosters) {
-    for (const group of roster.groups ?? []) {
-      const reminder = group.reminder;
-      if (!reminder || !reminderFallsOn(reminder, today)) continue;
-      const at = reminderTimeOn(reminder, today);
-      if (at > now && (next === null || at < next)) next = at;
-    }
-  }
-  return next === null ? null : next - now;
-}
-
 export function formatReminderTime(time: string, locale?: string): string {
   const [h, m] = time.split(':').map(Number);
   return new Date(2000, 0, 3, h, m).toLocaleTimeString(locale, {
