@@ -1,6 +1,23 @@
 {
   "entries": [
     {
+      "version": "2026.10.01.2",
+      "date": "2026-10-01",
+      "title": "Exporting PLC quiz results",
+      "overview": [
+        {
+          "type": "fix",
+          "subtitle": "Fixes",
+          "items": [
+            {
+              "text": "Export to Sheets now works for a quiz assigned through a PLC that has no shared results sheet. The results go to a new sheet in your own Drive."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.10.01.1",
       "date": "2026-10-01",
       "title": "Small fixes to Calendar, word counts and widget titles",
