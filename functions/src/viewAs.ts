@@ -48,6 +48,12 @@ export async function isViewAsEnabled(db: Firestore): Promise<boolean> {
   return snap.exists && snap.get('enabled') === true;
 }
 
+/** Unlock stays off until every unlocked write path is audited (ADMIN_VIEW_AS.md D13). */
+export async function isViewAsUnlockAllowed(db: Firestore): Promise<boolean> {
+  const snap = await db.doc(VIEW_AS_SETTINGS_PATH).get();
+  return snap.exists && snap.get('allowUnlock') === true;
+}
+
 export async function assertEnabled(db: Firestore): Promise<void> {
   if (!(await isViewAsEnabled(db))) {
     throw new HttpsError('failed-precondition', 'View as is turned off.');
@@ -243,6 +249,7 @@ export const startViewAsSessionV1 = onCall(
       targetEmail,
       adminTarget,
       expiresAt: exp,
+      canUnlock: !adminTarget && (await isViewAsUnlockAllowed(db)),
     };
   }
 );
@@ -331,8 +338,10 @@ export const updateViewAsSessionV1 = onCall(
     await assertEnabled(db);
     await assertStrictSuperAdmin(db, claim.by);
 
+    const unlockAllowed = await isViewAsUnlockAllowed(db);
     if (action === 'renew') {
       const exp = now + VIEW_AS_SESSION_MS;
+      const unlocked = session.unlocked && unlockAllowed;
       await ref.update({
         expiresAt: admin.firestore.Timestamp.fromMillis(exp),
       });
@@ -342,13 +351,19 @@ export const updateViewAsSessionV1 = onCall(
       const token = await mint(session.targetUid, {
         by: session.by,
         sid: claim.sid,
-        ro: !session.unlocked,
+        ro: !unlocked,
         adminTarget: session.adminTarget,
         exp,
       });
-      return { token, expiresAt: exp, unlocked: session.unlocked };
+      return { token, expiresAt: exp, unlocked };
     }
 
+    if (!unlockAllowed) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Editing in View as is turned off.'
+      );
+    }
     // unlock: admins are view-only (D3), re-checked in case the role changed mid-session.
     const nowAdmin = await isAdminAccount(db, session.targetEmail);
     if (session.adminTarget || nowAdmin) {

@@ -17,6 +17,7 @@ export interface ViewAsHandoff {
   targetEmail: string;
   adminTarget: boolean;
   expiresAt: number;
+  canUnlock?: boolean;
 }
 
 export interface ViewAsTabState {
@@ -61,7 +62,7 @@ export function viewAsSuppressesBackgroundWrites(): boolean {
 
 /** D7 client guard for user-initiated saves; true means skip the write. Unlocked saves pass (D13). */
 export function viewAsBlocksWrite(): boolean {
-  if (!isViewAsTab || state.unlocked) return false;
+  if (!isViewAsTab || (state.unlocked && !state.ended)) return false;
   if (state.blockedNotice === 0) updateViewAsTabState({ blockedNotice: 1 });
   return true;
 }

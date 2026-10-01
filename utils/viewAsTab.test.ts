@@ -61,6 +61,7 @@ describe('viewAsTab', () => {
     expect(mod.viewAsAuditsWrite()).toBe(true);
     mod.updateViewAsTabState({ ended: true });
     expect(mod.viewAsAuditsWrite()).toBe(false);
+    expect(mod.viewAsBlocksWrite()).toBe(true);
   });
 
   it('notifies subscribers on state changes', async () => {

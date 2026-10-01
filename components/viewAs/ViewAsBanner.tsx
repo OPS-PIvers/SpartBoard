@@ -174,7 +174,7 @@ export const ViewAsBanner: React.FC = () => {
               Pending changes ({pending.length})
             </button>
           )}
-          {viewAs.readOnly && !viewAs.adminTarget && (
+          {viewAs.readOnly && viewAs.canUnlock && (
             <button
               type="button"
               disabled={busy !== null}

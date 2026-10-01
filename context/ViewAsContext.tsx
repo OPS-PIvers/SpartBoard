@@ -71,6 +71,7 @@ export const ViewAsGate: React.FC<{
             adminTarget: session.adminTarget,
             expiresAt: session.expiresAt,
             readOnly: !tab.unlocked,
+            canUnlock: session.canUnlock === true,
             renew,
             unlock,
             end: endViewAsSession,

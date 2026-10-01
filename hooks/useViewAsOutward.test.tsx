@@ -23,6 +23,7 @@ const session = (readOnly: boolean): ViewAsContextValue => ({
   adminTarget: false,
   expiresAt: Date.now() + 60_000,
   readOnly,
+  canUnlock: true,
   renew: vi.fn(),
   unlock: vi.fn(),
   end: vi.fn(),
