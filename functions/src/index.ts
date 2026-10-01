@@ -260,6 +260,7 @@ export { migratePlcs } from './migratePlcs';
 
 // Dev-only: copy the caller's own prod materials into spartboard-dev.
 export { syncMyMaterialsFromProdV1 } from './devSyncFromProd';
+export { gradebookDemoV1 } from './devGradebookDemo';
 export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 export { expireSubShares } from './expireSubShares';
 export { launchSubAssignmentV1 } from './subLaunchAssignment';

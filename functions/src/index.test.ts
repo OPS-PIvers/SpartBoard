@@ -3304,6 +3304,7 @@ describe('index barrel — deployed export set', () => {
     'cleanupPlcNormingOnSessionDelete',
     // Dev-only prod → dev materials sync
     'syncMyMaterialsFromProdV1',
+    'gradebookDemoV1',
     // Guided Learning Storage slide GC
     'gcGuidedLearningMedia',
     'gcBuildingGuidedLearningMedia',
