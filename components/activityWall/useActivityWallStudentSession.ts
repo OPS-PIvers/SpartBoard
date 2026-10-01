@@ -4,6 +4,7 @@ import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { STUDENT_FIRST_NAME_KEY } from '@/context/StudentAuthContextValue';
 import { useResolvedFirebaseUser } from '@/hooks/useResolvedFirebaseUser';
+import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 import {
   normalizeActivityWallSession,
   normalizeActivityWallSubmission,
@@ -173,7 +174,8 @@ export function useActivityWallStudentSession(
     !!session &&
     !isStudent &&
     !isOwner &&
-    !session.allowGuests;
+    !session.allowGuests &&
+    !studentPreviewBlocksWrite();
   const wallVisible = !!session && session.studentsCanSeePosts !== false;
 
   useEffect(() => {

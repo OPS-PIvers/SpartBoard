@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import type { QuizResponse, QuizSession } from '@/types';
+import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 
 /** Asks the server to score a submitted attempt when the quiz shows scores on submit. */
 export function useQuizScoreOnSubmit(
@@ -22,6 +23,7 @@ export function useQuizScoreOnSubmit(
   const requested = useRef<string | null>(null);
   useEffect(() => {
     if (!requestKey || !sessionId || requested.current === requestKey) return;
+    if (studentPreviewBlocksWrite()) return;
     requested.current = requestKey;
     const score = httpsCallable<
       { sessionId: string },

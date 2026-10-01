@@ -101,6 +101,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   withdrawTeammatePaperBatchV1: 'outward',
   // The session callables read the claim themselves.
   startViewAsSessionV1: 'session',
+  startViewAsStudentV1: 'session',
   updateViewAsSessionV1: 'session',
   // Refuses every View as token itself; the guard ends a stale one first.
   revertViewAsChangeV1: 'write',

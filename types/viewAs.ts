@@ -37,6 +37,33 @@ export interface StartViewAsSessionResponse {
   canUnlock?: boolean;
 }
 
+export type StudentPreviewKind =
+  | 'quiz'
+  | 'video-activity'
+  | 'guided-learning'
+  | 'activity-wall';
+
+export interface StudentPreviewHandoff {
+  sid: string;
+  token: string;
+  studentUid: string;
+  kind: StudentPreviewKind;
+  sessionId: string;
+  /** The response doc id (quiz, VA, GL) or post author uid (activity wall). */
+  studentKey: string;
+  expiresAt: number;
+}
+
+/** startViewAsStudentV1, called from a teacher's View as tab (D15). */
+export interface StartViewAsStudentRequest {
+  kind: StudentPreviewKind;
+  sessionId: string;
+  /** The response doc id (quiz, VA, GL) or post author uid (activity wall). */
+  studentKey: string;
+}
+
+export type StartViewAsStudentResponse = StudentPreviewHandoff;
+
 export type ViewAsSessionAction = 'renew' | 'unlock' | 'end';
 
 export interface UpdateViewAsSessionRequest {
@@ -64,6 +91,7 @@ export const VIEW_AS_CLIENT_AUDIT_ACTIONS = [
 
 export type ViewAsAuditAction =
   | 'view_as_start'
+  | 'view_as_student'
   | 'view_as_renew'
   | 'view_as_unlock'
   | 'view_as_end'
@@ -87,6 +115,7 @@ export interface ViewAsAuditEntry {
 /** Every view-as audit action, in the order the View as log filters list them. */
 export const VIEW_AS_LOG_ACTIONS = [
   'view_as_start',
+  'view_as_student',
   'view_as_renew',
   'view_as_unlock',
   'view_as_end',

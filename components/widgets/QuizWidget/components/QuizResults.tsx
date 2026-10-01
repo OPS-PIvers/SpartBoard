@@ -191,6 +191,7 @@ import type {
 } from '@/utils/quizFibAnswers';
 import { QuizTargetResults } from './QuizTargetResults';
 import { useViewAsOutward } from '@/hooks/useViewAsOutward';
+import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
 
 /**
  * Export-error banner state. Generic errors render as a plain message; a
@@ -4232,6 +4233,14 @@ const StudentsScreen: React.FC<{
                         classVisibility={classVisibility}
                         actions={resultsActions}
                         addToast={addToast}
+                      />
+                    )}
+
+                    {session?.id && (
+                      <ViewAsStudentButton
+                        kind="quiz"
+                        sessionId={session.id}
+                        studentKey={rowKey}
                       />
                     )}
 

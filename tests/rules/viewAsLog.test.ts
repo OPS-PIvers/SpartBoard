@@ -29,6 +29,7 @@ import {
 // Mirrors VIEW_AS_LOG_ACTIONS in types/viewAs.ts (this config has no @/ alias).
 const VIEW_AS_LOG_ACTIONS = [
   'view_as_start',
+  'view_as_student',
   'view_as_renew',
   'view_as_unlock',
   'view_as_end',

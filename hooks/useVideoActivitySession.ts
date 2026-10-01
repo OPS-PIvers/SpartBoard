@@ -71,6 +71,7 @@ import {
   studentPeriodKeys,
 } from '@/utils/periodAccess';
 import { getServerNow } from '@/utils/serverTime';
+import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 import {
   createLeadingTrailingThrottle,
   RESPONSES_THROTTLE_MS,
@@ -675,6 +676,8 @@ export interface UseVideoActivitySessionStudentResult {
     pin: string | undefined,
     classPeriod?: string
   ) => Promise<void>;
+  /** View as student (D15): loads an existing response without joining; writes stay no-ops. */
+  previewResponse: (sessionId: string, responseDocId: string) => Promise<void>;
   /** `isCorrect` is the server check's verdict, kept for the student's own summary only. */
   submitAnswer: (
     questionId: string,
@@ -742,7 +745,7 @@ export const useVideoActivitySessionStudent =
 
     const runDeferredReset = useCallback((s: VideoActivitySession) => {
       const pending = deferredResetRef.current;
-      if (!pending) return;
+      if (!pending || studentPreviewBlocksWrite()) return;
       if (
         !studentCanEnter(s, pending.keys, auth.currentUser?.uid, getServerNow())
       )
@@ -901,6 +904,7 @@ export const useVideoActivitySessionStudent =
         studentPin: string | undefined,
         classPeriod?: string
       ): Promise<void> => {
+        if (studentPreviewBlocksWrite()) return;
         setJoinStatus('loading');
         setError(null);
         deferredResetRef.current = null;
@@ -1397,7 +1401,7 @@ export const useVideoActivitySessionStudent =
         answer: string,
         isCorrect?: boolean
       ): Promise<void> => {
-        if (!sessionId || !responseDocId) return;
+        if (!sessionId || !responseDocId || studentPreviewBlocksWrite()) return;
 
         const responseRef = doc(
           db,
@@ -1428,7 +1432,7 @@ export const useVideoActivitySessionStudent =
     );
 
     const completeActivity = useCallback(async (): Promise<void> => {
-      if (!sessionId || !responseDocId) return;
+      if (!sessionId || !responseDocId || studentPreviewBlocksWrite()) return;
 
       const responseRef = doc(
         db,
@@ -1539,7 +1543,9 @@ export const useVideoActivitySessionStudent =
     );
 
     const reportTabSwitch = useCallback(async (): Promise<number> => {
-      if (!sessionId || !responseDocId) return warningCountRef.current;
+      if (!sessionId || !responseDocId || studentPreviewBlocksWrite()) {
+        return warningCountRef.current;
+      }
       const responseRef = doc(
         db,
         SESSIONS_COLLECTION,
@@ -1575,7 +1581,7 @@ export const useVideoActivitySessionStudent =
 
     const saveTabExits = useCallback(
       async (exits: TabExit[]): Promise<void> => {
-        if (!sessionId || !responseDocId) return;
+        if (!sessionId || !responseDocId || studentPreviewBlocksWrite()) return;
         await updateDoc(
           doc(
             db,
@@ -1597,6 +1603,7 @@ export const useVideoActivitySessionStudent =
         answer: string
       ): Promise<VideoActivityCheckResult> => {
         if (!activeSessionId) throw new Error('No active session');
+        if (studentPreviewBlocksWrite()) throw new Error('View-only');
         const callable = httpsCallable<
           { sessionId: string; questionId: string; answer: string },
           VideoActivityCheckResult
@@ -1611,6 +1618,33 @@ export const useVideoActivitySessionStudent =
       [activeSessionId]
     );
 
+    const previewResponse = useCallback(
+      async (targetSessionId: string, targetResponseDocId: string) => {
+        setJoinStatus('loading');
+        try {
+          const snap = await getDoc(
+            doc(db, SESSIONS_COLLECTION, targetSessionId)
+          );
+          if (!snap.exists()) {
+            setJoinStatus('not-found');
+            return;
+          }
+          setSessionId(targetSessionId);
+          setResponseDocId(targetResponseDocId);
+          setPeriodKeys([]);
+          setContent(null);
+          setSession(snap.data() as VideoActivitySession);
+          setJoinStatus('joined');
+        } catch (err) {
+          logError('useVideoActivitySessionStudent.previewResponse', err, {
+            sessionId: targetSessionId,
+          });
+          setJoinStatus('error');
+        }
+      },
+      []
+    );
+
     return {
       session: mergedSession,
       myResponse,
@@ -1618,6 +1652,7 @@ export const useVideoActivitySessionStudent =
       error,
       lookupSession,
       joinSession,
+      previewResponse,
       submitAnswer,
       checkAnswer,
       completeActivity,

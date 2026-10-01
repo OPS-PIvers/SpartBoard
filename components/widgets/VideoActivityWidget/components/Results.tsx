@@ -109,6 +109,7 @@ import {
   VA_SESSIONS_COLLECTION,
 } from '@/utils/studentResultsPublish';
 import { useViewAsOutward } from '@/hooks/useViewAsOutward';
+import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
 
 const KEY_LOADING_TOAST =
   'Still loading the answer key — try again in a moment.';
@@ -1034,6 +1035,11 @@ export const Results: React.FC<ResultsProps> = ({
                               }
                             />
                           )}
+                          <ViewAsStudentButton
+                            kind="video-activity"
+                            sessionId={session.id}
+                            studentKey={r._responseKey ?? r.studentUid}
+                          />
                         </>
                       }
                     >

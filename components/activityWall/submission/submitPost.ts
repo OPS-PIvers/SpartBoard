@@ -16,6 +16,7 @@ import type {
 } from '@/types';
 import type { WallPlacement } from '@/components/activityWall/render';
 import { isUploadType, safeFileName, validateUpload } from './uploadLimits';
+import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 
 /** Everything the composer collects; the layout decides which fields are written. */
 export interface PostDraft {
@@ -40,6 +41,11 @@ export const EMPTY_DRAFT: PostDraft = {
 };
 
 export class PostSubmitError extends Error {}
+
+/** View as student (ADMIN_VIEW_AS.md D15) never posts, edits or deletes. */
+const assertCanPost = (): void => {
+  if (studentPreviewBlocksWrite()) throw new PostSubmitError('View-only');
+};
 
 export const availableTypes = (
   session: ActivityWallSession
@@ -214,6 +220,7 @@ export const createPost = async ({
   onProgress,
   author,
 }: CreatePostArgs): Promise<string> => {
+  assertCanPost();
   const type = effectiveType(session, draft.type);
   const isTeacher = author === 'teacher';
   const max = isTeacher ? 0 : (session.maxPostsPerStudent ?? 0);
@@ -339,6 +346,7 @@ export const updatePost = async (
   placement: WallPlacement,
   options: { requeueForModeration?: boolean; currentContent?: string } = {}
 ): Promise<void> => {
+  assertCanPost();
   const type = effectiveType(session, draft.type);
   const patch: Record<string, unknown> = { editedAt: Date.now() };
   if (type === 'word') patch.content = draft.word.trim();
@@ -373,6 +381,7 @@ export const deletePost = async (
   sessionId: string,
   postId: string
 ): Promise<void> => {
+  assertCanPost();
   await deleteDoc(
     doc(db, 'activity_wall_sessions', sessionId, 'submissions', postId)
   );

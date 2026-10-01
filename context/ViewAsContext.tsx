@@ -15,7 +15,7 @@ import {
 } from '@/utils/viewAsSession';
 import { ViewAsContext, type ViewAsContextValue } from './ViewAsContextValue';
 
-const EndedScreen: React.FC = () => (
+export const EndedScreen: React.FC = () => (
   <div className="h-screen w-screen flex flex-col items-center justify-center gap-4 bg-slate-50">
     <p className="text-lg font-semibold text-slate-800">View as ended</p>
     <button

@@ -42,6 +42,7 @@ import {
   studentPeriodKeys,
 } from '@/utils/periodAccess';
 import { getServerNow } from '@/utils/serverTime';
+import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 import { assertGuidedLearningDocFits } from '@/utils/firestoreDocSize';
 
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
@@ -658,6 +659,7 @@ export const useGuidedLearningSessionStudent = (
       claimClassIds: readonly string[]
     ): Promise<boolean> => {
       if (!rawSession || !hasPeriodAccess(rawSession) || !uid) return true;
+      if (studentPreviewBlocksWrite()) return true;
       const keys = studentPeriodKeys(rawSession, claimClassIds, classPeriod);
       const key = pickPeriodKey(rawSession, keys, getServerNow());
       if (!key) return false;
@@ -677,6 +679,7 @@ export const useGuidedLearningSessionStudent = (
       response: GuidedLearningResponse,
       opts?: { exists?: boolean }
     ): Promise<void> => {
+      if (studentPreviewBlocksWrite()) return;
       const ref = doc(
         db,
         GL_SESSIONS_COLLECTION,
