@@ -58,7 +58,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
   onOpenGrader,
 }) => {
   const ids = useId();
-  const writes = useGradebookMarkWrites(ctx.rosterId);
+  const writes = useGradebookMarkWrites(ctx.rosterId, ctx.settings.flags);
   const { row, mark, final, student } = cell;
   const completion = isCompletionOnly(column.kind);
   const notAssigned = final.status === 'not-assigned';

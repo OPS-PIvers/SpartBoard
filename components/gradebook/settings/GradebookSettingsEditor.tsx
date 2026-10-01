@@ -1,8 +1,17 @@
 import React from 'react';
-import { ChevronDown, EyeOff, Lock, Trash2, User, Users } from 'lucide-react';
+import {
+  ChevronDown,
+  EyeOff,
+  Info,
+  Lock,
+  Trash2,
+  User,
+  Users,
+} from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import {
   DEFAULT_PROFICIENCY_SCALE,
+  type FlagValueMode,
   type FlagVisibility,
   type GradebookSettingsBody,
   type ProficiencyMethod,
@@ -145,7 +154,7 @@ const PctInput: React.FC<{
       disabled={disabled}
       placeholder={placeholder}
       aria-label={label}
-      className={compact ? '!h-8 w-[76px]' : 'w-[76px]'}
+      className={compact ? '!h-8 w-[68px] !pl-2 !pr-1' : 'w-[76px]'}
     />
     <span>%</span>
   </span>
@@ -238,7 +247,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
               <tr className="bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 <th className="border-b border-slate-200 p-2">Flag</th>
                 <th className="border-b border-slate-200 p-2 w-[52px]">Key</th>
-                <th className="border-b border-slate-200 p-2 w-[128px]">
+                <th className="border-b border-slate-200 p-2 w-[188px]">
                   <span className="inline-flex items-center gap-1.5">
                     Value
                     <span className="relative group inline-flex">
@@ -246,20 +255,22 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                         type="button"
                         aria-label="About value"
                         aria-describedby="gb-value-tip"
-                        className="h-4 w-4 rounded-full border border-slate-300 bg-white text-[10px] font-bold italic font-serif text-slate-500 inline-grid place-items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+                        className="inline-flex rounded-full text-slate-500 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
                       >
-                        i
+                        <Info size={14} aria-hidden />
                       </button>
                       <span
                         id="gb-value-tip"
                         role="tooltip"
-                        className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-1.5 w-56 rounded-lg bg-slate-800 px-2.5 py-2 text-xs font-medium normal-case text-white shadow-lg opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 z-10"
+                        className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-1.5 w-56 rounded-lg bg-slate-800 px-2.5 py-2 text-xs font-medium normal-case tracking-normal text-white shadow-lg opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 z-10"
                       >
-                        The score a flag gives a cell with no score. Leave it
-                        blank for no effect.
+                        Unscored value. Leave blank for no effect.
                       </span>
                     </span>
                   </span>
+                </th>
+                <th className="border-b border-slate-200 p-2 w-[112px] leading-tight">
+                  Remove when scored
                 </th>
                 <th className="border-b border-slate-200 p-2 w-[84px]">
                   Visibility
@@ -328,26 +339,61 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                           Excluded
                         </span>
                       ) : (
-                        <PctInput
-                          value={f.value}
-                          disabled={ro}
-                          placeholder="None"
-                          compact
-                          label={`${f.name} value`}
-                          onCommit={(raw) =>
-                            setFlag(
-                              i,
-                              {
-                                value:
-                                  raw.trim() === ''
-                                    ? null
-                                    : clampPct(Number(raw)),
-                              },
-                              'Flag value'
-                            )
-                          }
-                        />
+                        <span className="flex items-center gap-1.5">
+                          <SelectBox
+                            value={f.mode ?? 'score'}
+                            disabled={ro}
+                            aria-label={`${f.name} value type`}
+                            wrapClassName="w-[92px] shrink-0"
+                            className="!h-8 !pl-2 text-[13px]"
+                            onChange={(e) =>
+                              setFlag(
+                                i,
+                                { mode: e.target.value as FlagValueMode },
+                                'Flag value type'
+                              )
+                            }
+                          >
+                            <option value="score">Score</option>
+                            <option value="deduct">Deduct</option>
+                          </SelectBox>
+                          <PctInput
+                            value={f.value}
+                            disabled={ro}
+                            placeholder="None"
+                            compact
+                            label={`${f.name} value`}
+                            onCommit={(raw) =>
+                              setFlag(
+                                i,
+                                {
+                                  value:
+                                    raw.trim() === ''
+                                      ? null
+                                      : clampPct(Number(raw)),
+                                },
+                                'Flag value'
+                              )
+                            }
+                          />
+                        </span>
                       )}
+                    </td>
+                    <td className="px-2 py-2.5 text-center">
+                      <input
+                        type="checkbox"
+                        checked={f.removeWhenScored ?? false}
+                        disabled={ro}
+                        aria-label={`Remove ${f.name} when scored`}
+                        className="h-4 w-4 cursor-pointer accent-brand-blue-primary disabled:cursor-default"
+                        onChange={(e) =>
+                          setFlag(
+                            i,
+                            { removeWhenScored: e.target.checked },
+                            'Remove when scored'
+                          )
+                        }
+                      />
                     </td>
                     <td className="px-2 py-2.5">
                       <span className="relative group inline-flex">

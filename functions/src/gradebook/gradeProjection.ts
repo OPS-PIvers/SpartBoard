@@ -9,6 +9,7 @@ import {
   PLC_GRADEBOOK_META_ID,
   buildStudentGradeEntry,
   buildStudentStandards,
+  flagsRemovedByScore,
   resolveScale,
   type AttemptPolicy,
   type GradebookColumnConfig,
@@ -336,6 +337,42 @@ async function classStandards(
     scale,
     now
   );
+}
+
+/** A row that just got its first score drops the class's Remove when scored flags from its mark, logged in the mark's history. */
+export async function removeFlagsOnScore(
+  db: Firestore,
+  rowId: string,
+  after: IndexRow | null,
+  before: IndexRow | null,
+  now = Date.now()
+): Promise<void> {
+  if (after?.state !== 'scored' || before?.state === 'scored') return;
+  const ref = db.collection(GRADEBOOK_MARKS).doc(rowId);
+  const first = parseMark((await ref.get()).data());
+  if (!first || first.flags.length === 0) return;
+  const { settings } = await loadClassSettings(
+    db,
+    after.ownerUid,
+    after.rosterId
+  );
+  await db.runTransaction(async (tx) => {
+    const mark = parseMark((await tx.get(ref)).data());
+    if (!mark || mark.ownerUid !== after.ownerUid) return;
+    const removed = flagsRemovedByScore(mark, settings.flags);
+    if (removed.length === 0) return;
+    const flags = mark.flags.filter((f) => !removed.includes(f));
+    tx.update(ref, { flags, updatedAt: now });
+    tx.set(ref.collection(GRADEBOOK_COLLECTIONS.history).doc(), {
+      ownerUid: mark.ownerUid,
+      byUid: 'system',
+      at: now,
+      field: 'flags',
+      before: { flags: mark.flags, suppressedAuto: mark.suppressedAuto },
+      after: { flags, suppressedAuto: mark.suppressedAuto },
+      batchId: null,
+    });
+  });
 }
 
 /** Re-projects one row (or clears it when the row is gone). */
