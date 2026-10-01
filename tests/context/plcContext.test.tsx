@@ -68,6 +68,8 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'u-self', displayName: 'Self', email: 'self@x.edu' },
     canAccessFeature: (id: string) => id === 'plc-home-v2' && mockHomeV2,
+    globalPermissionsLoaded: true,
+    isAdmin: false,
   }),
 }));
 let mockHomeV2 = false;
