@@ -2,7 +2,14 @@
  * Roster-group helpers shared by the class pickers
  * (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D8/D16).
  */
-import type { ClassRoster } from '@/types';
+import type { ClassRoster, RosterGroup } from '@/types';
+
+/** Groups offered in widget pickers; pull-out reminder groups can opt out. */
+export function groupMakerGroups(
+  roster: ClassRoster | undefined
+): RosterGroup[] {
+  return (roster?.groups ?? []).filter((g) => g.inGroupMaker !== false);
+}
 
 /** Members still on the roster; `null` when the group no longer exists. */
 export function countRosterGroupMembers(
@@ -32,5 +39,5 @@ export function rosterGroupMemberIds(
 
 /** True when any roster has a saved group, i.e. the submenu has something to show. */
 export function anyRosterHasGroups(rosters: ClassRoster[]): boolean {
-  return rosters.some((r) => (r.groups?.length ?? 0) > 0);
+  return rosters.some((r) => groupMakerGroups(r).length > 0);
 }

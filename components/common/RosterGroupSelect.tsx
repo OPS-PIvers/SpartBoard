@@ -1,6 +1,9 @@
 import React from 'react';
 import type { ClassRoster } from '@/types';
-import { countRosterGroupMembers } from '@/utils/rosterGroups';
+import {
+  countRosterGroupMembers,
+  groupMakerGroups,
+} from '@/utils/rosterGroups';
 
 interface RosterGroupSelectProps {
   roster: ClassRoster | undefined;
@@ -29,7 +32,7 @@ export const RosterGroupSelect: React.FC<RosterGroupSelectProps> = ({
   id,
   ariaLabel,
 }) => {
-  const groups = roster?.groups ?? [];
+  const groups = groupMakerGroups(roster);
   if (groups.length === 0) return null;
   return (
     <select

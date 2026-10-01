@@ -37,6 +37,10 @@ import {
   normalizeSubLaunchAsTeacherSettings,
 } from '@/config/subLaunchAsTeacher';
 import { VIEW_AS_SETTINGS_DOC, normalizeViewAsSettings } from '@/config/viewAs';
+import {
+  GROUP_REMINDER_EMAILS_SETTINGS_DOC,
+  normalizeGroupReminderEmailsSettings,
+} from '@/config/groupReminderEmails';
 
 export interface RolloutSwitch {
   docId: string;
@@ -114,5 +118,12 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     title: 'Super admin View as',
     description: "Super admins open a user's account to troubleshoot.",
     normalize: normalizeViewAsSettings,
+  },
+  {
+    docId: GROUP_REMINDER_EMAILS_SETTINGS_DOC,
+    feature: 'group-reminders',
+    title: 'Group reminder emails',
+    description: 'Emails teachers at their pull-out group alert times.',
+    normalize: normalizeGroupReminderEmailsSettings,
   },
 ];

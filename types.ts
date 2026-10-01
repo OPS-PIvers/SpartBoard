@@ -234,6 +234,54 @@ export interface RosterGroup {
   id: string;
   name: string;
   studentIds: string[];
+  /** Offered in Group Maker and widget group pickers; absent means yes (pre-reminder groups). */
+  inGroupMaker?: boolean;
+  /** How the group appears on a projected reminder. */
+  symbol?: RosterGroupSymbol;
+  /** Weekly time that pops a reminder on the open board. */
+  reminder?: RosterGroupReminder;
+}
+
+export interface RosterGroupSymbol {
+  /** Id from the kid-friendly icon set in components/groupReminders/groupIcons. */
+  icon: string;
+  /** Hex colour of the icon. */
+  color: string;
+}
+
+export type RosterGroupReminderSound =
+  | 'off'
+  | 'chime'
+  | 'bell'
+  | 'marimba'
+  | 'harp';
+
+export interface RosterGroupAlert {
+  /** 24-hour "HH:mm" in the teacher's local time. */
+  time: string;
+  /** Minutes before `time` that the card appears. */
+  leadMinutes: number;
+}
+
+export interface RosterGroupReminder {
+  enabled: boolean;
+  /** ISO weekdays, 1 = Monday ... 5 = Friday. */
+  days: number[];
+  /** One or more alerts on each chosen day. */
+  alerts: RosterGroupAlert[];
+  repeat: 'weekly' | 'biweekly';
+  /** "YYYY-MM-DD"; the week it falls in is an on-week for `biweekly`. */
+  startDate: string;
+  sound: RosterGroupReminderSound;
+  snoozeMinutes: number;
+  /** Card extras; all off by default so the projected card is icon-only. */
+  showName: boolean;
+  showTime: boolean;
+  showMessage: boolean;
+  message: string;
+  /** Emails the teacher at each alert, for when no board is open. */
+  emailAlert: boolean;
+  emailMessage: string;
 }
 
 // `StudentOverride` (M17 spec §2a) is defined below alongside `RubricSnapshot`
@@ -9278,6 +9326,8 @@ export type GlobalFeature =
   | 'quiz-review-split'
   /** Quiz assign/edit: an overall time limit per attempt with a student countdown. */
   | 'quiz-time-limit'
+  /** Class groups with a weekly schedule that pop a reminder on the open board. */
+  | 'group-reminders'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'

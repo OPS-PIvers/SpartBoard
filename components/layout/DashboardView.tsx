@@ -31,6 +31,7 @@ import { getAdminBuildingConfig } from '@/utils/adminBuildingConfig';
 import { AnnotationOverlay } from './AnnotationOverlay';
 import { BoardNavFab } from './BoardNavFab';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
+import { GroupReminderHost } from '@/components/groupReminders/GroupReminderHost';
 import { MountedBoardsLayer } from './MountedBoardsLayer';
 import { HelpCenterModal } from '@/components/help/HelpCenterModal';
 import { LiveTourRunner } from '@/components/tours/LiveTourRunner';
@@ -1669,6 +1670,7 @@ export const DashboardView: React.FC = () => {
       <AnnotationOverlay />
       <ToastContainer />
       <AnnouncementOverlay />
+      {canAccessFeature('group-reminders') && <GroupReminderHost />}
       <ShareStatusBanner />
       <ImportShareModePicker />
       {pendingSharedCollectionId && (

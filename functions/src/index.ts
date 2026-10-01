@@ -204,6 +204,7 @@ export { gcPlcOrphans } from './gcPlcOrphans';
 // per-PLC `digestOptIn` flag. NO per-member fan-out. PRD §5 / §8 / §2.3,
 // Decision 2.3. ─────────────────────────────────────────────────────────────
 export { plcWeeklyDigest } from './plcWeeklyDigest';
+export { groupReminderEmails } from './groupReminderEmails';
 
 // ── PII-safe PLC results pipeline: session/response writes mark assessments
 // dirty; the 5-minute schedule recomputes /aggregates/{assessmentId}. ───────
