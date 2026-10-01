@@ -17,11 +17,13 @@ import { useAuth } from '@/context/useAuth';
 import { useHelpResources } from '@/hooks/useHelpResources';
 import { useOrganization } from '@/hooks/useOrganization';
 import { HelpResourceViewer } from './HelpResourceViewer';
+import { HelpCopyLinkButton } from './HelpCopyLinkButton';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface HelpGuidesTabProps {
   query: string;
   widgetType?: WidgetType;
+  itemId?: string;
 }
 
 type HelpKindFilter = 'docs' | 'slides' | 'videos' | 'activities' | 'other';
@@ -62,9 +64,10 @@ const widgetLabel = (type: WidgetType): string =>
 export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
   query,
   widgetType,
+  itemId,
 }) => {
   const { t } = useTranslation();
-  const { orgId } = useAuth();
+  const { orgId, isAdmin } = useAuth();
   const { organization } = useOrganization(orgId);
   const { items, categories, loading } = useHelpResources({
     includeHidden: false,
@@ -82,6 +85,18 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
     setTrackedWidgetType(widgetType);
     setWidgetFilter(widgetType);
     setOpenItem(null);
+  }
+  // A shared link names one resource; open it once the list has loaded.
+  const [pendingItemId, setPendingItemId] = useState(itemId);
+  const [trackedItemId, setTrackedItemId] = useState(itemId);
+  if (trackedItemId !== itemId) {
+    setTrackedItemId(itemId);
+    setPendingItemId(itemId);
+  }
+  if (pendingItemId && !loading) {
+    setPendingItemId(undefined);
+    const linked = items.find((item) => item.id === pendingItemId);
+    if (linked) setOpenItem(linked);
   }
 
   const categoryName = useMemo(() => {
@@ -279,12 +294,14 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
             {filtered.map((item, index) => {
               const Icon = KIND_ICONS[kindOf(item)];
               return (
-                <li key={item.id}>
+                <li key={item.id} className="relative">
                   <button
                     type="button"
                     onClick={() => openCard(item)}
                     data-help-item-id={item.id}
-                    className="w-full flex items-start gap-3 text-left rounded-lg border border-slate-200 bg-white px-3 py-3 hover:border-brand-blue-light hover:bg-slate-50 transition-colors"
+                    className={`w-full flex items-start gap-3 text-left rounded-lg border border-slate-200 bg-white px-3 py-3 hover:border-brand-blue-light hover:bg-slate-50 transition-colors ${
+                      isAdmin ? 'pr-12' : ''
+                    }`}
                     {...tourFieldAttr(
                       'help-center.guides.item',
                       'help',
@@ -322,6 +339,9 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
                       </span>
                     )}
                   </button>
+                  <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
+                    <HelpCopyLinkButton item={item} variant="icon" />
+                  </div>
                 </li>
               );
             })}
