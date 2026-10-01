@@ -32,6 +32,8 @@ export interface AuthContextType {
   /** True once the feature_permissions snapshot has delivered at least once */
   featurePermissionsLoaded: boolean;
   globalPermissions: GlobalFeaturePermission[];
+  /** True once the global_permissions snapshot has delivered at least once */
+  globalPermissionsLoaded: boolean;
   updateAppSettings: (updates: Partial<AppSettings>) => Promise<void>;
   /**
    * `customBuildings` overrides the AuthContext `selectedBuildings` for

@@ -4,6 +4,7 @@ import { Target, ChevronDown, Filter } from 'lucide-react';
 import { RosterGroupMenuItems } from '@/components/common/RosterGroupMenuItems';
 import {
   anyRosterHasGroups,
+  groupMakerGroups,
   countRosterGroupMembers,
 } from '@/utils/rosterGroups';
 import { useDashboard } from '@/context/useDashboard';
@@ -322,7 +323,7 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
                 const isActiveClass = r.id === activeRosterId;
                 // Whole class is only "checked" once no group narrows it.
                 const isWholeClass = isActiveClass && selectedGroupId === null;
-                const groups = groupSelection ? (r.groups ?? []) : [];
+                const groups = groupSelection ? groupMakerGroups(r) : [];
                 return (
                   <React.Fragment key={r.id}>
                     <button

@@ -19,6 +19,7 @@ import {
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useTranslation } from 'react-i18next';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { groupMakerGroups } from '@/utils/rosterGroups';
 
 const TeamNameInput: React.FC<
   {
@@ -83,7 +84,7 @@ export const ScoreboardSettings: React.FC<{
     [rosters, activeRosterId]
   );
   const rosterGroups = useMemo(
-    () => activeRoster?.groups ?? [],
+    () => groupMakerGroups(activeRoster),
     [activeRoster]
   );
   const hasLinkedTeams = teams.some((team) => team.linkedRosterGroupId);

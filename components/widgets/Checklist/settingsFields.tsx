@@ -9,6 +9,7 @@ import type {
   InstructionalRoutinesConfig,
   TextConfig,
 } from '@/types';
+import { groupMakerGroups } from '@/utils/rosterGroups';
 
 export const ChecklistImportActionsField: React.FC<{
   ctx: CustomRenderCtx;
@@ -185,7 +186,7 @@ export const ChecklistPoolGroupField: React.FC<{ ctx: CustomRenderCtx }> = ({
       </p>
     );
   }
-  if ((activeRoster?.groups?.length ?? 0) === 0) {
+  if (groupMakerGroups(activeRoster).length === 0) {
     return (
       <p id={ctx.id} className="text-xs text-slate-500">
         {ctx.t('widgetSettings.checklist.poolGroupEmpty')}

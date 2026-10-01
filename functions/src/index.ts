@@ -204,6 +204,7 @@ export { gcPlcOrphans } from './gcPlcOrphans';
 // per-PLC `digestOptIn` flag. NO per-member fan-out. PRD §5 / §8 / §2.3,
 // Decision 2.3. ─────────────────────────────────────────────────────────────
 export { plcWeeklyDigest } from './plcWeeklyDigest';
+export { groupReminderEmails } from './groupReminderEmails';
 
 // ── PII-safe PLC results pipeline: session/response writes mark assessments
 // dirty; the 5-minute schedule recomputes /aggregates/{assessmentId}. ───────
@@ -249,6 +250,13 @@ export {
 // /plcIndex/{plcId} in sync) so the org "PLCs in my building" directory never
 // exposes teacher emails/displayNames. Decision 1.1 hardening. ──────────────
 export { mirrorPlcIndex } from './mirrorPlcIndex';
+
+// My Groups: admin-made building groups and their auto-roster (docs/plans/MY_GROUPS.md).
+export {
+  createBuildingGroupV1,
+  syncBuildingGroupV1,
+  onUserProfileBuildingsChangedV1,
+} from './plcBuildingGroups';
 
 // PLC norming flags: anonymized answer copies for norming (docs/plans/shipped/PLC_NORMING_FLAGS.md).
 export {

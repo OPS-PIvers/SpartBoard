@@ -3267,6 +3267,7 @@ describe('index barrel — deployed export set', () => {
     'gcPlcOrphans',
     // PLC opt-in weekly digest (Wave 4, §5/§8/§2.3)
     'plcWeeklyDigest',
+    'groupReminderEmails',
     'prepareQuizReadAloudV1',
     // PLC analytics rollup + migration + discovery mirror
     'markPlcAssessmentDirtyOnSession',
@@ -3303,6 +3304,9 @@ describe('index barrel — deployed export set', () => {
     'gradeIndexRecompute',
     'migratePlcs',
     'mirrorPlcIndex',
+    'createBuildingGroupV1',
+    'syncBuildingGroupV1',
+    'onUserProfileBuildingsChangedV1',
     'setPlcNormingFlagV1',
     'cleanupPlcNormingOnMembership',
     'cleanupPlcNormingOnResponseDelete',

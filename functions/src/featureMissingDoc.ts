@@ -43,9 +43,11 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'student-gradebook',
   'quiz-review-split',
   'quiz-time-limit',
+  'group-reminders',
   'guided-learning-ai',
   'routine-guide',
   'blooms-ai',
+  'my-groups',
 ];
 
 /** Plan D7: admins pass a default-off flag (preview, or admin-default like `guided-learning-ai`) that has no saved doc yet. */

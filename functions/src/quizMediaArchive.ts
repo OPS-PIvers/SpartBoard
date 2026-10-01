@@ -48,6 +48,7 @@ import {
 import './functionsInit';
 import { withQuizSessionContent } from './quizSessionContent';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { canonicalizeBuildingIdsServer } from './buildingIds';
 
 const GOOGLE_OAUTH_CLIENT_SECRET = defineSecret('GOOGLE_OAUTH_CLIENT_SECRET');
 const GOOGLE_OAUTH_REFRESH_TOKEN_KEY = defineSecret(
@@ -414,14 +415,6 @@ export async function transcodeBufferToM4a(input: Buffer): Promise<Buffer> {
   }
 }
 
-/** Mirrors `BUILDING_ID_ALIASES` in `config/buildings.ts`; functions cannot import it. */
-const BUILDING_ID_ALIASES: Readonly<Record<string, string>> = {
-  'orono-high-school': 'high',
-  'orono-middle-school': 'middle',
-  'orono-intermediate-school': 'intermediate',
-  'schumann-elementary': 'schumann',
-};
-
 /** Mirrors `INTERNAL_TIER_DOMAINS` in `utils/userTier.ts`. */
 const INTERNAL_TIER_DOMAINS: readonly string[] = ['orono.k12.mn.us'];
 
@@ -432,18 +425,7 @@ const TIER_RANK: Readonly<Record<string, number>> = {
   internal: 2,
 };
 
-/** Server twin of `canonicalizeBuildingIds` — legacy ids, de-duplicated. */
-export function canonicalizeBuildingIdsServer(
-  ids: readonly unknown[]
-): string[] {
-  const out: string[] = [];
-  for (const raw of ids) {
-    if (typeof raw !== 'string') continue;
-    const canonical = BUILDING_ID_ALIASES[raw] ?? raw;
-    if (!out.includes(canonical)) out.push(canonical);
-  }
-  return out;
-}
+export { canonicalizeBuildingIdsServer };
 
 /** Server twin of `meetsMinTier` — an unset floor imposes no restriction. */
 export function meetsMinTierServer(tier: string, minTier: unknown): boolean {

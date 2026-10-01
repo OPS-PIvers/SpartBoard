@@ -2,6 +2,7 @@
 import type React from 'react';
 import {
   BarChart,
+  BellRing,
   Bot,
   Building2,
   CalendarClock,
@@ -895,6 +896,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'group-reminders': {
+    label: 'Group reminders',
+    icon: BellRing,
+    description:
+      'Class groups with a weekly time that pop a reminder on the board.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'quiz-review-split': {
     label: 'Quiz and Review split',
     icon: Gamepad2,
@@ -1009,6 +1022,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'permanent',
     afterLaunch: 'keep',
     widget: 'blooms-taxonomy',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // My PLCs becomes My Groups with group types (docs/plans/MY_GROUPS.md).
+  'my-groups': {
+    label: 'My Groups',
+    icon: UsersRound,
+    description: 'PLC, department and mentoring groups.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

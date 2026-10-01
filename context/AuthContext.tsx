@@ -344,6 +344,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [globalPermissions, setGlobalPermissions] = useState<
     GlobalFeaturePermission[]
   >([]);
+  const [globalPermissionsLoaded, setGlobalPermissionsLoaded] =
+    useState(isAuthBypass);
   const [selectedBuildings, setSelectedBuildingsState] = useState<string[]>([]);
   // null = never set; grades derive from the selected buildings until then.
   const [gradesTaught, setGradesTaughtState] = useState<string[] | null>(null);
@@ -1616,8 +1618,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           permissions.push(data);
         });
         setGlobalPermissions(permissions);
+        setGlobalPermissionsLoaded(true);
       },
       (error) => {
+        setGlobalPermissionsLoaded(true);
         // Log unconditionally via `logError` so production monitoring
         // sees snapshot failures (the old `console.error` was guarded on
         // `auth.currentUser` and only landed in the dev console). The
@@ -3256,6 +3260,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         featurePermissions,
         featurePermissionsLoaded,
         globalPermissions,
+        globalPermissionsLoaded,
         updateAppSettings,
         canAccessWidget,
         canAccessFeature,

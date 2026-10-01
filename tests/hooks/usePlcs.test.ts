@@ -264,6 +264,66 @@ describe('usePlcs - subscription wiring', () => {
     expect(result.current.loading).toBe(false);
   });
 
+  it('parses autoRoster and known addedBy values only', () => {
+    let cb: (snap: unknown) => void = () => {
+      throw new Error('snapshot callback not captured');
+    };
+    mockOnSnapshot.mockImplementation((_q, onNext) => {
+      cb = onNext;
+      return () => undefined;
+    });
+    const { result } = renderHook(() => usePlcs({ asAdmin: true }));
+    const member = (uid: string, addedBy: unknown) => ({
+      uid,
+      email: `${uid}@x.com`,
+      displayName: uid,
+      role: 'viewer',
+      joinedAt: 1,
+      status: 'active',
+      addedBy,
+    });
+    act(() => {
+      cb({
+        forEach: (fn: (d: { id: string; data: () => unknown }) => void) => {
+          fn({
+            id: 'plc-b',
+            data: () => ({
+              name: 'Building',
+              groupType: 'building',
+              autoRoster: true,
+              leadUid: 'a',
+              memberUids: ['a', 'b', 'c'],
+              members: {
+                a: { ...member('a', 'admin'), role: 'lead' },
+                b: member('b', 'autoRoster'),
+                c: member('c', 'nope'),
+              },
+              createdAt: 1,
+              updatedAt: 2,
+            }),
+          });
+          fn({
+            id: 'plc-p',
+            data: () => ({
+              name: 'Plain',
+              autoRoster: 'yes',
+              leadUid: 'z',
+              memberUids: ['z'],
+              createdAt: 1,
+              updatedAt: 2,
+            }),
+          });
+        },
+      });
+    });
+    const [building, plain] = result.current.plcs;
+    expect(building.autoRoster).toBe(true);
+    expect(building.members?.a.addedBy).toBe('admin');
+    expect(building.members?.b.addedBy).toBe('autoRoster');
+    expect(building.members?.c).not.toHaveProperty('addedBy');
+    expect(plain.autoRoster).toBeUndefined();
+  });
+
   it('sets error when the snapshot fails (no silent empty list)', () => {
     let errCb: (err: unknown) => void = () => {
       throw new Error('error callback not captured');
@@ -780,6 +840,26 @@ describe('usePlcs - removeMember', () => {
       targetType: 'member',
       targetId: MEMBER_UID,
     });
+  });
+
+  it('writes other members back with their addedBy so only the target changes', async () => {
+    const plc = basePlcDoc();
+    const members = plc.members as Record<string, Record<string, unknown>>;
+    members[LEAD_UID].addedBy = 'admin';
+    members[OTHER_UID].addedBy = 'autoRoster';
+    members[MEMBER_UID].addedBy = 'bogus';
+    const captured = stubTransaction(plc);
+    const { result } = render();
+
+    await act(async () => {
+      await result.current.removeMember('plc-1', MEMBER_UID);
+    });
+
+    const w = captured.update as Record<string, unknown>;
+    const out = w.members as Record<string, Record<string, unknown>>;
+    expect(out[LEAD_UID].addedBy).toBe('admin');
+    expect(out[OTHER_UID].addedBy).toBe('autoRoster');
+    expect(out[MEMBER_UID]).not.toHaveProperty('addedBy');
   });
 
   it('rejects removing the lead', async () => {

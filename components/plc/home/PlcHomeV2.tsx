@@ -68,7 +68,10 @@ export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({
 
   const activity = usePlcActivity();
   const { lastSeenAt, loading, markSeen } = usePlcUnread(plc.id, { activity });
-  const { data: layout, loading: layoutLoading } = usePlcHomeLayout();
+  const layoutSlice = usePlcHomeLayout();
+  const layout = layoutSlice.data;
+  // The store can still hold the gated-off placeholder on the first render after the flag resolves.
+  const layoutLoading = layoutSlice.loading || !layoutSlice.enabled;
   const { data: aggregates, loading: aggregatesLoading } =
     usePlcAggregatesData();
   const { data: assessments, loading: assessmentsLoading } =

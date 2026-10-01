@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, ChevronRight, Users2, X } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Loader2, Users2, X } from 'lucide-react';
 
 import { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
@@ -65,7 +65,8 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
+  const { user, canAccessFeature, globalPermissionsLoaded, isAdmin } =
+    useAuth();
   // On mobile, deep-linking straight to a section (anything but `home`) should
   // open that section, not the drill-in menu; landing on home shows the menu.
   const [showMobileMenu, setShowMobileMenu] = useState(
@@ -135,6 +136,19 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
   const renderSection = (id: PlcSectionId): React.ReactNode => {
     switch (id) {
       case 'home':
+        // Wait for flags so v1 Home never paints first and swaps to v2 a moment later.
+        if (!globalPermissionsLoaded || isAdmin === null) {
+          return (
+            <div className="flex justify-center py-16">
+              <Loader2
+                className="h-8 w-8 animate-spin text-brand-blue-primary"
+                aria-label={t('plcRoute.loading', {
+                  defaultValue: 'Loading PLC…',
+                })}
+              />
+            </div>
+          );
+        }
         return canAccessFeature('plc-home-v2') ? (
           <PlcHomeV2
             plc={plc}

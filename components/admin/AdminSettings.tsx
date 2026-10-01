@@ -37,6 +37,7 @@ import { DashboardTemplatesManager } from './DashboardTemplatesManager';
 import { LinkShortenerManager } from './LinkShortenerManager';
 import { PresetSubEmailsManager } from './PresetSubEmailsManager';
 import { PlcResourcesManager } from './PlcResourcesManager/PlcResourcesManager';
+import { BuildingGroupsManager } from './PlcResourcesManager/BuildingGroupsManager';
 import { HelpCenterManager } from './HelpCenter/HelpCenterManager';
 import { StandardsPanel } from './StandardsPanel';
 import { SubjectsPanel } from './SubjectsPanel';
@@ -182,6 +183,13 @@ const TAB_GROUPS = [
         component: PlcResourcesManager,
         // Rules let only super admins write plc_resources.
         superAdminOnly: true,
+      },
+      {
+        id: 'building-groups',
+        label: 'Building groups',
+        icon: Building2,
+        component: BuildingGroupsManager,
+        feature: 'my-groups',
       },
     ],
   },
