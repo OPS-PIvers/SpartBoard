@@ -37,10 +37,30 @@ vi.mock('react-i18next', () => ({
 }));
 
 let mockMyGroups = false;
+const mockFeaturePermissions = [
+  {
+    widgetType: 'routineGuide',
+    config: {
+      routines: [
+        {
+          id: 'chalk-talk',
+          name: 'Chalk Talk',
+          gradeLevels: [],
+          categoryIds: [],
+          icon: 'MessageSquare',
+          color: 'blue',
+          steps: [],
+          info: { why: 'Every voice is heard in writing.' },
+        },
+      ],
+    },
+  },
+];
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'uid-a' },
     canAccessFeature: (f: string) => f === 'my-groups' && mockMyGroups,
+    featurePermissions: mockFeaturePermissions,
   }),
 }));
 vi.mock('@/hooks/usePlcGoals', () => ({
@@ -202,6 +222,8 @@ describe('PlcHomeV2', () => {
       expect(screen.getByText('Raise reading stamina')).toBeTruthy();
       expect(screen.getByText('Chalk Talk')).toBeTruthy();
       expect(screen.getByText('Daily reading block')).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'About Chalk Talk' }));
+      expect(screen.getByText('Every voice is heard in writing.')).toBeTruthy();
     } finally {
       mockMyGroups = false;
     }

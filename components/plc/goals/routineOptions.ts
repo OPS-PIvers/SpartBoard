@@ -1,24 +1,26 @@
-// Routines a group goal practice can link to, A to Z.
+// Routine Guide routines a group goal practice can link to, A to Z.
 
-import { ROUTINES } from '@/config/instructionalRoutines';
+import { useMemo } from 'react';
+import { useAuth } from '@/context/useAuth';
+import { resolveRoutineGuideLibrary } from '@/config/routineGuide';
+import type { RoutineGuideGlobalConfig, RoutineGuideRoutine } from '@/types';
 
-export interface GoalRoutineOption {
-  id: string;
-  name: string;
+export function useGoalRoutineOptions(): RoutineGuideRoutine[] {
+  const { featurePermissions } = useAuth();
+  const config = featurePermissions.find((p) => p.widgetType === 'routineGuide')
+    ?.config as RoutineGuideGlobalConfig | undefined;
+  return useMemo(
+    () =>
+      [...resolveRoutineGuideLibrary(config)].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      ),
+    [config]
+  );
 }
 
-const OPTIONS: GoalRoutineOption[] = ROUTINES.map((r) => ({
-  id: r.id,
-  name: r.name,
-})).sort((a, b) => a.name.localeCompare(b.name));
-
-export function useGoalRoutineOptions(): GoalRoutineOption[] {
-  return OPTIONS;
-}
-
-export function routineNameFor(
-  options: readonly GoalRoutineOption[],
+export function routineFor(
+  options: readonly RoutineGuideRoutine[],
   routineId: string
-): string | null {
-  return options.find((o) => o.id === routineId)?.name ?? null;
+): RoutineGuideRoutine | null {
+  return options.find((o) => o.id === routineId) ?? null;
 }

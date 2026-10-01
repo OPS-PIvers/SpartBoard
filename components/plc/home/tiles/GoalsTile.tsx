@@ -2,13 +2,15 @@
 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pencil, Plus, Target } from 'lucide-react';
-import type { PlcGoal } from '@/types';
+import { Info, Pencil, Plus, Target } from 'lucide-react';
+import type { PlcGoal, RoutineGuideRoutine } from '@/types';
+import { hasRoutineInfo } from '@/config/routineGuide';
+import { RoutineInfoModal } from '@/components/widgets/RoutineGuide/RoutineInfoModal';
 import { usePlcGoals } from '@/hooks/usePlcGoals';
 import { canEditPlcContent } from '@/utils/plc';
 import { GoalEditorModal } from '@/components/plc/goals/GoalEditorModal';
 import {
-  routineNameFor,
+  routineFor,
   useGoalRoutineOptions,
 } from '@/components/plc/goals/routineOptions';
 import { TileEmpty, TileFrame } from './TileFrame';
@@ -27,10 +29,9 @@ export const GoalsTile: React.FC<PlcHomeTileProps> = ({
   const routines = useGoalRoutineOptions();
   const canEdit = !!uid && canEditPlcContent(plc, uid);
   const [editing, setEditing] = useState<PlcGoal | 'new' | null>(null);
+  const [info, setInfo] = useState<RoutineGuideRoutine | null>(null);
 
   const shown = hero ? goals : goals.slice(0, COMPACT_LIMIT);
-  const practiceLabel = (p: PlcGoal['practices'][number]) =>
-    (p.routineId ? routineNameFor(routines, p.routineId) : null) ?? p.text;
 
   return (
     <TileFrame
@@ -89,18 +90,42 @@ export const GoalsTile: React.FC<PlcHomeTileProps> = ({
               </div>
               {goal.practices.length > 0 && (
                 <ul className="mt-1.5 flex flex-col gap-1">
-                  {goal.practices.map((p) => (
-                    <li
-                      key={p.id}
-                      className="flex items-baseline gap-2 text-sm text-slate-700"
-                    >
-                      <span
-                        className="h-1.5 w-1.5 shrink-0 translate-y-[-1px] rounded-full bg-slate-300"
-                        aria-hidden="true"
-                      />
-                      <span className="min-w-0">{practiceLabel(p)}</span>
-                    </li>
-                  ))}
+                  {goal.practices.map((p) => {
+                    const routine = p.routineId
+                      ? routineFor(routines, p.routineId)
+                      : null;
+                    return (
+                      <li
+                        key={p.id}
+                        className="flex items-center gap-2 text-sm text-slate-700"
+                      >
+                        <span
+                          className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300"
+                          aria-hidden="true"
+                        />
+                        <span className="min-w-0">
+                          {routine?.name ?? p.text}
+                        </span>
+                        {routine && hasRoutineInfo(routine) && (
+                          <button
+                            type="button"
+                            onClick={() => setInfo(routine)}
+                            aria-label={t('plcGoals.routineInfo', {
+                              name: routine.name,
+                              defaultValue: 'About {{name}}',
+                            })}
+                            title={t('plcGoals.routineInfo', {
+                              name: routine.name,
+                              defaultValue: 'About {{name}}',
+                            })}
+                            className="shrink-0 rounded-md p-0.5 text-slate-400 hover:bg-slate-100 hover:text-brand-blue-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+                          >
+                            <Info className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </li>
@@ -114,6 +139,9 @@ export const GoalsTile: React.FC<PlcHomeTileProps> = ({
             </li>
           )}
         </ol>
+      )}
+      {info && (
+        <RoutineInfoModal routine={info} onClose={() => setInfo(null)} />
       )}
       {editing && (
         <GoalEditorModal

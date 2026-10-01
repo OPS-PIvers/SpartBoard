@@ -4,9 +4,8 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
-import type { PlcGoal, PlcGoalPractice } from '@/types';
+import type { PlcGoal, PlcGoalPractice, RoutineGuideRoutine } from '@/types';
 import { PLC_GOAL_MAX_PRACTICES, type PlcGoalDraft } from '@/hooks/usePlcGoals';
-import type { GoalRoutineOption } from './routineOptions';
 
 const OTHER = '__other__';
 
@@ -27,7 +26,7 @@ const labelClass =
 interface GoalEditorModalProps {
   goal: PlcGoal | null;
   nextOrder: number;
-  routines: readonly GoalRoutineOption[];
+  routines: readonly RoutineGuideRoutine[];
   onSave: (draft: PlcGoalDraft) => Promise<void>;
   onDelete?: () => Promise<void>;
   onClose: () => void;
