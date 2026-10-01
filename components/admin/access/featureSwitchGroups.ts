@@ -44,13 +44,16 @@ export const groupFeatureSwitches = (
     ...order.filter((g) => ids.some((id) => FEATURE_DEFAULTS[id].group === g)),
     ...(ids.some((id) => !FEATURE_DEFAULTS[id].group) ? [undefined] : []),
   ];
+  const nameOf = (id: GlobalFeature) =>
+    FEATURE_DEFAULTS[id].modalLabel ?? FEATURE_DEFAULTS[id].label;
+  const sorted = [...ids].sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
   return groups.map((group) => ({
     group,
-    rows: ids
+    rows: sorted
       .filter((id) => FEATURE_DEFAULTS[id].group === group && !parentOf(id))
       .map((id) => ({
         id,
-        children: ids.filter((child) => parentOf(child) === id),
+        children: sorted.filter((child) => parentOf(child) === id),
       })),
   }));
 };

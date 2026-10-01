@@ -928,7 +928,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'permanent',
     afterLaunch: 'keep',
     widget: 'quiz',
-    modalLabel: 'AI',
+    modalLabel: 'AI drafting',
     group: 'building',
     defaultAccessLevel: 'public',
     defaultEnabled: true,
