@@ -22,6 +22,9 @@ import {
   type WorkState,
 } from './devGradebookDemo/data';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { recomputeSession } from './gradebook/gradeIndex';
+import { projectRow } from './gradebook/gradeProjection';
+import type { IndexRow } from './gradebook/types';
 
 type Firestore = admin.firestore.Firestore;
 type DocRef = admin.firestore.DocumentReference;
@@ -577,8 +580,7 @@ export async function seedGradebookDemo(
   uid: string,
   orgId: string,
   secret: string,
-  now: number,
-  waitMs = { switchOn: 65_000, retakes: 120_000 }
+  now: number
 ): Promise<SeedResult> {
   const rosterSnap = await db.collection(`users/${uid}/rosters`).get();
   const rosters = CLASSES.map((cls) =>
@@ -592,11 +594,8 @@ export async function seedGradebookDemo(
   }
 
   const switchRef = db.doc('admin_settings/gradebook_index');
-  if ((await switchRef.get()).get('enabled') !== true) {
+  if ((await switchRef.get()).get('enabled') !== true)
     await switchRef.set({ enabled: true }, { merge: true });
-    // The index functions cache the switch for a minute.
-    await sleep(waitMs.switchOn);
-  }
 
   const ltRef = db.doc(`users/${uid}/userProfile/learningTargets`);
   const kept = ((await ltRef.get()).get('targets') ?? []) as Doc[];
@@ -820,34 +819,19 @@ export async function seedGradebookDemo(
     });
   }
 
+  // Build rows here rather than waiting on the index triggers and the scheduled recompute.
+  const sessions = plans.flatMap((p) => p.sessions);
+  const rebuild = async (list: PlannedSession[]): Promise<void> => {
+    for (const s of list) await recomputeSession(db, s.a.kind, s.sid);
+  };
+  await rebuild(sessions);
   // Retakes land after the first attempt is on the row, so the row keeps both attempts.
   const retakes = plans.flatMap((p) => p.retakes);
-  let pending = retakes;
-  const deadline = Date.now() + waitMs.retakes;
-  while (pending.length > 0 && Date.now() < deadline) {
-    await sleep(5_000);
-    const snaps = await db.getAll(
-      ...pending.map((x) => db.doc(`grade_index/${x.sid}__${x.uid}`))
-    );
-    pending = pending.filter((_, i) => {
-      const attempts: unknown = snaps[i].get('attempts');
-      return !(Array.isArray(attempts) && attempts.length >= 1);
-    });
-  }
   for (const x of retakes) await w.set(x.ref, x.data);
   await w.flush();
+  await rebuild(sessions.filter((s) => retakes.some((x) => x.sid === s.sid)));
 
-  // Safety net: the scheduled recompute rebuilds every demo session.
-  for (const p of plans)
-    for (const s of p.sessions)
-      await w.set(db.doc(`grade_index_sessions/${s.sid}`), {
-        kind: s.a.kind,
-        sessionId: s.sid,
-        dirtyAt: now - 30 * DAY + s.index,
-      });
-  await w.flush();
-
-  const sids = plans.flatMap((p) => p.sessions.map((s) => s.sid));
+  const sids = sessions.map((s) => s.sid);
   let rowsBuilt = 0;
   for (let i = 0; i < sids.length; i += 30) {
     const snap = await db
@@ -855,6 +839,7 @@ export async function seedGradebookDemo(
       .where('sessionId', 'in', sids.slice(i, i + 30))
       .get();
     rowsBuilt += snap.size;
+    for (const d of snap.docs) await projectRow(db, d.data() as IndexRow, null);
   }
   return {
     assignments: sids.length,
