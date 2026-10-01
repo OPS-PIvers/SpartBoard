@@ -1,10 +1,21 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { RosterEditorModal } from './RosterEditorModal';
 import type { ClassRoster, RosterGroup } from '@/types';
+import type { GroupScheduleJob } from '@/utils/groupSchedulePrint';
 
 vi.mock('@/utils/reminderSounds', () => ({ playReminderSound: vi.fn() }));
+const printGroupSchedule = vi.hoisted(() =>
+  vi.fn<(job: GroupScheduleJob) => void>()
+);
+vi.mock('@/utils/groupSchedulePrint', () => ({ printGroupSchedule }));
 
 const roster = (groups: RosterGroup[] = []): ClassRoster => ({
   id: 'r1',
@@ -164,5 +175,45 @@ describe('GroupRemindersPanel', () => {
     await user.click(screen.getByRole('button', { name: /\+ new group/i }));
     expect(screen.queryByRole('button', { name: /^next$/i })).toBeNull();
     expect(screen.getByDisplayValue('New Group')).toBeInTheDocument();
+  });
+
+  it('prints the class schedule once a group has reminder days', async () => {
+    const user = userEvent.setup();
+    const scheduled: RosterGroup = {
+      id: 'g1',
+      name: 'Speech',
+      studentIds: ['s2'],
+      symbol: { icon: 'turtle', color: '#16a34a' },
+      reminder: {
+        enabled: true,
+        days: [1],
+        alerts: [{ time: '10:15', leadMinutes: 0 }],
+        repeat: 'weekly',
+        startDate: '2026-09-28',
+        sound: 'off',
+        snoozeMinutes: 3,
+        showName: false,
+        showTime: false,
+        showMessage: false,
+        message: '',
+        emailAlert: false,
+        emailMessage: '',
+      },
+    };
+    renderModal(roster([{ ...scheduled, reminder: undefined }]));
+    await user.click(screen.getByRole('tab', { name: /groups/i }));
+    expect(
+      screen.queryByRole('button', { name: /print schedule/i })
+    ).toBeNull();
+
+    cleanup();
+    renderModal(roster([scheduled]));
+    await user.click(screen.getByRole('tab', { name: /groups/i }));
+    await user.click(screen.getByRole('button', { name: /print schedule/i }));
+    expect(printGroupSchedule).toHaveBeenCalledTimes(1);
+    const job = printGroupSchedule.mock.calls[0][0];
+    expect(job.rosterName).toBe('Room 112');
+    expect(job.groups).toEqual([scheduled]);
+    expect(job.symbolSvg(scheduled)).toContain('<svg');
   });
 });

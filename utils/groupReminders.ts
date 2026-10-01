@@ -166,6 +166,13 @@ export function reminderFallsOn(
   return weeks % 2 === 0;
 }
 
+/** True when any group in the class has an enabled reminder on at least one day. */
+export function hasScheduledReminders(roster: ClassRoster): boolean {
+  return (roster.groups ?? []).some(
+    (g) => !!g.reminder?.enabled && g.reminder.days.length > 0
+  );
+}
+
 /** Epoch ms of an "HH:mm" time on the calendar day of `d`. */
 export function timeOn(time: string, d: Date): number {
   const [h, m] = time.split(':').map(Number);

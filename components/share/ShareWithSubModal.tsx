@@ -25,16 +25,12 @@ import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
 import { logError } from '@/utils/logError';
 import {
   collectShareRosterIds,
+  shareRosterEntries,
   flattenSharedCollection,
   singleBoardTree,
 } from '@/utils/subShareSnapshot';
 import type { SubShareBundle } from '@/utils/bundleSubShareContent';
-import type {
-  Collection,
-  Dashboard,
-  SharedCollection,
-  SubstituteShareRoster,
-} from '@/types';
+import type { Collection, Dashboard, SharedCollection } from '@/types';
 
 /** What the teacher chose to hand over. */
 export type SubShareTarget =
@@ -91,7 +87,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     shareSubstituteCollection,
     updateSubstituteCollectionShare,
   } = useDashboard();
-  const { selectedBuildings, hasOrg } = useAuth();
+  const { selectedBuildings, hasOrg, canAccessFeature } = useAuth();
   const adminBuildings = useAdminBuildings();
   const headingId = useId();
 
@@ -257,13 +253,11 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     // Every roster the shared boards read, so the sub's class lists match the
     // teacher's. Only rosters with a Drive file can be granted.
     const rosterIds = collectShareRosterIds(tree.orderedBoards, activeRosterId);
-    const sharedRosters: SubstituteShareRoster[] = rosters
-      .filter((r) => rosterIds.includes(r.id) && r.driveFileId)
-      .map((r) => ({
-        id: r.id,
-        name: r.name,
-        driveFileId: r.driveFileId as string,
-      }));
+    const sharedRosters = shareRosterEntries(
+      rosters,
+      rosterIds,
+      canAccessFeature('group-reminders')
+    );
 
     const collection: Collection =
       target.kind === 'collection'
@@ -353,6 +347,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     selectedEmails,
     rosters,
     activeRosterId,
+    canAccessFeature,
     existing,
     sourceId,
     shareSubstituteCollection,

@@ -4,9 +4,10 @@ import {
   collectShareRosterIds,
   flattenSharedCollection,
   landingBoardId,
+  shareRosterEntries,
   singleBoardTree,
 } from '@/utils/subShareSnapshot';
-import type { Collection, Dashboard } from '@/types';
+import type { ClassRoster, Collection, Dashboard } from '@/types';
 
 const coll = (
   id: string,
@@ -168,5 +169,60 @@ describe('boardWalkIndex / landingBoardId', () => {
   it('reads a pre-v2 share from boardIds alone', () => {
     expect(landingBoardId(undefined, ['x', 'y'])).toBe('x');
     expect(landingBoardId(undefined, ['x', 'y'], 'y')).toBe('y');
+  });
+});
+
+describe('shareRosterEntries', () => {
+  const roster = (
+    id: string,
+    groups: ClassRoster['groups'] = [],
+    driveFileId: string | undefined = `file-${id}`
+  ): ClassRoster => ({
+    id,
+    name: `Class ${id}`,
+    driveFileId,
+    studentCount: 0,
+    createdAt: 0,
+    students: [],
+    groups,
+  });
+  const pullOut = (enabled: boolean, days: number[]) => ({
+    id: 'g',
+    name: '',
+    studentIds: [],
+    reminder: {
+      enabled,
+      days,
+      alerts: [{ time: '10:15', leadMinutes: 0 }],
+      repeat: 'weekly' as const,
+      startDate: '2026-09-28',
+      sound: 'off' as const,
+      snoozeMinutes: 3,
+      showName: false,
+      showTime: false,
+      showMessage: false,
+      message: '',
+      emailAlert: false,
+      emailMessage: '',
+    },
+  });
+  const rosters = [
+    roster('read'),
+    roster('reminders', [pullOut(true, [1])]),
+    roster('off', [pullOut(false, [1])]),
+    roster('nodays', [pullOut(true, [])]),
+    roster('nofile', [pullOut(true, [1])], ''),
+  ];
+
+  it('shares only the rosters the boards read without the flag', () => {
+    expect(shareRosterEntries(rosters, ['read'], false)).toEqual([
+      { id: 'read', name: 'Class read', driveFileId: 'file-read' },
+    ]);
+  });
+
+  it('adds classes with a scheduled reminder that have a Drive file', () => {
+    expect(
+      shareRosterEntries(rosters, ['read'], true).map((r) => r.id)
+    ).toEqual(['read', 'reminders']);
   });
 });
