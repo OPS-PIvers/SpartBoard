@@ -144,7 +144,7 @@ describe('GroupRemindersPanel', () => {
     await user.click(email);
     await user.type(
       screen.getByLabelText(/email message/i),
-      'Walk Ava to room 104'
+      'Walk them to room 104'
     );
     await user.click(screen.getByRole('button', { name: /save group/i }));
     await user.click(screen.getByRole('button', { name: /^save$/i }));
@@ -152,7 +152,7 @@ describe('GroupRemindersPanel', () => {
     const [group] = onSave.mock.calls[0][2] as RosterGroup[];
     expect(group.reminder).toMatchObject({
       emailAlert: true,
-      emailMessage: 'Walk Ava to room 104',
+      emailMessage: 'Walk them to room 104',
     });
   });
 

@@ -742,13 +742,8 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // PLC Home v2 layout — per-user tile order, spotlight and seen result counts. No PLC
-    // membership check needed (a non-member's doc is inert — tiles still pass the
-    // PLC rule gates to read content). Per-tile enum validation is delegated to
-    // usePlcOverviewLayout.ts (CEL has no .every()); blast radius is owner-only
-    // and the tiles size cap below bounds doc size.
     // Pull-out group email alerts: a server-readable copy of a Drive-held group
-    // schedule (no student data). The scheduled sender emails the owner only.
+    // schedule (the teacher writes the message). The scheduled sender emails the owner only.
     match /users/{userId}/group_email_alerts/{alertId} {
       allow read, delete: if ownsUserTeacher(userId);
       allow create, update: if ownsUserTeacher(userId)
@@ -772,6 +767,11 @@ service cloud.firestore {
              && d.updatedAt is int;
     }
 
+    // PLC Home v2 layout — per-user tile order, spotlight and seen result counts. No PLC
+    // membership check needed (a non-member's doc is inert — tiles still pass the
+    // PLC rule gates to read content). Per-tile enum validation is delegated to
+    // usePlcOverviewLayout.ts (CEL has no .every()); blast radius is owner-only
+    // and the tiles size cap below bounds doc size.
     match /users/{userId}/plc_layouts/{plcId} {
       allow read, delete: if ownsUser(userId);
       allow write: if ownsUser(userId) && plcLayoutOk(incoming());
@@ -1023,8 +1023,6 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Rollout switch for the "Review before assigning" mark on Claude-made
-    // items — teachers read it to show the mark; admins turn it off.
     // Kill switch for emailed group reminder alerts — teachers read it to show
     // the Email alert toggle; the scheduled sender re-checks it; admins flip it.
     match /admin_settings/group_reminder_emails {
@@ -1032,6 +1030,8 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Rollout switch for the "Review before assigning" mark on Claude-made
+    // items — teachers read it to show the mark; admins turn it off.
     match /admin_settings/claude_review_reminders {
       allow read: if request.auth != null;
       allow write: if isAdmin();
