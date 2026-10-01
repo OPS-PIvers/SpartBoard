@@ -353,7 +353,7 @@ describe('assertCallerIsOrgAdmin', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('rejects teachers, building admins and inactive admins', async () => {
+  it('rejects teachers, building admins and inactive or removed admins', async () => {
     const { deps } = makeDeps({
       'organizations/acme/members/t@acme.org': { roleId: 'teacher' },
       'organizations/acme/members/b@acme.org': { roleId: 'building_admin' },
@@ -361,11 +361,16 @@ describe('assertCallerIsOrgAdmin', () => {
         roleId: 'domain_admin',
         status: 'inactive',
       },
+      'organizations/acme/members/r@acme.org': {
+        roleId: 'super_admin',
+        status: 'removed',
+      },
     });
     for (const email of [
       't@acme.org',
       'b@acme.org',
       'x@acme.org',
+      'r@acme.org',
       'none@acme.org',
     ]) {
       await expect(

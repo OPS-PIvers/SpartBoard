@@ -258,7 +258,8 @@ export async function assertCallerIsOrgAdmin(
     if (
       typeof roleId === 'string' &&
       ADMIN_ROLE_IDS.includes(roleId) &&
-      status !== 'inactive'
+      status !== 'inactive' &&
+      status !== 'removed'
     ) {
       return;
     }
