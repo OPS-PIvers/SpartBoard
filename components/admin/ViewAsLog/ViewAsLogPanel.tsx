@@ -11,6 +11,7 @@ import { formatLogValue } from './formatLogValue';
 
 const ACTION_LABELS: Record<ViewAsAuditAction, string> = {
   view_as_start: 'Opened',
+  view_as_student: 'Opened student view',
   view_as_renew: 'Renewed',
   view_as_unlock: 'Unlocked edits',
   view_as_end: 'Exited',

@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
 import { useMediaUrl } from '@/components/activityWall/render/useMediaUrl';
 import type { ActivityWallSubmission } from '@/types';
 
@@ -29,6 +30,8 @@ interface ModerationDrawerProps {
   onDelete: (submissionId: string) => void;
   onPin: (submissionId: string, pinned: boolean) => void;
   onEdit: (submissionId: string, changes: SubmissionEdit) => void;
+  /** Lets a View as tab open a post author's student view. */
+  sessionId?: string | null;
 }
 
 const rowClass =
@@ -142,9 +145,15 @@ interface RowProps {
   submission: ActivityWallSubmission;
   actions: React.ReactNode;
   onEdit: (submissionId: string, changes: SubmissionEdit) => void;
+  sessionId?: string | null;
 }
 
-const SubmissionRow: React.FC<RowProps> = ({ submission, actions, onEdit }) => {
+const SubmissionRow: React.FC<RowProps> = ({
+  submission,
+  actions,
+  onEdit,
+  sessionId,
+}) => {
   const [editing, setEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState(submission.title ?? '');
   const [contentDraft, setContentDraft] = useState(submission.content);
@@ -216,7 +225,16 @@ const SubmissionRow: React.FC<RowProps> = ({ submission, actions, onEdit }) => {
           </button>
         )}
       </div>
-      <div className="flex shrink-0 items-center gap-1">{actions}</div>
+      <div className="flex shrink-0 items-center gap-1">
+        {sessionId && (
+          <ViewAsStudentButton
+            kind="activity-wall"
+            sessionId={sessionId}
+            studentKey={submission.authorUid}
+          />
+        )}
+        {actions}
+      </div>
     </li>
   );
 };
@@ -230,6 +248,7 @@ export const ModerationDrawer: React.FC<ModerationDrawerProps> = ({
   onDelete,
   onPin,
   onEdit,
+  sessionId = null,
 }) => {
   if (!open) return null;
 
@@ -257,6 +276,7 @@ export const ModerationDrawer: React.FC<ModerationDrawerProps> = ({
                 key={submission.id}
                 submission={submission}
                 onEdit={onEdit}
+                sessionId={sessionId}
                 actions={
                   <>
                     <button
@@ -296,6 +316,7 @@ export const ModerationDrawer: React.FC<ModerationDrawerProps> = ({
                 key={submission.id}
                 submission={submission}
                 onEdit={onEdit}
+                sessionId={sessionId}
                 actions={
                   <>
                     <button

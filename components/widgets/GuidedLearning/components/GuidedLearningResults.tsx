@@ -62,6 +62,7 @@ import {
   publishGuidedLearningResultsForStudents,
   unlockResultsForStudent,
 } from '@/utils/studentResultsPublish';
+import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
 
 type PeriodSession = PeriodAccessSessionFields & {
   id: string;
@@ -860,6 +861,12 @@ export const GuidedLearningResults: React.FC<Props> = ({
                                 triggerClassName="rounded-md text-slate-300 hover:bg-white/10 hover:text-white"
                               />
                             )}
+                            <ViewAsStudentButton
+                              kind="guided-learning"
+                              sessionId={sessionId}
+                              studentKey={r.studentAnonymousId}
+                              tone="dark"
+                            />
                           </div>
                         </div>
                       );

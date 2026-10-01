@@ -4473,7 +4473,7 @@ service cloud.firestore {
           isAdmin() ||
           get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.teacherUid == authUid()
         );
-        allow create: if request.auth != null &&
+        allow create: if request.auth != null && viewAsOk() &&
           incoming().keys().hasOnly(['viewedAt']) &&
           isTimestamp('viewedAt') &&
           exists(/databases/$(database)/documents/quiz_sessions/$(sessionId)) &&
@@ -5018,7 +5018,7 @@ service cloud.firestore {
       // Create requires the parent session to exist AND be in view-only mode.
       match /views/{viewId} {
         allow read: if vaOwner(vaS());
-        allow create: if request.auth != null &&
+        allow create: if request.auth != null && viewAsOk() &&
           incoming().keys().hasOnly(['viewedAt']) &&
           isTimestamp('viewedAt') &&
           vaS().get('mode', 'submissions') == 'view-only';
@@ -5290,7 +5290,7 @@ service cloud.firestore {
       // stores assignment mode under `assignmentMode` (its `mode` is play-mode).
       match /views/{viewId} {
         allow read: if request.auth != null && glIsTeacher();
-        allow create: if request.auth != null &&
+        allow create: if request.auth != null && viewAsOk() &&
           incoming().keys().hasOnly(['viewedAt']) &&
           isTimestamp('viewedAt') &&
           glSessionMode() == 'view-only';
@@ -5469,7 +5469,7 @@ service cloud.firestore {
         // unbounded-field-injection gap: without it a caller could smuggle arbitrary extra
         // keys - incl. a large junk string toward the 1MB cap - past every per-field check,
         // and every gallery viewer's onSnapshot would pay to download it on each emission.
-        allow create: if request.auth != null &&
+        allow create: if request.auth != null && viewAsOk() &&
           exists(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)) &&
           passesStudentClassGateCompat(awSessionClassIds(), awSessionClassId()) &&
           incoming().keys().hasOnly([

@@ -75,6 +75,10 @@ import { QUIZ_SSO_REDIRECT_ENABLED } from '@/config/constants';
 import { AnonymousJoinBlockedScreen } from '@/components/common/AnonymousJoinBlockedScreen';
 import { shouldGateToSso } from '@/utils/studentJoinRouting';
 import { logError } from '@/utils/logError';
+import {
+  getStudentPreview,
+  studentPreviewBlocksWrite,
+} from '@/utils/viewAsTab';
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
 import { resolveAttemptDeadline, timestampMillis } from '@/utils/quizTimeLimit';
 import { QuizTimeLimitClock } from './QuizTimeLimitClock';
@@ -415,7 +419,11 @@ const QuizJoinFlow: React.FC<{
 
   const [code, setCode] = useState(urlCode);
   const [pin, setPin] = useState('');
-  const [joined, setJoined] = useState(false);
+  // View as student (ADMIN_VIEW_AS.md D15): show an existing response, never join.
+  const preview = getStudentPreview();
+  const previewSessionId = preview?.kind === 'quiz' ? preview.sessionId : null;
+  const previewKey = preview?.kind === 'quiz' ? preview.studentKey : null;
+  const [joined, setJoined] = useState(previewSessionId !== null);
 
   // Period selection step: after entering code+PIN, anon students always pick
   // their class period before joining (PIN+period is the disambiguator on the
@@ -460,6 +468,7 @@ const QuizJoinFlow: React.FC<{
     lookupSession,
     joinQuizSession,
     subscribeForReview,
+    previewResponse,
     submitAnswer,
     commitRecordingTake,
     setArtifactUploadState,
@@ -623,6 +632,12 @@ const QuizJoinFlow: React.FC<{
     subscribeForReview,
     lookupSession,
   ]);
+
+  useEffect(() => {
+    if (previewSessionId && previewKey) {
+      previewResponse(previewSessionId, previewKey);
+    }
+  }, [previewSessionId, previewKey, previewResponse]);
 
   // Resolve the SSO gate. SSO students skip it (the auto-join effect handles
   // them). Otherwise look up the session to learn whether it's ClassLink-
@@ -810,6 +825,7 @@ const QuizJoinFlow: React.FC<{
   const wroteViewRef = useRef<string | null>(null);
   useEffect(() => {
     if (!isViewOnly || !session?.id || !authedUid) return;
+    if (studentPreviewBlocksWrite()) return;
     if (wroteViewRef.current === session.id) return;
     wroteViewRef.current = session.id;
     const sessionId = session.id;
@@ -1100,6 +1116,7 @@ const QuizJoinFlow: React.FC<{
     // Otherwise prefer the hook `error` (e.g. the friendly "ask your teacher to
     // enroll you" hint on a class-gate denial), then `ssoAutoJoinError` (which
     // captures lookupSession failures the hook never sees).
+    if (previewSessionId) return <FullPageLoader message="Loading…" />;
     if (isStudentRole) {
       const ssoError = ssoTerminalError ?? error ?? ssoAutoJoinError;
       if (ssoError) {

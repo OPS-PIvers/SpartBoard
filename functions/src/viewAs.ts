@@ -15,11 +15,12 @@ export const MAX_REASON_LENGTH = 500;
 
 export type ViewAsServerAuditAction =
   | 'view_as_start'
+  | 'view_as_student'
   | 'view_as_renew'
   | 'view_as_unlock'
   | 'view_as_end';
 
-interface SessionDoc {
+export interface SessionDoc {
   by: string;
   targetEmail: string;
   targetUid: string;
@@ -48,13 +49,13 @@ export async function isViewAsEnabled(db: Firestore): Promise<boolean> {
   return snap.exists && snap.get('enabled') === true;
 }
 
-async function assertEnabled(db: Firestore): Promise<void> {
+export async function assertEnabled(db: Firestore): Promise<void> {
   if (!(await isViewAsEnabled(db))) {
     throw new HttpsError('failed-precondition', 'View as is turned off.');
   }
 }
 
-async function assertStrictSuperAdmin(
+export async function assertStrictSuperAdmin(
   db: Firestore,
   emailLower: string
 ): Promise<void> {
@@ -69,7 +70,7 @@ function toMillis(value: unknown): number {
   return 0;
 }
 
-function readSession(
+export function readSession(
   snap: admin.firestore.DocumentSnapshot
 ): SessionDoc | null {
   if (!snap.exists) return null;
