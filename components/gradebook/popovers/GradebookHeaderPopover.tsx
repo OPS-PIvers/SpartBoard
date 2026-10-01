@@ -66,7 +66,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
   pushControl,
 }) => {
   const ids = useId();
-  const markWrites = useGradebookMarkWrites(ctx.rosterId);
+  const markWrites = useGradebookMarkWrites(ctx.rosterId, ctx.settings.flags);
   const { saveColumn, setHidden } = useGradebookColumnWrites();
   const completion = isCompletionOnly(column.kind);
   const config = column.config;

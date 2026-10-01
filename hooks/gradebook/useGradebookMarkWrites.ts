@@ -9,8 +9,10 @@ import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import {
   GRADEBOOK_COLLECTIONS,
+  flagsRemovedByScore,
   gradebookDocId,
   type ActiveFlag,
+  type GradebookFlagDef,
   type GradebookHistoryField,
   type GradebookMark,
 } from '@/utils/gradebook/gradebookCore';
@@ -40,6 +42,8 @@ interface PlannedWrite {
   field: GradebookHistoryField;
   historyBefore: unknown;
   historyAfter: unknown;
+  /** Flags a new score removed, logged as their own history entry. */
+  flagsHistory?: { before: unknown; after: unknown };
 }
 
 export function newBatchId(): string {
@@ -138,7 +142,10 @@ function historyValue(
   }
 }
 
-export function useGradebookMarkWrites(rosterId: string) {
+export function useGradebookMarkWrites(
+  rosterId: string,
+  flagDefs: GradebookFlagDef[]
+) {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
   const undoScope = `${uid ?? ''}/${rosterId}`;
@@ -166,6 +173,17 @@ export function useGradebookMarkWrites(rosterId: string) {
             after: w.historyAfter,
             batchId,
           });
+          if (w.flagsHistory) {
+            batch.set(doc(collection(ref, GRADEBOOK_COLLECTIONS.history)), {
+              ownerUid: uid,
+              byUid: uid,
+              at,
+              field: 'flags',
+              before: w.flagsHistory.before,
+              after: w.flagsHistory.after,
+              batchId,
+            });
+          }
         }
         await batch.commit();
       }
@@ -197,7 +215,17 @@ export function useGradebookMarkWrites(rosterId: string) {
       if (!uid) return null;
       const before = cell.mark;
       const base = before ?? blankMark(column, cell, rosterId, uid);
-      const after: GradebookMark = { ...base, ...patch };
+      let after: GradebookMark = { ...base, ...patch };
+      const removed = patch.override
+        ? flagsRemovedByScore(after, flagDefs)
+        : [];
+      const flagsBefore = historyValue(after, 'flags');
+      if (removed.length) {
+        after = {
+          ...after,
+          flags: after.flags.filter((f) => !removed.includes(f)),
+        };
+      }
       const field = fieldOverride ?? historyFieldFor(patch);
       return {
         markId: gradebookDocId(column.sessionId, cell.student.uid),
@@ -206,9 +234,17 @@ export function useGradebookMarkWrites(rosterId: string) {
         field,
         historyBefore: historyValue(before, field),
         historyAfter: historyValue(after, field),
+        ...(removed.length
+          ? {
+              flagsHistory: {
+                before: flagsBefore,
+                after: historyValue(after, 'flags'),
+              },
+            }
+          : {}),
       };
     },
-    [uid, rosterId]
+    [uid, rosterId, flagDefs]
   );
 
   const commitOne = useCallback(

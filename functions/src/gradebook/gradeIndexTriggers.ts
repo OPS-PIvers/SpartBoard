@@ -21,6 +21,7 @@ import {
   configPathFor,
   inRoster,
   projectRow,
+  removeFlagsOnScore,
   reprojectRows,
   rowsForClass,
   rowsForSession,
@@ -272,9 +273,16 @@ export const gradeIndexStudentPointer = onDocumentWritten(
 export async function handleRowWrite(event: WriteEvent): Promise<void> {
   const before = dataOf(event.data?.before) as IndexRow | undefined;
   const after = dataOf(event.data?.after) as IndexRow | undefined;
-  await guarded('projection', { rowId: event.params.rowId }, () =>
-    projectRow(admin.firestore(), after ?? null, before ?? null)
-  );
+  await guarded('projection', { rowId: event.params.rowId }, async () => {
+    const db = admin.firestore();
+    await projectRow(db, after ?? null, before ?? null);
+    await removeFlagsOnScore(
+      db,
+      event.params.rowId,
+      after ?? null,
+      before ?? null
+    );
+  });
 }
 
 export const gradeIndexProjection = onDocumentWritten(
