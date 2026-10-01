@@ -15,6 +15,7 @@ import { Loader2, Users2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { Plc } from '@/types';
 import { getPlcMembers } from '@/utils/plc';
+import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 
 interface PlcShareTargetModalProps {
   /** PLCs the user is a current member of. Caller filters; modal renders as-is. */
@@ -37,10 +38,12 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canSubmit = !!selectedId && !submitting;
+  const outward = useViewAsOutward();
+  const canSubmit = !!selectedId && !submitting && !outward.locked;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    if (outward.active && !(await outward.confirm('Share to PLC'))) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -155,6 +158,7 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
             type="button"
             onClick={() => void handleSubmit()}
             disabled={!canSubmit}
+            title={outward.lockedTitle}
             className="px-4 py-2 text-xs font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-2"
           >
             {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}

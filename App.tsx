@@ -30,6 +30,7 @@ import {
 } from './utils/viewAsTab';
 import { ViewAsGate } from './context/ViewAsContext';
 import { ViewAsBanner } from './components/viewAs/ViewAsBanner';
+import { ViewAsSaveToast } from './components/viewAs/ViewAsSaveToast';
 import { StudentPreviewGate } from './components/viewAs/StudentPreviewGate';
 
 // Lazy load heavy components for code splitting
@@ -604,6 +605,7 @@ const App: React.FC = () => {
         <DialogProvider>
           <AuthProvider>
             <ViewAsBanner />
+            <ViewAsSaveToast />
             <AuthenticatedApp />
           </AuthProvider>
           <DialogContainer />

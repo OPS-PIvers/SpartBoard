@@ -10,6 +10,7 @@ import {
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
+import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 
 interface MagicLayoutModalProps {
   onClose: () => void;
@@ -18,6 +19,7 @@ interface MagicLayoutModalProps {
 export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
   onClose,
 }) => {
+  const outward = useViewAsOutward();
   const { addWidgets, addToast } = useDashboard();
   const { canAccessFeature } = useAuth();
   const [description, setDescription] = useState('');
@@ -30,7 +32,8 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
   };
 
   const handleGenerate = async () => {
-    if (!description.trim()) return;
+    if (!description.trim() || outward.locked) return;
+    if (outward.active && !(await outward.confirm('Generate with AI'))) return;
 
     setIsGenerating(true);
     try {
@@ -133,7 +136,8 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
           </button>
           <button
             onClick={handleGenerate}
-            disabled={isGenerating || !description.trim()}
+            disabled={isGenerating || !description.trim() || outward.locked}
+            title={outward.lockedTitle}
             className="flex-[2] py-3 text-xs font-black uppercase tracking-widest text-white bg-brand-blue-primary hover:bg-brand-blue-dark rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isGenerating ? (

@@ -59,6 +59,7 @@ import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
 import { useServerNow } from '@/hooks/useServerNow';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { PeriodAccessStrip } from '@/components/widgets/QuizWidget/components/monitor/PeriodAccessStrip';
+import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 
 interface VideoActivityLiveMonitorProps {
   session: VideoActivitySession;
@@ -374,6 +375,7 @@ export const VideoActivityLiveMonitor: React.FC<
   onBack,
 }) => {
   const { showConfirm } = useDialog();
+  const outward = useViewAsOutward();
   const { addToast, rosters } = useDashboard();
   const { orgId, canAccessFeature } = useAuth();
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
@@ -505,6 +507,7 @@ export const VideoActivityLiveMonitor: React.FC<
   }, [responses]);
 
   const handleEnd = useCallback(async () => {
+    if (outward.locked) return;
     const ok = await showConfirm(
       'End this assignment? The student URL will stop working. Responses are preserved and will still be viewable from the Archive.',
       {
@@ -514,13 +517,14 @@ export const VideoActivityLiveMonitor: React.FC<
       }
     );
     if (!ok) return;
+    outward.audit('End assignment');
     setEnding(true);
     try {
       await onEnd();
     } finally {
       setEnding(false);
     }
-  }, [showConfirm, onEnd]);
+  }, [showConfirm, onEnd, outward]);
 
   const handleTogglePause = useCallback(async () => {
     if (toggling) return;
@@ -600,7 +604,8 @@ export const VideoActivityLiveMonitor: React.FC<
               label="End"
               icon={Square}
               onClick={() => void handleEnd()}
-              disabled={ending}
+              disabled={ending || outward.locked}
+              disabledReason={outward.lockedTitle}
               loading={ending}
             />
           </>

@@ -22,6 +22,7 @@
 import React, { useCallback, useState } from 'react';
 import { Loader2, Rocket } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 import type { AssignModalProps, AssignModeOption } from './types';
 
 const MODAL_LABEL_ID = 'assign-modal-title';
@@ -47,9 +48,11 @@ export function AssignModal<TOptions>({
   zIndex,
 }: AssignModalProps<TOptions>): React.ReactElement | null {
   const [submitting, setSubmitting] = useState(false);
+  const outward = useViewAsOutward();
 
   const handleAssign = useCallback(async () => {
-    if (submitting || confirmDisabled) return;
+    if (submitting || confirmDisabled || outward.locked) return;
+    if (outward.active && !(await outward.confirm(confirmLabel))) return;
     setSubmitting(true);
     try {
       await onAssign({
@@ -63,13 +66,15 @@ export function AssignModal<TOptions>({
   }, [
     submitting,
     confirmDisabled,
+    outward,
+    confirmLabel,
     onAssign,
     selectedMode,
     options,
     assignmentName,
   ]);
 
-  const confirmButtonDisabled = confirmDisabled || submitting;
+  const confirmButtonDisabled = confirmDisabled || submitting || outward.locked;
 
   const customHeader = (
     <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0">
@@ -112,9 +117,10 @@ export function AssignModal<TOptions>({
         disabled={confirmButtonDisabled}
         {...confirmTourAttrs}
         title={
-          confirmDisabled && confirmDisabledReason
+          outward.lockedTitle ??
+          (confirmDisabled && confirmDisabledReason
             ? confirmDisabledReason
-            : undefined
+            : undefined)
         }
         className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
       >

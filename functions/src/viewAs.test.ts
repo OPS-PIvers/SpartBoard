@@ -117,7 +117,7 @@ const teacher = 'jane@orono.k12.mn.us';
 
 function seed() {
   docs = {
-    'admin_settings/view_as': { enabled: true },
+    'admin_settings/view_as': { enabled: true, allowUnlock: true },
     [`organizations/orono/members/${boss}`]: { roleId: 'super_admin' },
   };
 }
@@ -142,6 +142,7 @@ describe('startViewAsSessionV1', () => {
       token: 'tok',
       targetUid: 'jane-uid',
       adminTarget: false,
+      canUnlock: true,
     });
     const audit = writes.find((w) => w.path.startsWith('admin_audit_log'));
     expect(audit?.data).toMatchObject({
@@ -254,6 +255,7 @@ describe('startViewAsSessionV1', () => {
     docs[`admins/${teacher}`] = {};
     const res = await start({ auth: BOSS, data: { targetEmail: teacher } });
     expect(res.adminTarget).toBe(true);
+    expect(res.canUnlock).toBe(false);
     expect(createCustomTokenMock.mock.calls[0][1].viewAs.adminTarget).toBe(
       true
     );
@@ -308,6 +310,17 @@ describe('updateViewAsSessionV1', () => {
       action: 'view_as_unlock',
       reason: 'fix her quiz settings',
     });
+  });
+
+  it('refuses unlock and renews read-only while allowUnlock is off', async () => {
+    live({ unlocked: true });
+    docs['admin_settings/view_as'] = { enabled: true };
+    await expect(
+      update({ auth: asTab(), data: { action: 'unlock', reason: 'fix it' } })
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    const res = await update({ auth: asTab(), data: { action: 'renew' } });
+    expect(res.unlocked).toBe(false);
+    expect(createCustomTokenMock.mock.calls[0][1].viewAs.ro).toBe(true);
   });
 
   it('refuses unlock without a reason', async () => {

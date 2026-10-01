@@ -33,6 +33,8 @@ export interface StartViewAsSessionResponse {
   targetEmail: string;
   adminTarget: boolean;
   expiresAt: number;
+  /** False while `admin_settings/view_as.allowUnlock` is off or the target is an admin. */
+  canUnlock?: boolean;
 }
 
 export type StudentPreviewKind =

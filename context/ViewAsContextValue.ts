@@ -8,6 +8,8 @@ export interface ViewAsContextValue {
   /** Epoch ms. */
   expiresAt: number;
   readOnly: boolean;
+  /** The server allows unlocking edits for this session. */
+  canUnlock: boolean;
   renew: () => Promise<void>;
   /** Unlock edits with an audited reason; refused for admin targets. */
   unlock: (reason: string) => Promise<void>;

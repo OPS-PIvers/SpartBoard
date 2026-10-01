@@ -99,6 +99,17 @@ describe('viewAsDrive', () => {
     expect(mod.noDriveMessage('Sign in')).toBe(mod.VIEW_AS_DRIVE_UNAVAILABLE);
   });
 
+  it('lets Drive writes through once edits are unlocked', async () => {
+    await loadViewAsTab();
+    const tab = await import('./viewAsTab');
+    tab.updateViewAsTabState({ unlocked: true });
+    await window.fetch('https://www.googleapis.com/drive/v3/files/abc', {
+      method: 'PATCH',
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    tab.updateViewAsTabState({ unlocked: false });
+  });
+
   it('returns the target token and marks Drive available', async () => {
     const mod = await loadViewAsTab();
     callableMock.mockResolvedValue({

@@ -190,6 +190,7 @@ import type {
   LocalizedFibAnswers,
 } from '@/utils/quizFibAnswers';
 import { QuizTargetResults } from './QuizTargetResults';
+import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
 
 /**
@@ -423,6 +424,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   studentResultsActions,
   variant = 'quiz',
 }) => {
+  const outward = useViewAsOutward();
   const isReview = variant === 'review';
   const isGame = isGameSession(session);
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
@@ -1273,6 +1275,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   };
 
   const handleExport = async () => {
+    if (outward.active && !(await outward.confirm('Export to Sheets'))) return;
     // Scope depends on mode. SOLO export CREATES a brand-new sheet the user
     // owns → the non-sensitive `drive.file` login scope suffices (silent, no
     // consent — it's always in the login grant). PLC export APPENDS to a shared
@@ -2380,7 +2383,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               <button
                 type="button"
                 onClick={() => void handleExport()}
-                disabled={exporting || responses.length === 0}
+                disabled={exporting || responses.length === 0 || outward.locked}
+                title={outward.lockedTitle}
                 className={footerButtonClass}
                 style={footerButtonStyle}
               >

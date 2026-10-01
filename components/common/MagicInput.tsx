@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, Loader2, AlertCircle } from 'lucide-react';
+import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 
 interface MagicInputProps<T> {
   /** Async function to call when generating. Should return the result. */
@@ -22,12 +23,14 @@ export const MagicInput = <T,>({
   placeholder = 'Describe what you want...',
   buttonLabel = 'Generate',
 }: MagicInputProps<T>) => {
+  const outward = useViewAsOutward();
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || outward.locked) return;
+    if (outward.active && !(await outward.confirm('Generate with AI'))) return;
 
     setIsLoading(true);
     setError(null);
@@ -74,7 +77,8 @@ export const MagicInput = <T,>({
         />
         <button
           onClick={handleGenerate}
-          disabled={isLoading || !prompt.trim()}
+          disabled={isLoading || !prompt.trim() || outward.locked}
+          title={outward.lockedTitle}
           className="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-brand-blue-light text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5"
         >
           {isLoading ? (

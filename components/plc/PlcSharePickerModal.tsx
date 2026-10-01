@@ -19,6 +19,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Search, Share2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 
 export interface PlcSharePickerItem {
   id: string;
@@ -61,6 +62,7 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
   onPick,
   onClose,
 }) => {
+  const outward = useViewAsOutward();
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -78,7 +80,8 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
   }, [items, query]);
 
   const handlePick = async (itemId: string) => {
-    if (busyRef.current) return;
+    if (busyRef.current || outward.locked) return;
+    if (outward.active && !(await outward.confirm('Share to PLC'))) return;
     busyRef.current = true;
     setBusyId(itemId);
     try {
@@ -158,7 +161,8 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
               ) : (
                 filtered.map((item) => {
                   const rowBusy = busyId === item.id;
-                  const disabled = !!item.alreadyShared || !!busyId;
+                  const disabled =
+                    !!item.alreadyShared || !!busyId || outward.locked;
                   return (
                     <div
                       key={item.id}
@@ -187,6 +191,7 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
                         type="button"
                         onClick={() => void handlePick(item.id)}
                         disabled={disabled}
+                        title={outward.lockedTitle}
                         className="shrink-0 inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-bold transition-colors bg-brand-blue-primary text-white hover:bg-brand-blue-dark disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         {rowBusy ? (

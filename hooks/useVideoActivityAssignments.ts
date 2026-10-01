@@ -66,6 +66,7 @@ import {
   VA_KEY_DOC_ID,
   VA_KEY_SUBCOLLECTION,
 } from '@/utils/videoActivityPublicQuestions';
+import { viewAsDirectSave } from '@/utils/viewAsAudit';
 
 /**
  * Map VA assignment status onto the PLC index's shared `QuizAssignmentStatus`
@@ -611,16 +612,18 @@ export const useVideoActivityAssignments = (
       if (!userId) throw new Error('Not authenticated');
       const now = Date.now();
       const batch = writeBatch(db);
-      batch.update(
-        doc(
-          db,
-          'users',
-          userId,
-          VIDEO_ACTIVITY_ASSIGNMENTS_COLLECTION,
-          assignmentId
-        ),
-        { ...patch, updatedAt: now } as Record<string, unknown>
+      const assignmentRef = doc(
+        db,
+        'users',
+        userId,
+        VIDEO_ACTIVITY_ASSIGNMENTS_COLLECTION,
+        assignmentId
       );
+      const assignmentPatch = { ...patch, updatedAt: now } as Record<
+        string,
+        unknown
+      >;
+      batch.update(assignmentRef, assignmentPatch);
       // Mirror student-visible changes to the session doc so an in-flight
       // join picks them up on next visit. We propagate:
       //   - sessionSettings (player behavior — autoPlay, etc.)
@@ -646,7 +649,9 @@ export const useVideoActivityAssignments = (
           sessionPatch
         );
       }
-      await batch.commit();
+      await viewAsDirectSave(assignmentRef, Object.keys(assignmentPatch), () =>
+        batch.commit()
+      );
     },
     [userId]
   );

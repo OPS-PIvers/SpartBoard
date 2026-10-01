@@ -34,6 +34,7 @@ const base = (over: Partial<ViewAsContextValue> = {}): ViewAsContextValue => ({
   adminTarget: false,
   expiresAt: Date.now() + 60 * 60 * 1000,
   readOnly: true,
+  canUnlock: true,
   renew: vi.fn().mockResolvedValue(undefined),
   unlock: vi.fn().mockResolvedValue(undefined),
   end: vi.fn().mockResolvedValue(undefined),
@@ -95,7 +96,7 @@ describe('ViewAsBanner', () => {
 
   it('unlocks with a reason, and never offers unlock for an admin target', async () => {
     const unlock = vi.fn().mockResolvedValue(undefined);
-    viewAs = base({ adminTarget: true, unlock });
+    viewAs = base({ adminTarget: true, canUnlock: false, unlock });
     const { rerender } = render(<ViewAsBanner />);
     expect(screen.queryByRole('button', { name: 'Unlock edits' })).toBeNull();
 
