@@ -8,17 +8,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
+import { useAuth } from '@/context/useAuth';
 import { logError } from '@/utils/logError';
 import {
   collectShareRosterIds,
+  shareRosterEntries,
   flattenSharedCollection,
   singleBoardTree,
 } from '@/utils/subShareSnapshot';
-import type {
-  Collection,
-  SharedCollection,
-  SubstituteShareRoster,
-} from '@/types';
+import type { Collection, SharedCollection } from '@/types';
 
 const HOUR_MS = 60 * 60 * 1000;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -39,6 +37,7 @@ export interface SubSharesApi {
 export function useSubShares(enabled: boolean): SubSharesApi {
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
+  const { canAccessFeature } = useAuth();
   const {
     dashboards,
     collectionsApi,
@@ -164,13 +163,11 @@ export function useSubShares(enabled: boolean): SubSharesApi {
           tree.orderedBoards,
           activeRosterId
         );
-        const sharedRosters: SubstituteShareRoster[] = rosters
-          .filter((r) => rosterIds.includes(r.id) && r.driveFileId)
-          .map((r) => ({
-            id: r.id,
-            name: r.name,
-            driveFileId: r.driveFileId as string,
-          }));
+        const sharedRosters = shareRosterEntries(
+          rosters,
+          rosterIds,
+          canAccessFeature('group-reminders')
+        );
         const shareCollection: Collection = collection ?? {
           id: (board as { id: string }).id,
           name: (board as { name: string }).name,
@@ -222,6 +219,7 @@ export function useSubShares(enabled: boolean): SubSharesApi {
       collectionsApi.collections,
       rosters,
       activeRosterId,
+      canAccessFeature,
       updateSubstituteCollectionShare,
       addToast,
       refresh,

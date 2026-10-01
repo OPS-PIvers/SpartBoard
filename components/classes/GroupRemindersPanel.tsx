@@ -24,10 +24,14 @@ import {
   formatReminderSummary,
   formatReminderTime,
 } from '@/utils/groupReminders';
+import { printGroupSchedule } from '@/utils/groupSchedulePrint';
+import { groupSymbolMarkup } from '@/components/groupReminders/groupSymbolMarkup';
+import { logError } from '@/utils/logError';
 import { playReminderSound } from '@/utils/reminderSounds';
 import { SplitClassFooter } from './SplitClassFooter';
 
 interface GroupRemindersPanelProps {
+  rosterName?: string;
   groups: RosterGroup[];
   students: Student[];
   emailAlertsEnabled?: boolean;
@@ -44,6 +48,7 @@ const studentName = (s: Student) =>
 
 /** Groups tab with symbols, weekly reminders and a four-step group wizard. */
 export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
+  rosterName = '',
   groups,
   students,
   emailAlertsEnabled = false,
@@ -52,6 +57,7 @@ export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
   const { t } = useTranslation();
   const [draft, setDraft] = useState<RosterGroup | null>(null);
   const [isNew, setIsNew] = useState(false);
+  const [printError, setPrintError] = useState<string | null>(null);
   const studentIds = useMemo(
     () => new Set(students.map((s) => s.id)),
     [students]
@@ -103,6 +109,37 @@ export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
   const everyTwoWeeks = t('groupReminders.everyTwoWeeks', {
     defaultValue: 'every 2 weeks',
   });
+  const scheduled = groups.some(
+    (g) => !!g.reminder?.enabled && g.reminder.days.length > 0
+  );
+
+  const printSchedule = () => {
+    setPrintError(null);
+    try {
+      printGroupSchedule({
+        rosterName,
+        groups,
+        students,
+        symbolSvg: (g) => groupSymbolMarkup(g.symbol),
+        labels: {
+          title: t('groupReminders.printTitle', {
+            defaultValue: 'Group schedule',
+          }),
+          printed: t('groupReminders.printed', { defaultValue: 'Printed' }),
+          everyTwoWeeks: t('groupReminders.everyTwoWeeksCap', {
+            defaultValue: 'Every 2 weeks',
+          }),
+          weeksOf: t('groupReminders.weeksOf', { defaultValue: 'weeks of' }),
+          noGroups: t('groupReminders.printNoGroups', {
+            defaultValue: 'No groups',
+          }),
+        },
+      });
+    } catch (err) {
+      logError('GroupRemindersPanel.print', err);
+      setPrintError(err instanceof Error ? err.message : String(err));
+    }
+  };
 
   return (
     <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-white overflow-y-auto custom-scrollbar">
@@ -214,10 +251,19 @@ export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
           </ul>
         </>
       )}
+      {printError && (
+        <p
+          role="alert"
+          className="sticky bottom-14 mx-3 px-3 py-2 text-xs font-semibold text-red-800 bg-red-50 border border-red-300 rounded-lg"
+        >
+          {printError}
+        </p>
+      )}
       <SplitClassFooter
         students={students}
         onAddGroups={(made) => onChange([...groups, ...made])}
         onNewGroup={groups.length > 0 ? openNew : undefined}
+        onPrint={scheduled ? printSchedule : undefined}
       />
     </div>
   );

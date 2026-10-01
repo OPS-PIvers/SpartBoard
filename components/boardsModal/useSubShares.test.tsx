@@ -37,6 +37,10 @@ vi.mock('@/context/useDashboard', () => ({
   }),
 }));
 
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
+}));
+
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm }),
 }));

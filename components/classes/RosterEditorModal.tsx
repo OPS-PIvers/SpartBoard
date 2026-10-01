@@ -337,6 +337,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
 
         {activeTab === 'groups' && roster && groupRemindersEnabled ? (
           <GroupRemindersPanel
+            rosterName={name.trim()}
             groups={groups}
             emailAlertsEnabled={groupReminderEmailsEnabled}
             students={validStudents}

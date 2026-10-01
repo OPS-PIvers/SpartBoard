@@ -69,7 +69,11 @@ vi.mock('@/context/useDashboard', () => ({
 }));
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ selectedBuildings: ['high'], hasOrg: true }),
+  useAuth: () => ({
+    selectedBuildings: ['high'],
+    hasOrg: true,
+    canAccessFeature: () => false,
+  }),
 }));
 
 vi.mock('@/hooks/useAdminBuildings', () => ({
