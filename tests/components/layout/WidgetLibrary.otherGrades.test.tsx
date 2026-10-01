@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 
 vi.mock('@/context/useDialog', () => ({
@@ -37,6 +37,7 @@ function renderLibrary(
   );
 }
 
+beforeEach(() => localStorage.removeItem('spartboard_library_sort'));
 afterEach(cleanup);
 
 describe('WidgetLibrary — other grade levels', () => {
@@ -87,5 +88,29 @@ describe('WidgetLibrary — other grade levels', () => {
     renderLibrary({ visibleTools: ['specialist-schedule'] });
 
     expect(screen.queryByText(/Other grade levels/)).toBeNull();
+  });
+
+  it('follows the A–Z and My order sort', () => {
+    const order = ['traffic', 'lunchCount', 'dice'] as const;
+    renderLibrary({
+      canAccess: (type) => (order as readonly string[]).includes(type),
+      matchesUserBuilding: () => false,
+      libraryOrder: [...order],
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Other grade levels/ }));
+    const labels = () =>
+      Array.from(
+        document.querySelectorAll(
+          '[data-tour="library.item"] span:first-of-type'
+        )
+      ).map((el) => el.textContent);
+
+    expect(labels()).toEqual(['Dice', 'Lunch', 'Traffic']);
+
+    fireEvent.change(screen.getByLabelText('Sort widgets'), {
+      target: { value: 'custom' },
+    });
+
+    expect(labels()).toEqual(['Traffic', 'Lunch', 'Dice']);
   });
 });
