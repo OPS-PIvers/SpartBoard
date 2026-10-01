@@ -37,37 +37,33 @@ export const GradebookAdminPanel: React.FC = () => {
   }
 
   return (
-    <div className="p-6 pb-10 grid grid-cols-[repeat(auto-fit,minmax(min(100%,720px),1fr))] gap-4 items-start max-w-[1800px]">
-      <div className="flex flex-col gap-4 min-w-0">
-        <DistrictScaleCard
-          title={scaleTitle}
-          scale={admin.scale}
-          onSave={admin.saveScale}
-          notify={notify}
-          fail={fail}
-        />
-        <GradingPeriodSetsCard
-          sets={admin.periodSets}
-          buildings={buildings}
-          newId={() => admin.newDocId('periods')}
-          onSave={admin.savePeriodSet}
-          onDelete={admin.deletePeriodSet}
-          notify={notify}
-          fail={fail}
-        />
-      </div>
-      <div className="flex flex-col gap-4 min-w-0">
-        <DistrictConfigsCard
-          configs={admin.districtConfigs}
-          buildings={buildings}
-          scaleOptions={scaleOptions}
-          newId={() => admin.newDocId('district')}
-          onSave={(id, c) => admin.saveDistrictConfig(id, c)}
-          onDelete={admin.deleteDistrictConfig}
-          notify={notify}
-          fail={fail}
-        />
-      </div>
+    <div className="p-6 pb-10 flex flex-col gap-4 max-w-[1120px]">
+      <DistrictScaleCard
+        title={scaleTitle}
+        scale={admin.scale}
+        onSave={admin.saveScale}
+        notify={notify}
+        fail={fail}
+      />
+      <GradingPeriodSetsCard
+        sets={admin.periodSets}
+        buildings={buildings}
+        newId={() => admin.newDocId('periods')}
+        onSave={admin.savePeriodSet}
+        onDelete={admin.deletePeriodSet}
+        notify={notify}
+        fail={fail}
+      />
+      <DistrictConfigsCard
+        configs={admin.districtConfigs}
+        buildings={buildings}
+        scaleOptions={scaleOptions}
+        newId={() => admin.newDocId('district')}
+        onSave={(id, c) => admin.saveDistrictConfig(id, c)}
+        onDelete={admin.deleteDistrictConfig}
+        notify={notify}
+        fail={fail}
+      />
       {toastNode}
     </div>
   );

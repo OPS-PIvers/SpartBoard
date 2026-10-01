@@ -19,6 +19,7 @@ export const DistrictScaleCard: React.FC<{
     <ScaleLevelsEditor
       scale={scale}
       editable
+      layout="ruler"
       onCommit={(next, label) => {
         const prev = { levels: scale.levels.map((l) => ({ ...l })) };
         onSave(next).catch(fail);
