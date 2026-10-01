@@ -90,6 +90,7 @@ const PlcsMenuButton: React.FC<PlcsMenuButtonProps> = ({
   pendingInviteCount,
 }) => {
   const { t } = useTranslation();
+  const { canAccessFeature } = useAuth();
   return (
     <button
       onClick={onClick}
@@ -102,7 +103,9 @@ const PlcsMenuButton: React.FC<PlcsMenuButtonProps> = ({
         )}
       </div>
       <span className="flex-grow text-[13px]">
-        {t('sidebar.nav.plcs', { defaultValue: 'My PLCs' })}
+        {canAccessFeature('my-groups')
+          ? t('sidebar.nav.groups', { defaultValue: 'My Groups' })
+          : t('sidebar.nav.plcs', { defaultValue: 'My PLCs' })}
       </span>
       <span className="text-xxs bg-brand-blue-lighter text-brand-blue-primary px-2 py-0.5 rounded-full font-bold">
         {plcCount}

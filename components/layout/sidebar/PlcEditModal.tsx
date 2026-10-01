@@ -7,7 +7,13 @@ import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
-import { Plc } from '@/types';
+import {
+  Plc,
+  PlcGroupType,
+  TEACHER_PLC_GROUP_TYPES,
+  getPlcGroupType,
+} from '@/types';
+import { groupTypeLabel } from '@/components/plc/groupTypes';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
@@ -17,7 +23,7 @@ interface PlcEditModalProps {
   plc: Plc | null;
   onClose: () => void;
   /** Called when creating a new PLC. Existing PLC edits go through `usePlcs` directly. */
-  onCreate: (name: string) => Promise<void>;
+  onCreate: (name: string, groupType: PlcGroupType) => Promise<void>;
 }
 
 /**
@@ -35,7 +41,8 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
   onCreate,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const groups = canAccessFeature('my-groups');
   const { showConfirm, showAlert } = useDialog();
   const { renamePlc, removeMember } = usePlcs();
   const { sentInvites, sendInvite, revokeInvite } = usePlcInvitations();
@@ -48,6 +55,11 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
   const memberList = isCreate ? [] : getPlcMembers(plc);
 
   const [name, setName] = useState(plc?.name ?? '');
+  const initialType = plc ? getPlcGroupType(plc) : 'plc';
+  const [groupType, setGroupType] = useState<PlcGroupType>(initialType);
+  // Building groups are admin-made; their type can't be picked or changed here.
+  const typeEditable =
+    groups && (isCreate || isLead) && initialType !== 'building';
   const [inviteEmail, setInviteEmail] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -64,10 +76,17 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
     setBusy(true);
     try {
       if (isCreate) {
-        await onCreate(trimmed);
+        await onCreate(trimmed, groups ? groupType : 'plc');
         onClose();
-      } else if (isLead && trimmed !== plc.name) {
-        await renamePlc(plc.id, trimmed);
+      } else if (
+        isLead &&
+        (trimmed !== plc.name || (typeEditable && groupType !== initialType))
+      ) {
+        await renamePlc(
+          plc.id,
+          trimmed,
+          typeEditable && groupType !== initialType ? groupType : undefined
+        );
       }
       if (!isCreate) onClose();
     } catch (err) {
@@ -164,11 +183,17 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
     }
   };
 
-  const title = isCreate
-    ? t('sidebar.plcs.newPlcTitle', { defaultValue: 'New PLC' })
-    : isLead
-      ? t('sidebar.plcs.editPlcTitle', { defaultValue: 'Edit PLC' })
-      : t('sidebar.plcs.viewPlcTitle', { defaultValue: 'PLC Details' });
+  const title = groups
+    ? isCreate
+      ? t('sidebar.groups.newTitle', { defaultValue: 'New group' })
+      : isLead
+        ? t('sidebar.groups.editTitle', { defaultValue: 'Edit group' })
+        : t('sidebar.groups.viewTitle', { defaultValue: 'Group details' })
+    : isCreate
+      ? t('sidebar.plcs.newPlcTitle', { defaultValue: 'New PLC' })
+      : isLead
+        ? t('sidebar.plcs.editPlcTitle', { defaultValue: 'Edit PLC' })
+        : t('sidebar.plcs.viewPlcTitle', { defaultValue: 'PLC Details' });
 
   return (
     <Modal
@@ -182,7 +207,9 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
         {/* Name */}
         <div>
           <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-            {t('sidebar.plcs.nameLabel', { defaultValue: 'PLC Name' })}
+            {groups
+              ? t('sidebar.groups.nameLabel', { defaultValue: 'Group name' })
+              : t('sidebar.plcs.nameLabel', { defaultValue: 'PLC Name' })}
           </label>
           <input
             className="w-full px-3 py-2 text-base border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary font-bold disabled:bg-slate-50 disabled:text-slate-500"
@@ -196,6 +223,40 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
             {...tourAttr('plc-edit.name')}
           />
         </div>
+
+        {groups && !isCreate && !typeEditable && (
+          <div>
+            <span className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+              {t('sidebar.groups.typeLabel', { defaultValue: 'Type' })}
+            </span>
+            <span className="text-sm font-bold text-slate-700">
+              {groupTypeLabel(t, initialType)}
+            </span>
+          </div>
+        )}
+
+        {typeEditable && (
+          <div>
+            <label
+              htmlFor="plc-edit-group-type"
+              className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1.5"
+            >
+              {t('sidebar.groups.typeLabel', { defaultValue: 'Type' })}
+            </label>
+            <select
+              id="plc-edit-group-type"
+              value={groupType}
+              onChange={(e) => setGroupType(e.target.value as PlcGroupType)}
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary font-bold text-slate-700"
+            >
+              {TEACHER_PLC_GROUP_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {groupTypeLabel(t, type)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Members (edit mode only) */}
         {!isCreate && plc && (
@@ -366,9 +427,13 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
             >
               <Save className="w-4 h-4" />
               {isCreate
-                ? t('sidebar.plcs.createPlc', {
-                    defaultValue: 'Create PLC',
-                  })
+                ? groups
+                  ? t('sidebar.groups.create', {
+                      defaultValue: 'Create group',
+                    })
+                  : t('sidebar.plcs.createPlc', {
+                      defaultValue: 'Create PLC',
+                    })
                 : t('common.save', { defaultValue: 'Save' })}
             </button>
           </div>

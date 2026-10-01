@@ -25,7 +25,9 @@ import {
   MailPlus,
 } from 'lucide-react';
 
-import type { Plc } from '@/types';
+import { getPlcGroupType, type Plc } from '@/types';
+import { useAuth } from '@/context/useAuth';
+import { groupTypeLabel } from './groupTypes';
 import { usePlcBuildingDirectory } from '@/hooks/usePlcBuildingDirectory';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
 import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
@@ -54,6 +56,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
+  const groups = useAuth().canAccessFeature('my-groups');
 
   return (
     <div className="fixed inset-0 z-modal bg-slate-50 overflow-y-auto overscroll-none">
@@ -72,7 +75,9 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
             <Users2 className="w-5 h-5 text-brand-blue-primary" />
           </div>
           <h1 className="text-xl font-bold text-slate-800">
-            {t('plcRoute.hubTitle', { defaultValue: 'My PLCs' })}
+            {groups
+              ? t('plcRoute.groupsHubTitle', { defaultValue: 'My Groups' })
+              : t('plcRoute.hubTitle', { defaultValue: 'My PLCs' })}
           </h1>
         </div>
 
@@ -87,7 +92,11 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
               <Users2 className="w-6 h-6 text-slate-300" aria-hidden="true" />
             </div>
             <p className="text-sm font-bold text-slate-600">
-              {t('plcRoute.hubEmptyTitle', { defaultValue: 'No PLCs yet' })}
+              {groups
+                ? t('plcRoute.groupsHubEmptyTitle', {
+                    defaultValue: 'No groups yet',
+                  })
+                : t('plcRoute.hubEmptyTitle', { defaultValue: 'No PLCs yet' })}
             </p>
             <p className="text-xs text-slate-500">
               {t('plcRoute.hubEmptySubtitle', {
@@ -123,6 +132,8 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
                         )}
                       </div>
                       <div className="text-xxs font-semibold text-slate-500 uppercase tracking-widest mt-0.5">
+                        {groups &&
+                          `${groupTypeLabel(t, getPlcGroupType(plc))} · `}
                         {t('plcRoute.memberCount', {
                           count: getPlcMembers(plc).length,
                           defaultValue: '{{count}} Member',

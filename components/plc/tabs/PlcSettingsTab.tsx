@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Film,
   Mail,
+  Presentation,
   Printer,
   StickyNote,
   SquareSquare,
@@ -68,6 +69,13 @@ const FEATURE_ROWS: readonly FeatureRow[] = [
   },
 ] as const;
 
+const MEETING_ROW: FeatureRow = {
+  key: 'meeting',
+  icon: Presentation,
+  titleKey: 'plcDashboard.settings.meeting.title',
+  titleDefault: 'Meeting Mode',
+};
+
 /**
  * Per-PLC dashboard feature toggles. Per spec, every PLC member can flip
  * these — they're shared configuration, not lead-only. Failures roll the
@@ -129,7 +137,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
     const next: PlcFeatureSettings = {
       ...DEFAULT_PLC_FEATURE_SETTINGS,
       ...features,
-      [key]: !features[key],
+      [key]: features[key] === false,
     };
     try {
       await updatePlcFeatures(plc.id, next);
@@ -163,9 +171,12 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
         </p>
       </div>
       <div className="flex flex-col gap-2">
-        {FEATURE_ROWS.map((row) => {
+        {(canAccessFeature('my-groups')
+          ? [...FEATURE_ROWS, MEETING_ROW]
+          : FEATURE_ROWS
+        ).map((row) => {
           const Icon = row.icon;
-          const enabled = features[row.key];
+          const enabled = features[row.key] !== false;
           const isBusy = busyKey === row.key;
           // While any toggle is in-flight, lock out every row so the UI
           // visibly matches the in-handler `if (busyKey) return` guard.
