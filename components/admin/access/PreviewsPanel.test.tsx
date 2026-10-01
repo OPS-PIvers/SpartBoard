@@ -12,6 +12,7 @@ const snapshotData: Record<string, Record<string, unknown> | undefined> = {
   projects_widget: undefined,
   quiz_document_import: undefined,
   sub_launch_as_teacher: undefined,
+  view_as: undefined,
 };
 
 vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
@@ -42,8 +43,9 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: { email: 'admin@test.com' } }),
 }));
 
+const { addToast } = vi.hoisted(() => ({ addToast: vi.fn() }));
 vi.mock('@/context/useDashboard', () => ({
-  useDashboard: () => ({ addToast: vi.fn() }),
+  useDashboard: () => ({ addToast }),
 }));
 
 let savedPermissions: Record<string, unknown>[] = [];
@@ -89,6 +91,63 @@ describe('PreviewsPanel', () => {
     expect(screen.getByTestId('access-row-quiz-grader-v2')).toHaveTextContent(
       'Ready to retire'
     );
+  });
+
+  it('graduates a public keep flag in place and moves it off the tab', async () => {
+    savedPermissions = [
+      {
+        featureId: 'quiz-time-limit',
+        enabled: true,
+        accessLevel: 'public',
+        betaUsers: [],
+        buildings: [],
+      },
+    ];
+    await renderPanel();
+    fireEvent.click(screen.getByTestId('graduate-quiz-time-limit'));
+    await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
+    expect(setDocMock.mock.calls[0][0].path).toBe(
+      'global_permissions/quiz-time-limit'
+    );
+    expect(setDocMock.mock.calls[0][1]).toMatchObject({
+      accessLevel: 'public',
+      graduated: true,
+    });
+    await waitFor(() =>
+      expect(screen.queryByTestId('access-row-quiz-time-limit')).toBeNull()
+    );
+  });
+
+  it('offers no Graduate button until a keep flag is public', async () => {
+    savedPermissions = [
+      {
+        featureId: 'quiz-time-limit',
+        enabled: true,
+        accessLevel: 'admin',
+        betaUsers: [],
+        buildings: [],
+      },
+    ];
+    await renderPanel();
+    expect(
+      screen.getByTestId('access-row-quiz-time-limit')
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('graduate-quiz-time-limit')).toBeNull();
+  });
+
+  it('keeps a graduated flag off the Previews tab', async () => {
+    savedPermissions = [
+      {
+        featureId: 'quiz-time-limit',
+        enabled: true,
+        accessLevel: 'public',
+        betaUsers: [],
+        buildings: [],
+        graduated: true,
+      },
+    ];
+    await renderPanel();
+    expect(screen.queryByTestId('access-row-quiz-time-limit')).toBeNull();
   });
 
   it('keeps permanent features off the Previews tab', async () => {
@@ -157,6 +216,18 @@ describe('PreviewsPanel', () => {
     expect(setDocMock.mock.calls[0][0].path).toBe(
       'admin_settings/sub_launch_as_teacher'
     );
+    expect(setDocMock.mock.calls[0][1]).toEqual({ enabled: true });
+  });
+
+  it('offers super admin View as, off, and writes to its own doc', async () => {
+    await renderPanel();
+    const toggle = district('Super admin View as');
+    expect(toggle).not.toBeChecked();
+
+    fireEvent.click(toggle);
+
+    await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
+    expect(setDocMock.mock.calls[0][0].path).toBe('admin_settings/view_as');
     expect(setDocMock.mock.calls[0][1]).toEqual({ enabled: true });
   });
 

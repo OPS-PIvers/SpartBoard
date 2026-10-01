@@ -95,6 +95,7 @@ import {
 } from './classlinkShared';
 import { LANGUAGE_TAG_RE } from './languageTag';
 import { ttsLanguageForTranslationLocale } from './quizReadAloudVoices';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 /** BCP-47 practical maximum; caps an unbounded string before it reaches Firestore. */
 const LANGUAGE_TAG_MAX = 35;
@@ -1472,6 +1473,7 @@ export const setAssignmentTargetsV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request, { outward: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }

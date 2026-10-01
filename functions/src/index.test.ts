@@ -3243,6 +3243,11 @@ describe('index barrel — deployed export set', () => {
     'organizationBuildingCounters',
     'resetOrganizationUserPassword',
     'deleteOrganizationUser',
+    'startViewAsSessionV1',
+    'updateViewAsSessionV1',
+    'revertViewAsChangeV1',
+    'startViewAsStudentV1',
+    'getViewAsDriveTokenV1',
     'getOrgUserActivity',
     // PLC invites / rollout emails
     'plcInvitationEmail',
@@ -3304,6 +3309,7 @@ describe('index barrel — deployed export set', () => {
     'cleanupPlcNormingOnSessionDelete',
     // Dev-only prod → dev materials sync
     'syncMyMaterialsFromProdV1',
+    'gradebookDemoV1',
     // Guided Learning Storage slide GC
     'gcGuidedLearningMedia',
     'gcBuildingGuidedLearningMedia',

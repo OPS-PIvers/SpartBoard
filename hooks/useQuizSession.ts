@@ -90,6 +90,7 @@ import {
   timestampMillis,
 } from '@/utils/quizTimeLimit';
 import { withNotChosen } from '@/utils/quizSections';
+import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 import {
   FIB_BLANK_SEP,
   fibBlankCount,
@@ -1880,6 +1881,8 @@ export interface UseQuizSessionStudentResult {
    * student never submitted before the session ended).
    */
   subscribeForReview: (code: string) => Promise<void>;
+  /** View as student (D15): listens to an existing response without joining; every write stays a no-op. */
+  previewResponse: (sessionId: string, responseKey: string) => void;
   submitAnswer: (
     questionId: string,
     answer: string,
@@ -2237,6 +2240,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       pin?: string,
       classPeriod?: string
     ): Promise<string> => {
+      if (studentPreviewBlocksWrite()) throw new Error('View-only');
       setLoading(true);
       setError(null);
       // Clear per-question history throttle on every join. The same hook
@@ -3771,6 +3775,15 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     []
   );
 
+  // The write refs stay null, so every write callback above returns early.
+  const previewResponse = useCallback(
+    (sessionId: string, responseKey: string) => {
+      setSessionIdState(sessionId);
+      setResponseKeyState(responseKey);
+    },
+    []
+  );
+
   return {
     session: mergedSession,
     myResponse,
@@ -3780,6 +3793,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     lookupSession,
     joinQuizSession,
     subscribeForReview,
+    previewResponse,
     submitAnswer,
     commitRecordingTake,
     setArtifactUploadState,

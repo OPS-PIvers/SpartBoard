@@ -23,6 +23,15 @@ import {
   RequireStudentAuth,
 } from './context/StudentAuthContext';
 import { StudentIdleTimeoutGuard } from './components/student/StudentIdleTimeoutGuard';
+import {
+  getStudentPreview,
+  isStudentPreviewTab,
+  isViewAsTab,
+} from './utils/viewAsTab';
+import { ViewAsGate } from './context/ViewAsContext';
+import { ViewAsBanner } from './components/viewAs/ViewAsBanner';
+import { ViewAsSaveToast } from './components/viewAs/ViewAsSaveToast';
+import { StudentPreviewGate } from './components/viewAs/StudentPreviewGate';
 
 // Lazy load heavy components for code splitting
 // Using named export pattern: import(...).then(module => ({ default: module.ExportName }))
@@ -558,7 +567,53 @@ const AppContent: React.FC = () => {
   );
 };
 
+/** The student app a View as student tab previews; the gate renders it only after sign-in. */
+const StudentPreviewApp: React.FC = () => {
+  switch (getStudentPreview()?.kind) {
+    case 'quiz':
+      return <QuizStudentApp />;
+    case 'video-activity':
+      return <VideoActivityStudentApp />;
+    case 'guided-learning':
+      return <GuidedLearningStudentApp />;
+    case 'activity-wall':
+      return <ActivityWallStudentApp />;
+    default:
+      return null;
+  }
+};
+
 const App: React.FC = () => {
+  // View as student (ADMIN_VIEW_AS.md D15): a student app, read-only, signed in as the student.
+  if (isStudentPreviewTab) {
+    return (
+      <StudentPreviewGate loader={<FullPageLoader />}>
+        <DialogProvider>
+          <Suspense fallback={<FullPageLoader />}>
+            <StudentPreviewApp />
+          </Suspense>
+          <DialogContainer />
+        </DialogProvider>
+      </StudentPreviewGate>
+    );
+  }
+
+  // Super admin View as tab: the teacher app signed in as the target, whatever the path.
+  if (isViewAsTab) {
+    return (
+      <ViewAsGate loader={<FullPageLoader />}>
+        <DialogProvider>
+          <AuthProvider>
+            <ViewAsBanner />
+            <ViewAsSaveToast />
+            <AuthenticatedApp />
+          </AuthProvider>
+          <DialogContainer />
+        </DialogProvider>
+      </ViewAsGate>
+    );
+  }
+
   // Simple routing for Student View
   const pathname = window.location.pathname;
   const isMiniAppRoute = pathname.startsWith('/miniapp/');

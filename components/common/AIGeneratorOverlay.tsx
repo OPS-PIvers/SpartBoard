@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { AlertTriangle, Loader2, Sparkles, X } from 'lucide-react';
+import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 
 interface AIGeneratorOverlayProps {
   open: boolean;
@@ -50,6 +51,7 @@ export const AIGeneratorOverlay: React.FC<AIGeneratorOverlayProps> = ({
   onGenerate,
   generateLabel = 'Generate',
 }) => {
+  const outward = useViewAsOutward();
   // Store onClose in a ref so the effect below never needs it as a
   // dependency (same pattern as Modal.tsx) — callers pass an inline arrow,
   // so listing it would re-subscribe the listener on every keystroke while
@@ -126,8 +128,9 @@ export const AIGeneratorOverlay: React.FC<AIGeneratorOverlayProps> = ({
           </div>
         )}
         <button
-          onClick={onGenerate}
-          disabled={generating || !canGenerate}
+          onClick={() => outward.run('Generate with AI', onGenerate)}
+          disabled={generating || !canGenerate || outward.locked}
+          title={outward.lockedTitle}
           className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
         >
           {generating ? (

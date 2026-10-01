@@ -18,6 +18,7 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import { isGlobalFeatureGranted } from './quizMediaArchive';
 import { parseGeminiJson } from './parseGeminiJson';
 import './functionsInit';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 export const QUIZ_DOCUMENT_IMPORT_FEATURE_ID = 'quiz-document-import';
 export const GEMINI_FEATURE_ID = 'gemini-functions';
@@ -691,6 +692,7 @@ export const extractQuizFromDocumentV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request, { outward: true });
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
     const parsed = parseExtractDocumentRequest(request.data);

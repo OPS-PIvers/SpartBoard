@@ -8,7 +8,20 @@ service firebase.storage {
     function isAdmin() {
       return request.auth != null &&
              request.auth.token.email != null &&
+             request.auth.token.get('viewAs', null) == null &&
              firestore.exists(/databases/(default)/documents/admins/$(request.auth.token.email.lower()));
+    }
+
+    // Super admin "View as" (docs/plans/ADMIN_VIEW_AS.md D7): a view-as token
+    // writes only while unlocked and before exp, and never with admin powers.
+    function viewAsReadOk() {
+      return request.auth.token.get('viewAs', null) == null ||
+             request.time.toMillis() < request.auth.token.viewAs.get('exp', 0);
+    }
+    function viewAsWriteOk() {
+      return request.auth.token.get('viewAs', null) == null ||
+             (request.time.toMillis() < request.auth.token.viewAs.get('exp', 0) &&
+              request.auth.token.viewAs.get('ro', true) == false);
     }
 
     // Helper function to check if a user can read a specific admin background
@@ -25,35 +38,43 @@ service firebase.storage {
     }
 
     match /users/{userId}/backgrounds/{allPaths=**} {
-      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsReadOk();
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsWriteOk();
     }
 
     match /users/{userId}/screenshots/{allPaths=**} {
-      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsReadOk();
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsWriteOk();
     }
 
     match /users/{userId}/stickers/{allPaths=**} {
-      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsReadOk();
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsWriteOk();
     }
 
     match /users/{userId}/display_images/{allPaths=**} {
-      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsReadOk();
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsWriteOk();
     }
 
     match /users/{userId}/hotspot_images/{allPaths=**} {
-      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsReadOk();
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsWriteOk();
     }
 
     match /users/{userId}/instructional/{allPaths=**} {
-      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsReadOk();
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsWriteOk();
     }
 
     match /users/{userId}/notebooks/{allPaths=**} {
-      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsReadOk();
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsWriteOk();
     }
 
     match /users/{userId}/pdfs/{allPaths=**} {
-      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsReadOk();
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsWriteOk();
     }
 
     match /admin_backgrounds/{backgroundId}/{fileName} {
@@ -131,14 +152,14 @@ service firebase.storage {
       // Any authenticated user (including anonymous students) may upload a new image,
       // but only if the target session exists in Firestore (guards against DoS uploads
       // to guessed sessionIds).
-      allow create: if request.auth != null &&
+      allow create: if request.auth != null && viewAsWriteOk() &&
         request.resource.size < 10 * 1024 * 1024 &&
         request.resource.contentType.matches('image/.*') &&
         firestore.exists(
           /databases/(default)/documents/activity_wall_sessions/$(sessionId)
         );
       // The owning teacher/admin may delete the temporary Firebase copy after Drive archival.
-      allow delete: if request.auth != null &&
+      allow delete: if request.auth != null && viewAsWriteOk() &&
         (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
     }
 
@@ -217,7 +238,7 @@ service firebase.storage {
       // No per-student object cap here (same limitation as activity_wall_photos):
       // the Firestore submission cap is the enforcement point and the 7-day
       // sweeper reclaims orphaned objects.
-      allow create: if request.auth != null &&
+      allow create: if request.auth != null && viewAsWriteOk() &&
         (submissionId == request.auth.uid ||
          submissionId.matches('^' + request.auth.uid + '__.*')) &&
         firestore.exists(
@@ -247,7 +268,7 @@ service firebase.storage {
       // The owning teacher/admin (and the Admin SDK archive job) clean up;
       // the uploader can also delete their own object to roll back a failed
       // submission write (same ownership test as the create/read clauses).
-      allow delete: if request.auth != null &&
+      allow delete: if request.auth != null && viewAsWriteOk() &&
         (isAdmin() ||
          sessionId.matches(request.auth.uid + '_.*') ||
          submissionId == request.auth.uid ||
@@ -268,13 +289,13 @@ service firebase.storage {
           ).data.get('teacherUid', '') == request.auth.uid
         );
       // Create only (no update): the caller must own the response doc at this key.
-      allow create: if request.auth != null &&
+      allow create: if request.auth != null && viewAsWriteOk() &&
         request.resource.size < 5 * 1024 * 1024 &&
         request.resource.contentType.matches('audio/.*') &&
         firestore.get(
           /databases/(default)/documents/quiz_sessions/$(sessionId)/responses/$(responseKey)
         ).data.get('studentUid', '') == request.auth.uid;
-      allow delete: if request.auth != null &&
+      allow delete: if request.auth != null && viewAsWriteOk() &&
         (
           isAdmin() ||
           firestore.get(
@@ -285,7 +306,7 @@ service firebase.storage {
 
     // Handwritten paper answer crops: the owning teacher uploads once per scan; only the server reads or deletes.
     match /paper_written_crops/{uid}/{scanId}/{seat}/{fileName} {
-      allow create: if request.auth != null &&
+      allow create: if request.auth != null && viewAsWriteOk() &&
         request.auth.uid == uid &&
         resource == null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
@@ -346,14 +367,14 @@ service firebase.storage {
       }
       // Create only. The upload doc at this id is the record; an object that
       // could be overwritten would let a member swap a graded file silently.
-      allow create: if request.resource.size < 25 * 1024 * 1024 &&
+      allow create: if viewAsWriteOk() && request.resource.size < 25 * 1024 * 1024 &&
         pjAllowedType() &&
         (pjOwnsRun() ||
          (pjIsGroupMember() &&
           firestore.get(
             /databases/(default)/documents/project_runs/$(runId)
           ).data.get('acceptingUpdates', false) == true));
-      allow delete: if isAdmin() || pjOwnsRun() || pjIsGroupMember();
+      allow delete: if viewAsWriteOk() && (isAdmin() || pjOwnsRun() || pjIsGroupMember());
     }
 
     // Default deny for everything else

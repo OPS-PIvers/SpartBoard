@@ -1,8 +1,15 @@
 import { initializeApp, FirebaseApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, Auth } from 'firebase/auth';
+import {
+  getAuth,
+  initializeAuth,
+  inMemoryPersistence,
+  GoogleAuthProvider,
+  Auth,
+} from 'firebase/auth';
 import { Firestore, initializeFirestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { getFunctions, Functions } from 'firebase/functions';
+import { isViewAsTab } from '@/utils/viewAsTab';
 
 const apiKey = import.meta.env.VITE_FIREBASE_API_KEY as string | undefined;
 
@@ -113,7 +120,10 @@ if (isConfigured) {
 
   // Initialize Firebase
   app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
+  // A view-as tab keeps its session in memory so the admin's signed-in tabs are never replaced (D4).
+  auth = isViewAsTab
+    ? initializeAuth(app, { persistence: inMemoryPersistence })
+    : getAuth(app);
   db = initializeFirestore(app, {
     ignoreUndefinedProperties: true,
     experimentalForceLongPolling: true,

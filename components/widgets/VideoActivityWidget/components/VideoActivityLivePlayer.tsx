@@ -47,6 +47,7 @@ import {
 } from '@/utils/videoActivityLive';
 import { logError } from '@/utils/logError';
 import { VideoActivityLiveAggregate } from './VideoActivityLiveAggregate';
+import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 
 interface VideoActivityLivePlayerProps {
   session: VideoActivitySession;
@@ -94,6 +95,7 @@ export const VideoActivityLivePlayer: React.FC<
   const { canAccessFeature, orgId } = useAuth();
   const { rosters, addToast } = useDashboard();
   const { showConfirm } = useDialog();
+  const outward = useViewAsOutward();
   const controls = useVideoActivityLiveControls(session.id);
   const live = session.live ?? initialVideoActivityLiveState(0);
   const { questions: keyQuestions } = useVideoActivityKeyQuestions(session);
@@ -285,11 +287,13 @@ export const VideoActivityLivePlayer: React.FC<
   };
 
   const handleEnd = async () => {
+    if (outward.locked) return;
     const ok = await showConfirm(
       'End this live session? Students can no longer answer. Responses are kept in Results.',
       { title: 'End session', variant: 'warning', confirmLabel: 'End' }
     );
     if (!ok) return;
+    outward.audit('End session');
     setEnding(true);
     setPlaying(false);
     try {
@@ -308,7 +312,8 @@ export const VideoActivityLivePlayer: React.FC<
       label="End"
       icon={Square}
       onClick={() => void handleEnd()}
-      disabled={ending}
+      disabled={ending || outward.locked}
+      disabledReason={outward.lockedTitle}
       loading={ending}
     />
   );

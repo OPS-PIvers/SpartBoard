@@ -32,6 +32,7 @@ import {
   hashQuestionForTranslation,
   type HashableQuestion,
 } from './quizTranslationHash';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -1172,6 +1173,7 @@ export const translateQuizV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request, { outward: true });
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign-in required.');
     if (request.auth.token.studentRole === true)
@@ -1205,6 +1207,7 @@ export const translateResponseV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request, { outward: true });
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign-in required.');
     if (request.auth.token.studentRole === true)

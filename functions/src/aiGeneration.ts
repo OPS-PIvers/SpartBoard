@@ -25,6 +25,7 @@ import {
   GlobalPermConfig,
   normalizeModelName,
 } from './shared';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 interface AIData {
   type:
@@ -576,6 +577,7 @@ export const generateWithAI = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
+    assertViewAsAllowed(request, { outward: true });
     const data = request.data as AIData;
     if (!request.auth) {
       throw new HttpsError(
@@ -1736,6 +1738,7 @@ export const generateVideoActivity = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<GeneratedVideoActivity> => {
+    assertViewAsAllowed(request, { outward: true });
     const data = request.data as VideoActivityRequestData;
     if (!request.auth) {
       throw new HttpsError(
@@ -1937,6 +1940,7 @@ export const transcribeVideoWithGemini = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<GeneratedVideoActivity> => {
+    assertViewAsAllowed(request, { outward: true });
     const data = request.data as AudioTranscriptionRequestData;
     if (!request.auth) {
       throw new HttpsError(
@@ -2248,6 +2252,7 @@ export const generateGuidedLearning = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
+    assertViewAsAllowed(request, { outward: true });
     const data = request.data as {
       images?: GuidedLearningImageInput[];
       prompt?: string;
@@ -2478,6 +2483,7 @@ export const draftGuidedLearningStepTextV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
+    assertViewAsAllowed(request, { outward: true });
     if (!request.auth?.uid) {
       throw new HttpsError(
         'unauthenticated',

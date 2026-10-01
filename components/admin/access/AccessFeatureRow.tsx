@@ -26,8 +26,8 @@ const LEVELS: { level: AccessLevel; label: string; Icon: typeof Shield }[] = [
 ];
 
 const LEVEL_ACTIVE: Record<AccessLevel, string> = {
-  admin: 'bg-purple-100 text-purple-700 border-purple-300',
-  beta: 'bg-blue-100 text-blue-700 border-blue-300',
+  admin: 'bg-brand-blue-lighter text-brand-blue-dark border-brand-blue-light',
+  beta: 'bg-sky-50 text-sky-800 border-sky-300',
   public: 'bg-green-100 text-green-700 border-green-300',
 };
 
@@ -128,7 +128,7 @@ export const AccessLevelPicker: React.FC<{
   </div>
 );
 
-const DailyLimitEditor: React.FC<{
+export const DailyLimitEditor: React.FC<{
   featureId: GlobalFeature;
   permission: GlobalFeaturePermission;
   onUpdate: (updates: Partial<GlobalFeaturePermission>) => void;
@@ -178,7 +178,7 @@ const DailyLimitEditor: React.FC<{
   );
 };
 
-const ModelTierEditor: React.FC<{
+export const ModelTierEditor: React.FC<{
   featureId: GlobalFeature;
   permission: GlobalFeaturePermission;
   onUpdate: (updates: Partial<GlobalFeaturePermission>) => void;

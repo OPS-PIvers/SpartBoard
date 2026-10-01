@@ -174,6 +174,10 @@ export { organizationMemberCounters } from './organizationMemberCounters';
 export { organizationBuildingCounters } from './organizationBuildingCounters';
 export { resetOrganizationUserPassword } from './organizationResetPassword';
 export { deleteOrganizationUser } from './organizationUserDelete';
+export { startViewAsSessionV1, updateViewAsSessionV1 } from './viewAs';
+export { revertViewAsChangeV1 } from './viewAsRevert';
+export { startViewAsStudentV1 } from './viewAsStudent';
+export { getViewAsDriveTokenV1 } from './viewAsDrive';
 export { getOrgUserActivity } from './organizationUserActivity';
 export { plcInvitationEmail } from './plcInviteEmails';
 export { rolloutRequestEmail } from './rolloutRequestEmail';
@@ -260,6 +264,7 @@ export { migratePlcs } from './migratePlcs';
 
 // Dev-only: copy the caller's own prod materials into spartboard-dev.
 export { syncMyMaterialsFromProdV1 } from './devSyncFromProd';
+export { gradebookDemoV1 } from './devGradebookDemo';
 export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 export { expireSubShares } from './expireSubShares';
 export { launchSubAssignmentV1 } from './subLaunchAssignment';

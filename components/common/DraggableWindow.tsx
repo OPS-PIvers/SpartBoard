@@ -579,6 +579,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   if (isEditingTitle) {
     // eslint-disable-next-line react-hooks/refs -- intentional render-body ref reset for stale-flag prevention (CLAUDE.md pattern); false positive from react-hooks/refs v7
     hasCommittedTitleRef.current = false;
+    // A cancel flag left over from an Escape that fired no blur must not swallow this session's save.
+    // eslint-disable-next-line react-hooks/refs -- same render-body ref reset as above
+    isCancellingTitleRef.current = false;
   }
 
   const saveTitle = useCallback(() => {

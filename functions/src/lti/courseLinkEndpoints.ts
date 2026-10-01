@@ -42,6 +42,7 @@ import {
 // Reuse the existing OneRoster seam (and its test-spy point) rather than
 // re-implementing the signed fetch. fetchClassStudents takes the creds as args.
 import { classroomAddonNet } from '../classroomAddonAuth';
+import { assertViewAsAllowed } from '../viewAsGuard';
 
 /** Firestore collection holding the Schoology section↔class link docs. */
 export const LTI_COURSE_LINKS_COLLECTION = 'lti_course_links';
@@ -223,6 +224,7 @@ async function ownedClasslinkClassIds(
 export const linkLtiCourseV1 = onCall(
   { region: 'us-central1', invoker: 'public', cors: ALLOWED_ORIGINS },
   async (request) => {
+    assertViewAsAllowed(request);
     const callerUid = requireTeacher(request);
     const data = (request.data ?? {}) as {
       contextId?: unknown;
@@ -392,6 +394,7 @@ export const ltiSuggestClassLinkMatchV1 = onCall(
     ],
   },
   async (request) => {
+    assertViewAsAllowed(request, { read: true });
     const callerUid = requireTeacher(request);
     const data = (request.data ?? {}) as {
       contextId?: unknown;

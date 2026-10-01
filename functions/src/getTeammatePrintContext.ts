@@ -26,6 +26,7 @@ import {
   GOOGLE_OAUTH_CLIENT_SECRET,
   GOOGLE_OAUTH_REFRESH_TOKEN_KEY,
 } from './secrets';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 /** All three legs of the offline grant, as `refreshGoogleAccessTokenForUid` requires. */
 const OFFLINE_GRANT_SECRETS = [
@@ -539,6 +540,7 @@ export const getTeammatePrintContextV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request, { read: true });
     const caller: DelegatedPrintCaller | null = request.auth
       ? {
           uid: request.auth.uid,

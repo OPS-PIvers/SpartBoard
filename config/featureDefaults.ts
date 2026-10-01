@@ -65,9 +65,25 @@ export const FEATURE_CATEGORY_LABELS: Record<FeatureCategory, string> = {
   students: 'Students',
 };
 
+/** Sections of a widget's admin config modal that graduated switches sort into. */
+export type FeatureGroup = 'building' | 'questions' | 'assigning' | 'languages';
+
+export const FEATURE_GROUP_LABELS: Record<FeatureGroup, string> = {
+  building: 'Building quizzes',
+  questions: 'Questions & answers',
+  assigning: 'Assigning',
+  languages: 'Languages',
+};
+
 export interface FeatureDefault {
   /** Row name on the admin Access pages. */
   label: string;
+  /** Shorter name inside the owning widget's config modal, which already names the widget. */
+  modalLabel?: string;
+  /** Section inside the owning widget's config modal. */
+  group?: FeatureGroup;
+  /** Add-on that only works with this feature; nests under it in the config modal. */
+  requires?: GlobalFeature;
   icon: React.ElementType;
   /** One short line under the name. */
   description: string;
@@ -365,6 +381,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
+    modalLabel: 'Spoken answers',
+    group: 'questions',
     defaultAccessLevel: 'admin',
     defaultEnabled: false,
     missingDocPublic: false,
@@ -391,6 +409,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
+    modalLabel: 'Read aloud',
+    group: 'languages',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -404,6 +424,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
+    modalLabel: 'Translation',
+    group: 'languages',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -417,6 +439,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
+    modalLabel: 'Question bank AI drafting',
+    group: 'building',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -430,6 +454,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
+    modalLabel: 'Import question banks from Schoology',
+    group: 'building',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -441,6 +467,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
+    modalLabel: 'Import quizzes from Schoology',
+    group: 'building',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -454,6 +482,9 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
+    modalLabel: 'AI reader',
+    group: 'building',
+    requires: 'quiz-document-import',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -489,6 +520,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
+    modalLabel: 'Paper answer sheets',
+    group: 'questions',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -517,6 +550,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
+    modalLabel: 'Build from a test document',
+    group: 'building',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -752,6 +787,9 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
+    modalLabel: 'Handwritten answers',
+    group: 'questions',
+    requires: 'paper-answer-sheets',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -789,6 +827,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
+    modalLabel: 'Student view',
+    group: 'assigning',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -801,6 +841,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
+    modalLabel: 'Score on submit',
+    group: 'assigning',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -813,6 +855,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
+    modalLabel: 'Due date per class',
+    group: 'assigning',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -870,6 +914,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'quiz',
+    modalLabel: 'Time limit',
+    group: 'assigning',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -882,6 +928,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'permanent',
     afterLaunch: 'keep',
     widget: 'quiz',
+    modalLabel: 'AI drafting',
+    group: 'building',
     defaultAccessLevel: 'public',
     defaultEnabled: true,
     missingDocPublic: true,

@@ -35,6 +35,7 @@ import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as CryptoJS from 'crypto-js';
 import axios from 'axios';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -65,9 +66,11 @@ const REQUIRED_DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
 const PRIVATE_DOC_PATH = (uid: string) =>
   `users/${uid}/private/googleAuth` as const;
 
-const GOOGLE_OAUTH_CLIENT_ID = defineSecret('GOOGLE_OAUTH_CLIENT_ID');
-const GOOGLE_OAUTH_CLIENT_SECRET = defineSecret('GOOGLE_OAUTH_CLIENT_SECRET');
-const GOOGLE_OAUTH_REFRESH_TOKEN_KEY = defineSecret(
+export const GOOGLE_OAUTH_CLIENT_ID = defineSecret('GOOGLE_OAUTH_CLIENT_ID');
+export const GOOGLE_OAUTH_CLIENT_SECRET = defineSecret(
+  'GOOGLE_OAUTH_CLIENT_SECRET'
+);
+export const GOOGLE_OAUTH_REFRESH_TOKEN_KEY = defineSecret(
   'GOOGLE_OAUTH_REFRESH_TOKEN_KEY'
 );
 
@@ -234,6 +237,7 @@ export const exchangeGoogleAuthCode = onCall(
     ],
   },
   async (req) => {
+    assertViewAsAllowed(req);
     const uid = requireAuthUid(req.auth?.uid);
     const raw = (req.data ?? {}) as Record<string, unknown>;
     const code = typeof raw.code === 'string' ? raw.code : '';
@@ -343,10 +347,16 @@ export const exchangeGoogleAuthCode = onCall(
  * retryable failures. Same error contract as the callable.
  */
 export async function refreshGoogleAccessTokenForUid(
-  uid: string
+  uid: string,
+  options: { keepStoredOnFailure?: boolean } = {}
 ): Promise<{ accessToken: string; expiresIn: number }> {
   const db = admin.firestore();
   const ref = db.doc(PRIVATE_DOC_PATH(uid));
+  // View as must never change the target's account, so it skips the poison-doc cleanup.
+  const dropStored = async (): Promise<void> => {
+    if (options.keepStoredOnFailure) return;
+    await ref.delete();
+  };
   const snap = await ref.get();
   if (!snap.exists) {
     throw needsConsent(
@@ -357,7 +367,7 @@ export async function refreshGoogleAccessTokenForUid(
   const stored = parseStoredGoogleAuth(snap.data());
   if (!stored) {
     // Shape drift in Firestore — drop the doc and force re-consent.
-    await ref.delete().catch((delErr) => {
+    await dropStored().catch((delErr) => {
       logWarn('refreshGoogleAccessToken.deletePoisonDoc', delErr, { uid });
     });
     throw needsConsent(
@@ -379,7 +389,7 @@ export async function refreshGoogleAccessTokenForUid(
     // needs-consent so the client routes the user through the
     // auth-code flow instead of looping on a useless popup retry.
     logWarn('refreshGoogleAccessToken.decrypt', err, { uid });
-    await ref.delete().catch((delErr) => {
+    await dropStored().catch((delErr) => {
       logWarn('refreshGoogleAccessToken.deletePoisonDoc', delErr, { uid });
     });
     throw needsConsent(
@@ -422,7 +432,7 @@ export async function refreshGoogleAccessTokenForUid(
         // password reset, etc.). Drop the stored token so the next refresh
         // call surfaces `needs-consent` cleanly and the client re-routes
         // through the code flow rather than looping on a dead token.
-        await ref.delete().catch((delErr) => {
+        await dropStored().catch((delErr) => {
           logWarn('refreshGoogleAccessToken.deletePoisonDoc', delErr, {
             uid,
           });
@@ -461,6 +471,7 @@ export const refreshGoogleAccessToken = onCall(
     ],
   },
   async (req) => {
+    assertViewAsAllowed(req);
     const uid = requireAuthUid(req.auth?.uid);
     return refreshGoogleAccessTokenForUid(uid);
   }
@@ -476,6 +487,7 @@ export const revokeGoogleRefreshToken = onCall(
     secrets: [GOOGLE_OAUTH_REFRESH_TOKEN_KEY],
   },
   async (req) => {
+    assertViewAsAllowed(req);
     const uid = requireAuthUid(req.auth?.uid);
     const ref = admin.firestore().doc(PRIVATE_DOC_PATH(uid));
     const snap = await ref.get();

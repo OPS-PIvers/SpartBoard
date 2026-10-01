@@ -243,7 +243,11 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
       return true;
     });
 
-    const sorted = unique.sort((a, b) => a.date.localeCompare(b.date));
+    const sorted = unique.sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) ||
+        parseTimeSeconds(a.time) - parseTimeSeconds(b.time)
+    );
 
     // Filter by daysVisible if set
     const daysVisible = config.daysVisible ?? 5;

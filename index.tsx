@@ -1,3 +1,5 @@
+// Must stay first: a view-as tab swaps out browser storage before any module reads it.
+import './utils/viewAsTab';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';

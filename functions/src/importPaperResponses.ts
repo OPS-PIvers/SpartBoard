@@ -46,6 +46,7 @@ import {
   readPaperHandwritingQuota,
   splitPagesByQuota,
 } from './paperHandwritingQuota';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 /** Admin kill switch; mirrors `config/paperAnswerSheets.ts`. Absent == off. */
 export const PAPER_SETTINGS_PATH = 'admin_settings/paper_answer_sheets';
@@ -906,6 +907,7 @@ export const publishPaperResultsV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request, { outward: true });
     const caller: ImportPaperCaller | null = request.auth
       ? {
           uid: request.auth.uid,
@@ -931,6 +933,7 @@ export const importPaperResponsesV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request);
     const caller: ImportPaperCaller | null = request.auth
       ? {
           uid: request.auth.uid,

@@ -3,6 +3,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { GoogleAuth, Impersonated } from 'google-auth-library';
 import './functionsInit';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 export const DEV_PROJECT_ID = 'spartboard-dev';
 const PROD_PROJECT_ID = 'spartboard';
@@ -245,6 +246,7 @@ export async function readProdTree(
 export const syncMyMaterialsFromProdV1 = onCall(
   { memory: '512MiB', timeoutSeconds: 300, maxInstances: 2 },
   async (request): Promise<{ copied: Record<string, number> }> => {
+    assertViewAsAllowed(request);
     if (currentProjectId() !== DEV_PROJECT_ID) {
       throw new HttpsError(
         'failed-precondition',

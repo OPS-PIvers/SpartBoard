@@ -1,6 +1,29 @@
 {
   "entries": [
     {
+      "version": "2026.10.01.1",
+      "date": "2026-10-01",
+      "title": "Small fixes to Calendar, word counts and widget titles",
+      "overview": [
+        {
+          "type": "fix",
+          "subtitle": "Fixes",
+          "items": [
+            {
+              "text": "The Calendar widget lists events on the same day in order of their start time."
+            },
+            {
+              "text": "Word counts on written quiz answers no longer split a word in two when part of it is bold or italic, so the word limit counts what students actually typed."
+            },
+            {
+              "text": "Renaming a widget saves again after you have cancelled an earlier rename with Escape."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.09.30.1",
       "date": "2026-09-30",
       "title": "Change a quiz's settings after you assign it",

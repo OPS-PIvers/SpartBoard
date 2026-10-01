@@ -9,6 +9,7 @@ import {
   resolveOrgIdForDomain,
 } from './classlinkShared';
 import { isTestClassAuthority } from './studentAssignmentTargets';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 // Projects widget group import: client posts sourcedIds, server applies the HMAC (D8).
 
@@ -209,6 +210,7 @@ export const commitProjectGroupsV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
+    assertViewAsAllowed(request);
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }

@@ -38,6 +38,12 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import './functionsInit';
+import {
+  OPERATOR_ORG_ID,
+  STRICT_SUPER_ADMIN_ROLE_IDS,
+  isStrictSuperAdmin,
+} from './authz';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -45,28 +51,16 @@ if (!admin.apps.length) {
 
 type Firestore = admin.firestore.Firestore;
 
-/**
- * Deleting a whole account is a different weight of action than editing a
- * roster row, so this is narrower than `ADMIN_ROLE_IDS` (which admits
- * domain_admin) used by the rest of the org panel.
- */
-export const DELETE_ROLE_IDS: readonly string[] = ['super_admin'];
+/** Narrower than `ADMIN_ROLE_IDS` (which admits domain_admin); shared with View as. */
+export const DELETE_ROLE_IDS: readonly string[] = STRICT_SUPER_ADMIN_ROLE_IDS;
 
-// Operator org — the fixed path the rules' isMemberSuperAdmin() reads, since
-// CEL cannot resolve the caller's own org dynamically. Mirrors
-// `OPERATOR_ORG_ID` in config/organization.ts and studentAssignmentTargets.ts.
-export const OPERATOR_ORG_ID = 'orono';
+export { OPERATOR_ORG_ID };
 
 /** Runaway guard; a teacher with more shared boards than this still reports. */
 export const MAX_BLOCKERS_REPORTED = 50;
 
 const asString = (value: unknown): string =>
   typeof value === 'string' ? value : '';
-
-const asStringArray = (value: unknown): string[] =>
-  Array.isArray(value)
-    ? value.filter((v): v is string => typeof v === 'string')
-    : [];
 
 // ── Wire shapes ────────────────────────────────────────────────────────────
 
@@ -130,20 +124,7 @@ export async function assertCallerMayDelete(
   db: Firestore,
   callerEmailLower: string
 ): Promise<void> {
-  const [operatorSnap, legacySnap] = await Promise.all([
-    db
-      .doc(`organizations/${OPERATOR_ORG_ID}/members/${callerEmailLower}`)
-      .get(),
-    db.doc('admin_settings/user_roles').get(),
-  ]);
-  if (operatorSnap.exists) {
-    const roleId = asString(operatorSnap.get('roleId'));
-    if (DELETE_ROLE_IDS.includes(roleId)) return;
-  }
-  const legacy = legacySnap.exists
-    ? asStringArray(legacySnap.get('superAdmins'))
-    : [];
-  if (legacy.includes(callerEmailLower)) return;
+  if (await isStrictSuperAdmin(db, callerEmailLower)) return;
   throw new HttpsError(
     'permission-denied',
     'Deleting a user account requires super admin.'
@@ -290,6 +271,7 @@ export const deleteOrganizationUser = onCall(
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
+    assertViewAsAllowed(request, { outward: true });
     const callerEmail = request.auth.token.email;
     if (!callerEmail) {
       throw new HttpsError('invalid-argument', 'Caller must have an email.');

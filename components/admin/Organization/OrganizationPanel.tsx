@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { isSuperAdminActor } from '@/utils/superAdmin';
+import { openViewAsTab } from '@/utils/viewAsOpener';
+import { useViewAsSettings } from '@/hooks/useViewAsSettings';
 import { useOrganizations } from '@/hooks/useOrganizations';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useOrgBuildings } from '@/hooks/useOrgBuildings';
@@ -196,6 +198,7 @@ export const OrganizationPanel: React.FC = () => {
     authOrgId
   );
   const actorRole = resolveActorRole(isSuperAdmin, isAdmin, memberRoleId);
+  const viewAsSettings = useViewAsSettings(isSuperAdmin);
 
   // Super admins pick from the orgs list; everyone else is pinned to their
   // own org (from /organizations/{orgId}/members/{email}).
@@ -451,6 +454,13 @@ export const OrganizationPanel: React.FC = () => {
       () => removeMembers(ids),
       `Removed ${ids.length} users from the organization`
     );
+  };
+
+  const handleViewAs = (email: string) => {
+    openViewAsTab(email).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(`View as failed: ${msg}`, 'error');
+    });
   };
 
   // Step 1 of the full delete: preflight only. Opens the confirm dialog with
@@ -925,6 +935,12 @@ export const OrganizationPanel: React.FC = () => {
                   onBulkUpdate={handleBulkUpdateUsers}
                   onRemove={handleRemoveUsers}
                   onDeleteAccount={handleDeleteUserAccount}
+                  onViewAs={
+                    isSuperAdmin && viewAsSettings.enabled
+                      ? handleViewAs
+                      : undefined
+                  }
+                  actorEmail={user?.email}
                   onInvite={handleInvite}
                   onBulkInvite={handleBulkInvite}
                   onResendInvite={handleResendInvite}

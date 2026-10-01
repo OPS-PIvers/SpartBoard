@@ -1,5 +1,6 @@
 import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
+import { isViewAsTab } from '@/utils/viewAsTab';
 
 /**
  * Best-effort server-clock offset (spec M17 §3a-D: window comparisons must
@@ -36,7 +37,7 @@ export function __resetServerTimeSyncForTests(): void {
  * or student) can call this with their own uid.
  */
 export function syncServerTime(uid: string | null | undefined): void {
-  if (isAuthBypass || !uid || syncedForUid === uid) return;
+  if (isAuthBypass || isViewAsTab || !uid || syncedForUid === uid) return;
   syncedForUid = uid;
   // Defensive try/catch: `db` can be a test double (or unconfigured) in
   // environments that never call the real Firestore SDK — this sync is a

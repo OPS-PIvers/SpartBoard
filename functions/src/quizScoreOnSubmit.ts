@@ -9,6 +9,7 @@ import {
   type GroupQuestion,
 } from './plcAssessmentMath';
 import { notChosenIds, parseChooseSections } from './quizSectionsChosen';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 const SESSIONS = 'quiz_sessions';
 const MAX_ID_LENGTH = 128;
@@ -254,10 +255,12 @@ export const scoreQuizOnSubmitV1 = onCall(
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
-  (request) =>
-    handleScoreQuizOnSubmit(
+  (request) => {
+    assertViewAsAllowed(request);
+    return handleScoreQuizOnSubmit(
       admin.firestore(),
       request.auth?.uid ?? null,
       request.data
-    )
+    );
+  }
 );

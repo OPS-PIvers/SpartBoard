@@ -33,6 +33,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 import { useDialog } from '@/context/useDialog';
 import { useGuidedLearningSessionStudent } from '@/hooks/useGuidedLearningSession';
 import { useGuidedLearningProgress } from '@/hooks/useGuidedLearningProgress';
@@ -191,6 +192,7 @@ const StudentExperience: React.FC<{
   const wroteViewRef = React.useRef<string | null>(null);
   useEffect(() => {
     if (!isViewOnly || !sessionId || !anonymousUid) return;
+    if (studentPreviewBlocksWrite()) return;
     if (wroteViewRef.current === sessionId) return;
     wroteViewRef.current = sessionId;
     void addDoc(collection(db, GL_SESSIONS_COLLECTION, sessionId, 'views'), {

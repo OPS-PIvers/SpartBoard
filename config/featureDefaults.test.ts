@@ -109,6 +109,30 @@ describe('feature registry', () => {
     expect(homeless).toEqual([]);
   });
 
+  it('nests an add-on only under a feature of the same widget', () => {
+    const wrong = (Object.keys(FEATURE_DEFAULTS) as GlobalFeature[]).filter(
+      (id) => {
+        const parent = FEATURE_DEFAULTS[id].requires;
+        return (
+          parent !== undefined &&
+          (FEATURE_DEFAULTS[parent].widget !== FEATURE_DEFAULTS[id].widget ||
+            FEATURE_DEFAULTS[parent].group !== FEATURE_DEFAULTS[id].group)
+        );
+      }
+    );
+    expect(wrong).toEqual([]);
+  });
+
+  it('gives every quiz switch a section in the Quiz config modal', () => {
+    const ungrouped = (Object.keys(FEATURE_DEFAULTS) as GlobalFeature[]).filter(
+      (id) =>
+        FEATURE_DEFAULTS[id].widget === 'quiz' &&
+        FEATURE_DEFAULTS[id].afterLaunch === 'keep' &&
+        !FEATURE_DEFAULTS[id].group
+    );
+    expect(ungrouped).toEqual([]);
+  });
+
   it('never marks a feature to retire as permanent', () => {
     const wrong = (Object.keys(FEATURE_DEFAULTS) as GlobalFeature[]).filter(
       (id) =>

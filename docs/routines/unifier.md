@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 102_
-_Last run: 2026-09-30_
+_Run count: 103_
+_Last run: 2026-10-01_
 _Base branch: dev-paul_
 
 ---
@@ -569,6 +569,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-10-01 | `claude/kind-johnson-pbxnhp` | D3 Settings Labels | Shipped (run 103) — `components/widgets/QuizWidget/components/PaperBoxSizeField.tsx` (paper answer box size S/M/L/Full) converted `role="group"` + `aria-pressed` → `radiogroup`/`radio`/`aria-checked`/roving tabindex via `handleRadioGroupKeyDown`. Non-nullable value, single setter, no side effect; visuals unchanged. `QuizEditorModal.paperBox.test.tsx` updated + arrow-key test; 121 related suites pass. Solo run; scoped checks only (CLAUDE.md forbids full validate). Remaining D3 candidate: `ProjectStepStatePicker.tsx`. Mechanical. | PR (this branch) |
 | 2026-09-30 | `claude/kind-johnson-1fkdfr` | D3 Settings Labels | Shipped (run 102) — `components/admin/access/AccessFeatureRow.tsx` `AccessLevelPicker` (Admin/Beta/Public, also used by `WidgetPermissionCardBody`) converted `role="group"` + `aria-pressed` → `radiogroup`/`radio`/`aria-checked`/roving tabindex via `handleRadioGroupKeyDown`. Non-nullable value, single setter, no dismiss side effect; visuals unchanged. New `tests/components/admin/AccessLevelPicker.test.tsx`; related suites pass. Solo run; scoped checks only (CLAUDE.md forbids full validate). Remaining D3 candidates: `PaperBoxSizeField.tsx`, `ProjectStepStatePicker.tsx`. Mechanical. | PR (this branch) |
 | 2026-09-29 | `nightly/unify-d4-import-paths-2026-09-29` | D4 Import Paths | Shipped (run 101) — closed the run-100 backlog item: 3 test files (`ci.firestoreRulesRelease`, `glAuthorValidator`, `glAuthorExamples`) plus a 4th found on sweep (`tests/config/tailwindBrandTokens.test.ts`) converted from relative `../` to `@/` alias. New `no-restricted-imports` block for `tests/**` bans `^\.\./` (live-fire verified). Baseline validate green; 4 affected suites + tsc pass. Mechanical. | PR #3580 |
 | 2026-09-29 | — | D1/D2/D3/D5 | Not investigated (run 101) — one unification tonight per the run-100 backlog; D3 still has 3 clean candidates (`AccessFeatureRow.tsx` `AccessLevelPicker`, `PaperBoxSizeField.tsx`, `ProjectStepStatePicker.tsx`) queued for the next run. | — |

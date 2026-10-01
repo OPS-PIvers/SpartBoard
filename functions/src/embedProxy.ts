@@ -14,6 +14,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import axios from 'axios';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import './functionsInit';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 export const fetchExternalProxy = onCall(
   {
@@ -22,6 +23,7 @@ export const fetchExternalProxy = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
+    assertViewAsAllowed(request, { read: true });
     const data = request.data as { url: string };
     if (!request.auth) {
       throw new HttpsError(
@@ -98,6 +100,7 @@ export const checkUrlCompatibility = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
+    assertViewAsAllowed(request, { read: true });
     const data = request.data as { url: string };
     if (!request.auth) {
       throw new HttpsError(

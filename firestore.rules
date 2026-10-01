@@ -5,7 +5,13 @@ service cloud.firestore {
     // Shorthands: compiled rules size counts expression nodes, and each use saves 2-4.
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
-    function authUid() { return request.auth.uid; }
+    // A view-as token that may not make this request (read-only write, or past exp)
+    // has no uid: the missing-key error denies every owner comparison built on it.
+    // shorthands: off (the one place the raw uid is read)
+    function authUid() {
+      return viewAsOk() ? request.auth.uid : request.auth.token.viewAs.noUid;
+    }
+    // shorthands: on
     function unchanged(k) { return request.resource.data[k] == resource.data[k]; }
     function isStr(k) { return request.resource.data[k] is string; }
     function isInt(k) { return request.resource.data[k] is int; }
@@ -26,7 +32,27 @@ service cloud.firestore {
       return request.auth != null &&
              request.auth.token.get('email', '') != '' &&
              request.auth.token.get('email_verified', false) == true &&
+             viewAsAdminOk() &&
              exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()));
+    }
+
+    // ---- Super admin "View as" (docs/plans/ADMIN_VIEW_AS.md D7) ----
+    // A view-as tab is signed in as its target with a server-minted `viewAs`
+    // claim { by, sid, ro, adminTarget, exp(ms) }. It may read until exp, and
+    // write only while unlocked (ro == false) and live; authUid() enforces it for
+    // every uid-keyed rule. Admin powers never write from a view-as tab (D3).
+    function viewAsLive() {
+      return request.time.toMillis() < request.auth.token.viewAs.get('exp', 0);
+    }
+    function isReadMethod() { return request.method in ['get', 'list']; }
+    function viewAsOk() {
+      return request.auth.token.get('viewAs', null) == null ||
+             (viewAsLive() &&
+              (isReadMethod() || request.auth.token.viewAs.get('ro', true) == false));
+    }
+    function viewAsAdminOk() {
+      return request.auth.token.get('viewAs', null) == null ||
+             (viewAsLive() && isReadMethod());
     }
 
     // A signed-in district address, verified. email_verified is required because
@@ -287,6 +313,7 @@ service cloud.firestore {
       return request.auth != null &&
              request.auth.token.email != null &&
              request.auth.token.get('email_verified', false) == true &&
+             viewAsAdminOk() &&
              (isLegacySuperAdmin() || isMemberSuperAdmin());
     }
 
@@ -370,6 +397,7 @@ service cloud.firestore {
     function isDomainAdmin(orgId) {
       return request.auth != null && request.auth.token.email != null &&
              request.auth.token.get('email_verified', false) == true &&
+             viewAsAdminOk() &&
              memberRole(orgId, request.auth.token.email.lower()) == 'domain_admin';
     }
 
@@ -377,6 +405,7 @@ service cloud.firestore {
     function isBuildingAdmin(orgId) {
       return request.auth != null && request.auth.token.email != null &&
              request.auth.token.get('email_verified', false) == true &&
+             viewAsAdminOk() &&
              memberRole(orgId, request.auth.token.email.lower()) == 'building_admin';
     }
 
@@ -601,6 +630,7 @@ service cloud.firestore {
            request.auth.token.email != null &&
            request.auth.token.get('email_verified', false) == true &&
            request.auth.token.email.lower() == emailLower &&
+           viewAsOk() &&
            unchanged('email') &&
            unchanged('orgId') &&
            changedOnly(['lastActive']));
@@ -980,7 +1010,33 @@ service cloud.firestore {
     // sensitive settings changes. timestamp is set server-side via
     // serverTimestamp(), so no is-int validation here.
     match /admin_audit_log/{logId} {
-      allow read, create: if isAdmin();
+      // View-as entries carry teacher data: super admins read them, and only the server
+      // or a view-as tab (below) writes them.
+      allow read: if (isAdmin() && !existing().get('action', '').matches('view_as_.*')) ||
+                     isSuperAdmin();
+      allow create: if isAdmin() && !incoming().get('action', '').matches('view_as_.*');
+      // An unlocked view-as tab logs its own saves, approvals and outward
+      // actions (ADMIN_VIEW_AS.md D16). Every identity field must match the
+      // server-minted claim; session lifecycle entries are server-only.
+      allow create: if request.auth != null &&
+                       request.auth.token.get('viewAs', null) != null &&
+                       viewAsOk() &&
+                       request.auth.token.viewAs.get('ro', true) == false &&
+                       incoming().keys().hasOnly(['action', 'sid', 'email', 'targetEmail',
+                         'targetUid', 'path', 'before', 'after', 'reason', 'timestamp']) &&
+                       incoming().action in ['view_as_save', 'view_as_approve', 'view_as_outward'] &&
+                       incoming().sid == request.auth.token.viewAs.sid &&
+                       incoming().email == request.auth.token.viewAs.by &&
+                       incoming().targetUid == authUid() &&
+                       incoming().targetEmail == request.auth.token.get('email', '').lower() &&
+                       incoming().get('path', 'users/' + authUid()).matches('users/' + authUid() + '(/.*)?') &&
+                       !incoming().get('path', '').matches('users/[^/]+/private(/.*)?') &&
+                       incoming().timestamp == request.time;
+    }
+
+    // View-as sessions: Admin SDK writes only; super admins read them.
+    match /view_as_sessions/{sid} {
+      allow read: if isSuperAdmin();
     }
 
     // User Roles - stored in admin_settings for global access but restricted to admins
@@ -2528,7 +2584,7 @@ service cloud.firestore {
       // isAdminManagingPlc (the only
       // non-member branch).
       // shorthands: off (PLC update OR chain runs close to the 1,000-expression limit)
-      allow update: if request.auth != null && (
+      allow update: if request.auth != null && viewAsOk() && (
         (
           request.auth.uid == resource.data.leadUid
           && request.resource.data.leadUid == resource.data.leadUid
@@ -3705,6 +3761,7 @@ service cloud.firestore {
         && request.auth.token.get('email', '') != ''
         && request.auth.token.get('email_verified', false) == true
         && existing().inviteeEmailLower == request.auth.token.email.lower()
+        && viewAsOk()
         && existing().status == 'pending'
         && incoming().status in ['accepted', 'declined']
         && changedOnly(['status', 'respondedAt']);
@@ -4416,7 +4473,7 @@ service cloud.firestore {
           isAdmin() ||
           get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.teacherUid == authUid()
         );
-        allow create: if request.auth != null &&
+        allow create: if request.auth != null && viewAsOk() &&
           incoming().keys().hasOnly(['viewedAt']) &&
           isTimestamp('viewedAt') &&
           exists(/databases/$(database)/documents/quiz_sessions/$(sessionId)) &&
@@ -4961,7 +5018,7 @@ service cloud.firestore {
       // Create requires the parent session to exist AND be in view-only mode.
       match /views/{viewId} {
         allow read: if vaOwner(vaS());
-        allow create: if request.auth != null &&
+        allow create: if request.auth != null && viewAsOk() &&
           incoming().keys().hasOnly(['viewedAt']) &&
           isTimestamp('viewedAt') &&
           vaS().get('mode', 'submissions') == 'view-only';
@@ -5233,7 +5290,7 @@ service cloud.firestore {
       // stores assignment mode under `assignmentMode` (its `mode` is play-mode).
       match /views/{viewId} {
         allow read: if request.auth != null && glIsTeacher();
-        allow create: if request.auth != null &&
+        allow create: if request.auth != null && viewAsOk() &&
           incoming().keys().hasOnly(['viewedAt']) &&
           isTimestamp('viewedAt') &&
           glSessionMode() == 'view-only';
@@ -5412,7 +5469,7 @@ service cloud.firestore {
         // unbounded-field-injection gap: without it a caller could smuggle arbitrary extra
         // keys - incl. a large junk string toward the 1MB cap - past every per-field check,
         // and every gallery viewer's onSnapshot would pay to download it on each emission.
-        allow create: if request.auth != null &&
+        allow create: if request.auth != null && viewAsOk() &&
           exists(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)) &&
           passesStudentClassGateCompat(awSessionClassIds(), awSessionClassId()) &&
           incoming().keys().hasOnly([

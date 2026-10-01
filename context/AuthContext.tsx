@@ -98,6 +98,14 @@ import {
   canWriteLastActive,
   stampLastActive,
 } from '@/utils/lastActiveThrottle';
+import {
+  isViewAsTab,
+  viewAsBlocksWrite,
+  viewAsSuppressesBackgroundWrites,
+} from '@/utils/viewAsTab';
+import { endViewAsSession } from '@/utils/viewAsSession';
+import { viewAsDirectSave } from '@/utils/viewAsAudit';
+import { fetchViewAsDriveToken } from '@/utils/viewAsDrive';
 import { deriveUserTier, meetsMinTier } from '@/utils/userTier';
 import { isBetaUser as isBetaUserShared } from '@/utils/betaAccess';
 import { OPERATOR_ORG_ID } from '@/config/organization';
@@ -554,6 +562,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const refreshGoogleToken = useCallback(
     async (silent: boolean = true): Promise<string | null> => {
       if (isAuthBypass) return MOCK_ACCESS_TOKEN;
+      // View as only ever uses the target's stored grant (plan D5); never a Google session or popup.
+      if (isViewAsTab) {
+        const viewAsToken = await fetchViewAsDriveToken();
+        if (!viewAsToken) return null;
+        const seconds =
+          Number.isFinite(viewAsToken.expiresIn) && viewAsToken.expiresIn > 0
+            ? viewAsToken.expiresIn
+            : 3600;
+        localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, viewAsToken.accessToken);
+        localStorage.setItem(
+          GOOGLE_TOKEN_EXPIRY_KEY,
+          (Date.now() + seconds * 1000).toString()
+        );
+        setGoogleAccessToken(viewAsToken.accessToken);
+        return viewAsToken.accessToken;
+      }
       if (silent && inFlightSilentRefreshRef.current) {
         return inFlightSilentRefreshRef.current;
       }
@@ -837,7 +861,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
    * code flow, which is the only call that captures the refresh leg.
    */
   const captureOfflineGrant = useCallback(async (): Promise<boolean> => {
-    if (isAuthBypass) return false;
+    if (isAuthBypass || isViewAsTab) return false;
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
       | string
       | undefined;
@@ -889,7 +913,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Skipped while Drive is disconnected — DriveDisconnectBanner owns that case
   // and its reconnect already routes through the code flow.
   useEffect(() => {
-    if (isAuthBypass || !user || !googleAccessToken) return;
+    if (isAuthBypass || isViewAsTab || !user || !googleAccessToken) return;
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
       | string
       | undefined;
@@ -962,6 +986,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       opts?: { interactive?: boolean }
     ): Promise<string | null> => {
       if (isAuthBypass) return MOCK_ACCESS_TOKEN;
+      if (isViewAsTab) return null;
 
       const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
         | string
@@ -1144,6 +1169,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // sessions and the user reloads without going through the sidebar.
   useEffect(() => {
     if (isAuthBypass || !user) return;
+    // View as fetches the target's token from the server, so it needs no GIS.
+    if (isViewAsTab) {
+      void refreshGoogleToken(true);
+      return;
+    }
 
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
       | string
@@ -1776,7 +1806,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             migrateSavedWidgetConfigs(rawSavedConfigs, rawPresets);
           setSavedWidgetConfigs(cleaned);
           setSavedWidgetPresets(presets);
-          if (needsMigration && migratedConfigsForUidRef.current !== user.uid) {
+          if (
+            needsMigration &&
+            migratedConfigsForUidRef.current !== user.uid &&
+            !viewAsSuppressesBackgroundWrites()
+          ) {
             migratedConfigsForUidRef.current = user.uid;
             // `updateDoc` replaces these top-level fields outright. A
             // `setDoc(..., { merge: true })` deep-merges map fields and would
@@ -2033,11 +2067,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           profileUpdate.selectedBuildings = canonical;
         }
 
-        await setDoc(
-          doc(db, 'users', probeUid, 'userProfile', 'profile'),
-          profileUpdate,
-          { merge: true }
-        );
+        if (!viewAsSuppressesBackgroundWrites()) {
+          await setDoc(
+            doc(db, 'users', probeUid, 'userProfile', 'profile'),
+            profileUpdate,
+            { merge: true }
+          );
+        }
         if (firestoreProbedForUidRef.current !== probeUid) return;
         setSetupCompletedState(true);
         if (canonical && canonical.length > 0) {
@@ -2091,11 +2127,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const isReturning = await driveService.hasExistingAppFolder();
         if (cancelled || !isReturning) return;
 
-        await setDoc(
-          doc(db, 'users', user.uid, 'userProfile', 'profile'),
-          { setupCompleted: true },
-          { merge: true }
-        );
+        if (!viewAsSuppressesBackgroundWrites()) {
+          await setDoc(
+            doc(db, 'users', user.uid, 'userProfile', 'profile'),
+            { setupCompleted: true },
+            { merge: true }
+          );
+        }
         if (cancelled) return;
         setSetupCompletedState(true);
       } catch (e) {
@@ -2118,6 +2156,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // read email, lastLogin, and buildings without querying subcollections.
   useEffect(() => {
     if (!user || isAuthBypass || !profileLoaded) return;
+    if (viewAsSuppressesBackgroundWrites()) return;
     if (rootDocSyncedRef.current) return;
     rootDocSyncedRef.current = true;
 
@@ -2146,6 +2185,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (!user || isAuthBypass) return;
     if (!orgId || !user.email) return;
+    if (viewAsSuppressesBackgroundWrites()) return;
     const syncKey = `${user.uid}:${orgId}`;
     // Already attempted (or succeeded) for this (uid, orgId) in this JS
     // context — don't re-fire on unrelated renders. A different org will
@@ -2187,22 +2227,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // way to disk. This makes every save self-healing.
       const canonical = canonicalizeBuildingIds(buildings);
       setSelectedBuildingsState(canonical);
-      if (!user || isAuthBypass) return;
+      if (!user || isAuthBypass || viewAsBlocksWrite()) return;
       // Assign a token so we can detect if a newer call supersedes this one
       const myToken = ++writeTokenRef.current;
       try {
-        await setDoc(
-          doc(db, 'users', user.uid, 'userProfile', 'profile'),
-          { selectedBuildings: canonical },
-          { merge: true }
+        const profileRef = doc(db, 'users', user.uid, 'userProfile', 'profile');
+        await viewAsDirectSave(profileRef, ['selectedBuildings'], () =>
+          setDoc(profileRef, { selectedBuildings: canonical }, { merge: true })
         );
         // Keep root doc buildings in sync for admin analytics. Use the
         // canonicalized array so the analytics Cloud Function (which reads
         // `users/{uid}.buildings` as a fallback) sees aligned IDs.
-        void setDoc(
-          doc(db, 'users', user.uid),
-          { buildings: canonical },
-          { merge: true }
+        const rootRef = doc(db, 'users', user.uid);
+        void viewAsDirectSave(rootRef, ['buildings'], () =>
+          setDoc(rootRef, { buildings: canonical }, { merge: true })
         ).catch((err: unknown) =>
           console.error('Error updating root doc buildings:', err)
         );
@@ -2221,13 +2259,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // i18n.changeLanguage() triggers the 'languageChanged' event, which the
       // effect above uses to update React state — no manual setLanguageState needed.
       void i18n.changeLanguage(lang);
-      if (!user || isAuthBypass) return;
+      if (!user || isAuthBypass || viewAsBlocksWrite()) return;
       const myToken = ++writeTokenRef.current;
       try {
-        await setDoc(
-          doc(db, 'users', user.uid, 'userProfile', 'profile'),
-          { language: lang },
-          { merge: true }
+        const profileRef = doc(db, 'users', user.uid, 'userProfile', 'profile');
+        await viewAsDirectSave(profileRef, ['language'], () =>
+          setDoc(profileRef, { language: lang }, { merge: true })
         );
       } catch (error) {
         if (myToken === writeTokenRef.current) {
@@ -2240,12 +2277,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const completeSetup = useCallback(async () => {
     setSetupCompletedState(true);
-    if (!user || isAuthBypass) return;
+    if (!user || isAuthBypass || viewAsBlocksWrite()) return;
     try {
-      await setDoc(
-        doc(db, 'users', user.uid, 'userProfile', 'profile'),
-        { setupCompleted: true },
-        { merge: true }
+      const profileRef = doc(db, 'users', user.uid, 'userProfile', 'profile');
+      await viewAsDirectSave(profileRef, ['setupCompleted'], () =>
+        setDoc(profileRef, { setupCompleted: true }, { merge: true })
       );
     } catch (error) {
       console.error('Error saving setup completion:', error);
@@ -2259,14 +2295,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (key === 'settingsDrawerWidth') {
         setSettingsDrawerWidthState(persistedValue);
       }
-      if (!user || isAuthBypass) return;
+      if (!user || isAuthBypass || viewAsBlocksWrite()) return;
+      // A drawer drag is not a deliberate change to the target's account.
+      if (key === 'settingsDrawerWidth' && viewAsSuppressesBackgroundWrites())
+        return;
       const myToken = ++writeTokenRef.current;
       try {
         // `merge: true` is mandatory — see the UserProfile ownership contract in types.ts.
-        await setDoc(
-          doc(db, 'users', user.uid, 'userProfile', 'profile'),
-          { [key]: persistedValue },
-          { merge: true }
+        const profileRef = doc(db, 'users', user.uid, 'userProfile', 'profile');
+        await viewAsDirectSave(profileRef, [key], () =>
+          setDoc(profileRef, { [key]: persistedValue }, { merge: true })
         );
       } catch (error) {
         if (myToken === writeTokenRef.current) {
@@ -2300,13 +2338,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setSubjectsTaughtState(subjects);
         payload.subjectsTaught = subjects;
       }
-      if (!user || isAuthBypass || Object.keys(payload).length === 0) return;
+      if (
+        !user ||
+        isAuthBypass ||
+        Object.keys(payload).length === 0 ||
+        viewAsBlocksWrite()
+      )
+        return;
       const myToken = ++writeTokenRef.current;
       try {
-        await setDoc(
-          doc(db, 'users', user.uid, 'userProfile', 'profile'),
-          payload,
-          { merge: true }
+        const profileRef = doc(db, 'users', user.uid, 'userProfile', 'profile');
+        await viewAsDirectSave(profileRef, Object.keys(payload), () =>
+          setDoc(profileRef, payload, { merge: true })
         );
       } catch (error) {
         if (myToken === writeTokenRef.current) {
@@ -2396,7 +2439,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         sanitizedUpdates.quizGraderAutoAdvance = updates.quizGraderAutoAdvance;
       }
 
-      if (!user || isAuthBypass || Object.keys(sanitizedUpdates).length === 0) {
+      if (
+        !user ||
+        isAuthBypass ||
+        Object.keys(sanitizedUpdates).length === 0 ||
+        viewAsBlocksWrite()
+      ) {
         return;
       }
       const myToken = ++writeTokenRef.current;
@@ -2404,10 +2452,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         // `merge: true` is mandatory: DashboardContext also writes this doc
         // (see the UserProfile ownership contract in types.ts). A non-merge
         // write here would clobber Dashboard-owned fields like `dockItems`.
-        await setDoc(
-          doc(db, 'users', user.uid, 'userProfile', 'profile'),
-          sanitizedUpdates,
-          { merge: true }
+        const profileRef = doc(db, 'users', user.uid, 'userProfile', 'profile');
+        await viewAsDirectSave(profileRef, Object.keys(sanitizedUpdates), () =>
+          setDoc(profileRef, sanitizedUpdates, { merge: true })
         );
       } catch (error) {
         if (myToken === writeTokenRef.current) {
@@ -2445,7 +2492,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         widgetConfigTimeoutRef.current = setTimeout(() => {
-          if (!user || isAuthBypass) return;
+          // Carried over from board edits, which stay local in view-as (D12).
+          if (!user || isAuthBypass || viewAsSuppressesBackgroundWrites())
+            return;
           const myToken = ++writeTokenRef.current;
           setDoc(
             doc(db, 'users', user.uid, 'userProfile', 'profile'),
@@ -2477,13 +2526,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         else delete next[type];
         return next;
       });
-      if (!user || isAuthBypass) return;
+      if (!user || isAuthBypass || viewAsBlocksWrite()) return;
       const myToken = ++writeTokenRef.current;
       const path = new FieldPath('savedWidgetConfigs', type);
-      setDoc(
-        doc(db, 'users', user.uid, 'userProfile', 'profile'),
-        { savedWidgetConfigs: { [type]: filtered } },
-        { mergeFields: [path] }
+      const profileRef = doc(db, 'users', user.uid, 'userProfile', 'profile');
+      viewAsDirectSave(profileRef, [`savedWidgetConfigs.${type}`], () =>
+        setDoc(
+          profileRef,
+          { savedWidgetConfigs: { [type]: filtered } },
+          { mergeFields: [path] }
+        )
       ).catch((error) => {
         if (myToken === writeTokenRef.current) {
           console.error('Error saving widget default:', error);
@@ -2512,12 +2564,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         widgetPresetTimeoutRef.current = setTimeout(() => {
-          if (!user || isAuthBypass) return;
+          if (!user || isAuthBypass || viewAsBlocksWrite()) return;
           const myToken = ++writeTokenRef.current;
-          setDoc(
-            doc(db, 'users', user.uid, 'userProfile', 'profile'),
-            { savedWidgetPresets: newPresets },
-            { merge: true }
+          const profileRef = doc(
+            db,
+            'users',
+            user.uid,
+            'userProfile',
+            'profile'
+          );
+          viewAsDirectSave(profileRef, ['savedWidgetPresets'], () =>
+            setDoc(
+              profileRef,
+              { savedWidgetPresets: newPresets },
+              { merge: true }
+            )
           ).catch((error) => {
             if (myToken === writeTokenRef.current) {
               console.error('Error saving widget presets:', error);
@@ -2534,13 +2595,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const saveCustomMaterials = useCallback(
     async (materials: MaterialDefinition[]) => {
       setCustomMaterials(materials);
-      if (!user || isAuthBypass) return;
+      if (!user || isAuthBypass || viewAsBlocksWrite()) return;
       const myToken = ++writeTokenRef.current;
       try {
-        await setDoc(
-          doc(db, 'users', user.uid, 'userProfile', 'profile'),
-          { customMaterials: materials },
-          { merge: true }
+        const profileRef = doc(db, 'users', user.uid, 'userProfile', 'profile');
+        await viewAsDirectSave(profileRef, ['customMaterials'], () =>
+          setDoc(profileRef, { customMaterials: materials }, { merge: true })
         );
       } catch (error) {
         if (myToken === writeTokenRef.current) {
@@ -2559,12 +2619,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         clearTimeout(materialsPrefsTimeoutRef.current);
       }
       materialsPrefsTimeoutRef.current = setTimeout(() => {
-        if (!user || isAuthBypass) return;
+        if (!user || isAuthBypass || viewAsBlocksWrite()) return;
         const myToken = ++writeTokenRef.current;
-        setDoc(
-          doc(db, 'users', user.uid, 'userProfile', 'profile'),
-          { materialsPreferences: preferences },
-          { merge: true }
+        const profileRef = doc(db, 'users', user.uid, 'userProfile', 'profile');
+        viewAsDirectSave(profileRef, ['materialsPreferences'], () =>
+          setDoc(
+            profileRef,
+            { materialsPreferences: preferences },
+            { merge: true }
+          )
         ).catch((error) => {
           if (myToken === writeTokenRef.current) {
             console.error('Error saving materials preferences:', error);
@@ -2584,12 +2647,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         clearTimeout(penColorsTimeoutRef.current);
       }
       penColorsTimeoutRef.current = setTimeout(() => {
-        if (!user || isAuthBypass) return;
+        if (!user || isAuthBypass || viewAsBlocksWrite()) return;
         const myToken = ++writeTokenRef.current;
-        setDoc(
-          doc(db, 'users', user.uid, 'userProfile', 'profile'),
-          { penColors: next ?? deleteField() },
-          { merge: true }
+        const profileRef = doc(db, 'users', user.uid, 'userProfile', 'profile');
+        viewAsDirectSave(profileRef, ['penColors'], () =>
+          setDoc(
+            profileRef,
+            { penColors: next ?? deleteField() },
+            { merge: true }
+          )
         ).catch((error) => {
           if (myToken === writeTokenRef.current) {
             console.error('Error saving pen colors:', error);
@@ -2612,11 +2678,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Optimistic update
       favoritesRef.current = next;
       setFavoriteBackgrounds(next);
+      if (viewAsBlocksWrite()) return;
       try {
-        await setDoc(
-          doc(db, 'users', user.uid, 'userProfile', 'profile'),
-          { favoriteBackgrounds: next },
-          { merge: true }
+        const profileRef = doc(db, 'users', user.uid, 'userProfile', 'profile');
+        await viewAsDirectSave(profileRef, ['favoriteBackgrounds'], () =>
+          setDoc(profileRef, { favoriteBackgrounds: next }, { merge: true })
         );
       } catch (err) {
         // Revert optimistic update so the UI doesn't show a stale state
@@ -2643,6 +2709,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       recentsRef.current = next;
       setRecentBackgrounds(next);
+      if (viewAsSuppressesBackgroundWrites()) return;
       try {
         await setDoc(
           doc(db, 'users', user.uid, 'userProfile', 'profile'),
@@ -3133,7 +3200,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const updateAppSettings = useCallback(
     async (updates: Partial<AppSettings>) => {
-      if (!isAdmin || isAuthBypass) return;
+      if (!isAdmin || isAuthBypass || isViewAsTab) return;
       try {
         await setDoc(doc(db, 'admin_settings', 'app_settings'), updates, {
           merge: true,
@@ -3147,6 +3214,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const signOut = async () => {
+    if (isViewAsTab) {
+      await endViewAsSession();
+      return;
+    }
     if (isAuthBypass) {
       console.warn('Bypassing Sign Out');
       setUser(null);

@@ -7,6 +7,7 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import { isGlobalFeatureGranted } from './quizMediaArchive';
 import { QUIZ_READ_ALOUD_FEATURE_ID } from './quizReadAloud';
 import './functionsInit';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 export const MAX_STORED_CHARS = 50_000;
 export const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
@@ -433,6 +434,7 @@ export const extractStimulusReadAloudTextV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request, { outward: true });
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
     const parsed = parseExtractRequest(request.data);

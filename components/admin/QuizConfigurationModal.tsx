@@ -1,7 +1,15 @@
 // Admin config for the Quiz widget: the raise-hand gate plus the languages panel.
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Hand, Save, Loader2, Languages, Settings2 } from 'lucide-react';
+import {
+  X,
+  Hand,
+  Save,
+  Loader2,
+  Languages,
+  Settings2,
+  ToggleRight,
+} from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { BuildingSelector } from './BuildingSelector';
@@ -30,6 +38,12 @@ interface QuizConfigurationModalProps {
   onSave: (
     updates: Partial<FeaturePermission>
   ) => void | boolean | Promise<void | boolean>;
+  /** Graduated feature switches for the Features tab. */
+  features?: React.ReactNode;
+  /** Graduated language switches, shown above the languages list. */
+  languageFeatures?: React.ReactNode;
+  /** Unsaved edits in either set of switches. */
+  featuresDirty?: boolean;
 }
 
 // Spread the stored config so sibling keys (notably `dockDefaults`, which
@@ -44,12 +58,17 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
   onClose,
   permission,
   onSave,
+  features,
+  languageFeatures,
+  featuresDirty = false,
 }) => {
   const { t } = useTranslation();
   const { addToast } = useDashboard();
   const { showConfirm } = useDialog();
   const BUILDINGS = useAdminBuildings();
-  const [tab, setTab] = useState<'behavior' | 'languages'>('behavior');
+  const [tab, setTab] = useState<'behavior' | 'features' | 'languages'>(
+    'behavior'
+  );
   const [saving, setSaving] = useState(false);
   const [languagesDirty, setLanguagesDirty] = useState(false);
   const [selectedBuildingId, setSelectedBuildingId] =
@@ -90,9 +109,12 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
     }));
   };
 
-  const isDirty =
+  const configDirty =
     JSON.stringify(config) !==
-      JSON.stringify(normalizeConfig(permission.config)) || languagesDirty;
+    JSON.stringify(normalizeConfig(permission.config));
+  const isDirty = configDirty || languagesDirty || featuresDirty;
+  // The Languages tab owns its own Save; the footer saves there only for switch edits.
+  const showFooterSave = tab !== 'languages' || featuresDirty;
 
   // Same discard prompt the generic admin config modal path uses.
   const requestClose = async () => {
@@ -127,7 +149,8 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
         return;
       }
       addToast(t('quizAdmin.saved', 'Quiz configuration saved.'), 'success');
-      onClose();
+      // Closing would drop an unsaved languages draft.
+      if (!languagesDirty) onClose();
     } catch (err) {
       console.error('Failed to save quiz config:', err);
       addToast(
@@ -169,7 +192,12 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
             {t('quizAdmin.title', 'Quiz Administration')}
           </h2>
           <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">
-            {t('quizAdmin.subtitle', 'Raise hand & languages')}
+            {features
+              ? t(
+                  'quizAdmin.subtitleFeatures',
+                  'Behavior, features & languages'
+                )
+              : t('quizAdmin.subtitle', 'Raise hand & languages')}
           </p>
         </div>
       </div>
@@ -199,8 +227,7 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
         >
           {t('quizAdmin.cancel', 'Cancel')}
         </button>
-        {/* The Languages tab owns its own Save; a footer save here would discard its draft. */}
-        {tab === 'behavior' && (
+        {showFooterSave && (
           <button
             onClick={() => void handleSave()}
             disabled={saving}
@@ -238,6 +265,15 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
                 label: t('quizAdmin.tabs.behavior', 'Behavior'),
                 icon: Settings2,
               },
+              ...(features
+                ? [
+                    {
+                      id: 'features' as const,
+                      label: t('quizAdmin.tabs.features', 'Features'),
+                      icon: ToggleRight,
+                    },
+                  ]
+                : []),
               {
                 id: 'languages' as const,
                 label: t('quizAdmin.tabs.languages', 'Languages'),
@@ -331,7 +367,16 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
             </>
           )}
         </section>
-        <section hidden={tab !== 'languages'}>
+        {features && (
+          <section
+            hidden={tab !== 'features'}
+            data-testid="quiz-admin-features"
+          >
+            {features}
+          </section>
+        )}
+        <section className="space-y-6" hidden={tab !== 'languages'}>
+          {languageFeatures}
           <QuizReadAloudConfigurationPanel onDirtyChange={setLanguagesDirty} />
         </section>
       </div>
