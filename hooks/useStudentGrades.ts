@@ -4,6 +4,7 @@ import { db, isAuthBypass } from '@/config/firebase';
 import {
   DEFAULT_PROFICIENCY_SCALE,
   GRADEBOOK_COLLECTIONS,
+  parseScale,
   type StudentGradesDoc,
 } from '@/utils/gradebook/gradebookCore';
 import type { StudentGradesData } from '@/utils/gradebook/studentGrades';
@@ -48,11 +49,7 @@ export type StudentGradesState =
 const EMPTY: StudentGradesData = {
   entries: {},
   standards: null,
-  levelNames: DEFAULT_PROFICIENCY_SCALE.levelNames,
-  cutoffs: {
-    proficient: DEFAULT_PROFICIENCY_SCALE.proficient,
-    approaching: DEFAULT_PROFICIENCY_SCALE.approaching,
-  },
+  scale: DEFAULT_PROFICIENCY_SCALE,
 };
 
 interface Snapshot {
@@ -88,8 +85,12 @@ export function useStudentGrades(
               ? {
                   entries: d.entries ?? {},
                   standards: d.standards ?? null,
-                  levelNames: d.levelNames ?? EMPTY.levelNames,
-                  cutoffs: d.cutoffs ?? EMPTY.cutoffs,
+                  scale:
+                    parseScale(
+                      d.levels
+                        ? { levels: d.levels }
+                        : { ...d.cutoffs, levelNames: d.levelNames }
+                    ) ?? EMPTY.scale,
                 }
               : EMPTY,
           },

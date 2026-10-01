@@ -2,14 +2,20 @@ import {
   formatScore,
   type GradebookColumn,
 } from '@/utils/gradebook/gradebookModel';
+import {
+  proficiencyLevel,
+  type ProficiencyScale,
+} from '@/utils/gradebook/gradebookCore';
+import { SCALE_COLOR_STYLES } from '@/utils/gradebook/scaleColors';
 import type { GradebookCell } from './GradebookContext';
 
-/** Text color per proficiency level: top, middle, bottom. */
-export const BAND_TEXT = [
-  'text-emerald-600',
-  'text-amber-600',
-  'text-brand-red-primary',
-] as const;
+/** Tint text color for a percent on the scale; empty with no value. */
+export function bandTint(pct: number | null, scale: ProficiencyScale): string {
+  const level = proficiencyLevel(pct, scale);
+  return level === null
+    ? ''
+    : SCALE_COLOR_STYLES[scale.levels[level].color].tint;
+}
 
 export const cellAnchorId = (sessionId: string, uid: string): string =>
   `${sessionId}|${uid}`;

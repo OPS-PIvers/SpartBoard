@@ -145,7 +145,9 @@ describe('gradebookAnalysis', () => {
       '90+',
     ]);
     expect(bins.map((b) => b.count)).toEqual([1, 1, 0, 0, 1, 2]);
-    const custom = histogramBins([], { ...scale, proficient: 75 });
+    const custom = histogramBins([], {
+      levels: scale.levels.map((l, i) => (i === 0 ? { ...l, min: 75 } : l)),
+    });
     expect(custom.map((b) => b.label)).toContain('75–80');
   });
 

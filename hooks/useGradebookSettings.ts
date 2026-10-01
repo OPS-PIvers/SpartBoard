@@ -18,6 +18,7 @@ import {
   GRADEBOOK_COLLECTIONS,
   ORG_GRADEBOOK_SETTINGS_ID,
   PLC_GRADEBOOK_META_ID,
+  resolveScale,
   type GradebookConfigRef,
   type GradebookSettingsBody,
   type ProficiencyScale,
@@ -282,7 +283,11 @@ export function useGradebookSettings(
       out.push({
         value: `plc:${plc.id}`,
         label: `${plc.name} scale`,
-        scale: cutoffs ? { ...districtScale, ...cutoffs } : districtScale,
+        scale: resolveScale(
+          { source: 'plc', plcId: plc.id },
+          districtScale,
+          cutoffs ?? null
+        ),
       });
     }
     out.push({ value: 'custom', label: 'Custom', scale: null });

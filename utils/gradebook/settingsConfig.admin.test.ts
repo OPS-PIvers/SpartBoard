@@ -52,17 +52,17 @@ describe('district configuration helpers', () => {
   });
 
   it('parses the organization scale with defaults', () => {
-    expect(parseProficiencyScale(undefined).proficient).toBe(80);
+    expect(parseProficiencyScale(undefined).levels[0].min).toBe(80);
     expect(
       parseProficiencyScale({
         proficient: 90,
         levelNames: ['A', 'B'],
-      })
-    ).toEqual({
-      proficient: 90,
-      approaching: 60,
-      levelNames: ['Proficient', 'Approaching', 'Beginning'],
-    });
+      }).levels.map((l) => [l.name, l.min])
+    ).toEqual([
+      ['Proficient', 90],
+      ['Approaching', 60],
+      ['Beginning', 0],
+    ]);
   });
 
   it('lists only ClassLink and test-class rosters', () => {

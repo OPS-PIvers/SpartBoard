@@ -204,12 +204,49 @@ export interface GradebookCategory {
   weight: number;
 }
 
+export type ScaleColor =
+  | 'emerald'
+  | 'teal'
+  | 'sky'
+  | 'blue'
+  | 'amber'
+  | 'orange'
+  | 'rose'
+  | 'slate';
+
+/** Picker order; no purples (same family as flag colors). */
+export const SCALE_COLORS: readonly ScaleColor[] = [
+  'emerald',
+  'teal',
+  'sky',
+  'blue',
+  'amber',
+  'orange',
+  'rose',
+  'slate',
+];
+
+export interface ScaleLevel {
+  name: string;
+  /** Lowest percent in the level; always 0 for the bottom level. */
+  min: number;
+  color: ScaleColor;
+}
+
 export interface ProficiencyScale {
+  /** Top first. */
+  levels: ScaleLevel[];
+}
+
+/** Three-level fields older clients read; written next to `levels`. */
+export interface LegacyScaleFields {
   proficient: number;
   approaching: number;
-  /** Top, middle, bottom. */
   levelNames: [string, string, string];
 }
+
+export const MIN_SCALE_LEVELS = 2;
+export const MAX_SCALE_LEVELS = 6;
 
 export type GradebookScaleChoice =
   | { source: 'district' }
@@ -238,9 +275,11 @@ export interface GradebookSettingsBody {
 export const DEFAULT_DECAY_WEIGHT = 0.65;
 
 export const DEFAULT_PROFICIENCY_SCALE: ProficiencyScale = {
-  proficient: 80,
-  approaching: 60,
-  levelNames: ['Proficient', 'Approaching', 'Beginning'],
+  levels: [
+    { name: 'Proficient', min: 80, color: 'emerald' },
+    { name: 'Approaching', min: 60, color: 'amber' },
+    { name: 'Beginning', min: 0, color: 'rose' },
+  ],
 };
 
 export const DEFAULT_GRADEBOOK_FLAGS: GradebookFlagDef[] = [
@@ -649,17 +688,102 @@ export function combineEvidence(
   }
 }
 
-export type ProficiencyLevel = 0 | 1 | 2;
+/** Index into `scale.levels`; 0 is the top level. */
+export type ProficiencyLevel = number;
 
-/** 0 = top level, 1 = middle, 2 = bottom; null with no evidence. */
+/** The level a percent falls in; null with no evidence. */
 export function proficiencyLevel(
   pct: number | null,
   scale: ProficiencyScale
 ): ProficiencyLevel | null {
   if (pct === null) return null;
-  if (pct >= scale.proficient) return 0;
-  if (pct >= scale.approaching) return 1;
-  return 2;
+  const i = scale.levels.findIndex((l) => pct >= l.min);
+  return i === -1 ? scale.levels.length - 1 : i;
+}
+
+/** The top level's cutoff, which "proficient" counts use. */
+export const topCutoff = (scale: ProficiencyScale): number =>
+  scale.levels[0]?.min ?? 0;
+
+const roundPct = (v: number, lo: number, hi: number): number =>
+  Math.min(hi, Math.max(lo, Math.round(v)));
+
+/** 2-6 levels, named, top-first with strictly falling cutoffs and a bottom at 0. */
+export function normalizeScale(scale: ProficiencyScale): ProficiencyScale {
+  const levels = scale.levels.slice(0, MAX_SCALE_LEVELS);
+  if (levels.length < MIN_SCALE_LEVELS) return DEFAULT_PROFICIENCY_SCALE;
+  const n = levels.length;
+  const out: ScaleLevel[] = [];
+  for (let i = 0; i < n; i++) {
+    const l = levels[i];
+    const fallback = DEFAULT_PROFICIENCY_SCALE.levels[Math.min(i, 2)];
+    const hi = i === 0 ? 100 : out[i - 1].min - 1;
+    const min =
+      i === n - 1
+        ? 0
+        : roundPct(Number.isFinite(l.min) ? l.min : 0, n - 1 - i, hi);
+    out.push({
+      name: (typeof l.name === 'string' && l.name.trim()) || fallback.name,
+      min,
+      color: SCALE_COLORS.includes(l.color) ? l.color : fallback.color,
+    });
+  }
+  return { levels: out };
+}
+
+/** A stored scale: `levels` when present, else the older three-level fields. */
+export function parseScale(raw: unknown): ProficiencyScale | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  if (Array.isArray(r.levels) && r.levels.length >= MIN_SCALE_LEVELS) {
+    return normalizeScale({
+      levels: r.levels.map((l) => {
+        const x = (typeof l === 'object' && l !== null ? l : {}) as Record<
+          string,
+          unknown
+        >;
+        return {
+          name: typeof x.name === 'string' ? x.name : '',
+          min: typeof x.min === 'number' ? x.min : 0,
+          color: x.color as ScaleColor,
+        };
+      }),
+    });
+  }
+  const d = DEFAULT_PROFICIENCY_SCALE.levels;
+  const top = typeof r.proficient === 'number' ? r.proficient : null;
+  const mid = typeof r.approaching === 'number' ? r.approaching : null;
+  if (top === null && mid === null) return null;
+  const names =
+    Array.isArray(r.levelNames) &&
+    r.levelNames.length === 3 &&
+    r.levelNames.every((n) => typeof n === 'string')
+      ? r.levelNames
+      : d.map((l) => l.name);
+  return normalizeScale({
+    levels: [top ?? d[0].min, mid ?? d[1].min, 0].map((min, i) => ({
+      name: names[i],
+      min,
+      color: d[i].color,
+    })),
+  });
+}
+
+/** `levels` plus the three-level fields, for a write older clients can still read. */
+export function storedScale(
+  scale: ProficiencyScale
+): ProficiencyScale & LegacyScaleFields {
+  const levels = scale.levels.map((l) => ({ ...l }));
+  const n = levels.length;
+  const top = levels[0];
+  const bottom = levels[n - 1];
+  const mid = n >= 3 ? levels[1] : top;
+  return {
+    levels,
+    proficient: top.min,
+    approaching: n >= 3 ? mid.min : Math.max(0, top.min - 1),
+    levelNames: [top.name, mid.name, bottom.name],
+  };
 }
 
 /** D17: the scale a configuration names, falling back to the district scale. */
@@ -668,9 +792,12 @@ export function resolveScale(
   district: ProficiencyScale,
   plcCutoffs: { proficient: number; approaching: number } | null
 ): ProficiencyScale {
-  if (choice.source === 'custom') return choice.scale;
+  if (choice.source === 'custom') return parseScale(choice.scale) ?? district;
   if (choice.source === 'plc' && plcCutoffs) {
-    return { ...district, ...plcCutoffs };
+    const levels = district.levels.map((l) => ({ ...l }));
+    levels[0].min = plcCutoffs.proficient;
+    if (levels.length >= 3) levels[1].min = plcCutoffs.approaching;
+    return normalizeScale({ levels });
   }
   return district;
 }
@@ -786,6 +913,8 @@ export interface StudentGradesDoc {
   /** Null unless the class's settings show standards. */
   standards: StudentStandardEntry[] | null;
   levelNames: [string, string, string];
+  /** The full scale; absent on docs written before configurable levels. */
+  levels?: ScaleLevel[];
   /** The scale's cutoffs; absent on docs written before the Learning targets view. */
   cutoffs?: { proficient: number; approaching: number };
   updatedAt: number;
@@ -932,6 +1061,7 @@ export interface GradingPeriodSetDoc {
 }
 
 /** `admin_settings/gradebook`: the organization's district scale (D17). */
-export interface GradebookOrgSettingsDoc extends ProficiencyScale {
+export interface GradebookOrgSettingsDoc
+  extends ProficiencyScale, LegacyScaleFields {
   updatedAt: number;
 }

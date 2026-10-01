@@ -17,7 +17,7 @@ import {
   histogramBins,
   type HistogramBin,
 } from '@/utils/gradebook/gradebookAnalysis';
-import { bandFor } from './bands';
+import { bandFor, scaleCutoffs } from './bands';
 
 const AXIS = {
   fontSize: 11,
@@ -167,23 +167,16 @@ export const ScoreTrendChartImpl: React.FC<ScoreTrendChartProps> = ({
         <XAxis dataKey="label" tick={AXIS} axisLine={false} tickLine={false} />
         <YAxis
           domain={[0, 100]}
-          ticks={[0, scale.approaching, scale.proficient, 100]}
+          ticks={[0, ...scaleCutoffs(scale), 100]}
           tick={AXIS}
           axisLine={false}
           tickLine={false}
         />
         <ReferenceLine y={0} stroke="#e2e8f0" />
         <ReferenceLine y={100} stroke="#e2e8f0" />
-        <ReferenceLine
-          y={scale.approaching}
-          stroke="#e2e8f0"
-          strokeDasharray="3 3"
-        />
-        <ReferenceLine
-          y={scale.proficient}
-          stroke="#e2e8f0"
-          strokeDasharray="3 3"
-        />
+        {scaleCutoffs(scale).map((y) => (
+          <ReferenceLine key={y} y={y} stroke="#e2e8f0" strokeDasharray="3 3" />
+        ))}
         <Tooltip
           content={({ active, payload }) => {
             const p = active

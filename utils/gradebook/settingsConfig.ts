@@ -3,6 +3,10 @@ import {
   DEFAULT_GRADEBOOK_CATEGORIES,
   DEFAULT_GRADEBOOK_SETTINGS,
   DEFAULT_PROFICIENCY_SCALE,
+  MAX_SCALE_LEVELS,
+  SCALE_COLORS,
+  normalizeScale,
+  parseScale,
   type ProficiencyScale,
   type GradebookCategory,
   type GradebookConfigRef,
@@ -209,22 +213,7 @@ export function pickSettingsBody(
 export function parseProficiencyScale(
   raw: Record<string, unknown> | undefined
 ): ProficiencyScale {
-  if (!raw) return DEFAULT_PROFICIENCY_SCALE;
-  const names = Array.isArray(raw.levelNames) ? raw.levelNames : null;
-  return {
-    proficient:
-      typeof raw.proficient === 'number'
-        ? raw.proficient
-        : DEFAULT_PROFICIENCY_SCALE.proficient,
-    approaching:
-      typeof raw.approaching === 'number'
-        ? raw.approaching
-        : DEFAULT_PROFICIENCY_SCALE.approaching,
-    levelNames:
-      names?.length === 3 && names.every((n) => typeof n === 'string')
-        ? (names as [string, string, string])
-        : DEFAULT_PROFICIENCY_SCALE.levelNames,
-  };
+  return parseScale(raw) ?? DEFAULT_PROFICIENCY_SCALE;
 }
 
 /** `gradebook_district_configs/{id}` as the admin tab and teacher modal read it. */
@@ -283,4 +272,23 @@ export function gradebookClassOptions(
   return rosters
     .filter((r) => !!r.classlinkClassId || !!r.testClassId)
     .map((r) => ({ id: r.id, name: r.name }));
+}
+
+/** The new bottom level splits the current bottom range in half; null when there is no room. */
+export function addScaleLevel(
+  scale: ProficiencyScale
+): ProficiencyScale | null {
+  const levels = scale.levels.map((l) => ({ ...l }));
+  if (levels.length >= MAX_SCALE_LEVELS) return null;
+  const n = levels.length;
+  const ceiling = n >= 2 ? levels[n - 2].min : 100;
+  if (ceiling < 2) return null;
+  levels[n - 1].min = Math.floor(ceiling / 2);
+  const used = new Set(levels.map((l) => l.color));
+  levels.push({
+    name: 'New level',
+    min: 0,
+    color: SCALE_COLORS.find((c) => !used.has(c)) ?? 'slate',
+  });
+  return normalizeScale({ levels });
 }

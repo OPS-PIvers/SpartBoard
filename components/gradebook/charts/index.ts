@@ -1,4 +1,10 @@
-export { bandFor, bandRanges, bandStyle, type BandStyle } from './bands';
+export {
+  bandFor,
+  bandRanges,
+  bandStyle,
+  scaleCutoffs,
+  type BandStyle,
+} from './bands';
 export { BandLegend } from './BandLegend';
 export { BarList, type BarListRow } from './BarList';
 export {

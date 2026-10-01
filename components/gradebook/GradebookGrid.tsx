@@ -1,11 +1,10 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { proficiencyLevel } from '@/utils/gradebook/gradebookCore';
 import { average } from '@/utils/gradebook/gradebookModel';
 import { spaNavigate } from '@/utils/plcPath';
 import { buildGradebookPath } from '@/utils/gradebookPath';
 import { useGradebook, type GradebookColumn } from './GradebookContext';
 import { GradebookCellContent } from './GradebookCellContent';
-import { BAND_TEXT, cellAnchorId, cellAriaLabel } from './cellFormat';
+import { bandTint, cellAnchorId, cellAriaLabel } from './cellFormat';
 import { GRADEBOOK_KIND_META } from './kindMeta';
 import { Private } from './Private';
 import { GradebookPopovers } from './GradebookPopovers';
@@ -285,7 +284,7 @@ export const GradebookGrid: React.FC = () => {
           {students.map((s, i) => {
             const o = overall(s.uid);
             const rowBg = `${i % 2 ? 'bg-slate-100' : 'bg-white'} group-hover:bg-brand-blue-lighter`;
-            const level = view.tint ? proficiencyLevel(o.pct, scale) : null;
+            const tint = view.tint ? bandTint(o.pct, scale) : '';
             return (
               <tr key={s.uid} className="group">
                 <th
@@ -312,7 +311,7 @@ export const GradebookGrid: React.FC = () => {
                 <td
                   className={`${td} ${rowBg} ${stickyOverall} z-10 text-center text-sm font-bold text-slate-900`}
                 >
-                  <Private className={level !== null ? BAND_TEXT[level] : ''}>
+                  <Private className={tint}>
                     {o.pct === null ? '–' : `${o.pct.toFixed(1)}%`}
                   </Private>
                 </td>
