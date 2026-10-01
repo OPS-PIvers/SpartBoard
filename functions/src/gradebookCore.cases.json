@@ -1688,6 +1688,768 @@
     }
   },
   {
+    "name": "late deduction comes off the earned score",
+    "fn": "resolveFinalScore",
+    "args": [
+      {
+        "kind": "quiz",
+        "sessionId": "s1",
+        "studentUid": "u1",
+        "ownerUid": "t1",
+        "editorUids": [],
+        "rosterIds": ["r1"],
+        "classIds": ["c1"],
+        "title": "Quiz 1",
+        "rawPct": 80,
+        "points": 8,
+        "max": 10,
+        "state": "scored",
+        "submittedAt": 3000,
+        "dueAt": 2000,
+        "openAt": 0,
+        "closeAt": null,
+        "createdAt": 0,
+        "attempts": [],
+        "targetEvidence": [],
+        "published": true,
+        "assigned": true,
+        "updatedAt": 1000
+      },
+      null,
+      null,
+      {
+        "flagDefs": [
+          {
+            "id": "missing",
+            "name": "Missing",
+            "key": "M",
+            "color": "rose",
+            "value": 0,
+            "visibility": "students",
+            "builtIn": true
+          },
+          {
+            "id": "excused",
+            "name": "Excused",
+            "key": "X",
+            "color": "slate",
+            "value": "excluded",
+            "visibility": "students",
+            "builtIn": true
+          },
+          {
+            "id": "late",
+            "name": "Late",
+            "key": "L",
+            "color": "amber",
+            "value": 10,
+            "visibility": "teacher",
+            "builtIn": true,
+            "mode": "deduct"
+          },
+          {
+            "id": "incomplete",
+            "name": "Incomplete",
+            "key": "I",
+            "color": "orange",
+            "value": 50,
+            "visibility": "teacher",
+            "builtIn": false
+          },
+          {
+            "id": "absent",
+            "name": "Absent",
+            "key": "A",
+            "color": "sky",
+            "value": null,
+            "visibility": "off",
+            "builtIn": false
+          }
+        ],
+        "autoFlags": true,
+        "now": 5000
+      }
+    ],
+    "expected": {
+      "status": "scored",
+      "points": 7,
+      "max": 10,
+      "pct": 70,
+      "source": "raw",
+      "flagId": null,
+      "rawPoints": 8,
+      "flags": [
+        {
+          "id": "late",
+          "auto": true
+        }
+      ],
+      "counts": true
+    }
+  },
+  {
+    "name": "deduction comes off an override too",
+    "fn": "resolveFinalScore",
+    "args": [
+      {
+        "kind": "quiz",
+        "sessionId": "s1",
+        "studentUid": "u1",
+        "ownerUid": "t1",
+        "editorUids": [],
+        "rosterIds": ["r1"],
+        "classIds": ["c1"],
+        "title": "Quiz 1",
+        "rawPct": 80,
+        "points": 8,
+        "max": 10,
+        "state": "scored",
+        "submittedAt": 3000,
+        "dueAt": 2000,
+        "openAt": 0,
+        "closeAt": null,
+        "createdAt": 0,
+        "attempts": [],
+        "targetEvidence": [],
+        "published": true,
+        "assigned": true,
+        "updatedAt": 1000
+      },
+      {
+        "kind": "quiz",
+        "sessionId": "s1",
+        "studentUid": "u1",
+        "ownerUid": "t1",
+        "editorUids": [],
+        "rosterIds": ["r1"],
+        "override": {
+          "points": 9,
+          "at": 1
+        },
+        "comment": null,
+        "flags": [],
+        "suppressedAuto": [],
+        "publishOverride": null,
+        "updatedAt": 1
+      },
+      null,
+      {
+        "flagDefs": [
+          {
+            "id": "missing",
+            "name": "Missing",
+            "key": "M",
+            "color": "rose",
+            "value": 0,
+            "visibility": "students",
+            "builtIn": true
+          },
+          {
+            "id": "excused",
+            "name": "Excused",
+            "key": "X",
+            "color": "slate",
+            "value": "excluded",
+            "visibility": "students",
+            "builtIn": true
+          },
+          {
+            "id": "late",
+            "name": "Late",
+            "key": "L",
+            "color": "amber",
+            "value": 10,
+            "visibility": "teacher",
+            "builtIn": true,
+            "mode": "deduct"
+          },
+          {
+            "id": "incomplete",
+            "name": "Incomplete",
+            "key": "I",
+            "color": "orange",
+            "value": 50,
+            "visibility": "teacher",
+            "builtIn": false
+          },
+          {
+            "id": "absent",
+            "name": "Absent",
+            "key": "A",
+            "color": "sky",
+            "value": null,
+            "visibility": "off",
+            "builtIn": false
+          }
+        ],
+        "autoFlags": true,
+        "now": 5000
+      }
+    ],
+    "expected": {
+      "status": "scored",
+      "points": 8,
+      "max": 10,
+      "pct": 80,
+      "source": "override",
+      "flagId": null,
+      "rawPoints": 8,
+      "flags": [
+        {
+          "id": "late",
+          "auto": true
+        }
+      ],
+      "counts": true
+    }
+  },
+  {
+    "name": "deduction never goes below zero",
+    "fn": "resolveFinalScore",
+    "args": [
+      {
+        "kind": "quiz",
+        "sessionId": "s1",
+        "studentUid": "u1",
+        "ownerUid": "t1",
+        "editorUids": [],
+        "rosterIds": ["r1"],
+        "classIds": ["c1"],
+        "title": "Quiz 1",
+        "rawPct": 80,
+        "points": 8,
+        "max": 10,
+        "state": "scored",
+        "submittedAt": 3000,
+        "dueAt": 2000,
+        "openAt": 0,
+        "closeAt": null,
+        "createdAt": 0,
+        "attempts": [],
+        "targetEvidence": [],
+        "published": true,
+        "assigned": true,
+        "updatedAt": 1000
+      },
+      null,
+      null,
+      {
+        "flagDefs": [
+          {
+            "id": "missing",
+            "name": "Missing",
+            "key": "M",
+            "color": "rose",
+            "value": 0,
+            "visibility": "students",
+            "builtIn": true
+          },
+          {
+            "id": "excused",
+            "name": "Excused",
+            "key": "X",
+            "color": "slate",
+            "value": "excluded",
+            "visibility": "students",
+            "builtIn": true
+          },
+          {
+            "id": "late",
+            "name": "Late",
+            "key": "L",
+            "color": "amber",
+            "value": 90,
+            "visibility": "teacher",
+            "builtIn": true,
+            "mode": "deduct"
+          },
+          {
+            "id": "incomplete",
+            "name": "Incomplete",
+            "key": "I",
+            "color": "orange",
+            "value": 50,
+            "visibility": "teacher",
+            "builtIn": false
+          },
+          {
+            "id": "absent",
+            "name": "Absent",
+            "key": "A",
+            "color": "sky",
+            "value": null,
+            "visibility": "off",
+            "builtIn": false
+          }
+        ],
+        "autoFlags": true,
+        "now": 5000
+      }
+    ],
+    "expected": {
+      "status": "scored",
+      "points": 0,
+      "max": 10,
+      "pct": 0,
+      "source": "raw",
+      "flagId": null,
+      "rawPoints": 8,
+      "flags": [
+        {
+          "id": "late",
+          "auto": true
+        }
+      ],
+      "counts": true
+    }
+  },
+  {
+    "name": "deduction gives an unscored cell nothing",
+    "fn": "resolveFinalScore",
+    "args": [
+      {
+        "kind": "quiz",
+        "sessionId": "s1",
+        "studentUid": "u1",
+        "ownerUid": "t1",
+        "editorUids": [],
+        "rosterIds": ["r1"],
+        "classIds": ["c1"],
+        "title": "Quiz 1",
+        "rawPct": null,
+        "points": null,
+        "max": 10,
+        "state": "not-attempted",
+        "submittedAt": null,
+        "dueAt": null,
+        "openAt": 0,
+        "closeAt": null,
+        "createdAt": 0,
+        "attempts": [],
+        "targetEvidence": [],
+        "published": true,
+        "assigned": true,
+        "updatedAt": 1000
+      },
+      {
+        "kind": "quiz",
+        "sessionId": "s1",
+        "studentUid": "u1",
+        "ownerUid": "t1",
+        "editorUids": [],
+        "rosterIds": ["r1"],
+        "override": null,
+        "comment": null,
+        "flags": ["incomplete"],
+        "suppressedAuto": [],
+        "publishOverride": null,
+        "updatedAt": 1
+      },
+      null,
+      {
+        "flagDefs": [
+          {
+            "id": "missing",
+            "name": "Missing",
+            "key": "M",
+            "color": "rose",
+            "value": 0,
+            "visibility": "students",
+            "builtIn": true
+          },
+          {
+            "id": "excused",
+            "name": "Excused",
+            "key": "X",
+            "color": "slate",
+            "value": "excluded",
+            "visibility": "students",
+            "builtIn": true
+          },
+          {
+            "id": "late",
+            "name": "Late",
+            "key": "L",
+            "color": "amber",
+            "value": null,
+            "visibility": "teacher",
+            "builtIn": true
+          },
+          {
+            "id": "incomplete",
+            "name": "Incomplete",
+            "key": "I",
+            "color": "orange",
+            "value": 10,
+            "visibility": "teacher",
+            "builtIn": false,
+            "mode": "deduct"
+          },
+          {
+            "id": "absent",
+            "name": "Absent",
+            "key": "A",
+            "color": "sky",
+            "value": null,
+            "visibility": "off",
+            "builtIn": false
+          }
+        ],
+        "autoFlags": true,
+        "now": 5000
+      }
+    ],
+    "expected": {
+      "status": "empty",
+      "points": null,
+      "max": null,
+      "pct": null,
+      "source": null,
+      "flagId": null,
+      "rawPoints": null,
+      "flags": [
+        {
+          "id": "incomplete",
+          "auto": false
+        }
+      ],
+      "counts": false
+    }
+  },
+  {
+    "name": "remove when scored drops the flag once scored",
+    "fn": "resolveFinalScore",
+    "args": [
+      {
+        "kind": "quiz",
+        "sessionId": "s1",
+        "studentUid": "u1",
+        "ownerUid": "t1",
+        "editorUids": [],
+        "rosterIds": ["r1"],
+        "classIds": ["c1"],
+        "title": "Quiz 1",
+        "rawPct": 80,
+        "points": 8,
+        "max": 10,
+        "state": "scored",
+        "submittedAt": 1000,
+        "dueAt": 2000,
+        "openAt": 0,
+        "closeAt": null,
+        "createdAt": 0,
+        "attempts": [],
+        "targetEvidence": [],
+        "published": true,
+        "assigned": true,
+        "updatedAt": 1000
+      },
+      {
+        "kind": "quiz",
+        "sessionId": "s1",
+        "studentUid": "u1",
+        "ownerUid": "t1",
+        "editorUids": [],
+        "rosterIds": ["r1"],
+        "override": null,
+        "comment": null,
+        "flags": ["incomplete"],
+        "suppressedAuto": [],
+        "publishOverride": null,
+        "updatedAt": 1
+      },
+      null,
+      {
+        "flagDefs": [
+          {
+            "id": "missing",
+            "name": "Missing",
+            "key": "M",
+            "color": "rose",
+            "value": 0,
+            "visibility": "students",
+            "builtIn": true
+          },
+          {
+            "id": "excused",
+            "name": "Excused",
+            "key": "X",
+            "color": "slate",
+            "value": "excluded",
+            "visibility": "students",
+            "builtIn": true
+          },
+          {
+            "id": "late",
+            "name": "Late",
+            "key": "L",
+            "color": "amber",
+            "value": null,
+            "visibility": "teacher",
+            "builtIn": true
+          },
+          {
+            "id": "incomplete",
+            "name": "Incomplete",
+            "key": "I",
+            "color": "orange",
+            "value": 50,
+            "visibility": "teacher",
+            "builtIn": false,
+            "removeWhenScored": true
+          },
+          {
+            "id": "absent",
+            "name": "Absent",
+            "key": "A",
+            "color": "sky",
+            "value": null,
+            "visibility": "off",
+            "builtIn": false
+          }
+        ],
+        "autoFlags": true,
+        "now": 5000
+      }
+    ],
+    "expected": {
+      "status": "scored",
+      "points": 8,
+      "max": 10,
+      "pct": 80,
+      "source": "raw",
+      "flagId": null,
+      "rawPoints": 8,
+      "flags": [],
+      "counts": true
+    }
+  },
+  {
+    "name": "remove when scored keeps the flag value until scored",
+    "fn": "resolveFinalScore",
+    "args": [
+      {
+        "kind": "quiz",
+        "sessionId": "s1",
+        "studentUid": "u1",
+        "ownerUid": "t1",
+        "editorUids": [],
+        "rosterIds": ["r1"],
+        "classIds": ["c1"],
+        "title": "Quiz 1",
+        "rawPct": null,
+        "points": null,
+        "max": 10,
+        "state": "not-attempted",
+        "submittedAt": null,
+        "dueAt": null,
+        "openAt": 0,
+        "closeAt": null,
+        "createdAt": 0,
+        "attempts": [],
+        "targetEvidence": [],
+        "published": true,
+        "assigned": true,
+        "updatedAt": 1000
+      },
+      {
+        "kind": "quiz",
+        "sessionId": "s1",
+        "studentUid": "u1",
+        "ownerUid": "t1",
+        "editorUids": [],
+        "rosterIds": ["r1"],
+        "override": null,
+        "comment": null,
+        "flags": ["incomplete"],
+        "suppressedAuto": [],
+        "publishOverride": null,
+        "updatedAt": 1
+      },
+      null,
+      {
+        "flagDefs": [
+          {
+            "id": "missing",
+            "name": "Missing",
+            "key": "M",
+            "color": "rose",
+            "value": 0,
+            "visibility": "students",
+            "builtIn": true
+          },
+          {
+            "id": "excused",
+            "name": "Excused",
+            "key": "X",
+            "color": "slate",
+            "value": "excluded",
+            "visibility": "students",
+            "builtIn": true
+          },
+          {
+            "id": "late",
+            "name": "Late",
+            "key": "L",
+            "color": "amber",
+            "value": null,
+            "visibility": "teacher",
+            "builtIn": true
+          },
+          {
+            "id": "incomplete",
+            "name": "Incomplete",
+            "key": "I",
+            "color": "orange",
+            "value": 50,
+            "visibility": "teacher",
+            "builtIn": false,
+            "removeWhenScored": true
+          },
+          {
+            "id": "absent",
+            "name": "Absent",
+            "key": "A",
+            "color": "sky",
+            "value": null,
+            "visibility": "off",
+            "builtIn": false
+          }
+        ],
+        "autoFlags": true,
+        "now": 5000
+      }
+    ],
+    "expected": {
+      "status": "scored",
+      "points": 5,
+      "max": 10,
+      "pct": 50,
+      "source": "flag",
+      "flagId": "incomplete",
+      "rawPoints": null,
+      "flags": [
+        {
+          "id": "incomplete",
+          "auto": false
+        }
+      ],
+      "counts": true
+    }
+  },
+  {
+    "name": "a kept flag stays on a scored cell",
+    "fn": "resolveFinalScore",
+    "args": [
+      {
+        "kind": "quiz",
+        "sessionId": "s1",
+        "studentUid": "u1",
+        "ownerUid": "t1",
+        "editorUids": [],
+        "rosterIds": ["r1"],
+        "classIds": ["c1"],
+        "title": "Quiz 1",
+        "rawPct": 80,
+        "points": 8,
+        "max": 10,
+        "state": "scored",
+        "submittedAt": 1000,
+        "dueAt": 2000,
+        "openAt": 0,
+        "closeAt": null,
+        "createdAt": 0,
+        "attempts": [],
+        "targetEvidence": [],
+        "published": true,
+        "assigned": true,
+        "updatedAt": 1000
+      },
+      {
+        "kind": "quiz",
+        "sessionId": "s1",
+        "studentUid": "u1",
+        "ownerUid": "t1",
+        "editorUids": [],
+        "rosterIds": ["r1"],
+        "override": null,
+        "comment": null,
+        "flags": ["incomplete"],
+        "suppressedAuto": [],
+        "publishOverride": null,
+        "updatedAt": 1
+      },
+      null,
+      {
+        "flagDefs": [
+          {
+            "id": "missing",
+            "name": "Missing",
+            "key": "M",
+            "color": "rose",
+            "value": 0,
+            "visibility": "students",
+            "builtIn": true
+          },
+          {
+            "id": "excused",
+            "name": "Excused",
+            "key": "X",
+            "color": "slate",
+            "value": "excluded",
+            "visibility": "students",
+            "builtIn": true
+          },
+          {
+            "id": "late",
+            "name": "Late",
+            "key": "L",
+            "color": "amber",
+            "value": null,
+            "visibility": "teacher",
+            "builtIn": true
+          },
+          {
+            "id": "incomplete",
+            "name": "Incomplete",
+            "key": "I",
+            "color": "orange",
+            "value": 50,
+            "visibility": "teacher",
+            "builtIn": false
+          },
+          {
+            "id": "absent",
+            "name": "Absent",
+            "key": "A",
+            "color": "sky",
+            "value": null,
+            "visibility": "off",
+            "builtIn": false
+          }
+        ],
+        "autoFlags": true,
+        "now": 5000
+      }
+    ],
+    "expected": {
+      "status": "scored",
+      "points": 8,
+      "max": 10,
+      "pct": 80,
+      "source": "raw",
+      "flagId": null,
+      "rawPoints": 8,
+      "flags": [
+        {
+          "id": "incomplete",
+          "auto": false
+        }
+      ],
+      "counts": true
+    }
+  },
+  {
     "name": "total points",
     "fn": "computeOverall",
     "args": [

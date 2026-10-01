@@ -178,7 +178,9 @@ describe('flagPatch', () => {
 
 describe('useGradebookMarkWrites', () => {
   it('keeps both the score and the comment when both change', async () => {
-    const { result } = renderHook(() => useGradebookMarkWrites('r1'));
+    const { result } = renderHook(() =>
+      useGradebookMarkWrites('r1', DEFAULT_GRADEBOOK_FLAGS)
+    );
     await act(() =>
       result.current.saveEdits(column, cell('u1', row()), {
         points: 7,
@@ -193,7 +195,9 @@ describe('useGradebookMarkWrites', () => {
   });
 
   it('creates the mark with history in one batch', async () => {
-    const { result } = renderHook(() => useGradebookMarkWrites('r1'));
+    const { result } = renderHook(() =>
+      useGradebookMarkWrites('r1', DEFAULT_GRADEBOOK_FLAGS)
+    );
     await act(() => result.current.setOverride(column, cell('u1', row()), 7));
     const markWrite = sets.find((s) => s.path === 'gradebook_marks/s1__u1');
     expect(markWrite?.data).toMatchObject({
@@ -215,8 +219,36 @@ describe('useGradebookMarkWrites', () => {
     });
   });
 
+  it('a score removes a Remove when scored flag and logs it', async () => {
+    const { result } = renderHook(() =>
+      useGradebookMarkWrites('r1', DEFAULT_GRADEBOOK_FLAGS)
+    );
+    const flagged = mark({ flags: ['missing', 'incomplete'] });
+    await act(() =>
+      result.current.setOverride(column, cell('u1', row(), flagged), 7)
+    );
+    const markWrite = sets.find((s) => s.path === 'gradebook_marks/s1__u1');
+    expect(markWrite?.data).toMatchObject({
+      override: { points: 7 },
+      flags: ['incomplete'],
+    });
+    const hist = sets
+      .filter((s) => s.path.startsWith('gradebook_marks/s1__u1/history/'))
+      .map((s) => s.data);
+    expect(hist).toMatchObject([
+      { field: 'override', after: 7 },
+      {
+        field: 'flags',
+        before: { flags: ['missing', 'incomplete'] },
+        after: { flags: ['incomplete'] },
+      },
+    ]);
+  });
+
   it('fills down as one batch and one undo restores every cell', async () => {
-    const { result } = renderHook(() => useGradebookMarkWrites('r1'));
+    const { result } = renderHook(() =>
+      useGradebookMarkWrites('r1', DEFAULT_GRADEBOOK_FLAGS)
+    );
     const own = cell('u0', row({ studentUid: 'u0' }));
     const below = [
       cell('u1', row({ studentUid: 'u1' })),
@@ -271,7 +303,9 @@ describe('useGradebookMarkWrites', () => {
   });
 
   it('Mark all sets a flag on empty cells only', async () => {
-    const { result } = renderHook(() => useGradebookMarkWrites('r1'));
+    const { result } = renderHook(() =>
+      useGradebookMarkWrites('r1', DEFAULT_GRADEBOOK_FLAGS)
+    );
     const cells = [
       cell('u1', row({ studentUid: 'u1' })),
       cell('u2', row({ studentUid: 'u2', submittedAt: NOW - 5 })),

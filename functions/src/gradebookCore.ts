@@ -177,6 +177,9 @@ export type FlagVisibility = 'off' | 'teacher' | 'students';
 /** Built-in ids that auto flags and Excused depend on (D14). */
 export type BuiltInFlagId = 'missing' | 'excused' | 'late';
 
+/** Whether a numeric flag value sets an unscored cell's percent or takes points off a scored one. */
+export type FlagValueMode = 'score' | 'deduct';
+
 export interface GradebookFlagDef {
   /** Stable id; built-ins use their name, custom flags a generated id. */
   id: string;
@@ -186,6 +189,10 @@ export interface GradebookFlagDef {
   color: string;
   /** Percent given to an unscored cell, 'excluded' (Excused only), or null for no effect. */
   value: number | 'excluded' | null;
+  /** Missing means 'score'. */
+  mode?: FlagValueMode;
+  /** Drop the flag once the cell has a score; missing means false. */
+  removeWhenScored?: boolean;
   visibility: FlagVisibility;
   builtIn: boolean;
 }
@@ -243,6 +250,7 @@ export const DEFAULT_GRADEBOOK_FLAGS: GradebookFlagDef[] = [
     key: 'M',
     color: 'rose',
     value: 0,
+    removeWhenScored: true,
     visibility: 'students',
     builtIn: true,
   },
@@ -261,6 +269,7 @@ export const DEFAULT_GRADEBOOK_FLAGS: GradebookFlagDef[] = [
     key: 'L',
     color: 'amber',
     value: null,
+    mode: 'deduct',
     visibility: 'teacher',
     builtIn: true,
   },
@@ -424,7 +433,24 @@ export function resolveFinalScore(
   column: GradebookColumnConfig | null,
   ctx: ResolveContext
 ): FinalScore {
-  const flags = activeFlags(raw, mark, ctx.flagDefs, ctx.autoFlags, ctx.now);
+  const kind = raw?.kind ?? column?.kind ?? mark?.kind;
+  const max = column?.maxPointsOverride ?? raw?.max ?? null;
+  const policy = column?.attemptPolicy ?? DEFAULT_ATTEMPT_POLICY;
+  const computed =
+    raw && raw.state === 'scored' ? policyPoints(raw, policy) : null;
+  const rawPoints =
+    computed !== null && raw?.max && max !== null && max !== raw.max
+      ? (computed / raw.max) * max
+      : computed;
+  const scored = !!mark?.override || rawPoints !== null;
+  const defs = new Map(ctx.flagDefs.map((f) => [f.id, f]));
+  const flags = activeFlags(
+    raw,
+    mark,
+    ctx.flagDefs,
+    ctx.autoFlags,
+    ctx.now
+  ).filter((f) => !(scored && defs.get(f.id)?.removeWhenScored));
   const base: FinalScore = {
     status: 'empty',
     points: null,
@@ -437,47 +463,36 @@ export function resolveFinalScore(
     counts: false,
   };
   if (raw && !raw.assigned) return { ...base, status: 'not-assigned' };
-  const kind = raw?.kind ?? column?.kind ?? mark?.kind;
   if (kind && isCompletionOnly(kind)) {
     const done = raw !== null && raw.submittedAt !== null;
     return { ...base, status: done ? 'complete' : 'empty' };
   }
-  const defs = new Map(ctx.flagDefs.map((f) => [f.id, f]));
   const flagDefsOn = flags
     .map((f) => defs.get(f.id))
     .filter((f): f is GradebookFlagDef => f !== undefined);
   if (flagDefsOn.some((f) => f.value === 'excluded')) {
     return { ...base, status: 'excluded' };
   }
-  const max = column?.maxPointsOverride ?? raw?.max ?? null;
-  const policy = column?.attemptPolicy ?? DEFAULT_ATTEMPT_POLICY;
-  const computed =
-    raw && raw.state === 'scored' ? policyPoints(raw, policy) : null;
-  const rawPoints =
-    computed !== null && raw?.max && max !== null && max !== raw.max
-      ? (computed / raw.max) * max
-      : computed;
-  if (mark?.override) {
-    const points = mark.override.points;
+  const earned = mark?.override ? mark.override.points : rawPoints;
+  if (earned !== null) {
+    const deduct = flagDefsOn.reduce(
+      (sum, f) =>
+        f.mode === 'deduct' && typeof f.value === 'number'
+          ? sum + f.value
+          : sum,
+      0
+    );
+    const points =
+      deduct > 0 && max !== null && max > 0
+        ? Math.max(0, earned - (deduct / 100) * max)
+        : earned;
     return {
       ...base,
       status: 'scored',
       points,
       max,
       pct: pctOf(points, max),
-      source: 'override',
-      rawPoints,
-      counts: max !== null && max > 0,
-    };
-  }
-  if (rawPoints !== null) {
-    return {
-      ...base,
-      status: 'scored',
-      points: rawPoints,
-      max,
-      pct: pctOf(rawPoints, max),
-      source: 'raw',
+      source: mark?.override ? 'override' : 'raw',
       rawPoints,
       counts: max !== null && max > 0,
     };
@@ -485,7 +500,7 @@ export function resolveFinalScore(
   if (raw?.state === 'awaiting-grade') return { ...base, status: 'awaiting' };
   let lowest: GradebookFlagDef | null = null;
   for (const f of flagDefsOn) {
-    if (typeof f.value !== 'number') continue;
+    if (typeof f.value !== 'number' || f.mode === 'deduct') continue;
     if (!lowest || f.value < (lowest.value as number)) lowest = f;
   }
   if (lowest && max !== null && max > 0) {
@@ -502,6 +517,17 @@ export function resolveFinalScore(
     };
   }
   return base;
+}
+
+/** Manual flags a new score removes (the flags marked Remove when scored). */
+export function flagsRemovedByScore(
+  mark: Pick<GradebookMark, 'flags'>,
+  flagDefs: GradebookFlagDef[]
+): string[] {
+  const ids = new Set(
+    flagDefs.filter((f) => f.removeWhenScored).map((f) => f.id)
+  );
+  return mark.flags.filter((id) => ids.has(id));
 }
 
 export interface OverallCell {

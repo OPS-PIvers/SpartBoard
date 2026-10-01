@@ -27,6 +27,7 @@ import {
   parseMark,
   parseSettings,
   projectRow,
+  removeFlagsOnScore,
   writeProjectionEntry,
 } from './gradeProjection';
 import {
@@ -118,7 +119,7 @@ describe('projectRow', () => {
     });
     await projectRow(
       stub.db as unknown as Db,
-      row({ published: false }),
+      row({ published: false, state: 'not-attempted', points: null }),
       null,
       NOW
     );
@@ -306,6 +307,56 @@ describe('projectRow', () => {
       proficient: DEFAULT_PROFICIENCY_SCALE.proficient,
       approaching: DEFAULT_PROFICIENCY_SCALE.approaching,
     });
+  });
+});
+
+describe('removeFlagsOnScore', () => {
+  const marked = () =>
+    makeStubFirestore({
+      'gradebook_marks/qs1__u1': {
+        ownerUid: 't1',
+        flags: ['missing', 'incomplete'],
+        suppressedAuto: [],
+      },
+    });
+
+  it('drops Remove when scored flags on the first score and logs it', async () => {
+    const stub = marked();
+    await removeFlagsOnScore(
+      stub.db as unknown as Db,
+      'qs1__u1',
+      row(),
+      row({ state: 'not-attempted', points: null }),
+      NOW
+    );
+    expect(stub.get('gradebook_marks/qs1__u1')?.flags).toEqual(['incomplete']);
+    const hist = [...stub.store.entries()].filter(([p]) =>
+      p.startsWith('gradebook_marks/qs1__u1/history/')
+    );
+    expect(hist.map(([, d]) => d)).toMatchObject([
+      {
+        ownerUid: 't1',
+        byUid: 'system',
+        field: 'flags',
+        before: { flags: ['missing', 'incomplete'] },
+        after: { flags: ['incomplete'] },
+      },
+    ]);
+  });
+
+  it('leaves flags alone when the row was already scored', async () => {
+    const stub = marked();
+    await removeFlagsOnScore(
+      stub.db as unknown as Db,
+      'qs1__u1',
+      row(),
+      row(),
+      NOW
+    );
+    expect(stub.get('gradebook_marks/qs1__u1')?.flags).toEqual([
+      'missing',
+      'incomplete',
+    ]);
   });
 });
 
