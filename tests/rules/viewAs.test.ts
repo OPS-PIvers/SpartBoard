@@ -216,6 +216,44 @@ describe('users/{uid}/** under a view-as token', () => {
   });
 });
 
+describe('top-level collections keyed on the caller uid', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'shared_boards/share-1'), {
+        originalAuthor: 'someone-else',
+        participants: {},
+        intendedMode: 'synced',
+      });
+      await setDoc(doc(ctx.firestore(), 'shared_boards/share-mine'), {
+        originalAuthor: TEACHER_UID,
+        participants: {},
+      });
+    });
+  });
+  const join = (ctx: ReturnType<typeof asViewAs>) =>
+    setDoc(
+      doc(ctx.firestore(), 'shared_boards/share-1'),
+      { participants: { [TEACHER_UID]: true } },
+      { merge: true }
+    );
+
+  it('read-only cannot self-join a shared board or delete its own share', async () => {
+    await assertFails(join(asViewAs()));
+    await assertFails(
+      deleteDoc(doc(asViewAs().firestore(), 'shared_boards/share-mine'))
+    );
+  });
+
+  it('the real teacher and an unlocked tab can', async () => {
+    await assertSucceeds(join(asTeacher()));
+    await assertSucceeds(
+      deleteDoc(
+        doc(asViewAs({ ro: false }).firestore(), 'shared_boards/share-mine')
+      )
+    );
+  });
+});
+
 describe('admin powers under a view-as token', () => {
   it('a real admin still writes admin settings', async () => {
     const db = asAdmin().firestore();
