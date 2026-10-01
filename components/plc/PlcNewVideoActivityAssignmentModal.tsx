@@ -115,7 +115,9 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
   PlcNewVideoActivityAssignmentModalProps
 > = ({ plc, assignmentMode = 'submissions', onClose, onCreated }) => {
   const { t } = useTranslation();
-  const { user, googleAccessToken, ensureGoogleScope } = useAuth();
+  const { user, googleAccessToken, ensureGoogleScope, canAccessFeature } =
+    useAuth();
+  const groupWording = canAccessFeature('my-groups');
   const { addToast, rosters } = useDashboard();
   const { activities, loadActivityData, attachSyncLinkage, isDriveConnected } =
     useVideoActivity(user?.uid);
@@ -379,15 +381,20 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
       addToast(
         err instanceof Error
           ? err.message
-          : t('plcDashboard.newAssignment.video.createFailed', {
-              defaultValue: 'Failed to create the PLC assignment.',
-            }),
+          : groupWording
+            ? t('plcDashboard.newAssignment.video.groupCreateFailed', {
+                defaultValue: 'Failed to create the group assignment.',
+              })
+            : t('plcDashboard.newAssignment.video.createFailed', {
+                defaultValue: 'Failed to create the PLC assignment.',
+              }),
         'error'
       );
     } finally {
       submittingRef.current = false;
     }
   }, [
+    groupWording,
     addToast,
     assignmentMode,
     attachSyncLinkage,
@@ -409,9 +416,15 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
   if (step === 'pick') {
     return (
       <PlcSharePickerModal
-        title={t('plcDashboard.newAssignment.video.pickTitle', {
-          defaultValue: 'New PLC Video Activity Assignment',
-        })}
+        title={
+          groupWording
+            ? t('plcDashboard.newAssignment.video.groupPickTitle', {
+                defaultValue: 'New Group Video Activity Assignment',
+              })
+            : t('plcDashboard.newAssignment.video.pickTitle', {
+                defaultValue: 'New PLC Video Activity Assignment',
+              })
+        }
         subtitle={t('plcDashboard.newAssignment.video.pickSubtitle', {
           name: plc.name,
           defaultValue: 'Shared with {{name}}',

@@ -6,6 +6,7 @@ import {
   TrafficCone,
   Type,
   CheckSquare,
+  ListChecks,
   Users,
   Dices,
   Mic,
@@ -321,6 +322,19 @@ export const TOOLS: ToolMetadata[] = [
     color: 'bg-brand-blue-primary',
     category: 'instruction',
     keywords: ['instructional routines', 'protocols', 'strategies', 'lesson'],
+  },
+  {
+    type: 'routineGuide',
+    icon: ListChecks,
+    label: 'Routine Guide',
+    color: 'bg-teal-600',
+    category: 'instruction',
+    keywords: [
+      'instructional routines',
+      'protocols',
+      'steps',
+      'think pair share',
+    ],
   },
   {
     type: 'miniApp',

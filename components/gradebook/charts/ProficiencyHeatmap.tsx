@@ -1,5 +1,8 @@
 import React from 'react';
-import type { ProficiencyScale } from '@/utils/gradebook/gradebookCore';
+import {
+  topCutoff,
+  type ProficiencyScale,
+} from '@/utils/gradebook/gradebookCore';
 import { bandFor } from './bands';
 
 export interface HeatmapColumn {
@@ -42,7 +45,7 @@ export const ProficiencyHeatmap: React.FC<ProficiencyHeatmapProps> = ({
   if (columns.length === 0 || rows.length === 0) {
     return <div className="text-xs text-slate-500">{empty}</div>;
   }
-  const top = scale.levelNames[0];
+  const top = scale.levels[0].name;
   return (
     <div className="overflow-x-auto">
       <div
@@ -123,7 +126,7 @@ export const ProficiencyHeatmap: React.FC<ProficiencyHeatmapProps> = ({
                 .filter((x): x is number => x !== null);
               const share = vals.length
                 ? Math.round(
-                    (vals.filter((x) => x >= scale.proficient).length /
+                    (vals.filter((x) => x >= topCutoff(scale)).length /
                       vals.length) *
                       100
                   )

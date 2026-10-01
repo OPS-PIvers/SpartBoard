@@ -8,10 +8,11 @@ import {
   ProficiencyHeatmap,
   ScoreHistogram,
 } from '@/components/gradebook/charts';
-import type {
-  GradebookKind,
-  ProficiencyMethod,
-  ProficiencyScale,
+import {
+  topCutoff,
+  type GradebookKind,
+  type ProficiencyMethod,
+  type ProficiencyScale,
 } from '@/utils/gradebook/gradebookCore';
 import {
   EMPTY_ANALYSIS_FILTER,
@@ -96,7 +97,7 @@ export const GradebookAnalysisView: React.FC<GradebookAnalysisViewProps> = ({
   const [by, setBy] = useState<ExploreBy>('assignment');
   const [menuOpen, setMenuOpen] = useState(false);
   const filtersRef = useRef<HTMLButtonElement>(null);
-  const top = scale.levelNames[0];
+  const top = scale.levels[0].name;
 
   const students = useMemo(
     () => filterStudents(data, filter, roster),
@@ -121,7 +122,7 @@ export const GradebookAnalysisView: React.FC<GradebookAnalysisViewProps> = ({
   const allTop = students.filter((s) =>
     targets.every((t) => {
       const p = proficiency.get(s.uid)?.get(t.id);
-      return p === undefined || p >= scale.proficient;
+      return p === undefined || p >= topCutoff(scale);
     })
   ).length;
 

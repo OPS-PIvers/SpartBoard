@@ -60,6 +60,7 @@ export const Z_INDEX = {
   tourCursor: 13530, // Live tour demo cursor
   toast: 14000, // Toast notifications
   dialog: 15000, // Custom alert/confirm/prompt dialogs (above toasts)
+  groupReminder: 15400, // Pull-out group reminder cards, above boards and dialogs, below the Google Picker
   googlePickerBackdrop: 15500, // Google Picker's own backdrop (above every modal layer)
   googlePicker: 15510, // Google Picker dialog (above its backdrop)
 

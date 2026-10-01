@@ -166,198 +166,212 @@ export const GradingPeriodSetsCard: React.FC<GradingPeriodSetsCardProps> = ({
       {sets.length === 0 && (
         <p className="text-sm text-slate-500">No grading periods</p>
       )}
-      {sets.map((set) => {
-        const onBuildings = canonicalizeBuildingIds(set.buildingIds);
-        return (
-          <div
-            key={set.id}
-            className="flex flex-col gap-2.5 rounded-lg border border-slate-200 p-3"
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              <Commit
-                value={set.name}
-                maxLength={80}
-                aria-label="Period set name"
-                className="w-[220px] font-semibold"
-                onCommit={(raw) => {
-                  const name = raw.trim().slice(0, 80);
-                  if (name)
-                    save(set, { ...bodyOf(set), name }, `Renamed to ${name}`);
-                }}
-              />
-              <ChecklistSelect
-                label={`Buildings using ${set.name}`}
-                emptyText="No buildings"
-                className="flex-1 max-w-[320px]"
-                options={buildings.map((b) => {
-                  const other = sets.find(
-                    (s) =>
-                      s.id !== set.id &&
-                      canonicalizeBuildingIds(s.buildingIds).includes(b.id)
-                  );
-                  return { id: b.id, label: b.name, note: other?.name };
-                })}
-                selected={onBuildings}
-                onToggle={(id, on) => toggleBuilding(set, id, on)}
-              />
-              <button
-                type="button"
-                className={ICON_BTN}
-                title="Delete"
-                aria-label={`Delete ${set.name}`}
-                onClick={() => setConfirmId(set.id)}
-              >
-                <Trash2 size={15} aria-hidden />
-              </button>
-            </div>
-
-            {confirmId === set.id && (
-              <div className="flex flex-wrap items-center gap-2.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-900">
-                <span className="flex-1">
-                  Delete <b>{set.name}</b>?
-                </span>
-                <Btn variant="danger" size="sm" onClick={() => remove(set)}>
-                  Delete
-                </Btn>
-                <Btn size="sm" onClick={() => setConfirmId(null)}>
-                  Cancel
-                </Btn>
-              </div>
-            )}
-
-            {set.periods.length > 0 && (
-              <table className="w-full max-w-[560px] text-sm">
-                <thead>
-                  <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                    <th className="px-1 py-1 w-[110px]">Period</th>
-                    <th className="px-1 py-1">Starts</th>
-                    <th className="px-1 py-1">Ends</th>
-                    <th className="w-9">
-                      <span className="sr-only">Remove</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {set.periods.map((p, i) => (
-                    <tr key={p.id}>
-                      <td className="px-1 py-1">
-                        <Commit
-                          value={p.label}
-                          maxLength={20}
-                          aria-label="Period name"
-                          className="w-full"
-                          onCommit={(raw) => {
-                            const label = raw.trim().slice(0, 20);
-                            if (label)
-                              setPeriod(
-                                set,
-                                i,
-                                { label },
-                                `Renamed to ${label}`
-                              );
-                          }}
-                        />
-                      </td>
-                      {(['start', 'end'] as const).map((k) => (
-                        <td key={k} className="px-1 py-1">
-                          <Commit
-                            type="date"
-                            value={p[k]}
-                            aria-label={`${p.label} ${k === 'start' ? 'start' : 'end'} date`}
-                            className="w-full"
-                            onCommit={(raw) => {
-                              if (raw && !DATE_RE.test(raw)) return;
-                              setPeriod(
-                                set,
-                                i,
-                                { [k]: raw },
-                                `Changed ${p.label} dates`
-                              );
-                            }}
-                          />
-                        </td>
-                      ))}
-                      <td className="py-1">
-                        <button
-                          type="button"
-                          className={ICON_BTN}
-                          title="Remove period"
-                          aria-label={`Remove ${p.label}`}
-                          onClick={() =>
-                            save(
-                              set,
-                              {
-                                ...bodyOf(set),
-                                periods: set.periods.filter((_, n) => n !== i),
-                              },
-                              `Removed ${p.label}`
-                            )
-                          }
-                        >
-                          <Trash2 size={15} aria-hidden />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                disabled={set.periods.length >= 12}
-                className="text-xs font-semibold text-brand-blue-primary hover:underline disabled:opacity-50"
-                onClick={() =>
-                  save(
-                    set,
-                    {
-                      ...bodyOf(set),
-                      periods: [
-                        ...set.periods,
-                        {
-                          id: periodId(),
-                          label: `Period ${set.periods.length + 1}`,
-                          start: '',
-                          end: '',
-                        },
-                      ],
-                    },
-                    'Added a period'
-                  )
-                }
-              >
-                + Add period
-              </button>
-              {set.periods.length === 0 &&
-                (['quarters', 'semesters'] as const).map((k) => (
+      <div className="flex flex-col divide-y divide-slate-200">
+        {sets.map((set) => {
+          const onBuildings = canonicalizeBuildingIds(set.buildingIds);
+          return (
+            <div
+              key={set.id}
+              className="grid items-start gap-x-8 gap-y-3 py-4 first:pt-1 last:pb-0 md:grid-cols-[280px_minmax(0,1fr)]"
+            >
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-1">
+                  <Commit
+                    value={set.name}
+                    maxLength={80}
+                    aria-label="Period set name"
+                    className="flex-1 min-w-0 font-semibold"
+                    onCommit={(raw) => {
+                      const name = raw.trim().slice(0, 80);
+                      if (name)
+                        save(
+                          set,
+                          { ...bodyOf(set), name },
+                          `Renamed to ${name}`
+                        );
+                    }}
+                  />
                   <button
-                    key={k}
                     type="button"
-                    className="text-xs font-semibold text-brand-blue-primary hover:underline"
+                    className={ICON_BTN}
+                    title="Delete"
+                    aria-label={`Delete ${set.name}`}
+                    onClick={() => setConfirmId(set.id)}
+                  >
+                    <Trash2 size={15} aria-hidden />
+                  </button>
+                </div>
+                <ChecklistSelect
+                  label={`Buildings using ${set.name}`}
+                  emptyText="No buildings"
+                  className="w-full"
+                  options={buildings.map((b) => {
+                    const other = sets.find(
+                      (s) =>
+                        s.id !== set.id &&
+                        canonicalizeBuildingIds(s.buildingIds).includes(b.id)
+                    );
+                    return { id: b.id, label: b.name, note: other?.name };
+                  })}
+                  selected={onBuildings}
+                  onToggle={(id, on) => toggleBuilding(set, id, on)}
+                />
+              </div>
+
+              <div className="flex min-w-0 flex-col gap-2.5">
+                {confirmId === set.id && (
+                  <div className="flex flex-wrap items-center gap-2.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-900">
+                    <span className="flex-1">
+                      Delete <b>{set.name}</b>?
+                    </span>
+                    <Btn variant="danger" size="sm" onClick={() => remove(set)}>
+                      Delete
+                    </Btn>
+                    <Btn size="sm" onClick={() => setConfirmId(null)}>
+                      Cancel
+                    </Btn>
+                  </div>
+                )}
+
+                {set.periods.length > 0 && (
+                  <table className="w-full max-w-[640px] text-sm">
+                    <thead>
+                      <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        <th className="px-1 py-1 w-[110px]">Period</th>
+                        <th className="px-1 py-1">Starts</th>
+                        <th className="px-1 py-1">Ends</th>
+                        <th className="w-9">
+                          <span className="sr-only">Remove</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {set.periods.map((p, i) => (
+                        <tr key={p.id}>
+                          <td className="px-1 py-1">
+                            <Commit
+                              value={p.label}
+                              maxLength={20}
+                              aria-label="Period name"
+                              className="w-full"
+                              onCommit={(raw) => {
+                                const label = raw.trim().slice(0, 20);
+                                if (label)
+                                  setPeriod(
+                                    set,
+                                    i,
+                                    { label },
+                                    `Renamed to ${label}`
+                                  );
+                              }}
+                            />
+                          </td>
+                          {(['start', 'end'] as const).map((k) => (
+                            <td key={k} className="px-1 py-1">
+                              <Commit
+                                type="date"
+                                value={p[k]}
+                                aria-label={`${p.label} ${k === 'start' ? 'start' : 'end'} date`}
+                                className="w-full"
+                                onCommit={(raw) => {
+                                  if (raw && !DATE_RE.test(raw)) return;
+                                  setPeriod(
+                                    set,
+                                    i,
+                                    { [k]: raw },
+                                    `Changed ${p.label} dates`
+                                  );
+                                }}
+                              />
+                            </td>
+                          ))}
+                          <td className="py-1">
+                            <button
+                              type="button"
+                              className={ICON_BTN}
+                              title="Remove period"
+                              aria-label={`Remove ${p.label}`}
+                              onClick={() =>
+                                save(
+                                  set,
+                                  {
+                                    ...bodyOf(set),
+                                    periods: set.periods.filter(
+                                      (_, n) => n !== i
+                                    ),
+                                  },
+                                  `Removed ${p.label}`
+                                )
+                              }
+                            >
+                              <Trash2 size={15} aria-hidden />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={set.periods.length >= 12}
+                    className="text-xs font-semibold text-brand-blue-primary hover:underline disabled:opacity-50"
                     onClick={() =>
                       save(
                         set,
                         {
                           ...bodyOf(set),
-                          periods: PERIOD_PRESETS[k].map((label) => ({
-                            id: periodId(),
-                            label,
-                            start: '',
-                            end: '',
-                          })),
+                          periods: [
+                            ...set.periods,
+                            {
+                              id: periodId(),
+                              label: `Period ${set.periods.length + 1}`,
+                              start: '',
+                              end: '',
+                            },
+                          ],
                         },
-                        k === 'quarters' ? 'Added quarters' : 'Added semesters'
+                        'Added a period'
                       )
                     }
                   >
-                    + {k === 'quarters' ? 'Quarters' : 'Semesters'}
+                    + Add period
                   </button>
-                ))}
+                  {set.periods.length === 0 &&
+                    (['quarters', 'semesters'] as const).map((k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        className="text-xs font-semibold text-brand-blue-primary hover:underline"
+                        onClick={() =>
+                          save(
+                            set,
+                            {
+                              ...bodyOf(set),
+                              periods: PERIOD_PRESETS[k].map((label) => ({
+                                id: periodId(),
+                                label,
+                                start: '',
+                                end: '',
+                              })),
+                            },
+                            k === 'quarters'
+                              ? 'Added quarters'
+                              : 'Added semesters'
+                          )
+                        }
+                      >
+                        + {k === 'quarters' ? 'Quarters' : 'Semesters'}
+                      </button>
+                    ))}
+                </div>
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </section>
   );
 };

@@ -56,6 +56,7 @@ vi.mock('@/context/useAuth', () => ({
       displayName: 'Teacher One',
       email: 'u1@school.edu',
     },
+    canAccessFeature: () => false,
   }),
 }));
 

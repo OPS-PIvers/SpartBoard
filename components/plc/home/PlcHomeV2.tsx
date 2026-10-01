@@ -24,7 +24,9 @@ import { HomeAvatarCluster } from './HomeAvatarCluster';
 import { AddTileMenu, HomeCustomizeGrid } from './HomeCustomizeGrid';
 import {
   currentScoredCounts,
-  effectiveTiles,
+  PLC_HOME_GOALS_STARTER_TILES,
+  PLC_HOME_STARTER_TILES,
+  effectiveTiles as effectiveTilesFor,
   hasNewResults,
   resolveHero,
 } from './tiles/homeLayout';
@@ -36,7 +38,7 @@ import {
   isMeetingDayActive,
   nextMeetingOccurrence,
 } from '@/utils/plcMeetingCadence';
-import { getPlcHomeTileDef } from './tiles/registry';
+import { getPlcHomeTileDef, isPlcHomeTileShown } from './tiles/registry';
 import type {
   PlcHomeSignals,
   PlcHomeTileContext,
@@ -61,14 +63,22 @@ export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({
   onOpenDoc,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const myGroups = canAccessFeature('my-groups');
+  const starter = myGroups
+    ? PLC_HOME_GOALS_STARTER_TILES
+    : PLC_HOME_STARTER_TILES;
+  const effectiveTiles = (l: typeof layout) => effectiveTilesFor(l, starter);
   const { addToast } = useDashboard();
   const uid = user?.uid ?? null;
   const [now] = useState(() => Date.now());
 
   const activity = usePlcActivity();
   const { lastSeenAt, loading, markSeen } = usePlcUnread(plc.id, { activity });
-  const { data: layout, loading: layoutLoading } = usePlcHomeLayout();
+  const layoutSlice = usePlcHomeLayout();
+  const layout = layoutSlice.data;
+  // The store can still hold the gated-off placeholder on the first render after the flag resolves.
+  const layoutLoading = layoutSlice.loading || !layoutSlice.enabled;
   const { data: aggregates, loading: aggregatesLoading } =
     usePlcAggregatesData();
   const { data: assessments, loading: assessmentsLoading } =
@@ -106,10 +116,10 @@ export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({
 
   const tiles = useMemo<PlcHomeTileInstance[]>(
     () =>
-      effectiveTiles(layout).filter((tile) =>
-        getPlcHomeTileDef(tile.kind)?.isAvailable(plc)
+      effectiveTilesFor(layout, starter).filter((tile) =>
+        isPlcHomeTileShown(getPlcHomeTileDef(tile.kind), plc, canAccessFeature)
       ),
-    [layout, plc]
+    [layout, plc, starter, canAccessFeature]
   );
 
   const currentCounts = useMemo(() => {
@@ -130,11 +140,11 @@ export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({
       uid,
       plc.id,
       currentCounts,
-      layout.exists ? null : { tiles: effectiveTiles(layout) }
+      layout.exists ? null : { tiles: effectiveTilesFor(layout, starter) }
     ).catch((err: unknown) => {
       logError('PlcHomeV2.saveSeenCounts', err, { plcId: plc.id });
     });
-  }, [uid, plc.id, countsReady, currentCounts, layout]);
+  }, [uid, plc.id, countsReady, currentCounts, layout, starter]);
 
   const meetingInProgress = useMemo(
     () => pickInProgressMeeting(meetings) !== null,

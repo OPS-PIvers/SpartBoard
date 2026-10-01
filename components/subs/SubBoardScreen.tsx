@@ -25,6 +25,8 @@ import { useSubstituteRosters } from '@/hooks/useSubstituteRosters';
 import { SubsDashboardProvider } from './SubsDashboardProvider';
 import { useSubsControl } from './SubsControlContext';
 import { SubBoardCanvas } from './SubBoardCanvas';
+import { GroupReminderHost } from '@/components/groupReminders/GroupReminderHost';
+import { useAuth } from '@/context/useAuth';
 import type { SubstituteShareDoc } from '@/hooks/useSubstituteShares';
 import type { SubRosterStatus } from '@/hooks/useSubstituteRosters';
 
@@ -122,6 +124,7 @@ export const SubBoardScreenContent: React.FC<SubBoardScreenContentProps> = ({
   onChangeBuilding,
 }) => {
   const { resetWidgets, rosterStatus, loadRosters } = useSubsControl();
+  const { canAccessFeature } = useAuth();
   // Mirror the provider's resetKey locally so SubBoardCanvas re-mounts
   // widgets on reset. The provider calls onResetKeyChange but we drive
   // it from here so a SubBoardCanvas key bump is guaranteed.
@@ -167,6 +170,8 @@ export const SubBoardScreenContent: React.FC<SubBoardScreenContentProps> = ({
       <main className="absolute inset-0 pt-20">
         <SubBoardCanvas resetKey={resetKey} />
       </main>
+      {/* The teacher's pull-out reminders fire once the sub loads the class lists. */}
+      {canAccessFeature('group-reminders') && <GroupReminderHost />}
     </div>
   );
 };

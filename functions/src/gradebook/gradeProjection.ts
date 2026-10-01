@@ -10,7 +10,9 @@ import {
   buildStudentGradeEntry,
   buildStudentStandards,
   flagsRemovedByScore,
+  parseScale,
   resolveScale,
+  storedScale,
   type AttemptPolicy,
   type GradebookColumnConfig,
   type GradebookMark,
@@ -137,22 +139,6 @@ export function configPathFor(
   return null;
 }
 
-function parseScale(raw: unknown): ProficiencyScale | null {
-  const r = asRecord(raw);
-  const proficient = finite(r.proficient);
-  const approaching = finite(r.approaching);
-  const names = asStrings(r.levelNames);
-  if (proficient === null || approaching === null) return null;
-  return {
-    proficient,
-    approaching,
-    levelNames:
-      names.length === 3
-        ? [names[0], names[1], names[2]]
-        : DEFAULT_PROFICIENCY_SCALE.levelNames,
-  };
-}
-
 export interface ClassSettings {
   settings: GradebookSettingsBody;
   scale: ProficiencyScale;
@@ -244,10 +230,10 @@ interface ProjectionExtra {
   scale: ProficiencyScale;
 }
 
-const cutoffsOf = (s: ProficiencyScale) => ({
-  proficient: s.proficient,
-  approaching: s.approaching,
-});
+const cutoffsOf = (s: ProficiencyScale) => {
+  const { proficient, approaching } = storedScale(s);
+  return { proficient, approaching };
+};
 
 /** Sets or removes one entry; the doc is deleted when its last entry goes. */
 export async function writeProjectionEntry(
@@ -287,8 +273,10 @@ export async function writeProjectionEntry(
       changed = true;
     if (
       snap.exists &&
-      stableStringify(data.cutoffs ?? null) !==
-        stableStringify(cutoffsOf(extra.scale))
+      (stableStringify(data.cutoffs ?? null) !==
+        stableStringify(cutoffsOf(extra.scale)) ||
+        stableStringify(data.levels ?? null) !==
+          stableStringify(extra.scale.levels))
     )
       changed = true;
     if (!changed) return false;
@@ -300,7 +288,8 @@ export async function writeProjectionEntry(
         ownerUid: target.ownerUid,
         entries,
         standards: extra.standards,
-        levelNames: extra.scale.levelNames,
+        levelNames: storedScale(extra.scale).levelNames,
+        levels: extra.scale.levels,
         cutoffs: cutoffsOf(extra.scale),
         updatedAt: now,
       });

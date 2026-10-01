@@ -304,9 +304,15 @@ describe('projectRow', () => {
       },
     ]);
     expect(stub.get(PATH)?.cutoffs).toEqual({
-      proficient: DEFAULT_PROFICIENCY_SCALE.proficient,
-      approaching: DEFAULT_PROFICIENCY_SCALE.approaching,
+      proficient: 80,
+      approaching: 60,
     });
+    expect(stub.get(PATH)?.levelNames).toEqual([
+      'Proficient',
+      'Approaching',
+      'Beginning',
+    ]);
+    expect(stub.get(PATH)?.levels).toEqual(DEFAULT_PROFICIENCY_SCALE.levels);
   });
 });
 

@@ -99,12 +99,13 @@ export function buildInsights(input: InsightInput): GradebookInsight[] {
     }
   }
 
-  const bottom = scale.levelNames[2];
+  const bottomLevel = scale.levels.length - 1;
+  const bottom = scale.levels[bottomLevel].name;
   if (input.onlyUid) {
     const mine = proficiency.get(input.onlyUid);
     for (const t of input.targets) {
       const p = mine?.get(t.id) ?? null;
-      if (proficiencyLevel(p, scale) === 2) {
+      if (proficiencyLevel(p, scale) === bottomLevel) {
         out.push({
           id: `weak:${t.id}:${input.onlyUid}`,
           kind: 'weak-target',
@@ -123,7 +124,8 @@ export function buildInsights(input: InsightInput): GradebookInsight[] {
     if (measured.length === 0) continue;
     const low = measured.filter(
       (s) =>
-        proficiencyLevel(proficiency.get(s.uid)?.get(t.id) ?? null, scale) === 2
+        proficiencyLevel(proficiency.get(s.uid)?.get(t.id) ?? null, scale) ===
+        bottomLevel
     );
     const share = low.length / measured.length;
     if (share >= WEAK_TARGET_SHARE) {

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { StudentGradesState } from '@/hooks/useStudentGrades';
+import { DEFAULT_PROFICIENCY_SCALE } from '@/utils/gradebook/gradebookCore';
 import { StudentClassView } from './StudentClassView';
 
 const grades: { state: StudentGradesState } = {
@@ -21,8 +22,7 @@ const grades: { state: StudentGradesState } = {
         },
       },
       standards: null,
-      levelNames: ['Proficient', 'Approaching', 'Beginning'],
-      cutoffs: { proficient: 80, approaching: 60 },
+      scale: DEFAULT_PROFICIENCY_SCALE,
     },
   },
 };

@@ -16,6 +16,7 @@ import {
   ORG_GRADEBOOK_SETTINGS_ID,
   type GradebookSettingsBody,
   type GradingPeriod,
+  storedScale,
   type ProficiencyScale,
 } from '@/utils/gradebook/gradebookCore';
 import { useGradingPeriodSets } from '@/hooks/useGradingPeriods';
@@ -101,9 +102,7 @@ export function useGradebookAdmin(): GradebookAdminData &
 
   const saveScale = useCallback(async (next: ProficiencyScale) => {
     await setDoc(doc(db, 'admin_settings', ORG_GRADEBOOK_SETTINGS_ID), {
-      proficient: next.proficient,
-      approaching: next.approaching,
-      levelNames: [...next.levelNames],
+      ...storedScale(next),
       updatedAt: Date.now(),
     });
   }, []);

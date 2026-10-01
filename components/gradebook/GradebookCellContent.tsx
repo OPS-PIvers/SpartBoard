@@ -1,5 +1,4 @@
 import React from 'react';
-import { proficiencyLevel } from '@/utils/gradebook/gradebookCore';
 import {
   flagChipClasses,
   formatScore,
@@ -7,7 +6,7 @@ import {
 } from '@/utils/gradebook/gradebookModel';
 import { useGradebook, type GradebookCell } from './GradebookContext';
 import { Private } from './Private';
-import { BAND_TEXT } from './cellFormat';
+import { bandTint } from './cellFormat';
 
 /** What a grid cell shows: value, flag chip and comment mark (D19). */
 export const GradebookCellContent: React.FC<{
@@ -27,12 +26,11 @@ export const GradebookCellContent: React.FC<{
       </span>
     );
   } else if (final.status === 'scored') {
-    const level = view.tint ? proficiencyLevel(final.pct, scale) : null;
     const tone =
       final.source === 'override'
         ? 'text-brand-blue-primary font-bold'
-        : level !== null
-          ? BAND_TEXT[level]
+        : view.tint
+          ? bandTint(final.pct, scale)
           : '';
     const live =
       !cell.published && !column.completionOnly

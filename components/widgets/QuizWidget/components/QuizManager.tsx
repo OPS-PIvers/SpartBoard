@@ -1109,7 +1109,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     const actions: LibraryMenuAction[] = [
       {
         id: 'preview',
-        label: 'Preview',
+        label: 'Check answers',
         icon: Eye,
         onClick: () => onPreview(quiz),
       },
@@ -2676,7 +2676,7 @@ const LibraryTabContent: React.FC<{
   /**
    * Heavyweight full-screen QuizPreview entry point — the same callback
    * the kebab's `Preview` item already uses. Surfaced from the pane as
-   * a secondary "Full preview" action.
+   * a secondary "Check answers" action.
    */
   onOpenFullPreview: (quiz: QuizMetadata) => void;
   tourWidgetType: QuizWidgetKind;
@@ -2865,7 +2865,7 @@ const LibraryTabContent: React.FC<{
           }}
           secondaryActions={[
             {
-              label: 'Full preview',
+              label: 'Check answers',
               icon: Eye,
               onClick: () => {
                 const q = previewQuiz;

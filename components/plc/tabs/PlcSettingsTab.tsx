@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Film,
   Mail,
+  Presentation,
   Printer,
   StickyNote,
   SquareSquare,
@@ -68,6 +69,13 @@ const FEATURE_ROWS: readonly FeatureRow[] = [
   },
 ] as const;
 
+const MEETING_ROW: FeatureRow = {
+  key: 'meeting',
+  icon: Presentation,
+  titleKey: 'plcDashboard.settings.meeting.title',
+  titleDefault: 'Meeting Mode',
+};
+
 /**
  * Per-PLC dashboard feature toggles. Per spec, every PLC member can flip
  * these — they're shared configuration, not lead-only. Failures roll the
@@ -129,7 +137,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
     const next: PlcFeatureSettings = {
       ...DEFAULT_PLC_FEATURE_SETTINGS,
       ...features,
-      [key]: !features[key],
+      [key]: features[key] === false,
     };
     try {
       await updatePlcFeatures(plc.id, next);
@@ -156,16 +164,24 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
           })}
         </h3>
         <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-          {t('plcDashboard.settings.description', {
-            defaultValue:
-              "Choose which sections appear in this PLC's dashboard. Any PLC member can update these.",
-          })}
+          {canAccessFeature('my-groups')
+            ? t('plcDashboard.settings.groupDescription', {
+                defaultValue:
+                  "Choose which sections appear on this group's page. Any member can update these.",
+              })
+            : t('plcDashboard.settings.description', {
+                defaultValue:
+                  "Choose which sections appear in this PLC's dashboard. Any PLC member can update these.",
+              })}
         </p>
       </div>
       <div className="flex flex-col gap-2">
-        {FEATURE_ROWS.map((row) => {
+        {(canAccessFeature('my-groups') || features.meeting === false
+          ? [...FEATURE_ROWS, MEETING_ROW]
+          : FEATURE_ROWS
+        ).map((row) => {
           const Icon = row.icon;
-          const enabled = features[row.key];
+          const enabled = features[row.key] !== false;
           const isBusy = busyKey === row.key;
           // While any toggle is in-flight, lock out every row so the UI
           // visibly matches the in-handler `if (busyKey) return` guard.
@@ -236,9 +252,13 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
           })}
         </h3>
         <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-          {t('plcDashboard.settings.digest.description', {
-            defaultValue: 'Control how this PLC stays in the loop.',
-          })}
+          {canAccessFeature('my-groups')
+            ? t('plcDashboard.settings.digest.groupDescription', {
+                defaultValue: 'Control how this group stays in the loop.',
+              })
+            : t('plcDashboard.settings.digest.description', {
+                defaultValue: 'Control how this PLC stays in the loop.',
+              })}
         </p>
         <button
           type="button"

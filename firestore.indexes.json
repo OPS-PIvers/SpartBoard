@@ -840,6 +840,21 @@
       ]
     },
     {
+      "collectionGroup": "userProfile",
+      "fieldPath": "selectedBuildings",
+      "ttl": false,
+      "indexes": [
+        {
+          "arrayConfig": "CONTAINS",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "arrayConfig": "CONTAINS",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
       "collectionGroup": "guided_learning",
       "fieldPath": "imagePaths",
       "ttl": false,

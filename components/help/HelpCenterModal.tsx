@@ -14,6 +14,7 @@ interface HelpCenterModalProps {
   onTabChange: (tab: HelpTab) => void;
   onClose: () => void;
   widgetType?: WidgetType;
+  itemId?: string;
 }
 
 const TABS: {
@@ -30,6 +31,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
   onTabChange,
   onClose,
   widgetType,
+  itemId,
 }) => {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
@@ -192,7 +194,11 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
           {tab === 'shortcuts' ? (
             <HelpShortcutsTab query={query} />
           ) : (
-            <HelpGuidesTab query={query} widgetType={widgetType} />
+            <HelpGuidesTab
+              query={query}
+              widgetType={widgetType}
+              itemId={itemId}
+            />
           )}
           <p className="mt-8 text-center text-xs text-slate-500">
             <Trans i18nKey="helpCenter.footer" components={{ kbd: <kbd /> }} />

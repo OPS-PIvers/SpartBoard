@@ -23,6 +23,7 @@ import {
   Plus,
   Puzzle,
   RotateCcw,
+  School,
   Search,
   Trash2,
   X,
@@ -60,6 +61,10 @@ import { useLongPress } from '@/hooks/useLongPress';
 import { useToolVisibility } from '@/context/useToolVisibility';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
+import {
+  formatGradeRange,
+  getWidgetGradeLevels,
+} from '@/config/widgetGradeLevels';
 
 // O(1) Lookup Map for TOOLS optimization.
 // Extracted outside the component to prevent recreating the map on every mount.
@@ -78,6 +83,23 @@ const GRADE_OPTIONS: { value: GradeLevel | 'all'; label: string }[] = [
   { value: '6-8', label: '6-8' },
   { value: '9-12', label: '9-12' },
 ];
+
+type LibrarySort = 'az' | 'custom';
+
+const SORT_STORAGE_KEY = 'spartboard_library_sort';
+
+const readStoredSort = (): LibrarySort => {
+  try {
+    return localStorage.getItem(SORT_STORAGE_KEY) === 'custom'
+      ? 'custom'
+      : 'az';
+  } catch {
+    return 'az';
+  }
+};
+
+const byLabel = (a: string, b: string) =>
+  a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
 
 interface WidgetLibraryProps {
   onToggle: (type: WidgetType | InternalToolType) => void;
@@ -124,6 +146,7 @@ const SortableLibraryTool = React.memo(
     onToggleHidden,
     onLongPress,
     label,
+    subLabel,
   }: {
     tool: (typeof TOOLS)[0];
     isActive: boolean;
@@ -135,6 +158,7 @@ const SortableLibraryTool = React.memo(
     onToggleHidden?: (type: WidgetType | InternalToolType) => void;
     onLongPress?: () => void;
     label?: string;
+    subLabel?: string;
   }) => {
     const {
       attributes,
@@ -198,6 +222,11 @@ const SortableLibraryTool = React.memo(
           <span className="text-xxs font-black uppercase text-slate-700 tracking-tight text-center leading-tight">
             {label ?? tool.label}
           </span>
+          {subLabel && (
+            <span className="text-xxs font-bold text-slate-400 -mt-1">
+              {subLabel}
+            </span>
+          )}
         </button>
         {/* Hide (edit mode) / unhide (any mode) toggle */}
         {onToggleHidden && (isHidden || isEditMode) && (
@@ -265,7 +294,17 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
       WidgetCategory | 'all'
     >('all');
     const [gradeFilter, setGradeFilter] = useState<GradeLevel | 'all'>('all');
+    const [sortMode, setSortModeState] = useState<LibrarySort>(readStoredSort);
+    const setSortMode = useCallback((mode: LibrarySort) => {
+      setSortModeState(mode);
+      try {
+        localStorage.setItem(SORT_STORAGE_KEY, mode);
+      } catch {
+        // storage unavailable; the choice lasts for this session only
+      }
+    }, []);
     const [showHiddenSection, setShowHiddenSection] = useState(false);
+    const [showOtherGradesSection, setShowOtherGradesSection] = useState(false);
 
     const trimmedQuery = searchQuery.trim();
     const isFiltering =
@@ -314,13 +353,20 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
     }, [showConfirm, resetDockToDefaults, onClose]);
 
     // Merge any new TOOLS not yet tracked in libraryOrder (auto-discovery)
-    const effectiveOrder = useMemo(() => {
+    const customOrder = useMemo(() => {
       const allToolTypes = TOOLS.map((t) => t.type);
       return [
         ...libraryOrder,
         ...allToolTypes.filter((type) => !libraryOrder.includes(type)),
       ];
     }, [libraryOrder]);
+
+    const effectiveOrder = useMemo(() => {
+      if (sortMode === 'custom') return customOrder;
+      const labelOf = (type: WidgetType | InternalToolType) =>
+        getToolLabel ? getToolLabel(type) : (TOOLS_MAP.get(type)?.label ?? '');
+      return [...customOrder].sort((a, b) => byLabel(labelOf(a), labelOf(b)));
+    }, [customOrder, sortMode, getToolLabel]);
 
     const handleDragEnd = useCallback(
       (event: DragEndEvent) => {
@@ -334,9 +380,11 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
             over.id as WidgetType | InternalToolType
           );
           onReorderLibrary(arrayMove(effectiveOrder, oldIndex, newIndex));
+          // Dragging from A–Z starts a custom order from what the teacher sees.
+          if (sortMode !== 'custom') setSortMode('custom');
         }
       },
-      [effectiveOrder, onReorderLibrary]
+      [effectiveOrder, onReorderLibrary, sortMode, setSortMode]
     );
 
     // Tools the user could add given their role + building — NOT accounting
@@ -359,6 +407,27 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
         });
     }, [effectiveOrder, canAccess, isEditMode, matchesUserBuilding]);
 
+    // Accessible widgets the building filter drops; edit mode already shows everything.
+    const otherGradeTools = useMemo(() => {
+      if (isEditMode || !matchesUserBuilding) return [];
+      const visibleToolsSet = new Set(visibleTools);
+      return effectiveOrder
+        .map((type) => TOOLS_MAP.get(type))
+        .filter(
+          (tool): tool is (typeof TOOLS)[0] =>
+            tool !== undefined &&
+            canAccess(tool.type) &&
+            !matchesUserBuilding(tool.type) &&
+            !visibleToolsSet.has(tool.type)
+        );
+    }, [
+      effectiveOrder,
+      canAccess,
+      isEditMode,
+      matchesUserBuilding,
+      visibleTools,
+    ]);
+
     // Filter tools: must be accessible AND NOT already in the dock,
     // and in normal mode must match the user's selected buildings
     const availableTools = useMemo(() => {
@@ -369,8 +438,8 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
     }, [buildingAccessibleTools, visibleTools]);
 
     // Category + grade filters (search is applied separately via Fuse below)
-    const categoryGradeFiltered = useMemo(() => {
-      return availableTools.filter((tool) => {
+    const matchesFilters = useCallback(
+      (tool: (typeof TOOLS)[number]) => {
         if (categoryFilter !== 'all' && tool.category !== categoryFilter)
           return false;
         if (gradeFilter !== 'all' && getToolGradeLevels) {
@@ -378,29 +447,49 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
             return false;
         }
         return true;
-      });
-    }, [availableTools, categoryFilter, gradeFilter, getToolGradeLevels]);
+      },
+      [categoryFilter, gradeFilter, getToolGradeLevels]
+    );
 
     // Fuzzy search over admin-aware label + curated keywords
-    const searchedTools = useMemo(() => {
-      if (trimmedQuery === '') return categoryGradeFiltered;
-      const fuse = new Fuse(
-        categoryGradeFiltered.map((tool) => ({
-          tool,
-          label: getToolLabel ? getToolLabel(tool.type) : tool.label,
-          keywords: tool.keywords ?? [],
-        })),
-        {
-          keys: [
-            { name: 'label', weight: 2 },
-            { name: 'keywords', weight: 1 },
-          ],
-          threshold: 0.35,
-          ignoreLocation: true,
-        }
-      );
-      return fuse.search(trimmedQuery).map((r) => r.item.tool);
-    }, [categoryGradeFiltered, trimmedQuery, getToolLabel]);
+    const searchTools = useCallback(
+      (tools: (typeof TOOLS)[number][]) => {
+        if (trimmedQuery === '') return tools;
+        const fuse = new Fuse(
+          tools.map((tool) => ({
+            tool,
+            label: getToolLabel ? getToolLabel(tool.type) : tool.label,
+            keywords: tool.keywords ?? [],
+          })),
+          {
+            keys: [
+              { name: 'label', weight: 2 },
+              { name: 'keywords', weight: 1 },
+            ],
+            threshold: 0.35,
+            ignoreLocation: true,
+          }
+        );
+        return fuse.search(trimmedQuery).map((r) => r.item.tool);
+      },
+      [trimmedQuery, getToolLabel]
+    );
+
+    const categoryGradeFiltered = useMemo(
+      () => availableTools.filter(matchesFilters),
+      [availableTools, matchesFilters]
+    );
+
+    const searchedTools = useMemo(
+      () => searchTools(categoryGradeFiltered),
+      [searchTools, categoryGradeFiltered]
+    );
+
+    const shownOtherGradeTools = useMemo(
+      () => searchTools(otherGradeTools.filter(matchesFilters)),
+      [searchTools, otherGradeTools, matchesFilters]
+    );
+    const otherGradesOpen = isFiltering || showOtherGradesSection;
 
     const hiddenToolsSet = useMemo(() => new Set(hiddenTools), [hiddenTools]);
 
@@ -426,25 +515,41 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
     // libraryOrder.
     const sortDisabled = !isEditMode || isFiltering;
 
+    const sortedSavedWidgets = useMemo(
+      () =>
+        sortMode === 'az'
+          ? [...savedWidgets].sort((a, b) => byLabel(a.title, b.title))
+          : savedWidgets,
+      [savedWidgets, sortMode]
+    );
+
+    const sortedCustomWidgets = useMemo(
+      () =>
+        sortMode === 'az'
+          ? [...customWidgets].sort((a, b) => byLabel(a.title, b.title))
+          : customWidgets,
+      [customWidgets, sortMode]
+    );
+
     const savedMatches = useMemo(() => {
-      if (trimmedQuery === '') return isFiltering ? [] : savedWidgets;
+      if (trimmedQuery === '') return isFiltering ? [] : sortedSavedWidgets;
       const fuse = new Fuse(savedWidgets, {
         keys: ['title'],
         threshold: 0.35,
         ignoreLocation: true,
       });
       return fuse.search(trimmedQuery).map((r) => r.item);
-    }, [savedWidgets, trimmedQuery, isFiltering]);
+    }, [savedWidgets, sortedSavedWidgets, trimmedQuery, isFiltering]);
 
     const customMatches = useMemo(() => {
-      if (trimmedQuery === '') return isFiltering ? [] : customWidgets;
+      if (trimmedQuery === '') return isFiltering ? [] : sortedCustomWidgets;
       const fuse = new Fuse(customWidgets, {
         keys: ['title'],
         threshold: 0.35,
         ignoreLocation: true,
       });
       return fuse.search(trimmedQuery).map((r) => r.item);
-    }, [customWidgets, trimmedQuery, isFiltering]);
+    }, [customWidgets, sortedCustomWidgets, trimmedQuery, isFiltering]);
 
     // "Built-in" qualifier matters because custom widgets render in their
     // own section above and aren't counted here — without it, the message
@@ -557,6 +662,15 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                     {g.label}
                   </option>
                 ))}
+              </select>
+              <select
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value as LibrarySort)}
+                aria-label="Sort widgets"
+                className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white/80 border border-white/60 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+              >
+                <option value="az">A–Z</option>
+                <option value="custom">My order</option>
               </select>
             </div>
           </div>
@@ -709,7 +823,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                   </div>
                 </SortableContext>
               </DndContext>
-            ) : (
+            ) : isFiltering && shownOtherGradeTools.length > 0 ? null : (
               <div className="flex flex-col items-center justify-center py-12 text-center opacity-40">
                 <LayoutGrid className="w-12 h-12 mb-4 text-slate-400" />
                 <p className="text-sm font-black uppercase tracking-widest text-slate-600">
@@ -756,10 +870,61 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                 )}
               </div>
             )}
+            {/* Widgets outside the user's building grades — collapsed by default; filters and search open it */}
+            {shownOtherGradeTools.length > 0 && (
+              <div>
+                {isFiltering ? (
+                  <div className="flex items-center gap-2 mb-3 text-slate-400">
+                    <School className="w-3.5 h-3.5" />
+                    <span className="text-xxs font-bold uppercase tracking-widest">
+                      Other grade levels ({shownOtherGradeTools.length})
+                    </span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowOtherGradesSection((prev) => !prev)}
+                    className="flex items-center gap-2 mb-3 text-slate-400 hover:text-slate-600 transition-colors"
+                    aria-expanded={showOtherGradesSection}
+                  >
+                    {showOtherGradesSection ? (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    )}
+                    <School className="w-3.5 h-3.5" />
+                    <span className="text-xxs font-bold uppercase tracking-widest">
+                      Other grade levels ({shownOtherGradeTools.length})
+                    </span>
+                  </button>
+                )}
+                {otherGradesOpen && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {shownOtherGradeTools.map((tool) => (
+                      <SortableLibraryTool
+                        key={tool.type}
+                        tool={tool}
+                        isActive={false}
+                        isEditMode={false}
+                        sortDisabled
+                        onToggle={onToggle}
+                        label={
+                          getToolLabel ? getToolLabel(tool.type) : undefined
+                        }
+                        subLabel={formatGradeRange(
+                          getToolGradeLevels
+                            ? getToolGradeLevels(tool.type)
+                            : getWidgetGradeLevels(tool.type)
+                        )}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className="bg-slate-50/50 px-6 py-3 border-t border-white/30 text-center backdrop-blur-xl space-y-3">
             <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
-              {shownTools.length > 0
+              {shownTools.length > 0 || shownOtherGradeTools.length > 0
                 ? isEditMode
                   ? isFiltering
                     ? 'Tap to add to dock • Clear search to reorder'

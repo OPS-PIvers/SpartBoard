@@ -15,7 +15,8 @@ import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { usePlcUnread } from '@/hooks/usePlcUnread';
-import { Plc, PlcInvitation } from '@/types';
+import { Plc, PlcGroupType, PlcInvitation, getPlcGroupType } from '@/types';
+import { groupTypeLabel } from '@/components/plc/groupTypes';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { PlcEditModal } from './PlcEditModal';
@@ -27,7 +28,7 @@ interface SidebarPlcsProps {
   /** PLC list + actions, lifted to `Sidebar` so the listener only mounts once. */
   plcs: Plc[];
   plcsLoading: boolean;
-  createPlc: (name: string) => Promise<string>;
+  createPlc: (name: string, groupType?: PlcGroupType) => Promise<string>;
   leavePlc: (plcId: string) => Promise<void>;
   deletePlc: (plcId: string) => Promise<void>;
   /** Pending invites, lifted alongside `plcs` for the same reason. */
@@ -71,6 +72,7 @@ const PlcRow: React.FC<PlcRowProps> = ({
   onLeave,
 }) => {
   const { t } = useTranslation();
+  const { canAccessFeature } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const kebabRef = useRef<HTMLButtonElement>(null);
@@ -139,6 +141,8 @@ const PlcRow: React.FC<PlcRowProps> = ({
             )}
           </div>
           <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
+            {canAccessFeature('my-groups') &&
+              `${groupTypeLabel(t, getPlcGroupType(plc))} · `}
             {t('sidebar.plcs.memberCount', {
               count: getPlcMembers(plc).length,
               defaultValue: '{{count}} Member',
@@ -258,7 +262,8 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
   onOpenDashboard,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const groups = canAccessFeature('my-groups');
   const { showConfirm } = useDialog();
   const loading = plcsLoading;
 
@@ -279,8 +284,8 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
     setIsCreating(false);
   };
 
-  const handleCreate = async (name: string) => {
-    await createPlc(name);
+  const handleCreate = async (name: string, groupType: PlcGroupType) => {
+    await createPlc(name, groupType);
   };
 
   const handleLeave = async (plc: Plc) => {
@@ -290,9 +295,13 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
         name: plc.name,
       }),
       {
-        title: t('sidebar.plcs.confirmLeaveTitle', {
-          defaultValue: 'Leave PLC',
-        }),
+        title: groups
+          ? t('sidebar.groups.confirmLeaveTitle', {
+              defaultValue: 'Leave group',
+            })
+          : t('sidebar.plcs.confirmLeaveTitle', {
+              defaultValue: 'Leave PLC',
+            }),
         variant: 'danger',
         confirmLabel: t('sidebar.plcs.leave', { defaultValue: 'Leave' }),
       }
@@ -304,14 +313,23 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
 
   const handleDelete = async (plc: Plc) => {
     const confirmed = await showConfirm(
-      t('sidebar.plcs.confirmDelete', {
-        defaultValue: `Delete "${plc.name}"? This will remove the PLC for everyone.`,
-        name: plc.name,
-      }),
+      groups
+        ? t('sidebar.groups.confirmDelete', {
+            defaultValue: `Delete "${plc.name}"? This will remove the group for everyone.`,
+            name: plc.name,
+          })
+        : t('sidebar.plcs.confirmDelete', {
+            defaultValue: `Delete "${plc.name}"? This will remove the PLC for everyone.`,
+            name: plc.name,
+          }),
       {
-        title: t('sidebar.plcs.confirmDeleteTitle', {
-          defaultValue: 'Delete PLC',
-        }),
+        title: groups
+          ? t('sidebar.groups.confirmDeleteTitle', {
+              defaultValue: 'Delete group',
+            })
+          : t('sidebar.plcs.confirmDeleteTitle', {
+              defaultValue: 'Delete PLC',
+            }),
         variant: 'danger',
         confirmLabel: t('common.delete', { defaultValue: 'Delete' }),
       }
@@ -339,7 +357,9 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                   <Users2 className="w-4 h-4 text-brand-blue-primary" />
                 </div>
                 <h2 className="text-sm font-bold text-slate-800">
-                  {t('sidebar.plcs.title', { defaultValue: 'My PLCs' })}
+                  {groups
+                    ? t('sidebar.groups.title', { defaultValue: 'My Groups' })
+                    : t('sidebar.plcs.title', { defaultValue: 'My PLCs' })}
                 </h2>
               </div>
             </div>
@@ -353,7 +373,9 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
               >
                 <Plus className="w-4 h-4" />
                 <span className="text-xxs font-bold uppercase tracking-wider">
-                  {t('sidebar.plcs.newPlc', { defaultValue: 'New PLC' })}
+                  {groups
+                    ? t('sidebar.groups.new', { defaultValue: 'New group' })
+                    : t('sidebar.plcs.newPlc', { defaultValue: 'New PLC' })}
                 </span>
               </button>
               <button
@@ -386,9 +408,13 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-bold text-slate-600">
-                    {t('sidebar.plcs.emptyTitle', {
-                      defaultValue: 'No PLCs yet',
-                    })}
+                    {groups
+                      ? t('sidebar.groups.emptyTitle', {
+                          defaultValue: 'No groups yet',
+                        })
+                      : t('sidebar.plcs.emptyTitle', {
+                          defaultValue: 'No PLCs yet',
+                        })}
                   </p>
                   <p className="text-xs text-slate-400 mt-0.5">
                     {pendingInvites.length > 0
@@ -396,27 +422,40 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                           defaultValue:
                             'You have pending invitations — accept one to get started.',
                         })
-                      : t('sidebar.plcs.emptySubtitle', {
-                          defaultValue:
-                            'Create a PLC and invite your colleagues by email.',
-                        })}
+                      : groups
+                        ? t('sidebar.groups.emptySubtitle', {
+                            defaultValue:
+                              'Create a group and invite your colleagues by email.',
+                          })
+                        : t('sidebar.plcs.emptySubtitle', {
+                            defaultValue:
+                              'Create a PLC and invite your colleagues by email.',
+                          })}
                   </p>
                 </div>
                 <button
                   onClick={() => setIsCreating(true)}
                   className="mt-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xxs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors"
                 >
-                  {t('sidebar.plcs.createNewPlc', {
-                    defaultValue: 'Create New PLC',
-                  })}
+                  {groups
+                    ? t('sidebar.groups.createNew', {
+                        defaultValue: 'Create a group',
+                      })
+                    : t('sidebar.plcs.createNewPlc', {
+                        defaultValue: 'Create New PLC',
+                      })}
                 </button>
               </div>
             ) : (
               <div className="space-y-3">
                 <h3 className="text-xxs font-bold text-slate-400 uppercase tracking-widest px-1">
-                  {t('sidebar.plcs.yourPlcs', {
-                    defaultValue: 'Your PLCs',
-                  })}
+                  {groups
+                    ? t('sidebar.groups.yours', {
+                        defaultValue: 'Your groups',
+                      })
+                    : t('sidebar.plcs.yourPlcs', {
+                        defaultValue: 'Your PLCs',
+                      })}
                 </h3>
                 <div
                   className="flex flex-col gap-2"

@@ -65,6 +65,10 @@ const { mockUseGesture, gestureState } = vi.hoisted(() => ({
 }));
 
 // Mock context
+vi.mock('@/components/groupReminders/GroupReminderHost', () => ({
+  GroupReminderHost: () => null,
+}));
+
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
 }));

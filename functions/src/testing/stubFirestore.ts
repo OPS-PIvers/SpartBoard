@@ -73,6 +73,14 @@ function matches(data: StubData, w: StubQueryOpts['where'][number]): boolean {
       );
     case 'array-contains':
       return Array.isArray(v) && v.includes(w.value);
+    case 'array-contains-any':
+      return (
+        Array.isArray(v) &&
+        Array.isArray(w.value) &&
+        v.some((x) => (w.value as unknown[]).includes(x))
+      );
+    case 'in':
+      return Array.isArray(w.value) && w.value.includes(v);
     default:
       throw new Error(`stub: unsupported operator ${w.op}`);
   }

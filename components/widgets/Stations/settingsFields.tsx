@@ -7,7 +7,10 @@ import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { useStorage } from '@/hooks/useStorage';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
-import { countRosterGroupMembers } from '@/utils/rosterGroups';
+import {
+  countRosterGroupMembers,
+  groupMakerGroups,
+} from '@/utils/rosterGroups';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { StationEditor } from './components/StationEditor';
 import { SavedPresetsPanel } from './components/SavedPresetsPanel';
@@ -191,7 +194,7 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
           rosters[0]),
     [activeRosterId, config.rosterMode, rosters]
   );
-  const rosterGroups = activeRoster?.groups ?? [];
+  const rosterGroups = groupMakerGroups(activeRoster);
   const lockedGroupIds = Array.isArray(config.lockedRosterGroupIds)
     ? config.lockedRosterGroupIds
     : [];

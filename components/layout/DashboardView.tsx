@@ -31,6 +31,7 @@ import { getAdminBuildingConfig } from '@/utils/adminBuildingConfig';
 import { AnnotationOverlay } from './AnnotationOverlay';
 import { BoardNavFab } from './BoardNavFab';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
+import { GroupReminderHost } from '@/components/groupReminders/GroupReminderHost';
 import { MountedBoardsLayer } from './MountedBoardsLayer';
 import { HelpCenterModal } from '@/components/help/HelpCenterModal';
 import { LiveTourRunner } from '@/components/tours/LiveTourRunner';
@@ -41,6 +42,7 @@ import {
   getLastHelpTab,
   HELP_OPEN_EVENT,
   type HelpOpenRequest,
+  parseHelpItemPath,
   type HelpTab,
 } from '@/components/help/helpCenterState';
 import { useHasOpenModal } from '@/components/common/modalStore';
@@ -347,7 +349,20 @@ export const DashboardView: React.FC = () => {
     open: boolean;
     tab: HelpTab;
     widgetType?: WidgetType;
-  }>({ open: false, tab: 'shortcuts' });
+    itemId?: string;
+  }>(() => {
+    const itemId = parseHelpItemPath(window.location.pathname);
+    return itemId
+      ? { open: true, tab: 'guides', itemId }
+      : { open: false, tab: 'shortcuts' };
+  });
+
+  // A shared /help/:id link opens Help at that resource; drop the path once read.
+  React.useEffect(() => {
+    if (parseHelpItemPath(window.location.pathname)) {
+      window.history.replaceState(null, '', '/');
+    }
+  }, []);
 
   // Any surface (widget settings "?", future entry points) can open Help via this event.
   React.useEffect(() => {
@@ -357,6 +372,7 @@ export const DashboardView: React.FC = () => {
         open: true,
         tab: detail.tab ?? getLastHelpTab() ?? 'guides',
         widgetType: detail.widgetType,
+        itemId: detail.itemId,
       });
     };
     // A live tour started from Help needs the board uncovered.
@@ -1669,6 +1685,7 @@ export const DashboardView: React.FC = () => {
       <AnnotationOverlay />
       <ToastContainer />
       <AnnouncementOverlay />
+      {canAccessFeature('group-reminders') && <GroupReminderHost />}
       <ShareStatusBanner />
       <ImportShareModePicker />
       {pendingSharedCollectionId && (
@@ -1777,7 +1794,10 @@ export const DashboardView: React.FC = () => {
           isOpen={helpState.open}
           tab={helpState.tab}
           widgetType={helpState.widgetType}
-          onTabChange={(tab) => setHelpState((prev) => ({ ...prev, tab }))}
+          itemId={helpState.itemId}
+          onTabChange={(tab) =>
+            setHelpState((prev) => ({ ...prev, tab, itemId: undefined }))
+          }
           onClose={() => setHelpState((prev) => ({ ...prev, open: false }))}
         />
       )}

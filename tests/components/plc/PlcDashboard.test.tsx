@@ -82,9 +82,12 @@ interface MockAuth {
 }
 const mockUseAuth = vi.fn<() => MockAuth>();
 let mockHomeV2 = false;
+let mockFlagsLoaded = true;
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     canAccessFeature: (id: string) => id === 'plc-home-v2' && mockHomeV2,
+    globalPermissionsLoaded: mockFlagsLoaded,
+    isAdmin: false,
     ...mockUseAuth(),
   }),
 }));
@@ -212,6 +215,7 @@ describe('PlcDashboard (Wave 1 — pathname-driven render/smoke)', () => {
     mockUseAuth.mockReset();
     mockSpaNavigate.mockReset();
     mockSpaReplace.mockReset();
+    mockFlagsLoaded = true;
     setUser('uid-a'); // default: signed-in lead
   });
 
@@ -247,6 +251,21 @@ describe('PlcDashboard (Wave 1 — pathname-driven render/smoke)', () => {
     );
     expect(screen.getAllByTestId('section-home-v2').length).toBeGreaterThan(0);
     expect(screen.queryByTestId('section-home')).not.toBeInTheDocument();
+  });
+
+  it('waits for flags before choosing which Home to render', () => {
+    mockHomeV2 = true;
+    mockFlagsLoaded = false;
+    const { rerender } = render(
+      <PlcDashboard plc={fakePlc} activeSection="home" onClose={vi.fn()} />
+    );
+    expect(screen.queryByTestId('section-home')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('section-home-v2')).not.toBeInTheDocument();
+    mockFlagsLoaded = true;
+    rerender(
+      <PlcDashboard plc={fakePlc} activeSection="home" onClose={vi.fn()} />
+    );
+    expect(screen.getAllByTestId('section-home-v2').length).toBeGreaterThan(0);
   });
 
   it('renders the section named by the activeSection prop (deep-link)', () => {

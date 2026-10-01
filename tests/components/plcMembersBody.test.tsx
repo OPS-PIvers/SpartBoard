@@ -54,8 +54,12 @@ let mockUser: { uid: string; email: string } | null = {
   uid: 'uid-lead',
   email: 'lead@school.edu',
 };
+let mockGroupWording = false;
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: mockUser }),
+  useAuth: () => ({
+    user: mockUser,
+    canAccessFeature: (id: string) => id === 'my-groups' && mockGroupWording,
+  }),
 }));
 
 const setMemberRole = vi.fn().mockResolvedValue(undefined);
@@ -150,6 +154,7 @@ function legacyPlc(): Plc {
 beforeEach(() => {
   vi.clearAllMocks();
   mockUser = { uid: 'uid-lead', email: 'lead@school.edu' };
+  mockGroupWording = false;
   showConfirm.mockResolvedValue(true);
 });
 
@@ -298,6 +303,14 @@ describe('MembersBody — mutator wiring', () => {
     fireEvent.click(leaveBtn);
     expect(showConfirm).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(leavePlc).toHaveBeenCalledWith('plc-1'));
+  });
+
+  it('says "Leave this group" under the my-groups flag', () => {
+    mockUser = { uid: 'uid-mem', email: 'mem@school.edu' };
+    mockGroupWording = true;
+    render(<MembersBody plc={mapPlc()} />);
+    expect(screen.getByText('Leave this group')).toBeInTheDocument();
+    expect(screen.queryByText('Leave this PLC')).not.toBeInTheDocument();
   });
 
   it('does NOT offer "Leave this PLC" to the lead (must transfer first)', () => {

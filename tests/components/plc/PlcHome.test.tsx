@@ -38,6 +38,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'uid-a' },
     // QuickCreateBar reads getAssignmentMode for the quiz/VA modals.
     getAssignmentMode: () => 'submissions',
+    canAccessFeature: () => false,
   }),
 }));
 // YourActionItemsCard reads useDashboard().addToast for failure toasts.

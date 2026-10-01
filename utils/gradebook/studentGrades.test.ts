@@ -101,8 +101,7 @@ describe('studentGradeRows', () => {
         }),
       },
       standards: null,
-      levelNames: DEFAULT_PROFICIENCY_SCALE.levelNames,
-      cutoffs: { proficient: 80, approaching: 60 },
+      scale: DEFAULT_PROFICIENCY_SCALE,
     });
     expect(rows.map((r) => r.title)).toEqual(['New', 'Missing', 'Old']);
   });
@@ -197,6 +196,6 @@ describe('buildStudentGradesPreview', () => {
         evidence: [{ sessionId: 's1', pct: 80, at: 5 }],
       },
     ]);
-    expect(data.cutoffs).toEqual({ proficient: 80, approaching: 60 });
+    expect(data.scale).toEqual(DEFAULT_PROFICIENCY_SCALE);
   });
 });

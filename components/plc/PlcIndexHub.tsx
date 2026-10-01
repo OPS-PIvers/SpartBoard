@@ -25,7 +25,9 @@ import {
   MailPlus,
 } from 'lucide-react';
 
-import type { Plc } from '@/types';
+import { getPlcGroupType, type Plc } from '@/types';
+import { useAuth } from '@/context/useAuth';
+import { groupTypeLabel } from './groupTypes';
 import { usePlcBuildingDirectory } from '@/hooks/usePlcBuildingDirectory';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
 import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
@@ -54,6 +56,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
+  const groups = useAuth().canAccessFeature('my-groups');
 
   return (
     <div className="fixed inset-0 z-modal bg-slate-50 overflow-y-auto overscroll-none">
@@ -72,7 +75,9 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
             <Users2 className="w-5 h-5 text-brand-blue-primary" />
           </div>
           <h1 className="text-xl font-bold text-slate-800">
-            {t('plcRoute.hubTitle', { defaultValue: 'My PLCs' })}
+            {groups
+              ? t('plcRoute.groupsHubTitle', { defaultValue: 'My Groups' })
+              : t('plcRoute.hubTitle', { defaultValue: 'My PLCs' })}
           </h1>
         </div>
 
@@ -87,7 +92,11 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
               <Users2 className="w-6 h-6 text-slate-300" aria-hidden="true" />
             </div>
             <p className="text-sm font-bold text-slate-600">
-              {t('plcRoute.hubEmptyTitle', { defaultValue: 'No PLCs yet' })}
+              {groups
+                ? t('plcRoute.groupsHubEmptyTitle', {
+                    defaultValue: 'No groups yet',
+                  })
+                : t('plcRoute.hubEmptyTitle', { defaultValue: 'No PLCs yet' })}
             </p>
             <p className="text-xs text-slate-500">
               {t('plcRoute.hubEmptySubtitle', {
@@ -123,6 +132,8 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
                         )}
                       </div>
                       <div className="text-xxs font-semibold text-slate-500 uppercase tracking-widest mt-0.5">
+                        {groups &&
+                          `${groupTypeLabel(t, getPlcGroupType(plc))} · `}
                         {t('plcRoute.memberCount', {
                           count: getPlcMembers(plc).length,
                           defaultValue: '{{count}} Member',
@@ -142,7 +153,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
         )}
 
         {/* --- Section 2: PLCs in my building --- */}
-        <PlcBuildingDirectorySection userEmail={userEmail} />
+        <PlcBuildingDirectorySection userEmail={userEmail} groups={groups} />
       </div>
     </div>
   );
@@ -152,9 +163,10 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
 // "PLCs in my building" directory
 // ---------------------------------------------------------------------------
 
-const PlcBuildingDirectorySection: React.FC<{ userEmail: string | null }> = ({
-  userEmail,
-}) => {
+const PlcBuildingDirectorySection: React.FC<{
+  userEmail: string | null;
+  groups: boolean;
+}> = ({ userEmail, groups }) => {
   const { t } = useTranslation();
   const { entries, loading, orgId } = usePlcBuildingDirectory();
 
@@ -163,7 +175,13 @@ const PlcBuildingDirectorySection: React.FC<{ userEmail: string | null }> = ({
       <div className="flex items-center gap-2 mb-4">
         <Building2 className="w-4 h-4 text-slate-400" aria-hidden="true" />
         <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">
-          {t('plcDirectory.heading', { defaultValue: 'PLCs in my building' })}
+          {groups
+            ? t('plcDirectory.groupHeading', {
+                defaultValue: 'Groups in my building',
+              })
+            : t('plcDirectory.heading', {
+                defaultValue: 'PLCs in my building',
+              })}
         </h2>
       </div>
 
@@ -182,9 +200,15 @@ const PlcBuildingDirectorySection: React.FC<{ userEmail: string | null }> = ({
         </div>
       ) : entries.length === 0 ? (
         <DirectoryNotice
-          title={t('plcDirectory.emptyTitle', {
-            defaultValue: 'No other PLCs to show',
-          })}
+          title={
+            groups
+              ? t('plcDirectory.groupEmptyTitle', {
+                  defaultValue: 'No other groups to show',
+                })
+              : t('plcDirectory.emptyTitle', {
+                  defaultValue: 'No other PLCs to show',
+                })
+          }
         />
       ) : (
         <ul className="flex flex-col gap-2">

@@ -62,6 +62,13 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+let mockGroups = false;
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({
+    canAccessFeature: (id: string) => id === 'my-groups' && mockGroups,
+  }),
+}));
+
 // --- spaNavigate observed; buildPlcPath stays real. ---
 const mockSpaNavigate = vi.fn<(path: string) => void>();
 vi.mock('@/utils/plcPath', async () => {
@@ -168,6 +175,25 @@ describe('PlcIndexHub — Your PLCs section', () => {
   it('shows the empty state when the user has no PLCs', () => {
     renderHub({ plcs: [] });
     expect(screen.getByText('No PLCs yet')).toBeInTheDocument();
+  });
+});
+
+describe('PlcIndexHub — My Groups flag', () => {
+  it('titles the hub My Groups and labels each row with its type', () => {
+    mockGroups = true;
+    try {
+      renderHub({
+        plcs: [
+          makePlc({ id: 'p1', name: 'Mentors', groupType: 'mentoring' }),
+          makePlc({ id: 'p2', name: 'Grade 4' }),
+        ],
+      });
+      expect(screen.getByText('My Groups')).toBeInTheDocument();
+      expect(screen.getByText(/Mentoring ·/)).toBeInTheDocument();
+      expect(screen.getByText(/PLC ·/)).toBeInTheDocument();
+    } finally {
+      mockGroups = false;
+    }
   });
 });
 

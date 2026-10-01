@@ -96,7 +96,8 @@ export const PlcActivityFeed: React.FC<PlcActivityFeedProps> = ({
   limit = 8,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const groupWording = canAccessFeature('my-groups');
   const selfUid = user?.uid ?? null;
   const activity = usePlcActivity();
 
@@ -146,9 +147,15 @@ export const PlcActivityFeed: React.FC<PlcActivityFeedProps> = ({
         ) : (
           <ul
             className="space-y-0.5"
-            aria-label={t('plcDashboard.activity.feedAria', {
-              defaultValue: 'Recent PLC activity',
-            })}
+            aria-label={
+              groupWording
+                ? t('plcDashboard.activity.groupFeedAria', {
+                    defaultValue: 'Recent group activity',
+                  })
+                : t('plcDashboard.activity.feedAria', {
+                    defaultValue: 'Recent PLC activity',
+                  })
+            }
           >
             {visible.map((event) => (
               <PlcActivityRow key={event.id} event={event} selfUid={selfUid} />

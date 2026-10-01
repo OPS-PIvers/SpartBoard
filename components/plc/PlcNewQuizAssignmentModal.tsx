@@ -111,6 +111,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
 > = ({ plc, assignmentMode = 'submissions', onClose, onCreated }) => {
   const { t } = useTranslation();
   const { user, canAccessFeature } = useAuth();
+  const groupWording = canAccessFeature('my-groups');
   // D12: with the split on, settings come from the teacher's last-used, editable inline.
   const reviewSplit = canAccessFeature('quiz-review-split');
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
@@ -365,9 +366,13 @@ export const PlcNewQuizAssignmentModal: React.FC<
       addToast(
         err instanceof Error
           ? err.message
-          : t('plcDashboard.newAssignment.quiz.createFailed', {
-              defaultValue: 'Failed to create the PLC assignment.',
-            }),
+          : groupWording
+            ? t('plcDashboard.newAssignment.quiz.groupCreateFailed', {
+                defaultValue: 'Failed to create the group assignment.',
+              })
+            : t('plcDashboard.newAssignment.quiz.createFailed', {
+                defaultValue: 'Failed to create the PLC assignment.',
+              }),
         'error'
       );
     } finally {
@@ -375,6 +380,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
       setSubmitting(false);
     }
   }, [
+    groupWording,
     addToast,
     assignmentMode,
     attachSyncLinkage,
@@ -398,9 +404,15 @@ export const PlcNewQuizAssignmentModal: React.FC<
   if (step === 'pick') {
     return (
       <PlcSharePickerModal
-        title={t('plcDashboard.newAssignment.quiz.pickTitle', {
-          defaultValue: 'New PLC Quiz Assignment',
-        })}
+        title={
+          groupWording
+            ? t('plcDashboard.newAssignment.quiz.groupPickTitle', {
+                defaultValue: 'New Group Quiz Assignment',
+              })
+            : t('plcDashboard.newAssignment.quiz.pickTitle', {
+                defaultValue: 'New PLC Quiz Assignment',
+              })
+        }
         subtitle={t('plcDashboard.newAssignment.quiz.pickSubtitle', {
           name: plc.name,
           defaultValue: 'Shared with {{name}}',

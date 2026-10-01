@@ -34,6 +34,7 @@ const mockAuthContext = (
   featurePermissions: [],
   featurePermissionsLoaded: true,
   globalPermissions: [],
+  globalPermissionsLoaded: true,
   updateAppSettings: () => Promise.resolve(),
   canAccessWidget: () => true,
   canAccessFeature: () => true,

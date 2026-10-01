@@ -4138,6 +4138,9 @@
       "activityUnavailable": "This activity is no longer available",
       "fullscreen": "Full screen",
       "exitFullscreen": "Exit full screen",
+      "copyLink": "Copy link",
+      "linkCopied": "Copied",
+      "copyLinkFor": "Copy link to {{title}}",
       "kinds": {
         "docs": "Docs",
         "slides": "Slides",

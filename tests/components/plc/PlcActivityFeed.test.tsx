@@ -69,6 +69,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'uid-self' },
     // Wave-3 Home QuickCreateBar reads getAssignmentMode for the quiz/VA modals.
     getAssignmentMode: () => 'submissions',
+    canAccessFeature: () => false,
   }),
 }));
 // Wave-3 Home YourActionItemsCard reads useDashboard().addToast.

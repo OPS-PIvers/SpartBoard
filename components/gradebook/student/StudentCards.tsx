@@ -8,6 +8,7 @@ import {
   DistributionStrip,
   ScoreTrendChart,
   bandFor,
+  bandRanges,
 } from '@/components/gradebook/charts';
 import { flagChipClasses, formatScore } from '@/utils/gradebook/gradebookModel';
 import { buildGradebookPath } from '@/utils/gradebookPath';
@@ -217,12 +218,15 @@ export const StandardsCard: React.FC<{
   method: ProficiencyMethod;
 }> = ({ rows, scale, method }) => {
   const [open, setOpen] = useState<string | null>(null);
-  const [top, mid] = scale.levelNames;
   return (
     <>
       <div className="text-xs text-slate-500">
-        {METHOD_LABEL[method]} · {top} {scale.proficient}+ · {mid}{' '}
-        {scale.approaching}–{scale.proficient - 1}
+        {[
+          METHOD_LABEL[method],
+          ...bandRanges(scale)
+            .slice(0, -1)
+            .map(({ style, range }) => `${style.name} ${range}`),
+        ].join(' · ')}
       </div>
       {rows.length === 0 ? (
         <div className="text-xs text-slate-500">No tagged work yet.</div>

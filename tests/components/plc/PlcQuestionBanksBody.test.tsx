@@ -25,7 +25,10 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: 'teacher-1', displayName: 'Ms. T' } }),
+  useAuth: () => ({
+    user: { uid: 'teacher-1', displayName: 'Ms. T' },
+    canAccessFeature: () => false,
+  }),
 }));
 const addToast = vi.fn();
 vi.mock('@/context/useDashboard', () => ({

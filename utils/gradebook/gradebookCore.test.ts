@@ -65,7 +65,64 @@ describe('gradebook core', () => {
     expect(core.proficiencyLevel(85, scale)).toBe(1);
     expect(core.proficiencyLevel(90, scale)).toBe(0);
     expect(core.proficiencyLevel(null, scale)).toBeNull();
-    expect(scale.levelNames).toEqual(core.DEFAULT_PROFICIENCY_SCALE.levelNames);
+    expect(scale.levels.map((l) => l.name)).toEqual(
+      core.DEFAULT_PROFICIENCY_SCALE.levels.map((l) => l.name)
+    );
+  });
+
+  it('reads the older three-level fields and writes them back', () => {
+    const scale = core.parseScale({
+      proficient: 85,
+      approaching: 65,
+      levelNames: ['Meets', 'Near', 'Below'],
+    });
+    expect(scale?.levels.map((l) => [l.name, l.min, l.color])).toEqual([
+      ['Meets', 85, 'emerald'],
+      ['Near', 65, 'amber'],
+      ['Below', 0, 'rose'],
+    ]);
+    const stored = core.storedScale(scale as core.ProficiencyScale);
+    expect(stored).toMatchObject({
+      proficient: 85,
+      approaching: 65,
+      levelNames: ['Meets', 'Near', 'Below'],
+    });
+  });
+
+  it('bands four levels top first', () => {
+    const scale = core.normalizeScale({
+      levels: [
+        { name: 'Exceeds', min: 90, color: 'blue' },
+        { name: 'Meets', min: 75, color: 'emerald' },
+        { name: 'Near', min: 50, color: 'amber' },
+        { name: 'Below', min: 20, color: 'rose' },
+      ],
+    });
+    expect(scale.levels[3].min).toBe(0);
+    expect(
+      [95, 80, 60, 10].map((p) => core.proficiencyLevel(p, scale))
+    ).toEqual([0, 1, 2, 3]);
+    expect(core.storedScale(scale)).toMatchObject({
+      proficient: 90,
+      approaching: 75,
+      levelNames: ['Exceeds', 'Meets', 'Below'],
+    });
+  });
+
+  it('applies PLC cutoffs to the top two levels and keeps the rest below', () => {
+    const district = core.normalizeScale({
+      levels: [
+        { name: 'A', min: 90, color: 'blue' },
+        { name: 'B', min: 80, color: 'emerald' },
+        { name: 'C', min: 70, color: 'amber' },
+        { name: 'D', min: 0, color: 'rose' },
+      ],
+    });
+    const scale = core.resolveScale({ source: 'plc', plcId: 'p' }, district, {
+      proficient: 70,
+      approaching: 60,
+    });
+    expect(scale.levels.map((l) => l.min)).toEqual([70, 60, 59, 0]);
   });
 
   it('gives no proficiency evidence for flag-valued or overridden cells beyond column tags', () => {

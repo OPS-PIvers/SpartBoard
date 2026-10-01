@@ -3015,6 +3015,9 @@
       "activityUnavailable": "Esta actividad ya no está disponible",
       "fullscreen": "Pantalla completa",
       "exitFullscreen": "Salir de pantalla completa",
+      "copyLink": "Copiar enlace",
+      "linkCopied": "Copiado",
+      "copyLinkFor": "Copiar enlace a {{title}}",
       "kinds": {
         "docs": "Documentos",
         "slides": "Presentaciones",

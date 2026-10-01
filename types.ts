@@ -64,7 +64,8 @@ export type WidgetType =
   | 'stations'
   | 'flashcards'
   | 'projects'
-  | 'review';
+  | 'review'
+  | 'routineGuide';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -234,6 +235,54 @@ export interface RosterGroup {
   id: string;
   name: string;
   studentIds: string[];
+  /** Offered in Group Maker and widget group pickers; absent means yes (pre-reminder groups). */
+  inGroupMaker?: boolean;
+  /** How the group appears on a projected reminder. */
+  symbol?: RosterGroupSymbol;
+  /** Weekly time that pops a reminder on the open board. */
+  reminder?: RosterGroupReminder;
+}
+
+export interface RosterGroupSymbol {
+  /** Id from the kid-friendly icon set in components/groupReminders/groupIcons. */
+  icon: string;
+  /** Hex colour of the icon. */
+  color: string;
+}
+
+export type RosterGroupReminderSound =
+  | 'off'
+  | 'chime'
+  | 'bell'
+  | 'marimba'
+  | 'harp';
+
+export interface RosterGroupAlert {
+  /** 24-hour "HH:mm" in the teacher's local time. */
+  time: string;
+  /** Minutes before `time` that the card appears. */
+  leadMinutes: number;
+}
+
+export interface RosterGroupReminder {
+  enabled: boolean;
+  /** ISO weekdays, 1 = Monday ... 5 = Friday. */
+  days: number[];
+  /** One or more alerts on each chosen day. */
+  alerts: RosterGroupAlert[];
+  repeat: 'weekly' | 'biweekly';
+  /** "YYYY-MM-DD"; the week it falls in is an on-week for `biweekly`. */
+  startDate: string;
+  sound: RosterGroupReminderSound;
+  snoozeMinutes: number;
+  /** Card extras; all off by default so the projected card is icon-only. */
+  showName: boolean;
+  showTime: boolean;
+  showMessage: boolean;
+  message: string;
+  /** Emails the teacher at each alert, for when no board is open. */
+  emailAlert: boolean;
+  emailMessage: string;
 }
 
 // `StudentOverride` (M17 spec §2a) is defined below alongside `RubricSnapshot`
@@ -259,6 +308,23 @@ export interface RosterGroup {
  */
 export type PlcRole = 'lead' | 'coLead' | 'member' | 'viewer';
 
+/** What kind of team a group is. Absent on a PLC doc means 'plc'. */
+export type PlcGroupType = 'plc' | 'department' | 'mentoring' | 'building';
+
+export const PLC_GROUP_TYPES: readonly PlcGroupType[] = [
+  'plc',
+  'department',
+  'mentoring',
+  'building',
+];
+
+/** Types a teacher can pick; building groups are created by admins. */
+export const TEACHER_PLC_GROUP_TYPES: readonly PlcGroupType[] = [
+  'plc',
+  'department',
+  'mentoring',
+];
+
 /**
  * One entry in the canonical `Plc.members` map (keyed by uid). Replaces the
  * parallel `memberUids` / `memberEmails` arrays as the source of truth for
@@ -276,7 +342,17 @@ export interface PlcMember {
   /** ms since epoch, resolved from a Firestore `serverTimestamp()` on read. */
   joinedAt: number;
   status: 'active' | 'removed';
+  /** How the member joined; auto-roster removes only its own 'autoRoster' adds. */
+  addedBy?: PlcMemberAddedBy;
 }
+
+export type PlcMemberAddedBy = 'admin' | 'autoRoster' | 'invite';
+
+export const PLC_MEMBER_ADDED_BY: readonly PlcMemberAddedBy[] = [
+  'admin',
+  'autoRoster',
+  'invite',
+];
 
 export type PlcNormingLevel = 'high' | 'medium' | 'low' | 'review';
 
@@ -315,6 +391,10 @@ export interface Plc {
   orgId?: string | null;
   /** Optional building tenancy (Decision 1.1). `null`/absent when unscoped. */
   buildingId?: string | null;
+  /** Group type (My Groups). Read via `getPlcGroupType`; absent means 'plc'. */
+  groupType?: PlcGroupType;
+  /** Building groups only: staff join from their selected building. Server-managed. */
+  autoRoster?: boolean;
   /**
    * Canonical membership map (Decision 1.2): uid → member record. New PLCs
    * always write this. Legacy PLCs may lack it — read membership via the
@@ -360,7 +440,7 @@ export interface Plc {
    * PLCs (and any newly added flags) default to enabled. Always read via
    * `getPlcFeatures(plc)` rather than `plc.features` directly.
    */
-  features?: PlcFeatureSettings;
+  features?: Partial<PlcFeatureSettings>;
   /**
    * Opt-in weekly email digest flag (Decision 2.3, §5). Default `false` —
    * absent/false means no digest is sent. Any PLC member may toggle it via the
@@ -423,6 +503,8 @@ export interface PlcFeatureSettings {
    * that does not want the feature, not an individual teacher's consent.
    */
   printForTeammates: boolean;
+  /** Meeting Mode section. Absent means on, except for mentoring and building groups. */
+  meeting?: boolean;
 }
 
 export const DEFAULT_PLC_FEATURE_SETTINGS: PlcFeatureSettings = {
@@ -433,13 +515,36 @@ export const DEFAULT_PLC_FEATURE_SETTINGS: PlcFeatureSettings = {
   printForTeammates: true,
 };
 
+/** The group's type; legacy PLCs have none and read as 'plc'. */
+export function getPlcGroupType(plc: Pick<Plc, 'groupType'>): PlcGroupType {
+  return plc.groupType ?? 'plc';
+}
+
+/** Mentoring and building groups start without Assessments, Targets or Meeting Mode. */
+export function getDefaultPlcFeatures(
+  groupType: PlcGroupType
+): PlcFeatureSettings {
+  if (groupType === 'mentoring' || groupType === 'building') {
+    return {
+      ...DEFAULT_PLC_FEATURE_SETTINGS,
+      quizzes: false,
+      videoActivities: false,
+      meeting: false,
+    };
+  }
+  return { ...DEFAULT_PLC_FEATURE_SETTINGS, meeting: true };
+}
+
 /**
- * Merge a (possibly absent or partial) `Plc.features` map against
- * `DEFAULT_PLC_FEATURE_SETTINGS`. Use this everywhere the dashboard reads
+ * Merge a (possibly absent or partial) `Plc.features` map against the
+ * defaults for the group's type. Use this everywhere the dashboard reads
  * feature flags so legacy PLCs and newly added flags default to enabled.
  */
 export function getPlcFeatures(plc: Plc): PlcFeatureSettings {
-  return { ...DEFAULT_PLC_FEATURE_SETTINGS, ...(plc.features ?? {}) };
+  return {
+    ...getDefaultPlcFeatures(getPlcGroupType(plc)),
+    ...(plc.features ?? {}),
+  };
 }
 
 /**
@@ -1134,6 +1239,25 @@ export interface PlcAssessmentAggregate {
  * `attendeeUids` is seeded from presence at meeting time, editable before save.
  * Identity fields (`id`, `createdBy`) are immutable on update. Soft-deletable.
  */
+/** One practice under a group goal: a Routine Guide routine, or free text. */
+export interface PlcGoalPractice {
+  id: string;
+  routineId?: string;
+  text: string;
+}
+
+/** A My Groups goal at plcs/{plcId}/goals/{goalId}. */
+export interface PlcGoal {
+  id: string;
+  title: string;
+  measure?: string;
+  practices: PlcGoalPractice[];
+  order: number;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface PlcMeeting {
   id: string;
   /** serverTimestamp resolved to ms on read; when the meeting was held. */
@@ -2914,6 +3038,63 @@ export interface InstructionalRoutinesConfig {
   scaleMultiplier: number;
   structure?: RoutineStructure;
   audience?: RoutineAudience;
+}
+
+export interface RoutineGuideStep {
+  id: string;
+  text: string;
+  label?: string;
+  icon?: string;
+  color?: string;
+  imageUrl?: string;
+  attachedWidget?: {
+    type: WidgetType;
+    label: string;
+    config?: Record<string, unknown>;
+  };
+}
+
+export interface RoutineGuideInfo {
+  what?: string;
+  why?: string;
+  coreComponents?: string;
+}
+
+export interface RoutineGuideRoutine {
+  id: string;
+  name: string;
+  gradeLevels: GradeLevel[];
+  categoryIds: string[];
+  icon: string;
+  color: string;
+  steps: RoutineGuideStep[];
+  info?: RoutineGuideInfo;
+}
+
+export interface RoutineGuideCategory {
+  id: string;
+  label: string;
+}
+
+/** 'grade' | 'favorites' | 'all', or a category id. */
+export type RoutineGuideFilter = string;
+
+export interface RoutineGuideConfig {
+  selectedRoutineId: string | null;
+  stepIndex: number;
+  view: 'step' | 'all';
+  /** 'display' is the launched routine on the board; 'browse' is the library. */
+  mode?: 'browse' | 'display';
+  /** Account-wide via savedWidgetPresets, never written to the widget. */
+  favorites?: string[];
+  /** Account-wide via savedWidgetPresets, never written to the widget. */
+  libraryFilter?: RoutineGuideFilter;
+}
+
+/** feature_permissions/routineGuide.config; unset fields mean the built-in defaults. */
+export interface RoutineGuideGlobalConfig {
+  routines?: RoutineGuideRoutine[];
+  categories?: RoutineGuideCategory[];
 }
 
 export interface TimeToolConfig {
@@ -8463,6 +8644,7 @@ export interface ProjectsConfig {
 
 // Union of all widget configs
 export type WidgetConfig =
+  | RoutineGuideConfig
   | UrlWidgetConfig
   | ClockConfig
   | TrafficConfig
@@ -8662,7 +8844,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                                   ? ProjectsConfig
                                                                                                                                   : T extends 'review'
                                                                                                                                     ? ReviewConfig
-                                                                                                                                    : never;
+                                                                                                                                    : T extends 'routineGuide'
+                                                                                                                                      ? RoutineGuideConfig
+                                                                                                                                      : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -9234,6 +9418,10 @@ export type GlobalFeature =
   | 'quiz-review-split'
   /** Quiz assign/edit: an overall time limit per attempt with a student countdown. */
   | 'quiz-time-limit'
+  /** Routine Guide widget, the instructional routines redesign. */
+  | 'routine-guide'
+  /** Class groups with a weekly schedule that pop a reminder on the open board. */
+  | 'group-reminders'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'
@@ -9241,7 +9429,8 @@ export type GlobalFeature =
   | 'mini-app-ai'
   | 'drawing-ai'
   | 'webcam-ai'
-  | 'blooms-ai';
+  | 'blooms-ai'
+  | 'my-groups';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

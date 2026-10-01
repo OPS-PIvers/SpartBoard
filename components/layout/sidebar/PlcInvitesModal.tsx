@@ -7,6 +7,7 @@ import { useDialog } from '@/context/useDialog';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { PlcInvitation } from '@/types';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { useAuth } from '@/context/useAuth';
 
 interface PlcInvitesModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export const PlcInvitesModal: React.FC<PlcInvitesModalProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
+  const groupWording = useAuth().canAccessFeature('my-groups');
   const { showAlert } = useDialog();
   const { pendingInvites, acceptInvite, declineInvite } = usePlcInvitations();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -69,9 +71,15 @@ export const PlcInvitesModal: React.FC<PlcInvitesModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       maxWidth="max-w-md"
-      title={t('sidebar.plcs.invitesTitle', {
-        defaultValue: 'Pending PLC Invitations',
-      })}
+      title={
+        groupWording
+          ? t('sidebar.plcs.groupInvitesTitle', {
+              defaultValue: 'Pending Group Invitations',
+            })
+          : t('sidebar.plcs.invitesTitle', {
+              defaultValue: 'Pending PLC Invitations',
+            })
+      }
       contentClassName="px-6 pb-6"
     >
       {pendingInvites.length === 0 ? (

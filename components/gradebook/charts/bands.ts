@@ -3,48 +3,24 @@ import {
   type ProficiencyLevel,
   type ProficiencyScale,
 } from '@/utils/gradebook/gradebookCore';
+import {
+  SCALE_COLOR_STYLES,
+  type ScaleColorStyle,
+} from '@/utils/gradebook/scaleColors';
 
 export type BandLevel = ProficiencyLevel;
 
-export interface BandStyle {
+export interface BandStyle extends ScaleColorStyle {
   level: BandLevel;
   name: string;
-  /** Solid fill for a bar. */
-  bar: string;
-  /** Background and text for a heatmap cell. */
-  cell: string;
-  /** Text colour for a number. */
-  text: string;
-  /** Fill for SVG marks. */
-  hex: string;
 }
-
-const LEVEL_STYLES: Record<BandLevel, Omit<BandStyle, 'level' | 'name'>> = {
-  0: {
-    bar: 'bg-emerald-600',
-    cell: 'bg-emerald-100 text-emerald-800',
-    text: 'text-emerald-700',
-    hex: '#059669',
-  },
-  1: {
-    bar: 'bg-amber-600',
-    cell: 'bg-amber-100 text-amber-800',
-    text: 'text-amber-700',
-    hex: '#d97706',
-  },
-  2: {
-    bar: 'bg-brand-red-primary',
-    cell: 'bg-rose-100 text-rose-800',
-    text: 'text-rose-700',
-    hex: '#ad2122',
-  },
-};
 
 export function bandStyle(
   level: BandLevel,
   scale: ProficiencyScale
 ): BandStyle {
-  return { level, name: scale.levelNames[level], ...LEVEL_STYLES[level] };
+  const l = scale.levels[Math.min(level, scale.levels.length - 1)];
+  return { level, name: l.name, ...SCALE_COLOR_STYLES[l.color] };
 }
 
 /** The band a percent falls in on the chosen scale; null with no value. */
@@ -60,12 +36,22 @@ export function bandFor(
 export function bandRanges(
   scale: ProficiencyScale
 ): { style: BandStyle; range: string }[] {
-  return [
-    { style: bandStyle(0, scale), range: `${scale.proficient}+` },
-    {
-      style: bandStyle(1, scale),
-      range: `${scale.approaching}–${scale.proficient - 1}`,
-    },
-    { style: bandStyle(2, scale), range: `below ${scale.approaching}` },
-  ];
+  const n = scale.levels.length;
+  return scale.levels.map((l, i) => ({
+    style: bandStyle(i, scale),
+    range:
+      i === 0
+        ? `${l.min}+`
+        : i === n - 1
+          ? `below ${scale.levels[i - 1].min}`
+          : `${l.min}–${scale.levels[i - 1].min - 1}`,
+  }));
+}
+
+/** Every cutoff between levels, low to high. */
+export function scaleCutoffs(scale: ProficiencyScale): number[] {
+  return scale.levels
+    .slice(0, -1)
+    .map((l) => l.min)
+    .reverse();
 }

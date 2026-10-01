@@ -32,6 +32,10 @@ import { PlcQuizImportModal } from '@/components/plc/PlcQuizImportModal';
 
 // t returns defaultValue, interpolating {{title}} and {{name}} so the subtitle
 // (`{{title}} · shared by {{name}}`) is assertable.
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
+}));
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (

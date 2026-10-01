@@ -27,8 +27,7 @@ export const STUDENT_GRADE_KIND_LABELS: Record<GradebookKind, string> = {
 export interface StudentGradesData {
   entries: Record<string, StudentGradeEntry & { updatedAt?: number }>;
   standards: StudentStandardEntry[] | null;
-  levelNames: [string, string, string];
-  cutoffs: { proficient: number; approaching: number };
+  scale: ProficiencyScale;
 }
 
 export interface StudentGradeRow extends StudentGradeEntry {
@@ -170,11 +169,7 @@ export function buildStudentGradesPreview(
           input.now
         )
       : null,
-    levelNames: input.scale.levelNames,
-    cutoffs: {
-      proficient: input.scale.proficient,
-      approaching: input.scale.approaching,
-    },
+    scale: input.scale,
   };
 }
 
@@ -207,13 +202,4 @@ export function studentTargets(data: StudentGradesData): TargetView[] {
       title: data.entries[e.sessionId]?.title ?? 'Assignment',
     })),
   }));
-}
-
-export function levelForPct(
-  pct: number,
-  cutoffs: StudentGradesData['cutoffs']
-): ProficiencyLevel {
-  if (pct >= cutoffs.proficient) return 0;
-  if (pct >= cutoffs.approaching) return 1;
-  return 2;
 }
