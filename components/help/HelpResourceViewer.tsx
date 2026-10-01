@@ -16,6 +16,7 @@ import {
   toHelpEmbedSrc,
 } from '@/utils/helpEmbed';
 import { incrementHelpOpenCount } from '@/hooks/useHelpResources';
+import { HelpCopyLinkButton } from './HelpCopyLinkButton';
 import { loadBuildingSet } from '@/hooks/useGuidedLearning';
 import { logError } from '@/utils/logError';
 import { useAuth } from '@/context/useAuth';
@@ -229,11 +230,13 @@ export const HelpResourceViewer: React.FC<HelpResourceViewerProps> = ({
           <ArrowLeft className="w-4 h-4" />
           {t('helpCenter.guides.back')}
         </button>
+        <span className="ml-auto" aria-hidden="true" />
+        <HelpCopyLinkButton item={item} variant="text" />
         {canFullscreen && (
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="ml-auto flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+            className="flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
             {...tourAttr('help-center.viewer.fullscreen')}
           >
             <Maximize2 className="w-4 h-4" />
@@ -245,9 +248,7 @@ export const HelpResourceViewer: React.FC<HelpResourceViewerProps> = ({
             href={item.url}
             target="_blank"
             rel="noopener noreferrer"
-            className={`flex items-center gap-1.5 text-sm font-semibold text-brand-blue-primary hover:underline ${
-              canFullscreen ? '' : 'ml-auto'
-            }`}
+            className="flex items-center gap-1.5 text-sm font-semibold text-brand-blue-primary hover:underline"
           >
             {t('helpCenter.guides.open')}
             <ExternalLink className="w-4 h-4" />

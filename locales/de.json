@@ -3015,6 +3015,9 @@
       "activityUnavailable": "Diese Aktivität ist nicht mehr verfügbar",
       "fullscreen": "Vollbild",
       "exitFullscreen": "Vollbild beenden",
+      "copyLink": "Link kopieren",
+      "linkCopied": "Kopiert",
+      "copyLinkFor": "Link zu {{title}} kopieren",
       "kinds": {
         "docs": "Dokumente",
         "slides": "Präsentationen",
