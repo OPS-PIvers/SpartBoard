@@ -11,6 +11,8 @@ import {
 import { Toggle } from '@/components/common/Toggle';
 import {
   DEFAULT_PROFICIENCY_SCALE,
+  parseScale,
+  storedScale,
   type FlagValueMode,
   type FlagVisibility,
   type GradebookSettingsBody,
@@ -27,6 +29,16 @@ import {
   restoreDefaultCategories,
 } from '@/utils/gradebook/settingsConfig';
 import type { GradebookScaleOption } from '@/hooks/useGradebookSettings';
+import {
+  CommitInput,
+  FIELD,
+  ICON_BTN,
+  LINK_BTN,
+  PctInput,
+} from './settingsFields';
+import { ScaleLevelsEditor } from './ScaleLevelsEditor';
+
+export { FIELD };
 
 export type SettingsChange = (
   next: GradebookSettingsBody,
@@ -62,12 +74,6 @@ const METHODS: { value: ProficiencyMethod; label: string }[] = [
   { value: 'highest', label: 'Highest' },
 ];
 
-export const FIELD =
-  'h-9 px-2.5 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30 disabled:bg-slate-50 disabled:text-slate-500';
-const ICON_BTN =
-  'h-[30px] w-[30px] inline-flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30 disabled:opacity-50 disabled:pointer-events-none';
-const LINK_BTN =
-  'text-xs font-semibold text-brand-blue-primary hover:underline focus:outline-none focus-visible:underline';
 export const SECTION =
   'bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-3 shadow-[0_1px_2px_rgba(0,0,0,.05)]';
 const H3 = 'text-sm font-bold text-slate-800 flex items-center gap-2';
@@ -96,67 +102,6 @@ export const SelectBox: React.FC<
       aria-hidden
       className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
     />
-  </span>
-);
-
-/** Text or number field that commits on blur or Enter and resets when the stored value changes. */
-const CommitInput: React.FC<
-  Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> & {
-    value: string;
-    onCommit: (value: string) => void;
-  }
-> = ({ value, onCommit, className = '', ...rest }) => (
-  <input
-    key={value}
-    defaultValue={value}
-    className={`${FIELD} ${className}`}
-    onBlur={(e) => {
-      if (e.currentTarget.value !== value) onCommit(e.currentTarget.value);
-    }}
-    onKeyDown={(e) => {
-      if (e.key === 'Enter') e.currentTarget.blur();
-      if (e.key === 'Escape') {
-        e.currentTarget.value = value;
-        e.currentTarget.blur();
-      }
-    }}
-    {...rest}
-  />
-);
-
-const PctInput: React.FC<{
-  value: number | null;
-  onCommit: (v: string) => void;
-  disabled: boolean;
-  label: string;
-  min?: number;
-  max?: number;
-  placeholder?: string;
-  compact?: boolean;
-}> = ({
-  value,
-  onCommit,
-  disabled,
-  label,
-  min = 0,
-  max = 100,
-  placeholder,
-  compact = false,
-}) => (
-  <span className="inline-flex items-center gap-1.5 text-sm text-slate-500">
-    <CommitInput
-      type="number"
-      inputMode="numeric"
-      min={min}
-      max={max}
-      value={value === null ? '' : String(value)}
-      onCommit={onCommit}
-      disabled={disabled}
-      placeholder={placeholder}
-      aria-label={label}
-      className={compact ? '!h-8 w-[68px] !pl-2 !pr-1' : 'w-[76px]'}
-    />
-    <span>%</span>
   </span>
 );
 
@@ -223,13 +168,13 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
   const knownScale = scaleOptions.some((o) => o.value === scaleValue);
   const shownScale: ProficiencyScale =
     body.scale.source === 'custom'
-      ? body.scale.scale
+      ? (parseScale(body.scale.scale) ?? DEFAULT_PROFICIENCY_SCALE)
       : (scaleOptions.find((o) => o.value === scaleValue)?.scale ??
         DEFAULT_PROFICIENCY_SCALE);
   const scaleEditable = !ro && body.scale.source === 'custom';
   const sharedEditable = !ro && sharedScaleEdit?.value === scaleValue;
   const setCustom = (scale: ProficiencyScale, label: string) =>
-    set({ scale: { source: 'custom', scale } }, label);
+    set({ scale: { source: 'custom', scale: storedScale(scale) } }, label);
   const setCutoffs = (scale: ProficiencyScale, label: string) =>
     sharedEditable ? sharedScaleEdit?.onCommit(scale) : setCustom(scale, label);
   const vis = body.studentVisibility;
@@ -618,11 +563,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
             disabled={ro}
             onChange={(e) => {
               const v = e.target.value;
-              if (v === 'custom')
-                setCustom(
-                  { ...shownScale, levelNames: [...shownScale.levelNames] },
-                  'Scale'
-                );
+              if (v === 'custom') setCustom(shownScale, 'Scale');
               else if (v.startsWith('plc:'))
                 set({ scale: { source: 'plc', plcId: v.slice(4) } }, 'Scale');
               else set({ scale: { source: 'district' } }, 'Scale');
@@ -636,59 +577,17 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
             ))}
           </SelectBox>
         </div>
-        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-2.5 gap-y-2">
-          {([0, 1, 2] as const).map((lvl) => (
-            <React.Fragment key={lvl}>
-              <CommitInput
-                value={shownScale.levelNames[lvl]}
-                disabled={!scaleEditable}
-                maxLength={30}
-                aria-label={
-                  ['Top level name', 'Middle level name', 'Bottom level name'][
-                    lvl
-                  ]
-                }
-                onCommit={(raw) => {
-                  const names = [...shownScale.levelNames] as [
-                    string,
-                    string,
-                    string,
-                  ];
-                  names[lvl] =
-                    raw.trim() || DEFAULT_PROFICIENCY_SCALE.levelNames[lvl];
-                  setCustom({ ...shownScale, levelNames: names }, 'Level name');
-                }}
-              />
-              <span className="text-[13px] text-slate-500">
-                {lvl < 2 ? 'at or above' : 'below'}
-              </span>
-              {lvl < 2 ? (
-                <PctInput
-                  value={
-                    lvl === 0 ? shownScale.proficient : shownScale.approaching
-                  }
-                  disabled={!scaleEditable && !sharedEditable}
-                  min={lvl === 0 ? 1 : 0}
-                  max={lvl === 0 ? 100 : 99}
-                  label={`${shownScale.levelNames[lvl]} cutoff`}
-                  onCommit={(raw) => {
-                    const next = { ...shownScale };
-                    if (lvl === 0)
-                      next.proficient = clampPct(Number(raw), 1, 100);
-                    else next.approaching = clampPct(Number(raw), 0, 99);
-                    if (next.approaching >= next.proficient)
-                      next.approaching = next.proficient - 1;
-                    setCutoffs(next, 'Cutoff');
-                  }}
-                />
-              ) : (
-                <span className="text-sm font-bold text-slate-700">
-                  {shownScale.approaching}%
-                </span>
-              )}
-            </React.Fragment>
-          ))}
-        </div>
+        <ScaleLevelsEditor
+          scale={shownScale}
+          editable={scaleEditable}
+          cutoffEditable={(i) =>
+            scaleEditable ||
+            (sharedEditable && i < Math.min(2, shownScale.levels.length - 1))
+          }
+          onCommit={(next, label, kind) =>
+            kind === 'cutoff' ? setCutoffs(next, label) : setCustom(next, label)
+          }
+        />
         <div className="flex items-center gap-3">
           <label
             htmlFor="gb-set-method"

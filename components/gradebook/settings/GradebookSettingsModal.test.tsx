@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { GradebookSettingsModalView } from './GradebookSettingsModal';
 import type { GradebookScaleOption } from '@/hooks/useGradebookSettings';
-import type { GradebookConfigRef } from '@/utils/gradebook/gradebookCore';
+import {
+  DEFAULT_PROFICIENCY_SCALE,
+  type GradebookConfigRef,
+} from '@/utils/gradebook/gradebookCore';
 import {
   defaultSettingsBody,
   resolveClassConfig,
@@ -28,11 +31,7 @@ const scaleOptions: GradebookScaleOption[] = [
   {
     value: 'district',
     label: 'Orono district scale',
-    scale: {
-      proficient: 80,
-      approaching: 60,
-      levelNames: ['Proficient', 'Approaching', 'Beginning'],
-    },
+    scale: DEFAULT_PROFICIENCY_SCALE,
   },
   { value: 'custom', label: 'Custom', scale: null },
 ];
@@ -189,6 +188,7 @@ describe('GradebookSettingsModalView', () => {
     expect(body.scale).toEqual({
       source: 'custom',
       scale: {
+        levels: DEFAULT_PROFICIENCY_SCALE.levels,
         proficient: 80,
         approaching: 60,
         levelNames: ['Proficient', 'Approaching', 'Beginning'],

@@ -37,7 +37,7 @@ export const GradebookAdminPanel: React.FC = () => {
   }
 
   return (
-    <div className="p-6 max-w-[760px] flex flex-col gap-4 pb-10">
+    <div className="p-6 pb-10 flex flex-col gap-4 max-w-[1120px]">
       <DistrictScaleCard
         title={scaleTitle}
         scale={admin.scale}

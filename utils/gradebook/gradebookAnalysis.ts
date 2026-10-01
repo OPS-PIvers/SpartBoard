@@ -1,6 +1,7 @@
 import {
   combineEvidence,
   evidenceForCell,
+  topCutoff,
   type FinalScore,
   type GradebookColumnConfig,
   type GradebookKind,
@@ -95,9 +96,7 @@ export function histogramBins(
   values: number[],
   scale: ProficiencyScale
 ): HistogramBin[] {
-  const edges = [
-    ...new Set([...BASE_EDGES, scale.approaching, scale.proficient]),
-  ]
+  const edges = [...new Set([...BASE_EDGES, ...scale.levels.map((l) => l.min)])]
     .filter((e) => e >= 0 && e < 100)
     .sort((a, b) => a - b);
   return edges.map((min, i) => {
@@ -370,7 +369,7 @@ export function explore(input: ExploreInput): ExploreRow[] {
     }
     const scored = values.filter((x): x is number => x !== null);
     const share = scored.length
-      ? (scored.filter((x) => x >= scale.proficient).length / scored.length) *
+      ? (scored.filter((x) => x >= topCutoff(scale)).length / scored.length) *
         100
       : 0;
     return {

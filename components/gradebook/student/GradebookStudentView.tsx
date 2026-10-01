@@ -283,14 +283,14 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
         <Kpi
           value={overall.pct === null ? '–' : `${overall.pct.toFixed(1)}%`}
           label={
-            level === null ? 'Overall' : `Overall · ${scale.levelNames[level]}`
+            level === null ? 'Overall' : `Overall · ${scale.levels[level].name}`
           }
         />
         <Kpi value={String(habits.missing)} label="Missing" />
         <Kpi value={String(habits.late)} label="Late" />
         <Kpi
           value={`${prof.proficient}/${prof.total}`}
-          label={`Targets ${scale.levelNames[0].toLowerCase()}`}
+          label={`Targets ${scale.levels[0].name.toLowerCase()}`}
         />
       </div>
 

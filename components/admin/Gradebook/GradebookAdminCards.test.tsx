@@ -7,6 +7,7 @@ import { DistrictScaleCard } from './DistrictScaleCard';
 import {
   DEFAULT_PROFICIENCY_SCALE,
   type GradingPeriod,
+  type ProficiencyScale,
 } from '@/utils/gradebook/gradebookCore';
 import { parseDistrictConfig } from '@/utils/gradebook/settingsConfig';
 import type { GradingPeriodSet } from '@/utils/gradebook/gradingPeriods';
@@ -175,7 +176,7 @@ describe('DistrictConfigsCard', () => {
 });
 
 describe('DistrictScaleCard', () => {
-  it('keeps the middle cutoff below the top one', () => {
+  const renderCard = () => {
     const h = handlers();
     render(
       <DistrictScaleCard
@@ -186,12 +187,45 @@ describe('DistrictScaleCard', () => {
         fail={h.fail}
       />
     );
+    const saved = () =>
+      (h.onSave.mock.calls.at(-1)?.[1] as ProficiencyScale).levels;
+    return { h, saved };
+  };
+
+  it('keeps the middle cutoff below the top one', () => {
+    const { saved } = renderCard();
     const top = screen.getByLabelText('Proficient cutoff');
     fireEvent.change(top, { target: { value: '50' } });
     fireEvent.blur(top);
-    expect(h.onSave).toHaveBeenCalledWith(
-      'scale',
-      expect.objectContaining({ proficient: 50, approaching: 49 })
+    expect(saved().map((l) => l.min)).toEqual([50, 49, 0]);
+  });
+
+  it('adds a bottom level by splitting the bottom range', () => {
+    const { saved } = renderCard();
+    fireEvent.click(screen.getByRole('button', { name: '+ Add level' }));
+    expect(saved().map((l) => [l.name, l.min])).toEqual([
+      ['Proficient', 80],
+      ['Approaching', 60],
+      ['Beginning', 30],
+      ['New level', 0],
+    ]);
+  });
+
+  it('removes a level and keeps a bottom at zero', () => {
+    const { saved } = renderCard();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Beginning' }));
+    expect(saved().map((l) => [l.name, l.min])).toEqual([
+      ['Proficient', 80],
+      ['Approaching', 0],
+    ]);
+  });
+
+  it('recolors a level', () => {
+    const { saved } = renderCard();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Proficient color: Green' })
     );
+    fireEvent.click(screen.getByRole('button', { name: 'Blue' }));
+    expect(saved()[0].color).toBe('blue');
   });
 });

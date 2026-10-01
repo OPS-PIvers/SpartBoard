@@ -1,45 +1,30 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import type { ProficiencyLevel } from '@/utils/gradebook/gradebookCore';
+import {
+  proficiencyLevel,
+  type ProficiencyScale,
+} from '@/utils/gradebook/gradebookCore';
+import { SCALE_COLOR_STYLES } from '@/utils/gradebook/scaleColors';
 import {
   formatDueDate,
-  levelForPct as levelOf,
   studentTargets,
   type StudentGradesData,
   type TargetEvidenceView,
   type TargetView,
 } from '@/utils/gradebook/studentGrades';
 
-type Cutoffs = StudentGradesData['cutoffs'];
-
-const LEVEL: Record<
-  ProficiencyLevel,
-  { bar: string; cell: string; text: string; hex: string }
-> = {
-  0: {
-    bar: 'bg-emerald-600',
-    cell: 'bg-emerald-100 text-emerald-800',
-    text: 'text-emerald-700',
-    hex: '#059669',
-  },
-  1: {
-    bar: 'bg-amber-600',
-    cell: 'bg-amber-100 text-amber-800',
-    text: 'text-amber-700',
-    hex: '#d97706',
-  },
-  2: {
-    bar: 'bg-brand-red-primary',
-    cell: 'bg-rose-100 text-rose-800',
-    text: 'text-rose-700',
-    hex: '#ad2122',
-  },
-};
+const styleAt = (scale: ProficiencyScale, level: number) =>
+  SCALE_COLOR_STYLES[
+    scale.levels[Math.min(level, scale.levels.length - 1)].color
+  ];
+const styleFor = (scale: ProficiencyScale, pct: number) =>
+  styleAt(scale, proficiencyLevel(pct, scale) ?? 0);
 
 const EvidenceChart: React.FC<{
   evidence: TargetEvidenceView[];
-  cutoffs: Cutoffs;
-}> = ({ evidence, cutoffs }) => {
+  scale: ProficiencyScale;
+}> = ({ evidence, scale }) => {
+  const cutoffs = scale.levels.slice(0, -1).map((l) => l.min);
   const [W, setW] = useState(420);
   const observe = useCallback((el: HTMLDivElement | null) => {
     if (!el) return;
@@ -72,7 +57,7 @@ const EvidenceChart: React.FC<{
         aria-label="Evidence over time"
         className="block"
       >
-        {[0, cutoffs.approaching, cutoffs.proficient, 100].map((v) => (
+        {[...new Set([0, ...cutoffs, 100])].map((v) => (
           <g key={v}>
             <line
               x1={L}
@@ -81,9 +66,7 @@ const EvidenceChart: React.FC<{
               y2={y(v)}
               stroke="#e2e8f0"
               strokeDasharray={
-                v === cutoffs.approaching || v === cutoffs.proficient
-                  ? '3 3'
-                  : undefined
+                v > 0 && v < 100 && cutoffs.includes(v) ? '3 3' : undefined
               }
             />
             <text
@@ -104,7 +87,7 @@ const EvidenceChart: React.FC<{
               cx={x(n)}
               cy={y(e.pct)}
               r={4.5}
-              fill={LEVEL[levelOf(e.pct, cutoffs)].hex}
+              fill={styleFor(scale, e.pct).hex}
               stroke="#fff"
               strokeWidth={1.5}
             >
@@ -140,7 +123,7 @@ const TargetRow: React.FC<{
   open: boolean;
   onToggle: () => void;
 }> = ({ target, data, open, onToggle }) => {
-  const style = LEVEL[target.level];
+  const style = styleAt(data.scale, target.level);
   const n = target.evidence.length;
   return (
     <li>
@@ -164,7 +147,7 @@ const TargetRow: React.FC<{
             <span
               key={`${e.sessionId}-${i}`}
               title={`${e.title}: ${Math.round(e.pct)}%`}
-              className={`grid h-7 w-9 place-items-center rounded text-xs font-semibold tabular-nums ${LEVEL[levelOf(e.pct, data.cutoffs)].cell}`}
+              className={`grid h-7 w-9 place-items-center rounded text-xs font-semibold tabular-nums ${styleFor(data.scale, e.pct).cell}`}
             >
               {Math.round(e.pct)}
             </span>
@@ -175,7 +158,7 @@ const TargetRow: React.FC<{
             {Math.round(target.pct)}%
           </span>
           <span className={`text-xs font-semibold ${style.text}`}>
-            {data.levelNames[target.level]}
+            {data.scale.levels[target.level]?.name}
           </span>
         </span>
         <ChevronDown
@@ -185,7 +168,7 @@ const TargetRow: React.FC<{
       </button>
       {open && (
         <div className="border-t border-slate-100 px-5 py-4">
-          <EvidenceChart evidence={target.evidence} cutoffs={data.cutoffs} />
+          <EvidenceChart evidence={target.evidence} scale={data.scale} />
           <table className="mt-2 w-full text-sm">
             <tbody>
               {target.evidence.map((e, i) => (
@@ -198,7 +181,7 @@ const TargetRow: React.FC<{
                     {formatDueDate(e.at)}
                   </td>
                   <td
-                    className={`w-16 py-1.5 text-right font-semibold tabular-nums ${LEVEL[levelOf(e.pct, data.cutoffs)].text}`}
+                    className={`w-16 py-1.5 text-right font-semibold tabular-nums ${styleFor(data.scale, e.pct).text}`}
                   >
                     {Math.round(e.pct)}%
                   </td>
@@ -219,8 +202,9 @@ export const StudentTargetsView: React.FC<{ data: StudentGradesData }> = ({
   const [openId, setOpenId] = useState<string | null>(
     targets[0]?.targetId ?? null
   );
-  const counts: [number, number, number] = [0, 0, 0];
-  for (const t of targets) counts[t.level]++;
+  const levels = data.scale.levels;
+  const counts = levels.map(() => 0);
+  for (const t of targets) counts[Math.min(t.level, levels.length - 1)]++;
   if (targets.length === 0) {
     return (
       <div className="py-12 text-center text-sm text-slate-500">
@@ -235,21 +219,23 @@ export const StudentTargetsView: React.FC<{ data: StudentGradesData }> = ({
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2 px-1">
         <div className="flex h-3 gap-0.5 overflow-hidden rounded-full">
-          {([0, 1, 2] as const).map((lvl) =>
+          {levels.map((_, lvl) =>
             counts[lvl] ? (
               <span
                 key={lvl}
-                className={LEVEL[lvl].bar}
+                className={styleAt(data.scale, lvl).bar}
                 style={{ flex: counts[lvl] }}
               />
             ) : null
           )}
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-700">
-          {([0, 1, 2] as const).map((lvl) => (
+          {levels.map((l, lvl) => (
             <span key={lvl}>
-              <b className={`tabular-nums ${LEVEL[lvl].text}`}>{counts[lvl]}</b>{' '}
-              {data.levelNames[lvl]}
+              <b className={`tabular-nums ${styleAt(data.scale, lvl).text}`}>
+                {counts[lvl]}
+              </b>{' '}
+              {l.name}
             </span>
           ))}
         </div>

@@ -13,9 +13,11 @@ import { Btn } from '@/components/admin/Organization/components/primitives';
 import { GradebookSettingsEditor } from '@/components/gradebook/settings/GradebookSettingsEditor';
 import { ChecklistSelect } from '@/components/gradebook/settings/ChecklistSelect';
 import { useUndoToast } from '@/components/gradebook/settings/useUndoToast';
-import type {
-  GradebookSettingsBody,
-  ProficiencyScale,
+import {
+  resolveScale,
+  storedScale,
+  type GradebookSettingsBody,
+  type ProficiencyScale,
 } from '@/utils/gradebook/gradebookCore';
 import {
   applyToastText,
@@ -124,7 +126,7 @@ export const PlcGradebookSectionView: React.FC<
     {
       value: plcScaleValue,
       label: `${plcName} scale`,
-      scale: cutoffs ? { ...districtScale, ...cutoffs } : districtScale,
+      scale: resolveScale({ source: 'plc', plcId }, districtScale, cutoffs),
     },
     { value: 'custom', label: 'Custom', scale: null },
   ];
@@ -202,11 +204,8 @@ export const PlcGradebookSectionView: React.FC<
             sharedScaleEdit={{
               value: plcScaleValue,
               onCommit: (scale) => {
-                const prev = cutoffs ?? {
-                  proficient: districtScale.proficient,
-                  approaching: districtScale.approaching,
-                };
-                saveCutoffs(scale).catch(fail);
+                const prev = cutoffs ?? storedScale(districtScale);
+                saveCutoffs(storedScale(scale)).catch(fail);
                 notify('Changed the PLC cutoffs', {
                   run: () => saveCutoffs(prev),
                 });
