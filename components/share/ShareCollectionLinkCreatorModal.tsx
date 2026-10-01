@@ -15,7 +15,7 @@ import {
   Check,
   Trash2,
 } from 'lucide-react';
-import type { Collection, Dashboard, SubstituteShareRoster } from '@/types';
+import type { Collection, Dashboard } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { usePresetSubEmails } from '@/hooks/usePresetSubEmails';
@@ -24,6 +24,7 @@ import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
 import { logError } from '@/utils/logError';
 import {
   collectShareRosterIds,
+  shareRosterEntries,
   flattenSharedCollection,
 } from '@/utils/subShareSnapshot';
 
@@ -171,15 +172,13 @@ export const ShareCollectionLinkCreatorModal: FC<
             tree.orderedBoards,
             activeRosterId
           );
-          const sharedRosters: SubstituteShareRoster[] =
+          const sharedRosters =
             subEmails.length > 0
-              ? rosters
-                  .filter((r) => rosterIds.includes(r.id) && r.driveFileId)
-                  .map((r) => ({
-                    id: r.id,
-                    name: r.name,
-                    driveFileId: r.driveFileId as string,
-                  }))
+              ? shareRosterEntries(
+                  rosters,
+                  rosterIds,
+                  canAccessFeature('group-reminders')
+                )
               : [];
           const defaultBoardId =
             collection.defaultBoardId ?? tree.boards[0]?.id;
@@ -247,6 +246,7 @@ export const ShareCollectionLinkCreatorModal: FC<
     subEmails,
     rosters,
     activeRosterId,
+    canAccessFeature,
     subTree,
     collection,
     boards,

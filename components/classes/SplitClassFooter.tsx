@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Shuffle } from 'lucide-react';
+import { Plus, Printer, Shuffle } from 'lucide-react';
 import type { RosterGroup, Student } from '@/types';
 import { makeRestrictedGroupsByCount } from '@/components/widgets/random/groupMaker';
 
@@ -9,6 +9,8 @@ interface SplitClassFooterProps {
   onAddGroups: (groups: RosterGroup[]) => void;
   /** Omitted while the empty state already carries the New group button. */
   onNewGroup?: () => void;
+  /** Shown once a group has a reminder schedule to print. */
+  onPrint?: () => void;
 }
 
 /** Sticky footer of the Groups tab: New group, and Split class into N groups. */
@@ -16,6 +18,7 @@ export const SplitClassFooter: React.FC<SplitClassFooterProps> = ({
   students,
   onAddGroups,
   onNewGroup,
+  onPrint,
 }) => {
   const { t } = useTranslation();
   const [splitOpen, setSplitOpen] = useState(false);
@@ -119,6 +122,17 @@ export const SplitClassFooter: React.FC<SplitClassFooterProps> = ({
               defaultValue: 'Split class',
             })}
           </button>
+          {onPrint && (
+            <button
+              onClick={onPrint}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors"
+            >
+              <Printer size={16} />
+              {t('groupReminders.printSchedule', {
+                defaultValue: 'Print schedule',
+              })}
+            </button>
+          )}
         </div>
       )}
     </div>

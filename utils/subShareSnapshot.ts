@@ -8,11 +8,14 @@
  */
 
 import type {
+  ClassRoster,
   Collection,
   Dashboard,
   SharedCollectionBoardEntry,
   SharedCollectionSection,
+  SubstituteShareRoster,
 } from '@/types';
+import { hasScheduledReminders } from './groupReminders';
 
 /** Widget-config keys holding remembered roster picks, e.g. `lastRosterIdsByQuizId`. */
 const REMEMBERED_ROSTER_KEY = /^lastRosterIdsBy/;
@@ -108,6 +111,29 @@ export function collectShareRosterIds(
     }
   }
   return [...ids];
+}
+
+/**
+ * The share's roster entries: the ids the boards read, plus every class with a
+ * pull-out reminder when `withReminders`, so the sub's board still fires them.
+ */
+export function shareRosterEntries(
+  rosters: ClassRoster[],
+  rosterIds: string[],
+  withReminders: boolean
+): SubstituteShareRoster[] {
+  return rosters
+    .filter(
+      (r) =>
+        r.driveFileId &&
+        (rosterIds.includes(r.id) ||
+          (withReminders && hasScheduledReminders(r)))
+    )
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      driveFileId: r.driveFileId as string,
+    }));
 }
 
 /** Walk order position of `boardId`, or -1. Used by /subs prev/next. */
