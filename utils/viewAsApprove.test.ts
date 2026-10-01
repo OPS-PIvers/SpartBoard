@@ -118,6 +118,16 @@ describe('approveViewAsChange', () => {
     });
   });
 
+  it('keeps PII their stored config still holds', async () => {
+    stored = { widgets: [{ id: 'w1', config: { a: 9, roster: ['Ada'] } }] };
+    await approveViewAsChange(change());
+    const [, payload] = txUpdate.mock.calls[0] as [
+      unknown,
+      { widgets: Record<string, unknown>[] },
+    ];
+    expect(payload.widgets[0].config).toEqual({ a: 2, roster: ['Ada'] });
+  });
+
   it('is stale and writes nothing when the widget is gone', async () => {
     stored = { widgets: [{ id: 'w0' }] };
     await expect(approveViewAsChange(change())).resolves.toBe('stale');

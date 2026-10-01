@@ -9,6 +9,7 @@ import {
 import { auth, db } from '@/config/firebase';
 import type { ViewAsAuditAction, ViewAsClaim } from '@/types/viewAs';
 import type { PendingChange } from '@/utils/viewAsBoards';
+import { PII_WIDGET_FIELDS } from '@/utils/dashboardPII';
 
 type FieldMap = Record<string, unknown>;
 
@@ -95,6 +96,17 @@ export async function approveViewAsChange(
     if (change.kind === 'layout') {
       for (const f of ['x', 'y', 'w', 'h'] as const) next[f] = change.widget[f];
     } else {
+      // Their stored config should hold no PII, but never drop any it does hold.
+      const currentConfig = current.config as FieldMap | undefined;
+      if (next.config && currentConfig) {
+        const kept: FieldMap = { ...(next.config as FieldMap) };
+        for (const f of [...PII_WIDGET_FIELDS, 'assignments']) {
+          if (currentConfig[f] !== undefined && kept[f] === undefined) {
+            kept[f] = currentConfig[f];
+          }
+        }
+        next.config = kept;
+      }
       const version = typeof current.version === 'number' ? current.version : 1;
       next.version = version + 1;
     }
