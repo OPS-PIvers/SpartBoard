@@ -8,6 +8,7 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 import type { ActivityWallComment, ActivityWallLike } from '@/types';
 
 export interface LikeInfo {
@@ -142,7 +143,7 @@ export const useWallEngagement = (
 
   const toggleLike = useCallback(
     async (submissionId: string) => {
-      if (!sessionId || !viewerUid) return;
+      if (!sessionId || !viewerUid || studentPreviewBlocksWrite()) return;
       const likeDocId = `${submissionId}__${viewerUid}`;
       const likeRef = doc(
         db,
@@ -167,7 +168,7 @@ export const useWallEngagement = (
 
   const postComment = useCallback(
     async (input: PostCommentInput) => {
-      if (!sessionId || !viewerUid) return;
+      if (!sessionId || !viewerUid || studentPreviewBlocksWrite()) return;
       const commentId = crypto.randomUUID();
       await setDoc(
         doc(db, 'activity_wall_sessions', sessionId, 'comments', commentId),

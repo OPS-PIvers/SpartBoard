@@ -15,6 +15,7 @@ export const MAX_REASON_LENGTH = 500;
 
 export type ViewAsServerAuditAction =
   | 'view_as_start'
+  | 'view_as_student'
   | 'view_as_renew'
   | 'view_as_unlock'
   | 'view_as_end';

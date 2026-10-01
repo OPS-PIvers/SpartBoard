@@ -176,6 +176,7 @@ export { resetOrganizationUserPassword } from './organizationResetPassword';
 export { deleteOrganizationUser } from './organizationUserDelete';
 export { startViewAsSessionV1, updateViewAsSessionV1 } from './viewAs';
 export { revertViewAsChangeV1 } from './viewAsRevert';
+export { startViewAsStudentV1 } from './viewAsStudent';
 export { getViewAsDriveTokenV1 } from './viewAsDrive';
 export { getOrgUserActivity } from './organizationUserActivity';
 export { plcInvitationEmail } from './plcInviteEmails';

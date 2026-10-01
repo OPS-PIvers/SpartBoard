@@ -29,6 +29,10 @@ import { useDialog } from '@/context/useDialog';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import {
+  getStudentPreview,
+  studentPreviewBlocksWrite,
+} from '@/utils/viewAsTab';
 import { useVideoActivitySessionStudent } from '@/hooks/useVideoActivitySession';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
@@ -253,6 +257,12 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 }) => {
   // Extract sessionId from /activity/:sessionId
   const sessionId = window.location.pathname.replace(/^\/activity\/?/, '');
+  // View as student (ADMIN_VIEW_AS.md D15): show an existing response, never join.
+  const preview = getStudentPreview();
+  const previewKey =
+    preview?.kind === 'video-activity' && preview.sessionId === sessionId
+      ? preview.studentKey
+      : null;
 
   const [pin, setPin] = useState('');
   const [activeQuestion, setActiveQuestion] =
@@ -270,6 +280,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     error,
     lookupSession,
     joinSession,
+    previewResponse,
     submitAnswer,
     checkAnswer,
     completeActivity,
@@ -362,6 +373,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const wroteViewRef = useRef<string | null>(null);
   useEffect(() => {
     if (!isViewOnly || !session?.id || !authedUid) return;
+    if (studentPreviewBlocksWrite()) return;
     if (wroteViewRef.current === session.id) return;
     wroteViewRef.current = session.id;
     const sessionId = session.id;
@@ -389,7 +401,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   // PIN joiners learn up front whether the teacher allows no-sign-in joins.
   const [anonGate, setAnonGate] = useState<'pending' | 'blocked' | 'open'>(
     () =>
-      isStudentRole || !sessionId || sessionId.includes('/')
+      isStudentRole || previewKey || !sessionId || sessionId.includes('/')
         ? 'open'
         : 'pending'
   );
@@ -431,7 +443,11 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   }
 
   useEffect(() => {
-    if (!isStudentRole || !sessionId) return;
+    if (previewKey) void previewResponse(sessionId, previewKey);
+  }, [previewKey, sessionId, previewResponse]);
+
+  useEffect(() => {
+    if (!isStudentRole || !sessionId || previewKey) return;
     if (ssoAutoJoinStartedRef.current) return;
     if (joinStatus === 'joined' || joinStatus === 'loading') return;
     // Wait for the pointer to resolve, and never join for a skipped student.
@@ -464,6 +480,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     joinSession,
     joinStatus,
     pointer,
+    previewKey,
   ]);
 
   // Track answered question IDs for anti-skip enforcement in VideoPlayer

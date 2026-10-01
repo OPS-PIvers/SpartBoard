@@ -10,6 +10,7 @@ import {
   type GuidedLearningProgress,
 } from '@/components/widgets/GuidedLearning/utils/progress';
 import { logError } from '@/utils/logError';
+import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 
 /** At most one write per this interval, plus a flush when the page hides. */
 export const PROGRESS_WRITE_INTERVAL_MS = 10_000;
@@ -93,6 +94,7 @@ export function useGuidedLearningProgress({
         timerRef.current = null;
       }
       if (!loadedRef.current || !dirtyRef.current || pausedRef.current) return;
+      if (studentPreviewBlocksWrite()) return;
       dirtyRef.current = false;
       lastWriteRef.current = Date.now();
       const creating = !existsRef.current;

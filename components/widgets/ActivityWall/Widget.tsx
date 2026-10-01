@@ -853,6 +853,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           onDelete={(id) => void deletePost(id)}
           onPin={(id, pinned) => void pinPost(id, pinned)}
           onEdit={(id, changes) => void editPost(id, changes)}
+          sessionId={sessionId}
         />
       )}
 
