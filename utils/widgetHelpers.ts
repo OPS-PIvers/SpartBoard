@@ -62,6 +62,7 @@ export const getTitle = (
       : 'Review';
   }
   if (widget.type === 'starter-pack') return 'Starter Pack';
+  if (widget.type === 'routineGuide') return 'Routine Guide';
   return widget.type.charAt(0).toUpperCase() + widget.type.slice(1);
 };
 

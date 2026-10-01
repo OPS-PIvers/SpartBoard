@@ -990,6 +990,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: true,
   },
+  'routine-guide': {
+    label: 'Routine Guide widget',
+    icon: ListChecks,
+    description: 'Step-by-step instructional routines on the board.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'routineGuide',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Admin-only until saved, like the per-building toggle it replaced (default off).
   'blooms-ai': {
     label: "Bloom's Taxonomy: AI",
@@ -1057,6 +1068,7 @@ export const WIDGET_DEFAULT_ACCESS_LEVEL: Partial<
   // D46 — off the teacher dock until an admin opens it.
   projects: 'admin',
   review: 'admin',
+  routineGuide: 'admin',
 };
 
 export const getWidgetDefaultAccessLevel = (

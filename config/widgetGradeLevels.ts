@@ -80,6 +80,7 @@ export const WIDGET_GRADE_LEVELS: Record<
   pdf: ALL_GRADE_LEVELS,
   quiz: ALL_GRADE_LEVELS,
   review: ALL_GRADE_LEVELS,
+  routineGuide: ALL_GRADE_LEVELS,
   'talking-tool': ALL_GRADE_LEVELS,
   breathing: ALL_GRADE_LEVELS,
   record: ALL_GRADE_LEVELS,
