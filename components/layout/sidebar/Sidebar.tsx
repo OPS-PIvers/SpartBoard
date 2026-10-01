@@ -33,6 +33,7 @@ import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBounda
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
 import { DevSyncFromProdButton } from './DevSyncFromProdButton';
+import { DevGradebookDemoButton } from './DevGradebookDemoButton';
 import { useAuth } from '@/context/useAuth';
 import { ShortLinkQuickCreate } from '@/components/admin/ShortLinkQuickCreate';
 import { WhatsNewModal } from '@/components/layout/WhatsNewModal';
@@ -880,7 +881,10 @@ export const Sidebar: React.FC = () => {
                 <span className="text-xxs font-bold text-slate-400 uppercase tracking-[0.2em]">
                   v2.0.4-stable
                 </span>
-                <DevSyncFromProdButton />
+                <div className="flex items-center gap-3">
+                  <DevGradebookDemoButton />
+                  <DevSyncFromProdButton />
+                </div>
               </div>
             </footer>
           </div>
