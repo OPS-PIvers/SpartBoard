@@ -1,93 +1,113 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
+import { AlarmClock, X } from 'lucide-react';
 import type { RosterGroupSymbol } from '@/types';
 import { GroupSymbol } from './GroupSymbol';
 
 interface GroupReminderCardProps {
   symbol?: RosterGroupSymbol;
-  time: string;
-  /** Group name and/or student names, when the teacher opted in. */
-  detail?: string;
+  /** Each line is opt-in; with none the card is a square holding the icon. */
+  message?: string;
+  name?: string;
+  time?: string;
+  snoozeMinutes?: number;
   snoozedUntil?: string;
   onSnooze?: () => void;
   onDismiss?: () => void;
 }
 
-/** The projected reminder; identical styling whatever the group's symbol. */
+/** The projected reminder: the icon first, controls kept small. */
 export const GroupReminderCard: React.FC<GroupReminderCardProps> = ({
   symbol,
+  message,
+  name,
   time,
-  detail,
+  snoozeMinutes = 3,
   snoozedUntil,
   onSnooze,
   onDismiss,
 }) => {
   const { t } = useTranslation();
   const snoozed = snoozedUntil !== undefined;
-  const subtitle = snoozed
-    ? t('groupReminders.snoozedUntil', {
-        defaultValue: 'Snoozed until {{time}}',
-        time: snoozedUntil,
-      })
-    : (detail ?? t('groupReminders.timeToGo', { defaultValue: 'Time to go' }));
+  const lines = [message, name, time].filter((l): l is string => !!l);
+  const iconOnly = lines.length === 0;
+  const snoozeLabel = t('groupReminders.snoozeFor', {
+    defaultValue: 'Snooze {{count}} min',
+    count: snoozeMinutes,
+  });
   const dismissLabel = t('groupReminders.dismiss', {
     defaultValue: 'Dismiss',
   });
+  const control =
+    'p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors';
 
   return (
     <div
       role={snoozed ? undefined : 'alert'}
-      className={`w-[340px] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 p-4 flex flex-col gap-3 transition-opacity duration-500 ${
+      className={`relative rounded-2xl border border-slate-200 transition-opacity duration-500 ${
         snoozed
           ? 'bg-white/80 backdrop-blur shadow-lg opacity-60'
           : 'bg-white shadow-2xl'
+      } ${
+        iconOnly
+          ? 'w-40 h-40 flex flex-col items-center justify-center'
+          : 'w-max min-w-56 max-w-[min(360px,calc(100vw-2rem))] flex items-center gap-4 py-4 pl-4 pr-14'
       }`}
     >
-      <div className="flex items-center gap-4">
-        <GroupSymbol
-          symbol={symbol}
-          className="w-14 h-14 shrink-0"
-          emojiClassName="text-5xl"
-        />
+      <GroupSymbol
+        symbol={symbol}
+        className={iconOnly ? 'w-24 h-24' : 'w-16 h-16'}
+      />
+      {!iconOnly && (
         <div className="flex-1 min-w-0">
-          <div className="text-2xl font-black text-slate-800 leading-none">
-            {time}
-          </div>
-          <div className="text-sm font-semibold text-slate-500 mt-1 truncate">
-            {subtitle}
-          </div>
+          {lines.map((line, i) => (
+            <div
+              key={i}
+              className={
+                i === 0
+                  ? 'text-2xl font-black text-slate-800 leading-tight truncate'
+                  : 'text-base font-semibold text-slate-500 truncate'
+              }
+            >
+              {line}
+            </div>
+          ))}
         </div>
-        {snoozed && onDismiss && (
+      )}
+      {snoozed && (
+        <div
+          className={`flex items-center gap-1 text-xs font-semibold text-slate-500 ${
+            iconOnly ? 'absolute bottom-2' : 'absolute bottom-2 right-3'
+          }`}
+        >
+          <AlarmClock size={12} aria-hidden="true" />
+          {snoozedUntil}
+        </div>
+      )}
+      <div className="absolute top-2 right-2 flex">
+        {!snoozed && onSnooze && (
+          <button
+            type="button"
+            onClick={onSnooze}
+            aria-label={snoozeLabel}
+            title={snoozeLabel}
+            className={control}
+          >
+            <AlarmClock size={16} />
+          </button>
+        )}
+        {onDismiss && (
           <button
             type="button"
             onClick={onDismiss}
             aria-label={dismissLabel}
             title={dismissLabel}
-            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+            className={control}
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         )}
       </div>
-      {!snoozed && (onSnooze ?? onDismiss) && (
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onSnooze}
-            className="flex-1 px-3 py-2 text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-          >
-            {t('groupReminders.snooze', { defaultValue: 'Snooze 3 min' })}
-          </button>
-          <button
-            type="button"
-            onClick={onDismiss}
-            className="flex-1 px-3 py-2 text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark rounded-lg transition-colors"
-          >
-            {dismissLabel}
-          </button>
-        </div>
-      )}
     </div>
   );
 };

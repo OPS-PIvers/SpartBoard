@@ -1,15 +1,15 @@
 import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import type { ClassRoster } from '@/types';
 import { Z_INDEX } from '@/config/zIndex';
 import {
   DueReminder,
-  SNOOZE_MS,
   dueReminders,
   formatReminderTime,
   toLocalDateKey,
 } from '@/utils/groupReminders';
-import { playTimerAlert, resumeAudio } from '@/utils/timeToolAudio';
+import { playReminderSound } from '@/utils/reminderSounds';
 import { GroupReminderCard } from './GroupReminderCard';
 
 const TICK_MS = 10_000;
@@ -47,23 +47,10 @@ function rememberDismissed(key: string) {
   }
 }
 
-function playReminderSound(sound: DueReminder['group']['reminder']) {
-  if (!sound || sound.sound === 'off') return;
-  void resumeAudio()
-    .catch(() => undefined)
-    .then(() => playTimerAlert(sound.sound === 'alarm' ? 'Alert' : 'Chime'));
-}
+const playFor = (r: DueReminder) =>
+  playReminderSound(r.group.reminder?.sound ?? 'off');
 
-const snoozeDeadline = () => Date.now() + SNOOZE_MS;
-
-function cardDetail(r: DueReminder): string | undefined {
-  const parts: string[] = [];
-  if (r.group.symbol?.showName && r.group.name.trim())
-    parts.push(r.group.name.trim());
-  if (r.group.reminder?.showStudentNames && r.studentNames.length > 0)
-    parts.push(r.studentNames.join(', '));
-  return parts.length > 0 ? parts.join(' · ') : undefined;
-}
+const snoozeDeadline = (minutes: number) => Date.now() + minutes * 60_000;
 
 /**
  * Bottom-right stack of pull-out reminders for the teacher's class groups.
@@ -72,6 +59,10 @@ function cardDetail(r: DueReminder): string | undefined {
 export const GroupReminderLayer: React.FC<{ rosters: ClassRoster[] }> = ({
   rosters,
 }) => {
+  const { t } = useTranslation();
+  const defaultMessage = t('groupReminders.defaultMessage', {
+    defaultValue: 'Time to go',
+  });
   const [shown, setShown] = useState<ShownReminder[]>([]);
   const handledRef = useRef(new Set<string>());
 
@@ -83,12 +74,12 @@ export const GroupReminderLayer: React.FC<{ rosters: ClassRoster[] }> = ({
     );
     fresh.forEach((r) => {
       handledRef.current.add(r.key);
-      playReminderSound(r.group.reminder);
+      playFor(r);
     });
     const expired = shown.filter(
       (r) => r.snoozedUntil !== undefined && r.snoozedUntil <= now
     );
-    expired.forEach((r) => playReminderSound(r.group.reminder));
+    expired.forEach(playFor);
     if (fresh.length === 0 && expired.length === 0) return;
     const expiredKeys = new Set(expired.map((r) => r.key));
     setShown((prev) => [
@@ -133,8 +124,8 @@ export const GroupReminderLayer: React.FC<{ rosters: ClassRoster[] }> = ({
     );
   };
 
-  const snooze = (key: string) => {
-    const until = snoozeDeadline();
+  const snooze = (key: string, minutes: number) => {
+    const until = snoozeDeadline(minutes);
     setShown((prev) =>
       prev.map((r) => (r.key === key ? { ...r, snoozedUntil: until } : r))
     );
@@ -148,32 +139,50 @@ export const GroupReminderLayer: React.FC<{ rosters: ClassRoster[] }> = ({
       style={{ zIndex: Z_INDEX.groupReminder }}
       data-testid="group-reminder-layer"
     >
-      {shown.map((r) => (
-        <div
-          key={r.key}
-          className={`pointer-events-auto ${
-            r.leaving
-              ? 'animate-out slide-out-to-right-full fade-out duration-500 fill-mode-forwards'
-              : 'animate-in slide-in-from-bottom-full fade-in duration-1000 ease-out'
-          } motion-reduce:animate-none`}
-        >
-          <GroupReminderCard
-            symbol={r.group.symbol}
-            time={formatReminderTime(r.group.reminder?.time ?? '00:00')}
-            detail={cardDetail(r)}
-            snoozedUntil={
-              r.snoozedUntil !== undefined
-                ? new Date(r.snoozedUntil).toLocaleTimeString(undefined, {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                  })
-                : undefined
-            }
-            onSnooze={() => snooze(r.key)}
-            onDismiss={() => dismiss(r.key)}
-          />
-        </div>
-      ))}
+      {shown.map((r) => {
+        const reminder = r.group.reminder;
+        const snoozeMinutes = reminder?.snoozeMinutes ?? 3;
+        return (
+          <div
+            key={r.key}
+            className={`pointer-events-auto ${
+              r.leaving
+                ? 'animate-out slide-out-to-right-full fade-out duration-500 fill-mode-forwards'
+                : 'animate-in slide-in-from-bottom-full fade-in duration-1000 ease-out'
+            } motion-reduce:animate-none`}
+          >
+            <GroupReminderCard
+              symbol={r.group.symbol}
+              message={
+                reminder?.showMessage
+                  ? reminder.message.trim() || defaultMessage
+                  : undefined
+              }
+              name={
+                reminder?.showName && r.group.name.trim()
+                  ? r.group.name.trim()
+                  : undefined
+              }
+              time={
+                reminder?.showTime
+                  ? formatReminderTime(reminder.time)
+                  : undefined
+              }
+              snoozeMinutes={snoozeMinutes}
+              snoozedUntil={
+                r.snoozedUntil !== undefined
+                  ? new Date(r.snoozedUntil).toLocaleTimeString(undefined, {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    })
+                  : undefined
+              }
+              onSnooze={() => snooze(r.key, snoozeMinutes)}
+              onDismiss={() => dismiss(r.key)}
+            />
+          </div>
+        );
+      })}
     </div>,
     document.body
   );

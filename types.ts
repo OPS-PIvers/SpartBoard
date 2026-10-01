@@ -242,25 +242,19 @@ export interface RosterGroup {
   reminder?: RosterGroupReminder;
 }
 
-export type RosterGroupShape =
-  | 'star'
-  | 'circle'
-  | 'square'
-  | 'triangle'
-  | 'heart'
-  | 'diamond'
-  | 'hexagon'
-  | 'moon';
-
 export interface RosterGroupSymbol {
-  kind: 'shape' | 'emoji';
-  shape?: RosterGroupShape;
-  emoji?: string;
-  /** Hex colour for a shape. */
+  /** Id from the kid-friendly icon set in components/groupReminders/groupIcons. */
+  icon: string;
+  /** Hex colour of the icon. */
   color: string;
-  /** Group name on the reminder card; off by default because it is projected. */
-  showName: boolean;
 }
+
+export type RosterGroupReminderSound =
+  | 'off'
+  | 'chime'
+  | 'bell'
+  | 'marimba'
+  | 'harp';
 
 export interface RosterGroupReminder {
   enabled: boolean;
@@ -268,12 +262,18 @@ export interface RosterGroupReminder {
   days: number[];
   /** 24-hour "HH:mm" in the teacher's local time. */
   time: string;
+  /** Minutes before `time` that the card appears. */
+  leadMinutes: number;
   repeat: 'weekly' | 'biweekly';
   /** "YYYY-MM-DD"; the week it falls in is an on-week for `biweekly`. */
   startDate: string;
-  sound: 'off' | 'chime' | 'alarm';
-  /** Student first names on the card; off by default because it is projected. */
-  showStudentNames: boolean;
+  sound: RosterGroupReminderSound;
+  snoozeMinutes: number;
+  /** Card extras; all off by default so the projected card is icon-only. */
+  showName: boolean;
+  showTime: boolean;
+  showMessage: boolean;
+  message: string;
 }
 
 // `StudentOverride` (M17 spec §2a) is defined below alongside `RubricSnapshot`

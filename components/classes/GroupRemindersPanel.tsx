@@ -1,29 +1,27 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, Plus, X } from 'lucide-react';
+import { Check, Play, Plus, Search, X } from 'lucide-react';
 import type {
   RosterGroup,
   RosterGroupReminder,
   RosterGroupSymbol,
   Student,
 } from '@/types';
-import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Toggle } from '@/components/common/Toggle';
-import {
-  GroupShape,
-  GroupSymbol,
-} from '@/components/groupReminders/GroupSymbol';
+import { GroupSymbol } from '@/components/groupReminders/GroupSymbol';
+import { searchGroupIcons } from '@/components/groupReminders/groupIcons';
 import { GroupReminderCard } from '@/components/groupReminders/GroupReminderCard';
 import {
   GROUP_COLORS,
-  GROUP_EMOJIS,
-  GROUP_SHAPES,
+  LEAD_OPTIONS,
+  REMINDER_SOUNDS,
+  SNOOZE_OPTIONS,
   defaultGroupReminder,
   defaultGroupSymbol,
   formatReminderSummary,
   formatReminderTime,
 } from '@/utils/groupReminders';
-import { playTimerAlert, resumeAudio } from '@/utils/timeToolAudio';
+import { playReminderSound } from '@/utils/reminderSounds';
 import { SplitClassFooter } from './SplitClassFooter';
 
 interface GroupRemindersPanelProps {
@@ -71,7 +69,7 @@ export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
     setDraft({
       ...group,
       symbol: group.symbol ?? defaultGroupSymbol(),
-      reminder: group.reminder ?? { ...defaultGroupReminder(), enabled: false },
+      reminder: group.reminder ?? defaultGroupReminder(),
     });
   };
 
@@ -250,16 +248,6 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
       reminder: { ...(g.reminder ?? defaultGroupReminder()), ...patch },
     }));
 
-  const members = new Set(group.studentIds);
-  const memberNames = students
-    .filter((s) => members.has(s.id))
-    .map((s) => s.firstName.trim())
-    .filter(Boolean);
-  const detailParts = [
-    symbol.showName && group.name.trim() ? group.name.trim() : '',
-    reminder.showStudentNames ? memberNames.join(', ') : '',
-  ].filter(Boolean);
-
   const stepLabels = [
     t('groupReminders.stepStudents', { defaultValue: 'Students' }),
     t('groupReminders.stepSymbol', { defaultValue: 'Symbol' }),
@@ -273,8 +261,19 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
     <div className="hidden lg:flex w-[360px] shrink-0 border-l border-slate-200 bg-slate-100 rounded-r-xl items-end justify-end p-5">
       <GroupReminderCard
         symbol={symbol}
-        time={formatReminderTime(reminder.time)}
-        detail={detailParts.length > 0 ? detailParts.join(' · ') : undefined}
+        message={
+          reminder.showMessage
+            ? reminder.message.trim() ||
+              t('groupReminders.defaultMessage', { defaultValue: 'Time to go' })
+            : undefined
+        }
+        name={
+          reminder.showName && group.name.trim() ? group.name.trim() : undefined
+        }
+        time={reminder.showTime ? formatReminderTime(reminder.time) : undefined}
+        snoozeMinutes={reminder.snoozeMinutes}
+        onSnooze={() => undefined}
+        onDismiss={() => undefined}
       />
     </div>
   );
@@ -330,226 +329,25 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
             />
           )}
           {STEPS[step] === 'symbol' && (
-            <div className="p-6 flex flex-col gap-6">
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-bold text-slate-600">
-                  {t('groupReminders.symbol', { defaultValue: 'Symbol' })}
-                </span>
-                <div className="self-start">
-                  <SegmentedControl
-                    role="radiogroup"
-                    value={symbol.kind}
-                    onChange={(kind) =>
-                      setSymbol(
-                        kind === 'emoji'
-                          ? { kind, emoji: symbol.emoji ?? GROUP_EMOJIS[0] }
-                          : { kind, shape: symbol.shape ?? 'star' }
-                      )
-                    }
-                    options={[
-                      {
-                        value: 'shape',
-                        label: t('groupReminders.shape', {
-                          defaultValue: 'Shape',
-                        }),
-                      },
-                      {
-                        value: 'emoji',
-                        label: t('groupReminders.emoji', {
-                          defaultValue: 'Emoji',
-                        }),
-                      },
-                    ]}
-                  />
-                </div>
-                {symbol.kind === 'shape' ? (
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {GROUP_SHAPES.map((shape) => (
-                      <button
-                        key={shape}
-                        type="button"
-                        aria-label={shape}
-                        aria-pressed={symbol.shape === shape}
-                        onClick={() => setSymbol({ shape })}
-                        className={`w-12 h-12 rounded-lg flex items-center justify-center transition-colors ${
-                          symbol.shape === shape
-                            ? 'ring-2 ring-brand-blue-primary'
-                            : 'border border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        <GroupShape shape={shape} color={symbol.color} />
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-8 gap-2 mt-1 self-start">
-                    {GROUP_EMOJIS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        aria-label={emoji}
-                        aria-pressed={symbol.emoji === emoji}
-                        onClick={() => setSymbol({ emoji })}
-                        className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl transition-colors ${
-                          symbol.emoji === emoji
-                            ? 'ring-2 ring-brand-blue-primary'
-                            : 'border border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {symbol.kind === 'shape' && (
-                <div className="flex flex-col gap-2">
-                  <span className="text-xs font-bold text-slate-600">
-                    {t('groupReminders.color', { defaultValue: 'Color' })}
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {GROUP_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        aria-label={color}
-                        aria-pressed={symbol.color === color}
-                        onClick={() => setSymbol({ color })}
-                        className={`w-8 h-8 rounded-full ${
-                          symbol.color === color
-                            ? 'ring-2 ring-offset-2 ring-brand-blue-primary'
-                            : ''
-                        }`}
-                        style={{ background: color }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="flex flex-col gap-2 max-w-sm">
-                <label
-                  htmlFor="group-wizard-name"
-                  className="text-xs font-bold text-slate-600"
-                >
-                  {t('groupReminders.nameOptional', {
-                    defaultValue: 'Name (optional)',
-                  })}
-                </label>
-                <input
-                  id="group-wizard-name"
-                  value={group.name}
-                  onChange={(e) =>
-                    setGroup((g) => ({ ...g, name: e.target.value }))
-                  }
-                  className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
-                />
-                <label className="flex items-center gap-2 text-sm text-slate-700 mt-1 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={symbol.showName}
-                    onChange={(e) => setSymbol({ showName: e.target.checked })}
-                    className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
-                  />
-                  {t('groupReminders.showName', {
-                    defaultValue: 'Show name on the reminder',
-                  })}
-                </label>
-              </div>
-            </div>
+            <SymbolStep
+              symbol={symbol}
+              name={group.name}
+              onSymbol={setSymbol}
+              onName={(name) => setGroup((g) => ({ ...g, name }))}
+            />
           )}
           {STEPS[step] === 'schedule' && (
             <ScheduleStep reminder={reminder} onChange={setReminder} />
           )}
           {STEPS[step] === 'alerts' && (
-            <div className="p-6 flex flex-col gap-5 max-w-md">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-800">
-                  {t('groupReminders.reminderOnBoard', {
-                    defaultValue: 'Reminder on the board',
-                  })}
-                </span>
-                <Toggle
-                  checked={reminder.enabled}
-                  onChange={(enabled) => setReminder({ enabled })}
-                  label={t('groupReminders.reminderOnBoard', {
-                    defaultValue: 'Reminder on the board',
-                  })}
-                />
-              </div>
-              {reminder.enabled && (
-                <>
-                  <div className="flex flex-col gap-2">
-                    <span className="text-xs font-bold text-slate-600">
-                      {t('groupReminders.sound', { defaultValue: 'Sound' })}
-                    </span>
-                    <div className="self-start">
-                      <SegmentedControl
-                        role="radiogroup"
-                        value={reminder.sound}
-                        onChange={(sound) => {
-                          setReminder({ sound });
-                          if (sound !== 'off')
-                            void resumeAudio().then(() =>
-                              playTimerAlert(
-                                sound === 'alarm' ? 'Alert' : 'Chime'
-                              )
-                            );
-                        }}
-                        options={[
-                          {
-                            value: 'off',
-                            label: t('groupReminders.soundOff', {
-                              defaultValue: 'Off',
-                            }),
-                          },
-                          {
-                            value: 'chime',
-                            label: t('groupReminders.soundChime', {
-                              defaultValue: 'Chime',
-                            }),
-                          },
-                          {
-                            value: 'alarm',
-                            label: t('groupReminders.soundAlarm', {
-                              defaultValue: 'Alarm',
-                            }),
-                          },
-                        ]}
-                      />
-                    </div>
-                  </div>
-                  <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={reminder.showStudentNames}
-                      onChange={(e) =>
-                        setReminder({ showStudentNames: e.target.checked })
-                      }
-                      className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
-                    />
-                    {t('groupReminders.showStudentNames', {
-                      defaultValue: 'Show student names on the reminder',
-                    })}
-                  </label>
-                </>
-              )}
-              <div className="border-t border-slate-100 pt-5 flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-800">
-                  {t('groupReminders.inGroupMaker', {
-                    defaultValue: 'Enable in Group Maker',
-                  })}
-                </span>
-                <Toggle
-                  checked={group.inGroupMaker !== false}
-                  onChange={(inGroupMaker) =>
-                    setGroup((g) => ({ ...g, inGroupMaker }))
-                  }
-                  label={t('groupReminders.inGroupMaker', {
-                    defaultValue: 'Enable in Group Maker',
-                  })}
-                />
-              </div>
-            </div>
+            <AlertsStep
+              reminder={reminder}
+              inGroupMaker={group.inGroupMaker !== false}
+              onChange={setReminder}
+              onGroupMaker={(inGroupMaker) =>
+                setGroup((g) => ({ ...g, inGroupMaker }))
+              }
+            />
           )}
         </div>
         {(STEPS[step] === 'symbol' || STEPS[step] === 'alerts') && preview}
@@ -587,6 +385,267 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
               : t('common.next', { defaultValue: 'Next' })}
           </button>
         </div>
+      </div>
+    </div>
+  );
+};
+
+const FIELD_LABEL = 'text-xs font-bold text-slate-600';
+const SELECT =
+  'px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none';
+
+const SymbolStep: React.FC<{
+  symbol: RosterGroupSymbol;
+  name: string;
+  onSymbol: (patch: Partial<RosterGroupSymbol>) => void;
+  onName: (name: string) => void;
+}> = ({ symbol, name, onSymbol, onName }) => {
+  const { t } = useTranslation();
+  const [query, setQuery] = useState('');
+  const icons = searchGroupIcons(query);
+  const searchLabel = t('groupReminders.searchIcons', {
+    defaultValue: 'Search icons',
+  });
+
+  return (
+    <div className="p-6 flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <div className="relative max-w-sm">
+          <Search
+            size={16}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            aria-hidden="true"
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={searchLabel}
+            aria-label={searchLabel}
+            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+          />
+        </div>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))] gap-1.5 max-h-56 overflow-y-auto custom-scrollbar pr-1 pb-1">
+          {icons.map(({ id, Icon }) => {
+            const on = symbol.icon === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                aria-label={id.replace(/-/g, ' ')}
+                title={id.replace(/-/g, ' ')}
+                aria-pressed={on}
+                onClick={() => onSymbol({ icon: id })}
+                className={`h-11 rounded-lg flex items-center justify-center transition-colors ${
+                  on
+                    ? 'ring-2 ring-brand-blue-primary bg-brand-blue-lighter'
+                    : 'hover:bg-slate-100'
+                }`}
+              >
+                <Icon
+                  size={24}
+                  strokeWidth={2.25}
+                  style={{ color: on ? symbol.color : '#475569' }}
+                />
+              </button>
+            );
+          })}
+        </div>
+        {icons.length === 0 && (
+          <p className="text-sm text-slate-500">
+            {t('groupReminders.noIcons', { defaultValue: 'No matching icons' })}
+          </p>
+        )}
+      </div>
+      <div className="flex flex-col gap-2">
+        <span className={FIELD_LABEL}>
+          {t('groupReminders.color', { defaultValue: 'Color' })}
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {GROUP_COLORS.map((color) => (
+            <button
+              key={color}
+              type="button"
+              aria-label={color}
+              aria-pressed={symbol.color === color}
+              onClick={() => onSymbol({ color })}
+              className={`w-8 h-8 rounded-full ${
+                symbol.color === color
+                  ? 'ring-2 ring-offset-2 ring-brand-blue-primary'
+                  : ''
+              }`}
+              style={{ background: color }}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="flex flex-col gap-2 max-w-sm">
+        <label htmlFor="group-wizard-name" className={FIELD_LABEL}>
+          {t('groupReminders.nameOptional', {
+            defaultValue: 'Name (optional)',
+          })}
+        </label>
+        <input
+          id="group-wizard-name"
+          value={name}
+          onChange={(e) => onName(e.target.value)}
+          className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+        />
+      </div>
+    </div>
+  );
+};
+
+const SettingRow: React.FC<{ label: string; children: React.ReactNode }> = ({
+  label,
+  children,
+}) => (
+  <div className="flex items-center justify-between gap-4 min-h-9">
+    <span className="text-sm font-semibold text-slate-800">{label}</span>
+    {children}
+  </div>
+);
+
+const AlertsStep: React.FC<{
+  reminder: RosterGroupReminder;
+  inGroupMaker: boolean;
+  onChange: (patch: Partial<RosterGroupReminder>) => void;
+  onGroupMaker: (on: boolean) => void;
+}> = ({ reminder, inGroupMaker, onChange, onGroupMaker }) => {
+  const { t } = useTranslation();
+  const soundLabels: Record<RosterGroupReminder['sound'], string> = {
+    off: t('groupReminders.soundOff', { defaultValue: 'Off' }),
+    chime: t('groupReminders.soundChime', { defaultValue: 'Chime' }),
+    bell: t('groupReminders.soundBell', { defaultValue: 'Bell' }),
+    marimba: t('groupReminders.soundMarimba', { defaultValue: 'Marimba' }),
+    harp: t('groupReminders.soundHarp', { defaultValue: 'Harp' }),
+  };
+  const labels = {
+    onBoard: t('groupReminders.reminderOnBoard', {
+      defaultValue: 'Reminder on the board',
+    }),
+    sound: t('groupReminders.sound', { defaultValue: 'Sound' }),
+    play: t('groupReminders.playSound', { defaultValue: 'Play sound' }),
+    snooze: t('groupReminders.snoozeLength', { defaultValue: 'Snooze' }),
+    showName: t('groupReminders.showGroupName', {
+      defaultValue: 'Show group name',
+    }),
+    showTime: t('groupReminders.showTime', { defaultValue: 'Show time' }),
+    showMessage: t('groupReminders.showMessage', {
+      defaultValue: 'Show a message',
+    }),
+    message: t('groupReminders.message', { defaultValue: 'Message' }),
+    groupMaker: t('groupReminders.inGroupMaker', {
+      defaultValue: 'Enable in Group Maker',
+    }),
+  };
+
+  return (
+    <div className="p-6 flex flex-col gap-3 max-w-md">
+      <SettingRow label={labels.onBoard}>
+        <Toggle
+          checked={reminder.enabled}
+          onChange={(enabled) => onChange({ enabled })}
+          label={labels.onBoard}
+        />
+      </SettingRow>
+      {reminder.enabled && (
+        <>
+          <SettingRow label={labels.sound}>
+            <div className="flex items-center gap-1">
+              <select
+                aria-label={labels.sound}
+                value={reminder.sound}
+                onChange={(e) => {
+                  const sound =
+                    REMINDER_SOUNDS.find((x) => x === e.target.value) ?? 'off';
+                  onChange({ sound });
+                  playReminderSound(sound);
+                }}
+                className={`${SELECT} w-36`}
+              >
+                {REMINDER_SOUNDS.map((sound) => (
+                  <option key={sound} value={sound}>
+                    {soundLabels[sound]}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={reminder.sound === 'off'}
+                onClick={() => playReminderSound(reminder.sound)}
+                aria-label={labels.play}
+                title={labels.play}
+                className="p-2 rounded-lg text-slate-500 hover:text-brand-blue-primary hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+              >
+                <Play size={16} />
+              </button>
+            </div>
+          </SettingRow>
+          <SettingRow label={labels.snooze}>
+            <select
+              aria-label={labels.snooze}
+              value={reminder.snoozeMinutes}
+              onChange={(e) =>
+                onChange({ snoozeMinutes: Number(e.target.value) })
+              }
+              className={`${SELECT} w-36 mr-9`}
+            >
+              {SNOOZE_OPTIONS.map((m) => (
+                <option key={m} value={m}>
+                  {t('groupReminders.minutes', {
+                    defaultValue: '{{count}} min',
+                    count: m,
+                  })}
+                </option>
+              ))}
+            </select>
+          </SettingRow>
+          <div className="border-t border-slate-100 mt-2 pt-3 flex flex-col gap-3">
+            <SettingRow label={labels.showName}>
+              <Toggle
+                checked={reminder.showName}
+                onChange={(showName) => onChange({ showName })}
+                label={labels.showName}
+              />
+            </SettingRow>
+            <SettingRow label={labels.showTime}>
+              <Toggle
+                checked={reminder.showTime}
+                onChange={(showTime) => onChange({ showTime })}
+                label={labels.showTime}
+              />
+            </SettingRow>
+            <SettingRow label={labels.showMessage}>
+              <Toggle
+                checked={reminder.showMessage}
+                onChange={(showMessage) => onChange({ showMessage })}
+                label={labels.showMessage}
+              />
+            </SettingRow>
+            {reminder.showMessage && (
+              <input
+                aria-label={labels.message}
+                value={reminder.message}
+                maxLength={80}
+                onChange={(e) => onChange({ message: e.target.value })}
+                placeholder={t('groupReminders.defaultMessage', {
+                  defaultValue: 'Time to go',
+                })}
+                className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+              />
+            )}
+          </div>
+        </>
+      )}
+      <div className="border-t border-slate-100 mt-2 pt-3">
+        <SettingRow label={labels.groupMaker}>
+          <Toggle
+            checked={inGroupMaker}
+            onChange={onGroupMaker}
+            label={labels.groupMaker}
+          />
+        </SettingRow>
       </div>
     </div>
   );
@@ -720,6 +779,32 @@ const ScheduleStep: React.FC<{
             }
             className="px-3 py-2 text-sm rounded-lg border border-slate-200 w-40 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
           />
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="group-wizard-lead" className={FIELD_LABEL}>
+            {t('groupReminders.showReminder', {
+              defaultValue: 'Show reminder',
+            })}
+          </label>
+          <select
+            id="group-wizard-lead"
+            value={reminder.leadMinutes}
+            onChange={(e) => onChange({ leadMinutes: Number(e.target.value) })}
+            className={`${SELECT} w-44`}
+          >
+            {LEAD_OPTIONS.map((m) => (
+              <option key={m} value={m}>
+                {m === 0
+                  ? t('groupReminders.atTheTime', {
+                      defaultValue: 'At the time',
+                    })
+                  : t('groupReminders.minutesBefore', {
+                      defaultValue: '{{count}} min before',
+                      count: m,
+                    })}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="flex flex-col gap-2">
           <label

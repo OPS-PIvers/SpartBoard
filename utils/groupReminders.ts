@@ -2,20 +2,9 @@ import type {
   ClassRoster,
   RosterGroup,
   RosterGroupReminder,
-  RosterGroupShape,
+  RosterGroupReminderSound,
   RosterGroupSymbol,
 } from '@/types';
-
-export const GROUP_SHAPES: RosterGroupShape[] = [
-  'star',
-  'circle',
-  'square',
-  'triangle',
-  'heart',
-  'diamond',
-  'hexagon',
-  'moon',
-];
 
 /** No purple: red, amber, green, teal, sky, brand blue, pink, slate. */
 export const GROUP_COLORS = [
@@ -29,32 +18,21 @@ export const GROUP_COLORS = [
   '#475569',
 ];
 
-export const GROUP_EMOJIS = [
-  '🐢',
-  '🦊',
-  '🐻',
-  '🐸',
-  '🦉',
-  '🐝',
-  '🐙',
-  '🦋',
-  '🌻',
-  '🌈',
-  '🚀',
-  '⚽',
-  '🎨',
-  '🎵',
-  '📚',
-  '🍎',
+export const SNOOZE_OPTIONS = [1, 2, 3, 5, 10];
+export const LEAD_OPTIONS = [0, 1, 2, 3, 5, 10, 15];
+export const REMINDER_SOUNDS: RosterGroupReminderSound[] = [
+  'off',
+  'chime',
+  'bell',
+  'marimba',
+  'harp',
 ];
-
-export const SNOOZE_MS = 3 * 60 * 1000;
 /** A board opened up to this long after the time still shows the reminder. */
 export const LATE_WINDOW_MS = 10 * 60 * 1000;
 
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const SOUNDS = ['off', 'chime', 'alarm'] as const;
+const ICON_RE = /^[a-z0-9-]{1,40}$/;
 
 export function toLocalDateKey(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -63,12 +41,7 @@ export function toLocalDateKey(d: Date): string {
 }
 
 export function defaultGroupSymbol(): RosterGroupSymbol {
-  return {
-    kind: 'shape',
-    shape: 'star',
-    color: GROUP_COLORS[1],
-    showName: false,
-  };
+  return { icon: 'star', color: GROUP_COLORS[1] };
 }
 
 export function defaultGroupReminder(today = new Date()): RosterGroupReminder {
@@ -76,33 +49,33 @@ export function defaultGroupReminder(today = new Date()): RosterGroupReminder {
     enabled: true,
     days: [],
     time: '09:00',
+    leadMinutes: 0,
     repeat: 'weekly',
     startDate: toLocalDateKey(today),
     sound: 'off',
-    showStudentNames: false,
+    snoozeMinutes: 3,
+    showName: false,
+    showTime: false,
+    showMessage: false,
+    message: '',
   };
 }
 
 export function parseGroupSymbol(raw: unknown): RosterGroupSymbol | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const r = raw as Record<string, unknown>;
-  if (r.kind !== 'shape' && r.kind !== 'emoji') return undefined;
-  const shape = GROUP_SHAPES.find((s) => s === r.shape);
-  const emoji =
-    typeof r.emoji === 'string' && r.emoji.length <= 16 ? r.emoji : undefined;
-  if (r.kind === 'shape' && !shape) return undefined;
-  if (r.kind === 'emoji' && !emoji) return undefined;
+  if (typeof r.icon !== 'string' || !ICON_RE.test(r.icon)) return undefined;
   return {
-    kind: r.kind,
-    ...(shape ? { shape } : {}),
-    ...(emoji ? { emoji } : {}),
+    icon: r.icon,
     color:
       typeof r.color === 'string' && /^#[0-9a-f]{6}$/i.test(r.color)
         ? r.color
         : GROUP_COLORS[1],
-    showName: r.showName === true,
   };
 }
+
+const pickNumber = (v: unknown, options: number[], fallback: number) =>
+  typeof v === 'number' && options.includes(v) ? v : fallback;
 
 export function parseGroupReminder(
   raw: unknown
@@ -123,13 +96,18 @@ export function parseGroupReminder(
     enabled: r.enabled !== false,
     days,
     time: r.time,
+    leadMinutes: pickNumber(r.leadMinutes, LEAD_OPTIONS, 0),
     repeat: r.repeat === 'biweekly' ? 'biweekly' : 'weekly',
     startDate:
       typeof r.startDate === 'string' && DATE_RE.test(r.startDate)
         ? r.startDate
         : toLocalDateKey(new Date()),
-    sound: SOUNDS.find((s) => s === r.sound) ?? 'off',
-    showStudentNames: r.showStudentNames === true,
+    sound: REMINDER_SOUNDS.find((s) => s === r.sound) ?? 'off',
+    snoozeMinutes: pickNumber(r.snoozeMinutes, SNOOZE_OPTIONS, 3),
+    showName: r.showName === true,
+    showTime: r.showTime === true,
+    showMessage: r.showMessage === true,
+    message: typeof r.message === 'string' ? r.message.slice(0, 80) : '',
   };
 }
 
@@ -178,10 +156,9 @@ export interface DueReminder {
   rosterId: string;
   group: RosterGroup;
   at: number;
-  studentNames: string[];
 }
 
-/** Reminders whose time has passed today but by no more than the late window. */
+/** Reminders whose show time (time minus lead) passed today, within the late window. */
 export function dueReminders(
   rosters: ClassRoster[],
   now: number
@@ -194,17 +171,13 @@ export function dueReminders(
       const reminder = group.reminder;
       if (!reminder || !reminderFallsOn(reminder, today)) continue;
       const at = reminderTimeOn(reminder, today);
-      if (now < at || now - at > LATE_WINDOW_MS) continue;
-      const members = new Set(group.studentIds);
+      const showAt = at - reminder.leadMinutes * 60_000;
+      if (now < showAt || now - showAt > LATE_WINDOW_MS) continue;
       due.push({
         key: `${roster.id}:${group.id}:${dateKey}:${reminder.time}`,
         rosterId: roster.id,
         group,
         at,
-        studentNames: roster.students
-          .filter((s) => members.has(s.id))
-          .map((s) => s.firstName.trim())
-          .filter(Boolean),
       });
     }
   }

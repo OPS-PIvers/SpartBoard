@@ -4,10 +4,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { RosterEditorModal } from './RosterEditorModal';
 import type { ClassRoster, RosterGroup } from '@/types';
 
-vi.mock('@/utils/timeToolAudio', () => ({
-  playTimerAlert: vi.fn(),
-  resumeAudio: vi.fn(() => Promise.resolve()),
-}));
+vi.mock('@/utils/reminderSounds', () => ({ playReminderSound: vi.fn() }));
 
 const roster = (groups: RosterGroup[] = []): ClassRoster => ({
   id: 'r1',
@@ -53,7 +50,9 @@ describe('GroupRemindersPanel', () => {
     await user.click(next);
 
     // Step 2: symbol
-    await user.click(screen.getByRole('button', { name: 'heart' }));
+    await user.type(screen.getByRole('searchbox'), 'turt');
+    expect(screen.queryByRole('button', { name: 'heart' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'turtle' }));
     await user.type(screen.getByLabelText(/name \(optional\)/i), 'Speech');
     await user.click(screen.getByRole('button', { name: /^next$/i }));
 
@@ -69,6 +68,11 @@ describe('GroupRemindersPanel', () => {
     expect(
       screen.getByRole('switch', { name: /enable in group maker/i })
     ).toHaveAttribute('aria-checked', 'false');
+    expect(
+      screen.getByRole('switch', { name: /reminder on the board/i })
+    ).toHaveAttribute('aria-checked', 'true');
+    await user.click(screen.getByRole('switch', { name: /show a message/i }));
+    await user.type(screen.getByLabelText(/^message$/i), 'Speech now');
     await user.click(screen.getByRole('button', { name: /save group/i }));
 
     expect(screen.getByText('Speech')).toBeInTheDocument();
@@ -79,14 +83,19 @@ describe('GroupRemindersPanel', () => {
       name: 'Speech',
       studentIds: ['s2'],
       inGroupMaker: false,
-      symbol: { kind: 'shape', shape: 'heart', showName: false },
+      symbol: { icon: 'turtle' },
       reminder: {
         enabled: true,
         days: [1, 3],
         time: '10:15',
+        leadMinutes: 0,
         repeat: 'weekly',
         sound: 'off',
-        showStudentNames: false,
+        snoozeMinutes: 3,
+        showName: false,
+        showTime: false,
+        showMessage: true,
+        message: 'Speech now',
       },
     });
   });
@@ -103,15 +112,11 @@ describe('GroupRemindersPanel', () => {
     expect(
       screen.getByRole('switch', { name: /enable in group maker/i })
     ).toHaveAttribute('aria-checked', 'true');
-    expect(
-      screen.getByRole('switch', { name: /reminder on the board/i })
-    ).toHaveAttribute('aria-checked', 'false');
     await user.click(screen.getByRole('button', { name: /save group/i }));
     await user.click(screen.getByRole('button', { name: /^save$/i }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const [group] = onSave.mock.calls[0][2] as RosterGroup[];
     expect(group.inGroupMaker).toBeUndefined();
-    expect(group.reminder?.enabled).toBe(false);
   });
 
   it('keeps the plain groups editor while the feature is off', async () => {

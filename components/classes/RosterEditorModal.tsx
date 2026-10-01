@@ -108,7 +108,9 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     },
     {
       id: 'restrictions',
-      label: t('sidebar.classes.keepApart', { defaultValue: 'Keep apart' }),
+      label: t('sidebar.classes.groupRestrictions', {
+        defaultValue: 'Group Restrictions',
+      }),
     },
   ];
   const selectedColumns = [
@@ -404,8 +406,8 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                     emailLabel={t('sidebar.classes.email', {
                       defaultValue: 'Email',
                     })}
-                    restrictionsLabel={t('sidebar.classes.keepApart', {
-                      defaultValue: 'Keep apart',
+                    restrictionsLabel={t('sidebar.classes.groupRestrictions', {
+                      defaultValue: 'Group Restrictions',
                     })}
                   />
                   <ul className="flex flex-col divide-y divide-slate-100">

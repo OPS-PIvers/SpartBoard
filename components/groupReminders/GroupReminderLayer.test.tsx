@@ -2,21 +2,23 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ClassRoster, RosterGroup } from '@/types';
 import { GroupReminderLayer } from './GroupReminderLayer';
-import { playTimerAlert } from '@/utils/timeToolAudio';
+import { playReminderSound } from '@/utils/reminderSounds';
 
-vi.mock('@/utils/timeToolAudio', () => ({
-  playTimerAlert: vi.fn(),
-  resumeAudio: vi.fn(() => Promise.resolve()),
-}));
+vi.mock('@/utils/reminderSounds', () => ({ playReminderSound: vi.fn() }));
 
 const reminder: NonNullable<RosterGroup['reminder']> = {
   enabled: true,
   days: [1],
   time: '10:15',
+  leadMinutes: 0,
   repeat: 'weekly',
   startDate: '2026-09-28',
   sound: 'off',
-  showStudentNames: false,
+  snoozeMinutes: 3,
+  showName: false,
+  showTime: false,
+  showMessage: false,
+  message: '',
 };
 
 const group = (patch: Partial<RosterGroup> = {}): RosterGroup => ({
@@ -24,7 +26,7 @@ const group = (patch: Partial<RosterGroup> = {}): RosterGroup => ({
   name: 'Speech',
   studentIds: ['s1'],
   inGroupMaker: false,
-  symbol: { kind: 'shape', shape: 'star', color: '#f59e0b', showName: false },
+  symbol: { icon: 'turtle', color: '#f59e0b' },
   reminder,
   ...patch,
 });
@@ -50,46 +52,68 @@ describe('GroupReminderLayer', () => {
   });
   afterEach(() => {
     vi.useRealTimers();
-    vi.mocked(playTimerAlert).mockClear();
+    vi.mocked(playReminderSound).mockClear();
   });
 
-  it('pops at the time showing only the symbol and time', () => {
+  it('pops at the time showing only the icon', () => {
     render(<GroupReminderLayer rosters={rosters(group())} />);
     expect(screen.queryByRole('alert')).toBeNull();
     act(() => {
       vi.advanceTimersByTime(10_000);
     });
-    const card = screen.getByRole('alert');
-    expect(card).toHaveTextContent('Time to go');
-    expect(card).not.toHaveTextContent('Speech');
-    expect(card).not.toHaveTextContent('Ben');
-    expect(playTimerAlert).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('');
+    expect(playReminderSound).toHaveBeenCalledWith('off');
   });
 
-  it('shows the name, students and sound only when opted in', () => {
+  it('shows the message, name, time and sound only when opted in', () => {
     const g = group({
-      symbol: { kind: 'emoji', emoji: '🐢', color: '#f59e0b', showName: true },
-      reminder: { ...reminder, sound: 'chime', showStudentNames: true },
+      reminder: {
+        ...reminder,
+        sound: 'bell',
+        showName: true,
+        showTime: true,
+        showMessage: true,
+      },
     });
     render(<GroupReminderLayer rosters={rosters(g)} />);
     act(() => {
       vi.advanceTimersByTime(10_000);
     });
-    expect(screen.getByRole('alert')).toHaveTextContent('Speech · Ben');
+    const card = screen.getByRole('alert');
+    expect(card).toHaveTextContent('Time to go');
+    expect(card).toHaveTextContent('Speech');
+    expect(card).toHaveTextContent(/10:15/);
+    expect(card).not.toHaveTextContent('Ben');
+    expect(playReminderSound).toHaveBeenCalledWith('bell');
   });
 
-  it('snoozes for three minutes, then alerts again', () => {
-    render(<GroupReminderLayer rosters={rosters(group())} />);
+  it('shows up the chosen minutes ahead of the time', () => {
+    const g = group({ reminder: { ...reminder, leadMinutes: 5 } });
+    vi.setSystemTime(new Date(2026, 8, 28, 10, 9, 55));
+    render(<GroupReminderLayer rosters={rosters(g)} />);
+    expect(screen.queryByRole('alert')).toBeNull();
     act(() => {
       vi.advanceTimersByTime(10_000);
     });
-    fireEvent.click(screen.getByRole('button', { name: /snooze 3 min/i }));
-    expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.getByText(/snoozed until/i)).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
+  it('snoozes for the chosen length, then alerts again', () => {
+    const g = group({ reminder: { ...reminder, snoozeMinutes: 5 } });
+    render(<GroupReminderLayer rosters={rosters(g)} />);
     act(() => {
-      vi.advanceTimersByTime(3 * 60 * 1000 + 100);
+      vi.advanceTimersByTime(10_000);
     });
-    expect(screen.getByRole('alert')).toHaveTextContent('Time to go');
+    fireEvent.click(screen.getByRole('button', { name: /snooze 5 min/i }));
+    expect(screen.queryByRole('alert')).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(3 * 60 * 1000);
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(2 * 60 * 1000 + 100);
+    });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
   });
 
   it('stays dismissed after a reload the same day', () => {

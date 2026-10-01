@@ -16,10 +16,15 @@ const reminder = (
   enabled: true,
   days: [1, 3],
   time: '10:15',
+  leadMinutes: 0,
   repeat: 'weekly',
   startDate: '2026-09-28',
   sound: 'off',
-  showStudentNames: false,
+  snoozeMinutes: 3,
+  showName: false,
+  showTime: false,
+  showMessage: false,
+  message: '',
   ...patch,
 });
 
@@ -87,13 +92,33 @@ describe('dueReminders', () => {
     const due = dueReminders(rosters, at('2026-09-28', '10:15').getTime());
     expect(due).toHaveLength(1);
     expect(due[0].key).toBe('r1:g1:2026-09-28:10:15');
-    expect(due[0].studentNames).toEqual(['Ben', 'Henry']);
     expect(
       dueReminders(
         rosters,
         at('2026-09-28', '10:15').getTime() + LATE_WINDOW_MS + 1
       )
     ).toEqual([]);
+  });
+});
+
+describe('lead time', () => {
+  it('is due the chosen minutes before the time', () => {
+    const rosters = [
+      roster([
+        {
+          id: 'g1',
+          name: 'Speech',
+          studentIds: [],
+          reminder: reminder({ leadMinutes: 5 }),
+        },
+      ]),
+    ];
+    expect(dueReminders(rosters, at('2026-09-28', '10:09').getTime())).toEqual(
+      []
+    );
+    expect(
+      dueReminders(rosters, at('2026-09-28', '10:10').getTime())
+    ).toHaveLength(1);
   });
 });
 
@@ -105,17 +130,26 @@ describe('parsing', () => {
         days: [5, 1, 1, 9, 'x'],
         repeat: 'biweekly',
         startDate: '2026-10-01',
-        sound: 'alarm',
-        showStudentNames: true,
+        sound: 'marimba',
+        leadMinutes: 7,
+        snoozeMinutes: 5,
+        showTime: true,
+        showMessage: true,
+        message: 'Go',
       })
     ).toEqual({
       enabled: true,
       days: [1, 5],
       time: '13:30',
+      leadMinutes: 0,
       repeat: 'biweekly',
       startDate: '2026-10-01',
-      sound: 'alarm',
-      showStudentNames: true,
+      sound: 'marimba',
+      snoozeMinutes: 5,
+      showName: false,
+      showTime: true,
+      showMessage: true,
+      message: 'Go',
     });
   });
 
@@ -126,15 +160,13 @@ describe('parsing', () => {
     );
   });
 
-  it('keeps symbols private by default', () => {
-    expect(parseGroupSymbol({ kind: 'shape', shape: 'star' })).toEqual({
-      kind: 'shape',
-      shape: 'star',
+  it('keeps an icon id and defaults its colour', () => {
+    expect(parseGroupSymbol({ icon: 'turtle' })).toEqual({
+      icon: 'turtle',
       color: '#f59e0b',
-      showName: false,
     });
-    expect(parseGroupSymbol({ kind: 'shape', shape: 'blob' })).toBeUndefined();
-    expect(parseGroupSymbol({ kind: 'emoji', emoji: '🐢' })?.emoji).toBe('🐢');
+    expect(parseGroupSymbol({ icon: '<svg>' })).toBeUndefined();
+    expect(parseGroupSymbol({ kind: 'shape', shape: 'star' })).toBeUndefined();
   });
 });
 

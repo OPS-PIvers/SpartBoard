@@ -41,14 +41,20 @@ describe('RosterEditorModal', () => {
     expect(
       screen.queryByPlaceholderText(/^first name$/i)
     ).not.toBeInTheDocument();
-    // Columns menu is always offered; last name and PIN are on by default.
+    // Columns menu: First, Last and Group Restrictions show; PIN and Email start hidden.
     await user.click(screen.getByRole('button', { name: /^columns$/i }));
     expect(
       screen.getByRole('menuitemcheckbox', { name: /last name/i })
     ).toHaveAttribute('aria-checked', 'true');
     expect(
-      screen.getByRole('menuitemcheckbox', { name: /quiz pin/i })
+      screen.getByRole('menuitemcheckbox', { name: /group restrictions/i })
     ).toHaveAttribute('aria-checked', 'true');
+    expect(
+      screen.getByRole('menuitemcheckbox', { name: /quiz pin/i })
+    ).toHaveAttribute('aria-checked', 'false');
+    expect(
+      screen.getByRole('menuitemcheckbox', { name: /email/i })
+    ).toHaveAttribute('aria-checked', 'false');
   });
 
   it('does not offer the Accommodations tab for a brand-new roster', () => {
@@ -598,7 +604,7 @@ describe('RosterEditorModal', () => {
     expect(fullNames[1]).toHaveValue('Bob Jones');
   });
 
-  it('shows the PIN column by default and toggles it from the Columns menu', async () => {
+  it('hides the PIN column by default and toggles it from the Columns menu', async () => {
     const user = userEvent.setup();
     render(
       <RosterEditorModal
@@ -609,17 +615,14 @@ describe('RosterEditorModal', () => {
       />
     );
 
-    // PINs are visible by default — add a student and confirm PIN column appears
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
-    expect(screen.getByPlaceholderText('01')).toBeInTheDocument();
-
-    // Toggle hides PIN column
-    await toggleColumn(user, /quiz pin/i);
     expect(screen.queryByPlaceholderText('01')).not.toBeInTheDocument();
 
-    // Toggle again restores it
     await toggleColumn(user, /quiz pin/i);
     expect(screen.getByPlaceholderText('01')).toBeInTheDocument();
+
+    await toggleColumn(user, /quiz pin/i);
+    expect(screen.queryByPlaceholderText('01')).not.toBeInTheDocument();
   });
 
   it('persists PINs through save', async () => {
@@ -637,7 +640,7 @@ describe('RosterEditorModal', () => {
 
     await user.type(screen.getByPlaceholderText(/class name/i), 'PIN Class');
 
-    // PINs are visible by default — add students using "First name" placeholder
+    await toggleColumn(user, /quiz pin/i);
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
     await user.type(screen.getByPlaceholderText(/^first name$/i), 'Alice');
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
@@ -669,7 +672,7 @@ describe('RosterEditorModal', () => {
       />
     );
 
-    // PINs visible by default — add students using "First name" placeholder
+    await toggleColumn(user, /quiz pin/i);
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
     await user.type(screen.getByPlaceholderText(/^first name$/i), 'Alice');
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
