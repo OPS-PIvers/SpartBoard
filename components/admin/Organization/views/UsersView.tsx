@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   UserCog,
   Building2,
+  Eye,
 } from 'lucide-react';
 import type {
   BuildingRecord,
@@ -65,6 +66,10 @@ interface Props {
   onRemove: (ids: string[]) => void;
   /** Full account wipe via the `deleteOrganizationUser` CF. Super admin only. */
   onDeleteAccount: (email: string) => void;
+  /** Super admin View as; absent when the kill switch is off or the actor can't use it. */
+  onViewAs?: (email: string) => void;
+  /** The signed-in admin, who can't view as themselves. */
+  actorEmail?: string | null;
   onInvite: (
     emails: string[],
     role: string,
@@ -142,6 +147,8 @@ export const UsersView: React.FC<Props> = ({
   onBulkUpdate,
   onRemove,
   onDeleteAccount,
+  onViewAs,
+  actorEmail,
   onInvite,
   onBulkInvite,
   onResendInvite,
@@ -512,6 +519,13 @@ export const UsersView: React.FC<Props> = ({
                   onDelete={() =>
                     isSuperAdmin && inScope ? onDeleteAccount(u.id) : undefined
                   }
+                  onViewAs={
+                    onViewAs &&
+                    inScope &&
+                    u.email.toLowerCase() !== actorEmail?.toLowerCase()
+                      ? () => onViewAs(u.email)
+                      : undefined
+                  }
                   onEdit={() => setEditingUserId(u.id)}
                   onResendInvite={() => onResendInvite(u)}
                   onResetPassword={() => onResetPassword(u)}
@@ -803,6 +817,7 @@ const UserRow: React.FC<{
   canManage: boolean;
   onUpdate: (patch: Partial<UserRecord>) => void;
   onDelete: () => void;
+  onViewAs?: () => void;
   onEdit: () => void;
   onResendInvite: () => void;
   onResetPassword: () => void;
@@ -817,6 +832,7 @@ const UserRow: React.FC<{
   onUpdate,
   canDeleteAccount,
   onDelete,
+  onViewAs,
   onEdit,
   onResendInvite,
   onResetPassword,
@@ -1048,6 +1064,16 @@ const UserRow: React.FC<{
 
       <RowMenu
         items={[
+          ...(onViewAs
+            ? [
+                {
+                  label: 'View as',
+                  icon: <Eye size={14} />,
+                  onClick: onViewAs,
+                  disabled: user.status !== 'active',
+                },
+              ]
+            : []),
           {
             label: 'Edit',
             icon: <Edit3 size={14} />,

@@ -42,6 +42,10 @@ import {
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import {
+  isViewAsTab,
+  viewAsSuppressesBackgroundWrites,
+} from '@/utils/viewAsTab';
+import {
   DASHBOARD_FIELDS,
   serializeDashboardField,
   type MergedDashboardField,
@@ -720,6 +724,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // previous write's key is compared to skip true no-op writes, and the
   // pending timer ID lets rapid board cycling collapse into one Firestore
   // write.
+  const viewAsPlaceholderBoardRef = useRef<Dashboard | null>(null);
   const navigationWriteRef = useRef<{
     boardId: string;
     collectionKey: string;
@@ -1463,7 +1468,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // defaults overwrite the user's real layout. The 500ms debounce coalesces
   // rapid mutations (drag-reorders, multi-toggle bursts) into a single write.
   useEffect(() => {
-    if (isAuthBypass) return;
+    if (isAuthBypass || viewAsSuppressesBackgroundWrites()) return;
     if (!user || !dockHydrationOk) return;
     // Only mirror to the cloud once the dock has actually been seeded —
     // otherwise we'd write empty arrays during the brief pre-seed window.
@@ -1685,6 +1690,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // even reached. The PII backup still fires, just unawaited.
       options?: { skipDrive?: boolean }
     ): Promise<number> => {
+      // View as never autosaves boards (plan D11); the tab edits a local copy.
+      if (isViewAsTab) return Date.now();
       const dashboard = withoutTransient(withTourWidgets);
       // Always save to Firestore for real-time sync
       let driveFileId = dashboard.driveFileId;
@@ -1755,6 +1762,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
    */
   const updateDashboardFields = useCallback(
     async (dashboard: Dashboard, fields: Record<string, unknown>) => {
+      if (isViewAsTab) return;
       if (isAuthBypass) {
         await saveDashboard(dashboard);
         return;
@@ -1777,6 +1785,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const saveDashboards = useCallback(
     async (withTourWidgets: Dashboard[]) => {
+      if (isViewAsTab) return;
       const dashboardsToSave = withTourWidgets.map(withoutTransient);
       // Must run before the scrub below — admins never get the background export further down.
       await Promise.all(dashboardsToSave.map(backupDashboardPIIToDrive));
@@ -2622,6 +2631,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             widgets: [],
             createdAt: Date.now(),
           };
+          if (isViewAsTab) {
+            // Never create a board in their account (D6); show an unsaved one so the tab can load.
+            viewAsPlaceholderBoardRef.current ??= defaultDb;
+            setDashboards([viewAsPlaceholderBoardRef.current]);
+            updateActiveId(viewAsPlaceholderBoardRef.current.id);
+            setLoading(false);
+            return;
+          }
           void saveDashboard(defaultDb)
             .then(() => {
               setToasts((prev) => [
@@ -3130,7 +3147,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           // 5s-old closure plus a Drive round trip by now — writing the whole
           // document would blind-overwrite whatever was saved in between, on
           // this device or another.
-          if (newFileId !== active.driveFileId && !isAuthBypass) {
+          if (
+            newFileId !== active.driveFileId &&
+            !isAuthBypass &&
+            !viewAsSuppressesBackgroundWrites()
+          ) {
             void updateDoc(
               doc(db, 'users', user.uid, 'dashboards', active.id),
               {
@@ -4970,7 +4991,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           )
           .sort(byOrder)
       );
-      if (isAuthBypass) return;
+      if (isAuthBypass || isViewAsTab) return;
 
       // Order-only updates: a whole-document save would rewrite every widget on every reordered board.
       try {
@@ -5042,6 +5063,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         if (!options?.silent) addToast('Default board updated', 'success');
         return;
       }
+      if (isViewAsTab) return;
 
       const batch = writeBatch(db);
       const now = Date.now();
@@ -5101,7 +5123,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setDashboards((curr) =>
         curr.map((d) => (d.id === boardId ? { ...d, collectionId } : d))
       );
-      if (isAuthBypass) return;
+      if (isAuthBypass || isViewAsTab) return;
 
       try {
         await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
@@ -5139,7 +5161,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setDashboards((curr) =>
         curr.map((d) => (d.id === boardId ? { ...d, isPinned: true } : d))
       );
-      if (isAuthBypass) return;
+      if (isAuthBypass || isViewAsTab) return;
 
       try {
         await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
@@ -5173,7 +5195,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setDashboards((curr) =>
         curr.map((d) => (d.id === boardId ? { ...d, isPinned: false } : d))
       );
-      if (isAuthBypass) return;
+      if (isAuthBypass || isViewAsTab) return;
 
       try {
         await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
@@ -5222,7 +5244,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // last Board) only once the profile has been loaded. Writing earlier
       // races with AuthContext.loadProfile and can overwrite the freshly-read
       // values with a stale {merge: true} write before the read completes.
-      if (!user?.uid || isAuthBypass) return;
+      if (!user?.uid || isAuthBypass || viewAsSuppressesBackgroundWrites())
+        return;
       if (!profileLoaded) {
         // Tripwire: today App.tsx blocks render until profileLoaded === true
         // so this branch should be unreachable. If it ever fires, the
@@ -5368,6 +5391,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const dashboard = activeDashboardForMigrationRef.current;
     const uid = migrationUidRef.current;
     if (!uid || !dashboard || isAuthBypass) return;
+    if (viewAsSuppressesBackgroundWrites()) return;
     // Shared / synced boards: the migration must run under the host's uid
     // so writes land at the right Firestore path and the rules don't reject
     // them. A viewer/collaborator running under their own uid would either

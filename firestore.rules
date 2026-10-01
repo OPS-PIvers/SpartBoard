@@ -630,6 +630,7 @@ service cloud.firestore {
            request.auth.token.email != null &&
            request.auth.token.get('email_verified', false) == true &&
            request.auth.token.email.lower() == emailLower &&
+           viewAsOk() &&
            unchanged('email') &&
            unchanged('orgId') &&
            changedOnly(['lastActive']));
@@ -3760,6 +3761,7 @@ service cloud.firestore {
         && request.auth.token.get('email', '') != ''
         && request.auth.token.get('email_verified', false) == true
         && existing().inviteeEmailLower == request.auth.token.email.lower()
+        && viewAsOk()
         && existing().status == 'pending'
         && incoming().status in ['accepted', 'declined']
         && changedOnly(['status', 'respondedAt']);

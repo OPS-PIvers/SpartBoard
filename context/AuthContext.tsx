@@ -98,6 +98,12 @@ import {
   canWriteLastActive,
   stampLastActive,
 } from '@/utils/lastActiveThrottle';
+import {
+  isViewAsTab,
+  viewAsBlocksWrite,
+  viewAsSuppressesBackgroundWrites,
+} from '@/utils/viewAsTab';
+import { endViewAsSession } from '@/utils/viewAsSession';
 import { deriveUserTier, meetsMinTier } from '@/utils/userTier';
 import { isBetaUser as isBetaUserShared } from '@/utils/betaAccess';
 import { OPERATOR_ORG_ID } from '@/config/organization';
@@ -554,6 +560,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const refreshGoogleToken = useCallback(
     async (silent: boolean = true): Promise<string | null> => {
       if (isAuthBypass) return MOCK_ACCESS_TOKEN;
+      // Drive in View as is a later slice (plan D5); never borrow a Google session here.
+      if (isViewAsTab) return null;
       if (silent && inFlightSilentRefreshRef.current) {
         return inFlightSilentRefreshRef.current;
       }
@@ -837,7 +845,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
    * code flow, which is the only call that captures the refresh leg.
    */
   const captureOfflineGrant = useCallback(async (): Promise<boolean> => {
-    if (isAuthBypass) return false;
+    if (isAuthBypass || isViewAsTab) return false;
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
       | string
       | undefined;
@@ -962,6 +970,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       opts?: { interactive?: boolean }
     ): Promise<string | null> => {
       if (isAuthBypass) return MOCK_ACCESS_TOKEN;
+      if (isViewAsTab) return null;
 
       const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
         | string
@@ -1776,7 +1785,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             migrateSavedWidgetConfigs(rawSavedConfigs, rawPresets);
           setSavedWidgetConfigs(cleaned);
           setSavedWidgetPresets(presets);
-          if (needsMigration && migratedConfigsForUidRef.current !== user.uid) {
+          if (
+            needsMigration &&
+            migratedConfigsForUidRef.current !== user.uid &&
+            !viewAsSuppressesBackgroundWrites()
+          ) {
             migratedConfigsForUidRef.current = user.uid;
             // `updateDoc` replaces these top-level fields outright. A
             // `setDoc(..., { merge: true })` deep-merges map fields and would
@@ -2033,11 +2046,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           profileUpdate.selectedBuildings = canonical;
         }
 
-        await setDoc(
-          doc(db, 'users', probeUid, 'userProfile', 'profile'),
-          profileUpdate,
-          { merge: true }
-        );
+        if (!viewAsSuppressesBackgroundWrites()) {
+          await setDoc(
+            doc(db, 'users', probeUid, 'userProfile', 'profile'),
+            profileUpdate,
+            { merge: true }
+          );
+        }
         if (firestoreProbedForUidRef.current !== probeUid) return;
         setSetupCompletedState(true);
         if (canonical && canonical.length > 0) {
@@ -2091,11 +2106,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const isReturning = await driveService.hasExistingAppFolder();
         if (cancelled || !isReturning) return;
 
-        await setDoc(
-          doc(db, 'users', user.uid, 'userProfile', 'profile'),
-          { setupCompleted: true },
-          { merge: true }
-        );
+        if (!viewAsSuppressesBackgroundWrites()) {
+          await setDoc(
+            doc(db, 'users', user.uid, 'userProfile', 'profile'),
+            { setupCompleted: true },
+            { merge: true }
+          );
+        }
         if (cancelled) return;
         setSetupCompletedState(true);
       } catch (e) {
@@ -2118,6 +2135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // read email, lastLogin, and buildings without querying subcollections.
   useEffect(() => {
     if (!user || isAuthBypass || !profileLoaded) return;
+    if (viewAsSuppressesBackgroundWrites()) return;
     if (rootDocSyncedRef.current) return;
     rootDocSyncedRef.current = true;
 
@@ -2146,6 +2164,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (!user || isAuthBypass) return;
     if (!orgId || !user.email) return;
+    if (viewAsSuppressesBackgroundWrites()) return;
     const syncKey = `${user.uid}:${orgId}`;
     // Already attempted (or succeeded) for this (uid, orgId) in this JS
     // context — don't re-fire on unrelated renders. A different org will
@@ -2187,7 +2206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // way to disk. This makes every save self-healing.
       const canonical = canonicalizeBuildingIds(buildings);
       setSelectedBuildingsState(canonical);
-      if (!user || isAuthBypass) return;
+      if (!user || isAuthBypass || viewAsBlocksWrite()) return;
       // Assign a token so we can detect if a newer call supersedes this one
       const myToken = ++writeTokenRef.current;
       try {
@@ -2221,7 +2240,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // i18n.changeLanguage() triggers the 'languageChanged' event, which the
       // effect above uses to update React state — no manual setLanguageState needed.
       void i18n.changeLanguage(lang);
-      if (!user || isAuthBypass) return;
+      if (!user || isAuthBypass || viewAsBlocksWrite()) return;
       const myToken = ++writeTokenRef.current;
       try {
         await setDoc(
@@ -2240,7 +2259,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const completeSetup = useCallback(async () => {
     setSetupCompletedState(true);
-    if (!user || isAuthBypass) return;
+    if (!user || isAuthBypass || viewAsBlocksWrite()) return;
     try {
       await setDoc(
         doc(db, 'users', user.uid, 'userProfile', 'profile'),
@@ -2259,7 +2278,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (key === 'settingsDrawerWidth') {
         setSettingsDrawerWidthState(persistedValue);
       }
-      if (!user || isAuthBypass) return;
+      if (!user || isAuthBypass || viewAsBlocksWrite()) return;
       const myToken = ++writeTokenRef.current;
       try {
         // `merge: true` is mandatory — see the UserProfile ownership contract in types.ts.
@@ -2300,7 +2319,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setSubjectsTaughtState(subjects);
         payload.subjectsTaught = subjects;
       }
-      if (!user || isAuthBypass || Object.keys(payload).length === 0) return;
+      if (
+        !user ||
+        isAuthBypass ||
+        Object.keys(payload).length === 0 ||
+        viewAsBlocksWrite()
+      )
+        return;
       const myToken = ++writeTokenRef.current;
       try {
         await setDoc(
@@ -2396,7 +2421,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         sanitizedUpdates.quizGraderAutoAdvance = updates.quizGraderAutoAdvance;
       }
 
-      if (!user || isAuthBypass || Object.keys(sanitizedUpdates).length === 0) {
+      if (
+        !user ||
+        isAuthBypass ||
+        Object.keys(sanitizedUpdates).length === 0 ||
+        viewAsBlocksWrite()
+      ) {
         return;
       }
       const myToken = ++writeTokenRef.current;
@@ -2445,7 +2475,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         widgetConfigTimeoutRef.current = setTimeout(() => {
-          if (!user || isAuthBypass) return;
+          if (!user || isAuthBypass || viewAsBlocksWrite()) return;
           const myToken = ++writeTokenRef.current;
           setDoc(
             doc(db, 'users', user.uid, 'userProfile', 'profile'),
@@ -2477,7 +2507,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         else delete next[type];
         return next;
       });
-      if (!user || isAuthBypass) return;
+      if (!user || isAuthBypass || viewAsBlocksWrite()) return;
       const myToken = ++writeTokenRef.current;
       const path = new FieldPath('savedWidgetConfigs', type);
       setDoc(
@@ -2512,7 +2542,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         widgetPresetTimeoutRef.current = setTimeout(() => {
-          if (!user || isAuthBypass) return;
+          if (!user || isAuthBypass || viewAsBlocksWrite()) return;
           const myToken = ++writeTokenRef.current;
           setDoc(
             doc(db, 'users', user.uid, 'userProfile', 'profile'),
@@ -2534,7 +2564,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const saveCustomMaterials = useCallback(
     async (materials: MaterialDefinition[]) => {
       setCustomMaterials(materials);
-      if (!user || isAuthBypass) return;
+      if (!user || isAuthBypass || viewAsBlocksWrite()) return;
       const myToken = ++writeTokenRef.current;
       try {
         await setDoc(
@@ -2559,7 +2589,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         clearTimeout(materialsPrefsTimeoutRef.current);
       }
       materialsPrefsTimeoutRef.current = setTimeout(() => {
-        if (!user || isAuthBypass) return;
+        if (!user || isAuthBypass || viewAsBlocksWrite()) return;
         const myToken = ++writeTokenRef.current;
         setDoc(
           doc(db, 'users', user.uid, 'userProfile', 'profile'),
@@ -2584,7 +2614,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         clearTimeout(penColorsTimeoutRef.current);
       }
       penColorsTimeoutRef.current = setTimeout(() => {
-        if (!user || isAuthBypass) return;
+        if (!user || isAuthBypass || viewAsBlocksWrite()) return;
         const myToken = ++writeTokenRef.current;
         setDoc(
           doc(db, 'users', user.uid, 'userProfile', 'profile'),
@@ -2612,6 +2642,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Optimistic update
       favoritesRef.current = next;
       setFavoriteBackgrounds(next);
+      if (viewAsBlocksWrite()) return;
       try {
         await setDoc(
           doc(db, 'users', user.uid, 'userProfile', 'profile'),
@@ -2643,6 +2674,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       recentsRef.current = next;
       setRecentBackgrounds(next);
+      if (viewAsBlocksWrite()) return;
       try {
         await setDoc(
           doc(db, 'users', user.uid, 'userProfile', 'profile'),
@@ -3133,7 +3165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const updateAppSettings = useCallback(
     async (updates: Partial<AppSettings>) => {
-      if (!isAdmin || isAuthBypass) return;
+      if (!isAdmin || isAuthBypass || viewAsBlocksWrite()) return;
       try {
         await setDoc(doc(db, 'admin_settings', 'app_settings'), updates, {
           merge: true,
@@ -3147,6 +3179,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const signOut = async () => {
+    if (isViewAsTab) {
+      await endViewAsSession();
+      return;
+    }
     if (isAuthBypass) {
       console.warn('Bypassing Sign Out');
       setUser(null);
