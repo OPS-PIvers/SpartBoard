@@ -8,6 +8,7 @@ import {
   type ResolvedAddress,
 } from './ssrfGuard';
 import './functionsInit';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 const MAX_URL_LENGTH = 2048;
 const MAX_REDIRECTS = 3;
@@ -114,6 +115,7 @@ export const fetchImportImage = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<FetchImportImageResult> => {
+    assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',

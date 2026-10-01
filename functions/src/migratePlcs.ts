@@ -45,6 +45,7 @@ import * as admin from 'firebase-admin';
 import { resolveOrgIdForDomain } from './classlinkShared';
 import { isSiteSuperAdmin } from './authz';
 import './functionsInit';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 const PLCS_COLLECTION = 'plcs';
 
@@ -539,6 +540,7 @@ export const migratePlcs = onCall(
     timeoutSeconds: 540,
   },
   async (request): Promise<MigratePlcsResponse> => {
+    assertViewAsAllowed(request);
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',

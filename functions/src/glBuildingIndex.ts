@@ -5,6 +5,7 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import './functionsInit';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 export const GL_BUILDING_COLLECTION = 'building_guided_learning';
 export const GL_BUILDING_INDEX_COLLECTION = 'building_guided_learning_index';
@@ -242,6 +243,7 @@ export const rebuildGlBuildingIndexV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request);
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
     const db = admin.firestore();

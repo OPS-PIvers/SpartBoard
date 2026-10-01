@@ -47,6 +47,7 @@ import {
 } from './secrets';
 import './functionsInit';
 import { withQuizSessionContent } from './quizSessionContent';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 const GOOGLE_OAUTH_CLIENT_SECRET = defineSecret('GOOGLE_OAUTH_CLIENT_SECRET');
 const GOOGLE_OAUTH_REFRESH_TOKEN_KEY = defineSecret(
@@ -1421,6 +1422,7 @@ export const archiveQuizMediaArtifact = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request, { outward: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }

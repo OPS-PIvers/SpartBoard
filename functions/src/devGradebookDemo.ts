@@ -21,6 +21,7 @@ import {
   type DemoTarget,
   type WorkState,
 } from './devGradebookDemo/data';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 type Firestore = admin.firestore.Firestore;
 type DocRef = admin.firestore.DocumentReference;
@@ -968,6 +969,7 @@ export const gradebookDemoV1 = onCall(
     secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
   },
   async (request) => {
+    assertViewAsAllowed(request);
     if (currentProjectId() !== DEV_PROJECT_ID) {
       throw new HttpsError(
         'failed-precondition',

@@ -35,6 +35,7 @@ import {
   normalizeEmailDomain,
   resolveOrgIdForDomain,
 } from '../classlinkShared';
+import { assertViewAsAllowed } from '../viewAsGuard';
 
 const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
   'STUDENT_PSEUDONYM_HMAC_SECRET'
@@ -238,6 +239,7 @@ export const ltiExchange = onCall(
     ],
   },
   async (request) => {
+    assertViewAsAllowed(request);
     const data = (request.data ?? {}) as { code?: unknown };
     const code = typeof data.code === 'string' ? data.code : '';
     if (!code) {

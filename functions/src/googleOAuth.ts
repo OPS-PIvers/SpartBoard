@@ -35,6 +35,7 @@ import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as CryptoJS from 'crypto-js';
 import axios from 'axios';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -234,6 +235,7 @@ export const exchangeGoogleAuthCode = onCall(
     ],
   },
   async (req) => {
+    assertViewAsAllowed(req);
     const uid = requireAuthUid(req.auth?.uid);
     const raw = (req.data ?? {}) as Record<string, unknown>;
     const code = typeof raw.code === 'string' ? raw.code : '';
@@ -461,6 +463,7 @@ export const refreshGoogleAccessToken = onCall(
     ],
   },
   async (req) => {
+    assertViewAsAllowed(req);
     const uid = requireAuthUid(req.auth?.uid);
     return refreshGoogleAccessTokenForUid(uid);
   }
@@ -476,6 +479,7 @@ export const revokeGoogleRefreshToken = onCall(
     secrets: [GOOGLE_OAUTH_REFRESH_TOKEN_KEY],
   },
   async (req) => {
+    assertViewAsAllowed(req);
     const uid = requireAuthUid(req.auth?.uid);
     const ref = admin.firestore().doc(PRIVATE_DOC_PATH(uid));
     const snap = await ref.get();

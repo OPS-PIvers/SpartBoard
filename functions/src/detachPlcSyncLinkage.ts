@@ -31,6 +31,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import './functionsInit';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 export type PlcSyncLinkageKind = 'quiz' | 'video-activity';
 
@@ -178,6 +179,7 @@ export const detachPlcSyncLinkage = onCall<DetachPlcSyncLinkageRequest>(
     maxInstances: 5,
   },
   async (request) => {
+    assertViewAsAllowed(request);
     const uid = request.auth?.uid;
     if (!uid) {
       throw new HttpsError(

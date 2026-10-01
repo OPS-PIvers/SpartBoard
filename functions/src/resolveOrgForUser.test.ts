@@ -288,6 +288,20 @@ describe('resolveOrgForUser auto-enrollment', () => {
     });
   });
 
+  it('resolves but never enrolls from a View as tab', async () => {
+    scriptDocs({ memberExists: false });
+    const viewAs = { by: 'boss@x', sid: 's1', ro: true, adminTarget: false };
+    const res = await handler({
+      auth: {
+        ...verifiedAuth,
+        token: { ...verifiedAuth.token, viewAs: { ...viewAs, exp: 9e15 } },
+      },
+      data: {},
+    });
+    expect(res).toEqual({ orgId: 'orono' });
+    expect(docCreateMock).not.toHaveBeenCalled();
+  });
+
   it('never touches an existing member doc', async () => {
     scriptDocs({ memberExists: true });
     const res = await handler({ auth: verifiedAuth, data: {} });
