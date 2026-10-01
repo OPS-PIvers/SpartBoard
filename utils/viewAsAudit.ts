@@ -1,78 +1,20 @@
 // View as audit entries and the unlocked direct-save path (docs/plans/ADMIN_VIEW_AS.md D13, D14, D16).
-import { onIdTokenChanged } from 'firebase/auth';
-import {
-  collection,
-  doc,
-  getDoc,
-  serverTimestamp,
-  setDoc,
-  type DocumentReference,
-} from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
-import type { ViewAsClaim } from '@/types/viewAs';
+import { getDoc, setDoc, type DocumentReference } from 'firebase/firestore';
 import {
   getViewAsTabState,
-  isViewAsTab,
   updateViewAsTabState,
   viewAsAuditsWrite,
 } from '@/utils/viewAsTab';
-
-export type ViewAsClientAuditAction =
-  | 'view_as_save'
-  | 'view_as_approve'
-  | 'view_as_outward';
-
-export interface ViewAsAuditInput {
-  action: ViewAsClientAuditAction;
-  path?: string;
-  before?: Record<string, unknown>;
-  after?: Record<string, unknown>;
-  reason?: string;
-}
-
-interface AuditIdentity {
-  sid: string;
-  email: string;
-  targetEmail: string;
-  targetUid: string;
-}
+import {
+  buildViewAsAuditEntry,
+  type ViewAsAuditInput,
+} from '@/utils/viewAsApprove';
 
 /** Larger values are logged as a size marker so an entry stays under the doc limit. */
 const MAX_VALUE_BYTES = 100_000;
 export const VIEW_AS_OMITTED_KEY = '__viewAsOmitted';
 
-let identity: AuditIdentity | null = null;
-let identityPromise: Promise<AuditIdentity | null> | null = null;
-
-async function readIdentity(): Promise<AuditIdentity | null> {
-  const user = auth.currentUser;
-  if (!user) return null;
-  const { claims } = await user.getIdTokenResult();
-  const claim = claims.viewAs as ViewAsClaim | undefined;
-  const email = typeof claims.email === 'string' ? claims.email : '';
-  if (!claim?.sid || !claim.by) return null;
-  return {
-    sid: claim.sid,
-    email: claim.by,
-    targetEmail: email.toLowerCase(),
-    targetUid: user.uid,
-  };
-}
-
-if (isViewAsTab) {
-  onIdTokenChanged(auth, () => {
-    identityPromise = readIdentity().then((next) => (identity = next));
-  });
-}
-
-/** Resolves the audit identity from the tab's token, for callers that need the sync builder. */
-export function loadViewAsAuditIdentity(): Promise<AuditIdentity | null> {
-  identityPromise ??= readIdentity().then((next) => (identity = next));
-  return identityPromise;
-}
-
 function capValue(value: unknown): unknown {
-  if (value === undefined) return value;
   try {
     const bytes = JSON.stringify(value)?.length ?? 0;
     return bytes > MAX_VALUE_BYTES ? { [VIEW_AS_OMITTED_KEY]: bytes } : value;
@@ -89,29 +31,18 @@ function capFields(fields: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
-/** Builds an entry the audit rules accept; throws until the token's claim has loaded. */
-export function buildViewAsAuditEntry(input: ViewAsAuditInput): {
-  ref: DocumentReference;
-  data: Record<string, unknown>;
-} {
-  if (!identity) throw new Error('View as audit identity not loaded.');
-  const data: Record<string, unknown> = {
-    action: input.action,
-    ...identity,
-    timestamp: serverTimestamp(),
-  };
-  if (input.path !== undefined) data.path = input.path;
-  if (input.before !== undefined) data.before = capFields(input.before);
-  if (input.after !== undefined) data.after = capFields(input.after);
-  if (input.reason !== undefined) data.reason = input.reason;
-  return { ref: doc(collection(db, 'admin_audit_log')), data };
-}
-
 export async function recordViewAsAudit(
   input: ViewAsAuditInput
 ): Promise<void> {
-  await loadViewAsAuditIdentity();
-  const { ref, data } = buildViewAsAuditEntry(input);
+  const { ref, data } = await buildViewAsAuditEntry({
+    ...input,
+    ...(input.before !== undefined
+      ? { before: capFields(input.before as Record<string, unknown>) }
+      : {}),
+    ...(input.after !== undefined
+      ? { after: capFields(input.after as Record<string, unknown>) }
+      : {}),
+  });
   await setDoc(ref, data);
 }
 

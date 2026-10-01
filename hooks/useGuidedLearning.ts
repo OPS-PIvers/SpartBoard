@@ -63,6 +63,7 @@ import {
   type SharedSource,
   useSharedSubscription,
 } from './useSharedSubscription';
+import { noDriveMessage } from '@/utils/viewAsDrive';
 
 const GL_COLLECTION = 'guided_learning';
 // Users whose closed tombstones were already released this page load.
@@ -228,7 +229,9 @@ export const useGuidedLearning = (
     if (driveService) return driveService;
     if (isAuthBypass) throw new Error('Not authenticated');
     throw new Error(
-      'Not connected to Google Drive. Please sign in again to grant access.'
+      noDriveMessage(
+        'Not connected to Google Drive. Please sign in again to grant access.'
+      )
     );
   }, [driveService]);
 

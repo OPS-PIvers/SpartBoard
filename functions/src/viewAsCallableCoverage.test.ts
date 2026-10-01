@@ -20,6 +20,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   getQuizArtifactPlaybackUrl: 'read',
   getStudentClassDirectoryV1: 'read',
   getTeammatePrintContextV1: 'read',
+  getViewAsDriveTokenV1: 'read',
   listQuizMediaForOrgAdmin: 'read',
   ltiResolveNamesForAssignmentV1: 'read',
   ltiSuggestClassLinkMatchV1: 'read',

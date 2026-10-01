@@ -45,6 +45,7 @@ vi.mock('@/config/firebase', () => ({
   auth: {
     currentUser: {
       uid: 'teacher-uid',
+      email: 'Teacher@Orono.k12.mn.us',
       getIdTokenResult: () =>
         Promise.resolve({
           claims: {

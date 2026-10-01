@@ -3,6 +3,7 @@ import { useAuth } from '@/context/useAuth';
 import { GoogleDriveService } from '@/utils/googleDriveService';
 import { isDriveAuthError, onDriveTokenChange } from '@/utils/driveAuthErrors';
 import { APP_NAME } from '@/config/constants';
+import { viewAsSuppressesBackgroundWrites } from '@/utils/viewAsTab';
 
 const BACKGROUNDS_FOLDER = 'Backgrounds';
 const DRAWINGS_FOLDER = 'Drawings';
@@ -47,7 +48,8 @@ export const useGoogleDrive = () => {
   // state when the user's token has expired, and the toast already prompts
   // them to reconnect.
   useEffect(() => {
-    if (!driveService || !user?.uid) return;
+    if (!driveService || !user?.uid || viewAsSuppressesBackgroundWrites())
+      return;
     const key = migrationKey(user.uid);
     if (localStorage.getItem(key)) return;
 

@@ -117,6 +117,7 @@ vi.mock('axios', () => ({
 import {
   exchangeGoogleAuthCode,
   refreshGoogleAccessToken,
+  refreshGoogleAccessTokenForUid,
   revokeGoogleRefreshToken,
 } from './googleOAuth';
 
@@ -424,6 +425,31 @@ describe('refreshGoogleAccessToken', () => {
     );
     expect((err.details as { cause: string }).cause).toBe('invalid-grant');
     expect(deletedPaths).toContain(PRIVATE_DOC_PATH_FOR(TEST_UID));
+  });
+
+  it('keeps the stored doc on invalid_grant when asked (View as)', async () => {
+    setAxiosHandler(async () => ({
+      data: {
+        access_token: 'access-1',
+        expires_in: 3600,
+        refresh_token: 'refresh-1',
+        scope: ALL_SCOPES,
+        token_type: 'Bearer',
+      },
+    }));
+    await callAuthed(exchangeGoogleAuthCode, {
+      code: 'c',
+      redirectUri: 'postmessage',
+    });
+    setAxiosHandler(async () => {
+      throw new FakeAxiosError('Bad Request', { error: 'invalid_grant' });
+    });
+
+    const err = await expectThrows(() =>
+      refreshGoogleAccessTokenForUid(TEST_UID, { keepStoredOnFailure: true })
+    );
+    expect((err.details as { cause: string }).cause).toBe('invalid-grant');
+    expect(deletedPaths).toEqual([]);
   });
 
   it('returns transient for non-invalid_grant axios errors (no doc deletion)', async () => {

@@ -1,6 +1,8 @@
 import { useCallback, useRef } from 'react';
 import { useAuth } from '@/context/useAuth';
 import { logError } from '@/utils/logError';
+import { isViewAsTab } from '@/utils/viewAsTab';
+import { VIEW_AS_DRIVE_UNAVAILABLE } from '@/utils/viewAsDrive';
 
 /** Subset of file metadata returned by the Google Picker. */
 export interface PickedFile {
@@ -167,6 +169,10 @@ export const useGooglePicker = () => {
   const openPicker = useCallback(
     (options?: OpenPickerOptions): Promise<PickedFile | null> => {
       const oauthToken = options?.token ?? googleAccessToken;
+      // The Picker browses the target's whole Drive and grants access to what is picked.
+      if (isViewAsTab) {
+        return Promise.reject(new Error(VIEW_AS_DRIVE_UNAVAILABLE));
+      }
       if (!oauthToken) {
         return Promise.reject(
           new Error('Google Drive is not connected. Please sign in again.')

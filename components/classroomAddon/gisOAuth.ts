@@ -8,6 +8,8 @@
  * OAuth consent CANNOT redirect inside Classroom's iframe, so we use the GIS
  * token popup (top-level) to obtain an access token.
  */
+import { isViewAsTab } from '@/utils/viewAsTab';
+
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
@@ -79,6 +81,11 @@ export function requestAccessToken(
   options: RequestAccessTokenOptions = {}
 ): Promise<string> {
   return new Promise((resolve, reject) => {
+    // The popup would sign in the admin's own Google account, not the teacher's.
+    if (isViewAsTab) {
+      reject(new Error('Google Classroom is not available in View as.'));
+      return;
+    }
     if (!CLIENT_ID) {
       reject(new Error('VITE_GOOGLE_CLIENT_ID is not set in this build.'));
       return;
