@@ -1,6 +1,7 @@
 import type {
   ClassRoster,
   RosterGroup,
+  RosterGroupAlert,
   RosterGroupReminder,
   RosterGroupReminderSound,
   RosterGroupSymbol,
@@ -20,6 +21,7 @@ export const GROUP_COLORS = [
 
 export const SNOOZE_OPTIONS = [1, 2, 3, 5, 10];
 export const LEAD_OPTIONS = [0, 1, 2, 3, 5, 10, 15];
+export const MAX_ALERTS = 6;
 export const REMINDER_SOUNDS: RosterGroupReminderSound[] = [
   'off',
   'chime',
@@ -48,8 +50,7 @@ export function defaultGroupReminder(today = new Date()): RosterGroupReminder {
   return {
     enabled: true,
     days: [],
-    time: '09:00',
-    leadMinutes: 0,
+    alerts: [{ time: '09:00', leadMinutes: 0 }],
     repeat: 'weekly',
     startDate: toLocalDateKey(today),
     sound: 'off',
@@ -77,12 +78,26 @@ export function parseGroupSymbol(raw: unknown): RosterGroupSymbol | undefined {
 const pickNumber = (v: unknown, options: number[], fallback: number) =>
   typeof v === 'number' && options.includes(v) ? v : fallback;
 
+function parseAlert(raw: unknown): RosterGroupAlert | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const a = raw as Record<string, unknown>;
+  if (typeof a.time !== 'string' || !TIME_RE.test(a.time)) return undefined;
+  return {
+    time: a.time,
+    leadMinutes: pickNumber(a.leadMinutes, LEAD_OPTIONS, 0),
+  };
+}
+
 export function parseGroupReminder(
   raw: unknown
 ): RosterGroupReminder | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const r = raw as Record<string, unknown>;
-  if (typeof r.time !== 'string' || !TIME_RE.test(r.time)) return undefined;
+  const alerts = (Array.isArray(r.alerts) ? r.alerts : [])
+    .map(parseAlert)
+    .filter((a): a is RosterGroupAlert => !!a)
+    .slice(0, MAX_ALERTS);
+  if (alerts.length === 0) return undefined;
   const days = Array.isArray(r.days)
     ? [
         ...new Set(
@@ -95,8 +110,7 @@ export function parseGroupReminder(
   return {
     enabled: r.enabled !== false,
     days,
-    time: r.time,
-    leadMinutes: pickNumber(r.leadMinutes, LEAD_OPTIONS, 0),
+    alerts,
     repeat: r.repeat === 'biweekly' ? 'biweekly' : 'weekly',
     startDate:
       typeof r.startDate === 'string' && DATE_RE.test(r.startDate)
@@ -144,17 +158,18 @@ export function reminderFallsOn(
   return weeks % 2 === 0;
 }
 
-/** Epoch ms of the reminder's time on the calendar day of `d`. */
-export function reminderTimeOn(reminder: RosterGroupReminder, d: Date): number {
-  const [h, m] = reminder.time.split(':').map(Number);
+/** Epoch ms of an "HH:mm" time on the calendar day of `d`. */
+export function timeOn(time: string, d: Date): number {
+  const [h, m] = time.split(':').map(Number);
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m).getTime();
 }
 
 export interface DueReminder {
-  /** Stable per occurrence: roster, group and date. */
+  /** Stable per occurrence: roster, group, date and time. */
   key: string;
   rosterId: string;
   group: RosterGroup;
+  time: string;
   at: number;
 }
 
@@ -170,15 +185,18 @@ export function dueReminders(
     for (const group of roster.groups ?? []) {
       const reminder = group.reminder;
       if (!reminder || !reminderFallsOn(reminder, today)) continue;
-      const at = reminderTimeOn(reminder, today);
-      const showAt = at - reminder.leadMinutes * 60_000;
-      if (now < showAt || now - showAt > LATE_WINDOW_MS) continue;
-      due.push({
-        key: `${roster.id}:${group.id}:${dateKey}:${reminder.time}`,
-        rosterId: roster.id,
-        group,
-        at,
-      });
+      for (const alert of reminder.alerts) {
+        const at = timeOn(alert.time, today);
+        const showAt = at - alert.leadMinutes * 60_000;
+        if (now < showAt || now - showAt > LATE_WINDOW_MS) continue;
+        due.push({
+          key: `${roster.id}:${group.id}:${dateKey}:${alert.time}`,
+          rosterId: roster.id,
+          group,
+          time: alert.time,
+          at,
+        });
+      }
     }
   }
   return due.sort((a, b) => a.at - b.at);
@@ -192,7 +210,7 @@ export function formatReminderTime(time: string, locale?: string): string {
   });
 }
 
-/** "Mon, Wed · 10:15 AM", with "every 2 weeks" for biweekly. */
+/** "Mon, Wed · 10:15 AM, 1:40 PM", with "every 2 weeks" for biweekly. */
 export function formatReminderSummary(
   reminder: RosterGroupReminder,
   everyTwoWeeksLabel: string,
@@ -204,9 +222,11 @@ export function formatReminderSummary(
       new Date(2000, 0, 2 + d).toLocaleDateString(locale, { weekday: 'short' })
     )
     .join(', ');
-  const parts = [days, formatReminderTime(reminder.time, locale)].filter(
-    Boolean
-  );
+  const times = [...reminder.alerts]
+    .sort((a, b) => a.time.localeCompare(b.time))
+    .map((a) => formatReminderTime(a.time, locale))
+    .join(', ');
+  const parts = [days, times].filter(Boolean);
   if (reminder.repeat === 'biweekly') parts.push(everyTwoWeeksLabel);
   return parts.join(' · ');
 }

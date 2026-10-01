@@ -15,8 +15,7 @@ const reminder = (
 ): RosterGroupReminder => ({
   enabled: true,
   days: [1, 3],
-  time: '10:15',
-  leadMinutes: 0,
+  alerts: [{ time: '10:15', leadMinutes: 0 }],
   repeat: 'weekly',
   startDate: '2026-09-28',
   sound: 'off',
@@ -102,14 +101,19 @@ describe('dueReminders', () => {
 });
 
 describe('lead time', () => {
-  it('is due the chosen minutes before the time', () => {
+  it('is due the chosen minutes before each alert time', () => {
     const rosters = [
       roster([
         {
           id: 'g1',
           name: 'Speech',
           studentIds: [],
-          reminder: reminder({ leadMinutes: 5 }),
+          reminder: reminder({
+            alerts: [
+              { time: '10:15', leadMinutes: 5 },
+              { time: '13:40', leadMinutes: 0 },
+            ],
+          }),
         },
       ]),
     ];
@@ -119,6 +123,8 @@ describe('lead time', () => {
     expect(
       dueReminders(rosters, at('2026-09-28', '10:10').getTime())
     ).toHaveLength(1);
+    const later = dueReminders(rosters, at('2026-09-28', '13:40').getTime());
+    expect(later.map((d) => d.key)).toEqual(['r1:g1:2026-09-28:13:40']);
   });
 });
 
@@ -126,12 +132,11 @@ describe('parsing', () => {
   it('keeps a valid reminder and normalises its fields', () => {
     expect(
       parseGroupReminder({
-        time: '13:30',
+        alerts: [{ time: '13:30', leadMinutes: 7 }, { time: 'noon' }],
         days: [5, 1, 1, 9, 'x'],
         repeat: 'biweekly',
         startDate: '2026-10-01',
         sound: 'marimba',
-        leadMinutes: 7,
         snoozeMinutes: 5,
         showTime: true,
         showMessage: true,
@@ -140,8 +145,7 @@ describe('parsing', () => {
     ).toEqual({
       enabled: true,
       days: [1, 5],
-      time: '13:30',
-      leadMinutes: 0,
+      alerts: [{ time: '13:30', leadMinutes: 0 }],
       repeat: 'biweekly',
       startDate: '2026-10-01',
       sound: 'marimba',
@@ -154,10 +158,12 @@ describe('parsing', () => {
   });
 
   it('drops a reminder without a valid time, and unknown sounds go silent', () => {
-    expect(parseGroupReminder({ time: '25:00', days: [1] })).toBeUndefined();
-    expect(parseGroupReminder({ time: '09:00', sound: 'siren' })?.sound).toBe(
-      'off'
-    );
+    expect(
+      parseGroupReminder({ alerts: [{ time: '25:00' }], days: [1] })
+    ).toBeUndefined();
+    expect(
+      parseGroupReminder({ alerts: [{ time: '09:00' }], sound: 'siren' })?.sound
+    ).toBe('off');
   });
 
   it('keeps an icon id and defaults its colour', () => {

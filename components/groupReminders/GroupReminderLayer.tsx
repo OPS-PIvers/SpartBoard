@@ -163,11 +163,7 @@ export const GroupReminderLayer: React.FC<{ rosters: ClassRoster[] }> = ({
                   ? r.group.name.trim()
                   : undefined
               }
-              time={
-                reminder?.showTime
-                  ? formatReminderTime(reminder.time)
-                  : undefined
-              }
+              time={reminder?.showTime ? formatReminderTime(r.time) : undefined}
               snoozeMinutes={snoozeMinutes}
               snoozedUntil={
                 r.snoozedUntil !== undefined

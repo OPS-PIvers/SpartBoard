@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Check, Play, Plus, Search, X } from 'lucide-react';
 import type {
   RosterGroup,
+  RosterGroupAlert,
   RosterGroupReminder,
   RosterGroupSymbol,
   Student,
@@ -14,6 +15,7 @@ import { GroupReminderCard } from '@/components/groupReminders/GroupReminderCard
 import {
   GROUP_COLORS,
   LEAD_OPTIONS,
+  MAX_ALERTS,
   REMINDER_SOUNDS,
   SNOOZE_OPTIONS,
   defaultGroupReminder,
@@ -270,7 +272,11 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
         name={
           reminder.showName && group.name.trim() ? group.name.trim() : undefined
         }
-        time={reminder.showTime ? formatReminderTime(reminder.time) : undefined}
+        time={
+          reminder.showTime
+            ? formatReminderTime(reminder.alerts[0]?.time ?? '09:00')
+            : undefined
+        }
         snoozeMinutes={reminder.snoozeMinutes}
         onSnooze={() => undefined}
         onDismiss={() => undefined}
@@ -425,7 +431,7 @@ const SymbolStep: React.FC<{
             className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
           />
         </div>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))] gap-1.5 max-h-56 overflow-y-auto custom-scrollbar pr-1 pb-1">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))] gap-1.5 max-h-60 overflow-y-auto custom-scrollbar p-1 -mx-1">
           {icons.map(({ id, Icon }) => {
             const on = symbol.icon === id;
             return (
@@ -724,6 +730,17 @@ const ScheduleStep: React.FC<{
   onChange: (patch: Partial<RosterGroupReminder>) => void;
 }> = ({ reminder, onChange }) => {
   const { t } = useTranslation();
+  const timeLabel = t('groupReminders.time', { defaultValue: 'Time' });
+  const leadLabel = t('groupReminders.showReminder', {
+    defaultValue: 'Show reminder',
+  });
+  const removeLabel = t('groupReminders.removeAlert', {
+    defaultValue: 'Remove alert',
+  });
+  const setAlert = (i: number, patch: Partial<RosterGroupAlert>) =>
+    onChange({
+      alerts: reminder.alerts.map((a, j) => (j === i ? { ...a, ...patch } : a)),
+    });
   const toggleDay = (d: number) =>
     onChange({
       days: reminder.days.includes(d)
@@ -762,50 +779,87 @@ const ScheduleStep: React.FC<{
           })}
         </div>
       </div>
-      <div className="flex flex-wrap gap-6">
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="group-wizard-time"
-            className="text-xs font-bold text-slate-600"
+      <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-[10rem_11rem_2rem] gap-x-3">
+          <span className={FIELD_LABEL}>{timeLabel}</span>
+          <span className={FIELD_LABEL}>{leadLabel}</span>
+        </div>
+        {reminder.alerts.map((alert, i) => (
+          <div
+            key={i}
+            className="grid grid-cols-[10rem_11rem_2rem] gap-x-3 items-center"
           >
-            {t('groupReminders.time', { defaultValue: 'Time' })}
-          </label>
-          <input
-            id="group-wizard-time"
-            type="time"
-            value={reminder.time}
-            onChange={(e) =>
-              e.target.value && onChange({ time: e.target.value })
+            <input
+              type="time"
+              aria-label={timeLabel}
+              value={alert.time}
+              onChange={(e) =>
+                e.target.value && setAlert(i, { time: e.target.value })
+              }
+              className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+            />
+            <select
+              aria-label={leadLabel}
+              value={alert.leadMinutes}
+              onChange={(e) =>
+                setAlert(i, { leadMinutes: Number(e.target.value) })
+              }
+              className={SELECT}
+            >
+              {LEAD_OPTIONS.map((m) => (
+                <option key={m} value={m}>
+                  {m === 0
+                    ? t('groupReminders.atTheTime', {
+                        defaultValue: 'At the time',
+                      })
+                    : t('groupReminders.minutesBefore', {
+                        defaultValue: '{{count}} min before',
+                        count: m,
+                      })}
+                </option>
+              ))}
+            </select>
+            {reminder.alerts.length > 1 && (
+              <button
+                type="button"
+                onClick={() =>
+                  onChange({
+                    alerts: reminder.alerts.filter((_, j) => j !== i),
+                  })
+                }
+                aria-label={removeLabel}
+                title={removeLabel}
+                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        ))}
+        {reminder.alerts.length < MAX_ALERTS && (
+          <button
+            type="button"
+            onClick={() =>
+              onChange({
+                alerts: [
+                  ...reminder.alerts,
+                  {
+                    time: reminder.alerts[reminder.alerts.length - 1].time,
+                    leadMinutes: 0,
+                  },
+                ],
+              })
             }
-            className="px-3 py-2 text-sm rounded-lg border border-slate-200 w-40 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label htmlFor="group-wizard-lead" className={FIELD_LABEL}>
-            {t('groupReminders.showReminder', {
-              defaultValue: 'Show reminder',
-            })}
-          </label>
-          <select
-            id="group-wizard-lead"
-            value={reminder.leadMinutes}
-            onChange={(e) => onChange({ leadMinutes: Number(e.target.value) })}
-            className={`${SELECT} w-44`}
+            className="self-start flex items-center gap-1.5 px-2 py-1 -ml-2 text-sm font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter rounded-md transition-colors"
           >
-            {LEAD_OPTIONS.map((m) => (
-              <option key={m} value={m}>
-                {m === 0
-                  ? t('groupReminders.atTheTime', {
-                      defaultValue: 'At the time',
-                    })
-                  : t('groupReminders.minutesBefore', {
-                      defaultValue: '{{count}} min before',
-                      count: m,
-                    })}
-              </option>
-            ))}
-          </select>
-        </div>
+            <Plus size={16} />
+            {t('groupReminders.addAlert', {
+              defaultValue: 'Add another alert',
+            })}
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-6">
         <div className="flex flex-col gap-2">
           <label
             htmlFor="group-wizard-repeat"

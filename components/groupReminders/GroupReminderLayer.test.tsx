@@ -9,8 +9,7 @@ vi.mock('@/utils/reminderSounds', () => ({ playReminderSound: vi.fn() }));
 const reminder: NonNullable<RosterGroup['reminder']> = {
   enabled: true,
   days: [1],
-  time: '10:15',
-  leadMinutes: 0,
+  alerts: [{ time: '10:15', leadMinutes: 0 }],
   repeat: 'weekly',
   startDate: '2026-09-28',
   sound: 'off',
@@ -88,7 +87,9 @@ describe('GroupReminderLayer', () => {
   });
 
   it('shows up the chosen minutes ahead of the time', () => {
-    const g = group({ reminder: { ...reminder, leadMinutes: 5 } });
+    const g = group({
+      reminder: { ...reminder, alerts: [{ time: '10:15', leadMinutes: 5 }] },
+    });
     vi.setSystemTime(new Date(2026, 8, 28, 10, 9, 55));
     render(<GroupReminderLayer rosters={rosters(g)} />);
     expect(screen.queryByRole('alert')).toBeNull();

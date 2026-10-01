@@ -256,14 +256,19 @@ export type RosterGroupReminderSound =
   | 'marimba'
   | 'harp';
 
-export interface RosterGroupReminder {
-  enabled: boolean;
-  /** ISO weekdays, 1 = Monday ... 5 = Friday. */
-  days: number[];
+export interface RosterGroupAlert {
   /** 24-hour "HH:mm" in the teacher's local time. */
   time: string;
   /** Minutes before `time` that the card appears. */
   leadMinutes: number;
+}
+
+export interface RosterGroupReminder {
+  enabled: boolean;
+  /** ISO weekdays, 1 = Monday ... 5 = Friday. */
+  days: number[];
+  /** One or more alerts on each chosen day. */
+  alerts: RosterGroupAlert[];
   repeat: 'weekly' | 'biweekly';
   /** "YYYY-MM-DD"; the week it falls in is an on-week for `biweekly`. */
   startDate: string;

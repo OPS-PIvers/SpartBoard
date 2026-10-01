@@ -62,6 +62,12 @@ describe('GroupRemindersPanel', () => {
     fireEvent.change(screen.getByLabelText(/^time$/i), {
       target: { value: '10:15' },
     });
+    await user.click(
+      screen.getByRole('button', { name: /add another alert/i })
+    );
+    fireEvent.change(screen.getAllByLabelText(/^time$/i)[1], {
+      target: { value: '13:40' },
+    });
     await user.click(screen.getByRole('button', { name: /^next$/i }));
 
     // Step 4: alerts, defaults left alone
@@ -87,8 +93,10 @@ describe('GroupRemindersPanel', () => {
       reminder: {
         enabled: true,
         days: [1, 3],
-        time: '10:15',
-        leadMinutes: 0,
+        alerts: [
+          { time: '10:15', leadMinutes: 0 },
+          { time: '13:40', leadMinutes: 0 },
+        ],
         repeat: 'weekly',
         sound: 'off',
         snoozeMinutes: 3,
