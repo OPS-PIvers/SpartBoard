@@ -79,6 +79,23 @@ const GRADE_OPTIONS: { value: GradeLevel | 'all'; label: string }[] = [
   { value: '9-12', label: '9-12' },
 ];
 
+type LibrarySort = 'az' | 'custom';
+
+const SORT_STORAGE_KEY = 'spartboard_library_sort';
+
+const readStoredSort = (): LibrarySort => {
+  try {
+    return localStorage.getItem(SORT_STORAGE_KEY) === 'custom'
+      ? 'custom'
+      : 'az';
+  } catch {
+    return 'az';
+  }
+};
+
+const byLabel = (a: string, b: string) =>
+  a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
+
 interface WidgetLibraryProps {
   onToggle: (type: WidgetType | InternalToolType) => void;
   visibleTools: (WidgetType | InternalToolType)[];
@@ -265,6 +282,15 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
       WidgetCategory | 'all'
     >('all');
     const [gradeFilter, setGradeFilter] = useState<GradeLevel | 'all'>('all');
+    const [sortMode, setSortModeState] = useState<LibrarySort>(readStoredSort);
+    const setSortMode = useCallback((mode: LibrarySort) => {
+      setSortModeState(mode);
+      try {
+        localStorage.setItem(SORT_STORAGE_KEY, mode);
+      } catch {
+        // storage unavailable; the choice lasts for this session only
+      }
+    }, []);
     const [showHiddenSection, setShowHiddenSection] = useState(false);
 
     const trimmedQuery = searchQuery.trim();
@@ -314,13 +340,20 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
     }, [showConfirm, resetDockToDefaults, onClose]);
 
     // Merge any new TOOLS not yet tracked in libraryOrder (auto-discovery)
-    const effectiveOrder = useMemo(() => {
+    const customOrder = useMemo(() => {
       const allToolTypes = TOOLS.map((t) => t.type);
       return [
         ...libraryOrder,
         ...allToolTypes.filter((type) => !libraryOrder.includes(type)),
       ];
     }, [libraryOrder]);
+
+    const effectiveOrder = useMemo(() => {
+      if (sortMode === 'custom') return customOrder;
+      const labelOf = (type: WidgetType | InternalToolType) =>
+        getToolLabel ? getToolLabel(type) : (TOOLS_MAP.get(type)?.label ?? '');
+      return [...customOrder].sort((a, b) => byLabel(labelOf(a), labelOf(b)));
+    }, [customOrder, sortMode, getToolLabel]);
 
     const handleDragEnd = useCallback(
       (event: DragEndEvent) => {
@@ -334,9 +367,11 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
             over.id as WidgetType | InternalToolType
           );
           onReorderLibrary(arrayMove(effectiveOrder, oldIndex, newIndex));
+          // Dragging from A–Z starts a custom order from what the teacher sees.
+          if (sortMode !== 'custom') setSortMode('custom');
         }
       },
-      [effectiveOrder, onReorderLibrary]
+      [effectiveOrder, onReorderLibrary, sortMode, setSortMode]
     );
 
     // Tools the user could add given their role + building — NOT accounting
@@ -426,25 +461,41 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
     // libraryOrder.
     const sortDisabled = !isEditMode || isFiltering;
 
+    const sortedSavedWidgets = useMemo(
+      () =>
+        sortMode === 'az'
+          ? [...savedWidgets].sort((a, b) => byLabel(a.title, b.title))
+          : savedWidgets,
+      [savedWidgets, sortMode]
+    );
+
+    const sortedCustomWidgets = useMemo(
+      () =>
+        sortMode === 'az'
+          ? [...customWidgets].sort((a, b) => byLabel(a.title, b.title))
+          : customWidgets,
+      [customWidgets, sortMode]
+    );
+
     const savedMatches = useMemo(() => {
-      if (trimmedQuery === '') return isFiltering ? [] : savedWidgets;
+      if (trimmedQuery === '') return isFiltering ? [] : sortedSavedWidgets;
       const fuse = new Fuse(savedWidgets, {
         keys: ['title'],
         threshold: 0.35,
         ignoreLocation: true,
       });
       return fuse.search(trimmedQuery).map((r) => r.item);
-    }, [savedWidgets, trimmedQuery, isFiltering]);
+    }, [savedWidgets, sortedSavedWidgets, trimmedQuery, isFiltering]);
 
     const customMatches = useMemo(() => {
-      if (trimmedQuery === '') return isFiltering ? [] : customWidgets;
+      if (trimmedQuery === '') return isFiltering ? [] : sortedCustomWidgets;
       const fuse = new Fuse(customWidgets, {
         keys: ['title'],
         threshold: 0.35,
         ignoreLocation: true,
       });
       return fuse.search(trimmedQuery).map((r) => r.item);
-    }, [customWidgets, trimmedQuery, isFiltering]);
+    }, [customWidgets, sortedCustomWidgets, trimmedQuery, isFiltering]);
 
     // "Built-in" qualifier matters because custom widgets render in their
     // own section above and aren't counted here — without it, the message
@@ -557,6 +608,15 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                     {g.label}
                   </option>
                 ))}
+              </select>
+              <select
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value as LibrarySort)}
+                aria-label="Sort widgets"
+                className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white/80 border border-white/60 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+              >
+                <option value="az">A–Z</option>
+                <option value="custom">My order</option>
               </select>
             </div>
           </div>
