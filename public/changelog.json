@@ -1,6 +1,41 @@
 {
   "entries": [
     {
+      "version": "2026.10.01.3",
+      "date": "2026-10-01",
+      "title": "Widget library sorting and class columns",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "Improvements",
+          "items": [
+            {
+              "text": "The widget library lists widgets A–Z. To use the order you arranged, pick My order from the sort menu next to the filters."
+            },
+            {
+              "text": "Widgets made for other grade levels now sit in a collapsed Other grade levels section at the bottom of the library, with the grades each one is for. Searching or filtering opens it."
+            },
+            {
+              "text": "In Edit class, pick which student columns to show from one Columns menu. Quiz PINs and emails stay hidden until you turn them on."
+            },
+            {
+              "text": "In the quiz library, Preview is now called Check answers, since it steps through each question and shows the correct answer."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "subtitle": "Fixes",
+          "items": [
+            {
+              "text": "A PLC's Home page no longer flashes an empty results message while its results are still loading."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.10.01.2",
       "date": "2026-10-01",
       "title": "Exporting PLC quiz results",
