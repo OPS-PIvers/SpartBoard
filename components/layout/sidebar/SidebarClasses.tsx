@@ -763,6 +763,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
           onClose={() => setEditingRosterId(null)}
           onSave={handleSaveRoster}
           readAloudAvailable={canAccessFeature('quiz-read-aloud')}
+          groupRemindersEnabled={canAccessFeature('group-reminders')}
           bellPeriodOptions={bellPeriodOptions}
         />
       )}

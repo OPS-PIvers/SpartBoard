@@ -2,6 +2,7 @@
 import type React from 'react';
 import {
   BarChart,
+  BellRing,
   Bot,
   Building2,
   CalendarClock,
@@ -891,6 +892,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     description: 'Students see their published scores in My Assignments.',
     stage: 'preview',
     afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'group-reminders': {
+    label: 'Group reminders',
+    icon: BellRing,
+    description:
+      'Class groups with a weekly time that pop a reminder on the board.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

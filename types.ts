@@ -234,6 +234,46 @@ export interface RosterGroup {
   id: string;
   name: string;
   studentIds: string[];
+  /** Offered in Group Maker and widget group pickers; absent means yes (pre-reminder groups). */
+  inGroupMaker?: boolean;
+  /** How the group appears on a projected reminder. */
+  symbol?: RosterGroupSymbol;
+  /** Weekly time that pops a reminder on the open board. */
+  reminder?: RosterGroupReminder;
+}
+
+export type RosterGroupShape =
+  | 'star'
+  | 'circle'
+  | 'square'
+  | 'triangle'
+  | 'heart'
+  | 'diamond'
+  | 'hexagon'
+  | 'moon';
+
+export interface RosterGroupSymbol {
+  kind: 'shape' | 'emoji';
+  shape?: RosterGroupShape;
+  emoji?: string;
+  /** Hex colour for a shape. */
+  color: string;
+  /** Group name on the reminder card; off by default because it is projected. */
+  showName: boolean;
+}
+
+export interface RosterGroupReminder {
+  enabled: boolean;
+  /** ISO weekdays, 1 = Monday ... 5 = Friday. */
+  days: number[];
+  /** 24-hour "HH:mm" in the teacher's local time. */
+  time: string;
+  repeat: 'weekly' | 'biweekly';
+  /** "YYYY-MM-DD"; the week it falls in is an on-week for `biweekly`. */
+  startDate: string;
+  sound: 'off' | 'chime' | 'alarm';
+  /** Student first names on the card; off by default because it is projected. */
+  showStudentNames: boolean;
 }
 
 // `StudentOverride` (M17 spec §2a) is defined below alongside `RubricSnapshot`
@@ -9234,6 +9274,8 @@ export type GlobalFeature =
   | 'quiz-review-split'
   /** Quiz assign/edit: an overall time limit per attempt with a student countdown. */
   | 'quiz-time-limit'
+  /** Class groups with a weekly schedule that pop a reminder on the open board. */
+  | 'group-reminders'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'

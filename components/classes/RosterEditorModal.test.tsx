@@ -14,8 +14,18 @@ import { ClassRoster } from '@/types';
  * Tests that rely on the old single-name ("Full name") placeholder must
  * explicitly toggle last-names OFF first.
  */
+async function toggleColumn(
+  user: ReturnType<typeof userEvent.setup>,
+  name: RegExp
+) {
+  await user.click(screen.getByRole('button', { name: /^columns$/i }));
+  await user.click(screen.getByRole('menuitemcheckbox', { name }));
+  await user.keyboard('{Escape}');
+}
+
 describe('RosterEditorModal', () => {
-  it('renders empty state for a new roster', () => {
+  it('renders empty state for a new roster', async () => {
+    const user = userEvent.setup();
     render(
       <RosterEditorModal
         isOpen={true}
@@ -31,13 +41,14 @@ describe('RosterEditorModal', () => {
     expect(
       screen.queryByPlaceholderText(/^first name$/i)
     ).not.toBeInTheDocument();
-    // Toggle buttons always visible — last names ON by default so label is "−"
+    // Columns menu is always offered; last name and PIN are on by default.
+    await user.click(screen.getByRole('button', { name: /^columns$/i }));
     expect(
-      screen.getByRole('button', { name: /− last name/i })
-    ).toBeInTheDocument();
+      screen.getByRole('menuitemcheckbox', { name: /last name/i })
+    ).toHaveAttribute('aria-checked', 'true');
     expect(
-      screen.getByRole('button', { name: /− quiz pin/i })
-    ).toBeInTheDocument();
+      screen.getByRole('menuitemcheckbox', { name: /quiz pin/i })
+    ).toHaveAttribute('aria-checked', 'true');
   });
 
   it('does not offer the Accommodations tab for a brand-new roster', () => {
@@ -72,17 +83,9 @@ describe('RosterEditorModal', () => {
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
     expect(screen.getByPlaceholderText(/^first name$/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/^last name$/i)).toBeInTheDocument();
-    // Toggle label is "− Last Name" (currently active)
-    expect(
-      screen.getByRole('button', { name: /− last name/i })
-    ).toBeInTheDocument();
-
-    // Clicking the toggle collapses to single-name mode
-    await user.click(screen.getByRole('button', { name: /− last name/i }));
+    // Unticking Last Name collapses to single-name mode
+    await toggleColumn(user, /last name/i);
     expect(screen.getByPlaceholderText(/^full name$/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /\+ last name/i })
-    ).toBeInTheDocument();
   });
 
   it('calls onSave with single-field full names and closes', async () => {
@@ -102,7 +105,7 @@ describe('RosterEditorModal', () => {
     await user.type(screen.getByPlaceholderText(/class name/i), 'New Class');
 
     // Collapse last-name column so inputs show "Full name" placeholder
-    await user.click(screen.getByRole('button', { name: /− last name/i }));
+    await toggleColumn(user, /last name/i);
 
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
     await user.type(screen.getByPlaceholderText(/^full name$/i), 'Alice Smith');
@@ -541,7 +544,7 @@ describe('RosterEditorModal', () => {
     );
 
     // Start in single-name mode by collapsing the last-name column first
-    await user.click(screen.getByRole('button', { name: /− last name/i }));
+    await toggleColumn(user, /last name/i);
 
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
     await user.type(screen.getByPlaceholderText(/^full name$/i), 'Alice Smith');
@@ -553,7 +556,7 @@ describe('RosterEditorModal', () => {
     await user.type(names[2], 'Charlie');
 
     // Now expand last-name column — names should be split
-    await user.click(screen.getByRole('button', { name: /\+ last name/i }));
+    await toggleColumn(user, /last name/i);
 
     const firsts = screen.getAllByPlaceholderText(/^first name$/i);
     const lasts = screen.getAllByPlaceholderText(/^last name$/i);
@@ -587,15 +590,15 @@ describe('RosterEditorModal', () => {
     await user.type(firsts[1], 'Bob');
     await user.type(lasts[1], 'Jones');
 
-    // Toggle off — label is "− Last Name" (active state)
-    await user.click(screen.getByRole('button', { name: /− last name/i }));
+    // Untick Last Name in the Columns menu
+    await toggleColumn(user, /last name/i);
 
     const fullNames = screen.getAllByPlaceholderText(/^full name$/i);
     expect(fullNames[0]).toHaveValue('Alice Smith');
     expect(fullNames[1]).toHaveValue('Bob Jones');
   });
 
-  it('shows "− Quiz PIN" button (visible by default) and toggles PIN column off/on', async () => {
+  it('shows the PIN column by default and toggles it from the Columns menu', async () => {
     const user = userEvent.setup();
     render(
       <RosterEditorModal
@@ -611,11 +614,11 @@ describe('RosterEditorModal', () => {
     expect(screen.getByPlaceholderText('01')).toBeInTheDocument();
 
     // Toggle hides PIN column
-    await user.click(screen.getByRole('button', { name: /− quiz pin/i }));
+    await toggleColumn(user, /quiz pin/i);
     expect(screen.queryByPlaceholderText('01')).not.toBeInTheDocument();
 
     // Toggle again restores it
-    await user.click(screen.getByRole('button', { name: /\+ quiz pin/i }));
+    await toggleColumn(user, /quiz pin/i);
     expect(screen.getByPlaceholderText('01')).toBeInTheDocument();
   });
 

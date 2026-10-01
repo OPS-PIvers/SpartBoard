@@ -1,14 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Save,
-  AlertTriangle,
-  X,
-  Plus,
-  Users,
-  UsersRound,
-  Shuffle,
-} from 'lucide-react';
+import { Save, AlertTriangle, X, Plus, Users, UsersRound } from 'lucide-react';
 import {
   Student,
   ClassRoster,
@@ -17,9 +9,11 @@ import {
   RosterBellPeriod,
 } from '@/types';
 import type { BuildingBellPeriodOption } from '@/utils/bellSchedule';
-import { makeRestrictedGroupsByCount } from '@/components/widgets/random/groupMaker';
+import { SplitClassFooter } from './SplitClassFooter';
+import { GroupRemindersPanel } from './GroupRemindersPanel';
 import { Modal } from '@/components/common/Modal';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
+import { ChecklistSelect } from '@/components/gradebook/settings/ChecklistSelect';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { useRosterRowsState, DraftRow } from './useRosterRowsState';
 import {
@@ -54,6 +48,8 @@ interface RosterEditorModalProps {
   readAloudAvailable?: boolean;
   /** Bell periods to tag the class with; the picker is hidden when absent. */
   bellPeriodOptions?: BuildingBellPeriodOption[];
+  /** Host-resolved 'group-reminders' gate: symbols, schedules and the group wizard. */
+  groupRemindersEnabled?: boolean;
 }
 
 const bellKey = (b: RosterBellPeriod | null | undefined): string =>
@@ -73,6 +69,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   onSave,
   readAloudAvailable = false,
   bellPeriodOptions,
+  groupRemindersEnabled = false,
 }) => {
   const { t } = useTranslation();
   const {
@@ -95,6 +92,38 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     validStudents,
     duplicatePins,
   } = useRosterRowsState(roster);
+
+  const columnOptions = [
+    {
+      id: 'lastName',
+      label: t('sidebar.classes.lastName', { defaultValue: 'Last Name' }),
+    },
+    {
+      id: 'pin',
+      label: t('sidebar.classes.quizPin', { defaultValue: 'Quiz PIN' }),
+    },
+    {
+      id: 'email',
+      label: t('sidebar.classes.email', { defaultValue: 'Email' }),
+    },
+    {
+      id: 'restrictions',
+      label: t('sidebar.classes.keepApart', { defaultValue: 'Keep apart' }),
+    },
+  ];
+  const selectedColumns = [
+    showLastNames && 'lastName',
+    showPins && 'pin',
+    showEmails && 'email',
+    showRestrictions && 'restrictions',
+  ].filter((c): c is string => !!c);
+  const toggleColumn = (id: string, on: boolean) => {
+    if (id === 'lastName') {
+      if (on !== showLastNames) handleToggleLastNames();
+    } else if (id === 'pin') setShowPins(on);
+    else if (id === 'email') setShowEmails(on);
+    else if (id === 'restrictions') setShowRestrictions(on);
+  };
 
   const [activeTab, setActiveTab] = useState<
     'students' | 'groups' | 'accommodations'
@@ -177,12 +206,6 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     ? t('sidebar.classes.editClassTitle', { defaultValue: 'Edit Class' })
     : t('sidebar.classes.newClassTitle', { defaultValue: 'New Class' });
 
-  const countLabel = t('sidebar.classes.studentCount', {
-    count: validStudents.length,
-    defaultValue: '{{count}} Student',
-    defaultValue_other: '{{count}} Students',
-  });
-
   return (
     <Modal
       isOpen={isOpen}
@@ -191,7 +214,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
       maxWidth="max-w-5xl"
       className="h-[85vh]"
       contentClassName="px-6 pb-6 flex flex-col"
-      title={`${baseTitle} — ${countLabel}`}
+      title={baseTitle}
     >
       <div className="flex flex-col h-full gap-3 min-h-0">
         <div className="flex flex-wrap items-center gap-3 shrink-0">
@@ -257,8 +280,8 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
           </div>
         )}
 
-        {roster && (
-          <div className="shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
+          {roster ? (
             <SegmentedControl
               value={activeTab}
               onChange={setActiveTab}
@@ -268,8 +291,9 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               options={[
                 {
                   value: 'students',
-                  label: t('sidebar.classes.studentsTab', {
-                    defaultValue: 'Students',
+                  label: t('sidebar.classes.studentsTabCount', {
+                    defaultValue: 'Students ({{count}})',
+                    count: validStudents.length,
                   }),
                 },
                 {
@@ -288,10 +312,32 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                 },
               ]}
             />
-          </div>
-        )}
+          ) : (
+            <span />
+          )}
+          {activeTab === 'students' && (
+            <ChecklistSelect
+              label={t('sidebar.classes.columns', {
+                defaultValue: 'Columns',
+              })}
+              emptyText={t('sidebar.classes.columns', {
+                defaultValue: 'Columns',
+              })}
+              className="w-64"
+              options={columnOptions}
+              selected={selectedColumns}
+              onToggle={toggleColumn}
+            />
+          )}
+        </div>
 
-        {activeTab === 'groups' && roster ? (
+        {activeTab === 'groups' && roster && groupRemindersEnabled ? (
+          <GroupRemindersPanel
+            groups={groups}
+            students={validStudents}
+            onChange={setGroups}
+          />
+        ) : activeTab === 'groups' && roster ? (
           <RosterGroupsPanel
             groups={groups}
             students={validStudents}
@@ -307,75 +353,6 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
           />
         ) : (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleToggleLastNames}
-                  className={`text-xs font-black uppercase tracking-wider transition-colors ${
-                    showLastNames
-                      ? 'text-blue-600 hover:text-blue-700'
-                      : 'text-slate-400 hover:text-slate-500'
-                  }`}
-                >
-                  {showLastNames
-                    ? t('sidebar.classes.hideLastName', {
-                        defaultValue: '− Last Name',
-                      })
-                    : t('sidebar.classes.addLastName', {
-                        defaultValue: '+ Last Name',
-                      })}
-                </button>
-                <button
-                  onClick={() => setShowPins((v) => !v)}
-                  className={`text-xs font-black uppercase tracking-wider transition-colors ${
-                    showPins
-                      ? 'text-violet-600 hover:text-violet-700'
-                      : 'text-slate-400 hover:text-slate-500'
-                  }`}
-                >
-                  {showPins
-                    ? t('sidebar.classes.hideQuizPin', {
-                        defaultValue: '− Quiz PIN',
-                      })
-                    : t('sidebar.classes.addQuizPin', {
-                        defaultValue: '+ Quiz PIN',
-                      })}
-                </button>
-                <button
-                  onClick={() => setShowEmails((v) => !v)}
-                  className={`text-xs font-black uppercase tracking-wider transition-colors ${
-                    showEmails
-                      ? 'text-emerald-600 hover:text-emerald-700'
-                      : 'text-slate-400 hover:text-slate-500'
-                  }`}
-                >
-                  {showEmails
-                    ? t('sidebar.classes.hideEmail', {
-                        defaultValue: '− Email',
-                      })
-                    : t('sidebar.classes.addEmail', {
-                        defaultValue: '+ Email',
-                      })}
-                </button>
-                <button
-                  onClick={() => setShowRestrictions((v) => !v)}
-                  className={`text-xs font-black uppercase tracking-wider transition-colors ${
-                    showRestrictions
-                      ? 'text-amber-600 hover:text-amber-700'
-                      : 'text-slate-400 hover:text-slate-500'
-                  }`}
-                >
-                  {showRestrictions
-                    ? t('sidebar.classes.hideRestrictions', {
-                        defaultValue: '− Restrictions',
-                      })
-                    : t('sidebar.classes.addRestrictions', {
-                        defaultValue: '+ Restrictions',
-                      })}
-                </button>
-              </div>
-            </div>
-
             {duplicatePins.size > 0 && (
               <div className="flex items-center gap-1.5 px-3 py-2 bg-yellow-50 border border-yellow-300 rounded-lg text-yellow-800 text-xs font-semibold shrink-0">
                 <AlertTriangle size={14} className="text-yellow-600 shrink-0" />
@@ -386,7 +363,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               </div>
             )}
 
-            <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-slate-50/30 overflow-y-auto custom-scrollbar">
+            <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-white overflow-y-auto custom-scrollbar">
               {rows.length === 0 ? (
                 <RosterEmptyState
                   title={t('sidebar.classes.emptyRosterTitle', {
@@ -427,8 +404,8 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                     emailLabel={t('sidebar.classes.email', {
                       defaultValue: 'Email',
                     })}
-                    restrictionsLabel={t('sidebar.classes.restrictionsHeader', {
-                      defaultValue: 'Restricted from working with',
+                    restrictionsLabel={t('sidebar.classes.keepApart', {
+                      defaultValue: 'Keep apart',
                     })}
                   />
                   <ul className="flex flex-col divide-y divide-slate-100">
@@ -528,7 +505,7 @@ const RosterHeader: React.FC<RosterHeaderProps> = ({
 }) => {
   return (
     <div
-      className="hidden md:grid items-center gap-3 px-3 py-2 bg-slate-100/60 border-b border-slate-200 text-xxs font-bold text-slate-500 uppercase tracking-widest sticky top-0 z-10"
+      className="hidden md:grid items-center gap-3 px-4 py-2 bg-white border-b border-slate-200 text-xxs font-bold text-slate-500 uppercase tracking-widest sticky top-0 z-10"
       style={{
         gridTemplateColumns: buildGridTemplate(
           showLastNames,
@@ -611,7 +588,7 @@ const RosterRow: React.FC<RosterRowProps> = ({
 
   return (
     <li
-      className="grid items-center gap-3 px-3 py-2 hover:bg-white transition-colors"
+      className="grid items-center gap-3 px-4 py-1.5 hover:bg-slate-50 transition-colors"
       {...tourFieldAttr(
         'roster-editor.row',
         'roster-editor',
@@ -631,10 +608,10 @@ const RosterRow: React.FC<RosterRowProps> = ({
       </span>
       {showPins && (
         <input
-          className={`px-2 py-1.5 text-sm font-mono text-center rounded-md border outline-none focus:ring-2 focus:ring-violet-100 transition-colors ${
+          className={`px-2 py-1.5 text-sm font-mono text-center rounded-md border outline-none focus:ring-2 focus:ring-brand-blue-primary/20 transition-colors ${
             isDuplicatePin
               ? 'border-yellow-400 bg-yellow-50 focus:border-yellow-500'
-              : 'border-slate-200 bg-white focus:border-violet-400'
+              : 'border-slate-200 bg-white focus:border-brand-blue-primary'
           }`}
           value={row.pin}
           onChange={(e) => onChange({ pin: e.target.value })}
@@ -644,7 +621,7 @@ const RosterRow: React.FC<RosterRowProps> = ({
         />
       )}
       <input
-        className="px-3 py-1.5 text-sm rounded-md border border-slate-200 bg-white outline-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 transition-colors"
+        className="px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:border-slate-200 focus:bg-white outline-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 transition-colors"
         value={row.firstName}
         onChange={(e) => onChange({ firstName: e.target.value })}
         onPaste={handleFirstNamePaste}
@@ -652,7 +629,7 @@ const RosterRow: React.FC<RosterRowProps> = ({
       />
       {showLastNames && (
         <input
-          className="px-3 py-1.5 text-sm rounded-md border border-slate-200 bg-white outline-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 transition-colors"
+          className="px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:border-slate-200 focus:bg-white outline-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 transition-colors"
           value={row.lastName}
           onChange={(e) => onChange({ lastName: e.target.value })}
           placeholder={lastNamePlaceholder}
@@ -661,7 +638,7 @@ const RosterRow: React.FC<RosterRowProps> = ({
       {showEmails && (
         <input
           type="email"
-          className="px-3 py-1.5 text-sm rounded-md border border-slate-200 bg-white outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-colors"
+          className="px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:border-slate-200 focus:bg-white outline-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 transition-colors"
           value={row.email ?? ''}
           onChange={(e) => onChange({ email: e.target.value })}
           placeholder={emailPlaceholder}
@@ -711,40 +688,10 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
 }) => {
   const { t } = useTranslation();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [splitOpen, setSplitOpen] = useState(false);
-  const [splitCount, setSplitCount] = useState(4);
-  const [splitName, setSplitName] = useState('');
   const studentIds = useMemo(
     () => new Set(students.map((s) => s.id)),
     [students]
   );
-
-  // Dated so six rounds of "Team 1" stay tellable apart in the picker.
-  const defaultSplitName = () =>
-    `${t('sidebar.classes.splitNamePrefix', { defaultValue: 'Teams' })} – ${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
-
-  const openSplit = () => {
-    setSplitName(defaultSplitName());
-    setSplitCount(Math.min(4, Math.max(2, students.length)));
-    setSplitOpen(true);
-  };
-
-  const runSplit = () => {
-    const base = splitName.trim() || defaultSplitName();
-    const count = Math.max(2, Math.min(students.length, splitCount));
-    // Restriction-aware rather than a plain shuffle, so a split honors the
-    // keep-apart pairs the Students tab already records.
-    const made = makeRestrictedGroupsByCount(students, count);
-    onChange([
-      ...groups,
-      ...made.groups.map((g, i) => ({
-        id: g.id ?? crypto.randomUUID(),
-        name: `${base} (${i + 1})`,
-        studentIds: g.studentIds ?? [],
-      })),
-    ]);
-    setSplitOpen(false);
-  };
 
   const addGroup = () => {
     const group: RosterGroup = {
@@ -868,80 +815,12 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
           })}
         </ul>
       )}
-      <div className="p-3 sticky bottom-0 bg-slate-50/80 backdrop-blur-sm border-t border-slate-200">
-        {splitOpen ? (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <label
-                className="text-xs font-bold text-slate-600 shrink-0"
-                htmlFor="roster-split-count"
-              >
-                {t('sidebar.classes.splitCountLabel', {
-                  defaultValue: 'Groups',
-                })}
-              </label>
-              <input
-                id="roster-split-count"
-                type="number"
-                min={2}
-                max={Math.max(2, students.length)}
-                value={splitCount}
-                onChange={(e) => setSplitCount(Number(e.target.value))}
-                onKeyDown={(e) => e.key === 'Enter' && runSplit()}
-                className="w-16 px-2 py-1 text-sm rounded-md border border-slate-300 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
-              />
-              <input
-                aria-label={t('sidebar.classes.splitNameLabel', {
-                  defaultValue: 'Group name',
-                })}
-                value={splitName}
-                onChange={(e) => setSplitName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && runSplit()}
-                className="flex-1 min-w-0 px-2 py-1 text-sm rounded-md border border-slate-300 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setSplitOpen(false)}
-                className="flex-1 px-3 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-              >
-                {t('common.cancel', { defaultValue: 'Cancel' })}
-              </button>
-              <button
-                onClick={runSplit}
-                className="flex-1 px-3 py-2 text-sm font-bold text-white bg-brand-blue-primary rounded-lg hover:bg-brand-blue-dark transition-colors"
-              >
-                {t('sidebar.classes.splitConfirm', {
-                  defaultValue: 'Create groups',
-                })}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex gap-2">
-            {/* RosterEmptyState already carries this CTA when there are none. */}
-            {groups.length > 0 && (
-              <button
-                onClick={addGroup}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors"
-              >
-                <Plus size={16} />
-                {t('sidebar.classes.addGroup', { defaultValue: '+ New Group' })}
-              </button>
-            )}
-            <button
-              onClick={openSplit}
-              disabled={students.length < 2}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-slate-300 disabled:hover:bg-white"
-            >
-              <Shuffle size={16} />
-              {t('sidebar.classes.splitClass', {
-                defaultValue: 'Split class',
-              })}
-            </button>
-          </div>
-        )}
-      </div>
+      {/* RosterEmptyState already carries New group when there are none. */}
+      <SplitClassFooter
+        students={students}
+        onAddGroups={(made) => onChange([...groups, ...made])}
+        onNewGroup={groups.length > 0 ? addGroup : undefined}
+      />
     </div>
   );
 };

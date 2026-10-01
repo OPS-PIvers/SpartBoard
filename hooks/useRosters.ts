@@ -30,6 +30,7 @@ import { viewAsAuditCreated, viewAsDirectSave } from '@/utils/viewAsAudit';
 import { runAuditedWrite } from '@/utils/viewAsTab';
 import { collapseTestSuffix } from '@/utils/testClassSuffix';
 import { noDriveMessage } from '@/utils/viewAsDrive';
+import { parseGroupReminder, parseGroupSymbol } from '@/utils/groupReminders';
 
 /**
  * Phase 3 — rebuild the per-roster pin_index sidecar after a roster save.
@@ -162,7 +163,18 @@ function parseRosterGroup(raw: unknown): RosterGroup | null {
   const studentIds = Array.isArray(g.studentIds)
     ? g.studentIds.filter((id): id is string => typeof id === 'string')
     : [];
-  return { id: g.id, name: g.name, studentIds };
+  const symbol = parseGroupSymbol(g.symbol);
+  const reminder = parseGroupReminder(g.reminder);
+  return {
+    id: g.id,
+    name: g.name,
+    studentIds,
+    ...(typeof g.inGroupMaker === 'boolean'
+      ? { inGroupMaker: g.inGroupMaker }
+      : {}),
+    ...(symbol ? { symbol } : {}),
+    ...(reminder ? { reminder } : {}),
+  };
 }
 
 /** Keep in sync with `LANGUAGE_TAG_RE` in `functions/src/languageTag.ts`. */

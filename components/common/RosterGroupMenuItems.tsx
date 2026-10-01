@@ -1,7 +1,10 @@
 import React from 'react';
 import { Filter } from 'lucide-react';
 import type { ClassRoster } from '@/types';
-import { countRosterGroupMembers } from '@/utils/rosterGroups';
+import {
+  countRosterGroupMembers,
+  groupMakerGroups,
+} from '@/utils/rosterGroups';
 
 interface RosterGroupMenuItemsProps {
   roster: ClassRoster;
@@ -24,7 +27,7 @@ export const RosterGroupMenuItems: React.FC<RosterGroupMenuItemsProps> = ({
   onSelect,
 }) => (
   <>
-    {(roster.groups ?? []).map((g) => {
+    {groupMakerGroups(roster).map((g) => {
       const isSelected = selectedGroupId === g.id;
       const size = countRosterGroupMembers(roster, g.id) ?? 0;
       return (

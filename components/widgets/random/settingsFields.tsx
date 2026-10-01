@@ -15,7 +15,10 @@ import {
   shouldResolveRosterNames,
 } from '@/components/widgets/Stations/nexus';
 import { getLocalIsoDate } from '@/utils/localDate';
-import { countRosterGroupMembers } from '@/utils/rosterGroups';
+import {
+  countRosterGroupMembers,
+  groupMakerGroups,
+} from '@/utils/rosterGroups';
 import { combineRosterNames } from '@/utils/rosterNameLists';
 import { useRosterGroupsIntegrationSettings } from '@/hooks/useRosterGroupsIntegrationSettings';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
@@ -396,7 +399,7 @@ export const RandomLockedGroupsField: React.FC<{ ctx: CustomRenderCtx }> = ({
   const { rosters, activeRosterId } = useDashboard();
   const rollout = useRosterGroupsIntegrationSettings();
   const activeRoster = rosters.find((roster) => roster.id === activeRosterId);
-  const groups = activeRoster?.groups ?? [];
+  const groups = groupMakerGroups(activeRoster);
   const locked = Array.isArray(config.lockedRosterGroupIds)
     ? config.lockedRosterGroupIds
     : [];
