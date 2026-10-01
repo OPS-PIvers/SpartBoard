@@ -130,6 +130,20 @@ describe('HelpGuidesTab', () => {
     ];
   });
 
+  it('opens the resource named by a shared link', () => {
+    render(<HelpGuidesTab query="" itemId="d1" />);
+    expect(
+      screen.getByRole('heading', { name: 'Board basics' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+  });
+
+  it('falls back to the list when a shared link names an unknown resource', () => {
+    render(<HelpGuidesTab query="" itemId="missing" />);
+    expect(screen.getByText('Welcome video')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
+  });
+
   it('lists only categories that have visible items, plus All', () => {
     render(<HelpGuidesTab query="" />);
     expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
