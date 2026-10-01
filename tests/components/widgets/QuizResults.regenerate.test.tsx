@@ -180,6 +180,7 @@ describe('QuizResults — Re-export Sheet 404 regenerate-sheet recovery', () => 
         // an array, not null) AND there are 2 new responses to append,
         // so Re-export Sheet button is enabled.
         initialExportUrl={STALE_SHEET_URL}
+        plcSheetUrl={STALE_SHEET_URL}
         initialExportedResponseIds={[]}
         onExportUrlSaved={onExportUrlSaved}
         onPlcSheetUrlReplaced={onPlcSheetUrlReplaced}
@@ -236,6 +237,7 @@ describe('QuizResults — Re-export Sheet rebuild branch (no delta)', () => {
         config={makePlcConfig()}
         onBack={vi.fn()}
         initialExportUrl={STALE_SHEET_URL}
+        plcSheetUrl={STALE_SHEET_URL}
         initialExportedResponseIds={allKeys}
         onExportUrlSaved={onExportUrlSaved}
         onExportedResponseIdsSaved={onExportedResponseIdsSaved}

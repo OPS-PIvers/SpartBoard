@@ -1274,6 +1274,12 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     return { url, canonical };
   };
 
+  // PLC assignments made since pooled results (D2) carry no sheet, so they export to the teacher's own sheet.
+  const plcSheetCandidate = assignmentPlcSheetUrl ?? config.plcSheetUrl;
+  const sharedSheetUrl =
+    config.plcMode && plcSheetCandidate ? plcSheetCandidate : null;
+  const exportsToSharedSheet = !!sharedSheetUrl;
+
   const handleExport = async () => {
     if (outward.active && !(await outward.confirm('Export to Sheets'))) return;
     // Scope depends on mode. SOLO export CREATES a brand-new sheet the user
@@ -1284,7 +1290,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     // one-time consent popup otherwise — this is a user gesture, so
     // interactive). Null → reuse the existing "Google access required" branch.
     const token = await ensureGoogleScope(
-      config.plcMode ? 'spreadsheets' : 'drive.file',
+      exportsToSharedSheet ? 'spreadsheets' : 'drive.file',
       { interactive: true }
     );
     if (!token) {
@@ -1307,12 +1313,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         pinToName: exportPinToName,
         byStudentUid,
         teacherName: config.teacherName,
-        plcMode: config.plcMode,
-        // Prefer the active assignment's `plc.sheetUrl` (per-assignment
-        // model). Fall back to `config.plcSheetUrl` for legacy assignments
-        // that pre-date per-assignment sheets and still mirror the URL on
-        // widget config.
-        plcSheetUrl: assignmentPlcSheetUrl ?? config.plcSheetUrl,
+        plcMode: exportsToSharedSheet,
+        plcSheetUrl: sharedSheetUrl ?? undefined,
         fibGrading,
         timeAway: canAccessFeature('tab-away-timer'),
       };
@@ -1325,7 +1327,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           exportOpts
         );
       } catch (exportErr) {
-        if (!config.plcMode) {
+        if (!exportsToSharedSheet) {
           throw exportErr;
         }
         const recovered = await recoverFromPlcSheetError(
@@ -1376,7 +1378,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           return;
         }
       }
-      if (config.plcMode) {
+      if (exportsToSharedSheet) {
         addToast('Results exported to shared PLC sheet', 'success');
       } else if (previousExportUrl) {
         addToast(
@@ -1490,18 +1492,18 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // would land NEW response rows AFTER the stats, fragmenting the sheet.
   // PLC-mode sheets are append-friendly by construction (Results tab is
   // header + rows, no trailing blocks).
-  const canShowUpdateSheet = !!config.plcMode && trackingInitialized;
+  const canShowUpdateSheet = exportsToSharedSheet && trackingInitialized;
   // Solo mode equivalent: a "Re-export" button that creates a fresh sheet
   // each time `handleExport` runs. Reuses the existing solo export path
   // (which always creates a new spreadsheet) so the teacher has a way to
   // refresh after deleting the old sheet, after a bug fix changes export
   // output, or just to rebuild with the latest responses. The previous
   // sheet remains in Drive — the teacher cleans it up manually.
-  const canShowSoloReExport = !config.plcMode && !!exportUrl;
+  const canShowSoloReExport = !exportsToSharedSheet && !!exportUrl;
 
   const handleUpdateSheet = async () => {
     if (!exportUrl) return;
-    // PLC-only (gated by `canShowUpdateSheet = !!config.plcMode && …`): appends
+    // PLC-only (gated by `canShowUpdateSheet = exportsToSharedSheet && …`): appends
     // to / regenerates the shared sheet a teammate may own → keeps the broad
     // `spreadsheets` scope. This is an org-only surface, so external users never
     // reach it. (Solo paths above use the non-sensitive `drive.file` scope.)
@@ -1524,7 +1526,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       // the teacher has a way to force a clean rebuild without abandoning
       // the canonical URL. This branches on newResponsesToAppend.length —
       // empty delta = rebuild, non-empty delta = append. Re-export Sheet
-      // is gated on `config.plcMode` upstream (`canShowUpdateSheet`).
+      // is gated on `exportsToSharedSheet` upstream (`canShowUpdateSheet`).
       const isFullRebuild = newResponsesToAppend.length === 0;
       const exportOpts = {
         pinToName: exportPinToName,
@@ -1557,7 +1559,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       } catch (updateErr) {
         // Only attempt PLC recovery for PLC-linked sheets; a solo sheet
         // 404/403 has no plcs/{id} to update and we should surface as-is.
-        if (!config.plcMode) {
+        if (!exportsToSharedSheet) {
           throw updateErr;
         }
         const recovered = await recoverFromPlcSheetError(
