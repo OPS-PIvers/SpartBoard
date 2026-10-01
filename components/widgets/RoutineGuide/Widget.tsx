@@ -31,6 +31,7 @@ import {
   sortRoutinesForLibrary,
 } from '@/config/routineGuide';
 import { RoutineIcon } from './RoutineIcon';
+import { AllSteps, AllStepsLayout } from './AllSteps';
 import { RoutineInfoModal } from './RoutineInfoModal';
 
 // Keeps corner controls clear of DraggableWindow's 24px corner resize handles.
@@ -211,26 +212,18 @@ const RoutineLibrary: React.FC<{
                   <button
                     type="button"
                     onClick={() => onSelect(r)}
-                    className="h-full w-full flex flex-col items-center justify-center text-center rounded-xl border border-slate-200 bg-white/80 hover:border-slate-400 hover:bg-white transition-colors"
-                    style={{ padding: '10%', gap: '8%' }}
+                    className="relative h-full w-full overflow-hidden flex items-center justify-center text-center rounded-xl text-white hover:brightness-110 transition"
+                    style={{ backgroundColor: color.ink, padding: '12%' }}
                   >
+                    <RoutineIcon
+                      name={r.icon}
+                      aria-hidden="true"
+                      className="absolute pointer-events-none opacity-20"
+                      style={{ width: '72%', height: '72%' }}
+                    />
                     <span
-                      className="rounded-xl flex items-center justify-center"
-                      style={{
-                        width: '42%',
-                        aspectRatio: '1',
-                        backgroundColor: color.tint,
-                        color: color.ink,
-                      }}
-                    >
-                      <RoutineIcon
-                        name={r.icon}
-                        style={{ width: '55%', height: '55%' }}
-                      />
-                    </span>
-                    <span
-                      className="font-bold text-slate-800 leading-tight line-clamp-2"
-                      style={{ fontSize: 'min(15px, 4.25cqmin)' }}
+                      className="relative font-black leading-tight line-clamp-3"
+                      style={{ fontSize: 'min(17px, 4.75cqmin)' }}
                     >
                       {r.name}
                     </span>
@@ -242,10 +235,8 @@ const RoutineLibrary: React.FC<{
                     }
                     aria-pressed={fav}
                     onClick={() => onToggleFavorite(r.id)}
-                    className={`absolute top-0 right-0 transition-colors ${
-                      fav
-                        ? 'text-amber-500'
-                        : 'text-slate-300 hover:text-slate-500'
+                    className={`absolute top-0 right-0 text-white transition-opacity ${
+                      fav ? 'opacity-100' : 'opacity-50 hover:opacity-90'
                     }`}
                     style={{ padding: 'min(8px, 2cqmin)' }}
                   >
@@ -266,69 +257,6 @@ const RoutineLibrary: React.FC<{
     </div>
   );
 };
-
-const RoutinePreview: React.FC<{ routine: RoutineGuideRoutine }> = ({
-  routine,
-}) => (
-  <div className="h-full w-full overflow-y-auto custom-scrollbar pb-4">
-    <ol
-      aria-label="Visual"
-      className="flex overflow-x-auto custom-scrollbar"
-      style={{
-        gap: 'min(10px, 2.5cqmin)',
-        padding: `min(12px, 3cqmin) ${CORNER_CLEARANCE}`,
-      }}
-    >
-      {routine.steps.map((step, i) => {
-        const color = getRoutineGuideColor(step.color);
-        return (
-          <li
-            key={step.id}
-            className="shrink-0 flex flex-col items-center text-center"
-            style={{ width: 'min(132px, 28cqmin)', gap: 'min(6px, 1.5cqmin)' }}
-          >
-            <StepBadge step={step} size="min(112px, 24cqmin)" />
-            <span
-              className="font-black uppercase tracking-wider"
-              style={{ fontSize: 'min(12px, 3.5cqmin)', color: color.ink }}
-            >
-              {i + 1}. {step.label ?? `Step ${i + 1}`}
-            </span>
-          </li>
-        );
-      })}
-    </ol>
-    <ol
-      aria-label="Steps"
-      className="border-t border-slate-200"
-      style={{ padding: `min(8px, 2cqmin) ${CORNER_CLEARANCE} 0` }}
-    >
-      {routine.steps.map((step, i) => (
-        <li
-          key={step.id}
-          className="flex items-start"
-          style={{
-            gap: 'min(10px, 2.5cqmin)',
-            padding: 'min(6px, 1.5cqmin) 0',
-          }}
-        >
-          <span
-            className="shrink-0 font-black text-slate-400 tabular-nums text-right"
-            style={{ fontSize: 'min(15px, 4.5cqmin)', width: '1.4em' }}
-          >
-            {i + 1}
-          </span>
-          <span
-            className="flex-1 min-w-0 font-medium text-slate-700 leading-snug"
-            style={{ fontSize: 'min(15px, 4.5cqmin)' }}
-          >
-            {step.text}
-          </span>
-        </li>
-      ))}
-    </ol>
-  </div>
-);
 
 const StepView: React.FC<{
   step: RoutineGuideStep;
@@ -400,74 +328,7 @@ const StepView: React.FC<{
   );
 };
 
-const AllStepsView: React.FC<{
-  steps: RoutineGuideStep[];
-  index: number;
-  onMove: (i: number) => void;
-}> = ({ steps, index, onMove }) => (
-  <ol className="h-full w-full overflow-y-auto custom-scrollbar pb-4">
-    {steps.map((step, i) => {
-      const color = getRoutineGuideColor(step.color);
-      const current = i === index;
-      return (
-        <li key={step.id}>
-          <div
-            role="button"
-            tabIndex={0}
-            aria-current={current ? 'step' : undefined}
-            onClick={() => onMove(i)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onMove(i);
-              }
-            }}
-            className={`flex items-center cursor-pointer transition-colors ${
-              current ? 'bg-slate-900/[0.06]' : 'hover:bg-slate-900/[0.03]'
-            }`}
-            style={{
-              gap: 'min(12px, 3cqmin)',
-              padding: `min(10px, 2.5cqmin) ${CORNER_CLEARANCE}`,
-            }}
-          >
-            <span
-              className={`shrink-0 tabular-nums text-right ${
-                current
-                  ? 'font-black text-slate-900'
-                  : 'font-bold text-slate-400'
-              }`}
-              style={{ fontSize: 'min(16px, 5cqmin)', width: '1.4em' }}
-            >
-              {i + 1}
-            </span>
-            <StepBadge step={step} size="min(40px, 11cqmin)" />
-            <span className="flex-1 min-w-0">
-              {step.label && (
-                <span
-                  className="block font-black uppercase tracking-wider"
-                  style={{ fontSize: 'min(11px, 3.5cqmin)', color: color.ink }}
-                >
-                  {step.label}
-                </span>
-              )}
-              <span
-                className={`block leading-snug ${
-                  current
-                    ? 'font-bold text-slate-900'
-                    : 'font-medium text-slate-600'
-                }`}
-                style={{ fontSize: 'min(16px, 5cqmin)' }}
-              >
-                {step.text}
-              </span>
-            </span>
-            <ToolLaunchButton step={step} />
-          </div>
-        </li>
-      );
-    })}
-  </ol>
-);
+const STEPS_LAYOUT: AllStepsLayout = 'columns';
 
 export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
   widget,
@@ -670,12 +531,14 @@ export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
         }
         content={
           !isDisplay ? (
-            <RoutinePreview routine={routine} />
+            <AllSteps steps={routine.steps} layout={STEPS_LAYOUT} />
           ) : view === 'all' ? (
-            <AllStepsView
+            <AllSteps
               steps={routine.steps}
+              layout={STEPS_LAYOUT}
               index={stepIndex}
               onMove={(i) => update({ stepIndex: i })}
+              renderTool={(step) => <ToolLaunchButton step={step} />}
             />
           ) : (
             <StepView
