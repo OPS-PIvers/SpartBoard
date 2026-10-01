@@ -10,6 +10,17 @@ const saveWidgetPreset = vi.fn();
 let presets: Record<string, unknown> = {};
 let featurePermissions: unknown[] = [];
 
+let groupScope: {
+  enabled: boolean;
+  groups: { id: string; name: string }[];
+  missing: boolean;
+  routineIds: Set<string>;
+} = { enabled: false, groups: [], missing: false, routineIds: new Set() };
+vi.mock('./useRoutineGuideGroups', () => ({
+  GROUP_FILTER_PREFIX: 'group:',
+  useRoutineGuideGroups: () => groupScope,
+}));
+
 vi.mock('@/context/dashboardCanvasStore', () => ({
   useDashboardActions: () => ({ updateWidget, addWidget }),
 }));
@@ -75,6 +86,41 @@ describe('RoutineGuideWidget', () => {
     vi.clearAllMocks();
     presets = {};
     featurePermissions = [];
+    groupScope = {
+      enabled: false,
+      groups: [],
+      missing: false,
+      routineIds: new Set(),
+    };
+  });
+
+  it('lists a group under Show and narrows to its goal routines', () => {
+    featurePermissions = [adminLibrary];
+    groupScope = {
+      enabled: true,
+      groups: [{ id: 'g1', name: 'Grade 6 ELA' }],
+      missing: false,
+      routineIds: new Set(['r2']),
+    };
+    presets = { routineGuide: { libraryFilter: 'group:g1' } };
+    render(<RoutineGuideWidget widget={makeWidget()} />);
+    expect(screen.getByRole('option', { name: 'Grade 6 ELA' })).toBeTruthy();
+    expect(screen.getByText('Socratic Seminar')).toBeInTheDocument();
+    expect(screen.queryByText('Line Up')).not.toBeInTheDocument();
+  });
+
+  it('falls back to My grades when the saved group is gone', () => {
+    featurePermissions = [adminLibrary];
+    groupScope = {
+      enabled: true,
+      groups: [],
+      missing: true,
+      routineIds: new Set(),
+    };
+    presets = { routineGuide: { libraryFilter: 'group:g1' } };
+    render(<RoutineGuideWidget widget={makeWidget()} />);
+    expect(screen.getByText('Line Up')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Show' }).value).toBe('grade');
   });
 
   it('shows the built-in library when no admin library is saved', () => {

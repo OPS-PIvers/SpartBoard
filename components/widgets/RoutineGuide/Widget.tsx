@@ -33,6 +33,10 @@ import {
 import { RoutineIcon } from './RoutineIcon';
 import { AllSteps } from './AllSteps';
 import { RoutineInfoModal } from './RoutineInfoModal';
+import {
+  GROUP_FILTER_PREFIX,
+  useRoutineGuideGroups,
+} from './useRoutineGuideGroups';
 
 // Keeps corner controls clear of DraggableWindow's 24px corner resize handles.
 const CORNER_CLEARANCE = 'max(26px, 3cqmin)';
@@ -110,6 +114,7 @@ const StepBadge: React.FC<{ step: RoutineGuideStep; size: string }> = ({
 const RoutineLibrary: React.FC<{
   routines: RoutineGuideRoutine[];
   categories: RoutineGuideCategory[];
+  groups: { id: string; name: string }[];
   filter: RoutineGuideFilter;
   favorites: string[];
   onFilter: (f: RoutineGuideFilter) => void;
@@ -118,6 +123,7 @@ const RoutineLibrary: React.FC<{
 }> = ({
   routines,
   categories,
+  groups,
   filter,
   favorites,
   onFilter,
@@ -181,6 +187,15 @@ const RoutineLibrary: React.FC<{
               ))}
             </optgroup>
           )}
+          {groups.length > 0 && (
+            <optgroup label="My groups">
+              {groups.map((g) => (
+                <option key={g.id} value={`${GROUP_FILTER_PREFIX}${g.id}`}>
+                  {g.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
         </select>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
@@ -192,7 +207,13 @@ const RoutineLibrary: React.FC<{
               padding: 'min(24px, 6cqmin)',
             }}
           >
-            {filter === 'favorites' && !q ? 'No favorites yet' : 'No routines'}
+            {q
+              ? 'No routines'
+              : filter === 'favorites'
+                ? 'No favorites yet'
+                : filter.startsWith(GROUP_FILTER_PREFIX)
+                  ? "No routines in this group's goals"
+                  : 'No routines'}
           </p>
         ) : (
           <ul
@@ -345,7 +366,13 @@ export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
     | Partial<RoutineGuideConfig>
     | undefined;
   const favorites = useMemo(() => prefs?.favorites ?? [], [prefs?.favorites]);
-  const filter: RoutineGuideFilter = prefs?.libraryFilter ?? 'grade';
+  const savedFilter: RoutineGuideFilter = prefs?.libraryFilter ?? 'grade';
+  const groupScope = useRoutineGuideGroups(savedFilter);
+  const filter: RoutineGuideFilter =
+    savedFilter.startsWith(GROUP_FILTER_PREFIX) &&
+    (!groupScope.enabled || groupScope.missing)
+      ? 'grade'
+      : savedFilter;
 
   const globalConfig = featurePermissions.find(
     (p) => p.widgetType === 'routineGuide'
@@ -369,9 +396,11 @@ export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
     else if (filter === 'favorites')
       list = library.filter((r) => favorites.includes(r.id));
     else if (filter === 'grade') list = library.filter(inGrades);
+    else if (filter.startsWith(GROUP_FILTER_PREFIX))
+      list = library.filter((r) => groupScope.routineIds.has(r.id));
     else list = library.filter((r) => r.categoryIds.includes(filter));
     return sortRoutinesForLibrary(list, favorites);
-  }, [library, filter, favorites, userGradeLevels]);
+  }, [library, filter, favorites, userGradeLevels, groupScope.routineIds]);
 
   const update = (patch: Partial<RoutineGuideConfig>) =>
     updateWidget(widget.id, { config: { ...config, ...patch } });
@@ -390,6 +419,7 @@ export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
           <RoutineLibrary
             routines={visible}
             categories={categories}
+            groups={groupScope.groups}
             filter={filter}
             favorites={favorites}
             onFilter={(f) =>
