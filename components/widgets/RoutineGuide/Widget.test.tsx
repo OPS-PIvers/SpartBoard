@@ -120,7 +120,7 @@ describe('RoutineGuideWidget', () => {
     presets = { routineGuide: { libraryFilter: 'group:g1' } };
     render(<RoutineGuideWidget widget={makeWidget()} />);
     expect(screen.getByText('Line Up')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Show' }).value).toBe('grade');
+    expect(screen.getByRole('combobox', { name: 'Show' })).toHaveValue('grade');
   });
 
   it('shows the built-in library when no admin library is saved', () => {
