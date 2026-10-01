@@ -3247,6 +3247,7 @@ describe('index barrel — deployed export set', () => {
     'updateViewAsSessionV1',
     'revertViewAsChangeV1',
     'startViewAsStudentV1',
+    'getViewAsDriveTokenV1',
     'getOrgUserActivity',
     // PLC invites / rollout emails
     'plcInvitationEmail',

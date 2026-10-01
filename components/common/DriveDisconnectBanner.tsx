@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { GoogleDriveIcon } from './GoogleDriveIcon';
 import { useAuth } from '@/context/useAuth';
+import { useViewAsDriveStatus } from '@/hooks/useViewAsDriveStatus';
+import { VIEW_AS_DRIVE_UNAVAILABLE } from '@/utils/viewAsDrive';
 
 const DISMISS_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 // Persisting the dismiss expiry survives dev-mode HMR remounts and full
@@ -36,6 +38,7 @@ const writeStoredDismissUntil = (value: number | null): void => {
 
 export const DriveDisconnectBanner: React.FC = () => {
   const { user, googleAccessToken, connectGoogleDrive } = useAuth();
+  const viewAsDrive = useViewAsDriveStatus();
   const [dismissedUntil, setDismissedUntil] = useState(readStoredDismissUntil);
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -88,7 +91,31 @@ export const DriveDisconnectBanner: React.FC = () => {
   };
 
   // Only show for authenticated users when Drive is not connected
-  if (!user || isConnected || isDismissed || !pastGrace) return null;
+  if (!user || isConnected || isDismissed) return null;
+
+  // View as can't reconnect someone else's Drive, so it only says why content is missing.
+  if (viewAsDrive) {
+    if (viewAsDrive !== 'unavailable') return null;
+    return (
+      <div className="fixed bottom-4 right-4 z-system-banner animate-in slide-in-from-bottom-2 duration-300">
+        <div className="bg-white rounded-xl shadow-xl border border-slate-200 p-3 flex items-center gap-3 max-w-[280px]">
+          <GoogleDriveIcon className="w-5 h-5 opacity-60 flex-shrink-0" />
+          <p className="flex-1 min-w-0 text-xs font-bold text-slate-800 leading-tight">
+            {VIEW_AS_DRIVE_UNAVAILABLE}
+          </p>
+          <button
+            onClick={handleDismiss}
+            className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors flex-shrink-0"
+            aria-label="Dismiss notification"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!pastGrace) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-system-banner animate-in slide-in-from-bottom-2 duration-300">

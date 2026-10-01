@@ -62,6 +62,7 @@ import {
   buildTranslationIndexEntry,
   recomputeTranslationIndex,
 } from '@/utils/quizTranslationIndex';
+import { noDriveMessage } from '@/utils/viewAsDrive';
 
 const QUIZZES_COLLECTION = 'quizzes';
 
@@ -252,7 +253,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       const accessToken = token ?? googleAccessToken;
       if (!accessToken) {
         throw new Error(
-          'Not connected to Google Drive. Please sign in again to grant access.'
+          noDriveMessage(
+            'Not connected to Google Drive. Please sign in again to grant access.'
+          )
         );
       }
       return new QuizDriveService(accessToken);

@@ -1,5 +1,10 @@
 // Persistent View as banner (docs/plans/ADMIN_VIEW_AS.md D9, D10).
-import React, { useEffect, useState, useSyncExternalStore } from 'react';
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { Eye, Loader2 } from 'lucide-react';
 import {
   collection,
@@ -15,6 +20,13 @@ import { useAuth } from '@/context/useAuth';
 import { useViewAs } from '@/context/useViewAs';
 import { getViewAsTabState, subscribeViewAsTab } from '@/utils/viewAsTab';
 import { formatLastActive } from '@/utils/viewAsFormat';
+import {
+  diffViewAsBoards,
+  getViewAsWorkingCopy,
+  subscribeViewAsWorkingCopy,
+} from '@/utils/viewAsBoards';
+import { UnlockDialog } from './UnlockDialog';
+import { PendingChangesPanel } from './PendingChangesPanel';
 
 const BANNER_HEIGHT = 32;
 const RENEW_WINDOW_MS = 5 * 60 * 1000;
@@ -88,6 +100,13 @@ export const ViewAsBanner: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [noticeVisible, setNoticeVisible] = useState(false);
   const [seenNotice, setSeenNotice] = useState(0);
+  const [unlockOpen, setUnlockOpen] = useState(false);
+  const [pendingOpen, setPendingOpen] = useState(false);
+  const workingCopy = useSyncExternalStore(
+    subscribeViewAsWorkingCopy,
+    getViewAsWorkingCopy
+  );
+  const pending = useMemo(() => diffViewAsBoards(workingCopy), [workingCopy]);
 
   // Adjust-during-render: show the View-only notice once, when the first write is blocked.
   if (tab.blockedNotice !== seenNotice) {
@@ -144,6 +163,27 @@ export const ViewAsBanner: React.FC = () => {
           </span>
         )}
         <div className="flex items-center gap-2 shrink-0">
+          {pending.length > 0 && (
+            <button
+              type="button"
+              aria-expanded={pendingOpen}
+              data-testid="view-as-pending-toggle"
+              onClick={() => setPendingOpen((open) => !open)}
+              className="px-2 py-0.5 rounded border border-white/30 hover:bg-white/10"
+            >
+              Pending changes ({pending.length})
+            </button>
+          )}
+          {viewAs.readOnly && !viewAs.adminTarget && (
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => setUnlockOpen(true)}
+              className="px-2 py-0.5 rounded border border-white/30 hover:bg-white/10 disabled:opacity-50"
+            >
+              Unlock edits
+            </button>
+          )}
           {remaining <= RENEW_WINDOW_MS && (
             <>
               <span className="text-slate-300">
@@ -173,6 +213,21 @@ export const ViewAsBanner: React.FC = () => {
           </button>
         </div>
       </div>
+      {pendingOpen && (
+        <PendingChangesPanel
+          changes={pending}
+          readOnly={viewAs.readOnly}
+          top={BANNER_HEIGHT + 8}
+          onClose={() => setPendingOpen(false)}
+        />
+      )}
+      <UnlockDialog
+        isOpen={unlockOpen}
+        onClose={() => setUnlockOpen(false)}
+        onUnlock={viewAs.unlock}
+        name={name}
+        recentlyActive={recent}
+      />
       {noticeVisible && (
         <div
           role="status"

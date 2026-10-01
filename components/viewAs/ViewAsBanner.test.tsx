@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ViewAsContextValue } from '@/context/ViewAsContextValue';
 
@@ -20,6 +20,12 @@ vi.mock('firebase/firestore', () => ({
 import { ViewAsBanner } from './ViewAsBanner';
 import { formatLastActive } from '@/utils/viewAsFormat';
 import { updateViewAsTabState } from '@/utils/viewAsTab';
+import {
+  publishViewAsLocalBoards,
+  reconcileViewAsSnapshot,
+  resetViewAsWorkingCopy,
+} from '@/utils/viewAsBoards';
+import type { Dashboard } from '@/types';
 
 const base = (over: Partial<ViewAsContextValue> = {}): ViewAsContextValue => ({
   sid: 's1',
@@ -85,5 +91,69 @@ describe('ViewAsBanner', () => {
     expect(screen.queryByRole('status')).toBeNull();
     act(() => updateViewAsTabState({ blockedNotice: 1 }));
     expect(screen.getByRole('status')).toHaveTextContent('View-only');
+  });
+
+  it('unlocks with a reason, and never offers unlock for an admin target', async () => {
+    const unlock = vi.fn().mockResolvedValue(undefined);
+    viewAs = base({ adminTarget: true, unlock });
+    const { rerender } = render(<ViewAsBanner />);
+    expect(screen.queryByRole('button', { name: 'Unlock edits' })).toBeNull();
+
+    viewAs = base({ unlock });
+    rerender(<ViewAsBanner />);
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock edits' }));
+    const submit = screen.getByRole('button', { name: 'Unlock' });
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Reason'), {
+      target: { value: '  Fix her clock  ' },
+    });
+    await act(async () => {
+      fireEvent.click(submit);
+      await Promise.resolve();
+    });
+    expect(unlock).toHaveBeenCalledWith('Fix her clock');
+  });
+
+  it('lists pending changes and keeps Approve off while read-only', () => {
+    resetViewAsWorkingCopy();
+    const board = {
+      id: 'b1',
+      name: 'Period 1',
+      background: '',
+      createdAt: 1,
+      widgets: [
+        {
+          id: 'w1',
+          type: 'clock',
+          x: 0,
+          y: 0,
+          w: 1,
+          h: 1,
+          xProp: 0.1,
+          z: 1,
+          flipped: false,
+          config: {},
+        },
+      ],
+    } as unknown as Dashboard;
+    reconcileViewAsSnapshot([board], []);
+    viewAs = base();
+    render(<ViewAsBanner />);
+    expect(screen.queryByTestId('view-as-pending-toggle')).toBeNull();
+    act(() =>
+      publishViewAsLocalBoards([
+        { ...board, widgets: [{ ...board.widgets[0], xProp: 0.5 }] },
+      ])
+    );
+    fireEvent.click(screen.getByTestId('view-as-pending-toggle'));
+    expect(screen.getByTestId('view-as-pending-toggle')).toHaveTextContent(
+      'Pending changes (1)'
+    );
+    expect(screen.getByTestId('view-as-pending-panel')).toHaveTextContent(
+      'Period 1'
+    );
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled();
+    expect(screen.getByText('10%')).toBeInTheDocument();
+    expect(screen.getByText('50%')).toBeInTheDocument();
   });
 });
