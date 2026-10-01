@@ -362,6 +362,17 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                   defaultValue: 'Duplicate PINs: {{pins}}',
                   pins: [...duplicatePins].join(', '),
                 })}
+                {!showPins && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPins(true)}
+                    className="ml-auto underline hover:text-yellow-900"
+                  >
+                    {t('sidebar.classes.showPins', {
+                      defaultValue: 'Show PINs',
+                    })}
+                  </button>
+                )}
               </div>
             )}
 

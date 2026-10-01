@@ -688,6 +688,31 @@ describe('RosterEditorModal', () => {
     });
   });
 
+  it('offers to show the hidden PIN column when PINs repeat', async () => {
+    const user = userEvent.setup();
+    render(
+      <RosterEditorModal
+        isOpen={true}
+        roster={{
+          id: 'r1',
+          name: 'Room 112',
+          driveFileId: null,
+          studentCount: 2,
+          createdAt: 0,
+          students: [
+            { id: 's1', firstName: 'Ava', lastName: 'A', pin: '07' },
+            { id: 's2', firstName: 'Ben', lastName: 'B', pin: '07' },
+          ],
+        }}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    expect(screen.queryByPlaceholderText('01')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /show pins/i }));
+    expect(screen.getAllByPlaceholderText('01')).toHaveLength(2);
+  });
+
   it('does not call onSave when name is empty', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
