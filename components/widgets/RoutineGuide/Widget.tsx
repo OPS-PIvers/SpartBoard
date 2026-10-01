@@ -115,6 +115,7 @@ const RoutineLibrary: React.FC<{
   routines: RoutineGuideRoutine[];
   categories: RoutineGuideCategory[];
   groups: { id: string; name: string }[];
+  loading?: boolean;
   filter: RoutineGuideFilter;
   favorites: string[];
   onFilter: (f: RoutineGuideFilter) => void;
@@ -124,6 +125,7 @@ const RoutineLibrary: React.FC<{
   routines,
   categories,
   groups,
+  loading,
   filter,
   favorites,
   onFilter,
@@ -199,7 +201,7 @@ const RoutineLibrary: React.FC<{
         </select>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-        {shown.length === 0 ? (
+        {loading && shown.length === 0 ? null : shown.length === 0 ? (
           <p
             className="text-center text-slate-500 font-medium"
             style={{
@@ -420,6 +422,9 @@ export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
             routines={visible}
             categories={categories}
             groups={groupScope.groups}
+            loading={
+              filter.startsWith(GROUP_FILTER_PREFIX) && groupScope.loading
+            }
             filter={filter}
             favorites={favorites}
             onFilter={(f) =>
