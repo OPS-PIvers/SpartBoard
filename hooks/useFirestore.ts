@@ -16,6 +16,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
+import { assertViewAsCanWrite, isViewAsTab } from '@/utils/viewAsTab';
 import {
   mergeDashboardForSave,
   type SaveBaseline,
@@ -341,6 +342,8 @@ export const useFirestore = (userId: string | null) => {
       baseline?: SaveBaseline,
       onDeferredWriteFailed?: (err: unknown) => void
     ): Promise<number> => {
+      // View as never autosaves boards (plan D11); the tab edits a local copy.
+      if (isViewAsTab) return Date.now();
       if (isAuthBypass) {
         mockStore.saveDashboard(dashboard);
         return Date.now();
@@ -399,6 +402,7 @@ export const useFirestore = (userId: string | null) => {
 
   const saveDashboards = useCallback(
     async (dashboards: Dashboard[]): Promise<void> => {
+      if (isViewAsTab) return;
       if (isAuthBypass) {
         mockStore.saveDashboards(dashboards);
         return Promise.resolve();
@@ -420,6 +424,7 @@ export const useFirestore = (userId: string | null) => {
 
   const deleteDashboard = useCallback(
     async (dashboardId: string): Promise<void> => {
+      if (isViewAsTab) return;
       if (isAuthBypass) {
         mockStore.deleteDashboard(dashboardId);
         return Promise.resolve();
@@ -472,6 +477,7 @@ export const useFirestore = (userId: string | null) => {
        */
       plcId?: string
     ): Promise<string> => {
+      assertViewAsCanWrite();
       if (isAuthBypass) {
         // Stash the host display name on the mock doc under the same field
         // the live path uses so loadSharedDashboard's mapping works in bypass.
@@ -550,6 +556,7 @@ export const useFirestore = (userId: string | null) => {
         hostDisplayName,
       } = params;
 
+      assertViewAsCanWrite();
       if (isAuthBypass) {
         return mockSharedStore.add({
           ...dashboard,
@@ -611,6 +618,7 @@ export const useFirestore = (userId: string | null) => {
    */
   const mirrorSharedBoard = useCallback(
     async (shareId: string, dashboard: Dashboard): Promise<void> => {
+      if (isViewAsTab) return;
       if (isAuthBypass) {
         const {
           id: _id,
@@ -702,6 +710,7 @@ export const useFirestore = (userId: string | null) => {
         joinedAt: Date.now(),
         ...(displayName ? { displayName } : {}),
       };
+      assertViewAsCanWrite();
       if (isAuthBypass) {
         const existing = mockSharedStore.get(shareId);
         if (!existing) return;
@@ -725,6 +734,7 @@ export const useFirestore = (userId: string | null) => {
   const leaveSharedBoard = useCallback(
     async (shareId: string): Promise<void> => {
       if (!userId) return;
+      assertViewAsCanWrite();
       if (isAuthBypass) {
         const existing = mockSharedStore.get(shareId);
         if (!existing) return;
@@ -748,6 +758,7 @@ export const useFirestore = (userId: string | null) => {
   /** Host-only: tear down the shared doc so guests detect a "share ended" state. */
   const stopSharingBoard = useCallback(
     async (shareId: string): Promise<void> => {
+      assertViewAsCanWrite();
       if (isAuthBypass) {
         mockSharedStore.remove(shareId);
         return;

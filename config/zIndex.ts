@@ -65,6 +65,7 @@ export const Z_INDEX = {
 
   // Critical layers
   critical: 20000, // Overlays that must block everything (e.g. Dock expanded, Critical Errors)
+  viewAsBanner: 20500, // Super admin View as banner, never covered
   cursor: 21000, // Custom cursors
 } as const;
 

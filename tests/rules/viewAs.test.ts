@@ -505,3 +505,76 @@ describe('storage under a view-as token', () => {
     );
   });
 });
+
+describe('email-keyed self-writes under a view-as token', () => {
+  const member = `organizations/orono/members/${TEACHER_EMAIL}`;
+  const invite = 'plc_invitations/inv-1';
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, member), {
+        email: TEACHER_EMAIL,
+        orgId: 'orono',
+        roleId: 'teacher',
+        status: 'active',
+        lastActive: '2026-01-01T00:00:00.000Z',
+      });
+      await setDoc(doc(db, invite), {
+        plcId: 'plc-1',
+        inviteeEmailLower: TEACHER_EMAIL,
+        invitedByUid: 'lead-uid',
+        status: 'pending',
+      });
+    });
+  });
+
+  it('the real teacher stamps lastActive and answers an invite', async () => {
+    const db = asTeacher().firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, member),
+        { lastActive: '2026-10-01T00:00:00.000Z' },
+        { merge: true }
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(db, invite),
+        { status: 'accepted', respondedAt: 1 },
+        { merge: true }
+      )
+    );
+  });
+
+  it('read-only reads both but writes neither', async () => {
+    const db = asViewAs().firestore();
+    await assertSucceeds(getDoc(doc(db, member)));
+    await assertSucceeds(getDoc(doc(db, invite)));
+    await assertFails(
+      setDoc(
+        doc(db, member),
+        { lastActive: '2026-10-01T00:00:00.000Z' },
+        { merge: true }
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(db, invite),
+        { status: 'accepted', respondedAt: 1 },
+        { merge: true }
+      )
+    );
+  });
+
+  it('expired cannot stamp lastActive even unlocked', async () => {
+    const db = asViewAs({ ro: false, exp: PAST() }).firestore();
+    await assertFails(
+      setDoc(
+        doc(db, member),
+        { lastActive: '2026-10-01T00:00:00.000Z' },
+        { merge: true }
+      )
+    );
+  });
+});
