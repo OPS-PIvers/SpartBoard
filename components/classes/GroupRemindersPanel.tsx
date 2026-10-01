@@ -14,6 +14,7 @@ import { searchGroupIcons } from '@/components/groupReminders/groupIcons';
 import { GroupReminderCard } from '@/components/groupReminders/GroupReminderCard';
 import {
   GROUP_COLORS,
+  EMAIL_MESSAGE_MAX,
   LEAD_OPTIONS,
   MAX_ALERTS,
   REMINDER_SOUNDS,
@@ -29,6 +30,7 @@ import { SplitClassFooter } from './SplitClassFooter';
 interface GroupRemindersPanelProps {
   groups: RosterGroup[];
   students: Student[];
+  emailAlertsEnabled?: boolean;
   onChange: (groups: RosterGroup[]) => void;
 }
 
@@ -44,6 +46,7 @@ const studentName = (s: Student) =>
 export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
   groups,
   students,
+  emailAlertsEnabled = false,
   onChange,
 }) => {
   const { t } = useTranslation();
@@ -90,6 +93,7 @@ export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
         initial={draft}
         isNew={isNew}
         students={students}
+        emailAlertsEnabled={emailAlertsEnabled}
         onCancel={() => setDraft(null)}
         onSave={saveDraft}
       />
@@ -223,6 +227,7 @@ interface GroupWizardProps {
   initial: RosterGroup;
   isNew: boolean;
   students: Student[];
+  emailAlertsEnabled: boolean;
   onCancel: () => void;
   onSave: (group: RosterGroup) => void;
 }
@@ -231,6 +236,7 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
   initial,
   isNew,
   students,
+  emailAlertsEnabled,
   onCancel,
   onSave,
 }) => {
@@ -349,6 +355,7 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
             <AlertsStep
               reminder={reminder}
               inGroupMaker={group.inGroupMaker !== false}
+              emailAlertsEnabled={emailAlertsEnabled}
               onChange={setReminder}
               onGroupMaker={(inGroupMaker) =>
                 setGroup((g) => ({ ...g, inGroupMaker }))
@@ -515,9 +522,16 @@ const SettingRow: React.FC<{ label: string; children: React.ReactNode }> = ({
 const AlertsStep: React.FC<{
   reminder: RosterGroupReminder;
   inGroupMaker: boolean;
+  emailAlertsEnabled: boolean;
   onChange: (patch: Partial<RosterGroupReminder>) => void;
   onGroupMaker: (on: boolean) => void;
-}> = ({ reminder, inGroupMaker, onChange, onGroupMaker }) => {
+}> = ({
+  reminder,
+  inGroupMaker,
+  emailAlertsEnabled,
+  onChange,
+  onGroupMaker,
+}) => {
   const { t } = useTranslation();
   const soundLabels: Record<RosterGroupReminder['sound'], string> = {
     off: t('groupReminders.soundOff', { defaultValue: 'Off' }),
@@ -543,6 +557,10 @@ const AlertsStep: React.FC<{
     message: t('groupReminders.message', { defaultValue: 'Message' }),
     groupMaker: t('groupReminders.inGroupMaker', {
       defaultValue: 'Enable in Group Maker',
+    }),
+    email: t('groupReminders.emailAlert', { defaultValue: 'Email alert' }),
+    emailMessage: t('groupReminders.emailMessage', {
+      defaultValue: 'Email message',
     }),
   };
 
@@ -643,6 +661,28 @@ const AlertsStep: React.FC<{
             )}
           </div>
         </>
+      )}
+      {reminder.enabled && emailAlertsEnabled && (
+        <div className="border-t border-slate-100 mt-2 pt-3 flex flex-col gap-3">
+          <SettingRow label={labels.email}>
+            <Toggle
+              checked={reminder.emailAlert}
+              onChange={(emailAlert) => onChange({ emailAlert })}
+              label={labels.email}
+            />
+          </SettingRow>
+          {reminder.emailAlert && (
+            <textarea
+              aria-label={labels.emailMessage}
+              placeholder={labels.emailMessage}
+              value={reminder.emailMessage}
+              maxLength={EMAIL_MESSAGE_MAX}
+              rows={3}
+              onChange={(e) => onChange({ emailMessage: e.target.value })}
+              className="px-3 py-2 text-sm rounded-lg border border-slate-200 resize-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+            />
+          )}
+        </div>
       )}
       <div className="border-t border-slate-100 mt-2 pt-3">
         <SettingRow label={labels.groupMaker}>

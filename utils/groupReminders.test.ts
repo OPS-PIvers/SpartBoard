@@ -24,6 +24,8 @@ const reminder = (
   showTime: false,
   showMessage: false,
   message: '',
+  emailAlert: false,
+  emailMessage: '',
   ...patch,
 });
 
@@ -154,6 +156,8 @@ describe('parsing', () => {
       showTime: true,
       showMessage: true,
       message: 'Go',
+      emailAlert: false,
+      emailMessage: '',
     });
   });
 

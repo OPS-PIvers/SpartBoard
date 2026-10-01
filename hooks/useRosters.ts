@@ -31,6 +31,7 @@ import { runAuditedWrite } from '@/utils/viewAsTab';
 import { collapseTestSuffix } from '@/utils/testClassSuffix';
 import { noDriveMessage } from '@/utils/viewAsDrive';
 import { parseGroupReminder, parseGroupSymbol } from '@/utils/groupReminders';
+import { syncGroupEmailAlerts } from '@/utils/groupEmailAlerts';
 
 /**
  * Phase 3 — rebuild the per-roster pin_index sidecar after a roster save.
@@ -1106,6 +1107,12 @@ export const useRosters = (user: User | null) => {
             if (rosterName) {
               void syncRosterPinIndex(id, rosterName, nextContent.students);
             }
+            if (groups !== undefined) {
+              syncGroupEmailAlerts(user.uid, id, nextContent.groups).catch(
+                (err) =>
+                  console.error('Failed to sync group email alerts:', err)
+              );
+            }
           } catch (err) {
             console.error('Failed to upload updated roster to Drive:', err);
             // Revert optimistic updates
@@ -1325,6 +1332,9 @@ export const useRosters = (user: User | null) => {
 
       const rosterRef = doc(db, 'users', user.uid, 'rosters', id);
       await viewAsDirectSave(rosterRef, null, () => deleteDoc(rosterRef));
+      syncGroupEmailAlerts(user.uid, id, []).catch((err) =>
+        console.error('Failed to clear group email alerts:', err)
+      );
       studentsCacheRef.current.delete(id);
       if (activeRosterId === id) setActiveRoster(null);
     },

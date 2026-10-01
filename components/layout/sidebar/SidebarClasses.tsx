@@ -17,6 +17,7 @@ import { httpsCallable } from 'firebase/functions';
 
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { useGroupReminderEmailsSettings } from '@/hooks/useGroupReminderEmailsSettings';
 import { useDialog } from '@/context/useDialog';
 import { useClassLinkEnabled } from '@/hooks/useClassLinkEnabled';
 import {
@@ -134,6 +135,10 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     addToast,
   } = useDashboard();
   const { user, selectedBuildings, canAccessFeature } = useAuth();
+  const groupRemindersEnabled = canAccessFeature('group-reminders');
+  const groupReminderEmails = useGroupReminderEmailsSettings(
+    groupRemindersEnabled
+  );
   const bellPeriodOptions = useTeacherBellPeriodOptions();
   const classLinkEnabled = useClassLinkEnabled(selectedBuildings[0]);
 
@@ -763,7 +768,8 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
           onClose={() => setEditingRosterId(null)}
           onSave={handleSaveRoster}
           readAloudAvailable={canAccessFeature('quiz-read-aloud')}
-          groupRemindersEnabled={canAccessFeature('group-reminders')}
+          groupRemindersEnabled={groupRemindersEnabled}
+          groupReminderEmailsEnabled={groupReminderEmails.enabled}
           bellPeriodOptions={bellPeriodOptions}
         />
       )}

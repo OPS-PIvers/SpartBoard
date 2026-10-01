@@ -279,6 +279,9 @@ export interface RosterGroupReminder {
   showTime: boolean;
   showMessage: boolean;
   message: string;
+  /** Emails the teacher at each alert, for when no board is open. */
+  emailAlert: boolean;
+  emailMessage: string;
 }
 
 // `StudentOverride` (M17 spec §2a) is defined below alongside `RubricSnapshot`

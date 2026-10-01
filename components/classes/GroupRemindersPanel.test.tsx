@@ -20,7 +20,7 @@ const roster = (groups: RosterGroup[] = []): ClassRoster => ({
   groups,
 });
 
-const renderModal = (r: ClassRoster, enabled = true) => {
+const renderModal = (r: ClassRoster, enabled = true, emails = false) => {
   const onSave = vi.fn().mockResolvedValue(undefined);
   render(
     <RosterEditorModal
@@ -29,6 +29,7 @@ const renderModal = (r: ClassRoster, enabled = true) => {
       onClose={vi.fn()}
       onSave={onSave}
       groupRemindersEnabled={enabled}
+      groupReminderEmailsEnabled={emails}
     />
   );
   return onSave;
@@ -77,6 +78,7 @@ describe('GroupRemindersPanel', () => {
     expect(
       screen.getByRole('switch', { name: /reminder on the board/i })
     ).toHaveAttribute('aria-checked', 'true');
+    expect(screen.queryByRole('switch', { name: /email alert/i })).toBeNull();
     await user.click(screen.getByRole('switch', { name: /show a message/i }));
     await user.type(screen.getByLabelText(/^message$/i), 'Speech now');
     await user.click(screen.getByRole('button', { name: /save group/i }));
@@ -125,6 +127,33 @@ describe('GroupRemindersPanel', () => {
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const [group] = onSave.mock.calls[0][2] as RosterGroup[];
     expect(group.inGroupMaker).toBeUndefined();
+  });
+
+  it('saves an email alert with the teacher message when emails are on', async () => {
+    const user = userEvent.setup();
+    const onSave = renderModal(
+      roster([{ id: 'g1', name: 'Speech', studentIds: ['s1'] }]),
+      true,
+      true
+    );
+    await user.click(screen.getByRole('tab', { name: /groups/i }));
+    await user.click(screen.getByRole('button', { name: /^edit$/i }));
+    await user.click(screen.getByRole('button', { name: /alerts/i }));
+    const email = screen.getByRole('switch', { name: /email alert/i });
+    expect(email).toHaveAttribute('aria-checked', 'false');
+    await user.click(email);
+    await user.type(
+      screen.getByLabelText(/email message/i),
+      'Walk Ava to room 104'
+    );
+    await user.click(screen.getByRole('button', { name: /save group/i }));
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const [group] = onSave.mock.calls[0][2] as RosterGroup[];
+    expect(group.reminder).toMatchObject({
+      emailAlert: true,
+      emailMessage: 'Walk Ava to room 104',
+    });
   });
 
   it('keeps the plain groups editor while the feature is off', async () => {

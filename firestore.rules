@@ -747,6 +747,31 @@ service cloud.firestore {
     // PLC rule gates to read content). Per-tile enum validation is delegated to
     // usePlcOverviewLayout.ts (CEL has no .every()); blast radius is owner-only
     // and the tiles size cap below bounds doc size.
+    // Pull-out group email alerts: a server-readable copy of a Drive-held group
+    // schedule (no student data). The scheduled sender emails the owner only.
+    match /users/{userId}/group_email_alerts/{alertId} {
+      allow read, delete: if ownsUserTeacher(userId);
+      allow create, update: if ownsUserTeacher(userId)
+        && groupEmailAlertOk(incoming())
+        && alertId == incoming().rosterId + '_' + incoming().groupId;
+    }
+    function groupEmailAlertOk(d) {
+      return d.keys().hasOnly(['rosterId', 'groupId', 'groupName', 'days', 'alerts',
+                               'repeat', 'startDate', 'timeZone', 'message', 'updatedAt'])
+             && d.keys().hasAll(['rosterId', 'groupId', 'groupName', 'days', 'alerts',
+                                 'repeat', 'startDate', 'timeZone', 'message', 'updatedAt'])
+             && d.rosterId is string && d.rosterId.size() <= 128
+             && d.groupId is string && d.groupId.size() <= 128
+             && d.groupName is string && d.groupName.size() <= 80
+             && d.days is list && d.days.size() <= 7
+             && d.alerts is list && d.alerts.size() >= 1 && d.alerts.size() <= 6
+             && d.repeat in ['weekly', 'biweekly']
+             && d.startDate is string && d.startDate.size() == 10
+             && d.timeZone is string && d.timeZone.size() <= 64
+             && d.message is string && d.message.size() <= 500
+             && d.updatedAt is int;
+    }
+
     match /users/{userId}/plc_layouts/{plcId} {
       allow read, delete: if ownsUser(userId);
       allow write: if ownsUser(userId) && plcLayoutOk(incoming());
@@ -1000,6 +1025,13 @@ service cloud.firestore {
 
     // Rollout switch for the "Review before assigning" mark on Claude-made
     // items — teachers read it to show the mark; admins turn it off.
+    // Kill switch for emailed group reminder alerts — teachers read it to show
+    // the Email alert toggle; the scheduled sender re-checks it; admins flip it.
+    match /admin_settings/group_reminder_emails {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     match /admin_settings/claude_review_reminders {
       allow read: if request.auth != null;
       allow write: if isAdmin();

@@ -18,6 +18,8 @@ const reminder: NonNullable<RosterGroup['reminder']> = {
   showTime: false,
   showMessage: false,
   message: '',
+  emailAlert: false,
+  emailMessage: '',
 };
 
 const group = (patch: Partial<RosterGroup> = {}): RosterGroup => ({

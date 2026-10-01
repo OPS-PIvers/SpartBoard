@@ -50,6 +50,7 @@ interface RosterEditorModalProps {
   bellPeriodOptions?: BuildingBellPeriodOption[];
   /** Host-resolved 'group-reminders' gate: symbols, schedules and the group wizard. */
   groupRemindersEnabled?: boolean;
+  groupReminderEmailsEnabled?: boolean;
 }
 
 const bellKey = (b: RosterBellPeriod | null | undefined): string =>
@@ -70,6 +71,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   readAloudAvailable = false,
   bellPeriodOptions,
   groupRemindersEnabled = false,
+  groupReminderEmailsEnabled = false,
 }) => {
   const { t } = useTranslation();
   const {
@@ -336,6 +338,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
         {activeTab === 'groups' && roster && groupRemindersEnabled ? (
           <GroupRemindersPanel
             groups={groups}
+            emailAlertsEnabled={groupReminderEmailsEnabled}
             students={validStudents}
             onChange={setGroups}
           />

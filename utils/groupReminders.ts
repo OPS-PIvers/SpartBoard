@@ -22,6 +22,7 @@ export const GROUP_COLORS = [
 export const SNOOZE_OPTIONS = [1, 2, 3, 5, 10];
 export const LEAD_OPTIONS = [0, 1, 2, 3, 5, 10, 15];
 export const MAX_ALERTS = 6;
+export const EMAIL_MESSAGE_MAX = 500;
 export const REMINDER_SOUNDS: RosterGroupReminderSound[] = [
   'off',
   'chime',
@@ -59,6 +60,8 @@ export function defaultGroupReminder(today = new Date()): RosterGroupReminder {
     showTime: false,
     showMessage: false,
     message: '',
+    emailAlert: false,
+    emailMessage: '',
   };
 }
 
@@ -122,6 +125,11 @@ export function parseGroupReminder(
     showTime: r.showTime === true,
     showMessage: r.showMessage === true,
     message: typeof r.message === 'string' ? r.message.slice(0, 80) : '',
+    emailAlert: r.emailAlert === true,
+    emailMessage:
+      typeof r.emailMessage === 'string'
+        ? r.emailMessage.slice(0, EMAIL_MESSAGE_MAX)
+        : '',
   };
 }
 
