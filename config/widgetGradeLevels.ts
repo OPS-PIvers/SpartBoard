@@ -186,3 +186,27 @@ export function widgetMatchesGradeFilter(
   // Direct match check (since universal is gone, we just check inclusion)
   return levels.includes(filter);
 }
+
+const GRADE_RANGE_BOUNDS: Record<GradeLevel, [string, string]> = {
+  'k-2': ['K', '2'],
+  '3-5': ['3', '5'],
+  '6-8': ['6', '8'],
+  '9-12': ['9', '12'],
+};
+
+/** Collapses grade bands into span labels, e.g. ['k-2', '3-5'] -> "K-5", ['k-2', '9-12'] -> "K-2, 9-12". */
+export function formatGradeRange(levels: GradeLevel[]): string {
+  const spans: [string, string][] = [];
+  let previousIndex = -2;
+  ALL_GRADE_LEVELS.forEach((level, index) => {
+    if (!levels.includes(level)) return;
+    const [start, end] = GRADE_RANGE_BOUNDS[level];
+    if (index === previousIndex + 1 && spans.length > 0) {
+      spans[spans.length - 1][1] = end;
+    } else {
+      spans.push([start, end]);
+    }
+    previousIndex = index;
+  });
+  return spans.map(([start, end]) => `${start}-${end}`).join(', ');
+}
