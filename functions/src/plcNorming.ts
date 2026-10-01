@@ -22,6 +22,7 @@ import {
 import { downloadDriveFileById } from './getQuizArtifactPlaybackUrl';
 import { withQuizSessionContent } from './quizSessionContent';
 import './functionsInit';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 type Firestore = admin.firestore.Firestore;
 type Data = Record<string, unknown>;
@@ -721,6 +722,7 @@ export const setPlcNormingFlagV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request);
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
     const email =

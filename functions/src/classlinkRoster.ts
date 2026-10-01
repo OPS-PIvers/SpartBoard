@@ -21,6 +21,7 @@ import {
   CLASSLINK_TENANT_URL,
 } from './secrets';
 import './functionsInit';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 export const getClassLinkRosterV1 = onCall(
   {
@@ -34,6 +35,7 @@ export const getClassLinkRosterV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
+    assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError(
         'unauthenticated',

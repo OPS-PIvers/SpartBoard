@@ -32,6 +32,7 @@ import {
   resolveTargets,
   targetRefsFromAssignment,
 } from './studentAssignmentTargets';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 // Student identity (ClassLink-via-Google) — PII-free auth flow
 // ---------------------------------------------------------------------------
@@ -113,6 +114,7 @@ export const studentLoginV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request);
     const rawIdToken = (request.data as { idToken?: unknown })?.idToken;
     const idToken = typeof rawIdToken === 'string' ? rawIdToken : '';
     if (!idToken) {
@@ -329,6 +331,7 @@ export const getAssignmentPseudonymV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   (request) => {
+    assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
@@ -391,6 +394,7 @@ export const getStudentClassDirectoryV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
+    assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
@@ -607,6 +611,7 @@ export const getPseudonymsForAssignmentV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
@@ -1003,6 +1008,7 @@ export const commitRosterPinIndexV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
+    assertViewAsAllowed(request);
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
@@ -1230,6 +1236,7 @@ export const pinLoginV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
+    assertViewAsAllowed(request);
     const data = (request.data ?? {}) as PinLoginRequestData;
     const kind =
       data.kind === 'quiz' || data.kind === 'video-activity' ? data.kind : null;

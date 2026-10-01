@@ -23,6 +23,7 @@ import { LANGUAGE_TAG_RE } from './languageTag';
 import { ttsLanguageForTranslationLocale } from './quizReadAloudVoices';
 import { mp3DurationMs, storedDurationMs } from './mp3Duration';
 import { isPeriodFrozen, withQuizSessionContent } from './quizSessionContent';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 export { ttsLanguageForTranslationLocale };
 
@@ -1486,6 +1487,7 @@ export const prepareQuizReadAloudV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request, { outward: true });
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
     if (request.auth.token.studentRole === true)
@@ -1521,6 +1523,7 @@ export const synthesizeQuizAudioV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request, { outward: true });
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
     const parsed = parseSynthesizeRequest(request.data);

@@ -13,6 +13,7 @@ import {
   toVaPublicQuestion,
   type VaKeyQuestion,
 } from './videoActivityGrade';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 const SESSIONS = 'video_activity_sessions';
 const MAX_ID_LENGTH = 128;
@@ -221,12 +222,14 @@ export const checkVideoActivityAnswerV1 = onCall(
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
-  (request) =>
-    handleCheckVideoActivityAnswer(
+  (request) => {
+    assertViewAsAllowed(request);
+    return handleCheckVideoActivityAnswer(
       admin.firestore(),
       request.auth?.uid ?? null,
       request.data
-    )
+    );
+  }
 );
 
 const stampMillis = (value: unknown): number | null =>

@@ -23,6 +23,7 @@ import {
   type IgnoredPersonalSet,
 } from './glMediaReferences';
 import './functionsInit';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 const PERSONAL_COLLECTION = 'guided_learning';
 const BUILDING_COLLECTION = 'building_guided_learning';
@@ -145,6 +146,7 @@ export const releaseGuidedLearningMediaV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request);
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
     const data = (request.data ?? {}) as ReleaseRequest;

@@ -6,6 +6,7 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import { gradeGroupAnswer } from './plcAssessmentMath';
 import { parseKeyQuestions, servedFibAnswers } from './quizScoreOnSubmit';
 import { withQuizSessionContent } from './quizSessionContent';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 const SESSIONS = 'quiz_sessions';
 const MAX_ID_LENGTH = 128;
@@ -429,10 +430,12 @@ export const checkQuizGameAnswerV1 = onCall(
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
-  (request) =>
-    handleCheckQuizGameAnswer(
+  (request) => {
+    assertViewAsAllowed(request);
+    return handleCheckQuizGameAnswer(
       admin.firestore(),
       request.auth?.uid ?? null,
       request.data
-    )
+    );
+  }
 );

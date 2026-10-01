@@ -23,6 +23,7 @@ import {
 } from './quizMediaArchive';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import './functionsInit';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -335,6 +336,7 @@ export const getQuizArtifactPlaybackUrl = onCall(
     invoker: 'public',
   },
   async (request) => {
+    assertViewAsAllowed(request, { read: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }

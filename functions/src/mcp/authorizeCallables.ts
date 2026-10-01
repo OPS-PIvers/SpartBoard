@@ -7,6 +7,7 @@ import { verifyClientId } from './tokens';
 import { checkEligibility } from './eligibility';
 import { mintAuthCode } from './codes';
 import { grantRef } from './grants';
+import { assertViewAsAllowed } from '../viewAsGuard';
 
 export interface AuthorizeRequest {
   clientId?: unknown;
@@ -135,8 +136,9 @@ export async function authorize(
 
 export const mcpAuthorizeV1 = onCall<AuthorizeRequest>(
   { maxInstances: 5 },
-  async (request): Promise<AuthorizeResponse> =>
-    authorize(
+  async (request): Promise<AuthorizeResponse> => {
+    assertViewAsAllowed(request, { outward: true });
+    return authorize(
       admin.firestore(),
       request.auth
         ? {
@@ -145,12 +147,14 @@ export const mcpAuthorizeV1 = onCall<AuthorizeRequest>(
           }
         : undefined,
       request.data ?? {}
-    )
+    );
+  }
 );
 
 export const revokeMcpGrantV1 = onCall<{ grantId?: unknown }>(
   { maxInstances: 5 },
   async (request): Promise<{ revoked: boolean }> => {
+    assertViewAsAllowed(request);
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in first.');
     const grantId = str(request.data?.grantId);
