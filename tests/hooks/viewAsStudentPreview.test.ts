@@ -221,7 +221,10 @@ describe('Guided learning preview', () => {
 
 describe('Activity wall preview', () => {
   it('refuses to post or delete', async () => {
-    const session = { id: 't1_w1', layout: 'grid' } as ActivityWallSession;
+    const session = {
+      id: 't1_w1',
+      layout: 'grid',
+    } as unknown as ActivityWallSession;
     await expect(
       createPost({
         session,
