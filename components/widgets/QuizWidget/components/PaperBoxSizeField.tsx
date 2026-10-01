@@ -7,6 +7,7 @@ import {
   defaultPaperBoxSize,
   paperBoxLines,
 } from '@/utils/paperWritten';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { labelClass } from './quizEditorFieldStyles';
 
 const SIZE_LABELS: Record<PaperBoxSize, string> = {
@@ -29,9 +30,14 @@ export const PaperBoxSizeField: React.FC<Props> = ({ question, onChange }) => {
         Paper answer box
       </span>
       <div
-        role="group"
+        role="radiogroup"
         aria-labelledby={`paper-box-${question.id}`}
         className="flex flex-wrap gap-1.5"
+        onKeyDown={(e) =>
+          handleRadioGroupKeyDown(e, PAPER_BOX_SIZES, (size) =>
+            onChange({ paperBoxSize: size })
+          )
+        }
       >
         {PAPER_BOX_SIZES.map((size) => {
           const on = size === value;
@@ -39,7 +45,9 @@ export const PaperBoxSizeField: React.FC<Props> = ({ question, onChange }) => {
             <button
               key={size}
               type="button"
-              aria-pressed={on}
+              role="radio"
+              aria-checked={on}
+              tabIndex={on ? 0 : -1}
               title={`${paperBoxLines(size)} lines`}
               onClick={() => onChange({ paperBoxSize: size })}
               className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors ${

@@ -124,37 +124,59 @@ describe('Paper answer box picker', () => {
   it('defaults to Medium with no word limit', () => {
     grantAll();
     open();
-    const group = detail().getByRole('group', { name: 'Paper answer box' });
+    const group = detail().getByRole('radiogroup', {
+      name: 'Paper answer box',
+    });
     expect(
       within(group)
-        .getByRole('button', { name: 'Medium' })
-        .getAttribute('aria-pressed')
+        .getByRole('radio', { name: 'Medium' })
+        .getAttribute('aria-checked')
     ).toBe('true');
   });
 
   it('derives the default from the maximum word count', () => {
     grantAll();
     open(100);
-    const group = detail().getByRole('group', { name: 'Paper answer box' });
+    const group = detail().getByRole('radiogroup', {
+      name: 'Paper answer box',
+    });
     expect(
       within(group)
-        .getByRole('button', { name: 'Large' })
-        .getAttribute('aria-pressed')
+        .getByRole('radio', { name: 'Large' })
+        .getAttribute('aria-checked')
     ).toBe('true');
   });
 
   it('saves a picked size and marks the quiz dirty', () => {
     grantAll();
     open();
-    const group = detail().getByRole('group', { name: 'Paper answer box' });
-    fireEvent.click(within(group).getByRole('button', { name: 'Full page' }));
+    const group = detail().getByRole('radiogroup', {
+      name: 'Paper answer box',
+    });
+    fireEvent.click(within(group).getByRole('radio', { name: 'Full page' }));
     expect(
       within(group)
-        .getByRole('button', { name: 'Full page' })
-        .getAttribute('aria-pressed')
+        .getByRole('radio', { name: 'Full page' })
+        .getAttribute('aria-checked')
     ).toBe('true');
     expect(
       screen.getByTestId('editor-workspace').getAttribute('data-is-dirty')
+    ).toBe('true');
+  });
+
+  it('moves the selection with arrow keys', () => {
+    grantAll();
+    open();
+    const group = detail().getByRole('radiogroup', {
+      name: 'Paper answer box',
+    });
+    const medium = within(group).getByRole('radio', { name: 'Medium' });
+    medium.focus();
+    fireEvent.keyDown(medium, { key: 'ArrowRight' });
+    expect(
+      within(group)
+        .getByRole('radio', { name: 'Large' })
+        .getAttribute('aria-checked')
     ).toBe('true');
   });
 });
