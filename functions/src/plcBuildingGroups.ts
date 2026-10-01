@@ -427,7 +427,8 @@ export async function applyProfileBuildingsChange(
   if (touched.length === 0) return result;
 
   const groups: Array<{ id: string; data: Data }> = [];
-  for (const part of chunk(touched, 30)) {
+  const touchedIds = [...new Set(touched.flatMap(buildingIdVariants))];
+  for (const part of chunk(touchedIds, 30)) {
     const snap = await deps.db
       .collection('plcs')
       .where('buildingId', 'in', part)
@@ -443,7 +444,7 @@ export async function applyProfileBuildingsChange(
   let account: AccountInfo | null | undefined;
   const orgOk = new Map<string, boolean>();
   for (const g of groups) {
-    const buildingId = g.data.buildingId as string;
+    const buildingId = canonicalBuildingIdServer(g.data.buildingId as string);
     if (diff.removed.includes(buildingId)) {
       if (!shouldAutoRemove(g.data, uid)) continue;
       if (await removeFromGroup(deps, g.id, uid)) result.removed.push(g.id);
@@ -456,7 +457,7 @@ export async function applyProfileBuildingsChange(
         ? { uid, email, displayName: user?.displayName ?? '' }
         : null;
     }
-    if (!account) continue;
+    if (!account || !diff.added.includes(buildingId)) continue;
     const orgId = g.data.orgId as string;
     if (!orgOk.has(orgId)) {
       orgOk.set(orgId, await isActiveOrgMember(deps.db, orgId, account.email));
