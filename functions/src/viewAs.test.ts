@@ -5,7 +5,7 @@ const createCustomTokenMock =
   vi.fn<
     (
       uid: string,
-      claims: { viewAs: Record<string, unknown> }
+      claims: { viewAs: Record<string, unknown> & { exp: number } }
     ) => Promise<string>
   >();
 let docs: Record<string, Record<string, unknown>> = {};
