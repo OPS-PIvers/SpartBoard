@@ -312,3 +312,52 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
     expect(successCalls).toHaveLength(0);
   });
 });
+
+describe('QuizResults — PLC assignment with no shared sheet', () => {
+  beforeEach(() => {
+    addToast.mockClear();
+    mockExportResultsToSheet.mockClear();
+    ensureGoogleScopeMock.mockClear();
+  });
+
+  it('exports to the teacher personal sheet instead of erroring', async () => {
+    mockExportResultsToSheet.mockResolvedValue(
+      'https://docs.google.com/spreadsheets/d/MINE/edit'
+    );
+    const config = {
+      ...soloConfig(),
+      plcMode: true,
+      plcSheetUrl: '',
+    } as QuizConfig;
+
+    render(
+      <QuizResults
+        quiz={makeQuiz()}
+        responses={[makeResponse('01')]}
+        config={config}
+        onBack={vi.fn()}
+        initialExportUrl={null}
+        plcSheetUrl={null}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /export to sheets/i }));
+
+    await waitFor(() => {
+      expect(mockExportResultsToSheet).toHaveBeenCalledTimes(1);
+    });
+    expect(mockExportResultsToSheet.mock.calls[0][3]).toMatchObject({
+      plcMode: false,
+    });
+    expect(ensureGoogleScopeMock).toHaveBeenCalledWith('drive.file', {
+      interactive: true,
+    });
+    expect(addToast).not.toHaveBeenCalledWith(expect.anything(), 'error');
+    expect(
+      await screen.findByRole('link', { name: /open sheet/i })
+    ).toHaveAttribute(
+      'href',
+      'https://docs.google.com/spreadsheets/d/MINE/edit'
+    );
+  });
+});
