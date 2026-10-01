@@ -36,6 +36,7 @@ import {
   SUB_LAUNCH_AS_TEACHER_SETTINGS_DOC,
   normalizeSubLaunchAsTeacherSettings,
 } from '@/config/subLaunchAsTeacher';
+import { VIEW_AS_SETTINGS_DOC, normalizeViewAsSettings } from '@/config/viewAs';
 
 export interface RolloutSwitch {
   docId: string;
@@ -107,5 +108,11 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     title: 'Gradebook score index',
     description: 'Collect every score for the gradebook.',
     normalize: normalizeGradebookIndexSettings,
+  },
+  {
+    docId: VIEW_AS_SETTINGS_DOC,
+    title: 'Super admin View as',
+    description: "Super admins open a user's account to troubleshoot.",
+    normalize: normalizeViewAsSettings,
   },
 ];

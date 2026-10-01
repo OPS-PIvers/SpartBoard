@@ -12,6 +12,7 @@ const snapshotData: Record<string, Record<string, unknown> | undefined> = {
   projects_widget: undefined,
   quiz_document_import: undefined,
   sub_launch_as_teacher: undefined,
+  view_as: undefined,
 };
 
 vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
@@ -215,6 +216,18 @@ describe('PreviewsPanel', () => {
     expect(setDocMock.mock.calls[0][0].path).toBe(
       'admin_settings/sub_launch_as_teacher'
     );
+    expect(setDocMock.mock.calls[0][1]).toEqual({ enabled: true });
+  });
+
+  it('offers super admin View as, off, and writes to its own doc', async () => {
+    await renderPanel();
+    const toggle = district('Super admin View as');
+    expect(toggle).not.toBeChecked();
+
+    fireEvent.click(toggle);
+
+    await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
+    expect(setDocMock.mock.calls[0][0].path).toBe('admin_settings/view_as');
     expect(setDocMock.mock.calls[0][1]).toEqual({ enabled: true });
   });
 

@@ -5,7 +5,13 @@ service cloud.firestore {
     // Shorthands: compiled rules size counts expression nodes, and each use saves 2-4.
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
-    function authUid() { return request.auth.uid; }
+    // A view-as token that may not make this request (read-only write, or past exp)
+    // has no uid: the missing-key error denies every owner comparison built on it.
+    // shorthands: off (the one place the raw uid is read)
+    function authUid() {
+      return viewAsOk() ? request.auth.uid : request.auth.token.viewAs.noUid;
+    }
+    // shorthands: on
     function unchanged(k) { return request.resource.data[k] == resource.data[k]; }
     function isStr(k) { return request.resource.data[k] is string; }
     function isInt(k) { return request.resource.data[k] is int; }
@@ -26,7 +32,27 @@ service cloud.firestore {
       return request.auth != null &&
              request.auth.token.get('email', '') != '' &&
              request.auth.token.get('email_verified', false) == true &&
+             viewAsAdminOk() &&
              exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()));
+    }
+
+    // ---- Super admin "View as" (docs/plans/ADMIN_VIEW_AS.md D7) ----
+    // A view-as tab is signed in as its target with a server-minted `viewAs`
+    // claim { by, sid, ro, adminTarget, exp(ms) }. It may read until exp, and
+    // write only while unlocked (ro == false) and live; authUid() enforces it for
+    // every uid-keyed rule. Admin powers never write from a view-as tab (D3).
+    function viewAsLive() {
+      return request.time.toMillis() < request.auth.token.viewAs.get('exp', 0);
+    }
+    function isReadMethod() { return request.method in ['get', 'list']; }
+    function viewAsOk() {
+      return request.auth.token.get('viewAs', null) == null ||
+             (viewAsLive() &&
+              (isReadMethod() || request.auth.token.viewAs.get('ro', true) == false));
+    }
+    function viewAsAdminOk() {
+      return request.auth.token.get('viewAs', null) == null ||
+             (viewAsLive() && isReadMethod());
     }
 
     // A signed-in district address, verified. email_verified is required because
@@ -287,6 +313,7 @@ service cloud.firestore {
       return request.auth != null &&
              request.auth.token.email != null &&
              request.auth.token.get('email_verified', false) == true &&
+             viewAsAdminOk() &&
              (isLegacySuperAdmin() || isMemberSuperAdmin());
     }
 
@@ -370,6 +397,7 @@ service cloud.firestore {
     function isDomainAdmin(orgId) {
       return request.auth != null && request.auth.token.email != null &&
              request.auth.token.get('email_verified', false) == true &&
+             viewAsAdminOk() &&
              memberRole(orgId, request.auth.token.email.lower()) == 'domain_admin';
     }
 
@@ -377,6 +405,7 @@ service cloud.firestore {
     function isBuildingAdmin(orgId) {
       return request.auth != null && request.auth.token.email != null &&
              request.auth.token.get('email_verified', false) == true &&
+             viewAsAdminOk() &&
              memberRole(orgId, request.auth.token.email.lower()) == 'building_admin';
     }
 
@@ -981,6 +1010,26 @@ service cloud.firestore {
     // serverTimestamp(), so no is-int validation here.
     match /admin_audit_log/{logId} {
       allow read, create: if isAdmin();
+      // An unlocked view-as tab logs its own saves, approvals and outward
+      // actions (ADMIN_VIEW_AS.md D16). Every identity field must match the
+      // server-minted claim; session lifecycle entries are server-only.
+      allow create: if request.auth != null &&
+                       request.auth.token.get('viewAs', null) != null &&
+                       viewAsOk() &&
+                       request.auth.token.viewAs.get('ro', true) == false &&
+                       incoming().keys().hasOnly(['action', 'sid', 'email', 'targetEmail',
+                         'targetUid', 'path', 'before', 'after', 'reason', 'timestamp']) &&
+                       incoming().action in ['view_as_save', 'view_as_approve', 'view_as_outward'] &&
+                       incoming().sid == request.auth.token.viewAs.sid &&
+                       incoming().email == request.auth.token.viewAs.by &&
+                       incoming().targetUid == authUid() &&
+                       incoming().targetEmail == request.auth.token.get('email', '').lower() &&
+                       incoming().timestamp == request.time;
+    }
+
+    // View-as sessions: Admin SDK writes only; super admins read them.
+    match /view_as_sessions/{sid} {
+      allow read: if isSuperAdmin();
     }
 
     // User Roles - stored in admin_settings for global access but restricted to admins
@@ -2528,7 +2577,7 @@ service cloud.firestore {
       // isAdminManagingPlc (the only
       // non-member branch).
       // shorthands: off (PLC update OR chain runs close to the 1,000-expression limit)
-      allow update: if request.auth != null && (
+      allow update: if request.auth != null && viewAsOk() && (
         (
           request.auth.uid == resource.data.leadUid
           && request.resource.data.leadUid == resource.data.leadUid
