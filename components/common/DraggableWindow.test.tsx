@@ -1537,6 +1537,29 @@ describe('DraggableWindow', () => {
     );
   });
 
+  // Browsers that skip blur on unmount (Firefox/Safari) leave the cancel flag set; the next rename must still save.
+  it('saves the next title edit after an Escape-cancel that fired no blur', async () => {
+    renderComponent({}, <div>Content</div>, <div>Settings</div>, 'test-widget');
+
+    fireEvent.click(screen.getByText('Test Widget'));
+    const first = screen.getByDisplayValue('Test Widget');
+    fireEvent.change(first, { target: { value: 'Discarded' } });
+    fireEvent.keyDown(first, { key: 'Escape', bubbles: true });
+    await waitFor(() => {
+      expect(screen.queryByDisplayValue('Discarded')).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Test Widget'));
+    const second = screen.getByDisplayValue('Test Widget');
+    fireEvent.change(second, { target: { value: 'Kept Title' } });
+    fireEvent.keyDown(second, { key: 'Enter', bubbles: true });
+
+    expect(mockUpdateWidget).toHaveBeenCalledWith(
+      'test-widget',
+      expect.objectContaining({ customTitle: 'Kept Title' })
+    );
+  });
+
   // Regression: pressing Enter to commit a widget title rename should call
   // updateWidget exactly ONCE, not twice.
   //
