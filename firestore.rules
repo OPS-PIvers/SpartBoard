@@ -7,9 +7,11 @@ service cloud.firestore {
     function existing() { return resource.data; }
     // A view-as token that may not make this request (read-only write, or past exp)
     // has no uid: the missing-key error denies every owner comparison built on it.
+    // shorthands: off (the one place the raw uid is read)
     function authUid() {
       return viewAsOk() ? request.auth.uid : request.auth.token.viewAs.noUid;
     }
+    // shorthands: on
     function unchanged(k) { return request.resource.data[k] == resource.data[k]; }
     function isStr(k) { return request.resource.data[k] is string; }
     function isInt(k) { return request.resource.data[k] is int; }
