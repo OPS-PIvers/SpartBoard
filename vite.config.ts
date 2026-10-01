@@ -55,6 +55,23 @@ const pdfjsWasmPlugin = (): Plugin => ({
   },
 });
 
+// App imports of 'firebase/firestore' get the View as write guard (docs/plans/ADMIN_VIEW_AS.md D13).
+const FIRESTORE_GUARD = path.resolve(
+  __dirname,
+  'utils/firestoreViewAsGuard.ts'
+);
+const firestoreViewAsGuardPlugin = (): Plugin => ({
+  name: 'firestore-view-as-guard',
+  enforce: 'pre',
+  resolveId(source, importer) {
+    if (source !== 'firebase/firestore' || !importer) return null;
+    const from = importer.split(String.fromCharCode(92)).join('/');
+    if (from.includes('/node_modules/')) return null;
+    if (path.resolve(importer.split('?')[0]) === FIRESTORE_GUARD) return null;
+    return FIRESTORE_GUARD;
+  },
+});
+
 const commonServerConfig = {
   port: 3000,
   host: '0.0.0.0',
@@ -73,7 +90,11 @@ export default defineConfig({
     },
   },
   preview: commonServerConfig,
-  plugins: [react(), pdfjsWasmPlugin()],
+  plugins: [
+    ...(process.env.VITEST ? [] : [firestoreViewAsGuardPlugin()]),
+    react(),
+    pdfjsWasmPlugin(),
+  ],
   define: {
     __APP_VERSION__: JSON.stringify(__APP_VERSION__),
     __APP_BUILD_ID__: JSON.stringify(__APP_BUILD_ID__),

@@ -64,6 +64,33 @@ describe('viewAsTab', () => {
     expect(mod.viewAsBlocksWrite()).toBe(true);
   });
 
+  it('passes raw writes in an unlocked tab only when audited or after an outward confirm', async () => {
+    vi.useFakeTimers();
+    window.history.replaceState({}, '', '/?viewAs=1');
+    const mod = await import('./viewAsTab');
+    expect(mod.viewAsBlocksRawWrite()).toBe(true);
+    expect(mod.runAuditedWrite(() => mod.viewAsBlocksRawWrite())).toBe(true);
+
+    mod.updateViewAsTabState({ unlocked: true });
+    expect(mod.viewAsBlocksRawWrite()).toBe(true);
+    expect(mod.runAuditedWrite(() => mod.viewAsBlocksRawWrite())).toBe(false);
+    expect(mod.viewAsBlocksRawWrite()).toBe(true);
+
+    mod.openViewAsOutwardWindow();
+    expect(mod.viewAsBlocksRawWrite()).toBe(false);
+    vi.advanceTimersByTime(60_000);
+    expect(mod.viewAsBlocksRawWrite()).toBe(true);
+
+    mod.updateViewAsTabState({ ended: true });
+    expect(mod.runAuditedWrite(() => mod.viewAsBlocksRawWrite())).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it('never blocks raw writes in an ordinary tab', async () => {
+    const mod = await import('./viewAsTab');
+    expect(mod.viewAsBlocksRawWrite()).toBe(false);
+  });
+
   it('notifies subscribers on state changes', async () => {
     const mod = await import('./viewAsTab');
     const listener = vi.fn();

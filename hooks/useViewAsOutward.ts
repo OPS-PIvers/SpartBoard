@@ -3,6 +3,7 @@ import { useCallback, useContext, useMemo } from 'react';
 import { DialogContext } from '@/context/DialogContextValue';
 import { useViewAs } from '@/context/useViewAs';
 import { recordViewAsOutward } from '@/utils/viewAsAudit';
+import { openViewAsOutwardWindow } from '@/utils/viewAsTab';
 
 export const VIEW_AS_LOCKED_TITLE = 'Unlock edits to do this';
 
@@ -36,13 +37,17 @@ export function useViewAsOutward(): ViewAsOutward {
         confirmLabel: label,
         variant: 'warning',
       });
-      if (ok) void recordViewAsOutward(label);
+      if (ok) {
+        openViewAsOutwardWindow();
+        void recordViewAsOutward(label);
+      }
       return ok;
     },
     [viewAs, dialog, targetEmail]
   );
 
   const audit = useCallback((label: string) => {
+    openViewAsOutwardWindow();
     void recordViewAsOutward(label);
   }, []);
 
