@@ -40,6 +40,7 @@ import {
 } from '@/utils/questionBankRecords';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
+import { noDriveMessage } from '@/utils/viewAsDrive';
 
 export const BANKS_COLLECTION = 'question_banks';
 export const SYNCED_BANKS_COLLECTION = 'synced_question_banks';
@@ -142,7 +143,9 @@ export const useQuestionBanks = (
     }
     if (!googleAccessToken) {
       throw new Error(
-        'Not connected to Google Drive. Please sign in again to grant access.'
+        noDriveMessage(
+          'Not connected to Google Drive. Please sign in again to grant access.'
+        )
       );
     }
     return new BankDriveService(new QuizDriveService(googleAccessToken));

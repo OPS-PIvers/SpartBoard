@@ -88,6 +88,8 @@ import { dueAtByClassIdFromRosters } from '@/utils/perClassDueDates';
 import { SharePlcResultsModal } from './components/SharePlcResultsModal';
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { ViewAsDriveEmptyState } from '@/components/viewAs/ViewAsDriveEmptyState';
+import { useViewAsDriveStatus } from '@/hooks/useViewAsDriveStatus';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
@@ -257,6 +259,7 @@ const TeacherQuizWidget: React.FC<{
     appSettings,
     updateAppSettings,
   } = useAuth();
+  const viewAsDrive = useViewAsDriveStatus();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const quizAssignmentMode = getAssignmentMode('quiz');
   const { showConfirm } = useDialog();
@@ -1495,6 +1498,7 @@ const TeacherQuizWidget: React.FC<{
 
   // ─── Guard: no Drive access ────────────────────────────────────────────────
   if (!isDriveConnected && !googleAccessToken) {
+    if (viewAsDrive) return <ViewAsDriveEmptyState status={viewAsDrive} />;
     return (
       <ScaledEmptyState
         icon={AlertTriangle}

@@ -27,6 +27,7 @@ import { getLocalIsoDate } from '@/utils/localDate';
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency';
 import { assignPins } from '@/utils/rosterPins';
 import { collapseTestSuffix } from '@/utils/testClassSuffix';
+import { noDriveMessage } from '@/utils/viewAsDrive';
 
 /**
  * Phase 3 — rebuild the per-roster pin_index sidecar after a roster save.
@@ -726,7 +727,9 @@ export const useRosters = (user: User | null) => {
               // Drive service unavailable (not yet signed in / token loading).
               // Flag the failure so the UI doesn't show a misleading empty
               // roster; next snapshot once driveService is ready will retry.
-              loadError = 'Google Drive not available — sign in to load roster';
+              loadError = noDriveMessage(
+                'Google Drive not available — sign in to load roster'
+              );
             }
           }
           const roster: ClassRoster = {

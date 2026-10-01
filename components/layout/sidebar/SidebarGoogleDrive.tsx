@@ -6,6 +6,8 @@ import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
 import { APP_NAME } from '@/config/constants';
+import { useViewAsDriveStatus } from '@/hooks/useViewAsDriveStatus';
+import { VIEW_AS_DRIVE_UNAVAILABLE } from '@/utils/viewAsDrive';
 
 interface SidebarGoogleDriveProps {
   isVisible: boolean;
@@ -19,6 +21,7 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
     useAuth();
   const { isConnected: isDriveConnected } = useGoogleDrive();
   const { addToast } = useDashboard();
+  const viewAsDrive = useViewAsDriveStatus();
 
   const handleRefreshDrive = async () => {
     const token = await refreshGoogleToken();
@@ -115,9 +118,11 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
                   </div>
                   <div>
                     <p className="text-xs font-bold text-amber-800 uppercase tracking-wide">
-                      {t('sidebar.settings.disconnected', {
-                        defaultValue: 'Not Connected',
-                      })}
+                      {viewAsDrive === 'unavailable'
+                        ? VIEW_AS_DRIVE_UNAVAILABLE
+                        : t('sidebar.settings.disconnected', {
+                            defaultValue: 'Not Connected',
+                          })}
                     </p>
                   </div>
                 </>
@@ -125,40 +130,42 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-2">
-              {isDriveConnected ? (
-                <>
+            {!viewAsDrive && (
+              <div className="flex gap-2">
+                {isDriveConnected ? (
+                  <>
+                    <button
+                      onClick={handleRefreshDrive}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-emerald-200 text-xxs font-bold text-emerald-700 uppercase tracking-wider hover:bg-emerald-50 transition-all shadow-sm"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      {t('sidebar.settings.refresh', {
+                        defaultValue: 'Refresh',
+                      })}
+                    </button>
+                    <button
+                      onClick={handleDisconnectDrive}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-xxs font-bold text-slate-500 uppercase tracking-wider hover:text-brand-red-primary hover:border-brand-red-lighter hover:bg-red-50 transition-all shadow-sm"
+                    >
+                      <Unlink className="w-3.5 h-3.5" />
+                      {t('sidebar.settings.disconnect', {
+                        defaultValue: 'Disconnect',
+                      })}
+                    </button>
+                  </>
+                ) : (
                   <button
-                    onClick={handleRefreshDrive}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-emerald-200 text-xxs font-bold text-emerald-700 uppercase tracking-wider hover:bg-emerald-50 transition-all shadow-sm"
+                    onClick={() => void connectGoogleDrive()}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-brand-blue-primary text-white text-xxs font-bold uppercase tracking-wider shadow-md hover:bg-brand-blue-dark transition-all"
                   >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    {t('sidebar.settings.refresh', {
-                      defaultValue: 'Refresh',
+                    <GoogleDriveIcon className="w-4 h-4" />
+                    {t('sidebar.settings.connect', {
+                      defaultValue: 'Connect Google Drive',
                     })}
                   </button>
-                  <button
-                    onClick={handleDisconnectDrive}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-xxs font-bold text-slate-500 uppercase tracking-wider hover:text-brand-red-primary hover:border-brand-red-lighter hover:bg-red-50 transition-all shadow-sm"
-                  >
-                    <Unlink className="w-3.5 h-3.5" />
-                    {t('sidebar.settings.disconnect', {
-                      defaultValue: 'Disconnect',
-                    })}
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => void connectGoogleDrive()}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-brand-blue-primary text-white text-xxs font-bold uppercase tracking-wider shadow-md hover:bg-brand-blue-dark transition-all"
-                >
-                  <GoogleDriveIcon className="w-4 h-4" />
-                  {t('sidebar.settings.connect', {
-                    defaultValue: 'Connect Google Drive',
-                  })}
-                </button>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

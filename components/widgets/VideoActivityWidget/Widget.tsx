@@ -81,6 +81,8 @@ import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
 import { getPlcMemberEmail } from '@/utils/plc';
 import { AlertTriangle, Loader2, LogIn } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { ViewAsDriveEmptyState } from '@/components/viewAs/ViewAsDriveEmptyState';
+import { useViewAsDriveStatus } from '@/hooks/useViewAsDriveStatus';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 
@@ -126,6 +128,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     getAssignmentMode,
     appSettings,
   } = useAuth();
+  const viewAsDrive = useViewAsDriveStatus();
   const gradebookOn = canAccessFeature('gradebook');
   const claudeReview = useClaudeReview('video_activities');
   const vaAssignmentMode = getAssignmentMode('videoActivity');
@@ -383,6 +386,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   }
 
   if (!isDriveConnected && !googleAccessToken) {
+    if (viewAsDrive) return <ViewAsDriveEmptyState status={viewAsDrive} />;
     return (
       <ScaledEmptyState
         icon={AlertTriangle}
