@@ -46,6 +46,11 @@ import {
   viewAsSuppressesBackgroundWrites,
 } from '@/utils/viewAsTab';
 import {
+  publishViewAsLocalBoards,
+  reconcileViewAsSnapshot,
+  registerViewAsLocalWriter,
+} from '@/utils/viewAsBoards';
+import {
   DASHBOARD_FIELDS,
   serializeDashboardField,
   type MergedDashboardField,
@@ -701,6 +706,34 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [groupBuildMode, setGroupBuildMode] = useState(false);
   const dashboardsRef = useRef(dashboards);
   dashboardsRef.current = dashboards;
+  // View as: the pending changes panel reads the working copy from outside this provider.
+  useEffect(() => {
+    if (isViewAsTab) publishViewAsLocalBoards(dashboards);
+  }, [dashboards]);
+  useEffect(() => {
+    if (!isViewAsTab) return;
+    registerViewAsLocalWriter((boardId, widgetId, patch) =>
+      setDashboards((prev) =>
+        prev.map((d) =>
+          d.id !== boardId
+            ? d
+            : {
+                ...d,
+                widgets: d.widgets.map((w) => {
+                  if (w.id !== widgetId) return w;
+                  const next = { ...w } as Record<string, unknown>;
+                  for (const [k, v] of Object.entries(patch)) {
+                    if (v === undefined) delete next[k];
+                    else next[k] = v;
+                  }
+                  return next as unknown as WidgetData;
+                }),
+              }
+        )
+      )
+    );
+    return () => registerViewAsLocalWriter(null);
+  }, []);
   // Refs mirror auth/collections state used by the initial-board selection
   // path so that branch (which runs inside the snapshot callback) doesn't
   // have to be re-bound on every userProfile/collection change. Refs are
@@ -2149,7 +2182,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
         let newDashboards: Dashboard[];
 
-        if (
+        if (isViewAsTab) {
+          // D11: the tab edits a working copy; edited boards ignore their snapshots.
+          newDashboards = reconcileViewAsSnapshot(
+            migratedDashboards,
+            dashboardsRef.current
+          );
+        } else if (
           hasPendingWrites ||
           isSelfEcho ||
           isRecentlyUpdatedLocally ||
