@@ -57,7 +57,8 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
   plc,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const groupWording = canAccessFeature('my-groups');
   const { addToast } = useDashboard();
   const { showConfirm } = useDialog();
   const canEdit = useCanEditPlcContent();
@@ -112,23 +113,40 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
         });
         if (outcome === 'already-shared') {
           addToast(
-            t('plcDashboard.rubricLibrary.alreadySharedToast', {
-              title: rubric.title,
-              defaultValue: '"{{title}}" is already shared with this PLC.',
-            }),
+            groupWording
+              ? t('plcDashboard.rubricLibrary.groupAlreadySharedToast', {
+                  title: rubric.title,
+                  defaultValue:
+                    '"{{title}}" is already shared with this group.',
+                })
+              : t('plcDashboard.rubricLibrary.alreadySharedToast', {
+                  title: rubric.title,
+                  defaultValue: '"{{title}}" is already shared with this PLC.',
+                }),
             'info'
           );
         } else {
           addToast(
             outcome === 'restored'
-              ? t('plcDashboard.rubricLibrary.resharedToast', {
-                  title: rubric.title,
-                  defaultValue: '"{{title}}" is shared with this PLC again.',
-                })
-              : t('plcDashboard.rubricLibrary.sharedToast', {
-                  title: rubric.title,
-                  defaultValue: '"{{title}}" shared with this PLC.',
-                }),
+              ? groupWording
+                ? t('plcDashboard.rubricLibrary.groupResharedToast', {
+                    title: rubric.title,
+                    defaultValue:
+                      '"{{title}}" is shared with this group again.',
+                  })
+                : t('plcDashboard.rubricLibrary.resharedToast', {
+                    title: rubric.title,
+                    defaultValue: '"{{title}}" is shared with this PLC again.',
+                  })
+              : groupWording
+                ? t('plcDashboard.rubricLibrary.groupSharedToast', {
+                    title: rubric.title,
+                    defaultValue: '"{{title}}" shared with this group.',
+                  })
+                : t('plcDashboard.rubricLibrary.sharedToast', {
+                    title: rubric.title,
+                    defaultValue: '"{{title}}" shared with this PLC.',
+                  }),
             'success'
           );
         }
@@ -139,14 +157,18 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
           rubricId,
         });
         addToast(
-          t('plcDashboard.rubricLibrary.shareFailed', {
-            defaultValue: 'Failed to share rubric with this PLC.',
-          }),
+          groupWording
+            ? t('plcDashboard.rubricLibrary.groupShareFailed', {
+                defaultValue: 'Failed to share rubric with this group.',
+              })
+            : t('plcDashboard.rubricLibrary.shareFailed', {
+                defaultValue: 'Failed to share rubric with this PLC.',
+              }),
           'error'
         );
       }
     },
-    [addToast, personalRubrics, plc, shareRubricWithPlc, t, user]
+    [addToast, groupWording, personalRubrics, plc, shareRubricWithPlc, t, user]
   );
 
   const handleImport = useCallback(
@@ -400,9 +422,15 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
 
       {sharePickerOpen && (
         <PlcSharePickerModal
-          title={t('plcDashboard.rubricLibrary.sharePickerTitle', {
-            defaultValue: 'Share a rubric with this PLC',
-          })}
+          title={
+            groupWording
+              ? t('plcDashboard.rubricLibrary.groupSharePickerTitle', {
+                  defaultValue: 'Share a rubric with this group',
+                })
+              : t('plcDashboard.rubricLibrary.sharePickerTitle', {
+                  defaultValue: 'Share a rubric with this PLC',
+                })
+          }
           subtitle={plc.name}
           emptyMessage={t('plcDashboard.rubricLibrary.sharePickerEmpty', {
             defaultValue:

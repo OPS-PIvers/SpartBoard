@@ -77,7 +77,8 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
   compact = false,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const groupWording = canAccessFeature('my-groups');
   const { showConfirm } = useDialog();
   const { removeMember, setMemberRole, transferLead, leavePlc } = usePlcs({
     enabled: !compact,
@@ -163,9 +164,13 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
     }
     if (memberEmailsLower.has(trimmed)) {
       setInviteError(
-        t('plcDashboard.members.alreadyMember', {
-          defaultValue: 'That email is already a member of this PLC.',
-        })
+        groupWording
+          ? t('plcDashboard.members.groupAlreadyMember', {
+              defaultValue: 'That email is already a member of this group.',
+            })
+          : t('plcDashboard.members.alreadyMember', {
+              defaultValue: 'That email is already a member of this PLC.',
+            })
       );
       return;
     }
@@ -264,10 +269,15 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
 
   const handleRemoveMember = async (member: PlcMember) => {
     const confirmed = await showConfirm(
-      t('plcDashboard.members.confirmRemove', {
-        defaultValue: 'Remove {{email}} from this PLC?',
-        email: member.email || member.uid,
-      }),
+      groupWording
+        ? t('plcDashboard.members.groupConfirmRemove', {
+            defaultValue: 'Remove {{email}} from this group?',
+            email: member.email || member.uid,
+          })
+        : t('plcDashboard.members.confirmRemove', {
+            defaultValue: 'Remove {{email}} from this PLC?',
+            email: member.email || member.uid,
+          }),
       {
         title: t('plcDashboard.members.confirmRemoveTitle', {
           defaultValue: 'Remove member',
@@ -299,9 +309,13 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
           'Leave this PLC? You will lose access to shared assignment results.',
       }),
       {
-        title: t('plcDashboard.members.confirmLeaveTitle', {
-          defaultValue: 'Leave PLC',
-        }),
+        title: groupWording
+          ? t('plcDashboard.members.groupConfirmLeaveTitle', {
+              defaultValue: 'Leave group',
+            })
+          : t('plcDashboard.members.confirmLeaveTitle', {
+              defaultValue: 'Leave PLC',
+            }),
         variant: 'danger',
         confirmLabel: t('plcDashboard.members.leave', {
           defaultValue: 'Leave',
@@ -669,9 +683,13 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xxs font-bold uppercase tracking-wider text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           >
             <UserMinus aria-hidden="true" className="w-3.5 h-3.5" />
-            {t('plcDashboard.members.leavePlc', {
-              defaultValue: 'Leave this PLC',
-            })}
+            {groupWording
+              ? t('plcDashboard.members.groupLeavePlc', {
+                  defaultValue: 'Leave this group',
+                })
+              : t('plcDashboard.members.leavePlc', {
+                  defaultValue: 'Leave this PLC',
+                })}
           </button>
         </section>
       )}

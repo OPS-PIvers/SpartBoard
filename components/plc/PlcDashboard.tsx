@@ -67,6 +67,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
   const { t } = useTranslation();
   const { user, canAccessFeature, globalPermissionsLoaded, isAdmin } =
     useAuth();
+  const groupWording = canAccessFeature('my-groups');
   // On mobile, deep-linking straight to a section (anything but `home`) should
   // open that section, not the drill-in menu; landing on home shows the menu.
   const [showMobileMenu, setShowMobileMenu] = useState(
@@ -142,9 +143,15 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
             <div className="flex justify-center py-16">
               <Loader2
                 className="h-8 w-8 animate-spin text-brand-blue-primary"
-                aria-label={t('plcRoute.loading', {
-                  defaultValue: 'Loading PLC…',
-                })}
+                aria-label={
+                  groupWording
+                    ? t('plcRoute.groupLoading', {
+                        defaultValue: 'Loading group…',
+                      })
+                    : t('plcRoute.loading', {
+                        defaultValue: 'Loading PLC…',
+                      })
+                }
               />
             </div>
           );

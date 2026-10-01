@@ -17,6 +17,7 @@ import type { Plc } from '@/types';
 import { usePlcDocs } from '@/hooks/usePlcDocs';
 import { useDashboard } from '@/context/useDashboard';
 import { logError } from '@/utils/logError';
+import { useAuth } from '@/context/useAuth';
 
 interface PlcAddDocModalProps {
   plc: Plc;
@@ -31,6 +32,7 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
   onCreated,
 }) => {
   const { t } = useTranslation();
+  const groupWording = useAuth().canAccessFeature('my-groups');
   const { addToast } = useDashboard();
   const { createDoc } = usePlcDocs(plc.id);
 
@@ -60,10 +62,15 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
     try {
       const docId = await createDoc({ title: trimmedTitle, url: trimmedUrl });
       addToast(
-        t('plcDashboard.home.quickCreate.docModal.created', {
-          title: trimmedTitle,
-          defaultValue: '"{{title}}" added to this PLC.',
-        }),
+        groupWording
+          ? t('plcDashboard.home.quickCreate.docModal.groupCreated', {
+              title: trimmedTitle,
+              defaultValue: '"{{title}}" added to this group.',
+            })
+          : t('plcDashboard.home.quickCreate.docModal.created', {
+              title: trimmedTitle,
+              defaultValue: '"{{title}}" added to this PLC.',
+            }),
         'success'
       );
       onCreated?.(docId);

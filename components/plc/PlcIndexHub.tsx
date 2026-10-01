@@ -153,7 +153,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
         )}
 
         {/* --- Section 2: PLCs in my building --- */}
-        <PlcBuildingDirectorySection userEmail={userEmail} />
+        <PlcBuildingDirectorySection userEmail={userEmail} groups={groups} />
       </div>
     </div>
   );
@@ -163,9 +163,10 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
 // "PLCs in my building" directory
 // ---------------------------------------------------------------------------
 
-const PlcBuildingDirectorySection: React.FC<{ userEmail: string | null }> = ({
-  userEmail,
-}) => {
+const PlcBuildingDirectorySection: React.FC<{
+  userEmail: string | null;
+  groups: boolean;
+}> = ({ userEmail, groups }) => {
   const { t } = useTranslation();
   const { entries, loading, orgId } = usePlcBuildingDirectory();
 
@@ -174,7 +175,13 @@ const PlcBuildingDirectorySection: React.FC<{ userEmail: string | null }> = ({
       <div className="flex items-center gap-2 mb-4">
         <Building2 className="w-4 h-4 text-slate-400" aria-hidden="true" />
         <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">
-          {t('plcDirectory.heading', { defaultValue: 'PLCs in my building' })}
+          {groups
+            ? t('plcDirectory.groupHeading', {
+                defaultValue: 'Groups in my building',
+              })
+            : t('plcDirectory.heading', {
+                defaultValue: 'PLCs in my building',
+              })}
         </h2>
       </div>
 
@@ -193,9 +200,15 @@ const PlcBuildingDirectorySection: React.FC<{ userEmail: string | null }> = ({
         </div>
       ) : entries.length === 0 ? (
         <DirectoryNotice
-          title={t('plcDirectory.emptyTitle', {
-            defaultValue: 'No other PLCs to show',
-          })}
+          title={
+            groups
+              ? t('plcDirectory.groupEmptyTitle', {
+                  defaultValue: 'No other groups to show',
+                })
+              : t('plcDirectory.emptyTitle', {
+                  defaultValue: 'No other PLCs to show',
+                })
+          }
         />
       ) : (
         <ul className="flex flex-col gap-2">
