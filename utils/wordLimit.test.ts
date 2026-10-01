@@ -144,4 +144,8 @@ describe('countWords', () => {
     expect(countWords('<p>&nbsp;</p>')).toBe(0);
     expect(countWords('')).toBe(0);
   });
+
+  it('strips tags reassembled from nested fragments', () => {
+    expect(countWords('<p>one <<b>i>two</p>')).toBe(2);
+  });
 });

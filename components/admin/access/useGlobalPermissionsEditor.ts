@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   addDoc,
   collection,
@@ -59,6 +59,8 @@ export const useGlobalPermissionsEditor = () => {
   const [stored, setStored] = useState<Map<string, GlobalFeaturePermission>>(
     new Map()
   );
+  // Written with every setStored so a discard from a stale closure sees fresh saves.
+  const storedRef = useRef<Map<string, GlobalFeaturePermission>>(new Map());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [unsavedChanges, setUnsavedChanges] = useState<Set<string>>(new Set());
@@ -85,7 +87,8 @@ export const useGlobalPermissionsEditor = () => {
           permMap.set(data.featureId, data);
         });
         setPermissions(permMap);
-        setStored(new Map(permMap));
+        storedRef.current = new Map(permMap);
+        setStored(storedRef.current);
       })
       .catch((error: unknown) => {
         console.error('Error loading global permissions:', error);
@@ -156,25 +159,22 @@ export const useGlobalPermissionsEditor = () => {
   );
 
   /** Drop unsaved edits to these features, back to their stored state. */
-  const discardChanges = useCallback(
-    (featureIds: readonly GlobalFeature[]) => {
-      setPermissions((prev) => {
-        const next = new Map(prev);
-        for (const id of featureIds) {
-          const original = stored.get(id);
-          if (original) next.set(id, original);
-          else next.delete(id);
-        }
-        return next;
-      });
-      setUnsavedChanges((prev) => {
-        const next = new Set(prev);
-        for (const id of featureIds) next.delete(id);
-        return next;
-      });
-    },
-    [stored]
-  );
+  const discardChanges = useCallback((featureIds: readonly GlobalFeature[]) => {
+    setPermissions((prev) => {
+      const next = new Map(prev);
+      for (const id of featureIds) {
+        const original = storedRef.current.get(id);
+        if (original) next.set(id, original);
+        else next.delete(id);
+      }
+      return next;
+    });
+    setUnsavedChanges((prev) => {
+      const next = new Set(prev);
+      for (const id of featureIds) next.delete(id);
+      return next;
+    });
+  }, []);
 
   const savePermission = async (
     featureId: GlobalFeature,
@@ -216,7 +216,8 @@ export const useGlobalPermissionsEditor = () => {
       }
 
       setPermissions((prev) => new Map(prev).set(featureId, permission));
-      setStored((prev) => new Map(prev).set(featureId, permission));
+      storedRef.current = new Map(storedRef.current).set(featureId, permission);
+      setStored(storedRef.current);
       setUnsavedChanges((prev) => {
         const next = new Set(prev);
         next.delete(featureId);
