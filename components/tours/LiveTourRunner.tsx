@@ -83,7 +83,9 @@ import { TourDialog } from './TourDialog';
 import {
   autoLeadMs,
   autoObserveMs,
-  dispatchAutoClick,
+  canPerform,
+  performStep,
+  stepValueMet,
   waitFor,
 } from './autopilot';
 import { TourSpotlight } from './TourSpotlight';
@@ -182,9 +184,11 @@ interface CursorCue {
 }
 
 /** Where autopilot is on the current step. */
-type AutoStage = 'demo' | 'waiting' | 'yourTurn' | 'fallback';
+type AutoStage = 'demo' | 'waiting' | 'confirm' | 'blocked' | 'fallback';
 
 const BOARD_WAIT_MS = 2000;
+/** How long a teacher's toggle or choice has to show the recorded value. */
+const VALUE_SETTLE_MS = 600;
 /** How often a step re-applies its anchor's prerequisite while the anchor is missing. */
 const PREREQ_RETRY_MS = 400;
 // A board switch this soon after a step's click is that step's own navigation.
@@ -259,6 +263,8 @@ export const LiveTourRunner: React.FC = () => {
     null
   );
   const autoClicking = useRef(false);
+  // The step key "Autopilot this step" was pressed on, so it runs with the switch off.
+  const manualStep = useRef<string | null>(null);
   const autoWait = useRef<AbortController | null>(null);
   const [readAloud, setReadAloud] = useState(false);
   const [cue, setCue] = useState<CursorCue | null>(null);
@@ -800,6 +806,7 @@ export const LiveTourRunner: React.FC = () => {
   const goTo = (index: number) => {
     if (!tour) return;
     autoWait.current?.abort();
+    manualStep.current = null;
     setAuto(null);
     if (index >= tour.steps.length) {
       finish(true);
@@ -825,28 +832,43 @@ export const LiveTourRunner: React.FC = () => {
 
   const acted = isActedStep(step?.tour);
   const action = step?.tour?.action;
+  const stepValue = step?.tour?.value;
   // A click on the anchor advances once the app has handled it; typing and native selects advance on change.
   useEffect(() => {
     const el = anchor.element;
-    if (!el || !acted) return;
+    if (!el || !acted || !action) return;
     const onChange =
       action === 'type' ||
       (action === 'select' &&
         (el instanceof HTMLSelectElement || !!el.querySelector('select')));
     const eventName = onChange ? 'change' : 'click';
+    const binding = { action, value: stepValue };
+    const ctrl = new AbortController();
     let raf = 0;
     const onClick = () => {
       lastStepClickAt.current = Date.now();
       // Autopilot's own click waits for the next anchor instead.
       if (autoClicking.current) return;
-      raf = requestAnimationFrame(() => advanceRef.current(stepIndex + 1));
+      // Toggle and select steps wait for the recorded value; a control that can't say counts any click.
+      const met = () =>
+        (action !== 'toggle' && action !== 'select') ||
+        !el.isConnected ||
+        stepValueMet(el, binding) !== false;
+      raf = requestAnimationFrame(() => {
+        if (met()) advanceRef.current(stepIndex + 1);
+        else
+          void waitFor(met, VALUE_SETTLE_MS, ctrl.signal).then((ok) => {
+            if (ok) advanceRef.current(stepIndex + 1);
+          });
+      });
     };
     el.addEventListener(eventName, onClick, true);
     return () => {
       el.removeEventListener(eventName, onClick, true);
       cancelAnimationFrame(raf);
+      ctrl.abort();
     };
-  }, [anchor.element, acted, action, stepIndex]);
+  }, [anchor.element, acted, action, stepValue, stepIndex]);
 
   const running = tour?.phase === 'running';
   const offeringResume =
@@ -987,7 +1009,9 @@ export const LiveTourRunner: React.FC = () => {
   const autoStage = auto?.key === stepKey ? auto.stage : null;
   const found = running && anchor.status === 'found';
   const autoRunning = autopilot && (found || plain);
-  const waitingOnTeacher = autoStage === 'yourTurn' || autoStage === 'fallback';
+  const waitingOnTeacher = autoStage === 'blocked' || autoStage === 'fallback';
+  const autoBusy =
+    autoStage === 'demo' || autoStage === 'waiting' || autoStage === 'confirm';
   const hintOn = cursorAllowed && (!autopilot || waitingOnTeacher);
 
   // The demo cursor glides from the callout to the anchor.
@@ -1029,63 +1053,82 @@ export const LiveTourRunner: React.FC = () => {
   const latestSlots = useRef<TourSlots | undefined>(tour?.slots);
   latestSlots.current = tour?.slots;
 
-  // Autopilot clicks the anchor, then waits for the app to show the next step's anchor.
-  const autoClick = () => {
+  // Autopilot performs the step, then waits for the app to show the next step's anchor.
+  const autoClick = (consented = false) => {
     const el = anchor.element;
-    if (!tour || !step?.tour || !el || !autopilot) {
+    const binding = step?.tour;
+    if (
+      !tour ||
+      !binding ||
+      !el ||
+      !(autopilot || manualStep.current === stepKey)
+    ) {
       setAuto(null);
       return;
     }
-    // Recorded values aren't performed yet, so a click could set the wrong state.
-    // The confirm prompt lands with the Autopilot performer; until then confirm hands the click over.
-    if (
-      autopilotGate(step.tour, tour.policy) !== 'perform' ||
-      step.tour.action !== 'click'
-    ) {
-      setAuto({ key: stepKey, stage: 'yourTurn' });
+    const gate = canPerform(binding)
+      ? autopilotGate(binding, tour.policy)
+      : 'teacher';
+    if (gate === 'teacher' || (gate === 'confirm' && !consented)) {
+      setAuto({ key: stepKey, stage: gate === 'teacher' ? 'blocked' : gate });
       return;
     }
     const index = tour.index;
-    const next = tour.steps[index + 1];
+    const nextBinding = tour.steps[index + 1]?.tour;
     setAuto({ key: stepKey, stage: 'waiting' });
-    autoClicking.current = true;
-    try {
-      dispatchAutoClick(el);
-    } finally {
-      autoClicking.current = false;
-    }
-    const nextBinding = next?.tour;
-    // A plain step next has nothing to wait for.
-    if (!nextBinding) {
-      requestAnimationFrame(() => advanceRef.current(index + 1));
-      return;
-    }
     autoWait.current?.abort();
     const ctrl = new AbortController();
     autoWait.current = ctrl;
-    void waitFor(
-      () =>
-        !!findTourAnchor(nextBinding, {
-          widgetIds: latestAdded.current,
-          slots: latestSlots.current,
-          accept: isAnchorUsable,
-        }),
-      ANCHOR_SEARCH_MS,
-      ctrl.signal
-    ).then((ok) => {
-      if (ctrl.signal.aborted) return;
-      if (ok) advanceRef.current(index + 1);
-      else setAuto({ key: stepKey, stage: 'fallback' });
-    });
+    autoClicking.current = true;
+    let performed: Promise<void>;
+    try {
+      performed = performStep(el, binding, {
+        instant: reducedMotion,
+        signal: ctrl.signal,
+      });
+    } catch {
+      performed = Promise.resolve();
+    }
+    void performed
+      .catch(() => undefined)
+      .then(() => {
+        autoClicking.current = false;
+        if (ctrl.signal.aborted) return;
+        // A plain step next has nothing to wait for.
+        if (!nextBinding) {
+          requestAnimationFrame(() => advanceRef.current(index + 1));
+          return;
+        }
+        void waitFor(
+          () =>
+            !!findTourAnchor(nextBinding, {
+              widgetIds: latestAdded.current,
+              slots: latestSlots.current,
+              accept: isAnchorUsable,
+            }),
+          ANCHOR_SEARCH_MS,
+          ctrl.signal
+        ).then((ok) => {
+          if (ctrl.signal.aborted) return;
+          if (ok) advanceRef.current(index + 1);
+          else setAuto({ key: stepKey, stage: 'fallback' });
+        });
+      });
   };
   const autoClickRef = useRef(autoClick);
   autoClickRef.current = autoClick;
 
-  const startAutoDemo = useEffectEvent(() => {
+  const runAuto = () => {
     setAuto({ key: stepKey, stage: 'demo' });
     if (cursorAllowed && !reducedMotion) playCursor(true);
     else autoClickRef.current();
-  });
+  };
+  const startAutoDemo = useEffectEvent(runAuto);
+  // "Autopilot this step" performs just this step, whatever the switch says.
+  const runStep = () => {
+    manualStep.current = stepKey;
+    runAuto();
+  };
   useEffect(() => {
     if (!autoRunning || !isClick || autoStage !== null || !step) return;
     const id = setTimeout(
@@ -1126,6 +1169,7 @@ export const LiveTourRunner: React.FC = () => {
     setAutoOn(false);
     setHandsOn(true);
     autoWait.current?.abort();
+    autoClicking.current = false;
     stopDemo();
   };
   // Autopilot already clicked this step before it was switched off, so switching on moves on.
@@ -1309,19 +1353,33 @@ export const LiveTourRunner: React.FC = () => {
       .filter(Boolean)
       .join('. ');
     const isMissing = anchor.status === 'missing';
+    const autoText =
+      autoStage === 'blocked'
+        ? t('tours.autoSkipped')
+        : autoStage === 'fallback'
+          ? t('tours.autoFallback')
+          : autoOn && autoStage !== 'confirm'
+            ? t('tours.autoPlaying')
+            : null;
     const autoStatus: TourTipStatus | null =
-      autoOn && (found || plain)
+      autoText && (found || plain)
         ? {
-            text:
-              autoStage === 'yourTurn'
-                ? t('tours.yourTurn')
-                : autoStage === 'fallback'
-                  ? t('tours.autoFallback')
-                  : t('tours.autoPlaying'),
+            text: autoText,
             kind: waitingOnTeacher ? 'turn' : 'playing',
             testId: 'tour-auto-status',
           }
         : null;
+    const binding = step.tour;
+    // Hidden where Autopilot would only hand the step back, and while the switch is already playing it.
+    const offerAutoStep =
+      found &&
+      !!binding &&
+      binding.action !== 'observe' &&
+      canPerform(binding) &&
+      autopilotGate(binding, tour.policy) !== 'teacher' &&
+      !autoBusy &&
+      autoStage !== 'blocked' &&
+      (!autoOn || autoStage === 'fallback');
     const status: TourTipStatus | null =
       autoStatus ??
       (staticHintOn
@@ -1394,9 +1452,15 @@ export const LiveTourRunner: React.FC = () => {
           title={title}
           looking={anchor.status === 'searching'}
           status={status}
-          onShowMe={hintOn ? showMe : undefined}
-          autopilotStep={
-            step.tour && step.tour.action !== 'observe' ? {} : undefined
+          onShowMe={hintOn && !autoBusy ? showMe : undefined}
+          autopilotStep={offerAutoStep ? { onRun: runStep } : undefined}
+          confirm={
+            autoStage === 'confirm'
+              ? {
+                  onYes: () => autoClickRef.current(true),
+                  onNo: () => setAuto({ key: stepKey, stage: 'blocked' }),
+                }
+              : undefined
           }
         >
           {preview && (
@@ -1459,9 +1523,12 @@ export const LiveTourRunner: React.FC = () => {
   }
 
   // No box of its own, so each layer stacks on its own z-index around a lifted dock.
+  // Clicks on the tour's own controls must not reach the board, which deselects the widget a step points at.
   return createPortal(
     <div
       data-tour-ignore=""
+      data-click-outside-ignore="true"
+      onClick={(e) => e.stopPropagation()}
       data-testid="live-tour"
       className="contents pointer-events-none [&>*]:pointer-events-auto [&>svg]:pointer-events-none"
     >

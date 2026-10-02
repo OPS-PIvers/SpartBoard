@@ -3609,7 +3609,10 @@
     "move": "Tour-Steuerung verschieben",
     "autopilot": "Autopilot",
     "autopilotStep": "Diesen Schritt per Autopilot",
-    "autopilotSoon": "Noch nicht verfügbar",
+    "autoSkipped": "Autopilot wartet auf Ihren Klick",
+    "autoConfirm": "Autopilot führt diesen Schritt aus. Fortfahren?",
+    "autoConfirmYes": "Ausführen",
+    "autoConfirmNo": "Selbst machen",
     "moveHint": "Zum Verschieben ziehen. Doppelklick setzt sie wieder nach oben."
   },
   "glPlayer": {

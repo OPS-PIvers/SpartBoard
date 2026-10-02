@@ -4,7 +4,7 @@ import { MousePointerClick, Play } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import { CALLOUT_IN_MS } from '@/components/widgets/GuidedLearning/utils/motion';
 import type { TetherArrow } from '@/components/widgets/GuidedLearning/utils/calloutPlacement';
-import { secondaryBtn } from './tourButtons';
+import { primaryBtn, secondaryBtn } from './tourButtons';
 
 export interface TourTipStatus {
   text: string;
@@ -29,8 +29,10 @@ interface TourTipProps {
   looking: boolean;
   status: TourTipStatus | null;
   onShowMe?: () => void;
-  /** Shown on steps Autopilot can perform; absent handler means not wired yet. */
-  autopilotStep?: { onRun?: () => void };
+  /** Shown on steps Autopilot can perform. */
+  autopilotStep?: { onRun: () => void };
+  /** Asks before Autopilot performs a step that outlives the tour. */
+  confirm?: { onYes: () => void; onNo: () => void };
 }
 
 const ARROW_W = 18;
@@ -73,9 +75,9 @@ export const TourTip: React.FC<TourTipProps> = ({
   status,
   onShowMe,
   autopilotStep,
+  confirm,
 }) => {
   const { t } = useTranslation();
-  const autoReady = !!autopilotStep?.onRun;
   return (
     <div
       ref={boxRef}
@@ -142,6 +144,29 @@ export const TourTip: React.FC<TourTipProps> = ({
           {status.text}
         </p>
       )}
+      {confirm && (
+        <div data-testid="tour-auto-confirm" className="flex flex-col gap-2">
+          <p className="text-sm font-semibold text-white">
+            {t('tours.autoConfirm')}
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={confirm.onYes}
+              className={primaryBtn}
+            >
+              {t('tours.autoConfirmYes')}
+            </button>
+            <button
+              type="button"
+              onClick={confirm.onNo}
+              className={secondaryBtn}
+            >
+              {t('tours.autoConfirmNo')}
+            </button>
+          </div>
+        </div>
+      )}
       {(!!onShowMe || !!autopilotStep) && (
         <div className="-mx-2 flex flex-wrap items-center gap-1">
           {onShowMe && (
@@ -157,10 +182,8 @@ export const TourTip: React.FC<TourTipProps> = ({
           {autopilotStep && (
             <button
               type="button"
-              aria-disabled={autoReady ? undefined : 'true'}
-              title={autoReady ? undefined : t('tours.autopilotSoon')}
               onClick={autopilotStep.onRun}
-              className={`${secondaryBtn} flex items-center gap-1.5 px-2 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:bg-transparent`}
+              className={`${secondaryBtn} flex items-center gap-1.5 px-2`}
             >
               <Play className="h-3.5 w-3.5" aria-hidden="true" />
               {t('tours.autopilotStep')}

@@ -1,4 +1,4 @@
-import React, { useSyncExternalStore } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
@@ -946,7 +946,7 @@ describe('LiveTourRunner modes', () => {
     await run(4000);
     expect(close).toEqual([]);
     expect(progress()).toBe('1 / 2');
-    expect(status()).toHaveTextContent('Your turn: click the highlighted spot');
+    expect(status()).toHaveTextContent('Autopilot paused for your click');
     fireEvent.click(screen.getByText('Close w1'));
     await frames();
     expect(progress()).toBe('2 / 2');
@@ -971,7 +971,7 @@ describe('LiveTourRunner modes', () => {
     await run(4000);
     expect(elsewhere).toEqual([]);
     expect(progress()).toBe('1 / 2');
-    expect(status()).toHaveTextContent('Your turn: click the highlighted spot');
+    expect(status()).toHaveTextContent('Autopilot paused for your click');
     fireEvent.click(screen.getByText('Elsewhere'));
     await frames();
     expect(progress()).toBe('2 / 2');
@@ -994,22 +994,48 @@ describe('LiveTourRunner modes', () => {
     const close = recordEvents(screen.getByText('Close w1'));
     await run(4000);
     expect(close).toEqual([]);
-    expect(status()).toHaveTextContent('Your turn');
+    expect(status()).toHaveTextContent('Autopilot paused for your click');
   });
 
-  it('Guided: confirm hands a destructive step to the teacher for now', async () => {
-    setPolicy('confirm');
-    await start(
-      makeSet(
-        [{ anchor: 'widget.close', action: 'click' }],
-        ['clock'],
-        'guided'
-      )
+  const confirmSet = () =>
+    makeSet(
+      [
+        { anchor: 'widget.close', action: 'click' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ],
+      ['clock'],
+      'guided'
     );
+
+  it('Guided: confirm asks before a destructive step, and Do it performs it', async () => {
+    setPolicy('confirm');
+    await start(confirmSet());
     const close = recordEvents(screen.getByText('Close w1'));
     await run(4000);
     expect(close).toEqual([]);
-    expect(status()).toHaveTextContent('Your turn');
+    expect(screen.getByTestId('tour-auto-confirm')).toHaveTextContent(
+      'Autopilot will do this step. Go ahead?'
+    );
+    expect(status()).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Do it' }));
+    await run(500);
+    expect(close).toEqual(AUTO_TYPES);
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it("Guided: confirm's I'll do it leaves the step to the teacher", async () => {
+    setPolicy('confirm');
+    await start(confirmSet());
+    const close = recordEvents(screen.getByText('Close w1'));
+    await run(4000);
+    fireEvent.click(screen.getByRole('button', { name: "I'll do it" }));
+    await run(4000);
+    expect(close).toEqual([]);
+    expect(screen.queryByTestId('tour-auto-confirm')).not.toBeInTheDocument();
+    expect(status()).toHaveTextContent('Autopilot paused for your click');
+    fireEvent.click(screen.getByText('Close w1'));
+    await frames();
+    expect(progress()).toBe('2 / 2');
   });
 
   it('Guided: teacherMustClick overrides the anchor default both ways', async () => {
@@ -1032,14 +1058,14 @@ describe('LiveTourRunner modes', () => {
     expect(progress()).toBe('2 / 3');
     await run(4000);
     expect(dice).toEqual([]);
-    expect(status()).toHaveTextContent('Your turn');
+    expect(status()).toHaveTextContent('Autopilot paused for your click');
   });
 
-  it('Guided: leaves toggle, select and type steps to the teacher', async () => {
+  it('Guided: a type step with no recorded text is left to the teacher', async () => {
     await start(
       makeSet(
         [
-          { anchor: 'dock.item:dice', action: 'toggle', value: true },
+          { anchor: 'dock.item:dice', action: 'type', value: '' },
           { anchor: 'sidebar.boards', action: 'observe' },
         ],
         [],
@@ -1050,7 +1076,10 @@ describe('LiveTourRunner modes', () => {
     await run(4000);
     expect(dice).toEqual([]);
     expect(progress()).toBe('1 / 2');
-    expect(status()).toHaveTextContent('Your turn');
+    expect(status()).toHaveTextContent('Autopilot paused for your click');
+    expect(
+      screen.queryByRole('button', { name: 'Autopilot this step' })
+    ).not.toBeInTheDocument();
   });
 
   it('Guided: switching Autopilot off hands the rest of the run to the teacher', async () => {
@@ -2504,7 +2533,7 @@ describe('LiveTourRunner robustness', () => {
     const autoStep = screen.getByRole('button', {
       name: 'Autopilot this step',
     });
-    expect(autoStep).toHaveAttribute('aria-disabled', 'true');
+    expect(autoStep).not.toHaveAttribute('aria-disabled');
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     await frames();
     expect(screen.getByTestId('tour-callout')).not.toHaveAttribute(
@@ -2823,5 +2852,214 @@ describe('LiveTourRunner cleared stage', () => {
     expect(hidden()).toEqual([]);
     expect(h.actions.addTourWidget).not.toHaveBeenCalled();
     expect(getTourLayoutOverrides().get('mine')).toEqual(place);
+  });
+});
+
+describe('LiveTourRunner Autopilot performer', () => {
+  // Real React state, so a performed value only counts if onChange saw it.
+  const Controls: React.FC = () => {
+    const [on, setOn] = useState(false);
+    const [pick, setPick] = useState('a');
+    const [text, setText] = useState('');
+    return (
+      <div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          aria-label="Seconds"
+          onClick={() => setOn((v) => !v)}
+          {...tourAttr('sidebar.fullscreen')}
+        />
+        <select
+          aria-label="Font"
+          value={pick}
+          onChange={(e) => setPick(e.target.value)}
+          {...tourAttr('board-nav.select-board')}
+        >
+          <option value="a">A</option>
+          <option value="b">B</option>
+        </select>
+        <input
+          aria-label="Name"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          {...tourAttr('dock.open-tools')}
+        />
+        <div {...tourAttr('sidebar.annotate')}>
+          <button type="button" role="combobox" aria-label="Size">
+            Size
+          </button>
+          <div role="listbox">
+            <div role="option" data-value="lg" onClick={() => setPick('lg')}>
+              Large
+            </div>
+          </div>
+        </div>
+        <span data-testid="picked">{pick}</span>
+        <button type="button" {...tourAttr('sidebar.boards')}>
+          Boards
+        </button>
+      </div>
+    );
+  };
+  const begin = async (set: GuidedLearningSet) => {
+    h.loadTour.mockResolvedValue(set);
+    render(
+      <>
+        <Controls />
+        <LiveTourRunner />
+      </>
+    );
+    act(() => {
+      requestStartTour({ setId: set.id });
+    });
+    await frames();
+  };
+  const run = async (ms = 50) => {
+    for (let t = 0; t < ms; t += 50) await frames(Math.min(50, ms - t));
+  };
+  const toggle = () => screen.getByRole('switch', { name: 'Seconds' });
+  const font = () => screen.getByRole('combobox', { name: 'Font' });
+  const name = () => screen.getByRole('textbox', { name: 'Name' });
+  const autoStep = () =>
+    screen.queryByRole('button', { name: 'Autopilot this step' });
+  const clicks = (el: HTMLElement) => {
+    const seen: string[] = [];
+    el.addEventListener('click', () => seen.push('click'));
+    return seen;
+  };
+
+  it('Guided: performs toggle, select and type steps so React sees each value', async () => {
+    await begin(
+      makeSet(
+        [
+          { anchor: 'sidebar.fullscreen', action: 'toggle', value: true },
+          { anchor: 'board-nav.select-board', action: 'select', value: 'b' },
+          { anchor: 'dock.open-tools', action: 'type', value: 'Hello' },
+          { anchor: 'sidebar.boards', action: 'observe' },
+        ],
+        [],
+        'guided'
+      )
+    );
+    const until = async (step: string) => {
+      for (let i = 0; i < 200 && progress() !== step; i++) await frames(50);
+      expect(progress()).toBe(step);
+    };
+    await until('2 / 4');
+    expect(toggle()).toHaveAttribute('aria-checked', 'true');
+    await until('3 / 4');
+    expect(font()).toHaveValue('b');
+    expect(screen.getByTestId('picked')).toHaveTextContent('b');
+    await until('4 / 4');
+    expect(name()).toHaveValue('Hello');
+  });
+
+  it('Guided: skips the click on a toggle already in its recorded state', async () => {
+    await begin(
+      makeSet(
+        [
+          { anchor: 'sidebar.fullscreen', action: 'toggle', value: false },
+          { anchor: 'sidebar.boards', action: 'observe' },
+        ],
+        [],
+        'guided'
+      )
+    );
+    const seen = clicks(toggle());
+    await run(5000);
+    expect(seen).toEqual([]);
+    expect(toggle()).toHaveAttribute('aria-checked', 'false');
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it('Guided: opens a custom listbox and picks the recorded option', async () => {
+    await begin(
+      makeSet(
+        [
+          { anchor: 'sidebar.annotate', action: 'select', value: 'lg' },
+          { anchor: 'sidebar.boards', action: 'observe' },
+        ],
+        [],
+        'guided'
+      )
+    );
+    await run(5000);
+    expect(screen.getByTestId('picked')).toHaveTextContent('lg');
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it("advances a toggle step on the teacher's click only once it shows the recorded value", async () => {
+    await begin(
+      makeSet([
+        { anchor: 'sidebar.fullscreen', action: 'toggle', value: false },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    fireEvent.click(toggle());
+    await run(1000);
+    expect(progress()).toBe('1 / 2');
+    fireEvent.click(toggle());
+    await run(200);
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it('Autopilot this step performs one step and leaves the switch off', async () => {
+    await begin(
+      makeSet([
+        { anchor: 'dock.open-tools', action: 'type', value: 'Hi' },
+        { anchor: 'sidebar.fullscreen', action: 'toggle', value: true },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Autopilot this step' })
+    );
+    await run(3000);
+    expect(name()).toHaveValue('Hi');
+    expect(progress()).toBe('2 / 3');
+    expect(screen.getByRole('switch', { name: 'Autopilot' })).toHaveAttribute(
+      'aria-checked',
+      'false'
+    );
+    await run(5000);
+    expect(toggle()).toHaveAttribute('aria-checked', 'false');
+    expect(progress()).toBe('2 / 3');
+  });
+
+  it('hides Autopilot this step on observe steps and steps left to the teacher', async () => {
+    await begin(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'observe' },
+        { anchor: 'sidebar.boards', action: 'click', teacherMustClick: true },
+      ])
+    );
+    expect(autoStep()).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames();
+    expect(progress()).toBe('2 / 2');
+    expect(autoStep()).not.toBeInTheDocument();
+  });
+
+  it('switching Autopilot off mid-typing hands the field back', async () => {
+    await begin(
+      makeSet(
+        [
+          { anchor: 'dock.open-tools', action: 'type', value: 'Hello there' },
+          { anchor: 'sidebar.boards', action: 'observe' },
+        ],
+        [],
+        'guided'
+      )
+    );
+    for (let i = 0; i < 200 && !(name() as HTMLInputElement).value; i++)
+      await frames(20);
+    fireEvent.click(screen.getByRole('switch', { name: 'Autopilot' }));
+    const typed = (name() as HTMLInputElement).value;
+    await run(2000);
+    expect(typed.length).toBeLessThan('Hello there'.length);
+    expect(name()).toHaveValue(typed);
+    expect(progress()).toBe('1 / 2');
   });
 });
