@@ -70,8 +70,8 @@ export const TourBar: React.FC<TourBarProps> = ({
       >
         <GripVertical className="h-4 w-4" aria-hidden="true" />
       </button>
-      <div className="flex w-28 flex-col gap-1 px-1.5">
-        <span className="text-xs font-semibold tabular-nums text-slate-200">
+      <div className="flex min-w-28 flex-col gap-1 px-1.5">
+        <span className="whitespace-nowrap text-xs font-semibold tabular-nums text-slate-200">
           {t('tours.progress', { current, total })}
         </span>
         <span
