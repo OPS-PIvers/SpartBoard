@@ -2621,6 +2621,15 @@ service cloud.firestore {
         'createdAt', 'lastEditedBy', 'lastEditedAt', 'version', 'deletedAt', 'yState'
       ]);
     }
+    // Live recording fields: at most 200 parts and 61 minutes of recorded time.
+    function plcRecordingLiveOk() {
+      return isList('parts')
+        && incoming().parts.size() <= 200
+        && isInt('durationMs')
+        && incoming().durationMs >= 0
+        && incoming().durationMs <= 3660000
+        && plcSubTimeFieldOk('lastHeartbeatAt');
+    }
     function plcDocKeysOk() {
       return incoming().keys().hasOnly([
         'id', 'title', 'url', 'createdBy', 'createdByName', 'createdAt', 'updatedAt',
@@ -3536,6 +3545,51 @@ service cloud.firestore {
           allow update: if false;
 
           allow delete: if plcEditor(plcId);
+        }
+      }
+
+      // Meeting recordings (docs/plans/PLC_MEETING_RECORDING.md). Members read. The
+      // recorder writes only the live fields while recording or paused; 'finalizing' is
+      // the server's merge lock, and every other change goes through Cloud Functions.
+      match /recordings/{recordingId} {
+        allow read: if plcReader(plcId);
+
+        allow create: if plcEditor(plcId)
+          && incoming().keys().hasAll([
+               'noteId', 'recorderUid', 'status', 'parts', 'durationMs',
+               'lastHeartbeatAt', 'createdAt'
+             ])
+          && incoming().keys().hasOnly([
+               'noteId', 'recorderUid', 'status', 'parts', 'durationMs',
+               'lastHeartbeatAt', 'createdAt', 'audioExpiresAt'
+             ])
+          && isStr('noteId')
+          && exists(/databases/$(database)/documents/plcs/$(plcId)/notes/$(incoming().noteId))
+          && incoming().recorderUid == authUid()
+          && incoming().status == 'recording'
+          && plcRecordingLiveOk()
+          && plcSubTimeFieldOk('createdAt')
+          && (
+               !('audioExpiresAt' in incoming())
+               || (isInt('audioExpiresAt')
+                    && incoming().audioExpiresAt <= request.time.toMillis() + 2592000000)
+             );
+
+        allow update: if plcEditor(plcId)
+          && existing().recorderUid == authUid()
+          && existing().status in ['recording', 'paused']
+          && incoming().status in ['recording', 'paused']
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+               'status', 'parts', 'durationMs', 'lastHeartbeatAt'
+             ])
+          && plcRecordingLiveOk();
+
+        allow delete: if false;
+
+        // Speaker-labelled transcript; only the server writes it.
+        match /transcript/{docId} {
+          allow read: if plcReader(plcId);
+          allow write: if false;
         }
       }
 

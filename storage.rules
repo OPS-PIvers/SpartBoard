@@ -322,6 +322,29 @@ service firebase.storage {
       allow write: if false;
     }
 
+    // Group meeting audio (docs/plans/PLC_MEETING_RECORDING.md). Members read. The
+    // recorder uploads live 30-second segments, also after finalizing (late uploads,
+    // MR-D8); the recording doc must exist first. Only Cloud Functions delete.
+    function plcMeetingData(plcId) {
+      return firestore.get(/databases/(default)/documents/plcs/$(plcId)).data;
+    }
+    match /plc_meeting_audio/{plcId}/{recordingId}/{allPaths=**} {
+      allow read: if request.auth != null && viewAsReadOk()
+        && request.auth.uid in plcMeetingData(plcId).memberUids;
+    }
+    match /plc_meeting_audio/{plcId}/{recordingId}/{partIndex}/{fileName} {
+      allow create: if request.auth != null && viewAsWriteOk()
+        && partIndex.matches('[0-9]+')
+        && fileName.matches('[0-9]+[.]webm')
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('audio/webm(;.*)?')
+        && firestore.get(
+             /databases/(default)/documents/plcs/$(plcId)/recordings/$(recordingId)
+           ).data.recorderUid == request.auth.uid
+        && request.auth.uid in plcMeetingData(plcId).memberUids
+        && plcMeetingData(plcId).get('members', {}).get(request.auth.uid, {}).get('role', '') != 'viewer';
+    }
+
     // Quiz read-aloud MP3 cache (docs/plans/shipped/QUIZ_READ_ALOUD.md §5): content-hashed,
     // PII-free, written only by Cloud Functions; SSO students read via the SDK.
     match /quiz_tts_cache/{voice}/{fileName} {
