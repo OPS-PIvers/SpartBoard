@@ -3570,7 +3570,7 @@
     "anchorMissing": "Élément introuvable à l'écran. Réessayez ou passez cette étape.",
     "anchorMissingPreview": "Élément introuvable à l'écran. Voici à quoi il ressemble.",
     "looking": "Recherche à l'écran…",
-    "progress": "{{current}} / {{total}}",
+    "progress": "Étape {{current}} sur {{total}}",
     "back": "Retour",
     "retry": "Réessayer",
     "next": "Suivant",
@@ -3583,11 +3583,7 @@
     "offerStart": "Commencer",
     "offerNoThanks": "Non merci",
     "showMe": "Montrez-moi",
-    "pause": "Pause",
-    "resume": "Reprendre",
-    "takeOver": "Prendre la main",
     "autoPlaying": "Chaque étape est jouée pour vous",
-    "autoPaused": "En pause. Cliquez sur la zone en surbrillance ou sur Reprendre.",
     "yourTurn": "À vous : cliquez sur la zone en surbrillance",
     "autoFallback": "Cliquez ici pour continuer",
     "welcomeTitle": "Bienvenue",
@@ -3597,7 +3593,13 @@
     "resumeBody": "Reprendre la visite là où vous l’avez laissée ?",
     "resumeTour": "Reprendre la visite",
     "removeAddedWidgets": "Retirer les widgets ajoutés",
-    "endTour": "Terminer la visite"
+    "endTour": "Terminer la visite",
+    "controls": "Commandes de la visite",
+    "move": "Déplacer les commandes de la visite",
+    "autopilot": "Pilote automatique",
+    "autopilotStep": "Pilote automatique pour cette étape",
+    "autopilotSoon": "Pas encore disponible",
+    "moveHint": "Faites glisser pour la déplacer. Double-cliquez pour la remettre en haut."
   },
   "glPlayer": {
     "modeChip": {
