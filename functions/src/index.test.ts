@@ -225,8 +225,9 @@ const mockFirestore = {
                   // Invited-but-never-signed-in members have no uid on the
                   // member doc. Production treats a non-string `uid` as null
                   // and skips engagement for them.
-                  uid: u.invited ? null : u.id,
+                  uid: u.invited || u.data.unlinked ? null : u.id,
                   buildingIds: u.data.buildings ?? [],
+                  lastActive: u.data.memberLastActive,
                 }),
               })),
           })
@@ -349,21 +350,35 @@ vi.mock('firebase-admin', () => {
         }));
         return Promise.resolve({ users, pageToken: undefined });
       }),
-      getUsers: vi.fn().mockImplementation((ids: { uid: string }[]) => {
-        const uidSet = new Set(ids.map((i) => i.uid));
-        const users = mockFirestoreState.users
-          .filter((u) => uidSet.has(u.id))
-          .map((u) => ({
-            uid: u.id,
-            email: u.anonymous ? undefined : (u.data.email as string),
-            metadata: {
-              lastSignInTime: u.data.lastLogin
-                ? new Date(u.data.lastLogin as number).toISOString()
-                : undefined,
-            },
-          }));
-        return Promise.resolve({ users });
-      }),
+      getUsers: vi
+        .fn()
+        .mockImplementation((ids: { uid?: string; email?: string }[]) => {
+          const uidSet = new Set(ids.map((i) => i.uid).filter(Boolean));
+          const emailSet = new Set(
+            ids.map((i) => i.email?.toLowerCase()).filter(Boolean)
+          );
+          // Invited members have no Auth account, so email lookups miss them.
+          const users = mockFirestoreState.users
+            .filter(
+              (u) =>
+                uidSet.has(u.id) ||
+                (!u.invited &&
+                  emailSet.has((u.data.email as string)?.toLowerCase()))
+            )
+            .map((u) => ({
+              uid: u.id,
+              email: u.anonymous ? undefined : (u.data.email as string),
+              metadata: {
+                lastSignInTime: u.data.lastLogin
+                  ? new Date(u.data.lastLogin as number).toISOString()
+                  : undefined,
+                lastRefreshTime: u.data.lastRefresh
+                  ? new Date(u.data.lastRefresh as number).toISOString()
+                  : undefined,
+              },
+            }));
+          return Promise.resolve({ users });
+        }),
     })),
   };
 });
@@ -1696,6 +1711,65 @@ describe('adminAnalytics', () => {
     // Only the active member owns a dashboard.
     expect(capturedData.users.withDashboards).toBe(1);
     expect(capturedData.dashboards.total).toBe(1);
+  });
+
+  it('resolves members without a linked uid by email and counts every activity signal', async () => {
+    const now = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+    mockFirestoreState.users = [
+      // Seeded admin: no uid on the member doc, but a real Auth account.
+      {
+        id: 'uid_seeded',
+        data: {
+          email: 'Admin@District.org',
+          lastLogin: now - 90 * day,
+          lastRefresh: now - 2 * 60 * 60 * 1000,
+          buildings: [],
+          unlinked: true,
+        },
+      },
+      // Uses the app without editing boards; only the member stamp is recent.
+      {
+        id: 'uid_viewer',
+        data: {
+          email: 'viewer@district.org',
+          lastLogin: now - 60 * day,
+          memberLastActive: new Date(now - 5 * day).toISOString(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [
+      {
+        id: 'dash-seeded',
+        ownerUid: 'uid_seeded',
+        data: { updatedAt: now - 40 * day, widgets: [{ type: 'clock' }] },
+      },
+    ];
+    mockFirestoreState.aiUsage = [
+      { id: 'uid_seeded_2026-09-30', data: { count: 4 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    expect(result.users.registered).toBe(2);
+    expect(result.users.monthly).toBe(2);
+    expect(result.users.daily).toBe(1);
+    expect(result.users.withDashboards).toBe(1);
+    expect(result.api.totalCalls).toBe(4);
+    const seeded = result.users.userList.find(
+      (u) => u.email === 'admin@district.org'
+    );
+    expect(seeded?.hasAccount).toBe(true);
+    expect(seeded?.lastEditMs).toBe(now - 40 * day);
+    expect(seeded?.lastActiveMs).toBe(now - 2 * 60 * 60 * 1000);
+    expect(seeded?.isDailyActive).toBe(true);
+    const viewer = result.users.userList.find(
+      (u) => u.email === 'viewer@district.org'
+    );
+    expect(viewer?.lastActiveMs).toBe(now - 5 * day);
+    expect(viewer?.isMonthlyActive).toBe(true);
+    expect(viewer?.isDailyActive).toBe(false);
   });
 
   it('returns 400 when orgId is missing from the request body', async () => {
