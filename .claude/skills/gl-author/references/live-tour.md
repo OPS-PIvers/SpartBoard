@@ -15,7 +15,7 @@ another app is an ordinary set.
 - The `gl-live-tours` preview flag is on for the viewer (admins only until
   it opens to everyone).
 - Marking it for the Help Center is a Studio toggle after import; the file
-  cannot set it.
+  cannot set it. The connector's `create_live_tour` can, with `help_center`.
 
 ## How the runner plays a set
 

@@ -398,7 +398,7 @@ function publicStep(step: Step) {
   return out;
 }
 
-async function isAdmin(ctx: ToolContext): Promise<boolean> {
+export async function isAdmin(ctx: ToolContext): Promise<boolean> {
   return (await ctx.db.collection('admins').doc(ctx.email.toLowerCase()).get())
     .exists;
 }

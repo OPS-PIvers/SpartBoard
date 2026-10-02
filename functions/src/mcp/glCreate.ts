@@ -1,4 +1,4 @@
-// create_guided_learning: new personal or building sets, including live tours (CLAUDE_CONNECTOR.md CC-D18).
+// create_guided_learning: new standard personal or building sets (CLAUDE_CONNECTOR.md CC-D18); live tours are create_live_tour.
 import { randomUUID } from 'node:crypto';
 import * as admin from 'firebase-admin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -51,7 +51,13 @@ export interface CreateInput {
   welcome_message?: string;
   slide_urls?: string[];
   tour_widgets?: string[];
+  help_center?: HelpCenterPlacement;
   steps: StepInput[];
+}
+
+export interface HelpCenterPlacement {
+  category_id: string;
+  widget_types?: string[];
 }
 
 /** Where the set is saved: live tours run only from building sets. */
@@ -81,16 +87,23 @@ export function validateCreate(input: CreateInput): Step[] {
       throw new ToolError(
         `steps[${bound}]: tour and missing_anchor apply only to live tours.`
       );
-  } else if (!input.steps.some((s) => s.tour)) {
-    throw new ToolError(
-      'A live tour needs at least one step with a tour binding. Use list_tour_anchors.'
-    );
+  } else {
+    const loose = input.steps.findIndex((s) => !s.tour);
+    if (loose >= 0)
+      throw new ToolError(
+        `steps[${loose}]: every live tour step needs a tour binding. Narration steps observe a board anchor; use list_tour_anchors.`
+      );
   }
-  const unknown = input.tour_widgets?.find((t) => !WIDGET_TYPES.has(t));
-  if (unknown)
-    throw new ToolError(
-      `tour_widgets: "${unknown}" is not a widget type. Use one of: ${WIDGET_TYPE_LIST.join(', ')}.`
-    );
+  for (const [field, list] of [
+    ['tour_widgets', input.tour_widgets],
+    ['help_center.widget_types', input.help_center?.widget_types],
+  ] as const) {
+    const unknown = list?.find((t) => !WIDGET_TYPES.has(t));
+    if (unknown)
+      throw new ToolError(
+        `${field}: "${unknown}" is not a widget type. Use one of: ${WIDGET_TYPE_LIST.join(', ')}.`
+      );
+  }
   input.steps.forEach((s, i) => {
     if (s.imageIndex >= Math.max(slideCount, 1))
       throw new ToolError(
@@ -131,6 +144,7 @@ export function buildNewSet(
     set.authorUid = ids.uid;
     set.hasLiveTour = steps.some((s) => !!s.tour);
   }
+  if (input.help_center) set.helpCenter = true;
   if (input.kind === 'live_tour')
     set.tourSetup = { widgets: [...new Set(input.tour_widgets ?? [])] };
   return set;
@@ -179,6 +193,108 @@ const WHERE = {
   building: 'SpartBoard > Guided Learning widget > library, building sets',
 };
 
+export interface SavedSet {
+  set: GlSet;
+  source: 'mine' | 'building';
+  anchorsRequested: number;
+}
+
+/** Validates, uploads and saves a new set; `stage` adds writes to the same batch. */
+export async function saveNewSet(
+  ctx: ToolContext,
+  input: CreateInput,
+  stage?: (
+    batch: admin.firestore.WriteBatch,
+    set: GlSet
+  ) => void | Promise<void>
+): Promise<SavedSet> {
+  const source = createSource(input);
+  await assertAccess(ctx, source);
+  const steps = validateCreate(input);
+  let requests: AnchorRequest[] = [];
+  let planned = steps;
+  if (source === 'building') {
+    const notes = new Map<string, MissingAnchorNote>();
+    for (const s of input.steps)
+      if (s.missing_anchor) notes.set(s.id, s.missing_anchor);
+    const plan = planAnchorRequests(steps, [], notes);
+    planned = plan.steps as Step[];
+    requests = plan.requests;
+  } else if (input.steps.some((s) => s.missing_anchor)) {
+    throw new ToolError('missing_anchor applies only to building sets.');
+  }
+  const token = source === 'mine' ? await driveTokenFor(ctx.uid) : null;
+  await reserveWrite(ctx);
+  const slides = await uploadSlides(ctx, input.slide_urls ?? []);
+  const now = Date.now();
+  const set = buildNewSet(
+    input,
+    { id: randomUUID(), uid: ctx.uid, now },
+    source,
+    planned,
+    slides
+  );
+  if (Buffer.byteLength(JSON.stringify(set)) > MAX_DOC_BYTES)
+    throw new ToolError('The set is too large to save.');
+  const batch = ctx.db.batch();
+  logActivity(ctx, batch, {
+    action: 'create',
+    itemType: 'guided_learning',
+    itemId: set.id,
+    title: set.title,
+  });
+  let anchorsRequested = 0;
+  if (source === 'building') {
+    anchorsRequested = await queueAnchorRequests(
+      ctx.db,
+      batch,
+      set.id,
+      requests
+    );
+    batch.create(ctx.db.doc(`${BUILDING}/${set.id}`), set);
+  } else {
+    const driveFileId = await createGuidedLearningJson(token as string, set);
+    batch.create(ctx.db.doc(`users/${ctx.uid}/${PERSONAL}/${set.id}`), {
+      id: set.id,
+      title: set.title,
+      ...(set.description ? { description: set.description } : {}),
+      stepCount: set.steps.length,
+      mode: set.mode,
+      imageUrl: set.imageUrls[0] ?? '',
+      driveFileId,
+      createdAt: now,
+      updatedAt: now,
+      claudeCreatedAt: now,
+      ...(slides.paths.length > 0 ? { imagePaths: slides.paths } : {}),
+      driveFileIds: [],
+    });
+  }
+  await stage?.(batch, set);
+  await batch.commit();
+  return { set, source, anchorsRequested };
+}
+
+/** The result fields both create tools return. */
+export function savedSummary({ set, source, anchorsRequested }: SavedSet) {
+  return {
+    set_id: set.id,
+    source,
+    title: set.title,
+    step_count: set.steps.length,
+    slide_count: set.imageUrls.length,
+    ...(anchorsRequested > 0
+      ? {
+          anchors_requested: anchorsRequested,
+          anchors_note:
+            'Controls with no anchor were sent to a developer to tag.',
+        }
+      : {}),
+  };
+}
+
+/** Standard steps: tour bindings belong to create_live_tour. */
+const standardStep = stepInput.omit({ tour: true, missing_anchor: true });
+
 export function registerCreateGuidedLearning(
   server: McpServer,
   ctx: ToolContext
@@ -188,15 +304,12 @@ export function registerCreateGuidedLearning(
     {
       title: 'Create a Guided Learning set',
       description:
-        'Creates a Guided Learning set. kind "live_tour" walks a teacher through the real SpartBoard board: bind steps with tour (list_tour_anchors), saved as an unpublished building set (admins only) that an admin publishes in the Studio. kind "standard" is a hotspot activity on slide images: pass public https image links in slide_urls, which are copied into SpartBoard. Step rules match update_guided_learning; xPct/yPct are % of the slide (50/50 when there is none).',
+        'Creates a hotspot activity on slide images: pass public https image links in slide_urls, which are copied into SpartBoard. Step rules match update_guided_learning; xPct/yPct are % of the slide.',
       inputSchema: {
-        kind: z.enum(['live_tour', 'standard']),
         source: z
           .enum(['mine', 'building'])
           .optional()
-          .describe(
-            'Standard sets: "mine" (default) or "building" (admins). Live tours are always building.'
-          ),
+          .describe('"mine" (default) or "building" (admins).'),
         title: z.string().trim().min(1).max(200),
         description: z.string().max(1000).optional(),
         mode: z.enum(['structured', 'guided', 'explore']).optional(),
@@ -204,107 +317,22 @@ export function registerCreateGuidedLearning(
         welcome_message: z.string().max(300).optional(),
         slide_urls: z
           .array(z.string().max(2000))
+          .min(1)
           .max(MAX_NEW_SLIDES)
-          .optional()
           .describe(
-            'PNG, JPEG, GIF or WebP links in slide order; step imageIndex counts from 0. Optional on a live tour, where a slide shows when its control is missing.'
+            'PNG, JPEG, GIF or WebP links in slide order; step imageIndex counts from 0.'
           ),
-        tour_widgets: z
-          .array(z.string().max(60))
-          .max(12)
-          .optional()
-          .describe(
-            'Live tours: widget types added to the board before the tour starts, e.g. "clock".'
-          ),
-        steps: z.array(stepInput).min(1).max(MAX_STEPS),
+        steps: z.array(standardStep).min(1).max(MAX_STEPS),
       },
       annotations: CREATES,
     },
     (input) =>
       run('create_guided_learning', ctx, async () => {
-        const source = createSource(input);
-        await assertAccess(ctx, source);
-        const steps = validateCreate(input);
-        let requests: AnchorRequest[] = [];
-        let planned = steps;
-        if (source === 'building') {
-          const notes = new Map<string, MissingAnchorNote>();
-          for (const s of input.steps)
-            if (s.missing_anchor) notes.set(s.id, s.missing_anchor);
-          const plan = planAnchorRequests(steps, [], notes);
-          planned = plan.steps as Step[];
-          requests = plan.requests;
-        } else if (input.steps.some((s) => s.missing_anchor)) {
-          throw new ToolError('missing_anchor applies only to building sets.');
-        }
-        const token = source === 'mine' ? await driveTokenFor(ctx.uid) : null;
-        await reserveWrite(ctx);
-        const slides = await uploadSlides(ctx, input.slide_urls ?? []);
-        const now = Date.now();
-        const set = buildNewSet(
-          input,
-          { id: randomUUID(), uid: ctx.uid, now },
-          source,
-          planned,
-          slides
-        );
-        if (Buffer.byteLength(JSON.stringify(set)) > MAX_DOC_BYTES)
-          throw new ToolError('The set is too large to save.');
-        const batch = ctx.db.batch();
-        logActivity(ctx, batch, {
-          action: 'create',
-          itemType: 'guided_learning',
-          itemId: set.id,
-          title: set.title,
-        });
-        let anchorsRequested = 0;
-        if (source === 'building') {
-          anchorsRequested = await queueAnchorRequests(
-            ctx.db,
-            batch,
-            set.id,
-            requests
-          );
-          batch.create(ctx.db.doc(`${BUILDING}/${set.id}`), set);
-        } else {
-          const driveFileId = await createGuidedLearningJson(
-            token as string,
-            set
-          );
-          batch.create(ctx.db.doc(`users/${ctx.uid}/${PERSONAL}/${set.id}`), {
-            id: set.id,
-            title: set.title,
-            ...(set.description ? { description: set.description } : {}),
-            stepCount: set.steps.length,
-            mode: set.mode,
-            imageUrl: set.imageUrls[0] ?? '',
-            driveFileId,
-            createdAt: now,
-            updatedAt: now,
-            claudeCreatedAt: now,
-            ...(slides.paths.length > 0 ? { imagePaths: slides.paths } : {}),
-            driveFileIds: [],
-          });
-        }
-        await batch.commit();
+        const saved = await saveNewSet(ctx, { ...input, kind: 'standard' });
         return {
-          set_id: set.id,
-          source,
-          title: set.title,
-          step_count: set.steps.length,
-          slide_count: set.imageUrls.length,
-          where_to_find_it: WHERE[source],
-          ...(anchorsRequested > 0
-            ? {
-                anchors_requested: anchorsRequested,
-                anchors_note:
-                  'Controls with no anchor were sent to a developer to tag.',
-              }
-            : {}),
-          note:
-            input.kind === 'live_tour'
-              ? 'Saved as a draft. Admins can try it with Run live on my board (draft) in the library; teachers see it after it is published in the Studio.'
-              : 'Saved. Open it in the Guided Learning Studio to check placement.',
+          ...savedSummary(saved),
+          where_to_find_it: WHERE[saved.source],
+          note: 'Saved. Open it in the Guided Learning Studio to check placement.',
         };
       })
   );

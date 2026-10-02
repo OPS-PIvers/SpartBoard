@@ -43,6 +43,8 @@ import {
   restoreGuidedLearningRevision,
 } from './glTools';
 import { registerCreateGuidedLearning } from './glCreate';
+import { ADMIN_ONLY_TOOLS, registerLiveTourTools } from './glLiveTour';
+import { isAdmin } from './glTools';
 import { registerMeetingTools } from './meetingTools';
 
 export const SERVER_INSTRUCTIONS = [
@@ -550,5 +552,17 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   registerResultsTools(server, ctx);
   registerGuidedLearningTools(server, ctx);
   registerCreateGuidedLearning(server, ctx);
+  registerLiveTourTools(server, ctx);
   registerMeetingTools(server, ctx);
+}
+
+/** Tools left out of a non-admin's tools/list; each handler still checks admin itself. */
+export async function hiddenToolsFor(
+  ctx: ToolContext
+): Promise<ReadonlySet<string>> {
+  try {
+    return (await isAdmin(ctx)) ? new Set() : ADMIN_ONLY_TOOLS;
+  } catch {
+    return ADMIN_ONLY_TOOLS;
+  }
 }
