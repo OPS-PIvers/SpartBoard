@@ -134,6 +134,22 @@ describe('resolveAvailability', () => {
   });
 });
 
+describe('resolveAvailability with one class left', () => {
+  it('ignores per-class dates the section no longer shows', () => {
+    const av: AssignAvailability = {
+      ...bellToBell('2026-10-02'),
+      byRoster: {
+        r3: {
+          opens: { day: '2026-10-09', time: '08:00' },
+          closes: { day: '2026-10-09', time: '09:00' },
+        },
+      },
+    };
+    const r = resolveAvailability(av, [p3], bellWindow);
+    expect(r.openAt).toBe(at('2026-10-02', '09:05'));
+  });
+});
+
 describe('applyAvailability', () => {
   it('leaves the value alone when the flag is off', () => {
     const value = { ...EMPTY_ASSIGN_TARGETING_VALUE, openAt: 5 };

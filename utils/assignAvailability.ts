@@ -100,10 +100,13 @@ export function resolveAvailability(
   rosters: readonly PeriodRoster[],
   bellWindow: BellWindowFn | undefined
 ): ResolvedAvailability {
+  // "Each class" only applies while two or more classes are checked, as the section shows it.
+  const eachClass = rosters.length > 1;
   const windows = (rosters.length > 0 ? rosters : [null]).map((roster) => {
-    const spec = roster
-      ? specForRoster(availability, roster.id)
-      : availability.all;
+    const spec =
+      roster && eachClass
+        ? specForRoster(availability, roster.id)
+        : availability.all;
     return {
       roster,
       openAt: resolvePoint(spec.opens, 'opens', roster, bellWindow),
