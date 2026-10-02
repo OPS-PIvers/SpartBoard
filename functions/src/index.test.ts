@@ -2209,7 +2209,7 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
     ).toBe(false);
 
     mockFirestoreState.docs.set('admin_settings/analytics_history', {
-      estimateBackfill: true,
+      enabled: true,
     });
     await run();
     const estimated = [...mockFirestoreState.activityDays.entries()].filter(
@@ -2219,6 +2219,19 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
       '2026-01-15'
     );
     expect(estimated.length).toBeGreaterThanOrEqual(2);
+    expect(
+      mockFirestoreState.docs.get(
+        'organizations/orono/analytics/history_estimate'
+      )
+    ).toBeDefined();
+
+    // The marker stops a second fill even after estimated days are cleared.
+    for (const [path] of estimated)
+      mockFirestoreState.activityDays.delete(path);
+    await run();
+    expect(
+      [...mockFirestoreState.activityDays.values()].some((d) => d.estimated)
+    ).toBe(false);
   });
 
   it('writes a snapshot doc only for orgs with status active or trial; skips archived', async () => {

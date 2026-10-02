@@ -747,7 +747,13 @@ async function recordAndBuildHistory(input: {
     },
   ];
 
-  if (input.estimate && !existing.some((d) => d.estimated)) {
+  // A marker, not the estimated docs, records the fill so an org with nothing to estimate is not rescanned nightly.
+  const markerRef = admin
+    .firestore()
+    .doc(`organizations/${orgId}/analytics/history_estimate`);
+  const alreadyEstimated =
+    input.estimate && (await markerRef.get()).exists === true;
+  if (input.estimate && !alreadyEstimated) {
     const firstMeasured = existing
       .filter((d) => !d.estimated)
       .map((d) => d.date)
@@ -761,6 +767,12 @@ async function recordAndBuildHistory(input: {
   }
 
   await writeActivityDays(orgId, toWrite);
+  if (input.estimate && !alreadyEstimated) {
+    await markerRef.set({
+      estimatedAt: now,
+      days: toWrite.length - 1,
+    });
+  }
   const byDate = new Map(existing.map((d) => [d.date, d]));
   for (const d of toWrite) byDate.set(d.date, d);
   const days = [...byDate.values()];

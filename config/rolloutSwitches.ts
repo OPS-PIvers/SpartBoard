@@ -38,6 +38,10 @@ import {
 } from '@/config/subLaunchAsTeacher';
 import { VIEW_AS_SETTINGS_DOC, normalizeViewAsSettings } from '@/config/viewAs';
 import {
+  ANALYTICS_HISTORY_SETTINGS_DOC,
+  normalizeAnalyticsHistorySettings,
+} from '@/config/analyticsHistory';
+import {
   GROUP_REMINDER_EMAILS_SETTINGS_DOC,
   normalizeGroupReminderEmailsSettings,
 } from '@/config/groupReminderEmails';
@@ -105,6 +109,12 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     description:
       'Flag items Claude made or changed until the teacher opens them. On by default.',
     normalize: normalizeClaudeReviewRemindersSettings,
+  },
+  {
+    docId: ANALYTICS_HISTORY_SETTINGS_DOC,
+    title: 'Analytics history estimate',
+    description: 'Fill Active Users history before launch from past records.',
+    normalize: normalizeAnalyticsHistorySettings,
   },
   {
     docId: GRADEBOOK_INDEX_SETTINGS_DOC,

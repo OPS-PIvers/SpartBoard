@@ -93,8 +93,7 @@ export const recomputeAdminAnalytics = onSchedule(
       .get()
       .catch(() => null);
     const estimateHistory =
-      historySwitch?.exists === true &&
-      historySwitch.data()?.estimateBackfill === true;
+      historySwitch?.exists === true && historySwitch.data()?.enabled === true;
 
     // Sequential, not parallel: each org's compute streams two unbounded
     // collections. Running them concurrently would multiply peak memory by
