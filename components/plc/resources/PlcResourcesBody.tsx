@@ -24,6 +24,7 @@ import { logError } from '@/utils/logError';
 import { getPlcMemberEmail } from '@/utils/plc';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import type { PlcSectionId } from '@/components/plc/sections';
+import { PlcGroupLinks } from './PlcGroupLinks';
 
 interface PlcResourcesBodyProps {
   plc: Plc;
@@ -231,7 +232,7 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
     );
   }
 
-  if (resources.length === 0) {
+  if (resources.length === 0 && !groupWording) {
     return (
       <ScaledEmptyState
         icon={Sparkles}
@@ -262,12 +263,23 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
             defaultValue: 'Resources',
           })}
         </h2>
-        <p className="text-sm text-slate-500 mt-0.5">
-          {t('plcDashboard.resources.inboxSubtitle', {
-            defaultValue: 'From your admin.',
-          })}
-        </p>
+        {!groupWording && (
+          <p className="text-sm text-slate-500 mt-0.5">
+            {t('plcDashboard.resources.inboxSubtitle', {
+              defaultValue: 'From your admin.',
+            })}
+          </p>
+        )}
       </div>
+
+      {groupWording && <PlcGroupLinks plc={plc} />}
+      {groupWording && resources.length > 0 && (
+        <h3 className="text-base font-bold text-slate-800 pt-2">
+          {t('plcDashboard.resources.groupFromAdmin', {
+            defaultValue: 'From your admin',
+          })}
+        </h3>
+      )}
 
       {KIND_ORDER.map((kind) => {
         const group = grouped[kind];

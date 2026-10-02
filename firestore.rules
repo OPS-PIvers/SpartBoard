@@ -3572,6 +3572,27 @@ service cloud.firestore {
         allow delete: if plcEditor(plcId);
       }
 
+      // My Groups resources: links posted by a non-viewer member.
+      match /links/{linkId} {
+        allow read: if plcReader(plcId);
+        allow create, update: if plcEditor(plcId)
+          && incoming().keys().hasOnly([
+               'id', 'title', 'url', 'note', 'createdBy', 'createdByName', 'createdAt', 'updatedAt'
+             ])
+          && incoming().id == linkId
+          && isStr('title') && incoming().title.size() <= 200
+          && isStr('url') && incoming().url.size() <= 2000
+          && incoming().url.matches('https://.*')
+          && (!('note' in incoming()) || (isStr('note') && incoming().note.size() <= 500))
+          && isStr('createdByName')
+          && (request.method == 'create'
+            ? incoming().createdBy == authUid()
+            : unchanged('createdBy') && unchanged('createdAt'))
+          && plcSubTimeFieldOk('createdAt')
+          && plcSubTimeFieldOk('updatedAt');
+        allow delete: if plcEditor(plcId);
+      }
+
       // PLC shared to-do list (Phase 5). One doc per todo (concurrent toggles
       // don't serialize). Any member CRUDs any todo.
       match /todos/{todoId} {
