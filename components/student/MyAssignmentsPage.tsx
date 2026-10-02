@@ -267,6 +267,13 @@ const MyAssignmentsPage: React.FC = () => {
         // 'not-completed' (student wasn't part of this session), the row
         // drops out on the next pass.
         if (completion === 'not-completed') continue;
+        // Quiz and video rows were visible once a response doc existed; keep them, unchecked.
+        if (completion === 'in-progress') {
+          if (a.kind === 'quiz' || a.kind === 'video-activity') {
+            completed.push(a);
+          }
+          continue;
+        }
         completed.push(a);
         pendingVerificationKeys.add(a.compositeId);
         continue;
