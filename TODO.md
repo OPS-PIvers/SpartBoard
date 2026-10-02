@@ -8,7 +8,7 @@ deleted planning docs (see PR that introduced this file; git history preserves a
 
 **Living references kept alongside this file:**
 
-- Feature specs (the plan-of-record for large items): `docs/specs/` (LO12, M13, M16)
+- Feature specs (the plan-of-record for large items): `docs/specs/` (LO12, M16)
 - Roadmaps / design docs: `docs/PLC_ROADMAP.md`, `docs/nexus.md`, `docs/wide-distro-plan.md` (referenced from code comments), `docs/plans/shipped/written-response-quiz-questions.md`
 - Shipped plans kept as the decision record cited by code comments: `docs/plans/shipped/`
 - References / runbooks: `docs/admin_settings_widget_configs.md`, `docs/external-availability-oauth-runbook.md`, `docs/external-availability-legal-review.md`, `docs/external-availability-journal.md`, `docs/assign-from-spartboard-to-lms-feasibility.md`, setup docs (`ADMIN_SETUP`, `DEV_WORKFLOW`, `LINTING_SETUP`, `DEPLOY_CHECK`)
@@ -40,7 +40,6 @@ Prod moved to the OPSTech billing account on 2026-10-01; a $30/mo budget and Big
 ### Spec decisions blocking feature work
 
 - [x] **M12 (rubrics)**: OD-1/2/3 resolved 2026-08-27 (slide-over builder; auto-fill editable; full PLC integration now) plus six further decisions — see spec §3a. `docs/plans/shipped/specs/M12-written-response-rubrics-spec.md`.
-- [ ] **M13 (student landing)**: Decision A (buildingIds vs classlinkClassIds teacher-directory scoping). See `docs/specs/M13-student-landing-overhaul-spec.md`.
 - [ ] **M16 (PLC Phases 7–8)**: share-action integration point for Mini-Apps, mini-app sync content model, GL/Drive coupling during import. See `docs/specs/M16-plc-phases-7-8-spec.md`.
 - [ ] **LO12 (Nexus connections)**: sign off deferral of Candidates 6/9 and rejection of 11. See `docs/specs/LO12-nexus-widget-connections-spec.md`.
 - [ ] **M14 Schoology Phase E** formal deliverables — district coordination. (M)
@@ -201,11 +200,6 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] Candidate 11: Activity Wall → Hotspot Image. (M)
 - [ ] Decision A: adopt Option 1 (per-widget config, recommended) vs Option 2 (nexusConnections wiring table) before any candidate ships. (S)
 
-#### `docs/specs/M13-student-landing-overhaul-spec.md`
-
-- [ ] Phase 2: teacherDirectory Firestore rules + composite index; Decision A (buildingIds vs classIds approach) needs Paul's call before implementing. (M)
-- [ ] Decisions A, B, C in section 3 need Paul's confirmation before Phase 2/3/4 work proceeds (spec has recommendations but flags them open). (S)
-
 #### `docs/specs/M16-plc-phases-7-8-spec.md`
 
 - [ ] Paul decides Open Decisions A/B/C (Mini-App share UI integration point, Mini-App sync content model, Guided Learning Drive coupling for PLC import). (S)
@@ -252,7 +246,7 @@ Each item names the plan it came from; the plan holds the detail.
 ## 2. Spec-backed feature work (specs are the plan of record — build from the spec, not from here)
 
 - [x] **M12 — Written-response rubrics (Phase 3)** — SHIPPED to dev-paul 2026-08-28 (PRs #2614–#2619, #2628–#2630; issues #2602–#2610 closed): all phases 3-A..3-I landed — types, `/users/{uid}/rubrics` + `/shared_rubrics` + `/plcs/{plcId}/rubrics` rules + emulator tests, RubricBuilderPanel, RubricScoringPanel, useRubrics/usePlcRubrics, CSV import/export + export columns, link sharing with `/share/rubric/{id}` deep link, PLC Rubrics tab, `GradeResult.state` (RR-06 interleave — fixes ungraded-essay-pushes-0), student-facing rubric views. Phase-1 rules-test carry-over included. Remaining follow-ups: PLC Trash surfacing for unshared rubrics (task chip filed); share-to-PLC from the builder panel (spec §10 3-I bullet, PLC-tab share picker shipped instead); `plcContributions` share counting (no resource type counts shares today — parity holds vacuously). Playwright pause/resume E2E still deferred; Phase 4 (AI-assisted grading) deferred. (L)
-- [ ] **M13 — Student landing overhaul** (`docs/specs/M13-student-landing-overhaul-spec.md`): Phases 1–7 (type foundation → teacherDirectory CF + rules → showResultToStudent writes → ResultsModal → sections/hooks → i18n). Must not leak `correctAnswer`/peer data; `useStudentOrgPage` must not call `useAuth`. (L/HIGH in rules/results phases)
+- [ ] **Student landing v2** (`docs/plans/STUDENT_LANDING_V2.md`, replaces M13): 5 PRs — class list fix (no flag), bell period + auto-select, Work/Resource toggle (`study-resources`), new Up next page (`student-landing-v2`, beta by class), per-student GL progress (`gl-student-progress`). (L/MED)
 - [ ] **M16 — PLC Phases 7–8** (`docs/specs/M16-plc-phases-7-8-spec.md` + `docs/PLC_ROADMAP.md`): synced mini-app groups infra then guided-learning mirror; widen `assignment_index` rule to make `sheetUrl` optional for kinds `mini-app`/`guided-learning`. (L)
 - [ ] **LO12 — Nexus widget connections** (`docs/specs/LO12-nexus-widget-connections-spec.md`): Phase 1 tracer Checklist→Timer (S), Phase 2 Webcam/Drawing→GL (M), Phase 3 AI quiz-analysis/concept-map CF (L), Phase 4 GL→Quiz (M), Phase 5 Scoreboard→Stickers (M).
 
@@ -401,14 +395,6 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 - [ ] Candidate 8: Scoreboard → Stickers threshold spawn. (S)
 - [ ] Candidate 6: Video Activity → Guided Learning spawn. (M)
 - [ ] Candidate 9: Schedule → Catalyst live sync. (L)
-
-#### `docs/specs/M13-student-landing-overhaul-spec.md`
-
-- [ ] Phase 1: add showResultToStudent to ActivityWallSession/MiniAppSession/GuidedLearningSession, StudentPageSection union + sectionOrder/assignmentsDefaultFilter on StudentPageConfig, config/assignmentDefaults.ts, wire showResultToStudentFrom into useStudentAssignments. (M)
-- [ ] projectTeacherDirectory Cloud Function trigger + backfill script. (M)
-- [ ] ResultsModal.tsx + AssignmentListItem CTA wiring. (M)
-- [ ] Announcements + TeacherDirectory sections on student landing, StudentPageView section-order reorder UI. (M)
-- [ ] i18n keys across locales/en,de,es,fr.json. (S)
 
 #### `docs/plans/shipped/specs/M17-individual-assignments-spec.md`
 
