@@ -460,6 +460,13 @@ Center sets show under Source: Help Center) and asks for it to be improved.
    list of what changed and what to check in the Studio. Paul imports it and
    swaps it into the Help Center item.
 
+Through the Claude connector there is no file: `get_guided_learning` reads
+the set, `get_guided_learning_slide` shows a slide with its steps, and
+`update_guided_learning` saves the edited step list in place (source
+`building` for building and Help Center sets). The same rules apply, the
+server checks the importer's ranges, and slides can't be added or replaced
+that way.
+
 ## Round-trip guarantee
 
 A file produced by the widget's Export action is a valid input to this skill

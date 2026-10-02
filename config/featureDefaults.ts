@@ -807,6 +807,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Guided Learning list, read, slide and edit tools inside the Claude connector; building sets stay admin-only.
+  'claude-connector-guided-learning': {
+    label: 'Claude connector: Guided Learning',
+    icon: Bot,
+    description: 'Claude can read and edit Guided Learning activities.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'integrations',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Teacher-paced (live) Video Activity: the Assign dialog's live option (docs/plans/shipped/VA_TEACHER_PACED.md).
   'video-activity-live': {
     label: 'Video Activity live mode',
