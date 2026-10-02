@@ -172,7 +172,7 @@ describe('GroupRemindersPanel', () => {
     renderModal(roster(), false);
     await user.click(screen.getByRole('tab', { name: /groups/i }));
     expect(screen.getByText(/no groups yet/i)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /\+ new group/i }));
+    await user.click(screen.getByRole('button', { name: /new group/i }));
     expect(screen.queryByRole('button', { name: /^next$/i })).toBeNull();
     expect(screen.getByDisplayValue('New Group')).toBeInTheDocument();
   });
