@@ -431,6 +431,7 @@ describe('studentLoginV1', () => {
       studentRole: true,
       orgId: 'org-orono',
       classIds: ['C1', 'C2'],
+      sso: true,
     });
   });
 
@@ -463,6 +464,7 @@ describe('studentLoginV1', () => {
       studentRole: true,
       orgId: 'org-orono',
       classIds: ['ENG', 'BIO'],
+      sso: true,
     });
     const uid = computeStudentUid('SID-1', HMAC);
     expect(h.docStore.get(`student_sections/${uid}`)).toMatchObject({
@@ -702,7 +704,7 @@ describe('getStudentClassDirectoryV1', () => {
 describe('getStudentClassDirectoryV1 — co-teachers, order and re-check', () => {
   const studentAuth = (classIds: string[], orgId = 'org-orono') => ({
     uid: 'stu',
-    token: { studentRole: true, classIds, orgId },
+    token: { studentRole: true, classIds, orgId, sso: true },
   });
 
   it('merges a co-taught section into one entry named by the newest roster', async () => {
@@ -806,7 +808,12 @@ describe('getStudentClassDirectoryV1 — co-teachers, order and re-check', () =>
     expect(res.customToken).toBe('ct:stu');
     expect(h.lastCustomToken).toEqual({
       uid: 'stu',
-      claims: { studentRole: true, orgId: 'org-orono', classIds: ['A', 'B'] },
+      claims: {
+        studentRole: true,
+        orgId: 'org-orono',
+        classIds: ['A', 'B'],
+        sso: true,
+      },
     });
     expect(res.classIds).toEqual(['A', 'B']);
     expect(res.classes.map((c) => c.classId)).toEqual(['A', 'B']);
@@ -851,6 +858,27 @@ describe('getStudentClassDirectoryV1 — co-teachers, order and re-check', () =>
     });
     const res = await callDirectory({ auth: studentAuth(['A']) });
     expect(res.customToken).toBeUndefined();
+    expect(res.classes.map((c) => c.classId)).toEqual(['A']);
+  });
+
+  it('never widens a PIN token from the stored sections of the same uid', async () => {
+    h.docStore.set('users/t/rosters/a', { classlinkClassId: 'A', name: 'Art' });
+    h.docStore.set('users/t/rosters/b', {
+      classlinkClassId: 'B',
+      name: 'Biology',
+    });
+    h.docStore.set('student_sections/stu', {
+      orgId: 'org-orono',
+      sectionIds: ['A', 'B'],
+    });
+    const res = await callDirectory({
+      auth: {
+        uid: 'stu',
+        token: { studentRole: true, classIds: ['A'], orgId: 'org-orono' },
+      },
+    });
+    expect(res.customToken).toBeUndefined();
+    expect(h.lastCustomToken).toBeNull();
     expect(res.classes.map((c) => c.classId)).toEqual(['A']);
   });
 
