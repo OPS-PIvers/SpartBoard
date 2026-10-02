@@ -956,6 +956,24 @@ describe('LiveTourRunner modes', () => {
     expect(status()).toHaveTextContent('Your turn');
   });
 
+  it('Guided: leaves toggle, select and type steps to the teacher', async () => {
+    await start(
+      makeSet(
+        [
+          { anchor: 'dock.item:dice', action: 'toggle', value: true },
+          { anchor: 'sidebar.boards', action: 'observe' },
+        ],
+        [],
+        'guided'
+      )
+    );
+    const dice = recordEvents(screen.getByText('Dice'));
+    await run(4000);
+    expect(dice).toEqual([]);
+    expect(progress()).toBe('1 / 2');
+    expect(status()).toHaveTextContent('Your turn');
+  });
+
   it('Guided: Take over switches the rest of the run to Structured', async () => {
     await start(
       makeSet(

@@ -76,9 +76,7 @@ demonstrate the live tour.
   the teacher (or autopilot) clicks it. `"observe"` when the step points at
   something to read or notice: the teacher presses Next.
 - `action: "toggle"` for a switch or checkbox, with `value` the state it
-  should end in (`true` is on). Autopilot sets that state and leaves a
-  switch alone when it is already there, so the starting state on the
-  teacher's board doesn't matter. Anchor the switch itself:
+  should end in (`true` is on). Anchor the switch itself:
   `settings.toggle:<type>#<field>` (e.g. `settings.toggle:schedule#autoProgress`).
 - `action: "select"` for a dropdown or listbox, with `value` the option's
   value (a native `<select>`'s `value`, or a custom option's `data-value`).
@@ -86,8 +84,11 @@ demonstrate the live tour.
 - `action: "type"` for a text field, with `value` the text Autopilot enters.
   Never put a student's name in it: Tour health flags a value that matches
   a roster name, and an empty value.
-- Until Autopilot performs values, `toggle`, `select` and `type` steps
-  advance on a click of the anchor, like `click`.
+- Autopilot does not perform these values yet. Guided mode shows the step
+  and waits for the teacher, so a switch already in the right state is
+  never flipped. A `toggle` or custom-listbox step advances on a click of
+  the anchor; a `type` or native `select` step advances when the field
+  changes. Next always moves on.
 - Autopilot clicks the anchor element itself, so a click step's anchor must
   be the control, not a row or panel around it. A settings field anchor is
   the whole row, so point at the control inside it instead, or make the

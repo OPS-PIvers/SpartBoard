@@ -934,7 +934,8 @@ export const LiveTourRunner: React.FC = () => {
       setAuto(null);
       return;
     }
-    if (teacherMustClick(step.tour)) {
+    // Recorded values aren't performed yet, so a click could set the wrong state.
+    if (teacherMustClick(step.tour) || step.tour.action !== 'click') {
       setAuto({ key: stepKey, stage: 'yourTurn' });
       return;
     }

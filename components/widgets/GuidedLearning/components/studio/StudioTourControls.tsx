@@ -16,7 +16,7 @@ import {
   type TourAnchorId,
 } from '@/config/tourAnchors';
 import { TOOLS } from '@/config/tools';
-import { isActedStep, teacherMustClick } from '@/components/tours/tourSession';
+import { teacherMustClick } from '@/components/tours/tourSession';
 import { suggestAnchorId } from '../recorder/resolveAnchor';
 import { MAX_TYPED_CHARS } from '../recorder/useTourCapture';
 import { StudioFindOnBoard } from './StudioFindOnBoard';
@@ -425,7 +425,7 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
           {t('glStudio.tourValueEmpty')}
         </p>
       )}
-      {tour && isActedStep(tour) && (
+      {tour?.action === 'click' && (
         <label className="flex items-start gap-2 text-xs text-slate-600">
           <input
             type="checkbox"
