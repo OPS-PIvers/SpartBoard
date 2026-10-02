@@ -396,7 +396,12 @@ export async function loadSet(
   if (!set || !Array.isArray(set.steps) || !Array.isArray(set.imageUrls)) {
     throw new ToolError("That set's file in Google Drive can't be read.");
   }
-  return { set: { ...set, id: setId }, source, driveFileId };
+  return {
+    set: { ...set, id: setId },
+    source,
+    driveFileId,
+    updateTime: meta.updateTime,
+  };
 }
 
 function fullSet(loaded: Loaded) {
@@ -428,6 +433,9 @@ const EDITABLE = [
   'steps',
   'schemaVersion',
 ] as const;
+
+const CONFLICT =
+  'Someone saved this set in SpartBoard while Claude was editing it. Fetch it again and redo the change.';
 
 async function saveSet(
   ctx: ToolContext,
@@ -467,14 +475,29 @@ async function saveSet(
     batch.update(ctx.db.doc(`${BUILDING}/${saved.id}`), changed, {
       lastUpdateTime: loaded.updateTime,
     });
+    try {
+      await batch.commit();
+    } catch (err) {
+      if ((err as { code?: number }).code === 9) throw new ToolError(CONFLICT);
+      throw err;
+    }
   } else {
+    const metaRef = ctx.db.doc(`users/${ctx.uid}/${PERSONAL}/${saved.id}`);
+    const current = await metaRef.get();
+    if (
+      !current.updateTime?.isEqual(
+        loaded.updateTime as admin.firestore.Timestamp
+      )
+    )
+      throw new ToolError(CONFLICT);
+    // The previous version is kept before the Drive file changes, so a failed save can still be undone.
+    await batch.commit();
     await replaceDriveJson(
       await driveTokenFor(ctx.uid),
       loaded.driveFileId as string,
       saved
     );
-    batch.set(
-      ctx.db.doc(`users/${ctx.uid}/${PERSONAL}/${saved.id}`),
+    await metaRef.set(
       {
         title: saved.title,
         description: saved.description ?? admin.firestore.FieldValue.delete(),
@@ -484,16 +507,6 @@ async function saveSet(
       },
       { merge: true }
     );
-  }
-  try {
-    await batch.commit();
-  } catch (err) {
-    if ((err as { code?: number }).code === 9) {
-      throw new ToolError(
-        'Someone saved this set in SpartBoard while Claude was editing it. Fetch it again and redo the change.'
-      );
-    }
-    throw err;
   }
   return {
     set_id: saved.id,
@@ -570,23 +583,44 @@ export async function restoreGuidedLearningRevision(
   return saveSet(ctx, loaded, next, 'restore');
 }
 
+// Guided Learning slides upload to the uploader's hotspot_images folder; building sets may hold any admin's.
+export function glSlideStoragePath(
+  url: URL,
+  bucketName: string,
+  uid: string,
+  source: 'mine' | 'building'
+): string {
+  const match = /^\/v0\/b\/([^/]+)\/o\/([^/?#]+)$/.exec(url.pathname);
+  const path = match ? decodeURIComponent(match[2]) : '';
+  const owner = source === 'mine' ? uid : '[^/]+';
+  if (
+    match?.[1] !== bucketName ||
+    path.split('/').some((part) => part === '..' || part === '.') ||
+    !new RegExp(`^users/${owner}/hotspot_images/[^/]+$`).test(path)
+  )
+    throw new ToolError('That slide is stored somewhere Claude cannot read.');
+  return path;
+}
+
 async function slideBytes(
   ctx: ToolContext,
-  url: string
+  url: string,
+  source: 'mine' | 'building'
 ): Promise<{ data: Buffer; mimeType: string }> {
   const data = /^data:(image\/(?:png|jpeg));base64,(.+)$/.exec(url);
   if (data) return { data: Buffer.from(data[2], 'base64'), mimeType: data[1] };
   const parsed = new URL(url);
   if (parsed.hostname === 'firebasestorage.googleapis.com') {
-    const path = decodeURIComponent(
-      /\/o\/([^?#]+)/.exec(parsed.pathname)?.[1] ?? ''
+    const bucket = admin.storage().bucket();
+    const file = bucket.file(
+      glSlideStoragePath(parsed, bucket.name, ctx.uid, source)
     );
-    const file = admin.storage().bucket().file(path);
-    const [[meta], [bytes]] = await Promise.all([
-      file.getMetadata(),
-      file.download(),
-    ]);
-    return { data: bytes, mimeType: String(meta.contentType ?? 'image/png') };
+    const [meta] = await file.getMetadata();
+    const mimeType = String(meta.contentType ?? '');
+    if (!/^image\/(png|jpeg|webp|gif)$/.test(mimeType))
+      throw new ToolError('That slide is not an image Claude can show.');
+    const [bytes] = await file.download();
+    return { data: bytes, mimeType };
   }
   const driveId =
     parsed.hostname === 'lh3.googleusercontent.com'
@@ -704,7 +738,7 @@ export function registerGuidedLearningTools(
           throw new ToolError(
             'That slide is a video and cannot be shown here.'
           );
-        image = await slideBytes(ctx, url);
+        image = await slideBytes(ctx, url, source);
         if (image.data.length > MAX_SLIDE_BYTES)
           throw new ToolError('That slide image is too large to show here.');
         return {

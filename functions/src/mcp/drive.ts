@@ -204,8 +204,8 @@ export async function readDriveBytes(
         : 'That slide could not be read from Google Drive.'
     );
   }
-  return {
-    data: Buffer.from(await res.arrayBuffer()),
-    mimeType: res.headers.get('content-type') ?? 'image/png',
-  };
+  const mimeType = (res.headers.get('content-type') ?? '').split(';')[0];
+  if (!/^image\/(png|jpeg|webp|gif)$/.test(mimeType))
+    throw new ToolError('That slide is not an image Claude can show.');
+  return { data: Buffer.from(await res.arrayBuffer()), mimeType };
 }

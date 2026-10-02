@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  glSlideStoragePath,
   mergeSteps,
   requiredSchemaVersion,
   stepInput,
@@ -190,5 +191,41 @@ describe('Guided Learning step edits', () => {
         },
       ])
     ).toBe(5);
+  });
+
+  it('reads Storage slides only from Guided Learning upload folders', () => {
+    const at = (path: string, bucket = 'sb') =>
+      new URL(
+        `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media`
+      );
+    const own = 'users/u1/hotspot_images/1-a.png';
+    expect(glSlideStoragePath(at(own), 'sb', 'u1', 'mine')).toBe(own);
+    expect(() =>
+      glSlideStoragePath(
+        at('users/u2/hotspot_images/1-a.png'),
+        'sb',
+        'u1',
+        'mine'
+      )
+    ).toThrow(/cannot read/);
+    expect(
+      glSlideStoragePath(
+        at('users/u2/hotspot_images/1-a.png'),
+        'sb',
+        'u1',
+        'building'
+      )
+    ).toBe('users/u2/hotspot_images/1-a.png');
+    for (const bad of [
+      'quiz_response_media/s/r/a.png',
+      'users/u1/notebooks/a.png',
+      'users/u1/hotspot_images/../../x/a.png',
+    ])
+      expect(() => glSlideStoragePath(at(bad), 'sb', 'u1', 'building')).toThrow(
+        /cannot read/
+      );
+    expect(() =>
+      glSlideStoragePath(at(own, 'other'), 'sb', 'u1', 'mine')
+    ).toThrow(/cannot read/);
   });
 });
