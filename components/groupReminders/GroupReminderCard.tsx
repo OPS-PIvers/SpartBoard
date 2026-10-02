@@ -60,7 +60,7 @@ export const GroupReminderCard: React.FC<GroupReminderCardProps> = ({
     >
       <GroupSymbol
         symbol={symbol}
-        className={iconOnly ? 'w-24 h-24' : 'w-16 h-16'}
+        className={iconOnly ? 'w-28 h-28' : 'w-16 h-16'}
       />
       {!iconOnly && (
         <div className="flex-1 min-w-0">
