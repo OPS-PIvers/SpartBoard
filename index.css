@@ -242,6 +242,12 @@ body.is-dragging-widget video {
   }
 }
 
+@keyframes gl-dim-in {
+  from {
+    opacity: 0;
+  }
+}
+
 @keyframes gl-callout-in {
   from {
     opacity: 0;

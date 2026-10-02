@@ -1001,6 +1001,13 @@ export const LiveTourRunner: React.FC = () => {
   const isClick = acted;
   // A step with no anchor is a centred card on the dimmed board.
   const plain = running && !!step && !step.tour;
+  // The dim stays up while the next step's anchor is found, so back-to-back spotlights never flash.
+  const dimNow = running && (anchor.status === 'found' || plain);
+  const [dimHeld, setDimHeld] = useState(false);
+  if (dimNow !== dimHeld && (dimNow || anchor.status !== 'searching')) {
+    setDimHeld(dimNow);
+  }
+  const showDim = dimNow || (running && dimHeld);
   const cursorAllowed =
     running && center !== null && isClick && !step?.cursor?.hide;
   // Guided sets start with the Autopilot switch on; the teacher can flip it either way.
@@ -1409,7 +1416,7 @@ export const LiveTourRunner: React.FC = () => {
         : null;
     content = (
       <>
-        {(anchor.status === 'found' || plain) && (
+        {showDim && (
           <TourSpotlight
             rect={rect}
             onMisclick={misclick}
