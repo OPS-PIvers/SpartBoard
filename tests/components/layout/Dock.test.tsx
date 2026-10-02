@@ -996,3 +996,51 @@ describe('Dock – annotation overlay guards', () => {
     expect(shell.style.pointerEvents).not.toBe('none');
   });
 });
+
+describe('Dock smart-paste – two-column lists become flashcards', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const paste = (plain: string, html = '') => {
+    const event = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'clipboardData', {
+      value: {
+        files: { length: 0 },
+        getData: (type: string) => (type === 'text/html' ? html : plain),
+      },
+    });
+    act(() => {
+      document.body.dispatchEvent(event);
+    });
+  };
+
+  it('opens a Flashcards widget on the pasted cards', () => {
+    const addWidget = vi.fn();
+    setupMocks({ addWidget });
+    render(<Dock />);
+
+    paste('hola\thello\nadiós\tgoodbye');
+
+    expect(addWidget).toHaveBeenCalledTimes(1);
+    expect(addWidget).toHaveBeenCalledWith('flashcards', {
+      config: { view: 'library', pasteDraftId: expect.any(String) },
+    });
+  });
+
+  it('keeps the old paste behavior when the flag is off', () => {
+    const addWidget = vi.fn();
+    setupMocks({
+      addWidget,
+      canAccessFeature: vi.fn(
+        (feature: string) => feature !== 'flashcard-smart-paste'
+      ),
+    });
+    render(<Dock />);
+
+    paste('hola\thello\nadiós\tgoodbye');
+
+    expect(addWidget).toHaveBeenCalledTimes(1);
+    expect(addWidget.mock.calls[0][0]).not.toBe('flashcards');
+  });
+});

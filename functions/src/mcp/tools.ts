@@ -38,6 +38,10 @@ import { registerRubricTools, restoreRubricRevision } from './rubricTools';
 import { registerWallTools, restoreWallRevision } from './wallTools';
 import { registerMiniAppTools, restoreMiniAppRevision } from './miniAppTools';
 import { registerResultsTools } from './resultsTools';
+import {
+  registerGuidedLearningTools,
+  restoreGuidedLearningRevision,
+} from './glTools';
 
 export const SERVER_INSTRUCTIONS = [
   "SpartBoard is a classroom dashboard. These tools read and write the signed-in teacher's own library.",
@@ -511,6 +515,8 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         if (itemType === 'rubric') return restoreRubricRevision(ctx, rev);
         if (itemType === 'activity_wall') return restoreWallRevision(ctx, rev);
         if (itemType === 'mini_app') return restoreMiniAppRevision(ctx, rev);
+        if (itemType === 'guided_learning')
+          return restoreGuidedLearningRevision(ctx, rev);
         if (itemType !== 'flashcard_set') {
           throw new ToolError('That revision cannot be restored.');
         }
@@ -539,4 +545,5 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   registerWallTools(server, ctx);
   registerMiniAppTools(server, ctx);
   registerResultsTools(server, ctx);
+  registerGuidedLearningTools(server, ctx);
 }

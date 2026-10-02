@@ -218,3 +218,53 @@ export function parseFlashcardSheetRows(
     detectedSeparator: 'Google Sheets columns',
   };
 }
+
+const MIN_PASTED_CARDS = 2;
+
+const htmlCellText = (cell: HTMLTableCellElement): string => {
+  const clone = cell.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
+  const blocks = Array.from(clone.querySelectorAll('p, li'));
+  const text = blocks.length
+    ? blocks.map((block) => block.textContent ?? '').join('\n')
+    : (clone.textContent ?? '');
+  return text.replace(/\u00a0/g, ' ').trim();
+};
+
+const htmlTableRows = (html: string): string[][] | null => {
+  if (!/<table[\s>]/i.test(html)) return null;
+  const tables = new DOMParser()
+    .parseFromString(html, 'text/html')
+    .querySelectorAll('table');
+  if (tables.length !== 1) return null;
+  return Array.from(tables[0].rows).map((row) =>
+    Array.from(row.cells).map(htmlCellText)
+  );
+};
+
+const isTwoColumnList = (rows: string[][]): boolean => {
+  const filled = rows.filter((row) => row.some(Boolean));
+  return (
+    filled.length >= MIN_PASTED_CARDS && filled.every((row) => row.length === 2)
+  );
+};
+
+const pastedCards = (rows: string[][] | null): FlashcardCard[] | null => {
+  if (!rows || !isTwoColumnList(rows)) return null;
+  const { cards } = flashcardsFromRows(rows);
+  return cards.length >= MIN_PASTED_CARDS ? cards : null;
+};
+
+/** Cards from a board paste of a two-column table or tab-separated list, else null. */
+export function parseFlashcardClipboard(
+  plain: string,
+  html: string
+): FlashcardCard[] | null {
+  const tableRows = html ? htmlTableRows(html) : null;
+  if (tableRows) return pastedCards(tableRows);
+  if (!plain.includes('\t')) return null;
+  const naiveRows = plain
+    .split(/\r?\n/)
+    .map((line) => line.split('\t').map((cell) => cell.trim()));
+  return pastedCards(parseDelimitedRows(plain, '\t')) ?? pastedCards(naiveRows);
+}

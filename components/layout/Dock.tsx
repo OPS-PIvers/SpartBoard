@@ -66,6 +66,8 @@ import {
   buildChecklistFromLines,
   createDefaultTextWidget,
 } from '@/utils/smartPaste';
+import { parseFlashcardClipboard } from '@/components/widgets/Flashcards/utils/flashcardImport';
+import { stashPastedFlashcards } from '@/components/widgets/Flashcards/utils/pastedDrafts';
 import { SmartPastePickerModal } from './dock/SmartPastePickerModal';
 import { UrlPickerModal } from './dock/UrlPickerModal';
 import { ImagePastePickerModal } from './dock/ImagePastePickerModal';
@@ -490,6 +492,31 @@ export const Dock: React.FC = () => {
         return;
       }
 
+      // A two-column table or tab-separated list becomes a new flashcard set.
+      if (
+        e.clipboardData &&
+        canAccessFeature('flashcard-smart-paste') &&
+        canAccessWidget('flashcards')
+      ) {
+        const cards = parseFlashcardClipboard(
+          e.clipboardData.getData('text/plain'),
+          e.clipboardData.getData('text/html')
+        );
+        if (cards) {
+          addWidget('flashcards', {
+            config: {
+              view: 'library',
+              pasteDraftId: stashPastedFlashcards(cards),
+            },
+          });
+          addToast(
+            `Added Flashcards widget with ${cards.length} cards!`,
+            'success'
+          );
+          return;
+        }
+      }
+
       // 1. Handle Image Paste
       if (e.clipboardData?.files?.length) {
         const file = e.clipboardData.files[0];
@@ -578,6 +605,7 @@ export const Dock: React.FC = () => {
     addWidget,
     addToast,
     canAccessFeature,
+    canAccessWidget,
     // processAndUploadImage is intentionally omitted: it is only used in a JSX
     // click handler (line ~839), never inside this effect body. Its identity
     // changes on every auth-state change (useImageUpload wraps it in

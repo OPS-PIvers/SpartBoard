@@ -20,6 +20,7 @@ const step = (over: Record<string, unknown> = {}) => ({
   imageIndex: 0,
   label: 'Save button',
   interactionType: 'spotlight',
+  region: { shape: 'rect', wPct: 10, hPct: 5 },
   text: 'Click Save.',
   ...over,
 });
@@ -267,6 +268,10 @@ describe('validateGlSet callouts, narration and tours', () => {
       ])
     );
     bad(set([step({ text: 'One.\nTwo.' })]), /one paragraph/);
+    bad(set([step({ text: 'One.\n\nTwo.\n\nThree.' })]), /one paragraph/);
+    expect(
+      ok(set([step({ text: 'Click Save.\n\nSubs see it too.' })]))
+    ).toEqual([]);
     expect(ok(set([step({ text: '**Save** then **Close**.' })]))).toEqual([
       expect.stringMatching(/more than one term/),
     ]);
@@ -436,8 +441,20 @@ describe('validator registry readers', () => {
 });
 
 describe('validateGlSet step content', () => {
-  it('requires a label on every step', () => {
-    bad(set([step({ label: undefined })]), /label must be a non-empty string/);
+  it('warns on a lit step with no region and on stacked regions', () => {
+    expect(ok(set([step({ region: undefined })]))).toEqual([
+      expect.stringMatching(/no region/),
+    ]);
+    const two = set([step(), step({ id: 's2' })]);
+    expect(ok(two)).toEqual([expect.stringMatching(/overlap|same/i)]);
+  });
+
+  it('allows an empty label and warns on a long one', () => {
+    expect(ok(set([step({ label: '' })]))).toEqual([]);
+    expect(ok(set([step({ label: 'One two three four five' })]))).toEqual([
+      expect.stringMatching(/label/),
+    ]);
+    bad(set([step({ label: 3 })]), /label/);
   });
 
   it('checks overlay, banner tone and Studio ranges', () => {
