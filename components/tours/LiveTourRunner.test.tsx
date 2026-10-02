@@ -1,7 +1,7 @@
 import React, { useSyncExternalStore } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import type { GuidedLearningSet, WidgetType } from '@/types';
 import { LiveTourRunner } from './LiveTourRunner';
 import { TRY_HINT_MS } from '@/components/widgets/GuidedLearning/components/player/playback';
@@ -30,6 +30,7 @@ const h = vi.hoisted(() => {
     z?: number;
     transient?: boolean;
     minimized?: boolean;
+    flipped?: boolean;
   };
   const board = {
     id: 'board-1',
@@ -68,6 +69,12 @@ const h = vi.hoisted(() => {
     discardTourWidgets: vi.fn((ids: readonly string[]) => {
       board.widgets = board.widgets.filter(
         (w) => !(w.transient && ids.includes(w.id))
+      );
+      emit();
+    }),
+    updateWidget: vi.fn((id: string, changes: Partial<Widget>) => {
+      board.widgets = board.widgets.map((w) =>
+        w.id === id ? { ...w, ...changes } : w
       );
       emit();
     }),
@@ -145,6 +152,11 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
 
 vi.mock('./publishedTours', () => ({
   loadRunnableTour: h.loadTour,
+}));
+
+vi.mock('./settingsTab', () => ({
+  fieldSettingsTab: (_type: string, key: string) =>
+    key === 'fontFamily' ? 'style' : 'settings',
 }));
 
 vi.mock('./TourMiniPlayer', () => ({
@@ -2005,6 +2017,134 @@ describe('LiveTourRunner robustness', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     await frames();
     expect(getTourWidgetPatches().size).toBe(0);
+  });
+
+  // A settings drawer with two tabs: the toggle on Settings, the font row on Style.
+  const LiveDrawer: React.FC<{ w: (typeof h.board.widgets)[number] }> = ({
+    w,
+  }) => {
+    const [tab, setTab] = React.useState<'settings' | 'style'>('settings');
+    return (
+      <div {...tourAttr('settings.root', w.id, w.type)}>
+        {(['settings', 'style'] as const).map((id) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            {...tourAttr(`settings.tab-${id}`, w.id, w.type)}
+          >
+            {id}
+          </button>
+        ))}
+        <div data-testid="drawer-body" style={{ overflowY: 'auto' }}>
+          {tab === 'settings' ? (
+            <button
+              role="switch"
+              {...tourFieldAttr('settings.toggle', w.type, 'showSeconds')}
+            >
+              Seconds
+            </button>
+          ) : (
+            <div {...tourFieldAttr('settings.field', w.type, 'fontFamily')}>
+              Font
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+  const DrawerBoard: React.FC = () => {
+    useSyncExternalStore(
+      (l) => {
+        h.board.listeners.add(l);
+        return () => h.board.listeners.delete(l);
+      },
+      () => h.board.version
+    );
+    return (
+      <>
+        {h.board.widgets.map((w) => (
+          <div key={w.id} {...tourAttr('widget.window', w.id, w.type)}>
+            {w.flipped && <LiveDrawer w={w} />}
+          </div>
+        ))}
+      </>
+    );
+  };
+  const flips = () =>
+    h.actions.updateWidget.mock.calls
+      .filter(([, changes]) => 'flipped' in changes)
+      .map(([id, changes]) => `${id}:${String(changes.flipped)}`);
+
+  it('opens the settings drawer on the tab that holds the field, and closes it at the end', async () => {
+    h.board.widgets = [{ id: 'mine', type: 'clock' }];
+    await startOn(
+      makeSet([
+        { anchor: 'settings.field:clock#fontFamily', action: 'observe' },
+      ]),
+      <DrawerBoard />
+    );
+    await frames(800);
+    expect(h.actions.setSelectedWidgetId).toHaveBeenCalledWith('mine');
+    expect(flips()).toEqual(['mine:true']);
+    expect(screen.getByRole('tab', { name: 'style' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    expect(found()).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    await frames();
+    expect(flips()).toEqual(['mine:true', 'mine:false']);
+  });
+
+  it('keeps the drawer open across its steps, closes it on leaving, and reopens it going back', async () => {
+    h.board.widgets = [{ id: 'mine', type: 'clock' }];
+    await startOn(
+      makeSet([
+        { anchor: 'settings.toggle:clock#showSeconds', action: 'observe' },
+        { anchor: 'settings.field:clock#fontFamily', action: 'observe' },
+        { anchor: 'widget.window:clock', action: 'observe' },
+      ]),
+      <DrawerBoard />
+    );
+    await frames(800);
+    expect(found()).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames(800);
+    expect(found()).toBe(true);
+    expect(flips()).toEqual(['mine:true']);
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames(800);
+    expect(flips()).toEqual(['mine:true', 'mine:false']);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await frames(800);
+    expect(flips()).toEqual(['mine:true', 'mine:false', 'mine:true']);
+    expect(found()).toBe(true);
+  });
+
+  it('centres a drawer row once the drawer settles, then pulses it once', async () => {
+    h.board.widgets = [{ id: 'mine', type: 'clock', flipped: true }];
+    const scrollTo = vi.fn();
+    await startOn(
+      makeSet([
+        { anchor: 'settings.toggle:clock#showSeconds', action: 'observe' },
+      ]),
+      <DrawerBoard />,
+      () => {
+        const body = screen.getByTestId('drawer-body');
+        body.scrollTo = scrollTo as typeof body.scrollTo;
+      }
+    );
+    await frames(800);
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(scrollTo.mock.calls[0][0]).toMatchObject({ behavior: 'smooth' });
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(screen.getByTestId('tour-spotlight-pulse')).toBeInTheDocument();
+    // The teacher's own open drawer stays open after the tour.
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    await frames();
+    expect(flips()).toEqual([]);
   });
 
   it('scrolls an off-screen anchor into view before spotlighting it', async () => {

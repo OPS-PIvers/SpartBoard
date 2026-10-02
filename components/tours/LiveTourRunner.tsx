@@ -75,7 +75,14 @@ import {
 } from './tourSession';
 import { ANCHOR_SEARCH_MS, useAnchorElement } from './useAnchorElement';
 import { findTourAnchor, isAnchorUsable } from './resolveTourAnchor';
-import { prerequisiteWidgetId, satisfyPrerequisite } from './tourPrerequisites';
+import {
+  prerequisiteWidgetId,
+  satisfyPrerequisite,
+  settingsUndoKey,
+} from './tourPrerequisites';
+import { fieldSettingsTab } from './settingsTab';
+import { anchorPrerequisite } from '@/config/tourAnchors';
+import { markSettingsOpenedLocally } from '@/components/settings/settingsOpenSignal';
 import { TourDialog } from './TourDialog';
 import {
   autoLeadMs,
@@ -417,7 +424,7 @@ export const LiveTourRunner: React.FC = () => {
     const d = () => latest.current.dashboard;
     const onBoard = (id: string) =>
       d().activeDashboard?.widgets.find((w) => w.id === id);
-    const undo = satisfyPrerequisite({
+    const undos = satisfyPrerequisite({
       binding,
       scope: anchorScope,
       widgetId: stepWidgetId,
@@ -430,11 +437,36 @@ export const LiveTourRunner: React.FC = () => {
             ? { ...t, restored: [...t.restored, id] }
             : t
         ),
+      isSettingsOpen: (id) => !!onBoard(id)?.flipped,
+      setSettingsOpen: (id, open) => {
+        if (open) markSettingsOpenedLocally(id);
+        d().updateWidget(id, { flipped: open });
+      },
+      fieldTab: fieldSettingsTab,
     });
-    if (undo && !prereqUndos.current.has(undo.key)) {
-      prereqUndos.current.set(undo.key, undo.undo);
+    for (const undo of undos) {
+      if (!prereqUndos.current.has(undo.key)) {
+        prereqUndos.current.set(undo.key, undo.undo);
+      }
     }
   });
+  // A drawer the tour opened stays open across its widget's drawer steps and closes on a step aimed elsewhere.
+  const drawerWidgetId =
+    binding && anchorPrerequisite(binding.anchor) === 'settings-open'
+      ? stepWidgetId
+      : null;
+  const leavesDrawer = !!binding && tour?.phase === 'running';
+  const drawerStep = tour?.index ?? 0;
+  useEffect(() => {
+    if (!leavesDrawer) return;
+    const keep = drawerWidgetId ? settingsUndoKey(drawerWidgetId) : null;
+    for (const [key, undo] of prereqUndos.current) {
+      if (key.startsWith(settingsUndoKey('')) && key !== keep) {
+        prereqUndos.current.delete(key);
+        undo();
+      }
+    }
+  }, [leavesDrawer, drawerWidgetId, drawerStep]);
   // Sets up what the anchor needs before and while it is searched for.
   // Once the anchor has shown, a teacher who undoes the setup is not overridden until Retry.
   const prereqStep = tour?.index ?? 0;
@@ -1229,7 +1261,11 @@ export const LiveTourRunner: React.FC = () => {
     content = (
       <>
         {(anchor.status === 'found' || plain) && (
-          <TourSpotlight rect={rect} onMisclick={misclick} />
+          <TourSpotlight
+            rect={rect}
+            onMisclick={misclick}
+            pulse={anchor.centred}
+          />
         )}
         <div
           key={tour.index}

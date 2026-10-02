@@ -144,6 +144,24 @@ describe('stepVerdict', () => {
     });
   });
 
+  it('does not flag a closed settings drawer, which the runner opens itself', () => {
+    expect(
+      stepVerdict(health('settings.toggle:clock#format24'), setup, none, false)
+    ).toEqual({ state: 'ok', reason: null });
+    expect(
+      stepVerdict(health('settings.tab-style:clock'), setup, none, false)
+    ).toEqual({ state: 'ok', reason: null });
+    // It still needs the tour to put the widget on the board.
+    expect(
+      stepVerdict(
+        health('settings.field:clock#format24'),
+        undefined,
+        none,
+        true
+      )
+    ).toEqual({ state: 'needs-open', reason: 'widget-not-added' });
+  });
+
   it('counts a widget an earlier step opens', () => {
     const spawned = { ...health('widget.title'), widgetSpawned: true };
     expect(stepVerdict(spawned, { widgets: [] }, none, true)).toEqual({
