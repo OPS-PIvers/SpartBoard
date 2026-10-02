@@ -62,7 +62,7 @@ describe('GroupReminderLayer', () => {
     act(() => {
       vi.advanceTimersByTime(10_000);
     });
-    expect(screen.getByRole('alert')).toHaveTextContent('');
+    expect(screen.getByRole('alert')).toHaveTextContent(/^Snooze$/);
     expect(playReminderSound).toHaveBeenCalledWith('off');
   });
 

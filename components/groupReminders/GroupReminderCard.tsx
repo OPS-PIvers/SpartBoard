@@ -32,6 +32,7 @@ export const GroupReminderCard: React.FC<GroupReminderCardProps> = ({
   const snoozed = snoozedUntil !== undefined;
   const lines = [message, name, time].filter((l): l is string => !!l);
   const iconOnly = lines.length === 0;
+  const canSnooze = !snoozed && !!onSnooze;
   const snoozeLabel = t('groupReminders.snoozeFor', {
     defaultValue: 'Snooze {{count}} min',
     count: snoozeMinutes,
@@ -54,7 +55,7 @@ export const GroupReminderCard: React.FC<GroupReminderCardProps> = ({
       } ${
         iconOnly
           ? 'w-40 h-40 flex flex-col items-center justify-center'
-          : 'w-max min-w-56 max-w-[min(360px,calc(100vw-2rem))] flex items-center gap-4 py-4 pl-4 pr-14'
+          : `w-max min-w-56 max-w-[min(360px,calc(100vw-2rem))] flex items-center gap-4 pt-4 pl-4 pr-10 ${canSnooze ? 'pb-10' : 'pb-4'}`
       }`}
     >
       <GroupSymbol
@@ -87,30 +88,28 @@ export const GroupReminderCard: React.FC<GroupReminderCardProps> = ({
           {snoozedUntil}
         </div>
       )}
-      <div className="absolute top-2 right-2 flex">
-        {!snoozed && onSnooze && (
-          <button
-            type="button"
-            onClick={onSnooze}
-            aria-label={snoozeLabel}
-            title={snoozeLabel}
-            className={control}
-          >
-            <AlarmClock size={16} />
-          </button>
-        )}
-        {onDismiss && (
-          <button
-            type="button"
-            onClick={onDismiss}
-            aria-label={dismissLabel}
-            title={dismissLabel}
-            className={control}
-          >
-            <X size={16} />
-          </button>
-        )}
-      </div>
+      {onDismiss && (
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label={dismissLabel}
+          title={dismissLabel}
+          className={`absolute top-2 right-2 ${control}`}
+        >
+          <X size={16} />
+        </button>
+      )}
+      {canSnooze && (
+        <button
+          type="button"
+          onClick={onSnooze}
+          aria-label={snoozeLabel}
+          title={snoozeLabel}
+          className="absolute bottom-2 right-2 px-2 py-1 rounded-md text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-white/60 transition-colors"
+        >
+          {t('groupReminders.snooze', { defaultValue: 'Snooze' })}
+        </button>
+      )}
     </div>
   );
 };
