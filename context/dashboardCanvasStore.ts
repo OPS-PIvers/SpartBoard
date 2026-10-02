@@ -152,6 +152,7 @@ export type DashboardActions = Pick<
   | 'addTourWidget'
   | 'commitTourWidgets'
   | 'discardTourWidgets'
+  | 'setTourTransientSpawns'
 >;
 
 /** Mount-stable actions surface provided by DashboardProvider. */
@@ -384,46 +385,71 @@ export function useTourLayoutOverride(
   );
 }
 
-/** A live tour's temporary stacking and restore for one widget; never persisted. */
+/** A live tour's temporary stacking, restore and hiding for one widget; never persisted. */
 export interface TourWidgetPatch {
   z?: number;
   restored?: true;
+  /** Cleared off the stage for the tour; renders like a minimized widget. */
+  hidden?: true;
 }
 
 type TourPatches = ReadonlyMap<string, TourWidgetPatch>;
 
+// The runner's per-step patches, before hiding is merged in.
+let stepPatches: TourPatches = new Map();
+let tourHidden: ReadonlySet<string> = new Set();
 let tourPatches: TourPatches = new Map();
 const tourPatchListeners = new Set<() => void>();
+const tourHiddenListeners = new Set<() => void>();
 
 const samePatch = (a?: TourWidgetPatch, b?: TourWidgetPatch) =>
-  a === b || (!!a && !!b && a.z === b.z && a.restored === b.restored);
+  a === b ||
+  (!!a &&
+    !!b &&
+    a.z === b.z &&
+    a.restored === b.restored &&
+    a.hidden === b.hidden);
 
 // Widgets the teacher minimized during the tour; the tour stops un-minimizing them.
 let releasedRestores = new Set<string>();
 
-/** Replaces every tour widget patch; unchanged entries keep their identity. */
-export function setTourWidgetPatches(
-  next: ReadonlyMap<string, TourWidgetPatch>
-): void {
+const rebuildTourPatches = (): void => {
   const merged = new Map<string, TourWidgetPatch>();
-  let changed = next.size !== tourPatches.size;
-  for (const [id, raw] of next) {
-    const value =
-      raw.restored && releasedRestores.has(id)
-        ? { ...(raw.z === undefined ? {} : { z: raw.z }) }
-        : raw;
+  let changed = false;
+  const put = (id: string, value: TourWidgetPatch) => {
     const prev = tourPatches.get(id);
     if (prev && samePatch(prev, value)) merged.set(id, prev);
     else {
       merged.set(id, value);
       changed = true;
     }
+  };
+  for (const [id, raw] of stepPatches) {
+    const value =
+      raw.restored && releasedRestores.has(id)
+        ? { ...(raw.z === undefined ? {} : { z: raw.z }) }
+        : raw;
+    put(id, tourHidden.has(id) ? { ...value, hidden: true } : value);
   }
-  if (!changed) return;
+  for (const id of tourHidden) {
+    if (!stepPatches.has(id)) put(id, { hidden: true });
+  }
+  if (!changed && merged.size === tourPatches.size) return;
   tourPatches = merged;
   tourPatchListeners.forEach((l) => l());
+};
+
+/** Replaces every tour widget patch; unchanged entries keep their identity. */
+export function setTourWidgetPatches(
+  next: ReadonlyMap<string, TourWidgetPatch>
+): void {
+  const steps = new Map<string, TourWidgetPatch>();
+  for (const [id, { hidden: _hidden, ...rest }] of next) steps.set(id, rest);
+  stepPatches = steps;
+  rebuildTourPatches();
 }
 
+/** Drops the per-step patches; hidden widgets stay hidden until clearTourHidden. */
 export function clearTourWidgetPatches(): void {
   releasedRestores = new Set();
   setTourWidgetPatches(new Map());
@@ -431,9 +457,45 @@ export function clearTourWidgetPatches(): void {
 
 /** The teacher minimized a widget the tour had restored; let it stay minimized. */
 export function releaseTourRestore(widgetId: string): void {
-  if (!tourPatches.get(widgetId)?.restored) return;
+  if (!stepPatches.get(widgetId)?.restored) return;
   releasedRestores = new Set(releasedRestores).add(widgetId);
-  setTourWidgetPatches(tourPatches);
+  rebuildTourPatches();
+}
+
+/** Hides these widgets for the tour; render-only, never saved. */
+export function setTourHidden(ids: Iterable<string>): void {
+  const next = new Set(ids);
+  if (
+    next.size === tourHidden.size &&
+    [...next].every((id) => tourHidden.has(id))
+  )
+    return;
+  tourHidden = next;
+  tourHiddenListeners.forEach((l) => l());
+  rebuildTourPatches();
+}
+
+/** Brings every tour-hidden widget back. */
+export function clearTourHidden(): void {
+  setTourHidden([]);
+}
+
+export const getTourHidden = (): ReadonlySet<string> => tourHidden;
+
+const subscribeTourHidden = (listener: () => void) => {
+  tourHiddenListeners.add(listener);
+  return () => {
+    tourHiddenListeners.delete(listener);
+  };
+};
+
+/** Widget ids a live tour has cleared off the board. */
+export function useTourHidden(): ReadonlySet<string> {
+  return useSyncExternalStore(
+    subscribeTourHidden,
+    getTourHidden,
+    getTourHidden
+  );
 }
 
 export const getTourWidgetPatches = (): TourPatches => tourPatches;

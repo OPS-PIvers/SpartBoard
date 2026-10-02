@@ -57,6 +57,7 @@ const editorFor = (
     watchPace: set.watchPace,
     tourSetupWidgets: set.tourSetup?.widgets ?? [],
     tourSetupLayouts: set.tourSetup?.layouts ?? [],
+    tourUseTeacherBoard: !!set.tourSetup?.useTeacherBoard,
     setSteps: vi.fn(),
     canvasMeasurementsRef: { current: null },
     canvasMeasuredTick: 0,
@@ -160,6 +161,30 @@ describe('useSetDraftPersistence tour setup', () => {
     expect(build(buildSet(), { tourSetupWidgets: ['clock'] })).toMatchObject({
       tourSetup: { widgets: ['clock'] },
     });
+  });
+
+  it('saves the board opt-out only when ticked, and counts it as a change', () => {
+    expect(build(tourSet, { tourUseTeacherBoard: true })?.tourSetup).toEqual({
+      widgets: ['time-tool'],
+      useTeacherBoard: true,
+    });
+    const optedOut = buildSet({
+      isBuilding: true,
+      tourSetup: { widgets: [], useTeacherBoard: true },
+    });
+    expect(build(optedOut, { tourUseTeacherBoard: false })?.tourSetup).toEqual({
+      widgets: [],
+    });
+    const { result } = renderHook(() =>
+      useSetDraftPersistence({
+        isOpen: true,
+        set: optedOut,
+        editorState: editorFor(optedOut, { tourUseTeacherBoard: false }),
+        onSave: vi.fn(),
+        onClose: vi.fn(),
+      })
+    );
+    expect(result.current.isDirty).toBe(true);
   });
 
   it('counts a chip edit as a draft change', () => {

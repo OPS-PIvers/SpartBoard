@@ -66,9 +66,11 @@ export const TourDialog: React.FC<Props> = ({ title, body, children }) => {
         <h2 id="tour-dialog-title" className="text-base font-bold">
           {title}
         </h2>
-        <p className="mt-2 whitespace-pre-line text-sm text-slate-200">
-          {body}
-        </p>
+        {body && (
+          <p className="mt-2 whitespace-pre-line text-sm text-slate-200">
+            {body}
+          </p>
+        )}
         <div className="mt-4 flex justify-end gap-2">{children}</div>
       </div>
     </div>

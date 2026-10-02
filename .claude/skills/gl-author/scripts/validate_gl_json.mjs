@@ -159,6 +159,7 @@ function validateRegion(step, path) {
 const TOUR_KEYS = new Set([
   'anchor',
   'action',
+  'value',
   'fallback',
   'teacherMustClick',
   'slot',
@@ -281,8 +282,25 @@ function validateTour(step, path, ctx) {
     const problem = anchorProblem(tour.anchor, ctx);
     if (problem) fail(`${path}.tour.anchor "${tour.anchor}" ${problem}`);
   }
-  if (!['click', 'observe'].includes(tour.action)) {
-    fail(`${path}.tour.action must be click or observe`);
+  const valueType = {
+    click: 'undefined',
+    observe: 'undefined',
+    toggle: 'boolean',
+    select: 'string',
+    type: 'string',
+  }[tour.action];
+  if (!valueType) {
+    fail(`${path}.tour.action must be click, observe, toggle, select or type`);
+  } else if (typeof tour.value !== valueType) {
+    fail(
+      valueType === 'undefined'
+        ? `${path}.tour.value: a ${tour.action} step takes no value`
+        : `${path}.tour.value: a ${tour.action} step needs a ${valueType} value`
+    );
+  } else if (tour.action === 'type' && !tour.value.trim()) {
+    ctx.warn(
+      `${path}.tour.value is empty: Autopilot has nothing to type and Tour health flags the step`
+    );
   }
   if (
     tour.teacherMustClick !== undefined &&

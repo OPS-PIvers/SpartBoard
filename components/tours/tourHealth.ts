@@ -1,5 +1,6 @@
-import type { GuidedLearningSet } from '@/types';
+import type { GuidedLearningSet, GuidedLearningTourBinding } from '@/types';
 import {
+  anchorPrerequisite,
   isTourAnchorId,
   parseTourAnchorRef,
   TOUR_ANCHORS,
@@ -123,13 +124,16 @@ export function stepVerdict(
   if ((field?.misses.get(health.step.id) ?? 0) > 0) {
     return { state: 'broken', reason: 'field-misses' };
   }
-  const needs = anchorNeeds(health.step.tour.anchor);
+  const ref = health.step.tour.anchor;
+  // The runner opens a widget's settings drawer itself; it only needs the widget.
+  const opensDrawer = anchorPrerequisite(ref) === 'settings-open';
+  const needs = opensDrawer ? 'widget' : anchorNeeds(ref);
   const addsWidgets =
     (setup?.widgets.length ?? 0) > 0 || health.widgetSpawned === true;
   if (needs === 'widget' && !addsWidgets) {
     return { state: 'needs-open', reason: 'widget-not-added' };
   }
-  if (onScreen === false) {
+  if (onScreen === false && !opensDrawer) {
     if (needs === 'widget')
       return { state: 'needs-open', reason: 'needs-widget' };
     if (needs === 'panel')
@@ -153,3 +157,16 @@ export const worstState = (
     (worst, s) => (RANK[s] > RANK[worst] ? s : worst),
     'ok'
   );
+
+export type StepValueWarning = 'empty-value' | 'roster-name';
+
+/** A `type` step with nothing for Autopilot to type, or text that matches a roster name. */
+export function valueWarning(
+  binding: Pick<GuidedLearningTourBinding, 'action' | 'value'>,
+  matcher: { test: (text: string) => boolean } | null
+): StepValueWarning | null {
+  if (binding.action !== 'type') return null;
+  const text = typeof binding.value === 'string' ? binding.value.trim() : '';
+  if (!text) return 'empty-value';
+  return matcher?.test(text) ? 'roster-name' : null;
+}

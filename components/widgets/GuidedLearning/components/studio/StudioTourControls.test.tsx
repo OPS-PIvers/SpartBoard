@@ -48,11 +48,62 @@ describe('StudioTourControls', () => {
     expect(anchorSelect()).toHaveValue('');
     fireEvent.change(anchorSelect(), { target: { value: 'sidebar.boards' } });
     expect(last().tour).toEqual({ anchor: 'sidebar.boards', action: 'click' });
-    fireEvent.click(screen.getByRole('button', { name: 'Show it, then Next' }));
+    fireEvent.change(screen.getByLabelText('When the tour reaches this step'), {
+      target: { value: 'observe' },
+    });
     expect(last().tour).toEqual({
       anchor: 'sidebar.boards',
       action: 'observe',
     });
+  });
+
+  it('edits a recorded toggle as On or Off', () => {
+    const { last } = renderControls({
+      ...baseStep,
+      tour: {
+        anchor: 'settings.toggle:clock#format24',
+        action: 'toggle',
+        value: true,
+      },
+    });
+    expect(screen.getByRole('button', { name: 'On' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Off' }));
+    expect(last().tour?.value).toBe(false);
+  });
+
+  it('edits the typed text and warns when there is none', () => {
+    const { last } = renderControls({
+      ...baseStep,
+      tour: { anchor: 'sidebar.boards', action: 'type', value: '' },
+    });
+    expect(screen.getByTestId('gl-studio-tour-empty-value')).toBeVisible();
+    fireEvent.change(screen.getByLabelText('Autopilot types:'), {
+      target: { value: 'Warm up' },
+    });
+    expect(last().tour).toEqual({
+      anchor: 'sidebar.boards',
+      action: 'type',
+      value: 'Warm up',
+    });
+    expect(screen.queryByTestId('gl-studio-tour-empty-value')).toBeNull();
+  });
+
+  it('keeps a value only for kinds that use one of its shape', () => {
+    const { last } = renderControls({
+      ...baseStep,
+      tour: { anchor: 'sidebar.boards', action: 'select', value: 'serif' },
+    });
+    const action = screen.getByLabelText('When the tour reaches this step');
+    expect(screen.getByLabelText('Autopilot chooses:')).toHaveValue('serif');
+    fireEvent.change(action, { target: { value: 'type' } });
+    expect(last().tour).toMatchObject({ action: 'type', value: 'serif' });
+    fireEvent.change(action, { target: { value: 'toggle' } });
+    expect(last().tour).toMatchObject({ action: 'toggle', value: true });
+    fireEvent.change(action, { target: { value: 'click' } });
+    expect(last().tour).toEqual({ anchor: 'sidebar.boards', action: 'click' });
   });
 
   it('asks which widget for a per-type button and stores it in the ref', () => {
@@ -143,7 +194,9 @@ describe('StudioTourControls', () => {
       teacherMustClick: false,
     });
     expect(mustClick()).not.toBeChecked();
-    fireEvent.click(screen.getByRole('button', { name: 'Show it, then Next' }));
+    fireEvent.change(screen.getByLabelText('When the tour reaches this step'), {
+      target: { value: 'observe' },
+    });
     expect(mustClick()).toBeNull();
   });
 

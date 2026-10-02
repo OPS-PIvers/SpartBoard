@@ -37,6 +37,8 @@ export interface AnchorState {
   element: HTMLElement | null;
   rect: DOMRect | null;
   status: 'idle' | 'searching' | 'found' | 'missing';
+  /** A settings-drawer anchor that has been scrolled to the drawer's centre. */
+  centred?: boolean;
 }
 
 const IDLE: AnchorState = { element: null, rect: null, status: 'idle' };
@@ -49,6 +51,37 @@ const sameRect = (a: DOMRect | null, b: DOMRect | null) =>
     a.y === b.y &&
     a.width === b.width &&
     a.height === b.height);
+
+/** The scrolling body of the settings drawer around an anchor, if it sits in one. */
+export function drawerScroller(el: HTMLElement): HTMLElement | null {
+  const root = el.closest('[data-tour="settings.root"]');
+  if (!root) return null;
+  const view = el.ownerDocument.defaultView;
+  for (let n = el.parentElement; n && root.contains(n); n = n.parentElement) {
+    if (/(auto|scroll|overlay)/.test(view?.getComputedStyle(n).overflowY ?? ''))
+      return n;
+  }
+  return null;
+}
+
+/** Scrolls `scroller` so `el` sits in its vertical centre, clamped to the scroll range. */
+export function centreInScroller(el: HTMLElement, scroller: HTMLElement): void {
+  const box = scroller.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  const max = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+  const top =
+    scroller.scrollTop + (r.top - box.top) - (box.height - r.height) / 2;
+  const reduce =
+    el.ownerDocument.defaultView?.matchMedia?.(
+      '(prefers-reduced-motion: reduce)'
+    ).matches ?? false;
+  const next = Math.min(max, Math.max(0, Math.round(top)));
+  if (typeof scroller.scrollTo === 'function') {
+    scroller.scrollTo({ top: next, behavior: reduce ? 'auto' : 'smooth' });
+  } else {
+    scroller.scrollTop = next;
+  }
+}
 
 const isTourUi = (node: Node) =>
   (node instanceof Element ? node : node.parentElement)?.closest(
@@ -102,6 +135,9 @@ export function useAnchorElement(
     let element: HTMLElement | null = null;
     let lastRect: DOMRect | null = null;
     let scrolled = false;
+    // A drawer anchor is centred once the drawer stops moving, not when first found.
+    let scroller: HTMLElement | null = null;
+    let centred = false;
     let raf = 0;
     let searchTimer: ReturnType<typeof setTimeout> | undefined;
     let missTimer: ReturnType<typeof setTimeout> | undefined;
@@ -115,6 +151,7 @@ export function useAnchorElement(
         prev.key === key &&
         prev.status === next.status &&
         prev.element === next.element &&
+        prev.centred === next.centred &&
         sameRect(prev.rect, next.rect)
           ? prev
           : { ...next, key }
@@ -144,9 +181,19 @@ export function useAnchorElement(
       const next = el.getBoundingClientRect();
       const moved = !sameRect(lastRect, next);
       lastRect = next;
-      publish({ element: el, rect: next, status: 'found' });
+      const settled = !moved && !stillMoving();
+      if (scroller && !centred && settled) {
+        centred = true;
+        centreInScroller(el, scroller);
+      }
+      publish({
+        element: el,
+        rect: next,
+        status: 'found',
+        ...(centred ? { centred } : {}),
+      });
       // Keep following while it moves; stop reading layout once it settles.
-      if (moved || stillMoving()) schedule();
+      if (!settled) schedule();
     };
 
     const track = (found: HTMLElement) => {
@@ -155,7 +202,8 @@ export function useAnchorElement(
       clearTimeout(missTimer);
       if (!scrolled) {
         scrolled = true;
-        found.scrollIntoView?.({ block: 'nearest' });
+        scroller = drawerScroller(found);
+        if (!scroller) found.scrollIntoView?.({ block: 'nearest' });
       }
       if (typeof ResizeObserver !== 'undefined') {
         resizeObserver = new ResizeObserver(schedule);
@@ -285,5 +333,10 @@ export function useAnchorElement(
   if (state.key !== requestKey) {
     return { element: null, rect: null, status: 'searching' };
   }
-  return { element: state.element, rect: state.rect, status: state.status };
+  return {
+    element: state.element,
+    rect: state.rect,
+    status: state.status,
+    ...(state.centred ? { centred: true } : {}),
+  };
 }

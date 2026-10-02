@@ -195,6 +195,11 @@ export const hasStepSlide = (
   step: Pick<GuidedLearningStep, 'imageIndex'>
 ): boolean => !!set.imageUrls[step.imageIndex ?? 0];
 
+/** Every kind but `observe` is something the teacher does to the anchor. */
+export const isActedStep = (
+  binding: Pick<GuidedLearningTourBinding, 'action'> | undefined
+): boolean => !!binding && binding.action !== 'observe';
+
 /** Whether autopilot must leave this step's click to the teacher; fallback-only steps default to yes. */
 export const teacherMustClick = (
   binding: Pick<GuidedLearningTourBinding, 'anchor' | 'teacherMustClick'>

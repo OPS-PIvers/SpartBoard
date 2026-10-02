@@ -171,3 +171,24 @@ export function summarizeEngagement(
   const completed = docs.filter((d) => d.completed).length;
   return { viewers: docs.length, funnel, misclicksBySlide, completed };
 }
+
+/** One student's place in the set, for the per-student lines on Results and the hub. */
+export interface StudentProgressSummary {
+  furthestStepIdx: number;
+  completed: boolean;
+  /** Epoch ms of the last write; null while the server timestamp is pending or absent. */
+  updatedAt: number | null;
+}
+
+export function summarizeStudentProgress(raw: unknown): StudentProgressSummary {
+  const d = (raw ?? {}) as Record<string, unknown>;
+  const ts = d.updatedAt as { toMillis?: () => number } | undefined;
+  return {
+    furthestStepIdx: Math.max(
+      0,
+      typeof d.furthestStepIdx === 'number' ? d.furthestStepIdx : 0
+    ),
+    completed: d.completed === true,
+    updatedAt: typeof ts?.toMillis === 'function' ? ts.toMillis() : null,
+  };
+}

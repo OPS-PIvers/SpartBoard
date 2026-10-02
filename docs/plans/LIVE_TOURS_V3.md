@@ -137,7 +137,7 @@ Old sets keep working: `click` and `observe` steps behave as today, and a missin
   - `destructive-only`: today's rule.
   - `confirm`: never block; before a `destructive` or `persists` anchor, the tip asks "Autopilot will <label>. Go ahead?" with **Do it** / **I'll do it**.
   - A blocked step stops the cursor on the target and the tip says "You click this one". Under the whole-tour switch, Autopilot waits there and resumes after the teacher's click.
-- **`persists` audit (D14):** add `persists?: true` to `TourAnchorDef`, tag the ids in `TOUR_ANCHORS` that assign, share, publish, or change board or account settings, and list every tagged id in the PR description. Extend `tests/tourAnchors.test.ts` with the name check, and add `persists` to the `new-widget` checklist and `components/widgets/CLAUDE.md`.
+- **`persists` audit (D14):** add `persists?: true` to `TourAnchorDef`, tag the ids in `TOUR_ANCHORS` that assign, share, publish, or change board or account settings, and list every tagged id in the PR description. Extend `tests/tourAnchors.test.ts` with the name check, and add `persists` to the `new-widget` checklist and `components/widgets/CLAUDE.md`. **Shipped ahead of the rest of PR 5** (the tagging, the name check and the doc lines); PR 5 only reads the flag in `teacherMustClick` and the policy.
 - **Tests:** each action kind is performed and skipped when already in the target state; native and custom selects; typed text fires React's `onChange`; each policy blocks or confirms the right anchors; the switch's start follows `mode`; turning the switch off mid-step hands control back; a teacher's correct toggle advances a `toggle` step.
 
 ## PR descriptions must say
