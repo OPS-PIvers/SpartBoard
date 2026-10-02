@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import { auth, functions, isAuthBypass } from '@/config/firebase';
+import type { RosterBellPeriod } from '@/types';
 
 /**
  * Class metadata returned by the `getStudentClassDirectoryV1` callable.
@@ -16,6 +17,8 @@ export interface ClassDirectoryEntry {
   teacherDisplayNames?: string[];
   subject?: string;
   code?: string;
+  /** The building bell period the class meets in, when its roster has one. */
+  bellPeriod?: RosterBellPeriod;
 }
 
 export type DirectoryStatus = 'loading' | 'ready' | 'error';

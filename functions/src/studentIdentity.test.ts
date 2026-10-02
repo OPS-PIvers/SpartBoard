@@ -733,6 +733,30 @@ describe('getStudentClassDirectoryV1 — co-teachers, order and re-check', () =>
     ]);
   });
 
+  it('returns the bell period of the newest roster that has one', async () => {
+    h.docStore.set('users/t1/rosters/r1', {
+      classlinkClassId: 'ENG',
+      name: 'English 9',
+      bellPeriod: { buildingId: 'oms', periodId: '3' },
+      updatedAt: 100,
+    });
+    h.docStore.set('users/t2/rosters/r2', {
+      classlinkClassId: 'ENG',
+      name: 'English 9 Honors',
+      bellPeriod: null,
+      updatedAt: 200,
+    });
+    h.docStore.set('users/t/rosters/n', {
+      classlinkClassId: 'ART',
+      name: 'Art',
+      bellPeriod: { buildingId: 'oms', periodId: 7 },
+    });
+    const res = await callDirectory({ auth: studentAuth(['ENG', 'ART']) });
+    const byId = Object.fromEntries(res.classes.map((c) => [c.classId, c]));
+    expect(byId.ENG.bellPeriod).toEqual({ buildingId: 'oms', periodId: '3' });
+    expect('bellPeriod' in byId.ART).toBe(false);
+  });
+
   it('sorts classes by name', async () => {
     h.docStore.set('users/t/rosters/a', {
       classlinkClassId: 'A',
