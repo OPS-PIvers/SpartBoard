@@ -456,6 +456,10 @@ vi.mock('firebase-functions/v2/scheduler', () => ({
   onSchedule: (_options: unknown, handler: () => Promise<void>) => handler,
 }));
 
+vi.mock('firebase-functions/v2/storage', () => ({
+  onObjectFinalized: (_options: unknown, handler: unknown) => handler,
+}));
+
 // Mock firebase-functions/params (defineSecret)
 vi.mock('firebase-functions/params', () => ({
   defineSecret: (name: string) => ({
@@ -3512,6 +3516,11 @@ describe('index barrel — deployed export set', () => {
     'syncBuildingGroupV1',
     'onUserProfileBuildingsChangedV1',
     'setPlcNormingFlagV1',
+    'finalizePlcRecordingV1',
+    'deletePlcRecordingAudioV1',
+    'finalizeStalePlcRecordings',
+    'sweepPlcRecordingAudio',
+    'onPlcMeetingSegmentUploaded',
     'cleanupPlcNormingOnMembership',
     'cleanupPlcNormingOnResponseDelete',
     'cleanupPlcNormingOnSessionDelete',

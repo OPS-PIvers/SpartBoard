@@ -57,6 +57,7 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as admin from 'firebase-admin';
 import './functionsInit';
+import { adminAudioBucket, purgeRecording } from './plcRecordingCore';
 
 // ───────────────────────── tunables (per-run caps) ─────────────────────────
 
@@ -254,7 +255,15 @@ interface CategoryCounts {
   tombstones: number;
   versionOverflow: number;
   orphanAggregates: number;
+  orphanRecordings: number;
 }
+
+export type PurgeRecording = (
+  ref: admin.firestore.DocumentReference
+) => Promise<void>;
+
+const defaultPurgeRecording: PurgeRecording = (ref) =>
+  purgeRecording({ db: admin.firestore(), bucket: adminAudioBucket() }, ref);
 
 type Firestore = admin.firestore.Firestore;
 type QueryDocSnap = admin.firestore.QueryDocumentSnapshot;
@@ -417,7 +426,8 @@ async function fetchCategoryPaginated(
 async function sweepPlc(
   db: Firestore,
   plcRef: admin.firestore.DocumentReference,
-  now: number
+  now: number,
+  purge: PurgeRecording
 ): Promise<Omit<CategoryCounts, 'emptyGroups' | 'versionOverflow'>> {
   // (b) Activity events older than ~90 days. Query by createdAt where the
   // index allows; fall back to a bounded scan + client filter so the sweep
@@ -440,13 +450,20 @@ async function sweepPlc(
   // (d) Expired soft-delete tombstones across every soft-deletable subcollection.
   const expiredTombstones: admin.firestore.DocumentReference[] = [];
   const liveAssessmentIds = new Set<string>();
+  // Null when the notes scan hit its ceiling, so recordings are never judged against a partial list.
+  let liveNoteIds: Set<string> | null = null;
   for (const sub of SOFT_DELETE_SUBCOLLECTIONS) {
     const subDocs = await fetchCategoryPaginated(plcRef.collection(sub));
+    if (sub === 'notes' && subDocs.length < MAX_CATEGORY_SCAN_PER_PLC) {
+      liveNoteIds = new Set();
+    }
     for (const d of subDocs) {
       if (isExpiredTombstone(d.data().deletedAt, now)) {
         expiredTombstones.push(d.ref);
       } else if (sub === 'assessments' && d.data().deletedAt == null) {
         liveAssessmentIds.add(d.id);
+      } else if (sub === 'notes') {
+        liveNoteIds?.add(d.id);
       }
     }
   }
@@ -465,7 +482,43 @@ async function sweepPlc(
     deleteRefs(db, expiredTombstones),
     deleteRefs(db, orphanAggregates),
   ]);
-  return { activity, presence, tombstones, orphanAggregates: aggregates };
+  const orphanRecordings = liveNoteIds
+    ? await sweepOrphanRecordings(plcRef, liveNoteIds, purge)
+    : 0;
+  return {
+    activity,
+    presence,
+    tombstones,
+    orphanAggregates: aggregates,
+    orphanRecordings,
+  };
+}
+
+/** (g) Meeting recordings whose note no longer exists (purged above or earlier): audio, transcript and doc. */
+async function sweepOrphanRecordings(
+  plcRef: admin.firestore.DocumentReference,
+  liveNoteIds: Set<string>,
+  purge: PurgeRecording
+): Promise<number> {
+  const recordings = await fetchCategoryPaginated(
+    plcRef.collection('recordings')
+  );
+  let purged = 0;
+  for (const rec of recordings) {
+    const noteId: unknown = rec.data().noteId;
+    // A recording without a readable noteId is left alone rather than guessed at.
+    if (typeof noteId !== 'string' || noteId === '') continue;
+    if (liveNoteIds.has(noteId)) continue;
+    try {
+      await purge(rec.ref);
+      purged += 1;
+    } catch (err) {
+      console.error(
+        `[gcPlcOrphans] failed to purge recording ${rec.ref.path}: ${String(err)}`
+      );
+    }
+  }
+  return purged;
 }
 
 /**
@@ -475,7 +528,8 @@ async function sweepPlc(
  */
 export async function runGcPlcOrphans(
   db: Firestore,
-  now: number = Date.now()
+  now: number = Date.now(),
+  purge: PurgeRecording = defaultPurgeRecording
 ): Promise<CategoryCounts> {
   const counts: CategoryCounts = {
     emptyGroups: 0,
@@ -484,6 +538,7 @@ export async function runGcPlcOrphans(
     tombstones: 0,
     versionOverflow: 0,
     orphanAggregates: 0,
+    orphanRecordings: 0,
   };
 
   // (a) + (e) operate on the canonical synced-group collections (PLC-independent).
@@ -538,11 +593,12 @@ export async function runGcPlcOrphans(
 
     for (const plcDoc of page.docs) {
       plcsVisited += 1;
-      const perPlc = await sweepPlc(db, plcDoc.ref, now);
+      const perPlc = await sweepPlc(db, plcDoc.ref, now, purge);
       counts.activity += perPlc.activity;
       counts.presence += perPlc.presence;
       counts.tombstones += perPlc.tombstones;
       counts.orphanAggregates += perPlc.orphanAggregates;
+      counts.orphanRecordings += perPlc.orphanRecordings;
     }
 
     lastPlcDoc = page.docs[page.docs.length - 1];
@@ -579,7 +635,8 @@ export const gcPlcOrphans = onSchedule(
         `${counts.presence} stale presence docs, ` +
         `${counts.tombstones} expired tombstones, ` +
         `${counts.versionOverflow} overflow version snapshots, ` +
-        `${counts.orphanAggregates} orphan aggregates`
+        `${counts.orphanAggregates} orphan aggregates, ` +
+        `${counts.orphanRecordings} recordings of deleted notes`
     );
   }
 );
