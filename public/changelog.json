@@ -1,6 +1,29 @@
 {
   "entries": [
     {
+      "version": "2026.10.02.2",
+      "date": "2026-10-02",
+      "title": "Student assignment list fixes",
+      "overview": [
+        {
+          "type": "fix",
+          "subtitle": "Fixes",
+          "items": [
+            {
+              "text": "On a student's assignment list, a quiz or video activity they started but did not submit now shows In progress instead of looking finished."
+            },
+            {
+              "text": "Students see only the classes their teachers have set up in SpartBoard. If their classes fail to load, they see a Retry button instead of rows labeled Class."
+            },
+            {
+              "text": "The New Group and Add Student buttons no longer show two plus signs."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.10.02.1",
       "date": "2026-10-02",
       "title": "Fixes for PLC notes, lunch menus and sub plans",

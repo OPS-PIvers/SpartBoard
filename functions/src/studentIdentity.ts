@@ -392,6 +392,7 @@ export const studentLoginV1 = onCall(
         studentRole: true,
         orgId,
         classIds,
+        sso: true,
       });
     } catch (err) {
       console.error('[studentLoginV1] createCustomToken failed:', err);
@@ -512,9 +513,9 @@ export const getStudentClassDirectoryV1 = onCall(
 
     const db = admin.firestore();
 
-    // Stored sections widen the candidates; a record from another org is ignored.
+    // Stored sections widen the candidates, only for SSO tokens; a PIN token shares the uid but proves one class.
     let storedSectionIds: string[] | null = null;
-    if (orgId) {
+    if (orgId && request.auth.token.sso === true) {
       const sectionsSnap = await db
         .doc(`${STUDENT_SECTIONS_COLLECTION}/${uid}`)
         .get()
@@ -649,6 +650,7 @@ export const getStudentClassDirectoryV1 = onCall(
             studentRole: true,
             orgId,
             classIds: nextClaim,
+            sso: true,
           });
           listedIds = nextClaim;
         } catch (err) {
