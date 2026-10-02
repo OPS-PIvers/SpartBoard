@@ -122,6 +122,20 @@ describe('tour anchor registry', () => {
       if (requires.startsWith('widget-')) {
         expect('perWidget' in def || 'perWidgetType' in def, id).toBe(true);
       }
+      if (requires === 'settings-open') {
+        expect('perWidget' in def || 'perField' in def, id).toBe(true);
+      }
+    }
+  });
+
+  // Help-menu items (`settings.help-menu.*`) also need their menu clicked open.
+  it('opens the settings drawer for every drawer settings.* anchor', () => {
+    const settingsIds = Object.keys(TOUR_ANCHORS).filter((id) =>
+      /^settings\.[^.]+$/.test(id)
+    );
+    for (const id of settingsIds) {
+      const def: TourAnchorDef = TOUR_ANCHORS[id as keyof typeof TOUR_ANCHORS];
+      expect(def.requires, id).toBe('settings-open');
     }
   });
 });

@@ -115,13 +115,20 @@ ids, missing widget types or field keys, and widget types that don't
 exist.
 
 - **Prerequisites are automatic.** An anchor with `requires` (`dock-expanded`,
-  `widget-selected`, `widget-restored`, `in-view`) is set up by the runner
-  before it looks, so don't add a step just to open the dock or select a
-  widget unless teaching that is the point.
-- **Panels are not.** An anchor marked `panel` without `requires` (a menu
-  item, a library tab, anything in a widget's settings panel) is only
-  visible after something opens it, so an earlier step must open it with
-  `action: "click"`.
+  `widget-selected`, `widget-restored`, `in-view`, `settings-open`) is set up
+  by the runner before it looks, so don't add a step just to open the dock or
+  select a widget unless teaching that is the point.
+- **Settings steps open the drawer themselves.** Every `settings.*` anchor
+  carries `settings-open`: the runner selects the widget, opens its settings,
+  switches to the tab that holds the field, and scrolls the row to the middle
+  of the drawer. Don't add a gear-click (`widget.settings-opener`) step before
+  a settings step unless finding the gear is the lesson. The drawer stays open
+  across consecutive settings steps on the same widget and closes when a step
+  points elsewhere.
+- **Other panels are not.** An anchor marked `panel` without `requires` (a
+  menu item, a library tab, a `widget-settings.*` control inside a widget's
+  own settings) is only visible after something opens it, so an earlier step
+  must open it with `action: "click"`.
 - **Some chrome only exists in one state.** `dock.open-tools` shows only
   while the dock is collapsed. Start the tour from the state its first
   step needs, and let `checkAnchor` at the capture viewport decide what is reachable.
