@@ -90,6 +90,12 @@ const getConfirmVariantConfig = (
   return base;
 };
 
+// Enter on a focused button must activate that button, not the dialog's default action.
+const isEnterOnButton = (e: KeyboardEvent): boolean =>
+  e.key === 'Enter' &&
+  e.target instanceof Element &&
+  !!e.target.closest('button');
+
 // ─── Shared dialog shell ──────────────────────────────────────────────────────
 
 interface DialogShellProps {
@@ -217,7 +223,7 @@ const ConfirmDialog: React.FC<{
         e.preventDefault();
         e.stopImmediatePropagation();
         onCancel();
-      } else if (e.key === 'Enter' && !isDestructive) {
+      } else if (e.key === 'Enter' && !isDestructive && !isEnterOnButton(e)) {
         e.preventDefault();
         e.stopImmediatePropagation();
         onConfirm();
@@ -296,7 +302,7 @@ const PromptDialog: React.FC<{
         e.preventDefault();
         e.stopImmediatePropagation();
         onCancel();
-      } else if (e.key === 'Enter' && !multiline) {
+      } else if (e.key === 'Enter' && !multiline && !isEnterOnButton(e)) {
         e.preventDefault();
         e.stopImmediatePropagation();
         onConfirm(value);
