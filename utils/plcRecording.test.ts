@@ -63,6 +63,19 @@ describe('parsePlcRecording', () => {
     expect(r?.audioDeletedReason).toBe('manual');
     expect(r?.recoveredInto).toBe('r2');
     expect(r?.mergedSegments).toBe(3);
+    expect(r?.job).toBeNull();
+    expect(r?.hasTranscript).toBe(false);
+    const queued = parsePlcRecording('r', {
+      ...base,
+      status: 'transcribing',
+      job: 'summarize',
+      hasTranscript: true,
+      draft: { markdown: 'x', source: 'claude' },
+    });
+    expect(queued?.job).toBe('summarize');
+    expect(queued?.hasTranscript).toBe(true);
+    expect(queued?.draft?.source).toBe('claude');
+    expect(parsePlcRecording('r', { ...base, job: 'other' })?.job).toBeNull();
     expect(
       parsePlcRecording('r', { ...base, audioDeletedReason: 'oops' })
         ?.audioDeletedReason
@@ -100,6 +113,7 @@ describe('parsePlcRecording', () => {
         generatedBy: 'u1',
       },
     });
+    expect(r?.draft?.source).toBe('gemini');
     expect(r?.draft?.actionItems).toEqual([
       { id: 'a1', text: 'Email parents', suggestedOwnerUid: 'u2' },
     ]);

@@ -118,6 +118,7 @@ function parseDraft(raw: unknown): PlcRecordingDraft | null {
       .filter((i): i is PlcRecordingDraftActionItem => i !== null),
     generatedAt: tsToMillis(raw.generatedAt),
     generatedBy: typeof raw.generatedBy === 'string' ? raw.generatedBy : '',
+    source: raw.source === 'claude' ? 'claude' : 'gemini',
   };
 }
 
@@ -170,6 +171,9 @@ export function parsePlcRecording(
     recoveredInto: optionalString(data.recoveredInto),
     error: optionalString(data.error),
     requestedBy: optionalString(data.requestedBy),
+    job:
+      data.job === 'transcribe' || data.job === 'summarize' ? data.job : null,
+    hasTranscript: !!data.hasTranscript,
     draft: parseDraft(data.draft),
     draftResolvedAt: optionalMillis(data.draftResolvedAt),
     createdAt,
@@ -195,6 +199,7 @@ export function parsePlcRecordingTranscript(
     segments: raw
       .map(parseSegment)
       .filter((s): s is PlcTranscriptSegment => s !== null),
+    generatedAt: isRecord(data) ? optionalMillis(data.generatedAt) : null,
   };
 }
 

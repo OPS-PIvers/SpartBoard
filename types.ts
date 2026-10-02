@@ -918,6 +918,11 @@ export interface PlcRecordingPart {
   durationMs: number;
 }
 
+export type PlcRecordingDraftSource = 'gemini' | 'claude';
+
+/** The step a queued or transcribing run is on. */
+export type PlcRecordingJob = 'transcribe' | 'summarize';
+
 /** An action item drafted from a recording; the owner is only a suggestion (MR-D18). */
 export interface PlcRecordingDraftActionItem {
   id: string;
@@ -931,6 +936,8 @@ export interface PlcRecordingDraft {
   actionItems: PlcRecordingDraftActionItem[];
   generatedAt: number;
   generatedBy: string;
+  /** Who drafted it: Gemini from the audio, or Claude through the connector (MR-D21). */
+  source?: PlcRecordingDraftSource;
 }
 
 /** `plcs/{plcId}/recordings/{recordingId}`: one recording attached to a note. */
@@ -957,6 +964,9 @@ export interface PlcRecording {
   recoveredInto?: string | null;
   error?: string | null;
   requestedBy?: string | null;
+  job?: PlcRecordingJob | null;
+  /** True once `transcript/main` exists; picks Retry versus Regenerate without reading it. */
+  hasTranscript?: boolean;
   draft?: PlcRecordingDraft | null;
   draftResolvedAt?: number | null;
   createdAt: number;
@@ -972,6 +982,7 @@ export interface PlcTranscriptSegment {
 /** `plcs/{plcId}/recordings/{recordingId}/transcript/main`, written only by the server. */
 export interface PlcRecordingTranscript {
   segments: PlcTranscriptSegment[];
+  generatedAt?: number | null;
 }
 
 /**
