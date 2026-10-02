@@ -9,6 +9,8 @@ import {
   placeCallout,
   placePopover,
   rectOverlapArea,
+  tetherFor,
+  TETHER_INSET,
 } from './calloutPlacement';
 
 const CONTAINERS = [
@@ -302,5 +304,42 @@ describe('connectorFor', () => {
     const box = { x: 405, y: 250, w: 200, h: 80 };
     expect(boxCoversTarget(box, target)).toBe(false);
     expect(connectorFor(box, target)).not.toBeNull();
+  });
+});
+
+describe('tetherFor', () => {
+  const target: PxRect = { x: 400, y: 300, w: 80, h: 40 };
+  const container = { w: 1024, h: 768 };
+  const box = { w: 320, h: 120 };
+
+  it('puts the arrow on the edge facing the target, for every side', () => {
+    const edges = {
+      bottom: 'top',
+      top: 'bottom',
+      right: 'left',
+      left: 'right',
+    } as const;
+    for (const prefer of ['bottom', 'top', 'right', 'left'] as const) {
+      const p = placeCallout({ box, target, container, prefer });
+      expect(p.side).toBe(prefer);
+      const tether = tetherFor(
+        { x: p.left, y: p.top, w: p.width, h: box.h },
+        target
+      );
+      expect(tether?.edge).toBe(edges[prefer]);
+    }
+  });
+
+  it('aims at the target centre and stays off the corners', () => {
+    expect(tetherFor({ x: 300, y: 360, w: 320, h: 120 }, target)?.offset).toBe(
+      140
+    );
+    expect(tetherFor({ x: 600, y: 360, w: 320, h: 120 }, target)?.offset).toBe(
+      TETHER_INSET
+    );
+  });
+
+  it('has no arrow when the box overlaps the target', () => {
+    expect(tetherFor({ x: 380, y: 290, w: 320, h: 120 }, target)).toBeNull();
   });
 });

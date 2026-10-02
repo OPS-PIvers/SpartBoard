@@ -261,7 +261,10 @@ const start = async (set: GuidedLearningSet) => {
   await frames();
 };
 
-const progress = () => screen.getByText(/^\d+ \/ \d+$/).textContent;
+const progress = () =>
+  screen
+    .getByText(/^Step \d+ of \d+$/)
+    .textContent?.replace(/^Step (\d+) of (\d+)$/, '$1 / $2');
 
 const scrollIntoView = vi.fn();
 
@@ -844,6 +847,8 @@ describe('LiveTourRunner polish', () => {
 
 describe('LiveTourRunner modes', () => {
   const status = () => screen.queryByTestId('tour-auto-status');
+  const autopilotSwitch = () =>
+    screen.getByRole('switch', { name: 'Autopilot' });
   // Steps in small slices so each render's timers get scheduled.
   const run = async (ms = 50) => {
     for (let t = 0; t < ms; t += 50) await frames(Math.min(50, ms - t));
@@ -876,9 +881,7 @@ describe('LiveTourRunner modes', () => {
     expect(clicks).toEqual([]);
     expect(progress()).toBe('1 / 2');
     expect(status()).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Take over' })
-    ).not.toBeInTheDocument();
+    expect(autopilotSwitch()).toHaveAttribute('aria-checked', 'false');
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     await frames();
     expect(progress()).toBe('2 / 2');
@@ -1050,7 +1053,7 @@ describe('LiveTourRunner modes', () => {
     expect(status()).toHaveTextContent('Your turn');
   });
 
-  it('Guided: Take over switches the rest of the run to Structured', async () => {
+  it('Guided: switching Autopilot off hands the rest of the run to the teacher', async () => {
     await start(
       makeSet(
         [
@@ -1063,13 +1066,11 @@ describe('LiveTourRunner modes', () => {
     );
     const dice = recordEvents(screen.getByText('Dice'));
     const boards = recordEvents(screen.getByText('Boards'));
-    fireEvent.click(screen.getByRole('button', { name: 'Take over' }));
+    fireEvent.click(autopilotSwitch());
     await run(TRY_HINT_MS + 3000);
     expect(dice).toEqual([]);
     expect(status()).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Take over' })
-    ).not.toBeInTheDocument();
+    expect(autopilotSwitch()).toHaveAttribute('aria-checked', 'false');
     expect(screen.getByRole('button', { name: 'Show me' })).toBeInTheDocument();
     fireEvent.click(screen.getByText('Dice'));
     await frames();
@@ -1079,7 +1080,7 @@ describe('LiveTourRunner modes', () => {
     expect(progress()).toBe('2 / 2');
   });
 
-  it('Guided: Pause holds the step and Resume continues', async () => {
+  it('Guided: switching Autopilot off holds the step, and on continues', async () => {
     await start(
       makeSet(
         [
@@ -1093,17 +1094,17 @@ describe('LiveTourRunner modes', () => {
     const dice = recordEvents(screen.getByText('Dice'));
     await run(1800);
     expect(screen.getByTestId('gl-cursor')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    fireEvent.click(autopilotSwitch());
     await run(6000);
     expect(dice).toEqual([]);
-    expect(status()).toHaveTextContent('Paused');
-    fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
+    expect(status()).not.toBeInTheDocument();
+    fireEvent.click(autopilotSwitch());
     await run(4000);
     expect(dice).toEqual(AUTO_TYPES);
     expect(progress()).toBe('2 / 2');
   });
 
-  it('Guided: Pause after the auto-click holds the step, and Resume moves on', async () => {
+  it('Guided: switching off after the auto-click holds the step, and on moves on', async () => {
     await start(
       makeSet(
         [
@@ -1117,16 +1118,16 @@ describe('LiveTourRunner modes', () => {
     const dice = recordEvents(screen.getByText('Dice'));
     await run(4000);
     expect(dice).toEqual(AUTO_TYPES);
-    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    fireEvent.click(autopilotSwitch());
     await run(ANCHOR_SEARCH_MS + 1000);
     expect(progress()).toBe('1 / 2');
-    expect(status()).toHaveTextContent('Paused');
-    fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
+    expect(status()).not.toBeInTheDocument();
+    fireEvent.click(autopilotSwitch());
     await frames();
     expect(progress()).toBe('2 / 2');
   });
 
-  it('Guided: Take over after the auto-click stops the pending advance', async () => {
+  it('Guided: switching off after the auto-click stops the pending advance', async () => {
     await start(
       makeSet(
         [
@@ -1140,10 +1141,44 @@ describe('LiveTourRunner modes', () => {
     const dice = recordEvents(screen.getByText('Dice'));
     await run(4000);
     expect(dice).toEqual(AUTO_TYPES);
-    fireEvent.click(screen.getByRole('button', { name: 'Take over' }));
+    fireEvent.click(autopilotSwitch());
     await run(ANCHOR_SEARCH_MS + 1000);
     expect(progress()).toBe('1 / 2');
     expect(status()).not.toBeInTheDocument();
+  });
+
+  it('Structured: the Autopilot switch starts off and turning it on plays the step', async () => {
+    await start(
+      makeSet([
+        { anchor: 'dock.item:dice', action: 'click' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    const dice = recordEvents(screen.getByText('Dice'));
+    expect(autopilotSwitch()).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(autopilotSwitch());
+    await run(4000);
+    expect(dice).toEqual(AUTO_TYPES);
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it('Guided: Back switches Autopilot off', async () => {
+    await start(
+      makeSet(
+        [
+          { anchor: 'sidebar.boards', action: 'observe' },
+          { anchor: 'sidebar.classes', action: 'observe' },
+        ],
+        [],
+        'guided'
+      )
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await frames();
+    expect(progress()).toBe('1 / 2');
+    expect(autopilotSwitch()).toHaveAttribute('aria-checked', 'false');
   });
 
   it('Guided: falls back to the teacher when the click does not bring up the next anchor', async () => {
@@ -1676,11 +1711,13 @@ describe('LiveTourRunner stacking, feedback, reload and access', () => {
     );
     const announcer = screen.getByTestId('tour-announcer');
     expect(announcer).toHaveAttribute('aria-live', 'polite');
-    expect(announcer.textContent).toBe('1 / 2. Step 1. Your boards live here.');
+    expect(announcer.textContent).toBe(
+      'Step 1 of 2. Step 1. Your boards live here.'
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     await frames();
     expect(screen.getByTestId('tour-announcer').textContent).toBe(
-      '2 / 2. Step 2'
+      'Step 2 of 2. Step 2'
     );
   });
 
@@ -2448,6 +2485,43 @@ describe('LiveTourRunner robustness', () => {
     const callout = screen.getByTestId('tour-callout');
     expect(callout.style.top).not.toBe('66px');
     expect(callout.style.left).toBe('66px');
+  });
+
+  it('tethers the tip to its target and leaves a plain step untethered', async () => {
+    const set = withSteps(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'click' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ]),
+      [{}, { tour: undefined }]
+    );
+    await start(set);
+    expect(screen.getByTestId('tour-callout')).toHaveAttribute(
+      'data-tether',
+      'top'
+    );
+    expect(screen.getByTestId('tour-tip-arrow')).toBeInTheDocument();
+    const autoStep = screen.getByRole('button', {
+      name: 'Autopilot this step',
+    });
+    expect(autoStep).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames();
+    expect(screen.getByTestId('tour-callout')).not.toHaveAttribute(
+      'data-tether'
+    );
+    expect(screen.queryByTestId('tour-tip-arrow')).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Autopilot this step' })
+    ).toBeNull();
+  });
+
+  it('keeps the tour controls in a bar the tip stays clear of', async () => {
+    await start(makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]));
+    const bar = screen.getByRole('toolbar', { name: 'Tour controls' });
+    expect(bar).toHaveAttribute('data-tour-obstacle');
+    expect(bar.style.zIndex).toBe(String(Z_INDEX.tourCallout));
+    expect(bar).not.toContainElement(screen.getByTestId('tour-callout'));
   });
 
   it('places the callout below the target with nothing in the way', async () => {

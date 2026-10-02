@@ -9,16 +9,6 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import {
-  ChevronLeft,
-  Hand,
-  MousePointerClick,
-  Pause,
-  Play,
-  Volume2,
-  VolumeX,
-  X,
-} from 'lucide-react';
 import type {
   GuidedLearningPublicStep,
   GuidedLearningSet,
@@ -42,11 +32,11 @@ import { loadBuildingSet } from '@/hooks/useGuidedLearning';
 import { loadRunnableTour } from './publishedTours';
 import { Z_INDEX } from '@/config/zIndex';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
-import { placeCallout } from '@/components/widgets/GuidedLearning/utils/calloutPlacement';
 import {
-  CALLOUT_IN_MS,
-  cursorMs,
-} from '@/components/widgets/GuidedLearning/utils/motion';
+  placeCallout,
+  tetherFor,
+} from '@/components/widgets/GuidedLearning/utils/calloutPlacement';
+import { cursorMs } from '@/components/widgets/GuidedLearning/utils/motion';
 import { renderStepText } from '@/components/widgets/GuidedLearning/utils/richText';
 import { AnimatedCursor } from '@/components/widgets/GuidedLearning/components/player/AnimatedCursor';
 import { TRY_HINT_MS } from '@/components/widgets/GuidedLearning/components/player/playback';
@@ -97,6 +87,10 @@ import {
   waitFor,
 } from './autopilot';
 import { TourSpotlight } from './TourSpotlight';
+import { TourTip, type TourTipStatus } from './TourTip';
+import { TourBar } from './TourBar';
+import { centreTip } from './tipPlacement';
+import { primaryBtn, secondaryBtn } from './tourButtons';
 import {
   clearSavedTour,
   readSavedTour,
@@ -258,8 +252,9 @@ export const LiveTourRunner: React.FC = () => {
   const [tour, setTour] = useState<ActiveTour | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [box, setBox] = useState({ w: CALLOUT_WIDTH, h: 140 });
-  const [paused, setPaused] = useState(false);
-  const [takenOver, setTakenOver] = useState(false);
+  // The bar's Autopilot switch; handsOn marks a teacher who turned it off this run.
+  const [autoOn, setAutoOn] = useState(false);
+  const [handsOn, setHandsOn] = useState(false);
   const [auto, setAuto] = useState<{ key: string; stage: AutoStage } | null>(
     null
   );
@@ -540,8 +535,7 @@ export const LiveTourRunner: React.FC = () => {
   const needsPrereq =
     tour?.phase === 'running' &&
     !!binding &&
-    !paused &&
-    !takenOver &&
+    !handsOn &&
     !prereqSettled &&
     prereqDone !== prereqKey;
   useEffect(() => {
@@ -603,8 +597,8 @@ export const LiveTourRunner: React.FC = () => {
         ? startTourRunLog(set.id, uid, { v: set.updatedAt, furthest: index })
         : null;
     setAttempt(0);
-    setPaused(false);
-    setTakenOver(false);
+    setAutoOn(set.mode === 'guided');
+    setHandsOn(false);
     setAuto(null);
     setCue(null);
     setTour({
@@ -961,15 +955,24 @@ export const LiveTourRunner: React.FC = () => {
     });
   }, [missingStepId, setId, missingAnchor]);
 
+  // Re-places the tip after the bar is dragged.
+  const [, setBarMoves] = useState(0);
+  const onBarPlace = useCallback(() => setBarMoves((n) => n + 1), []);
   const rect = anchor.status === 'found' ? anchor.rect : null;
-  const placement = rect
-    ? placeCallout({
-        box,
-        target: { x: rect.x, y: rect.y, w: rect.width, h: rect.height },
-        container: viewport,
-        obstacles: tourObstacles(),
-      })
+  const target = rect
+    ? { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
     : null;
+  const obstacles = tour ? tourObstacles() : [];
+  const placement = target
+    ? placeCallout({ box, target, container: viewport, obstacles })
+    : null;
+  const tether =
+    placement && target
+      ? tetherFor(
+          { x: placement.left, y: placement.top, w: placement.width, h: box.h },
+          target
+        )
+      : null;
   const center = rect
     ? { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
     : null;
@@ -978,9 +981,8 @@ export const LiveTourRunner: React.FC = () => {
   const plain = running && !!step && !step.tour;
   const cursorAllowed =
     running && center !== null && isClick && !step?.cursor?.hide;
-  // Guided runs on autopilot until paused or taken over; everything else is Structured.
-  const guided = tour?.set.mode === 'guided' && !takenOver;
-  const autopilot = guided && !paused;
+  // Guided sets start with the Autopilot switch on; the teacher can flip it either way.
+  const autopilot = autoOn;
   const stepKey = `${stepIndex}:${attempt}`;
   const autoStage = auto?.key === stepKey ? auto.stage : null;
   const found = running && anchor.status === 'found';
@@ -1120,21 +1122,21 @@ export const LiveTourRunner: React.FC = () => {
     setAuto(null);
     setCue(null);
   };
-  const pause = () => {
-    setPaused(true);
+  const stopAutopilot = () => {
+    setAutoOn(false);
+    setHandsOn(true);
     autoWait.current?.abort();
     stopDemo();
   };
-  // Autopilot already clicked this step before the pause, so resuming moves on.
-  const resume = () => {
-    setPaused(false);
+  // Autopilot already clicked this step before it was switched off, so switching on moves on.
+  const setAutopilot = (on: boolean) => {
+    if (!on) {
+      stopAutopilot();
+      return;
+    }
+    setAutoOn(true);
+    setHandsOn(false);
     if (autoStage === 'waiting' && tour) goTo(tour.index + 1);
-  };
-  const takeOver = () => {
-    setTakenOver(true);
-    setPaused(false);
-    autoWait.current?.abort();
-    stopDemo();
   };
 
   // "Show me" replays the demo once.
@@ -1200,13 +1202,6 @@ export const LiveTourRunner: React.FC = () => {
       {actions}
     </TourDialog>
   );
-
-  const secondaryBtn =
-    'rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-200 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
-  const iconBtn =
-    'rounded-md p-0.5 text-slate-300 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
-  const primaryBtn =
-    'rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
 
   let content: React.ReactNode = null;
   let announcement = '';
@@ -1314,16 +1309,28 @@ export const LiveTourRunner: React.FC = () => {
       .filter(Boolean)
       .join('. ');
     const isMissing = anchor.status === 'missing';
-    const autoStatus =
-      !guided || !(found || plain)
-        ? null
-        : autoStage === 'yourTurn'
-          ? t('tours.yourTurn')
-          : autoStage === 'fallback'
-            ? t('tours.autoFallback')
-            : paused
-              ? t('tours.autoPaused')
-              : t('tours.autoPlaying');
+    const autoStatus: TourTipStatus | null =
+      autoOn && (found || plain)
+        ? {
+            text:
+              autoStage === 'yourTurn'
+                ? t('tours.yourTurn')
+                : autoStage === 'fallback'
+                  ? t('tours.autoFallback')
+                  : t('tours.autoPlaying'),
+            kind: waitingOnTeacher ? 'turn' : 'playing',
+            testId: 'tour-auto-status',
+          }
+        : null;
+    const status: TourTipStatus | null =
+      autoStatus ??
+      (staticHintOn
+        ? {
+            text: t('tours.yourTurn'),
+            kind: 'turn',
+            testId: 'tour-static-hint',
+          }
+        : null);
     // A step with no anchor shows its slide too, unless the slide would play media or a question.
     const plainSlide = plain && !PLAIN_SLIDE_SKIP.has(step.interactionType);
     const preview = (isMissing || plainSlide) && hasStepSlide(tour.set, step);
@@ -1331,6 +1338,9 @@ export const LiveTourRunner: React.FC = () => {
       preview ? PREVIEW_WIDTH : plain ? PLAIN_WIDTH : CALLOUT_WIDTH,
       viewport.w - VIEWPORT_GUTTER * 2
     );
+    const centred = placement
+      ? null
+      : centreTip({ w: width, h: box.h }, viewport, obstacles, VIEWPORT_GUTTER);
     const cueShown =
       cue &&
       center &&
@@ -1348,93 +1358,60 @@ export const LiveTourRunner: React.FC = () => {
             pulse={anchor.centred}
           />
         )}
-        <div
-          key={tour.index}
-          ref={measureBox}
-          role="dialog"
-          aria-modal="false"
-          aria-labelledby="tour-step-title"
-          tabIndex={-1}
-          data-tour-ignore=""
-          data-testid="tour-callout"
-          data-plain={plain ? '' : undefined}
-          className="fixed flex flex-col gap-2 rounded-2xl bg-slate-900/90 px-4 py-3 text-white shadow-2xl ring-1 ring-black/40 border border-white/20 backdrop-blur-xl leading-relaxed focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-          style={{
-            zIndex: Z_INDEX.tourCallout,
-            ...(placement
-              ? {
-                  left: placement.left,
-                  top: placement.top,
-                  width: placement.width,
+        <TourBar
+          current={tour.index + 1}
+          total={total}
+          onBack={
+            tour.index > 0
+              ? () => {
+                  // Autopilot never replays a click the teacher went back to see.
+                  if (autoOn) stopAutopilot();
+                  goTo(tour.index - 1);
                 }
-              : {
-                  left: Math.max(VIEWPORT_GUTTER, (viewport.w - width) / 2),
-                  top: Math.max(VIEWPORT_GUTTER, (viewport.h - box.h) / 2),
-                  width,
-                }),
-            animation: reducedMotion
-              ? undefined
-              : `gl-callout-in ${CALLOUT_IN_MS}ms ease-out both`,
-          }}
+              : undefined
+          }
+          onNext={() => goTo(tour.index + 1)}
+          onRetry={isMissing ? () => setAttempt((n) => n + 1) : undefined}
+          autopilot={{ on: autoOn, onChange: setAutopilot }}
+          readAloud={
+            canRead
+              ? { on: readAloud, onToggle: () => setReadAloud((on) => !on) }
+              : undefined
+          }
+          onExit={() => finish()}
+          onPlace={onBarPlace}
+        />
+        <TourTip
+          key={tour.index}
+          boxRef={measureBox}
+          headingRef={headingRef}
+          left={placement ? placement.left : (centred?.left ?? 0)}
+          top={placement ? placement.top : (centred?.top ?? 0)}
+          width={placement ? placement.width : width}
+          tether={tether}
+          plain={plain}
+          animate={!reducedMotion}
+          title={title}
+          looking={anchor.status === 'searching'}
+          status={status}
+          onShowMe={hintOn ? showMe : undefined}
+          autopilotStep={
+            step.tour && step.tour.action !== 'observe' ? {} : undefined
+          }
         >
-          <div className="flex items-start justify-between gap-3">
-            <div
-              id="tour-step-title"
-              ref={headingRef}
-              tabIndex={-1}
-              data-testid="tour-step-title"
-              className="font-bold tracking-tight text-white rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-            >
-              {title}
-            </div>
-            <div className="-mr-1 flex shrink-0 items-center gap-0.5">
-              {canRead && (
-                <button
-                  type="button"
-                  aria-pressed={readAloud}
-                  onClick={() => setReadAloud((on) => !on)}
-                  aria-label={t('glPlayer.readAloud')}
-                  title={t('glPlayer.readAloud')}
-                  className={iconBtn}
-                >
-                  {readAloud ? (
-                    <Volume2 className="h-4 w-4" aria-hidden="true" />
-                  ) : (
-                    <VolumeX className="h-4 w-4" aria-hidden="true" />
-                  )}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => finish()}
-                aria-label={t('tours.exit')}
-                title={t('tours.exit')}
-                className={iconBtn}
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
+          {preview && (
+            <Suspense fallback={null}>
+              <TourMiniPlayer set={tour.set} step={step} />
+            </Suspense>
+          )}
           {isMissing ? (
-            <>
-              {preview && (
-                <Suspense fallback={null}>
-                  <TourMiniPlayer set={tour.set} step={step} />
-                </Suspense>
+            <p className="text-sm text-slate-200">
+              {t(
+                preview ? 'tours.anchorMissingPreview' : 'tours.anchorMissing'
               )}
-              <p className="text-sm text-slate-200">
-                {t(
-                  preview ? 'tours.anchorMissingPreview' : 'tours.anchorMissing'
-                )}
-              </p>
-            </>
+            </p>
           ) : (
             <>
-              {preview && (
-                <Suspense fallback={null}>
-                  <TourMiniPlayer set={tour.set} step={step} />
-                </Suspense>
-              )}
               {step.text && (
                 <p className="text-sm text-slate-100">
                   {renderStepText(step.text)}
@@ -1447,116 +1424,7 @@ export const LiveTourRunner: React.FC = () => {
               )}
             </>
           )}
-          {anchor.status === 'searching' && (
-            <p role="status" className="text-xs text-slate-300">
-              {t('tours.looking')}
-            </p>
-          )}
-          {staticHintOn && !autoStatus && (
-            <p
-              role="status"
-              data-testid="tour-static-hint"
-              className="flex items-center gap-1.5 self-start rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-900"
-            >
-              <MousePointerClick className="h-3.5 w-3.5" aria-hidden="true" />
-              {t('tours.yourTurn')}
-            </p>
-          )}
-          {autoStatus && (
-            <p
-              role="status"
-              data-testid="tour-auto-status"
-              className={`flex items-center gap-1.5 self-start rounded-full px-2.5 py-1 text-xs font-semibold ${
-                waitingOnTeacher
-                  ? 'bg-white text-slate-900'
-                  : 'bg-white/10 text-slate-200'
-              }`}
-            >
-              {waitingOnTeacher ? (
-                <MousePointerClick className="h-3.5 w-3.5" aria-hidden="true" />
-              ) : paused ? (
-                <Pause className="h-3.5 w-3.5" aria-hidden="true" />
-              ) : (
-                <Play className="h-3.5 w-3.5" aria-hidden="true" />
-              )}
-              {autoStatus}
-            </p>
-          )}
-          {guided && (
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={paused ? resume : pause}
-                className={`${secondaryBtn} flex items-center gap-1`}
-              >
-                {paused ? (
-                  <Play className="h-3.5 w-3.5" aria-hidden="true" />
-                ) : (
-                  <Pause className="h-3.5 w-3.5" aria-hidden="true" />
-                )}
-                {paused ? t('tours.resume') : t('tours.pause')}
-              </button>
-              <button
-                type="button"
-                onClick={takeOver}
-                className={`${secondaryBtn} flex items-center gap-1`}
-              >
-                <Hand className="h-3.5 w-3.5" aria-hidden="true" />
-                {t('tours.takeOver')}
-              </button>
-            </div>
-          )}
-          <div className="mt-1 flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-slate-300">
-              {t('tours.progress', { current: tour.index + 1, total })}
-            </span>
-            <div className="flex items-center gap-1">
-              {tour.index > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    // Autopilot never replays a click the teacher went back to see.
-                    if (guided) setPaused(true);
-                    goTo(tour.index - 1);
-                  }}
-                  className={`${secondaryBtn} flex items-center gap-1`}
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                  {t('tours.back')}
-                </button>
-              )}
-              {hintOn && (
-                <button
-                  type="button"
-                  onClick={showMe}
-                  className={`${secondaryBtn} flex items-center gap-1`}
-                >
-                  <MousePointerClick
-                    className="h-3.5 w-3.5"
-                    aria-hidden="true"
-                  />
-                  {t('tours.showMe')}
-                </button>
-              )}
-              {isMissing && (
-                <button
-                  type="button"
-                  onClick={() => setAttempt((n) => n + 1)}
-                  className={secondaryBtn}
-                >
-                  {t('tours.retry')}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => goTo(tour.index + 1)}
-                className={primaryBtn}
-              >
-                {tour.index + 1 === total ? t('tours.done') : t('tours.next')}
-              </button>
-            </div>
-          </div>
-        </div>
+        </TourTip>
         {cueShown && (
           <div
             className="fixed inset-0"

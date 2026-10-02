@@ -253,6 +253,11 @@ body.is-dragging-widget video {
   }
 }
 
+/* Toasts drop below the live-tour bar so they never cover its controls. */
+body:has([data-tour-bar]) [data-toast-stack] {
+  top: calc(4.5rem + env(safe-area-inset-top, 0px)) !important;
+}
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

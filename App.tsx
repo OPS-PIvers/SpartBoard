@@ -311,6 +311,14 @@ const NotebookViewsDevHarness = import.meta.env.DEV
     )
   : null;
 
+const LiveTourViewsDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/LiveTourViewsDevHarness').then((module) => ({
+        default: module.LiveTourViewsDevHarness,
+      }))
+    )
+  : null;
+
 const FullPageLoader = () => (
   <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
     <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
@@ -909,6 +917,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <NotebookViewsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: live-tour tip and bar states against fake anchors.
+  if (
+    import.meta.env.DEV &&
+    LiveTourViewsDevHarness &&
+    pathname === '/live-tour-views-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <LiveTourViewsDevHarness />
       </Suspense>
     );
   }

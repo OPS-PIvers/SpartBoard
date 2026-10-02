@@ -332,3 +332,41 @@ export function placePopover(
   }
   return { left: best.x, top: best.y };
 }
+
+export interface TetherArrow {
+  /** The box edge the arrow sticks out of. */
+  edge: Side;
+  /** Px from the edge's start (left or top) to the arrow's point. */
+  offset: number;
+}
+
+/** Keeps a tether arrow clear of the box's rounded corners. */
+export const TETHER_INSET = 20;
+
+const OPPOSITE: Record<Side, Side> = {
+  top: 'bottom',
+  bottom: 'top',
+  left: 'right',
+  right: 'left',
+};
+
+/** Arrow on the box edge facing a target that sits wholly past that edge; null when they overlap. */
+export function tetherFor(box: PxRect, target: PxRect): TetherArrow | null {
+  if (rectOverlapArea(box, target) > 0) return null;
+  const edge = OPPOSITE[sideOf(box, target)];
+  const past =
+    edge === 'top'
+      ? target.y + target.h <= box.y
+      : edge === 'bottom'
+        ? target.y >= box.y + box.h
+        : edge === 'left'
+          ? target.x + target.w <= box.x
+          : target.x >= box.x + box.w;
+  if (!past) return null;
+  const horizontal = edge === 'top' || edge === 'bottom';
+  const length = horizontal ? box.w : box.h;
+  const along = horizontal
+    ? target.x + target.w / 2 - box.x
+    : target.y + target.h / 2 - box.y;
+  return { edge, offset: clamp(along, TETHER_INSET, length - TETHER_INSET) };
+}

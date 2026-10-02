@@ -4621,7 +4621,7 @@
     "anchorMissing": "Couldn't find this on your screen. Try again, or skip this step.",
     "anchorMissingPreview": "Couldn't find this on your screen. Here's what it looks like.",
     "looking": "Finding it on your screen…",
-    "progress": "{{current}} / {{total}}",
+    "progress": "Step {{current}} of {{total}}",
     "back": "Back",
     "retry": "Try again",
     "next": "Next",
@@ -4634,11 +4634,7 @@
     "offerStart": "Start",
     "offerNoThanks": "No thanks",
     "showMe": "Show me",
-    "pause": "Pause",
-    "resume": "Resume",
-    "takeOver": "Take over",
     "autoPlaying": "Playing each step for you",
-    "autoPaused": "Paused. Click the highlighted spot, or press Resume.",
     "yourTurn": "Your turn: click the highlighted spot",
     "autoFallback": "Click here to continue",
     "welcomeTitle": "Welcome",
@@ -4648,7 +4644,13 @@
     "resumeBody": "Resume the tour where you left off?",
     "resumeTour": "Resume tour",
     "removeAddedWidgets": "Remove added widgets",
-    "endTour": "End tour"
+    "endTour": "End tour",
+    "controls": "Tour controls",
+    "move": "Move tour controls",
+    "autopilot": "Autopilot",
+    "autopilotStep": "Autopilot this step",
+    "autopilotSoon": "Not ready yet",
+    "moveHint": "Drag to move. Double-click to put it back at the top."
   },
   "glPlayer": {
     "modeChip": {
