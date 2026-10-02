@@ -94,7 +94,11 @@ export const recomputeAdminAnalytics = onSchedule(
       const orgStartedAt = Date.now();
       let payload;
       try {
-        payload = await computeAnalyticsForOrg(orgId, { scheduled: true });
+        payload = await computeAnalyticsForOrg(
+          orgId,
+          { scheduled: true },
+          { record: true, estimate: true }
+        );
       } catch (err) {
         failed += 1;
         // Per-org failures must not abort the batch — a single misconfigured
