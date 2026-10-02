@@ -318,7 +318,12 @@ export function useMeetingRecorder(
   );
 
   const openPart = useCallback(
-    (stream: MediaStream) => {
+    (stream: MediaStream): boolean => {
+      // A stream that resolves after unmount would otherwise leave the mic on with nothing to stop it.
+      if (!mountedRef.current) {
+        stopTracks(stream);
+        return false;
+      }
       const session = sessionRef.current;
       if (!session) throw new Error('No recording session');
       const recorder = deps.createRecorder(stream);
@@ -358,6 +363,7 @@ export function useMeetingRecorder(
       track?.addEventListener('ended', () => onTrackEndedRef.current?.(part));
       activeRef.current = part;
       recorder.start(PLC_RECORDING_TIMESLICE_MS);
+      return true;
     },
     [deps, upload]
   );
@@ -438,11 +444,15 @@ export function useMeetingRecorder(
           setError(isPermissionError(err) ? 'mic-denied' : 'start-failed');
           return;
         }
+        if (!mountedRef.current) {
+          stopTracks(stream);
+          return;
+        }
         try {
           const id = await deps.backend.createRecording(input);
           sessionRef.current = { plcId: input.plcId, recordingId: id };
           if (mountedRef.current) setRecordingId(id);
-          openPart(stream);
+          if (!openPart(stream)) return;
           setPhase('recording');
         } catch (err) {
           stopTracks(stream);
@@ -497,9 +507,9 @@ export function useMeetingRecorder(
           setError(isPermissionError(err) ? 'mic-denied' : 'mic-lost');
           return;
         }
+        if (!openPart(stream)) return;
         clearPauseTimer();
         setError(null);
-        openPart(stream);
         setPhase('recording');
         await writeRecording({
           status: 'recording',
@@ -585,8 +595,12 @@ export function useMeetingRecorder(
         } catch {
           return;
         }
+        if (!mountedRef.current) {
+          stopTracks(stream);
+          return;
+        }
         await closePart();
-        openPart(stream);
+        if (!openPart(stream)) return;
         setMicFallback(false);
         await writeRecording({ parts: partsSnapshot(), heartbeat: true });
       }),
@@ -626,8 +640,8 @@ export function useMeetingRecorder(
         }, PLC_RECORDING_PAUSE_LIMIT_MS);
         return;
       }
-      openPart(stream);
-      if (mountedRef.current) setMicFallback(true);
+      if (!openPart(stream)) return;
+      setMicFallback(true);
       await writeRecording({ parts: partsSnapshot(), heartbeat: true });
     });
   };

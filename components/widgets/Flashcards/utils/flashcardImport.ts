@@ -1,4 +1,5 @@
 import type { FlashcardCard } from '@/types';
+import DOMPurify from 'dompurify';
 
 export type FlashcardImportSeparator =
   | 'auto'
@@ -234,7 +235,7 @@ const htmlCellText = (cell: HTMLTableCellElement): string => {
 const htmlTableRows = (html: string): string[][] | null => {
   if (!/<table[\s>]/i.test(html)) return null;
   const tables = new DOMParser()
-    .parseFromString(html, 'text/html')
+    .parseFromString(DOMPurify.sanitize(html), 'text/html')
     .querySelectorAll('table');
   if (tables.length !== 1) return null;
   return Array.from(tables[0].rows).map((row) =>

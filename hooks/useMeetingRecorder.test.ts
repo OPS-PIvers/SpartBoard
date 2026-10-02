@@ -414,4 +414,32 @@ describe('useMeetingRecorder', () => {
     expect(streams[0].track.stop).toHaveBeenCalled();
     expect(backend.finalize).not.toHaveBeenCalled();
   });
+  it('turns the mic off when the view closes while the mic prompt is open', async () => {
+    let grant: ((s: MediaStream) => void) | undefined;
+    const getStream = vi.fn(
+      () =>
+        new Promise<MediaStream>((resolve) => {
+          grant = resolve;
+        })
+    );
+    const hook = renderHook(() =>
+      useMeetingRecorder({ deps: makeDeps({ getStream }) })
+    );
+    await settle();
+    let started: Promise<void> = Promise.resolve();
+    act(() => {
+      started = hook.result.current.start(input);
+    });
+    await settle();
+    expect(getStream).toHaveBeenCalled();
+    hook.unmount();
+    const late = new FakeStream(null);
+    await act(async () => {
+      grant?.(late as unknown as MediaStream);
+      await started;
+    });
+    expect(late.track.stop).toHaveBeenCalled();
+    expect(backend.createRecording).not.toHaveBeenCalled();
+    expect(FakeRecorder.instances).toHaveLength(0);
+  });
 });
