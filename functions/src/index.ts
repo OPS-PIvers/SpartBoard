@@ -266,6 +266,13 @@ export {
   cleanupPlcNormingOnSessionDelete,
 } from './plcNorming';
 
+// PLC meeting notes: transcript and drafted notes from a recording (docs/plans/PLC_MEETING_RECORDING.md).
+export {
+  requestPlcMeetingNotesV1,
+  resolvePlcMeetingNotesDraftV1,
+  runPlcMeetingNotesJob,
+} from './plcMeetingNotes';
+
 // ── One-shot PLC migration (arrays→members map, orgId inference, aggregates
 // skeleton). Admin-only callable; see functions/src/migratePlcs.ts. ─────────
 export { migratePlcs } from './migratePlcs';

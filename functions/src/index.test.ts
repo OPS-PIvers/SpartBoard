@@ -3515,6 +3515,9 @@ describe('index barrel — deployed export set', () => {
     'cleanupPlcNormingOnMembership',
     'cleanupPlcNormingOnResponseDelete',
     'cleanupPlcNormingOnSessionDelete',
+    'requestPlcMeetingNotesV1',
+    'resolvePlcMeetingNotesDraftV1',
+    'runPlcMeetingNotesJob',
     // Dev-only prod → dev materials sync
     'syncMyMaterialsFromProdV1',
     'gradebookDemoV1',

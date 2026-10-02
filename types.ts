@@ -967,6 +967,8 @@ export interface PlcRecording {
   job?: PlcRecordingJob | null;
   /** True once `transcript/main` exists; picks Retry versus Regenerate without reading it. */
   hasTranscript?: boolean;
+  /** Last time a notes run was queued or claimed; a stale one can be retried. */
+  jobUpdatedAt?: number | null;
   draft?: PlcRecordingDraft | null;
   draftResolvedAt?: number | null;
   createdAt: number;

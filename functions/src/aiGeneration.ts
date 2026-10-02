@@ -480,14 +480,27 @@ function assertPermissionAllows(
   }
 }
 
+/** An extra per-user daily counter checked in the same transaction as the AI caps. */
+export interface AiExtraCap {
+  key: string;
+  limit: number;
+  message: string;
+}
+
+/** The `ai_usage` docs one successful charge incremented, so a failed run can be refunded. */
+export interface AiUsageCharge {
+  docIds: string[];
+}
+
 /** Non-admin gate for a dedicated AI function: `gemini-functions`, then the widget's own doc, then both daily caps. */
 async function enforceAiFeatureAccess(
   db: admin.firestore.Firestore,
   token: { email?: string; email_verified?: boolean },
   uid: string,
   featureId: string,
-  missingDocAllowed: boolean
-): Promise<void> {
+  missingDocAllowed: boolean,
+  extraCap?: AiExtraCap
+): Promise<AiUsageCharge> {
   const [geminiDoc, specDoc] = await Promise.all([
     db.collection('global_permissions').doc('gemini-functions').get(),
     db.collection('global_permissions').doc(featureId).get(),
@@ -526,10 +539,14 @@ async function enforceAiFeatureAccess(
   const specificRef = db
     .collection('ai_usage')
     .doc(`${uid}_${featureId}_${today}`);
+  const extraRef = extraCap
+    ? db.collection('ai_usage').doc(`${uid}_${extraCap.key}_${today}`)
+    : null;
   try {
     await db.runTransaction(async (transaction) => {
       const overallDoc = await transaction.get(overallRef);
       const specUsageDoc = await transaction.get(specificRef);
+      const extraDoc = extraRef ? await transaction.get(extraRef) : null;
       const overallUsage = (overallDoc.data()?.count as number) || 0;
       const overallLimit = pickOverallLimit(geminiPerm?.config, isExternal);
       if (
@@ -552,6 +569,11 @@ async function enforceAiFeatureAccess(
         }
       }
 
+      const extraUsage = (extraDoc?.data()?.count as number) || 0;
+      if (extraCap && extraUsage >= extraCap.limit) {
+        throw new HttpsError('resource-exhausted', extraCap.message);
+      }
+
       const lastUsed = admin.firestore.FieldValue.serverTimestamp();
       transaction.set(
         overallRef,
@@ -563,13 +585,42 @@ async function enforceAiFeatureAccess(
         { count: specificUsage + 1, email, lastUsed },
         { merge: true }
       );
+      if (extraRef) {
+        transaction.set(
+          extraRef,
+          { count: extraUsage + 1, email, lastUsed },
+          { merge: true }
+        );
+      }
     });
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     console.error(`[${featureId}] usage check error:`, error);
     throw new HttpsError('internal', 'Failed to verify AI usage limits.');
   }
+  return {
+    docIds: [overallRef.id, specificRef.id, ...(extraRef ? [extraRef.id] : [])],
+  };
 }
+
+/** Gives back one charge from {@link enforceAiFeatureAccess} when the run it paid for failed. */
+async function refundAiUsage(
+  db: admin.firestore.Firestore,
+  charge: AiUsageCharge
+): Promise<void> {
+  await db.runTransaction(async (transaction) => {
+    const refs = charge.docIds.map((id) => db.collection('ai_usage').doc(id));
+    const snaps = await Promise.all(refs.map((r) => transaction.get(r)));
+    snaps.forEach((snap, i) => {
+      const count = (snap.data()?.count as number) || 0;
+      if (count > 0)
+        transaction.set(refs[i], { count: count - 1 }, { merge: true });
+    });
+  });
+}
+
+// Shared with PLC meeting notes (functions/src/plcMeetingNotes.ts).
+export { enforceAiFeatureAccess, refundAiUsage, resolveCallerIsAdmin };
 
 export const generateWithAI = onCall(
   {

@@ -682,6 +682,23 @@
         "button": "Importar",
         "success": "Se importaron {{count}} tareas",
         "failed": "No se pudieron importar las tareas"
+      },
+      "meetingNotes": {
+        "transcript": "Transcripción",
+        "transcriptFailed": "No se pudo cargar la transcripción.",
+        "speaker": "Hablante {{n}}",
+        "actionFailed": "No funcionó. Inténtalo de nuevo.",
+        "insert": "Insertar",
+        "replace": "Reemplazar",
+        "regenerate": "Volver a generar",
+        "dismiss": "Descartar",
+        "draftedLine": "Borrador creado automáticamente a partir de la grabación. Revísalo antes de insertarlo.",
+        "working": "Creando notas",
+        "ready": "Notas listas",
+        "review": "Revisar",
+        "failed": "No se pudieron crear las notas",
+        "retry": "Reintentar",
+        "generate": "Generar notas"
       }
     },
     "notesDocs": {

@@ -26,6 +26,8 @@ export const PLC_RECORDING_SEGMENT_MAX_BYTES = 5 * 1024 * 1024;
 export const PLC_RECORDING_MAX_PARTS = 200;
 export const PLC_RECORDING_MIME = 'audio/webm;codecs=opus';
 export const PLC_RECORDING_CONTENT_TYPE = 'audio/webm';
+// Mirrors STALE_JOB_MS in functions/src/plcMeetingNotes.ts.
+export const STALE_NOTES_JOB_MS = 12 * 60 * 1000;
 
 const STATUSES: ReadonlySet<PlcRecordingStatus> = new Set<PlcRecordingStatus>([
   'recording',
@@ -176,6 +178,7 @@ export function parsePlcRecording(
     hasTranscript: !!data.hasTranscript,
     draft: parseDraft(data.draft),
     draftResolvedAt: optionalMillis(data.draftResolvedAt),
+    jobUpdatedAt: optionalMillis(data.jobUpdatedAt),
     createdAt,
   };
 }
