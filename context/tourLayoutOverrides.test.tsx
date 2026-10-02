@@ -2,11 +2,14 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   clearTourLayoutOverrides,
+  clearTourHidden,
   clearTourWidgetPatches,
+  getTourHidden,
   getTourLayoutOverrides,
   getTourWidgetPatches,
   releaseTourRestore,
   setTourLayoutOverrides,
+  setTourHidden,
   setTourWidgetPatches,
   useTourLayoutOverride,
   useTourWidgetPatch,
@@ -82,5 +85,46 @@ describe('tour widget patches', () => {
     clearTourWidgetPatches();
     setTourWidgetPatches(new Map([['w1', { restored: true }]]));
     expect(getTourWidgetPatches().get('w1')).toEqual({ restored: true });
+  });
+});
+
+describe('tour hidden widgets', () => {
+  afterEach(() => {
+    clearTourWidgetPatches();
+    clearTourHidden();
+  });
+
+  it('hides widgets alongside step patches until cleared', () => {
+    const { result } = renderHook(() => useTourWidgetPatch('w1'));
+    act(() => setTourHidden(['w1', 'w2']));
+    expect(result.current).toEqual({ hidden: true });
+    act(() => setTourWidgetPatches(new Map([['w1', { z: 4 }]])));
+    expect(result.current).toEqual({ z: 4, hidden: true });
+    // Per-step patches never drop or forge hiding.
+    act(() => setTourWidgetPatches(new Map([['w3', { hidden: true }]])));
+    expect(result.current).toEqual({ hidden: true });
+    expect(getTourWidgetPatches().get('w3')).toEqual({});
+    act(() => clearTourWidgetPatches());
+    expect(result.current).toEqual({ hidden: true });
+    expect([...getTourHidden()]).toEqual(['w1', 'w2']);
+    act(() => clearTourHidden());
+    expect(result.current).toBeUndefined();
+    expect(getTourWidgetPatches().size).toBe(0);
+  });
+
+  it('keeps entry identity when the same ids are hidden again', () => {
+    setTourHidden(['w1']);
+    const before = getTourWidgetPatches();
+    const hiddenBefore = getTourHidden();
+    setTourHidden(['w1']);
+    expect(getTourWidgetPatches()).toBe(before);
+    expect(getTourHidden()).toBe(hiddenBefore);
+  });
+
+  it('keeps a hidden widget hidden when the teacher minimizes it', () => {
+    setTourHidden(['w1']);
+    setTourWidgetPatches(new Map([['w1', { restored: true }]]));
+    releaseTourRestore('w1');
+    expect(getTourWidgetPatches().get('w1')).toEqual({ hidden: true });
   });
 });

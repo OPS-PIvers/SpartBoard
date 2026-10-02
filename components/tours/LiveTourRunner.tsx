@@ -29,8 +29,10 @@ import type {
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import {
+  clearTourHidden,
   clearTourLayoutOverrides,
   clearTourWidgetPatches,
+  setTourHidden,
   setTourLayoutOverrides,
   setTourWidgetPatches,
   type TourWidgetPatch,
@@ -132,6 +134,8 @@ interface ActiveTour {
   spawnWatch: SpawnWatch[];
   /** Minimized widgets a step showed for now; they minimize again when the tour ends. */
   restored: string[];
+  /** The teacher's widgets cleared off the stage until the tour ends. */
+  hidden: string[];
   draft?: boolean;
 }
 
@@ -141,6 +145,7 @@ const EMPTY_LAYER = {
   moved: {} as Record<number, TourWidgetLayout>,
   spawnWatch: [] as SpawnWatch[],
   restored: [] as string[],
+  hidden: [] as string[],
 };
 
 /** A step that opens a widget watches for it from the board it starts on. */
@@ -318,6 +323,15 @@ export const LiveTourRunner: React.FC = () => {
     else clearTourLayoutOverrides();
   }, [overridesKey]);
 
+  // The teacher's widgets stay off the stage through teardown; any ending brings them back.
+  const hiddenIds =
+    tour?.phase === 'running' || tour?.phase === 'teardown' ? tour.hidden : [];
+  const hiddenKey = hiddenIds.join(',');
+  useEffect(() => {
+    if (hiddenKey) setTourHidden(hiddenKey.split(','));
+    else clearTourHidden();
+  }, [hiddenKey]);
+
   // Undo for each prerequisite a step set up, run when the tour ends.
   const prereqUndos = useRef(new Map<string, () => void>());
   const undoPrerequisites = useCallback(() => {
@@ -332,6 +346,7 @@ export const LiveTourRunner: React.FC = () => {
       latest.current.dashboard.discardTourWidgets?.(tourIdsRef.current);
       clearTourLayoutOverrides();
       clearTourWidgetPatches();
+      clearTourHidden();
       undoPrerequisites();
     },
     [undoPrerequisites]
@@ -386,8 +401,11 @@ export const LiveTourRunner: React.FC = () => {
 
   const binding = step?.tour ?? null;
   const anchorScope = { widgetIds: added, slots: tour?.slots };
+  const onStage = hiddenIds.length
+    ? widgets.filter((w) => !hiddenIds.includes(w.id))
+    : widgets;
   const stepWidgetId = binding
-    ? prerequisiteWidgetId(binding, widgets, anchorScope)
+    ? prerequisiteWidgetId(binding, onStage, anchorScope)
     : null;
 
   // The anchor's widget comes to the front for the step, and restored widgets show; neither is saved.
@@ -506,9 +524,15 @@ export const LiveTourRunner: React.FC = () => {
     const slots: Record<number, string> = {};
     const moved: Record<number, TourWidgetLayout> = {};
     let missing: WidgetType[] = [];
-    if (set.tourSetup?.layouts?.length && d.addTourWidget) {
+    // A cleared stage hides the teacher's widgets and always adds fresh tour widgets.
+    const clearStage = !set.tourSetup?.useTeacherBoard && !!d.addTourWidget;
+    const hidden = clearStage
+      ? current.filter((w) => !w.transient).map((w) => w.id)
+      : [];
+    if (clearStage) setTourHidden(hidden);
+    if ((clearStage || set.tourSetup?.layouts?.length) && d.addTourWidget) {
       // Recorded layouts: unsaved tour widgets, and the teacher's own moved for now.
-      const plan = planTourSetup(set, steps, current);
+      const plan = planTourSetup(set, steps, clearStage ? [] : current);
       for (const { layout, widgetId } of plan.bind) {
         slots[layout.slot] = widgetId;
         moved[layout.slot] = layout;
@@ -559,6 +583,7 @@ export const LiveTourRunner: React.FC = () => {
         ...tourIds,
       ]),
       restored: [],
+      hidden,
       draft: opts.draft,
     });
   };
@@ -1197,8 +1222,8 @@ export const LiveTourRunner: React.FC = () => {
     );
   } else if (tour.phase === 'teardown') {
     content = dialog(
-      t('tours.keepWidgetsTitle'),
-      t('tours.keepWidgetsBody'),
+      t('tours.keepWidgetsTitle', { count: added.length }),
+      '',
       <>
         <button
           type="button"
@@ -1208,7 +1233,7 @@ export const LiveTourRunner: React.FC = () => {
             endTour();
           }}
         >
-          {t('tours.removeWidgets')}
+          {t('tours.putBoardBack')}
         </button>
         <button
           type="button"
