@@ -15,7 +15,7 @@ describe('flashcard character bars', () => {
 
   it('ignores language codes that match Object.prototype members', () => {
     expect(getFlashcardCharBar('constructor')).toEqual([]);
-    expect(getFlashcardCharBar('toString')).toEqual([]);
+    expect(getFlashcardCharBar('__proto__')).toEqual([]);
     expect(getFlashcardAnswerCharacters('constructor', ['año'])).toEqual(['ñ']);
   });
 
