@@ -2414,6 +2414,9 @@ const TeacherQuizWidget: React.FC<{
                 overridesBySourcedId: resolvedTargeting.overridesByKey,
                 openAt: resolvedTargeting.openAt ?? null,
                 closeAt: resolvedTargeting.closeAt ?? null,
+                ...(resolvedTargeting.workKind
+                  ? { workKind: resolvedTargeting.workKind }
+                  : {}),
                 ...(meta.translations
                   ? { translationIndex: meta.translations }
                   : {}),

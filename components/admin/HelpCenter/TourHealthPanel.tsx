@@ -1,6 +1,14 @@
-import React, { lazy, Suspense, useContext, useEffect, useState } from 'react';
+import React, {
+  lazy,
+  Suspense,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  AlertTriangle,
   CheckCircle2,
   Circle,
   Loader2,
@@ -11,6 +19,8 @@ import {
 import type { GuidedLearningSet } from '@/types';
 import { loadBuildingSet, useGuidedLearning } from '@/hooks/useGuidedLearning';
 import { AuthContext } from '@/context/AuthContextValue';
+import { DashboardContext } from '@/context/DashboardContextValue';
+import { buildNameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
 import { TOOLS } from '@/config/tools';
 import { requestRecordTour } from '@/components/tours/tourState';
 import { loadPublishedTour } from '@/components/tours/publishedTours';
@@ -20,8 +30,10 @@ import {
   fieldStatsOf,
   stepVerdict,
   tourHealthOf,
+  valueWarning,
   worstState,
   type StepHealthReason,
+  type StepValueWarning,
   type TourFieldStats,
   type TourHealthState,
 } from '@/components/tours/tourHealth';
@@ -59,6 +71,11 @@ const REASON_KEY: Record<StepHealthReason, string> = {
   'needs-widget': 'tourHealth.reason.needsWidget',
   'widget-not-added': 'tourHealth.reason.widgetNotAdded',
   'needs-panel': 'tourHealth.reason.needsPanel',
+};
+
+const VALUE_WARNING_KEY: Record<StepValueWarning, string> = {
+  'empty-value': 'tourHealth.valueWarning.emptyValue',
+  'roster-name': 'tourHealth.valueWarning.rosterName',
 };
 
 const StateIcon: React.FC<{ state: TourHealthState }> = ({ state }) =>
@@ -114,6 +131,11 @@ const TourHealthPanel: React.FC = () => {
 
   const canRecord =
     useContext(AuthContext)?.canAccessFeature('gl-live-tours') ?? false;
+  const rosters = useContext(DashboardContext)?.rosters;
+  const matcher = useMemo(
+    () => buildNameMatcher((rosters ?? []).flatMap((r) => r.students)),
+    [rosters]
+  );
 
   // The index says which sets have tours; only those are fetched, with their snapshot and runs.
   const tourKey = buildingSets
@@ -271,6 +293,7 @@ const TourHealthPanel: React.FC = () => {
                 {steps.map(({ step, number }, i) => {
                   const { state: stepState, reason } = verdicts[i];
                   const found = live?.get(step.id);
+                  const warning = valueWarning(step.tour, matcher);
                   const stepTitle = step.label?.trim()
                     ? step.label
                     : t('tourHealth.untitledStep');
@@ -294,6 +317,18 @@ const TourHealthPanel: React.FC = () => {
                               runs: field?.runs ?? 0,
                               widgets: widgetNames(set),
                             })}
+                          </span>
+                        )}
+                        {warning && (
+                          <span
+                            data-testid="tour-value-warning"
+                            className="mt-0.5 flex items-center gap-1 font-semibold text-amber-800"
+                          >
+                            <AlertTriangle
+                              className="w-3.5 h-3.5 shrink-0 text-amber-600"
+                              aria-hidden="true"
+                            />
+                            {t(VALUE_WARNING_KEY[warning])}
                           </span>
                         )}
                       </td>

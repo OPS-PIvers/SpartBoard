@@ -278,6 +278,15 @@ const LibraryManagersDevHarness =
         }))
       )
     : null;
+// Also built into auth-bypass (E2E) builds for the student page end-padding guard.
+const StudentLandingDevHarness =
+  import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
+    ? lazy(() =>
+        import('./components/dev/StudentLandingDevHarness').then((module) => ({
+          default: module.StudentLandingDevHarness,
+        }))
+      )
+    : null;
 const SessionViewsDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/SessionViewsDevHarness').then((module) => ({
@@ -298,6 +307,14 @@ const NotebookViewsDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/NotebookViewsDevHarness').then((module) => ({
         default: module.NotebookViewsDevHarness,
+      }))
+    )
+  : null;
+
+const LiveTourViewsDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/LiveTourViewsDevHarness').then((module) => ({
+        default: module.LiveTourViewsDevHarness,
       }))
     )
   : null;
@@ -841,6 +858,22 @@ const App: React.FC = () => {
     );
   }
 
+  // The student landing page on fixtures; auth-bypass only, so never on a deployed site.
+  if (
+    StudentLandingDevHarness &&
+    isAuthBypass &&
+    pathname === '/student-landing-dev'
+  ) {
+    return (
+      <DialogProvider>
+        <Suspense fallback={<FullPageLoader />}>
+          <StudentLandingDevHarness />
+        </Suspense>
+        <DialogContainer />
+      </DialogProvider>
+    );
+  }
+
   // DEV-ONLY: visual harness for the four live teacher session views (Quiz
   // Monitor / Quiz Results / VA Monitor / VA Results) against mock data, so
   // the redesign can be iterated without Firestore. Relies on
@@ -884,6 +917,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <NotebookViewsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: live-tour tip and bar states against fake anchors.
+  if (
+    import.meta.env.DEV &&
+    LiveTourViewsDevHarness &&
+    pathname === '/live-tour-views-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <LiveTourViewsDevHarness />
       </Suspense>
     );
   }

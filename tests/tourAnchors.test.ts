@@ -88,6 +88,32 @@ describe('tour anchor registry', () => {
     }
   });
 
+  it('flags assign, share, publish and delete anchors as persists or destructive', () => {
+    const OPENS_ONLY = new Set([
+      'sidebar.assignments',
+      'boards.share-board',
+      'boards.sub-share-copy-link',
+      'share-link.share-with-sub',
+      'sub-share.building',
+      'sub-share.email-input',
+      'sub-share.add-email',
+      'sub-share.done',
+      'quiz-settings.assignment-archive',
+      'activity-wall-editor.allow-delete',
+    ]);
+    const unflagged = Object.entries(TOUR_ANCHORS)
+      .filter(([id]) => /assign|share|publish|delete/.test(id))
+      .filter(([id, def]) => {
+        const d = def as TourAnchorDef;
+        return !d.persists && !d.destructive && !OPENS_ONLY.has(id);
+      })
+      .map(([id]) => id);
+    expect(
+      unflagged,
+      `Tag these \`persists\` or \`destructive\` in config/tourAnchors.ts, or add them to OPENS_ONLY if they only open a dialog or edit a draft: ${unflagged.join(', ')}`
+    ).toEqual([]);
+  });
+
   it('gives every prerequisite a known value, and widget ones a widget scope', () => {
     for (const [id, def] of Object.entries(TOUR_ANCHORS)) {
       const requires = (def as TourAnchorDef).requires;
@@ -96,6 +122,20 @@ describe('tour anchor registry', () => {
       if (requires.startsWith('widget-')) {
         expect('perWidget' in def || 'perWidgetType' in def, id).toBe(true);
       }
+      if (requires === 'settings-open') {
+        expect('perWidget' in def || 'perField' in def, id).toBe(true);
+      }
+    }
+  });
+
+  // Help-menu items (`settings.help-menu.*`) also need their menu clicked open.
+  it('opens the settings drawer for every drawer settings.* anchor', () => {
+    const settingsIds = Object.keys(TOUR_ANCHORS).filter((id) =>
+      /^settings\.[^.]+$/.test(id)
+    );
+    for (const id of settingsIds) {
+      const def: TourAnchorDef = TOUR_ANCHORS[id as keyof typeof TOUR_ANCHORS];
+      expect(def.requires, id).toBe('settings-open');
     }
   });
 });

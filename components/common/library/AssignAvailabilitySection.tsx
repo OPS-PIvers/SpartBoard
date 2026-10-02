@@ -10,6 +10,7 @@ import {
   type AvailabilityPoint,
   type AvailabilitySpec,
 } from '@/utils/assignAvailability';
+import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import {
   TagPrompt,
   type AssignPeriodAccessContext,
@@ -26,7 +27,17 @@ const PointField: React.FC<{
   bellAvailable: boolean;
   onChange: (point: AvailabilityPoint) => void;
   cqScaled?: boolean;
-}> = ({ label, side, point, minDay, bellAvailable, onChange, cqScaled }) => {
+  wideLabel?: boolean;
+}> = ({
+  label,
+  side,
+  point,
+  minDay,
+  bellAvailable,
+  onChange,
+  cqScaled,
+  wideLabel,
+}) => {
   const { t } = useTranslation();
   const dateId = useId();
   const [justPicked, setJustPicked] = useState(false);
@@ -43,7 +54,7 @@ const PointField: React.FC<{
     <div className="flex items-center gap-2">
       <label
         htmlFor={dateId}
-        className={`w-14 shrink-0 font-semibold text-slate-700 ${text}`}
+        className={`${wideLabel ? 'w-28' : 'w-14'} shrink-0 font-semibold text-slate-700 ${text}`}
         style={scaledFont(cqScaled, 14, 5.5)}
       >
         {label}
@@ -129,7 +140,17 @@ const SpecRows: React.FC<{
   backwards: boolean;
   onChange: (spec: AvailabilitySpec) => void;
   cqScaled?: boolean;
-}> = ({ spec, bellAvailable, backwards, onChange, cqScaled }) => {
+  resource?: boolean;
+  noEnd?: boolean;
+}> = ({
+  spec,
+  bellAvailable,
+  backwards,
+  onChange,
+  cqScaled,
+  resource,
+  noEnd,
+}) => {
   const { t } = useTranslation();
   return (
     <div className="space-y-2">
@@ -137,6 +158,7 @@ const SpecRows: React.FC<{
         label={t('assignAvailability.opens', 'Opens')}
         side="opens"
         point={spec.opens}
+        wideLabel={resource}
         bellAvailable={bellAvailable}
         onChange={(opens) => {
           const closes =
@@ -147,16 +169,23 @@ const SpecRows: React.FC<{
         }}
         cqScaled={cqScaled}
       />
-      <PointField
-        label={t('assignAvailability.closes', 'Closes')}
-        side="closes"
-        point={spec.closes}
-        minDay={spec.opens.day}
-        bellAvailable={bellAvailable}
-        onChange={(closes) => onChange({ ...spec, closes })}
-        cqScaled={cqScaled}
-      />
-      {backwards && (
+      {!noEnd && (
+        <PointField
+          label={
+            resource
+              ? t('assignAvailability.availableUntil', 'Available until')
+              : t('assignAvailability.closes', 'Closes')
+          }
+          side="closes"
+          point={spec.closes}
+          minDay={spec.opens.day}
+          wideLabel={resource}
+          bellAvailable={bellAvailable}
+          onChange={(closes) => onChange({ ...spec, closes })}
+          cqScaled={cqScaled}
+        />
+      )}
+      {backwards && !noEnd && (
         <p
           role="alert"
           className={`font-medium text-brand-red-primary ${cqScaled ? '' : 'text-xs'}`}
@@ -169,6 +198,58 @@ const SpecRows: React.FC<{
   );
 };
 
+const WorkKindToggle: React.FC<{
+  value: WorkKind;
+  onChange: (next: WorkKind) => void;
+  cqScaled?: boolean;
+}> = ({ value, onChange, cqScaled }) => {
+  const { t } = useTranslation();
+  const options: { id: WorkKind; label: string; hint: string }[] = [
+    {
+      id: 'work',
+      label: t('assignAvailability.submissionsEnabled', 'Submissions Enabled'),
+      hint: t(
+        'assignAvailability.submissionsHint',
+        'Students will submit this activity for grading. Unsubmitted assignments will be marked as missing or expired automatically.'
+      ),
+    },
+    {
+      id: 'resource',
+      label: t('assignAvailability.studyResource', 'Study Resource'),
+      hint: t(
+        'assignAvailability.studyResourceHint',
+        'Students can access this resource until it closes. Some activities allow you to track their progress, but students do not submit their work.'
+      ),
+    },
+  ];
+  return (
+    <div
+      role="radiogroup"
+      aria-label={t('assignAvailability.workKind', 'Student work')}
+      className="grid grid-cols-2 rounded-lg bg-slate-100 p-0.5"
+    >
+      {options.map((option) => (
+        <button
+          key={option.id}
+          type="button"
+          role="radio"
+          aria-checked={value === option.id}
+          title={option.hint}
+          onClick={() => onChange(option.id)}
+          className={`rounded-md px-2 py-1 font-semibold ${cqScaled ? '' : 'text-xs'} ${
+            value === option.id
+              ? 'bg-white text-slate-800 shadow-sm'
+              : 'text-slate-600 hover:text-slate-800'
+          }`}
+          style={scaledFont(cqScaled, 12, 4.5)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+};
+
 /** Opens, closes and late work for an assignment, for all checked classes or each one. */
 export const AssignAvailabilitySection: React.FC<{
   value: AssignAvailability;
@@ -177,9 +258,23 @@ export const AssignAvailabilitySection: React.FC<{
   rosters: ClassRoster[];
   periodAccess?: AssignPeriodAccessContext;
   cqScaled?: boolean;
-}> = ({ value, onChange, rosters, periodAccess, cqScaled }) => {
+  /** `study-resources` on: the kind this assignment saves as. */
+  workKind?: WorkKind;
+  /** Set when the teacher may switch; also receives the availability that fits the new kind. */
+  onWorkKindChange?: (next: WorkKind, availability: AssignAvailability) => void;
+}> = ({
+  value,
+  onChange,
+  rosters,
+  periodAccess,
+  cqScaled,
+  workKind,
+  onWorkKindChange,
+}) => {
   const { t } = useTranslation();
   const bellAvailable = !!periodAccess && rosters.length > 0;
+  const resource = workKind === 'resource';
+  const noEnd = resource && !!value.noEnd;
   const eachClass = !!value.byRoster && rosters.length > 1;
   const usesBell = (spec: AvailabilitySpec) =>
     spec.opens.time === 'bell' || spec.closes.time === 'bell';
@@ -235,6 +330,21 @@ export const AssignAvailabilitySection: React.FC<{
         )}
       </div>
 
+      {workKind && onWorkKindChange && (
+        <WorkKindToggle
+          value={workKind}
+          cqScaled={cqScaled}
+          onChange={(next) => {
+            if (next === workKind) return;
+            const { noEnd: _noEnd, ...rest } = value;
+            onWorkKindChange(
+              next,
+              next === 'resource' ? { ...rest, noEnd: true } : rest
+            );
+          }}
+        />
+      )}
+
       {eachClass ? (
         rosters.map((roster) => (
           <div key={roster.id} className="space-y-2">
@@ -259,6 +369,8 @@ export const AssignAvailabilitySection: React.FC<{
                 })
               }
               cqScaled={cqScaled}
+              resource={resource}
+              noEnd={noEnd}
             />
           </div>
         ))
@@ -269,6 +381,8 @@ export const AssignAvailabilitySection: React.FC<{
           backwards={closesBeforeOpens(value.all, rosters, bellWindow)}
           onChange={(all) => onChange({ ...value, all })}
           cqScaled={cqScaled}
+          resource={resource}
+          noEnd={noEnd}
         />
       )}
 
@@ -282,18 +396,36 @@ export const AssignAvailabilitySection: React.FC<{
           className={`font-semibold text-slate-700 ${cqScaled ? '' : 'text-sm'}`}
           style={scaledFont(cqScaled, 14, 5.5)}
         >
-          {t('assignAvailability.allowLate', 'Allow submissions after close')}
+          {resource
+            ? t('assignAvailability.noEndDate', 'No end date')
+            : t(
+                'assignAvailability.allowLate',
+                'Allow submissions after close'
+              )}
         </span>
-        <Toggle
-          size="xs"
-          showLabels={false}
-          checked={value.allowLate}
-          onChange={(allowLate) => onChange({ ...value, allowLate })}
-          label={t(
-            'assignAvailability.allowLate',
-            'Allow submissions after close'
-          )}
-        />
+        {resource ? (
+          <Toggle
+            size="xs"
+            showLabels={false}
+            checked={noEnd}
+            onChange={(next) => {
+              const { noEnd: _noEnd, ...rest } = value;
+              onChange(next ? { ...rest, noEnd: true } : rest);
+            }}
+            label={t('assignAvailability.noEndDate', 'No end date')}
+          />
+        ) : (
+          <Toggle
+            size="xs"
+            showLabels={false}
+            checked={value.allowLate}
+            onChange={(allowLate) => onChange({ ...value, allowLate })}
+            label={t(
+              'assignAvailability.allowLate',
+              'Allow submissions after close'
+            )}
+          />
+        )}
       </div>
     </div>
   );

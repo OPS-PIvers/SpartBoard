@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
-import { functions, isAuthBypass } from '@/config/firebase';
+import { auth, functions, isAuthBypass } from '@/config/firebase';
+import type { RosterBellPeriod } from '@/types';
 
 /**
  * Class metadata returned by the `getStudentClassDirectoryV1` callable.
@@ -10,16 +12,20 @@ import { functions, isAuthBypass } from '@/config/firebase';
 export interface ClassDirectoryEntry {
   classId: string;
   name: string;
+  /** Every teacher joined with " & "; co-taught sections list more than one. */
   teacherDisplayName: string;
+  teacherDisplayNames?: string[];
   subject?: string;
   code?: string;
+  /** The building bell period the class meets in, when its roster has one. */
+  bellPeriod?: RosterBellPeriod;
 }
 
 export type DirectoryStatus = 'loading' | 'ready' | 'error';
 
 export interface ClassDirectoryResult {
   status: DirectoryStatus;
-  /** Resolved entries in the order returned by the server (may be a subset of classIds). */
+  /** Classes that match a teacher roster, in server order; never a placeholder. */
   classes: ClassDirectoryEntry[];
   /** Lookup table keyed by classId for fast UI access. */
   byId: Record<string, ClassDirectoryEntry>;
@@ -49,6 +55,13 @@ const BYPASS_DIRECTORY: ClassDirectoryEntry[] = [
     subject: 'Demo',
   },
 ];
+
+interface DirectoryResponse {
+  classes?: ClassDirectoryEntry[];
+  /** Present when the server re-minted the classIds claim for this student. */
+  customToken?: string;
+  classIds?: string[];
+}
 
 interface FetchedSnapshot {
   key: string;
@@ -116,10 +129,10 @@ export function useStudentClassDirectory({
     if (directoryCache.has(cacheKey)) return;
 
     let cancelled = false;
-    const callable = httpsCallable<
-      Record<string, never>,
-      { classes?: ClassDirectoryEntry[] }
-    >(functions, 'getStudentClassDirectoryV1');
+    const callable = httpsCallable<Record<string, never>, DirectoryResponse>(
+      functions,
+      'getStudentClassDirectoryV1'
+    );
 
     callable({})
       .then((res) => {
@@ -129,6 +142,24 @@ export function useStudentClassDirectory({
           : [];
         directoryCache.set(cacheKey, list);
         setFetched({ key: cacheKey, status: 'ready', classes: list });
+        const { customToken, classIds: nextClassIds } = res.data ?? {};
+        if (customToken && pseudonymUid && Array.isArray(nextClassIds)) {
+          // Prime the post-refresh key so the new claim doesn't refetch.
+          directoryCache.set(
+            cacheKeyOf(pseudonymUid, nextClassIds.slice().sort().join('|')),
+            list
+          );
+          // Same uid, new claim: onIdTokenChanged picks up the added class.
+          signInWithCustomToken(auth, customToken).catch((err: unknown) => {
+            const code =
+              err && typeof err === 'object' && 'code' in err
+                ? String((err as { code?: unknown }).code)
+                : 'unknown';
+            console.error(
+              `[useStudentClassDirectory] token refresh failed [${code}]`
+            );
+          });
+        }
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -143,7 +174,7 @@ export function useStudentClassDirectory({
     return () => {
       cancelled = true;
     };
-  }, [cacheKey, retryNonce]);
+  }, [cacheKey, retryNonce, pseudonymUid]);
 
   const byId = useMemo<Record<string, ClassDirectoryEntry>>(() => {
     const out: Record<string, ClassDirectoryEntry> = {};

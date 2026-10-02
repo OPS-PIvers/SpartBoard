@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
 import { CheckCircle2, Loader2, Lock } from 'lucide-react';
-import { db, functions } from '@/config/firebase';
+import { db } from '@/config/firebase';
 import {
   KIND_CONFIG,
   applyResultsOverride,
@@ -16,6 +15,13 @@ import { logError } from '@/utils/logError';
 import { formatOpensLabel } from '@/utils/assignmentWindow';
 import { useServerNow } from '@/hooks/useServerNow';
 import { nextScheduledOpen, studentCanEnter } from '@/utils/periodAccess';
+import { readTurnInState } from '@/utils/studentTurnIn';
+import {
+  DOC_ID_STRATEGY,
+  OVERRIDE_KINDS,
+  RESPONSE_SUBCOLLECTION,
+  getCachedPseudonym,
+} from '@/utils/studentResponseDoc';
 
 /**
  * Lazy completion check — same pattern as the previous AssignmentCard but
@@ -45,86 +51,11 @@ import { nextScheduledOpen, studentCanEnter } from '@/utils/periodAccess';
  * page lifetime. Pseudonyms are stable for a given (uid, assignmentId).
  */
 
-let pseudonymCacheOwnerUid: string | null = null;
-let pseudonymCache: Map<string, Promise<string>> = new Map();
-
-function getCachedPseudonym(
-  sessionId: string,
-  pseudonymUid: string
-): Promise<string> {
-  if (pseudonymCacheOwnerUid !== pseudonymUid) {
-    pseudonymCache = new Map();
-    pseudonymCacheOwnerUid = pseudonymUid;
-  }
-  const cached = pseudonymCache.get(sessionId);
-  if (cached) return cached;
-
-  const callable = httpsCallable<
-    { assignmentId: string },
-    { pseudonym?: string }
-  >(functions, 'getAssignmentPseudonymV1');
-
-  const promise = callable({ assignmentId: sessionId }).then((res) => {
-    const p = res.data?.pseudonym;
-    if (typeof p !== 'string' || p.length === 0) {
-      throw new Error('Pseudonym missing from callable response.');
-    }
-    return p;
-  });
-
-  pseudonymCache.set(sessionId, promise);
-  promise.catch(() => {
-    if (pseudonymCache.get(sessionId) === promise) {
-      pseudonymCache.delete(sessionId);
-    }
-  });
-  return promise;
-}
-
-/**
- * Per-kind response/submission doc-id strategy. See the file header for the
- * keying contracts each session app actually writes under.
- *   - 'auth-uid'             — doc id == pseudonymUid (auth.uid).
- *   - 'assignment-pseudonym' — doc id == HMAC(uid, assignmentId) via the
- *                              `getAssignmentPseudonymV1` callable.
- *   - 'none'                 — no per-student doc id (e.g. activity-wall
- *                              writes a fresh UUID per submission); skip
- *                              the lazy completion check for this kind.
- */
-type DocIdStrategy = 'auth-uid' | 'assignment-pseudonym' | 'none';
-
-const DOC_ID_STRATEGY: Record<AssignmentSummary['kind'], DocIdStrategy> = {
-  quiz: 'auth-uid',
-  'video-activity': 'auth-uid',
-  'guided-learning': 'auth-uid',
-  'mini-app': 'assignment-pseudonym',
-  'activity-wall': 'none',
-  flashcards: 'auth-uid',
-  // A project's progress lives on a group doc keyed by group id, never by
-  // student, so there is no per-student doc to check for completion.
-  projects: 'none',
-};
-
-/** Subcollection that holds per-student response/submission docs. */
-const RESPONSE_SUBCOLLECTION: Record<AssignmentSummary['kind'], string | null> =
-  {
-    quiz: 'responses',
-    'video-activity': 'responses',
-    'guided-learning': 'responses',
-    'mini-app': 'submissions',
-    'activity-wall': 'submissions',
-    flashcards: 'progress',
-    projects: null,
-  };
-
-/** Kinds whose response doc can carry a per-student `resultsOverride`. */
-const OVERRIDE_KINDS: ReadonlySet<AssignmentSummary['kind']> = new Set([
-  'quiz',
-  'video-activity',
-  'guided-learning',
-]);
-
-export type CompletionState = 'unknown' | 'completed' | 'not-completed';
+export type CompletionState =
+  | 'unknown'
+  | 'completed'
+  | 'in-progress'
+  | 'not-completed';
 
 interface AssignmentListItemProps {
   assignment: AssignmentSummary;
@@ -210,15 +141,17 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
           )
         );
         if (cancelled) return;
-        // Flashcards: a Study is never completed; a Check is once graded.
-        // Guided learning saves answers as the student goes; completedAt marks the submit.
-        const done =
-          assignment.kind === 'flashcards'
-            ? snap.exists() && typeof snap.data()?.submittedAt === 'number'
-            : assignment.kind === 'guided-learning'
-              ? snap.exists() && typeof snap.data()?.completedAt === 'number'
-              : snap.exists();
-        const next: CompletionState = done ? 'completed' : 'not-completed';
+        const turnIn = readTurnInState(
+          assignment.kind,
+          assignment.flashcardKind,
+          snap.exists() ? (snap.data() as Record<string, unknown>) : null
+        );
+        const next: CompletionState =
+          turnIn === 'turned-in'
+            ? 'completed'
+            : turnIn === 'in-progress'
+              ? 'in-progress'
+              : 'not-completed';
         setCompletion(next);
         if (OVERRIDE_KINDS.has(assignment.kind) && snap.exists()) {
           setLockedOut(snap.data()?.resultsLockedOut === true);
@@ -240,6 +173,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   }, [
     assignment.sessionId,
     assignment.kind,
+    assignment.flashcardKind,
     pseudonymUid,
     config.collectionName,
     responseSub,
@@ -248,6 +182,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   ]);
 
   const isCompleted = completion === 'completed';
+  const isInProgress = completion === 'in-progress';
   // 'upcoming' rows are always locked (they haven't opened yet). 'closed'
   // rows lock only until the completion check confirms the student actually
   // submitted before the window closed — a genuinely-completed-but-closed
@@ -507,7 +442,13 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
             )}`}
             aria-hidden="true"
           >
-            {getChipLabel({ isPending, isCompleted, isGraded, isWallClosed })}
+            {getChipLabel({
+              isPending,
+              isCompleted,
+              isInProgress,
+              isGraded,
+              isWallClosed,
+            })}
           </span>
         )}
       </a>
@@ -529,6 +470,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
 /**
  * Status chip wording per row state.
  *  - Active row → "Open" (primary CTA)
+ *  - Started but not turned in → "In progress"
  *  - Completed row, grades not published → "Not graded"
  *  - Completed row, grades published → "View results"
  *  - Optimistically-surfaced row whose completion check hasn't resolved →
@@ -539,16 +481,19 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
 function getChipLabel({
   isPending,
   isCompleted,
+  isInProgress,
   isGraded,
   isWallClosed,
 }: {
   isPending: boolean;
   isCompleted: boolean;
+  isInProgress: boolean;
   isGraded: boolean;
   isWallClosed: boolean;
 }): string {
   if (isPending) return 'Checking…';
   if (isWallClosed) return 'Closed';
+  if (isInProgress) return 'In progress';
   if (!isCompleted) return 'Open';
   return isGraded ? 'View results' : 'Not graded';
 }

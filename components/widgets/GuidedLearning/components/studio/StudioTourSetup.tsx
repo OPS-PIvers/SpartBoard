@@ -16,6 +16,8 @@ interface StudioTourSetupProps {
   onChange: (widgets: WidgetType[]) => void;
   layouts?: readonly TourWidgetLayout[];
   onLayoutsChange?: (layouts: TourWidgetLayout[]) => void;
+  useTeacherBoard?: boolean;
+  onUseTeacherBoardChange?: (next: boolean) => void;
 }
 
 const INTERNAL_TOOLS: readonly InternalToolType[] = [
@@ -34,6 +36,8 @@ export const StudioTourSetup: React.FC<StudioTourSetupProps> = ({
   onChange,
   layouts = [],
   onLayoutsChange,
+  useTeacherBoard = false,
+  onUseTeacherBoardChange,
 }) => {
   const { t } = useTranslation();
   const dialog = useContext(DialogContext);
@@ -135,6 +139,24 @@ export const StudioTourSetup: React.FC<StudioTourSetupProps> = ({
             {t('glStudio.tourLayoutCapture')}
           </button>
         </div>
+      )}
+      {onUseTeacherBoardChange && (
+        <label className="flex items-start gap-2 text-xs text-slate-600">
+          <input
+            type="checkbox"
+            checked={useTeacherBoard}
+            onChange={(e) => onUseTeacherBoardChange(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-brand-blue-primary"
+          />
+          <span className="flex flex-col gap-0.5">
+            <span className="font-bold">
+              {t('glStudio.tourUseTeacherBoard')}
+            </span>
+            <span className="text-slate-500">
+              {t('glStudio.tourUseTeacherBoardHint')}
+            </span>
+          </span>
+        </label>
       )}
     </section>
   );

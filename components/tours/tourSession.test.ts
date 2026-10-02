@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { isDestructiveAnchor } from '@/config/tourAnchors';
+import { isDestructiveAnchor, isPersistsAnchor } from '@/config/tourAnchors';
 import type { GuidedLearningSet } from '@/types';
-import { liveTourStepsOf, teacherMustClick, tourWelcome } from './tourSession';
+import {
+  autopilotGate,
+  liveTourStepsOf,
+  resolveTourAutopilotPolicy,
+  teacherMustClick,
+  tourWelcome,
+} from './tourSession';
+
+const PERSISTS_ID = 'plc-edit.send-invite';
 
 describe('liveTourStepsOf', () => {
   const set = (steps: object[]) =>
@@ -41,27 +49,100 @@ describe('tourWelcome', () => {
 });
 
 describe('teacherMustClick', () => {
-  it('defaults to true only for anchors registered as destructive', () => {
+  it('flags destructive and persists anchors in the registry', () => {
     expect(isDestructiveAnchor('widget.close')).toBe(true);
     expect(isDestructiveAnchor('sidebar.clear-board')).toBe(true);
     expect(isDestructiveAnchor('sidebar.boards')).toBe(false);
     expect(isDestructiveAnchor('dock.item:dice')).toBe(false);
     expect(isDestructiveAnchor('nope')).toBe(false);
-    expect(teacherMustClick({ anchor: 'widget.close' })).toBe(true);
-    expect(teacherMustClick({ anchor: 'sidebar.boards' })).toBe(false);
+    expect(isPersistsAnchor('nope')).toBe(false);
+    expect(isPersistsAnchor('dock.item:dice')).toBe(false);
+    expect(isPersistsAnchor(PERSISTS_ID)).toBe(true);
+    expect(isDestructiveAnchor(PERSISTS_ID)).toBe(false);
   });
 
-  it('defaults to true for fallback-only steps', () => {
-    expect(teacherMustClick({ anchor: '' })).toBe(true);
-    expect(teacherMustClick({ anchor: 'not.registered' })).toBe(true);
+  it('destructive-only blocks destructive anchors and fallback-only steps', () => {
+    const p = 'destructive-only';
+    expect(teacherMustClick({ anchor: 'widget.close' }, p)).toBe(true);
+    expect(teacherMustClick({ anchor: 'sidebar.boards' }, p)).toBe(false);
+    expect(teacherMustClick({ anchor: '' }, p)).toBe(true);
+    expect(teacherMustClick({ anchor: 'not.registered' }, p)).toBe(true);
   });
 
-  it('lets the step override the default', () => {
+  it('destructive-only lets the step override the default', () => {
+    const p = 'destructive-only';
     expect(
-      teacherMustClick({ anchor: 'widget.close', teacherMustClick: false })
+      teacherMustClick({ anchor: 'widget.close', teacherMustClick: false }, p)
     ).toBe(false);
     expect(
-      teacherMustClick({ anchor: 'sidebar.boards', teacherMustClick: true })
+      teacherMustClick({ anchor: 'sidebar.boards', teacherMustClick: true }, p)
     ).toBe(true);
+  });
+
+  it('tour-safe also blocks persists anchors, whatever the step says', () => {
+    const p = 'tour-safe';
+    const persists = PERSISTS_ID;
+    expect(teacherMustClick({ anchor: persists }, p)).toBe(true);
+    expect(
+      teacherMustClick({ anchor: persists, teacherMustClick: false }, p)
+    ).toBe(true);
+    expect(
+      teacherMustClick({ anchor: 'widget.close', teacherMustClick: false }, p)
+    ).toBe(true);
+    expect(teacherMustClick({ anchor: 'sidebar.boards' }, p)).toBe(false);
+    expect(teacherMustClick({ anchor: '' }, p)).toBe(true);
+    expect(
+      teacherMustClick({ anchor: 'sidebar.boards', teacherMustClick: true }, p)
+    ).toBe(true);
+  });
+
+  it('confirm asks before destructive and persists anchors and blocks nothing else', () => {
+    const p = 'confirm';
+    expect(autopilotGate({ anchor: 'widget.close' }, p)).toBe('confirm');
+    expect(autopilotGate({ anchor: PERSISTS_ID }, p)).toBe('confirm');
+    expect(
+      autopilotGate({ anchor: PERSISTS_ID, teacherMustClick: false }, p)
+    ).toBe('confirm');
+    expect(autopilotGate({ anchor: 'sidebar.boards' }, p)).toBe('perform');
+    expect(
+      autopilotGate({ anchor: 'sidebar.boards', teacherMustClick: true }, p)
+    ).toBe('teacher');
+    expect(autopilotGate({ anchor: '' }, p)).toBe('teacher');
+    expect(teacherMustClick({ anchor: 'widget.close' }, p)).toBe(false);
+  });
+});
+
+describe('resolveTourAutopilotPolicy', () => {
+  const gl = (config?: Record<string, unknown>) => [
+    { widgetType: 'guided-learning' as const, config },
+  ];
+
+  it('defaults to tour-safe', () => {
+    expect(resolveTourAutopilotPolicy()).toBe('tour-safe');
+    expect(resolveTourAutopilotPolicy([])).toBe('tour-safe');
+    expect(resolveTourAutopilotPolicy(gl())).toBe('tour-safe');
+    expect(resolveTourAutopilotPolicy(gl({}))).toBe('tour-safe');
+  });
+
+  it('reads the saved policy from the Guided Learning permission', () => {
+    expect(
+      resolveTourAutopilotPolicy(gl({ tourAutopilotPolicy: 'confirm' }))
+    ).toBe('confirm');
+    expect(
+      resolveTourAutopilotPolicy(
+        gl({ tourAutopilotPolicy: 'destructive-only' })
+      )
+    ).toBe('destructive-only');
+  });
+
+  it('ignores unknown values and other widgets', () => {
+    expect(
+      resolveTourAutopilotPolicy(gl({ tourAutopilotPolicy: 'anything' }))
+    ).toBe('tour-safe');
+    expect(
+      resolveTourAutopilotPolicy([
+        { widgetType: 'quiz', config: { tourAutopilotPolicy: 'confirm' } },
+      ])
+    ).toBe('tour-safe');
   });
 });

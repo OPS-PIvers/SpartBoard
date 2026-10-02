@@ -3,6 +3,7 @@ import type React from 'react';
 import {
   BarChart,
   BellRing,
+  BookOpen,
   Bot,
   Building2,
   CalendarClock,
@@ -31,6 +32,7 @@ import {
   PanelLeftClose,
   PanelRight,
   Printer,
+  Route,
   Send,
   Share2,
   Smartphone,
@@ -768,6 +770,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Per-student slide position on GL results and the hub. Admin-only until Paul has seen it on real class data in prod.
+  'gl-student-progress': {
+    label: 'Guided Learning student progress',
+    icon: Route,
+    description: "Shows each student's slide and last activity.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Rich text PLC notes editor. Admin-only until Paul has run a PLC meeting on it in prod.
   'plc-notes-rich-editor': {
     label: 'PLC notes rich text editor',
@@ -902,6 +915,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Student Grades tab',
     icon: GraduationCap,
     description: 'Students see their published scores in My Assignments.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Student landing page redesign (docs/plans/STUDENT_LANDING_V2.md D26); students get it when their teacher passes the gate.
+  'student-landing-v2': {
+    label: 'Student landing page',
+    icon: LayoutDashboard,
+    description: 'The redesigned My Assignments page for students.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1075,6 +1099,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Availability and due date',
     icon: CalendarClock,
     description: 'Opens, closes and late work when assigning.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Assign dialogs' Submissions Enabled / Study Resource toggle. Off: every session uses its kind default (STUDENT_LANDING_V2 D8).
+  'study-resources': {
+    label: 'Study resources',
+    icon: BookOpen,
+    description:
+      'Mark an assignment as a study resource that students do not submit.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

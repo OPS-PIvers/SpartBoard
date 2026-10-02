@@ -13,6 +13,12 @@ import {
   type AssignmentSummary,
 } from '@/hooks/useStudentAssignments';
 import { useStudentClassDirectory } from '@/hooks/useStudentClassDirectory';
+import { useStudentLandingV2Enabled } from '@/hooks/useStudentLandingV2';
+import { useStudentBellSchedules } from '@/hooks/useStudentBellSchedules';
+import {
+  pickClassInSession,
+  sortClassesByBell,
+} from '@/utils/studentClassOrder';
 import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
 import { getWindowState } from '@/utils/assignmentWindow';
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
@@ -27,6 +33,8 @@ import {
 } from '@/utils/myAssignmentsPath';
 import { type AssignmentFilterMode } from './AssignmentFilterTabs';
 import type { CompletionState } from './AssignmentListItem';
+import { StudentLandingV2 } from './landing/StudentLandingV2';
+import type { LandingTab } from './landing/types';
 
 /**
  * /my-assignments — class-aware student dashboard.
@@ -49,6 +57,8 @@ import type { CompletionState } from './AssignmentListItem';
  * completion check on each row. See AssignmentSections for the rule.
  */
 
+const REFOCUS_RESELECT_MS = 10 * 60 * 1000;
+
 const FILTER_STORAGE_KEY = 'sb_my_assignments_filter';
 
 const isFilterMode = (v: unknown): v is AssignmentFilterMode =>
@@ -65,6 +75,15 @@ const MyAssignmentsPage: React.FC = () => {
   const { classIds, pseudonymUid, firstName, signOut } = useStudentAuth();
 
   const directory = useStudentClassDirectory({ classIds, pseudonymUid });
+  const landingV2 = useStudentLandingV2Enabled(pseudonymUid);
+  const bell = useStudentBellSchedules(landingV2 === true);
+  const classes = useMemo(
+    () =>
+      landingV2
+        ? sortClassesByBell(directory.classes, bell.scheduleFor)
+        : directory.classes,
+    [landingV2, directory.classes, bell.scheduleFor]
+  );
   const {
     loadState,
     assignments: allAssignments,
@@ -106,6 +125,46 @@ const MyAssignmentsPage: React.FC = () => {
     initialPath.classId
   );
   const [classTab, setClassTab] = useState<StudentClassTab>(initialPath.tab);
+  const [landingTab, setLandingTab] = useState<LandingTab>(
+    initialPath.tab === 'grades' ? 'completed' : 'assignments'
+  );
+
+  // A class from the URL or a tap is the student's pick; auto-select never overrides it.
+  const [picked, setPicked] = useState(initialPath.classId !== null);
+  const [autoSelectDone, setAutoSelectDone] = useState(false);
+  const autoSelectReady =
+    landingV2 !== null &&
+    directory.status === 'ready' &&
+    (landingV2 === false || bell.status !== 'loading');
+  if (autoSelectReady && !autoSelectDone) {
+    setAutoSelectDone(true);
+    if (landingV2 && !picked) {
+      setActiveClassId(
+        pickClassInSession(classes, bell.scheduleFor, getServerNow())
+      );
+    }
+  }
+  const hiddenAtRef = useRef<number | null>(null);
+  const reselectOnRefocus = landingV2 === true && !picked;
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAtRef.current = Date.now();
+        return;
+      }
+      const hiddenAt = hiddenAtRef.current;
+      hiddenAtRef.current = null;
+      if (!reselectOnRefocus || hiddenAt === null) return;
+      if (Date.now() - hiddenAt <= REFOCUS_RESELECT_MS) return;
+      setActiveClassId(
+        pickClassInSession(classes, bell.scheduleFor, getServerNow())
+      );
+      setClassTab('assignments');
+      setLandingTab('assignments');
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [reselectOnRefocus, classes, bell.scheduleFor]);
   const syncPath = useCallback(
     (classId: string | null, tab: StudentClassTab) => {
       if (!gradesEnabled || typeof window === 'undefined') return;
@@ -117,6 +176,13 @@ const MyAssignmentsPage: React.FC = () => {
     (tab: StudentClassTab) => {
       setClassTab(tab);
       syncPath(activeClassId, tab);
+    },
+    [activeClassId, syncPath]
+  );
+  const handleLandingTabChange = useCallback(
+    (tab: LandingTab) => {
+      setLandingTab(tab);
+      syncPath(activeClassId, tab === 'completed' ? 'grades' : 'assignments');
     },
     [activeClassId, syncPath]
   );
@@ -134,8 +200,10 @@ const MyAssignmentsPage: React.FC = () => {
   // on the chosen view immediately. Desktop keeps it open across navigations.
   const handleSelectClass = useCallback(
     (classId: string | null) => {
+      setPicked(true);
       setActiveClassId(classId);
       setClassTab('assignments');
+      setLandingTab('assignments');
       syncPath(classId, 'assignments');
       if (
         typeof window !== 'undefined' &&
@@ -201,8 +269,11 @@ const MyAssignmentsPage: React.FC = () => {
   // an effect — keeps setState out of effect bodies and avoids a stale
   // intermediate render where the user sees a class that's no longer in
   // their roster.
-  const effectiveClassId =
-    activeClassId && classIds.includes(activeClassId) ? activeClassId : null;
+  const activeClassEntry =
+    activeClassId && classIds.includes(activeClassId)
+      ? directory.byId[activeClassId]
+      : undefined;
+  const effectiveClassId = activeClassEntry ? activeClassEntry.classId : null;
 
   // Per-row completion resolutions, fed from AssignmentListItem callbacks.
   // Stored at the page level so changing classes / filter modes doesn't
@@ -267,6 +338,13 @@ const MyAssignmentsPage: React.FC = () => {
         // 'not-completed' (student wasn't part of this session), the row
         // drops out on the next pass.
         if (completion === 'not-completed') continue;
+        // Quiz and video rows were visible once a response doc existed; keep them, unchecked.
+        if (completion === 'in-progress') {
+          if (a.kind === 'quiz' || a.kind === 'video-activity') {
+            completed.push(a);
+          }
+          continue;
+        }
         completed.push(a);
         pendingVerificationKeys.add(a.compositeId);
         continue;
@@ -315,7 +393,12 @@ const MyAssignmentsPage: React.FC = () => {
   }, [signOut]);
 
   // ────────── Loading / no-classes / error gates (top-level guards) ──────────
-  if (loadState === 'loading') {
+  if (
+    loadState === 'loading' ||
+    directory.status === 'loading' ||
+    landingV2 === null ||
+    (landingV2 && bell.status === 'loading')
+  ) {
     return (
       <StudentPageShell onDone={handleDone}>
         <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 text-slate-500">
@@ -326,7 +409,21 @@ const MyAssignmentsPage: React.FC = () => {
     );
   }
 
-  if (classIds.length === 0) {
+  if (directory.status === 'error') {
+    return (
+      <StudentPageShell onDone={handleDone}>
+        <FullEmpty
+          icon={AlertTriangle}
+          title="We couldn't load your classes"
+          body="Check your connection and try again."
+          tone="error"
+          action={{ label: 'Retry', onClick: directory.retry }}
+        />
+      </StudentPageShell>
+    );
+  }
+
+  if (classIds.length === 0 || directory.classes.length === 0) {
     return (
       <StudentPageShell onDone={handleDone}>
         <FullEmpty
@@ -352,20 +449,42 @@ const MyAssignmentsPage: React.FC = () => {
     );
   }
 
+  if (landingV2) {
+    return (
+      <StudentLandingV2
+        classes={classes}
+        scheduleFor={bell.scheduleFor}
+        assignments={assignments}
+        pseudonymUid={pseudonymUid}
+        firstName={firstName}
+        selectedClassId={effectiveClassId}
+        onSelectClass={handleSelectClass}
+        tab={landingTab}
+        onTabChange={handleLandingTabChange}
+        gradesEnabled={gradesEnabled}
+        onSignOut={handleDone}
+        notice={
+          hasErrors ? (
+            <PartialFailureBanner onRetry={retry} className="mb-4" />
+          ) : undefined
+        }
+      />
+    );
+  }
+
   // ────────── Main layout — slide-out sidebar + main column ──────────
   return (
     <>
       <SlideOutSidebar open={sidebarOpen} onClose={closeSidebar}>
         <StudentSidebar
-          classes={directory.classes}
-          claimedClassIds={classIds}
+          classes={classes}
           activeClassId={effectiveClassId}
           activeCountByClassId={activeCountByClassId}
           totalActiveCount={partitioned.active.length}
           onSelect={handleSelectClass}
           onSignOut={handleDone}
           firstName={firstName}
-          classCount={classIds.length}
+          classCount={directory.classes.length}
         />
       </SlideOutSidebar>
 
@@ -377,7 +496,7 @@ const MyAssignmentsPage: React.FC = () => {
         hideDoneButton
       >
         {hasErrors && <PartialFailureBanner onRetry={retry} className="mb-4" />}
-        {effectiveClassId === null ? (
+        {!activeClassEntry ? (
           <StudentOverview
             todayDate={todayDate}
             active={visibleScope.active}
@@ -391,9 +510,9 @@ const MyAssignmentsPage: React.FC = () => {
           />
         ) : (
           <StudentClassView
-            key={effectiveClassId}
-            classId={effectiveClassId}
-            classEntry={directory.byId[effectiveClassId]}
+            key={activeClassEntry.classId}
+            classId={activeClassEntry.classId}
+            classEntry={activeClassEntry}
             todayDate={todayDate}
             active={visibleScope.active}
             completed={visibleScope.completed}

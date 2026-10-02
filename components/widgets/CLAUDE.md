@@ -123,6 +123,7 @@ Widgets using sound share one lazily-created `AudioContext` singleton from `util
 - Widget z-index starts at 1; never set it manually — use `bringToFront(id)`. Dimensions are px, not percentages.
 - The `flipped` state is managed by `DraggableWindow`, not individual widgets.
 - A live-tour anchor (`tourAttr`) that only shows after setup declares it with `requires` in `config/tourAnchors.ts` (`widget-selected`, `widget-restored`, `in-view`, `dock-expanded`).
+- A tour anchor whose click assigns, shares, publishes, starts a live session or changes account settings is tagged `persists: true` (`destructive: true` if it deletes or clears); `tests/tourAnchors.test.ts` fails on an assign/share/publish/delete id with neither.
 
 ## Widget Appearance Standard (Visual System)
 

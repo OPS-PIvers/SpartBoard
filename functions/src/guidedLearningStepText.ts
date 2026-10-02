@@ -10,12 +10,25 @@ const MAX_FIELD_CHARS = 200;
 const MAX_GOAL_CHARS = 300;
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
+export type StepTextAction = 'click' | 'observe' | 'toggle' | 'select' | 'type';
+
+const STEP_VERB: Record<StepTextAction, string> = {
+  click: 'click',
+  observe: 'look at',
+  toggle: 'switch',
+  select: 'choose an option in',
+  type: 'type into',
+};
+
+const isStepAction = (v: unknown): v is StepTextAction =>
+  typeof v === 'string' && Object.hasOwn(STEP_VERB, v);
+
 export interface StepTextInput {
   imageBase64: string;
   mimeType: string;
   anchorLabel: string;
   accessibleName: string;
-  action: 'click' | 'observe';
+  action: StepTextAction;
 }
 
 export interface StepTextRequest {
@@ -60,21 +73,21 @@ export function parseStepTextRequest(raw: unknown): StepTextRequest {
         mimeType,
         anchorLabel: str(step.anchorLabel, MAX_FIELD_CHARS),
         accessibleName: str(step.accessibleName, MAX_FIELD_CHARS),
-        action: step.action === 'observe' ? 'observe' : 'click',
+        action: isStepAction(step.action) ? step.action : 'click',
       };
     }),
   };
 }
 
 export const STEP_TEXT_SYSTEM_INSTRUCTION = `You write the words for a click-by-click software walkthrough that teachers follow on a classroom dashboard.
-Each step comes with a cropped screenshot of the control, its name and whether the learner clicks it or just looks at it.
+Each step comes with a cropped screenshot of the control, its name and whether the learner clicks it, switches it, chooses an option in it, types into it or just looks at it.
 
 Return ONLY valid JSON: {"steps": [{"label": "string", "text": "string"}]} with exactly one entry per input step, in order.
 
 Rules:
 - label: 1 to 4 words naming the control (for example "Import button").
 - text: one or two sentences, 25 words at most, second person.
-- Imperative voice for click steps ("Click Import to add your file."), declarative for look steps ("The timeline lists every step.").
+- Imperative voice for click, switch, choose and type steps ("Click Import to add your file.", "Turn on 24-hour time."), declarative for look steps ("The timeline lists every step.").
 - Plain words. No "Let's", "Simply", "Just", "Now", "Great", "Notice", "explore", "journey", no exclamation marks, no em-dashes, no questions.
 - Never mention the screenshot, the tour or step numbers.`;
 
@@ -91,7 +104,7 @@ export function buildStepTextParts(request: StepTextRequest): Part[] {
   request.steps.forEach((step, i) => {
     const name = sanitizePrompt(step.accessibleName || step.anchorLabel);
     parts.push({
-      text: `Step ${i + 1}: ${step.action === 'observe' ? 'look at' : 'click'} "${name || 'unnamed control'}"${
+      text: `Step ${i + 1}: ${STEP_VERB[step.action]} "${name || 'unnamed control'}"${
         step.anchorLabel && step.anchorLabel !== step.accessibleName
           ? ` (${sanitizePrompt(step.anchorLabel)})`
           : ''

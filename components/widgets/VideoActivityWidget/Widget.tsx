@@ -724,12 +724,14 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           if (
             sessionOpenAt != null ||
             sessionCloseAt != null ||
-            sessionDueAt != null
+            sessionDueAt != null ||
+            targeting.workKind
           ) {
             await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
               ...(sessionOpenAt != null ? { openAt: sessionOpenAt } : {}),
               ...(sessionCloseAt != null ? { closeAt: sessionCloseAt } : {}),
               ...(sessionDueAt != null ? { dueAt: sessionDueAt } : {}),
+              ...(targeting.workKind ? { workKind: targeting.workKind } : {}),
             });
           }
           const nowTs = Date.now();

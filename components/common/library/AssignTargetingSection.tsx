@@ -59,7 +59,11 @@ import {
 import { CollapsibleSection } from './CollapsibleSection';
 import { WindowField } from './AssignWindowField';
 import { AssignAvailabilitySection } from './AssignAvailabilitySection';
-import { defaultAvailability } from '@/utils/assignAvailability';
+import {
+  chosenWorkKind,
+  defaultAvailability,
+  type WorkKindSetting,
+} from '@/utils/assignAvailability';
 import { scaledFont } from './assignWindowUtils';
 import {
   AssignPeriodAccessSection,
@@ -151,6 +155,8 @@ export interface AssignTargetingSectionProps {
   scheduleLabel?: string;
   /** `assign-availability` on: Availability & Due Date replaces Schedule and the period mode; the host saves through `applyAvailability`. */
   availabilityEnabled?: boolean;
+  /** `study-resources` on: adds the Submissions Enabled / Study Resource choice to Availability, preset to the kind's default. */
+  workKind?: WorkKindSetting;
   /** Collapsed-state summary for `scheduleExtra`. */
   scheduleExtraSummary?: string | null;
 }
@@ -320,6 +326,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   scheduleExtraSummary,
   scheduleLabel,
   availabilityEnabled = false,
+  workKind: workKindSetting,
 }) => {
   const { t } = useTranslation();
   const [openedAt] = useState(() => new Date());
@@ -461,6 +468,8 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
 
   const patch = (next: Partial<AssignTargetingValue>) =>
     onChange({ ...value, ...next });
+
+  const workKind = chosenWorkKind(value, workKindSetting);
 
   const setOverrideForKey = (key: string, override: StudentOverride) =>
     patch({ overridesByKey: { ...value.overridesByKey, [key]: override } });
@@ -991,12 +1000,19 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
       {availabilityEnabled ? (
         <AssignAvailabilitySection
           value={
-            value.availability ?? defaultAvailability(openedAt, !!periodAccess)
+            value.availability ??
+            defaultAvailability(openedAt, !!periodAccess, workKind)
           }
           onChange={(availability) => patch({ availability })}
           rosters={rosters.filter((r) => effectiveRosterIds.includes(r.id))}
           periodAccess={periodAccess}
           cqScaled={cqScaled}
+          workKind={workKind}
+          onWorkKindChange={
+            workKindSetting && !workKindSetting.locked
+              ? (next, availability) => patch({ workKind: next, availability })
+              : undefined
+          }
         />
       ) : (
         <>

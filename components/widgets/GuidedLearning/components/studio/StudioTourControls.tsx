@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Circle, Copy, Footprints } from 'lucide-react';
 import type {
   GuidedLearningStep,
+  GuidedLearningTourAction,
   GuidedLearningTourBinding,
   WidgetType,
 } from '@/types';
@@ -17,6 +18,7 @@ import {
 import { TOOLS } from '@/config/tools';
 import { teacherMustClick } from '@/components/tours/tourSession';
 import { suggestAnchorId } from '../recorder/resolveAnchor';
+import { MAX_TYPED_CHARS } from '../recorder/useTourCapture';
 import { StudioFindOnBoard } from './StudioFindOnBoard';
 import { fieldKeysForWidgetType, hasFieldSchema } from './tourFieldKeys';
 
@@ -122,6 +124,35 @@ const UntaggedWarning: React.FC<{
   );
 };
 
+const ACTIONS: readonly GuidedLearningTourAction[] = [
+  'click',
+  'toggle',
+  'select',
+  'type',
+  'observe',
+];
+
+/** Switches a binding's kind, keeping a value only where the new kind uses one of that shape. */
+function withAction(
+  tour: GuidedLearningTourBinding,
+  action: GuidedLearningTourAction
+): GuidedLearningTourBinding {
+  const next: GuidedLearningTourBinding = { ...tour, action };
+  delete next.value;
+  if (action === 'toggle')
+    next.value = typeof tour.value === 'boolean' ? tour.value : true;
+  if (action === 'select' || action === 'type')
+    next.value = typeof tour.value === 'string' ? tour.value : '';
+  return next;
+}
+
+const segmentClass = (on: boolean) =>
+  `rounded-md border px-2 py-1.5 text-xs font-bold transition-colors ${
+    on
+      ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
+      : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+  }`;
+
 const selectClass =
   'rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-normal text-slate-800 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
 
@@ -184,6 +215,7 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
         isPerField(value) ? fieldKey : undefined
       ),
       action: tour?.action ?? 'click',
+      ...(tour?.value !== undefined ? { value: tour.value } : {}),
     });
   };
 
@@ -328,34 +360,76 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
         </label>
       )}
       {tour && (
+        <label className="flex flex-col gap-1.5 text-xs font-bold text-slate-600">
+          {t('glStudio.tourAction')}
+          <select
+            value={tour.action}
+            onChange={(e) =>
+              bind(withAction(tour, e.target.value as GuidedLearningTourAction))
+            }
+            className={selectClass}
+          >
+            {ACTIONS.map((action) => (
+              <option key={action} value={action}>
+                {t(`glStudio.tourAction_${action}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {tour?.action === 'toggle' && (
         <fieldset className="flex flex-col gap-1.5">
           <legend className="mb-1.5 text-xs font-bold text-slate-600">
-            {t('glStudio.tourAction')}
+            {t('glStudio.tourValueToggle')}
           </legend>
           <div className="grid grid-cols-2 gap-1">
-            {(['click', 'observe'] as const).map((action) => (
+            {([true, false] as const).map((on) => (
               <button
-                key={action}
+                key={String(on)}
                 type="button"
-                aria-pressed={tour.action === action}
-                onClick={() => bind({ ...tour, action })}
-                className={`rounded-md border px-2 py-1.5 text-xs font-bold transition-colors ${
-                  tour.action === action
-                    ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
-                    : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
-                }`}
+                aria-pressed={tour.value === on}
+                onClick={() => bind({ ...tour, value: on })}
+                className={segmentClass(tour.value === on)}
               >
-                {t(`glStudio.tourAction_${action}`)}
+                {t(on ? 'glStudio.tourValueOn' : 'glStudio.tourValueOff')}
               </button>
             ))}
           </div>
         </fieldset>
       )}
+      {(tour?.action === 'select' || tour?.action === 'type') && (
+        <label className="flex flex-col gap-1.5 text-xs font-bold text-slate-600">
+          {t(
+            tour.action === 'type'
+              ? 'glStudio.tourValueType'
+              : 'glStudio.tourValueSelect'
+          )}
+          <input
+            type="text"
+            value={typeof tour.value === 'string' ? tour.value : ''}
+            maxLength={MAX_TYPED_CHARS}
+            onChange={(e) => bind({ ...tour, value: e.target.value })}
+            className={selectClass}
+          />
+        </label>
+      )}
+      {tour?.action === 'type' && !tour.value && (
+        <p
+          data-testid="gl-studio-tour-empty-value"
+          className="flex items-start gap-1.5 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs font-semibold text-amber-900"
+        >
+          <AlertTriangle
+            className="mt-px h-3.5 w-3.5 shrink-0"
+            aria-hidden="true"
+          />
+          {t('glStudio.tourValueEmpty')}
+        </p>
+      )}
       {tour?.action === 'click' && (
         <label className="flex items-start gap-2 text-xs text-slate-600">
           <input
             type="checkbox"
-            checked={teacherMustClick(tour)}
+            checked={teacherMustClick(tour, 'destructive-only')}
             onChange={(e) =>
               bind({ ...tour, teacherMustClick: e.target.checked })
             }

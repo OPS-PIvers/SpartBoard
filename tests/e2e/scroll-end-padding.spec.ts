@@ -126,3 +126,32 @@ for (const view of LIBRARY_VIEWS) {
     }
   });
 }
+
+// Student landing v2 (fixture page): the class view at Chromebook width, then at phone width with the bottom tab bar.
+for (const [label, width] of [
+  ['Chromebook', 1366],
+  ['phone', 390],
+] as const) {
+  test(`every student class tab keeps padding under its last row (${label})`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 420 });
+    await page.goto('/student-landing-dev?class=eng');
+    await page.addStyleTag({
+      content:
+        '*, *::before, *::after { transition: none !important; animation: none !important; }',
+    });
+    const body = page.locator('body');
+    for (const name of ['Assignments', 'Resources', 'Completed']) {
+      const tab =
+        width >= 896
+          ? page.getByRole('tab', { name: new RegExp(`^${name}`) })
+          : page
+              .getByRole('navigation', { name: /sections/ })
+              .getByRole('button', { name: new RegExp(`^${name}`) });
+      await tab.click();
+      await page.waitForTimeout(200);
+      await expectScrollEndPadding(body, `student ${label} > ${name}`);
+    }
+  });
+}

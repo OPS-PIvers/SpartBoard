@@ -291,7 +291,7 @@ const callPseudonymsForAssignment =
 const callDirectory = getStudentClassDirectoryV1 as unknown as (req: {
   auth?: unknown;
   data?: unknown;
-}) => Promise<{ classes: any[] }>;
+}) => Promise<{ classes: any[]; customToken?: string; classIds?: string[] }>;
 const callCommitIndex = commitRosterPinIndexV1 as unknown as (req: {
   auth?: unknown;
   data: unknown;
@@ -410,6 +410,8 @@ describe('studentLoginV1', () => {
 
   it('mints an SSO token from the OneRoster student + classes lookup', async () => {
     seedDomain('org-orono', '@orono.k12.mn.us');
+    h.docStore.set('users/t1/rosters/r1', { classlinkClassId: 'C1' });
+    h.docStore.set('users/t2/rosters/r2', { classlinkClassId: 'C2' });
     h.axiosGet = async (url: string) => {
       if (url.includes('/classes'))
         return {
@@ -429,7 +431,69 @@ describe('studentLoginV1', () => {
       studentRole: true,
       orgId: 'org-orono',
       classIds: ['C1', 'C2'],
+      sso: true,
     });
+  });
+
+  it('keeps only roster-matched sections in the claim and records every section', async () => {
+    seedDomain('org-orono', '@orono.k12.mn.us');
+    h.docStore.set('users/t1/rosters/r1', { classlinkClassId: 'ENG' });
+    h.docStore.set('users/t2/rosters/r2', { classlinkClassId: 'ENG' });
+    h.docStore.set('users/t3/rosters/r3', { classlinkClassId: 'BIO' });
+    h.axiosGet = async (url: string) => {
+      if (url.includes('/classes'))
+        return {
+          data: {
+            classes: [
+              { sourcedId: 'HOMEROOM' },
+              { sourcedId: 'ENG' },
+              { sourcedId: 'LUNCH' },
+              { sourcedId: 'BIO' },
+            ],
+          },
+        };
+      if (url.endsWith('/users'))
+        return { data: { users: [{ sourcedId: 'SID-1', role: 'student' }] } };
+      throw new Error('unexpected url: ' + url);
+    };
+
+    const res = await callStudentLogin({ data: { idToken: 'x' } });
+
+    expect(res.classCount).toBe(2);
+    expect(h.lastCustomToken?.claims).toEqual({
+      studentRole: true,
+      orgId: 'org-orono',
+      classIds: ['ENG', 'BIO'],
+      sso: true,
+    });
+    const uid = computeStudentUid('SID-1', HMAC);
+    expect(h.docStore.get(`student_sections/${uid}`)).toMatchObject({
+      orgId: 'org-orono',
+      sectionIds: ['HOMEROOM', 'ENG', 'LUNCH', 'BIO'],
+    });
+  });
+
+  it('fills the 20-slot cap with matched sections only', async () => {
+    seedDomain('org-orono', '@orono.k12.mn.us');
+    const sections = Array.from({ length: 30 }, (_, i) => `S${i}`);
+    // Only the last 20 have rosters; the first 10 would have filled the old cap.
+    for (const id of sections.slice(10)) {
+      h.docStore.set(`users/t/rosters/${id}`, { classlinkClassId: id });
+    }
+    h.axiosGet = async (url: string) => {
+      if (url.includes('/classes'))
+        return {
+          data: { classes: sections.map((sourcedId) => ({ sourcedId })) },
+        };
+      if (url.endsWith('/users'))
+        return { data: { users: [{ sourcedId: 'SID-1', role: 'student' }] } };
+      throw new Error('unexpected url: ' + url);
+    };
+
+    await callStudentLogin({ data: { idToken: 'x' } });
+    expect((h.lastCustomToken?.claims as any).classIds).toEqual(
+      sections.slice(10)
+    );
   });
 
   it('prefers the hd claim domain over the email suffix for the org gate', async () => {
@@ -588,6 +652,7 @@ describe('getStudentClassDirectoryV1', () => {
         classId: 'CL1',
         name: 'English 9',
         teacherDisplayName: 'Ms. Halverson',
+        teacherDisplayNames: ['Ms. Halverson'],
         subject: 'English',
         code: 'ENG9',
       },
@@ -605,6 +670,7 @@ describe('getStudentClassDirectoryV1', () => {
         classId: 'TC1',
         name: 'Mock Math',
         teacherDisplayName: '',
+        teacherDisplayNames: [],
         subject: 'Math',
       },
     ]);
@@ -627,10 +693,202 @@ describe('getStudentClassDirectoryV1', () => {
         classId: 'CL2',
         name: 'History',
         teacherDisplayName: '',
+        teacherDisplayNames: [],
         subject: undefined,
         code: undefined,
       },
     ]);
+  });
+});
+
+describe('getStudentClassDirectoryV1 — co-teachers, order and re-check', () => {
+  const studentAuth = (classIds: string[], orgId = 'org-orono') => ({
+    uid: 'stu',
+    token: { studentRole: true, classIds, orgId, sso: true },
+  });
+
+  it('merges a co-taught section into one entry named by the newest roster', async () => {
+    h.docStore.set('users/t1/rosters/r1', {
+      classlinkClassId: 'ENG',
+      name: 'English 9',
+      updatedAt: 100,
+    });
+    h.docStore.set('users/t2/rosters/r2', {
+      classlinkClassId: 'ENG',
+      name: 'English 9 Honors',
+      classlinkClassCode: 'ENG9H',
+      updatedAt: 200,
+    });
+    h.authUsers.set('t1', { displayName: 'Mr. Lee' });
+    h.authUsers.set('t2', { displayName: 'Ms. Ortiz' });
+
+    const res = await callDirectory({ auth: studentAuth(['ENG']) });
+    expect(res.classes).toEqual([
+      {
+        classId: 'ENG',
+        name: 'English 9 Honors',
+        teacherDisplayName: 'Ms. Ortiz & Mr. Lee',
+        teacherDisplayNames: ['Ms. Ortiz', 'Mr. Lee'],
+        subject: undefined,
+        code: 'ENG9H',
+      },
+    ]);
+  });
+
+  it('returns the bell period of the newest roster that has one', async () => {
+    h.docStore.set('users/t1/rosters/r1', {
+      classlinkClassId: 'ENG',
+      name: 'English 9',
+      bellPeriod: { buildingId: 'oms', periodId: '3' },
+      updatedAt: 100,
+    });
+    h.docStore.set('users/t2/rosters/r2', {
+      classlinkClassId: 'ENG',
+      name: 'English 9 Honors',
+      bellPeriod: null,
+      updatedAt: 200,
+    });
+    h.docStore.set('users/t/rosters/n', {
+      classlinkClassId: 'ART',
+      name: 'Art',
+      bellPeriod: { buildingId: 'oms', periodId: 7 },
+    });
+    const res = await callDirectory({ auth: studentAuth(['ENG', 'ART']) });
+    const byId = Object.fromEntries(res.classes.map((c) => [c.classId, c]));
+    expect(byId.ENG.bellPeriod).toEqual({ buildingId: 'oms', periodId: '3' });
+    expect('bellPeriod' in byId.ART).toBe(false);
+  });
+
+  it('sorts classes by name', async () => {
+    h.docStore.set('users/t/rosters/a', {
+      classlinkClassId: 'A',
+      name: 'World History',
+    });
+    h.docStore.set('users/t/rosters/b', {
+      classlinkClassId: 'B',
+      name: 'Algebra II',
+    });
+    h.docStore.set('users/t/rosters/c', {
+      classlinkClassId: 'C',
+      name: 'biology 9',
+    });
+    const res = await callDirectory({ auth: studentAuth(['A', 'B', 'C']) });
+    expect(res.classes.map((c) => c.name)).toEqual([
+      'Algebra II',
+      'biology 9',
+      'World History',
+    ]);
+  });
+
+  it('returns no token when the stored sections match the claim', async () => {
+    h.docStore.set('users/t/rosters/a', { classlinkClassId: 'A', name: 'Art' });
+    h.docStore.set('student_sections/stu', {
+      orgId: 'org-orono',
+      sectionIds: ['HOMEROOM', 'A'],
+    });
+    const res = await callDirectory({ auth: studentAuth(['A']) });
+    expect(res.customToken).toBeUndefined();
+    expect(h.lastCustomToken).toBeNull();
+    expect(res.classes.map((c) => c.classId)).toEqual(['A']);
+  });
+
+  it('re-mints the claim when a stored section gains a roster', async () => {
+    h.docStore.set('users/t/rosters/a', { classlinkClassId: 'A', name: 'Art' });
+    h.docStore.set('users/t/rosters/b', {
+      classlinkClassId: 'B',
+      name: 'Biology',
+    });
+    h.docStore.set('student_sections/stu', {
+      orgId: 'org-orono',
+      sectionIds: ['A', 'B', 'LUNCH'],
+    });
+
+    const res = await callDirectory({ auth: studentAuth(['A']) });
+
+    expect(res.customToken).toBe('ct:stu');
+    expect(h.lastCustomToken).toEqual({
+      uid: 'stu',
+      claims: {
+        studentRole: true,
+        orgId: 'org-orono',
+        classIds: ['A', 'B'],
+        sso: true,
+      },
+    });
+    expect(res.classIds).toEqual(['A', 'B']);
+    expect(res.classes.map((c) => c.classId)).toEqual(['A', 'B']);
+  });
+
+  it('re-mints a narrower claim when a claimed section lost its roster', async () => {
+    h.docStore.set('users/t/rosters/a', { classlinkClassId: 'A', name: 'Art' });
+    h.docStore.set('student_sections/stu', {
+      orgId: 'org-orono',
+      sectionIds: ['A', 'GONE'],
+    });
+    const res = await callDirectory({ auth: studentAuth(['A', 'GONE']) });
+    expect((h.lastCustomToken?.claims as any).classIds).toEqual(['A']);
+    expect(res.classes.map((c) => c.classId)).toEqual(['A']);
+  });
+
+  it('ignores a stored section record from another org', async () => {
+    h.docStore.set('users/t/rosters/a', { classlinkClassId: 'A', name: 'Art' });
+    h.docStore.set('users/t/rosters/b', {
+      classlinkClassId: 'B',
+      name: 'Biology',
+    });
+    h.docStore.set('student_sections/stu', {
+      orgId: 'org-other',
+      sectionIds: ['A', 'B'],
+    });
+    const res = await callDirectory({ auth: studentAuth(['A']) });
+    expect(res.customToken).toBeUndefined();
+    expect(res.classes.map((c) => c.classId)).toEqual(['A']);
+  });
+
+  it('keeps the current claim when re-minting fails', async () => {
+    h.failCustomToken = true;
+    h.docStore.set('users/t/rosters/a', { classlinkClassId: 'A', name: 'Art' });
+    h.docStore.set('users/t/rosters/b', {
+      classlinkClassId: 'B',
+      name: 'Biology',
+    });
+    h.docStore.set('student_sections/stu', {
+      orgId: 'org-orono',
+      sectionIds: ['A', 'B'],
+    });
+    const res = await callDirectory({ auth: studentAuth(['A']) });
+    expect(res.customToken).toBeUndefined();
+    expect(res.classes.map((c) => c.classId)).toEqual(['A']);
+  });
+
+  it('never widens a PIN token from the stored sections of the same uid', async () => {
+    h.docStore.set('users/t/rosters/a', { classlinkClassId: 'A', name: 'Art' });
+    h.docStore.set('users/t/rosters/b', {
+      classlinkClassId: 'B',
+      name: 'Biology',
+    });
+    h.docStore.set('student_sections/stu', {
+      orgId: 'org-orono',
+      sectionIds: ['A', 'B'],
+    });
+    const res = await callDirectory({
+      auth: {
+        uid: 'stu',
+        token: { studentRole: true, classIds: ['A'], orgId: 'org-orono' },
+      },
+    });
+    expect(res.customToken).toBeUndefined();
+    expect(h.lastCustomToken).toBeNull();
+    expect(res.classes.map((c) => c.classId)).toEqual(['A']);
+  });
+
+  it('never re-mints a test-class or PIN token without a stored record', async () => {
+    h.docStore.set('organizations/org-orono/testClasses/TC1', {
+      title: 'Mock',
+    });
+    const res = await callDirectory({ auth: studentAuth(['TC1']) });
+    expect(res.customToken).toBeUndefined();
+    expect(h.lastCustomToken).toBeNull();
   });
 });
 

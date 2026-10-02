@@ -10,7 +10,7 @@ export interface TourAnchorScope {
   accept?: (el: Element) => boolean;
 }
 
-const quote = (value: string) => `"${value.replace(/["\\]/g, '\\$&')}"`;
+export const quote = (value: string) => `"${value.replace(/["\\]/g, '\\$&')}"`;
 
 const INPUT_ROLES: Record<string, string> = {
   checkbox: 'checkbox',
@@ -111,17 +111,15 @@ export function findTourAnchor(
   const tagged = id
     ? Array.from(root.querySelectorAll<HTMLElement>(selector)).filter(usable)
     : [];
+  // Field rows carry no widget id; the drawer around them does.
+  const widgetOf = (el: Element) =>
+    el.closest('[data-tour-widget]')?.getAttribute('data-tour-widget') ?? '';
   if (boundId && id) {
-    return (
-      tagged.find((el) => el.getAttribute('data-tour-widget') === boundId) ??
-      null
-    );
+    return tagged.find((el) => widgetOf(el) === boundId) ?? null;
   }
   if (tagged.length > 0) {
     const scoped = scope.widgetIds?.length
-      ? tagged.find((el) =>
-          scope.widgetIds?.includes(el.getAttribute('data-tour-widget') ?? '')
-        )
+      ? tagged.find((el) => scope.widgetIds?.includes(widgetOf(el)))
       : undefined;
     return scoped ?? tagged[0];
   }

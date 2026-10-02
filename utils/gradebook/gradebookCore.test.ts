@@ -177,3 +177,34 @@ describe('gradebook core', () => {
     expect(core.evidenceForCell(row, missing, null)).toEqual([]);
   });
 });
+
+describe('work kind', () => {
+  it.each([
+    ['quiz', {}, 'work'],
+    ['video-activity', {}, 'work'],
+    ['projects', {}, 'work'],
+    ['guided-learning', {}, 'resource'],
+    ['mini-app', {}, 'resource'],
+    ['activity-wall', {}, 'resource'],
+    ['flashcards', { kind: 'check' }, 'work'],
+    ['flashcards', { kind: 'study' }, 'resource'],
+    ['flashcards', {}, 'work'],
+  ] as const)('%s %j defaults to %s', (kind, session, expected) => {
+    expect(core.resolveWorkKind(kind, session)).toBe(expected);
+  });
+
+  it('lets the session field win over the kind default', () => {
+    expect(core.resolveWorkKind('quiz', { workKind: 'resource' })).toBe(
+      'resource'
+    );
+    expect(core.resolveWorkKind('mini-app', { workKind: 'work' })).toBe('work');
+    expect(
+      core.resolveWorkKind('flashcards', { kind: 'study', workKind: 'work' })
+    ).toBe('work');
+  });
+
+  it('ignores an unrecognised value', () => {
+    expect(core.resolveWorkKind('quiz', { workKind: 'both' })).toBe('work');
+    expect(core.isResourceSession('guided-learning', null)).toBe(true);
+  });
+});

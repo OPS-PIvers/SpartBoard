@@ -4,6 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet } from '@/types';
 import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import { TOUR_RECORD_EVENT } from '@/components/tours/tourState';
+import {
+  DashboardContext,
+  type DashboardContextValue,
+} from '@/context/DashboardContextValue';
 import TourHealthPanel from './TourHealthPanel';
 
 const h = vi.hoisted(() => ({
@@ -120,6 +124,53 @@ describe('TourHealthPanel', () => {
     expect(
       within(rows[2]).getByText('Not in the anchor registry')
     ).toBeInTheDocument();
+  });
+
+  it('warns on typed text that is empty or matches a roster name', async () => {
+    h.sets = [
+      {
+        ...tourSet,
+        steps: [
+          {
+            id: 'e',
+            tour: { anchor: 'sidebar.boards', action: 'type', value: '' },
+          },
+          {
+            id: 'n',
+            tour: {
+              anchor: 'sidebar.boards',
+              action: 'type',
+              value: 'avery lindqvist',
+            },
+          },
+          {
+            id: 'ok',
+            tour: {
+              anchor: 'sidebar.boards',
+              action: 'type',
+              value: 'Warm up',
+            },
+          },
+        ],
+      } as unknown as GuidedLearningSet,
+    ];
+    const dashboard = {
+      rosters: [{ students: [{ firstName: 'Avery', lastName: 'Lindqvist' }] }],
+    } as unknown as DashboardContextValue;
+    render(
+      <DashboardContext.Provider value={dashboard}>
+        <TourHealthPanel />
+      </DashboardContext.Provider>
+    );
+    const section = await screen.findByRole('region', { name: 'Clock tour' });
+    const rows = within(section).getAllByRole('row');
+    expect(within(rows[1]).getByTestId('tour-value-warning')).toHaveTextContent(
+      'No text for Autopilot to type'
+    );
+    expect(within(rows[2]).getByTestId('tour-value-warning')).toHaveTextContent(
+      "The typed text matches a student's name"
+    );
+    expect(within(rows[3]).queryByTestId('tour-value-warning')).toBeNull();
   });
 
   it('checks anchors against the page on Check live', async () => {

@@ -7,6 +7,7 @@ import {
   GuidedLearningStep,
   GuidedLearningMode,
   GuidedLearningInteractionType,
+  GuidedLearningTourAction,
 } from '@/types';
 import { TOOLS } from '@/config/tools';
 import { reportAiModelConfigFallback } from '@/utils/aiModelConfigFallback';
@@ -660,7 +661,7 @@ export interface StepTextDraftInput {
   mimeType: string;
   anchorLabel: string;
   accessibleName: string;
-  action: 'click' | 'observe';
+  action: GuidedLearningTourAction;
 }
 
 /** Admin-only: drafts label and text for recorded tour steps (at most 20 per call). */

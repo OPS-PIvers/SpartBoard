@@ -24,7 +24,7 @@ export type { StudentClassTab };
 
 interface StudentClassViewProps {
   classId: string;
-  classEntry: ClassDirectoryEntry | undefined;
+  classEntry: ClassDirectoryEntry;
   todayDate: string;
   active: AssignmentSummary[];
   completed: AssignmentSummary[];
@@ -78,10 +78,10 @@ export const StudentClassView: React.FC<StudentClassViewProps> = ({
   const showGrades = gradesEnabled && tab === 'grades' && !!pseudonymUid;
 
   const color = getClassColor(classId);
-  const className = classEntry?.name ?? 'Class';
-  const subject = classEntry?.subject;
-  const teacher = classEntry?.teacherDisplayName;
-  const code = classEntry?.code;
+  const className = classEntry.name;
+  const subject = classEntry.subject;
+  const teacher = classEntry.teacherDisplayName;
+  const code = classEntry.code;
 
   const subtitleBits = [subject, teacher, code].filter(
     (b): b is string => Boolean(b) && typeof b === 'string'

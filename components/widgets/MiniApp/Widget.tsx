@@ -61,7 +61,11 @@ import { AssignTargetingSection } from '@/components/common/library/AssignTarget
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { buildPeriodGate } from '@/utils/periodPlan';
-import { applyAvailability } from '@/utils/assignAvailability';
+import {
+  applyAvailability,
+  type WorkKindSetting,
+} from '@/utils/assignAvailability';
+import { resolveWorkKind } from '@/utils/gradebook/gradebookCore';
 import {
   buildSetAssignmentTargetsPayload,
   expandClassTargeting,
@@ -142,6 +146,7 @@ interface MiniAppAssignModalProps {
   /** Per-period mode and windows; undefined while the flag is off. */
   periodAccess?: AssignPeriodAccessContext;
   availabilityEnabled: boolean;
+  workKind?: WorkKindSetting;
 }
 
 const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
@@ -162,6 +167,7 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
   skippedStudentNames,
   periodAccess,
   availabilityEnabled,
+  workKind,
 }) => {
   const outward = useViewAsOutward();
   const isViewOnly = mode === 'view-only';
@@ -421,6 +427,7 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                     showDueAt
                     cqScaled
                     availabilityEnabled={availabilityEnabled}
+                    workKind={workKind}
                   />
                 </>
               )}
@@ -501,6 +508,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { user, getAssignmentMode, canAccessFeature } = useAuth();
   const availabilityOn = canAccessFeature('assign-availability');
+  const workKindSetting: WorkKindSetting | undefined = canAccessFeature(
+    'study-resources'
+  )
+    ? { default: resolveWorkKind('mini-app', null) }
+    : undefined;
   const assignmentMode: AssignmentMode = getAssignmentMode('miniApp');
   const { showConfirm } = useDialog();
   const claudeReview = useClaudeReview('miniapps');
@@ -630,6 +642,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           enabled: availabilityOn && assignmentMode === 'submissions',
           rosters: selectedRosters,
           bellWindow: assignPeriodCtx?.bellWindow,
+          workKind: workKindSetting,
         }
       );
       // Snapshot the checked classes now; later roster edits never reshape it.
@@ -675,6 +688,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           openAt: periodGate ? null : (targetingForSave.openAt ?? null),
           closeAt: periodGate ? null : (targetingForSave.closeAt ?? null),
           dueAt: targetingForSave.dueAt ?? null,
+          ...(targetingForSave.workKind
+            ? { workKind: targetingForSave.workKind }
+            : {}),
           assignmentId: generatedAssignmentId,
           ...(periodGate ? { periodGate } : {}),
         }
@@ -1735,6 +1751,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 skippedStudentNames={skippedStudentNames}
                 periodAccess={assignPeriodCtx}
                 availabilityEnabled={availabilityOn}
+                workKind={workKindSetting}
                 onConfirm={() => void handleConfirmAssign()}
                 onClose={() => {
                   setAssigningApp(null);
@@ -1876,6 +1893,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 skippedStudentNames={skippedStudentNames}
                 periodAccess={assignPeriodCtx}
                 availabilityEnabled={availabilityOn}
+                workKind={workKindSetting}
                 onConfirm={() => void handleConfirmAssign()}
                 onClose={() => {
                   setAssigningApp(null);

@@ -365,4 +365,28 @@ describe('DashboardContext tour layer', () => {
       ['w1']
     );
   });
+
+  it('makes added widgets unsaved, with no undo entry, only while spawns are transient', async () => {
+    const stateRef = setup();
+    await settle(stateRef, [makeDashboard([makeWidget('w1')])]);
+    act(() => stateRef.current?.setTourTransientSpawns?.(true));
+    act(() => stateRef.current?.addWidget('clock'));
+    act(() =>
+      stateRef.current?.addWidgets([{ type: 'dice' }, { type: 'clock' }])
+    );
+    const added = stateRef.current?.activeDashboard?.widgets.filter(
+      (w) => w.id !== 'w1'
+    );
+    expect(added).toHaveLength(3);
+    expect(added?.every((w) => w.transient)).toBe(true);
+    expect(stateRef.current?.canUndo).toBe(false);
+    await flushSaves();
+    expect(saveDashboardMock).not.toHaveBeenCalled();
+
+    act(() => stateRef.current?.setTourTransientSpawns?.(false));
+    act(() => stateRef.current?.addWidget('clock'));
+    const last = stateRef.current?.activeDashboard?.widgets.at(-1);
+    expect(last?.transient).toBeUndefined();
+    expect(stateRef.current?.canUndo).toBe(true);
+  });
 });

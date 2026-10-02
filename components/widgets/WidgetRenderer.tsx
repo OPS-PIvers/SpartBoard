@@ -118,6 +118,7 @@ const withTourPatch = (
   ...widget,
   ...(patch.z === undefined ? {} : { z: patch.z }),
   ...(patch.restored ? { minimized: false } : {}),
+  ...(patch.hidden ? { minimized: true } : {}),
 });
 
 const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({

@@ -10,6 +10,8 @@ export interface TourAnchorDef {
   perField?: true;
   /** Autopilot never clicks it for the teacher by default. */
   destructive?: true;
+  /** Its effect outlives the tour: assigns, shares, publishes, starts a live session or changes account settings. */
+  persists?: true;
   /** Shown only once a menu, the dock or another panel is open. */
   panel?: true;
   /** State the runner sets up before it looks for the anchor. */
@@ -21,6 +23,7 @@ export const TOUR_ANCHOR_PREREQUISITES = [
   'widget-selected',
   'widget-restored',
   'in-view',
+  'settings-open',
 ] as const;
 
 export type TourAnchorPrerequisite = (typeof TOUR_ANCHOR_PREREQUISITES)[number];
@@ -108,38 +111,50 @@ export const TOUR_ANCHORS = {
     label: 'Widget settings panel',
     perWidget: true,
     panel: true,
+    requires: 'settings-open',
   },
   'settings.help': {
     label: 'Widget help button in settings',
     perWidget: true,
     panel: true,
+    requires: 'settings-open',
   },
   'settings.close': {
     label: 'Close settings button',
     perWidget: true,
     panel: true,
+    requires: 'settings-open',
   },
   'settings.tab-settings': {
     label: 'Settings tab',
     perWidget: true,
     panel: true,
+    requires: 'settings-open',
   },
-  'settings.tab-style': { label: 'Style tab', perWidget: true, panel: true },
+  'settings.tab-style': {
+    label: 'Style tab',
+    perWidget: true,
+    panel: true,
+    requires: 'settings-open',
+  },
   'settings.search': {
     label: 'Find a setting box',
     perWidget: true,
     panel: true,
+    requires: 'settings-open',
   },
   'settings.field': {
     label: 'A single settings field row, by widget type and field key',
     perField: true,
     panel: true,
+    requires: 'settings-open',
   },
   'settings.toggle': {
     label:
       'The on/off switch of a settings field, by widget type and field key',
     perField: true,
     panel: true,
+    requires: 'settings-open',
   },
 
   'sidebar.open-menu': { label: 'Menu button in the top bar' },
@@ -206,6 +221,7 @@ export const TOUR_ANCHORS = {
   },
   'sub-share.save': {
     label: 'Share button that creates or updates the sub share',
+    persists: true,
     destructive: true,
     panel: true,
   },
@@ -261,53 +277,101 @@ export const TOUR_ANCHORS = {
   },
   'profile.buildings': {
     label: 'Building choices in the Profile tab',
+    persists: true,
     panel: true,
   },
   'profile.reset-grades': {
     label: 'Reset grades to building default',
+    persists: true,
     panel: true,
   },
-  'profile.grades': { label: 'Grade choices in the Profile tab', panel: true },
+  'profile.grades': {
+    label: 'Grade choices in the Profile tab',
+    persists: true,
+    panel: true,
+  },
   'profile.subjects': {
     label: 'Content area choices in the Profile tab',
+    persists: true,
     panel: true,
   },
   'appearance.font-toggle': { label: 'Change font button', panel: true },
   'appearance.font-selector': { label: 'Font picker', panel: true },
   'appearance.font-list': {
     label: 'Font choices in the font picker',
+    persists: true,
     panel: true,
   },
   'appearance.transparency-slider': {
     label: 'Window transparency slider',
+    persists: true,
     panel: true,
   },
-  'appearance.corners': { label: 'Window corner style choices', panel: true },
-  'appearance.primary-color': { label: 'Primary color picker', panel: true },
-  'appearance.accent-color': { label: 'Accent color picker', panel: true },
-  'appearance.title-color': { label: 'Window title color picker', panel: true },
+  'appearance.corners': {
+    label: 'Window corner style choices',
+    persists: true,
+    panel: true,
+  },
+  'appearance.primary-color': {
+    label: 'Primary color picker',
+    persists: true,
+    panel: true,
+  },
+  'appearance.accent-color': {
+    label: 'Accent color picker',
+    persists: true,
+    panel: true,
+  },
+  'appearance.title-color': {
+    label: 'Window title color picker',
+    persists: true,
+    panel: true,
+  },
   'appearance.reset-all-colors': {
     label: 'Reset all colors to default',
     panel: true,
     destructive: true,
   },
-  'dock.position': { label: 'Dock position choices', panel: true },
-  'dock.transparency-slider': {
-    label: 'Dock transparency slider',
+  'dock.position': {
+    label: 'Dock position choices',
+    persists: true,
     panel: true,
   },
-  'dock.corners': { label: 'Dock corner style choices', panel: true },
-  'dock.text-color': { label: 'Dock text color picker', panel: true },
-  'dock.text-shadow-toggle': { label: 'Dock text shadow button', panel: true },
+  'dock.transparency-slider': {
+    label: 'Dock transparency slider',
+    persists: true,
+    panel: true,
+  },
+  'dock.corners': {
+    label: 'Dock corner style choices',
+    persists: true,
+    panel: true,
+  },
+  'dock.text-color': {
+    label: 'Dock text color picker',
+    persists: true,
+    panel: true,
+  },
+  'dock.text-shadow-toggle': {
+    label: 'Dock text shadow button',
+    persists: true,
+    panel: true,
+  },
   'behavior.close-warning-toggle': {
     label: 'Disable close warning switch',
+    persists: true,
     panel: true,
   },
   'behavior.remote-control-toggle': {
     label: 'Remote control switch',
+    persists: true,
     panel: true,
   },
-  'language.options': { label: 'Language choices', panel: true },
+  'language.options': {
+    label: 'Language choices',
+    persists: true,
+    panel: true,
+  },
   'widget-defaults.clear-type': {
     label: "Clear a widget's saved defaults",
     perWidgetType: true,
@@ -341,6 +405,7 @@ export const TOUR_ANCHORS = {
   },
   'classes.classroom-confirm': {
     label: 'Link Class confirm button in the Link to Google Classroom modal',
+    persists: true,
     panel: true,
   },
   'classes.classroom-retry': {
@@ -360,6 +425,7 @@ export const TOUR_ANCHORS = {
   },
   'plc-edit.send-invite': {
     label: 'Invite button in the PLC edit modal',
+    persists: true,
     panel: true,
   },
   'plc-edit.cancel': {
@@ -368,6 +434,7 @@ export const TOUR_ANCHORS = {
   },
   'plc-edit.save': {
     label: 'Save/Create button in the PLC edit modal',
+    persists: true,
     panel: true,
   },
   'plc-invites.list': {
@@ -385,6 +452,7 @@ export const TOUR_ANCHORS = {
   },
   'activity-wall.toggle-open': {
     label: 'Open/Closed toggle in Activity Wall',
+    persists: true,
     perWidget: true,
   },
   'activity-wall.moderate': {
@@ -393,6 +461,7 @@ export const TOUR_ANCHORS = {
   },
   'activity-wall.share': {
     label: 'Share button in Activity Wall',
+    persists: true,
     perWidget: true,
   },
   'activity-wall.library': {
@@ -444,13 +513,19 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
-  'quiz.start': { label: 'Start quiz session button in Quiz', perWidget: true },
+  'quiz.start': {
+    label: 'Start quiz session button in Quiz',
+    persists: true,
+    perWidget: true,
+  },
   'quiz.next-question': {
     label: 'Next/Finish question button in Quiz',
+    persists: true,
     perWidget: true,
   },
   'quiz.pause-resume': {
     label: 'Pause or resume button in the Quiz monitor',
+    persists: true,
     perWidget: true,
   },
   'quiz.end-quiz': {
@@ -464,6 +539,7 @@ export const TOUR_ANCHORS = {
   },
   'quiz.reveal-answer': {
     label: 'Reveal/hide answer to class item in the Quiz monitor menu',
+    persists: true,
     perWidget: true,
     panel: true,
   },
@@ -497,6 +573,7 @@ export const TOUR_ANCHORS = {
   },
   'review-start.confirm': {
     label: 'Start button in the Start review dialog',
+    persists: true,
     panel: true,
   },
   'review-game.board': {
@@ -505,18 +582,22 @@ export const TOUR_ANCHORS = {
   },
   'review-game.start': {
     label: 'Start game button in the Review monitor',
+    persists: true,
     perWidget: true,
   },
   'review-game.pause': {
     label: 'Pause or resume game button in the Review monitor',
+    persists: true,
     perWidget: true,
   },
   'review-game.add-minute': {
     label: 'Add a minute button in the Review monitor',
+    persists: true,
     perWidget: true,
   },
   'review-game.names': {
     label: 'Names on or off button in the Review monitor',
+    persists: true,
     perWidget: true,
   },
   'quiz-settings.widget-label': {
@@ -551,6 +632,7 @@ export const TOUR_ANCHORS = {
   },
   'widget-settings.calendar.connect-google': {
     label: 'Connect Google button in Calendar settings',
+    persists: true,
     perWidget: true,
     panel: true,
   },
@@ -607,6 +689,7 @@ export const TOUR_ANCHORS = {
   },
   'widget-settings.hotspot-image.save-library': {
     label: 'Save to library button in Hotspot Image settings',
+    persists: true,
     perWidget: true,
     panel: true,
   },
@@ -727,31 +810,37 @@ export const TOUR_ANCHORS = {
   },
   'widget-settings.poll.stop-voting': {
     label: 'Stop voting button in Poll settings',
+    persists: true,
     perWidget: true,
     panel: true,
   },
   'widget-settings.poll.start-voting': {
     label: 'Start voting button in Poll settings',
+    persists: true,
     perWidget: true,
     panel: true,
   },
   'widget-settings.poll.resume': {
     label: 'Resume voting button in Poll settings',
+    persists: true,
     perWidget: true,
     panel: true,
   },
   'widget-settings.poll.start-fresh': {
     label: 'Start fresh button in Poll settings',
+    persists: true,
     perWidget: true,
     panel: true,
   },
   'widget-settings.reveal-grid.save-drive': {
     label: 'Save to Drive button in Reveal Grid settings',
+    persists: true,
     perWidget: true,
     panel: true,
   },
   'widget-settings.reveal-grid.share': {
     label: 'Share URL button in Reveal Grid settings',
+    persists: true,
     perWidget: true,
     panel: true,
   },
@@ -926,11 +1015,13 @@ export const TOUR_ANCHORS = {
   },
   'widget-settings.starter-pack.save-personal': {
     label: 'Save personal pack button in Starter Pack settings',
+    persists: true,
     perWidget: true,
     panel: true,
   },
   'widget-settings.starter-pack.save-global': {
     label: 'Save global pack button in Starter Pack settings',
+    persists: true,
     perWidget: true,
     panel: true,
   },
@@ -1020,6 +1111,7 @@ export const TOUR_ANCHORS = {
   },
   'roster-editor.save': {
     label: 'Save button in the roster editor',
+    persists: true,
     panel: true,
   },
   'roster-editor.row': {
@@ -1040,6 +1132,7 @@ export const TOUR_ANCHORS = {
   },
   'classlink-import.import': {
     label: 'Import/Merge button on a ClassLink class row',
+    persists: true,
     perField: true,
     panel: true,
   },
@@ -1050,6 +1143,7 @@ export const TOUR_ANCHORS = {
   },
   'schoology-link.link': {
     label: 'Link button on a Schoology section row',
+    persists: true,
     perField: true,
     panel: true,
   },
@@ -1230,6 +1324,7 @@ export const TOUR_ANCHORS = {
   },
   'activity-wall-editor.save': {
     label: 'Save wall button in the Activity Wall editor',
+    persists: true,
     perWidget: true,
     panel: true,
   },
@@ -1264,14 +1359,17 @@ export const TOUR_ANCHORS = {
   },
   'library-shell.card-primary-action': {
     label: 'Primary action button on a library item card',
+    persists: true,
     perField: true,
   },
   'library-shell.card-secondary-action': {
     label: 'Secondary primary action button on a library item card',
+    persists: true,
     perField: true,
   },
   'library-shell.card-icon-action': {
     label: 'Icon-only quick action button on a library item card',
+    persists: true,
     perField: true,
   },
   'library-shell.card-menu': {
@@ -1280,11 +1378,13 @@ export const TOUR_ANCHORS = {
   },
   'library-shell.card-menu-item': {
     label: 'Item inside a library item card kebab menu',
+    persists: true,
     perField: true,
     panel: true,
   },
   'library-shell.archive-primary-action': {
     label: 'Primary action button on an assignment archive row',
+    persists: true,
     perField: true,
   },
   'library-shell.archive-menu': {
@@ -1293,6 +1393,7 @@ export const TOUR_ANCHORS = {
   },
   'library-shell.archive-menu-item': {
     label: 'Item inside an assignment archive row kebab menu',
+    persists: true,
     perField: true,
     panel: true,
   },
@@ -1381,6 +1482,7 @@ export const TOUR_ANCHORS = {
   },
   'classes.set-active': {
     label: 'Set active class star in My Classes',
+    persists: true,
     perField: true,
     panel: true,
   },
@@ -1391,6 +1493,7 @@ export const TOUR_ANCHORS = {
   },
   'classes.sync-classlink': {
     label: 'Sync with ClassLink button in My Classes',
+    persists: true,
     perField: true,
     panel: true,
   },
@@ -1451,6 +1554,7 @@ export const TOUR_ANCHORS = {
   },
   'plc-invites.accept': {
     label: 'Accept button in the PLC invites modal',
+    persists: true,
     perField: true,
     panel: true,
   },
@@ -1683,4 +1787,12 @@ export const isDestructiveAnchor = (ref: string): boolean => {
   if (!isTourAnchorId(id)) return false;
   const def: TourAnchorDef = TOUR_ANCHORS[id];
   return !!def.destructive;
+};
+
+/** Whether a step's anchor ref points at an anchor registered as persists. */
+export const isPersistsAnchor = (ref: string): boolean => {
+  const { id } = parseTourAnchorRef(ref);
+  if (!isTourAnchorId(id)) return false;
+  const def: TourAnchorDef = TOUR_ANCHORS[id];
+  return !!def.persists;
 };
