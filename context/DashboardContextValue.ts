@@ -198,6 +198,8 @@ export interface DashboardContextValue {
   commitTourWidgets?: (ids: readonly string[]) => void;
   /** Live tours only: removes tour widgets without an undo entry. */
   discardTourWidgets?: (ids: readonly string[]) => void;
+  /** Live tours only: makes widgets the app adds unsaved tour widgets until switched off. */
+  setTourTransientSpawns?: (on: boolean) => void;
   clearAllStickers: () => void;
   clearAllWidgets: () => void;
   updateWidget: (
