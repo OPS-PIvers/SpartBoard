@@ -143,6 +143,7 @@ export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
               item.name,
               widgetLabel(item.widgetType),
               item.pathname,
+              item.requestNote,
             ].filter(Boolean);
             return (
               <li

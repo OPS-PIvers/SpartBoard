@@ -168,6 +168,37 @@ describe('Guided Learning step edits', () => {
     ).toHaveLength(1);
   });
 
+  it('takes missing_anchor only on an untagged step and never saves it', () => {
+    const missing = { where: 'Assign menu, last item' };
+    expect(() =>
+      mergeSteps(
+        [],
+        [
+          step({
+            tour: { anchor: 'widget.pin', action: 'click' },
+            missing_anchor: missing,
+          }),
+        ],
+        1
+      )
+    ).toThrow(/missing_anchor/);
+    const [merged] = mergeSteps(
+      [],
+      [
+        step({
+          tour: {
+            anchor: '',
+            action: 'click',
+            fallback: { role: 'button', name: 'Assign' },
+          },
+          missing_anchor: missing,
+        }),
+      ],
+      1
+    );
+    expect(merged).not.toHaveProperty('missing_anchor');
+  });
+
   it('refuses an unknown anchor unless the stored step already had it', () => {
     const tour = (anchor: string) =>
       step({ tour: { anchor, action: 'click' } });

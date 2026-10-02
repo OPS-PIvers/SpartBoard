@@ -45,6 +45,8 @@ export interface TourAnchorQueueItem extends UnmappedAnchorContext {
   anchorId?: string;
   prUrl?: string;
   reason?: string;
+  /** Set when the Claude connector asked for the anchor: Claude's description of the control. */
+  requestNote?: string;
   firstSeenAt?: Timestamp;
   updatedAt?: Timestamp;
   reboundAt?: Timestamp;
@@ -143,6 +145,7 @@ export function parseQueueItem(
     ...(optStr(d.anchorId) ? { anchorId: optStr(d.anchorId) } : {}),
     ...(optStr(d.prUrl) ? { prUrl: optStr(d.prUrl) } : {}),
     ...(optStr(d.reason) ? { reason: optStr(d.reason) } : {}),
+    ...(optStr(d.requestNote) ? { requestNote: optStr(d.requestNote) } : {}),
     ...(d.firstSeenAt ? { firstSeenAt: d.firstSeenAt as Timestamp } : {}),
     ...(d.updatedAt ? { updatedAt: d.updatedAt as Timestamp } : {}),
     ...(d.reboundAt ? { reboundAt: d.reboundAt as Timestamp } : {}),
@@ -252,7 +255,9 @@ export const COPY_INSTRUCTION =
   'Register an id in `config/tourAnchors.ts` and tag the element with `tourAttr`.';
 
 type CopyEntry = UnmappedAnchorContext &
-  Partial<Pick<TourAnchorQueueItem, 'fingerprint' | 'occurrences'>>;
+  Partial<
+    Pick<TourAnchorQueueItem, 'fingerprint' | 'occurrences' | 'requestNote'>
+  >;
 
 /** A Markdown block with every captured field, one entry per untagged element. */
 export function formatUnmappedAnchors(entries: readonly CopyEntry[]): string {
@@ -269,6 +274,7 @@ export function formatUnmappedAnchors(entries: readonly CopyEntry[]): string {
     field('Widget type', e.widgetType && code(e.widgetType));
     field('Page', code(e.pathname || '/'));
     field('Nearest anchor', e.nearestAnchor && code(e.nearestAnchor));
+    field('Described by Claude', e.requestNote);
     field(
       'Ancestors (innermost first)',
       e.ancestors.length > 0
