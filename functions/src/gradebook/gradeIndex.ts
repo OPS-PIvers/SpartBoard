@@ -5,6 +5,7 @@ import { withQuizSessionContent } from '../quizSessionContent';
 import {
   GRADEBOOK_COLLECTIONS,
   GRADEBOOK_SESSION_COLLECTIONS,
+  isResourceSession,
 } from '../gradebookCore';
 import { servedFibAnswers as servedFibAnswersByLocale } from '../quizScoreOnSubmit';
 import {
@@ -102,6 +103,7 @@ export async function loadSessionContext(
   let session = snap.data() ?? {};
   const teacherUid = asString(session.teacherUid);
   if (!teacherUid) return null;
+  if (isResourceSession(kind, session)) return null;
 
   if (kind === 'quiz') {
     session = await withQuizSessionContent(ref, session);
@@ -625,6 +627,7 @@ const SESSION_WATCHED = [
   'questionsInContent',
   'sections',
   'kind',
+  'workKind',
   'assignmentId',
 ];
 

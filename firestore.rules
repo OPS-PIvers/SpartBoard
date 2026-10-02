@@ -5125,7 +5125,7 @@ service cloud.firestore {
       allow update: if signedIn() &&
         notAnon() &&
         existing().teacherUid == authUid() &&
-        changedOnly(['assignmentName', 'status', 'endedAt', 'periodAccess', 'studentAccess']) &&
+        changedOnly(['assignmentName', 'status', 'endedAt', 'periodAccess', 'studentAccess', 'workKind']) &&
         incoming().status in ['active', 'ended'];
       allow delete: if false;
 

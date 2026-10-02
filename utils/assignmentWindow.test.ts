@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   getWindowState,
+  formatAvailableUntilLabel,
   formatOpensLabel,
+  isResourceAvailable,
   resolveEffectiveWindow,
 } from './assignmentWindow';
 
@@ -74,5 +76,32 @@ describe('resolveEffectiveWindow', () => {
 describe('formatOpensLabel', () => {
   it('includes the "Opens" prefix', () => {
     expect(formatOpensLabel(Date.now())).toMatch(/^Opens /);
+  });
+});
+
+describe('formatAvailableUntilLabel', () => {
+  it('says there is no end date without a closeAt', () => {
+    expect(formatAvailableUntilLabel(undefined)).toBe('No end date');
+  });
+
+  it('names the close time', () => {
+    expect(formatAvailableUntilLabel(Date.now())).toMatch(/^Available until /);
+  });
+});
+
+describe('isResourceAvailable', () => {
+  const now = 1_000_000;
+
+  it('stays available with no end date', () => {
+    expect(isResourceAvailable({}, now)).toBe(true);
+  });
+
+  it('stays available until the window closes', () => {
+    expect(isResourceAvailable({ closeAt: now + 1 }, now)).toBe(true);
+    expect(isResourceAvailable({ closeAt: now }, now)).toBe(false);
+  });
+
+  it('drops once the session has ended', () => {
+    expect(isResourceAvailable({ endedAt: now - 1 }, now)).toBe(false);
   });
 });

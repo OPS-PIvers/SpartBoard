@@ -22,6 +22,7 @@ vi.mock('@/config/firebase', () => ({ db: {}, functions: {} }));
 
 const quiz = (gradingState: 'graded' | 'not-graded'): AssignmentSummary => ({
   compositeId: 'quiz:s-1',
+  workKind: 'work',
   kind: 'quiz',
   sessionId: 's-1',
   title: 'Unit 3 quiz',
