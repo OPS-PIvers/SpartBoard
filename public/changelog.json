@@ -1,6 +1,29 @@
 {
   "entries": [
     {
+      "version": "2026.10.02.1",
+      "date": "2026-10-02",
+      "title": "Fixes for PLC notes, lunch menus and sub plans",
+      "overview": [
+        {
+          "type": "fix",
+          "subtitle": "Fixes",
+          "items": [
+            {
+              "text": "PLC notes keep every change when you type a second edit right after the first one."
+            },
+            {
+              "text": "The Lunch Menu widget loads the day's menu again."
+            },
+            {
+              "text": "A board you share with a substitute now includes your class list even if you never picked a class, so the sub sees the Load class list button."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.10.01.3",
       "date": "2026-10-01",
       "title": "Widget library sorting and class columns",
