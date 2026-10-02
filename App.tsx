@@ -269,6 +269,13 @@ const GradebookDevHarness = import.meta.env.DEV
       }))
     )
   : null;
+const SpartyDevGallery = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/SpartyDevGallery').then((module) => ({
+        default: module.SpartyDevGallery,
+      }))
+    )
+  : null;
 // Also built into auth-bypass (E2E) builds for the library end-padding guard.
 const LibraryManagersDevHarness =
   import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
@@ -842,6 +849,14 @@ const App: React.FC = () => {
           <GradebookDevHarness />
         </Suspense>
       </AuthProvider>
+    );
+  }
+
+  if (SpartyDevGallery && pathname === '/sparty-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <SpartyDevGallery />
+      </Suspense>
     );
   }
 
