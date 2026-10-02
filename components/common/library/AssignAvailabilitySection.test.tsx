@@ -93,6 +93,25 @@ describe('AssignAvailabilitySection', () => {
     expect(screen.getByLabelText('Opens time')).toHaveValue('00:00');
   });
 
+  it('warns when the close comes before the open', () => {
+    render(
+      <AssignAvailabilitySection
+        value={{
+          ...START,
+          all: {
+            opens: { day: '2026-10-02', time: '15:00' },
+            closes: { day: '2026-10-02', time: '09:00' },
+          },
+        }}
+        onChange={vi.fn()}
+        rosters={[]}
+      />
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Closes before it opens.'
+    );
+  });
+
   it('toggles late work', () => {
     const onValue = vi.fn<(v: AssignAvailability) => void>();
     render(<Harness rosters={[roster(3)]} onValue={onValue} />);

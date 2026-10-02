@@ -94,6 +94,19 @@ export function specForRoster(
   return availability.byRoster?.[rosterId] ?? availability.all;
 }
 
+/** True when the spec closes at or before it opens for any of the classes (or with none checked). */
+export function closesBeforeOpens(
+  spec: AvailabilitySpec,
+  rosters: readonly PeriodRoster[],
+  bellWindow: BellWindowFn | undefined
+): boolean {
+  return (rosters.length > 0 ? rosters : [null]).some((roster) => {
+    const open = resolvePoint(spec.opens, 'opens', roster, bellWindow);
+    const close = resolvePoint(spec.closes, 'closes', roster, bellWindow);
+    return open != null && close != null && close <= open;
+  });
+}
+
 /** Epoch windows for the selected classes; with none selected, bells fall back to the whole day. */
 export function resolveAvailability(
   availability: AssignAvailability,

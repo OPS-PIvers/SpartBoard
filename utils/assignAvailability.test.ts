@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyAvailability,
+  closesBeforeOpens,
   defaultAvailability,
   resolveAvailability,
   type AssignAvailability,
@@ -147,6 +148,23 @@ describe('resolveAvailability with one class left', () => {
     };
     const r = resolveAvailability(av, [p3], bellWindow);
     expect(r.openAt).toBe(at('2026-10-02', '09:05'));
+  });
+});
+
+describe('closesBeforeOpens', () => {
+  it('flags a set open time after the bell close', () => {
+    const spec = {
+      opens: { day: '2026-10-02', time: '10:00' },
+      closes: { day: '2026-10-02', time: 'bell' },
+    };
+    expect(closesBeforeOpens(spec, [p3], bellWindow)).toBe(true);
+    expect(closesBeforeOpens(spec, [p5], bellWindow)).toBe(false);
+  });
+
+  it('accepts a bell to bell window', () => {
+    expect(
+      closesBeforeOpens(bellToBell('2026-10-02').all, [p3, p5], bellWindow)
+    ).toBe(false);
   });
 });
 
