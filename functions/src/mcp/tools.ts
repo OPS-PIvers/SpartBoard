@@ -42,6 +42,7 @@ import {
   registerGuidedLearningTools,
   restoreGuidedLearningRevision,
 } from './glTools';
+import { registerMeetingTools } from './meetingTools';
 
 export const SERVER_INSTRUCTIONS = [
   "SpartBoard is a classroom dashboard. These tools read and write the signed-in teacher's own library.",
@@ -51,6 +52,7 @@ export const SERVER_INSTRUCTIONS = [
   'Nothing here can delete items, assign work to students, or share content; the teacher does that in SpartBoard.',
   'No student-level data is available through this connector; results summaries are class-level and hidden for fewer than 5 students.',
   "Quizzes, question banks and video activities are saved in the teacher's Google Drive; items shared with a PLC can only be edited in SpartBoard.",
+  "Meeting notes are saved as a draft that a group editor reviews in SpartBoard; Claude never edits a group's notes directly.",
 ].join(' ');
 
 function summarizeSet(set: FlashcardSet) {
@@ -546,4 +548,5 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   registerMiniAppTools(server, ctx);
   registerResultsTools(server, ctx);
   registerGuidedLearningTools(server, ctx);
+  registerMeetingTools(server, ctx);
 }

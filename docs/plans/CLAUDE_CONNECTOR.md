@@ -144,6 +144,13 @@ page); full content only from `get_*`.
 - Gate: `admin_settings/claude_review_reminders` (on unless `enabled: false`) AND `claude-connector`. The switch is on the Previews tab next to the connector flag. A substitute's shared view opens no listener.
 - `standards` lookups are capped at 100 distinct codes per save (200 catalog reads).
 
+### Meeting notes tools (PLC_MEETING_RECORDING.md MR-D21)
+
+- `list_group_meetings`, `get_meeting_transcript` and `write_meeting_notes_draft`, gated by `plc-meeting-ai-notes` on top of the connector gate.
+- Reading needs group membership; writing needs an editor (not a viewer). Claude writes only the recording's `draft` slot with `source: 'claude'`, in the Gemini draft shape, and an editor inserts or dismisses it in SpartBoard. The note itself is never edited.
+- Writing is refused while a draft waits for review, while SpartBoard is making notes, before a transcript exists, and when the note is in the trash. There is no revision to restore: dismissing the draft is the undo.
+- Action item owners are matched to group members by spoken name, as for Gemini. Transcripts carry speaker numbers only.
+
 ## Limits and cost (CC-D16)
 
 - No `minInstances`. `maxInstances`: 10 for `mcpServer`, 5 for `mcpOAuth`.

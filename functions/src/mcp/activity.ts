@@ -14,7 +14,8 @@ export type ItemType =
   | 'rubric'
   | 'activity_wall'
   | 'mini_app'
-  | 'guided_learning';
+  | 'guided_learning'
+  | 'meeting_notes';
 
 export interface ToolContext {
   db: Firestore;
