@@ -298,6 +298,11 @@ export default {
           from: { transform: 'translateY(-10vh) rotate(0deg)' },
           to: { transform: 'translateY(110vh) rotate(720deg)' },
         },
+        // Live tour: one ring off a spotlit settings row once the drawer has scrolled to it.
+        'tour-pulse': {
+          from: { transform: 'scale(1)', opacity: '0.9' },
+          to: { transform: 'scale(1.15)', opacity: '0' },
+        },
       },
       animation: {
         'spin-slow': 'spin-slow 12s linear infinite',
@@ -308,6 +313,7 @@ export default {
         'podium-rise': 'podium-rise 600ms cubic-bezier(.2,.9,.3,1.1) both',
         'gain-pop': 'gain-pop 400ms ease-out both',
         'confetti-fall': 'confetti-fall 4s linear both',
+        'tour-pulse': 'tour-pulse 700ms ease-out both',
       },
     },
   },

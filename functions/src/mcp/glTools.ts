@@ -29,7 +29,10 @@ import { OVERWRITES, READ_ONLY, iso, run } from './toolKit';
 const KNOWN_ANCHORS = new Set(TOUR_ANCHOR_LIST.map((a) => a.id));
 
 type Source = 'mine' | 'building';
-type Step = Record<string, unknown> & { id: string; imageIndex: number };
+export type Step = Record<string, unknown> & {
+  id: string;
+  imageIndex: number;
+};
 export interface GlSet extends Record<string, unknown> {
   id: string;
   title: string;
@@ -40,12 +43,12 @@ export interface GlSet extends Record<string, unknown> {
   updatedAt: number;
 }
 
-const PERSONAL = 'guided_learning';
-const BUILDING = 'building_guided_learning';
+export const PERSONAL = 'guided_learning';
+export const BUILDING = 'building_guided_learning';
 export const MAX_STEPS = 200;
 /** Raw bytes; base64 adds a third and Claude caps an image near 5 MB. */
 export const MAX_SLIDE_BYTES = 3_500_000;
-const MAX_DOC_BYTES = 900_000;
+export const MAX_DOC_BYTES = 900_000;
 const MAX_SCAN = 500;
 // Step media that points at files the set owns; carried from the stored step, never taken from Claude.
 const CARRIED_FIELDS = [
@@ -178,7 +181,8 @@ export const stepInput = z
     tour: z
       .object({
         anchor: z.string().max(200),
-        action: z.enum(['click', 'observe']),
+        action: z.enum(['click', 'observe', 'toggle', 'select', 'type']),
+        value: z.union([z.boolean(), z.string().max(500)]).optional(),
         fallback: z
           .object({
             role: z.string().min(1).max(40),
@@ -320,6 +324,19 @@ export function mergeSteps(
         `${at}.tour: an empty anchor needs a fallback role and name.`
       );
     }
+    if (s.tour) {
+      const { action, value } = s.tour;
+      const want =
+        action === 'toggle'
+          ? 'boolean'
+          : action === 'select' || action === 'type'
+            ? 'string'
+            : 'undefined';
+      if (typeof value !== want)
+        throw new ToolError(
+          `${at}.tour.value: ${action} steps take ${want === 'undefined' ? 'no value' : `a ${want} value`}.`
+        );
+    }
     if (s.missing_anchor && s.tour?.anchor !== '')
       throw new ToolError(`${at}.missing_anchor needs tour.anchor "".`);
     const prior = byId.get(s.id);
@@ -386,7 +403,7 @@ async function isAdmin(ctx: ToolContext): Promise<boolean> {
     .exists;
 }
 
-async function assertAccess(
+export async function assertAccess(
   ctx: ToolContext,
   source: Source | 'help_center'
 ): Promise<void> {

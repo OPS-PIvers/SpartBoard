@@ -24,8 +24,9 @@ starting state, the clicks that open each subsequent surface, and the
 visible outcome before authoring screenshots. A menu item inside a closed
 menu needs a preceding click that opens the menu. For every `click` step,
 anchor the element that receives the user's click and verify that the
-runner advances after that click. Use `observe` for a typing step with a
-Next button or for checking the final result. Slide `interactionType` is
+runner advances after that click. Use `toggle`, `select` and `type` for a
+switch, a dropdown or a text field, with the `value` the step sets, and
+`observe` for checking the final result. Slide `interactionType` is
 only the screenshot fallback; it cannot turn an `observe` step into a
 click in the live runner. Mix slide interaction types where they fit the
 target, but judge the live tour by its `tour.action` and actual UI behavior.
@@ -61,7 +62,8 @@ demonstrate the live tour.
 ```jsonc
 "tour": {
   "anchor": "widget.settings-opener:clock", // ref, see below
-  "action": "click",            // or "observe"
+  "action": "click",            // or "observe", "toggle", "select", "type"
+  "value": true,                // toggle: boolean; select, type: string; else absent
   "fallback": { "role": "button", "name": "Settings (Alt+S)" }, // optional
   "teacherMustClick": true,     // optional; defaults from the anchor
   "slot": 0,                    // per-widget anchors only, see Slots
@@ -73,14 +75,24 @@ demonstrate the live tour.
 - `action: "click"` when the step is "press this": the tour advances when
   the teacher (or autopilot) clicks it. `"observe"` when the step points at
   something to read or notice: the teacher presses Next.
+- `action: "toggle"` for a switch or checkbox, with `value` the state it
+  should end in (`true` is on). Anchor the switch itself:
+  `settings.toggle:<type>#<field>` (e.g. `settings.toggle:schedule#autoProgress`).
+- `action: "select"` for a dropdown or listbox, with `value` the option's
+  value (a native `<select>`'s `value`, or a custom option's `data-value`).
+  Anchor the dropdown.
+- `action: "type"` for a text field, with `value` the text Autopilot enters.
+  Never put a student's name in it: Tour health flags a value that matches
+  a roster name, and an empty value.
+- Autopilot does not perform these values yet. Guided mode shows the step
+  and waits for the teacher, so a switch already in the right state is
+  never flipped. A `toggle` or custom-listbox step advances on a click of
+  the anchor; a `type` or native `select` step advances when the field
+  changes. Next always moves on.
 - Autopilot clicks the anchor element itself, so a click step's anchor must
   be the control, not a row or panel around it. A settings field anchor is
-  the whole row, so a field step is `observe` ("Turn on 24H Format, then
-  click Next"). A schema toggle's switch itself is
-  `settings.toggle:<type>#<field>` (e.g. `settings.toggle:schedule#autoProgress`).
-- Use `observe` for any toggle or checkbox whose starting state you can't
-  know: a click flips it, so on a board where it is already on, the tour
-  would switch it off. Widget defaults and building settings vary.
+  the whole row, so point at the control inside it instead, or make the
+  step `observe`.
 - `fallback` is the element's ARIA role and accessible name, matched when
   the `data-tour` tag is not found. Add it for click steps, and take it from
   `fallbackFor(locator)` in `scripts/tour_anchor.mjs`, which reads them the
@@ -115,13 +127,20 @@ ids, missing widget types or field keys, and widget types that don't
 exist.
 
 - **Prerequisites are automatic.** An anchor with `requires` (`dock-expanded`,
-  `widget-selected`, `widget-restored`, `in-view`) is set up by the runner
-  before it looks, so don't add a step just to open the dock or select a
-  widget unless teaching that is the point.
-- **Panels are not.** An anchor marked `panel` without `requires` (a menu
-  item, a library tab, anything in a widget's settings panel) is only
-  visible after something opens it, so an earlier step must open it with
-  `action: "click"`.
+  `widget-selected`, `widget-restored`, `in-view`, `settings-open`) is set up
+  by the runner before it looks, so don't add a step just to open the dock or
+  select a widget unless teaching that is the point.
+- **Settings steps open the drawer themselves.** Every `settings.*` anchor
+  carries `settings-open`: the runner selects the widget, opens its settings,
+  switches to the tab that holds the field, and scrolls the row to the middle
+  of the drawer. Don't add a gear-click (`widget.settings-opener`) step before
+  a settings step unless finding the gear is the lesson. The drawer stays open
+  across consecutive settings steps on the same widget and closes when a step
+  points elsewhere.
+- **Other panels are not.** An anchor marked `panel` without `requires` (a
+  menu item, a library tab, a `widget-settings.*` control inside a widget's
+  own settings) is only visible after something opens it, so an earlier step
+  must open it with `action: "click"`.
 - **Some chrome only exists in one state.** `dock.open-tools` shows only
   while the dock is collapsed. Start the tour from the state its first
   step needs, and let `checkAnchor` at the capture viewport decide what is reachable.
@@ -215,8 +234,9 @@ this by hand in the Studio, a step at a time, with the Live tour picker and
 3. Add the steps a live run needs and the slides skipped: a click that
    opens each menu or panel before a step inside it, and `tourSetup` or
    `spawns` for any widget the task uses.
-4. Choose `click` or `observe` per step with the rules above. Toggles,
-   typing and result steps are `observe`.
+4. Choose each step's action with the rules above: `toggle` for switches,
+   `select` for dropdowns, `type` for text fields, `observe` for results,
+   `click` for everything else.
 5. Steps that can't run live (another site, the sign-in screen, the
    substitute portal, a drag or paste gesture) have no `tour`. The runner
    shows those as a centred card with the text but not the slide, so put
@@ -235,8 +255,9 @@ the step starts in:
 1. Compute the ref with `refFor` and assert it with `checkAnchor`; a missing
    or unusable anchor fails the capture.
 2. Take the step's screenshot and measure its `region` from the same box.
-3. For a click step, click the element and wait for the next state; for an
-   observe step, move on.
+3. For a click step, click the element and wait for the next state; for a
+   toggle, select or type step, set its `value` the way a teacher would;
+   for an observe step, move on.
 
 Then run the validator. The last check is the real one: import the file as
 a building set on spartboard-dev and use **Run live (draft)**.

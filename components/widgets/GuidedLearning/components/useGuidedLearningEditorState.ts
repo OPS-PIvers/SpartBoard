@@ -136,6 +136,8 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   /** Live tours: recorded widget layouts; replaced whole, one undo entry. */
   tourSetupLayouts: TourWidgetLayout[];
   setTourSetupLayouts: (next: TourWidgetLayout[]) => void;
+  tourUseTeacherBoard: boolean;
+  setTourUseTeacherBoard: (next: boolean) => void;
   /** Swaps in a re-recorded click as one undo entry; a slide other steps share is kept. */
   recaptureStep: (capture: StepRecapture) => boolean;
   // Slides (images, GIFs, and uploaded/recorded videos)
@@ -286,6 +288,7 @@ export function useGuidedLearningEditorState({
     watchPace,
     tourSetupWidgets,
     tourSetupLayouts,
+    tourUseTeacherBoard,
   } = history.present;
 
   const applyDoc = useCallback(
@@ -346,6 +349,10 @@ export function useGuidedLearningEditorState({
   );
   const setTourSetupLayouts = useCallback(
     (next: TourWidgetLayout[]) => setField('tourSetupLayouts', next),
+    [setField]
+  );
+  const setTourUseTeacherBoard = useCallback(
+    (next: boolean) => setField('tourUseTeacherBoard', next),
     [setField]
   );
   const setSteps = useCallback<
@@ -1199,6 +1206,8 @@ export function useGuidedLearningEditorState({
     setTourSetupWidgets,
     tourSetupLayouts,
     setTourSetupLayouts,
+    tourUseTeacherBoard,
+    setTourUseTeacherBoard,
     recaptureStep,
     imageUrls,
     imageKinds,

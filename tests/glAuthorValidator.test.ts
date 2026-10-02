@@ -333,7 +333,19 @@ describe('validateGlSet tours', () => {
   });
 
   it('checks action, fallback and unknown keys', () => {
-    bad(set([tour('dock.open-tools', { action: 'tap' })]), /click or observe/);
+    bad(set([tour('dock.open-tools', { action: 'tap' })]), /click, observe/);
+    ok(set([tour('dock.open-tools', { action: 'toggle', value: false })]));
+    ok(set([tour('dock.open-tools', { action: 'select', value: 'serif' })]));
+    expect(
+      ok(set([tour('dock.open-tools', { action: 'type', value: '' })]))
+    ).toEqual(
+      expect.arrayContaining([expect.stringMatching(/nothing to type/)])
+    );
+    bad(
+      set([tour('dock.open-tools', { action: 'toggle', value: 'on' })]),
+      /needs a boolean value/
+    );
+    bad(set([tour('dock.open-tools', { value: 'x' })]), /takes no value/);
     bad(
       set([tour('dock.open-tools', { fallback: { role: 'button' } })]),
       /role and a name/

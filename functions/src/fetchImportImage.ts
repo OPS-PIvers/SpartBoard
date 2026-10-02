@@ -108,6 +108,102 @@ function isTooLargeError(error: unknown): boolean {
   return /maxContentLength|maxBodyLength/i.test(error.message ?? '');
 }
 
+/** Fetches a public https image through the SSRF guard; errors are HttpsErrors with readable messages. */
+export async function downloadPublicImage(
+  rawUrl: string
+): Promise<{ contentType: ImportImageContentType; body: Buffer }> {
+  let currentUrl: URL;
+  try {
+    currentUrl = new URL(rawUrl);
+  } catch {
+    throw new HttpsError('invalid-argument', 'Invalid URL provided.');
+  }
+
+  let body: Buffer | null = null;
+  let headerType = '';
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+    if (currentUrl.protocol !== 'https:') {
+      throw new HttpsError('invalid-argument', 'Only HTTPS URLs are allowed.');
+    }
+    let addresses: ResolvedAddress[];
+    try {
+      addresses = await resolveAndValidateHost(currentUrl.hostname);
+    } catch {
+      throw new HttpsError(
+        'invalid-argument',
+        'URLs pointing to private or reserved hosts are not allowed.'
+      );
+    }
+
+    let response;
+    try {
+      response = await axios.get<ArrayBuffer>(currentUrl.toString(), {
+        maxContentLength: MAX_RESPONSE_BYTES,
+        maxBodyLength: MAX_RESPONSE_BYTES,
+        maxRedirects: 0,
+        timeout: FETCH_TIMEOUT_MS,
+        responseType: 'arraybuffer',
+        // Only 2xx resolves; 3xx rejects with error.response so redirects are handled below.
+        validateStatus: (status) => status < 300,
+        headers: { 'User-Agent': 'SpartBoardImageImport/1.0' },
+        httpsAgent: createPinnedAgent(addresses),
+      });
+    } catch (error: unknown) {
+      if (
+        axios.isAxiosError(error) &&
+        error.response &&
+        error.response.status >= 300 &&
+        error.response.status < 400
+      ) {
+        const location = error.response.headers?.location as string | undefined;
+        if (!location || hop === MAX_REDIRECTS) {
+          throw new HttpsError('failed-precondition', 'Too many redirects.');
+        }
+        try {
+          currentUrl = new URL(location, currentUrl);
+        } catch {
+          throw new HttpsError('failed-precondition', 'Invalid redirect.');
+        }
+        continue;
+      }
+      if (isTooLargeError(error)) {
+        throw new HttpsError('failed-precondition', 'Image is too large.');
+      }
+      console.error('Import image fetch error:', error);
+      throw new HttpsError('internal', 'Failed to fetch image.');
+    }
+
+    const rawType = (response.headers?.['content-type'] as string) || '';
+    headerType = rawType.split(';')[0].trim().toLowerCase();
+    body = Buffer.from(response.data);
+    break;
+  }
+
+  if (!body) {
+    throw new HttpsError('internal', 'Failed to fetch image.');
+  }
+  if (!ALLOWED_CONTENT_TYPES.has(headerType)) {
+    console.error('Import image rejected content-type:', headerType);
+    throw new HttpsError(
+      'invalid-argument',
+      'URL did not return a supported image.'
+    );
+  }
+  if (body.length > MAX_RESPONSE_BYTES) {
+    throw new HttpsError('failed-precondition', 'Image is too large.');
+  }
+  const sniffed = sniffImageType(body);
+  if (!sniffed) {
+    console.error('Import image failed magic-byte check:', headerType);
+    throw new HttpsError(
+      'invalid-argument',
+      'URL did not return a supported image.'
+    );
+  }
+
+  return { contentType: sniffed, body };
+}
+
 export const fetchImportImage = onCall(
   {
     memory: '256MiB',
@@ -143,102 +239,9 @@ export const fetchImportImage = onCall(
       throw new HttpsError('invalid-argument', 'URL is too long.');
     }
 
-    let currentUrl: URL;
-    try {
-      currentUrl = new URL(data.url);
-    } catch {
-      throw new HttpsError('invalid-argument', 'Invalid URL provided.');
-    }
-
-    let body: Buffer | null = null;
-    let headerType = '';
-    for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
-      if (currentUrl.protocol !== 'https:') {
-        throw new HttpsError(
-          'invalid-argument',
-          'Only HTTPS URLs are allowed.'
-        );
-      }
-      let addresses: ResolvedAddress[];
-      try {
-        addresses = await resolveAndValidateHost(currentUrl.hostname);
-      } catch {
-        throw new HttpsError(
-          'invalid-argument',
-          'URLs pointing to private or reserved hosts are not allowed.'
-        );
-      }
-
-      let response;
-      try {
-        response = await axios.get<ArrayBuffer>(currentUrl.toString(), {
-          maxContentLength: MAX_RESPONSE_BYTES,
-          maxBodyLength: MAX_RESPONSE_BYTES,
-          maxRedirects: 0,
-          timeout: FETCH_TIMEOUT_MS,
-          responseType: 'arraybuffer',
-          // Only 2xx resolves; 3xx rejects with error.response so redirects are handled below.
-          validateStatus: (status) => status < 300,
-          headers: { 'User-Agent': 'SpartBoardImageImport/1.0' },
-          httpsAgent: createPinnedAgent(addresses),
-        });
-      } catch (error: unknown) {
-        if (
-          axios.isAxiosError(error) &&
-          error.response &&
-          error.response.status >= 300 &&
-          error.response.status < 400
-        ) {
-          const location = error.response.headers?.location as
-            | string
-            | undefined;
-          if (!location || hop === MAX_REDIRECTS) {
-            throw new HttpsError('failed-precondition', 'Too many redirects.');
-          }
-          try {
-            currentUrl = new URL(location, currentUrl);
-          } catch {
-            throw new HttpsError('failed-precondition', 'Invalid redirect.');
-          }
-          continue;
-        }
-        if (isTooLargeError(error)) {
-          throw new HttpsError('failed-precondition', 'Image is too large.');
-        }
-        console.error('Import image fetch error:', error);
-        throw new HttpsError('internal', 'Failed to fetch image.');
-      }
-
-      const rawType = (response.headers?.['content-type'] as string) || '';
-      headerType = rawType.split(';')[0].trim().toLowerCase();
-      body = Buffer.from(response.data);
-      break;
-    }
-
-    if (!body) {
-      throw new HttpsError('internal', 'Failed to fetch image.');
-    }
-    if (!ALLOWED_CONTENT_TYPES.has(headerType)) {
-      console.error('Import image rejected content-type:', headerType);
-      throw new HttpsError(
-        'invalid-argument',
-        'URL did not return a supported image.'
-      );
-    }
-    if (body.length > MAX_RESPONSE_BYTES) {
-      throw new HttpsError('failed-precondition', 'Image is too large.');
-    }
-    const sniffed = sniffImageType(body);
-    if (!sniffed) {
-      console.error('Import image failed magic-byte check:', headerType);
-      throw new HttpsError(
-        'invalid-argument',
-        'URL did not return a supported image.'
-      );
-    }
-
+    const { contentType, body } = await downloadPublicImage(data.url);
     return {
-      contentType: sniffed,
+      contentType,
       data: body.toString('base64'),
       bytes: body.length,
     };

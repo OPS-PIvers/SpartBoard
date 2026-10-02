@@ -7812,12 +7812,21 @@ export type GuidedLearningPublicNarration = Pick<
   'url' | 'voice' | 'durationMs'
 >;
 
+export type GuidedLearningTourAction =
+  | 'click'
+  | 'observe'
+  | 'toggle'
+  | 'select'
+  | 'type';
+
 export interface GuidedLearningTourBinding {
   /** TOUR_ANCHORS key */
   anchor: string;
   fallback?: { role: string; name: string };
-  /** observe = learner presses Next */
-  action: 'click' | 'observe';
+  /** observe = learner presses Next; toggle, select and type complete like click until Autopilot performs them. */
+  action: GuidedLearningTourAction;
+  /** toggle: target state; select: option value; type: text Autopilot enters. */
+  value?: boolean | string;
   /** Guided autopilot demonstrates, then waits for the teacher; absent = the anchor's `destructive` default. */
   teacherMustClick?: boolean;
   /** Widget-scoped anchors: which tour widget slot the anchor belongs to. */
@@ -7936,6 +7945,8 @@ export interface GuidedLearningSet {
     widgets: WidgetType[];
     /** Recorded setup widget layouts; absent = default placement. */
     layouts?: TourWidgetLayout[];
+    /** Play on the teacher's board as-is; absent = hide their widgets and add fresh ones. */
+    useTeacherBoard?: true;
   };
   /** Stamped on every building-set save: true when any step has a live-tour binding. */
   hasLiveTour?: boolean;
@@ -9519,6 +9530,8 @@ export type GlobalFeature =
   | 'quiz-grader-v2'
   /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas; AND-ed with `gl-studio`. */
   | 'gl-callout-editing'
+  /** Per-student "Slide N of M · active X ago" on Guided Learning results and the Assignments hub. */
+  | 'gl-student-progress'
   /** PLC notes as an always-editable rich text editor with a formatting toolbar (still stored as Markdown). */
   | 'plc-notes-rich-editor'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
@@ -9541,6 +9554,8 @@ export type GlobalFeature =
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
   | 'student-gradebook'
+  /** Redesigned student landing page at /my-assignments (docs/plans/STUDENT_LANDING_V2.md D26). */
+  | 'student-landing-v2'
   /** Quiz keeps assessment only; live review games move to the Review widget. */
   | 'quiz-review-split'
   /** Quiz assign/edit: an overall time limit per attempt with a student countdown. */

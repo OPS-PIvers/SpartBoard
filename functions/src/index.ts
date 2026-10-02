@@ -116,6 +116,8 @@ export {
   commitRosterPinIndexV1,
   pinLoginV1,
 } from './studentIdentity';
+// Student landing v2: whether a student's teacher has the new page.
+export { getStudentLandingV2V1 } from './studentLandingV2';
 // Gradebook D8: roster student → stable uid for the gradebook grid.
 export { getGradebookRosterV1 } from './gradebook/getGradebookRosterV1';
 

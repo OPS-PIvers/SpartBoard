@@ -4,6 +4,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Dock } from '@/components/layout/Dock';
 import { Z_INDEX } from '@/config/zIndex';
+import { clearTourHidden, setTourHidden } from '@/context/dashboardCanvasStore';
 
 // ── Module mocks ─────────────────────────────────────────────────────────────
 
@@ -101,8 +102,19 @@ vi.mock('@/components/layout/dock/WidgetLibrary', () => {
 });
 
 vi.mock('@/components/layout/dock/ToolDockItem', () => ({
-  ToolDockItem: ({ tool }: { tool: { type: string; label: string } }) => (
-    <button data-testid={`dock-item-${tool.type}`}>{tool.label}</button>
+  ToolDockItem: ({
+    tool,
+    minimizedWidgets,
+  }: {
+    tool: { type: string; label: string };
+    minimizedWidgets?: unknown[];
+  }) => (
+    <button
+      data-testid={`dock-item-${tool.type}`}
+      data-minimized={minimizedWidgets?.length ?? 0}
+    >
+      {tool.label}
+    </button>
   ),
 }));
 
@@ -234,6 +246,7 @@ function setupMocks({
   addWidget = vi.fn(),
   annotationActive = false,
   annotationTool = 'pen' as string,
+  activeDashboard = null as unknown,
 }: {
   canAccessWidget?: ReturnType<typeof vi.fn>;
   canAccessFeature?: ReturnType<typeof vi.fn>;
@@ -242,12 +255,13 @@ function setupMocks({
   addWidget?: ReturnType<typeof vi.fn>;
   annotationActive?: boolean;
   annotationTool?: string;
+  activeDashboard?: unknown;
 } = {}) {
   vi.mocked(useDashboard).mockReturnValue({
     addWidget,
     removeWidget: vi.fn(),
     removeWidgets: vi.fn(),
-    activeDashboard: null,
+    activeDashboard,
     updateWidget: vi.fn(),
     addToast: vi.fn(),
     setPendingQuizShareId: vi.fn(),
@@ -1042,5 +1056,30 @@ describe('Dock smart-paste – two-column lists become flashcards', () => {
 
     expect(addWidget).toHaveBeenCalledTimes(1);
     expect(addWidget.mock.calls[0][0]).not.toBe('flashcards');
+  });
+});
+
+describe('Dock – live tour hidden widgets', () => {
+  afterEach(() => clearTourHidden());
+
+  it('leaves tour-hidden widgets out of the minimized badge', () => {
+    setupMocks({
+      dockItems: [{ type: 'tool', toolType: 'clock' }],
+      activeDashboard: {
+        id: 'b1',
+        widgets: [
+          { id: 'mine', type: 'clock', minimized: true },
+          { id: 'kept', type: 'clock', minimized: true },
+        ],
+      },
+    });
+    render(<Dock />);
+    expandDock();
+    const item = screen.getByTestId('dock-item-clock');
+    expect(item).toHaveAttribute('data-minimized', '2');
+    act(() => setTourHidden(['mine']));
+    expect(item).toHaveAttribute('data-minimized', '1');
+    act(() => clearTourHidden());
+    expect(item).toHaveAttribute('data-minimized', '2');
   });
 });

@@ -145,9 +145,33 @@ export async function saveQuizJson(
   if (existingFileId && (await patchMedia(token, existingFileId, body))) {
     return existingFileId;
   }
+  return saveInFolder(token, content, 'Quizzes', 'quiz.json', body);
+}
+
+/** Mirrors GuidedLearningDriveService.saveSet: SpartBoard/Guided Learning/<title>.<id8>.gl.json. */
+export async function createGuidedLearningJson(
+  token: string,
+  content: { id: string; title: string }
+): Promise<string> {
+  return saveInFolder(
+    token,
+    content,
+    'Guided Learning',
+    'gl.json',
+    JSON.stringify(content)
+  );
+}
+
+async function saveInFolder(
+  token: string,
+  content: { id: string; title: string },
+  folderName: string,
+  extension: string,
+  body: string
+): Promise<string> {
   const root = await findOrCreateFolder(token, 'SpartBoard');
-  const folderId = await findOrCreateFolder(token, 'Quizzes', root);
-  const fileName = `${sanitizeDriveFileName(content.title)}.${content.id.slice(0, 8)}.quiz.json`;
+  const folderId = await findOrCreateFolder(token, folderName, root);
+  const fileName = `${sanitizeDriveFileName(content.title)}.${content.id.slice(0, 8)}.${extension}`;
   const q = `name = '${escapeQuery(fileName)}' and '${escapeQuery(folderId)}' in parents and trashed = false`;
   const list = await driveFetch(
     token,
