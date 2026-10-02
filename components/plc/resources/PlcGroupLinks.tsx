@@ -1,18 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  ExternalLink,
-  Link2,
-  Loader2,
-  Plus,
-  Route,
-  Trash2,
-} from 'lucide-react';
+import { ExternalLink, Link2, Loader2, Plus, Trash2 } from 'lucide-react';
 import type { Plc, PlcLink } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { useCanEditPlcContent } from '@/context/usePlcContext';
-import { isGuidedLearningLink, usePlcLinks } from '@/hooks/usePlcLinks';
+import { usePlcLinks } from '@/hooks/usePlcLinks';
 import { logError } from '@/utils/logError';
 
 interface PlcGroupLinksProps {
@@ -23,7 +16,6 @@ const inputClass =
   'w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-blue-primary/50 focus:border-brand-blue-primary/50';
 
 const linkSource = (link: PlcLink): string => {
-  if (isGuidedLearningLink(link.url)) return 'Guided Learning';
   try {
     return new URL(link.url).hostname.replace(/^www\./, '');
   } catch {
@@ -144,7 +136,7 @@ export const PlcGroupLinks: React.FC<PlcGroupLinksProps> = ({ plc }) => {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder={t('plcDashboard.links.urlPlaceholder', {
-              defaultValue: 'Paste a link or Guided Learning share',
+              defaultValue: 'Paste a link',
             })}
             aria-label={t('plcDashboard.links.urlLabel', {
               defaultValue: 'Link',
@@ -200,15 +192,13 @@ export const PlcGroupLinks: React.FC<PlcGroupLinksProps> = ({ plc }) => {
       ) : (
         <ul className="space-y-2">
           {links.map((link) => {
-            const isGl = isGuidedLearningLink(link.url);
-            const Icon = isGl ? Route : Link2;
             return (
               <li
                 key={link.id}
                 className="group flex items-start gap-3 bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-3 shadow-sm"
               >
-                <Icon
-                  className={`w-4 h-4 mt-0.5 shrink-0 ${isGl ? 'text-amber-600' : 'text-slate-400'}`}
+                <Link2
+                  className="w-4 h-4 mt-0.5 shrink-0 text-slate-400"
                   aria-hidden="true"
                 />
                 <div className="min-w-0 flex-1">

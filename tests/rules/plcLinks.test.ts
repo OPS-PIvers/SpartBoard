@@ -53,7 +53,7 @@ const member = (uid: string, role: string) => ({
 const link = (createdBy: string, extra: Record<string, unknown> = {}) => ({
   id: 'l1',
   title: 'Turn and Talk',
-  url: 'https://spartboard.web.app/guided-learning/share/abc',
+  url: 'https://docs.google.com/document/d/abc',
   note: 'Before Tuesday PD',
   createdBy,
   createdByName: 'Lead',

@@ -16,11 +16,6 @@ import { logError } from '@/utils/logError';
 import { tsToMillis } from '@/utils/plc';
 import { ensureProtocol } from '@/utils/urlHelpers';
 
-const GL_PATH = '/guided-learning/';
-
-export const isGuidedLearningLink = (url: string): boolean =>
-  url.includes(GL_PATH);
-
 export function parsePlcLink(
   id: string,
   data: Record<string, unknown>

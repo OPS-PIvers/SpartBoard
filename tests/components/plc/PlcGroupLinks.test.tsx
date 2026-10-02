@@ -45,7 +45,7 @@ const plc = { id: 'g1', name: 'OMS Staff' } as Plc;
 const link = (over: Partial<PlcLink>): PlcLink => ({
   id: 'l1',
   title: 'Turn and Talk',
-  url: 'https://spartboard.web.app/guided-learning/share/abc',
+  url: 'https://docs.google.com/document/d/abc',
   createdBy: 'u1',
   createdByName: 'Paul',
   createdAt: 0,
@@ -79,7 +79,7 @@ describe('PlcGroupLinks', () => {
     );
   });
 
-  it('labels Guided Learning shares and other sites', () => {
+  it('labels each link with its site', () => {
     links = [
       link({}),
       link({
@@ -89,7 +89,7 @@ describe('PlcGroupLinks', () => {
       }),
     ];
     render(<PlcGroupLinks plc={plc} />);
-    expect(screen.getByText('Guided Learning · Paul')).toBeInTheDocument();
+    expect(screen.getByText('docs.google.com · Paul')).toBeInTheDocument();
     expect(screen.getByText('orono.k12.mn.us · Paul')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open Handbook' })).toHaveAttribute(
       'href',
