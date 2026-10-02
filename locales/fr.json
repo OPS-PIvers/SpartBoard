@@ -2672,6 +2672,15 @@
     "tourAction": "Quand la visite atteint cette étape",
     "tourAction_click": "Attendre le clic",
     "tourAction_observe": "Le montrer, puis Suivant",
+    "tourAction_toggle": "Attendre l'interrupteur",
+    "tourAction_select": "Attendre le choix",
+    "tourAction_type": "Attendre la saisie",
+    "tourValueToggle": "Autopilot le règle sur",
+    "tourValueOn": "Activé",
+    "tourValueOff": "Désactivé",
+    "tourValueSelect": "Autopilot choisit :",
+    "tourValueType": "Autopilot tape :",
+    "tourValueEmpty": "Aucun texte enregistré. Ajoutez ce qu'Autopilot doit taper.",
     "tourTeacherMustClick": "L'enseignant doit cliquer ici",
     "tourTeacherMustClickHint": "Les visites guidées montrent le clic, puis attendent que l'enseignant le fasse.",
     "tourSetupTitle": "Widgets ajoutés par cette visite",
@@ -3829,6 +3838,10 @@
       "needsWidget": "Nécessite {{widgets}} sur le tableau",
       "widgetNotAdded": "Nécessite un widget que la visite n'ajoute pas",
       "needsPanel": "Nécessite son menu ou panneau ouvert"
+    },
+    "valueWarning": {
+      "emptyValue": "Aucun texte à taper pour Autopilot",
+      "rosterName": "Le texte tapé correspond au nom d'un élève"
     },
     "notChecked": "Non vérifié",
     "found": "Trouvée",

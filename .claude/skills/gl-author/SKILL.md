@@ -47,9 +47,10 @@ The job is one of three:
    pins so you can see what the author meant.
 2. **Plan steps.** For a live tour, first write one concrete task the teacher
    will complete, trace the real UI state changes, and put a user click on
-   each control that advances that task. Use `observe` only for typing,
-   inspecting a result, or a state-dependent control the teacher must set
-   themselves. A sequence of informational popovers is not a live tour.
+   each control that advances that task. Switches, dropdowns and text
+   fields are `toggle`, `select` and `type` steps with the `value` they
+   set; use `observe` only for inspecting a result. A sequence of
+   informational popovers is not a live tour.
    For a Help Center walkthrough, plan one task in click order with a
    gotcha pass (see the Help Center reference). For a lesson, use one
    hotspot per thing the audience must notice: 4–8 teaching steps per slide

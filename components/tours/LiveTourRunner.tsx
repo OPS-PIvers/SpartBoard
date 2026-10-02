@@ -64,6 +64,7 @@ import {
   claimSpawns,
   claimTourWidgets,
   hasStepSlide,
+  isActedStep,
   liveTourStepsOf,
   missingSetupWidgets,
   planTourSetup,
@@ -785,10 +786,17 @@ export const LiveTourRunner: React.FC = () => {
   advanceRef.current = goTo;
   const stepIndex = tour?.index ?? 0;
 
-  // A click on the anchor advances once the app has handled it.
+  const acted = isActedStep(step?.tour);
+  const action = step?.tour?.action;
+  // A click on the anchor advances once the app has handled it; typing and native selects advance on change.
   useEffect(() => {
     const el = anchor.element;
-    if (!el || step?.tour?.action !== 'click') return;
+    if (!el || !acted) return;
+    const onChange =
+      action === 'type' ||
+      (action === 'select' &&
+        (el instanceof HTMLSelectElement || !!el.querySelector('select')));
+    const eventName = onChange ? 'change' : 'click';
     let raf = 0;
     const onClick = () => {
       lastStepClickAt.current = Date.now();
@@ -796,12 +804,12 @@ export const LiveTourRunner: React.FC = () => {
       if (autoClicking.current) return;
       raf = requestAnimationFrame(() => advanceRef.current(stepIndex + 1));
     };
-    el.addEventListener('click', onClick, true);
+    el.addEventListener(eventName, onClick, true);
     return () => {
-      el.removeEventListener('click', onClick, true);
+      el.removeEventListener(eventName, onClick, true);
       cancelAnimationFrame(raf);
     };
-  }, [anchor.element, step?.tour?.action, stepIndex]);
+  }, [anchor.element, acted, action, stepIndex]);
 
   const running = tour?.phase === 'running';
   const offeringResume =
@@ -922,11 +930,11 @@ export const LiveTourRunner: React.FC = () => {
   const center = rect
     ? { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
     : null;
-  const isClick = step?.tour?.action === 'click';
+  const isClick = acted;
   // A step with no anchor is a centred card on the dimmed board.
   const plain = running && !!step && !step.tour;
   const cursorAllowed =
-    running && center !== null && isClick && !step.cursor?.hide;
+    running && center !== null && isClick && !step?.cursor?.hide;
   // Guided runs on autopilot until paused or taken over; everything else is Structured.
   const guided = tour?.set.mode === 'guided' && !takenOver;
   const autopilot = guided && !paused;
@@ -983,7 +991,8 @@ export const LiveTourRunner: React.FC = () => {
       setAuto(null);
       return;
     }
-    if (teacherMustClick(step.tour)) {
+    // Recorded values aren't performed yet, so a click could set the wrong state.
+    if (teacherMustClick(step.tour) || step.tour.action !== 'click') {
       setAuto({ key: stepKey, stage: 'yourTurn' });
       return;
     }
