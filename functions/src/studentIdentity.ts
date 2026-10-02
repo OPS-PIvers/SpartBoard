@@ -600,7 +600,8 @@ export const getStudentClassDirectoryV1 = onCall(
 export const getPseudonymsForAssignmentV1 = onCall(
   {
     memory: '256MiB',
-    minInstances: 1,
+    // Warm in prod only; the CLI sets GCLOUD_PROJECT during deploy discovery, unset falls back to warm.
+    minInstances: process.env.GCLOUD_PROJECT === 'spartboard-dev' ? 0 : 1,
     cors: ALLOWED_ORIGINS,
     secrets: [
       CLASSLINK_CLIENT_ID,
