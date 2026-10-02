@@ -357,8 +357,10 @@ export function usePlcNoteCrdt({
       }
       if (cancelled) return;
 
+      let mirrored: { title: unknown; body: unknown } | null = null;
       try {
         const snap = await getDoc(noteRefFor(plcId, noteId));
+        mirrored = { title: snap.data()?.title, body: snap.data()?.body };
         const state: unknown = snap.data()?.yState;
         if (!cancelled && typeof state === 'string' && state.length > 0) {
           Y.applyUpdate(yDoc, decodeUpdate(state), REMOTE_ORIGIN);
@@ -405,6 +407,18 @@ export function usePlcNoteCrdt({
 
           setStatus('ready');
 
+          // Repair a mirror an earlier session never wrote (tab closed mid-debounce).
+          if (mirrored) {
+            const loaded = readNoteContent(yDoc);
+            if (
+              loaded.title !== mirrored.title ||
+              loaded.body !== mirrored.body
+            ) {
+              scheduleMirror();
+            }
+            mirrored = null;
+          }
+
           // One client compacts: the author of the newest update, who is by
           // definition recently active. Everyone else would write an identical
           // snapshot for nothing.
@@ -429,8 +443,16 @@ export function usePlcNoteCrdt({
 
     void start();
 
+    // React cleanup never runs when the tab closes, so flush then too.
+    const onPageHide = () => {
+      publishPending();
+      if (mirrorTimerRef.current) mirrorPending();
+    };
+    window.addEventListener('pagehide', onPageHide);
+
     return () => {
       cancelled = true;
+      window.removeEventListener('pagehide', onPageHide);
       // Flush before teardown so closing the tab mid-sentence doesn't drop the
       // last burst.
       publishPending();

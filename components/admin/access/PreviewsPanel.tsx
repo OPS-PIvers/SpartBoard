@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { FlaskConical, GraduationCap, Loader2 } from 'lucide-react';
 import type { GlobalFeature } from '@/types';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
-import type { RolloutSwitch } from '@/config/rolloutSwitches';
+import { rolloutSwitchKey, type RolloutSwitch } from '@/config/rolloutSwitches';
 import { TOOLS } from '@/config/tools';
 import { Toggle } from '@/components/common/Toggle';
 import { AccessFeatureRow, Chip } from './AccessFeatureRow';
@@ -119,7 +119,7 @@ const RolloutOnlyRow: React.FC<{ sw: RolloutSwitch }> = ({ sw }) => {
   const state = useRolloutSwitch(sw);
   return (
     <div
-      data-testid={`rollout-row-${sw.docId}`}
+      data-testid={`rollout-row-${rolloutSwitchKey(sw)}`}
       className="bg-white border border-slate-200 rounded-xl flex items-center gap-3 p-3"
     >
       <span className="bg-brand-blue-lighter p-2 rounded-lg text-brand-blue-primary shrink-0">
@@ -189,7 +189,7 @@ export const PreviewsPanel: React.FC = () => {
             </h3>
           )}
           {rolloutOnly.map((sw) => (
-            <RolloutOnlyRow key={sw.docId} sw={sw} />
+            <RolloutOnlyRow key={rolloutSwitchKey(sw)} sw={sw} />
           ))}
         </>
       )}

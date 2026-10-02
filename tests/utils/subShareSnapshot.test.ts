@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   boardWalkIndex,
   collectShareRosterIds,
+  effectiveActiveRosterId,
   flattenSharedCollection,
   landingBoardId,
   shareRosterEntries,
@@ -101,6 +102,26 @@ describe('singleBoardTree', () => {
       { id: 'solo', name: 'Board solo', sectionId: 'solo', order: 0 },
     ]);
     expect(tree.orderedBoards).toHaveLength(1);
+  });
+});
+
+describe('effectiveActiveRosterId', () => {
+  const list = [{ id: 'r1' }, { id: 'r2' }];
+
+  it('keeps an active roster that still exists', () => {
+    expect(effectiveActiveRosterId(list, 'r2')).toBe('r2');
+  });
+
+  it('falls back to the first roster when none was ever picked', () => {
+    expect(effectiveActiveRosterId(list, null)).toBe('r1');
+  });
+
+  it('falls back to the first roster when the active one is gone', () => {
+    expect(effectiveActiveRosterId(list, 'deleted')).toBe('r1');
+  });
+
+  it('is null with no rosters', () => {
+    expect(effectiveActiveRosterId([], null)).toBeNull();
   });
 });
 

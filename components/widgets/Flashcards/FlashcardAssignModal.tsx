@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import type {
   ClassRoster,
   FlashcardMasteryThreshold,
@@ -14,6 +14,8 @@ import type { AssignPeriodAccessContext } from '@/components/common/library/Assi
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import type { AssignClassPickerValue } from '@/components/common/AssignClassPicker.helpers';
 import { Toggle } from '@/components/common/Toggle';
+import { AuthContext } from '@/context/AuthContextValue';
+import { applyAvailability } from '@/utils/assignAvailability';
 import {
   EMPTY_ASSIGN_TARGETING_VALUE,
   type AssignTargetingValue,
@@ -138,6 +140,8 @@ export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = ({
   const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>({
     rosterIds: initialRosterIds,
   });
+  const availabilityOn =
+    useContext(AuthContext)?.canAccessFeature('assign-availability') === true;
   const [targetingValue, setTargetingValue] = useState<AssignTargetingValue>(
     EMPTY_ASSIGN_TARGETING_VALUE
   );
@@ -363,6 +367,7 @@ export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = ({
         onChange={setTargetingValue}
         kind="flashcards"
         showDueAt
+        availabilityEnabled={availabilityOn}
       />
     </div>
   );
@@ -387,7 +392,13 @@ export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = ({
             form,
             rosters,
             rosterIds: pickerValue.rosterIds,
-            targeting: targetingValue,
+            targeting: applyAvailability(targetingValue, {
+              enabled: availabilityOn,
+              rosters: rosters.filter(
+                (r) => !r.loadError && pickerValue.rosterIds.includes(r.id)
+              ),
+              bellWindow: periodAccess?.bellWindow,
+            }).targeting,
             bellWindow: periodAccess?.bellWindow,
           })
         )

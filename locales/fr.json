@@ -147,6 +147,7 @@
       "classLinkMerge": "Fusionner",
       "duplicatePins": "PIN en double : {{pins}}",
       "saveFailed": "Impossible d'enregistrer cette classe. Vos modifications sont conservées — vérifiez votre connexion Google Drive et réessayez.",
+      "saveViewOnly": "Lecture seule en mode Voir en tant que : cette classe n'a pas été enregistrée.",
       "namesOnePerLine": "Noms (un par ligne)",
       "firstNames": "Prénoms",
       "lastNames": "Noms",

@@ -26,7 +26,11 @@ export const useRolloutSwitch = (sw: RolloutSwitch | undefined) => {
     setSaving(true);
     setError(null);
     try {
-      await setDoc(doc(db, 'admin_settings', sw.docId), { enabled: next });
+      await setDoc(
+        doc(db, 'admin_settings', sw.docId),
+        { [sw.field ?? 'enabled']: next },
+        { merge: true }
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
     } finally {

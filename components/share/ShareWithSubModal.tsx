@@ -25,6 +25,7 @@ import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
 import { logError } from '@/utils/logError';
 import {
   collectShareRosterIds,
+  effectiveActiveRosterId,
   shareRosterEntries,
   flattenSharedCollection,
   singleBoardTree,
@@ -252,7 +253,10 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
 
     // Every roster the shared boards read, so the sub's class lists match the
     // teacher's. Only rosters with a Drive file can be granted.
-    const rosterIds = collectShareRosterIds(tree.orderedBoards, activeRosterId);
+    const rosterIds = collectShareRosterIds(
+      tree.orderedBoards,
+      effectiveActiveRosterId(rosters, activeRosterId)
+    );
     const sharedRosters = shareRosterEntries(
       rosters,
       rosterIds,

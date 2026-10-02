@@ -12,8 +12,10 @@ import { MiniAppManager } from '@/components/widgets/MiniApp/components/MiniAppM
 import { FlashcardLibrary } from '@/components/widgets/Flashcards/FlashcardLibrary';
 import { WallLibraryModal } from '@/components/widgets/ActivityWall/WallLibraryModal';
 import type { LibraryTab } from '@/components/common/library/types';
+import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 import type {
   ActivityWallLibraryEntry,
+  ClassRoster,
   FlashcardAssignment,
   FlashcardSet,
   GuidedLearningAssignment,
@@ -196,6 +198,37 @@ export const LIBRARY_HARNESS_VIEWS = [
 ] as const;
 type HarnessView = (typeof LIBRARY_HARNESS_VIEWS)[number];
 
+const ROSTERS: ClassRoster[] = [3, 4, 5].map((n) => ({
+  id: `roster-${n}`,
+  name: `SPANISH II A(${n})`,
+  driveFileId: null,
+  studentCount: 0,
+  createdAt: NOW,
+  students: [],
+  bellPeriod: { buildingId: 'dev', periodId: String(n) },
+}));
+
+const BELLS: Record<string, [number, number]> = {
+  '3': [9 * 60 + 5, 9 * 60 + 52],
+  '4': [10 * 60, 10 * 60 + 47],
+  '5': [11 * 60 + 40, 12 * 60 + 27],
+};
+
+const PERIOD_ACCESS: AssignPeriodAccessContext = {
+  bellOptions: [],
+  bellWindow: (roster, date) => {
+    const bell = roster.bellPeriod && BELLS[roster.bellPeriod.periodId];
+    if (!bell) return null;
+    const at = (min: number) => {
+      const d = new Date(date);
+      d.setHours(0, min, 0, 0);
+      return d.getTime();
+    };
+    return { openAt: at(bell[0]), closeAt: at(bell[1]) };
+  },
+  onTagRoster: noop,
+};
+
 const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
   const [tab, setTab] = useState<QuizManagerTab>('library');
   const [quizzes, setQuizzes] = useState(QUIZZES);
@@ -217,7 +250,8 @@ const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
       onResults={noop}
       onDelete={noop}
       onShare={noop}
-      rosters={[]}
+      rosters={ROSTERS}
+      periodAccess={PERIOD_ACCESS}
       config={QUIZ_CONFIG}
       managerTab={tab}
       onTabChange={setTab}
@@ -245,7 +279,8 @@ const VideoActivityView: React.FC = () => (
     onEdit={noop}
     onDelete={noop}
     onAssign={() => Promise.resolve('')}
-    rosters={[]}
+    rosters={ROSTERS}
+    periodAccess={PERIOD_ACCESS}
     defaultSessionSettings={VA_SETTINGS}
     assignments={VA_ASSIGNMENTS}
     assignmentsLoading={false}

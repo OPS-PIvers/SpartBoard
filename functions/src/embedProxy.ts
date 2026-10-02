@@ -18,6 +18,10 @@ import './functionsInit';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { isBlockedIp } from './ssrfGuard';
 
+// Nutrislice answers 403 to axios's default User-Agent from Cloud Functions IPs.
+const BROWSER_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
 export const fetchExternalProxy = onCall(
   {
     memory: '256MiB',
@@ -69,6 +73,10 @@ export const fetchExternalProxy = onCall(
         // forces 3xx to surface as a request error and keeps the
         // allowlist load-bearing.
         maxRedirects: 0,
+        headers: {
+          'User-Agent': BROWSER_USER_AGENT,
+          Accept: 'application/json, text/plain, */*',
+        },
       });
       return response.data;
     } catch (error: unknown) {
@@ -179,10 +187,7 @@ export const checkUrlCompatibility = onCall(
         // endpoint at 169.254.169.254) and bypass the check entirely — the same
         // vulnerability that was already fixed in fetchExternalProxy.
         maxRedirects: 0,
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        },
+        headers: { 'User-Agent': BROWSER_USER_AGENT },
       });
 
       const xFrameOptions = (

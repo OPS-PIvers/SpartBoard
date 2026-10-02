@@ -19,6 +19,10 @@ export const GROUP_COLORS = [
   '#475569',
 ];
 
+/** A light wash of a group's color for card and badge backgrounds. */
+export const groupTint = (symbol?: RosterGroupSymbol, percent = 14) =>
+  `color-mix(in srgb, ${symbol?.color ?? '#94a3b8'} ${percent}%, white)`;
+
 export const SNOOZE_OPTIONS = [1, 2, 3, 5, 10];
 export const LEAD_OPTIONS = [0, 1, 2, 3, 5, 10, 15];
 export const MAX_ALERTS = 6;

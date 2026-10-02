@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'fs';
-import { join, relative, resolve, dirname } from 'path';
+import { join, relative, resolve, dirname, sep } from 'path';
 import { fileURLToPath } from 'url';
 import ts from 'typescript';
 
@@ -10,6 +10,8 @@ const BASELINE_PATH = join(repoRoot, 'tests/fixtures/copyGuardBaseline.json');
 const SCAN_ROOTS = ['components', 'App.tsx'];
 const SKIP_DIRS = ['components/legal', 'components/dev'];
 const MAX_WORDS = 30;
+// Baseline keys use POSIX separators; path.relative returns `\` on Windows.
+const toRel = (abs: string) => relative(repoRoot, abs).split(sep).join('/');
 const TEXT_PROPS =
   /^(placeholder|description|subtitle|hint|helperText|helpText|label|emptyMessage|emptyText|message|caption|body|detail|note|heading|text|blurb|prompt|defaultValue)$/;
 
@@ -48,7 +50,7 @@ const localeViolations = (): string[] => {
 const sourceFiles = (): string[] => {
   const out: string[] = [];
   const visit = (abs: string) => {
-    const rel = relative(repoRoot, abs);
+    const rel = toRel(abs);
     if (SKIP_DIRS.some((d) => rel === d || rel.startsWith(`${d}/`))) return;
     if (statSync(abs).isDirectory()) {
       for (const name of readdirSync(abs)) visit(join(abs, name));
@@ -63,7 +65,7 @@ const sourceFiles = (): string[] => {
 const sourceViolations = (): string[] => {
   const out = new Set<string>();
   for (const abs of sourceFiles()) {
-    const rel = relative(repoRoot, abs);
+    const rel = toRel(abs);
     const sf = ts.createSourceFile(
       abs,
       readFileSync(abs, 'utf8'),

@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlarmClock, X } from 'lucide-react';
 import type { RosterGroupSymbol } from '@/types';
+import { groupTint } from '@/utils/groupReminders';
 import { GroupSymbol } from './GroupSymbol';
 
 interface GroupReminderCardProps {
@@ -31,6 +32,7 @@ export const GroupReminderCard: React.FC<GroupReminderCardProps> = ({
   const snoozed = snoozedUntil !== undefined;
   const lines = [message, name, time].filter((l): l is string => !!l);
   const iconOnly = lines.length === 0;
+  const canSnooze = !snoozed && !!onSnooze;
   const snoozeLabel = t('groupReminders.snoozeFor', {
     defaultValue: 'Snooze {{count}} min',
     count: snoozeMinutes,
@@ -39,24 +41,26 @@ export const GroupReminderCard: React.FC<GroupReminderCardProps> = ({
     defaultValue: 'Dismiss',
   });
   const control =
-    'p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors';
+    'p-1 rounded-md text-slate-500 hover:text-slate-800 hover:bg-white/60 transition-colors';
 
   return (
     <div
       role={snoozed ? undefined : 'alert'}
-      className={`relative rounded-2xl border border-slate-200 transition-opacity duration-500 ${
-        snoozed
-          ? 'bg-white/80 backdrop-blur shadow-lg opacity-60'
-          : 'bg-white shadow-2xl'
+      style={{
+        background: groupTint(symbol),
+        borderColor: groupTint(symbol, 35),
+      }}
+      className={`relative rounded-2xl border transition-opacity duration-500 ${
+        snoozed ? 'shadow-lg opacity-60' : 'shadow-2xl'
       } ${
         iconOnly
-          ? 'w-40 h-40 flex flex-col items-center justify-center'
-          : 'w-max min-w-56 max-w-[min(360px,calc(100vw-2rem))] flex items-center gap-4 py-4 pl-4 pr-14'
+          ? 'w-40 h-40 flex flex-col items-center justify-end pb-2'
+          : 'w-max min-w-56 max-w-[min(360px,calc(100vw-2rem))] flex items-center gap-4 py-4 pl-4 pr-10'
       }`}
     >
       <GroupSymbol
         symbol={symbol}
-        className={iconOnly ? 'w-24 h-24' : 'w-16 h-16'}
+        className={iconOnly ? 'w-32 h-32' : 'w-16 h-16'}
       />
       {!iconOnly && (
         <div className="flex-1 min-w-0">
@@ -84,30 +88,28 @@ export const GroupReminderCard: React.FC<GroupReminderCardProps> = ({
           {snoozedUntil}
         </div>
       )}
-      <div className="absolute top-2 right-2 flex">
-        {!snoozed && onSnooze && (
-          <button
-            type="button"
-            onClick={onSnooze}
-            aria-label={snoozeLabel}
-            title={snoozeLabel}
-            className={control}
-          >
-            <AlarmClock size={16} />
-          </button>
-        )}
-        {onDismiss && (
-          <button
-            type="button"
-            onClick={onDismiss}
-            aria-label={dismissLabel}
-            title={dismissLabel}
-            className={control}
-          >
-            <X size={16} />
-          </button>
-        )}
-      </div>
+      {onDismiss && (
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label={dismissLabel}
+          title={dismissLabel}
+          className={`absolute top-2 right-2 ${control}`}
+        >
+          <X size={16} />
+        </button>
+      )}
+      {canSnooze && (
+        <button
+          type="button"
+          onClick={onSnooze}
+          aria-label={snoozeLabel}
+          title={snoozeLabel}
+          className={`absolute ${iconOnly ? 'top-2 left-2' : 'bottom-2 right-2'} ${control}`}
+        >
+          <AlarmClock size={16} />
+        </button>
+      )}
     </div>
   );
 };

@@ -36,6 +36,7 @@ import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { usePresetSubEmails } from '@/hooks/usePresetSubEmails';
 import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
 import type { Dashboard, SubstituteShareRoster } from '@/types';
+import { effectiveActiveRosterId } from '@/utils/subShareSnapshot';
 import type { SharedBoardImportMode } from '@/context/DashboardContextValue';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 
@@ -321,7 +322,9 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
       }
 
       // v1 shares the active roster only — every roster-aware widget reads it.
-      const activeRoster = rosters.find((r) => r.id === activeRosterId);
+      const activeRoster = rosters.find(
+        (r) => r.id === effectiveActiveRosterId(rosters, activeRosterId)
+      );
       const sharedRosters: SubstituteShareRoster[] =
         subEmails.length > 0 && activeRoster?.driveFileId
           ? [

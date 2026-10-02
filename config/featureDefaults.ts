@@ -1070,6 +1070,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Assign modals' Availability & Due Date section. Admin-only until Paul has assigned with it in prod.
+  'assign-availability': {
+    label: 'Availability and due date',
+    icon: CalendarClock,
+    description: 'Opens, closes and late work when assigning.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Server also requires gemini-functions and a saved doc (enforceAiFeatureAccess, missingDocAllowed: false).
   'plc-meeting-ai-notes': {
     label: 'AI meeting notes',
