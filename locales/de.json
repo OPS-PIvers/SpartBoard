@@ -698,7 +698,8 @@
         "review": "Prüfen",
         "failed": "Notizen konnten nicht erstellt werden",
         "retry": "Erneut versuchen",
-        "generate": "Notizen erstellen"
+        "generate": "Notizen erstellen",
+        "recordingN": "Aufnahme {{n}}"
       }
     },
     "notesDocs": {

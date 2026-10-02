@@ -5,6 +5,7 @@ import { onObjectFinalized } from 'firebase-functions/v2/storage';
 import * as logger from 'firebase-functions/logger';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { autoQueueMeetingNotes } from './plcMeetingNotes';
 import {
   defaultRecordingDeps,
   deleteAudioAsEditor,
@@ -40,7 +41,9 @@ export const finalizePlcRecordingV1 = onCall(
       plcId,
       recordingId
     );
-    // TODO(AI notes, MR-D14): when result.stopped, call autoQueueMeetingNotes here.
+    if (result.stopped && request.auth) {
+      await autoQueueMeetingNotes(plcId, recordingId, uid, request.auth.token);
+    }
     return { status: result.status };
   }
 );
