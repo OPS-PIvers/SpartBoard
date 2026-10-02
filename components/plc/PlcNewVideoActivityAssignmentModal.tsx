@@ -245,7 +245,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
                   )
                 : t('plcDashboard.newAssignment.video.sheetAutoCreateFailed', {
                     defaultValue:
-                      'Could not create the shared group sheet. The assignment will be created without one.',
+                      'Could not create the shared PLC sheet. The assignment will be created without one.',
                   }),
             'error'
           );
