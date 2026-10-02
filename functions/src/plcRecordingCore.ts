@@ -783,7 +783,7 @@ export async function runSweepExpiredRecordingAudio(
               quotaCharge: null,
             });
             const charge = chargeOf(rec.quotaCharge);
-            if (charge) await refundAiUsage(deps.db, charge);
+            if (charge) await refundQuietly(deps, charge);
           }
           await deleteRecordingAudio(deps, plcId, doc.id, 'expired');
           deleted += 1;
@@ -806,6 +806,21 @@ function chargeOf(v: unknown): { docIds: string[] } | null {
   return Array.isArray(ids) && ids.every((i) => typeof i === 'string')
     ? { docIds: ids }
     : null;
+}
+
+// A failed refund must not block the audio delete that follows it.
+async function refundQuietly(
+  deps: RecordingDeps,
+  charge: { docIds: string[] }
+): Promise<void> {
+  try {
+    await refundAiUsage(deps.db, charge);
+  } catch (err) {
+    logger.error('[plcRecording] quota refund failed', {
+      docIds: charge.docIds,
+      err: String(err),
+    });
+  }
 }
 
 // ───────────────────────── callables ─────────────────────────
@@ -891,7 +906,7 @@ export async function deleteAudioAsEditor(
       tx.update(ref, { status: 'ready', requestedBy: null, quotaCharge: null });
       return chargeOf(cur.quotaCharge);
     });
-    if (charge) await refundAiUsage(deps.db, charge);
+    if (charge) await refundQuietly(deps, charge);
   }
   await deleteRecordingAudio(deps, plcId, recordingId, 'manual');
   return { deleted: true };
