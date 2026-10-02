@@ -31,6 +31,12 @@ import {
 import { AssignTargetingSection } from '@/components/common/library/AssignTargetingSection';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 import { AssignmentStatusChip } from './AssignmentStatusChip';
+import { StudentProgressLine } from '@/components/widgets/GuidedLearning/components/results/StudentProgressLine';
+import type { StudentProgressSummary } from '@/components/widgets/GuidedLearning/utils/progress';
+import {
+  useGuidedLearningSessionShape,
+  useGuidedLearningStudentProgress,
+} from '@/hooks/useGuidedLearningStudentProgress';
 import {
   QUIZ_CONTENT_COLLECTION,
   QUIZ_CONTENT_DOC,
@@ -49,7 +55,17 @@ const STATUS_ORDER = [
   'graded',
 ] as const;
 
-const RosterRow: React.FC<{ row: AssignmentRosterRow }> = ({ row }) => {
+interface GuidedProgress {
+  byUid: ReadonlyMap<string, StudentProgressSummary> | null;
+  playerV2: boolean;
+  stepCount: number | null;
+}
+
+const RosterRow: React.FC<{
+  row: AssignmentRosterRow;
+  /** Guided Learning rows only, with `gl-student-progress` on and the session read. */
+  progress?: GuidedProgress;
+}> = ({ row, progress }) => {
   const { t } = useTranslation();
   return (
     <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg hover:bg-slate-50">
@@ -60,6 +76,18 @@ const RosterRow: React.FC<{ row: AssignmentRosterRow }> = ({ row }) => {
         {row.modifiedNote && (
           <p className="text-xs text-slate-400">{row.modifiedNote}</p>
         )}
+        {progress &&
+          !row.skipped &&
+          !row.removed &&
+          !row.manual &&
+          row.status !== 'not-started' && (
+            <StudentProgressLine
+              progress={progress.byUid?.get(row.key)}
+              playerV2={progress.playerV2}
+              stepCount={progress.stepCount}
+              className="text-xs text-slate-500"
+            />
+          )}
       </div>
       {row.skipped ? (
         <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
@@ -279,6 +307,21 @@ export const AssignmentDetailPane: React.FC<{
     row.kind,
     row.sessionId
   );
+
+  const glProgressOn =
+    row.kind === 'guided-learning' && canAccessFeature('gl-student-progress');
+  const glShape = useGuidedLearningSessionShape(row.sessionId, glProgressOn);
+  const glProgressByUid = useGuidedLearningStudentProgress(
+    row.sessionId,
+    glProgressOn && glShape?.playerV2 === true
+  );
+  const glProgress: GuidedProgress | undefined = glShape
+    ? {
+        byUid: glProgressByUid,
+        playerV2: glShape.playerV2,
+        stepCount: glShape.stepCount,
+      }
+    : undefined;
 
   const rosterRows = useMemo(
     () =>
@@ -684,7 +727,9 @@ export const AssignmentDetailPane: React.FC<{
                 </button>
               </div>
             )
-          : rosterRows.map((r) => <RosterRow key={r.key} row={r} />)}
+          : rosterRows.map((r) => (
+              <RosterRow key={r.key} row={r} progress={glProgress} />
+            ))}
       </div>
     </div>
   );

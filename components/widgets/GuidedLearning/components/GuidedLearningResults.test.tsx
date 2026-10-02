@@ -33,10 +33,20 @@ vi.mock('@/hooks/useSessionViewCount', () => ({
   useSessionViewCount: (...args: unknown[]) => viewCountMock(...args),
 }));
 let gradebookOn = false;
+let progressOn = false;
+const progressByUid = new Map([
+  ['u1', { furthestStepIdx: 6, completed: false, updatedAt: null }],
+]);
+vi.mock('@/hooks/useGuidedLearningStudentProgress', () => ({
+  useGuidedLearningStudentProgress: (_id: string, enabled: boolean) =>
+    enabled ? progressByUid : null,
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     orgId: null,
-    canAccessFeature: (id: string) => id === 'gradebook' && gradebookOn,
+    canAccessFeature: (id: string) =>
+      (id === 'gradebook' && gradebookOn) ||
+      (id === 'gl-student-progress' && progressOn),
   }),
 }));
 vi.mock('@/context/useDashboard', () => ({
@@ -213,5 +223,52 @@ describe('GuidedLearningResults — per-student results', () => {
       screen.getByRole('button', { name: 'Results options for PIN: 22' })
     ).toBeInTheDocument();
     gradebookOn = false;
+  });
+});
+
+describe('GuidedLearningResults student progress', () => {
+  const base = {
+    sessionId: 's1',
+    answers: [],
+    startedAt: 1,
+    score: null,
+  } as unknown as GuidedLearningResponse;
+  const stepsSet = {
+    ...set,
+    steps: Array.from({ length: 12 }, (_, i) => ({ id: `st${i}` })),
+  } as unknown as GuidedLearningSet;
+
+  beforeEach(() => {
+    progressOn = true;
+    mockResponses = [
+      { ...base, studentAnonymousId: 'u1', pin: '11', completedAt: null },
+    ];
+  });
+
+  it("shows each student's slide on Player v2 sessions", async () => {
+    session({ playerV2: true });
+    render(
+      <GuidedLearningResults set={stepsSet} sessionId="s1" onClose={vi.fn()} />
+    );
+    expect(await screen.findByText('Slide 7 of 12')).toBeInTheDocument();
+  });
+
+  it('says "Not tracked" on sessions without Player v2', async () => {
+    session({});
+    render(
+      <GuidedLearningResults set={stepsSet} sessionId="s1" onClose={vi.fn()} />
+    );
+    expect(await screen.findByText('Not tracked')).toBeInTheDocument();
+  });
+
+  it('shows nothing with the flag off', async () => {
+    progressOn = false;
+    session({ playerV2: true });
+    render(
+      <GuidedLearningResults set={stepsSet} sessionId="s1" onClose={vi.fn()} />
+    );
+    await screen.findByText('In progress');
+    expect(screen.queryByText(/Slide \d/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Not tracked')).not.toBeInTheDocument();
   });
 });

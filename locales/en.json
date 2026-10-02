@@ -4729,6 +4729,18 @@
     "seconds": "{{seconds}} s",
     "minutes": "{{minutes}} min {{seconds}} s"
   },
+  "glStudentProgress": {
+    "slide": "Slide {{current}}",
+    "slideOf": "Slide {{current}} of {{total}}",
+    "notTracked": "Not tracked",
+    "activeNow": "active just now",
+    "activeMinutes_one": "active {{count}} minute ago",
+    "activeMinutes_other": "active {{count}} minutes ago",
+    "activeHours_one": "active {{count}} hour ago",
+    "activeHours_other": "active {{count}} hours ago",
+    "activeDays_one": "active {{count}} day ago",
+    "activeDays_other": "active {{count}} days ago"
+  },
   "glStudent": {
     "submitting": "Submitting…",
     "submitFailed": "Couldn't submit. Your answers are still here.",
