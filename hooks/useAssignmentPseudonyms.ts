@@ -80,6 +80,17 @@ const EMPTY_MAPS: AssignmentPseudonymMaps = {
 /** `refsKey` value when `targetStudents` is empty — used for the empty-check guard. */
 const EMPTY_REFS_KEY = '[]';
 
+// LMS section ids (`schoology:`/`classroom:`) aren't ClassLink classes; the callable always rejects them.
+const NON_CLASSLINK_CLASS_ID_PREFIXES = ['schoology:', 'classroom:'];
+
+function isRosterResolvableClassId(classId: unknown): classId is string {
+  return (
+    typeof classId === 'string' &&
+    classId.length > 0 &&
+    !NON_CLASSLINK_CLASS_ID_PREFIXES.some((p) => classId.startsWith(p))
+  );
+}
+
 let cacheOwnerUid: string | null = null;
 let cache: Map<string, Promise<AssignmentPseudonymMaps>> = new Map();
 
@@ -207,7 +218,7 @@ export function useAssignmentPseudonymsMulti(
   const classIdsKey = useMemo(
     () =>
       (classIds ?? [])
-        .filter((c): c is string => typeof c === 'string' && c.length > 0)
+        .filter(isRosterResolvableClassId)
         .slice()
         .sort()
         .join('|'),
