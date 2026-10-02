@@ -1,42 +1,41 @@
 import { useEffect, useState } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db, isAuthBypass } from '@/config/firebase';
-import type { GlobalFeaturePermission } from '@/types';
+import { httpsCallable } from 'firebase/functions';
+import { functions, isAuthBypass } from '@/config/firebase';
 
-const STUDENT_LANDING_V2_FEATURE = 'student-landing-v2';
+const cache = new Map<string, boolean>();
 
-/** Open to everyone once Public, or early to students in a listed class (D26); a missing doc is off. */
-export function isStudentLandingV2Open(
-  permission: Partial<GlobalFeaturePermission> | undefined,
-  classIds: readonly string[]
-): boolean {
-  if (permission?.enabled !== true) return false;
-  if (permission.accessLevel === 'public' && !permission.buildings?.length)
-    return true;
-  const beta = permission.betaClassIds;
-  if (!Array.isArray(beta) || beta.length === 0) return false;
-  return classIds.some((id) => beta.includes(id));
-}
-
-/** `null` until the flag doc has loaded, so callers don't flash the old page. */
+/** Whether this student's teacher has the redesigned page (D26); `null` until known, so callers don't flash the old page. */
 export function useStudentLandingV2Enabled(
-  classIds: readonly string[]
+  pseudonymUid: string | null
 ): boolean | null {
-  const [permission, setPermission] = useState<
-    Partial<GlobalFeaturePermission> | undefined | null
-  >(null);
+  const [fetched, setFetched] = useState<{
+    uid: string;
+    enabled: boolean;
+  } | null>(null);
+
   useEffect(() => {
-    if (isAuthBypass) return;
-    return onSnapshot(
-      doc(db, 'global_permissions', STUDENT_LANDING_V2_FEATURE),
-      (snap) =>
-        setPermission(
-          snap.data() as Partial<GlobalFeaturePermission> | undefined
-        ),
-      () => setPermission(undefined)
-    );
-  }, []);
+    if (isAuthBypass || !pseudonymUid || cache.has(pseudonymUid)) return;
+    let cancelled = false;
+    httpsCallable<Record<string, never>, { enabled?: boolean }>(
+      functions,
+      'getStudentLandingV2V1'
+    )({})
+      .then((res) => {
+        const enabled = res.data?.enabled === true;
+        cache.set(pseudonymUid, enabled);
+        if (!cancelled) setFetched({ uid: pseudonymUid, enabled });
+      })
+      .catch(() => {
+        if (!cancelled) setFetched({ uid: pseudonymUid, enabled: false });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pseudonymUid]);
+
   if (isAuthBypass) return true;
-  if (permission === null) return null;
-  return isStudentLandingV2Open(permission, classIds);
+  if (!pseudonymUid) return false;
+  const cached = cache.get(pseudonymUid);
+  if (cached !== undefined) return cached;
+  return fetched?.uid === pseudonymUid ? fetched.enabled : null;
 }

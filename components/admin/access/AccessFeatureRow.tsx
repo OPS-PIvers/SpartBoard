@@ -11,7 +11,6 @@ import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { BetaUsersPanel } from '@/components/admin/BetaUsersPanel';
 import { MinTierSelect } from '@/components/admin/MinTierSelect';
 import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuildingMultiSelect';
-import { ClassTargetPicker } from './ClassTargetPicker';
 import {
   GEMINI_FEATURES,
   defaultDailyLimit,
@@ -73,13 +72,6 @@ const permissionChips = (
     chips.push(
       <Chip key="b">
         {buildings} building{buildings === 1 ? '' : 's'}
-      </Chip>
-    );
-  const classes = permission.betaClassIds?.length ?? 0;
-  if (classes > 0)
-    chips.push(
-      <Chip key="c">
-        {classes} class{classes === 1 ? '' : 'es'}
       </Chip>
     );
   if (permission.minTier)
@@ -335,12 +327,6 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
             selectedIds={permission.buildings ?? []}
             onChange={(buildings) => onUpdate({ buildings })}
           />
-          {def.classTargeting && (
-            <ClassTargetPicker
-              selectedIds={permission.betaClassIds ?? []}
-              onChange={(betaClassIds) => onUpdate({ betaClassIds })}
-            />
-          )}
           <MinTierSelect
             value={permission.minTier}
             onChange={(minTier) => onUpdate({ minTier })}

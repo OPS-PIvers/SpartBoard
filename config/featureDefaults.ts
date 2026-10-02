@@ -134,8 +134,6 @@ export interface FeatureDefault {
   defaultMinTier?: UserTier;
   /** Deny admins too while no doc exists: setup or privacy must be confirmed first. */
   failClosedForAdmins?: boolean;
-  /** Student-facing: the Previews row picks the classes (`betaClassIds`) that get it early. */
-  classTargeting?: boolean;
 }
 
 /**
@@ -910,7 +908,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Student landing page redesign (docs/plans/STUDENT_LANDING_V2.md D26); students are targeted by class.
+  // Student landing page redesign (docs/plans/STUDENT_LANDING_V2.md D26); students get it when their teacher passes the gate.
   'student-landing-v2': {
     label: 'Student landing page',
     icon: LayoutDashboard,
@@ -920,7 +918,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
-    classTargeting: true,
   },
   'group-reminders': {
     label: 'Group reminders',

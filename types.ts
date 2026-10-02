@@ -9621,8 +9621,6 @@ export interface GlobalFeaturePermission {
    * buildings in their `selectedBuildings` to pass the gate.
    */
   buildings?: string[];
-  /** ClassLink section IDs whose students get a student-facing feature before it is Public. */
-  betaClassIds?: string[];
   /**
    * Minimum user tier required to access the feature (free < org <
    * internal). `undefined` means available to all tiers — the back-compat

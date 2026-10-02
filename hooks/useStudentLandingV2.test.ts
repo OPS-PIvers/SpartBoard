@@ -1,50 +1,42 @@
-import { describe, it, expect } from 'vitest';
-import { isStudentLandingV2Open } from './useStudentLandingV2';
+import { renderHook, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-describe('isStudentLandingV2Open', () => {
-  it('is off without a doc or when disabled', () => {
-    expect(isStudentLandingV2Open(undefined, ['a'])).toBe(false);
-    expect(
-      isStudentLandingV2Open(
-        { enabled: false, accessLevel: 'public', betaClassIds: ['a'] },
-        ['a']
-      )
-    ).toBe(false);
+// A plain function, not vi.fn(): Vitest's result tracking reports a rejected mock promise as unhandled.
+const call = vi.hoisted(() => ({
+  impl: (): Promise<unknown> => Promise.resolve({ data: {} }),
+  count: 0,
+}));
+vi.mock('@/config/firebase', () => ({ functions: {}, isAuthBypass: false }));
+vi.mock('firebase/functions', () => ({
+  httpsCallable: () => () => {
+    call.count += 1;
+    return call.impl();
+  },
+}));
+
+import { useStudentLandingV2Enabled } from './useStudentLandingV2';
+
+describe('useStudentLandingV2Enabled', () => {
+  beforeEach(() => {
+    call.count = 0;
   });
 
-  it('is on for everyone when Public with no building limit', () => {
-    expect(
-      isStudentLandingV2Open({ enabled: true, accessLevel: 'public' }, [])
-    ).toBe(true);
-    expect(
-      isStudentLandingV2Open(
-        { enabled: true, accessLevel: 'public', buildings: ['x'] },
-        ['a']
-      )
-    ).toBe(false);
+  it('is null while loading, then follows the server answer', async () => {
+    call.impl = () => Promise.resolve({ data: { enabled: true } });
+    const { result } = renderHook(() => useStudentLandingV2Enabled('uid-a'));
+    expect(result.current).toBeNull();
+    await waitFor(() => expect(result.current).toBe(true));
   });
 
-  it('is on early only for a student with a listed class', () => {
-    const permission = {
-      enabled: true,
-      accessLevel: 'admin' as const,
-      betaClassIds: ['sec-1', 'sec-2'],
-    };
-    expect(isStudentLandingV2Open(permission, ['sec-9', 'sec-2'])).toBe(true);
-    expect(isStudentLandingV2Open(permission, ['sec-9'])).toBe(false);
-    expect(isStudentLandingV2Open(permission, [])).toBe(false);
+  it('is off when the call fails', async () => {
+    call.impl = () => Promise.reject(new Error('nope'));
+    const { result } = renderHook(() => useStudentLandingV2Enabled('uid-b'));
+    await waitFor(() => expect(result.current).toBe(false));
   });
 
-  it('ignores a malformed class list', () => {
-    expect(
-      isStudentLandingV2Open(
-        {
-          enabled: true,
-          accessLevel: 'admin',
-          betaClassIds: 'sec-1' as unknown as string[],
-        },
-        ['sec-1']
-      )
-    ).toBe(false);
+  it('is off without a signed-in student', () => {
+    const { result } = renderHook(() => useStudentLandingV2Enabled(null));
+    expect(result.current).toBe(false);
+    expect(call.count).toBe(0);
   });
 });

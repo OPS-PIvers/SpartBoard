@@ -6,21 +6,16 @@ export const previewStatus = (
   districtOn: boolean | null | undefined
 ): string => {
   if (districtOn === false || !permission.enabled) return 'Off everywhere';
-  const classes = permission.betaClassIds?.length ?? 0;
-  const early =
-    classes > 0 && permission.accessLevel !== 'public'
-      ? ` · students in ${classes} class${classes === 1 ? '' : 'es'}`
-      : '';
   const where =
     permission.buildings && permission.buildings.length > 0
       ? ` in ${permission.buildings.length} building${permission.buildings.length === 1 ? '' : 's'}`
       : '';
   switch (permission.accessLevel) {
     case 'admin':
-      return `Live for: admins${early}`;
+      return 'Live for: admins';
     case 'beta': {
       const n = permission.betaUsers.length;
-      return `Live for: admins and ${n} tester${n === 1 ? '' : 's'}${where}${early}`;
+      return `Live for: admins and ${n} tester${n === 1 ? '' : 's'}${where}`;
     }
     default:
       return `Live for: everyone${where}`;

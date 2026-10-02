@@ -594,28 +594,6 @@ describe('admin_settings/gradebook', () => {
   });
 });
 
-describe('global_permissions student-landing-v2', () => {
-  const path = 'global_permissions/student-landing-v2';
-  it('lets a student read the flag and its class list, and only an admin write it', async () => {
-    await assertSucceeds(
-      setDoc(doc(adminDb(), path), {
-        featureId: 'student-landing-v2',
-        accessLevel: 'admin',
-        betaUsers: [],
-        enabled: true,
-        betaClassIds: ['class-1'],
-      })
-    );
-    await assertSucceeds(getDoc(doc(studentDb(), path)));
-    await assertFails(
-      updateDoc(doc(studentDb(), path), { betaClassIds: ['class-1', 'x'] })
-    );
-    await assertFails(
-      updateDoc(doc(teacherDb(), path), { betaClassIds: ['class-1', 'x'] })
-    );
-  });
-});
-
 describe('student_grades', () => {
   const path = `student_grades/${STUDENT}/classes/class-1`;
   it('lets only that student read their projection', async () => {
