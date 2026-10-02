@@ -43,6 +43,8 @@ const mockFirestoreState = {
   // The scheduler iterates this collection and only recomputes for orgs
   // with status in {active, trial}.
   organizations: [] as { id: string; status: string }[],
+  // `organizations/{orgId}/analytics_days/{date}` docs keyed by full path.
+  activityDays: new Map<string, Record<string, unknown>>(),
 };
 
 const toDocSnapshot = (doc: MockDocInput) => ({
@@ -166,6 +168,20 @@ const mockFirestore = {
       return Promise.resolve();
     }),
   })),
+  batch: vi.fn(() => {
+    const pending: [string, Record<string, unknown>][] = [];
+    return {
+      set: (ref: { path: string }, data: Record<string, unknown>) => {
+        pending.push([ref.path, data]);
+      },
+      commit: () => {
+        for (const [path, data] of pending) {
+          mockFirestoreState.activityDays.set(path, data);
+        }
+        return Promise.resolve();
+      },
+    };
+  }),
   getAll: vi.fn((...refs: MockDocRef[]) => {
     return Promise.resolve(
       refs.map(() => ({ exists: false, data: () => ({}) }))
@@ -225,8 +241,9 @@ const mockFirestore = {
                   // Invited-but-never-signed-in members have no uid on the
                   // member doc. Production treats a non-string `uid` as null
                   // and skips engagement for them.
-                  uid: u.invited ? null : u.id,
+                  uid: u.invited || u.data.unlinked ? null : u.id,
                   buildingIds: u.data.buildings ?? [],
+                  lastActive: u.data.memberLastActive,
                 }),
               })),
           })
@@ -254,6 +271,22 @@ const mockFirestore = {
                 return Promise.resolve({ docs: matchedDocs });
               }),
             })),
+          })
+        ),
+      };
+    }
+
+    if (name.endsWith('/analytics_days')) {
+      return {
+        doc: (id: string) => ({ id, path: `${name}/${id}` }),
+        get: vi.fn(() =>
+          Promise.resolve({
+            docs: [...mockFirestoreState.activityDays.entries()]
+              .filter(([path]) => path.startsWith(`${name}/`))
+              .map(([path, data]) => ({
+                id: path.slice(name.length + 1),
+                data: () => data,
+              })),
           })
         ),
       };
@@ -349,21 +382,35 @@ vi.mock('firebase-admin', () => {
         }));
         return Promise.resolve({ users, pageToken: undefined });
       }),
-      getUsers: vi.fn().mockImplementation((ids: { uid: string }[]) => {
-        const uidSet = new Set(ids.map((i) => i.uid));
-        const users = mockFirestoreState.users
-          .filter((u) => uidSet.has(u.id))
-          .map((u) => ({
-            uid: u.id,
-            email: u.anonymous ? undefined : (u.data.email as string),
-            metadata: {
-              lastSignInTime: u.data.lastLogin
-                ? new Date(u.data.lastLogin as number).toISOString()
-                : undefined,
-            },
-          }));
-        return Promise.resolve({ users });
-      }),
+      getUsers: vi
+        .fn()
+        .mockImplementation((ids: { uid?: string; email?: string }[]) => {
+          const uidSet = new Set(ids.map((i) => i.uid).filter(Boolean));
+          const emailSet = new Set(
+            ids.map((i) => i.email?.toLowerCase()).filter(Boolean)
+          );
+          // Invited members have no Auth account, so email lookups miss them.
+          const users = mockFirestoreState.users
+            .filter(
+              (u) =>
+                uidSet.has(u.id) ||
+                (!u.invited &&
+                  emailSet.has((u.data.email as string)?.toLowerCase()))
+            )
+            .map((u) => ({
+              uid: u.id,
+              email: u.anonymous ? undefined : (u.data.email as string),
+              metadata: {
+                lastSignInTime: u.data.lastLogin
+                  ? new Date(u.data.lastLogin as number).toISOString()
+                  : undefined,
+                lastRefreshTime: u.data.lastRefresh
+                  ? new Date(u.data.lastRefresh as number).toISOString()
+                  : undefined,
+              },
+            }));
+          return Promise.resolve({ users });
+        }),
     })),
   };
 });
@@ -407,6 +454,10 @@ vi.mock('firebase-functions/v2', () => ({
 // `recomputeAdminAnalytics()` like a plain async function.
 vi.mock('firebase-functions/v2/scheduler', () => ({
   onSchedule: (_options: unknown, handler: () => Promise<void>) => handler,
+}));
+
+vi.mock('firebase-functions/v2/storage', () => ({
+  onObjectFinalized: (_options: unknown, handler: unknown) => handler,
 }));
 
 // Mock firebase-functions/params (defineSecret)
@@ -1698,6 +1749,65 @@ describe('adminAnalytics', () => {
     expect(capturedData.dashboards.total).toBe(1);
   });
 
+  it('resolves members without a linked uid by email and counts every activity signal', async () => {
+    const now = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+    mockFirestoreState.users = [
+      // Seeded admin: no uid on the member doc, but a real Auth account.
+      {
+        id: 'uid_seeded',
+        data: {
+          email: 'Admin@District.org',
+          lastLogin: now - 90 * day,
+          lastRefresh: now - 2 * 60 * 60 * 1000,
+          buildings: [],
+          unlinked: true,
+        },
+      },
+      // Uses the app without editing boards; only the member stamp is recent.
+      {
+        id: 'uid_viewer',
+        data: {
+          email: 'viewer@district.org',
+          lastLogin: now - 60 * day,
+          memberLastActive: new Date(now - 5 * day).toISOString(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [
+      {
+        id: 'dash-seeded',
+        ownerUid: 'uid_seeded',
+        data: { updatedAt: now - 40 * day, widgets: [{ type: 'clock' }] },
+      },
+    ];
+    mockFirestoreState.aiUsage = [
+      { id: 'uid_seeded_2026-09-30', data: { count: 4 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    expect(result.users.registered).toBe(2);
+    expect(result.users.monthly).toBe(2);
+    expect(result.users.daily).toBe(1);
+    expect(result.users.withDashboards).toBe(1);
+    expect(result.api.totalCalls).toBe(4);
+    const seeded = result.users.userList.find(
+      (u) => u.email === 'admin@district.org'
+    );
+    expect(seeded?.hasAccount).toBe(true);
+    expect(seeded?.lastEditMs).toBe(now - 40 * day);
+    expect(seeded?.lastActiveMs).toBe(now - 2 * 60 * 60 * 1000);
+    expect(seeded?.isDailyActive).toBe(true);
+    const viewer = result.users.userList.find(
+      (u) => u.email === 'viewer@district.org'
+    );
+    expect(viewer?.lastActiveMs).toBe(now - 5 * day);
+    expect(viewer?.isMonthlyActive).toBe(true);
+    expect(viewer?.isDailyActive).toBe(false);
+  });
+
   it('returns 400 when orgId is missing from the request body', async () => {
     /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
     const statusSpy = vi.fn().mockReturnThis();
@@ -2044,6 +2154,104 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
     mockFirestoreState.aiUsage = [];
     mockFirestoreState.docs = new Map();
     mockFirestoreState.organizations = [];
+    mockFirestoreState.activityDays = new Map();
+  });
+
+  it('records the measured day and attaches the history series', async () => {
+    mockFirestoreState.organizations = [{ id: 'orono', status: 'active' }];
+    mockFirestoreState.users = [
+      {
+        id: 'uid-1',
+        data: { email: 'a@orono.k12.mn.us', lastLogin: Date.now() },
+      },
+      {
+        id: 'uid-2',
+        data: {
+          email: 'b@orono.k12.mn.us',
+          lastLogin: Date.now() - 10 * 24 * 60 * 60 * 1000,
+        },
+      },
+    ];
+    await (recomputeAdminAnalytics as unknown as () => Promise<void>)();
+
+    const days = [...mockFirestoreState.activityDays.entries()].filter(
+      ([, d]) => d.estimated === false
+    );
+    expect(days).toHaveLength(1);
+    expect(days[0][0]).toMatch(/^organizations\/orono\/analytics_days\//);
+    expect(days[0][1]).toEqual({ activeUids: ['uid-1'], estimated: false });
+    const snapshot = mockFirestoreState.docs.get(
+      'organizations/orono/analytics/snapshot'
+    ) as { payload: { history?: { days: unknown[] } } };
+    expect(snapshot.payload.history?.days.at(-1)).toEqual(
+      expect.objectContaining({ dau: 1, mau: 2, estimated: false })
+    );
+  });
+
+  it('still writes the KPI snapshot when history fails', async () => {
+    mockFirestoreState.organizations = [{ id: 'orono', status: 'active' }];
+    mockFirestoreState.users = [
+      {
+        id: 'uid-1',
+        data: { email: 'a@orono.k12.mn.us', lastLogin: Date.now() },
+      },
+    ];
+    mockFirestoreState.activityDays = {
+      entries: () => {
+        throw new Error('history read failed');
+      },
+    } as unknown as Map<string, Record<string, unknown>>;
+    await (recomputeAdminAnalytics as unknown as () => Promise<void>)();
+
+    const snapshot = mockFirestoreState.docs.get(
+      'organizations/orono/analytics/snapshot'
+    ) as { payload: { users: { total: number }; history?: unknown } };
+    expect(snapshot.payload.users.total).toBe(1);
+    expect(snapshot.payload.history).toBeUndefined();
+  });
+
+  it('fills estimated days once per org', async () => {
+    const day = 24 * 60 * 60 * 1000;
+    mockFirestoreState.organizations = [{ id: 'orono', status: 'active' }];
+    mockFirestoreState.users = [
+      {
+        id: 'uid-1',
+        data: { email: 'a@orono.k12.mn.us', lastLogin: Date.now() },
+      },
+    ];
+    mockFirestoreState.dashboards = [
+      {
+        id: 'd1',
+        ownerUid: 'uid-1',
+        data: { createdAt: Date.now() - 50 * day, updatedAt: Date.now() },
+      },
+    ];
+    mockFirestoreState.aiUsage = [
+      { id: 'uid-1_2026-01-15', data: { count: 2 } },
+    ];
+    const run = recomputeAdminAnalytics as unknown as () => Promise<void>;
+
+    await run();
+    const estimated = [...mockFirestoreState.activityDays.entries()].filter(
+      ([, d]) => d.estimated === true
+    );
+    expect(estimated.map(([path]) => path.split('/').pop())).toContain(
+      '2026-01-15'
+    );
+    expect(estimated.length).toBeGreaterThanOrEqual(2);
+    expect(
+      mockFirestoreState.docs.get(
+        'organizations/orono/analytics/history_estimate'
+      )
+    ).toBeDefined();
+
+    // The marker stops a second fill even after estimated days are cleared.
+    for (const [path] of estimated)
+      mockFirestoreState.activityDays.delete(path);
+    await run();
+    expect(
+      [...mockFirestoreState.activityDays.values()].some((d) => d.estimated)
+    ).toBe(false);
   });
 
   it('writes a snapshot doc only for orgs with status active or trial; skips archived', async () => {
@@ -3308,9 +3516,17 @@ describe('index barrel — deployed export set', () => {
     'syncBuildingGroupV1',
     'onUserProfileBuildingsChangedV1',
     'setPlcNormingFlagV1',
+    'finalizePlcRecordingV1',
+    'deletePlcRecordingAudioV1',
+    'finalizeStalePlcRecordings',
+    'sweepPlcRecordingAudio',
+    'onPlcMeetingSegmentUploaded',
     'cleanupPlcNormingOnMembership',
     'cleanupPlcNormingOnResponseDelete',
     'cleanupPlcNormingOnSessionDelete',
+    'requestPlcMeetingNotesV1',
+    'resolvePlcMeetingNotesDraftV1',
+    'runPlcMeetingNotesJob',
     // Dev-only prod → dev materials sync
     'syncMyMaterialsFromProdV1',
     'gradebookDemoV1',

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Rules between `// shorthands: off` and `// shorthands: on` are left alone (each call costs evaluation steps).
-// Rewrites firestore.rules to use the incoming()/existing()/authUid()/unchanged()/isX() shorthands.
+// Rewrites firestore.rules to use the signedIn()/incoming()/existing()/authUid()/unchanged()/isX() shorthands.
 // Idempotent. Prove the result with: java -cp <emulator jar> scripts/rulesAst/RulesAst.java equiv <before> <after>
 import { readFileSync, writeFileSync } from 'node:fs';
 
@@ -26,11 +26,12 @@ const IS = new RegExp(
   'g'
 );
 const HELPER_LINE =
-  /^\s*function (incoming|existing|authUid|unchanged|is[A-Z]\w*)\(\w*\) \{ return re(quest|source)\./;
+  /^\s*function (signedIn|incoming|existing|authUid|unchanged|is[A-Z]\w*)\(\w*\) \{ return re(quest|source)\./;
 const ANCHOR = 'match /databases/{database}/documents {\n';
 const COMMENT =
   '    // Shorthands: compiled rules size counts expression nodes, and each use saves 2-4.';
 const HELPERS = [
+  '    function signedIn() { return request.auth != null; }',
   '    function incoming() { return request.resource.data; }',
   '    function existing() { return resource.data; }',
   '    function authUid() { return request.auth.uid; }',
@@ -50,6 +51,7 @@ export function applyShorthands(source) {
     const split = at >= 0 && !line.slice(at).includes("'");
     let code = split ? line.slice(0, at) : line;
     code = code
+      .replace(/\brequest\.auth != null\b/g, 'signedIn()')
       .replace(/\brequest\.resource\.data\b(?!\w)/g, 'incoming()')
       .replace(/(?<![\w.])resource\.data\b(?!\w)/g, 'existing()')
       .replace(/\brequest\.auth\.uid\b(?!\w)/g, 'authUid()')
@@ -63,7 +65,7 @@ export function applyShorthands(source) {
     const name = h.match(/function (\w+)/)[1];
     return (
       !text.includes(`function ${name}(`) &&
-      (/^(incoming|existing|authUid|unchanged)$/.test(name) ||
+      (/^(signedIn|incoming|existing|authUid|unchanged)$/.test(name) ||
         text.includes(`${name}('`))
     );
   });

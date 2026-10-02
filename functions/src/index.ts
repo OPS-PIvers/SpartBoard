@@ -199,6 +199,15 @@ export { detachPlcSyncLinkage } from './detachPlcSyncLinkage';
 // overflow. PRD §5.3 / §3.4 / §3.1 / §3.3, Decisions 5.3 / 3.4 / 3.1 / 2.1. ──
 export { gcPlcOrphans } from './gcPlcOrphans';
 
+// ── Group meeting recording: finalize, early delete, stale finalizer, 30-day audio sweep, late segments. ──
+export {
+  finalizePlcRecordingV1,
+  deletePlcRecordingAudioV1,
+  finalizeStalePlcRecordings,
+  sweepPlcRecordingAudio,
+  onPlcMeetingSegmentUploaded,
+} from './plcMeetingRecording';
+
 // ── Opt-in weekly PLC activity digest: one shared /mail doc per opted-in PLC
 // off the activity log, gated by a separate kill switch (default OFF) and a
 // per-PLC `digestOptIn` flag. NO per-member fan-out. PRD §5 / §8 / §2.3,
@@ -265,6 +274,13 @@ export {
   cleanupPlcNormingOnResponseDelete,
   cleanupPlcNormingOnSessionDelete,
 } from './plcNorming';
+
+// PLC meeting notes: transcript and drafted notes from a recording (docs/plans/PLC_MEETING_RECORDING.md).
+export {
+  requestPlcMeetingNotesV1,
+  resolvePlcMeetingNotesDraftV1,
+  runPlcMeetingNotesJob,
+} from './plcMeetingNotes';
 
 // ── One-shot PLC migration (arrays→members map, orgId inference, aggregates
 // skeleton). Admin-only callable; see functions/src/migratePlcs.ts. ─────────

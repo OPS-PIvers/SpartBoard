@@ -238,11 +238,17 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
 
   const handleTransferLead = async (member: PlcMember) => {
     const confirmed = await showConfirm(
-      t('plcDashboard.members.confirmTransfer', {
-        defaultValue:
-          'Make {{email}} the lead of this PLC? You will become a regular member.',
-        email: member.email || member.uid,
-      }),
+      groupWording
+        ? t('plcDashboard.members.groupConfirmTransfer', {
+            defaultValue:
+              'Make {{email}} the lead of this group? You will become a regular member.',
+            email: member.email || member.uid,
+          })
+        : t('plcDashboard.members.confirmTransfer', {
+            defaultValue:
+              'Make {{email}} the lead of this PLC? You will become a regular member.',
+            email: member.email || member.uid,
+          }),
       {
         title: t('plcDashboard.members.confirmTransferTitle', {
           defaultValue: 'Transfer lead',
@@ -304,10 +310,15 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
 
   const handleLeave = async () => {
     const confirmed = await showConfirm(
-      t('plcDashboard.members.confirmLeave', {
-        defaultValue:
-          'Leave this PLC? You will lose access to shared assignment results.',
-      }),
+      groupWording
+        ? t('plcDashboard.members.groupConfirmLeave', {
+            defaultValue:
+              'Leave this group? You will lose access to shared assignment results.',
+          })
+        : t('plcDashboard.members.confirmLeave', {
+            defaultValue:
+              'Leave this PLC? You will lose access to shared assignment results.',
+          }),
       {
         title: groupWording
           ? t('plcDashboard.members.groupConfirmLeaveTitle', {

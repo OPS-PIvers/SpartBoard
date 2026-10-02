@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 
 const loggedErrors: { scope: string; error: unknown; ctx?: unknown }[] = [];
 vi.mock('@/utils/logError', () => ({
@@ -203,6 +203,143 @@ describe('useAssignmentPseudonymsMulti', () => {
 
     rerender({ aid: 'assignment-x', cids: [] } as Props);
     expect(result.current.byStudentUid.size).toBe(0);
+    expect(result.current.loading).toBe(false);
     expect(calls).toBe(0);
+  });
+
+  it('never sends LMS section ids (schoology:/classroom:) to the callable', async () => {
+    const calledWith: string[] = [];
+    setHandler(({ classId }) => {
+      calledWith.push(classId);
+      return {
+        data: {
+          pseudonyms: {
+            p1: studentEntry('uid-cl', 'pseudo-cl', 'Robin', 'Kay'),
+          },
+        },
+      };
+    });
+
+    const aid = nextAssignmentId();
+    const { result } = renderHook(() =>
+      useAssignmentPseudonymsMulti(
+        aid,
+        ['schoology:ctx-1', 'class-real', 'classroom:course-9'],
+        'org-1'
+      )
+    );
+
+    await waitFor(() => {
+      expect(result.current.byStudentUid.size).toBe(1);
+    });
+    expect(result.current.loading).toBe(false);
+    expect(calledWith).toEqual(['class-real']);
+    expect(loggedErrors).toHaveLength(0);
+  });
+
+  it('makes no call when every classId is an LMS section id', async () => {
+    let calls = 0;
+    setHandler(() => {
+      calls++;
+      return { data: { pseudonyms: {} } };
+    });
+
+    const { result } = renderHook(() =>
+      useAssignmentPseudonymsMulti(
+        nextAssignmentId(),
+        ['schoology:ctx-1', 'classroom:course-9'],
+        'org-1'
+      )
+    );
+    expect(result.current.loading).toBe(false);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(calls).toBe(0);
+    expect(result.current.byStudentUid.size).toBe(0);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('reports loading until the lookup settles, then clears it', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    setHandler(async () => {
+      await gate;
+      return {
+        data: {
+          pseudonyms: { p1: studentEntry('uid-1', 'pseudo-1', 'Alex', 'Lee') },
+        },
+      };
+    });
+
+    const aid = nextAssignmentId();
+    const { result } = renderHook(() =>
+      useAssignmentPseudonymsMulti(aid, ['class-a'], 'org-1')
+    );
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.error).toBeNull();
+    expect(result.current.byStudentUid.size).toBe(0);
+
+    release();
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    expect(result.current.byStudentUid.get('uid-1')?.givenName).toBe('Alex');
+    expect(result.current.error).toBeNull();
+  });
+
+  it('keeps a stable result identity across re-renders once resolved', async () => {
+    setHandler(() => ({ data: { pseudonyms: {} } }));
+    const aid = nextAssignmentId();
+    const { result, rerender } = renderHook(() =>
+      useAssignmentPseudonymsMulti(aid, ['class-a'], 'org-1')
+    );
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    const first = result.current;
+    rerender();
+    expect(result.current).toBe(first);
+  });
+
+  it('exposes the error and refetches on retry', async () => {
+    let failing = true;
+    let calls = 0;
+    setHandler(() => {
+      calls++;
+      if (failing) return Promise.reject(new Error('cold start timeout'));
+      return Promise.resolve({
+        data: {
+          pseudonyms: { p1: studentEntry('uid-1', 'pseudo-1', 'Alex', 'Lee') },
+        },
+      });
+    });
+
+    const aid = nextAssignmentId();
+    const { result } = renderHook(() =>
+      useAssignmentPseudonymsMulti(aid, ['class-a'], 'org-1')
+    );
+
+    await waitFor(() => {
+      expect(result.current.error?.message).toBe('cold start timeout');
+    });
+    expect(result.current.loading).toBe(false);
+    expect(calls).toBe(1);
+
+    failing = false;
+    act(() => {
+      result.current.retry();
+    });
+    expect(result.current.loading).toBe(true);
+    expect(result.current.error).toBeNull();
+
+    await waitFor(() => {
+      expect(result.current.byStudentUid.get('uid-1')?.givenName).toBe('Alex');
+    });
+    expect(result.current.loading).toBe(false);
+    expect(result.current.error).toBeNull();
+    expect(calls).toBe(2);
   });
 });

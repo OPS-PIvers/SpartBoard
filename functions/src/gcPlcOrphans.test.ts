@@ -236,6 +236,7 @@ function makeStubDb(seed: {
     startAfter: (cursor: DocSnap) => CollectionRef;
     offset: (n: number) => CollectionRef;
     get: () => Promise<{ docs: DocSnap[]; size: number }>;
+    doc: (id: string) => { get: () => Promise<{ exists: boolean }> };
   }
   interface DocSnap {
     id: string;
@@ -275,6 +276,9 @@ function makeStubDb(seed: {
     offset: (n: number) => makeCollectionRef(backing, { ...opts, offsetN: n }),
     startAfter: (cursor: DocSnap) =>
       makeCollectionRef(backing, { ...opts, afterId: cursor.id }),
+    doc: (id: string) => ({
+      get: () => Promise.resolve({ exists: backing.some((d) => d.id === id) }),
+    }),
     get: () => {
       // '__name__' (mocked FieldPath.documentId()) sorts by doc id, same as
       // production. A real field name orders numerically on that field and —
@@ -671,11 +675,101 @@ describe('runGcPlcOrphans — full sweep summary', () => {
       tombstones: 0,
       versionOverflow: 0,
       orphanAggregates: 0,
+      orphanRecordings: 0,
     });
 
     // A second run on the now-clean DB still deletes nothing.
     const second = await runGcPlcOrphans(db, NOW);
     expect(second).toEqual(counts);
+  });
+});
+
+describe('runGcPlcOrphans — meeting recordings of deleted notes', () => {
+  it('purges recordings whose note is gone or purged this run, and keeps the rest', async () => {
+    const old = ts(NOW - TOMBSTONE_GRACE_MS - 1000);
+    const { db } = makeStubDb({
+      plcs: [
+        {
+          id: 'plc-1',
+          data: {},
+          sub: {
+            notes: [
+              { id: 'live', data: {} },
+              { id: 'trashed', data: { deletedAt: ts(NOW - 1000) } },
+              { id: 'expired', data: { deletedAt: old } },
+            ],
+            recordings: [
+              { id: 'r-live', data: { noteId: 'live' } },
+              { id: 'r-trashed', data: { noteId: 'trashed' } },
+              { id: 'r-expired', data: { noteId: 'expired' } },
+              { id: 'r-missing', data: { noteId: 'never-existed' } },
+              { id: 'r-no-note', data: {} },
+            ],
+          },
+        },
+      ],
+    });
+    const purged: string[] = [];
+    const counts = await runGcPlcOrphans(db, NOW, (ref) => {
+      purged.push((ref as unknown as { __doc: { id: string } }).__doc.id);
+      return Promise.resolve();
+    });
+
+    expect(purged.sort()).toEqual(['r-expired', 'r-missing']);
+    expect(counts.orphanRecordings).toBe(2);
+  });
+
+  it('keeps a recording whose note was created after the notes scan', async () => {
+    // Empty to the scan, but a direct read finds the note, as when it lands between the two.
+    const notes = Object.assign([] as StubDoc[], { some: () => true });
+    const { db } = makeStubDb({
+      plcs: [
+        {
+          id: 'plc-1',
+          data: {},
+          sub: {
+            notes,
+            recordings: [{ id: 'r-new', data: { noteId: 'late-note' } }],
+          },
+        },
+      ],
+    });
+    const purged: string[] = [];
+    const counts = await runGcPlcOrphans(db, NOW, (ref) => {
+      purged.push((ref as unknown as { __doc: { id: string } }).__doc.id);
+      return Promise.resolve();
+    });
+    expect(purged).toEqual([]);
+    expect(counts.orphanRecordings).toBe(0);
+  });
+
+  it('counts a failed purge as not purged and keeps sweeping', async () => {
+    const { db } = makeStubDb({
+      plcs: [
+        {
+          id: 'plc-1',
+          data: {},
+          sub: {
+            notes: [],
+            recordings: [
+              { id: 'a', data: { noteId: 'gone-a' } },
+              { id: 'b', data: { noteId: 'gone-b' } },
+            ],
+          },
+        },
+      ],
+    });
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let calls = 0;
+    const counts = await runGcPlcOrphans(db, NOW, () => {
+      calls += 1;
+      return calls === 1
+        ? Promise.reject(new Error('storage down'))
+        : Promise.resolve();
+    });
+    expect(calls).toBe(2);
+    expect(counts.orphanRecordings).toBe(1);
+    error.mockRestore();
   });
 });
 

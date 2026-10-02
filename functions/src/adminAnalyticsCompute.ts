@@ -15,6 +15,17 @@
  */
 
 import * as admin from 'firebase-admin';
+import {
+  type AnalyticsHistory,
+  type DayActivityDoc,
+  buildActivitySeries,
+  buildCohorts,
+  buildNewUsersByMonth,
+  estimateActivityDays,
+  measuredDateKey,
+  readActivityDays,
+  writeActivityDays,
+} from './adminAnalyticsHistory';
 
 export interface AdminAnalyticsPayload {
   users: {
@@ -46,6 +57,7 @@ export interface AdminAnalyticsPayload {
     avgDailyCallsPerUser: number;
     byFeature: Record<string, number>;
   };
+  history?: AnalyticsHistory;
   // Compute-time signals. `partial` is set when one or more
   // `auth().getUsers()` chunks failed during compute — the engagement
   // counts that depend on email/uid resolution will be lower than reality.
@@ -67,12 +79,15 @@ interface AnalyticsUserRow {
   buildings: string[];
   lastSignInMs: number;
   lastEditMs: number;
+  lastActiveMs: number;
+  hasAccount: boolean;
   hasDashboard: boolean;
   isMonthlyActive: boolean;
   isDailyActive: boolean;
 }
 
 interface DashboardData {
+  createdAt?: number;
   updatedAt?: number;
   widgets?: { type: string }[];
 }
@@ -81,7 +96,14 @@ interface MemberLite {
   email: string;
   uid: string | null;
   buildingIds: string[];
+  lastActiveStampMs: number;
 }
+
+const parseTimeMs = (raw: unknown): number => {
+  if (typeof raw !== 'string' || !raw) return 0;
+  const ms = Date.parse(raw);
+  return Number.isFinite(ms) ? ms : 0;
+};
 
 /**
  * Compute the full analytics payload for one org. Pure(ish) — only side
@@ -91,9 +113,34 @@ interface MemberLite {
  * `logContext` is threaded into the same `[getAdminAnalytics]` log lines the
  * inline implementation used, so existing Cloud Logging filters keep working.
  */
+export interface HistoryOptions {
+  // Write today's measured day and attach the history series.
+  record: boolean;
+  // Once per org, fill days before the first measured one from dated records.
+  estimate: boolean;
+}
+
+// Library collections under users/{uid} whose createdAt/updatedAt mark a day of use.
+const ESTIMATE_LIBRARY_COLLECTIONS = [
+  'quizzes',
+  'quiz_assignments',
+  'guided_learning',
+  'miniapps',
+  'activity_wall_activities',
+  'notebooks',
+  'rubrics',
+];
+
+const toMs = (raw: unknown): number => {
+  if (typeof raw === 'number') return raw;
+  const ts = raw as { toMillis?: () => number } | null;
+  return typeof ts?.toMillis === 'function' ? ts.toMillis() : 0;
+};
+
 export async function computeAnalyticsForOrg(
   orgId: string,
-  logContext: { requestId?: string; scheduled?: boolean } = {}
+  logContext: { requestId?: string; scheduled?: boolean } = {},
+  historyOptions: HistoryOptions = { record: false, estimate: false }
 ): Promise<AdminAnalyticsPayload> {
   const db = admin.firestore();
   const now = Date.now();
@@ -116,6 +163,7 @@ export async function computeAnalyticsForOrg(
       email?: unknown;
       uid?: unknown;
       buildingIds?: unknown;
+      lastActive?: unknown;
     };
     const memberEmail =
       typeof data.email === 'string' ? data.email.toLowerCase() : doc.id;
@@ -125,23 +173,33 @@ export async function computeAnalyticsForOrg(
           (id): id is string => typeof id === 'string' && id.length > 0
         )
       : [];
-    members.push({ email: memberEmail, uid, buildingIds });
+    members.push({
+      email: memberEmail,
+      uid,
+      buildingIds,
+      lastActiveStampMs: parseTimeMs(data.lastActive),
+    });
   }
 
-  // Resolve Firebase Auth metadata for members with a linked uid. `getUsers`
-  // tolerates up to 100 identifiers per call and silently drops uids that no
-  // longer exist in Auth, which is the right behavior for a member doc whose
-  // uid was revoked.
+  // Resolve Firebase Auth metadata. Only invite claims write `uid` onto a
+  // member doc, so members added any other way (seeded admins, roster sync)
+  // are resolved by email instead of being reported as never active.
   const authUsersMap = new Map<
     string,
-    { email: string; lastSignInMs: number }
+    {
+      email: string;
+      lastSignInMs: number;
+      lastRefreshMs: number;
+      creationMs: number;
+    }
   >();
-  const uidsToResolve = members
-    .map((m) => m.uid)
-    .filter((uid): uid is string => uid !== null);
-  const chunks: { uid: string }[][] = [];
-  for (let i = 0; i < uidsToResolve.length; i += 100) {
-    chunks.push(uidsToResolve.slice(i, i + 100).map((uid) => ({ uid })));
+  const uidByEmail = new Map<string, string>();
+  const identifiers: admin.auth.UserIdentifier[] = members.map((m) =>
+    m.uid ? { uid: m.uid } : { email: m.email }
+  );
+  const chunks: admin.auth.UserIdentifier[][] = [];
+  for (let i = 0; i < identifiers.length; i += 100) {
+    chunks.push(identifiers.slice(i, i + 100));
   }
 
   await Promise.all(
@@ -149,13 +207,13 @@ export async function computeAnalyticsForOrg(
       try {
         const result = await admin.auth().getUsers(chunk);
         for (const u of result.users) {
-          const lastSignIn = u.metadata.lastSignInTime
-            ? new Date(u.metadata.lastSignInTime).getTime()
-            : 0;
           authUsersMap.set(u.uid, {
             email: u.email ?? '',
-            lastSignInMs: lastSignIn,
+            lastSignInMs: parseTimeMs(u.metadata.lastSignInTime),
+            lastRefreshMs: parseTimeMs(u.metadata.lastRefreshTime),
+            creationMs: parseTimeMs(u.metadata.creationTime),
           });
+          if (u.email) uidByEmail.set(u.email.toLowerCase(), u.uid);
         }
       } catch (err) {
         partial = true;
@@ -168,6 +226,9 @@ export async function computeAnalyticsForOrg(
       }
     })
   );
+  for (const m of members) {
+    if (!m.uid) m.uid = uidByEmail.get(m.email) ?? null;
+  }
 
   // Build uid → member lookup so downstream dashboard/AI filters can scope to
   // org members without being gated on a successful `auth().getUsers()`
@@ -212,10 +273,22 @@ export async function computeAnalyticsForOrg(
   const widgetToUserUids: Record<string, Set<string>> = {};
   const activeThreshold = now - 30 * 24 * 60 * 60 * 1000;
   const lastEditByUser = new Map<string, number>();
+  // Dated (uid, ms) events, only kept while the one-time history estimate is still owed.
+  const datedEvents: [string, number][] = [];
+  const estimateMarkerRef = db.doc(
+    `organizations/${orgId}/analytics/history_estimate`
+  );
+  const estimateOwed =
+    historyOptions.record &&
+    historyOptions.estimate &&
+    !(await estimateMarkerRef
+      .get()
+      .then((snap) => snap.exists === true)
+      .catch(() => true));
 
   const dashboardsStream = db
     .collectionGroup('dashboards')
-    .select('widgets', 'updatedAt')
+    .select('widgets', 'updatedAt', 'createdAt')
     .stream() as unknown as AsyncIterable<admin.firestore.QueryDocumentSnapshot>;
 
   for await (const dashDoc of dashboardsStream) {
@@ -232,6 +305,10 @@ export async function computeAnalyticsForOrg(
 
     totalDashboards++;
     allDashboardOwnerUids.add(ownerUid);
+    if (estimateOwed) {
+      datedEvents.push([ownerUid, toMs(dashData.createdAt)]);
+      datedEvents.push([ownerUid, updatedAt]);
+    }
 
     const prevEdit = lastEditByUser.get(ownerUid) ?? 0;
     if (updatedAt > prevEdit) {
@@ -264,9 +341,18 @@ export async function computeAnalyticsForOrg(
     }
   }
 
-  // 4. Compute engagement from last-edit timestamps. Iterate the org member
-  // roster (not just the auth-resolved subset) so invited-but-never-signed-in
-  // members count toward totals with zero engagement.
+  // 4. Compute engagement from the latest of board edit, sign-in, token
+  // refresh (any open tab refreshes hourly) and the member-doc lastActive
+  // stamp. Iterate the whole roster so invited members count toward totals.
+  const lastActiveFor = (member: MemberLite): number => {
+    const authInfo = member.uid ? authUsersMap.get(member.uid) : undefined;
+    return Math.max(
+      member.uid ? (lastEditByUser.get(member.uid) ?? 0) : 0,
+      authInfo?.lastSignInMs ?? 0,
+      authInfo?.lastRefreshMs ?? 0,
+      member.lastActiveStampMs
+    );
+  };
   const usersByDomain: Record<string, EngagementCounts> = {};
   const usersByBuilding: Record<string, EngagementCounts> = {};
   const usersByDomainAndBuilding: Record<
@@ -284,9 +370,10 @@ export async function computeAnalyticsForOrg(
     const domain = userEmail.includes('@')
       ? userEmail.split('@')[1]
       : 'unknown';
-    const lastEditMs = member.uid ? (lastEditByUser.get(member.uid) ?? 0) : 0;
-    const isMonthlyActive = lastEditMs > 0 && now - lastEditMs <= thirtyDaysMs;
-    const isDailyActive = lastEditMs > 0 && now - lastEditMs <= oneDayMs;
+    const lastActiveMs = lastActiveFor(member);
+    const isMonthlyActive =
+      lastActiveMs > 0 && now - lastActiveMs <= thirtyDaysMs;
+    const isDailyActive = lastActiveMs > 0 && now - lastActiveMs <= oneDayMs;
 
     totalEngagement.total += 1;
     if (isMonthlyActive) totalEngagement.monthly += 1;
@@ -326,14 +413,17 @@ export async function computeAnalyticsForOrg(
     const authInfo = member.uid ? authUsersMap.get(member.uid) : undefined;
     const lastSignInMs = authInfo?.lastSignInMs ?? 0;
     const lastEditMs = member.uid ? (lastEditByUser.get(member.uid) ?? 0) : 0;
+    const lastActiveMs = lastActiveFor(member);
     return {
       email: member.email,
       buildings: member.buildingIds,
       lastSignInMs,
       lastEditMs,
+      lastActiveMs,
+      hasAccount: authInfo !== undefined,
       hasDashboard: member.uid ? allDashboardOwnerUids.has(member.uid) : false,
-      isMonthlyActive: lastEditMs > 0 && now - lastEditMs <= thirtyDaysMs,
-      isDailyActive: lastEditMs > 0 && now - lastEditMs <= oneDayMs,
+      isMonthlyActive: lastActiveMs > 0 && now - lastActiveMs <= thirtyDaysMs,
+      isDailyActive: lastActiveMs > 0 && now - lastActiveMs <= oneDayMs,
     };
   });
 
@@ -528,6 +618,10 @@ export async function computeAnalyticsForOrg(
       totalAiCalls += count;
       callsPerUser[uid] = (callsPerUser[uid] ?? 0) + count;
       dailyCallCounts[datePart] = (dailyCallCounts[datePart] ?? 0) + count;
+      // Usage dates are UTC; midday UTC keeps them on the same district day.
+      if (estimateOwed && count > 0) {
+        datedEvents.push([uid, parseTimeMs(`${datePart}T17:00:00Z`)]);
+      }
     }
   }
 
@@ -584,6 +678,30 @@ export async function computeAnalyticsForOrg(
       email: topUserEmails[uid] ?? `Unknown (${uid})`,
     }));
 
+  let history: AnalyticsHistory | undefined;
+  if (historyOptions.record) {
+    // History is an add-on: a failure here must not block the KPI snapshot.
+    try {
+      history = await recordAndBuildHistory({
+        orgId,
+        now,
+        dailyActiveUids: members
+          .filter((m) => m.uid && now - lastActiveFor(m) <= oneDayMs)
+          .map((m) => m.uid as string),
+        memberUids,
+        authUsersMap,
+        datedEvents,
+        estimateMarkerRef: estimateOwed ? estimateMarkerRef : null,
+      });
+    } catch (err) {
+      console.error('[getAdminAnalytics] history failed', {
+        ...logContext,
+        orgId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   return {
     users: {
       total: totalEngagement.total,
@@ -617,9 +735,92 @@ export async function computeAnalyticsForOrg(
       avgDailyCallsPerUser,
       byFeature: aiCallsByFeature,
     },
+    ...(history ? { history } : {}),
     // Only emit `meta` when something noteworthy happened during compute —
     // keeps the snapshot payload identical to the previous shape for the
     // common all-chunks-succeeded path.
     ...(partial ? { meta: { partial: true } } : {}),
   };
+}
+
+async function recordAndBuildHistory(input: {
+  orgId: string;
+  now: number;
+  dailyActiveUids: string[];
+  memberUids: Set<string>;
+  authUsersMap: Map<
+    string,
+    { lastSignInMs: number; lastRefreshMs: number; creationMs: number }
+  >;
+  datedEvents: [string, number][];
+  // Set only while the one-time estimate is owed; written once it is done.
+  estimateMarkerRef: admin.firestore.DocumentReference | null;
+}): Promise<AnalyticsHistory> {
+  const { orgId, now, memberUids, authUsersMap } = input;
+  const today = measuredDateKey(now);
+  const existing = await readActivityDays(orgId);
+  const toWrite: DayActivityDoc[] = [
+    {
+      date: today,
+      activeUids: [...new Set(input.dailyActiveUids)].sort(),
+      estimated: false,
+    },
+  ];
+
+  const markerRef = input.estimateMarkerRef;
+  if (markerRef) {
+    const firstMeasured = existing
+      .filter((d) => !d.estimated)
+      .map((d) => d.date)
+      .reduce((min, d) => (d < min ? d : min), today);
+    const events = [...input.datedEvents];
+    for (const [uid, info] of authUsersMap) {
+      events.push([uid, info.creationMs], [uid, info.lastSignInMs]);
+    }
+    events.push(...(await readLibraryEvents(memberUids)));
+    toWrite.push(...estimateActivityDays(events, firstMeasured));
+  }
+
+  await writeActivityDays(orgId, toWrite);
+  // A marker, not the estimated docs, records the fill so an org with nothing to estimate is not rescanned.
+  if (markerRef) {
+    await markerRef.set({
+      estimatedAt: now,
+      days: toWrite.length - 1,
+    });
+  }
+  const byDate = new Map(existing.map((d) => [d.date, d]));
+  for (const d of toWrite) byDate.set(d.date, d);
+  const days = [...byDate.values()];
+
+  const signupByUid = new Map<string, number>();
+  for (const [uid, info] of authUsersMap) signupByUid.set(uid, info.creationMs);
+
+  return {
+    days: buildActivitySeries(days),
+    newUsersByMonth: buildNewUsersByMonth([...signupByUid.values()], now),
+    cohorts: buildCohorts(signupByUid, days, now),
+  };
+}
+
+async function readLibraryEvents(
+  memberUids: Set<string>
+): Promise<[string, number][]> {
+  const db = admin.firestore();
+  const events: [string, number][] = [];
+  for (const name of ESTIMATE_LIBRARY_COLLECTIONS) {
+    const stream = db
+      .collectionGroup(name)
+      .select('createdAt', 'updatedAt')
+      .stream() as unknown as AsyncIterable<admin.firestore.QueryDocumentSnapshot>;
+    for await (const doc of stream) {
+      const owner = doc.ref.parent.parent;
+      if (!owner || owner.parent.id !== 'users') continue;
+      if (!memberUids.has(owner.id)) continue;
+      const data = doc.data();
+      events.push([owner.id, toMs(data.createdAt)]);
+      events.push([owner.id, toMs(data.updatedAt)]);
+    }
+  }
+  return events;
 }

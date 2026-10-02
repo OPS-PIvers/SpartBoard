@@ -382,3 +382,88 @@ describe('AssignmentDetailPane — PLC results sharing (D12)', () => {
     expect(screen.queryByText(/Sharing results with/)).not.toBeInTheDocument();
   });
 });
+
+describe('AssignmentDetailPane — pseudonym loading state', () => {
+  const resolvedMaps = () => ({
+    byStudentUid: new Map([
+      ['uid-1', { givenName: 'Alex', familyName: 'Doe' }],
+    ]),
+    byAssignmentPseudonym: new Map(),
+    targetRefKeyByStudentUid: new Map([['uid-1', 'classlink:SID-1']]),
+    targetRefKeyByAssignmentPseudonym: new Map(),
+  });
+  const mockPseudonyms = (value: Record<string, unknown>) =>
+    (
+      useAssignmentPseudonymsMulti as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue(value);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { uid: 'teacher-1' },
+      orgId: 'org-1',
+      canAccessFeature: () => false,
+    });
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      rosters: [roster],
+    });
+    (
+      useAssignmentRosterStatus as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({
+      statusByUid: new Map([['uid-1', 'submitted']]),
+      totalQuestions: 5,
+      loading: false,
+    });
+    (
+      useAssignmentDetailActions as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({
+      saveEdit: mockSaveEdit,
+      closeNow: mockCloseNow,
+      toTargetingValue: vi.fn(),
+    });
+  });
+
+  it('shows the skeleton instead of "Not started" placeholders while names load', () => {
+    mockPseudonyms({
+      byStudentUid: new Map(),
+      byAssignmentPseudonym: new Map(),
+      targetRefKeyByStudentUid: new Map(),
+      targetRefKeyByAssignmentPseudonym: new Map(),
+      loading: true,
+      error: null,
+      retry: vi.fn(),
+    });
+    const { container } = render(<AssignmentDetailPane row={makeRow()} />);
+    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(screen.queryByText('Not started')).not.toBeInTheDocument();
+    expect(screen.queryByText('Student')).not.toBeInTheDocument();
+  });
+
+  it('renders resolved names once loading finishes', () => {
+    mockPseudonyms({
+      ...resolvedMaps(),
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    });
+    const { container } = render(<AssignmentDetailPane row={makeRow()} />);
+    expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+    expect(screen.getByText('Alex Doe')).toBeInTheDocument();
+  });
+
+  it('surfaces a failed lookup with a Retry action', () => {
+    const retry = vi.fn();
+    mockPseudonyms({
+      ...resolvedMaps(),
+      loading: false,
+      error: new Error('internal'),
+      retry,
+    });
+    render(<AssignmentDetailPane row={makeRow()} />);
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      "Couldn't load student names."
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
+});

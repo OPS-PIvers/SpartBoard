@@ -190,7 +190,7 @@ import type {
   LocalizedFibAnswers,
 } from '@/utils/quizFibAnswers';
 import { QuizTargetResults } from './QuizTargetResults';
-import { useViewAsOutward } from '@/hooks/useViewAsOutward';
+import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
 
 /**
@@ -333,6 +333,8 @@ interface QuizResultsProps {
   /** Review results: points and ranking, with no grading, publishing or grade push (D27). */
   variant?: QuizWidgetKind;
 }
+
+const NAMES_LOADING_TITLE = 'Loading student names…';
 
 const HIDE_NAMES_KEY = 'spartboard.quizResults.hideNames';
 
@@ -640,8 +642,11 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       return session.classIds;
     return session?.classId ? [session.classId] : [];
   }, [session?.classIds, session?.classId]);
-  const { byStudentUid: classLinkNames, targetRefKeyByStudentUid } =
-    useAssignmentPseudonymsMulti(session?.id ?? null, sessionClassIds, orgId);
+  const {
+    byStudentUid: classLinkNames,
+    targetRefKeyByStudentUid,
+    loading: namesLoading,
+  } = useAssignmentPseudonymsMulti(session?.id ?? null, sessionClassIds, orgId);
   // Schoology LTI students aren't in any ClassLink roster — resolve their names
   // on-read via NRPS and merge in (ClassLink wins on the rare uid collision).
   // Gated on `ltiNrps` so non-LTI sessions never make the call.
@@ -1034,9 +1039,16 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const [printSelection, setPrintSelection] = useState<
     readonly string[] | null | undefined
   >(undefined);
-  const openPrint = useCallback((keys: string[] | null) => {
-    setPrintSelection(keys);
-  }, []);
+  const openPrint = useCallback(
+    (keys: string[] | null) => {
+      if (namesLoading) {
+        addToast(NAMES_LOADING_TITLE, 'info');
+        return;
+      }
+      setPrintSelection(keys);
+    },
+    [namesLoading, addToast]
+  );
   const printGradeFn = useMemo(
     () => makeQuestionGradeFn(fibGrading),
     [fibGrading]
@@ -1281,7 +1293,11 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const exportsToSharedSheet = !!sharedSheetUrl;
 
   const handleExport = async () => {
-    if (outward.active && !(await outward.confirm('Export to Sheets'))) return;
+    if (
+      outward.active &&
+      !(await outward.confirm('Export to Sheets', VIEW_AS_WRITES.exportSheets))
+    )
+      return;
     // Scope depends on mode. SOLO export CREATES a brand-new sheet the user
     // owns → the non-sensitive `drive.file` login scope suffices (silent, no
     // consent — it's always in the login grant). PLC export APPENDS to a shared
@@ -1926,9 +1942,10 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           <button
             type="button"
             onClick={() => openPrint(null)}
+            disabled={namesLoading}
             aria-label="Print results"
-            title="Print results"
-            className="shrink-0 rounded-md hover:bg-white/15 transition-colors"
+            title={namesLoading ? NAMES_LOADING_TITLE : 'Print results'}
+            className="shrink-0 rounded-md hover:bg-white/15 transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
             style={{ padding: 'min(4px, 1cqmin)' }}
           >
             <Printer
@@ -2005,7 +2022,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                 <button
                   type="button"
                   onClick={() => void handleSchemaMismatchRecovery()}
-                  disabled={exporting}
+                  disabled={exporting || namesLoading}
                   className="bg-brand-red-primary hover:bg-brand-red-dark disabled:bg-brand-gray-lighter text-white font-bold rounded-lg px-3 py-1.5 transition active:scale-95"
                 >
                   Export to my own sheet instead
@@ -2340,8 +2357,11 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               <button
                 type="button"
                 onClick={handleScoreboardClick}
+                disabled={namesLoading}
                 aria-label="Send to Scoreboard"
-                title="Send to Scoreboard"
+                title={
+                  namesLoading ? NAMES_LOADING_TITLE : 'Send to Scoreboard'
+                }
                 className={footerButtonClass}
                 style={footerIconButtonStyle}
               >
@@ -2352,9 +2372,9 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               <button
                 type="button"
                 onClick={sheetRefresh.run}
-                disabled={sheetRefresh.busy}
+                disabled={sheetRefresh.busy || namesLoading}
                 aria-label={sheetRefresh.label}
-                title={sheetRefresh.label}
+                title={namesLoading ? NAMES_LOADING_TITLE : sheetRefresh.label}
                 className={footerButtonClass}
                 style={footerIconButtonStyle}
               >
@@ -2385,8 +2405,13 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               <button
                 type="button"
                 onClick={() => void handleExport()}
-                disabled={exporting || responses.length === 0 || outward.locked}
-                title={outward.lockedTitle}
+                disabled={
+                  exporting ||
+                  responses.length === 0 ||
+                  outward.locked ||
+                  namesLoading
+                }
+                title={namesLoading ? NAMES_LOADING_TITLE : outward.lockedTitle}
                 className={footerButtonClass}
                 style={footerButtonStyle}
               >

@@ -288,10 +288,15 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
               })}
             </div>
             <div className="text-xxs text-slate-500 leading-relaxed mt-0.5">
-              {t('plcDashboard.settings.digest.optInDescription', {
-                defaultValue:
-                  'Send every member one weekly email summarizing what happened in the PLC. Off by default; any member can change this.',
-              })}
+              {canAccessFeature('my-groups')
+                ? t('plcDashboard.settings.digest.groupOptInDescription', {
+                    defaultValue:
+                      'Send every member one weekly email summarizing what happened in the group. Off by default; any member can change this.',
+                  })
+                : t('plcDashboard.settings.digest.optInDescription', {
+                    defaultValue:
+                      'Send every member one weekly email summarizing what happened in the PLC. Off by default; any member can change this.',
+                  })}
             </div>
           </div>
           <div

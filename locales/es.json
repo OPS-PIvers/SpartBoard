@@ -682,6 +682,24 @@
         "button": "Importar",
         "success": "Se importaron {{count}} tareas",
         "failed": "No se pudieron importar las tareas"
+      },
+      "meetingNotes": {
+        "transcript": "Transcripción",
+        "transcriptFailed": "No se pudo cargar la transcripción.",
+        "speaker": "Hablante {{n}}",
+        "actionFailed": "No funcionó. Inténtalo de nuevo.",
+        "insert": "Insertar",
+        "replace": "Reemplazar",
+        "regenerate": "Volver a generar",
+        "dismiss": "Descartar",
+        "draftedLine": "Borrador creado automáticamente a partir de la grabación. Revísalo antes de insertarlo.",
+        "working": "Creando notas",
+        "ready": "Notas listas",
+        "review": "Revisar",
+        "failed": "No se pudieron crear las notas",
+        "retry": "Reintentar",
+        "generate": "Generar notas",
+        "recordingN": "Grabación {{n}}"
       }
     },
     "notesDocs": {
@@ -2073,7 +2091,9 @@
       "stopSharingPlcDone": "Ya no se comparten resultados con {{plc}}.",
       "plcActionFailed": "No se pudo actualizar el uso compartido. Inténtalo de nuevo.",
       "skippedStatus": "Omitido",
-      "classNotResolved": "Esta tarea no está vinculada a una clase que puedas modificar aquí, así que solo se puede cambiar el horario."
+      "classNotResolved": "Esta tarea no está vinculada a una clase que puedas modificar aquí, así que solo se puede cambiar el horario.",
+      "namesFailed": "No se pudieron cargar los nombres de los estudiantes.",
+      "namesRetry": "Reintentar"
     }
   },
   "quizResults": {

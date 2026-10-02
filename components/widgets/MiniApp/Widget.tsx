@@ -86,7 +86,7 @@ import { useInSubShare } from '@/hooks/useShareContent';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { withoutClaudeReview } from '@/utils/claudeReview';
-import { useViewAsOutward } from '@/hooks/useViewAsOutward';
+import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 
 // --- M17 B3: setAssignmentTargetsV1 client caller ---
 // Mirrors `functions/src/studentAssignmentTargets.ts` — kept local (not the
@@ -432,7 +432,8 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                 onClick={() =>
                   outward.run(
                     isViewOnly ? 'Create share link' : 'Assign',
-                    onConfirm
+                    onConfirm,
+                    VIEW_AS_WRITES.assign
                   )
                 }
                 disabled={

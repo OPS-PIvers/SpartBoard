@@ -37,7 +37,7 @@ import { usePresetSubEmails } from '@/hooks/usePresetSubEmails';
 import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
 import type { Dashboard, SubstituteShareRoster } from '@/types';
 import type { SharedBoardImportMode } from '@/context/DashboardContextValue';
-import { useViewAsOutward } from '@/hooks/useViewAsOutward';
+import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 
 // `SharedBoardImportMode` excludes 'substitute' on purpose (substitute shares
 // are never imported into a teacher's account), so this widened union is the
@@ -274,7 +274,8 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
     if (
       outward.active &&
       !(await outward.confirm(
-        mode === 'substitute' ? 'Share with a substitute' : 'Share board'
+        mode === 'substitute' ? 'Share with a substitute' : 'Share board',
+        VIEW_AS_WRITES.shareBoard
       ))
     )
       return;

@@ -42,6 +42,10 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { ImportWizard } from '@/components/common/library/importer';
 import { FlashcardEditor } from './FlashcardEditor';
+import {
+  clearPastedFlashcards,
+  peekPastedFlashcards,
+} from './utils/pastedDrafts';
 import { FlashcardLibrary } from './FlashcardLibrary';
 import { FlashcardResultsView } from './results';
 import {
@@ -132,7 +136,18 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     setPlcShare,
   });
   const folders = useFolders(inShare ? undefined : user?.uid, 'flashcards');
-  const [editingSet, setEditingSet] = useState<FlashcardSet | null>(null);
+  const [editingSet, setEditingSet] = useState<FlashcardSet | null>(() => {
+    const pasted = peekPastedFlashcards(config.pasteDraftId);
+    return pasted ? makeSet(pasted) : null;
+  });
+  const closeEditor = () => {
+    setEditingSet(null);
+    if (!config.pasteDraftId) return;
+    clearPastedFlashcards(config.pasteDraftId);
+    updateWidget(widget.id, {
+      config: { ...config, pasteDraftId: undefined },
+    });
+  };
   const handleEditSet = (set: FlashcardSet) => {
     claudeReview.markReviewed(set);
     setEditingSet(set);
@@ -228,7 +243,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     setSaving(true);
     try {
       const rewritten = await flashcardSets.saveSet(set);
-      setEditingSet(null);
+      closeEditor();
       addToast(
         rewritten > 0
           ? `“${set.title}” saved. ${rewritten} open Study assignment${rewritten === 1 ? '' : 's'} updated.`
@@ -237,7 +252,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       );
     } catch (error) {
       if (error instanceof FlashcardStudySyncError) {
-        setEditingSet(null);
+        closeEditor();
         addToast(
           `“${set.title}” saved, but open Study assignments still show the old cards.`,
           'error'
@@ -584,7 +599,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 key={editingSet.id}
                 initialSet={editingSet}
                 saving={saving}
-                onCancel={() => setEditingSet(null)}
+                onCancel={closeEditor}
                 onSave={handleSave}
               />
             ) : (

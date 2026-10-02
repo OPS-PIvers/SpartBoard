@@ -63,6 +63,7 @@ import {
   recomputeTranslationIndex,
 } from '@/utils/quizTranslationIndex';
 import { noDriveMessage } from '@/utils/viewAsDrive';
+import { viewAsDirectSave } from '@/utils/viewAsAudit';
 
 const QUIZZES_COLLECTION = 'quizzes';
 
@@ -523,16 +524,18 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       ) {
         return;
       }
-      await setDoc(
-        metaRef,
-        {
-          ...existing,
-          sync: {
-            groupId: linkage.groupId,
-            lastSyncedVersion: linkage.lastSyncedVersion,
-          },
-        } satisfies QuizMetadata,
-        { merge: false }
+      await viewAsDirectSave(metaRef, ['sync'], () =>
+        setDoc(
+          metaRef,
+          {
+            ...existing,
+            sync: {
+              groupId: linkage.groupId,
+              lastSyncedVersion: linkage.lastSyncedVersion,
+            },
+          } satisfies QuizMetadata,
+          { merge: false }
+        )
       );
     },
     [userId]

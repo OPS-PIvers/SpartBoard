@@ -682,6 +682,24 @@
         "button": "Importer",
         "success": "{{count}} tâches importées",
         "failed": "Impossible d’importer les tâches"
+      },
+      "meetingNotes": {
+        "transcript": "Transcription",
+        "transcriptFailed": "Impossible de charger la transcription.",
+        "speaker": "Intervenant {{n}}",
+        "actionFailed": "Cela n’a pas fonctionné. Réessayez.",
+        "insert": "Insérer",
+        "replace": "Remplacer",
+        "regenerate": "Régénérer",
+        "dismiss": "Ignorer",
+        "draftedLine": "Brouillon créé automatiquement à partir de l’enregistrement. Vérifiez avant d’insérer.",
+        "working": "Création des notes",
+        "ready": "Notes prêtes",
+        "review": "Vérifier",
+        "failed": "Impossible de créer les notes",
+        "retry": "Réessayer",
+        "generate": "Générer les notes",
+        "recordingN": "Enregistrement {{n}}"
       }
     },
     "notesDocs": {
@@ -2073,7 +2091,9 @@
       "stopSharingPlcDone": "Les résultats ne sont plus partagés avec {{plc}}.",
       "plcActionFailed": "Impossible de mettre à jour le partage. Réessayez.",
       "skippedStatus": "Ignoré",
-      "classNotResolved": "Ce devoir n'est lié à aucune classe que tu peux modifier ici ; seul le calendrier est modifiable."
+      "classNotResolved": "Ce devoir n'est lié à aucune classe que tu peux modifier ici ; seul le calendrier est modifiable.",
+      "namesFailed": "Impossible de charger les noms des élèves.",
+      "namesRetry": "Réessayer"
     }
   },
   "quizResults": {

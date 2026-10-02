@@ -682,6 +682,24 @@
         "button": "Import",
         "success": "Imported {{count}} to-dos",
         "failed": "Could not import the to-dos"
+      },
+      "meetingNotes": {
+        "transcript": "Transcript",
+        "transcriptFailed": "Couldn't load the transcript.",
+        "speaker": "Speaker {{n}}",
+        "actionFailed": "That didn’t work. Try again.",
+        "insert": "Insert",
+        "replace": "Replace",
+        "regenerate": "Regenerate",
+        "dismiss": "Dismiss",
+        "draftedLine": "Drafted automatically from the recording. Check before inserting.",
+        "working": "Making notes",
+        "ready": "Notes ready",
+        "review": "Review",
+        "failed": "Couldn't make notes",
+        "retry": "Retry",
+        "generate": "Generate notes",
+        "recordingN": "Recording {{n}}"
       }
     },
     "notesDocs": {
@@ -3182,7 +3200,9 @@
       "stopSharingPlcDone": "No longer sharing results with {{plc}}.",
       "plcActionFailed": "Could not update PLC sharing. Try again.",
       "skippedStatus": "Skipped",
-      "classNotResolved": "This assignment is not linked to a class you can modify here, so only the schedule can be changed."
+      "classNotResolved": "This assignment is not linked to a class you can modify here, so only the schedule can be changed.",
+      "namesFailed": "Couldn't load student names.",
+      "namesRetry": "Retry"
     }
   },
   "quizResults": {

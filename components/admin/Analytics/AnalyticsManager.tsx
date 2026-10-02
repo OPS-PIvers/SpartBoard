@@ -9,7 +9,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   Legend,
   ResponsiveContainer,
   Tooltip,
@@ -32,9 +31,7 @@ import {
   Link2,
   School,
   Search,
-  Users,
   WandSparkles,
-  Zap,
 } from 'lucide-react';
 import { logError } from '@/utils/logError';
 import { Modal } from '@/components/common/Modal';
@@ -48,6 +45,15 @@ import {
 import { LinksPanel } from './LinksPanel';
 import { AI_FEATURE_LABELS } from './aiFeatureLabels';
 import { WIDGET_LABELS } from './widgetLabels';
+import { type AnalyticsHistory, lastActiveOf } from './overviewMetrics';
+import {
+  ActiveUsersPanel,
+  BuildingAdoptionPanel,
+  CohortPanel,
+  DailyHeatmapPanel,
+  LastActivePanel,
+  NewUsersPanel,
+} from './OverviewCharts';
 
 interface EngagementCounts {
   total: number;
@@ -60,6 +66,8 @@ interface KpiUser {
   buildings: string[];
   lastSignInMs: number;
   lastEditMs: number;
+  lastActiveMs?: number;
+  hasAccount?: boolean;
   hasDashboard: boolean;
   isMonthlyActive: boolean;
   isDailyActive: boolean;
@@ -108,6 +116,7 @@ interface AnalyticsData {
     avgDailyCallsPerUser: number;
     byFeature: Record<string, number>;
   };
+  history?: AnalyticsHistory;
   // Snapshot freshness metadata returned alongside the payload. The server
   // computes the analytics once a day; these timestamps drive the
   // "Last updated · Next update at" badge so the admin understands they're
@@ -315,13 +324,10 @@ const KpiCard: React.FC<{
   title: string;
   value: string | number;
   subtitle?: string;
-  accentColor: string;
-  accentBg: string;
-  icon: React.ReactNode;
   onClick?: () => void;
-}> = ({ title, value, subtitle, accentColor, accentBg, icon, onClick }) => (
+}> = ({ title, value, subtitle, onClick }) => (
   <div
-    className={`bg-white border border-slate-200 rounded-2xl p-5 shadow-sm relative overflow-hidden${onClick ? ' cursor-pointer hover:border-slate-300 hover:shadow-md transition-all' : ''}`}
+    className={`bg-white border border-slate-200 rounded-2xl p-5 shadow-sm${onClick ? ' cursor-pointer hover:border-slate-300 hover:shadow-md transition-all' : ''}`}
     onClick={onClick}
     onKeyDown={
       onClick
@@ -336,22 +342,11 @@ const KpiCard: React.FC<{
     role={onClick ? 'button' : undefined}
     tabIndex={onClick ? 0 : undefined}
   >
-    <div
-      className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
-      style={{ background: accentColor }}
-    />
-    <div className="flex items-start justify-between gap-3">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-          {title}
-        </p>
-        <p className="text-3xl font-black text-slate-900 mt-1">{value}</p>
-        {subtitle && <p className="text-sm text-slate-500 mt-1">{subtitle}</p>}
-      </div>
-      <div className="p-3 rounded-xl" style={{ background: accentBg }}>
-        {icon}
-      </div>
-    </div>
+    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+      {title}
+    </p>
+    <p className="text-3xl font-black text-slate-900 mt-1">{value}</p>
+    {subtitle && <p className="text-sm text-slate-500 mt-1">{subtitle}</p>}
   </div>
 );
 
@@ -376,9 +371,13 @@ const OverviewPanel: React.FC<{
   registeredIsFallback: boolean;
   usersWithDashboards: number;
   dashboards: { total: number; avgWidgetsPerDashboard: number };
+  users: KpiUser[];
+  buildingBuckets: Record<string, EngagementCounts>;
   onKpiClick?: (category: KpiCategory) => void;
 }> = ({
   data,
+  users,
+  buildingBuckets,
   filteredTotalUsers,
   filteredMonthly,
   filteredDaily,
@@ -388,14 +387,20 @@ const OverviewPanel: React.FC<{
   dashboards,
   onKpiClick,
 }) => {
-  const funnel = useMemo(
-    () => [
-      { name: 'Registered', value: registeredUsers, fill: '#2d3f89' },
-      { name: 'With Dashboards', value: usersWithDashboards, fill: '#10b981' },
-      { name: 'Monthly Active', value: filteredMonthly, fill: '#3b82f6' },
-      { name: 'Daily Active', value: filteredDaily, fill: '#f59e0b' },
-    ],
-    [filteredDaily, filteredMonthly, registeredUsers, usersWithDashboards]
+  const KNOWN_BUILDINGS = useKnownBuildings();
+  const history = data.history;
+  const asOfMs = data.meta?.computedAt ?? 0;
+  const buildingRows = useMemo(
+    () =>
+      Object.entries(buildingBuckets)
+        .filter(([id]) => id !== 'none')
+        .map(([id, counts]) => ({
+          name: KNOWN_BUILDINGS.lookup(id)?.name ?? `Unknown (${id})`,
+          total: counts.total,
+          monthly: counts.monthly,
+        }))
+        .sort((a, b) => b.total - a.total),
+    [buildingBuckets, KNOWN_BUILDINGS]
   );
 
   const domainRows = useMemo(
@@ -422,36 +427,24 @@ const OverviewPanel: React.FC<{
               ? 'Fallback: Firestore user profiles'
               : 'Firebase Auth'
           }
-          accentColor="#4356a0"
-          accentBg="rgba(67,86,160,0.2)"
-          icon={<Users className="w-5 h-5 text-blue-700" />}
           onClick={onKpiClick ? () => onKpiClick('registered') : undefined}
         />
         <KpiCard
           title="Users with Dashboards"
           value={formatNumber(usersWithDashboards)}
           subtitle="Unique dashboard owners"
-          accentColor="#10b981"
-          accentBg="rgba(16,185,129,0.12)"
-          icon={<LayoutGrid className="w-5 h-5 text-emerald-600" />}
           onClick={onKpiClick ? () => onKpiClick('withDashboards') : undefined}
         />
         <KpiCard
           title="Monthly Active"
           value={formatNumber(filteredMonthly)}
           subtitle={`${formatRate(filteredTotalUsers > 0 ? (filteredMonthly / filteredTotalUsers) * 100 : 0)} of visible users`}
-          accentColor="#3b82f6"
-          accentBg="rgba(59,130,246,0.12)"
-          icon={<BarChart2 className="w-5 h-5 text-blue-500" />}
           onClick={onKpiClick ? () => onKpiClick('monthlyActive') : undefined}
         />
         <KpiCard
           title="Daily Active"
           value={formatNumber(filteredDaily)}
           subtitle={`${formatRate(filteredTotalUsers > 0 ? (filteredDaily / filteredTotalUsers) * 100 : 0)} of visible users`}
-          accentColor="#f59e0b"
-          accentBg="rgba(245,158,11,0.12)"
-          icon={<Zap className="w-5 h-5 text-amber-500" />}
           onClick={onKpiClick ? () => onKpiClick('dailyActive') : undefined}
         />
       </div>
@@ -460,87 +453,77 @@ const OverviewPanel: React.FC<{
         <KpiCard
           title="Total Dashboards"
           value={formatNumber(dashboards.total)}
-          accentColor="#6366f1"
-          accentBg="rgba(99,102,241,0.12)"
-          icon={<LayoutGrid className="w-5 h-5 text-indigo-500" />}
         />
         <KpiCard
           title="Avg Widgets / Dashboard"
           value={dashboards.avgWidgetsPerDashboard.toFixed(1)}
-          accentColor="#f59e0b"
-          accentBg="rgba(245,158,11,0.12)"
-          icon={<WandSparkles className="w-5 h-5 text-amber-500" />}
         />
       </div>
 
-      <PanelCard title="User Engagement Funnel">
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart
-            data={funnel}
-            layout="vertical"
-            margin={{ left: 20, right: 15 }}
-          >
-            <CartesianGrid stroke={chartTheme.grid} horizontal={false} />
-            <XAxis
-              type="number"
-              tick={{ fill: chartTheme.axisText, fontSize: 12 }}
-            />
-            <YAxis
-              type="category"
-              dataKey="name"
-              width={130}
-              tick={{ fill: chartTheme.axisText, fontSize: 12 }}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="value" barSize={24} radius={[0, 8, 8, 0]}>
-              {funnel.map((row, idx) => (
-                <Cell key={`${row.name}-${idx}`} fill={row.fill} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </PanelCard>
+      {history && history.days.length > 0 && (
+        <>
+          <ActiveUsersPanel days={history.days} />
+          <DailyHeatmapPanel days={history.days} />
+        </>
+      )}
 
-      <PanelCard title="Top Domains (Total vs Monthly Active)">
-        <ResponsiveContainer
-          width="100%"
-          height={Math.max(280, domainRows.length * 34)}
-        >
-          <BarChart
-            data={domainRows}
-            layout="vertical"
-            margin={{ left: 10, right: 24 }}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {users.length > 0 && asOfMs > 0 && (
+          <LastActivePanel users={users} asOfMs={asOfMs} />
+        )}
+        {history && history.newUsersByMonth.length > 0 && (
+          <NewUsersPanel months={history.newUsersByMonth} />
+        )}
+        {history && history.cohorts.length > 0 && (
+          <CohortPanel cohorts={history.cohorts} />
+        )}
+        {buildingRows.length > 0 && (
+          <BuildingAdoptionPanel rows={buildingRows} />
+        )}
+      </div>
+
+      {domainRows.length > 1 && (
+        <PanelCard title="Top Domains (Total vs Monthly Active)">
+          <ResponsiveContainer
+            width="100%"
+            height={Math.max(280, domainRows.length * 34)}
           >
-            <CartesianGrid stroke={chartTheme.grid} horizontal={false} />
-            <XAxis
-              type="number"
-              tick={{ fill: chartTheme.axisText, fontSize: 12 }}
-            />
-            <YAxis
-              type="category"
-              dataKey="domain"
-              width={130}
-              tick={{ fill: chartTheme.axisText, fontSize: 12 }}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={{ color: chartTheme.axisText }} />
-            <Bar
-              dataKey="total"
-              fill="#2d3f89"
-              name="Total"
-              radius={[0, 8, 8, 0]}
-              barSize={16}
-            />
-            <Bar
-              dataKey="monthly"
-              fill="#3b82f6"
-              name="Monthly Active"
-              radius={[0, 8, 8, 0]}
-              barSize={16}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </PanelCard>
+            <BarChart
+              data={domainRows}
+              layout="vertical"
+              margin={{ left: 10, right: 24 }}
+            >
+              <CartesianGrid stroke={chartTheme.grid} horizontal={false} />
+              <XAxis
+                type="number"
+                tick={{ fill: chartTheme.axisText, fontSize: 12 }}
+              />
+              <YAxis
+                type="category"
+                dataKey="domain"
+                width={130}
+                tick={{ fill: chartTheme.axisText, fontSize: 12 }}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend wrapperStyle={{ color: chartTheme.axisText }} />
+              <Bar
+                dataKey="total"
+                fill="#2d3f89"
+                name="Total"
+                radius={[0, 8, 8, 0]}
+                barSize={16}
+              />
+              <Bar
+                dataKey="monthly"
+                fill="#3b82f6"
+                name="Monthly Active"
+                radius={[0, 8, 8, 0]}
+                barSize={16}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </PanelCard>
+      )}
     </div>
   );
 };
@@ -880,30 +863,18 @@ const AiPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
         <KpiCard
           title="Total API Calls"
           value={formatNumber(data.api.totalCalls)}
-          accentColor="#ad2122"
-          accentBg="rgba(173,33,34,0.12)"
-          icon={<Zap className="w-5 h-5 text-red-600" />}
         />
         <KpiCard
           title="Active AI Users"
           value={formatNumber(data.api.activeUsers)}
-          accentColor="#c13435"
-          accentBg="rgba(193,52,53,0.12)"
-          icon={<Users className="w-5 h-5 text-red-500" />}
         />
         <KpiCard
           title="Avg Daily Calls"
           value={formatNumber(data.api.avgDailyCalls)}
-          accentColor="#6366f1"
-          accentBg="rgba(99,102,241,0.12)"
-          icon={<BarChart2 className="w-5 h-5 text-indigo-500" />}
         />
         <KpiCard
           title="Avg Per User/Day"
           value={data.api.avgDailyCallsPerUser.toFixed(1)}
-          accentColor="#10b981"
-          accentBg="rgba(16,185,129,0.12)"
-          icon={<WandSparkles className="w-5 h-5 text-emerald-500" />}
         />
       </div>
 
@@ -1152,7 +1123,7 @@ const formatRelativeTime = (ms: number): string => {
   return new Date(ms).toLocaleDateString();
 };
 
-type KpiSortKey = 'email' | 'building' | 'lastEdit';
+type KpiSortKey = 'email' | 'building' | 'lastActive';
 
 const KpiUserModal: React.FC<{
   isOpen: boolean;
@@ -1189,7 +1160,7 @@ const KpiUserModal: React.FC<{
   const categoryUsers = useMemo(() => {
     switch (category) {
       case 'registered':
-        return users;
+        return users.filter((u) => u.hasAccount ?? true);
       case 'withDashboards':
         return users.filter((u) => u.hasDashboard);
       case 'monthlyActive':
@@ -1244,8 +1215,8 @@ const KpiUserModal: React.FC<{
           cmp = aName.localeCompare(bName);
           break;
         }
-        case 'lastEdit':
-          cmp = (a.lastEditMs ?? 0) - (b.lastEditMs ?? 0);
+        case 'lastActive':
+          cmp = lastActiveOf(a) - lastActiveOf(b);
           break;
       }
       return sortDir === 'asc' ? cmp : -cmp;
@@ -1325,10 +1296,10 @@ const KpiUserModal: React.FC<{
                 </th>
                 <th
                   className="text-left px-4 py-2.5 font-semibold text-slate-600 cursor-pointer select-none hover:bg-slate-100 transition-colors"
-                  onClick={() => handleSort('lastEdit')}
+                  onClick={() => handleSort('lastActive')}
                 >
                   <span className="inline-flex items-center gap-1">
-                    Last Edit {renderSortIcon('lastEdit')}
+                    Last Active {renderSortIcon('lastActive')}
                   </span>
                 </th>
               </tr>
@@ -1366,12 +1337,12 @@ const KpiUserModal: React.FC<{
                     <td
                       className="px-4 py-2.5 text-slate-600"
                       title={
-                        (u.lastEditMs ?? 0) > 0
-                          ? new Date(u.lastEditMs).toLocaleString()
-                          : 'No edits'
+                        lastActiveOf(u) > 0
+                          ? new Date(lastActiveOf(u)).toLocaleString()
+                          : undefined
                       }
                     >
-                      {formatRelativeTime(u.lastEditMs ?? 0)}
+                      {formatRelativeTime(lastActiveOf(u))}
                     </td>
                   </tr>
                 ))
@@ -1609,6 +1580,7 @@ export const AnalyticsManager: React.FC = () => {
           avgDailyCallsPerUser: raw.api?.avgDailyCallsPerUser ?? 0,
           byFeature: raw.api?.byFeature ?? {},
         },
+        history: raw.history,
         meta: raw.meta,
       };
 
@@ -1678,6 +1650,10 @@ export const AnalyticsManager: React.FC = () => {
     };
   }, [data, selectedBuilding, selectedDomain]);
 
+  // Domain/building filters must apply to every KPI, not only the active counts.
+  const isFiltered =
+    (selectedDomain !== 'all' || selectedBuilding !== 'all') &&
+    (data?.users.userList?.length ?? 0) > 0;
   const filteredUserList = useMemo(() => {
     const list = data?.users.userList ?? [];
     if (selectedDomain === 'all' && selectedBuilding === 'all') return list;
@@ -1924,11 +1900,25 @@ export const AnalyticsManager: React.FC = () => {
             filteredTotalUsers={filteredTotalUsers}
             filteredMonthly={filteredMonthly}
             filteredDaily={filteredDaily}
-            registeredUsers={data.users.registered ?? data.users.total}
+            registeredUsers={
+              isFiltered
+                ? filteredUserList.filter((u) => u.hasAccount ?? true).length
+                : (data.users.registered ?? data.users.total)
+            }
             registeredIsFallback={data.users.registeredIsFallback ?? false}
-            usersWithDashboards={data.users.withDashboards ?? 0}
+            usersWithDashboards={
+              isFiltered
+                ? filteredUserList.filter((u) => u.hasDashboard).length
+                : (data.users.withDashboards ?? 0)
+            }
             dashboards={
               data.dashboards ?? { total: 0, avgWidgetsPerDashboard: 0 }
+            }
+            users={filteredUserList}
+            buildingBuckets={
+              selectedDomain === 'all'
+                ? data.users.buildings
+                : (data.users.domainBuilding[selectedDomain] ?? {})
             }
             onKpiClick={filteredUserList.length > 0 ? setKpiModal : undefined}
           />

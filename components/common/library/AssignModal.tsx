@@ -22,7 +22,7 @@
 import React, { useCallback, useState } from 'react';
 import { Loader2, Rocket } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
-import { useViewAsOutward } from '@/hooks/useViewAsOutward';
+import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import type { AssignModalProps, AssignModeOption } from './types';
 
 const MODAL_LABEL_ID = 'assign-modal-title';
@@ -52,7 +52,11 @@ export function AssignModal<TOptions>({
 
   const handleAssign = useCallback(async () => {
     if (submitting || confirmDisabled || outward.locked) return;
-    if (outward.active && !(await outward.confirm(confirmLabel))) return;
+    if (
+      outward.active &&
+      !(await outward.confirm(confirmLabel, VIEW_AS_WRITES.assign))
+    )
+      return;
     setSubmitting(true);
     try {
       await onAssign({

@@ -162,9 +162,13 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
               htmlFor={urlId}
               className="mb-1 block text-sm font-medium text-slate-700"
             >
-              {t('plcDashboard.home.quickCreate.docModal.urlLabel', {
-                defaultValue: 'Google Doc URL',
-              })}
+              {groupWording
+                ? t('plcDashboard.home.quickCreate.docModal.groupUrlLabel', {
+                    defaultValue: 'Link',
+                  })
+                : t('plcDashboard.home.quickCreate.docModal.urlLabel', {
+                    defaultValue: 'Google Doc URL',
+                  })}
             </label>
             <input
               id={urlId}
@@ -175,9 +179,15 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
                 if (e.key === 'Enter') void handleSubmit();
               }}
               disabled={submitting}
-              placeholder={t('plcDashboard.docs.urlPlaceholder', {
-                defaultValue: 'Paste Google Doc URL',
-              })}
+              placeholder={
+                groupWording
+                  ? t('plcDashboard.docs.groupUrlPlaceholder', {
+                      defaultValue: 'Paste a link',
+                    })
+                  : t('plcDashboard.docs.urlPlaceholder', {
+                      defaultValue: 'Paste Google Doc URL',
+                    })
+              }
               className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-brand-blue-primary/50 focus:outline-none focus:ring-1 focus:ring-brand-blue-primary/50"
             />
           </div>

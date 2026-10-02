@@ -896,6 +896,97 @@ export interface PlcNote {
   deletedAt?: number | null;
 }
 
+/** Lifecycle of a note's meeting recording (docs/plans/PLC_MEETING_RECORDING.md). */
+export type PlcRecordingStatus =
+  | 'recording'
+  | 'paused'
+  | 'finalizing'
+  | 'ready'
+  | 'queued'
+  | 'transcribing'
+  | 'transcribed'
+  | 'failed';
+
+export type PlcRecordingAudioDeletedReason =
+  | 'manual'
+  | 'expired'
+  | 'transcribed';
+
+/** One MediaRecorder run; its segments concatenate into one WebM file (MR-D7). */
+export interface PlcRecordingPart {
+  segmentCount: number;
+  durationMs: number;
+}
+
+export type PlcRecordingDraftSource = 'gemini' | 'claude';
+
+/** The step a queued or transcribing run is on. */
+export type PlcRecordingJob = 'transcribe' | 'summarize';
+
+/** An action item drafted from a recording; the owner is only a suggestion (MR-D18). */
+export interface PlcRecordingDraftActionItem {
+  id: string;
+  text: string;
+  suggestedOwnerUid?: string | null;
+}
+
+/** Notes drafted from a recording, waiting for an editor to review (MR-D19). */
+export interface PlcRecordingDraft {
+  markdown: string;
+  actionItems: PlcRecordingDraftActionItem[];
+  generatedAt: number;
+  generatedBy: string;
+  /** Who drafted it: Gemini from the audio, or Claude through the connector (MR-D21). */
+  source?: PlcRecordingDraftSource;
+}
+
+/** `plcs/{plcId}/recordings/{recordingId}`: one recording attached to a note. */
+export interface PlcRecording {
+  id: string;
+  noteId: string;
+  recorderUid: string;
+  /** Set on a "Recovered audio" recording: the recording its late segments came from (MR-D8). */
+  recoveredFrom?: string | null;
+  status: PlcRecordingStatus;
+  parts: PlcRecordingPart[];
+  durationMs: number;
+  lastHeartbeatAt: number;
+  /** Recorded time at which the server finalized a stale recording (MR-D8). */
+  interruptedAtMs?: number | null;
+  finalizedAt?: number | null;
+  audioDeletedAt?: number | null;
+  audioDeletedReason?: PlcRecordingAudioDeletedReason | null;
+  /** Removed once the audio is deleted. */
+  audioExpiresAt?: number | null;
+  /** Late segments merged back in after finalizing (MR-D8). */
+  mergedSegments?: number | null;
+  /** On the original: the Recovered audio recording its late segments went to (MR-D8). */
+  recoveredInto?: string | null;
+  error?: string | null;
+  requestedBy?: string | null;
+  job?: PlcRecordingJob | null;
+  /** True once `transcript/main` exists; picks Retry versus Regenerate without reading it. */
+  hasTranscript?: boolean;
+  /** Last time a notes run was queued or claimed; a stale one can be retried. */
+  jobUpdatedAt?: number | null;
+  draft?: PlcRecordingDraft | null;
+  draftResolvedAt?: number | null;
+  createdAt: number;
+}
+
+/** One speaker turn; speakers are numbered, never named (MR-D17). */
+export interface PlcTranscriptSegment {
+  speaker: number;
+  startMs: number;
+  text: string;
+}
+
+/** `plcs/{plcId}/recordings/{recordingId}/transcript/main`, written only by the server. */
+export interface PlcRecordingTranscript {
+  segments: PlcTranscriptSegment[];
+  generatedAt?: number | null;
+}
+
 /**
  * @deprecated Legacy. One PLC to-do. Read-only going forward; imported into
  * note action items (Decision 7.4). No new to-dos are created.
@@ -926,6 +1017,18 @@ export interface PlcTodo {
    * hard-deletes it after 30 days).
    */
   deletedAt?: number | null;
+}
+
+// --- My Groups resource links (plcs/{id}/links) ---
+export interface PlcLink {
+  id: string;
+  title: string;
+  url: string;
+  note?: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 // --- PLC shared Google Docs ---
@@ -8419,6 +8522,8 @@ export interface FlashcardsConfig {
   presentShowFirst: FlashcardSide;
   presentShuffle: boolean;
   lastRosterIdsBySetId?: Record<string, string[]>;
+  /** In-memory pasted cards (Flashcards/utils/pastedDrafts.ts) the editor opens with. */
+  pasteDraftId?: string;
 }
 
 // --- PROJECTS WIDGET TYPES (docs/plans/shipped/PROJECTS_WIDGET.md) ---
@@ -9400,6 +9505,8 @@ export type GlobalFeature =
   | 'paper-handwritten-responses'
   /** Claude connector: teachers connect Claude to their library (docs/plans/CLAUDE_CONNECTOR.md). */
   | 'claude-connector'
+  /** Guided Learning tools inside the Claude connector; building and Help Center sets stay admin-only. */
+  | 'claude-connector-guided-learning'
   /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/shipped/VA_TEACHER_PACED.md). */
   | 'video-activity-live'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
@@ -9430,7 +9537,13 @@ export type GlobalFeature =
   | 'drawing-ai'
   | 'webcam-ai'
   | 'blooms-ai'
-  | 'my-groups';
+  | 'my-groups'
+  /** Ctrl+V of a two-column list on the board opens a new flashcard set in the editor. */
+  | 'flashcard-smart-paste'
+  /** Record a group meeting on a note, with playback (docs/plans/PLC_MEETING_RECORDING.md). */
+  | 'plc-meeting-recording'
+  /** Transcript and drafted notes from a meeting recording; AND-ed with `gemini-functions`. */
+  | 'plc-meeting-ai-notes';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

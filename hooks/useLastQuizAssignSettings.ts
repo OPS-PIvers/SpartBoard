@@ -3,6 +3,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import type { QuizBehaviorSettings, QuizSessionOptions } from '@/types';
 import { logError } from '@/utils/logError';
+import { viewAsDirectSave } from '@/utils/viewAsAudit';
 
 /** Profile field holding this teacher's last-used Quiz assign settings (plan D11). */
 export const LAST_QUIZ_ASSIGN_SETTINGS_FIELD = 'lastQuizAssignSettings';
@@ -120,10 +121,12 @@ export function useLastQuizAssignSettings(
       if (!next) return;
       cache.set(uid, Promise.resolve(next));
       listeners.forEach((listener) => listener(uid, next));
-      setDoc(
-        profileRef(uid),
-        { [LAST_QUIZ_ASSIGN_SETTINGS_FIELD]: next },
-        { mergeFields: [LAST_QUIZ_ASSIGN_SETTINGS_FIELD] }
+      viewAsDirectSave(profileRef(uid), [LAST_QUIZ_ASSIGN_SETTINGS_FIELD], () =>
+        setDoc(
+          profileRef(uid),
+          { [LAST_QUIZ_ASSIGN_SETTINGS_FIELD]: next },
+          { mergeFields: [LAST_QUIZ_ASSIGN_SETTINGS_FIELD] }
+        )
       ).catch((err: unknown) =>
         logError('useLastQuizAssignSettings.save', err)
       );

@@ -117,11 +117,12 @@ function chunk<T>(items: T[], size: number): T[][] {
   return out;
 }
 
+// Token refresh tracks an open tab; sign-in alone goes stale under long-lived sessions.
 function parseLastSignIn(metadata: admin.auth.UserMetadata): number | null {
-  const raw = metadata.lastSignInTime;
-  if (!raw) return null;
-  const ms = Date.parse(raw);
-  return Number.isFinite(ms) ? ms : null;
+  const times = [metadata.lastSignInTime, metadata.lastRefreshTime]
+    .map((raw) => (raw ? Date.parse(raw) : NaN))
+    .filter((ms) => Number.isFinite(ms));
+  return times.length > 0 ? Math.max(...times) : null;
 }
 
 export const getOrgUserActivity = onCall<OrgUserActivityPayload>(

@@ -21,11 +21,25 @@ controlled data and no temporary source or dependency changes left behind.
 
 ## 2. Choose a deterministic app surface
 
-Try `vite-dev-bypass` or an existing `*-dev` harness first. If authentication,
-Firebase, Drive, emulators, or unavailable account data prevents the requested
-state, add a temporary dev-only harness instead of patching production stores.
+Screenshots show the real board: dock, sidebar and a few widgets around the
+one the guide is about, so a teacher recognises their own screen. Every
+pixel on a slide is a real component. Never render an explainer card, a
+title slide or UI that doesn't exist in the app.
 
-A capture harness should:
+In order of preference:
+
+1. **The full board in `vite-dev-bypass`** (section 3). It boots a real
+   board for the mock admin; add the widgets the guide needs through the
+   dock, as a teacher would.
+2. **The same board with a narrow mock** when a state needs data the bypass
+   can't load (a roster, a quiz library): a dev-only harness that renders
+   the real `DashboardView` with fixture data, not the widget alone in an
+   empty page.
+3. **The widget alone** only for a close-up the guide genuinely needs, and
+   never for every slide. A floating widget on a white page reads as
+   nothing the teacher has seen and is tiny on a projector.
+
+Do not patch production stores for any of these. A capture harness should:
 
 - mount the real widget and settings components;
 - supply the smallest real providers they need;
@@ -101,7 +115,9 @@ directory after capture.
 
 ## 5. Capture real states
 
-1. Set a fixed viewport, normally 1440×900, before navigation.
+1. Set a fixed viewport before navigation: 1600×900 (16:9, which fills the
+   Help Center player), or 1440×900 only for a live tour whose slides are
+   just its missing-anchor fallback.
 2. Disable transitions and animations with `page.addStyleTag` so controls do
    not move between measurement and capture.
 3. Hide harness navigation and dev banners before the deliverable screenshot.
@@ -164,8 +180,9 @@ widget with `measureWidgetLayout(page, 'clock', 0)` once it sits where the
 screenshots show it. See [live-tour.md](live-tour.md) for what to do with
 them.
 
-Render a verification copy of every slide with numbered pins, then inspect a
-contact sheet. A pin or region must land on the intended control or content,
+Render a verification copy of every slide with
+`node .claude/skills/gl-author/scripts/contact_sheet.mjs <file> <dir>`
+(`--help-size` for a Help Center set) and inspect each sheet. A pin or region must land on the intended control or content,
 no callout may cover its target, and the
 underlying screenshot must show a populated, readable state. Verification
 overlays are QA artifacts only; embed the unmarked screenshots in the guide.

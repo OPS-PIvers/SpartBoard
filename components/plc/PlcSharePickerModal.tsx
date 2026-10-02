@@ -19,7 +19,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Search, Share2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
-import { useViewAsOutward } from '@/hooks/useViewAsOutward';
+import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 
 export interface PlcSharePickerItem {
   id: string;
@@ -81,7 +81,11 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
 
   const handlePick = async (itemId: string) => {
     if (busyRef.current || outward.locked) return;
-    if (outward.active && !(await outward.confirm('Share to PLC'))) return;
+    if (
+      outward.active &&
+      !(await outward.confirm('Share to PLC', VIEW_AS_WRITES.sharePlc))
+    )
+      return;
     busyRef.current = true;
     setBusyId(itemId);
     try {
