@@ -54,13 +54,13 @@ export const GroupReminderCard: React.FC<GroupReminderCardProps> = ({
         snoozed ? 'shadow-lg opacity-60' : 'shadow-2xl'
       } ${
         iconOnly
-          ? 'w-40 h-40 flex flex-col items-center justify-center'
+          ? 'w-40 h-40 flex flex-col items-center justify-end pb-2'
           : 'w-max min-w-56 max-w-[min(360px,calc(100vw-2rem))] flex items-center gap-4 py-4 pl-4 pr-10'
       }`}
     >
       <GroupSymbol
         symbol={symbol}
-        className={iconOnly ? 'w-28 h-28' : 'w-16 h-16'}
+        className={iconOnly ? 'w-32 h-32' : 'w-16 h-16'}
       />
       {!iconOnly && (
         <div className="flex-1 min-w-0">
