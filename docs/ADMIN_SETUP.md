@@ -188,10 +188,9 @@ rollout — do not assume.
 
 ### Cold-start mitigation
 
-`studentLoginV1` and `getPseudonymsForAssignmentV1` are configured with
-`minInstances: 1` to avoid cold-start penalties during simultaneous class
-logins. If cost becomes an issue, the two functions can share a warm
-instance by co-locating them.
+`getPseudonymsForAssignmentV1` is configured with `minInstances: 1` in prod
+(0 in `spartboard-dev`) so the teacher grading view doesn't wait on a cold
+start. `studentLoginV1` dropped its warm instance in May 2026.
 
 ## Troubleshooting
 
