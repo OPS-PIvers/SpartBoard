@@ -16,6 +16,7 @@ import { logError } from '@/utils/logError';
 import { formatOpensLabel } from '@/utils/assignmentWindow';
 import { useServerNow } from '@/hooks/useServerNow';
 import { nextScheduledOpen, studentCanEnter } from '@/utils/periodAccess';
+import { readTurnInState } from '@/utils/studentTurnIn';
 
 /**
  * Lazy completion check — same pattern as the previous AssignmentCard but
@@ -124,7 +125,11 @@ const OVERRIDE_KINDS: ReadonlySet<AssignmentSummary['kind']> = new Set([
   'guided-learning',
 ]);
 
-export type CompletionState = 'unknown' | 'completed' | 'not-completed';
+export type CompletionState =
+  | 'unknown'
+  | 'completed'
+  | 'in-progress'
+  | 'not-completed';
 
 interface AssignmentListItemProps {
   assignment: AssignmentSummary;
@@ -210,15 +215,17 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
           )
         );
         if (cancelled) return;
-        // Flashcards: a Study is never completed; a Check is once graded.
-        // Guided learning saves answers as the student goes; completedAt marks the submit.
-        const done =
-          assignment.kind === 'flashcards'
-            ? snap.exists() && typeof snap.data()?.submittedAt === 'number'
-            : assignment.kind === 'guided-learning'
-              ? snap.exists() && typeof snap.data()?.completedAt === 'number'
-              : snap.exists();
-        const next: CompletionState = done ? 'completed' : 'not-completed';
+        const turnIn = readTurnInState(
+          assignment.kind,
+          assignment.flashcardKind,
+          snap.exists() ? (snap.data() as Record<string, unknown>) : null
+        );
+        const next: CompletionState =
+          turnIn === 'turned-in'
+            ? 'completed'
+            : turnIn === 'in-progress'
+              ? 'in-progress'
+              : 'not-completed';
         setCompletion(next);
         if (OVERRIDE_KINDS.has(assignment.kind) && snap.exists()) {
           setLockedOut(snap.data()?.resultsLockedOut === true);
@@ -240,6 +247,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   }, [
     assignment.sessionId,
     assignment.kind,
+    assignment.flashcardKind,
     pseudonymUid,
     config.collectionName,
     responseSub,
@@ -248,6 +256,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   ]);
 
   const isCompleted = completion === 'completed';
+  const isInProgress = completion === 'in-progress';
   // 'upcoming' rows are always locked (they haven't opened yet). 'closed'
   // rows lock only until the completion check confirms the student actually
   // submitted before the window closed — a genuinely-completed-but-closed
@@ -507,7 +516,13 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
             )}`}
             aria-hidden="true"
           >
-            {getChipLabel({ isPending, isCompleted, isGraded, isWallClosed })}
+            {getChipLabel({
+              isPending,
+              isCompleted,
+              isInProgress,
+              isGraded,
+              isWallClosed,
+            })}
           </span>
         )}
       </a>
@@ -529,6 +544,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
 /**
  * Status chip wording per row state.
  *  - Active row → "Open" (primary CTA)
+ *  - Started but not turned in → "In progress"
  *  - Completed row, grades not published → "Not graded"
  *  - Completed row, grades published → "View results"
  *  - Optimistically-surfaced row whose completion check hasn't resolved →
@@ -539,16 +555,19 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
 function getChipLabel({
   isPending,
   isCompleted,
+  isInProgress,
   isGraded,
   isWallClosed,
 }: {
   isPending: boolean;
   isCompleted: boolean;
+  isInProgress: boolean;
   isGraded: boolean;
   isWallClosed: boolean;
 }): string {
   if (isPending) return 'Checking…';
   if (isWallClosed) return 'Closed';
+  if (isInProgress) return 'In progress';
   if (!isCompleted) return 'Open';
   return isGraded ? 'View results' : 'Not graded';
 }

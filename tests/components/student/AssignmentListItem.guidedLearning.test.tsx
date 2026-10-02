@@ -39,7 +39,7 @@ beforeEach(() => {
 });
 
 describe('AssignmentListItem — guided learning', () => {
-  it('keeps answers saved without a submit out of Completed', async () => {
+  it('marks answers saved without a submit in progress', async () => {
     (getDoc as Mock).mockResolvedValue(
       responseDoc({ answers: [], completedAt: null })
     );
@@ -55,7 +55,7 @@ describe('AssignmentListItem — guided learning', () => {
       expect(onResolved).toHaveBeenCalledWith(
         'gl-1',
         'guided-learning',
-        'not-completed'
+        'in-progress'
       )
     );
   });
