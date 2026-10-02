@@ -76,6 +76,7 @@ function setup(rosterIds: string[]) {
   vi.mocked(useAuth).mockReturnValue({
     user: { uid: 'teacher-1' },
     getAssignmentMode: () => 'submissions',
+    canAccessFeature: () => false,
   } as unknown as ReturnType<typeof useAuth>);
   vi.mocked(useSavedWidgets).mockReturnValue({
     saveSavedWidget: vi.fn(),

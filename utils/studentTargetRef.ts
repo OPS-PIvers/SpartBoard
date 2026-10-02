@@ -1,6 +1,7 @@
 /** Shared `StudentTargetRef` derivation + key formatting (M17 spec §2a/§5 B1). */
 
 import type { PeriodPlan } from '@/utils/periodPlan';
+import type { AssignAvailability } from '@/utils/assignAvailability';
 import type {
   ClassRoster,
   Student,
@@ -23,6 +24,8 @@ export interface AssignTargetingValue {
   dueAt?: number;
   /** Per-period start and windows; absent keeps one gate for every class. */
   periodPlan?: PeriodPlan;
+  /** Availability & Due Date state; hosts resolve it with `applyAvailability` before saving. */
+  availability?: AssignAvailability;
 }
 
 export const EMPTY_ASSIGN_TARGETING_VALUE: AssignTargetingValue = {
