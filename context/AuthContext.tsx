@@ -221,6 +221,7 @@ const GOOGLE_TOKEN_CHECK_INTERVAL_MS = 60 * 1000; // How often to poll for expir
 const GOOGLE_TOKEN_REFRESH_THRESHOLD_MS = 10 * 60 * 1000; // Refresh this far before expiry
 const GOOGLE_TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000; // Don't use tokens within 5 min of expiry
 const GOOGLE_TOKEN_DISCONNECTED_RETRY_MS = 5 * 60 * 1000; // Silent retry cadence once the token is gone
+const GOOGLE_BACKEND_LATCHED_RETRY_MS = 30 * 60 * 1000; // Min gap between focus-triggered backend attempts once latched
 
 // Inactivity-based session timeout: force re-login after 7 days of no app usage
 // so stale Google OAuth tokens (Drive, Calendar, Sheets) get fully refreshed.
@@ -299,6 +300,20 @@ const makeHybridBypassUser = (anonUser: User): User =>
         : value;
     },
   });
+
+interface BackendConsentLatch {
+  uid: string | null;
+  latched: boolean;
+  lastBackendAttemptAt: number;
+  focusArmed: boolean;
+}
+
+const newBackendConsentLatch = (uid: string | null): BackendConsentLatch => ({
+  uid,
+  latched: false,
+  lastBackendAttemptAt: 0,
+  focusArmed: false,
+});
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -449,6 +464,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const isRefreshingRef = useRef(false);
   // Earliest time checkToken may retry a silent refresh while disconnected
   const nextDisconnectedRetryAtRef = useRef(0);
+  // Per-user latch: after a backend needs-consent, silent refreshes skip the backend leg.
+  const backendConsentLatchRef = useRef<BackendConsentLatch>(
+    newBackendConsentLatch(null)
+  );
+  if (backendConsentLatchRef.current.uid !== (user?.uid ?? null)) {
+    backendConsentLatchRef.current = newBackendConsentLatch(user?.uid ?? null);
+  }
   // Prevents duplicate root-doc syncs within the same session
   const rootDocSyncedRef = useRef(false);
   // Prevents duplicate member-doc `lastActive` stamps within the same session
@@ -732,8 +754,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         // lives server-side and isn't tied to the browser's Google session
         // at all. Safe to attempt in silent mode because the callable runs
         // without any UI surface.
+        const latch = backendConsentLatchRef.current;
+        if (silent && latch.latched) {
+          // Latched: only a focus-armed attempt past the throttle may hit the backend.
+          if (
+            !latch.focusArmed ||
+            Date.now() - latch.lastBackendAttemptAt <
+              GOOGLE_BACKEND_LATCHED_RETRY_MS
+          ) {
+            return null;
+          }
+          latch.focusArmed = false;
+          latch.lastBackendAttemptAt = Date.now();
+        }
         const backendOutcome = await refreshAccessTokenViaBackend();
+        if (backendOutcome.status === 'needs-consent') {
+          latch.latched = true;
+          latch.lastBackendAttemptAt = Date.now();
+        }
         if (backendOutcome.status === 'ok') {
+          latch.latched = false;
           const expiryMs = computeExpiryMs(backendOutcome.expiresIn);
           localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, backendOutcome.token);
           localStorage.setItem(GOOGLE_TOKEN_EXPIRY_KEY, expiryMs.toString());
@@ -761,6 +801,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               Array.from(onDemandScopesRef.current)
             );
             if (exchanged.kind === 'success') {
+              backendConsentLatchRef.current.latched = false;
               const result = exchanged.result;
               const expiryMs = computeExpiryMs(result.expiresIn);
               localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, result.accessToken);
@@ -879,6 +920,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     );
 
     if (outcome.kind === 'success') {
+      backendConsentLatchRef.current.latched = false;
       const { accessToken, expiresIn } = outcome.result;
       const expiryMs = Date.now() + (expiresIn || 3600) * 1000;
       localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, accessToken);
@@ -1260,14 +1302,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const onResume = () => {
       if (!document.hidden) void checkToken();
     };
+    const onFocus = () => {
+      const latch = backendConsentLatchRef.current;
+      if (
+        document.hidden ||
+        !latch.latched ||
+        Date.now() - latch.lastBackendAttemptAt <
+          GOOGLE_BACKEND_LATCHED_RETRY_MS
+      ) {
+        onResume();
+        return;
+      }
+      // Arm one backend attempt for this focus's check only, skipping the disconnected backoff.
+      latch.focusArmed = true;
+      nextDisconnectedRetryAtRef.current = 0;
+      void checkToken().finally(() => {
+        latch.focusArmed = false;
+      });
+    };
+    // Another tab wrote a fresh token (e.g. after reconnecting), so the server grant may exist now.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === GOOGLE_ACCESS_TOKEN_KEY && e.newValue) {
+        backendConsentLatchRef.current.latched = false;
+      }
+    };
     document.addEventListener('visibilitychange', onResume);
-    window.addEventListener('focus', onResume);
+    window.addEventListener('focus', onFocus);
     window.addEventListener('online', onResume);
+    window.addEventListener('storage', onStorage);
     return () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', onResume);
-      window.removeEventListener('focus', onResume);
+      window.removeEventListener('focus', onFocus);
       window.removeEventListener('online', onResume);
+      window.removeEventListener('storage', onStorage);
     };
   }, [hasLiveUser, refreshGoogleToken]);
 
@@ -3235,6 +3303,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.removeItem(LAST_ACTIVITY_KEY);
       localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
       localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
+      backendConsentLatchRef.current = newBackendConsentLatch(null);
       await firebaseSignOut(auth);
       setGoogleAccessToken(null);
       // Clear on-demand scope grants so a shared device doesn't carry the prior
