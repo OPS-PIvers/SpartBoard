@@ -682,6 +682,23 @@
         "button": "Importieren",
         "success": "{{count}} Aufgaben importiert",
         "failed": "Die Aufgaben konnten nicht importiert werden"
+      },
+      "meetingNotes": {
+        "transcript": "Transkript",
+        "transcriptFailed": "Das Transkript konnte nicht geladen werden.",
+        "speaker": "Sprecher {{n}}",
+        "actionFailed": "Das hat nicht geklappt. Bitte erneut versuchen.",
+        "insert": "Einfügen",
+        "replace": "Ersetzen",
+        "regenerate": "Neu erstellen",
+        "dismiss": "Verwerfen",
+        "draftedLine": "Automatisch aus der Aufnahme entworfen. Vor dem Einfügen prüfen.",
+        "working": "Notizen werden erstellt",
+        "ready": "Notizen bereit",
+        "review": "Prüfen",
+        "failed": "Notizen konnten nicht erstellt werden",
+        "retry": "Erneut versuchen",
+        "generate": "Notizen erstellen"
       }
     },
     "notesDocs": {
