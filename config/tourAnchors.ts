@@ -23,6 +23,7 @@ export const TOUR_ANCHOR_PREREQUISITES = [
   'widget-selected',
   'widget-restored',
   'in-view',
+  'settings-open',
 ] as const;
 
 export type TourAnchorPrerequisite = (typeof TOUR_ANCHOR_PREREQUISITES)[number];
@@ -110,38 +111,50 @@ export const TOUR_ANCHORS = {
     label: 'Widget settings panel',
     perWidget: true,
     panel: true,
+    requires: 'settings-open',
   },
   'settings.help': {
     label: 'Widget help button in settings',
     perWidget: true,
     panel: true,
+    requires: 'settings-open',
   },
   'settings.close': {
     label: 'Close settings button',
     perWidget: true,
     panel: true,
+    requires: 'settings-open',
   },
   'settings.tab-settings': {
     label: 'Settings tab',
     perWidget: true,
     panel: true,
+    requires: 'settings-open',
   },
-  'settings.tab-style': { label: 'Style tab', perWidget: true, panel: true },
+  'settings.tab-style': {
+    label: 'Style tab',
+    perWidget: true,
+    panel: true,
+    requires: 'settings-open',
+  },
   'settings.search': {
     label: 'Find a setting box',
     perWidget: true,
     panel: true,
+    requires: 'settings-open',
   },
   'settings.field': {
     label: 'A single settings field row, by widget type and field key',
     perField: true,
     panel: true,
+    requires: 'settings-open',
   },
   'settings.toggle': {
     label:
       'The on/off switch of a settings field, by widget type and field key',
     perField: true,
     panel: true,
+    requires: 'settings-open',
   },
 
   'sidebar.open-menu': { label: 'Menu button in the top bar' },

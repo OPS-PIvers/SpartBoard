@@ -102,6 +102,8 @@ const makeState = (): GuidedLearningEditorController => ({
   setTourSetupWidgets: vi.fn(),
   tourSetupLayouts: [],
   setTourSetupLayouts: vi.fn(),
+  tourUseTeacherBoard: false,
+  setTourUseTeacherBoard: vi.fn(),
   recaptureStep: vi.fn(),
   undo: vi.fn(),
   redo: vi.fn(),

@@ -1,5 +1,6 @@
 import type { GuidedLearningSet } from '@/types';
 import {
+  anchorPrerequisite,
   isTourAnchorId,
   parseTourAnchorRef,
   TOUR_ANCHORS,
@@ -123,13 +124,16 @@ export function stepVerdict(
   if ((field?.misses.get(health.step.id) ?? 0) > 0) {
     return { state: 'broken', reason: 'field-misses' };
   }
-  const needs = anchorNeeds(health.step.tour.anchor);
+  const ref = health.step.tour.anchor;
+  // The runner opens a widget's settings drawer itself; it only needs the widget.
+  const opensDrawer = anchorPrerequisite(ref) === 'settings-open';
+  const needs = opensDrawer ? 'widget' : anchorNeeds(ref);
   const addsWidgets =
     (setup?.widgets.length ?? 0) > 0 || health.widgetSpawned === true;
   if (needs === 'widget' && !addsWidgets) {
     return { state: 'needs-open', reason: 'widget-not-added' };
   }
-  if (onScreen === false) {
+  if (onScreen === false && !opensDrawer) {
     if (needs === 'widget')
       return { state: 'needs-open', reason: 'needs-widget' };
     if (needs === 'panel')

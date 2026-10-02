@@ -286,6 +286,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('settings')}
+            aria-pressed={activeTab === 'settings'}
             {...tourAttr('settings.tab-settings', widget.id, widget.type)}
             className={`flex-1 py-1.5 text-xxs font-black uppercase tracking-widest rounded-lg transition-[color,background-color,box-shadow] ${
               activeTab === 'settings'
@@ -298,6 +299,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('style')}
+            aria-pressed={activeTab === 'style'}
             {...tourAttr('settings.tab-style', widget.id, widget.type)}
             className={`flex-1 py-1.5 text-xxs font-black uppercase tracking-widest rounded-lg transition-[color,background-color,box-shadow] ${
               activeTab === 'style'

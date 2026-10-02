@@ -201,8 +201,11 @@ const MyAssignmentsPage: React.FC = () => {
   // an effect — keeps setState out of effect bodies and avoids a stale
   // intermediate render where the user sees a class that's no longer in
   // their roster.
-  const effectiveClassId =
-    activeClassId && classIds.includes(activeClassId) ? activeClassId : null;
+  const activeClassEntry =
+    activeClassId && classIds.includes(activeClassId)
+      ? directory.byId[activeClassId]
+      : undefined;
+  const effectiveClassId = activeClassEntry ? activeClassEntry.classId : null;
 
   // Per-row completion resolutions, fed from AssignmentListItem callbacks.
   // Stored at the page level so changing classes / filter modes doesn't
@@ -315,7 +318,7 @@ const MyAssignmentsPage: React.FC = () => {
   }, [signOut]);
 
   // ────────── Loading / no-classes / error gates (top-level guards) ──────────
-  if (loadState === 'loading') {
+  if (loadState === 'loading' || directory.status === 'loading') {
     return (
       <StudentPageShell onDone={handleDone}>
         <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 text-slate-500">
@@ -326,7 +329,21 @@ const MyAssignmentsPage: React.FC = () => {
     );
   }
 
-  if (classIds.length === 0) {
+  if (directory.status === 'error') {
+    return (
+      <StudentPageShell onDone={handleDone}>
+        <FullEmpty
+          icon={AlertTriangle}
+          title="We couldn't load your classes"
+          body="Check your connection and try again."
+          tone="error"
+          action={{ label: 'Retry', onClick: directory.retry }}
+        />
+      </StudentPageShell>
+    );
+  }
+
+  if (classIds.length === 0 || directory.classes.length === 0) {
     return (
       <StudentPageShell onDone={handleDone}>
         <FullEmpty
@@ -358,14 +375,13 @@ const MyAssignmentsPage: React.FC = () => {
       <SlideOutSidebar open={sidebarOpen} onClose={closeSidebar}>
         <StudentSidebar
           classes={directory.classes}
-          claimedClassIds={classIds}
           activeClassId={effectiveClassId}
           activeCountByClassId={activeCountByClassId}
           totalActiveCount={partitioned.active.length}
           onSelect={handleSelectClass}
           onSignOut={handleDone}
           firstName={firstName}
-          classCount={classIds.length}
+          classCount={directory.classes.length}
         />
       </SlideOutSidebar>
 
@@ -377,7 +393,7 @@ const MyAssignmentsPage: React.FC = () => {
         hideDoneButton
       >
         {hasErrors && <PartialFailureBanner onRetry={retry} className="mb-4" />}
-        {effectiveClassId === null ? (
+        {!activeClassEntry ? (
           <StudentOverview
             todayDate={todayDate}
             active={visibleScope.active}
@@ -391,9 +407,9 @@ const MyAssignmentsPage: React.FC = () => {
           />
         ) : (
           <StudentClassView
-            key={effectiveClassId}
-            classId={effectiveClassId}
-            classEntry={directory.byId[effectiveClassId]}
+            key={activeClassEntry.classId}
+            classId={activeClassEntry.classId}
+            classEntry={activeClassEntry}
             todayDate={todayDate}
             active={visibleScope.active}
             completed={visibleScope.completed}

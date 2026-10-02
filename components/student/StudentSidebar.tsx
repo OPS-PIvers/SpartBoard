@@ -4,11 +4,8 @@ import { getClassColor } from '@/utils/studentClassColors';
 import type { ClassDirectoryEntry } from '@/hooks/useStudentClassDirectory';
 
 interface StudentSidebarProps {
+  /** Roster-matched classes only; unresolved claim ids are never listed. */
   classes: ClassDirectoryEntry[];
-  /** classIds the student has in claims — used to render fallbacks for any
-   *  ids the directory didn't resolve, so the sidebar never silently
-   *  drops a class. */
-  claimedClassIds: readonly string[];
   activeClassId: string | null;
   /** Active assignment counts per classId. Each value is the number of
    *  *currently active* (not yet completed) assignments for that class. */
@@ -29,7 +26,6 @@ interface StudentSidebarProps {
 
 export const StudentSidebar: React.FC<StudentSidebarProps> = ({
   classes,
-  claimedClassIds,
   activeClassId,
   activeCountByClassId,
   totalActiveCount,
@@ -38,17 +34,6 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
   firstName,
   classCount,
 }) => {
-  // Render in the order the directory returned, then any unresolved claim
-  // ids at the end so a slow-loading directory never hides a class.
-  const resolvedIds = new Set(classes.map((c) => c.classId));
-  const fallbackIds = claimedClassIds.filter((id) => !resolvedIds.has(id));
-  const fallbackEntries: ClassDirectoryEntry[] = fallbackIds.map((id) => ({
-    classId: id,
-    name: 'Class',
-    teacherDisplayName: '',
-  }));
-  const allEntries = [...classes, ...fallbackEntries];
-
   return (
     <div className="flex h-full w-full flex-col gap-3 overflow-y-auto border-r border-slate-200 bg-white/95 px-3 py-5 backdrop-blur-sm md:gap-4 md:bg-white/85 md:px-3.5 md:py-6">
       <div className="flex flex-1 flex-col">
@@ -67,7 +52,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
               onClick={() => onSelect(null)}
             />
           </li>
-          {allEntries.map((c) => {
+          {classes.map((c) => {
             const color = getClassColor(c.classId);
             const meta = c.teacherDisplayName
               ? c.subject

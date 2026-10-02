@@ -78,7 +78,7 @@ A student who signs in with ClassLink sees only their real SpartBoard classes, n
 ### Release
 
 - **D25.** PR 1 is a bug fix and ships without a flag.
-- **D26.** The student page redesign is gated by a new GlobalFeature `student-landing-v2` (stage `preview`, `afterLaunch: 'retire'`). Students are targeted **by class**: the flag doc gains a `betaClassIds` list of ClassLink section IDs, and a student gets the new page when the flag is Public or any of their `classIds` claims is in the list. No email or other PII is read. An admin picks classes in the flag's Previews row. The same check can later serve `student-gradebook`.
+- **D26.** The student page redesign is gated by a new GlobalFeature `student-landing-v2` (stage `preview`, `afterLaunch: 'retire'`). Students are targeted **through their teacher** (revised 2026-10-02: no class IDs to enter): the callable `getStudentLandingV2V1` returns true when the flag is Public, or when a teacher who owns a roster for one of the student's `classIds` passes the flag's admin/beta gate (admin, or a listed Beta user). Only a boolean reaches the student client. An admin adds teachers in the flag's Previews row Beta users list. The same check can later serve `student-gradebook`.
 - **D27.** The teacher-side Work/Resource toggle (PR 3) gets its own preview flag, `study-resources` (admin first, `afterLaunch: 'retire'`). With it off, no toggle shows and every session uses its kind default (D8), so students on v2 still see the split.
 - **D28.** Per-student GL progress (PR 5) gets its own preview flag, `gl-student-progress` (admin first, `afterLaunch: 'retire'`).
 - Add each new id to `functions/src/featureMissingDoc.ts`. Admins pass admin/beta gates, so "on for Paul" means Paul plus the other `/admins` for the teacher-side flags.
@@ -86,7 +86,7 @@ A student who signs in with ClassLink sees only their real SpartBoard classes, n
 ## PRs
 
 1. **Class list fix** (no flag). D1–D5. `studentLoginV1` claim filter and re-check/re-mint; `getStudentClassDirectoryV1` merges co-teachers and picks the newest roster's name; client drops unresolved IDs, shows error + Retry, refreshes the token when the callable says claims changed. Tests: `functions/src/studentIdentity.test.ts`, `StudentClassView.test.tsx`.
-2. **Bell period and auto-select** (`student-landing-v2`). D6, D7, D21 order. The directory returns `bellPeriod`; client resolves "now"; the period-ordered list. Includes the flag registration and `betaClassIds` support (D26), and its Previews-row class picker.
+2. **Bell period and auto-select** (`student-landing-v2`). D6, D7, D21 order. The directory returns `bellPeriod`; client resolves "now"; the period-ordered list. Includes the flag registration and the teacher-based check (D26).
 3. **Work/Resource field and toggle** (`study-resources`). D8–D11. Session field across the 7 kinds; shared toggle component in all assign dialogs; "Available until"; gradebook projection skips resources. Needs a rules check that the field is teacher-writable only.
 4. **New student page** (`student-landing-v2`). D12–D23. Tabs, Up next Overview, Completed→Gradebook, bottom sheet and bottom bar, flat icons, Missing · still open, due dates, the real turned-in check, grade rows that always open the submission. Scroll-padding e2e coverage.
 5. **Per-student GL progress** (`gl-student-progress`). D24.

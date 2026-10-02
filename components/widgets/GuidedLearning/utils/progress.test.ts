@@ -8,6 +8,7 @@ import {
   parseProgressDoc,
   summarizeEngagement,
   type GuidedLearningProgress,
+  summarizeStudentProgress,
 } from './progress';
 
 const ev = (
@@ -200,5 +201,28 @@ describe('summarizeEngagement', () => {
     ]);
     expect(summary.completed).toBe(1);
     expect(summary).not.toHaveProperty('split');
+  });
+});
+
+describe('summarizeStudentProgress', () => {
+  it('reads the furthest step, completion and the server timestamp', () => {
+    expect(
+      summarizeStudentProgress({
+        furthestStepIdx: 4,
+        completed: true,
+        updatedAt: { toMillis: () => 1234 },
+      })
+    ).toEqual({ furthestStepIdx: 4, completed: true, updatedAt: 1234 });
+  });
+
+  it('falls back to empty values for a malformed or pending doc', () => {
+    expect(summarizeStudentProgress(undefined)).toEqual({
+      furthestStepIdx: 0,
+      completed: false,
+      updatedAt: null,
+    });
+    expect(
+      summarizeStudentProgress({ furthestStepIdx: -3, updatedAt: null })
+    ).toMatchObject({ furthestStepIdx: 0, updatedAt: null });
   });
 });

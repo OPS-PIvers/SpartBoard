@@ -27,6 +27,8 @@ export interface EditorDocument {
   tourSetupWidgets: WidgetType[];
   /** Live tours: recorded widget layouts the tour opens with. */
   tourSetupLayouts: TourWidgetLayout[];
+  /** Live tours: play on the teacher's board as-is instead of clearing it. */
+  tourUseTeacherBoard: boolean;
 }
 
 /** A file to delete once the set is saved and the editor closes. */
@@ -109,6 +111,7 @@ export function documentFromSet(set: GuidedLearningSet | null): EditorDocument {
     watchPace: set?.watchPace,
     tourSetupWidgets: set?.tourSetup?.widgets ?? [],
     tourSetupLayouts: set?.tourSetup?.layouts ?? [],
+    tourUseTeacherBoard: !!set?.tourSetup?.useTeacherBoard,
   };
 }
 

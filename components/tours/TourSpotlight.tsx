@@ -7,6 +7,8 @@ interface TourSpotlightProps {
   radius?: number;
   /** A click on the dim, outside the cutout. */
   onMisclick?: () => void;
+  /** Rings the cutout once, when it mounts. */
+  pulse?: boolean;
 }
 
 const round = (n: number) => Math.round(n * 10) / 10;
@@ -65,6 +67,7 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
   padding = 6,
   radius = 10,
   onMisclick,
+  pulse = false,
 }) => {
   // Re-render on resize so the dim keeps covering the whole viewport.
   const [vw, vh] = useSyncExternalStore(onResize, viewportKey, noViewport)
@@ -119,6 +122,18 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
             className="fill-none stroke-white"
             strokeWidth={2}
           />
+          {pulse && (
+            <rect
+              data-testid="tour-spotlight-pulse"
+              x={rect.x - padding}
+              y={rect.y - padding}
+              width={rect.width + padding * 2}
+              height={rect.height + padding * 2}
+              rx={radius}
+              className="fill-none stroke-white [transform-box:fill-box] [transform-origin:center] motion-safe:animate-tour-pulse motion-reduce:hidden"
+              strokeWidth={3}
+            />
+          )}
         </svg>
       )}
     </>

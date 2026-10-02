@@ -33,6 +33,8 @@ import { useDashboard } from '@/context/useDashboard';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { logError } from '@/utils/logError';
 import { GuidedLearningEngagement } from './results/GuidedLearningEngagement';
+import { StudentProgressLine } from './results/StudentProgressLine';
+import { useGuidedLearningStudentProgress } from '@/hooks/useGuidedLearningStudentProgress';
 import { LaunchedBySubTag } from '@/components/common/sessionViews/LaunchedBySubTag';
 import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
 import { hasPeriodAccess } from '@/utils/periodAccess';
@@ -273,6 +275,12 @@ export const GuidedLearningResults: React.FC<Props> = ({
   );
 
   const { orgId, canAccessFeature } = useAuth();
+  const showStudentProgress =
+    !viewOnly && canAccessFeature('gl-student-progress');
+  const progressByUid = useGuidedLearningStudentProgress(
+    sessionId,
+    showStudentProgress && playerV2
+  );
   const { byStudentUid } = useAssignmentPseudonymsMulti(
     sessionId,
     sessionClassIds,
@@ -810,6 +818,19 @@ export const GuidedLearningResults: React.FC<Props> = ({
                               >
                                 Locked
                               </span>
+                            )}
+                            {showStudentProgress && sessionLoaded && (
+                              <StudentProgressLine
+                                progress={progressByUid?.get(
+                                  r.studentAnonymousId
+                                )}
+                                playerV2={playerV2}
+                                stepCount={
+                                  sessionSteps?.length ?? set.steps.length
+                                }
+                                className="text-slate-300"
+                                style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                              />
                             )}
                           </div>
                           <div
