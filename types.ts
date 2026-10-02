@@ -928,6 +928,18 @@ export interface PlcTodo {
   deletedAt?: number | null;
 }
 
+// --- My Groups resource links (plcs/{id}/links) ---
+export interface PlcLink {
+  id: string;
+  title: string;
+  url: string;
+  note?: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 // --- PLC shared Google Docs ---
 export interface PlcDoc {
   id: string;
