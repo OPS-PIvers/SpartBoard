@@ -1,6 +1,6 @@
 # SpartBoard Consolidated Backlog
 
-**Last verified:** 2026-07-18; plan-sweep additions 2026-09-26 — every item below was checked against the actual code and git
+**Last verified:** 2026-07-18; plan-sweep additions 2026-09-26; cost-audit additions 2026-10-01 — every item below was checked against the actual code and git
 history by a per-doc audit sweep (43 assessor agents). Items already shipped were dropped;
 what remains is genuinely unshipped. This file replaces `docs/remaining-todos-audit.md`,
 `docs/repo-improvement-plan-2026-07-13.md`, `docs/optimize-pass/`, `todo/`, and the other
@@ -27,6 +27,15 @@ Legend: effort S/M/L, risk LOW/MED/HIGH. Sections ordered: human-gated first.
 - [ ] **CLASSROOM_ASSIGN feature-gate decision**: flip `CLASSROOM_ASSIGN_ADMIN_ONLY=false` once Spike A testing clears. (S/LOW)
 - [ ] **Legal/operator-model sign-off** (wide-distro Phase 4): finalize `/privacy` + `/terms` copy after district counsel review; broaden `SupportPage.tsx` for external framing; decide Path A vs B for scope verification; then flip GCP OAuth consent screen Internal → External. (M–L/HIGH — hard to reverse)
 - [ ] **Vanity short domain** for link shortener (recurring $15–50/yr cost — budget decision). (S/LOW)
+
+### From the 2026-10-01 cost audit (cloud steps)
+
+Prod moved to the OPSTech billing account on 2026-10-01; a $30/mo budget and BigQuery billing export (standard + detailed, dataset `spartboard.billing_export`) cover it. Two Monitoring alerts email Paul: client `BatchGetDocuments` > 3,500/hour and `Commit FAILED_PRECONDITION` > 1,000/hour (the Sept 2026 autosave loops).
+
+- [ ] **Verify prod stays warm after the next `main` release**: `gcloud run services describe getpseudonymsforassignmentv1 --project=spartboard --region=us-central1 --format="value(spec.template.metadata.annotations['autoscaling.knative.dev/minScale'])"` must print `1` (dev should print nothing = 0; PR #3723). (S/LOW)
+- [ ] **Artifact Registry cleanup**: a dry-run policy (delete > 7 days, keep 2 newest per package) is on `spartboard-dev` `gcf-artifacts`. Check the dry-run deletions in Cloud Audit Logs, set `cleanupPolicyDryRun=false` in dev, then apply the same policy to prod. Never use a 1-day policy (wipes the build cache). ~$2/mo. (S/LOW)
+- [ ] **Unused secrets**: confirm who uses `JULES_API_KEY` (2 versions) and `YOUTUBE_API_KEY` in prod; no deployed function references them. Disable (reversible) rather than delete. Never run `firebase functions:secrets:prune` — it destroys versions irreversibly with no dry run. (S/LOW)
+- [ ] **Stale budget**: the $20 "SpartBoard" budget on the personal billing account (01597B) still filters on the prod project and now covers nothing — delete it. (S/LOW)
 
 ### Spec decisions blocking feature work
 
@@ -66,7 +75,7 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/DEV_FIREBASE_PROJECT.md`
 
-- [ ] Follow-up (explicitly out of scope): enable Firestore delete protection + PITR + daily backup schedule on prod. (S)
+- [ ] Follow-up (explicitly out of scope): add a daily backup schedule on prod (delete protection and PITR are already on, verified 2026-10-01; PITR's 7-day window is currently the only recovery path). (S)
 - [ ] Follow-up (explicitly out of scope): move prod CI to WIF and delete the prod JSON key. (M)
 - [ ] Follow-up (explicitly out of scope): ClassLink/Spotify/LTI dev registrations when a feature needs them. (M)
 
@@ -259,6 +268,8 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] **LO9**: synced-board drawings `hostUid` support (sync correctness). (L)
 - [ ] **Gradebook D37 grade doc**: move `score`, publish `isCorrect` and quiz `grading` off quiz, VA and GL response docs into a teacher-gated `grades/{responseKey}` doc so students can't read unpublished scores (`docs/plans/GRADEBOOK.md` D37). A read rule alone can't do it. (L/MED)
 - [ ] **T1–T5**: Firestore rules tests (PIN-session collections, short_links, quota collections) + E2E for PIN-join/quiz-session journeys. (L)
+- [ ] **Pseudonym loading state**: `hooks/useAssignmentPseudonyms.ts` returns empty maps with no `loading` flag (~:324). While names load (p50 1s, p99 ~4s warm), the Assignments hub shows every ClassLink student as "Not started" with 0 submitted (`buildAssignmentRosterRows.ts:93-108`), and quiz-results export/print/scoreboard-by-name use "Student" fallbacks (`QuizResults.tsx:1043,1121`). A failed call only logs (~:283) and the view stays nameless. Add a loading flag, hold counts/labels and warn on export while pending, and retry or surface the error. (M/LOW)
+- [ ] **getPseudonymsForAssignmentV1 errors**: 79 × 404 and 34 × 403 out of 876 calls in the 30 days to 2026-10-01 — find out which callers hit them. (S)
 
 ## 4. Performance & cost
 
@@ -270,6 +281,20 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] **Wildcard lucide-react imports**: `import * as Icons from 'lucide-react'` in 7 files (StickerItemWidget, CatalystVisualWidget, catalystHelpers, ExpectationsWidget, InstructionalRoutines/IconPicker + Widget, Stations/IconOrImageInput) — replace with targeted imports/maps to restore tree-shaking. (M/LOW)
 - [ ] **PR 2 of link shortener**: per-click event log (`short_link_events`), nightly rollup CF (`daily_clicks`), clicks-over-time chart in LinksPanel — FERPA-aware schema per the phase-2 design (in git history: `docs/link-shortener-phase-2.md`). (M/MED)
 - [ ] **PR 4 of link shortener**: bulk CSV import/export for short_links (low priority, deferred until real distribution). (M/LOW)
+
+From the 2026-10-01 cost audit (adversarially reviewed). Steady-state cost is ~$15–20/mo; Firestore egress sits right at the 10 GiB free tier, so the items below are about stopping loops, not dollars.
+
+- [ ] **Google token retry loop**: in `context/AuthContext.tsx`, a backend `needs-consent` reply schedules a retry every 5 min forever, even in hidden tabs (~:215, ~:709, interval ~:1186-1240; since #2840). About 70% of real `refreshGoogleAccessToken` calls are those 400s (~60k requests/mo including preflights). Latch backend retries per session after `needs-consent`. Clear the latch on a `storage` event for `spart_google_access_token`, after a successful code exchange, and on sign-out or user change. Allow one throttled backend attempt (~30 min) on focus. Keep silent GIS retries and the pre-expiry refresh in all tabs, including hidden ones, and keep `DriveOfflineGrantCard` surfacing. Don't skip hidden tabs wholesale: Drive calls right after a tab becomes visible would get an expired token. (M/MED)
+- [ ] **Admin weather fetch dedupe**: `components/admin/AdminWeatherFetcher.tsx` (~:60-75) runs in every admin tab and fetches Earth Networks through `fetchExternalProxy` every 5 min (~28k requests/mo). Each tab also rewrites `global_weather/current`, which fans out a widget update on every open teacher dashboard. Skip the fetch when `updatedAt` is fresher than ~0.9 × the frequency, and skip the write when values are unchanged. Don't skip hidden tabs: teacher Weather widgets rely entirely on admin tabs. Optional: a weekday-hours scheduled function instead. (S/LOW)
+- [ ] **Board-save transaction contention**: `Commit FAILED_PRECONDITION` was 13–146/day mid-Sept and 2,000–3,845/day by late Sept. `saveDashboard` (`hooks/useFirestore.ts` ~:365) is the likely source. Investigate before it becomes another loop. The 2026-10-01 alert fires above 1,000/hour. (M)
+- [ ] **Force-reload stale clients**: the Sept 10 egress spike kept running ~1 GiB/hour after the fix deployed, likely a tab left open on an old build; `hooks/useAppVersion.ts` only prompts. Force a reload (at a safe moment, with no unsaved edits) for clients N builds behind. (M/MED)
+- [ ] **Optional — quiz `liveLeaderboard` subdoc**: `MonitorShell.tsx` (~:351-393) writes the leaderboard onto `quiz_sessions/{id}`, which every student listens to. For non-per-period game sessions that doc can be up to 900 KB. Move only `liveLeaderboard` to a subdoc and dual-write for one release. (M/LOW)
+- **Rejected after adversarial review (2026-10-01) — don't re-propose without answering these:**
+  - **Prod `minInstances: 0` for `getPseudonymsForAssignmentV1`:** cold starts measured 5–10 s (up to 20 s+) and roughly 19% of calls would land cold. That plus the pseudonym loading-state gap in §3 is a visible regression for ~$4–5/mo net.
+  - **`persistentLocalCache`:** it can't be route-scoped, leaves student data in IndexedDB on shared devices, and feeds stale first snapshots into the save baseline.
+  - **Skipping the transactional read in `saveDashboard`:** it reopens the multi-device clobber that #2813 fixed.
+  - **Moving `currentQuestionIndex`/`questionPhase`/`autoProgressAt`/`revealedAnswers` out of the session doc:** already-open student tabs would freeze, and those fields lose atomicity with `status`.
+  - **Slowing the student written-answer autosave from 500 ms:** it saves negligible egress and widens the data-loss windows.
 
 ## 5. Build hygiene & tech debt
 
