@@ -257,11 +257,22 @@ function validateTour(step, path, ctx) {
   if (tour.unmapped !== undefined) fail(`${path}.tour.unmapped is recorder-only`);
   const extra = Object.keys(tour).find((key) => !TOUR_KEYS.has(key));
   if (extra) fail(`${path}.tour.${extra} is not a tour field`);
-  if (typeof tour.anchor !== 'string' || !tour.anchor) {
+  if (typeof tour.anchor !== 'string') {
     fail(`${path}.tour.anchor must be an anchor ref`);
   }
-  const problem = anchorProblem(tour.anchor, ctx);
-  if (problem) fail(`${path}.tour.anchor "${tour.anchor}" ${problem}`);
+  // An empty anchor is an untagged control: the runner finds it by fallback role and name.
+  const untagged = tour.anchor === '';
+  if (untagged) {
+    if (!isObject(tour.fallback)) {
+      fail(`${path}.tour.anchor is empty: an untagged control needs a fallback role and name`);
+    }
+    ctx.warn(
+      `${path}.tour.anchor is empty: the runner matches "${tour.fallback.name}" by name, which only works in English, and Tour health lists the step until the control is tagged`
+    );
+  } else {
+    const problem = anchorProblem(tour.anchor, ctx);
+    if (problem) fail(`${path}.tour.anchor "${tour.anchor}" ${problem}`);
+  }
   if (!['click', 'observe'].includes(tour.action)) {
     fail(`${path}.tour.action must be click or observe`);
   }
@@ -284,7 +295,7 @@ function validateTour(step, path, ctx) {
 
   const { TOUR_ANCHORS, parseTourAnchorRef } = ctx.tourAnchors;
   const { id, widgetType, fieldKey } = parseTourAnchorRef(tour.anchor);
-  const def = TOUR_ANCHORS[id];
+  const def = TOUR_ANCHORS[id] ?? {};
   if (tour.slot !== undefined) {
     if (!isSlot(tour.slot)) fail(`${path}.tour.slot must be an integer from 0`);
     // findTourAnchor matches a bound slot on data-tour-widget, which only per-widget anchors carry.
@@ -467,6 +478,42 @@ function validateQuestion(step, path, warn) {
   }
 }
 
+// Steps play in array order, so a slide index that goes back jumps the learner backwards.
+function checkStepOrder(steps, warn) {
+  steps.forEach((step, i) => {
+    if (i > 0 && step.imageIndex < steps[i - 1].imageIndex) {
+      warn(`steps[${i}] goes back to slide ${step.imageIndex} after slide ${steps[i - 1].imageIndex}`);
+    }
+  });
+}
+
+const regionBox = (step) => ({
+  x0: step.xPct - step.region.wPct / 2,
+  x1: step.xPct + step.region.wPct / 2,
+  y0: step.yPct - step.region.hPct / 2,
+  y1: step.yPct + step.region.hPct / 2,
+});
+
+// Two consecutive steps on one slide that light mostly the same box usually mean one is aimed wrong.
+function checkRegionOverlap(steps, warn) {
+  steps.forEach((step, i) => {
+    const prev = steps[i - 1];
+    if (!prev?.region || !step.region || prev.imageIndex !== step.imageIndex) return;
+    const a = regionBox(prev);
+    const b = regionBox(step);
+    const w = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
+    const h = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
+    if (w <= 0 || h <= 0) return;
+    const smaller = Math.min(
+      prev.region.wPct * prev.region.hPct,
+      step.region.wPct * step.region.hPct
+    );
+    if (w * h > smaller / 2) {
+      warn(`steps[${i}] region mostly overlaps steps[${i - 1}]: check both are on their own control`);
+    }
+  });
+}
+
 // Markup the player renders: **bold** and [label](https://...) count as their visible words.
 const plainText = (text) =>
   text
@@ -630,19 +677,24 @@ export function validateGlSet(set, { tourAnchors = null, widgetTypes = null } = 
       fail(`${path}.interactionType is invalid`);
     }
 
-    if (typeof step.label !== 'string' || !step.label.trim()) {
-      fail(`${path}.label must be a non-empty string: it is the alt text`);
+    if (step.label !== undefined && typeof step.label !== 'string') {
+      fail(`${path}.label must be a string`);
     }
-    if (step.label.trim().split(/\s+/).length > 4) {
-      fail(`${path}.label exceeds four words`);
+    if (step.label?.trim() && step.label.trim().split(/\s+/).length > 4) {
+      ctx.warn(`${path}.label exceeds four words`);
     }
 
     if (typeof step.text === 'string') {
-      if (step.text.includes('\n')) {
-        fail(`${path}.text must be one paragraph: the player ignores line breaks`);
+      const paragraphs = step.text.split('\n\n');
+      if (paragraphs.length > 2 || paragraphs.some((p) => !p.trim() || p.includes('\n'))) {
+        fail(`${path}.text must be one paragraph, or two separated by one blank line`);
       }
-      const textWords = plainText(step.text).trim().split(/\s+/).filter(Boolean).length;
-      if (textWords > 25) fail(`${path}.text exceeds 25 words`);
+      const words = (value) => plainText(value).trim().split(/\s+/).filter(Boolean).length;
+      if (words(step.text) > 40) fail(`${path}.text exceeds 40 words`);
+      if (words(paragraphs[0]) > 25) ctx.warn(`${path}.text runs over 25 words before any caveat`);
+      if (paragraphs.length === 2 && step.tour !== undefined) {
+        ctx.warn(`${path}.text has two paragraphs: the live tour callout joins them into one`);
+      }
       if ((step.text.match(/\*\*[^*\n]+?\*\*/g) ?? []).length > 1) {
         ctx.warn(`${path}.text bolds more than one term`);
       }
@@ -695,10 +747,18 @@ export function validateGlSet(set, { tourAnchors = null, widgetTypes = null } = 
     if (step.spotlightRadius !== undefined && !inRange(step.spotlightRadius, ...SPOTLIGHT_RANGE)) {
       fail(`${path}.spotlightRadius must be a number from 5 to 50`);
     }
+    if (
+      ['spotlight', 'pan-zoom-spotlight'].includes(step.interactionType) &&
+      step.region === undefined
+    ) {
+      ctx.warn(`${path} lights a circle with no region: add a region measured from the control`);
+    }
     checkWriting(step, path, ctx.warn);
     validateMediaStep(step, path, ctx.warn);
     if (step.interactionType === 'question') validateQuestion(step, path, ctx.warn);
   });
+  checkStepOrder(set.steps, ctx.warn);
+  checkRegionOverlap(set.steps, ctx.warn);
   if (usesCalloutBox && set.schemaVersion !== 5) {
     fail('schemaVersion must be 5 when a step sets calloutBox');
   }

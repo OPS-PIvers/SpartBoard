@@ -14,13 +14,31 @@ data URIs.
 Two worked examples live in [examples/](examples/): a labeled-diagram set
 that uses every interaction and question type, and a live tour. Both pass
 the validator and the app's importer (`tests/glAuthorExamples.test.ts`).
-Read the one closest to the request before starting.
+Read the one closest to the request before starting. Neither looks like a
+Help Center set; for those the profile below is the model.
+
+## Pick the profile and the job
+
+- **Help Center walkthrough**: any "how do I…" set about SpartBoard for
+  teachers. Read [references/help-center.md](references/help-center.md)
+  first; it overrides the generic defaults below where they differ.
+- **Live tour**: the same help played on the teacher's real board. Read
+  [references/live-tour.md](references/live-tour.md).
+- **Lesson**: a diagram, map or another app for students. The generic rules
+  below are the profile.
+
+The job is one of three:
+
+- **Create** a new set: the Workflow below.
+- **Revise** an exported set: see Revising an existing set.
+- **Convert** a screenshot set into a live tour: the conversion section of
+  the live-tour reference.
 
 ## Workflow
 
 1. **Get the images.** For app walkthroughs and live tours, read
    [references/app-walkthrough.md](references/app-walkthrough.md) and capture
-   screenshots with Playwright. For diagrams, read the supplied image at full
+   screenshots of the real app with Playwright. For diagrams, read the supplied image at full
    resolution. With no image supplied, draw a flat SVG with no text labels
    (the steps are the labels), render it to PNG with Playwright's Chromium
    (launch notes in the app-walkthrough reference), and keep the geometry in
@@ -32,9 +50,10 @@ Read the one closest to the request before starting.
    each control that advances that task. Use `observe` only for typing,
    inspecting a result, or a state-dependent control the teacher must set
    themselves. A sequence of informational popovers is not a live tour.
-   For other sets, use one hotspot per thing the audience must notice: 4–8
-   teaching steps per slide and 4–10 for a single diagram, up to ~16 for an
-   app walkthrough, plus any question and media steps. Spread steps across
+   For a Help Center walkthrough, plan one task in click order with a
+   gotcha pass (see the Help Center reference). For a lesson, use one
+   hotspot per thing the audience must notice: 4–8 teaching steps per slide
+   and 4–10 for a single diagram, plus any question and media steps. Spread steps across
    slides in teaching order rather than piling them on the first. Add pins
    for controls the story needs (a Save button, a toggle) even if the
    author skipped them.
@@ -43,20 +62,24 @@ Read the one closest to the request before starting.
    full-resolution image, never a thumbnail; aim at the center of the
    feature. For app walkthroughs, also write a `region` from the Playwright
    element bounds (see Regions): the exact box beats an estimated centre.
-4. **Verify placement.** Render each slide with the pins or regions and the
-   callouts overlaid and look at it. Every target is covered before you move
+4. **Verify placement.** Run
+   `node .claude/skills/gl-author/scripts/contact_sheet.mjs <file> <dir>`
+   (add `--help-size` for a Help Center set) and look at every sheet. It
+   draws each step's pin, region, spotlight circle and callout box over its
+   slide and lists the steps underneath. Every target is covered before you move
    on; estimated pins miss small icons about half the time. For callout
    positions, import `placeCallout`, `placePopover` and `placeBanner` from
    `components/widgets/GuidedLearning/utils/calloutPlacement.ts` into the
    render script (Node strips the types) rather than guessing: a tooltip
    tries below, above, right, then left of the target; a popover is centred
    unless that covers the target; a banner goes below a target in the top
-   40% of the slide and above otherwise. Leave callouts on auto placement
-   and add a `calloutPin` only when auto placement covers something the
-   learner needs for that step. Leave callout width, scale and tone out too
-   unless a callout needs them (see Callout size and colour).
+   40% of the slide and above otherwise. For a lesson, leave callouts on auto
+   placement and add a `calloutPin` only when auto placement covers
+   something the learner needs for that step, and leave callout width, scale
+   and tone out unless a callout needs them. A Help Center set uses callout
+   boxes and one tone (see its reference).
 5. **Choose the interaction per step** (see Interaction choice) and write
-   the text (see Writing rules). Every step gets a `label`.
+   the text (see Writing rules).
 6. **Bind live-tour steps** when the request is a tour of the real app:
    read [references/live-tour.md](references/live-tour.md).
 7. **Embed images.** Convert each image to a base64 data URI
@@ -106,21 +129,26 @@ default); the legacy player notes say what differs.
 Text is read on a projector by a teacher mid-lesson. Keep it short and
 plain.
 
-- `label`: 1–4 words naming the thing (`Import button`, `Nucleus`). While a
-  step is live the label is also the slide's alt text for screen readers,
-  so it has to make sense on its own: `Nucleus`, not `This part`.
+- `label`: optional, 1–4 words naming the thing (`Import button`,
+  `Nucleus`). It is the callout title and the slide's alt text while the
+  step is live, so when present it makes sense on its own: `Nucleus`, not
+  `This part`. Lessons label every step; Help Center sets leave it `""`.
 - `text`: 1–2 sentences, 25 words max. State what the thing is or what to
-  do. One idea per step; split anything longer into two steps.
+  do. One idea per step; split anything longer into two steps. The one
+  exception is a caveat: a second paragraph after one blank line (`\n\n`),
+  with the whole text at most 40 words. A live tour callout joins the two
+  paragraphs, so keep caveats short there.
 - Audio and video steps show text differently: an audio card shows `text`
   as one plain line cut off after about 40 characters (no markup), and a
   video step shows only its `label`, so put nothing in its `text`.
 - Imperative voice for actions (`Click Import.`), declarative for concepts
   (`The nucleus stores DNA.`).
 - Formatting: `**bold**` for the one key term a step teaches, at most one
-  per step. `[label](https://…)` links only when the learner must open an
-  outside page, never in a set meant for the projector. No line breaks,
-  lists or headings: text is one paragraph. The 25-word cap counts the
-  visible words, not the markup.
+  per step; in a click step that is the control's on-screen name.
+  `[label](https://…)` links only when the learner must open an outside
+  page, never in a set meant for the projector. No lists, headings or
+  single line breaks. The word caps count the visible words, not the
+  markup.
 - No mannered prose or AI-isms. Banned: `Let's`, `Simply`, `Just`,
   `Now that`, `Next, we'll`, `Great!`, `Notice how`, `Feel free`,
   `Keep in mind`, `It's worth noting`, `powerful`, `seamless`, `intuitive`,
@@ -134,12 +162,15 @@ plain.
 
 ## Interaction choice
 
-- **"Click this" steps** (buttons, icons, tabs): `spotlight` with
-  `showOverlay: "tooltip"` and a `region` matching the control. The player
-  lights the region's shape and places the tooltip so it never overlaps the
-  region, so leave `tooltipPosition` at `auto`. Without a region,
-  `spotlightRadius` is % of the image's smaller side: 8–10 for a small icon,
-  12–15 for a button or tab, 20–25 for a panel.
+- **"Click this" steps** (buttons, icons, tabs): always a `region` matching
+  the control, measured from its DOM box. On a full-screen app screenshot a
+  control is small, so use `pan-zoom-spotlight` with `panZoomScale` 2 (2.5–3
+  for an icon) and `showOverlay: "tooltip"` or `"popover"`; use plain
+  `spotlight` only when the target is already large (a widget, a dialog).
+  The player lights the region's shape and keeps the callout off it, so
+  leave `tooltipPosition` at `auto`. A bare `spotlightRadius` (% of the
+  image's smaller side) is only for an old export you are not re-measuring;
+  the validator warns on a spotlight without a region.
 - **Small detail on a big image**: `pan-zoom` (or `pan-zoom-spotlight` when
   the surroundings distract). `panZoomScale` 2–3; a spotlight circle grows
   with the zoom, so pair a zoom with a smaller `spotlightRadius`.
@@ -376,29 +407,58 @@ choices of similar length, and matching and sorting at least 2 items
 - The whole file is one JSON object (not an array).
 
 Author-side rules the importer does not check but the player relies on,
-which the validator enforces: multiple-choice `correctAnswer` must appear
-verbatim in `choices`; matching/sorting arrays must be non-empty;
+which the validator enforces: step text is one paragraph or two split by
+one blank line, at most 40 words; multiple-choice `correctAnswer` must
+appear verbatim in `choices`; matching/sorting arrays must be non-empty;
 `schemaVersion` must be `3` (or `2` for an older export), or `4` when a step
 uses `calloutWidthPct`, `calloutScale` or `calloutTone`, or `5` when a step
-uses `calloutBox`; `videoTrims` must match the video slides; every step
-has a `label`; `showOverlay`, `bannerTone` and `tooltipPosition` use their
-listed values; `panZoomScale` is 1.5–6 and `spotlightRadius` 5–50 (the
+uses `calloutBox`; `videoTrims` must match the video slides; a
+`label`, when present, is a string; `showOverlay`, `bannerTone` and
+`tooltipPosition` use their listed values; `panZoomScale` is 1.5–6 and `spotlightRadius` 5–50 (the
 Studio's ranges); audio and video steps have https URLs; questions have
-text and enough items; step text has no line breaks; `tour` bindings resolve against `config/tourAnchors.ts` (see
-the live-tour reference). The importer refuses a file with `schemaVersion`
+text and enough items; `tour` bindings resolve against `config/tourAnchors.ts` or are untagged with a
+fallback (see the live-tour reference). The importer refuses a file with `schemaVersion`
 above 5 and one whose `region`, `calloutPin`, `calloutBox`, callout width,
 scale or tone is out of range.
 
 The validator prints warnings for things that import but may play badly:
-more than one bold term, banned words and rhetorical questions, audio text
-that will be cut off, text on a video step, Ogg audio, multiple choice
-without 3–4 choices, generated narration on edited text, and tour refs that
-depend on the teacher's board. Resolve each one or say why it stays.
+more than one bold term, a label over four words, text over 25 words
+before a caveat, banned words and rhetorical questions, a spotlight with no
+region, a step that goes back to an earlier slide, consecutive steps whose
+regions mostly overlap, audio text that will be cut off, text on a video
+step, Ogg audio, multiple choice without 3–4 choices, generated narration
+on edited text, tour refs that depend on the teacher's board, and untagged
+tour steps. Resolve each one or say why it stays.
 
 The validator also decodes every embedded image and prints its byte count.
 Large base64 strings are often shortened by file previews, so judge
 completeness from successful JSON parsing and decoded payloads, not from a
 preview window.
+
+## Revising an existing set
+
+Paul exports a set from the library (row menu, **Export (.gl.json)**; Help
+Center sets show under Source: Help Center) and asks for it to be improved.
+
+1. Validate it and render the contact sheets (`--help-size` for a Help
+   Center set). Read every sheet before changing anything.
+2. List what's wrong against the profile: missing regions, unzoomed small
+   targets, overlapping or misaimed regions, steps out of slide order, text
+   over the caps or in a narrator voice, a feature catalogue instead of a
+   task, missing gotcha steps, slides that show invented UI or a harness
+   instead of the board.
+3. Fix what the file can fix: add regions (measure from the PNG at full
+   resolution, then confirm in the sheet), switch small click targets to
+   zoom, reorder, rewrite text, add gotcha steps on existing slides.
+4. Recapture a slide only when it is wrong (stale UI, missing state, a
+   harness shot), with the app-walkthrough runbook, and re-measure its
+   steps from the DOM.
+5. Keep the set's `id`, step ids and any generated `narration` (warn that
+   edited steps need it regenerated); drop `aiDraft` from steps you
+   rewrote. Raise `schemaVersion` only as far as the new fields need.
+6. Validate, render the sheets again, and hand back the file with a short
+   list of what changed and what to check in the Studio. Paul imports it and
+   swaps it into the Help Center item.
 
 ## Round-trip guarantee
 

@@ -123,7 +123,7 @@ exist.
   `action: "click"`.
 - **Some chrome only exists in one state.** `dock.open-tools` shows only
   while the dock is collapsed. Start the tour from the state its first
-  step needs, and let `checkAnchor` at 1440×900 decide what is reachable.
+  step needs, and let `checkAnchor` at the capture viewport decide what is reachable.
   The runner scrolls a dock item into view once the dock is open, so in a
   capture script scroll it yourself (`locator.scrollIntoViewIfNeeded()`)
   before `checkAnchor`.
@@ -132,6 +132,28 @@ exist.
   teacher's board. Use one only on a row the tour itself creates or sets
   up; otherwise point at the list's container with `observe`. The
   validator warns on every positional ref.
+
+## Untagged controls
+
+When a control the tour needs has no `data-tour` tag, bind it by name: an
+empty `anchor` plus `fallback` from `fallbackFor(locator)`.
+
+```jsonc
+"tour": { "anchor": "", "action": "click", "fallback": { "role": "button", "name": "Assign" } }
+```
+
+The runner skips straight to the role-and-name match, which is what the
+Studio recorder writes for an untagged click. Limits, which the validator
+warns about:
+
+- The name is the English label, so the step falls back to its slide for a
+  teacher using German, Spanish or French.
+- Tour health and Publish list the step as unknown until the control is
+  tagged in `config/tourAnchors.ts`. Name each untagged control in the
+  handoff so it can be tagged in a code PR.
+- A control with no accessible name (a bare date input, an icon button
+  without a title) can't be bound this way; it needs a tag.
+- An untagged binding has no widget id, so it takes no `slot`.
 
 ## Slots: widgets the tour sets up
 
@@ -172,6 +194,37 @@ unresolvable; they already match by widget type. The validator rejects it.
   validator warns.
 - A `perWidget` ref may name a type (`id:type`); when it has a slot the
   type must match that slot's widget.
+
+## Converting a screenshot set
+
+A converted set keeps its slides: the Help Center still plays them, and adds
+"Show me live" once the tour is published and the viewer has live tours on. So conversion adds `tour`
+bindings and fixes the step list; it doesn't start over. Paul can also do
+this by hand in the Studio, a step at a time, with the Live tour picker and
+**Re-record this step**.
+
+1. Validate the export and render its contact sheets. Write down the task,
+   the starting state and each step's target control.
+2. Drive the app through the same task with Playwright (app-walkthrough
+   runbook) from that starting state. At each step, find the control,
+   `refFor` it (or `fallbackFor` if untagged), `checkAnchor` it, then click
+   it to reach the next state. Recapture the slide and re-measure the
+   region in the same pass, since the slides become the missing-anchor
+   fallback and must match today's UI.
+3. Add the steps a live run needs and the slides skipped: a click that
+   opens each menu or panel before a step inside it, and `tourSetup` or
+   `spawns` for any widget the task uses.
+4. Choose `click` or `observe` per step with the rules above. Toggles,
+   typing and result steps are `observe`.
+5. Steps that can't run live (another site, the sign-in screen, the
+   substitute portal, a drag or paste gesture) have no `tour`. The runner
+   shows those as a centred card with the text but not the slide, so put
+   them at the start or end, or rewrite them to stand on their own as text.
+   A set that is mostly such steps stays a slideshow.
+6. Remove question steps; they show only their question text in a tour.
+7. Validate, then import as a building set on spartboard-dev and run it
+   with **Run live (draft)**. In the handoff, list each untagged control
+   and each step that stayed slide-only.
 
 ## Checking a tour before handing it over
 
