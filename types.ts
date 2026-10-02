@@ -4630,12 +4630,12 @@ export interface PeriodAccess {
 
 export type AccessMode = 'assessment' | 'assignment';
 
-/** Session fields read by the `periodOpen` / `studentLetIn` rules. Absent = legacy global gate. */
 /** D8: set by the teacher on the session; absent means the kind's default (`resolveWorkKind`). */
 export interface SessionWorkKindFields {
   workKind?: WorkKind;
 }
 
+/** Session fields read by the `periodOpen` / `studentLetIn` rules. Absent = legacy global gate. */
 export interface PeriodAccessSessionFields {
   accessMode?: AccessMode;
   periodAccess?: Record<string, PeriodAccess>;
