@@ -2073,7 +2073,9 @@
       "stopSharingPlcDone": "Ya no se comparten resultados con {{plc}}.",
       "plcActionFailed": "No se pudo actualizar el uso compartido. Inténtalo de nuevo.",
       "skippedStatus": "Omitido",
-      "classNotResolved": "Esta tarea no está vinculada a una clase que puedas modificar aquí, así que solo se puede cambiar el horario."
+      "classNotResolved": "Esta tarea no está vinculada a una clase que puedas modificar aquí, así que solo se puede cambiar el horario.",
+      "namesFailed": "No se pudieron cargar los nombres de los estudiantes.",
+      "namesRetry": "Reintentar"
     }
   },
   "quizResults": {
