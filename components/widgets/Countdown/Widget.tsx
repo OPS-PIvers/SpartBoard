@@ -108,8 +108,8 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
     while (current <= event) {
       const normalizedCurrent = new Date(current);
 
-      if (includeWeekends || !isWeekendDate(normalizedCurrent)) {
-        const isEvent = normalizedCurrent.getTime() === event.getTime();
+      const isEvent = normalizedCurrent.getTime() === event.getTime();
+      if (includeWeekends || isEvent || !isWeekendDate(normalizedCurrent)) {
         const isToday = normalizedCurrent.getTime() === today.getTime();
         const isCountedDay =
           normalizedCurrent >= countStart && normalizedCurrent < event;
