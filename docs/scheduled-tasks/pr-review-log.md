@@ -4448,3 +4448,19 @@ rather than "no data") is also still open.
   - `gh` is absent and `/mnt/skills/user/` does not exist. GitHub access went through MCP, and the standards came from CLAUDE.md.
   - No lint, type-check or test runs were made because no code was changed.
   - Optional test gaps raised: #3627 visibility-flush race, #3628 `resume()` rejection/unmount, #3626 an already-parsing case such as "K-5", #3624 a `PlcSettingsTab` switch-role test.
+
+## 2026-10-02
+
+- PRs reviewed:
+  - #3749 fix(flashcards): ignore Object.prototype names as language codes in char bar lookup
+  - #3748 fix(countdown): keep the event day in the grid when it falls on an excluded weekend
+  - #3737 docs(unifier): run 104 log — ProjectStepStatePicker is exception D3-E35
+- Comments processed: 3 total — 0 fixed, 3 explained. No inline review threads existed. The two claude[bot] test-quality notes (#3749 `'toString'` assertion, #3748 loose `svg` selector) had already been fixed by follow-up commits on their branches, which the reviews record. The third comment was a no-issues summary.
+- Fixes pushed: none
+- Reviews posted: 3
+- Merge readiness: Ready: #3749, #3748, #3737.
+- Notes:
+  - On #3748, the regression test was confirmed to fail against the `dev-paul` `Widget.tsx` and pass with the fix.
+  - On #3749, `config/flashcardCharBars.test.ts` passes 4/4.
+  - #3737 has no CI check runs (doc-only) and merges cleanly into the current `dev-paul`.
+  - `gh` is unauthenticated, so GitHub access went through MCP. The log goes to the session branch, not `scheduled-tasks`, per the session's branch rules.
