@@ -9499,6 +9499,8 @@ export type GlobalFeature =
   | 'quiz-grader-v2'
   /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas; AND-ed with `gl-studio`. */
   | 'gl-callout-editing'
+  /** Per-student "Slide N of M · active X ago" on Guided Learning results and the Assignments hub. */
+  | 'gl-student-progress'
   /** PLC notes as an always-editable rich text editor with a formatting toolbar (still stored as Markdown). */
   | 'plc-notes-rich-editor'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */

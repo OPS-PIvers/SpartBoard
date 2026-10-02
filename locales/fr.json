@@ -3689,6 +3689,18 @@
     "seconds": "{{seconds}} s",
     "minutes": "{{minutes}} min {{seconds}} s"
   },
+  "glStudentProgress": {
+    "slide": "Diapositive {{current}}",
+    "slideOf": "Diapositive {{current}} sur {{total}}",
+    "notTracked": "Non suivi",
+    "activeNow": "actif à l'instant",
+    "activeMinutes_one": "actif il y a {{count}} minute",
+    "activeMinutes_other": "actif il y a {{count}} minutes",
+    "activeHours_one": "actif il y a {{count}} heure",
+    "activeHours_other": "actif il y a {{count}} heures",
+    "activeDays_one": "actif il y a {{count}} jour",
+    "activeDays_other": "actif il y a {{count}} jours"
+  },
   "glStudent": {
     "submitting": "Envoi…",
     "submitFailed": "Impossible d'envoyer. Vos réponses sont toujours là.",
