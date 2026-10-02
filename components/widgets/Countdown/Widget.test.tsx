@@ -65,6 +65,21 @@ describe('CountdownWidget', () => {
     expect(screen.getByText('1')).toBeInTheDocument();
   });
 
+  it('still marks the event day in grid mode when it falls on an excluded weekend', () => {
+    const { container } = render(
+      <CountdownWidget
+        widget={buildWidget({
+          startDate: '2026-04-03',
+          eventDate: '2026-04-04',
+          includeWeekends: false,
+          viewMode: 'grid',
+        })}
+      />
+    );
+
+    expect(container.querySelector('svg')).toBeInTheDocument();
+  });
+
   it('keeps the headline countdown in sync with the same countToday rule', () => {
     render(<CountdownWidget widget={buildWidget({ countToday: false })} />);
 
