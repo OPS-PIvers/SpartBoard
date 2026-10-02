@@ -23,6 +23,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { AssignmentMode, MiniAppItem, MiniAppSession } from '@/types';
+import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import { normalizeMiniAppSession } from '@/utils/miniAppNormalize';
 import {
   MA_CONTENT_COLLECTION,
@@ -58,6 +59,8 @@ export interface CreateMiniAppSessionOptions {
    *  students see it on /my-assignments, which reads the session, not the
    *  archive. */
   dueAt?: number | null;
+  /** Submissions Enabled or Study Resource; absent keeps the kind default. */
+  workKind?: WorkKind;
   /** M17 E2 F1: the teacher archive's assignment id (distinct from the
    *  session id for mini-app). Written onto the session doc so the student
    *  app can resolve its own pointer doc, which the CF keys by this id. */
@@ -143,6 +146,7 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
         ...(options?.openAt != null ? { openAt: options.openAt } : {}),
         ...(options?.closeAt != null ? { closeAt: options.closeAt } : {}),
         ...(options?.dueAt != null ? { dueAt: options.dueAt } : {}),
+        ...(options?.workKind ? { workKind: options.workKind } : {}),
         ...(options?.assignmentId
           ? { assignmentId: options.assignmentId }
           : {}),
