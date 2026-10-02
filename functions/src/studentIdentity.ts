@@ -104,6 +104,20 @@ const rosterUpdatedAt = (doc: RosterSnap): number => {
   return typeof created === 'number' ? created : 0;
 };
 
+const readBellPeriod = (
+  data: FirebaseFirestore.DocumentData
+): { buildingId: string; periodId: string } | undefined => {
+  const bell: unknown = data.bellPeriod;
+  if (!bell || typeof bell !== 'object') return undefined;
+  const { buildingId, periodId } = bell as Record<string, unknown>;
+  return typeof buildingId === 'string' &&
+    buildingId &&
+    typeof periodId === 'string' &&
+    periodId
+    ? { buildingId, periodId }
+    : undefined;
+};
+
 const sameIdSet = (a: readonly string[], b: readonly string[]): boolean => {
   if (a.length !== b.length) return false;
   const set = new Set(a);
@@ -549,6 +563,7 @@ export const getStudentClassDirectoryV1 = onCall(
       teacherDisplayNames: string[];
       subject?: string;
       code?: string;
+      bellPeriod?: { buildingId: string; periodId: string };
     }
 
     const buildEntryFromRosters = async (
@@ -569,6 +584,9 @@ export const getStudentClassDirectoryV1 = onCall(
       const teacherDisplayNames = (
         await Promise.all(teacherUids.map(resolveTeacherName))
       ).filter((n) => n.length > 0);
+      const bellPeriod = ordered
+        .map((d) => readBellPeriod(d.data()))
+        .find(Boolean);
       return {
         classId,
         name:
@@ -585,6 +603,7 @@ export const getStudentClassDirectoryV1 = onCall(
           typeof newest.classlinkClassCode === 'string'
             ? newest.classlinkClassCode
             : undefined,
+        ...(bellPeriod ? { bellPeriod } : {}),
       };
     };
 
