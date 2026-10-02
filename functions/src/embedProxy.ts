@@ -12,9 +12,11 @@
  */
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import axios from 'axios';
+import net from 'net';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import './functionsInit';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { isBlockedIp } from './ssrfGuard';
 
 export const fetchExternalProxy = onCall(
   {
@@ -156,7 +158,12 @@ export const checkUrlCompatibility = onCall(
       // (fec0::/10 — fecx through fefx, deprecated by RFC 3879 but private).
       /^\[fe[89a-f]/,
     ];
-    if (blockedPatterns.some((pattern) => pattern.test(hostname))) {
+    // Literal IPs also go through the shared guard (CGNAT, multicast, NAT64/6to4-wrapped IPv4).
+    const literalIp = hostname.replace(/^\[|\]$/g, '');
+    if (
+      blockedPatterns.some((pattern) => pattern.test(hostname)) ||
+      (net.isIP(literalIp) !== 0 && isBlockedIp(literalIp))
+    ) {
       throw new HttpsError(
         'invalid-argument',
         'URLs pointing to private or reserved IP ranges are not allowed.'

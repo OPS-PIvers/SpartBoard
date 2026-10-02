@@ -911,6 +911,24 @@ describe('checkUrlCompatibility', () => {
     expect(mockHead).not.toHaveBeenCalled();
   });
 
+  it.each([
+    'https://100.64.0.1/',
+    'https://198.18.0.1/',
+    'https://224.0.0.1/',
+    'https://[64:ff9b::7f00:1]/',
+    'https://[2002:7f00:1::]/',
+  ])('blocks reserved literal IP %s', async (url) => {
+    const mockHead = vi.mocked(axios.head);
+    const handler = checkUrlCompatibility as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+    await expect(handler({ url }, { auth: { uid: '123' } })).rejects.toThrow(
+      /private or reserved/i
+    );
+    expect(mockHead).not.toHaveBeenCalled();
+  });
+
   // Regression: checkUrlCompatibility called axios.head() without maxRedirects:0,
   // so a public URL that 302-redirected to a private/internal IP (e.g. the GCP
   // metadata endpoint at 169.254.169.254) would bypass the blocklist entirely —
