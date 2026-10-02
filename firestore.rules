@@ -3572,7 +3572,7 @@ service cloud.firestore {
         allow delete: if plcEditor(plcId);
       }
 
-      // My Groups resources: links and Guided Learning shares posted by a non-viewer member.
+      // My Groups resources: links posted by a non-viewer member.
       match /links/{linkId} {
         allow read: if plcReader(plcId);
         allow create, update: if plcEditor(plcId)
