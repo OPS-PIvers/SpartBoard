@@ -398,7 +398,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                       'Paste a list of names to add several at once.',
                   })}
                   addLabel={t('sidebar.classes.addStudent', {
-                    defaultValue: '+ Add Student',
+                    defaultValue: 'Add Student',
                   })}
                   onAdd={addRow}
                   anchorProps={tourAttr('roster-editor.add-student')}
@@ -490,7 +490,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                     >
                       <Plus size={16} />
                       {t('sidebar.classes.addStudent', {
-                        defaultValue: '+ Add Student',
+                        defaultValue: 'Add Student',
                       })}
                     </button>
                   </div>
@@ -762,7 +762,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
             defaultValue: 'Save a subset of this class for quick targeting.',
           })}
           addLabel={t('sidebar.classes.addGroup', {
-            defaultValue: '+ New Group',
+            defaultValue: 'New Group',
           })}
           onAdd={addGroup}
         />
@@ -888,7 +888,7 @@ const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
               'Add students first, then set their standing accommodations.',
           })}
           addLabel={t('sidebar.classes.addStudent', {
-            defaultValue: '+ Add Student',
+            defaultValue: 'Add Student',
           })}
           onAdd={onAddStudents}
         />
