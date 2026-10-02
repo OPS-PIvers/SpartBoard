@@ -20,12 +20,15 @@ describe('applyShorthands', () => {
   it('rewrites the data and uid accessors', () => {
     const out = applyShorthands(
       wrap(
-        '    allow update: if request.resource.data.a == resource.data.b && request.auth.uid != null;'
+        '    allow update: if request.auth != null && request.resource.data.a == resource.data.b && request.auth.uid != null;'
       )
     );
     expect(rulesOf(out)).toEqual([
-      '    allow update: if incoming().a == existing().b && authUid() != null;',
+      '    allow update: if signedIn() && incoming().a == existing().b && authUid() != null;',
     ]);
+    expect(out).toContain(
+      'function signedIn() { return request.auth != null; }'
+    );
     expect(out).toContain(
       'function incoming() { return request.resource.data; }'
     );
