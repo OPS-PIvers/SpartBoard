@@ -23,6 +23,7 @@ import {
   defaultGroupSymbol,
   formatReminderSummary,
   formatReminderTime,
+  groupTint,
 } from '@/utils/groupReminders';
 import { printGroupSchedule } from '@/utils/groupSchedulePrint';
 import { groupSymbolMarkup } from '@/components/groupReminders/groupSymbolMarkup';
@@ -201,7 +202,12 @@ export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
                   className="grid items-center gap-4 px-4 py-3 hover:bg-slate-50 transition-colors"
                   style={{ gridTemplateColumns: GRID }}
                 >
-                  <GroupSymbol symbol={group.symbol} />
+                  <span
+                    className="w-10 h-10 rounded-lg flex items-center justify-center"
+                    style={{ background: groupTint(group.symbol) }}
+                  >
+                    <GroupSymbol symbol={group.symbol} className="w-6 h-6" />
+                  </span>
                   <span
                     className={`text-sm truncate ${group.name.trim() ? 'font-bold text-slate-800' : 'italic text-slate-400'}`}
                   >
@@ -468,6 +474,19 @@ const SymbolStep: React.FC<{
 
   return (
     <div className="p-6 flex flex-col gap-6">
+      <div className="flex flex-col gap-2 max-w-sm">
+        <label htmlFor="group-wizard-name" className={FIELD_LABEL}>
+          {t('groupReminders.nameOptional', {
+            defaultValue: 'Name (optional)',
+          })}
+        </label>
+        <input
+          id="group-wizard-name"
+          value={name}
+          onChange={(e) => onName(e.target.value)}
+          className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+        />
+      </div>
       <div className="flex flex-col gap-2">
         <div className="relative max-w-sm">
           <Search
@@ -537,19 +556,6 @@ const SymbolStep: React.FC<{
             />
           ))}
         </div>
-      </div>
-      <div className="flex flex-col gap-2 max-w-sm">
-        <label htmlFor="group-wizard-name" className={FIELD_LABEL}>
-          {t('groupReminders.nameOptional', {
-            defaultValue: 'Name (optional)',
-          })}
-        </label>
-        <input
-          id="group-wizard-name"
-          value={name}
-          onChange={(e) => onName(e.target.value)}
-          className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
-        />
       </div>
     </div>
   );
