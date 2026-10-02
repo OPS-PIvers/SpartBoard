@@ -429,7 +429,7 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
         <label className="flex items-start gap-2 text-xs text-slate-600">
           <input
             type="checkbox"
-            checked={teacherMustClick(tour)}
+            checked={teacherMustClick(tour, 'destructive-only')}
             onChange={(e) =>
               bind({ ...tour, teacherMustClick: e.target.checked })
             }
