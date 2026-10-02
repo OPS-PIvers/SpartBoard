@@ -110,18 +110,23 @@ export async function queueAnchorRequests(
   const snaps = await db.getAll(...refs);
   const now = admin.firestore.FieldValue.serverTimestamp();
   requests.forEach((r, i) => {
-    // Status and firstSeenAt only on create, so a PR-open or rebound item is never reopened.
+    // Context, status and firstSeenAt only on create, so a stored note is kept and a PR-open or rebound item is never reopened.
     const created = !snaps[i].exists;
     batch.set(
       refs[i],
       {
-        ...r.context,
-        fingerprint: r.fingerprint,
+        ...(created
+          ? {
+              ...r.context,
+              fingerprint: r.fingerprint,
+              status: 'open',
+              firstSeenAt: now,
+            }
+          : {}),
         occurrences: admin.firestore.FieldValue.arrayUnion(
           ...r.stepIds.map((stepId) => ({ setId, stepId }))
         ),
         updatedAt: now,
-        ...(created ? { status: 'open', firstSeenAt: now } : {}),
       },
       { merge: true }
     );
