@@ -22,7 +22,9 @@ interface LandingPermission {
 export const studentLandingV2Scope = (
   perm: LandingPermission | undefined
 ): 'off' | 'everyone' | 'teachers' => {
-  if (!perm || perm.enabled !== true) return 'off';
+  // A missing doc defers to the teacher gate, which lets admins through on a preview flag.
+  if (!perm) return 'teachers';
+  if (perm.enabled !== true) return 'off';
   const limited =
     (Array.isArray(perm.buildings) && perm.buildings.length > 0) ||
     (perm.minTier !== undefined && perm.minTier !== null);

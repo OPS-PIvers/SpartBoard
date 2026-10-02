@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { studentLandingV2Scope } from './studentLandingV2';
 
 describe('studentLandingV2Scope', () => {
-  it('is off without a doc or when disabled', () => {
-    expect(studentLandingV2Scope(undefined)).toBe('off');
+  it('defers to the teacher gate without a doc, and is off when disabled', () => {
+    expect(studentLandingV2Scope(undefined)).toBe('teachers');
     expect(
       studentLandingV2Scope({ enabled: false, accessLevel: 'public' })
     ).toBe('off');
