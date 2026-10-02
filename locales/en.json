@@ -698,7 +698,8 @@
         "review": "Review",
         "failed": "Couldn't make notes",
         "retry": "Retry",
-        "generate": "Generate notes"
+        "generate": "Generate notes",
+        "recordingN": "Recording {{n}}"
       }
     },
     "notesDocs": {

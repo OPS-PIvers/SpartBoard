@@ -525,13 +525,27 @@ const LIMIT_MESSAGE: Record<NotesMode, string> = {
   regenerate: `You can regenerate notes ${REGENERATE_DAILY_LIMIT} times a day. Try again tomorrow.`,
 };
 
+/** Admins skip the quota, but a flag switched off still stops them. */
+async function adminSkipsQuota(
+  db: admin.firestore.Firestore,
+  token: Token
+): Promise<boolean> {
+  if (!(await resolveCallerIsAdmin(db, token))) return false;
+  const flags = await Promise.all(
+    ['gemini-functions', PLC_MEETING_AI_FEATURE_ID].map((id) =>
+      db.collection('global_permissions').doc(id).get()
+    )
+  );
+  return flags.every((d) => d.data()?.enabled !== false);
+}
+
 function defaultDeps(): MeetingNotesDeps {
   const db = admin.firestore();
   return {
     db,
     now: () => Date.now(),
     newId: () => db.collection('plcs').doc().id,
-    isAdmin: (token) => resolveCallerIsAdmin(db, token),
+    isAdmin: (token) => adminSkipsQuota(db, token),
     charge: (token, uid, mode) =>
       enforceAiFeatureAccess(db, token, uid, PLC_MEETING_AI_FEATURE_ID, false, {
         key: `plc-meeting-${mode}`,

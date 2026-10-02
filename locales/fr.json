@@ -698,7 +698,8 @@
         "review": "Vérifier",
         "failed": "Impossible de créer les notes",
         "retry": "Réessayer",
-        "generate": "Générer les notes"
+        "generate": "Générer les notes",
+        "recordingN": "Enregistrement {{n}}"
       }
     },
     "notesDocs": {

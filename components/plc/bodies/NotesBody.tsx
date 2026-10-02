@@ -16,7 +16,7 @@ import {
   StickyNote,
   Trash2,
 } from 'lucide-react';
-import { Plc, PlcActionItem, PlcNote } from '@/types';
+import { Plc, PlcActionItem, PlcNote, PlcRecording } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -45,10 +45,17 @@ import {
 import { usePlcRecordings } from '@/hooks/usePlcRecordings';
 import {
   livePlcRecordingForNote,
+  plcRecordingDraftPending,
   plcRecordingsForNote,
 } from '@/utils/plcRecording';
+import {
+  applyDraftToActionItems,
+  applyDraftToBody,
+  type MeetingNotesApplyMode,
+} from '@/utils/plcMeetingNotes';
 import { NoteRecordControl } from '@/components/plc/recording/NoteRecordControl';
 import { NoteRecordings } from '@/components/plc/recording/NoteRecordings';
+import { RecordingMeetingNotes } from '@/components/plc/notes/meetingNotes/RecordingMeetingNotes';
 
 interface NotesBodyProps {
   plc: Plc;
@@ -631,6 +638,43 @@ const NotesBodyInner: React.FC<
     recorder && selectedNote
       ? plcRecordingsForNote(recordings, selectedNote.id)
       : [];
+  const aiNotesEnabled = canAccessFeature('plc-meeting-ai-notes');
+  const notesWithDraft = canEdit
+    ? new Set(recordings.filter(plcRecordingDraftPending).map((r) => r.noteId))
+    : new Set<string>();
+
+  const handleApplyMeetingNotes = (
+    recording: PlcRecording,
+    mode: MeetingNotesApplyMode,
+    owners: Record<string, string | null>
+  ): Promise<void> => {
+    const draft = recording.draft;
+    if (!draft || !selectedNote || editorReadOnly) {
+      return Promise.reject(new Error('Note is not editable.'));
+    }
+    const body = applyDraftToBody(editorBody, draft.markdown, mode);
+    const actionItems = applyDraftToActionItems(
+      editorActionItems,
+      draft,
+      owners,
+      currentUid,
+      Date.now()
+    );
+    if (collab) {
+      crdt.setBody(body);
+      crdt.setActionItems(actionItems);
+      return Promise.resolve();
+    }
+    setDraftBody(body);
+    setDraftActionItems(actionItems);
+    scheduleSave(
+      selectedNote.id,
+      { body, actionItems },
+      syncedSnapshot?.version
+    );
+    return Promise.resolve();
+  };
+
   const recordControl =
     recorder && selectedNote ? (
       <NoteRecordControl
@@ -721,6 +765,13 @@ const NotesBodyInner: React.FC<
                             </span>
                           )}
                         </div>
+                        {notesWithDraft.has(note.id) && (
+                          <span className="ml-auto shrink-0 text-xxs font-bold text-brand-blue-primary">
+                            {t('plcDashboard.notes.meetingNotes.ready', {
+                              defaultValue: 'Notes ready',
+                            })}
+                          </span>
+                        )}
                       </div>
                       <div className="text-xxs text-slate-500 truncate mt-0.5">
                         {note.body
@@ -868,6 +919,20 @@ const NotesBodyInner: React.FC<
                 members={members}
                 canEdit={canEdit}
                 onDeleteAudio={deleteAudio}
+                renderExtra={(r) => (
+                  <RecordingMeetingNotes
+                    plcId={plc.id}
+                    recording={r}
+                    label={t('plcDashboard.notes.meetingNotes.recordingN', {
+                      defaultValue: 'Recording {{n}}',
+                      n: noteRecordings.indexOf(r) + 1,
+                    })}
+                    members={members}
+                    canEdit={!editorReadOnly}
+                    aiEnabled={aiNotesEnabled}
+                    onApply={handleApplyMeetingNotes}
+                  />
+                )}
               />
             )}
             <NoteActionItems
