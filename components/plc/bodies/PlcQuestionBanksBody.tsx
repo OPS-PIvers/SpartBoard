@@ -171,11 +171,17 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
         return;
       }
       const confirmed = await showConfirm(
-        t('plcDashboard.bankLibrary.unshareConfirm', {
-          title: entry.title,
-          defaultValue:
-            'Stop sharing "{{title}}" with this PLC? Teammates’ quizzes that draw from it will stop resolving; copies in their libraries keep working.',
-        }),
+        groupWording
+          ? t('plcDashboard.bankLibrary.groupUnshareConfirm', {
+              title: entry.title,
+              defaultValue:
+                'Stop sharing "{{title}}" with this group? Teammates’ quizzes that draw from it will stop resolving; copies in their libraries keep working.',
+            })
+          : t('plcDashboard.bankLibrary.unshareConfirm', {
+              title: entry.title,
+              defaultValue:
+                'Stop sharing "{{title}}" with this PLC? Teammates’ quizzes that draw from it will stop resolving; copies in their libraries keep working.',
+            }),
         {
           title: t('plcDashboard.bankLibrary.unshareTitle', {
             defaultValue: 'Stop sharing bank',
@@ -205,7 +211,7 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
         setBusyRowId(null);
       }
     },
-    [addToast, banks, plc.id, showConfirm, t, unshareBankFromPlc]
+    [addToast, banks, groupWording, plc.id, showConfirm, t, unshareBankFromPlc]
   );
 
   if (loading) {

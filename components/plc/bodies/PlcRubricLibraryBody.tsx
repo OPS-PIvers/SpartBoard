@@ -212,11 +212,17 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
   const handleUnshare = useCallback(
     async (entryId: string, title: string) => {
       const confirmed = await showConfirm(
-        t('plcDashboard.rubricLibrary.unshareConfirm', {
-          title,
-          defaultValue:
-            'Remove "{{title}}" from this PLC? Teammates lose access to the shared entry; copies already in their libraries keep working.',
-        }),
+        groupWording
+          ? t('plcDashboard.rubricLibrary.groupUnshareConfirm', {
+              title,
+              defaultValue:
+                'Remove "{{title}}" from this group? Teammates lose access to the shared entry; copies already in their libraries keep working.',
+            })
+          : t('plcDashboard.rubricLibrary.unshareConfirm', {
+              title,
+              defaultValue:
+                'Remove "{{title}}" from this PLC? Teammates lose access to the shared entry; copies already in their libraries keep working.',
+            }),
         {
           title: t('plcDashboard.rubricLibrary.unshareTitle', {
             defaultValue: 'Unshare rubric',
@@ -246,7 +252,7 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
         setBusyRowId(null);
       }
     },
-    [addToast, plc.id, showConfirm, t, unshareRubricFromPlc]
+    [addToast, groupWording, plc.id, showConfirm, t, unshareRubricFromPlc]
   );
 
   if (loading) {

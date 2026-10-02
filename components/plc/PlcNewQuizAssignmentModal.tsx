@@ -331,11 +331,17 @@ export const PlcNewQuizAssignmentModal: React.FC<
       );
 
       addToast(
-        t('plcDashboard.newAssignment.quiz.created', {
-          title: pickedQuiz.title,
-          defaultValue:
-            '"{{title}}" created (paused) and shared with this PLC.',
-        }),
+        groupWording
+          ? t('plcDashboard.newAssignment.quiz.groupCreated', {
+              title: pickedQuiz.title,
+              defaultValue:
+                '"{{title}}" created (paused) and shared with this group.',
+            })
+          : t('plcDashboard.newAssignment.quiz.created', {
+              title: pickedQuiz.title,
+              defaultValue:
+                '"{{title}}" created (paused) and shared with this PLC.',
+            }),
         'success'
       );
       onCreated?.({ assignmentId, quizTitle: pickedQuiz.title });

@@ -235,10 +235,18 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
           addToast(
             err instanceof Error && err.message
               ? err.message
-              : t('plcDashboard.newAssignment.video.sheetAutoCreateFailed', {
-                  defaultValue:
-                    'Could not create the shared PLC sheet. The assignment will be created without one.',
-                }),
+              : groupWording
+                ? t(
+                    'plcDashboard.newAssignment.video.groupSheetAutoCreateFailed',
+                    {
+                      defaultValue:
+                        'Could not create the shared group sheet. The assignment will be created without one.',
+                    }
+                  )
+                : t('plcDashboard.newAssignment.video.sheetAutoCreateFailed', {
+                    defaultValue:
+                      'Could not create the shared group sheet. The assignment will be created without one.',
+                  }),
             'error'
           );
         }
@@ -350,11 +358,17 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
       );
 
       addToast(
-        t('plcDashboard.newAssignment.video.created', {
-          title: pickedActivity.title,
-          defaultValue:
-            '"{{title}}" created (paused) and shared with this PLC.',
-        }),
+        groupWording
+          ? t('plcDashboard.newAssignment.video.groupCreated', {
+              title: pickedActivity.title,
+              defaultValue:
+                '"{{title}}" created (paused) and shared with this group.',
+            })
+          : t('plcDashboard.newAssignment.video.created', {
+              title: pickedActivity.title,
+              defaultValue:
+                '"{{title}}" created (paused) and shared with this PLC.',
+            }),
         'success'
       );
       onCreated?.({ assignmentId, activityTitle: pickedActivity.title });
