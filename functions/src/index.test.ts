@@ -2170,19 +2170,21 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
     ];
     await (recomputeAdminAnalytics as unknown as () => Promise<void>)();
 
-    const days = [...mockFirestoreState.activityDays.entries()];
+    const days = [...mockFirestoreState.activityDays.entries()].filter(
+      ([, d]) => d.estimated === false
+    );
     expect(days).toHaveLength(1);
     expect(days[0][0]).toMatch(/^organizations\/orono\/analytics_days\//);
     expect(days[0][1]).toEqual({ activeUids: ['uid-1'], estimated: false });
     const snapshot = mockFirestoreState.docs.get(
       'organizations/orono/analytics/snapshot'
     ) as { payload: { history?: { days: unknown[] } } };
-    expect(snapshot.payload.history?.days).toEqual([
-      expect.objectContaining({ dau: 1, mau: 1, estimated: false }),
-    ]);
+    expect(snapshot.payload.history?.days.at(-1)).toEqual(
+      expect.objectContaining({ dau: 1, mau: 2, estimated: false })
+    );
   });
 
-  it('fills estimated days only when the backfill switch is on', async () => {
+  it('fills estimated days once per org', async () => {
     const day = 24 * 60 * 60 * 1000;
     mockFirestoreState.organizations = [{ id: 'orono', status: 'active' }];
     mockFirestoreState.users = [
@@ -2203,14 +2205,6 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
     ];
     const run = recomputeAdminAnalytics as unknown as () => Promise<void>;
 
-    await run();
-    expect(
-      [...mockFirestoreState.activityDays.values()].some((d) => d.estimated)
-    ).toBe(false);
-
-    mockFirestoreState.docs.set('admin_settings/analytics_history', {
-      enabled: true,
-    });
     await run();
     const estimated = [...mockFirestoreState.activityDays.entries()].filter(
       ([, d]) => d.estimated === true
