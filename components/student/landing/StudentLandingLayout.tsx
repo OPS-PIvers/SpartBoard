@@ -2,9 +2,16 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, GraduationCap, LogOut } from 'lucide-react';
 import { APP_NAME } from '@/config/constants';
 import type { AssignmentSummary } from '@/hooks/useStudentAssignments';
+import type { StudentGradesState } from '@/hooks/useStudentGrades';
 import type { TurnInMap } from '@/hooks/useStudentTurnIns';
 import {
+  studentGradeRows,
+  type SeenMarks,
+} from '@/utils/gradebook/studentGrades';
+import {
+  gradebookItems,
   partitionForClass,
+  type DoneItem,
   type LandingPartition,
 } from '@/utils/studentLanding';
 import { LandingClassList } from './LandingClassList';
@@ -24,11 +31,15 @@ export interface StudentLandingLayoutProps {
   tab: LandingTab;
   onTabChange: (tab: LandingTab) => void;
   gradesEnabled: boolean;
-  renderGradebook?: (classId: string) => React.ReactNode;
+  /** The selected class's grades, when the student gradebook is on. */
+  grades?: StudentGradesState;
+  /** New marks for a gradebook with no stored copy (dev harness). */
+  initialSeen?: SeenMarks;
   firstName: string | null;
   pseudonymUid: string | null;
   onSignOut: () => void;
   onLockedClick: (a: AssignmentSummary) => void;
+  onOpenGradeOnly: (item: DoneItem) => void;
   /** Shown above the page content, e.g. a partial-load warning. */
   notice?: React.ReactNode;
 }
@@ -63,11 +74,13 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
   tab,
   onTabChange,
   gradesEnabled,
-  renderGradebook,
+  grades,
+  initialSeen,
   firstName,
   pseudonymUid,
   onSignOut,
   onLockedClick,
+  onOpenGradeOnly,
   notice,
 }) => {
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -82,9 +95,16 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
   const selected = selectedClassId ? byId.get(selectedClassId) : undefined;
   const classOf = (a: AssignmentSummary): LandingClass | undefined =>
     a.classIds.map((id) => byId.get(id)).find(Boolean);
-  const classPartition = selected
-    ? partitionForClass(partition, selected.classId)
-    : null;
+  const classPartition = useMemo(
+    () => (selected ? partitionForClass(partition, selected.classId) : null),
+    [partition, selected]
+  );
+  const doneCount = useMemo(() => {
+    if (!classPartition) return 0;
+    if (!gradesEnabled || grades?.status !== 'ready')
+      return classPartition.done.length;
+    return gradebookItems(classPartition, studentGradeRows(grades.data)).length;
+  }, [classPartition, gradesEnabled, grades]);
 
   const select = (classId: string | null) => {
     setSheetOpen(false);
@@ -172,14 +192,13 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
                 tab={tab}
                 onTabChange={changeTab}
                 gradesEnabled={gradesEnabled}
-                gradebook={
-                  gradesEnabled
-                    ? renderGradebook?.(selected.classId)
-                    : undefined
-                }
+                grades={grades}
+                initialSeen={initialSeen}
+                doneCount={doneCount}
                 nowMs={nowMs}
                 pseudonymUid={pseudonymUid}
                 onLockedClick={onLockedClick}
+                onOpenGradeOnly={onOpenGradeOnly}
               />
             ) : (
               <LandingOverview
@@ -199,7 +218,7 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
           aria-label={`${selected.name} sections`}
           className="grid shrink-0 grid-cols-3 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] min-[896px]:hidden"
         >
-          {landingTabs(classPartition, gradesEnabled).map((t) => {
+          {landingTabs(classPartition, gradesEnabled, doneCount).map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
             return (

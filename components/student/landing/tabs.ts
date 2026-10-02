@@ -18,7 +18,8 @@ export interface LandingTabSpec {
 /** D16: Completed becomes Gradebook when the student gradebook is on. */
 export function landingTabs(
   p: LandingPartition,
-  gradesEnabled: boolean
+  gradesEnabled: boolean,
+  doneCount: number = p.done.length
 ): LandingTabSpec[] {
   return [
     {
@@ -36,7 +37,7 @@ export function landingTabs(
     {
       id: 'completed',
       label: gradesEnabled ? 'Gradebook' : 'Completed',
-      count: p.done.length,
+      count: doneCount,
       icon: gradesEnabled ? ChartNoAxesColumn : CircleCheck,
     },
   ];

@@ -1,7 +1,14 @@
 import React from 'react';
 import type { AssignmentSummary } from '@/hooks/useStudentAssignments';
+import type { StudentGradesState } from '@/hooks/useStudentGrades';
 import type { TurnInMap } from '@/hooks/useStudentTurnIns';
-import type { LandingPartition } from '@/utils/studentLanding';
+import type { SeenMarks } from '@/utils/gradebook/studentGrades';
+import {
+  completedItems,
+  type DoneItem,
+  type LandingPartition,
+} from '@/utils/studentLanding';
+import { LandingGradebook } from './LandingGradebook';
 import {
   DoneRow,
   EmptyBox,
@@ -20,11 +27,15 @@ interface LandingClassViewProps {
   tab: LandingTab;
   onTabChange: (tab: LandingTab) => void;
   gradesEnabled: boolean;
-  /** The Gradebook tab's body, when the student gradebook is on. */
-  gradebook?: React.ReactNode;
+  /** This class's grades, when the student gradebook is on. */
+  grades?: StudentGradesState;
+  initialSeen?: SeenMarks;
+  /** Rows on the Completed or Gradebook tab. */
+  doneCount: number;
   nowMs: number;
   pseudonymUid: string | null;
   onLockedClick: (a: AssignmentSummary) => void;
+  onOpenGradeOnly: (item: DoneItem) => void;
 }
 
 export const LandingClassView: React.FC<LandingClassViewProps> = ({
@@ -34,10 +45,13 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
   tab,
   onTabChange,
   gradesEnabled,
-  gradebook,
+  grades,
+  initialSeen,
+  doneCount,
   nowMs,
   pseudonymUid,
   onLockedClick,
+  onOpenGradeOnly,
 }) => {
   const head = (
     <div>
@@ -103,18 +117,33 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
     ) : (
       <EmptyBox text="No resources right now." />
     );
-  } else if (gradesEnabled && gradebook) {
-    body = gradebook;
+  } else if (gradesEnabled && grades) {
+    body = (
+      <LandingGradebook
+        grades={grades}
+        partition={p}
+        checks={checks}
+        nowMs={nowMs}
+        studentUid={initialSeen ? null : pseudonymUid}
+        classId={cls.classId}
+        teachers={cls.teachers}
+        initialSeen={initialSeen}
+        onLockedClick={onLockedClick}
+        onOpenGradeOnly={onOpenGradeOnly}
+      />
+    );
   } else {
     body = p.done.length ? (
       <ListBox>
-        {p.done.map((row) => (
+        {completedItems(p.done).map((item) => (
           <DoneRow
-            key={row.assignment.compositeId}
-            row={row}
-            check={checks[row.assignment.compositeId]}
+            key={item.key}
+            item={item}
+            check={checks[item.key]}
             nowMs={nowMs}
+            teachers={cls.teachers}
             onLockedClick={onLockedClick}
+            onOpenGradeOnly={onOpenGradeOnly}
           />
         ))}
       </ListBox>
@@ -123,7 +152,7 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
     );
   }
 
-  const tabs = landingTabs(p, gradesEnabled);
+  const tabs = landingTabs(p, gradesEnabled, doneCount);
   return (
     <>
       {head}
