@@ -45,6 +45,7 @@ const ITEM_LABELS: Record<string, string> = {
   rubric: 'rubric',
   activity_wall: 'Activity Wall',
   mini_app: 'mini-app',
+  guided_learning: 'Guided Learning activity',
 };
 
 const formatDate = (ms: number): string =>

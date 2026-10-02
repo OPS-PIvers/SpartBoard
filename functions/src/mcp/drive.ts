@@ -174,3 +174,38 @@ export async function saveQuizJson(
     throw new Error('drive upload failed');
   return id;
 }
+
+/** Overwrites an existing Guided Learning file in place; never creates one, so a missing file is an error. */
+export async function replaceDriveJson(
+  token: string,
+  fileId: string,
+  content: unknown
+): Promise<void> {
+  if (!(await patchMedia(token, fileId, JSON.stringify(content)))) {
+    throw new ToolError(
+      "That set's file in Google Drive could not be saved. Open the set in SpartBoard and save it there."
+    );
+  }
+}
+
+/** Raw bytes and type of a Drive file, for slide images. */
+export async function readDriveBytes(
+  token: string,
+  fileId: string
+): Promise<{ data: Buffer; mimeType: string }> {
+  const res = await driveFetch(
+    token,
+    `${DRIVE_API}/files/${encodeURIComponent(fileId)}?alt=media`
+  );
+  if (!res.ok) {
+    throw new ToolError(
+      res.status === 404
+        ? "That slide's image is missing from the teacher's Google Drive."
+        : 'That slide could not be read from Google Drive.'
+    );
+  }
+  const mimeType = (res.headers.get('content-type') ?? '').split(';')[0];
+  if (!/^image\/(png|jpeg|webp|gif)$/.test(mimeType))
+    throw new ToolError('That slide is not an image Claude can show.');
+  return { data: Buffer.from(await res.arrayBuffer()), mimeType };
+}

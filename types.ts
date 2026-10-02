@@ -8520,6 +8520,8 @@ export interface FlashcardsConfig {
   presentShowFirst: FlashcardSide;
   presentShuffle: boolean;
   lastRosterIdsBySetId?: Record<string, string[]>;
+  /** In-memory pasted cards (Flashcards/utils/pastedDrafts.ts) the editor opens with. */
+  pasteDraftId?: string;
 }
 
 // --- PROJECTS WIDGET TYPES (docs/plans/shipped/PROJECTS_WIDGET.md) ---
@@ -9501,6 +9503,8 @@ export type GlobalFeature =
   | 'paper-handwritten-responses'
   /** Claude connector: teachers connect Claude to their library (docs/plans/CLAUDE_CONNECTOR.md). */
   | 'claude-connector'
+  /** Guided Learning tools inside the Claude connector; building and Help Center sets stay admin-only. */
+  | 'claude-connector-guided-learning'
   /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/shipped/VA_TEACHER_PACED.md). */
   | 'video-activity-live'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
@@ -9532,6 +9536,8 @@ export type GlobalFeature =
   | 'webcam-ai'
   | 'blooms-ai'
   | 'my-groups'
+  /** Ctrl+V of a two-column list on the board opens a new flashcard set in the editor. */
+  | 'flashcard-smart-paste'
   /** Record a group meeting on a note, with playback (docs/plans/PLC_MEETING_RECORDING.md). */
   | 'plc-meeting-recording'
   /** Transcript and drafted notes from a meeting recording; AND-ed with `gemini-functions`. */

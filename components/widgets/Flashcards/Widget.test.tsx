@@ -3,6 +3,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FlashcardsWidget } from './Widget';
+import { stashPastedFlashcards } from './utils/pastedDrafts';
 import { useFlashcardSets } from '@/hooks/useFlashcardSets';
 import { useFlashcardAssignments } from '@/hooks/useFlashcardAssignments';
 import { useFolders } from '@/hooks/useFolders';
@@ -295,5 +296,31 @@ describe('FlashcardsWidget — on the teacher’s own board', () => {
     expect(screen.getByText('Back to library')).toBeInTheDocument();
     expect(screen.getByText('settings writable')).toBeInTheDocument();
     expect(vi.mocked(useFlashcardSets)).toHaveBeenCalledWith('teacher-1');
+  });
+});
+
+describe('FlashcardsWidget — pasted onto the board', () => {
+  beforeEach(mockHooks);
+
+  it('opens the editor on a new set holding the pasted cards', () => {
+    const pasteDraftId = stashPastedFlashcards([
+      { id: 'p1', term: 'hola', definition: 'hello' },
+      { id: 'p2', term: 'adiós', definition: 'goodbye' },
+    ]);
+    render(
+      <FlashcardsWidget
+        widget={
+          {
+            id: 'widget-2',
+            type: 'flashcards',
+            config: { view: 'library', pasteDraftId },
+          } as unknown as WidgetData
+        }
+      />
+    );
+
+    expect(screen.getByDisplayValue('hola')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('goodbye')).toBeInTheDocument();
+    expect(screen.queryByText('Cell biology')).not.toBeInTheDocument();
   });
 });

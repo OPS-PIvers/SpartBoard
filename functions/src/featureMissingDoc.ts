@@ -34,6 +34,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'plc-notes-rich-editor',
   'paper-handwritten-responses',
   'claude-connector',
+  'claude-connector-guided-learning',
   'video-activity-live',
   'quiz-student-view',
   'quiz-score-on-submit',
@@ -48,6 +49,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'routine-guide',
   'blooms-ai',
   'my-groups',
+  'flashcard-smart-paste',
   'plc-meeting-recording',
   'plc-meeting-ai-notes',
 ];
