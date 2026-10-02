@@ -6,6 +6,13 @@ import type {
   SessionKind,
 } from '@/hooks/useStudentAssignments';
 import type { TurnInMap } from '@/hooks/useStudentTurnIns';
+import type { StudentGradesState } from '@/hooks/useStudentGrades';
+import { DEFAULT_PROFICIENCY_SCALE } from '@/utils/gradebook/gradebookCore';
+import {
+  seenMarksFor,
+  studentGradeRows,
+  type StudentGradesData,
+} from '@/utils/gradebook/studentGrades';
 import type { TurnInState } from '@/utils/studentTurnIn';
 import { CLASS_COLOR_PALETTE } from '@/utils/studentClassColors';
 import { partitionLanding } from '@/utils/studentLanding';
@@ -309,6 +316,83 @@ function toSummary(f: Fixture, nowMs: number): AssignmentSummary {
   };
 }
 
+type GradeFixture = [
+  id: string,
+  cls: string,
+  kind: SessionKind,
+  title: string,
+  dueDays: number,
+  points: number | null,
+  max: number,
+  flags?: ('late' | 'missing')[],
+  comment?: string,
+];
+
+const GRADE_FIXTURES: GradeFixture[] = [
+  ['e1', 'eng', 'quiz', 'Of Mice and Men: Ch. 3 check', 0, 9, 10],
+  [
+    'e8',
+    'eng',
+    'quiz',
+    'Ch. 1-2 reading quiz',
+    -8,
+    18,
+    20,
+    [],
+    'Strong evidence in #4. Re-read the bunkhouse scene for #2.',
+  ],
+  [
+    'e10',
+    'eng',
+    'flashcards',
+    'Unit 1 vocabulary check',
+    -12,
+    23,
+    25,
+    ['late'],
+  ],
+  ['e11', 'eng', 'quiz', 'Poetry warm-up', -4, 0, 10, ['missing']],
+  ['e12', 'eng', 'video-activity', 'Summer reading recap', -30, 10, 10],
+  ['b5', 'bio', 'quiz', 'Microscope lab quiz', -6, 14, 15],
+  ['a4', 'alg', 'quiz', 'Unit 2 exit ticket', -3, 0, 10, ['missing']],
+  ['a5', 'alg', 'quiz', 'Linear systems quiz', -9, 16, 20],
+];
+
+const FLAG_DEFS = {
+  late: { id: 'late', name: 'Late', key: 'L', color: 'amber' },
+  missing: { id: 'missing', name: 'Missing', key: 'M', color: 'rose' },
+};
+
+function gradesFor(classId: string): StudentGradesData {
+  const entries: StudentGradesData['entries'] = {};
+  for (const [
+    id,
+    cls,
+    kind,
+    title,
+    due,
+    points,
+    max,
+    flags,
+    comment,
+  ] of GRADE_FIXTURES) {
+    if (cls !== classId) continue;
+    entries[id] = {
+      kind,
+      title,
+      dueAt: at(due),
+      status: points === null ? 'hidden' : 'scored',
+      points,
+      max: points === null ? null : max,
+      pct: points === null ? null : (points / max) * 100,
+      flags: (flags ?? []).map((f) => FLAG_DEFS[f]),
+      comment: comment ?? null,
+      updatedAt: at(due),
+    };
+  }
+  return { entries, standards: null, scale: DEFAULT_PROFICIENCY_SCALE };
+}
+
 const readParam = (key: string): string | null =>
   new URLSearchParams(window.location.search).get(key);
 
@@ -340,6 +424,23 @@ export const StudentLandingDevHarness: React.FC = () => {
     () => partitionLanding(assignments, checks, nowMs),
     [assignments, checks, nowMs]
   );
+  const grades = useMemo<StudentGradesState | undefined>(
+    () =>
+      gradesEnabled && selected
+        ? { status: 'ready', data: gradesFor(selected) }
+        : undefined,
+    [gradesEnabled, selected]
+  );
+  // Everything seen before except the newest score, so one row shows New.
+  const initialSeen = useMemo(
+    () =>
+      seenMarksFor(
+        grades?.status === 'ready'
+          ? studentGradeRows(grades.data).filter((r) => r.sessionId !== 'e1')
+          : []
+      ),
+    [grades]
+  );
   const inSessionIds = useMemo(
     () => new Set(inClass ? ['eng'] : []),
     [inClass]
@@ -359,10 +460,13 @@ export const StudentLandingDevHarness: React.FC = () => {
       tab={tab}
       onTabChange={setTab}
       gradesEnabled={gradesEnabled}
+      grades={grades}
+      initialSeen={initialSeen}
       firstName="Maya"
       pseudonymUid="dev-student"
       onSignOut={() => undefined}
       onLockedClick={() => undefined}
+      onOpenGradeOnly={() => undefined}
     />
   );
 };

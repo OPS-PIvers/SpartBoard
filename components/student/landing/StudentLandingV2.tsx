@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import type { AssignmentSummary } from '@/hooks/useStudentAssignments';
 import type { ClassDirectoryEntry } from '@/hooks/useStudentClassDirectory';
 import { useStudentTurnIns } from '@/hooks/useStudentTurnIns';
+import { useStudentGrades } from '@/hooks/useStudentGrades';
 import { useServerNow } from '@/hooks/useServerNow';
 import { useDialog } from '@/context/useDialog';
 import { logError } from '@/utils/logError';
@@ -14,10 +15,11 @@ import {
   partitionLanding,
   periodLabel,
   periodSquare,
+  type DoneItem,
 } from '@/utils/studentLanding';
 import { readStudentResponseDoc } from '@/utils/studentResponseDoc';
+import { resolveStudentOpenHref } from '@/utils/studentOpenHref';
 import { StudentLandingLayout } from './StudentLandingLayout';
-import { LandingGradebook } from './LandingGradebook';
 import type { LandingClass, LandingTab } from './types';
 
 interface StudentLandingV2Props {
@@ -57,6 +59,8 @@ export const StudentLandingV2: React.FC<StudentLandingV2Props> = ({
   const nowMs = useServerNow(60_000);
   const { checks, recheck } = useStudentTurnIns(assignments, pseudonymUid);
   const { showAlert } = useDialog();
+  const gradesOn = gradesEnabled && !!pseudonymUid;
+  const grades = useStudentGrades(pseudonymUid, selectedClassId, gradesOn);
 
   const landingClasses = useMemo<LandingClass[]>(
     () =>
@@ -78,12 +82,6 @@ export const StudentLandingV2: React.FC<StudentLandingV2Props> = ({
     () => new Set(classIdsInSession(classes, scheduleFor, nowMs)),
     [classes, scheduleFor, nowMs]
   );
-  const hrefBySession = useMemo(() => {
-    const out: Record<string, string> = {};
-    for (const a of assignments) out[a.sessionId] = a.openHref;
-    return out;
-  }, [assignments]);
-
   // The row's lock came from a one-time read; re-read so a teacher's unlock opens straight away.
   const onLockedClick = useCallback(
     (a: AssignmentSummary) => {
@@ -114,6 +112,24 @@ export const StudentLandingV2: React.FC<StudentLandingV2Props> = ({
     [pseudonymUid, recheck, showAlert]
   );
 
+  const onOpenGradeOnly = useCallback(
+    (item: DoneItem) => {
+      resolveStudentOpenHref(item.kind, item.sessionId)
+        .then((href) => window.location.assign(href))
+        .catch((err: unknown) => {
+          logError('StudentLandingV2.openGradeOnly', err, {
+            sessionId: item.sessionId,
+            kind: item.kind,
+          });
+          void showAlert(
+            'Could not open this. Check your connection and try again.',
+            { title: 'Connection issue', variant: 'warning' }
+          );
+        });
+    },
+    [showAlert]
+  );
+
   return (
     <StudentLandingLayout
       classes={landingClasses}
@@ -125,21 +141,13 @@ export const StudentLandingV2: React.FC<StudentLandingV2Props> = ({
       onSelectClass={onSelectClass}
       tab={tab}
       onTabChange={onTabChange}
-      gradesEnabled={gradesEnabled && !!pseudonymUid}
-      renderGradebook={(classId) =>
-        pseudonymUid ? (
-          <LandingGradebook
-            key={classId}
-            studentUid={pseudonymUid}
-            classId={classId}
-            hrefBySession={hrefBySession}
-          />
-        ) : null
-      }
+      gradesEnabled={gradesOn}
+      grades={gradesOn ? grades : undefined}
       firstName={firstName}
       pseudonymUid={pseudonymUid}
       onSignOut={onSignOut}
       onLockedClick={onLockedClick}
+      onOpenGradeOnly={onOpenGradeOnly}
       notice={notice}
     />
   );

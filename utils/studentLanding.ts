@@ -1,6 +1,7 @@
 import {
   isClosedProjectRun,
   type AssignmentSummary,
+  type SessionKind,
 } from '@/hooks/useStudentAssignments';
 import type { TurnInMap } from '@/hooks/useStudentTurnIns';
 import { getWindowState, isResourceAvailable } from '@/utils/assignmentWindow';
@@ -9,6 +10,7 @@ import { hasResponseDoc } from '@/utils/studentResponseDoc';
 import { listBellPeriods, normalizePeriodKey } from '@/utils/bellSchedule';
 import type { ScheduleLookup } from '@/utils/studentClassOrder';
 import type { RosterBellPeriod } from '@/types';
+import type { StudentGradeRow } from '@/utils/gradebook/studentGrades';
 
 /** Where one row sits on the student landing page (STUDENT_LANDING_V2 D13 to D19). */
 export type LandingRowState =
@@ -117,6 +119,78 @@ export function partitionLanding(
       doneSortKey(y.assignment) - doneSortKey(x.assignment)
   );
   return out;
+}
+
+/** One Completed or Gradebook row (D17, D18): a landing row, a grade, or both. */
+export interface DoneItem {
+  key: string;
+  kind: SessionKind;
+  sessionId: string;
+  title: string;
+  /** Absent when the session is no longer in the student's list. */
+  row?: LandingRow;
+  grade?: StudentGradeRow;
+  missing: boolean;
+  /** Due date, else when it closed. */
+  when?: number;
+}
+
+const itemFromRow = (row: LandingRow, grade?: StudentGradeRow): DoneItem => {
+  const a = row.assignment;
+  return {
+    key: a.compositeId,
+    kind: a.kind,
+    sessionId: a.sessionId,
+    title: a.title,
+    row,
+    grade,
+    missing: row.state === 'missing',
+    when: a.dueAt ?? a.closeAt ?? a.endedAt,
+  };
+};
+
+const sortKeyOf = (item: DoneItem): number =>
+  item.row
+    ? doneSortKey(item.row.assignment)
+    : (item.grade?.dueAt ?? item.grade?.updatedAt ?? 0);
+
+/** Completed tab rows, in the partition's order. */
+export function completedItems(done: readonly LandingRow[]): DoneItem[] {
+  return done.map((row) => itemFromRow(row));
+}
+
+/** D17, D18: done rows joined to their grades, plus grades whose session left the list; open work stays out. */
+export function gradebookItems(
+  p: LandingPartition,
+  grades: readonly StudentGradeRow[]
+): DoneItem[] {
+  const bySession = new Map(grades.map((g) => [g.sessionId, g]));
+  const listed = new Set(
+    [...p.live, ...p.work, ...p.resources, ...p.done].map(
+      (r) => r.assignment.sessionId
+    )
+  );
+  const items = p.done.map((row) =>
+    itemFromRow(row, bySession.get(row.assignment.sessionId))
+  );
+  for (const g of grades) {
+    if (listed.has(g.sessionId)) continue;
+    items.push({
+      key: `${g.kind}:${g.sessionId}`,
+      kind: g.kind,
+      sessionId: g.sessionId,
+      title: g.title,
+      grade: g,
+      missing: g.flags.some((f) => f.id === 'missing'),
+      when: g.dueAt ?? undefined,
+    });
+  }
+  return items.sort(
+    (x, y) =>
+      Number(y.missing) - Number(x.missing) ||
+      sortKeyOf(y) - sortKeyOf(x) ||
+      x.title.localeCompare(y.title)
+  );
 }
 
 /** The slice of a partition that targets one class. */

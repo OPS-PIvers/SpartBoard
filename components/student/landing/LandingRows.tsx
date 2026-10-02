@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight, Lock } from 'lucide-react';
+import { ChevronRight, Lock, MessageSquareText } from 'lucide-react';
 import {
   KIND_CONFIG,
   type AssignmentSummary,
@@ -14,7 +14,11 @@ import {
 } from '@/utils/assignmentWindow';
 import { formatDueLabel } from '@/utils/studentTurnIn';
 import { nextScheduledOpen, studentCanEnter } from '@/utils/periodAccess';
-import type { LandingRow } from '@/utils/studentLanding';
+import type { DoneItem, LandingRow } from '@/utils/studentLanding';
+import {
+  formatPoints,
+  type StudentGradeRow,
+} from '@/utils/gradebook/studentGrades';
 import type { LandingClass } from './types';
 
 // D22: flat kind icons, coloured glyph on a pale slate tile; hues follow each library's identity.
@@ -268,57 +272,188 @@ export const ResourceRow: React.FC<{ row: LandingRow; nowMs: number }> = ({
 };
 
 interface DoneRowProps {
-  row: LandingRow;
+  item: DoneItem;
   check: TurnInCheck | undefined;
   nowMs: number;
+  /** Gradebook tab: score, Late, NEW and the teacher's comment replace the Completed labels. */
+  gradebook?: boolean;
+  isNew?: boolean;
+  /** Named in the Missing explanation. */
+  teachers: string;
   onLockedClick: (a: AssignmentSummary) => void;
+  /** Opens a graded session that is no longer in the student's list. */
+  onOpenGradeOnly: (item: DoneItem) => void;
 }
 
-export const DoneRow: React.FC<DoneRowProps> = ({
-  row,
-  check,
-  nowMs,
-  onLockedClick,
+const GradeScore: React.FC<{ grade: StudentGradeRow | undefined }> = ({
+  grade,
 }) => {
-  const a = row.assignment;
-  const missing = row.state === 'missing';
-  const when = a.dueAt ?? a.closeAt ?? a.endedAt;
-  const right =
-    row.state === 'missing' ? (
-      <span className="text-xs font-semibold text-rose-700">Missing</span>
-    ) : row.state === 'closed' ? (
-      <span className="text-xs text-slate-500">Not turned in</span>
-    ) : check?.lockedOut ? (
+  const cls = 'w-14 text-right text-sm font-semibold tabular-nums';
+  if (grade?.status === 'scored' && grade.points !== null && grade.max !== null)
+    return (
+      <span className={`${cls} text-slate-800`}>
+        {formatPoints(grade.points)}/{formatPoints(grade.max)}
+      </span>
+    );
+  if (grade?.status === 'complete')
+    return <span className={`${cls} text-slate-800`}>Done</span>;
+  if (grade?.status === 'excluded')
+    return <span className="text-xs text-slate-500">Excused</span>;
+  return <span className="text-xs text-slate-500">Awaiting grade</span>;
+};
+
+const FLAG_INK: Record<string, string> = {
+  rose: 'text-rose-700',
+  amber: 'text-amber-700',
+  orange: 'text-orange-700',
+};
+
+/** Flags other than Missing and Excused, which the row already says. */
+const extraFlags = (grade: StudentGradeRow | undefined) =>
+  (grade?.flags ?? []).filter((f) => f.id !== 'missing' && f.id !== 'excused');
+
+function gradebookRight(item: DoneItem, isNew: boolean): React.ReactNode {
+  if (item.missing) {
+    return (
+      <>
+        <span className="text-xs font-semibold text-rose-700">Missing</span>
+        {item.grade?.status === 'scored' && (
+          <span className="w-14 text-right text-sm font-semibold tabular-nums text-slate-400">
+            {formatPoints(item.grade.points ?? 0)}
+          </span>
+        )}
+      </>
+    );
+  }
+  if (item.row?.state === 'closed' && !item.grade) {
+    return <span className="text-xs text-slate-500">Not turned in</span>;
+  }
+  return (
+    <>
+      {isNew && (
+        <span className="text-[10px] font-bold uppercase tracking-wide text-brand-red-primary">
+          New
+        </span>
+      )}
+      {extraFlags(item.grade).map((f) => (
+        <span
+          key={f.id}
+          className={`text-xs font-semibold ${FLAG_INK[f.color] ?? 'text-slate-600'}`}
+        >
+          {f.name}
+        </span>
+      ))}
+      <GradeScore grade={item.grade} />
+    </>
+  );
+}
+
+function completedRight(
+  item: DoneItem,
+  check: TurnInCheck | undefined,
+  nowMs: number
+): React.ReactNode {
+  if (item.missing)
+    return <span className="text-xs font-semibold text-rose-700">Missing</span>;
+  if (item.row?.state === 'closed')
+    return <span className="text-xs text-slate-500">Not turned in</span>;
+  if (check?.lockedOut)
+    return (
       <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-700">
         <Lock className="h-3 w-3" aria-hidden="true" />
         Locked
       </span>
-    ) : areResultsShared(a, check, nowMs) ? (
-      <span className="text-xs font-semibold text-brand-blue-primary">
-        View results
-      </span>
-    ) : (
-      <span className="text-xs text-slate-500">Not graded yet</span>
     );
+  return item.row && areResultsShared(item.row.assignment, check, nowMs) ? (
+    <span className="text-xs font-semibold text-brand-blue-primary">
+      View results
+    </span>
+  ) : (
+    <span className="text-xs text-slate-500">Not graded yet</span>
+  );
+}
+
+const missingMessage = (item: DoneItem, teachers: string): string => {
+  const when =
+    item.row?.assignment.closeAt ?? item.row?.assignment.endedAt ?? item.when;
+  const closed =
+    when !== undefined ? `This closed on ${fmtDay(when)}` : 'This closed';
+  return `${closed} before you turned it in. Talk to ${teachers || 'your teacher'} if you need it reopened.`;
+};
+
+/** D17, D18: a Completed or Gradebook row; every one opens the student's own work, or says why it is Missing. */
+export const DoneRow: React.FC<DoneRowProps> = ({
+  item,
+  check,
+  nowMs,
+  gradebook = false,
+  isNew = false,
+  teachers,
+  onLockedClick,
+  onOpenGradeOnly,
+}) => {
+  const { showAlert } = useDialog();
+  const a = item.row?.assignment;
+  const comment = gradebook ? item.grade?.comment : null;
   const body = (
     <>
-      <KindIcon kind={a.kind} />
+      <KindIcon kind={item.kind} />
       <span className="min-w-0 flex-1">
-        <Title muted={missing}>{a.title}</Title>
+        <Title muted={item.missing}>{item.title}</Title>
         <span className="mt-0.5 block truncate text-xs text-slate-500">
-          {kindLabel(a)}
-          {when !== undefined &&
-            ` · ${missing ? 'closed' : 'due'} ${fmtDay(when)}`}
+          {a ? kindLabel(a) : KIND_CONFIG[item.kind].label}
+          {item.when !== undefined &&
+            ` · ${item.missing ? 'closed' : 'due'} ${fmtDay(item.when)}`}
         </span>
+        {comment && (
+          <span className="mt-1 flex items-start gap-1.5 text-xs text-slate-600">
+            <MessageSquareText
+              className="mt-px h-3.5 w-3.5 shrink-0 text-slate-400"
+              aria-label="Teacher comment"
+            />
+            <span className="line-clamp-2">{comment}</span>
+          </span>
+        )}
       </span>
-      <span className="flex shrink-0 items-center gap-2.5">{right}</span>
+      <span className="flex shrink-0 items-center gap-2.5">
+        {gradebook
+          ? gradebookRight(item, isNew)
+          : completedRight(item, check, nowMs)}
+      </span>
     </>
   );
-  if (check?.lockedOut) {
+  if (item.missing) {
+    return (
+      <button
+        type="button"
+        onClick={() =>
+          void showAlert(missingMessage(item, teachers), {
+            title: item.title,
+            variant: 'info',
+          })
+        }
+        className={ROW_CLASS}
+      >
+        {body}
+      </button>
+    );
+  }
+  if (a && check?.lockedOut) {
     return (
       <button
         type="button"
         onClick={() => onLockedClick(a)}
+        className={ROW_CLASS}
+      >
+        {body}
+      </button>
+    );
+  }
+  if (!a) {
+    return (
+      <button
+        type="button"
+        onClick={() => onOpenGradeOnly(item)}
         className={ROW_CLASS}
       >
         {body}

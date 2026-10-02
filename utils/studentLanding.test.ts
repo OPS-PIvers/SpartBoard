@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { AssignmentSummary } from '@/hooks/useStudentAssignments';
 import type { TurnInMap } from '@/hooks/useStudentTurnIns';
+import type { StudentGradeRow } from '@/utils/gradebook/studentGrades';
 import {
   classListLine,
+  completedItems,
+  gradebookItems,
   landingRowState,
   partitionLanding,
   periodLabel,
@@ -181,6 +184,88 @@ describe('period helpers', () => {
     expect(periodLabel(undefined, () => null)).toBeUndefined();
     expect(periodLabel({ buildingId: 'b', periodId: '3' }, () => null)).toBe(
       'Period 3'
+    );
+  });
+});
+
+describe('gradebookItems', () => {
+  const grade = (
+    sessionId: string,
+    over: Partial<StudentGradeRow> = {}
+  ): StudentGradeRow => ({
+    sessionId,
+    kind: 'quiz',
+    title: `G ${sessionId}`,
+    dueAt: null,
+    status: 'scored',
+    points: 8,
+    max: 10,
+    pct: 80,
+    flags: [],
+    comment: null,
+    updatedAt: 0,
+    ...over,
+  });
+
+  it('joins grades to done rows, adds graded sessions that left the list, and skips open work', () => {
+    const done = a({ sessionId: 'd', channel: 'ended', dueAt: NOW - DAY });
+    const open = a({ sessionId: 'o', dueAt: NOW + DAY });
+    const p = partitionLanding(
+      [done, open],
+      { ...checked(done, 'turned-in'), ...checked(open, 'not-started') },
+      NOW
+    );
+    const items = gradebookItems(p, [
+      grade('d'),
+      grade('o', {
+        flags: [{ id: 'missing', name: 'Missing', key: 'M', color: 'rose' }],
+      }),
+      grade('gone', { kind: 'video-activity', dueAt: NOW - 3 * DAY }),
+    ]);
+    expect(items.map((i) => i.sessionId)).toEqual(['d', 'gone']);
+    expect(items[0].grade?.sessionId).toBe('d');
+    expect(items[0].row?.assignment.sessionId).toBe('d');
+    expect(items[1].row).toBeUndefined();
+    expect(items[1].kind).toBe('video-activity');
+  });
+
+  it('puts Missing first, from the row or from a grade-only Missing flag, then newest first', () => {
+    const older = a({
+      sessionId: 'old',
+      channel: 'ended',
+      dueAt: NOW - 5 * DAY,
+    });
+    const newer = a({ sessionId: 'new', channel: 'ended', dueAt: NOW - DAY });
+    const p = partitionLanding(
+      [older, newer],
+      { ...checked(older, 'turned-in'), ...checked(newer, 'turned-in') },
+      NOW
+    );
+    const items = gradebookItems(p, [
+      grade('m', {
+        dueAt: NOW - 9 * DAY,
+        flags: [{ id: 'missing', name: 'Missing', key: 'M', color: 'rose' }],
+      }),
+    ]);
+    expect(items.map((i) => [i.sessionId, i.missing])).toEqual([
+      ['m', true],
+      ['new', false],
+      ['old', false],
+    ]);
+  });
+});
+
+describe('completedItems', () => {
+  it('keeps the partition order and marks Missing rows', () => {
+    const missed = a({
+      sessionId: 'm',
+      channel: 'ended',
+      endedAt: NOW - DAY,
+      dueAt: NOW - 2 * DAY,
+    });
+    const p = partitionLanding([missed], checked(missed, 'not-started'), NOW);
+    expect(completedItems(p.done).map((i) => [i.sessionId, i.missing])).toEqual(
+      [['m', true]]
     );
   });
 });
