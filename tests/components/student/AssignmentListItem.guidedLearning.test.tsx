@@ -19,6 +19,7 @@ vi.mock('@/config/firebase', () => ({ db: {}, functions: {} }));
 
 const gl: AssignmentSummary = {
   compositeId: 'guided-learning:gl-1',
+  workKind: 'work',
   kind: 'guided-learning',
   sessionId: 'gl-1',
   title: 'Cell parts',
