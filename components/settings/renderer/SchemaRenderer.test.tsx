@@ -156,6 +156,26 @@ describe('SchemaRenderer', () => {
     expect(screen.getByRole('group', { name: 'Content' })).toBeInTheDocument();
   });
 
+  it('tags each group heading with its widget type and group id', () => {
+    const schema: WidgetSettingsSchema = {
+      groups: [
+        { id: 'content', fields: [{ type: 'text', key: 'b', label: 'title' }] },
+      ],
+    };
+    const { container } = render(
+      <SchemaRenderer
+        schema={schema}
+        widget={widget}
+        ctx={makeCtx()}
+        updateConfig={vi.fn()}
+      />
+    );
+    const tagged = container.querySelector('[data-tour="settings.group"]');
+    expect(tagged).toHaveAttribute('data-tour-widget-type', 'clock');
+    expect(tagged).toHaveAttribute('data-tour-field', 'content');
+    expect(tagged).toHaveTextContent('Content');
+  });
+
   it('prints a repeated field.section heading only once per group, even when a differently-sectioned field interrupts the run', () => {
     const schema: WidgetSettingsSchema = {
       groups: [

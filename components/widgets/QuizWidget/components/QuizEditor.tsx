@@ -33,6 +33,7 @@ import {
   isFreeResponseType,
 } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import { BankSlotDetail, BankSlotRow } from './BankSlotRow';
 import { SectionRow } from './SectionRow';
 import { sectionQuestionCounts } from '@/utils/quizSections';
@@ -391,6 +392,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                   type="button"
                   onClick={addQuestion}
                   className="flex items-center gap-1 pl-2.5 pr-2 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-l-lg text-xs font-bold transition-colors"
+                  {...tourTypeAttr('quiz-editor.add-question', 'quiz')}
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Add
@@ -402,6 +404,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                   aria-haspopup="menu"
                   aria-expanded={addMenuOpen}
                   className="flex items-center px-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-r-lg border-l border-white/25 transition-colors"
+                  {...tourTypeAttr('quiz-editor.add-menu', 'quiz')}
                 >
                   <ChevronDown className="w-3.5 h-3.5" />
                 </button>
@@ -465,6 +468,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
               <button
                 onClick={addQuestion}
                 className="flex items-center gap-1 px-2.5 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xs font-bold transition-colors"
+                {...tourTypeAttr('quiz-editor.add-question', 'quiz')}
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add
@@ -950,6 +954,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             rows={3}
             placeholder="e.g. What is the capital of France?"
             className={`${inputClass} resize-none`}
+            {...tourTypeAttr('quiz-editor.prompt', 'quiz')}
           />
         </div>
 
@@ -1001,6 +1006,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             <select
               value={choiceEditor && q.type === 'MA' ? 'MC' : q.type}
               aria-label="Type"
+              {...tourTypeAttr('quiz-editor.type', 'quiz')}
               onChange={(e) => {
                 const nextType = e.target.value as QuizQuestionType;
                 // With the one-list editor, MA is Multiple Choice with a setting on.

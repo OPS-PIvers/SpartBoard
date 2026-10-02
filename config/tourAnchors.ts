@@ -156,6 +156,12 @@ export const TOUR_ANCHORS = {
     panel: true,
     requires: 'settings-open',
   },
+  'settings.group': {
+    label: 'A settings section heading, by widget type and group id',
+    perField: true,
+    panel: true,
+    requires: 'settings-open',
+  },
 
   'sidebar.open-menu': { label: 'Menu button in the top bar' },
   'sidebar.admin-settings': { label: 'Admin settings button in the top bar' },
@@ -487,6 +493,11 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'schedule.start-timer': {
+    label:
+      'Start timer button on a Schedule row, by row (active = the Now row)',
+    perField: true,
+  },
   'poll.next-question': {
     label: 'Next question button in Poll',
     perWidget: true,
@@ -599,6 +610,46 @@ export const TOUR_ANCHORS = {
     label: 'Names on or off button in the Review monitor',
     persists: true,
     perWidget: true,
+  },
+  'editor.title': {
+    label: 'Title box in an editor dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'editor.close': {
+    label: 'Close or Cancel button in an editor dialog footer',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.add-question': {
+    label: 'Add question button in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.add-menu': {
+    label: 'More ways to add arrow in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt': {
+    label: 'Question prompt box in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.type': {
+    label: 'Question type list in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.option': {
+    label: 'Answer option box in the Quiz editor, by letter',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.correct': {
+    label: 'Mark-correct button beside an answer option, by letter',
+    perField: true,
+    panel: true,
   },
   'quiz-settings.widget-label': {
     label: 'Widget label input in Quiz settings',

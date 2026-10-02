@@ -9,6 +9,7 @@ import {
   scheduleSize,
 } from '@/components/widgets/Schedule/utils';
 import { hexToRgba } from '@/utils/styles';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface CountdownDisplayProps {
   /** Seconds remaining to display. Pass the full duration to render a frozen "waiting" state. */
@@ -359,6 +360,11 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
           }}
           title={timerLaunchLabel}
           aria-label={timerLaunchLabel}
+          {...tourFieldAttr(
+            'schedule.start-timer',
+            'schedule',
+            isActive ? 'active' : `row-${index + 1}`
+          )}
         >
           <Timer
             className="shrink-0"

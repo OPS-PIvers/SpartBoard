@@ -180,6 +180,13 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     requires: 'settings-open',
   },
   {
+    id: 'settings.group',
+    label: 'A settings section heading, by widget type and group id',
+    scope: 'field',
+    panel: true,
+    requires: 'settings-open',
+  },
+  {
     id: 'sidebar.open-menu',
     label: 'Menu button in the top bar',
     scope: 'board',
@@ -725,6 +732,12 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     destructive: true,
   },
   {
+    id: 'schedule.start-timer',
+    label:
+      'Start timer button on a Schedule row, by row (active = the Now row)',
+    scope: 'field',
+  },
+  {
     id: 'poll.next-question',
     label: 'Next question button in Poll',
     scope: 'widget',
@@ -865,6 +878,54 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     id: 'review-game.names',
     label: 'Names on or off button in the Review monitor',
     scope: 'widget',
+  },
+  {
+    id: 'editor.title',
+    label: 'Title box in an editor dialog',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'editor.close',
+    label: 'Close or Cancel button in an editor dialog footer',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'quiz-editor.add-question',
+    label: 'Add question button in the Quiz editor',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'quiz-editor.add-menu',
+    label: 'More ways to add arrow in the Quiz editor',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'quiz-editor.prompt',
+    label: 'Question prompt box in the Quiz editor',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'quiz-editor.type',
+    label: 'Question type list in the Quiz editor',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'quiz-editor.option',
+    label: 'Answer option box in the Quiz editor, by letter',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'quiz-editor.correct',
+    label: 'Mark-correct button beside an answer option, by letter',
+    scope: 'field',
+    panel: true,
   },
   {
     id: 'quiz-settings.widget-label',
