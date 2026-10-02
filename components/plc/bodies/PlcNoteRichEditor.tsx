@@ -25,6 +25,8 @@ interface PlcNoteRichEditorProps {
   readOnly: boolean;
   /** Hidden for viewers, who can't edit at all. */
   showToolbar: boolean;
+  /** Controls at the right end of the toolbar. */
+  toolbarEnd?: React.ReactNode;
 }
 
 const HEADING_TAGS = new Set(['H1', 'H2', 'H3']);
@@ -49,6 +51,7 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
   onChange,
   readOnly,
   showToolbar,
+  toolbarEnd,
 }) => {
   const { t } = useTranslation();
   const editorRef = useRef<HTMLDivElement>(null);
@@ -273,6 +276,12 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
               </button>
             );
           })}
+          {toolbarEnd && (
+            <>
+              <div className="flex-1" />
+              {toolbarEnd}
+            </>
+          )}
         </div>
       )}
       <div className="relative flex-1 min-h-0 overflow-y-auto custom-scrollbar">
