@@ -202,3 +202,95 @@ describe('applyAvailability', () => {
     expect(targeting.closeAt).toBe(at('2026-10-02', '23:59'));
   });
 });
+
+describe('study resources', () => {
+  const base = { ...EMPTY_ASSIGN_TARGETING_VALUE };
+
+  it('saves no work kind unless the setting is on', () => {
+    const { targeting } = applyAvailability(
+      { ...base, workKind: 'resource' },
+      { enabled: true, rosters: [], bellWindow: undefined }
+    );
+    expect(targeting.workKind).toBeUndefined();
+  });
+
+  it('keeps the kind default for work and leaves the due date alone', () => {
+    const { targeting } = applyAvailability(
+      { ...base, availability: bellToBell('2026-10-02') },
+      {
+        enabled: true,
+        rosters: [p3],
+        bellWindow,
+        workKind: { default: 'work' },
+      }
+    );
+    expect(targeting.workKind).toBe('work');
+    expect(targeting.dueAt).toBe(at('2026-10-02', '09:52'));
+  });
+
+  it('defaults a resource to no end date and no due date', () => {
+    const { targeting } = applyAvailability(base, {
+      enabled: true,
+      rosters: [],
+      bellWindow: undefined,
+      workKind: { default: 'resource' },
+      now: new Date(2026, 9, 2, 13, 7),
+    });
+    expect(targeting.workKind).toBe('resource');
+    expect(targeting.openAt).toBe(at('2026-10-02', '13:05'));
+    expect(targeting.closeAt).toBeUndefined();
+    expect(targeting.dueAt).toBeUndefined();
+  });
+
+  it('closes a resource at the chosen date with no due date', () => {
+    const { targeting } = applyAvailability(
+      { ...base, workKind: 'resource', availability: bellToBell('2026-10-02') },
+      {
+        enabled: true,
+        rosters: [p3],
+        bellWindow,
+        workKind: { default: 'work' },
+      }
+    );
+    expect(targeting.closeAt).toBe(at('2026-10-02', '09:52'));
+    expect(targeting.dueAt).toBeUndefined();
+  });
+
+  it('ignores the teacher choice when the kind is locked', () => {
+    const { targeting } = applyAvailability(
+      { ...base, workKind: 'work' },
+      {
+        enabled: true,
+        rosters: [],
+        bellWindow: undefined,
+        workKind: { default: 'resource', locked: true },
+      }
+    );
+    expect(targeting.workKind).toBe('resource');
+  });
+
+  it('gives each class no due date or close for a resource with no end', () => {
+    const resolved = resolveAvailability(
+      { ...bellToBell('2026-10-02'), noEnd: true },
+      [p3, p5],
+      bellWindow,
+      'resource'
+    );
+    expect(resolved.closeAt).toBeUndefined();
+    expect(resolved.dueAtByRosterId).toBeUndefined();
+    expect(resolved.periodPlan?.rows?.r3.closeAt).toBeUndefined();
+    expect(resolved.periodPlan?.rows?.r3.openAt).toBe(
+      at('2026-10-02', '09:05')
+    );
+  });
+
+  it('ignores a stale no-end flag on work', () => {
+    const resolved = resolveAvailability(
+      { ...bellToBell('2026-10-02'), noEnd: true },
+      [p3],
+      bellWindow,
+      'work'
+    );
+    expect(resolved.closeAt).toBe(at('2026-10-02', '09:52'));
+  });
+});

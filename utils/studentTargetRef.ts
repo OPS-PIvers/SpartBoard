@@ -2,6 +2,7 @@
 
 import type { PeriodPlan } from '@/utils/periodPlan';
 import type { AssignAvailability } from '@/utils/assignAvailability';
+import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import type {
   ClassRoster,
   Student,
@@ -26,6 +27,8 @@ export interface AssignTargetingValue {
   periodPlan?: PeriodPlan;
   /** Availability & Due Date state; hosts resolve it with `applyAvailability` before saving. */
   availability?: AssignAvailability;
+  /** Teacher's Submissions Enabled / Study Resource choice; absent keeps the kind default. */
+  workKind?: WorkKind;
 }
 
 export const EMPTY_ASSIGN_TARGETING_VALUE: AssignTargetingValue = {

@@ -26,6 +26,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { buildPeriodAccess, DEFAULT_PERIOD_PLAN } from '@/utils/periodPlan';
 import { applyAvailability } from '@/utils/assignAvailability';
+import { resolveWorkKind } from '@/utils/gradebook/gradebookCore';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareGuidedLearningWidget } from './SubShareWidget';
 import { useDialog } from '@/context/useDialog';
@@ -203,6 +204,9 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const gradebookOn = canAccessFeature('gradebook');
   const playerV2 = canAccessFeature('gl-player-v2');
   const availabilityOn = canAccessFeature('assign-availability');
+  const workKindSetting = canAccessFeature('study-resources')
+    ? { default: resolveWorkKind('guided-learning', null) }
+    : undefined;
   const studioEditor = canAccessFeature('gl-studio');
   const canUseAi =
     canAccessFeature('gemini-functions') &&
@@ -690,7 +694,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
             closeAt: periodGate ? undefined : targeting.closeAt,
             dueAt: targeting.dueAt,
           },
-          { playerV2 },
+          { playerV2, workKind: targeting.workKind },
           periodGate
         );
         const sessionId = url.split('/').pop() ?? '';
@@ -915,6 +919,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       enabled: availabilityOn,
       rosters: rosters.filter((r) => validRosterIds.includes(r.id)),
       bellWindow: assignPeriodCtx?.bellWindow,
+      workKind: workKindSetting,
     });
     await performAssign(set, source, originSetId, validRosterIds, targeting);
   };
@@ -1678,6 +1683,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                 kind="guided-learning"
                 showDueAt
                 availabilityEnabled={availabilityOn}
+                workKind={workKindSetting}
               />
             </div>
           }

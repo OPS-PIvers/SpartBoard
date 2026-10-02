@@ -56,7 +56,11 @@ import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArc
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
-import { applyAvailability } from '@/utils/assignAvailability';
+import {
+  applyAvailability,
+  type WorkKindSetting,
+} from '@/utils/assignAvailability';
+import { resolveWorkKind } from '@/utils/gradebook/gradebookCore';
 import { useDialog } from '@/context/useDialog';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
@@ -516,6 +520,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   const canAssignLive = canAccessFeature('video-activity-live');
   const availabilityOn = canAccessFeature('assign-availability');
+  const workKindSetting: WorkKindSetting | undefined = canAccessFeature(
+    'study-resources'
+  )
+    ? { default: resolveWorkKind('video-activity', null) }
+    : undefined;
   const claudeReview = useClaudeReview('video_activities');
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
@@ -826,6 +835,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
             enabled: true,
             rosters: rosters.filter((r) => validRosterIds.includes(r.id)),
             bellWindow: periodAccess?.bellWindow,
+            workKind: workKindSetting,
           }).targeting
         : { ...assignTargeting, dueAt: assignDueAt ?? undefined };
       const dueAt = availabilityOn
@@ -1560,6 +1570,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
               onTargetingChange={setAssignTargeting}
               periodAccess={periodAccess}
               availabilityEnabled={availabilityOn}
+              workKind={workKindSetting}
               assignError={assignError}
               onEditInActivity={() => {
                 closeAssign();
@@ -1613,6 +1624,7 @@ const AssignBehaviorSummaryVA: React.FC<{
   onTargetingChange: (next: AssignTargetingValue) => void;
   periodAccess?: AssignPeriodAccessContext;
   availabilityEnabled: boolean;
+  workKind?: WorkKindSetting;
   assignError: string | null;
   onEditInActivity?: () => void;
 }> = ({
@@ -1628,6 +1640,7 @@ const AssignBehaviorSummaryVA: React.FC<{
   onTargetingChange,
   periodAccess,
   availabilityEnabled,
+  workKind,
   assignError,
   onEditInActivity,
 }) => {
@@ -1703,6 +1716,7 @@ const AssignBehaviorSummaryVA: React.FC<{
           kind="video-activity"
           showDueAt={false}
           availabilityEnabled={availabilityEnabled}
+          workKind={workKind}
         />
 
         {/* Due date */}

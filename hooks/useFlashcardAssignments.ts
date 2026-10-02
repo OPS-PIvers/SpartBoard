@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
+import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import {
   FC_CONTENT_COLLECTION,
   FC_CONTENT_DOC,
@@ -49,6 +50,8 @@ export interface CreateFlashcardAssignmentInput {
   openAt?: number | null;
   closeAt?: number | null;
   dueAt?: number | null;
+  /** Submissions Enabled or Study Resource; absent keeps the kind default. */
+  workKind?: WorkKind;
   /** Per-period gate; the cards then move to `content/cards` and no shared window is kept. */
   periodGate?: Pick<FlashcardSession, 'accessMode' | 'periodAccess'>;
 }
@@ -184,6 +187,7 @@ export const useFlashcardAssignments = (
         ...(periodNames.length > 0 ? { periodNames } : {}),
         status: 'active',
         ...windows,
+        ...(input.workKind ? { workKind: input.workKind } : {}),
         createdAt: now,
       };
 

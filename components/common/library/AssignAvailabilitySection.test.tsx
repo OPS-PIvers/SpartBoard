@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { ClassRoster } from '@/types';
 import type { AssignAvailability } from '@/utils/assignAvailability';
+import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import { AssignAvailabilitySection } from './AssignAvailabilitySection';
 import type { AssignPeriodAccessContext } from './AssignPeriodAccessSection';
 
@@ -44,6 +45,35 @@ const Harness: React.FC<{
       }}
       rosters={rosters}
       periodAccess={CTX}
+    />
+  );
+};
+
+const KindHarness: React.FC<{
+  initial: WorkKind;
+  locked?: boolean;
+  onKind: (kind: WorkKind, value: AssignAvailability) => void;
+}> = ({ initial, locked, onKind }) => {
+  const [kind, setKind] = useState<WorkKind>(initial);
+  const [value, setValue] = useState<AssignAvailability>(
+    initial === 'resource' ? { ...START, noEnd: true } : START
+  );
+  return (
+    <AssignAvailabilitySection
+      value={value}
+      onChange={setValue}
+      rosters={[roster(3)]}
+      periodAccess={CTX}
+      workKind={kind}
+      onWorkKindChange={
+        locked
+          ? undefined
+          : (next, availability) => {
+              setKind(next);
+              setValue(availability);
+              onKind(next, availability);
+            }
+      }
     />
   );
 };
@@ -119,5 +149,56 @@ describe('AssignAvailabilitySection', () => {
       screen.getByRole('switch', { name: 'Allow submissions after close' })
     );
     expect(onValue.mock.lastCall?.[0].allowLate).toBe(true);
+  });
+
+  describe('Submissions Enabled and Study Resource', () => {
+    it('shows no choice unless the host offers one', () => {
+      render(<Harness rosters={[roster(3)]} onValue={vi.fn()} />);
+      expect(screen.queryByRole('radio')).toBeNull();
+      expect(screen.getByText('Closes')).toBeInTheDocument();
+    });
+
+    it('switches to a study resource with no end date', () => {
+      const onKind = vi.fn<(k: WorkKind, v: AssignAvailability) => void>();
+      render(<KindHarness initial="work" onKind={onKind} />);
+      expect(
+        screen.getByRole('radio', { name: 'Submissions Enabled' })
+      ).toBeChecked();
+      expect(
+        screen.getByLabelText('Allow submissions after close')
+      ).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('radio', { name: 'Study Resource' }));
+      expect(onKind.mock.lastCall?.[0]).toBe('resource');
+      expect(onKind.mock.lastCall?.[1].noEnd).toBe(true);
+      expect(screen.queryByText('Closes')).toBeNull();
+      expect(screen.queryByText('Available until')).toBeNull();
+      expect(
+        screen.queryByLabelText('Allow submissions after close')
+      ).toBeNull();
+      expect(screen.getByLabelText('No end date')).toBeChecked();
+    });
+
+    it('asks for an end date when no end date is turned off', () => {
+      render(<KindHarness initial="resource" onKind={vi.fn()} />);
+      fireEvent.click(screen.getByLabelText('No end date'));
+      expect(screen.getByText('Available until')).toBeInTheDocument();
+    });
+
+    it('drops the no-end flag when switching back to submissions', () => {
+      const onKind = vi.fn<(k: WorkKind, v: AssignAvailability) => void>();
+      render(<KindHarness initial="resource" onKind={onKind} />);
+      fireEvent.click(
+        screen.getByRole('radio', { name: 'Submissions Enabled' })
+      );
+      expect(onKind.mock.lastCall?.[0]).toBe('work');
+      expect(onKind.mock.lastCall?.[1].noEnd).toBeUndefined();
+      expect(screen.getByText('Closes')).toBeInTheDocument();
+    });
+
+    it('shows the resource layout without a choice when the kind is locked', () => {
+      render(<KindHarness initial="resource" locked onKind={vi.fn()} />);
+      expect(screen.queryByRole('radio')).toBeNull();
+      expect(screen.getByLabelText('No end date')).toBeInTheDocument();
+    });
   });
 });
