@@ -160,7 +160,7 @@ export function registerLiveTourTools(
     {
       title: 'Create a live tour',
       description:
-        'Admins only. Creates a live tour that walks a teacher through the real SpartBoard board, one step per control. Every step needs a tour binding (list_tour_anchors); a narration step observes a board anchor. No screenshots are needed. Saved as an unpublished draft: pass help_center to also add it to the Help Center, hidden until an admin test-runs it, publishes it in the Studio and shows the item in Admin Settings > Help Center.',
+        'Admins only. Creates a live tour that walks a teacher through the real SpartBoard board, one step per control. Every step needs a tour binding (list_tour_anchors); a narration step observes the control it describes, and welcome_message opens the tour. No screenshots are needed. Saved as an unpublished draft: pass help_center to also add it to the Help Center, hidden until an admin test-runs it, publishes it in the Studio and shows the item in Admin Settings > Help Center.',
       inputSchema: {
         title: z.string().trim().min(1).max(200),
         description: z.string().max(1000).optional(),

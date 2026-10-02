@@ -91,7 +91,7 @@ export function validateCreate(input: CreateInput): Step[] {
     const loose = input.steps.findIndex((s) => !s.tour);
     if (loose >= 0)
       throw new ToolError(
-        `steps[${loose}]: every live tour step needs a tour binding. Narration steps observe a board anchor; use list_tour_anchors.`
+        `steps[${loose}]: every live tour step needs a tour binding. A narration step observes the control it describes; use list_tour_anchors.`
       );
   }
   for (const [field, list] of [
