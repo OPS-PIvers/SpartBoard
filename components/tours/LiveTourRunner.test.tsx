@@ -1127,6 +1127,34 @@ describe('LiveTourRunner plain steps and welcome', () => {
     expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
   });
 
+  it('shows a plain step its slide, but not a question or media slide', async () => {
+    const set = mixedSet('structured', { imageUrls: ['https://x/0.png'] });
+    set.steps.forEach((s) => {
+      s.imageIndex = 0;
+      s.interactionType = s.id === 'q' ? 'question' : 'tooltip';
+    });
+    set.steps[4].interactionType = 'video';
+    await start(set);
+    expect(isPlain()).toBe(true);
+    expect(screen.getByTestId('tour-mini-player')).toHaveTextContent('intro');
+    expect(screen.getByText('This tour shows boards.')).toBeInTheDocument();
+    expect(screen.queryByText(/Couldn't find/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames();
+    expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Boards'));
+    await frames();
+    expect(screen.getByText('Which board is yours?')).toBeInTheDocument();
+    expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames();
+    expect(progress()).toBe('5 / 5');
+    expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
+  });
+
   it('numbers anchored steps the way Tour Health and the Studio do', async () => {
     const set = mixedSet();
     const health = tourHealthOf(set);
