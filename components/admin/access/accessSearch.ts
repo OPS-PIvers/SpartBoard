@@ -91,6 +91,7 @@ export const rolloutSearchFields = (sw: RolloutSwitch): string[] => [
   sw.title,
   sw.description,
   sw.docId,
+  sw.field ?? '',
 ];
 
 /** Every word of the query must appear in one of the fields, case-insensitive. */

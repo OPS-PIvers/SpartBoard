@@ -14,3 +14,11 @@ export function normalizeViewAsSettings(raw: unknown): ViewAsSettings {
   if (!raw || typeof raw !== 'object') return DEFAULT_VIEW_AS_SETTINGS;
   return { enabled: (raw as { enabled?: unknown }).enabled === true };
 }
+
+/** `allowUnlock` on the same doc, read as a switch; the server re-checks it (D11). */
+export function normalizeViewAsUnlockSettings(raw: unknown): {
+  enabled: boolean;
+} {
+  if (!raw || typeof raw !== 'object') return { enabled: false };
+  return { enabled: (raw as { allowUnlock?: unknown }).allowUnlock === true };
+}

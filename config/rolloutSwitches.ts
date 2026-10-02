@@ -36,7 +36,11 @@ import {
   SUB_LAUNCH_AS_TEACHER_SETTINGS_DOC,
   normalizeSubLaunchAsTeacherSettings,
 } from '@/config/subLaunchAsTeacher';
-import { VIEW_AS_SETTINGS_DOC, normalizeViewAsSettings } from '@/config/viewAs';
+import {
+  VIEW_AS_SETTINGS_DOC,
+  normalizeViewAsSettings,
+  normalizeViewAsUnlockSettings,
+} from '@/config/viewAs';
 import {
   GROUP_REMINDER_EMAILS_SETTINGS_DOC,
   normalizeGroupReminderEmailsSettings,
@@ -48,10 +52,16 @@ export interface RolloutSwitch {
   description: string;
   /** The access flag this switch is ANDed with; both show on one Previews row. */
   feature?: GlobalFeature;
+  /** The boolean field this switch writes; defaults to `enabled`. */
+  field?: string;
   normalize: (raw: unknown) => { enabled: boolean };
 }
 
 /** One row per switch; a new `config/*Settings.ts` normalizer belongs here too. */
+/** Unique per switch, since two switches can share one doc. */
+export const rolloutSwitchKey = (sw: RolloutSwitch): string =>
+  sw.field ? `${sw.docId}.${sw.field}` : sw.docId;
+
 export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
   {
     docId: PLC_NOTE_COLLAB_SETTINGS_DOC,
@@ -118,6 +128,13 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     title: 'Super admin View as',
     description: "Super admins open a user's account to troubleshoot.",
     normalize: normalizeViewAsSettings,
+  },
+  {
+    docId: VIEW_AS_SETTINGS_DOC,
+    field: 'allowUnlock',
+    title: 'View as: unlock edits',
+    description: 'Super admins can unlock edits and save changes for a user.',
+    normalize: normalizeViewAsUnlockSettings,
   },
   {
     docId: GROUP_REMINDER_EMAILS_SETTINGS_DOC,

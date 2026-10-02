@@ -1,8 +1,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const setDocMock = vi.fn((_ref: { path: string }, _data: unknown) =>
-  Promise.resolve()
+const setDocMock = vi.fn(
+  (_ref: { path: string }, _data: unknown, _opts?: unknown) => Promise.resolve()
 );
 const snapshotData: Record<string, Record<string, unknown> | undefined> = {
   plc_note_collab: { enabled: true },
@@ -28,7 +28,8 @@ vi.mock('firebase/firestore', () => ({
     next({ data: () => snapshotData[ref.id] });
     return () => undefined;
   },
-  setDoc: (ref: { path: string }, data: unknown) => setDocMock(ref, data),
+  setDoc: (ref: { path: string }, data: unknown, opts?: unknown) =>
+    setDocMock(ref, data, opts),
   collection: vi.fn(),
   addDoc: vi.fn(),
   serverTimestamp: vi.fn(),
@@ -229,6 +230,19 @@ describe('PreviewsPanel', () => {
     await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
     expect(setDocMock.mock.calls[0][0].path).toBe('admin_settings/view_as');
     expect(setDocMock.mock.calls[0][1]).toEqual({ enabled: true });
+  });
+
+  it('offers View as unlock, off, and merges allowUnlock into the View as doc', async () => {
+    await renderPanel();
+    const toggle = district('View as: unlock edits');
+    expect(toggle).not.toBeChecked();
+
+    fireEvent.click(toggle);
+
+    await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
+    expect(setDocMock.mock.calls[0][0].path).toBe('admin_settings/view_as');
+    expect(setDocMock.mock.calls[0][1]).toEqual({ allowUnlock: true });
+    expect(setDocMock.mock.calls[0][2]).toEqual({ merge: true });
   });
 
   it('writes {enabled:false} when a switch is turned off', async () => {
