@@ -21,6 +21,8 @@ import { logError } from '@/utils/logError';
 
 // Stop waits this long for in-flight uploads; anything later still lands via the late-segment merge (MR-D8).
 export const STOP_FLUSH_MS = 15_000;
+// Chrome defaults Opus to ~128 kbps (58 MB an hour); speech needs a quarter of that.
+export const SPEECH_BITS_PER_SECOND = 32_000;
 export const MIC_STORAGE_KEY = 'spartboard.meetingRecorder.micId';
 
 export type MeetingRecorderPhase =
@@ -63,7 +65,10 @@ const realDeps = (): MeetingRecorderDeps => ({
       audio: deviceId ? { deviceId: { exact: deviceId } } : true,
     }),
   createRecorder: (stream) =>
-    new MediaRecorder(stream, { mimeType: PLC_RECORDING_MIME }),
+    new MediaRecorder(stream, {
+      mimeType: PLC_RECORDING_MIME,
+      audioBitsPerSecond: SPEECH_BITS_PER_SECOND,
+    }),
   isSupported: () =>
     typeof MediaRecorder !== 'undefined' &&
     typeof MediaRecorder.isTypeSupported === 'function' &&
