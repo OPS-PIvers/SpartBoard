@@ -87,6 +87,15 @@ export const recomputeAdminAnalytics = onSchedule(
     let succeeded = 0;
     let failed = 0;
 
+    // Filling pre-launch history reads every member's library once; off until an admin sets it.
+    const historySwitch = await db
+      .doc('admin_settings/analytics_history')
+      .get()
+      .catch(() => null);
+    const estimateHistory =
+      historySwitch?.exists === true &&
+      historySwitch.data()?.estimateBackfill === true;
+
     // Sequential, not parallel: each org's compute streams two unbounded
     // collections. Running them concurrently would multiply peak memory by
     // the org count and risk OOM on the 4 GiB instance.
@@ -94,7 +103,11 @@ export const recomputeAdminAnalytics = onSchedule(
       const orgStartedAt = Date.now();
       let payload;
       try {
-        payload = await computeAnalyticsForOrg(orgId, { scheduled: true });
+        payload = await computeAnalyticsForOrg(
+          orgId,
+          { scheduled: true },
+          { record: true, estimate: estimateHistory }
+        );
       } catch (err) {
         failed += 1;
         // Per-org failures must not abort the batch — a single misconfigured

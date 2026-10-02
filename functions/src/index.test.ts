@@ -43,6 +43,8 @@ const mockFirestoreState = {
   // The scheduler iterates this collection and only recomputes for orgs
   // with status in {active, trial}.
   organizations: [] as { id: string; status: string }[],
+  // `organizations/{orgId}/analytics_days/{date}` docs keyed by full path.
+  activityDays: new Map<string, Record<string, unknown>>(),
 };
 
 const toDocSnapshot = (doc: MockDocInput) => ({
@@ -166,6 +168,20 @@ const mockFirestore = {
       return Promise.resolve();
     }),
   })),
+  batch: vi.fn(() => {
+    const pending: [string, Record<string, unknown>][] = [];
+    return {
+      set: (ref: { path: string }, data: Record<string, unknown>) => {
+        pending.push([ref.path, data]);
+      },
+      commit: () => {
+        for (const [path, data] of pending) {
+          mockFirestoreState.activityDays.set(path, data);
+        }
+        return Promise.resolve();
+      },
+    };
+  }),
   getAll: vi.fn((...refs: MockDocRef[]) => {
     return Promise.resolve(
       refs.map(() => ({ exists: false, data: () => ({}) }))
@@ -255,6 +271,22 @@ const mockFirestore = {
                 return Promise.resolve({ docs: matchedDocs });
               }),
             })),
+          })
+        ),
+      };
+    }
+
+    if (name.endsWith('/analytics_days')) {
+      return {
+        doc: (id: string) => ({ id, path: `${name}/${id}` }),
+        get: vi.fn(() =>
+          Promise.resolve({
+            docs: [...mockFirestoreState.activityDays.entries()]
+              .filter(([path]) => path.startsWith(`${name}/`))
+              .map(([path, data]) => ({
+                id: path.slice(name.length + 1),
+                data: () => data,
+              })),
           })
         ),
       };
@@ -2118,6 +2150,75 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
     mockFirestoreState.aiUsage = [];
     mockFirestoreState.docs = new Map();
     mockFirestoreState.organizations = [];
+    mockFirestoreState.activityDays = new Map();
+  });
+
+  it('records the measured day and attaches the history series', async () => {
+    mockFirestoreState.organizations = [{ id: 'orono', status: 'active' }];
+    mockFirestoreState.users = [
+      {
+        id: 'uid-1',
+        data: { email: 'a@orono.k12.mn.us', lastLogin: Date.now() },
+      },
+      {
+        id: 'uid-2',
+        data: {
+          email: 'b@orono.k12.mn.us',
+          lastLogin: Date.now() - 10 * 24 * 60 * 60 * 1000,
+        },
+      },
+    ];
+    await (recomputeAdminAnalytics as unknown as () => Promise<void>)();
+
+    const days = [...mockFirestoreState.activityDays.entries()];
+    expect(days).toHaveLength(1);
+    expect(days[0][0]).toMatch(/^organizations\/orono\/analytics_days\//);
+    expect(days[0][1]).toEqual({ activeUids: ['uid-1'], estimated: false });
+    const snapshot = mockFirestoreState.docs.get(
+      'organizations/orono/analytics/snapshot'
+    ) as { payload: { history?: { days: unknown[] } } };
+    expect(snapshot.payload.history?.days).toEqual([
+      expect.objectContaining({ dau: 1, mau: 1, estimated: false }),
+    ]);
+  });
+
+  it('fills estimated days only when the backfill switch is on', async () => {
+    const day = 24 * 60 * 60 * 1000;
+    mockFirestoreState.organizations = [{ id: 'orono', status: 'active' }];
+    mockFirestoreState.users = [
+      {
+        id: 'uid-1',
+        data: { email: 'a@orono.k12.mn.us', lastLogin: Date.now() },
+      },
+    ];
+    mockFirestoreState.dashboards = [
+      {
+        id: 'd1',
+        ownerUid: 'uid-1',
+        data: { createdAt: Date.now() - 50 * day, updatedAt: Date.now() },
+      },
+    ];
+    mockFirestoreState.aiUsage = [
+      { id: 'uid-1_2026-01-15', data: { count: 2 } },
+    ];
+    const run = recomputeAdminAnalytics as unknown as () => Promise<void>;
+
+    await run();
+    expect(
+      [...mockFirestoreState.activityDays.values()].some((d) => d.estimated)
+    ).toBe(false);
+
+    mockFirestoreState.docs.set('admin_settings/analytics_history', {
+      estimateBackfill: true,
+    });
+    await run();
+    const estimated = [...mockFirestoreState.activityDays.entries()].filter(
+      ([, d]) => d.estimated === true
+    );
+    expect(estimated.map(([path]) => path.split('/').pop())).toContain(
+      '2026-01-15'
+    );
+    expect(estimated.length).toBeGreaterThanOrEqual(2);
   });
 
   it('writes a snapshot doc only for orgs with status active or trial; skips archived', async () => {
