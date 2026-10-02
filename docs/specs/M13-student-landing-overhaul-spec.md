@@ -1,5 +1,7 @@
 # M13 — Student-Landing Overhaul: Implementation Spec
 
+> **Superseded 2026-10-02** by [docs/plans/STUDENT_LANDING_V2.md](../plans/STUDENT_LANDING_V2.md). Do not build from this spec; see "What happens to M13" there for what was folded in and what was dropped.
+
 ## 1. Code-State Audit (What Is Already Shipped)
 
 The 9-phase plan was written before significant implementation work landed. Several claimed "not-started" items are **fully or partially shipped**. Verify against the following before beginning any phase.
