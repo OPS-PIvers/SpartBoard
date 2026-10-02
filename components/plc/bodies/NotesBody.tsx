@@ -173,6 +173,10 @@ const NotesBodyInner: React.FC<
   const pendingVersionRef = useRef<number | undefined>(undefined);
   // State mirror of `pendingNoteIdRef` for render-time consumption.
   const [pendingNoteId, setPendingNoteId] = useState<string | null>(null);
+  // The version our own last landed save produced, so the next save builds on it.
+  const ownVersionRef = useRef<{ id: string; version: number } | null>(null);
+  // Saves go out one at a time so a follow-up never races its predecessor's version.
+  const inFlightSaveRef = useRef<Promise<void> | null>(null);
 
   // The content the draft last shared with canonical — set when we seed from
   // the server and again when a save lands. A draft still equal to it holds no
@@ -381,8 +385,30 @@ const NotesBodyInner: React.FC<
     // baseline, so anything typed during the round-trip still reads as dirty
     // and survives.
     const sent = draftRef.current;
-    void updateNote(id, toSave, { expectedVersion })
+    let sentVersion: number | undefined;
+    const send = () => {
+      const own = ownVersionRef.current;
+      sentVersion =
+        expectedVersion !== undefined && own?.id === id
+          ? Math.max(expectedVersion, own.version)
+          : expectedVersion;
+      return updateNote(id, toSave, { expectedVersion: sentVersion });
+    };
+    const prior = inFlightSaveRef.current;
+    const write = prior ? prior.then(send) : send();
+    const settled = write.then(
+      () => undefined,
+      () => undefined
+    );
+    inFlightSaveRef.current = settled;
+    void settled.then(() => {
+      if (inFlightSaveRef.current === settled) inFlightSaveRef.current = null;
+    });
+    void write
       .then(() => {
+        if (sentVersion !== undefined) {
+          ownVersionRef.current = { id, version: sentVersion + 1 };
+        }
         // Selecting another note flushes this save, then re-baselines for the
         // new note — applying a stale capture here would strand the visible
         // draft as dirty forever and silently kill auto-pull.

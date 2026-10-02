@@ -275,6 +275,65 @@ describe('NotesBody concurrent editing (legacy save path)', () => {
   });
 });
 
+describe('NotesBody saves in a row', () => {
+  const titleBox = () =>
+    screen.getByPlaceholderText<HTMLInputElement>('Note title');
+  const flushSaves = async () => {
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  };
+
+  beforeEach(() => {
+    notes = [noteAt('', 1000, 0, 'n1', '')];
+  });
+
+  it('builds the next save on the version its own last save produced', async () => {
+    const { rerender } = render(<NotesBody plc={plc} />);
+
+    fireEvent.change(titleBox(), { target: { value: 'Tech Tips Planning' } });
+    await flushSaves();
+    // Typing resumes before the echo of the title save arrives.
+    fireEvent.change(bodyBox(), { target: { value: 'Once a week' } });
+    notes = [noteAt('', 2000, 1, 'n1', 'Tech Tips Planning')];
+    rerender(<NotesBody plc={plc} />);
+    await flushSaves();
+
+    expect(updateNoteMock.mock.calls).toEqual([
+      ['n1', { title: 'Tech Tips Planning' }, { expectedVersion: 0 }],
+      ['n1', { body: 'Once a week' }, { expectedVersion: 1 }],
+    ]);
+  });
+
+  it('waits for a save still in flight before sending the next one', async () => {
+    let land: () => void = () => undefined;
+    updateNoteMock.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (land = resolve))
+    );
+    render(<NotesBody plc={plc} />);
+
+    fireEvent.change(titleBox(), { target: { value: 'Tech Tips Planning' } });
+    await flushSaves();
+    fireEvent.change(bodyBox(), { target: { value: 'Once a week' } });
+    await flushSaves();
+    expect(updateNoteMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      land();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(updateNoteMock).toHaveBeenLastCalledWith(
+      'n1',
+      { body: 'Once a week' },
+      { expectedVersion: 1 }
+    );
+  });
+});
+
 describe('NotesBody with the collaborative editor enabled', () => {
   beforeEach(() => {
     collabEnabled = true;
