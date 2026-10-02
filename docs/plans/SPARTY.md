@@ -1,6 +1,6 @@
 # Sparty, the SpartBoard mascot
 
-Status: planned (design settled 2026-10-02; art locked 2026-10-03 after six concept rounds). Next step: the component (§8, step 2).
+Status: planned (design settled 2026-10-02; art locked 2026-10-02 after six concept rounds). Next step: the component (§8, step 2).
 
 ## 1. Intent
 
@@ -102,7 +102,7 @@ Every spot goes through one hook, `useShowSparty()`, which is true only when `ca
 
 ## 8. Build order (one PR into `dev-paul`)
 
-1. **Art concept round.** Done: six rounds on a private claude.ai page; locked 2026-10-03 (§3).
+1. **Art concept round.** Done: six rounds on a private claude.ai page; locked 2026-10-02 (§3).
 2. **Component.** `spartyFrames.ts`, `Sparty.tsx`, `SpartyBubble.tsx`, unit tests (grid shape is 32×32, every character is in the palette, run merging is correct), reduced-motion handling.
 3. **Dev gallery.** A dev-only route showing every pose at 1×/2×/4× on light and dark backgrounds, with motion on and off.
 4. **Flag and toggle.** §7.

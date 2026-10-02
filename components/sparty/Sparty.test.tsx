@@ -62,6 +62,19 @@ describe('Sparty', () => {
     expect(groups[1]).toHaveAttribute('visibility', 'hidden');
   });
 
+  it('shares one keyframes stylesheet across instances', () => {
+    render(
+      <>
+        <Sparty pose="idle" />
+        <Sparty pose="cheer" />
+      </>
+    );
+    expect(
+      document.querySelectorAll('style[data-href="sparty-keyframes"]')
+    ).toHaveLength(1);
+    expect(document.querySelector('svg style')).toBeNull();
+  });
+
   it('hides from screen readers when decorative', () => {
     const { container } = render(<Sparty decorative />);
     expect(screen.queryByRole('img')).toBeNull();
