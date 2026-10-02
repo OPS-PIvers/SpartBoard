@@ -8178,8 +8178,12 @@ export interface GuidedLearningResponse {
   resultsLockedOutAt?: number;
 }
 
+/** How far live-tour Autopilot may go for the teacher; absent = `tour-safe`. */
+export type TourAutopilotPolicy = 'tour-safe' | 'destructive-only' | 'confirm';
+
 export interface GuidedLearningGlobalConfig {
   dockDefaults?: Record<string, boolean>;
+  tourAutopilotPolicy?: TourAutopilotPolicy;
 }
 
 /** Widget config (teacher-side, stored in WidgetData.config) */

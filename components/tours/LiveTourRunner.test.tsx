@@ -121,6 +121,7 @@ const h = vi.hoisted(() => {
     loadTour: vi.fn(),
     loadDraft: vi.fn(),
     user: null as { uid: string } | null,
+    permissions: [] as { widgetType: string; config?: object }[],
     runLog: {
       update: vi.fn(),
       miss: vi.fn(),
@@ -139,7 +140,11 @@ vi.mock('./tourRuns', () => ({
 }));
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ canAccessFeature: h.canAccess, user: h.user }),
+  useAuth: () => ({
+    canAccessFeature: h.canAccess,
+    user: h.user,
+    featurePermissions: h.permissions,
+  }),
 }));
 
 vi.mock('@/context/useDashboard', () => ({
@@ -276,6 +281,7 @@ beforeEach(() => {
   h.reset();
   h.canAccess.mockReturnValue(true);
   h.user = null;
+  h.permissions = [];
   h.startRunLog.mockClear();
   Object.values(h.runLog).forEach((fn) => fn.mockClear());
   sessionStorage.clear();
@@ -968,7 +974,43 @@ describe('LiveTourRunner modes', () => {
     expect(progress()).toBe('2 / 2');
   });
 
+  const setPolicy = (tourAutopilotPolicy: string) => {
+    h.permissions = [
+      { widgetType: 'guided-learning', config: { tourAutopilotPolicy } },
+    ];
+  };
+
+  it('Guided: tour-safe is the default and keeps the click on a destructive step with the teacher', async () => {
+    await start(
+      makeSet(
+        [{ anchor: 'widget.close', action: 'click', teacherMustClick: false }],
+        ['clock'],
+        'guided'
+      )
+    );
+    const close = recordEvents(screen.getByText('Close w1'));
+    await run(4000);
+    expect(close).toEqual([]);
+    expect(status()).toHaveTextContent('Your turn');
+  });
+
+  it('Guided: confirm hands a destructive step to the teacher for now', async () => {
+    setPolicy('confirm');
+    await start(
+      makeSet(
+        [{ anchor: 'widget.close', action: 'click' }],
+        ['clock'],
+        'guided'
+      )
+    );
+    const close = recordEvents(screen.getByText('Close w1'));
+    await run(4000);
+    expect(close).toEqual([]);
+    expect(status()).toHaveTextContent('Your turn');
+  });
+
   it('Guided: teacherMustClick overrides the anchor default both ways', async () => {
+    setPolicy('destructive-only');
     await start(
       makeSet(
         [

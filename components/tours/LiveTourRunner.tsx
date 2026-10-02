@@ -23,6 +23,7 @@ import type {
   GuidedLearningPublicStep,
   GuidedLearningSet,
   GuidedLearningStep,
+  TourAutopilotPolicy,
   TourWidgetLayout,
   WidgetType,
 } from '@/types';
@@ -68,7 +69,9 @@ import {
   liveTourStepsOf,
   missingSetupWidgets,
   planTourSetup,
-  teacherMustClick,
+  autopilotGate,
+  DEFAULT_TOUR_AUTOPILOT_POLICY,
+  resolveTourAutopilotPolicy,
   tourLayoutOverridesAt,
   tourWelcome,
   tourWidgetIds,
@@ -135,6 +138,8 @@ interface ActiveTour {
   spawnWatch: SpawnWatch[];
   /** Minimized widgets a step showed for now; they minimize again when the tour ends. */
   restored: string[];
+  /** The admin's Autopilot policy, read when the tour started. */
+  policy: TourAutopilotPolicy;
   /** The teacher's widgets cleared off the stage until the tour ends. */
   hidden: string[];
   /** A cleared stage: widgets the app adds while the tour runs are tour widgets. */
@@ -247,7 +252,7 @@ const claimsFromIds = (
 /** Runs a Guided Learning set's live-tour steps against the real app. */
 export const LiveTourRunner: React.FC = () => {
   const { t } = useTranslation();
-  const { canAccessFeature, user } = useAuth();
+  const { canAccessFeature, user, featurePermissions } = useAuth();
   const dashboard = useDashboard();
   const { activeDashboard, removeWidgets } = dashboard;
   const [tour, setTour] = useState<ActiveTour | null>(null);
@@ -273,8 +278,20 @@ export const LiveTourRunner: React.FC = () => {
   const runLog = useRef<TourRunLog | null>(null);
 
   // Async setup reads the newest dashboard actions, not the ones captured when it started.
-  const latest = useRef({ dashboard, canAccessFeature, t, uid: user?.uid });
-  latest.current = { dashboard, canAccessFeature, t, uid: user?.uid };
+  const latest = useRef({
+    dashboard,
+    canAccessFeature,
+    t,
+    uid: user?.uid,
+    featurePermissions,
+  });
+  latest.current = {
+    dashboard,
+    canAccessFeature,
+    t,
+    uid: user?.uid,
+    featurePermissions,
+  };
 
   const widgets = activeDashboard?.widgets ?? [];
   const onTourBoard = !!tour && activeDashboard?.id === tour.boardId;
@@ -607,6 +624,7 @@ export const LiveTourRunner: React.FC = () => {
         ...tourIds,
       ]),
       restored: [],
+      policy: resolveTourAutopilotPolicy(latest.current.featurePermissions),
       hidden,
       clearStage,
       draft: opts.draft,
@@ -630,6 +648,7 @@ export const LiveTourRunner: React.FC = () => {
       addedTypes: [],
       claims: {},
       ...EMPTY_LAYER,
+      policy: DEFAULT_TOUR_AUTOPILOT_POLICY,
       draft: opts.draft,
     });
     if (phase === 'welcome') setTour(pending('welcome'));
@@ -1016,7 +1035,11 @@ export const LiveTourRunner: React.FC = () => {
       return;
     }
     // Recorded values aren't performed yet, so a click could set the wrong state.
-    if (teacherMustClick(step.tour) || step.tour.action !== 'click') {
+    // The confirm prompt lands with the Autopilot performer; until then confirm hands the click over.
+    if (
+      autopilotGate(step.tour, tour.policy) !== 'perform' ||
+      step.tour.action !== 'click'
+    ) {
       setAuto({ key: stepKey, stage: 'yourTurn' });
       return;
     }
