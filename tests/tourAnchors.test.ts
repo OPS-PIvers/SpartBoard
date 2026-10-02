@@ -88,6 +88,32 @@ describe('tour anchor registry', () => {
     }
   });
 
+  it('flags assign, share, publish and delete anchors as persists or destructive', () => {
+    const OPENS_ONLY = new Set([
+      'sidebar.assignments',
+      'boards.share-board',
+      'boards.sub-share-copy-link',
+      'share-link.share-with-sub',
+      'sub-share.building',
+      'sub-share.email-input',
+      'sub-share.add-email',
+      'sub-share.done',
+      'quiz-settings.assignment-archive',
+      'activity-wall-editor.allow-delete',
+    ]);
+    const unflagged = Object.entries(TOUR_ANCHORS)
+      .filter(([id]) => /assign|share|publish|delete/.test(id))
+      .filter(([id, def]) => {
+        const d = def as TourAnchorDef;
+        return !d.persists && !d.destructive && !OPENS_ONLY.has(id);
+      })
+      .map(([id]) => id);
+    expect(
+      unflagged,
+      `Tag these \`persists\` or \`destructive\` in config/tourAnchors.ts, or add them to OPENS_ONLY if they only open a dialog or edit a draft: ${unflagged.join(', ')}`
+    ).toEqual([]);
+  });
+
   it('gives every prerequisite a known value, and widget ones a widget scope', () => {
     for (const [id, def] of Object.entries(TOUR_ANCHORS)) {
       const requires = (def as TourAnchorDef).requires;
