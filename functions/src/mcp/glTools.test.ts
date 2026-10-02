@@ -169,7 +169,10 @@ describe('Guided Learning step edits', () => {
   });
 
   it('takes a value that fits the step kind', () => {
-    const tour = (action: string, value?: boolean | string) =>
+    const tour = (
+      action: 'click' | 'observe' | 'toggle' | 'select' | 'type',
+      value?: boolean | string
+    ) =>
       step({
         tour: {
           anchor: 'sidebar.boards',
