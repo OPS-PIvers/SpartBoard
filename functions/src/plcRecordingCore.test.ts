@@ -17,6 +17,7 @@ import {
   STALE_PAUSE_MS,
   STALE_RECORDING_MS,
   FINALIZE_LEASE_MS,
+  MAX_RECORDING_WALL_MS,
 } from './plcRecordingCore';
 
 const NOW = 1_800_000_000_000;
@@ -202,6 +203,29 @@ describe('staleAction', () => {
     expect(
       staleAction({ status: 'finalizing', finalizingAt: NOW - 1000 }, NOW)
     ).toBeNull();
+  });
+
+  it('stops a recording past the wall-clock cap whatever its heartbeat says', () => {
+    const created = NOW - MAX_RECORDING_WALL_MS - 1;
+    const future = NOW + 1_000_000;
+    expect(
+      staleAction(
+        { status: 'recording', lastHeartbeatAt: future },
+        NOW,
+        created
+      )
+    ).toBe('time-limit');
+    expect(
+      staleAction({ status: 'paused', lastHeartbeatAt: future }, NOW, created)
+    ).toBe('time-limit');
+    expect(
+      staleAction(
+        { status: 'recording', lastHeartbeatAt: NOW },
+        NOW,
+        NOW - 1000
+      )
+    ).toBeNull();
+    expect(staleAction({ status: 'ready' }, NOW, created)).toBeNull();
   });
 
   it('leaves finished recordings alone', () => {

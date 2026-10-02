@@ -14,6 +14,7 @@ import {
   runFinalizeStaleRecordings,
   runSweepExpiredRecordingAudio,
   segmentPath,
+  MAX_RECORDING_WALL_MS,
   STALE_PAUSE_MS,
   STALE_RECORDING_MS,
   type RecordingDeps,
@@ -28,7 +29,7 @@ const T = admin.firestore.Timestamp;
 
 describe.skipIf(!RUN)('meeting recording against the emulators', () => {
   let deps: RecordingDeps;
-  const now = 1_900_000_000_000;
+  const now = Date.now();
   let idSeq = 0;
   let plcId = '';
 
@@ -250,6 +251,16 @@ describe.skipIf(!RUN)('meeting recording against the emulators', () => {
     const longPause = await rec('long-pause');
     expect(longPause?.status).toBe('ready');
     expect(longPause?.interruptedAtMs).toBeUndefined();
+  });
+
+  it('stops a recording past the wall-clock cap even with a fresh heartbeat', async () => {
+    await seed('forever', {
+      lastHeartbeatAt: T.fromMillis(now + 60 * 60 * 1000),
+    });
+    const later = { ...deps, now: () => now + MAX_RECORDING_WALL_MS + 60_000 };
+    const counts = await runFinalizeStaleRecordings(later);
+    expect(counts['time-limit']).toBeGreaterThanOrEqual(1);
+    expect((await rec('forever'))?.status).toBe('ready');
   });
 
   it('the 30-day sweep deletes only expired audio, for Timestamp and number expiries', async () => {

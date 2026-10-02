@@ -14,6 +14,8 @@ export const STALE_RECORDING_MS = 5 * 60 * 1000;
 export const STALE_PAUSE_MS = 30 * 60 * 1000;
 export const AUDIO_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 export const FINALIZE_LEASE_MS = 10 * 60 * 1000;
+// Wall-clock cap from the doc's server create time; client heartbeat values are not trusted for this.
+export const MAX_RECORDING_WALL_MS = 3 * 60 * 60 * 1000;
 export const ESTIMATED_SEGMENT_MS = 30 * 1000;
 export const SWEEP_PAGE_SIZE = 200;
 export const MAX_SWEEP_PER_RUN = 2000;
@@ -253,10 +255,25 @@ function num(value: unknown): number {
     : 0;
 }
 
-export type StaleAction = 'interrupted' | 'paused-timeout' | 'lease-expired';
+export type StaleAction =
+  | 'interrupted'
+  | 'paused-timeout'
+  | 'lease-expired'
+  | 'time-limit';
 
-/** What the 5-minute finalizer should do with this recording, if anything. */
-export function staleAction(rec: Data, now: number): StaleAction | null {
+/** What the 5-minute finalizer should do with this recording, if anything. `serverCreatedMs` is the doc's createTime. */
+export function staleAction(
+  rec: Data,
+  now: number,
+  serverCreatedMs = 0
+): StaleAction | null {
+  if (
+    (rec.status === 'recording' || rec.status === 'paused') &&
+    serverCreatedMs > 0 &&
+    now - serverCreatedMs > MAX_RECORDING_WALL_MS
+  ) {
+    return 'time-limit';
+  }
   const beat = toMillis(rec.lastHeartbeatAt) || toMillis(rec.createdAt);
   if (rec.status === 'recording' && now - beat > STALE_RECORDING_MS) {
     return 'interrupted';
@@ -695,6 +712,7 @@ export async function runFinalizeStaleRecordings(
     interrupted: 0,
     'paused-timeout': 0,
     'lease-expired': 0,
+    'time-limit': 0,
   };
   const snap = await deps.db
     .collectionGroup('recordings')
@@ -704,7 +722,8 @@ export async function runFinalizeStaleRecordings(
   for (const doc of snap.docs) {
     const plcId = doc.ref.parent.parent?.id;
     if (!plcId) continue;
-    const action = staleAction(doc.data(), deps.now());
+    const created = doc.createTime?.toMillis() ?? 0;
+    const action = staleAction(doc.data(), deps.now(), created);
     if (!action) continue;
     try {
       // The check repeats inside the transaction: a heartbeat may have landed since the query.
@@ -713,7 +732,7 @@ export async function runFinalizeStaleRecordings(
         plcId,
         doc.id,
         action,
-        (rec) => staleAction(rec, deps.now()) === action
+        (rec) => staleAction(rec, deps.now(), created) === action
       );
       if (done) counts[action] += 1;
     } catch (err) {
