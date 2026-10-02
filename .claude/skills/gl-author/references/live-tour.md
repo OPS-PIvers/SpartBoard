@@ -76,7 +76,8 @@ demonstrate the live tour.
 - Autopilot clicks the anchor element itself, so a click step's anchor must
   be the control, not a row or panel around it. A settings field anchor is
   the whole row, so a field step is `observe` ("Turn on 24H Format, then
-  click Next").
+  click Next"). A schema toggle's switch itself is
+  `settings.toggle:<type>#<field>` (e.g. `settings.toggle:schedule#autoProgress`).
 - Use `observe` for any toggle or checkbox whose starting state you can't
   know: a click flips it, so on a board where it is already on, the tour
   would switch it off. Widget defaults and building settings vary.
