@@ -176,7 +176,8 @@ function validateLayout(layout, path, ctx, { keyframe = false } = {}) {
   if (!isObject(layout)) fail(`${path} must be an object`);
   if (!isSlot(layout.slot)) fail(`${path}.slot must be an integer from 0`);
   if (!keyframe) {
-    if (typeof layout.type !== 'string') fail(`${path}.type must be a widget type`);
+    if (typeof layout.type !== 'string')
+      fail(`${path}.type must be a widget type`);
     if (ctx.widgetTypes && !ctx.widgetTypes.has(layout.type)) {
       fail(`${path}.type "${layout.type}" is not a widget type`);
     }
@@ -216,7 +217,10 @@ function validateTourSetup(setup, ctx) {
   if (!isObject(setup)) fail('tourSetup must be an object');
   if (!Array.isArray(setup.widgets)) fail('tourSetup.widgets must be an array');
   setup.widgets.forEach((type, i) => {
-    if (typeof type !== 'string' || (ctx.widgetTypes && !ctx.widgetTypes.has(type))) {
+    if (
+      typeof type !== 'string' ||
+      (ctx.widgetTypes && !ctx.widgetTypes.has(type))
+    ) {
       fail(`tourSetup.widgets[${i}] must be a widget type`);
     }
   });
@@ -242,7 +246,8 @@ function anchorProblem(ref, ctx) {
     return widgetType ? 'names a widget type this anchor does not take' : null;
   }
   if (!widgetType) return 'needs a widget type (id:type)';
-  if (def.perField) return fieldKey ? null : 'needs a field key (id:type#field)';
+  if (def.perField)
+    return fieldKey ? null : 'needs a field key (id:type#field)';
   return ctx.widgetTypes && !ctx.widgetTypes.has(widgetType)
     ? `names an unknown widget type "${widgetType}"`
     : null;
@@ -254,7 +259,8 @@ function validateTour(step, path, ctx) {
     fail(`${path}.tour cannot be checked: config/tourAnchors.ts was not found`);
   }
   if (!isObject(tour)) fail(`${path}.tour must be an object`);
-  if (tour.unmapped !== undefined) fail(`${path}.tour.unmapped is recorder-only`);
+  if (tour.unmapped !== undefined)
+    fail(`${path}.tour.unmapped is recorder-only`);
   const extra = Object.keys(tour).find((key) => !TOUR_KEYS.has(key));
   if (extra) fail(`${path}.tour.${extra} is not a tour field`);
   if (typeof tour.anchor !== 'string') {
@@ -264,7 +270,9 @@ function validateTour(step, path, ctx) {
   const untagged = tour.anchor === '';
   if (untagged) {
     if (!isObject(tour.fallback)) {
-      fail(`${path}.tour.anchor is empty: an untagged control needs a fallback role and name`);
+      fail(
+        `${path}.tour.anchor is empty: an untagged control needs a fallback role and name`
+      );
     }
     ctx.warn(
       `${path}.tour.anchor is empty: the runner matches "${tour.fallback.name}" by name, which only works in English, and Tour health lists the step until the control is tagged`
@@ -325,25 +333,35 @@ function validateTour(step, path, ctx) {
       `${path}.tour.anchor "${tour.anchor}" is positional: bind it only to a row the tour itself sets up`
     );
   }
-  if (def.destructive && tour.action === 'click' && tour.teacherMustClick === false) {
+  if (
+    def.destructive &&
+    tour.action === 'click' &&
+    tour.teacherMustClick === false
+  ) {
     ctx.warn(
       `${path}.tour.anchor "${tour.anchor}" is destructive: autopilot will click it for the teacher`
     );
   }
   if (tour.layoutKeyframes !== undefined) {
-    if (!Array.isArray(tour.layoutKeyframes) || tour.layoutKeyframes.length === 0) {
+    if (
+      !Array.isArray(tour.layoutKeyframes) ||
+      tour.layoutKeyframes.length === 0
+    ) {
       fail(`${path}.tour.layoutKeyframes must be a non-empty array`);
     }
     tour.layoutKeyframes.forEach((kf, i) => {
       const kfPath = `${path}.tour.layoutKeyframes[${i}]`;
       validateLayout(kf, kfPath, ctx, { keyframe: true });
-      if (!ctx.slots.has(kf.slot)) fail(`${kfPath}.slot ${kf.slot} is not set up yet`);
+      if (!ctx.slots.has(kf.slot))
+        fail(`${kfPath}.slot ${kf.slot} is not set up yet`);
     });
   }
   if (tour.spawns !== undefined) {
     validateLayout(tour.spawns, `${path}.tour.spawns`, ctx);
     if (tour.action !== 'click') {
-      fail(`${path}.tour.spawns needs action click: the click opens the widget`);
+      fail(
+        `${path}.tour.spawns needs action click: the click opens the widget`
+      );
     }
     if (ctx.slots.has(tour.spawns.slot)) {
       fail(`${path}.tour.spawns.slot ${tour.spawns.slot} is already used`);
@@ -366,7 +384,9 @@ function validateNarration(step, path, warn) {
     typeof narration.storagePath !== 'string' ||
     !Number.isFinite(narration.durationMs)
   ) {
-    fail(`${path}.narration must keep the exported url, storagePath and durationMs`);
+    fail(
+      `${path}.narration must keep the exported url, storagePath and durationMs`
+    );
   }
   warn(
     `${path}.narration was generated for the exported text; regenerate it in the Studio if you changed the step's text`
@@ -403,9 +423,15 @@ function checkWriting(step, path, warn) {
   for (const key of ['label', 'text']) {
     const value = step[key];
     if (typeof value !== 'string') continue;
-    const hit = BANNED.find((re) => re.test(value.replace(/\[[^\]]*\]\([^)]*\)/g, '')));
+    const hit = BANNED.find((re) =>
+      re.test(value.replace(/\[[^\]]*\]\([^)]*\)/g, ''))
+    );
     if (hit) warn(`${path}.${key} breaks the writing rules (${hit.source})`);
-    if (key === 'text' && step.interactionType !== 'question' && /\?/.test(value)) {
+    if (
+      key === 'text' &&
+      step.interactionType !== 'question' &&
+      /\?/.test(value)
+    ) {
       warn(`${path}.text asks a question: state it instead`);
     }
   }
@@ -413,21 +439,33 @@ function checkWriting(step, path, warn) {
 
 function validateMediaStep(step, path, warn) {
   if (step.interactionType === 'audio') {
-    if (typeof step.audioUrl !== 'string' || !/^https:\/\//.test(step.audioUrl)) {
+    if (
+      typeof step.audioUrl !== 'string' ||
+      !/^https:\/\//.test(step.audioUrl)
+    ) {
       fail(`${path}.audioUrl must be an https URL of an audio file`);
     }
     if (/\.(ogg|oga)(\?|$)/i.test(step.audioUrl)) {
       warn(`${path}.audioUrl is Ogg, which iPads cannot play: use MP3 or M4A`);
     }
-    if (typeof step.text === 'string' && (/\*\*|\]\(/.test(step.text) || step.text.length > 40)) {
-      warn(`${path}.text shows as one plain truncated line on an audio card: 40 characters, no markup`);
+    if (
+      typeof step.text === 'string' &&
+      (/\*\*|\]\(/.test(step.text) || step.text.length > 40)
+    ) {
+      warn(
+        `${path}.text shows as one plain truncated line on an audio card: 40 characters, no markup`
+      );
     }
   }
   if (step.interactionType === 'video') {
-    if (typeof step.videoUrl !== 'string' || !/^https:\/\//.test(step.videoUrl)) {
+    if (
+      typeof step.videoUrl !== 'string' ||
+      !/^https:\/\//.test(step.videoUrl)
+    ) {
       fail(`${path}.videoUrl must be a YouTube or https video URL`);
     }
-    if (step.text) warn(`${path}.text is not shown on a video step: put it in the label`);
+    if (step.text)
+      warn(`${path}.text is not shown on a video step: put it in the label`);
   }
 }
 
@@ -463,10 +501,17 @@ function validateQuestion(step, path, warn) {
     (!Array.isArray(q.matchingPairs) ||
       q.matchingPairs.length < 2 ||
       q.matchingPairs.some(
-        (p) => !isObject(p) || typeof p.left !== 'string' || typeof p.right !== 'string' || !p.left.trim() || !p.right.trim()
+        (p) =>
+          !isObject(p) ||
+          typeof p.left !== 'string' ||
+          typeof p.right !== 'string' ||
+          !p.left.trim() ||
+          !p.right.trim()
       ))
   ) {
-    fail(`${path}.question.matchingPairs must be at least two pairs with a left and a right`);
+    fail(
+      `${path}.question.matchingPairs must be at least two pairs with a left and a right`
+    );
   }
   if (
     q.type === 'sorting' &&
@@ -474,7 +519,9 @@ function validateQuestion(step, path, warn) {
       q.sortingItems.length < 2 ||
       q.sortingItems.some((item) => typeof item !== 'string' || !item.trim()))
   ) {
-    fail(`${path}.question.sortingItems must be at least two non-empty strings`);
+    fail(
+      `${path}.question.sortingItems must be at least two non-empty strings`
+    );
   }
 }
 
@@ -482,7 +529,9 @@ function validateQuestion(step, path, warn) {
 function checkStepOrder(steps, warn) {
   steps.forEach((step, i) => {
     if (i > 0 && step.imageIndex < steps[i - 1].imageIndex) {
-      warn(`steps[${i}] goes back to slide ${step.imageIndex} after slide ${steps[i - 1].imageIndex}`);
+      warn(
+        `steps[${i}] goes back to slide ${step.imageIndex} after slide ${steps[i - 1].imageIndex}`
+      );
     }
   });
 }
@@ -498,7 +547,8 @@ const regionBox = (step) => ({
 function checkRegionOverlap(steps, warn) {
   steps.forEach((step, i) => {
     const prev = steps[i - 1];
-    if (!prev?.region || !step.region || prev.imageIndex !== step.imageIndex) return;
+    if (!prev?.region || !step.region || prev.imageIndex !== step.imageIndex)
+      return;
     const a = regionBox(prev);
     const b = regionBox(step);
     const w = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
@@ -509,7 +559,9 @@ function checkRegionOverlap(steps, warn) {
       step.region.wPct * step.region.hPct
     );
     if (w * h > smaller / 2) {
-      warn(`steps[${i}] region mostly overlaps steps[${i - 1}]: check both are on their own control`);
+      warn(
+        `steps[${i}] region mostly overlaps steps[${i - 1}]: check both are on their own control`
+      );
     }
   });
 }
@@ -526,7 +578,10 @@ const plainText = (text) =>
  * @param {{ tourAnchors?: { TOUR_ANCHORS: Record<string, object>, parseTourAnchorRef: (ref: string) => { id: string, widgetType?: string, fieldKey?: string } } | null, widgetTypes?: Set<string> | null }} [options]
  * @returns {{ images: Array<Record<string, unknown>>, warnings: string[] }}
  */
-export function validateGlSet(set, { tourAnchors = null, widgetTypes = null } = {}) {
+export function validateGlSet(
+  set,
+  { tourAnchors = null, widgetTypes = null } = {}
+) {
   const warnings = [];
   const ctx = {
     tourAnchors,
@@ -646,7 +701,9 @@ export function validateGlSet(set, { tourAnchors = null, widgetTypes = null } = 
   const ids = new Set();
   let usesCalloutStyle = false;
   let usesCalloutBox = false;
-  const hasTour = set.steps.some((step) => isObject(step) && step.tour !== undefined);
+  const hasTour = set.steps.some(
+    (step) => isObject(step) && step.tour !== undefined
+  );
   if (set.tourSetup !== undefined) {
     if (!hasTour) fail('tourSetup is only for a set with tour steps');
     validateTourSetup(set.tourSetup, ctx);
@@ -686,14 +743,23 @@ export function validateGlSet(set, { tourAnchors = null, widgetTypes = null } = 
 
     if (typeof step.text === 'string') {
       const paragraphs = step.text.split('\n\n');
-      if (paragraphs.length > 2 || paragraphs.some((p) => !p.trim() || p.includes('\n'))) {
-        fail(`${path}.text must be one paragraph, or two separated by one blank line`);
+      if (
+        paragraphs.length > 2 ||
+        paragraphs.some((p) => !p.trim() || p.includes('\n'))
+      ) {
+        fail(
+          `${path}.text must be one paragraph, or two separated by one blank line`
+        );
       }
-      const words = (value) => plainText(value).trim().split(/\s+/).filter(Boolean).length;
+      const words = (value) =>
+        plainText(value).trim().split(/\s+/).filter(Boolean).length;
       if (words(step.text) > 40) fail(`${path}.text exceeds 40 words`);
-      if (words(paragraphs[0]) > 25) ctx.warn(`${path}.text runs over 25 words before any caveat`);
+      if (words(paragraphs[0]) > 25)
+        ctx.warn(`${path}.text runs over 25 words before any caveat`);
       if (paragraphs.length === 2 && step.tour !== undefined) {
-        ctx.warn(`${path}.text has two paragraphs: the live tour callout joins them into one`);
+        ctx.warn(
+          `${path}.text has two paragraphs: the live tour callout joins them into one`
+        );
       }
       if ((step.text.match(/\*\*[^*\n]+?\*\*/g) ?? []).length > 1) {
         ctx.warn(`${path}.text bolds more than one term`);
@@ -726,14 +792,20 @@ export function validateGlSet(set, { tourAnchors = null, widgetTypes = null } = 
     if (step.narration !== undefined) validateNarration(step, path, ctx.warn);
     if (step.tour !== undefined) validateTour(step, path, ctx);
 
-    if (step.showOverlay !== undefined && !OVERLAYS.includes(step.showOverlay)) {
+    if (
+      step.showOverlay !== undefined &&
+      !OVERLAYS.includes(step.showOverlay)
+    ) {
       fail(`${path}.showOverlay must be none, popover, tooltip or banner`);
     }
     if (
       step.bannerTone !== undefined &&
-      (step.showOverlay !== 'banner' || !['blue', 'red', 'neutral'].includes(step.bannerTone))
+      (step.showOverlay !== 'banner' ||
+        !['blue', 'red', 'neutral'].includes(step.bannerTone))
     ) {
-      fail(`${path}.bannerTone must be blue, red or neutral on a banner overlay`);
+      fail(
+        `${path}.bannerTone must be blue, red or neutral on a banner overlay`
+      );
     }
     if (
       step.tooltipPosition !== undefined &&
@@ -741,21 +813,30 @@ export function validateGlSet(set, { tourAnchors = null, widgetTypes = null } = 
     ) {
       fail(`${path}.tooltipPosition must be above, below, left, right or auto`);
     }
-    if (step.panZoomScale !== undefined && !inRange(step.panZoomScale, ...PAN_ZOOM_RANGE)) {
+    if (
+      step.panZoomScale !== undefined &&
+      !inRange(step.panZoomScale, ...PAN_ZOOM_RANGE)
+    ) {
       fail(`${path}.panZoomScale must be a number from 1.5 to 6`);
     }
-    if (step.spotlightRadius !== undefined && !inRange(step.spotlightRadius, ...SPOTLIGHT_RANGE)) {
+    if (
+      step.spotlightRadius !== undefined &&
+      !inRange(step.spotlightRadius, ...SPOTLIGHT_RANGE)
+    ) {
       fail(`${path}.spotlightRadius must be a number from 5 to 50`);
     }
     if (
       ['spotlight', 'pan-zoom-spotlight'].includes(step.interactionType) &&
       step.region === undefined
     ) {
-      ctx.warn(`${path} lights a circle with no region: add a region measured from the control`);
+      ctx.warn(
+        `${path} lights a circle with no region: add a region measured from the control`
+      );
     }
     checkWriting(step, path, ctx.warn);
     validateMediaStep(step, path, ctx.warn);
-    if (step.interactionType === 'question') validateQuestion(step, path, ctx.warn);
+    if (step.interactionType === 'question')
+      validateQuestion(step, path, ctx.warn);
   });
   checkStepOrder(set.steps, ctx.warn);
   checkRegionOverlap(set.steps, ctx.warn);
@@ -779,15 +860,20 @@ export function validateGlSet(set, { tourAnchors = null, widgetTypes = null } = 
 }
 
 // Indirect so bundlers leave the runtime import alone.
-const importModule = new Function("href", "return import(href)");
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
+const importModule = new Function('href', 'return import(href)');
+const REPO_ROOT = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../..'
+);
 const repoFile = (relative) => join(REPO_ROOT, relative);
 
 /**
  * The live registry from config/tourAnchors.ts (Node strips its types), or null when it is absent.
  * @param {string} [registryPath]
  */
-export async function loadTourAnchors(registryPath = repoFile('config/tourAnchors.ts')) {
+export async function loadTourAnchors(
+  registryPath = repoFile('config/tourAnchors.ts')
+) {
   if (!existsSync(registryPath)) return null;
   const mod = await importModule(pathToFileURL(registryPath).href);
   return {

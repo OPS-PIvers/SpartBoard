@@ -6,9 +6,13 @@ import { chromium } from '@playwright/test';
 
 const args = process.argv.slice(2);
 const helpSize = args.includes('--help-size');
-const [file, outDir = '.playwright-mcp/sheets'] = args.filter((a) => !a.startsWith('--'));
+const [file, outDir = '.playwright-mcp/sheets'] = args.filter(
+  (a) => !a.startsWith('--')
+);
 if (!file) {
-  console.error('Usage: node contact_sheet.mjs <file.gl.json> [outDir] [--help-size]');
+  console.error(
+    'Usage: node contact_sheet.mjs <file.gl.json> [outDir] [--help-size]'
+  );
   process.exit(1);
 }
 const set = JSON.parse(readFileSync(file, 'utf8'));
@@ -17,7 +21,10 @@ mkdirSync(outDir, { recursive: true });
 // The Help Center player is a 16:9 box about 900px wide; --help-size draws slides at that size.
 const HELP_BOX = { w: 900, h: 506 };
 const esc = (s) =>
-  String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  String(s ?? '').replace(
+    /[&<>"]/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]
+  );
 
 function overlay(step, n, w, h) {
   const x = (step.xPct / 100) * w;
@@ -28,15 +35,23 @@ function overlay(step, n, w, h) {
     const rw = (r.wPct / 100) * w;
     const rh = (r.hPct / 100) * h;
     if (r.shape === 'ellipse') {
-      parts.push(`<ellipse cx="${x}" cy="${y}" rx="${rw / 2}" ry="${rh / 2}" class="region"/>`);
+      parts.push(
+        `<ellipse cx="${x}" cy="${y}" rx="${rw / 2}" ry="${rh / 2}" class="region"/>`
+      );
     } else if (r.shape === 'polygon') {
-      const pts = r.points.map((p) => `${(p.x / 100) * w},${(p.y / 100) * h}`).join(' ');
+      const pts = r.points
+        .map((p) => `${(p.x / 100) * w},${(p.y / 100) * h}`)
+        .join(' ');
       parts.push(`<polygon points="${pts}" class="region"/>`);
     } else {
       const rx = ((r.cornerPct ?? 0) / 100) * Math.min(rw, rh);
-      parts.push(`<rect x="${x - rw / 2}" y="${y - rh / 2}" width="${rw}" height="${rh}" rx="${rx}" class="region"/>`);
+      parts.push(
+        `<rect x="${x - rw / 2}" y="${y - rh / 2}" width="${rw}" height="${rh}" rx="${rx}" class="region"/>`
+      );
     }
-  } else if (['spotlight', 'pan-zoom-spotlight'].includes(step.interactionType)) {
+  } else if (
+    ['spotlight', 'pan-zoom-spotlight'].includes(step.interactionType)
+  ) {
     const radius = ((step.spotlightRadius ?? 25) / 100) * Math.min(w, h);
     parts.push(`<circle cx="${x}" cy="${y}" r="${radius}" class="spot"/>`);
   }
@@ -46,30 +61,49 @@ function overlay(step, n, w, h) {
       `<rect x="${(b.xPct / 100) * w}" y="${(b.yPct / 100) * h}" width="${(b.wPct / 100) * w}" height="${(b.hPct / 100) * h}" class="box"/>`
     );
   }
-  parts.push(`<circle cx="${x}" cy="${y}" r="11" class="pin"/><text x="${x}" y="${y + 4}" class="num">${n}</text>`);
+  parts.push(
+    `<circle cx="${x}" cy="${y}" r="11" class="pin"/><text x="${x}" y="${y + 4}" class="num">${n}</text>`
+  );
   return parts.join('');
 }
 
-const executablePath = existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined;
+const executablePath = existsSync('/opt/pw-browsers/chromium')
+  ? '/opt/pw-browsers/chromium'
+  : undefined;
 const browser = await chromium.launch({ executablePath });
 const page = await browser.newPage();
 
 for (const [index, url] of set.imageUrls.entries()) {
   if (set.imageKinds?.[index] === 'video') continue;
-  const steps = set.steps.map((s, i) => ({ s, n: i + 1 })).filter(({ s }) => s.imageIndex === index);
+  const steps = set.steps
+    .map((s, i) => ({ s, n: i + 1 }))
+    .filter(({ s }) => s.imageIndex === index);
   await page.setContent(`<img id="i" src="${url}">`);
-  const natural = await page.$eval('#i', (img) => ({ w: img.naturalWidth, h: img.naturalHeight }));
-  const scale = helpSize ? Math.min(HELP_BOX.w / natural.w, HELP_BOX.h / natural.h) : 1;
+  const natural = await page.$eval('#i', (img) => ({
+    w: img.naturalWidth,
+    h: img.naturalHeight,
+  }));
+  const scale = helpSize
+    ? Math.min(HELP_BOX.w / natural.w, HELP_BOX.h / natural.h)
+    : 1;
   const w = Math.round(natural.w * scale);
   const h = Math.round(natural.h * scale);
   const list = steps
     .map(({ s, n }) => {
-      const zoom = s.panZoomScale || s.interactionType.startsWith('pan-zoom') ? ` · zoom ${s.panZoomScale ?? 2.5}` : '';
-      const bind = s.tour ? ` · ${s.tour.action} ${s.tour.anchor || `(${s.tour.fallback?.name})`}` : '';
+      const zoom =
+        s.panZoomScale || s.interactionType.startsWith('pan-zoom')
+          ? ` · zoom ${s.panZoomScale ?? 2.5}`
+          : '';
+      const bind = s.tour
+        ? ` · ${s.tour.action} ${s.tour.anchor || `(${s.tour.fallback?.name})`}`
+        : '';
       return `<li><b>${n}. ${esc(s.label) || '—'}</b> <i>${s.interactionType}${zoom}${bind}</i><br>${esc(s.text ?? s.question?.text)}</li>`;
     })
     .join('');
-  await page.setViewportSize({ width: Math.max(w, 600), height: h + 40 + steps.length * 48 });
+  await page.setViewportSize({
+    width: Math.max(w, 600),
+    height: h + 40 + steps.length * 48,
+  });
   await page.setContent(`<!doctype html><style>
     body{margin:0;font:13px system-ui;background:#fff}
     .stage{position:relative;width:${w}px;height:${h}px;background:#333}
@@ -83,7 +117,10 @@ for (const [index, url] of set.imageUrls.entries()) {
   </style><div class="stage"><img src="${url}"><svg width="${w}" height="${h}">${steps
     .map(({ s, n }) => overlay(s, n, w, h))
     .join('')}</svg></div><ol>${list}</ol>`);
-  const out = join(outDir, `slide-${String(index + 1).padStart(2, '0')}${helpSize ? '-help' : ''}.png`);
+  const out = join(
+    outDir,
+    `slide-${String(index + 1).padStart(2, '0')}${helpSize ? '-help' : ''}.png`
+  );
   await page.screenshot({ path: out, fullPage: true });
   console.log(`${out}  ${natural.w}x${natural.h}  ${steps.length} steps`);
 }
