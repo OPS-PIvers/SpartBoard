@@ -137,6 +137,8 @@ interface ActiveTour {
   restored: string[];
   /** The teacher's widgets cleared off the stage until the tour ends. */
   hidden: string[];
+  /** A cleared stage: widgets the app adds while the tour runs are tour widgets. */
+  clearStage?: boolean;
   draft?: boolean;
 }
 
@@ -289,7 +291,20 @@ export const LiveTourRunner: React.FC = () => {
       tour.spawnWatch,
       tour.slots
     );
-    if (claims !== tour.claims || spawned.bound.length > 0) {
+    // Unsaved widgets the app opened mid-tour join the Keep/Remove list.
+    const opened = widgets
+      .filter(
+        (w) =>
+          w.transient &&
+          !tour.beforeIds.has(w.id) &&
+          !tour.tourIds.includes(w.id)
+      )
+      .map((w) => w.id);
+    if (
+      claims !== tour.claims ||
+      spawned.bound.length > 0 ||
+      opened.length > 0
+    ) {
       const moved = { ...tour.moved };
       for (const layout of spawned.bound) moved[layout.slot] = layout;
       setTour({
@@ -298,6 +313,7 @@ export const LiveTourRunner: React.FC = () => {
         slots: spawned.slots,
         moved,
         spawnWatch: spawned.watches,
+        ...(opened.length > 0 ? { tourIds: [...tour.tourIds, ...opened] } : {}),
       });
     }
   }
@@ -333,6 +349,12 @@ export const LiveTourRunner: React.FC = () => {
     else clearTourHidden();
   }, [hiddenKey]);
 
+  // The app's own addWidget makes unsaved tour widgets while a cleared-stage tour runs.
+  const transientSpawns = tour?.phase === 'running' && !!tour.clearStage;
+  useEffect(() => {
+    latest.current.dashboard.setTourTransientSpawns?.(transientSpawns);
+  }, [transientSpawns]);
+
   // Undo for each prerequisite a step set up, run when the tour ends.
   const prereqUndos = useRef(new Map<string, () => void>());
   const undoPrerequisites = useCallback(() => {
@@ -344,6 +366,7 @@ export const LiveTourRunner: React.FC = () => {
   // Unmounting mid-tour leaves the board as it was.
   useEffect(
     () => () => {
+      latest.current.dashboard.setTourTransientSpawns?.(false);
       latest.current.dashboard.discardTourWidgets?.(tourIdsRef.current);
       clearTourLayoutOverrides();
       clearTourWidgetPatches();
@@ -585,6 +608,7 @@ export const LiveTourRunner: React.FC = () => {
       ]),
       restored: [],
       hidden,
+      clearStage,
       draft: opts.draft,
     });
   };
