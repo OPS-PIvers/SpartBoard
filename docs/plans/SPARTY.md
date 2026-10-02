@@ -1,6 +1,6 @@
 # Sparty, the SpartBoard mascot
 
-Status: planned (design settled 2026-10-02). Next step: the art concept round (§8, step 1).
+Status: planned (design settled 2026-10-02; art locked 2026-10-03 after six concept rounds). Next step: the component (§8, step 2).
 
 ## 1. Intent
 
@@ -17,10 +17,10 @@ Non-goals for v1: student-facing placements (phase 2, §9), an AI "Ask Sparty" h
 | 3   | Presence         | Quiet and occasional; short lines; never interrupts                                                           |
 | 4   | Art source       | Code-defined pixel grids in TypeScript                                                                        |
 | 5   | Grid             | 32×32                                                                                                         |
-| 6   | Body             | Chibi full body: big helmet head (~half the height), small body, shield and spear                             |
+| 6   | Body             | Chibi full body, facing front: big gold helmet (~half the height), navy tunic, red cape, shield and spear     |
 | 7   | Poses (v1)       | `idle` (breathe + blink), `wave`, `point`, `cheer`, `think`, `oops`                                           |
 | 8   | Speech           | Plain-text speech bubble in the app font (Lexend), not the pixel font                                         |
-| 9   | Palette          | Brand-locked, about 8 colors (§3)                                                                             |
+| 9   | Palette          | 13 colors from the Orono Spartans logos (§3)                                                                  |
 | 10  | v1 placements    | Live tours, first-time setup, Help Center, chunk-load error (§5)                                              |
 | 11  | Animation        | SVG frames from the grids, switched by CSS `steps()` keyframes; no JS timers, no new dependency (§4)          |
 | 12  | Opt-out          | Both: a `sparty` global feature flag (admin control) and a per-teacher "Show Sparty" toggle                   |
@@ -39,14 +39,32 @@ Non-goals for v1: student-facing placements (phase 2, §9), an AI "Ask Sparty" h
 
 ## 3. Art
 
-- 32×32 grid, transparent background, one-pixel dark outline so he reads on white panels, frosted glass and dark tour overlays.
-- Palette tokens (final hex values are set in the concept round):
-  - `outline` near-black navy (`#1d2a5d` family)
-  - `armor` brand navy `#2d3f89`, `armorLight` `#4356a0`
-  - `crest` brand red `#ad2122`, `crestDark` `#7a1718` (crest and cape)
-  - `bronze` helmet trim, shield rim and spear tip
-  - `skin`
-  - `highlight` near-white for eye glints and the armor shine
+Locked after six concept rounds reviewed on mobile. The source of truth for the grids until step 2 is the concept page's final state.
+
+- 32×32 grid, transparent background, facing front, one-pixel near-black outline so he reads on white panels, frosted glass and dark tour overlays.
+- **Helmet:** gold Corinthian helmet with a T-shaped face opening, a gold nose guard, and two dark 2×3 eyes with a white glint. The look comes from the Orono Spartan head logo.
+- **Crest:** a red horsehair brush that runs front to back. From the front it shows as a narrow plume fanning into a fringed top, with horsehair hanging behind the helmet on both sides. Rejected along the way: a crest fanned across the helmet (reads as sideways), a short end-on block (reads as a siren), and a crest swept to one side.
+- **Shield:** the varsity O (red O, white field, navy rim) from the Orono O logo, held at his right side. A spear stands upright behind it, so his free hand can wave, point and cheer.
+- **Body:** navy tunic, red cape, gold belt and skirt strips, sandals.
+- **Rejected:** a side profile with the logo's face (round 2–3), white helmet wings (round 4), a gold shield, gold armor and a sword.
+- **Palette** (palette character, then hex):
+
+  | Char | Role                                 | Hex       |
+  | ---- | ------------------------------------ | --------- |
+  | `o`  | Outline, eyes                        | `#1c1c24` |
+  | `Y`  | Gold light (helmet shine, spear tip) | `#f8dc86` |
+  | `y`  | Gold                                 | `#ecbb3f` |
+  | `b`  | Gold shade                           | `#b98420` |
+  | `r`  | Crest and cape red                   | `#cf3a32` |
+  | `R`  | Red light                            | `#e8665a` |
+  | `d`  | Red shadow                           | `#8e211c` |
+  | `s`  | Skin                                 | `#f3d6b3` |
+  | `k`  | Skin shade                           | `#dcab7e` |
+  | `w`  | White (eye glint, shield field)      | `#ffffff` |
+  | `n`  | Navy (tunic, shield rim)             | `#1f2e63` |
+  | `N`  | Navy light                           | `#3a4e93` |
+  | `t`  | Spear shaft                          | `#6b4423` |
+
 - Rendered sizes are integer multiples of 32 (64, 96, 128 px) so pixels stay square.
 
 ## 4. Rendering and animation
@@ -83,7 +101,7 @@ Every spot goes through one hook, `useShowSparty()`, which is true only when `ca
 
 ## 8. Build order (one PR into `dev-paul`)
 
-1. **Art concept round.** Draw the palette and all poses as grids; publish them as a private claude.ai HTML page (animated, phone-sized) for Paul to review; iterate until approved.
+1. **Art concept round.** Done: six rounds on a private claude.ai page; locked 2026-10-03 (§3).
 2. **Component.** `spartyFrames.ts`, `Sparty.tsx`, `SpartyBubble.tsx`, unit tests (grid shape is 32×32, every character is in the palette, run merging is correct), reduced-motion handling.
 3. **Dev gallery.** A dev-only route showing every pose at 1×/2×/4× on light and dark backgrounds, with motion on and off.
 4. **Flag and toggle.** §7.
