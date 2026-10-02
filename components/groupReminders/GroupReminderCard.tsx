@@ -54,8 +54,8 @@ export const GroupReminderCard: React.FC<GroupReminderCardProps> = ({
         snoozed ? 'shadow-lg opacity-60' : 'shadow-2xl'
       } ${
         iconOnly
-          ? `h-40 flex items-center ${canSnooze ? 'gap-3 pl-6 pr-4' : 'w-40 justify-center'}`
-          : 'w-max min-w-56 max-w-[min(400px,calc(100vw-2rem))] flex items-center gap-4 py-4 pl-4 pr-10'
+          ? 'w-40 h-40 flex flex-col items-center justify-center'
+          : 'w-max min-w-56 max-w-[min(360px,calc(100vw-2rem))] flex items-center gap-4 py-4 pl-4 pr-10'
       }`}
     >
       <GroupSymbol
@@ -78,17 +78,6 @@ export const GroupReminderCard: React.FC<GroupReminderCardProps> = ({
           ))}
         </div>
       )}
-      {canSnooze && (
-        <button
-          type="button"
-          onClick={onSnooze}
-          aria-label={snoozeLabel}
-          title={snoozeLabel}
-          className="shrink-0 self-center px-2 py-1 rounded-md text-sm font-semibold text-slate-500 hover:text-slate-800 hover:bg-white/60 transition-colors"
-        >
-          {t('groupReminders.snooze', { defaultValue: 'Snooze' })}
-        </button>
-      )}
       {snoozed && (
         <div
           className={`flex items-center gap-1 text-xs font-semibold text-slate-500 ${
@@ -108,6 +97,17 @@ export const GroupReminderCard: React.FC<GroupReminderCardProps> = ({
           className={`absolute top-2 right-2 ${control}`}
         >
           <X size={16} />
+        </button>
+      )}
+      {canSnooze && (
+        <button
+          type="button"
+          onClick={onSnooze}
+          aria-label={snoozeLabel}
+          title={snoozeLabel}
+          className={`absolute ${iconOnly ? 'top-2 left-2' : 'bottom-2 right-2'} ${control}`}
+        >
+          <AlarmClock size={16} />
         </button>
       )}
     </div>
