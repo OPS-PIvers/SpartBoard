@@ -34,6 +34,8 @@ transparency ownership rule:
 | 9   | `config/tourAnchors.ts`                          | Tag the widget's primary actions with `tourAttr` (add item, start, reset, main settings toggles) and register them as `<widgetType>.<action>`; set `requires` when one only shows after setup (selected, scrolled into view) |
 | 10  | `components/widgets/YourWidget/`                 | Tag elements that show student faces, photos or free-form student content with `data-pii`, so tour recordings blur them                                                                                                      |
 
+Tour anchors (row 9): tag a click that assigns, shares, publishes, starts a live session or changes account settings `persists: true`, and one that deletes or clears `destructive: true`.
+
 ---
 
 ## Step 1 — types.ts
