@@ -126,7 +126,11 @@ export const NoteRecordings: React.FC<NoteRecordingsProps> = ({
               }))}
               meta={metaFor(r)}
               downloadName={`${noteTitle || 'Meeting'} ${formatDay(r.createdAt)}`}
-              onDelete={canEdit ? () => void handleDelete(r) : undefined}
+              onDelete={
+                canEdit && r.status !== 'transcribing'
+                  ? () => void handleDelete(r)
+                  : undefined
+              }
             />
           ) : (
             <div className="py-1 text-xxs text-slate-500">

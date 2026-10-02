@@ -19,12 +19,46 @@ vi.mock('@/context/useDashboard', () => ({
 }));
 
 let richEditorAccess = false;
+let recordingAccess = false;
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'me' },
     canAccessFeature: (id: string) =>
-      id === 'plc-notes-rich-editor' && richEditorAccess,
+      (id === 'plc-notes-rich-editor' && richEditorAccess) ||
+      (id === 'plc-meeting-recording' && recordingAccess),
+  }),
+}));
+
+const recorderStart = vi.fn(() => Promise.resolve());
+vi.mock('@/hooks/useMeetingRecorder', () => ({
+  useMeetingRecorder: () => ({
+    isSupported: true,
+    phase: 'idle',
+    recordingId: null,
+    elapsedMs: 0,
+    lengthWarning: false,
+    micFallback: false,
+    pendingUploads: 0,
+    error: null,
+    mics: [],
+    selectedMicId: null,
+    start: recorderStart,
+    pause: vi.fn(),
+    resume: vi.fn(),
+    stop: vi.fn(),
+    retryFinalize: vi.fn(),
+    selectMic: vi.fn(),
+    refreshMics: vi.fn(),
+    dismissMicFallback: vi.fn(),
+  }),
+}));
+
+vi.mock('@/hooks/usePlcRecordings', () => ({
+  usePlcRecordings: () => ({
+    recordings: [],
+    loading: false,
+    deleteAudio: vi.fn(),
   }),
 }));
 
@@ -139,6 +173,8 @@ beforeEach(() => {
   setActionItemsMock.mockClear();
   collabEnabled = false;
   richEditorAccess = false;
+  recordingAccess = false;
+  recorderStart.mockClear();
   crdtStatus = 'ready';
   crdtContent = { title: '', body: '', actionItems: [] };
   notes = [noteAt('Hello', 1000, 1)];
@@ -350,5 +386,42 @@ describe('NotesBody with the rich text editor flag', () => {
     render(<NotesBody plc={plc} />);
     expect(screen.queryByRole('toolbar', { name: 'Formatting' })).toBeNull();
     expect(document.querySelector('[contenteditable="true"]')).toBeNull();
+  });
+});
+
+describe('NotesBody meeting recording', () => {
+  it('hides Record without the recording flag', () => {
+    render(<NotesBody plc={plc} />);
+    expect(screen.queryByRole('button', { name: 'Record' })).toBeNull();
+  });
+
+  it('puts Record in the rich editor toolbar', () => {
+    recordingAccess = true;
+    richEditorAccess = true;
+    render(<NotesBody plc={plc} />);
+    const toolbar = screen.getByRole('toolbar');
+    expect(
+      toolbar.contains(screen.getByRole('button', { name: 'Record' }))
+    ).toBe(true);
+  });
+
+  it('starts recording and turns a freeform note into a meeting note', async () => {
+    recordingAccess = true;
+    render(<NotesBody plc={plc} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+    expect(recorderStart).toHaveBeenCalledWith({
+      plcId: 'plc1',
+      noteId: 'n1',
+      recorderUid: 'me',
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+      await Promise.resolve();
+    });
+    expect(updateNoteMock).toHaveBeenCalledWith(
+      'n1',
+      { kind: 'meeting' },
+      { expectedVersion: 1 }
+    );
   });
 });

@@ -18,6 +18,10 @@ interface RecordControlProps {
   other?: RecordControlLive;
   supported: boolean;
   busy?: boolean;
+  /** A short problem line, such as a blocked microphone. */
+  notice?: string | null;
+  /** Badge only, for members who can't record. */
+  hideRecord?: boolean;
   devices: { deviceId: string; label: string }[];
   deviceId: string | null;
   onSelectDevice: (deviceId: string) => void;
@@ -90,6 +94,8 @@ export const RecordControl: React.FC<RecordControlProps> = ({
   other,
   supported,
   busy = false,
+  notice,
+  hideRecord = false,
   devices,
   deviceId,
   onSelectDevice,
@@ -106,6 +112,11 @@ export const RecordControl: React.FC<RecordControlProps> = ({
   if (self) {
     return (
       <div className="flex items-center gap-1 shrink-0">
+        {notice && (
+          <span role="alert" className="text-xxs font-semibold text-red-700">
+            {notice}
+          </span>
+        )}
         <LiveBadge live={self} />
         {self.paused ? (
           <button
@@ -154,73 +165,83 @@ export const RecordControl: React.FC<RecordControlProps> = ({
 
   return (
     <div className="flex items-center gap-1 shrink-0">
-      {other && (
+      {notice && (
+        <span role="alert" className="text-xxs font-semibold text-red-700">
+          {notice}
+        </span>
+      )}
+      {other && <LiveBadge live={other} />}
+      {hideRecord ? null : (
         <>
-          <LiveBadge live={other} />
-          <span aria-hidden className="w-px h-4 bg-slate-200 mx-1" />
+          {other && <span aria-hidden className="w-px h-4 bg-slate-200 mx-1" />}
+          <div ref={menuRef} className="relative flex items-center">
+            <button
+              type="button"
+              className={`${BUTTON} pl-2`}
+              disabled={!supported || !!other || busy}
+              onClick={onStart}
+              title={supported ? recordLabel : unsupportedLabel}
+            >
+              <span
+                aria-hidden
+                className="w-2.5 h-2.5 rounded-full bg-red-600"
+              />
+              {recordLabel}
+            </button>
+            {supported && !other && devices.length > 1 && (
+              <button
+                type="button"
+                className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                aria-label={t('plcDashboard.notes.recording.microphone', {
+                  defaultValue: 'Microphone',
+                })}
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {menuOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-full mt-1 z-20 w-56 bg-white border border-slate-200 rounded-lg shadow-lg py-1 text-xs"
+              >
+                <div className="px-3 py-1 text-xxs font-bold uppercase tracking-widest text-slate-400">
+                  {t('plcDashboard.notes.recording.microphone', {
+                    defaultValue: 'Microphone',
+                  })}
+                </div>
+                {devices.map((device) => {
+                  const selected = device.deviceId === deviceId;
+                  return (
+                    <button
+                      key={device.deviceId}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={selected}
+                      onClick={() => {
+                        onSelectDevice(device.deviceId);
+                        setMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 text-left hover:bg-slate-50 ${
+                        selected
+                          ? 'font-semibold text-slate-800'
+                          : 'text-slate-700'
+                      }`}
+                    >
+                      <span className="truncate">{device.label}</span>
+                      {selected && (
+                        <Check className="w-3.5 h-3.5 shrink-0 text-brand-blue-primary" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </>
       )}
-      <div ref={menuRef} className="relative flex items-center">
-        <button
-          type="button"
-          className={`${BUTTON} pl-2`}
-          disabled={!supported || !!other || busy}
-          onClick={onStart}
-          title={supported ? recordLabel : unsupportedLabel}
-        >
-          <span aria-hidden className="w-2.5 h-2.5 rounded-full bg-red-600" />
-          {recordLabel}
-        </button>
-        {supported && !other && devices.length > 1 && (
-          <button
-            type="button"
-            className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-            aria-label={t('plcDashboard.notes.recording.microphone', {
-              defaultValue: 'Microphone',
-            })}
-            aria-expanded={menuOpen}
-            aria-haspopup="menu"
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            <ChevronDown className="w-3.5 h-3.5" />
-          </button>
-        )}
-        {menuOpen && (
-          <div
-            role="menu"
-            className="absolute right-0 top-full mt-1 z-20 w-56 bg-white border border-slate-200 rounded-lg shadow-lg py-1 text-xs"
-          >
-            <div className="px-3 py-1 text-xxs font-bold uppercase tracking-widest text-slate-400">
-              {t('plcDashboard.notes.recording.microphone', {
-                defaultValue: 'Microphone',
-              })}
-            </div>
-            {devices.map((device) => {
-              const selected = device.deviceId === deviceId;
-              return (
-                <button
-                  key={device.deviceId}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={selected}
-                  onClick={() => {
-                    onSelectDevice(device.deviceId);
-                    setMenuOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 text-left hover:bg-slate-50 ${
-                    selected ? 'font-semibold text-slate-800' : 'text-slate-700'
-                  }`}
-                >
-                  <span className="truncate">{device.label}</span>
-                  {selected && (
-                    <Check className="w-3.5 h-3.5 shrink-0 text-brand-blue-primary" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
     </div>
   );
 };
