@@ -49,10 +49,7 @@ const LiveBadge: React.FC<{ live: RecordControlLive }> = ({ live }) => {
         </>
       ) : (
         <>
-          <span
-            aria-hidden
-            className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse"
-          />
+          <span aria-hidden className="w-2.5 h-2.5 rounded-full bg-red-600" />
           <span className="font-bold text-red-700">
             {t('plcDashboard.notes.recording.live', {
               defaultValue: 'Recording',

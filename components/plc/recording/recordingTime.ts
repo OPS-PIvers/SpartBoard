@@ -1,5 +1,7 @@
-export const RECORDING_LIMIT_MS = 60 * 60 * 1000;
-export const RECORDING_WARNING_MS = 55 * 60 * 1000;
+import {
+  PLC_RECORDING_MAX_MS,
+  PLC_RECORDING_WARN_MS,
+} from '@/utils/plcRecording';
 
 /** `m:ss`, or `h:mm:ss` from one hour. */
 export function formatRecordingClock(ms: number): string {
@@ -12,6 +14,6 @@ export function formatRecordingClock(ms: number): string {
 
 /** Time left before the auto-stop, once the 55-minute warning has started. */
 export function recordingTimeLeftMs(elapsedMs: number): number | null {
-  if (elapsedMs < RECORDING_WARNING_MS) return null;
-  return Math.max(0, RECORDING_LIMIT_MS - elapsedMs);
+  if (elapsedMs < PLC_RECORDING_WARN_MS) return null;
+  return Math.max(0, PLC_RECORDING_MAX_MS - elapsedMs);
 }
