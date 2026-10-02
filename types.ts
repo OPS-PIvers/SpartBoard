@@ -8431,6 +8431,8 @@ export interface FlashcardsConfig {
   presentShowFirst: FlashcardSide;
   presentShuffle: boolean;
   lastRosterIdsBySetId?: Record<string, string[]>;
+  /** In-memory pasted cards (Flashcards/utils/pastedDrafts.ts) the editor opens with. */
+  pasteDraftId?: string;
 }
 
 // --- PROJECTS WIDGET TYPES (docs/plans/shipped/PROJECTS_WIDGET.md) ---
@@ -9442,7 +9444,9 @@ export type GlobalFeature =
   | 'drawing-ai'
   | 'webcam-ai'
   | 'blooms-ai'
-  | 'my-groups';
+  | 'my-groups'
+  /** Ctrl+V of a two-column list on the board opens a new flashcard set in the editor. */
+  | 'flashcard-smart-paste';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
