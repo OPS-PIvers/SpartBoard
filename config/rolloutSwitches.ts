@@ -57,11 +57,11 @@ export interface RolloutSwitch {
   normalize: (raw: unknown) => { enabled: boolean };
 }
 
-/** One row per switch; a new `config/*Settings.ts` normalizer belongs here too. */
 /** Unique per switch, since two switches can share one doc. */
 export const rolloutSwitchKey = (sw: RolloutSwitch): string =>
   sw.field ? `${sw.docId}.${sw.field}` : sw.docId;
 
+/** One row per switch; a new `config/*Settings.ts` normalizer belongs here too. */
 export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
   {
     docId: PLC_NOTE_COLLAB_SETTINGS_DOC,
