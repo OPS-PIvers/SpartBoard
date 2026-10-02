@@ -348,6 +348,8 @@ const ActivitySection: React.FC<{
             onChange={state.setTourSetupWidgets}
             layouts={state.tourSetupLayouts}
             onLayoutsChange={state.setTourSetupLayouts}
+            useTeacherBoard={state.tourUseTeacherBoard}
+            onUseTeacherBoardChange={state.setTourUseTeacherBoard}
           />
         </Group>
       )}

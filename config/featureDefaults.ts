@@ -3,6 +3,7 @@ import type React from 'react';
 import {
   BarChart,
   BellRing,
+  BookOpen,
   Bot,
   Building2,
   CalendarClock,
@@ -920,6 +921,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Student landing page redesign (docs/plans/STUDENT_LANDING_V2.md D26); students get it when their teacher passes the gate.
+  'student-landing-v2': {
+    label: 'Student landing page',
+    icon: LayoutDashboard,
+    description: 'The redesigned My Assignments page for students.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'group-reminders': {
     label: 'Group reminders',
     icon: BellRing,
@@ -1087,6 +1099,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Availability and due date',
     icon: CalendarClock,
     description: 'Opens, closes and late work when assigning.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Assign dialogs' Submissions Enabled / Study Resource toggle. Off: every session uses its kind default (STUDENT_LANDING_V2 D8).
+  'study-resources': {
+    label: 'Study resources',
+    icon: BookOpen,
+    description:
+      'Mark an assignment as a study resource that students do not submit.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

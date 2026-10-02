@@ -14,7 +14,8 @@ import { getServerNow } from '@/utils/serverTime';
  *
  * Partition rule (matches the plan):
  *   - completion === 'completed' → Completed section
- *   - completion === 'not-completed' AND channel === 'active' → Active
+ *   - completion === 'not-completed' or 'in-progress' AND channel === 'active' → Active
+ *   - completion === 'in-progress' AND channel === 'ended' → Completed (unchecked)
  *   - completion === 'not-completed' AND channel === 'ended' → hidden
  *   - completion === 'unknown' AND channel === 'active' → Active (with neutral pill, resolves later)
  *   - completion === 'unknown' AND channel === 'ended' → Completed (optimistic;

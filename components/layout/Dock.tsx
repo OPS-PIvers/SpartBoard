@@ -27,6 +27,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useDashboard } from '@/context/useDashboard';
+import { useTourHidden } from '@/context/dashboardCanvasStore';
 import { useToolVisibility } from '@/context/useToolVisibility';
 import { useAuth } from '@/context/useAuth';
 import { useCustomWidgets } from '@/context/useCustomWidgets';
@@ -113,6 +114,7 @@ export const Dock: React.FC = () => {
     annotationActive,
     annotationState,
   } = useDashboard();
+  const tourHidden = useTourHidden();
   const {
     visibleTools,
     dockItems,
@@ -833,13 +835,14 @@ export const Dock: React.FC = () => {
     if (!activeDashboard) return acc;
 
     for (const widget of activeDashboard.widgets) {
-      if (widget.minimized) {
+      // A tour's hidden widgets come back on their own; no badge or chip.
+      if (widget.minimized && !tourHidden.has(widget.id)) {
         if (!acc[widget.type]) acc[widget.type] = [];
         acc[widget.type].push(widget);
       }
     }
     return acc;
-  }, [activeDashboard]);
+  }, [activeDashboard, tourHidden]);
 
   // Minimized custom-widget instances (not in the static TOOLS list so
   // they need a separate restore path in the dock).

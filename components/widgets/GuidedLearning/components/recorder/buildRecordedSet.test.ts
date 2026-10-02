@@ -55,6 +55,29 @@ describe('buildRecordedSet', () => {
     expect(queue).toEqual([]);
   });
 
+  it('keeps a recorded value with its step', async () => {
+    const typed: RecordedStep = {
+      ...step('t', 0),
+      tour: { anchor: 'sidebar.boards', action: 'type', value: 'Warm up' },
+    };
+    const { set } = await buildRecordedSet(
+      { steps: [typed] },
+      {
+        id: 'set-9',
+        title: 'Recorded tour',
+        imageUrls: ['u0'],
+        widgets: [],
+        startIds: new Set(),
+        now: 5,
+      }
+    );
+    expect(set.steps[0].tour).toEqual({
+      anchor: 'sidebar.boards',
+      action: 'type',
+      value: 'Warm up',
+    });
+  });
+
   it('keeps each untagged step fingerprint and groups queue entries by it', async () => {
     const context = {
       suggestedId: 'button.start',

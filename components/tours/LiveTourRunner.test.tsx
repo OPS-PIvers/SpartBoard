@@ -16,6 +16,8 @@ import { SAVED_TOUR_KEY } from './tourResume';
 import {
   clearTourLayoutOverrides,
   clearTourWidgetPatches,
+  clearTourHidden,
+  getTourHidden,
   getTourLayoutOverrides,
   getTourWidgetPatches,
   useTourWidgetPatch,
@@ -36,6 +38,7 @@ const h = vi.hoisted(() => {
     id: 'board-1',
     widgets: [] as Widget[],
     selectedWidgetId: null as string | null,
+    transientSpawns: false,
     readOnly: false,
     version: 0,
     listeners: new Set<() => void>(),
@@ -47,8 +50,18 @@ const h = vi.hoisted(() => {
   let n = 0;
   const actions = {
     addWidget: vi.fn((type: string) => {
-      board.widgets = [...board.widgets, { id: `w${++n}`, type }];
+      board.widgets = [
+        ...board.widgets,
+        {
+          id: `w${++n}`,
+          type,
+          ...(board.transientSpawns ? { transient: true } : {}),
+        },
+      ];
       emit();
+    }),
+    setTourTransientSpawns: vi.fn((on: boolean) => {
+      board.transientSpawns = on;
     }),
     removeWidgets: vi.fn((ids: string[]) => {
       board.widgets = board.widgets.filter((w) => !ids.includes(w.id));
@@ -96,6 +109,7 @@ const h = vi.hoisted(() => {
     board.widgets = [];
     board.readOnly = false;
     board.selectedWidgetId = null;
+    board.transientSpawns = false;
     n = 0;
     Object.values(actions).forEach((fn) => fn.mockClear());
   };
@@ -167,7 +181,8 @@ vi.mock('./TourMiniPlayer', () => ({
 
 type Binding = {
   anchor: string;
-  action: 'click' | 'observe';
+  action: 'click' | 'observe' | 'toggle' | 'select' | 'type';
+  value?: boolean | string;
   teacherMustClick?: boolean;
   fallback?: { role: string; name: string };
 };
@@ -189,7 +204,7 @@ const makeSet = (
         tour,
       })),
     ],
-    tourSetup: { widgets: setupWidgets },
+    tourSetup: { widgets: setupWidgets, useTeacherBoard: true },
   }) as unknown as GuidedLearningSet;
 
 // A stand-in board that renders the anchors a tour needs.
@@ -306,8 +321,10 @@ describe('LiveTourRunner', () => {
     expect(ring).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-    expect(screen.getByText("Keep the tour's widgets?")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Remove them' }));
+    expect(
+      screen.getByText(/^Keep the .*from this tour\?$/)
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Put my board back' }));
     expect(h.actions.removeWidgets).toHaveBeenCalledWith(['w1']);
     expect(h.board.widgets.map((w) => w.id)).toEqual(['mine']);
     expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
@@ -323,7 +340,9 @@ describe('LiveTourRunner', () => {
     expect(progress()).toBe('1 / 1');
     fireEvent.click(screen.getByText('Settings w1'));
     await frames();
-    expect(screen.getByText("Keep the tour's widgets?")).toBeInTheDocument();
+    expect(
+      screen.getByText(/^Keep the .*from this tour\?$/)
+    ).toBeInTheDocument();
   });
 
   it('tears down only the widget it added, not a same-type one added mid-tour', async () => {
@@ -334,7 +353,7 @@ describe('LiveTourRunner', () => {
     act(() => h.actions.addWidget('dice'));
     await frames();
     fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Remove them' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put my board back' }));
     expect(h.actions.removeWidgets).toHaveBeenCalledWith(['w1']);
     expect(h.board.widgets.map((w) => w.id)).toEqual(['w2']);
   });
@@ -439,6 +458,33 @@ describe('LiveTourRunner', () => {
     expect(progress()).toBe('1 / 2');
   });
 
+  it('advances a type step on change, not on the click into the field', async () => {
+    await start(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'type', value: 'Warm up' },
+        { anchor: 'dock.item:dice', action: 'click' },
+      ])
+    );
+    fireEvent.click(screen.getByText('Boards'));
+    await frames();
+    expect(progress()).toBe('1 / 2');
+    fireEvent.change(screen.getByText('Boards'));
+    await frames();
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it('advances a toggle step on a click of the anchor', async () => {
+    await start(
+      makeSet([
+        { anchor: 'dock.item:dice', action: 'toggle', value: true },
+        { anchor: 'sidebar.boards', action: 'click' },
+      ])
+    );
+    fireEvent.click(screen.getByText('Dice'));
+    await frames();
+    expect(progress()).toBe('2 / 2');
+  });
+
   it('waits for Next on an observe step', async () => {
     await start(
       makeSet([
@@ -480,7 +526,9 @@ describe('LiveTourRunner', () => {
       makeSet([{ anchor: 'sidebar.boards', action: 'click' }], ['dice'])
     );
     fireEvent.keyDown(window, { key: 'Escape' });
-    expect(screen.getByText("Keep the tour's widgets?")).toBeInTheDocument();
+    expect(
+      screen.getByText(/^Keep the .*from this tour\?$/)
+    ).toBeInTheDocument();
   });
 
   it('leaves Escape inside an app panel to that panel', async () => {
@@ -556,7 +604,9 @@ describe('LiveTourRunner', () => {
     expect(h.loadTour).toHaveBeenCalledTimes(1);
     expect(progress()).toBe('1 / 1');
     fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
-    expect(screen.getByText("Keep the tour's widgets?")).toBeInTheDocument();
+    expect(
+      screen.getByText(/^Keep the .*from this tour\?$/)
+    ).toBeInTheDocument();
   });
 
   it('runs the published snapshot, never the saved draft, from a launch point', async () => {
@@ -943,6 +993,24 @@ describe('LiveTourRunner modes', () => {
     expect(status()).toHaveTextContent('Your turn');
   });
 
+  it('Guided: leaves toggle, select and type steps to the teacher', async () => {
+    await start(
+      makeSet(
+        [
+          { anchor: 'dock.item:dice', action: 'toggle', value: true },
+          { anchor: 'sidebar.boards', action: 'observe' },
+        ],
+        [],
+        'guided'
+      )
+    );
+    const dice = recordEvents(screen.getByText('Dice'));
+    await run(4000);
+    expect(dice).toEqual([]);
+    expect(progress()).toBe('1 / 2');
+    expect(status()).toHaveTextContent('Your turn');
+  });
+
   it('Guided: switching Autopilot off hands the rest of the run to the teacher', async () => {
     await start(
       makeSet(
@@ -1114,7 +1182,7 @@ describe('LiveTourRunner plain steps and welcome', () => {
       title: 'Boards tour',
       mode,
       imageUrls: [],
-      tourSetup: { widgets: [] },
+      tourSetup: { widgets: [], useTeacherBoard: true },
       steps: [
         {
           id: 'intro',
@@ -1250,7 +1318,7 @@ describe('LiveTourRunner plain steps and welcome', () => {
       mixedSet('structured', {
         welcomeEnabled: true,
         welcomeMessage: 'Hi there.\nThis takes a minute.',
-        tourSetup: { widgets: ['clock'] },
+        tourSetup: { widgets: ['clock'], useTeacherBoard: true },
       })
     );
     const dialog = screen.getByRole('dialog', { name: 'Boards tour' });
@@ -1286,7 +1354,7 @@ describe('LiveTourRunner plain steps and welcome', () => {
       mixedSet('structured', {
         welcomeEnabled: true,
         welcomeMessage: 'Hi there.',
-        tourSetup: { widgets: ['clock'] },
+        tourSetup: { widgets: ['clock'], useTeacherBoard: true },
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
@@ -1479,7 +1547,7 @@ describe('LiveTourRunner stacking, feedback, reload and access', () => {
 
     // The resumed run still knows which widget it added.
     fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Remove them' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put my board back' }));
     expect(h.actions.removeWidgets).toHaveBeenCalledWith(['w1']);
     expect(saved()).toBeNull();
   });
@@ -1730,7 +1798,7 @@ describe('LiveTourRunner recorded layouts', () => {
   ): GuidedLearningSet =>
     ({
       ...makeSet(steps, setupWidgets),
-      tourSetup: { widgets: setupWidgets, layouts },
+      tourSetup: { widgets: setupWidgets, layouts, useTeacherBoard: true },
     }) as unknown as GuidedLearningSet;
   const clockAt = (slot: number, xProp: number) => ({
     slot,
@@ -1752,7 +1820,7 @@ describe('LiveTourRunner recorded layouts', () => {
     expect(h.actions.addWidget).not.toHaveBeenCalled();
     expect(h.actions.addTourWidget).toHaveBeenCalledWith('clock', place(0.4));
     fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Remove them' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put my board back' }));
     expect(h.actions.discardTourWidgets).toHaveBeenCalledWith(['t1']);
     expect(h.actions.removeWidgets).not.toHaveBeenCalled();
     expect(h.board.widgets).toEqual([]);
@@ -1810,7 +1878,7 @@ describe('LiveTourRunner recorded layouts', () => {
     expect(h.board.widgets).toEqual([{ id: 'mine', type: 'clock', z: 1 }]);
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     await frames();
-    expect(screen.queryByText("Keep the tour's widgets?")).toBeNull();
+    expect(screen.queryByText(/^Keep the .*from this tour\?$/)).toBeNull();
     expect(getTourLayoutOverrides().size).toBe(0);
   });
 
@@ -1893,7 +1961,7 @@ describe('LiveTourRunner robustness', () => {
   ): GuidedLearningSet =>
     ({
       ...makeSet(steps, setupWidgets),
-      tourSetup: { widgets: setupWidgets, layouts },
+      tourSetup: { widgets: setupWidgets, layouts, useTeacherBoard: true },
     }) as unknown as GuidedLearningSet;
   const clockAt = (slot: number) => ({
     slot,
@@ -2240,7 +2308,7 @@ describe('LiveTourRunner robustness', () => {
     await frames();
     expect(screen.queryByTestId('tour-callout')).not.toBeInTheDocument();
     expect(
-      screen.queryByText("Keep the tour's widgets?")
+      screen.queryByText(/^Keep the .*from this tour\?$/)
     ).not.toBeInTheDocument();
     expect(h.actions.discardTourWidgets).toHaveBeenCalledWith(['t1']);
     expect(h.actions.removeWidgets).not.toHaveBeenCalled();
@@ -2316,7 +2384,7 @@ describe('LiveTourRunner robustness', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
     await frames();
-    const remove = screen.getByRole('button', { name: 'Remove them' });
+    const remove = screen.getByRole('button', { name: 'Put my board back' });
     const keep = screen.getByRole('button', { name: 'Keep them' });
     fireEvent.keyDown(keep, { key: 'Tab' });
     expect(document.activeElement).toBe(remove);
@@ -2449,5 +2517,269 @@ describe('LiveTourRunner robustness', () => {
     expect(screen.getByTestId('tour-static-hint')).toHaveTextContent(
       'Your turn: click the highlighted spot'
     );
+  });
+});
+
+describe('LiveTourRunner cleared stage', () => {
+  const emit = () =>
+    act(() => {
+      h.board.version++;
+      h.board.listeners.forEach((l) => l());
+    });
+  const place = { xProp: 0.4, yProp: 0.1, wProp: 0.2, hProp: 0.3 };
+  const stageSet = (
+    steps: (Binding & Record<string, unknown>)[],
+    setup: Record<string, unknown>
+  ): GuidedLearningSet =>
+    ({
+      ...makeSet(steps),
+      tourSetup: { widgets: [], ...setup },
+    }) as unknown as GuidedLearningSet;
+  const diceStep = {
+    anchor: 'widget.settings-opener:dice',
+    action: 'observe' as const,
+  };
+  const hidden = () => [...getTourHidden()].sort();
+
+  // Hidden widgets render like minimized ones: faded out and click-through.
+  const StageWidget: React.FC<{ w: (typeof h.board.widgets)[number] }> = ({
+    w,
+  }) => {
+    const off = useTourWidgetPatch(w.id)?.hidden;
+    return (
+      <div
+        {...tourAttr('widget.window', w.id, w.type)}
+        style={off ? { opacity: 0, pointerEvents: 'none' } : undefined}
+      >
+        <button {...tourAttr('widget.settings-opener', w.id, w.type)}>
+          Settings {w.id}
+        </button>
+      </div>
+    );
+  };
+  const StageBoard: React.FC = () => {
+    useSyncExternalStore(
+      (l) => {
+        h.board.listeners.add(l);
+        return () => h.board.listeners.delete(l);
+      },
+      () => h.board.version
+    );
+    return (
+      <>
+        <button {...tourAttr('sidebar.boards')}>Boards</button>
+        {h.board.widgets.map((w) => (
+          <StageWidget key={w.id} w={w} />
+        ))}
+      </>
+    );
+  };
+  const mount = () =>
+    render(
+      <>
+        <StageBoard />
+        <LiveTourRunner />
+      </>
+    );
+  const startStage = async (set: GuidedLearningSet) => {
+    h.loadTour.mockResolvedValue(set);
+    const view = mount();
+    act(() => requestStartTour({ setId: set.id }));
+    await frames();
+    return view;
+  };
+
+  afterEach(() => {
+    clearTourLayoutOverrides();
+    clearTourWidgetPatches();
+    clearTourHidden();
+  });
+
+  it('hides every teacher widget and adds a fresh one even when they have that type', async () => {
+    const mine = { id: 'mine', type: 'dice', z: 1 };
+    h.board.widgets = [mine, { id: 'other', type: 'clock', z: 2 }];
+    await startStage(
+      stageSet([{ ...diceStep, action: 'click' }], { widgets: ['dice'] })
+    );
+    expect(hidden()).toEqual(['mine', 'other']);
+    expect(h.actions.addTourWidget).toHaveBeenCalledWith('dice');
+    expect(h.actions.addWidget).not.toHaveBeenCalled();
+    expect(getTourWidgetPatches().get('mine')).toEqual({ hidden: true });
+    // Hiding is render-only: the saved widget is untouched.
+    expect(h.board.widgets.find((w) => w.id === 'mine')).toBe(mine);
+    // The step points at the tour's widget, never the hidden one.
+    fireEvent.click(screen.getByText('Settings mine'));
+    await frames();
+    expect(progress()).toBe('1 / 1');
+    fireEvent.click(screen.getByText('Settings t1'));
+    await frames();
+    expect(
+      screen.getByText('Keep the widget from this tour?')
+    ).toBeInTheDocument();
+  });
+
+  it('binds recorded slots only to tour widgets', async () => {
+    h.board.widgets = [{ id: 'mine', type: 'clock', z: 1 }];
+    await startStage(
+      stageSet([{ anchor: 'sidebar.boards', action: 'observe', slot: 0 }], {
+        widgets: ['clock'],
+        layouts: [{ slot: 0, type: 'clock', ...place }],
+      })
+    );
+    expect(h.actions.addTourWidget).toHaveBeenCalledWith('clock', place);
+    expect(getTourLayoutOverrides().has('mine')).toBe(false);
+    expect(hidden()).toEqual(['mine']);
+  });
+
+  it('names the count and puts the board back', async () => {
+    h.board.widgets = [{ id: 'mine', type: 'dice' }];
+    await startStage(stageSet([diceStep], { widgets: ['dice', 'clock'] }));
+    fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
+    expect(
+      screen.getByText('Keep the 2 widgets from this tour?')
+    ).toBeInTheDocument();
+    // Still cleared while the teacher decides.
+    expect(hidden()).toEqual(['mine']);
+    fireEvent.click(screen.getByRole('button', { name: 'Put my board back' }));
+    expect(h.actions.discardTourWidgets).toHaveBeenCalledWith(['t1', 't2']);
+    expect(hidden()).toEqual([]);
+    expect(h.board.widgets.map((w) => w.id)).toEqual(['mine']);
+  });
+
+  it('brings the board back when the tour widgets are kept', async () => {
+    h.board.widgets = [{ id: 'mine', type: 'dice' }];
+    await startStage(stageSet([diceStep], { widgets: ['dice'] }));
+    fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
+    expect(
+      screen.getByText('Keep the widget from this tour?')
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Keep them' }));
+    expect(h.actions.commitTourWidgets).toHaveBeenCalledWith(['t1']);
+    expect(hidden()).toEqual([]);
+  });
+
+  it.each([
+    [
+      'Done',
+      () => fireEvent.click(screen.getByRole('button', { name: 'Done' })),
+    ],
+    ['Escape', () => fireEvent.keyDown(window, { key: 'Escape' })],
+    [
+      'a board switch',
+      () => {
+        h.board.id = 'board-2';
+        h.board.widgets = [];
+        emit();
+      },
+    ],
+  ])('brings the board back on %s', async (_name, end) => {
+    h.board.widgets = [{ id: 'mine', type: 'dice' }];
+    await startStage(
+      stageSet([{ anchor: 'sidebar.boards', action: 'observe' }], {})
+    );
+    expect(hidden()).toEqual(['mine']);
+    end();
+    await frames();
+    expect(screen.queryByTestId('tour-callout')).not.toBeInTheDocument();
+    expect(hidden()).toEqual([]);
+  });
+
+  it('brings the board back when the runner unmounts mid-tour', async () => {
+    h.board.widgets = [{ id: 'mine', type: 'dice' }];
+    const view = await startStage(
+      stageSet([{ anchor: 'sidebar.boards', action: 'observe' }], {})
+    );
+    expect(hidden()).toEqual(['mine']);
+    view.unmount();
+    expect(hidden()).toEqual([]);
+  });
+
+  it('hides the board again when a tour resumes after a reload', async () => {
+    h.board.widgets = [{ id: 'mine', type: 'dice' }];
+    const set = stageSet(
+      [
+        { anchor: 'sidebar.boards', action: 'observe' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ],
+      { widgets: ['dice'] }
+    );
+    const first = await startStage(set);
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames();
+    first.unmount();
+    expect(hidden()).toEqual([]);
+    // Unsaved tour widgets do not survive the reload.
+    h.board.widgets = h.board.widgets.filter((w) => !w.transient);
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Resume tour' }));
+    await frames();
+    expect(progress()).toBe('2 / 2');
+    expect(hidden()).toEqual(['mine']);
+    expect(h.actions.addTourWidget).toHaveBeenCalledTimes(2);
+  });
+
+  it('makes widgets the app adds mid-tour unsaved tour widgets', async () => {
+    h.board.widgets = [{ id: 'mine', type: 'dice' }];
+    await startStage(stageSet([diceStep], { widgets: ['dice'] }));
+    expect(h.board.transientSpawns).toBe(true);
+    act(() => h.actions.addWidget('clock'));
+    await frames();
+    expect(h.board.widgets.find((w) => w.id === 'w2')?.transient).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
+    expect(
+      screen.getByText('Keep the 2 widgets from this tour?')
+    ).toBeInTheDocument();
+    expect(h.board.transientSpawns).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Put my board back' }));
+    expect(h.actions.discardTourWidgets).toHaveBeenCalledWith(['t1', 'w2']);
+    expect(h.board.widgets.map((w) => w.id)).toEqual(['mine']);
+  });
+
+  it('keeps a widget opened mid-tour when the teacher keeps the tour widgets', async () => {
+    await startStage(stageSet([diceStep], { widgets: ['dice'] }));
+    act(() => h.actions.addWidget('clock'));
+    await frames();
+    fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Keep them' }));
+    expect(h.actions.commitTourWidgets).toHaveBeenCalledWith(['t1', 'w2']);
+  });
+
+  it.each([
+    ['Escape', () => fireEvent.keyDown(window, { key: 'Escape' })],
+    ['an unmount', null],
+  ])('stops making unsaved widgets after %s', async (_name, end) => {
+    const view = await startStage(
+      stageSet([{ anchor: 'sidebar.boards', action: 'observe' }], {})
+    );
+    expect(h.board.transientSpawns).toBe(true);
+    if (end) end();
+    else view.unmount();
+    await frames();
+    expect(h.board.transientSpawns).toBe(false);
+  });
+
+  it('adds ordinary widgets when the set keeps the teacher board', async () => {
+    await startStage(
+      stageSet([{ anchor: 'sidebar.boards', action: 'observe' }], {
+        useTeacherBoard: true,
+      })
+    );
+    expect(h.board.transientSpawns).toBe(false);
+    act(() => h.actions.addWidget('clock'));
+    expect(h.board.widgets[0].transient).toBeUndefined();
+  });
+
+  it("keeps the teacher's board as-is when the set opts out", async () => {
+    h.board.widgets = [{ id: 'mine', type: 'clock', z: 1 }];
+    await startStage(
+      stageSet([{ anchor: 'sidebar.boards', action: 'observe', slot: 0 }], {
+        widgets: ['clock'],
+        layouts: [{ slot: 0, type: 'clock', ...place }],
+        useTeacherBoard: true,
+      })
+    );
+    expect(hidden()).toEqual([]);
+    expect(h.actions.addTourWidget).not.toHaveBeenCalled();
+    expect(getTourLayoutOverrides().get('mine')).toEqual(place);
   });
 });

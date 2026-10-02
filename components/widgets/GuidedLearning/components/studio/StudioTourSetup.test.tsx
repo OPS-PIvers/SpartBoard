@@ -145,3 +145,23 @@ describe('StudioTourSetup board layout', () => {
     expect(onLayoutsChange).not.toHaveBeenCalled();
   });
 });
+
+describe('StudioTourSetup board opt-out', () => {
+  it("toggles playing on the teacher's board as-is", () => {
+    const onUseTeacherBoardChange = vi.fn();
+    render(
+      <StudioTourSetup
+        widgets={[]}
+        onChange={vi.fn()}
+        useTeacherBoard={false}
+        onUseTeacherBoardChange={onUseTeacherBoardChange}
+      />
+    );
+    const box = screen.getByRole('checkbox', {
+      name: /Use the teacher's board as-is/,
+    });
+    expect(box).not.toBeChecked();
+    fireEvent.click(box);
+    expect(onUseTeacherBoardChange).toHaveBeenCalledWith(true);
+  });
+});

@@ -2,12 +2,18 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { useStudentClassDirectory } from './useStudentClassDirectory';
 import { httpsCallable } from 'firebase/functions';
+import { signInWithCustomToken } from 'firebase/auth';
 
 vi.mock('firebase/functions', () => ({
   httpsCallable: vi.fn(),
 }));
 
+vi.mock('firebase/auth', () => ({
+  signInWithCustomToken: vi.fn(() => Promise.resolve()),
+}));
+
 vi.mock('@/config/firebase', () => ({
+  auth: {},
   functions: {},
   isAuthBypass: false,
 }));
@@ -70,5 +76,49 @@ describe('useStudentClassDirectory', () => {
 
     act(() => result.current.retry());
     await waitFor(() => expect(callCount).toBe(2));
+  });
+
+  it('refreshes the token silently when the server re-mints the claim', async () => {
+    const uid = 'student-remint';
+    mockHttpsCallable.mockImplementation(() =>
+      vi.fn().mockImplementation(() => {
+        callCount += 1;
+        return Promise.resolve({
+          data: {
+            classes: [
+              { classId: 'classA', name: 'Art', teacherDisplayName: 'T' },
+              { classId: 'classB', name: 'Biology', teacherDisplayName: 'U' },
+            ],
+            customToken: 'fresh-token',
+            classIds: ['classB', 'classA'],
+          },
+        });
+      })
+    );
+    const { result, rerender } = renderHook(
+      ({ classIds }: { classIds: readonly string[] }) =>
+        useStudentClassDirectory({ classIds, pseudonymUid: uid }),
+      { initialProps: { classIds: ['classA'] } }
+    );
+
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(signInWithCustomToken).toHaveBeenCalledWith({}, 'fresh-token');
+
+    // The refreshed claim reuses the primed result instead of calling again.
+    rerender({ classIds: ['classA', 'classB'] });
+    expect(result.current.classes.map((c) => c.classId)).toEqual([
+      'classA',
+      'classB',
+    ]);
+    expect(callCount).toBe(1);
+  });
+
+  it('does not touch the token when the claim is unchanged', async () => {
+    const uid = 'student-no-remint';
+    renderHook(() =>
+      useStudentClassDirectory({ classIds: ['classA'], pseudonymUid: uid })
+    );
+    await waitFor(() => expect(callCount).toBe(1));
+    expect(signInWithCustomToken).not.toHaveBeenCalled();
   });
 });

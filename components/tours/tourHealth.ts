@@ -1,4 +1,4 @@
-import type { GuidedLearningSet } from '@/types';
+import type { GuidedLearningSet, GuidedLearningTourBinding } from '@/types';
 import {
   anchorPrerequisite,
   isTourAnchorId,
@@ -157,3 +157,16 @@ export const worstState = (
     (worst, s) => (RANK[s] > RANK[worst] ? s : worst),
     'ok'
   );
+
+export type StepValueWarning = 'empty-value' | 'roster-name';
+
+/** A `type` step with nothing for Autopilot to type, or text that matches a roster name. */
+export function valueWarning(
+  binding: Pick<GuidedLearningTourBinding, 'action' | 'value'>,
+  matcher: { test: (text: string) => boolean } | null
+): StepValueWarning | null {
+  if (binding.action !== 'type') return null;
+  const text = typeof binding.value === 'string' ? binding.value.trim() : '';
+  if (!text) return 'empty-value';
+  return matcher?.test(text) ? 'roster-name' : null;
+}

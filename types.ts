@@ -1,3 +1,5 @@
+import type { WorkKind } from '@/utils/gradebook/gradebookCore';
+
 export type WidgetType =
   | 'clock'
   | 'traffic'
@@ -2330,7 +2332,7 @@ export interface ActivityWallConfig {
  * base64-encoded URL payload. `classId`, when present, gates
  * ClassLink-authenticated student access via Firestore rules.
  */
-export interface ActivityWallSession {
+export interface ActivityWallSession extends SessionWorkKindFields {
   id: string;
   activityId: string;
   teacherUid: string;
@@ -3282,7 +3284,8 @@ export interface MiniAppConfig {
  * Lives in the `/mini_app_sessions/{sessionId}` Firestore collection.
  * Created by teachers; read by students via the `/miniapp/{sessionId}` route.
  */
-export interface MiniAppSession extends PeriodAccessSessionFields {
+export interface MiniAppSession
+  extends PeriodAccessSessionFields, SessionWorkKindFields {
   id: string;
   appId: string;
   appTitle: string;
@@ -4627,6 +4630,11 @@ export interface PeriodAccess {
 
 export type AccessMode = 'assessment' | 'assignment';
 
+/** D8: set by the teacher on the session; absent means the kind's default (`resolveWorkKind`). */
+export interface SessionWorkKindFields {
+  workKind?: WorkKind;
+}
+
 /** Session fields read by the `periodOpen` / `studentLetIn` rules. Absent = legacy global gate. */
 export interface PeriodAccessSessionFields {
   accessMode?: AccessMode;
@@ -4639,7 +4647,10 @@ export interface PeriodAccessSessionFields {
 
 /** Live quiz session document in Firestore (/quiz_sessions/{sessionId}) */
 export interface QuizSession
-  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
+  extends
+    SubLaunchedSessionFields,
+    PeriodAccessSessionFields,
+    SessionWorkKindFields {
   id: string; // session UUID (same as QuizAssignment.id)
   /** FK back to /users/{teacherUid}/quiz_assignments/{assignmentId}. 1:1 with session. */
   assignmentId: string;
@@ -6867,7 +6878,10 @@ export interface VideoActivityLiveState {
 }
 
 export interface VideoActivitySession
-  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
+  extends
+    SubLaunchedSessionFields,
+    PeriodAccessSessionFields,
+    SessionWorkKindFields {
   id: string;
   activityId: string;
   activityTitle: string;
@@ -7798,12 +7812,21 @@ export type GuidedLearningPublicNarration = Pick<
   'url' | 'voice' | 'durationMs'
 >;
 
+export type GuidedLearningTourAction =
+  | 'click'
+  | 'observe'
+  | 'toggle'
+  | 'select'
+  | 'type';
+
 export interface GuidedLearningTourBinding {
   /** TOUR_ANCHORS key */
   anchor: string;
   fallback?: { role: string; name: string };
-  /** observe = learner presses Next */
-  action: 'click' | 'observe';
+  /** observe = learner presses Next; toggle, select and type complete like click until Autopilot performs them. */
+  action: GuidedLearningTourAction;
+  /** toggle: target state; select: option value; type: text Autopilot enters. */
+  value?: boolean | string;
   /** Guided autopilot demonstrates, then waits for the teacher; absent = the anchor's `destructive` default. */
   teacherMustClick?: boolean;
   /** Widget-scoped anchors: which tour widget slot the anchor belongs to. */
@@ -7922,6 +7945,8 @@ export interface GuidedLearningSet {
     widgets: WidgetType[];
     /** Recorded setup widget layouts; absent = default placement. */
     layouts?: TourWidgetLayout[];
+    /** Play on the teacher's board as-is; absent = hide their widgets and add fresh ones. */
+    useTeacherBoard?: true;
   };
   /** Stamped on every building-set save: true when any step has a live-tour binding. */
   hasLiveTour?: boolean;
@@ -8022,7 +8047,10 @@ export interface GuidedLearningPublicStep {
 
 /** Firestore session document granting student access to an experience */
 export interface GuidedLearningSession
-  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
+  extends
+    SubLaunchedSessionFields,
+    PeriodAccessSessionFields,
+    SessionWorkKindFields {
   id: string;
   title: string;
   mode: GuidedLearningMode;
@@ -8387,7 +8415,10 @@ export interface FlashcardCheckWriteEntry {
 
 /** `flashcard_sessions/{assignmentId}`: what assigned students load. */
 export interface FlashcardSession
-  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
+  extends
+    SubLaunchedSessionFields,
+    PeriodAccessSessionFields,
+    SessionWorkKindFields {
   id: string;
   teacherUid: string;
   setId: string;
@@ -8566,7 +8597,7 @@ export interface ProjectDefinition {
 }
 
 /** `/project_runs/{runId}`, runId = `${teacherUid}_${projectId}` (D13). */
-export interface ProjectRun {
+export interface ProjectRun extends SessionWorkKindFields {
   id: string;
   projectId: string;
   teacherUid: string;
@@ -9523,6 +9554,8 @@ export type GlobalFeature =
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
   | 'student-gradebook'
+  /** Redesigned student landing page at /my-assignments (docs/plans/STUDENT_LANDING_V2.md D26). */
+  | 'student-landing-v2'
   /** Quiz keeps assessment only; live review games move to the Review widget. */
   | 'quiz-review-split'
   /** Quiz assign/edit: an overall time limit per attempt with a student countdown. */
@@ -9547,7 +9580,9 @@ export type GlobalFeature =
   /** Record a group meeting on a note, with playback (docs/plans/PLC_MEETING_RECORDING.md). */
   | 'plc-meeting-recording'
   /** Transcript and drafted notes from a meeting recording; AND-ed with `gemini-functions`. */
-  | 'plc-meeting-ai-notes';
+  | 'plc-meeting-ai-notes'
+  /** Assign dialogs: mark a session Work (submitted, graded) or Resource (study only) (docs/plans/STUDENT_LANDING_V2.md D27). */
+  | 'study-resources';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

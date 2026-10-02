@@ -15,7 +15,10 @@ import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import type { AssignClassPickerValue } from '@/components/common/AssignClassPicker.helpers';
 import { Toggle } from '@/components/common/Toggle';
 import { AuthContext } from '@/context/AuthContextValue';
-import { applyAvailability } from '@/utils/assignAvailability';
+import {
+  applyAvailability,
+  type WorkKindSetting,
+} from '@/utils/assignAvailability';
 import {
   EMPTY_ASSIGN_TARGETING_VALUE,
   type AssignTargetingValue,
@@ -140,8 +143,14 @@ export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = ({
   const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>({
     rosterIds: initialRosterIds,
   });
-  const availabilityOn =
-    useContext(AuthContext)?.canAccessFeature('assign-availability') === true;
+  const auth = useContext(AuthContext);
+  const availabilityOn = auth?.canAccessFeature('assign-availability') === true;
+  const workKindSetting: WorkKindSetting | undefined =
+    auth?.canAccessFeature('study-resources') === true
+      ? form.collectSubmission
+        ? { default: 'work' }
+        : { default: 'resource', locked: true }
+      : undefined;
   const [targetingValue, setTargetingValue] = useState<AssignTargetingValue>(
     EMPTY_ASSIGN_TARGETING_VALUE
   );
@@ -368,6 +377,7 @@ export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = ({
         kind="flashcards"
         showDueAt
         availabilityEnabled={availabilityOn}
+        workKind={workKindSetting}
       />
     </div>
   );
@@ -398,6 +408,7 @@ export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = ({
                 (r) => !r.loadError && pickerValue.rosterIds.includes(r.id)
               ),
               bellWindow: periodAccess?.bellWindow,
+              workKind: workKindSetting,
             }).targeting,
             bellWindow: periodAccess?.bellWindow,
           })

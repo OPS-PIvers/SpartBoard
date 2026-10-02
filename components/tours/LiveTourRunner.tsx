@@ -19,8 +19,10 @@ import type {
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import {
+  clearTourHidden,
   clearTourLayoutOverrides,
   clearTourWidgetPatches,
+  setTourHidden,
   setTourLayoutOverrides,
   setTourWidgetPatches,
   type TourWidgetPatch,
@@ -52,6 +54,7 @@ import {
   claimSpawns,
   claimTourWidgets,
   hasStepSlide,
+  isActedStep,
   liveTourStepsOf,
   missingSetupWidgets,
   planTourSetup,
@@ -126,6 +129,10 @@ interface ActiveTour {
   spawnWatch: SpawnWatch[];
   /** Minimized widgets a step showed for now; they minimize again when the tour ends. */
   restored: string[];
+  /** The teacher's widgets cleared off the stage until the tour ends. */
+  hidden: string[];
+  /** A cleared stage: widgets the app adds while the tour runs are tour widgets. */
+  clearStage?: boolean;
   draft?: boolean;
 }
 
@@ -135,6 +142,7 @@ const EMPTY_LAYER = {
   moved: {} as Record<number, TourWidgetLayout>,
   spawnWatch: [] as SpawnWatch[],
   restored: [] as string[],
+  hidden: [] as string[],
 };
 
 /** A step that opens a widget watches for it from the board it starts on. */
@@ -278,7 +286,20 @@ export const LiveTourRunner: React.FC = () => {
       tour.spawnWatch,
       tour.slots
     );
-    if (claims !== tour.claims || spawned.bound.length > 0) {
+    // Unsaved widgets the app opened mid-tour join the Keep/Remove list.
+    const opened = widgets
+      .filter(
+        (w) =>
+          w.transient &&
+          !tour.beforeIds.has(w.id) &&
+          !tour.tourIds.includes(w.id)
+      )
+      .map((w) => w.id);
+    if (
+      claims !== tour.claims ||
+      spawned.bound.length > 0 ||
+      opened.length > 0
+    ) {
       const moved = { ...tour.moved };
       for (const layout of spawned.bound) moved[layout.slot] = layout;
       setTour({
@@ -287,6 +308,7 @@ export const LiveTourRunner: React.FC = () => {
         slots: spawned.slots,
         moved,
         spawnWatch: spawned.watches,
+        ...(opened.length > 0 ? { tourIds: [...tour.tourIds, ...opened] } : {}),
       });
     }
   }
@@ -313,6 +335,21 @@ export const LiveTourRunner: React.FC = () => {
     else clearTourLayoutOverrides();
   }, [overridesKey]);
 
+  // The teacher's widgets stay off the stage through teardown; any ending brings them back.
+  const hiddenIds =
+    tour?.phase === 'running' || tour?.phase === 'teardown' ? tour.hidden : [];
+  const hiddenKey = hiddenIds.join(',');
+  useEffect(() => {
+    if (hiddenKey) setTourHidden(hiddenKey.split(','));
+    else clearTourHidden();
+  }, [hiddenKey]);
+
+  // The app's own addWidget makes unsaved tour widgets while a cleared-stage tour runs.
+  const transientSpawns = tour?.phase === 'running' && !!tour.clearStage;
+  useEffect(() => {
+    latest.current.dashboard.setTourTransientSpawns?.(transientSpawns);
+  }, [transientSpawns]);
+
   // Undo for each prerequisite a step set up, run when the tour ends.
   const prereqUndos = useRef(new Map<string, () => void>());
   const undoPrerequisites = useCallback(() => {
@@ -324,9 +361,11 @@ export const LiveTourRunner: React.FC = () => {
   // Unmounting mid-tour leaves the board as it was.
   useEffect(
     () => () => {
+      latest.current.dashboard.setTourTransientSpawns?.(false);
       latest.current.dashboard.discardTourWidgets?.(tourIdsRef.current);
       clearTourLayoutOverrides();
       clearTourWidgetPatches();
+      clearTourHidden();
       undoPrerequisites();
     },
     [undoPrerequisites]
@@ -381,8 +420,11 @@ export const LiveTourRunner: React.FC = () => {
 
   const binding = step?.tour ?? null;
   const anchorScope = { widgetIds: added, slots: tour?.slots };
+  const onStage = hiddenIds.length
+    ? widgets.filter((w) => !hiddenIds.includes(w.id))
+    : widgets;
   const stepWidgetId = binding
-    ? prerequisiteWidgetId(binding, widgets, anchorScope)
+    ? prerequisiteWidgetId(binding, onStage, anchorScope)
     : null;
 
   // The anchor's widget comes to the front for the step, and restored widgets show; neither is saved.
@@ -500,9 +542,15 @@ export const LiveTourRunner: React.FC = () => {
     const slots: Record<number, string> = {};
     const moved: Record<number, TourWidgetLayout> = {};
     let missing: WidgetType[] = [];
-    if (set.tourSetup?.layouts?.length && d.addTourWidget) {
+    // A cleared stage hides the teacher's widgets and always adds fresh tour widgets.
+    const clearStage = !set.tourSetup?.useTeacherBoard && !!d.addTourWidget;
+    const hidden = clearStage
+      ? current.filter((w) => !w.transient).map((w) => w.id)
+      : [];
+    if (clearStage) setTourHidden(hidden);
+    if ((clearStage || set.tourSetup?.layouts?.length) && d.addTourWidget) {
       // Recorded layouts: unsaved tour widgets, and the teacher's own moved for now.
-      const plan = planTourSetup(set, steps, current);
+      const plan = planTourSetup(set, steps, clearStage ? [] : current);
       for (const { layout, widgetId } of plan.bind) {
         slots[layout.slot] = widgetId;
         moved[layout.slot] = layout;
@@ -553,6 +601,8 @@ export const LiveTourRunner: React.FC = () => {
         ...tourIds,
       ]),
       restored: [],
+      hidden,
+      clearStage,
       draft: opts.draft,
     });
   };
@@ -754,10 +804,17 @@ export const LiveTourRunner: React.FC = () => {
   advanceRef.current = goTo;
   const stepIndex = tour?.index ?? 0;
 
-  // A click on the anchor advances once the app has handled it.
+  const acted = isActedStep(step?.tour);
+  const action = step?.tour?.action;
+  // A click on the anchor advances once the app has handled it; typing and native selects advance on change.
   useEffect(() => {
     const el = anchor.element;
-    if (!el || step?.tour?.action !== 'click') return;
+    if (!el || !acted) return;
+    const onChange =
+      action === 'type' ||
+      (action === 'select' &&
+        (el instanceof HTMLSelectElement || !!el.querySelector('select')));
+    const eventName = onChange ? 'change' : 'click';
     let raf = 0;
     const onClick = () => {
       lastStepClickAt.current = Date.now();
@@ -765,12 +822,12 @@ export const LiveTourRunner: React.FC = () => {
       if (autoClicking.current) return;
       raf = requestAnimationFrame(() => advanceRef.current(stepIndex + 1));
     };
-    el.addEventListener('click', onClick, true);
+    el.addEventListener(eventName, onClick, true);
     return () => {
-      el.removeEventListener('click', onClick, true);
+      el.removeEventListener(eventName, onClick, true);
       cancelAnimationFrame(raf);
     };
-  }, [anchor.element, step?.tour?.action, stepIndex]);
+  }, [anchor.element, acted, action, stepIndex]);
 
   const running = tour?.phase === 'running';
   const offeringResume =
@@ -900,11 +957,11 @@ export const LiveTourRunner: React.FC = () => {
   const center = rect
     ? { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
     : null;
-  const isClick = step?.tour?.action === 'click';
+  const isClick = acted;
   // A step with no anchor is a centred card on the dimmed board.
   const plain = running && !!step && !step.tour;
   const cursorAllowed =
-    running && center !== null && isClick && !step.cursor?.hide;
+    running && center !== null && isClick && !step?.cursor?.hide;
   // Guided sets start with the Autopilot switch on; the teacher can flip it either way.
   const autopilot = autoOn;
   const stepKey = `${stepIndex}:${attempt}`;
@@ -960,7 +1017,8 @@ export const LiveTourRunner: React.FC = () => {
       setAuto(null);
       return;
     }
-    if (teacherMustClick(step.tour)) {
+    // Recorded values aren't performed yet, so a click could set the wrong state.
+    if (teacherMustClick(step.tour) || step.tour.action !== 'click') {
       setAuto({ key: stepKey, stage: 'yourTurn' });
       return;
     }
@@ -1192,8 +1250,8 @@ export const LiveTourRunner: React.FC = () => {
     );
   } else if (tour.phase === 'teardown') {
     content = dialog(
-      t('tours.keepWidgetsTitle'),
-      t('tours.keepWidgetsBody'),
+      t('tours.keepWidgetsTitle', { count: added.length }),
+      '',
       <>
         <button
           type="button"
@@ -1203,7 +1261,7 @@ export const LiveTourRunner: React.FC = () => {
             endTour();
           }}
         >
-          {t('tours.removeWidgets')}
+          {t('tours.putBoardBack')}
         </button>
         <button
           type="button"

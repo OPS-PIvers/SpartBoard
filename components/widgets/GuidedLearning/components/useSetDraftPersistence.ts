@@ -262,6 +262,7 @@ export function useSetDraftPersistence({
 
   const originalWatchPace = set?.watchPace;
   const originalTourSetup = useMemo(() => set?.tourSetup?.widgets ?? [], [set]);
+  const originalUseTeacherBoard = !!set?.tourSetup?.useTeacherBoard;
   const originalTourLayouts = useMemo(
     () => JSON.stringify(set?.tourSetup?.layouts ?? []),
     [set]
@@ -304,7 +305,8 @@ export function useSetDraftPersistence({
       !stepsEqual(tracked.steps, originalSteps) ||
       tracked.watchPace !== originalWatchPace ||
       !arraysEqual(tracked.tourSetupWidgets, originalTourSetup) ||
-      JSON.stringify(tracked.tourSetupLayouts) !== originalTourLayouts
+      JSON.stringify(tracked.tourSetupLayouts) !== originalTourLayouts ||
+      tracked.tourUseTeacherBoard !== originalUseTeacherBoard
     );
   }, [
     tracked.title,
@@ -321,6 +323,7 @@ export function useSetDraftPersistence({
     tracked.watchPace,
     tracked.tourSetupWidgets,
     tracked.tourSetupLayouts,
+    tracked.tourUseTeacherBoard,
     originalTitle,
     originalDescription,
     originalMode,
@@ -335,6 +338,7 @@ export function useSetDraftPersistence({
     originalWatchPace,
     originalTourSetup,
     originalTourLayouts,
+    originalUseTeacherBoard,
   ]);
 
   // One-time v1→v2 radius conversion at editor load: convert every spotlight
@@ -442,6 +446,7 @@ export function useSetDraftPersistence({
       tracked.watchPace,
       tracked.tourSetupWidgets,
       tracked.tourSetupLayouts,
+      tracked.tourUseTeacherBoard,
     ],
     [
       tracked.title,
@@ -458,6 +463,7 @@ export function useSetDraftPersistence({
       tracked.watchPace,
       tracked.tourSetupWidgets,
       tracked.tourSetupLayouts,
+      tracked.tourUseTeacherBoard,
     ]
   );
   const draftTokenRef = useRef(draftToken);
@@ -494,7 +500,11 @@ export function useSetDraftPersistence({
       tourSetup: _tourSetup,
       ...carried
     } = set;
-    const { layouts: _layouts, ...tourSetupCarried } = set.tourSetup ?? {};
+    const {
+      layouts: _layouts,
+      useTeacherBoard: _useTeacherBoard,
+      ...tourSetupCarried
+    } = set.tourSetup ?? {};
     const thumbs = editorState.slideThumbnails ?? set.slideThumbnails ?? {};
     const slideThumbnails = Object.fromEntries(
       editorState.imageUrls.flatMap((url) =>
@@ -545,13 +555,17 @@ export function useSetDraftPersistence({
       ...(editorState.watchPace ? { watchPace: editorState.watchPace } : {}),
       ...(set.tourSetup ||
       editorState.tourSetupWidgets.length > 0 ||
-      editorState.tourSetupLayouts.length > 0
+      editorState.tourSetupLayouts.length > 0 ||
+      editorState.tourUseTeacherBoard
         ? {
             tourSetup: {
               ...tourSetupCarried,
               widgets: editorState.tourSetupWidgets,
               ...(editorState.tourSetupLayouts.length > 0
                 ? { layouts: editorState.tourSetupLayouts }
+                : {}),
+              ...(editorState.tourUseTeacherBoard
+                ? { useTeacherBoard: true as const }
                 : {}),
             },
           }
