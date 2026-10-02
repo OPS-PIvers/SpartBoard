@@ -510,6 +510,8 @@ describe('TourRecorder', () => {
       await startRecording();
       fireEvent.pointerDown(screen.getByRole('switch'), { button: 0 });
       fireEvent.pointerDown(screen.getByText('Show seconds'), { button: 0 });
+      // The label forwards a detail-0 click to its checkbox.
+      fireEvent.click(screen.getByText('Show seconds'));
       await settle();
       const recording = await finish(onFinish);
       expect(recording.steps.map((s) => [s.tour.action, s.tour.value])).toEqual(
@@ -518,6 +520,21 @@ describe('TourRecorder', () => {
           ['toggle', false],
         ]
       );
+    });
+
+    it('records a keyboard toggle with no pointer before it', async () => {
+      const onFinish = renderRecorder(
+        vi.fn(),
+        null,
+        <button role="switch" aria-checked="true" data-tour="sidebar.boards">
+          Sound
+        </button>
+      );
+      await startRecording();
+      fireEvent.click(screen.getByRole('switch'), { detail: 0 });
+      await settle();
+      const recording = await finish(onFinish);
+      expect(tourOf(recording)).toEqual([['sidebar.boards', 'toggle', false]]);
     });
 
     it('records a native select by its chosen value, not the click into it', async () => {

@@ -423,8 +423,11 @@ export function useTourCapture({
     capture(field, 'type', recordableValue(field, field.value, matcher));
   };
 
+  // A label click forwards a detail-0 click to its checkbox; only keyboard clicks have no pointerdown before them.
+  const lastPointerDown = useRef(-Infinity);
   const onPointerDown = useEffectEvent((e: PointerEvent) => {
     if (e.button !== 0 || !(e.target instanceof Element)) return;
+    lastPointerDown.current = performance.now();
     const target = e.target;
     if (typing.current?.field !== typedFieldOf(target)) commitTyping();
     // Text fields and native selects record what is typed or chosen, not the click into them.
@@ -449,7 +452,8 @@ export function useTourCapture({
   // Keyboard-opened menus never see a pointerdown, but the opener is still its own step.
   const onClick = useEffectEvent((e: MouseEvent) => {
     if (e.detail !== 0 || !(e.target instanceof Element)) return;
-    const toggle = toggleOf(e.target, true);
+    const fromPointer = performance.now() - lastPointerDown.current < 1000;
+    const toggle = fromPointer ? null : toggleOf(e.target, true);
     if (toggle) {
       capture(toggle.element, 'toggle', toggle.value);
       return;
