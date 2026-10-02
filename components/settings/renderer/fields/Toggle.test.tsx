@@ -47,6 +47,21 @@ describe('ToggleField', () => {
     expect(screen.getByText('Enabled')).toBeInTheDocument();
   });
 
+  it('tags the switch as a per-field tour anchor', () => {
+    render(
+      <FieldRenderer
+        field={field}
+        widget={widget}
+        ctx={makeCtx({ enabled: true })}
+        updateConfig={vi.fn()}
+      />
+    );
+    const control = screen.getByRole('switch');
+    expect(control).toHaveAttribute('data-tour', 'settings.toggle');
+    expect(control).toHaveAttribute('data-tour-widget-type', 'clock');
+    expect(control).toHaveAttribute('data-tour-field', 'enabled');
+  });
+
   it('calls onChange with the flipped boolean', () => {
     const updateConfig = vi.fn() as UpdateConfig;
     render(

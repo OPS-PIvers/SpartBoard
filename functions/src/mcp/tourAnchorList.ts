@@ -165,6 +165,13 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     panel: true,
   },
   {
+    id: 'settings.toggle',
+    label:
+      'The on/off switch of a settings field, by widget type and field key',
+    scope: 'field',
+    panel: true,
+  },
+  {
     id: 'sidebar.open-menu',
     label: 'Menu button in the top bar',
     scope: 'board',
