@@ -73,7 +73,7 @@ Locked after six concept rounds reviewed on mobile. The source of truth for the 
 - `components/sparty/spartyFrames.ts`: each pose is a list of frames; each frame is 32 strings of 32 palette characters (`.` transparent). Poses list per-frame durations.
 - `components/sparty/Sparty.tsx`: `<Sparty pose="wave" size={64} label?="…" />`. Converts each frame to merged horizontal-run `<rect>`s (memoized per pose at module scope), stacks the frames as `<g>`s in one `<svg shape-rendering="crispEdges">`, and shows one at a time with a generated CSS `steps()` keyframe.
 - Accessibility: one `role="img"` with an `aria-label` (default "Sparty"); purely decorative uses pass `aria-hidden`.
-- Reduced motion: frame 1 only. Add the Sparty animation class to the reduced-motion plugin list in `tailwind.config.js`.
+- Reduced motion: frame 1 only, through a `prefers-reduced-motion` media query in the generated keyframes stylesheet (`components/sparty/spartyRender.ts`), not the `tailwind.config.js` plugin list.
 - `components/sparty/SpartyBubble.tsx`: Sparty plus a speech bubble; text is real DOM text.
 - No framer-motion, lottie, canvas or image files.
 
