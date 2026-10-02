@@ -27,10 +27,12 @@ const MAX_CHARACTERS = 24;
 const ASCII_LETTER = /^[a-z]$/;
 const SPECIAL_CHARACTER = /^[\p{Script=Latin}¿¡]$/u;
 
-export const getFlashcardCharBar = (language: string): readonly string[] =>
-  FLASHCARD_CHAR_BARS[
-    language.trim().toLocaleLowerCase().split('-')[0] ?? ''
-  ] ?? [];
+export const getFlashcardCharBar = (language: string): readonly string[] => {
+  const key = language.trim().toLocaleLowerCase().split('-')[0] ?? '';
+  return Object.hasOwn(FLASHCARD_CHAR_BARS, key)
+    ? (FLASHCARD_CHAR_BARS[key] ?? [])
+    : [];
+};
 
 // Language bar plus any special Latin characters used in the answers, so a mislabeled set still gets them.
 export const getFlashcardAnswerCharacters = (

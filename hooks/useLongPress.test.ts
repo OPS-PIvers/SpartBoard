@@ -56,4 +56,18 @@ describe('useLongPress', () => {
 
     expect(onLongPress).not.toHaveBeenCalled();
   });
+
+  it('does not leak the first timer when a second pointer goes down before release', () => {
+    vi.useFakeTimers();
+    const onLongPress = vi.fn();
+    const { result } = renderHook(() => useLongPress(onLongPress));
+
+    result.current.onPointerDown(fakePointerEvent());
+    vi.advanceTimersByTime(300);
+    result.current.onPointerDown(fakePointerEvent());
+    result.current.onPointerUp();
+    vi.advanceTimersByTime(600);
+
+    expect(onLongPress).not.toHaveBeenCalled();
+  });
 });

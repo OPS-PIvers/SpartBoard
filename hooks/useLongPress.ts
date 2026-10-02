@@ -39,11 +39,12 @@ export function useLongPress(
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       options?.onPointerDown?.(e);
+      clear();
       if (options?.disabled) return;
       startPosRef.current = { x: e.clientX, y: e.clientY };
       timerRef.current = setTimeout(onLongPress, HOLD_DELAY_MS);
     },
-    [onLongPress, options]
+    [clear, onLongPress, options]
   );
 
   const handlePointerMove = useCallback(

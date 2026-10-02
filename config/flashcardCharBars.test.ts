@@ -13,6 +13,12 @@ describe('flashcard character bars', () => {
     expect(getFlashcardCharBar('en-US')).toEqual([]);
   });
 
+  it('ignores language codes that match Object.prototype members', () => {
+    expect(getFlashcardCharBar('constructor')).toEqual([]);
+    expect(getFlashcardCharBar('__proto__')).toEqual([]);
+    expect(getFlashcardAnswerCharacters('constructor', ['año'])).toEqual(['ñ']);
+  });
+
   it('adds special characters found in the answers', () => {
     expect(
       getFlashcardAnswerCharacters('en-US', ['élève', 'año', 'cat'])
