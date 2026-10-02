@@ -102,7 +102,7 @@ export const usePlcLinks = (plcId: string | null, enabled = true) => {
       await setDoc(ref, {
         id: ref.id,
         title: draft.title.trim(),
-        url: ensureProtocol(draft.url).replace(/^http:\/\//i, 'https://'),
+        url: ensureProtocol(draft.url).replace(/^https?:\/\//i, 'https://'),
         ...(note.length > 0 ? { note } : {}),
         createdBy: user.uid,
         createdByName: user.displayName ?? user.email ?? '',

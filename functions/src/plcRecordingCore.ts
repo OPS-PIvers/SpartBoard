@@ -4,6 +4,7 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import './functionsInit';
 import { withDuration } from './webmDuration';
+import { refundAiUsage } from './aiGeneration';
 
 type Firestore = admin.firestore.Firestore;
 type DocRef = admin.firestore.DocumentReference;
@@ -776,7 +777,13 @@ export async function runSweepExpiredRecordingAudio(
           continue;
         try {
           if (rec.status === 'queued' || rec.status === 'transcribing') {
-            await doc.ref.update({ status: 'failed', error: 'audio-expired' });
+            await doc.ref.update({
+              status: 'failed',
+              error: 'audio-expired',
+              quotaCharge: null,
+            });
+            const charge = chargeOf(rec.quotaCharge);
+            if (charge) await refundAiUsage(deps.db, charge);
           }
           await deleteRecordingAudio(deps, plcId, doc.id, 'expired');
           deleted += 1;
@@ -792,6 +799,13 @@ export async function runSweepExpiredRecordingAudio(
     }
   }
   return deleted;
+}
+
+function chargeOf(v: unknown): { docIds: string[] } | null {
+  const ids = (v as { docIds?: unknown } | null)?.docIds;
+  return Array.isArray(ids) && ids.every((i) => typeof i === 'string')
+    ? { docIds: ids }
+    : null;
 }
 
 // ───────────────────────── callables ─────────────────────────
@@ -864,7 +878,20 @@ export async function deleteAudioAsEditor(
     return { deleted: false };
   }
   if (rec.status === 'queued') {
-    await ref.update({ status: 'ready', requestedBy: null });
+    // Re-checked in a transaction so a job claimed in the meantime keeps its audio.
+    const charge = await deps.db.runTransaction(async (tx) => {
+      const cur = (await tx.get(ref)).data();
+      if (cur?.status === 'transcribing') {
+        throw new HttpsError(
+          'failed-precondition',
+          'Notes are being made from this recording. Try again when they are ready.'
+        );
+      }
+      if (cur?.status !== 'queued') return null;
+      tx.update(ref, { status: 'ready', requestedBy: null, quotaCharge: null });
+      return chargeOf(cur.quotaCharge);
+    });
+    if (charge) await refundAiUsage(deps.db, charge);
   }
   await deleteRecordingAudio(deps, plcId, recordingId, 'manual');
   return { deleted: true };

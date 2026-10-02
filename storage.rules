@@ -334,8 +334,8 @@ service firebase.storage {
     }
     match /plc_meeting_audio/{plcId}/{recordingId}/{partIndex}/{fileName} {
       allow create: if request.auth != null && viewAsWriteOk()
-        && partIndex.matches('[0-9]+')
-        && fileName.matches('[0-9]+[.]webm')
+        && partIndex.matches('[0-9]{1,4}')
+        && fileName.matches('[0-9]{1,5}[.]webm')
         && request.resource.size < 5 * 1024 * 1024
         && request.resource.contentType.matches('audio/webm(;.*)?')
         && firestore.get(

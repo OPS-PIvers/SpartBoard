@@ -220,6 +220,20 @@ describe.skipIf(!RUN)('meeting recording against the emulators', () => {
     });
   });
 
+  it('deleting queued audio returns it to ready and refunds the charge', async () => {
+    await deps.db.collection('ai_usage').doc('u-q1').set({ count: 1 });
+    await seed('q1', { status: 'queued', quotaCharge: { docIds: ['u-q1'] } });
+    await put(partPath(plcId, 'q1', 0), 'Q');
+    expect(await deleteAudioAsEditor(deps, 'ed', plcId, 'q1')).toEqual({
+      deleted: true,
+    });
+    const after = await rec('q1');
+    expect(after?.status).toBe('ready');
+    expect(after?.quotaCharge).toBeNull();
+    const usage = await deps.db.collection('ai_usage').doc('u-q1').get();
+    expect(usage.data()?.count).toBe(0);
+  });
+
   it('the stale finalizer interrupts silent recordings and stops long pauses only', async () => {
     const live = now;
     await seed('silent', {
