@@ -24,6 +24,7 @@ import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
 import { logError } from '@/utils/logError';
 import {
   collectShareRosterIds,
+  effectiveActiveRosterId,
   shareRosterEntries,
   flattenSharedCollection,
 } from '@/utils/subShareSnapshot';
@@ -170,7 +171,7 @@ export const ShareCollectionLinkCreatorModal: FC<
           const tree = subTree;
           const rosterIds = collectShareRosterIds(
             tree.orderedBoards,
-            activeRosterId
+            effectiveActiveRosterId(rosters, activeRosterId)
           );
           const sharedRosters =
             subEmails.length > 0

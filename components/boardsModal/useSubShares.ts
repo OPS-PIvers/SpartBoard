@@ -12,6 +12,7 @@ import { useAuth } from '@/context/useAuth';
 import { logError } from '@/utils/logError';
 import {
   collectShareRosterIds,
+  effectiveActiveRosterId,
   shareRosterEntries,
   flattenSharedCollection,
   singleBoardTree,
@@ -161,7 +162,7 @@ export function useSubShares(enabled: boolean): SubSharesApi {
         // teacher added since the last push reaches the same subs.
         const rosterIds = collectShareRosterIds(
           tree.orderedBoards,
-          activeRosterId
+          effectiveActiveRosterId(rosters, activeRosterId)
         );
         const sharedRosters = shareRosterEntries(
           rosters,

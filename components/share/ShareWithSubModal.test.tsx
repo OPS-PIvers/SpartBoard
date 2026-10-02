@@ -53,6 +53,11 @@ const updateSubstituteCollectionShare = vi.fn((_input: unknown) =>
   Promise.resolve()
 );
 const addToast = vi.fn();
+let dashboardRosters: Array<{
+  id: string;
+  name: string;
+  driveFileId: string | null;
+}> = [];
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
@@ -60,7 +65,7 @@ vi.mock('@/context/useDashboard', () => ({
     // the collection path.
     dashboards: [],
     collectionsApi: { collections: [] },
-    rosters: [],
+    rosters: dashboardRosters,
     activeRosterId: null,
     addToast,
     shareSubstituteCollection,
@@ -215,6 +220,24 @@ describe('ShareWithSubModal — sub emails', () => {
 
     await waitFor(() => expect(shareSubstituteCollection).toHaveBeenCalled());
     expect(savedEmails()).toEqual(['sub@orono.k12.mn.us']);
+  });
+
+  it('shares the class list widgets fall back to when no class was ever picked', async () => {
+    dashboardRosters = [{ id: 'r1', name: 'Homeroom', driveFileId: 'drive-1' }];
+    try {
+      openModal();
+      fireEvent.click(screen.getByRole('button', { name: 'Share' }));
+
+      await waitFor(() => expect(shareSubstituteCollection).toHaveBeenCalled());
+      const input = shareSubstituteCollection.mock.calls[0]?.[0] as {
+        sharedRosters?: unknown;
+      };
+      expect(input.sharedRosters).toEqual([
+        { id: 'r1', name: 'Homeroom', driveFileId: 'drive-1' },
+      ]);
+    } finally {
+      dashboardRosters = [];
+    }
   });
 
   it('un-ticks a preset the teacher does not want', async () => {

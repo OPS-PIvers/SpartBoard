@@ -85,6 +85,17 @@ export function singleBoardTree(board: Dashboard): SharedCollectionTree {
   };
 }
 
+/** The roster class-mode widgets actually show: the active one, else the first (as they fall back). */
+export function effectiveActiveRosterId(
+  rosters: Pick<ClassRoster, 'id'>[],
+  activeRosterId: string | null | undefined
+): string | null {
+  if (activeRosterId && rosters.some((r) => r.id === activeRosterId)) {
+    return activeRosterId;
+  }
+  return rosters[0]?.id ?? null;
+}
+
 /**
  * Roster ids the shared boards read: the active roster (every widget in
  * `rosterMode: 'class'` resolves to it) plus every roster remembered by a
