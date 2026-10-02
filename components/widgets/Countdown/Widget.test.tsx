@@ -77,7 +77,7 @@ describe('CountdownWidget', () => {
       />
     );
 
-    expect(container.querySelector('svg')).toBeInTheDocument();
+    expect(container.querySelector('svg.text-amber-500')).toBeInTheDocument();
   });
 
   it('keeps the headline countdown in sync with the same countToday rule', () => {
