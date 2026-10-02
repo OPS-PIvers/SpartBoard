@@ -3,6 +3,7 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import './functionsInit';
+import { withDuration } from './webmDuration';
 
 type Firestore = admin.firestore.Firestore;
 type DocRef = admin.firestore.DocumentReference;
@@ -383,6 +384,24 @@ export function defaultRecordingDeps(): RecordingDeps {
   };
 }
 
+/** Sets the WebM Duration inside the first piece (the one holding the header) and grows that piece's byte count to match. */
+export function withPlayableDuration(spliced: {
+  data: Buffer;
+  index: SegmentEntry[];
+}): { data: Buffer; index: SegmentEntry[] } {
+  const head = spliced.index[0];
+  if (!head || head.index > 0) return spliced;
+  const fixed = withDuration(spliced.data, head.bytes);
+  if (!fixed) return spliced;
+  return {
+    data: fixed.data,
+    index: [
+      { index: head.index, bytes: head.bytes + fixed.delta },
+      ...spliced.index.slice(1),
+    ],
+  };
+}
+
 /** Folds pending segments from `source` into `target`'s part files, then deletes them. Returns per-part segment counts. */
 async function mergePendingSegments(
   bucket: AudioBucket,
@@ -404,8 +423,9 @@ async function mergePendingSegments(
     const existing = await bucket.read(dest);
     const spliced = spliceSegments(existing, incoming);
     if (spliced.added > 0 || !existing) {
-      await bucket.write(dest, spliced.data, {
-        [SEGMENT_INDEX_META]: encodeSegmentIndex(spliced.index),
+      const playable = withPlayableDuration(spliced);
+      await bucket.write(dest, playable.data, {
+        [SEGMENT_INDEX_META]: encodeSegmentIndex(playable.index),
       });
     }
     // Segments are removed only after the part file holding them is written.
@@ -461,6 +481,12 @@ async function completeFinalize(
     finalizingAt: admin.firestore.FieldValue.delete(),
   };
   if (reason === 'interrupted') update.interruptedAtMs = num(rec.durationMs);
+  if (rec.audioExpiresAt == null && rec.audioDeletedAt == null) {
+    const created = toMillis(rec.createdAt) || deps.now();
+    update.audioExpiresAt = admin.firestore.Timestamp.fromMillis(
+      created + AUDIO_RETENTION_MS
+    );
+  }
   if (reason === 'late') {
     update.error = admin.firestore.FieldValue.delete();
     update.mergedSegments = admin.firestore.FieldValue.increment(merged);
