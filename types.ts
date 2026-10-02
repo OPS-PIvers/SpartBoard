@@ -896,6 +896,84 @@ export interface PlcNote {
   deletedAt?: number | null;
 }
 
+/** Lifecycle of a note's meeting recording (docs/plans/PLC_MEETING_RECORDING.md). */
+export type PlcRecordingStatus =
+  | 'recording'
+  | 'paused'
+  | 'finalizing'
+  | 'ready'
+  | 'queued'
+  | 'transcribing'
+  | 'transcribed'
+  | 'failed';
+
+export type PlcRecordingAudioDeletedReason =
+  | 'manual'
+  | 'expired'
+  | 'transcribed';
+
+/** One MediaRecorder run; its segments concatenate into one WebM file (MR-D7). */
+export interface PlcRecordingPart {
+  segmentCount: number;
+  durationMs: number;
+}
+
+/** An action item drafted from a recording; the owner is only a suggestion (MR-D18). */
+export interface PlcRecordingDraftActionItem {
+  id: string;
+  text: string;
+  suggestedOwnerUid?: string | null;
+}
+
+/** Notes drafted from a recording, waiting for an editor to review (MR-D19). */
+export interface PlcRecordingDraft {
+  markdown: string;
+  actionItems: PlcRecordingDraftActionItem[];
+  generatedAt: number;
+  generatedBy: string;
+}
+
+/** `plcs/{plcId}/recordings/{recordingId}`: one recording attached to a note. */
+export interface PlcRecording {
+  id: string;
+  noteId: string;
+  recorderUid: string;
+  /** Set on a "Recovered audio" recording: the recording its late segments came from (MR-D8). */
+  recoveredFrom?: string | null;
+  status: PlcRecordingStatus;
+  parts: PlcRecordingPart[];
+  durationMs: number;
+  lastHeartbeatAt: number;
+  /** Recorded time at which the server finalized a stale recording (MR-D8). */
+  interruptedAtMs?: number | null;
+  finalizedAt?: number | null;
+  audioDeletedAt?: number | null;
+  audioDeletedReason?: PlcRecordingAudioDeletedReason | null;
+  /** Removed once the audio is deleted. */
+  audioExpiresAt?: number | null;
+  /** Late segments merged back in after finalizing (MR-D8). */
+  mergedSegments?: number | null;
+  /** On the original: the Recovered audio recording its late segments went to (MR-D8). */
+  recoveredInto?: string | null;
+  error?: string | null;
+  requestedBy?: string | null;
+  draft?: PlcRecordingDraft | null;
+  draftResolvedAt?: number | null;
+  createdAt: number;
+}
+
+/** One speaker turn; speakers are numbered, never named (MR-D17). */
+export interface PlcTranscriptSegment {
+  speaker: number;
+  startMs: number;
+  text: string;
+}
+
+/** `plcs/{plcId}/recordings/{recordingId}/transcript/main`, written only by the server. */
+export interface PlcRecordingTranscript {
+  segments: PlcTranscriptSegment[];
+}
+
 /**
  * @deprecated Legacy. One PLC to-do. Read-only going forward; imported into
  * note action items (Decision 7.4). No new to-dos are created.
@@ -9442,7 +9520,11 @@ export type GlobalFeature =
   | 'drawing-ai'
   | 'webcam-ai'
   | 'blooms-ai'
-  | 'my-groups';
+  | 'my-groups'
+  /** Record a group meeting on a note, with playback (docs/plans/PLC_MEETING_RECORDING.md). */
+  | 'plc-meeting-recording'
+  /** Transcript and drafted notes from a meeting recording; AND-ed with `gemini-functions`. */
+  | 'plc-meeting-ai-notes';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

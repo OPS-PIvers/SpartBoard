@@ -1037,6 +1037,28 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'plc-meeting-recording': {
+    label: 'Meeting recording',
+    icon: Mic,
+    description: 'Record a group meeting on a note and play it back.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Server also requires gemini-functions and a saved doc (enforceAiFeatureAccess, missingDocAllowed: false).
+  'plc-meeting-ai-notes': {
+    label: 'AI meeting notes',
+    icon: Sparkles,
+    description: 'Transcript and draft notes from a meeting recording.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'ai',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */
