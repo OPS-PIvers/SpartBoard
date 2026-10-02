@@ -67,6 +67,8 @@ interface AnalyticsUserRow {
   buildings: string[];
   lastSignInMs: number;
   lastEditMs: number;
+  lastActiveMs: number;
+  hasAccount: boolean;
   hasDashboard: boolean;
   isMonthlyActive: boolean;
   isDailyActive: boolean;
@@ -81,7 +83,14 @@ interface MemberLite {
   email: string;
   uid: string | null;
   buildingIds: string[];
+  lastActiveStampMs: number;
 }
+
+const parseTimeMs = (raw: unknown): number => {
+  if (typeof raw !== 'string' || !raw) return 0;
+  const ms = Date.parse(raw);
+  return Number.isFinite(ms) ? ms : 0;
+};
 
 /**
  * Compute the full analytics payload for one org. Pure(ish) — only side
@@ -116,6 +125,7 @@ export async function computeAnalyticsForOrg(
       email?: unknown;
       uid?: unknown;
       buildingIds?: unknown;
+      lastActive?: unknown;
     };
     const memberEmail =
       typeof data.email === 'string' ? data.email.toLowerCase() : doc.id;
@@ -125,23 +135,28 @@ export async function computeAnalyticsForOrg(
           (id): id is string => typeof id === 'string' && id.length > 0
         )
       : [];
-    members.push({ email: memberEmail, uid, buildingIds });
+    members.push({
+      email: memberEmail,
+      uid,
+      buildingIds,
+      lastActiveStampMs: parseTimeMs(data.lastActive),
+    });
   }
 
-  // Resolve Firebase Auth metadata for members with a linked uid. `getUsers`
-  // tolerates up to 100 identifiers per call and silently drops uids that no
-  // longer exist in Auth, which is the right behavior for a member doc whose
-  // uid was revoked.
+  // Resolve Firebase Auth metadata. Only invite claims write `uid` onto a
+  // member doc, so members added any other way (seeded admins, roster sync)
+  // are resolved by email instead of being reported as never active.
   const authUsersMap = new Map<
     string,
-    { email: string; lastSignInMs: number }
+    { email: string; lastSignInMs: number; lastRefreshMs: number }
   >();
-  const uidsToResolve = members
-    .map((m) => m.uid)
-    .filter((uid): uid is string => uid !== null);
-  const chunks: { uid: string }[][] = [];
-  for (let i = 0; i < uidsToResolve.length; i += 100) {
-    chunks.push(uidsToResolve.slice(i, i + 100).map((uid) => ({ uid })));
+  const uidByEmail = new Map<string, string>();
+  const identifiers: admin.auth.UserIdentifier[] = members.map((m) =>
+    m.uid ? { uid: m.uid } : { email: m.email }
+  );
+  const chunks: admin.auth.UserIdentifier[][] = [];
+  for (let i = 0; i < identifiers.length; i += 100) {
+    chunks.push(identifiers.slice(i, i + 100));
   }
 
   await Promise.all(
@@ -149,13 +164,12 @@ export async function computeAnalyticsForOrg(
       try {
         const result = await admin.auth().getUsers(chunk);
         for (const u of result.users) {
-          const lastSignIn = u.metadata.lastSignInTime
-            ? new Date(u.metadata.lastSignInTime).getTime()
-            : 0;
           authUsersMap.set(u.uid, {
             email: u.email ?? '',
-            lastSignInMs: lastSignIn,
+            lastSignInMs: parseTimeMs(u.metadata.lastSignInTime),
+            lastRefreshMs: parseTimeMs(u.metadata.lastRefreshTime),
           });
+          if (u.email) uidByEmail.set(u.email.toLowerCase(), u.uid);
         }
       } catch (err) {
         partial = true;
@@ -168,6 +182,9 @@ export async function computeAnalyticsForOrg(
       }
     })
   );
+  for (const m of members) {
+    if (!m.uid) m.uid = uidByEmail.get(m.email) ?? null;
+  }
 
   // Build uid → member lookup so downstream dashboard/AI filters can scope to
   // org members without being gated on a successful `auth().getUsers()`
@@ -264,9 +281,18 @@ export async function computeAnalyticsForOrg(
     }
   }
 
-  // 4. Compute engagement from last-edit timestamps. Iterate the org member
-  // roster (not just the auth-resolved subset) so invited-but-never-signed-in
-  // members count toward totals with zero engagement.
+  // 4. Compute engagement from the latest of board edit, sign-in, token
+  // refresh (any open tab refreshes hourly) and the member-doc lastActive
+  // stamp. Iterate the whole roster so invited members count toward totals.
+  const lastActiveFor = (member: MemberLite): number => {
+    const authInfo = member.uid ? authUsersMap.get(member.uid) : undefined;
+    return Math.max(
+      member.uid ? (lastEditByUser.get(member.uid) ?? 0) : 0,
+      authInfo?.lastSignInMs ?? 0,
+      authInfo?.lastRefreshMs ?? 0,
+      member.lastActiveStampMs
+    );
+  };
   const usersByDomain: Record<string, EngagementCounts> = {};
   const usersByBuilding: Record<string, EngagementCounts> = {};
   const usersByDomainAndBuilding: Record<
@@ -284,9 +310,10 @@ export async function computeAnalyticsForOrg(
     const domain = userEmail.includes('@')
       ? userEmail.split('@')[1]
       : 'unknown';
-    const lastEditMs = member.uid ? (lastEditByUser.get(member.uid) ?? 0) : 0;
-    const isMonthlyActive = lastEditMs > 0 && now - lastEditMs <= thirtyDaysMs;
-    const isDailyActive = lastEditMs > 0 && now - lastEditMs <= oneDayMs;
+    const lastActiveMs = lastActiveFor(member);
+    const isMonthlyActive =
+      lastActiveMs > 0 && now - lastActiveMs <= thirtyDaysMs;
+    const isDailyActive = lastActiveMs > 0 && now - lastActiveMs <= oneDayMs;
 
     totalEngagement.total += 1;
     if (isMonthlyActive) totalEngagement.monthly += 1;
@@ -326,14 +353,17 @@ export async function computeAnalyticsForOrg(
     const authInfo = member.uid ? authUsersMap.get(member.uid) : undefined;
     const lastSignInMs = authInfo?.lastSignInMs ?? 0;
     const lastEditMs = member.uid ? (lastEditByUser.get(member.uid) ?? 0) : 0;
+    const lastActiveMs = lastActiveFor(member);
     return {
       email: member.email,
       buildings: member.buildingIds,
       lastSignInMs,
       lastEditMs,
+      lastActiveMs,
+      hasAccount: authInfo !== undefined,
       hasDashboard: member.uid ? allDashboardOwnerUids.has(member.uid) : false,
-      isMonthlyActive: lastEditMs > 0 && now - lastEditMs <= thirtyDaysMs,
-      isDailyActive: lastEditMs > 0 && now - lastEditMs <= oneDayMs,
+      isMonthlyActive: lastActiveMs > 0 && now - lastActiveMs <= thirtyDaysMs,
+      isDailyActive: lastActiveMs > 0 && now - lastActiveMs <= oneDayMs,
     };
   });
 

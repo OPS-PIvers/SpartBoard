@@ -60,6 +60,8 @@ interface KpiUser {
   buildings: string[];
   lastSignInMs: number;
   lastEditMs: number;
+  lastActiveMs?: number;
+  hasAccount?: boolean;
   hasDashboard: boolean;
   isMonthlyActive: boolean;
   isDailyActive: boolean;
@@ -1152,7 +1154,11 @@ const formatRelativeTime = (ms: number): string => {
   return new Date(ms).toLocaleDateString();
 };
 
-type KpiSortKey = 'email' | 'building' | 'lastEdit';
+// Snapshots written before lastActiveMs existed fall back to edit and sign-in times.
+const lastActiveOf = (u: KpiUser): number =>
+  u.lastActiveMs ?? Math.max(u.lastEditMs ?? 0, u.lastSignInMs ?? 0);
+
+type KpiSortKey = 'email' | 'building' | 'lastActive';
 
 const KpiUserModal: React.FC<{
   isOpen: boolean;
@@ -1189,7 +1195,7 @@ const KpiUserModal: React.FC<{
   const categoryUsers = useMemo(() => {
     switch (category) {
       case 'registered':
-        return users;
+        return users.filter((u) => u.hasAccount ?? true);
       case 'withDashboards':
         return users.filter((u) => u.hasDashboard);
       case 'monthlyActive':
@@ -1244,8 +1250,8 @@ const KpiUserModal: React.FC<{
           cmp = aName.localeCompare(bName);
           break;
         }
-        case 'lastEdit':
-          cmp = (a.lastEditMs ?? 0) - (b.lastEditMs ?? 0);
+        case 'lastActive':
+          cmp = lastActiveOf(a) - lastActiveOf(b);
           break;
       }
       return sortDir === 'asc' ? cmp : -cmp;
@@ -1325,10 +1331,10 @@ const KpiUserModal: React.FC<{
                 </th>
                 <th
                   className="text-left px-4 py-2.5 font-semibold text-slate-600 cursor-pointer select-none hover:bg-slate-100 transition-colors"
-                  onClick={() => handleSort('lastEdit')}
+                  onClick={() => handleSort('lastActive')}
                 >
                   <span className="inline-flex items-center gap-1">
-                    Last Edit {renderSortIcon('lastEdit')}
+                    Last Active {renderSortIcon('lastActive')}
                   </span>
                 </th>
               </tr>
@@ -1366,12 +1372,12 @@ const KpiUserModal: React.FC<{
                     <td
                       className="px-4 py-2.5 text-slate-600"
                       title={
-                        (u.lastEditMs ?? 0) > 0
-                          ? new Date(u.lastEditMs).toLocaleString()
-                          : 'No edits'
+                        lastActiveOf(u) > 0
+                          ? new Date(lastActiveOf(u)).toLocaleString()
+                          : undefined
                       }
                     >
-                      {formatRelativeTime(u.lastEditMs ?? 0)}
+                      {formatRelativeTime(lastActiveOf(u))}
                     </td>
                   </tr>
                 ))
@@ -1678,6 +1684,10 @@ export const AnalyticsManager: React.FC = () => {
     };
   }, [data, selectedBuilding, selectedDomain]);
 
+  // Domain/building filters must apply to every KPI, not only the active counts.
+  const isFiltered =
+    (selectedDomain !== 'all' || selectedBuilding !== 'all') &&
+    (data?.users.userList?.length ?? 0) > 0;
   const filteredUserList = useMemo(() => {
     const list = data?.users.userList ?? [];
     if (selectedDomain === 'all' && selectedBuilding === 'all') return list;
@@ -1924,9 +1934,17 @@ export const AnalyticsManager: React.FC = () => {
             filteredTotalUsers={filteredTotalUsers}
             filteredMonthly={filteredMonthly}
             filteredDaily={filteredDaily}
-            registeredUsers={data.users.registered ?? data.users.total}
+            registeredUsers={
+              isFiltered
+                ? filteredUserList.filter((u) => u.hasAccount ?? true).length
+                : (data.users.registered ?? data.users.total)
+            }
             registeredIsFallback={data.users.registeredIsFallback ?? false}
-            usersWithDashboards={data.users.withDashboards ?? 0}
+            usersWithDashboards={
+              isFiltered
+                ? filteredUserList.filter((u) => u.hasDashboard).length
+                : (data.users.withDashboards ?? 0)
+            }
             dashboards={
               data.dashboards ?? { total: 0, avgWidgetsPerDashboard: 0 }
             }
