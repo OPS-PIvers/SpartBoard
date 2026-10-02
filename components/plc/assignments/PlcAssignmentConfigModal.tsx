@@ -312,11 +312,17 @@ export const PlcAssignmentConfigModal: React.FC<
         });
 
         addToast(
-          t('plcDashboard.assignmentConfig.quizCreated', {
-            title: quizRef.title,
-            defaultValue:
-              '"{{title}}" created (paused) and shared with this PLC.',
-          }),
+          groupWording
+            ? t('plcDashboard.assignmentConfig.groupQuizCreated', {
+                title: quizRef.title,
+                defaultValue:
+                  '"{{title}}" created (paused) and shared with this group.',
+              })
+            : t('plcDashboard.assignmentConfig.quizCreated', {
+                title: quizRef.title,
+                defaultValue:
+                  '"{{title}}" created (paused) and shared with this PLC.',
+              }),
           'success'
         );
       } else {
@@ -400,11 +406,17 @@ export const PlcAssignmentConfigModal: React.FC<
         });
 
         addToast(
-          t('plcDashboard.assignmentConfig.videoCreated', {
-            title: activityRef.title,
-            defaultValue:
-              '"{{title}}" created (paused) and shared with this PLC.',
-          }),
+          groupWording
+            ? t('plcDashboard.assignmentConfig.groupVideoCreated', {
+                title: activityRef.title,
+                defaultValue:
+                  '"{{title}}" created (paused) and shared with this group.',
+              })
+            : t('plcDashboard.assignmentConfig.videoCreated', {
+                title: activityRef.title,
+                defaultValue:
+                  '"{{title}}" created (paused) and shared with this PLC.',
+              }),
           'success'
         );
       }

@@ -335,14 +335,24 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
                       className="shrink-0 flex items-center gap-1.5 text-sm font-semibold text-brand-blue-primary hover:text-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors px-3 py-1.5 rounded-lg hover:bg-brand-blue-primary/10"
                       aria-label={
                         isDeepLink
-                          ? t('plcDashboard.resources.openAction', {
-                              title: res.title,
-                              defaultValue: `Open ${res.title} in this PLC`,
-                            })
-                          : t('plcDashboard.resources.useAction', {
-                              title: res.title,
-                              defaultValue: `Use ${res.title} in this PLC`,
-                            })
+                          ? groupWording
+                            ? t('plcDashboard.resources.groupOpenAction', {
+                                title: res.title,
+                                defaultValue: `Open ${res.title} in this group`,
+                              })
+                            : t('plcDashboard.resources.openAction', {
+                                title: res.title,
+                                defaultValue: `Open ${res.title} in this PLC`,
+                              })
+                          : groupWording
+                            ? t('plcDashboard.resources.groupUseAction', {
+                                title: res.title,
+                                defaultValue: `Use ${res.title} in this group`,
+                              })
+                            : t('plcDashboard.resources.useAction', {
+                                title: res.title,
+                                defaultValue: `Use ${res.title} in this PLC`,
+                              })
                       }
                     >
                       {isPending ? (

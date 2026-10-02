@@ -27,6 +27,10 @@ import { convertToEmbedUrl, ensureProtocol } from '@/utils/urlHelpers';
 // Mocks
 // ---------------------------------------------------------------------------
 
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
+}));
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (_k: string, o?: { defaultValue?: string }) => o?.defaultValue ?? _k,
