@@ -219,6 +219,21 @@ describe('parseQueueItem', () => {
     });
     expect(parseQueueItem(fp, { status: 'weird' })).toBeNull();
   });
+
+  it('carries the note of a request from the Claude connector into the copy block', () => {
+    const item = parseQueueItem(fp, {
+      ...context(),
+      ancestors: [],
+      htmlExcerpt: '',
+      status: 'open',
+      requestNote: 'Assign menu, last item',
+    });
+    if (!item) throw new Error('item did not parse');
+    expect(item.requestNote).toBe('Assign menu, last item');
+    expect(formatUnmappedAnchors([item])).toContain(
+      '- Described by Claude: Assign menu, last item'
+    );
+  });
 });
 
 describe('formatUnmappedAnchors', () => {

@@ -135,6 +135,12 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'settings.toggle': {
+    label:
+      'The on/off switch of a settings field, by widget type and field key',
+    perField: true,
+    panel: true,
+  },
 
   'sidebar.open-menu': { label: 'Menu button in the top bar' },
   'sidebar.admin-settings': { label: 'Admin settings button in the top bar' },

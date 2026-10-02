@@ -16,6 +16,8 @@ export type FieldProps<F extends Field = Field> = {
   labelId?: string;
   disabled: boolean;
   ctx: FieldCtx;
+  /** Field key for per-field tour anchors (list rows use a positional key). */
+  tourKey?: string;
   /** List fields only: renders one row's sub-schema fields via FieldRenderer. */
   renderRow?: (
     row: Record<string, unknown>,

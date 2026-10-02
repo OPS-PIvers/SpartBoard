@@ -18,6 +18,12 @@ import {
   replaceDriveJson,
 } from './drive';
 import { TOUR_ANCHOR_LIST } from './tourAnchorList';
+import {
+  planAnchorRequests,
+  queueAnchorRequests,
+  type AnchorRequest,
+  type MissingAnchorNote,
+} from './glAnchorRequests';
 import { OVERWRITES, READ_ONLY, iso, run } from './toolKit';
 
 const KNOWN_ANCHORS = new Set(TOUR_ANCHOR_LIST.map((a) => a.id));
@@ -188,6 +194,16 @@ export const stepInput = z
       })
       .strict()
       .optional(),
+    missing_anchor: z
+      .object({
+        where: z.string().trim().min(1).max(300),
+        widget_type: z.string().min(1).max(60).optional(),
+      })
+      .strict()
+      .optional()
+      .describe(
+        'Building sets only, with tour.anchor "": where the control is and what it does, so a developer can add an anchor. Not saved on the step.'
+      ),
     aiDraft: z.boolean().optional(),
     has_narration: z
       .boolean()
@@ -304,6 +320,8 @@ export function mergeSteps(
         `${at}.tour: an empty anchor needs a fallback role and name.`
       );
     }
+    if (s.missing_anchor && s.tour?.anchor !== '')
+      throw new ToolError(`${at}.missing_anchor needs tour.anchor "".`);
     const prior = byId.get(s.id);
     const anchorId = s.tour?.anchor.split(/[:#]/)[0];
     const priorAnchor = (prior?.tour as { anchor?: unknown } | undefined)
@@ -319,6 +337,7 @@ export function mergeSteps(
     }
     const merged: Step = { ...s };
     delete merged.has_narration;
+    delete merged.missing_anchor;
     for (const key of ['audioUrl', 'videoUrl'] as const) {
       const url = s[key];
       if (url && isStorageUrl(url) && url !== prior?.[key]) {
@@ -469,7 +488,8 @@ async function saveSet(
   ctx: ToolContext,
   loaded: Loaded,
   next: GlSet,
-  action: 'update' | 'restore'
+  action: 'update' | 'restore',
+  anchorRequests: readonly AnchorRequest[] = []
 ) {
   const now = Date.now();
   const saved: GlSet = { ...next, updatedAt: now, claudeEditedAt: now };
@@ -498,7 +518,14 @@ async function saveSet(
   };
   for (const key of EDITABLE)
     changed[key] = saved[key] ?? admin.firestore.FieldValue.delete();
+  let anchorsRequested = 0;
   if (loaded.source === 'building') {
+    anchorsRequested = await queueAnchorRequests(
+      ctx.db,
+      batch,
+      saved.id,
+      anchorRequests
+    );
     // Fails if the set changed since it was read, so a Studio save in between is never overwritten.
     batch.update(ctx.db.doc(`${BUILDING}/${saved.id}`), changed, {
       lastUpdateTime: loaded.updateTime,
@@ -541,6 +568,13 @@ async function saveSet(
     title: saved.title,
     step_count: saved.steps.length,
     previous_version_revision_id: revisionId,
+    ...(anchorsRequested > 0
+      ? {
+          anchors_requested: anchorsRequested,
+          anchors_note:
+            'Controls with no anchor were sent to a developer to tag. Once that ships, Live tour health in the Help Center admin offers Rebind, which points these steps at the new anchor.',
+        }
+      : {}),
     note:
       loaded.source === 'building'
         ? 'Saved. A published live tour keeps its old steps until it is republished in the Studio.'
@@ -725,7 +759,7 @@ export function registerGuidedLearningTools(
     {
       title: 'List live tour anchors',
       description:
-        'Lists the SpartBoard controls a live tour step can point at (tour.anchor). Scope "widget type" refs add ":<widgetType>" (dock.item:clock); "field" refs add ":<widgetType>#<fieldKey>". panel anchors appear only once a menu or panel is open, so an earlier step must open it. A control not listed can use anchor "" with a fallback role and accessible name, which works in English only.',
+        'Lists the SpartBoard controls a live tour step can point at (tour.anchor). Scope "widget type" refs add ":<widgetType>" (dock.item:clock); "field" refs add ":<widgetType>#<fieldKey>". panel anchors appear only once a menu or panel is open, so an earlier step must open it. A control not listed can use anchor "" with a fallback role and accessible name, which works in English only. In a building set, saving that step also asks a developer to add an anchor; describe the control in the step\'s missing_anchor.',
       inputSchema: {
         search: z
           .string()
@@ -842,8 +876,21 @@ export function registerGuidedLearningTools(
         await assertAccess(ctx, source);
         const loaded = await loadSet(ctx, source, set_id);
         const next = applyEdit(loaded, input);
+        let requests: AnchorRequest[] = [];
+        if (loaded.source === 'building' && input.steps) {
+          const notes = new Map<string, MissingAnchorNote>();
+          for (const s of input.steps)
+            if (s.missing_anchor) notes.set(s.id, s.missing_anchor);
+          const planned = planAnchorRequests(
+            next.steps,
+            loaded.set.steps,
+            notes
+          );
+          next.steps = planned.steps as GlSet['steps'];
+          requests = planned.requests;
+        }
         await reserveWrite(ctx);
-        return saveSet(ctx, loaded, next, 'update');
+        return saveSet(ctx, loaded, next, 'update', requests);
       })
   );
 }

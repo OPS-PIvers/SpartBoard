@@ -141,6 +141,7 @@ export const FieldRenderer: React.FC<FieldRendererProps> = ({
       labelId={usesLabelledBy ? labelId : undefined}
       disabled={disabled}
       ctx={ctx}
+      tourKey={tourKey ?? field.key}
       updateConfig={updateConfig}
       renderRow={renderRow}
       renderField={renderField}
