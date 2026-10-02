@@ -17,7 +17,10 @@ import {
   readDriveJson,
   replaceDriveJson,
 } from './drive';
+import { TOUR_ANCHOR_LIST } from './tourAnchorList';
 import { OVERWRITES, READ_ONLY, iso, run } from './toolKit';
+
+const KNOWN_ANCHORS = new Set(TOUR_ANCHOR_LIST.map((a) => a.id));
 
 type Source = 'mine' | 'building';
 type Step = Record<string, unknown> & { id: string; imageIndex: number };
@@ -290,6 +293,18 @@ export function mergeSteps(
       );
     }
     const prior = byId.get(s.id);
+    const anchorId = s.tour?.anchor.split(/[:#]/)[0];
+    const priorAnchor = (prior?.tour as { anchor?: unknown } | undefined)
+      ?.anchor;
+    if (
+      anchorId &&
+      !KNOWN_ANCHORS.has(anchorId) &&
+      priorAnchor !== s.tour?.anchor
+    ) {
+      throw new ToolError(
+        `${at}.tour.anchor "${anchorId}" is not a SpartBoard tour anchor. Use list_tour_anchors, or an empty anchor with a fallback.`
+      );
+    }
     const merged: Step = { ...s };
     for (const key of ['audioUrl', 'videoUrl'] as const) {
       const url = s[key];
@@ -689,6 +704,32 @@ export function registerGuidedLearningTools(
           next_cursor:
             start + PAGE_SIZE < all.length ? String(start + PAGE_SIZE) : null,
         };
+      })
+  );
+
+  server.registerTool(
+    'list_tour_anchors',
+    {
+      title: 'List live tour anchors',
+      description:
+        'Lists the SpartBoard controls a live tour step can point at (tour.anchor). Scope "widget type" refs add ":<widgetType>" (dock.item:clock); "field" refs add ":<widgetType>#<fieldKey>". panel anchors appear only once a menu or panel is open, so an earlier step must open it. A control not listed can use anchor "" with a fallback role and accessible name, which works in English only.',
+      inputSchema: {
+        search: z
+          .string()
+          .max(100)
+          .optional()
+          .describe('Matches the id or label, e.g. "assign" or "quiz".'),
+      },
+      annotations: READ_ONLY,
+    },
+    ({ search }) =>
+      run('list_tour_anchors', ctx, async () => {
+        await assertAccess(ctx, 'mine');
+        const words = (search ?? '').toLowerCase().split(/\s+/).filter(Boolean);
+        const anchors = TOUR_ANCHOR_LIST.filter((a) =>
+          words.every((w) => `${a.id} ${a.label}`.toLowerCase().includes(w))
+        );
+        return { count: anchors.length, anchors };
       })
   );
 

@@ -166,6 +166,28 @@ describe('Guided Learning step edits', () => {
     ).toHaveLength(1);
   });
 
+  it('refuses an unknown anchor unless the stored step already had it', () => {
+    const tour = (anchor: string) =>
+      step({ tour: { anchor, action: 'click' } });
+    expect(mergeSteps([], [tour('dock.item:clock')], 1)).toHaveLength(1);
+    expect(() => mergeSteps([], [tour('made.up')], 1)).toThrow(
+      /list_tour_anchors/
+    );
+    expect(
+      mergeSteps(
+        [
+          {
+            id: 's1',
+            imageIndex: 0,
+            tour: { anchor: 'made.up', action: 'click' },
+          },
+        ],
+        [tour('made.up')],
+        1
+      )
+    ).toHaveLength(1);
+  });
+
   it('refuses fields Claude must not set', () => {
     expect(
       stepInput.safeParse({ ...step(), audioStoragePath: 'someone/else.mp3' })
