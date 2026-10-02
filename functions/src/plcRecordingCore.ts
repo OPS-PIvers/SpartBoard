@@ -782,7 +782,7 @@ export async function finalizeAsRecorder(
   uid: string,
   plcId: string,
   recordingId: string
-): Promise<{ status: RecordingStatus }> {
+): Promise<{ status: RecordingStatus; stopped: boolean }> {
   const [plcSnap, recSnap] = await Promise.all([
     deps.db.collection('plcs').doc(plcId).get(),
     recordingRef(deps.db, plcId, recordingId).get(),
@@ -794,8 +794,9 @@ export async function finalizeAsRecorder(
       'Only the person recording can stop it.'
     );
   }
+  let stopped = false;
   if (rec.status === 'recording' || rec.status === 'paused') {
-    await finalizeRecording(
+    stopped = await finalizeRecording(
       deps,
       plcId,
       recordingId,
@@ -806,7 +807,7 @@ export async function finalizeAsRecorder(
   const after = (
     await recordingRef(deps.db, plcId, recordingId).get()
   ).data() as Data;
-  return { status: after.status as RecordingStatus };
+  return { status: after.status as RecordingStatus, stopped };
 }
 
 const BLOCKS_EARLY_DELETE = new Set([

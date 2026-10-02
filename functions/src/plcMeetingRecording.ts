@@ -34,7 +34,14 @@ export const finalizePlcRecordingV1 = onCall(
     assertViewAsAllowed(request);
     const uid = requireUid(request);
     const { plcId, recordingId } = parseRecordingRequest(request.data);
-    return finalizeAsRecorder(defaultRecordingDeps(), uid, plcId, recordingId);
+    const result = await finalizeAsRecorder(
+      defaultRecordingDeps(),
+      uid,
+      plcId,
+      recordingId
+    );
+    // TODO(AI notes, MR-D14): when result.stopped, call autoQueueMeetingNotes here.
+    return { status: result.status };
   }
 );
 

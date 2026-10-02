@@ -111,6 +111,7 @@ describe.skipIf(!RUN)('meeting recording against the emulators', () => {
     await expect(finalizeAsRecorder(deps, 'ed', plcId, 'r1')).rejects.toThrow();
     expect(await finalizeAsRecorder(deps, 'rec', plcId, 'r1')).toEqual({
       status: 'ready',
+      stopped: true,
     });
 
     expect(await names('r1')).toEqual(['0.webm', '1.webm']);
@@ -123,6 +124,7 @@ describe.skipIf(!RUN)('meeting recording against the emulators', () => {
     // Calling again is a no-op that reports the current state.
     expect(await finalizeAsRecorder(deps, 'rec', plcId, 'r1')).toEqual({
       status: 'ready',
+      stopped: false,
     });
   });
 

@@ -40,6 +40,7 @@ describe('paths', () => {
     expect(parseSegmentPath('plc_meeting_audio/a/b/0/1.mp3')).toBeNull();
     expect(parseSegmentPath('plc_meeting_audio/a/b/c/0/1.webm')).toBeNull();
     expect(parseSegmentPath('plc_meeting_audio/a/b/1000/1.webm')).toBeNull();
+    expect(parseSegmentPath('plc_meeting_audio/a/b/combined.webm')).toBeNull();
   });
 
   it('classifies a listing into segments and part files', () => {
