@@ -42,6 +42,7 @@ import {
   registerGuidedLearningTools,
   restoreGuidedLearningRevision,
 } from './glTools';
+import { registerCreateGuidedLearning } from './glCreate';
 import { registerMeetingTools } from './meetingTools';
 
 export const SERVER_INSTRUCTIONS = [
@@ -548,5 +549,6 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   registerMiniAppTools(server, ctx);
   registerResultsTools(server, ctx);
   registerGuidedLearningTools(server, ctx);
+  registerCreateGuidedLearning(server, ctx);
   registerMeetingTools(server, ctx);
 }

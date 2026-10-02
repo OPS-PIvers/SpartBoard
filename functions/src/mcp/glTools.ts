@@ -29,7 +29,10 @@ import { OVERWRITES, READ_ONLY, iso, run } from './toolKit';
 const KNOWN_ANCHORS = new Set(TOUR_ANCHOR_LIST.map((a) => a.id));
 
 type Source = 'mine' | 'building';
-type Step = Record<string, unknown> & { id: string; imageIndex: number };
+export type Step = Record<string, unknown> & {
+  id: string;
+  imageIndex: number;
+};
 export interface GlSet extends Record<string, unknown> {
   id: string;
   title: string;
@@ -40,12 +43,12 @@ export interface GlSet extends Record<string, unknown> {
   updatedAt: number;
 }
 
-const PERSONAL = 'guided_learning';
-const BUILDING = 'building_guided_learning';
+export const PERSONAL = 'guided_learning';
+export const BUILDING = 'building_guided_learning';
 export const MAX_STEPS = 200;
 /** Raw bytes; base64 adds a third and Claude caps an image near 5 MB. */
 export const MAX_SLIDE_BYTES = 3_500_000;
-const MAX_DOC_BYTES = 900_000;
+export const MAX_DOC_BYTES = 900_000;
 const MAX_SCAN = 500;
 // Step media that points at files the set owns; carried from the stored step, never taken from Claude.
 const CARRIED_FIELDS = [
@@ -386,7 +389,7 @@ async function isAdmin(ctx: ToolContext): Promise<boolean> {
     .exists;
 }
 
-async function assertAccess(
+export async function assertAccess(
   ctx: ToolContext,
   source: Source | 'help_center'
 ): Promise<void> {
