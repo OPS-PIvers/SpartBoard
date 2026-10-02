@@ -7922,6 +7922,8 @@ export interface GuidedLearningSet {
     widgets: WidgetType[];
     /** Recorded setup widget layouts; absent = default placement. */
     layouts?: TourWidgetLayout[];
+    /** Play on the teacher's board as-is; absent = hide their widgets and add fresh ones. */
+    useTeacherBoard?: true;
   };
   /** Stamped on every building-set save: true when any step has a live-tour binding. */
   hasLiveTour?: boolean;
