@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
+import { isGlobalFeatureGranted } from './quizMediaArchive';
 import { chunk } from './shared';
 import { assertViewAsAllowed } from './viewAsGuard';
 
@@ -14,33 +15,18 @@ interface LandingPermission {
   accessLevel?: string;
   betaUsers?: unknown;
   buildings?: unknown;
+  minTier?: unknown;
 }
 
-/** Public with no building limit opens it to every student; otherwise a student gets it when their teacher passes the admin/beta gate. */
+/** Public with no building or tier limit opens it to every student; otherwise a student gets it when their teacher passes the flag's gate. */
 export const studentLandingV2Scope = (
   perm: LandingPermission | undefined
 ): 'off' | 'everyone' | 'teachers' => {
   if (!perm || perm.enabled !== true) return 'off';
-  if (perm.accessLevel === 'public') {
-    return Array.isArray(perm.buildings) && perm.buildings.length > 0
-      ? 'teachers'
-      : 'everyone';
-  }
-  return 'teachers';
-};
-
-export const teacherPassesLandingGate = (
-  perm: LandingPermission,
-  email: string,
-  isAdmin: boolean
-): boolean => {
-  if (isAdmin) return true;
-  if (perm.accessLevel !== 'beta' || !Array.isArray(perm.betaUsers))
-    return false;
-  const lower = email.toLowerCase();
-  return perm.betaUsers.some(
-    (b) => typeof b === 'string' && b.toLowerCase() === lower
-  );
+  const limited =
+    (Array.isArray(perm.buildings) && perm.buildings.length > 0) ||
+    (perm.minTier !== undefined && perm.minTier !== null);
+  return perm.accessLevel === 'public' && !limited ? 'everyone' : 'teachers';
 };
 
 /**
@@ -73,7 +59,7 @@ export const getStudentLandingV2V1 = onCall(
     const scope = studentLandingV2Scope(perm);
     if (scope === 'off') return { enabled: false };
     if (scope === 'everyone') return { enabled: true };
-    if (!perm || classIds.length === 0) return { enabled: false };
+    if (classIds.length === 0) return { enabled: false };
 
     const rosterSnaps = await Promise.all(
       chunk(classIds, 10).map((ids) =>
@@ -88,20 +74,18 @@ export const getStudentLandingV2V1 = onCall(
       }
     }
 
-    for (const uid of [...owners].slice(0, OWNERS_MAX)) {
-      let email = '';
-      try {
-        const user = await admin.auth().getUser(uid);
-        if (user.emailVerified && user.email) email = user.email;
-      } catch {
-        continue;
-      }
-      if (!email) continue;
-      const adminDoc = await db.doc(`admins/${email.toLowerCase()}`).get();
-      if (teacherPassesLandingGate(perm, email, adminDoc.exists)) {
-        return { enabled: true };
-      }
-    }
+    const passes = await Promise.all(
+      [...owners].slice(0, OWNERS_MAX).map(async (uid) => {
+        try {
+          const user = await admin.auth().getUser(uid);
+          if (!user.emailVerified || !user.email) return false;
+          return await isGlobalFeatureGranted(db, FEATURE_ID, user.email, uid);
+        } catch {
+          return false;
+        }
+      })
+    );
+    if (passes.some(Boolean)) return { enabled: true };
     return { enabled: false };
   }
 );
