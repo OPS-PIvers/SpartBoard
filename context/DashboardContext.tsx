@@ -5687,6 +5687,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const canRedo =
     widgetHistoryVersion >= 0 && (activeHistory?.redo.length ?? 0) > 0;
 
+  // While a cleared-stage tour runs, widgets the app adds are tour-scoped and unsaved.
+  const tourSpawnsTransient = useRef(false);
+  const setTourTransientSpawns = useCallback((on: boolean) => {
+    tourSpawnsTransient.current = on;
+  }, []);
+
   // Puts a new widget on the active board and returns its id; callers guard and record history.
   const insertWidget = useCallback(
     (
@@ -5812,8 +5818,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
-      recordHistory();
-      insertWidget(type, overrides);
+      const transient = tourSpawnsTransient.current;
+      if (!transient) recordHistory();
+      insertWidget(type, overrides, { transient });
     },
     [activeId, insertWidget, recordHistory]
   );
@@ -5905,7 +5912,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
-      recordHistory();
+      const transient = tourSpawnsTransient.current;
+      if (!transient) recordHistory();
 
       setDashboards((prev) =>
         prev.map((d) => {
@@ -6040,7 +6048,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             return placed;
           });
 
-          return { ...d, widgets: [...d.widgets, ...newWidgets] };
+          return {
+            ...d,
+            widgets: [
+              ...d.widgets,
+              ...(transient
+                ? newWidgets.map((w) => ({ ...w, transient: true }))
+                : newWidgets),
+            ],
+          };
         })
       );
     },
@@ -7202,6 +7218,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     addTourWidget,
     commitTourWidgets,
     discardTourWidgets,
+    setTourTransientSpawns,
   };
   const liveActionsRef = useRef(liveActions);
   liveActionsRef.current = liveActions;
@@ -7242,6 +7259,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         liveActionsRef.current.commitTourWidgets?.(ids),
       discardTourWidgets: (ids) =>
         liveActionsRef.current.discardTourWidgets?.(ids),
+      setTourTransientSpawns: (on) =>
+        liveActionsRef.current.setTourTransientSpawns?.(on),
     }),
     []
   );
@@ -7324,6 +7343,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       addTourWidget,
       commitTourWidgets,
       discardTourWidgets,
+      setTourTransientSpawns,
       updateWidget,
       bringToFront,
       moveWidgetLayer,
@@ -7452,6 +7472,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       addTourWidget,
       commitTourWidgets,
       discardTourWidgets,
+      setTourTransientSpawns,
       updateWidget,
       bringToFront,
       moveWidgetLayer,

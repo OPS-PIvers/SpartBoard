@@ -1065,3 +1065,33 @@ export interface GradebookOrgSettingsDoc
   extends ProficiencyScale, LegacyScaleFields {
   updatedAt: number;
 }
+
+/** D8: Work is turned in and graded; a Resource is only there to study. */
+export type WorkKind = 'work' | 'resource';
+
+/** Kinds that default to Resource; flashcards depend on the set's own `kind` (see `resolveWorkKind`). */
+const RESOURCE_BY_DEFAULT: readonly GradebookKind[] = [
+  'guided-learning',
+  'mini-app',
+  'activity-wall',
+];
+
+/** The session's explicit `workKind`, else its kind default: Study flashcards, guided learning, mini-apps and walls are Resources. */
+export function resolveWorkKind(
+  kind: GradebookKind,
+  session: { workKind?: unknown; kind?: unknown } | null | undefined
+): WorkKind {
+  const explicit = session?.workKind;
+  if (explicit === 'work' || explicit === 'resource') return explicit;
+  if (kind === 'flashcards')
+    return session?.kind === 'study' ? 'resource' : 'work';
+  return RESOURCE_BY_DEFAULT.includes(kind) ? 'resource' : 'work';
+}
+
+/** D11: a Resource has no gradebook column and never triggers Late or Missing. */
+export function isResourceSession(
+  kind: GradebookKind,
+  session: { workKind?: unknown; kind?: unknown } | null | undefined
+): boolean {
+  return resolveWorkKind(kind, session) === 'resource';
+}

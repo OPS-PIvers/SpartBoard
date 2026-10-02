@@ -24,6 +24,7 @@ import * as admin from 'firebase-admin';
 import {
   __resetGradeIndexEnabledCache,
   applyDocWrite,
+  sessionWriteMatters,
   docWriteMatters,
   drainDirtySessions,
   markSessionDirty,
@@ -352,6 +353,7 @@ describe('applyDocWrite', () => {
         teacherUid: 't1',
         title: 'Exit wall',
         classIds: ['c1'],
+        workKind: 'work',
       },
       'activity_wall_sessions/t1_w1/submissions/a': {
         authorUid: 'u1',
@@ -495,6 +497,61 @@ describe('Review sessions', () => {
   it('keeps a teacher-paced session tagged as a Quiz', async () => {
     expect(
       (await recompute({ sessionMode: 'teacher', widgetKind: 'quiz' })).has
+    ).toBe(true);
+  });
+});
+
+describe('Resource sessions', () => {
+  const recomputeQuiz = (session: StubData) => {
+    const stub = seed({
+      'quiz_sessions/qs1': { ...quizSession, ...session },
+      'quiz_sessions/qs1/responses/u1': completed(),
+      'grade_index/qs1__u1': { sessionId: 'qs1', studentUid: 'u1' },
+    });
+    return recomputeSession(stub.db as unknown as Db, 'quiz', 'qs1', NOW).then(
+      () => stub.has('grade_index/qs1__u1')
+    );
+  };
+
+  const recomputeMiniApp = (session: StubData) => {
+    const stub = makeStubFirestore({
+      'mini_app_sessions/m1': {
+        teacherUid: 't1',
+        appTitle: 'Fractions',
+        classIds: ['c1'],
+        ...session,
+      },
+      'mini_app_sessions/m1/submissions/s1': {
+        studentUid: 'u1',
+        submittedAt: NOW - DAY,
+      },
+      'grade_index/m1__u1': { sessionId: 'm1', studentUid: 'u1' },
+    });
+    return recomputeSession(
+      stub.db as unknown as Db,
+      'mini-app',
+      'm1',
+      NOW
+    ).then(() => stub.has('grade_index/m1__u1'));
+  };
+
+  it('drops the rows of a quiz the teacher marked as a Resource', async () => {
+    expect(await recomputeQuiz({ workKind: 'resource' })).toBe(false);
+  });
+
+  it('keeps a quiz with no field or marked as Work', async () => {
+    expect(await recomputeQuiz({})).toBe(true);
+    expect(await recomputeQuiz({ workKind: 'work' })).toBe(true);
+  });
+
+  it('treats a mini-app as a Resource unless it is marked as Work', async () => {
+    expect(await recomputeMiniApp({})).toBe(false);
+    expect(await recomputeMiniApp({ workKind: 'work' })).toBe(true);
+  });
+
+  it('recomputes the session when the field flips', () => {
+    expect(
+      sessionWriteMatters({ workKind: 'work' }, { workKind: 'resource' })
     ).toBe(true);
   });
 });

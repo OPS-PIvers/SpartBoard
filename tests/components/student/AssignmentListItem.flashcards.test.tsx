@@ -19,6 +19,7 @@ vi.mock('@/config/firebase', () => ({ db: {}, functions: {} }));
 
 const study: AssignmentSummary = {
   compositeId: 'flashcards:fc-1',
+  workKind: 'work',
   kind: 'flashcards',
   sessionId: 'fc-1',
   title: 'Spanish Food',
