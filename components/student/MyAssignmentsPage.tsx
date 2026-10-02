@@ -33,6 +33,8 @@ import {
 } from '@/utils/myAssignmentsPath';
 import { type AssignmentFilterMode } from './AssignmentFilterTabs';
 import type { CompletionState } from './AssignmentListItem';
+import { StudentLandingV2 } from './landing/StudentLandingV2';
+import type { LandingTab } from './landing/types';
 
 /**
  * /my-assignments — class-aware student dashboard.
@@ -123,6 +125,9 @@ const MyAssignmentsPage: React.FC = () => {
     initialPath.classId
   );
   const [classTab, setClassTab] = useState<StudentClassTab>(initialPath.tab);
+  const [landingTab, setLandingTab] = useState<LandingTab>(
+    initialPath.tab === 'grades' ? 'completed' : 'assignments'
+  );
 
   // A class from the URL or a tap is the student's pick; auto-select never overrides it.
   const [picked, setPicked] = useState(initialPath.classId !== null);
@@ -155,6 +160,7 @@ const MyAssignmentsPage: React.FC = () => {
         pickClassInSession(classes, bell.scheduleFor, getServerNow())
       );
       setClassTab('assignments');
+      setLandingTab('assignments');
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
@@ -170,6 +176,13 @@ const MyAssignmentsPage: React.FC = () => {
     (tab: StudentClassTab) => {
       setClassTab(tab);
       syncPath(activeClassId, tab);
+    },
+    [activeClassId, syncPath]
+  );
+  const handleLandingTabChange = useCallback(
+    (tab: LandingTab) => {
+      setLandingTab(tab);
+      syncPath(activeClassId, tab === 'completed' ? 'grades' : 'assignments');
     },
     [activeClassId, syncPath]
   );
@@ -190,6 +203,7 @@ const MyAssignmentsPage: React.FC = () => {
       setPicked(true);
       setActiveClassId(classId);
       setClassTab('assignments');
+      setLandingTab('assignments');
       syncPath(classId, 'assignments');
       if (
         typeof window !== 'undefined' &&
@@ -432,6 +446,29 @@ const MyAssignmentsPage: React.FC = () => {
           action={{ label: 'Try again', onClick: retry }}
         />
       </StudentPageShell>
+    );
+  }
+
+  if (landingV2) {
+    return (
+      <StudentLandingV2
+        classes={classes}
+        scheduleFor={bell.scheduleFor}
+        assignments={assignments}
+        pseudonymUid={pseudonymUid}
+        firstName={firstName}
+        selectedClassId={effectiveClassId}
+        onSelectClass={handleSelectClass}
+        tab={landingTab}
+        onTabChange={handleLandingTabChange}
+        gradesEnabled={gradesEnabled}
+        onSignOut={handleDone}
+        notice={
+          hasErrors ? (
+            <PartialFailureBanner onRetry={retry} className="mb-4" />
+          ) : undefined
+        }
+      />
     );
   }
 
