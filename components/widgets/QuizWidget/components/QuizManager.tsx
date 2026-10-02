@@ -136,6 +136,7 @@ import {
   type LibrarySelectionApi,
 } from '@/components/common/library';
 import { earliestDueAt } from '@/utils/perClassDueDates';
+import { applyAvailability } from '@/utils/assignAvailability';
 import { useRubrics } from '@/hooks/useRubrics';
 import {
   AssignDestinationModal,
@@ -1804,6 +1805,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     assignTargeting.overridesByKey,
   ]);
 
+  const assignPeriodAccess =
+    assignBehavior?.sessionMode === 'student' ? periodAccess : undefined;
+
   // ─── Assign confirm handler ───────────────────────────────────────────────
   const handleAssignConfirm = (): void => {
     if (!assignTarget) return;
@@ -1860,17 +1864,27 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         ? { plcPoolSyncGroupId: assignPoolGroup.syncGroupId }
         : {}),
     };
-    const perClassDue =
-      assignDueByRoster !== null && validRosterIds.length > 1
+    const availabilityOn = canAccessFeature('assign-availability');
+    const applied = applyAvailability(assignTargeting, {
+      enabled: availabilityOn,
+      rosters: rosters.filter((r) => validRosterIds.includes(r.id)),
+      bellWindow: assignPeriodAccess?.bellWindow,
+    });
+    const perClassDue = availabilityOn
+      ? applied.dueAtByRosterId
+      : assignDueByRoster !== null && validRosterIds.length > 1
         ? perClassDueMap(assignDueByRoster, validRosterIds)
         : undefined;
+    const sharedDue = availabilityOn
+      ? (applied.targeting.dueAt ?? null)
+      : assignDueAt;
     onAssign(
       assignTarget,
       behavior,
       plcOptions,
       validRosterIds,
-      perClassDue ? earliestDueAt(perClassDue) : assignDueAt,
-      assignTargeting,
+      perClassDue ? earliestDueAt(perClassDue) : sharedDue,
+      applied.targeting,
       assignDestination,
       assignQuizData,
       perClassDue
@@ -2489,11 +2503,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               <AssignTargetingSection
                 rosters={rosters}
                 selectedRosterIds={assignOptions.picker.rosterIds}
-                periodAccess={
-                  assignBehavior?.sessionMode === 'student'
-                    ? periodAccess
-                    : undefined
-                }
+                periodAccess={assignPeriodAccess}
+                availabilityEnabled={canAccessFeature('assign-availability')}
                 value={assignTargeting}
                 onChange={(next) => {
                   setTargetingPacingError(null);

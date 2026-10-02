@@ -119,7 +119,7 @@ function initialOptionsFor(
 ): SettingsOptions {
   const due = splitDueAtToInputs(a.dueAt ?? null, a.dueAtHasTime);
   return {
-    className: a.className ?? '',
+    className: a.className?.trim() ? a.className : a.quizTitle,
     picker: hydratePickerValue(a, rosters),
     dueDate: due.date,
     dueTime: due.time,

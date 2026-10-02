@@ -58,6 +58,8 @@ import {
 } from 'lucide-react';
 import { CollapsibleSection } from './CollapsibleSection';
 import { WindowField } from './AssignWindowField';
+import { AssignAvailabilitySection } from './AssignAvailabilitySection';
+import { defaultAvailability } from '@/utils/assignAvailability';
 import { scaledFont } from './assignWindowUtils';
 import {
   AssignPeriodAccessSection,
@@ -147,6 +149,8 @@ export interface AssignTargetingSectionProps {
   scheduleExtra?: React.ReactNode;
   /** Overrides the "Schedule" header. */
   scheduleLabel?: string;
+  /** `assign-availability` on: Availability & Due Date replaces Schedule and the period mode; the host saves through `applyAvailability`. */
+  availabilityEnabled?: boolean;
   /** Collapsed-state summary for `scheduleExtra`. */
   scheduleExtraSummary?: string | null;
 }
@@ -315,8 +319,10 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   scheduleExtra,
   scheduleExtraSummary,
   scheduleLabel,
+  availabilityEnabled = false,
 }) => {
   const { t } = useTranslation();
+  const [openedAt] = useState(() => new Date());
   const [pickerOpen, setPickerOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -503,6 +509,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
       closeAt: value.closeAt,
       dueAt: value.dueAt,
       periodPlan: value.periodPlan,
+      availability: value.availability,
     });
 
   const scheduleSummary = [
@@ -981,8 +988,22 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
 
   return (
     <div className="space-y-3">
-      {scheduleSection}
-      {periodSection}
+      {availabilityEnabled ? (
+        <AssignAvailabilitySection
+          value={
+            value.availability ?? defaultAvailability(openedAt, !!periodAccess)
+          }
+          onChange={(availability) => patch({ availability })}
+          rosters={rosters.filter((r) => effectiveRosterIds.includes(r.id))}
+          periodAccess={periodAccess}
+          cqScaled={cqScaled}
+        />
+      ) : (
+        <>
+          {scheduleSection}
+          {periodSection}
+        </>
+      )}
       {value.targetMode === 'students' &&
       (value.excludedStudents ?? []).length === 0
         ? legacySection

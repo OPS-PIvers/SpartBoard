@@ -25,6 +25,7 @@ import { db, functions } from '@/config/firebase';
 import { useDashboard } from '@/context/useDashboard';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { buildPeriodAccess, DEFAULT_PERIOD_PLAN } from '@/utils/periodPlan';
+import { applyAvailability } from '@/utils/assignAvailability';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareGuidedLearningWidget } from './SubShareWidget';
 import { useDialog } from '@/context/useDialog';
@@ -201,6 +202,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     useAuth();
   const gradebookOn = canAccessFeature('gradebook');
   const playerV2 = canAccessFeature('gl-player-v2');
+  const availabilityOn = canAccessFeature('assign-availability');
   const studioEditor = canAccessFeature('gl-studio');
   const canUseAi =
     canAccessFeature('gemini-functions') &&
@@ -909,13 +911,12 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     );
     const { set, source, originSetId } = assignTarget;
     setAssignTarget(null);
-    await performAssign(
-      set,
-      source,
-      originSetId,
-      validRosterIds,
-      targetingValue
-    );
+    const { targeting } = applyAvailability(targetingValue, {
+      enabled: availabilityOn,
+      rosters: rosters.filter((r) => validRosterIds.includes(r.id)),
+      bellWindow: assignPeriodCtx?.bellWindow,
+    });
+    await performAssign(set, source, originSetId, validRosterIds, targeting);
   };
 
   const handleViewResultsForRecent = async (sessionId: string) => {
@@ -1676,6 +1677,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                 onChange={setTargetingValue}
                 kind="guided-learning"
                 showDueAt
+                availabilityEnabled={availabilityOn}
               />
             </div>
           }

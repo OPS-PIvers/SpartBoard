@@ -56,6 +56,7 @@ import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArc
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
+import { applyAvailability } from '@/utils/assignAvailability';
 import { useDialog } from '@/context/useDialog';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
@@ -514,6 +515,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const { canAccessFeature } = useAuth();
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   const canAssignLive = canAccessFeature('video-activity-live');
+  const availabilityOn = canAccessFeature('assign-availability');
   const claudeReview = useClaudeReview('video_activities');
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
@@ -585,7 +587,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   if (assignTarget && assignTarget.id !== prevAssignTargetId) {
     setPrevAssignTargetId(assignTarget.id);
     setAssignOptions(defaultSessionSettings);
-    setAssignmentName(buildDefaultAssignmentName(assignTarget.title));
+    setAssignmentName(assignTarget.title);
     setAssignDueAt(null);
     setAssignTargeting(
       activePending && activePending.targetStudents.length > 0
@@ -819,14 +821,20 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       // individual-targeting pointer docs see the same due date the teacher
       // already set — no second, competing "Due" field in the Schedule
       // affordance (AssignTargetingSection renders with `showDueAt={false}`).
-      const targetingWithDue: AssignTargetingValue = {
-        ...assignTargeting,
-        dueAt: assignDueAt ?? undefined,
-      };
+      const targetingWithDue: AssignTargetingValue = availabilityOn
+        ? applyAvailability(assignTargeting, {
+            enabled: true,
+            rosters: rosters.filter((r) => validRosterIds.includes(r.id)),
+            bellWindow: periodAccess?.bellWindow,
+          }).targeting
+        : { ...assignTargeting, dueAt: assignDueAt ?? undefined };
+      const dueAt = availabilityOn
+        ? (targetingWithDue.dueAt ?? null)
+        : assignDueAt;
       await onAssign(
         assignTarget,
         validRosterIds,
-        assignLive ? null : assignDueAt,
+        assignLive ? null : dueAt,
         assignLive ? EMPTY_ASSIGN_TARGETING_VALUE : targetingWithDue,
         assignLive ? 'teacher' : 'student'
       );
@@ -1551,6 +1559,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
               targeting={assignTargeting}
               onTargetingChange={setAssignTargeting}
               periodAccess={periodAccess}
+              availabilityEnabled={availabilityOn}
               assignError={assignError}
               onEditInActivity={() => {
                 closeAssign();
@@ -1576,16 +1585,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
 };
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
-
-function buildDefaultAssignmentName(title: string): string {
-  const formattedDate = new Date().toLocaleString([], {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-  return `${title} - ${formattedDate}`;
-}
 
 /**
  * AssignBehaviorSummaryVA — slimmed extraSlot for the standalone VA assign
@@ -1613,6 +1612,7 @@ const AssignBehaviorSummaryVA: React.FC<{
   targeting: AssignTargetingValue;
   onTargetingChange: (next: AssignTargetingValue) => void;
   periodAccess?: AssignPeriodAccessContext;
+  availabilityEnabled: boolean;
   assignError: string | null;
   onEditInActivity?: () => void;
 }> = ({
@@ -1627,6 +1627,7 @@ const AssignBehaviorSummaryVA: React.FC<{
   targeting,
   onTargetingChange,
   periodAccess,
+  availabilityEnabled,
   assignError,
   onEditInActivity,
 }) => {
@@ -1701,25 +1702,28 @@ const AssignBehaviorSummaryVA: React.FC<{
           onChange={onTargetingChange}
           kind="video-activity"
           showDueAt={false}
+          availabilityEnabled={availabilityEnabled}
         />
 
         {/* Due date */}
-        <div>
-          <label
-            htmlFor="va-assign-due-date-input"
-            className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1"
-          >
-            Due Date <span className="font-normal">(optional)</span>
-          </label>
-          <input
-            id="va-assign-due-date-input"
-            type="date"
-            data-testid="va-assign-due-date"
-            value={dateInputValue}
-            onChange={handleDateChange}
-            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-          />
-        </div>
+        {!availabilityEnabled && (
+          <div>
+            <label
+              htmlFor="va-assign-due-date-input"
+              className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1"
+            >
+              Due Date <span className="font-normal">(optional)</span>
+            </label>
+            <input
+              id="va-assign-due-date-input"
+              type="date"
+              data-testid="va-assign-due-date"
+              value={dateInputValue}
+              onChange={handleDateChange}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+            />
+          </div>
+        )}
 
         {/* Read-only behavior summary */}
         <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">

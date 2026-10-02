@@ -9540,6 +9540,8 @@ export type GlobalFeature =
   | 'my-groups'
   /** Ctrl+V of a two-column list on the board opens a new flashcard set in the editor. */
   | 'flashcard-smart-paste'
+  /** Assign modals: Availability & Due Date (opens, closes, late work) replaces the Schedule and period-mode toggle. */
+  | 'assign-availability'
   /** Record a group meeting on a note, with playback (docs/plans/PLC_MEETING_RECORDING.md). */
   | 'plc-meeting-recording'
   /** Transcript and drafted notes from a meeting recording; AND-ed with `gemini-functions`. */

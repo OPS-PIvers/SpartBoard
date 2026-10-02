@@ -35,7 +35,7 @@ const formatTime = (ms: number): string =>
     minute: '2-digit',
   });
 
-const TagPrompt: React.FC<{
+export const TagPrompt: React.FC<{
   roster: PeriodRoster;
   context: AssignPeriodAccessContext;
 }> = ({ roster, context }) => {

@@ -85,7 +85,9 @@ vi.mock('@/context/useAuth', () => ({
     canSeeShareTracking: vi.fn(() => false),
     canAccessQuizMediaResponse: vi.fn(() => false),
     canAccessFeature: (id: string) =>
-      id === 'video-activity-live' ? liveFlag.enabled : true,
+      id === 'video-activity-live'
+        ? liveFlag.enabled
+        : id !== 'assign-availability',
   }),
 }));
 

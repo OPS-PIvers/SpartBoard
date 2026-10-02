@@ -61,6 +61,7 @@ import { AssignTargetingSection } from '@/components/common/library/AssignTarget
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { buildPeriodGate } from '@/utils/periodPlan';
+import { applyAvailability } from '@/utils/assignAvailability';
 import {
   buildSetAssignmentTargetsPayload,
   expandClassTargeting,
@@ -140,6 +141,7 @@ interface MiniAppAssignModalProps {
   skippedStudentNames: string[];
   /** Per-period mode and windows; undefined while the flag is off. */
   periodAccess?: AssignPeriodAccessContext;
+  availabilityEnabled: boolean;
 }
 
 const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
@@ -159,6 +161,7 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
   onTargetingChange,
   skippedStudentNames,
   periodAccess,
+  availabilityEnabled,
 }) => {
   const outward = useViewAsOutward();
   const isViewOnly = mode === 'view-only';
@@ -417,6 +420,7 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                     kind="mini-app"
                     showDueAt
                     cqScaled
+                    availabilityEnabled={availabilityEnabled}
                   />
                 </>
               )}
@@ -495,7 +499,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     updateRoster,
   } = useDashboard();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
-  const { user, getAssignmentMode } = useAuth();
+  const { user, getAssignmentMode, canAccessFeature } = useAuth();
+  const availabilityOn = canAccessFeature('assign-availability');
   const assignmentMode: AssignmentMode = getAssignmentMode('miniApp');
   const { showConfirm } = useDialog();
   const claudeReview = useClaudeReview('miniapps');
@@ -552,22 +557,12 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     useState<AssignTargetingValue>(EMPTY_ASSIGN_TARGETING_VALUE);
   const [skippedStudentNames, setSkippedStudentNames] = useState<string[]>([]);
 
-  const buildDefaultAssignmentName = (appTitle: string) => {
-    const formatted = new Date().toLocaleString([], {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-    return `${appTitle} — ${formatted}`;
-  };
-
   const handleOpenAssign = (app: MiniAppItem) =>
     claudeReview.whenReviewed(app, () => openAssign(app));
 
   const openAssign = (app: MiniAppItem) => {
     setAssigningApp(app);
-    setAssignmentName(buildDefaultAssignmentName(app.title));
+    setAssignmentName(app.title);
     setCreatedSessionId(null);
     setAssignError(null);
     setAssignTargetingValue(EMPTY_ASSIGN_TARGETING_VALUE);
@@ -629,8 +624,16 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         rosters
       ).filter((r) => !r.loadError);
       const derived = deriveSessionTargetsFromRosters(selectedRosters);
+      const { targeting: targetingForSave } = applyAvailability(
+        assignTargetingValue,
+        {
+          enabled: availabilityOn && assignmentMode === 'submissions',
+          rosters: selectedRosters,
+          bellWindow: assignPeriodCtx?.bellWindow,
+        }
+      );
       // Snapshot the checked classes now; later roster edits never reshape it.
-      const expandedTargeting = expandClassTargeting(assignTargetingValue, {
+      const expandedTargeting = expandClassTargeting(targetingForSave, {
         rosters,
         selectedRosterIds: assignPickerValue.rosterIds,
       });
@@ -654,9 +657,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       const periodGate =
         assignmentMode === 'submissions'
           ? buildPeriodGate({
-              plan: assignTargetingValue.periodPlan,
+              plan: targetingForSave.periodPlan,
               rosters: selectedRosters,
-              sharedWindow: assignTargetingValue,
+              sharedWindow: targetingForSave,
               bellWindow: assignPeriodCtx?.bellWindow,
             })
           : undefined;
@@ -669,9 +672,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           rosterIds: derived.rosterIds,
           mode: assignmentMode,
           // Per-period sessions carry each period's window instead of a shared one.
-          openAt: periodGate ? null : (assignTargetingValue.openAt ?? null),
-          closeAt: periodGate ? null : (assignTargetingValue.closeAt ?? null),
-          dueAt: assignTargetingValue.dueAt ?? null,
+          openAt: periodGate ? null : (targetingForSave.openAt ?? null),
+          closeAt: periodGate ? null : (targetingForSave.closeAt ?? null),
+          dueAt: targetingForSave.dueAt ?? null,
           assignmentId: generatedAssignmentId,
           ...(periodGate ? { periodGate } : {}),
         }
@@ -1731,6 +1734,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 onTargetingChange={setAssignTargetingValue}
                 skippedStudentNames={skippedStudentNames}
                 periodAccess={assignPeriodCtx}
+                availabilityEnabled={availabilityOn}
                 onConfirm={() => void handleConfirmAssign()}
                 onClose={() => {
                   setAssigningApp(null);
@@ -1871,6 +1875,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 onTargetingChange={setAssignTargetingValue}
                 skippedStudentNames={skippedStudentNames}
                 periodAccess={assignPeriodCtx}
+                availabilityEnabled={availabilityOn}
                 onConfirm={() => void handleConfirmAssign()}
                 onClose={() => {
                   setAssigningApp(null);
