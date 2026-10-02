@@ -13,6 +13,12 @@ import {
   type AssignmentSummary,
 } from '@/hooks/useStudentAssignments';
 import { useStudentClassDirectory } from '@/hooks/useStudentClassDirectory';
+import { useStudentLandingV2Enabled } from '@/hooks/useStudentLandingV2';
+import { useStudentBellSchedules } from '@/hooks/useStudentBellSchedules';
+import {
+  pickClassInSession,
+  sortClassesByBell,
+} from '@/utils/studentClassOrder';
 import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
 import { getWindowState } from '@/utils/assignmentWindow';
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
@@ -49,6 +55,8 @@ import type { CompletionState } from './AssignmentListItem';
  * completion check on each row. See AssignmentSections for the rule.
  */
 
+const REFOCUS_RESELECT_MS = 10 * 60 * 1000;
+
 const FILTER_STORAGE_KEY = 'sb_my_assignments_filter';
 
 const isFilterMode = (v: unknown): v is AssignmentFilterMode =>
@@ -65,6 +73,15 @@ const MyAssignmentsPage: React.FC = () => {
   const { classIds, pseudonymUid, firstName, signOut } = useStudentAuth();
 
   const directory = useStudentClassDirectory({ classIds, pseudonymUid });
+  const landingV2 = useStudentLandingV2Enabled(pseudonymUid);
+  const bell = useStudentBellSchedules(landingV2 === true);
+  const classes = useMemo(
+    () =>
+      landingV2
+        ? sortClassesByBell(directory.classes, bell.scheduleFor)
+        : directory.classes,
+    [landingV2, directory.classes, bell.scheduleFor]
+  );
   const {
     loadState,
     assignments: allAssignments,
@@ -106,6 +123,42 @@ const MyAssignmentsPage: React.FC = () => {
     initialPath.classId
   );
   const [classTab, setClassTab] = useState<StudentClassTab>(initialPath.tab);
+
+  // A class from the URL or a tap is the student's pick; auto-select never overrides it.
+  const [picked, setPicked] = useState(initialPath.classId !== null);
+  const [autoSelectDone, setAutoSelectDone] = useState(false);
+  const autoSelectReady =
+    landingV2 !== null &&
+    directory.status === 'ready' &&
+    (landingV2 === false || bell.status !== 'loading');
+  if (autoSelectReady && !autoSelectDone) {
+    setAutoSelectDone(true);
+    if (landingV2 && !picked) {
+      setActiveClassId(
+        pickClassInSession(classes, bell.scheduleFor, getServerNow())
+      );
+    }
+  }
+  const hiddenAtRef = useRef<number | null>(null);
+  const reselectOnRefocus = landingV2 === true && !picked;
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAtRef.current = Date.now();
+        return;
+      }
+      const hiddenAt = hiddenAtRef.current;
+      hiddenAtRef.current = null;
+      if (!reselectOnRefocus || hiddenAt === null) return;
+      if (Date.now() - hiddenAt <= REFOCUS_RESELECT_MS) return;
+      setActiveClassId(
+        pickClassInSession(classes, bell.scheduleFor, getServerNow())
+      );
+      setClassTab('assignments');
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [reselectOnRefocus, classes, bell.scheduleFor]);
   const syncPath = useCallback(
     (classId: string | null, tab: StudentClassTab) => {
       if (!gradesEnabled || typeof window === 'undefined') return;
@@ -134,6 +187,7 @@ const MyAssignmentsPage: React.FC = () => {
   // on the chosen view immediately. Desktop keeps it open across navigations.
   const handleSelectClass = useCallback(
     (classId: string | null) => {
+      setPicked(true);
       setActiveClassId(classId);
       setClassTab('assignments');
       syncPath(classId, 'assignments');
@@ -318,7 +372,12 @@ const MyAssignmentsPage: React.FC = () => {
   }, [signOut]);
 
   // ────────── Loading / no-classes / error gates (top-level guards) ──────────
-  if (loadState === 'loading' || directory.status === 'loading') {
+  if (
+    loadState === 'loading' ||
+    directory.status === 'loading' ||
+    landingV2 === null ||
+    (landingV2 && bell.status === 'loading')
+  ) {
     return (
       <StudentPageShell onDone={handleDone}>
         <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 text-slate-500">
@@ -374,7 +433,7 @@ const MyAssignmentsPage: React.FC = () => {
     <>
       <SlideOutSidebar open={sidebarOpen} onClose={closeSidebar}>
         <StudentSidebar
-          classes={directory.classes}
+          classes={classes}
           activeClassId={effectiveClassId}
           activeCountByClassId={activeCountByClassId}
           totalActiveCount={partitioned.active.length}
