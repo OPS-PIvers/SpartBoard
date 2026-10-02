@@ -3609,7 +3609,10 @@
     "move": "Déplacer les commandes de la visite",
     "autopilot": "Pilote automatique",
     "autopilotStep": "Pilote automatique pour cette étape",
-    "autopilotSoon": "Pas encore disponible",
+    "youClickThis": "Celui-ci, à vous de cliquer",
+    "autoConfirm": "Autopilot va effectuer cette étape. Continuer ?",
+    "autoConfirmYes": "Vas-y",
+    "autoConfirmNo": "Je le fais",
     "moveHint": "Faites glisser pour la déplacer. Double-cliquez pour la remettre en haut."
   },
   "glPlayer": {

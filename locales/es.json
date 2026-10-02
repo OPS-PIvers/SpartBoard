@@ -3609,7 +3609,10 @@
     "move": "Mover controles del recorrido",
     "autopilot": "Piloto automático",
     "autopilotStep": "Piloto automático en este paso",
-    "autopilotSoon": "Aún no disponible",
+    "youClickThis": "Este lo haces tú",
+    "autoConfirm": "Autopilot hará este paso. ¿Continuar?",
+    "autoConfirmYes": "Hazlo",
+    "autoConfirmNo": "Lo hago yo",
     "moveHint": "Arrastra para moverla. Doble clic para volver a ponerla arriba."
   },
   "glPlayer": {

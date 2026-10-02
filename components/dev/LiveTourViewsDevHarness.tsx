@@ -5,7 +5,6 @@ import { TourSpotlight } from '@/components/tours/TourSpotlight';
 import { TourTip, type TourTipStatus } from '@/components/tours/TourTip';
 import { TourBar } from '@/components/tours/TourBar';
 import { centreTip } from '@/components/tours/tipPlacement';
-import { primaryBtn, secondaryBtn } from '@/components/tours/tourButtons';
 import {
   placeCallout,
   tetherFor,
@@ -244,7 +243,7 @@ export const LiveTourViewsDevHarness: React.FC = () => {
         }
       : state === 'blocked'
         ? {
-            text: 'You click this one',
+            text: t('tours.youClickThis'),
             kind: 'turn',
             testId: 'tour-auto-status',
           }
@@ -300,7 +299,14 @@ export const LiveTourViewsDevHarness: React.FC = () => {
             : undefined
         }
         autopilotStep={
-          state === 'anchored' || state === 'drawer' ? {} : undefined
+          state === 'anchored' || state === 'drawer'
+            ? { onRun: () => undefined }
+            : undefined
+        }
+        confirm={
+          state === 'confirm'
+            ? { onYes: () => undefined, onNo: () => undefined }
+            : undefined
         }
       >
         {state === 'missing' ? (
@@ -309,21 +315,6 @@ export const LiveTourViewsDevHarness: React.FC = () => {
           step.text && (
             <p className="text-sm text-slate-100">{boldText(step.text)}</p>
           )
-        )}
-        {state === 'confirm' && (
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-semibold text-white">
-              Autopilot will turn on Play a sound. Go ahead?
-            </p>
-            <div className="flex gap-2">
-              <button type="button" className={primaryBtn}>
-                Do it
-              </button>
-              <button type="button" className={secondaryBtn}>
-                I&apos;ll do it
-              </button>
-            </div>
-          </div>
         )}
       </TourTip>
     </div>
