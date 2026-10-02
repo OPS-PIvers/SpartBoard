@@ -22,6 +22,7 @@ export const ToastContainer: React.FC = () => {
       // "Undo" action) would otherwise register as a click outside an open
       // SettingsPanel and close it. Exclude the whole stack from that check.
       data-settings-exclude
+      data-toast-stack=""
       className="fixed z-toast space-y-3 pointer-events-none"
       style={{
         top: 'calc(1.5rem + env(safe-area-inset-top, 0px))',

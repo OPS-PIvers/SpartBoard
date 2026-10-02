@@ -278,6 +278,15 @@ const LibraryManagersDevHarness =
         }))
       )
     : null;
+// Also built into auth-bypass (E2E) builds for the student page end-padding guard.
+const StudentLandingDevHarness =
+  import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
+    ? lazy(() =>
+        import('./components/dev/StudentLandingDevHarness').then((module) => ({
+          default: module.StudentLandingDevHarness,
+        }))
+      )
+    : null;
 const SessionViewsDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/SessionViewsDevHarness').then((module) => ({
@@ -846,6 +855,22 @@ const App: React.FC = () => {
       <Suspense fallback={<FullPageLoader />}>
         <LibraryManagersDevHarness />
       </Suspense>
+    );
+  }
+
+  // The student landing page on fixtures; auth-bypass only, so never on a deployed site.
+  if (
+    StudentLandingDevHarness &&
+    isAuthBypass &&
+    pathname === '/student-landing-dev'
+  ) {
+    return (
+      <DialogProvider>
+        <Suspense fallback={<FullPageLoader />}>
+          <StudentLandingDevHarness />
+        </Suspense>
+        <DialogContainer />
+      </DialogProvider>
     );
   }
 

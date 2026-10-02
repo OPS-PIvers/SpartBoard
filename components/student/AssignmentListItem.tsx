@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
 import { CheckCircle2, Loader2, Lock } from 'lucide-react';
-import { db, functions } from '@/config/firebase';
+import { db } from '@/config/firebase';
 import {
   KIND_CONFIG,
   applyResultsOverride,
@@ -17,6 +16,12 @@ import { formatOpensLabel } from '@/utils/assignmentWindow';
 import { useServerNow } from '@/hooks/useServerNow';
 import { nextScheduledOpen, studentCanEnter } from '@/utils/periodAccess';
 import { readTurnInState } from '@/utils/studentTurnIn';
+import {
+  DOC_ID_STRATEGY,
+  OVERRIDE_KINDS,
+  RESPONSE_SUBCOLLECTION,
+  getCachedPseudonym,
+} from '@/utils/studentResponseDoc';
 
 /**
  * Lazy completion check — same pattern as the previous AssignmentCard but
@@ -45,85 +50,6 @@ import { readTurnInState } from '@/utils/studentTurnIn';
  * concurrent renders. Module-local; survives card remounts within a single
  * page lifetime. Pseudonyms are stable for a given (uid, assignmentId).
  */
-
-let pseudonymCacheOwnerUid: string | null = null;
-let pseudonymCache: Map<string, Promise<string>> = new Map();
-
-function getCachedPseudonym(
-  sessionId: string,
-  pseudonymUid: string
-): Promise<string> {
-  if (pseudonymCacheOwnerUid !== pseudonymUid) {
-    pseudonymCache = new Map();
-    pseudonymCacheOwnerUid = pseudonymUid;
-  }
-  const cached = pseudonymCache.get(sessionId);
-  if (cached) return cached;
-
-  const callable = httpsCallable<
-    { assignmentId: string },
-    { pseudonym?: string }
-  >(functions, 'getAssignmentPseudonymV1');
-
-  const promise = callable({ assignmentId: sessionId }).then((res) => {
-    const p = res.data?.pseudonym;
-    if (typeof p !== 'string' || p.length === 0) {
-      throw new Error('Pseudonym missing from callable response.');
-    }
-    return p;
-  });
-
-  pseudonymCache.set(sessionId, promise);
-  promise.catch(() => {
-    if (pseudonymCache.get(sessionId) === promise) {
-      pseudonymCache.delete(sessionId);
-    }
-  });
-  return promise;
-}
-
-/**
- * Per-kind response/submission doc-id strategy. See the file header for the
- * keying contracts each session app actually writes under.
- *   - 'auth-uid'             — doc id == pseudonymUid (auth.uid).
- *   - 'assignment-pseudonym' — doc id == HMAC(uid, assignmentId) via the
- *                              `getAssignmentPseudonymV1` callable.
- *   - 'none'                 — no per-student doc id (e.g. activity-wall
- *                              writes a fresh UUID per submission); skip
- *                              the lazy completion check for this kind.
- */
-type DocIdStrategy = 'auth-uid' | 'assignment-pseudonym' | 'none';
-
-const DOC_ID_STRATEGY: Record<AssignmentSummary['kind'], DocIdStrategy> = {
-  quiz: 'auth-uid',
-  'video-activity': 'auth-uid',
-  'guided-learning': 'auth-uid',
-  'mini-app': 'assignment-pseudonym',
-  'activity-wall': 'none',
-  flashcards: 'auth-uid',
-  // A project's progress lives on a group doc keyed by group id, never by
-  // student, so there is no per-student doc to check for completion.
-  projects: 'none',
-};
-
-/** Subcollection that holds per-student response/submission docs. */
-const RESPONSE_SUBCOLLECTION: Record<AssignmentSummary['kind'], string | null> =
-  {
-    quiz: 'responses',
-    'video-activity': 'responses',
-    'guided-learning': 'responses',
-    'mini-app': 'submissions',
-    'activity-wall': 'submissions',
-    flashcards: 'progress',
-    projects: null,
-  };
-
-/** Kinds whose response doc can carry a per-student `resultsOverride`. */
-const OVERRIDE_KINDS: ReadonlySet<AssignmentSummary['kind']> = new Set([
-  'quiz',
-  'video-activity',
-  'guided-learning',
-]);
 
 export type CompletionState =
   | 'unknown'

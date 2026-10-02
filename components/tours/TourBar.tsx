@@ -49,6 +49,7 @@ export const TourBar: React.FC<TourBarProps> = ({
       aria-label={t('tours.controls')}
       data-tour-ignore=""
       data-tour-obstacle=""
+      data-tour-bar=""
       data-testid="tour-bar"
       className={`fixed flex items-center gap-1 rounded-2xl border border-white/20 bg-slate-900/90 py-1.5 pl-1 pr-1.5 text-white shadow-2xl ring-1 ring-black/40 backdrop-blur-xl ${
         pos ? '' : 'left-1/2 -translate-x-1/2'
