@@ -77,9 +77,14 @@ const layout = z
     wProp: prop,
     hProp: prop,
     aspectRatio: z.number().positive().optional(),
+    appearance: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();
-const keyframe = layout.omit({ type: true, aspectRatio: true });
+const keyframe = layout.omit({
+  type: true,
+  aspectRatio: true,
+  appearance: true,
+});
 
 export const stepInput = z
   .object({
@@ -129,7 +134,7 @@ export const stepInput = z
     calloutPin: z.object({ xPct: pct, yPct: pct }).strict().optional(),
     calloutWidthPct: z.number().min(10).max(95).optional(),
     calloutScale: z.number().min(0.75).max(2).optional(),
-    calloutTone: z.enum(['light', 'accent']).optional(),
+    calloutTone: z.enum(['dark', 'light', 'accent']).optional(),
     calloutBox: z
       .object({
         xPct: z.number().min(-500).max(500),
@@ -179,6 +184,7 @@ export const stepInput = z
         slot: z.number().int().min(0).max(20).optional(),
         spawns: layout.optional(),
         layoutKeyframes: z.array(keyframe).min(1).max(20).optional(),
+        unmapped: z.string().max(200).optional(),
       })
       .strict()
       .optional(),

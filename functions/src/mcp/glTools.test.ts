@@ -190,6 +190,29 @@ describe('Guided Learning step edits', () => {
     ).toHaveLength(1);
   });
 
+  it('accepts every stored step field the app writes', () => {
+    expect(
+      stepInput.safeParse({
+        ...step(),
+        calloutTone: 'dark',
+        tour: {
+          anchor: 'dock.item:clock',
+          action: 'click',
+          unmapped: 'Clock',
+          spawns: {
+            slot: 0,
+            type: 'clock',
+            xProp: 0.1,
+            yProp: 0.1,
+            wProp: 0.3,
+            hProp: 0.3,
+            appearance: { fontFamily: 'mono' },
+          },
+        },
+      }).success
+    ).toBe(true);
+  });
+
   it('refuses fields Claude must not set', () => {
     expect(
       stepInput.safeParse({ ...step(), audioStoragePath: 'someone/else.mp3' })
