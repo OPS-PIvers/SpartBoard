@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlarmClock, X } from 'lucide-react';
 import type { RosterGroupSymbol } from '@/types';
+import { groupTint } from '@/utils/groupReminders';
 import { GroupSymbol } from './GroupSymbol';
 
 interface GroupReminderCardProps {
@@ -39,15 +40,17 @@ export const GroupReminderCard: React.FC<GroupReminderCardProps> = ({
     defaultValue: 'Dismiss',
   });
   const control =
-    'p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors';
+    'p-1 rounded-md text-slate-500 hover:text-slate-800 hover:bg-white/60 transition-colors';
 
   return (
     <div
       role={snoozed ? undefined : 'alert'}
-      className={`relative rounded-2xl border border-slate-200 transition-opacity duration-500 ${
-        snoozed
-          ? 'bg-white/80 backdrop-blur shadow-lg opacity-60'
-          : 'bg-white shadow-2xl'
+      style={{
+        background: groupTint(symbol),
+        borderColor: groupTint(symbol, 35),
+      }}
+      className={`relative rounded-2xl border transition-opacity duration-500 ${
+        snoozed ? 'shadow-lg opacity-60' : 'shadow-2xl'
       } ${
         iconOnly
           ? 'w-40 h-40 flex flex-col items-center justify-center'
