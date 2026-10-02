@@ -74,6 +74,7 @@ import {
 } from './PlcSharePickerModal';
 import { PlcNewAssignmentSharingSlot } from './PlcNewAssignmentSharingSlot';
 import { formatShortDate } from './newAssignmentHelpers';
+import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 
 interface PlcNewQuizAssignmentModalProps {
   plc: Plc;
@@ -142,6 +143,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
   // can fire two submit handlers before React commits the first
   // setState. See `PlcSharePickerModal.handlePick` for the same pattern.
   const submittingRef = useRef(false);
+  const outward = useViewAsOutward();
   const [submitting, setSubmitting] = useState(false);
 
   const pickerItems: PlcSharePickerItem[] = useMemo(
@@ -194,8 +196,13 @@ export const PlcNewQuizAssignmentModal: React.FC<
   );
 
   const handleSubmit = useCallback(async () => {
-    if (submittingRef.current) return;
+    if (submittingRef.current || outward.locked) return;
     if (!pickedQuiz || !user) return;
+    if (
+      outward.active &&
+      !(await outward.confirm('Create assignment', VIEW_AS_WRITES.assign))
+    )
+      return;
     submittingRef.current = true;
     setSubmitting(true);
 
@@ -382,6 +389,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
   }, [
     groupWording,
     addToast,
+    outward,
     assignmentMode,
     attachSyncLinkage,
     createAssignment,
@@ -577,7 +585,8 @@ export const PlcNewQuizAssignmentModal: React.FC<
           <button
             type="button"
             onClick={() => void handleSubmit()}
-            disabled={submitting}
+            disabled={submitting || outward.locked}
+            title={outward.lockedTitle}
             className="px-4 py-2 rounded-lg bg-brand-blue-primary text-white text-sm font-semibold hover:bg-brand-blue-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting

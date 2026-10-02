@@ -59,7 +59,7 @@ import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
 import { useServerNow } from '@/hooks/useServerNow';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { PeriodAccessStrip } from '@/components/widgets/QuizWidget/components/monitor/PeriodAccessStrip';
-import { useViewAsOutward } from '@/hooks/useViewAsOutward';
+import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 
 interface VideoActivityLiveMonitorProps {
   session: VideoActivitySession;
@@ -517,7 +517,7 @@ export const VideoActivityLiveMonitor: React.FC<
       }
     );
     if (!ok) return;
-    outward.audit('End assignment');
+    outward.audit('End assignment', VIEW_AS_WRITES.end);
     setEnding(true);
     try {
       await onEnd();

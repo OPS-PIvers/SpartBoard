@@ -190,7 +190,7 @@ import type {
   LocalizedFibAnswers,
 } from '@/utils/quizFibAnswers';
 import { QuizTargetResults } from './QuizTargetResults';
-import { useViewAsOutward } from '@/hooks/useViewAsOutward';
+import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
 
 /**
@@ -1281,7 +1281,11 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const exportsToSharedSheet = !!sharedSheetUrl;
 
   const handleExport = async () => {
-    if (outward.active && !(await outward.confirm('Export to Sheets'))) return;
+    if (
+      outward.active &&
+      !(await outward.confirm('Export to Sheets', VIEW_AS_WRITES.exportSheets))
+    )
+      return;
     // Scope depends on mode. SOLO export CREATES a brand-new sheet the user
     // owns → the non-sensitive `drive.file` login scope suffices (silent, no
     // consent — it's always in the login grant). PLC export APPENDS to a shared

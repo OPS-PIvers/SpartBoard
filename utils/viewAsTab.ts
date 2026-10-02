@@ -152,8 +152,8 @@ export function viewAsAuditsWrite(): boolean {
 }
 
 let auditedWriteDepth = 0;
-let outwardWindowEndsAt = 0;
 const OUTWARD_WINDOW_MS = 60_000;
+let outwardWindows: { collections: readonly string[]; endsAt: number }[] = [];
 
 /** Marks Firestore writes started synchronously inside fn as audited, so the app-wide guard lets them through. */
 export function runAuditedWrite<T>(fn: () => T): T {
@@ -165,17 +165,36 @@ export function runAuditedWrite<T>(fn: () => T): T {
   }
 }
 
-/** A confirmed outward action may write for a short window (D14). */
-export function openViewAsOutwardWindow(): void {
-  outwardWindowEndsAt = Date.now() + OUTWARD_WINDOW_MS;
+/** True while a write started now counts as audited. */
+export function viewAsWriteIsAudited(): boolean {
+  return auditedWriteDepth > 0;
 }
 
-/** App-wide guard on raw Firestore writes: in an unlocked tab only audited saves and confirmed outward actions pass. */
-export function viewAsBlocksRawWrite(): boolean {
+/** A confirmed outward action may write to the named collections for a short window (D14). */
+export function openViewAsOutwardWindow(collections: readonly string[]): void {
+  if (collections.length === 0) return;
+  const now = Date.now();
+  outwardWindows = [
+    ...outwardWindows.filter((w) => w.endsAt > now),
+    { collections, endsAt: now + OUTWARD_WINDOW_MS },
+  ];
+}
+
+function inOutwardWindow(path: string, now: number): boolean {
+  const ids = path.split('/').filter((_, i) => i % 2 === 0);
+  return outwardWindows.some(
+    (w) => w.endsAt > now && w.collections.some((c) => ids.includes(c))
+  );
+}
+
+/** App-wide guard on raw Firestore writes: in an unlocked tab only audited saves and in-scope outward writes pass. */
+export function viewAsBlocksRawWrite(paths: readonly string[]): boolean {
   if (!isViewAsTab) return false;
   if (!state.unlocked || state.ended) {
     viewAsBlocksWrite();
     return true;
   }
-  return auditedWriteDepth === 0 && Date.now() >= outwardWindowEndsAt;
+  if (auditedWriteDepth > 0) return false;
+  const now = Date.now();
+  return paths.length === 0 || !paths.every((p) => inOutwardWindow(p, now));
 }

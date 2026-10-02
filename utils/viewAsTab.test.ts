@@ -64,31 +64,44 @@ describe('viewAsTab', () => {
     expect(mod.viewAsBlocksWrite()).toBe(true);
   });
 
-  it('passes raw writes in an unlocked tab only when audited or after an outward confirm', async () => {
+  it('passes raw writes in an unlocked tab only when audited or inside a scoped outward window', async () => {
     vi.useFakeTimers();
     window.history.replaceState({}, '', '/?viewAs=1');
     const mod = await import('./viewAsTab');
-    expect(mod.viewAsBlocksRawWrite()).toBe(true);
-    expect(mod.runAuditedWrite(() => mod.viewAsBlocksRawWrite())).toBe(true);
+    const session = ['quiz_sessions/s1'];
+    const profile = ['users/u1/userProfile/profile'];
+    expect(mod.viewAsBlocksRawWrite(session)).toBe(true);
+    expect(mod.runAuditedWrite(() => mod.viewAsBlocksRawWrite(profile))).toBe(
+      true
+    );
 
     mod.updateViewAsTabState({ unlocked: true });
-    expect(mod.viewAsBlocksRawWrite()).toBe(true);
-    expect(mod.runAuditedWrite(() => mod.viewAsBlocksRawWrite())).toBe(false);
-    expect(mod.viewAsBlocksRawWrite()).toBe(true);
+    expect(mod.viewAsBlocksRawWrite(profile)).toBe(true);
+    expect(mod.runAuditedWrite(() => mod.viewAsBlocksRawWrite(profile))).toBe(
+      false
+    );
 
-    mod.openViewAsOutwardWindow();
-    expect(mod.viewAsBlocksRawWrite()).toBe(false);
+    mod.openViewAsOutwardWindow(['quiz_sessions', 'quiz_assignments']);
+    expect(mod.viewAsBlocksRawWrite(session)).toBe(false);
+    expect(
+      mod.viewAsBlocksRawWrite(['users/u1/quiz_assignments/a1/rosters/r1'])
+    ).toBe(false);
+    expect(mod.viewAsBlocksRawWrite(profile)).toBe(true);
+    expect(mod.viewAsBlocksRawWrite([...session, ...profile])).toBe(true);
+    expect(mod.viewAsBlocksRawWrite([])).toBe(true);
     vi.advanceTimersByTime(60_000);
-    expect(mod.viewAsBlocksRawWrite()).toBe(true);
+    expect(mod.viewAsBlocksRawWrite(session)).toBe(true);
 
     mod.updateViewAsTabState({ ended: true });
-    expect(mod.runAuditedWrite(() => mod.viewAsBlocksRawWrite())).toBe(true);
+    expect(mod.runAuditedWrite(() => mod.viewAsBlocksRawWrite(profile))).toBe(
+      true
+    );
     vi.useRealTimers();
   });
 
   it('never blocks raw writes in an ordinary tab', async () => {
     const mod = await import('./viewAsTab');
-    expect(mod.viewAsBlocksRawWrite()).toBe(false);
+    expect(mod.viewAsBlocksRawWrite(['users/u1'])).toBe(false);
   });
 
   it('notifies subscribers on state changes', async () => {

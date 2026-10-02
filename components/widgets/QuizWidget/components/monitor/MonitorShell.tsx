@@ -76,7 +76,7 @@ import { QuestionResults, QuestionDetail } from './QuestionResults';
 import { JoinCodeScreen } from './JoinCodeScreen';
 import { QuizSettingsScreen } from './QuizSettingsScreen';
 import { tourAttr } from '@/config/tourAnchors';
-import { useViewAsOutward } from '@/hooks/useViewAsOutward';
+import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 
 export interface QuizLiveMonitorProps {
   /** This widget instance's id, for live-tour anchor scoping. */
@@ -423,7 +423,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       }
     );
     if (!ok) return;
-    outward.audit('End assignment');
+    outward.audit('End assignment', VIEW_AS_WRITES.end);
     setEnding(true);
     try {
       // The game's final ranks land before devices switch to their end screen.

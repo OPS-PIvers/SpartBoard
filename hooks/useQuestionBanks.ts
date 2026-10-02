@@ -41,6 +41,7 @@ import {
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
 import { noDriveMessage } from '@/utils/viewAsDrive';
+import { viewAsDirectSave } from '@/utils/viewAsAudit';
 
 export const BANKS_COLLECTION = 'question_banks';
 export const SYNCED_BANKS_COLLECTION = 'synced_question_banks';
@@ -357,11 +358,10 @@ export const useQuestionBanks = (
         now,
       });
       await setDoc(doc(db, 'plcs', plcId, BANKS_COLLECTION, header.id), header);
-      await setDoc(bankMetaRef(userId, meta.id), {
-        ...current,
-        sync,
-        updatedAt: now,
-      });
+      const metaRef = bankMetaRef(userId, meta.id);
+      await viewAsDirectSave(metaRef, ['sync', 'updatedAt'], () =>
+        setDoc(metaRef, { ...current, sync, updatedAt: now })
+      );
     },
     [userId, user, getDriveService, readMeta, publishSynced]
   );

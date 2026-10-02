@@ -42,6 +42,7 @@ import {
 } from './useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
 import { noDriveMessage } from '@/utils/viewAsDrive';
+import { viewAsDirectSave } from '@/utils/viewAsAudit';
 
 // Re-export so consumers can catch the version-conflict error without
 // importing from the synced-groups module directly. Mirrors the
@@ -475,12 +476,14 @@ export const useVideoActivity = (
       // any field a concurrent write added between the `getDoc` above
       // and this commit. The early-return guard above already handles
       // the idempotent re-attach case.
-      await updateDoc(metaRef, {
-        sync: {
-          groupId: linkage.groupId,
-          lastSyncedVersion: linkage.lastSyncedVersion,
-        },
-      });
+      await viewAsDirectSave(metaRef, ['sync'], () =>
+        updateDoc(metaRef, {
+          sync: {
+            groupId: linkage.groupId,
+            lastSyncedVersion: linkage.lastSyncedVersion,
+          },
+        })
+      );
     },
     [userId]
   );
