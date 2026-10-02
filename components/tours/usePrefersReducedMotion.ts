@@ -15,6 +15,9 @@ const subscribe = (onChange: () => void) => {
 
 const getSnapshot = () => media()?.matches ?? false;
 
+/** `prefers-reduced-motion: reduce` right now, for event handlers and effects. */
+export const prefersReducedMotion = getSnapshot;
+
 /** Live `prefers-reduced-motion: reduce`. */
 export const usePrefersReducedMotion = (): boolean =>
   useSyncExternalStore(subscribe, getSnapshot, () => false);

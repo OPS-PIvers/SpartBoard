@@ -3795,6 +3795,15 @@
     "tourAction": "When the tour reaches this step",
     "tourAction_click": "Wait for the click",
     "tourAction_observe": "Show it, then Next",
+    "tourAction_toggle": "Wait for the switch",
+    "tourAction_select": "Wait for the choice",
+    "tourAction_type": "Wait for typing",
+    "tourValueToggle": "Autopilot sets it to",
+    "tourValueOn": "On",
+    "tourValueOff": "Off",
+    "tourValueSelect": "Autopilot chooses:",
+    "tourValueType": "Autopilot types:",
+    "tourValueEmpty": "No text was recorded. Add what Autopilot should type.",
     "tourTeacherMustClick": "Teacher must click this",
     "tourTeacherMustClickHint": "Guided tours show the click, then wait for the teacher to do it.",
     "tourSetupTitle": "Widgets this tour adds",
@@ -4869,6 +4878,10 @@
       "needsWidget": "Needs {{widgets}} on the board",
       "widgetNotAdded": "Needs a widget the tour does not add",
       "needsPanel": "Needs its menu or panel open"
+    },
+    "valueWarning": {
+      "emptyValue": "No text for Autopilot to type",
+      "rosterName": "The typed text matches a student's name"
     },
     "notChecked": "Not checked",
     "found": "Found",

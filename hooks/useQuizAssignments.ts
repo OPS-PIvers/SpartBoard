@@ -153,6 +153,7 @@ import {
   SCORE_ON_SUBMIT_KEY_DOC,
 } from '@/utils/quizScoreOnSubmit';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
+import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -242,6 +243,8 @@ export interface CreateAssignmentOptions {
   /** Open/close window (epoch ms), mirrored onto both assignment + session docs. */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Submissions Enabled or Study Resource; absent keeps the kind default. */
+  workKind?: WorkKind;
   /** Frozen bank pools; the session's `totalQuestions` becomes fixed + Σ count. */
   bankSlots?: QuizSessionBankSlot[];
   /** `QuizMetadata.translations` — lets publish load sidecars with zero extra reads (§4.2). */
@@ -1310,6 +1313,7 @@ export const useQuizAssignments = (
         overridesBySourcedId,
         openAt,
         closeAt,
+        workKind,
         bankSlots,
         translationIndex,
         accessMode,
@@ -1582,6 +1586,7 @@ export const useQuizAssignments = (
         // by `setAssignmentTargetsV1` (§2a ordering guarantee), never here.
         ...(openAt != null && !perPeriod ? { openAt } : {}),
         ...(closeAt != null && !perPeriod ? { closeAt } : {}),
+        ...(workKind ? { workKind } : {}),
         // /my-assignments reads the due date off the SESSION doc for class-wide
         // students, so mirror it here alongside the window (the archive doc
         // above already carries it).

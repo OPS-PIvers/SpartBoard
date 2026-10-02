@@ -190,6 +190,9 @@ export const buildFlashcardAssignSubmission = (args: {
       openAt: expandedTargeting.openAt ?? null,
       closeAt: expandedTargeting.closeAt ?? null,
       dueAt: expandedTargeting.dueAt ?? null,
+      ...(expandedTargeting.workKind
+        ? { workKind: expandedTargeting.workKind }
+        : {}),
       ...(periodGate ? { periodGate } : {}),
     },
   };

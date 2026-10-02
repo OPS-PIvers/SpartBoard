@@ -33,6 +33,10 @@ import type {
 } from '@/types';
 import { activeResultsOverride } from '@/utils/quizResultsVisibility';
 import { hasPeriodAccess, studentPeriodKeys } from '@/utils/periodAccess';
+import {
+  resolveWorkKind,
+  type WorkKind,
+} from '@/utils/gradebook/gradebookCore';
 
 /**
  * useStudentAssignments
@@ -112,6 +116,8 @@ export interface AssignmentSummary {
   latestShareCode?: string;
   /** Flashcards only: whether the assignment collects a submission. */
   flashcardKind?: 'check' | 'study';
+  /** Work is turned in; a Resource is only there to study (the session field, else the kind default). */
+  workKind: WorkKind;
   /** Per-period sessions: the gate fields plus this student's periods, for the card's lock. */
   periodGate?: PeriodAccessSessionFields & { periodKeys: string[] };
 }
@@ -457,6 +463,7 @@ function buildAssignmentSummary(
       (record.kind === 'check' || record.kind === 'study')
         ? record.kind
         : undefined,
+    workKind: resolveWorkKind(kind, record),
     periodGate: hasPeriodAccess(record as PeriodAccessSessionFields)
       ? {
           periodAccess: (record as PeriodAccessSessionFields).periodAccess,

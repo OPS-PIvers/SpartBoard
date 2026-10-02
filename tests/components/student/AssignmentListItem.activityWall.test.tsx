@@ -22,6 +22,7 @@ vi.mock('@/config/firebase', () => ({ db: {}, functions: {} }));
 
 const baseWall: AssignmentSummary = {
   compositeId: 'activity-wall:wall-1',
+  workKind: 'work',
   kind: 'activity-wall',
   sessionId: 'wall-1',
   title: 'Gallery Walk',

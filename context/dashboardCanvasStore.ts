@@ -152,6 +152,7 @@ export type DashboardActions = Pick<
   | 'addTourWidget'
   | 'commitTourWidgets'
   | 'discardTourWidgets'
+  | 'setTourTransientSpawns'
 >;
 
 /** Mount-stable actions surface provided by DashboardProvider. */

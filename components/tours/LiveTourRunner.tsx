@@ -65,6 +65,7 @@ import {
   claimSpawns,
   claimTourWidgets,
   hasStepSlide,
+  isActedStep,
   liveTourStepsOf,
   missingSetupWidgets,
   planTourSetup,
@@ -141,6 +142,8 @@ interface ActiveTour {
   policy: TourAutopilotPolicy;
   /** The teacher's widgets cleared off the stage until the tour ends. */
   hidden: string[];
+  /** A cleared stage: widgets the app adds while the tour runs are tour widgets. */
+  clearStage?: boolean;
   draft?: boolean;
 }
 
@@ -305,7 +308,20 @@ export const LiveTourRunner: React.FC = () => {
       tour.spawnWatch,
       tour.slots
     );
-    if (claims !== tour.claims || spawned.bound.length > 0) {
+    // Unsaved widgets the app opened mid-tour join the Keep/Remove list.
+    const opened = widgets
+      .filter(
+        (w) =>
+          w.transient &&
+          !tour.beforeIds.has(w.id) &&
+          !tour.tourIds.includes(w.id)
+      )
+      .map((w) => w.id);
+    if (
+      claims !== tour.claims ||
+      spawned.bound.length > 0 ||
+      opened.length > 0
+    ) {
       const moved = { ...tour.moved };
       for (const layout of spawned.bound) moved[layout.slot] = layout;
       setTour({
@@ -314,6 +330,7 @@ export const LiveTourRunner: React.FC = () => {
         slots: spawned.slots,
         moved,
         spawnWatch: spawned.watches,
+        ...(opened.length > 0 ? { tourIds: [...tour.tourIds, ...opened] } : {}),
       });
     }
   }
@@ -349,6 +366,12 @@ export const LiveTourRunner: React.FC = () => {
     else clearTourHidden();
   }, [hiddenKey]);
 
+  // The app's own addWidget makes unsaved tour widgets while a cleared-stage tour runs.
+  const transientSpawns = tour?.phase === 'running' && !!tour.clearStage;
+  useEffect(() => {
+    latest.current.dashboard.setTourTransientSpawns?.(transientSpawns);
+  }, [transientSpawns]);
+
   // Undo for each prerequisite a step set up, run when the tour ends.
   const prereqUndos = useRef(new Map<string, () => void>());
   const undoPrerequisites = useCallback(() => {
@@ -360,6 +383,7 @@ export const LiveTourRunner: React.FC = () => {
   // Unmounting mid-tour leaves the board as it was.
   useEffect(
     () => () => {
+      latest.current.dashboard.setTourTransientSpawns?.(false);
       latest.current.dashboard.discardTourWidgets?.(tourIdsRef.current);
       clearTourLayoutOverrides();
       clearTourWidgetPatches();
@@ -602,6 +626,7 @@ export const LiveTourRunner: React.FC = () => {
       restored: [],
       policy: resolveTourAutopilotPolicy(latest.current.featurePermissions),
       hidden,
+      clearStage,
       draft: opts.draft,
     });
   };
@@ -804,10 +829,17 @@ export const LiveTourRunner: React.FC = () => {
   advanceRef.current = goTo;
   const stepIndex = tour?.index ?? 0;
 
-  // A click on the anchor advances once the app has handled it.
+  const acted = isActedStep(step?.tour);
+  const action = step?.tour?.action;
+  // A click on the anchor advances once the app has handled it; typing and native selects advance on change.
   useEffect(() => {
     const el = anchor.element;
-    if (!el || step?.tour?.action !== 'click') return;
+    if (!el || !acted) return;
+    const onChange =
+      action === 'type' ||
+      (action === 'select' &&
+        (el instanceof HTMLSelectElement || !!el.querySelector('select')));
+    const eventName = onChange ? 'change' : 'click';
     let raf = 0;
     const onClick = () => {
       lastStepClickAt.current = Date.now();
@@ -815,12 +847,12 @@ export const LiveTourRunner: React.FC = () => {
       if (autoClicking.current) return;
       raf = requestAnimationFrame(() => advanceRef.current(stepIndex + 1));
     };
-    el.addEventListener('click', onClick, true);
+    el.addEventListener(eventName, onClick, true);
     return () => {
-      el.removeEventListener('click', onClick, true);
+      el.removeEventListener(eventName, onClick, true);
       cancelAnimationFrame(raf);
     };
-  }, [anchor.element, step?.tour?.action, stepIndex]);
+  }, [anchor.element, acted, action, stepIndex]);
 
   const running = tour?.phase === 'running';
   const offeringResume =
@@ -941,11 +973,11 @@ export const LiveTourRunner: React.FC = () => {
   const center = rect
     ? { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
     : null;
-  const isClick = step?.tour?.action === 'click';
+  const isClick = acted;
   // A step with no anchor is a centred card on the dimmed board.
   const plain = running && !!step && !step.tour;
   const cursorAllowed =
-    running && center !== null && isClick && !step.cursor?.hide;
+    running && center !== null && isClick && !step?.cursor?.hide;
   // Guided runs on autopilot until paused or taken over; everything else is Structured.
   const guided = tour?.set.mode === 'guided' && !takenOver;
   const autopilot = guided && !paused;
@@ -1002,8 +1034,12 @@ export const LiveTourRunner: React.FC = () => {
       setAuto(null);
       return;
     }
+    // Recorded values aren't performed yet, so a click could set the wrong state.
     // The confirm prompt lands with the Autopilot performer; until then confirm hands the click over.
-    if (autopilotGate(step.tour, tour.policy) !== 'perform') {
+    if (
+      autopilotGate(step.tour, tour.policy) !== 'perform' ||
+      step.tour.action !== 'click'
+    ) {
       setAuto({ key: stepKey, stage: 'yourTurn' });
       return;
     }

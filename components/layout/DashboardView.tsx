@@ -35,6 +35,7 @@ import { GroupReminderHost } from '@/components/groupReminders/GroupReminderHost
 import { MountedBoardsLayer } from './MountedBoardsLayer';
 import { HelpCenterModal } from '@/components/help/HelpCenterModal';
 import { LiveTourRunner } from '@/components/tours/LiveTourRunner';
+import { TourStageTransition } from '@/components/tours/TourStageTransition';
 import { TourRecordingHost } from '@/components/widgets/GuidedLearning/components/recorder/TourRecordingHost';
 import { TOUR_START_EVENT } from '@/components/tours/tourState';
 import { TourOfferWatcher } from '@/components/tours/useTourOffers';
@@ -1783,6 +1784,7 @@ export const DashboardView: React.FC = () => {
       {canAccessFeature('gl-live-tours') && (
         <>
           <LiveTourRunner />
+          <TourStageTransition />
           <TourOfferWatcher />
           {isAdmin && <TourRecordingHost />}
         </>

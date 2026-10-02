@@ -44,6 +44,7 @@ import {
 import { getServerNow } from '@/utils/serverTime';
 import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 import { assertGuidedLearningDocFits } from '@/utils/firestoreDocSize';
+import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
 
@@ -321,7 +322,7 @@ export interface UseGuidedLearningSessionTeacherResult {
      *  targeting mode — every field is optional and independently mirrored. */
     assignmentWindow?: { openAt?: number; closeAt?: number; dueAt?: number },
     /** `playerV2`: the creator can use `gl-player-v2`, so students get it too. */
-    options?: { playerV2?: boolean },
+    options?: { playerV2?: boolean; workKind?: WorkKind },
     /** Per-period gate; the steps and slides then move to `content/steps`. */
     periodGate?: Pick<GuidedLearningSession, 'accessMode' | 'periodAccess'>
   ) => Promise<string>;
@@ -349,7 +350,7 @@ export const useGuidedLearningSessionTeacher = (
       rosterIds: string[] = [],
       assignmentMode: AssignmentMode = 'submissions',
       assignmentWindow?: { openAt?: number; closeAt?: number; dueAt?: number },
-      options?: { playerV2?: boolean },
+      options?: { playerV2?: boolean; workKind?: WorkKind },
       periodGate?: Pick<GuidedLearningSession, 'accessMode' | 'periodAccess'>
     ): Promise<string> => {
       if (!teacherUid) throw new Error('Not authenticated');
@@ -408,6 +409,7 @@ export const useGuidedLearningSessionTeacher = (
         ...(assignmentWindow?.dueAt !== undefined
           ? { dueAt: assignmentWindow.dueAt }
           : {}),
+        ...(options?.workKind ? { workKind: options.workKind } : {}),
         // Schema version — mirrored so the student player applies matching
         // zoom/spotlight semantics. Absent on legacy sets/sessions.
         ...(set.schemaVersion ? { schemaVersion: set.schemaVersion } : {}),

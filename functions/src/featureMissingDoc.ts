@@ -55,6 +55,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'plc-meeting-recording',
   'plc-meeting-ai-notes',
   'assign-availability',
+  'study-resources',
 ];
 
 /** Plan D7: admins pass a default-off flag (preview, or admin-default like `guided-learning-ai`) that has no saved doc yet. */

@@ -61,3 +61,29 @@ export function formatOpensLabel(openAtMs: number): string {
   });
   return `Opens ${day} ${time}`;
 }
+
+/** STUDENT_LANDING_V2 D10: a Resource reads "Available until {day time}" or "No end date". */
+export function formatAvailableUntilLabel(
+  closeAtMs: number | undefined
+): string {
+  if (typeof closeAtMs !== 'number') return 'No end date';
+  const d = new Date(closeAtMs);
+  const day = d.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+  const time = d.toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  return `Available until ${day} ${time}`;
+}
+
+/** D10: a Resource leaves the student view once its window closes or the session ends; reopening brings it back. */
+export function isResourceAvailable(
+  a: WindowFields & { endedAt?: number },
+  nowMs: number
+): boolean {
+  return a.endedAt === undefined && getWindowState(a, nowMs) !== 'closed';
+}
