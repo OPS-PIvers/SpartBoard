@@ -178,7 +178,8 @@ export const stepInput = z
     tour: z
       .object({
         anchor: z.string().max(200),
-        action: z.enum(['click', 'observe']),
+        action: z.enum(['click', 'observe', 'toggle', 'select', 'type']),
+        value: z.union([z.boolean(), z.string().max(500)]).optional(),
         fallback: z
           .object({
             role: z.string().min(1).max(40),
@@ -319,6 +320,19 @@ export function mergeSteps(
       throw new ToolError(
         `${at}.tour: an empty anchor needs a fallback role and name.`
       );
+    }
+    if (s.tour) {
+      const { action, value } = s.tour;
+      const want =
+        action === 'toggle'
+          ? 'boolean'
+          : action === 'select' || action === 'type'
+            ? 'string'
+            : 'undefined';
+      if (typeof value !== want)
+        throw new ToolError(
+          `${at}.tour.value: ${action} steps take ${want === 'undefined' ? 'no value' : `a ${want} value`}.`
+        );
     }
     if (s.missing_anchor && s.tour?.anchor !== '')
       throw new ToolError(`${at}.missing_anchor needs tour.anchor "".`);

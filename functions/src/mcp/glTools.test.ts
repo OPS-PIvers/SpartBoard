@@ -168,6 +168,25 @@ describe('Guided Learning step edits', () => {
     ).toHaveLength(1);
   });
 
+  it('takes a value that fits the step kind', () => {
+    const tour = (action: string, value?: boolean | string) =>
+      step({
+        tour: {
+          anchor: 'sidebar.boards',
+          action,
+          ...(value !== undefined ? { value } : {}),
+        },
+      });
+    expect(mergeSteps([], [tour('toggle', false)], 1)).toHaveLength(1);
+    expect(mergeSteps([], [tour('type', 'Warm up')], 1)).toHaveLength(1);
+    expect(mergeSteps([], [tour('select', 'serif')], 1)).toHaveLength(1);
+    expect(() => mergeSteps([], [tour('toggle', 'on')], 1)).toThrow(
+      /boolean value/
+    );
+    expect(() => mergeSteps([], [tour('type')], 1)).toThrow(/string value/);
+    expect(() => mergeSteps([], [tour('click', true)], 1)).toThrow(/no value/);
+  });
+
   it('takes missing_anchor only on an untagged step and never saves it', () => {
     const missing = { where: 'Assign menu, last item' };
     expect(() =>

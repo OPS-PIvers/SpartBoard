@@ -7798,12 +7798,21 @@ export type GuidedLearningPublicNarration = Pick<
   'url' | 'voice' | 'durationMs'
 >;
 
+export type GuidedLearningTourAction =
+  | 'click'
+  | 'observe'
+  | 'toggle'
+  | 'select'
+  | 'type';
+
 export interface GuidedLearningTourBinding {
   /** TOUR_ANCHORS key */
   anchor: string;
   fallback?: { role: string; name: string };
-  /** observe = learner presses Next */
-  action: 'click' | 'observe';
+  /** observe = learner presses Next; toggle, select and type complete like click until Autopilot performs them. */
+  action: GuidedLearningTourAction;
+  /** toggle: target state; select: option value; type: text Autopilot enters. */
+  value?: boolean | string;
   /** Guided autopilot demonstrates, then waits for the teacher; absent = the anchor's `destructive` default. */
   teacherMustClick?: boolean;
   /** Widget-scoped anchors: which tour widget slot the anchor belongs to. */

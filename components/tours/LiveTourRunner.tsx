@@ -62,6 +62,7 @@ import {
   claimSpawns,
   claimTourWidgets,
   hasStepSlide,
+  isActedStep,
   liveTourStepsOf,
   missingSetupWidgets,
   planTourSetup,
@@ -728,10 +729,11 @@ export const LiveTourRunner: React.FC = () => {
   advanceRef.current = goTo;
   const stepIndex = tour?.index ?? 0;
 
+  const acted = isActedStep(step?.tour);
   // A click on the anchor advances once the app has handled it.
   useEffect(() => {
     const el = anchor.element;
-    if (!el || step?.tour?.action !== 'click') return;
+    if (!el || !acted) return;
     let raf = 0;
     const onClick = () => {
       lastStepClickAt.current = Date.now();
@@ -744,7 +746,7 @@ export const LiveTourRunner: React.FC = () => {
       el.removeEventListener('click', onClick, true);
       cancelAnimationFrame(raf);
     };
-  }, [anchor.element, step?.tour?.action, stepIndex]);
+  }, [anchor.element, acted, stepIndex]);
 
   const running = tour?.phase === 'running';
   const offeringResume =
@@ -865,11 +867,11 @@ export const LiveTourRunner: React.FC = () => {
   const center = rect
     ? { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
     : null;
-  const isClick = step?.tour?.action === 'click';
+  const isClick = acted;
   // A step with no anchor is a centred card on the dimmed board.
   const plain = running && !!step && !step.tour;
   const cursorAllowed =
-    running && center !== null && isClick && !step.cursor?.hide;
+    running && center !== null && isClick && !step?.cursor?.hide;
   // Guided runs on autopilot until paused or taken over; everything else is Structured.
   const guided = tour?.set.mode === 'guided' && !takenOver;
   const autopilot = guided && !paused;

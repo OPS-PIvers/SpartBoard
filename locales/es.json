@@ -2672,6 +2672,15 @@
     "tourAction": "Cuando el recorrido llegue a este paso",
     "tourAction_click": "Esperar el clic",
     "tourAction_observe": "Mostrarlo y luego Siguiente",
+    "tourAction_toggle": "Esperar el interruptor",
+    "tourAction_select": "Esperar la elección",
+    "tourAction_type": "Esperar la escritura",
+    "tourValueToggle": "Autopilot lo deja",
+    "tourValueOn": "Activado",
+    "tourValueOff": "Desactivado",
+    "tourValueSelect": "Autopilot elige:",
+    "tourValueType": "Autopilot escribe:",
+    "tourValueEmpty": "No se grabó texto. Añade lo que Autopilot debe escribir.",
     "tourTeacherMustClick": "El docente debe hacer clic aquí",
     "tourTeacherMustClickHint": "Los recorridos guiados muestran el clic y esperan a que el docente lo haga.",
     "tourSetupTitle": "Widgets que añade este recorrido",
@@ -3827,6 +3836,10 @@
       "needsWidget": "Necesita {{widgets}} en la pizarra",
       "widgetNotAdded": "Necesita un widget que el recorrido no añade",
       "needsPanel": "Necesita su menú o panel abierto"
+    },
+    "valueWarning": {
+      "emptyValue": "No hay texto para que Autopilot escriba",
+      "rosterName": "El texto escrito coincide con el nombre de un estudiante"
     },
     "notChecked": "Sin comprobar",
     "found": "Encontrado",

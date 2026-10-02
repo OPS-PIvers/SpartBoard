@@ -2672,6 +2672,15 @@
     "tourAction": "Wenn die Tour diesen Schritt erreicht",
     "tourAction_click": "Auf den Klick warten",
     "tourAction_observe": "Zeigen, dann Weiter",
+    "tourAction_toggle": "Auf den Schalter warten",
+    "tourAction_select": "Auf die Auswahl warten",
+    "tourAction_type": "Auf die Eingabe warten",
+    "tourValueToggle": "Autopilot stellt ein",
+    "tourValueOn": "An",
+    "tourValueOff": "Aus",
+    "tourValueSelect": "Autopilot wählt:",
+    "tourValueType": "Autopilot tippt:",
+    "tourValueEmpty": "Es wurde kein Text aufgezeichnet. Gib ein, was Autopilot tippen soll.",
     "tourTeacherMustClick": "Lehrkraft muss selbst klicken",
     "tourTeacherMustClickHint": "Geführte Touren zeigen den Klick und warten dann, bis die Lehrkraft ihn ausführt.",
     "tourSetupTitle": "Widgets, die diese Tour hinzufügt",
@@ -3827,6 +3836,10 @@
       "needsWidget": "Braucht {{widgets}} auf der Tafel",
       "widgetNotAdded": "Braucht ein Widget, das die Tour nicht hinzufügt",
       "needsPanel": "Sein Menü oder Bereich muss offen sein"
+    },
+    "valueWarning": {
+      "emptyValue": "Kein Text, den Autopilot tippen kann",
+      "rosterName": "Der getippte Text entspricht dem Namen eines Kindes"
     },
     "notChecked": "Nicht geprüft",
     "found": "Gefunden",

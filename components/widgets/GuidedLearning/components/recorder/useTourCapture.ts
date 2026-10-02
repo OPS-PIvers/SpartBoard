@@ -141,6 +141,74 @@ export function resolveCaptureTarget(target: Element): RecordedAnchor | null {
   };
 }
 
+const TOGGLE = '[role="switch"], [role="checkbox"], input[type="checkbox"]';
+
+const isOn = (el: Element): boolean =>
+  el instanceof HTMLInputElement
+    ? el.checked
+    : el.getAttribute('aria-checked') === 'true';
+
+/** The on/off control a click lands on, through its label, with the state the click leaves it in. */
+export function toggleOf(
+  target: Element,
+  /** A keyboard click: a native checkbox has already flipped by then. */
+  afterDefault = false
+): { element: Element; value: boolean } | null {
+  if (target.closest('[data-tour-ignore]')) return null;
+  const label = target.closest('label')?.control;
+  const element =
+    target.closest(TOGGLE) ??
+    (label instanceof HTMLInputElement && label.type === 'checkbox'
+      ? label
+      : null);
+  if (!element || element.matches(':disabled, [aria-disabled="true"]'))
+    return null;
+  const flipped = afterDefault && element instanceof HTMLInputElement;
+  return { element, value: flipped ? isOn(element) : !isOn(element) };
+}
+
+const TEXT_INPUT_TYPES = new Set([
+  'text',
+  'search',
+  'email',
+  'url',
+  'tel',
+  'number',
+]);
+
+/** Longest typed value a step keeps. */
+export const MAX_TYPED_CHARS = 500;
+
+/** A text field whose typing becomes a `type` step; never a password. */
+export const typedFieldOf = (
+  el: EventTarget | null
+): HTMLInputElement | HTMLTextAreaElement | null => {
+  if (!(el instanceof Element) || el.closest('[data-tour-ignore]')) return null;
+  if (el instanceof HTMLTextAreaElement) return el;
+  return el instanceof HTMLInputElement && TEXT_INPUT_TYPES.has(el.type)
+    ? el
+    : null;
+};
+
+/** What a recorded value may keep: nothing from a `data-pii` control or a roster name. */
+export const recordableValue = (
+  el: Element,
+  value: string,
+  matcher: NameMatcher | null,
+  label = ''
+): string =>
+  el.closest('[data-pii]') ||
+  matcher?.test(value) ||
+  (label && matcher?.test(label))
+    ? ''
+    : value.slice(0, MAX_TYPED_CHARS);
+
+/** The value a custom listbox option stands for. */
+export const optionValueOf = (option: Element): string =>
+  option.getAttribute('data-value') ??
+  option.getAttribute('value') ??
+  (option.textContent ?? '').trim();
+
 const newId = () =>
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
@@ -265,7 +333,8 @@ export function useTourCapture({
   /** Grabs a frame with the recorder hidden, blurs names and `data-pii` into it, and builds a step bound to `target`. */
   const grab = async (
     target: Element,
-    action: GuidedLearningTourBinding['action']
+    action: GuidedLearningTourBinding['action'],
+    value: GuidedLearningTourBinding['value']
   ): Promise<Captured | null> => {
     const video = videoRef.current;
     const resolved = resolveCaptureTarget(target);
@@ -311,6 +380,7 @@ export function useTourCapture({
           anchor: resolved.anchor,
           ...(fallback ? { fallback } : {}),
           action,
+          ...(value !== undefined ? { value } : {}),
         },
         frameIndex: -1,
         untagged: resolved.untagged,
@@ -324,11 +394,12 @@ export function useTourCapture({
 
   const capture = (
     target: Element,
-    action: GuidedLearningTourBinding['action']
+    action: GuidedLearningTourBinding['action'],
+    value?: GuidedLearningTourBinding['value']
   ) => {
     const { gen } = seq.current;
     const n = seq.current.next++;
-    const job = grab(target, action)
+    const job = grab(target, action, value)
       .catch(() => null)
       .then((entry) => {
         if (seq.current.gen !== gen) return;
@@ -339,15 +410,84 @@ export function useTourCapture({
     void job.finally(() => inflight.current.delete(job));
   };
 
+  // The field being typed into; its step lands when focus leaves it, Enter is pressed or another click starts.
+  const typing = useRef<{
+    field: HTMLInputElement | HTMLTextAreaElement;
+    changed: boolean;
+  } | null>(null);
+  const commitTyping = () => {
+    const pending = typing.current;
+    typing.current = null;
+    if (!pending?.changed || !pending.field.isConnected) return;
+    const { field } = pending;
+    capture(field, 'type', recordableValue(field, field.value, matcher));
+  };
+
   const onPointerDown = useEffectEvent((e: PointerEvent) => {
     if (e.button !== 0 || !(e.target instanceof Element)) return;
-    capture(e.target, 'click');
+    const target = e.target;
+    if (typing.current?.field !== typedFieldOf(target)) commitTyping();
+    // Text fields and native selects record what is typed or chosen, not the click into them.
+    if (typedFieldOf(target) || target.closest('select')) return;
+    const toggle = toggleOf(target);
+    if (toggle) {
+      capture(toggle.element, 'toggle', toggle.value);
+      return;
+    }
+    const option = target.closest('[role="option"]');
+    if (option && !option.closest('[data-tour-ignore]')) {
+      const label = (option.textContent ?? '').trim();
+      capture(
+        option,
+        'select',
+        recordableValue(option, optionValueOf(option), matcher, label)
+      );
+      return;
+    }
+    capture(target, 'click');
   });
   // Keyboard-opened menus never see a pointerdown, but the opener is still its own step.
   const onClick = useEffectEvent((e: MouseEvent) => {
     if (e.detail !== 0 || !(e.target instanceof Element)) return;
+    const toggle = toggleOf(e.target, true);
+    if (toggle) {
+      capture(toggle.element, 'toggle', toggle.value);
+      return;
+    }
     const opener = panelOpenerOf(e.target);
     if (opener) capture(opener, 'click');
+  });
+  const onChange = useEffectEvent((e: Event) => {
+    const select = e.target;
+    if (
+      !(select instanceof HTMLSelectElement) ||
+      select.closest('[data-tour-ignore]')
+    )
+      return;
+    const label = select.selectedOptions[0]?.textContent?.trim() ?? '';
+    capture(
+      select,
+      'select',
+      recordableValue(select, select.value, matcher, label)
+    );
+  });
+  const onFocusIn = useEffectEvent((e: FocusEvent) => {
+    const field = typedFieldOf(e.target);
+    if (field && typing.current?.field !== field) {
+      commitTyping();
+      typing.current = { field, changed: false };
+    }
+  });
+  const onInput = useEffectEvent((e: Event) => {
+    const field = typedFieldOf(e.target);
+    if (!field) return;
+    if (typing.current?.field !== field) {
+      commitTyping();
+      typing.current = { field, changed: true };
+    } else typing.current.changed = true;
+  });
+  const onFocusOut = useEffectEvent((e: FocusEvent) => {
+    if (typing.current && e.target === typing.current.field) commitTyping();
   });
   // The pill is skipped, so pressing Mark step marks what was hovered before it.
   const onPointerMove = useEffectEvent((e: PointerEvent) => {
@@ -356,9 +496,20 @@ export function useTourCapture({
   });
   const markStep = () => {
     if (status !== 'recording' || !hovered.current) return;
+    commitTyping();
     capture(hovered.current, 'observe');
   };
   const onKeyDown = useEffectEvent((e: KeyboardEvent) => {
+    // Before the app handles Enter, which often clears the field.
+    if (
+      e.key === 'Enter' &&
+      e.target instanceof HTMLInputElement &&
+      typing.current?.field === e.target
+    ) {
+      commitTyping();
+      typing.current = { field: e.target, changed: false };
+      return;
+    }
     if (!e.altKey || e.code !== 'KeyM') return;
     e.preventDefault();
     markStep();
@@ -371,15 +522,27 @@ export function useTourCapture({
     const move = (e: PointerEvent) => onPointerMove(e);
     const key = (e: KeyboardEvent) => onKeyDown(e);
     const click = (e: MouseEvent) => onClick(e);
+    const change = (e: Event) => onChange(e);
+    const focusIn = (e: FocusEvent) => onFocusIn(e);
+    const input = (e: Event) => onInput(e);
+    const focusOut = (e: FocusEvent) => onFocusOut(e);
     window.addEventListener('pointerdown', down, true);
     window.addEventListener('click', click, true);
     window.addEventListener('pointermove', move, true);
     window.addEventListener('keydown', key, true);
+    window.addEventListener('change', change, true);
+    window.addEventListener('focusin', focusIn, true);
+    window.addEventListener('input', input, true);
+    window.addEventListener('focusout', focusOut, true);
     return () => {
       window.removeEventListener('pointerdown', down, true);
       window.removeEventListener('click', click, true);
       window.removeEventListener('pointermove', move, true);
       window.removeEventListener('keydown', key, true);
+      window.removeEventListener('change', change, true);
+      window.removeEventListener('focusin', focusIn, true);
+      window.removeEventListener('input', input, true);
+      window.removeEventListener('focusout', focusOut, true);
     };
   }, [status]);
 
@@ -390,6 +553,7 @@ export function useTourCapture({
   }, []);
 
   const finish = async (): Promise<TourRecording> => {
+    commitTyping();
     setStatus((s) => (s === 'recording' ? 'paused' : s));
     await Promise.all([...inflight.current]);
     const result = recording.current;

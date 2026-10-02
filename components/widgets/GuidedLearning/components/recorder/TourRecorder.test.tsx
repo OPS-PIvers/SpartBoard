@@ -483,4 +483,171 @@ describe('TourRecorder', () => {
       expect(screen.getByText('Recording · 0 steps')).toBeInTheDocument();
     });
   });
+  describe('recorded values', () => {
+    const tourOf = (recording: TourRecording) =>
+      recording.steps.map((s) => [s.tour.anchor, s.tour.action, s.tour.value]);
+
+    it('records a switch as toggle with the state after the click', async () => {
+      const onFinish = renderRecorder(
+        vi.fn(),
+        null,
+        <>
+          <button
+            role="switch"
+            aria-checked="false"
+            data-tour="settings.toggle"
+            data-tour-widget-type="clock"
+            data-tour-field="format24"
+          >
+            24H
+          </button>
+          <label>
+            <input type="checkbox" defaultChecked data-tour="sidebar.boards" />
+            Show seconds
+          </label>
+        </>
+      );
+      await startRecording();
+      fireEvent.pointerDown(screen.getByRole('switch'), { button: 0 });
+      fireEvent.pointerDown(screen.getByText('Show seconds'), { button: 0 });
+      await settle();
+      const recording = await finish(onFinish);
+      expect(recording.steps.map((s) => [s.tour.action, s.tour.value])).toEqual(
+        [
+          ['toggle', true],
+          ['toggle', false],
+        ]
+      );
+    });
+
+    it('records a native select by its chosen value, not the click into it', async () => {
+      const onFinish = renderRecorder(
+        vi.fn(),
+        null,
+        <select data-tour="sidebar.boards" defaultValue="a">
+          <option value="a">Alpha</option>
+          <option value="b">Beta</option>
+        </select>
+      );
+      await startRecording();
+      const select = screen.getByRole('combobox');
+      fireEvent.pointerDown(select, { button: 0 });
+      fireEvent.change(select, { target: { value: 'b' } });
+      await settle();
+      const recording = await finish(onFinish);
+      expect(tourOf(recording)).toEqual([['sidebar.boards', 'select', 'b']]);
+    });
+
+    it('records a listbox option as select', async () => {
+      const onFinish = renderRecorder(
+        vi.fn(),
+        null,
+        <div role="listbox" data-tour="sidebar.boards">
+          <div role="option" aria-selected="false" data-value="serif">
+            Serif
+          </div>
+        </div>
+      );
+      await startRecording();
+      fireEvent.pointerDown(screen.getByRole('option'), { button: 0 });
+      await settle();
+      const recording = await finish(onFinish);
+      expect(tourOf(recording)).toEqual([
+        ['sidebar.boards', 'select', 'serif'],
+      ]);
+    });
+
+    it('records one type step per field with the final text, before the next click', async () => {
+      const onFinish = renderRecorder(
+        vi.fn(),
+        null,
+        <>
+          <input aria-label="Title" data-tour="sidebar.classes" />
+          <button data-tour="sidebar.boards">Boards</button>
+        </>
+      );
+      await startRecording();
+      const field = screen.getByLabelText('Title');
+      fireEvent.pointerDown(field, { button: 0 });
+      fireEvent.focusIn(field);
+      fireEvent.input(field, { target: { value: 'Warm' } });
+      fireEvent.input(field, { target: { value: 'Warm up' } });
+      fireEvent.pointerDown(screen.getByText('Boards'), { button: 0 });
+      fireEvent.focusOut(field);
+      await settle();
+      const recording = await finish(onFinish);
+      expect(tourOf(recording)).toEqual([
+        ['sidebar.classes', 'type', 'Warm up'],
+        ['sidebar.boards', 'click', undefined],
+      ]);
+    });
+
+    it('records typing on Enter, before the app clears the field', async () => {
+      const onFinish = renderRecorder(
+        vi.fn(),
+        null,
+        <input
+          aria-label="New item"
+          data-tour="sidebar.classes"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.value = '';
+          }}
+        />
+      );
+      await startRecording();
+      const field = screen.getByLabelText('New item');
+      fireEvent.focusIn(field);
+      fireEvent.input(field, { target: { value: 'Collect homework' } });
+      fireEvent.keyDown(field, { key: 'Enter' });
+      fireEvent.focusOut(field);
+      await settle();
+      const recording = await finish(onFinish);
+      expect(tourOf(recording)).toEqual([
+        ['sidebar.classes', 'type', 'Collect homework'],
+      ]);
+    });
+
+    it('never captures a data-pii field or a roster name', async () => {
+      const onFinish = renderRecorder(
+        vi.fn(),
+        buildNameMatcher([{ firstName: 'Avery', lastName: 'Lindqvist' }]),
+        <>
+          <input aria-label="Secret" data-pii data-tour="sidebar.classes" />
+          <input aria-label="Student" data-tour="sidebar.boards" />
+        </>
+      );
+      await startRecording();
+      for (const [label, text] of [
+        ['Secret', 'private note'],
+        ['Student', 'Avery Lindqvist'],
+      ]) {
+        const field = screen.getByLabelText(label);
+        fireEvent.focusIn(field);
+        fireEvent.input(field, { target: { value: text } });
+        fireEvent.focusOut(field);
+      }
+      await settle();
+      const recording = await finish(onFinish);
+      expect(tourOf(recording)).toEqual([
+        ['sidebar.classes', 'type', ''],
+        ['sidebar.boards', 'type', ''],
+      ]);
+    });
+
+    it('records nothing for a field focused but left unchanged', async () => {
+      renderRecorder(
+        vi.fn(),
+        null,
+        <input aria-label="Title" data-tour="sidebar.classes" />
+      );
+      await startRecording();
+      const field = screen.getByLabelText('Title');
+      fireEvent.pointerDown(field, { button: 0 });
+      fireEvent.focusIn(field);
+      fireEvent.focusOut(field);
+      await settle();
+      expect(h.grabFrame).not.toHaveBeenCalled();
+      expect(screen.getByText('Recording · 0 steps')).toBeInTheDocument();
+    });
+  });
 });

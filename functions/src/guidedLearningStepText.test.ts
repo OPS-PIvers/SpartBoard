@@ -56,6 +56,23 @@ describe('buildStepTextParts', () => {
       inlineData: { mimeType: 'image/png', data: 'AAAA' },
     });
   });
+
+  it('names the recorded toggle, select and type kinds', () => {
+    const parts = buildStepTextParts(
+      parseStepTextRequest({
+        steps: ['toggle', 'select', 'type'].map((action) => ({
+          ...STEP,
+          action,
+        })),
+      })
+    );
+    expect(parts.filter((p) => p.text).map((p) => p.text)).toEqual([
+      'Write the walkthrough text for these steps.',
+      'Step 1: switch "Clock"',
+      'Step 2: choose an option in "Clock"',
+      'Step 3: type into "Clock"',
+    ]);
+  });
 });
 
 describe('clampStepText', () => {
