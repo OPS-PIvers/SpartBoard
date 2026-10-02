@@ -15,7 +15,7 @@ import { Loader2, Users2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { Plc } from '@/types';
 import { getPlcMembers } from '@/utils/plc';
-import { useViewAsOutward } from '@/hooks/useViewAsOutward';
+import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { useAuth } from '@/context/useAuth';
 
 interface PlcShareTargetModalProps {
@@ -45,7 +45,11 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
-    if (outward.active && !(await outward.confirm('Share to PLC'))) return;
+    if (
+      outward.active &&
+      !(await outward.confirm('Share to PLC', VIEW_AS_WRITES.sharePlc))
+    )
+      return;
     setSubmitting(true);
     setError(null);
     try {

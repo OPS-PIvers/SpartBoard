@@ -47,7 +47,7 @@ import {
 } from '@/utils/videoActivityLive';
 import { logError } from '@/utils/logError';
 import { VideoActivityLiveAggregate } from './VideoActivityLiveAggregate';
-import { useViewAsOutward } from '@/hooks/useViewAsOutward';
+import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 
 interface VideoActivityLivePlayerProps {
   session: VideoActivitySession;
@@ -293,7 +293,7 @@ export const VideoActivityLivePlayer: React.FC<
       { title: 'End session', variant: 'warning', confirmLabel: 'End' }
     );
     if (!ok) return;
-    outward.audit('End session');
+    outward.audit('End session', VIEW_AS_WRITES.end);
     setEnding(true);
     setPlaying(false);
     try {
