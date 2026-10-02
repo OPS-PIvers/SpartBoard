@@ -1,9 +1,13 @@
 import React, { useEffect } from 'react';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { WeatherGlobalConfig } from '@/types';
+import {
+  isStoredWeatherFresh,
+  type StoredWeatherMeta,
+} from './adminWeatherFreshness';
 
 // Constants shared with WeatherWidget
 const STATION_CONFIG = {
@@ -62,15 +66,36 @@ export const AdminWeatherFetcher: React.FC = () => {
     if (config?.fetchingStrategy !== 'admin_proxy') return;
 
     const abortController = new AbortController();
+    const frequency = Math.max(5, config.updateFrequencyMinutes ?? 15);
+    const source = config.source ?? 'openweather';
+    const cityKey = config.city?.trim() ?? '';
+    const weatherRef = doc(db, 'global_weather', 'current');
 
     const fetchWeather = async () => {
+      // A failed freshness read falls through to a normal fetch.
+      try {
+        const snap = await getDoc(weatherRef);
+        if (abortController.signal.aborted) return;
+        if (
+          snap.exists() &&
+          isStoredWeatherFresh(snap.data() as StoredWeatherMeta, {
+            source,
+            cityKey,
+            frequencyMinutes: frequency,
+            now: Date.now(),
+          })
+        ) {
+          return;
+        }
+      } catch (readErr) {
+        console.warn('[AdminWeatherFetcher] Freshness check failed:', readErr);
+      }
+
       try {
         let temp = 72;
         let feelsLike = 72;
         let condition = 'sunny';
         let locationName = STATION_CONFIG.name;
-
-        const source = config.source ?? 'openweather';
 
         if (source === 'earth_networks') {
           // Earth Networks Fetch Logic
@@ -146,13 +171,15 @@ export const AdminWeatherFetcher: React.FC = () => {
         }
 
         // Write to Firestore
-        await setDoc(doc(db, 'global_weather', 'current'), {
+        if (abortController.signal.aborted) return;
+        await setDoc(weatherRef, {
           temp,
           feelsLike,
           condition,
           locationName,
           updatedAt: Date.now(),
           source,
+          city: cityKey,
         });
 
         console.warn(
@@ -168,7 +195,6 @@ export const AdminWeatherFetcher: React.FC = () => {
     void fetchWeather();
 
     // Interval
-    const frequency = Math.max(5, config.updateFrequencyMinutes ?? 15);
     const intervalId = setInterval(
       () => {
         void fetchWeather();
