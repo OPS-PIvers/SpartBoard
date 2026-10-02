@@ -19,6 +19,8 @@ interface NoteRecordingsProps {
   members: PlcMember[];
   canEdit: boolean;
   onDeleteAudio: (recordingId: string) => Promise<void>;
+  /** Extra content under each recording, such as its drafted notes. */
+  renderExtra?: (recording: PlcRecording) => React.ReactNode;
 }
 
 const formatDay = (ms: number): string =>
@@ -37,19 +39,20 @@ export const NoteRecordings: React.FC<NoteRecordingsProps> = ({
   members,
   canEdit,
   onDeleteAudio,
+  renderExtra,
 }) => {
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
 
-  const playable = recordings.filter(
+  // Rows without audio stay listed only when something else renders under them.
+  const shown = recordings.filter(
     (r) =>
-      plcRecordingHasAudio(r) &&
       !isPlcRecordingLive(r) &&
       r.status !== 'finalizing' &&
-      r.parts.length > 0
+      (renderExtra ? true : plcRecordingHasAudio(r) && r.parts.length > 0)
   );
-  if (playable.length === 0) return null;
+  if (shown.length === 0) return null;
 
   const nameFor = (uid: string) => {
     const name = members.find((m) => m.uid === uid)?.displayName.trim();
@@ -113,17 +116,25 @@ export const NoteRecordings: React.FC<NoteRecordingsProps> = ({
           defaultValue: 'Recordings',
         })}
       </h4>
-      {playable.map((r) => (
-        <RecordingPlayer
-          key={r.id}
-          parts={r.parts.map((p, i) => ({
-            path: plcRecordingPartPath(plcId, r.id, i),
-            durationMs: p.durationMs,
-          }))}
-          meta={metaFor(r)}
-          downloadName={`${noteTitle || 'Meeting'} ${formatDay(r.createdAt)}`}
-          onDelete={canEdit ? () => void handleDelete(r) : undefined}
-        />
+      {shown.map((r) => (
+        <div key={r.id}>
+          {plcRecordingHasAudio(r) && r.parts.length > 0 ? (
+            <RecordingPlayer
+              parts={r.parts.map((p, i) => ({
+                path: plcRecordingPartPath(plcId, r.id, i),
+                durationMs: p.durationMs,
+              }))}
+              meta={metaFor(r)}
+              downloadName={`${noteTitle || 'Meeting'} ${formatDay(r.createdAt)}`}
+              onDelete={canEdit ? () => void handleDelete(r) : undefined}
+            />
+          ) : (
+            <div className="py-1 text-xxs text-slate-500">
+              {formatRecordingClock(r.durationMs)} · {metaFor(r)}
+            </div>
+          )}
+          {renderExtra?.(r)}
+        </div>
       ))}
     </div>
   );
