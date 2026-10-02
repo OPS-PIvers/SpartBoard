@@ -62,6 +62,53 @@ interface OneRosterUserWithRole extends ClassLinkUser {
 }
 
 const STUDENT_LOGIN_CLASS_IDS_MAX = 20;
+// Server-only record of a student's full OneRoster section list, re-checked against rosters on each directory call.
+const STUDENT_SECTIONS_COLLECTION = 'student_sections';
+const STUDENT_SECTIONS_MAX = 100;
+// Firestore caps `in` at 30; 10 keeps each collectionGroup query small.
+const FIRESTORE_IN_CHUNK_SIZE = 10;
+
+type RosterSnap = FirebaseFirestore.QueryDocumentSnapshot;
+
+/** Every teacher roster whose `classlinkClassId` is in `ids`, grouped by that id. */
+async function lookupRostersBySection(
+  db: FirebaseFirestore.Firestore,
+  ids: readonly string[]
+): Promise<Map<string, RosterSnap[]>> {
+  const out = new Map<string, RosterSnap[]>();
+  if (ids.length === 0) return out;
+  const snapshots = await Promise.all(
+    chunk([...new Set(ids)], FIRESTORE_IN_CHUNK_SIZE).map((idChunk) =>
+      db
+        .collectionGroup('rosters')
+        .where('classlinkClassId', 'in', idChunk)
+        .get()
+    )
+  );
+  for (const snap of snapshots) {
+    for (const doc of snap.docs) {
+      const value: unknown = doc.get('classlinkClassId');
+      if (typeof value !== 'string') continue;
+      const list = out.get(value);
+      if (list) list.push(doc);
+      else out.set(value, [doc]);
+    }
+  }
+  return out;
+}
+
+const rosterUpdatedAt = (doc: RosterSnap): number => {
+  const updated: unknown = doc.get('updatedAt');
+  if (typeof updated === 'number') return updated;
+  const created: unknown = doc.get('createdAt');
+  return typeof created === 'number' ? created : 0;
+};
+
+const sameIdSet = (a: readonly string[], b: readonly string[]): boolean => {
+  if (a.length !== b.length) return false;
+  const set = new Set(a);
+  return b.every((id) => set.has(id));
+};
 
 function hmacSha256Hex(secret: string, message: string): string {
   return CryptoJS.HmacSHA256(message, secret).toString(CryptoJS.enc.Hex);
@@ -229,7 +276,7 @@ export const studentLoginV1 = onCall(
     //    classes. Held in memory only, never written to Firestore.
     const cleanTenantUrl = tenantUrl.replace(/\/$/, '');
     let sourcedId: string;
-    let classIds: string[];
+    let sectionIds: string[];
     try {
       if (!isSafeEmailForOneRosterFilter(email)) {
         console.warn('[studentLoginV1] students_not_in_roster');
@@ -274,10 +321,15 @@ export const studentLoginV1 = onCall(
         classesUrl,
         { headers: { ...classesHeaders } }
       );
-      classIds = (classesResp.data.classes ?? [])
-        .map((c) => c.sourcedId)
-        .filter((id): id is string => typeof id === 'string' && id.length > 0)
-        .slice(0, STUDENT_LOGIN_CLASS_IDS_MAX);
+      sectionIds = [
+        ...new Set(
+          (classesResp.data.classes ?? [])
+            .map((c) => c.sourcedId)
+            .filter(
+              (id): id is string => typeof id === 'string' && id.length > 0
+            )
+        ),
+      ].slice(0, STUDENT_SECTIONS_MAX);
     } catch (err) {
       if (err instanceof HttpsError) throw err;
       if (axios.isAxiosError(err)) {
@@ -291,9 +343,34 @@ export const studentLoginV1 = onCall(
       throw new HttpsError('internal', 'Roster service unavailable.');
     }
 
-    // 4. Compute the stable opaque UID and mint the custom token with
+    // 4. Keep only sections a teacher has imported as a roster, so homeroom,
+    //    lunch and unimported sections never take a slot under the cap.
+    let rosterMatches: Map<string, RosterSnap[]>;
+    try {
+      rosterMatches = await lookupRostersBySection(db, sectionIds);
+    } catch (err) {
+      console.error('[studentLoginV1] roster lookup failed:', err);
+      throw new HttpsError('internal', 'Roster service unavailable.');
+    }
+    const classIds = sectionIds
+      .filter((id) => rosterMatches.has(id))
+      .slice(0, STUDENT_LOGIN_CLASS_IDS_MAX);
+
+    // 5. Compute the stable opaque UID and mint the custom token with
     //    the classIds claim that gates Firestore reads.
     const uid = computeStudentUid(sourcedId, hmacSecret);
+
+    // Best effort: without this record the directory call can't pick up a
+    // section a teacher imports later, but sign-in still works.
+    try {
+      await db.doc(`${STUDENT_SECTIONS_COLLECTION}/${uid}`).set({
+        orgId,
+        sectionIds,
+        updatedAt: Date.now(),
+      });
+    } catch (err) {
+      console.error('[studentLoginV1] student_sections write failed:', err);
+    }
 
     let customToken: string;
     try {
@@ -363,29 +440,32 @@ export const getAssignmentPseudonymV1 = onCall(
 /**
  * getStudentClassDirectoryV1
  *
- * Returns class metadata (name, teacher display name, subject, code) for the
- * authenticated student's claim-bound `classIds`. Powers the sidebar on
- * `/my-assignments` so a student sees "English 9 / Ms. Halverson" instead of
- * an opaque sourcedId.
+ * Returns the authenticated student's classes (name, teachers, subject, code)
+ * so the `/my-assignments` sidebar shows "English 9 / Ms. Halverson" instead
+ * of an opaque sourcedId. Classes are sorted by name.
  *
- * Lookup order per classId:
- *   1. `collectionGroup('rosters').where('classlinkClassId', '==', classId)` —
- *      real ClassLink imports. Parent path gives teacher uid. Safe across
- *      orgs because ClassLink-issued sourcedIds are not admin-controlled.
+ * A class is listed only when it resolves:
+ *   1. `collectionGroup('rosters').where('classlinkClassId', 'in', …)` —
+ *      real ClassLink imports. Safe across orgs because ClassLink-issued
+ *      sourcedIds are not admin-controlled. A co-taught section is one entry:
+ *      its name, subject and code come from the most recently updated
+ *      matching roster, and every matching teacher is listed.
  *   2. `organizations/{orgId}/testClasses/{classId}` — admin-managed test
  *      classes. Always read via the org-scoped doc path (never via a
  *      collectionGroup lookup on `testClassId`) because test class IDs are
- *      admin-chosen slugs that can collide across orgs; a collectionGroup
- *      query would risk returning another org's roster.
+ *      admin-chosen slugs that can collide across orgs.
+ * Anything else is dropped; the client never renders a placeholder for it.
+ *
+ * Re-check: when `student_sections/{uid}` holds the student's OneRoster
+ * sections from sign-in, they are re-matched against rosters on every call.
+ * If the matched set differs from the token's `classIds` claim, the response
+ * carries a fresh `customToken` (same uid, new claim) that the client signs
+ * in with, so a class imported mid-day appears without signing out.
  *
  * PII: this function never returns student names, emails, or any field from
  * the per-roster Drive file. Only Firestore-side roster meta (which is
  * itself PII-free) plus the teacher's own `displayName` from Firebase Auth.
  * Teacher names are organizational data, not student PII.
- *
- * Failure: classIds that match nothing are silently dropped from the
- * response so the sidebar simply omits them. The page renders a fallback
- * label client-side rather than treating a missing entry as an error.
  */
 export const getStudentClassDirectoryV1 = onCall(
   {
@@ -406,19 +486,38 @@ export const getStudentClassDirectoryV1 = onCall(
     if (!Array.isArray(rawClassIds)) {
       throw new HttpsError('failed-precondition', 'No classes on token.');
     }
-    const classIds = rawClassIds
+    const tokenClassIds = rawClassIds
       .filter((c): c is string => typeof c === 'string' && c.length > 0)
       .slice(0, STUDENT_LOGIN_CLASS_IDS_MAX);
-    if (classIds.length === 0) {
-      return { classes: [] };
-    }
 
     const orgId =
       typeof request.auth.token.orgId === 'string'
         ? request.auth.token.orgId
         : '';
+    const uid = request.auth.uid;
 
     const db = admin.firestore();
+
+    // Stored sections widen the candidates; a record from another org is ignored.
+    let storedSectionIds: string[] | null = null;
+    if (orgId) {
+      const sectionsSnap = await db
+        .doc(`${STUDENT_SECTIONS_COLLECTION}/${uid}`)
+        .get()
+        .catch(() => null);
+      const data = sectionsSnap?.exists ? sectionsSnap.data() : undefined;
+      if (data && data.orgId === orgId && Array.isArray(data.sectionIds)) {
+        storedSectionIds = (data.sectionIds as unknown[])
+          .filter((c): c is string => typeof c === 'string' && c.length > 0)
+          .slice(0, STUDENT_SECTIONS_MAX);
+      }
+    }
+    const candidateIds = [
+      ...new Set([...tokenClassIds, ...(storedSectionIds ?? [])]),
+    ];
+    if (candidateIds.length === 0) {
+      return { classes: [] };
+    }
 
     // Per-call cache: many classes may share a teacher; one Auth lookup
     // suffices.
@@ -445,138 +544,132 @@ export const getStudentClassDirectoryV1 = onCall(
     interface DirectoryEntry {
       classId: string;
       name: string;
+      /** All teacher names joined with " & ", kept for older clients. */
       teacherDisplayName: string;
+      teacherDisplayNames: string[];
       subject?: string;
       code?: string;
     }
 
-    // Batch the per-classId collectionGroup queries instead of fanning out
-    // a separate equality query per id. Firestore caps `in`-array size at
-    // 30; we chunk at 10 to stay safely under the limit and to fit the
-    // typical `STUDENT_LOGIN_CLASS_IDS_MAX = 20` payload in 2 chunks.
-    const FIRESTORE_IN_CHUNK_SIZE = 10;
-
-    /**
-     * Run `collectionGroup('rosters').where(field, 'in', chunk)` for every
-     * chunk of `ids`, then index the matching roster docs by their
-     * `field`-value. First match wins on duplicates so the teacher whose
-     * roster Firestore returns first deterministically owns the directory
-     * entry for that class.
-     */
-    const batchLookupByField = async (
-      field: 'classlinkClassId',
-      ids: readonly string[]
-    ): Promise<Map<string, FirebaseFirestore.QueryDocumentSnapshot>> => {
-      const out = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
-      if (ids.length === 0) return out;
-      const snapshots = await Promise.all(
-        chunk(ids, FIRESTORE_IN_CHUNK_SIZE).map((idChunk) =>
-          db.collectionGroup('rosters').where(field, 'in', idChunk).get()
-        )
-      );
-      for (const snap of snapshots) {
-        for (const doc of snap.docs) {
-          const value: unknown = doc.get(field);
-          if (typeof value === 'string' && !out.has(value)) {
-            out.set(value, doc);
-          }
-        }
-      }
-      return out;
-    };
-
-    const buildEntryFromRoster = async (
+    const buildEntryFromRosters = async (
       classId: string,
-      rosterDoc: FirebaseFirestore.QueryDocumentSnapshot,
-      includeCode: boolean
+      rosterDocs: readonly RosterSnap[]
     ): Promise<DirectoryEntry> => {
-      const data = rosterDoc.data();
-      const teacherUid = rosterDoc.ref.parent.parent?.id ?? '';
-      const teacherDisplayName = teacherUid
-        ? await resolveTeacherName(teacherUid)
-        : '';
+      const ordered = [...rosterDocs].sort(
+        (a, b) => rosterUpdatedAt(b) - rosterUpdatedAt(a)
+      );
+      const newest = ordered[0].data();
+      const teacherUids = [
+        ...new Set(
+          ordered
+            .map((d) => d.ref.parent.parent?.id ?? '')
+            .filter((id) => id.length > 0)
+        ),
+      ];
+      const teacherDisplayNames = (
+        await Promise.all(teacherUids.map(resolveTeacherName))
+      ).filter((n) => n.length > 0);
       return {
         classId,
-        name: typeof data.name === 'string' ? data.name : classId,
-        teacherDisplayName,
+        name:
+          typeof newest.name === 'string' && newest.name.length > 0
+            ? newest.name
+            : classId,
+        teacherDisplayName: teacherDisplayNames.join(' & '),
+        teacherDisplayNames,
         subject:
-          typeof data.classlinkSubject === 'string'
-            ? data.classlinkSubject
+          typeof newest.classlinkSubject === 'string'
+            ? newest.classlinkSubject
             : undefined,
         code:
-          includeCode && typeof data.classlinkClassCode === 'string'
-            ? data.classlinkClassCode
+          typeof newest.classlinkClassCode === 'string'
+            ? newest.classlinkClassCode
             : undefined,
       };
     };
 
-    // 1. Batched collectionGroup lookup for ClassLink classes. Two `in`
-    // queries per field chunk replace what was up to 20 separate equality
-    // queries. Real ClassLink sourcedIds are issued globally by ClassLink
-    // and are not admin-controlled, so collisions across orgs are not a
-    // realistic risk on this branch.
-    const classlinkMatches = await batchLookupByField(
-      'classlinkClassId',
-      classIds
-    );
-    const unresolvedAfterClasslink = classIds.filter(
-      (id) => !classlinkMatches.has(id)
-    );
+    const rosterMatches = await lookupRostersBySection(db, candidateIds);
 
-    // 2. Direct testClasses doc reads — for every classId not resolved as
-    // ClassLink. We deliberately do NOT use a `collectionGroup('rosters')
-    // .where('testClassId', 'in', …)` lookup here: testClassIds are
-    // admin-chosen slugs (default `testclass`, or a slugified title) and
-    // can collide across orgs, so a collectionGroup query would risk
-    // returning another org's roster doc and leaking that teacher's name
-    // and class metadata to the student. The org-scoped document path is
-    // gated by the student's verified `orgId` claim, so it cannot cross
-    // org boundaries. The trade-off is that we no longer surface the
-    // importing teacher's display name on test-class directory entries —
-    // these are admin-managed mocks where teacher attribution is
-    // cosmetic.
+    // Test classes only ever arrive on the token (stored sections are real
+    // OneRoster ids). The org-scoped doc path is gated by the student's
+    // verified `orgId` claim, so it cannot cross org boundaries.
+    const unresolvedTokenIds = tokenClassIds.filter(
+      (id) => !rosterMatches.has(id)
+    );
     const testClassDocs = new Map<string, FirebaseFirestore.DocumentSnapshot>();
-    if (orgId && unresolvedAfterClasslink.length > 0) {
+    if (orgId && unresolvedTokenIds.length > 0) {
       const docs = await Promise.all(
-        unresolvedAfterClasslink.map((id) =>
+        unresolvedTokenIds.map((id) =>
           db
             .doc(`organizations/${orgId}/testClasses/${id}`)
             .get()
             .catch(() => null)
         )
       );
-      for (let i = 0; i < unresolvedAfterClasslink.length; i++) {
+      for (let i = 0; i < unresolvedTokenIds.length; i++) {
         const d = docs[i];
-        if (d && d.exists) testClassDocs.set(unresolvedAfterClasslink[i], d);
+        if (d && d.exists) testClassDocs.set(unresolvedTokenIds[i], d);
+      }
+    }
+    const resolves = (id: string) =>
+      rosterMatches.has(id) || testClassDocs.has(id);
+
+    // Token ids that still resolve keep their slots ahead of newly matched sections.
+    let listedIds = tokenClassIds.filter(resolves);
+    let customToken: string | undefined;
+    if (storedSectionIds) {
+      const nextClaim = [
+        ...listedIds,
+        ...storedSectionIds.filter(
+          (id) => !listedIds.includes(id) && resolves(id)
+        ),
+      ].slice(0, STUDENT_LOGIN_CLASS_IDS_MAX);
+      if (!sameIdSet(nextClaim, tokenClassIds)) {
+        try {
+          customToken = await admin.auth().createCustomToken(uid, {
+            studentRole: true,
+            orgId,
+            classIds: nextClaim,
+          });
+          listedIds = nextClaim;
+        } catch (err) {
+          // The current claim still works; the new class shows on next sign-in.
+          console.error(
+            '[getStudentClassDirectoryV1] createCustomToken failed:',
+            err
+          );
+        }
       }
     }
 
     const entries = await Promise.all(
-      classIds.map(async (classId): Promise<DirectoryEntry | null> => {
-        const fromClasslink = classlinkMatches.get(classId);
-        if (fromClasslink) {
-          return buildEntryFromRoster(classId, fromClasslink, true);
-        }
-        const fromTestClassDoc = testClassDocs.get(classId);
-        if (fromTestClassDoc) {
-          const data = fromTestClassDoc.data() ?? {};
-          return {
-            classId,
-            name:
-              typeof data.title === 'string' && data.title.length > 0
-                ? data.title
-                : classId,
-            teacherDisplayName: '',
-            subject:
-              typeof data.subject === 'string' ? data.subject : undefined,
-          };
-        }
-        return null;
+      listedIds.map(async (classId): Promise<DirectoryEntry> => {
+        const fromRosters = rosterMatches.get(classId);
+        if (fromRosters) return buildEntryFromRosters(classId, fromRosters);
+        const data = testClassDocs.get(classId)?.data() ?? {};
+        return {
+          classId,
+          name:
+            typeof data.title === 'string' && data.title.length > 0
+              ? data.title
+              : classId,
+          teacherDisplayName: '',
+          teacherDisplayNames: [],
+          subject: typeof data.subject === 'string' ? data.subject : undefined,
+        };
       })
     );
 
-    const classes = entries.filter((e): e is DirectoryEntry => e !== null);
-    return { classes };
+    const classes = entries.sort(
+      (a, b) =>
+        a.name.localeCompare(b.name, undefined, {
+          numeric: true,
+          sensitivity: 'base',
+        }) || a.classId.localeCompare(b.classId)
+    );
+    return customToken
+      ? { classes, customToken, classIds: listedIds }
+      : { classes };
   }
 );
 
