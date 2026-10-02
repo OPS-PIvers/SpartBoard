@@ -183,6 +183,12 @@ export const stepInput = z
       .strict()
       .optional(),
     aiDraft: z.boolean().optional(),
+    has_narration: z
+      .boolean()
+      .optional()
+      .describe(
+        'Read only. Narration is kept; regenerate it in the Studio after changing the text.'
+      ),
   })
   .strict();
 export type StepInput = z.infer<typeof stepInput>;
@@ -306,6 +312,7 @@ export function mergeSteps(
       );
     }
     const merged: Step = { ...s };
+    delete merged.has_narration;
     for (const key of ['audioUrl', 'videoUrl'] as const) {
       const url = s[key];
       if (url && isStorageUrl(url) && url !== prior?.[key]) {
@@ -344,8 +351,8 @@ function publicStep(step: Step) {
   delete out.audioStoragePath;
   delete out.videoStoragePath;
   delete out.targets;
-  if (step.narration)
-    out.narration = 'kept (regenerate in the Studio after changing this step)';
+  delete out.narration;
+  if (step.narration) out.has_narration = true;
   return out;
 }
 

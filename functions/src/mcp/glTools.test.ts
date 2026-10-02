@@ -40,11 +40,13 @@ describe('Guided Learning step edits', () => {
         step({
           interactionType: 'audio',
           audioUrl: 'https://firebasestorage.googleapis.com/v0/b/b/o/a.mp3',
+          has_narration: true,
         }),
       ],
       1
     );
     expect(merged.narration).toEqual(stored[0].narration);
+    expect(merged).not.toHaveProperty('has_narration');
     expect(merged.audioStoragePath).toBe('a.mp3');
   });
 
