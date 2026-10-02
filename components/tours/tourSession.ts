@@ -1,13 +1,16 @@
 import {
   isDestructiveAnchor,
+  isPersistsAnchor,
   isTourAnchorId,
   parseTourAnchorRef,
 } from '@/config/tourAnchors';
 import type { TourLayoutOverride } from '@/context/dashboardCanvasStore';
 import type {
+  FeaturePermission,
   GuidedLearningSet,
   GuidedLearningTourBinding,
   GuidedLearningStep,
+  TourAutopilotPolicy,
   TourWidgetLayout,
   WidgetData,
   WidgetType,
@@ -195,10 +198,47 @@ export const hasStepSlide = (
   step: Pick<GuidedLearningStep, 'imageIndex'>
 ): boolean => !!set.imageUrls[step.imageIndex ?? 0];
 
-/** Whether autopilot must leave this step's click to the teacher; fallback-only steps default to yes. */
+export const DEFAULT_TOUR_AUTOPILOT_POLICY: TourAutopilotPolicy = 'tour-safe';
+
+const AUTOPILOT_POLICIES: readonly TourAutopilotPolicy[] = [
+  'tour-safe',
+  'destructive-only',
+  'confirm',
+];
+
+/** The admin's Autopilot policy from the Guided Learning permission; anything unrecognised is `tour-safe`. */
+export const resolveTourAutopilotPolicy = (
+  permissions: readonly Pick<FeaturePermission, 'widgetType' | 'config'>[] = []
+): TourAutopilotPolicy => {
+  const value = permissions.find((p) => p.widgetType === 'guided-learning')
+    ?.config?.tourAutopilotPolicy;
+  return AUTOPILOT_POLICIES.find((p) => p === value) ?? 'tour-safe';
+};
+
+/** What Autopilot does on a step under the policy: click it, ask the teacher first, or leave it to them. */
+export const autopilotGate = (
+  binding: Pick<GuidedLearningTourBinding, 'anchor' | 'teacherMustClick'>,
+  policy: TourAutopilotPolicy
+): 'perform' | 'confirm' | 'teacher' => {
+  const fallbackOnly = !isTourAnchorId(parseTourAnchorRef(binding.anchor).id);
+  const risky =
+    isDestructiveAnchor(binding.anchor) || isPersistsAnchor(binding.anchor);
+  if (policy === 'tour-safe')
+    return fallbackOnly || risky || binding.teacherMustClick === true
+      ? 'teacher'
+      : 'perform';
+  if (policy === 'destructive-only') {
+    const leave =
+      binding.teacherMustClick ??
+      (fallbackOnly || isDestructiveAnchor(binding.anchor));
+    return leave ? 'teacher' : 'perform';
+  }
+  if (fallbackOnly || binding.teacherMustClick === true) return 'teacher';
+  return risky ? 'confirm' : 'perform';
+};
+
+/** Whether autopilot must leave this step's click to the teacher. */
 export const teacherMustClick = (
-  binding: Pick<GuidedLearningTourBinding, 'anchor' | 'teacherMustClick'>
-): boolean =>
-  binding.teacherMustClick ??
-  (!isTourAnchorId(parseTourAnchorRef(binding.anchor).id) ||
-    isDestructiveAnchor(binding.anchor));
+  binding: Pick<GuidedLearningTourBinding, 'anchor' | 'teacherMustClick'>,
+  policy: TourAutopilotPolicy
+): boolean => autopilotGate(binding, policy) === 'teacher';

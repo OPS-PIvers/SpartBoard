@@ -1775,3 +1775,11 @@ export const isDestructiveAnchor = (ref: string): boolean => {
   const def: TourAnchorDef = TOUR_ANCHORS[id];
   return !!def.destructive;
 };
+
+/** Whether a step's anchor ref points at an anchor registered as persists. */
+export const isPersistsAnchor = (ref: string): boolean => {
+  const { id } = parseTourAnchorRef(ref);
+  if (!isTourAnchorId(id)) return false;
+  const def: TourAnchorDef = TOUR_ANCHORS[id];
+  return !!def.persists;
+};
