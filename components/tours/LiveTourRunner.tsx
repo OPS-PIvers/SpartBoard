@@ -1183,7 +1183,7 @@ export const LiveTourRunner: React.FC = () => {
     if (autoStage === 'waiting' && tour) goTo(tour.index + 1);
   };
 
-  // "Show me" replays the demo once.
+  // "Show where" replays the demo once.
   const showMe = () => playCursor();
 
   // A click on the dim shakes the callout and brings the hint early.
@@ -1355,7 +1355,7 @@ export const LiveTourRunner: React.FC = () => {
     const isMissing = anchor.status === 'missing';
     const autoText =
       autoStage === 'blocked'
-        ? t('tours.youClickThis')
+        ? t('tours.autoSkipped')
         : autoStage === 'fallback'
           ? t('tours.autoFallback')
           : autoOn && autoStage !== 'confirm'

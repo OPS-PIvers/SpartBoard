@@ -243,7 +243,7 @@ export const LiveTourViewsDevHarness: React.FC = () => {
         }
       : state === 'blocked'
         ? {
-            text: t('tours.youClickThis'),
+            text: t('tours.autoSkipped'),
             kind: 'turn',
             testId: 'tour-auto-status',
           }

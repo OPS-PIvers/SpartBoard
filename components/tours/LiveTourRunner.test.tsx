@@ -726,7 +726,7 @@ describe('LiveTourRunner polish', () => {
       ])
     );
     await frames();
-    fireEvent.click(screen.getByRole('button', { name: 'Show me' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show where' }));
     await frames();
     expect(cursor()).toBeInTheDocument();
     fireEvent.click(screen.getByText('Dice'));
@@ -747,13 +747,13 @@ describe('LiveTourRunner polish', () => {
       )
     );
     expect(
-      screen.queryByRole('button', { name: 'Show me' })
+      screen.queryByRole('button', { name: 'Show where' })
     ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     await frames(TRY_HINT_MS + 100);
     expect(progress()).toBe('2 / 2');
     expect(
-      screen.queryByRole('button', { name: 'Show me' })
+      screen.queryByRole('button', { name: 'Show where' })
     ).not.toBeInTheDocument();
     expect(cursor()).not.toBeInTheDocument();
   });
@@ -832,7 +832,7 @@ describe('LiveTourRunner polish', () => {
     await start(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));
     expect(screen.getByTestId('tour-callout').style.animation).toBe('');
     await frames();
-    fireEvent.click(screen.getByRole('button', { name: 'Show me' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show where' }));
     await frames();
     expect(cursor()).toHaveAttribute('data-arrived', 'true');
   });
@@ -946,7 +946,7 @@ describe('LiveTourRunner modes', () => {
     await run(4000);
     expect(close).toEqual([]);
     expect(progress()).toBe('1 / 2');
-    expect(status()).toHaveTextContent('You click this one');
+    expect(status()).toHaveTextContent("Autopilot can't do this step");
     fireEvent.click(screen.getByText('Close w1'));
     await frames();
     expect(progress()).toBe('2 / 2');
@@ -971,7 +971,7 @@ describe('LiveTourRunner modes', () => {
     await run(4000);
     expect(elsewhere).toEqual([]);
     expect(progress()).toBe('1 / 2');
-    expect(status()).toHaveTextContent('You click this one');
+    expect(status()).toHaveTextContent("Autopilot can't do this step");
     fireEvent.click(screen.getByText('Elsewhere'));
     await frames();
     expect(progress()).toBe('2 / 2');
@@ -994,7 +994,7 @@ describe('LiveTourRunner modes', () => {
     const close = recordEvents(screen.getByText('Close w1'));
     await run(4000);
     expect(close).toEqual([]);
-    expect(status()).toHaveTextContent('You click this one');
+    expect(status()).toHaveTextContent("Autopilot can't do this step");
   });
 
   const confirmSet = () =>
@@ -1032,7 +1032,7 @@ describe('LiveTourRunner modes', () => {
     await run(4000);
     expect(close).toEqual([]);
     expect(screen.queryByTestId('tour-auto-confirm')).not.toBeInTheDocument();
-    expect(status()).toHaveTextContent('You click this one');
+    expect(status()).toHaveTextContent("Autopilot can't do this step");
     fireEvent.click(screen.getByText('Close w1'));
     await frames();
     expect(progress()).toBe('2 / 2');
@@ -1058,7 +1058,7 @@ describe('LiveTourRunner modes', () => {
     expect(progress()).toBe('2 / 3');
     await run(4000);
     expect(dice).toEqual([]);
-    expect(status()).toHaveTextContent('You click this one');
+    expect(status()).toHaveTextContent("Autopilot can't do this step");
   });
 
   it('Guided: a type step with no recorded text is left to the teacher', async () => {
@@ -1076,7 +1076,7 @@ describe('LiveTourRunner modes', () => {
     await run(4000);
     expect(dice).toEqual([]);
     expect(progress()).toBe('1 / 2');
-    expect(status()).toHaveTextContent('You click this one');
+    expect(status()).toHaveTextContent("Autopilot can't do this step");
     expect(
       screen.queryByRole('button', { name: 'Autopilot this step' })
     ).not.toBeInTheDocument();
@@ -1100,7 +1100,9 @@ describe('LiveTourRunner modes', () => {
     expect(dice).toEqual([]);
     expect(status()).not.toBeInTheDocument();
     expect(autopilotSwitch()).toHaveAttribute('aria-checked', 'false');
-    expect(screen.getByRole('button', { name: 'Show me' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Show where' })
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByText('Dice'));
     await frames();
     expect(progress()).toBe('2 / 2');
