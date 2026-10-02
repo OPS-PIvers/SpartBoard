@@ -920,6 +920,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Student landing page redesign (docs/plans/STUDENT_LANDING_V2.md D26); students get it when their teacher passes the gate.
+  'student-landing-v2': {
+    label: 'Student landing page',
+    icon: LayoutDashboard,
+    description: 'The redesigned My Assignments page for students.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'group-reminders': {
     label: 'Group reminders',
     icon: BellRing,
