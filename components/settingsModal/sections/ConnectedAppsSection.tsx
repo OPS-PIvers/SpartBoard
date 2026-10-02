@@ -46,6 +46,7 @@ const ITEM_LABELS: Record<string, string> = {
   activity_wall: 'Activity Wall',
   mini_app: 'mini-app',
   guided_learning: 'Guided Learning activity',
+  meeting_notes: 'meeting notes draft for',
 };
 
 const formatDate = (ms: number): string =>
