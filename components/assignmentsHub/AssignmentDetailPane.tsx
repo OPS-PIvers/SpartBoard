@@ -416,7 +416,8 @@ export const AssignmentDetailPane: React.FC<{
     return c;
   }, [rosterRows]);
 
-  if (loading) {
+  // Hold the roster until names resolve so students don't flash as "Not started".
+  if (loading || pseudonyms.loading) {
     return (
       <div className="w-full h-full p-4 space-y-2" aria-busy="true">
         {[0, 1, 2, 3].map((i) => (
@@ -545,6 +546,25 @@ export const AssignmentDetailPane: React.FC<{
         )}
         {readAloudLine && (
           <p className="mt-1 text-xs text-slate-500">{readAloudLine}</p>
+        )}
+        {pseudonyms.error && (
+          <p
+            role="alert"
+            className="mt-1 flex items-center gap-2 text-xs font-medium text-brand-red-primary"
+          >
+            {t('assignmentsHub.detail.namesFailed', {
+              defaultValue: "Couldn't load student names.",
+            })}
+            <button
+              type="button"
+              onClick={pseudonyms.retry}
+              className="font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors"
+            >
+              {t('assignmentsHub.detail.namesRetry', {
+                defaultValue: 'Retry',
+              })}
+            </button>
+          </p>
         )}
         {!isEmptyRoster && (
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">

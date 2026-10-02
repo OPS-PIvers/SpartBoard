@@ -158,8 +158,11 @@ export const Results: React.FC<ResultsProps> = ({
       return session.classIds;
     return session.classId ? [session.classId] : [];
   }, [session.classIds, session.classId]);
-  const { byStudentUid: classLinkNames, targetRefKeyByStudentUid } =
-    useAssignmentPseudonymsMulti(session.id, sessionClassIds, orgId);
+  const {
+    byStudentUid: classLinkNames,
+    targetRefKeyByStudentUid,
+    loading: namesLoading,
+  } = useAssignmentPseudonymsMulti(session.id, sessionClassIds, orgId);
   // Schoology LTI students aren't in any ClassLink roster — resolve their names
   // on-read via NRPS and merge in (ClassLink wins on the rare uid collision).
   // Gated on `ltiNrps` so non-LTI sessions never make the call. `kind: 'va'`
@@ -588,7 +591,9 @@ export const Results: React.FC<ResultsProps> = ({
       icon: Download,
       loading: exporting,
       onClick: () => void handleExport(),
-      disabled: exporting || totalStudents === 0 || outward.locked,
+      disabled:
+        exporting || totalStudents === 0 || outward.locked || namesLoading,
+      ...(namesLoading ? { title: 'Loading student names…' } : {}),
     });
   }
   if (exportUrl) {

@@ -55,10 +55,12 @@ vi.mock('@/hooks/usePlcs', () => ({
     setPlcSharedSheetUrl: vi.fn(),
   }),
 }));
+let namesLoading = false;
 vi.mock('@/hooks/useAssignmentPseudonyms', () => ({
   useAssignmentPseudonymsMulti: () => ({
     byStudentUid: new Map(),
     byAssignmentPseudonym: new Map(),
+    loading: namesLoading,
   }),
   formatStudentName: () => '',
 }));
@@ -187,6 +189,7 @@ describe('QuizResults — results print', () => {
   beforeEach(() => {
     flagOn = true;
     toolsOn = false;
+    namesLoading = false;
     printQuizResults.mockReset();
     printStudentReport.mockReset();
     localStorage.clear();
@@ -208,6 +211,22 @@ describe('QuizResults — results print', () => {
       null,
     ]);
     expect(options.keyMode).toBe('off');
+  });
+
+  it('holds print, export and scoreboard while student names are loading', () => {
+    namesLoading = true;
+    renderResults();
+    const print = screen.getByRole('button', { name: 'Print results' });
+    expect(print).toBeDisabled();
+    expect(print).toHaveAttribute('title', 'Loading student names…');
+    expect(
+      screen.getByRole('button', { name: /Export to Sheets/ })
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Send to Scoreboard' })
+    ).toBeDisabled();
+    fireEvent.click(print);
+    expect(screen.queryByRole('dialog', { name: 'Print results' })).toBeNull();
   });
 
   it('is hidden for PLC teammates and when the flag is off', () => {

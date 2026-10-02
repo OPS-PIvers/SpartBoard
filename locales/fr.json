@@ -2073,7 +2073,9 @@
       "stopSharingPlcDone": "Les résultats ne sont plus partagés avec {{plc}}.",
       "plcActionFailed": "Impossible de mettre à jour le partage. Réessayez.",
       "skippedStatus": "Ignoré",
-      "classNotResolved": "Ce devoir n'est lié à aucune classe que tu peux modifier ici ; seul le calendrier est modifiable."
+      "classNotResolved": "Ce devoir n'est lié à aucune classe que tu peux modifier ici ; seul le calendrier est modifiable.",
+      "namesFailed": "Impossible de charger les noms des élèves.",
+      "namesRetry": "Réessayer"
     }
   },
   "quizResults": {
