@@ -72,6 +72,23 @@ describe('planAnchorRequests', () => {
     expect(requests).toEqual([]);
   });
 
+  it('queues a new request when Claude points the step at a different control', () => {
+    const prior = [
+      {
+        ...fallbackStep('a'),
+        tour: { ...fallbackStep('a').tour, unmapped: 'f'.repeat(40) },
+      },
+    ];
+    const { steps, requests } = planAnchorRequests(
+      [fallbackStep('a', 'Show date')],
+      prior,
+      new Map()
+    );
+    const fp = requestFingerprint('switch', 'Show date', null);
+    expect(steps[0].tour).toMatchObject({ unmapped: fp });
+    expect(requests.map((r) => r.fingerprint)).toEqual([fp]);
+  });
+
   it('ignores a fingerprint Claude sends and drops it once the step has an anchor', () => {
     const sent = {
       id: 'a',

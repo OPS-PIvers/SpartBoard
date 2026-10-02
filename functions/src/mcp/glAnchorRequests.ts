@@ -56,12 +56,15 @@ export function planAnchorRequests(
     const tour = tourOf(step);
     if (!tour) return step;
     const anchor = typeof tour.anchor === 'string' ? tour.anchor : '';
-    const priorUnmapped = tourOf(priorById.get(step.id))?.unmapped;
+    const priorTour = tourOf(priorById.get(step.id));
+    const sameControl =
+      priorTour?.fallback?.role === tour.fallback?.role &&
+      priorTour?.fallback?.name === tour.fallback?.name;
     const next: Tour = { ...tour };
-    // The stored fingerprint wins over whatever Claude sent; a bound step drops it.
+    // The stored fingerprint wins over whatever Claude sent while the step still names the same control.
     delete next.unmapped;
-    if (anchor === '' && typeof priorUnmapped === 'string')
-      next.unmapped = priorUnmapped;
+    if (anchor === '' && sameControl && typeof priorTour?.unmapped === 'string')
+      next.unmapped = priorTour.unmapped;
     if (anchor !== '') {
       nearestAnchor = anchor.split(/[:#]/)[0];
     } else if (!next.unmapped && next.fallback) {
