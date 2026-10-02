@@ -205,4 +205,51 @@ describe('useAssignmentPseudonymsMulti', () => {
     expect(result.current.byStudentUid.size).toBe(0);
     expect(calls).toBe(0);
   });
+  it('never sends LMS section ids (schoology:/classroom:) to the callable', async () => {
+    const calledWith: string[] = [];
+    setHandler(({ classId }) => {
+      calledWith.push(classId);
+      return {
+        data: {
+          pseudonyms: {
+            p1: studentEntry('uid-cl', 'pseudo-cl', 'Robin', 'Kay'),
+          },
+        },
+      };
+    });
+
+    const aid = nextAssignmentId();
+    const { result } = renderHook(() =>
+      useAssignmentPseudonymsMulti(
+        aid,
+        ['schoology:ctx-1', 'class-real', 'classroom:course-9'],
+        'org-1'
+      )
+    );
+
+    await waitFor(() => {
+      expect(result.current.byStudentUid.size).toBe(1);
+    });
+    expect(calledWith).toEqual(['class-real']);
+    expect(loggedErrors).toHaveLength(0);
+  });
+
+  it('makes no call when every classId is an LMS section id', async () => {
+    let calls = 0;
+    setHandler(() => {
+      calls++;
+      return { data: { pseudonyms: {} } };
+    });
+
+    const { result } = renderHook(() =>
+      useAssignmentPseudonymsMulti(
+        nextAssignmentId(),
+        ['schoology:ctx-1', 'classroom:course-9'],
+        'org-1'
+      )
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    expect(calls).toBe(0);
+    expect(result.current.byStudentUid.size).toBe(0);
+  });
 });

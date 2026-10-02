@@ -268,19 +268,9 @@ export const AssignmentDetailPane: React.FC<{
     [matchedRosters, rostersFullyResolved]
   );
 
-  // The section ids still gate pseudonym lookups for launches that never
-  // resolved to a roster.
-  const pseudonymClassIds = useMemo(
-    () =>
-      schoologyClassIds.length === 0
-        ? targeting.classIds
-        : Array.from(new Set([...targeting.classIds, ...schoologyClassIds])),
-    [targeting.classIds, schoologyClassIds]
-  );
-
   const pseudonyms = useAssignmentPseudonymsMulti(
     row.sessionId,
-    pseudonymClassIds,
+    targeting.classIds,
     orgId,
     row.targetMode === 'students' ? row.targetStudents : undefined
   );
