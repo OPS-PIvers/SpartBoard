@@ -15,6 +15,7 @@ import { Modal } from '@/components/common/Modal';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { ChecklistSelect } from '@/components/gradebook/settings/ChecklistSelect';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { useViewAs } from '@/context/useViewAs';
 import { useRosterRowsState, DraftRow } from './useRosterRowsState';
 import {
   RestrictionsPicker,
@@ -158,6 +159,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const viewAs = useViewAs();
 
   const handleSave = async () => {
     if (!name.trim() || saving) return;
@@ -194,10 +196,15 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
       // would discard them with no indication the save never landed.
       console.error('Failed to save roster:', err);
       setSaveError(
-        t('sidebar.classes.saveFailed', {
-          defaultValue:
-            'Could not save this class. Your changes are still here — check your Google Drive connection and try again.',
-        })
+        viewAs?.readOnly
+          ? t('sidebar.classes.saveViewOnly', {
+              defaultValue:
+                'Read-only in View as, so this class was not saved.',
+            })
+          : t('sidebar.classes.saveFailed', {
+              defaultValue:
+                'Could not save this class. Your changes are still here — check your Google Drive connection and try again.',
+            })
       );
       return;
     } finally {

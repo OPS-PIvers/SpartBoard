@@ -3,6 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { RosterEditorModal } from './RosterEditorModal';
 import { ClassRoster } from '@/types';
+import {
+  ViewAsContext,
+  type ViewAsContextValue,
+} from '@/context/ViewAsContextValue';
 
 /**
  * Tests for the row-based roster editor. Each student is a directly
@@ -128,6 +132,33 @@ describe('RosterEditorModal', () => {
       ]);
     });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('says a read-only View as save was not saved instead of blaming Drive', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockRejectedValue(new Error('View-only'));
+    const onClose = vi.fn();
+    const viewAs = { readOnly: true } as ViewAsContextValue;
+
+    render(
+      <ViewAsContext.Provider value={viewAs}>
+        <RosterEditorModal
+          isOpen={true}
+          roster={null}
+          onClose={onClose}
+          onSave={onSave}
+        />
+      </ViewAsContext.Provider>
+    );
+
+    await user.type(screen.getByPlaceholderText(/class name/i), 'New Class');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    expect(
+      await screen.findByText(/read-only in view as/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/google drive/i)).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('calls onSave with split first/last names when in dual mode', async () => {
