@@ -176,7 +176,7 @@ export const TourTip: React.FC<TourTipProps> = ({
               className={`${secondaryBtn} flex items-center gap-1.5 px-2`}
             >
               <MousePointerClick className="h-3.5 w-3.5" aria-hidden="true" />
-              {t('tours.showWhere')}
+              {t('tours.showMe')}
             </button>
           )}
           {autopilotStep && (

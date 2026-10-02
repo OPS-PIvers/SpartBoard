@@ -1183,7 +1183,7 @@ export const LiveTourRunner: React.FC = () => {
     if (autoStage === 'waiting' && tour) goTo(tour.index + 1);
   };
 
-  // "Show where" replays the demo once.
+  // "Show me" replays the demo once.
   const showMe = () => playCursor();
 
   // A click on the dim shakes the callout and brings the hint early.
