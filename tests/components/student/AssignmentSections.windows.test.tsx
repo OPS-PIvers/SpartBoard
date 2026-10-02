@@ -25,6 +25,7 @@ function makeAssignment(
     channel: 'active',
     classIds: [],
     gradingState: 'not-graded',
+    workKind: 'work',
     ...overrides,
   };
 }
