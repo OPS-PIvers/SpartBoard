@@ -509,6 +509,9 @@ async function sweepOrphanRecordings(
     // A recording without a readable noteId is left alone rather than guessed at.
     if (typeof noteId !== 'string' || noteId === '') continue;
     if (liveNoteIds.has(noteId)) continue;
+    // Re-read before an irreversible purge: the note may have been created after the scan.
+    const note = await plcRef.collection('notes').doc(noteId).get();
+    if (note.exists) continue;
     try {
       await purge(rec.ref);
       purged += 1;
