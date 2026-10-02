@@ -730,10 +730,16 @@ export const LiveTourRunner: React.FC = () => {
   const stepIndex = tour?.index ?? 0;
 
   const acted = isActedStep(step?.tour);
-  // A click on the anchor advances once the app has handled it.
+  const action = step?.tour?.action;
+  // A click on the anchor advances once the app has handled it; typing and native selects advance on change.
   useEffect(() => {
     const el = anchor.element;
     if (!el || !acted) return;
+    const onChange =
+      action === 'type' ||
+      (action === 'select' &&
+        (el instanceof HTMLSelectElement || !!el.querySelector('select')));
+    const eventName = onChange ? 'change' : 'click';
     let raf = 0;
     const onClick = () => {
       lastStepClickAt.current = Date.now();
@@ -741,12 +747,12 @@ export const LiveTourRunner: React.FC = () => {
       if (autoClicking.current) return;
       raf = requestAnimationFrame(() => advanceRef.current(stepIndex + 1));
     };
-    el.addEventListener('click', onClick, true);
+    el.addEventListener(eventName, onClick, true);
     return () => {
-      el.removeEventListener('click', onClick, true);
+      el.removeEventListener(eventName, onClick, true);
       cancelAnimationFrame(raf);
     };
-  }, [anchor.element, acted, stepIndex]);
+  }, [anchor.element, acted, action, stepIndex]);
 
   const running = tour?.phase === 'running';
   const offeringResume =

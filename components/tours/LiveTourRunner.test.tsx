@@ -155,7 +155,8 @@ vi.mock('./TourMiniPlayer', () => ({
 
 type Binding = {
   anchor: string;
-  action: 'click' | 'observe';
+  action: 'click' | 'observe' | 'toggle' | 'select' | 'type';
+  value?: boolean | string;
   teacherMustClick?: boolean;
   fallback?: { role: string; name: string };
 };
@@ -422,6 +423,33 @@ describe('LiveTourRunner', () => {
     fireEvent.click(screen.getByRole('button', { name: /Back/ }));
     await frames();
     expect(progress()).toBe('1 / 2');
+  });
+
+  it('advances a type step on change, not on the click into the field', async () => {
+    await start(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'type', value: 'Warm up' },
+        { anchor: 'dock.item:dice', action: 'click' },
+      ])
+    );
+    fireEvent.click(screen.getByText('Boards'));
+    await frames();
+    expect(progress()).toBe('1 / 2');
+    fireEvent.change(screen.getByText('Boards'));
+    await frames();
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it('advances a toggle step on a click of the anchor', async () => {
+    await start(
+      makeSet([
+        { anchor: 'dock.item:dice', action: 'toggle', value: true },
+        { anchor: 'sidebar.boards', action: 'click' },
+      ])
+    );
+    fireEvent.click(screen.getByText('Dice'));
+    await frames();
+    expect(progress()).toBe('2 / 2');
   });
 
   it('waits for Next on an observe step', async () => {
