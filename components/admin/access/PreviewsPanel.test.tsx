@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const setDocMock = vi.fn(
@@ -46,7 +52,14 @@ vi.mock('@/context/useAuth', () => ({
 
 const { addToast } = vi.hoisted(() => ({ addToast: vi.fn() }));
 vi.mock('@/context/useDashboard', () => ({
-  useDashboard: () => ({ addToast }),
+  useDashboard: () => ({
+    addToast,
+    rosters: [
+      { id: 'r1', name: 'Period 2 Math', classlinkClassId: 'sec-2' },
+      { id: 'r2', name: 'Period 1 Art', classlinkClassId: 'sec-1' },
+      { id: 'r3', name: 'Local group' },
+    ],
+  }),
 }));
 
 let savedPermissions: Record<string, unknown>[] = [];
@@ -264,5 +277,52 @@ describe('PreviewsPanel', () => {
     expect(
       await screen.findByText(/insufficient permissions/)
     ).toBeInTheDocument();
+  });
+
+  it('saves the classes picked for student landing early access', async () => {
+    savedPermissions = [
+      {
+        featureId: 'student-landing-v2',
+        enabled: true,
+        accessLevel: 'admin',
+        betaUsers: [],
+        buildings: [],
+        betaClassIds: ['sec-1', 'gone-9'],
+      },
+    ];
+    await renderPanel();
+    const row = screen.getByTestId('access-row-student-landing-v2');
+    expect(row).toHaveTextContent('2 classes');
+    fireEvent.click(row.querySelector('[aria-expanded]') as HTMLElement);
+    expect(
+      within(row).getByRole('button', { name: 'Remove Period 1 Art' })
+    ).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(
+      within(row).getByRole('button', { name: 'Add Period 2 Math' })
+    );
+    fireEvent.click(
+      within(row).getByRole('button', { name: 'Remove class gone-9' })
+    );
+    fireEvent.change(within(row).getByLabelText('Add class by section ID'), {
+      target: { value: ' sec-7 ' },
+    });
+    fireEvent.click(within(row).getByRole('button', { name: 'Add class' }));
+    fireEvent.click(
+      within(row).getByRole('button', { name: 'Save Student landing page' })
+    );
+    await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
+    expect(setDocMock.mock.calls[0][0].path).toBe(
+      'global_permissions/student-landing-v2'
+    );
+    expect(setDocMock.mock.calls[0][1]).toMatchObject({
+      betaClassIds: ['sec-1', 'sec-2', 'sec-7'],
+    });
+  });
+
+  it('offers class targeting only on a student-facing flag', async () => {
+    await renderPanel();
+    const row = screen.getByTestId('access-row-quiz-grader-v2');
+    fireEvent.click(within(row).getAllByRole('button')[0]);
+    expect(within(row).queryByText('Student classes')).toBeNull();
   });
 });

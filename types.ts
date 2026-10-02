@@ -9521,6 +9521,8 @@ export type GlobalFeature =
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
   | 'student-gradebook'
+  /** Redesigned student landing page at /my-assignments (docs/plans/STUDENT_LANDING_V2.md D26). */
+  | 'student-landing-v2'
   /** Quiz keeps assessment only; live review games move to the Review widget. */
   | 'quiz-review-split'
   /** Quiz assign/edit: an overall time limit per attempt with a student countdown. */
@@ -9619,6 +9621,8 @@ export interface GlobalFeaturePermission {
    * buildings in their `selectedBuildings` to pass the gate.
    */
   buildings?: string[];
+  /** ClassLink section IDs whose students get a student-facing feature before it is Public. */
+  betaClassIds?: string[];
   /**
    * Minimum user tier required to access the feature (free < org <
    * internal). `undefined` means available to all tiers — the back-compat
