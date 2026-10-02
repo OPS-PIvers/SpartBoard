@@ -3182,7 +3182,9 @@
       "stopSharingPlcDone": "No longer sharing results with {{plc}}.",
       "plcActionFailed": "Could not update PLC sharing. Try again.",
       "skippedStatus": "Skipped",
-      "classNotResolved": "This assignment is not linked to a class you can modify here, so only the schedule can be changed."
+      "classNotResolved": "This assignment is not linked to a class you can modify here, so only the schedule can be changed.",
+      "namesFailed": "Couldn't load student names.",
+      "namesRetry": "Retry"
     }
   },
   "quizResults": {

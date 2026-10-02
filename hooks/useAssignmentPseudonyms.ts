@@ -25,7 +25,7 @@
  * when the authenticated teacher uid changes.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { auth, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
@@ -55,6 +55,16 @@ export interface AssignmentPseudonymMaps {
    * roster student / override for that response-keying scheme.
    */
   targetRefKeyByAssignmentPseudonym: Map<string, string>;
+}
+
+/** The maps plus fetch state; hold name-dependent output while `loading`. */
+export interface AssignmentPseudonymsResult extends AssignmentPseudonymMaps {
+  /** True while a lookup for the current inputs is in flight. */
+  loading: boolean;
+  /** Set when any per-class lookup failed; the maps hold whatever resolved. */
+  error: Error | null;
+  /** Re-runs the lookup (failed lookups are already evicted from the cache). */
+  retry: () => void;
 }
 
 interface CallableResponse {
@@ -180,6 +190,10 @@ function fetchPseudonymMaps(
   return promise;
 }
 
+function toError(reason: unknown): Error {
+  return reason instanceof Error ? reason : new Error(String(reason));
+}
+
 export function formatStudentName(name: StudentName | undefined): string {
   if (!name) return '';
   const full = `${name.givenName} ${name.familyName}`.trim();
@@ -210,7 +224,7 @@ export function useAssignmentPseudonymsMulti(
    * ⇒ today's per-classId behavior, unchanged.
    */
   targetStudents?: readonly StudentTargetRef[] | null
-): AssignmentPseudonymMaps {
+): AssignmentPseudonymsResult {
   // `classIdsKey` is the canonical, value-stable identity for the caller's
   // class list. Deriving it as a memo lets the effect depend on just
   // `[assignmentId, classIdsKey, orgKey]` without re-running for unchanged
@@ -242,7 +256,10 @@ export function useAssignmentPseudonymsMulti(
   const [resolved, setResolved] = useState<{
     key: string;
     maps: AssignmentPseudonymMaps;
-  }>({ key: '', maps: EMPTY_MAPS });
+    error: Error | null;
+  }>({ key: '', maps: EMPTY_MAPS, error: null });
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
   useEffect(() => {
     if (!assignmentId) return;
@@ -259,7 +276,7 @@ export function useAssignmentPseudonymsMulti(
           ? classIdsKey.split('|')
           : [];
     let cancelled = false;
-    const key = `${assignmentId}::${classIdsKey}::${orgKey}::${refsKey}`;
+    const key = `${assignmentId}::${classIdsKey}::${orgKey}::${refsKey}::${attempt}`;
     // `Promise.allSettled` (not `Promise.all`) so a single classId's lookup
     // failing — 403 from a revoked share, transient CF unavailability, etc.
     // — must not zero out the entire map. Partial resolution is strictly
@@ -282,6 +299,7 @@ export function useAssignmentPseudonymsMulti(
         const byAssignmentPseudonym = new Map<string, StudentName>();
         const targetRefKeyByStudentUid = new Map<string, string>();
         const targetRefKeyByAssignmentPseudonym = new Map<string, string>();
+        let error: Error | null = null;
         results.forEach((res, i) => {
           if (res.status === 'fulfilled') {
             for (const [k, v] of res.value.byStudentUid) byStudentUid.set(k, v);
@@ -292,6 +310,7 @@ export function useAssignmentPseudonymsMulti(
             for (const [k, v] of res.value.targetRefKeyByAssignmentPseudonym)
               targetRefKeyByAssignmentPseudonym.set(k, v);
           } else {
+            error ??= toError(res.reason);
             logError('useAssignmentPseudonymsMulti.fetchPerClass', res.reason, {
               assignmentId,
               classId: cleanedInEffect[i],
@@ -306,6 +325,7 @@ export function useAssignmentPseudonymsMulti(
             targetRefKeyByStudentUid,
             targetRefKeyByAssignmentPseudonym,
           },
+          error,
         });
       })
       .catch((err) => {
@@ -319,6 +339,7 @@ export function useAssignmentPseudonymsMulti(
           assignmentId,
           classIdsKey,
         });
+        setResolved({ key, maps: EMPTY_MAPS, error: toError(err) });
       });
     return () => {
       cancelled = true;
@@ -326,13 +347,19 @@ export function useAssignmentPseudonymsMulti(
     // `targetStudents` is intentionally excluded below: `refsKey` is its
     // content-derived identity and is what should retrigger the effect.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignmentId, classIdsKey, orgKey, refsKey]);
+  }, [assignmentId, classIdsKey, orgKey, refsKey, attempt]);
 
   const currentKey =
     assignmentId && (classIdsKey.length > 0 || refsKey !== EMPTY_REFS_KEY)
-      ? `${assignmentId}::${classIdsKey}::${orgKey}::${refsKey}`
+      ? `${assignmentId}::${classIdsKey}::${orgKey}::${refsKey}::${attempt}`
       : '';
-  return resolved.key === currentKey && currentKey !== ''
-    ? resolved.maps
-    : EMPTY_MAPS;
+  const isCurrent = currentKey !== '' && resolved.key === currentKey;
+  // Without a signed-in teacher the effect never fetches, so never report loading.
+  const loading = currentKey !== '' && !isCurrent && !!auth.currentUser?.uid;
+  const maps = isCurrent ? resolved.maps : EMPTY_MAPS;
+  const error = isCurrent ? resolved.error : null;
+  return useMemo(
+    () => ({ ...maps, loading, error, retry }),
+    [maps, loading, error, retry]
+  );
 }

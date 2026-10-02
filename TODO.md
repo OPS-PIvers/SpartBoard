@@ -268,7 +268,6 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] **LO9**: synced-board drawings `hostUid` support (sync correctness). (L)
 - [ ] **Gradebook D37 grade doc**: move `score`, publish `isCorrect` and quiz `grading` off quiz, VA and GL response docs into a teacher-gated `grades/{responseKey}` doc so students can't read unpublished scores (`docs/plans/GRADEBOOK.md` D37). A read rule alone can't do it. (L/MED)
 - [ ] **T1–T5**: Firestore rules tests (PIN-session collections, short_links, quota collections) + E2E for PIN-join/quiz-session journeys. (L)
-- [ ] **Pseudonym loading state**: `hooks/useAssignmentPseudonyms.ts` returns empty maps with no `loading` flag (~:324). While names load (p50 1s, p99 ~4s warm), the Assignments hub shows every ClassLink student as "Not started" with 0 submitted (`buildAssignmentRosterRows.ts:93-108`), and quiz-results export/print/scoreboard-by-name use "Student" fallbacks (`QuizResults.tsx:1043,1121`). A failed call only logs (~:283) and the view stays nameless. Add a loading flag, hold counts/labels and warn on export while pending, and retry or surface the error. (M/LOW)
 - [ ] **getPseudonymsForAssignmentV1 errors**: 79 × 404 and 34 × 403 out of 876 calls in the 30 days to 2026-10-01 — find out which callers hit them. (S)
 
 ## 4. Performance & cost
@@ -290,7 +289,7 @@ From the 2026-10-01 cost audit (adversarially reviewed). Steady-state cost is ~$
 - [ ] **Force-reload stale clients**: the Sept 10 egress spike kept running ~1 GiB/hour after the fix deployed, likely a tab left open on an old build; `hooks/useAppVersion.ts` only prompts. Force a reload (at a safe moment, with no unsaved edits) for clients N builds behind. (M/MED)
 - [ ] **Optional — quiz `liveLeaderboard` subdoc**: `MonitorShell.tsx` (~:351-393) writes the leaderboard onto `quiz_sessions/{id}`, which every student listens to. For non-per-period game sessions that doc can be up to 900 KB. Move only `liveLeaderboard` to a subdoc and dual-write for one release. (M/LOW)
 - **Rejected after adversarial review (2026-10-01) — don't re-propose without answering these:**
-  - **Prod `minInstances: 0` for `getPseudonymsForAssignmentV1`:** cold starts measured 5–10 s (up to 20 s+) and roughly 19% of calls would land cold. That plus the pseudonym loading-state gap in §3 is a visible regression for ~$4–5/mo net.
+  - **Prod `minInstances: 0` for `getPseudonymsForAssignmentV1`:** cold starts measured 5–10 s (up to 20 s+) and roughly 19% of calls would land cold. Even with the pseudonym loading state, that is a visible regression for ~$4–5/mo net.
   - **`persistentLocalCache`:** it can't be route-scoped, leaves student data in IndexedDB on shared devices, and feeds stale first snapshots into the save baseline.
   - **Skipping the transactional read in `saveDashboard`:** it reopens the multi-device clobber that #2813 fixed.
   - **Moving `currentQuestionIndex`/`questionPhase`/`autoProgressAt`/`revealedAnswers` out of the session doc:** already-open student tabs would freeze, and those fields lose atomicity with `status`.
