@@ -739,6 +739,50 @@ const StageBody: React.FC<
       </div>
     ) : null;
 
+  const spotlightView = () => {
+    const type = activeStep?.interactionType;
+    if (
+      !activeStep ||
+      !activeStepRendered ||
+      (type !== 'spotlight' && type !== 'pan-zoom-spotlight')
+    )
+      return null;
+    // v2 sets: spotlightRadius is image-relative — convert to container-%
+    // and scale by the rendered zoom so the circle tracks what's visible.
+    const spotlightStep = schemaV2
+      ? {
+          ...activeStepRendered,
+          spotlightRadius:
+            toContainerSpotlightRadiusPct(
+              activeStepRendered.spotlightRadius ?? 25,
+              imgOffset,
+              containerSize.w,
+              containerSize.h
+            ) * renderedTransform.scale,
+        }
+      : activeStepRendered;
+    // Keep callouts outside the lit circle so they never cover the target.
+    const px =
+      (Math.min(containerSize.w, containerSize.h) *
+        (spotlightStep.spotlightRadius ?? 25)) /
+      100;
+    const hasCallout =
+      !!activeStep.showOverlay && activeStep.showOverlay !== 'none';
+    return {
+      // The callout already titles itself with the label, and would cover this copy.
+      step: hasCallout ? { ...spotlightStep, label: undefined } : spotlightStep,
+      px,
+      hasCallout,
+    };
+  };
+
+  // Calm motion keeps one dim up across back-to-back spotlights; it first appears once the camera settles.
+  const spot = calmMotion ? spotlightView() : null;
+  const [dimUp, setDimUp] = useState(false);
+  if (!spot && dimUp) setDimUp(false);
+  if (spot && !cameraMoving && !dimUp) setDimUp(true);
+  const showDim = !!spot && (dimUp || !cameraMoving);
+
   const renderInteraction = () => {
     if (!activeStep) return null;
     const type = activeStep.interactionType;
@@ -885,46 +929,20 @@ const StageBody: React.FC<
         return null;
       };
 
-      if (
-        (type === 'spotlight' || type === 'pan-zoom-spotlight') &&
-        activeStepRendered
-      ) {
-        // v2 sets: spotlightRadius is image-relative — convert to container-%
-        // and scale by the rendered zoom so the circle tracks what's visible.
-        const spotlightStep = schemaV2
-          ? {
-              ...activeStepRendered,
-              spotlightRadius:
-                toContainerSpotlightRadiusPct(
-                  activeStepRendered.spotlightRadius ?? 25,
-                  imgOffset,
-                  containerSize.w,
-                  containerSize.h
-                ) * renderedTransform.scale,
-            }
-          : activeStepRendered;
-        // Keep callouts outside the lit circle so they never cover the target.
-        const spotlightPx =
-          (Math.min(containerSize.w, containerSize.h) *
-            (spotlightStep.spotlightRadius ?? 25)) /
-          100;
-        const hasCallout =
-          !!activeStep.showOverlay && activeStep.showOverlay !== 'none';
+      const lit = spotlightView();
+      if (lit) {
         return (
           <>
             <SpotlightInteraction
-              // The callout already titles itself with the label, and would cover this copy.
-              step={
-                hasCallout
-                  ? { ...spotlightStep, label: undefined }
-                  : spotlightStep
-              }
+              step={lit.step}
               containerWidth={containerSize.w}
               containerHeight={containerSize.h}
               region={activeRegion ?? undefined}
-              editor={hasCallout ? undefined : calloutEditor}
+              editor={lit.hasCallout ? undefined : calloutEditor}
+              // Calm motion draws the dim outside the per-step layer so it never blinks between steps.
+              part={calmMotion ? 'label' : 'all'}
             />
-            {renderOverlay(spotlightPx)}
+            {renderOverlay(lit.px)}
           </>
         );
       }
@@ -1290,6 +1308,27 @@ const StageBody: React.FC<
             }}
           />
         </button>
+      )}
+
+      {spot && showDim && (
+        <div
+          data-testid="gl-spotlight-dim"
+          className="absolute inset-0 pointer-events-none"
+          style={
+            calloutInMs > 0
+              ? { animation: `gl-dim-in ${calloutInMs}ms ${ZOOM_EASE} both` }
+              : undefined
+          }
+        >
+          <SpotlightInteraction
+            step={spot.step}
+            containerWidth={containerSize.w}
+            containerHeight={containerSize.h}
+            region={activeRegion ?? undefined}
+            part="dim"
+            move={{ ms: zoomMs, ease: ZOOM_EASE }}
+          />
+        </div>
       )}
 
       {/* Interaction overlays; calm motion holds them hidden until the camera settles. */}

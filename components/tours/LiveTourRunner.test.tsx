@@ -491,6 +491,25 @@ describe('LiveTourRunner', () => {
     expect(progress()).toBe('2 / 2');
   });
 
+  it('keeps the dim up while the next step looks for its anchor', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await start(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'observe' },
+        { anchor: 'sidebar.classes', action: 'observe' },
+      ])
+    );
+    await frames();
+    const dim = screen.getByTestId('tour-spotlight');
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(progress()).toBe('2 / 2');
+    expect(screen.getByText('Finding it on your screen…')).toBeInTheDocument();
+    expect(screen.getByTestId('tour-spotlight')).toBe(dim);
+    expect(screen.queryByTestId('tour-spotlight-ring')).toBeNull();
+    await frames(ANCHOR_SEARCH_MS + 100);
+    expect(screen.queryByTestId('tour-spotlight')).toBeNull();
+  });
+
   it('waits for Next on an observe step', async () => {
     await start(
       makeSet([

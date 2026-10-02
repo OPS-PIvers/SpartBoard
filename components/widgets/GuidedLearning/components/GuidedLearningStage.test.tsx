@@ -527,3 +527,63 @@ describe('GuidedLearningStage calm motion', () => {
     expect(screen.getByTestId('gl-tooltip-card')).toBeInTheDocument();
   });
 });
+
+describe('GuidedLearningStage back-to-back spotlights', () => {
+  const spots = [
+    step({
+      id: 'a',
+      interactionType: 'spotlight',
+      xPct: 25,
+      showOverlay: 'none',
+    }),
+    step({
+      id: 'b',
+      interactionType: 'spotlight',
+      xPct: 70,
+      showOverlay: 'none',
+    }),
+  ];
+  const props = (activeStepId: string) =>
+    ({
+      set: v3(spots, 'structured'),
+      steps: spots,
+      imageIndex: 0,
+      activeStepId,
+      authorMode: 'structured',
+      answeredStepIds: new Set<string>(),
+      teacherMode: true,
+      zoomScale: 1,
+      onPinClick: vi.fn(),
+      onAdvance: vi.fn(),
+      onDismiss: vi.fn(),
+      motionSpeed: 1,
+    }) as const;
+
+  it('keeps one dim up and glides the cutout to the next spot', () => {
+    const handle = layout();
+    const view = render(<GuidedLearningStage {...props('a')} />);
+    act(() => handle.fireResize());
+    const dim = screen.getByTestId('gl-spotlight-dim');
+    const before = dim.querySelector('mask circle')?.getAttribute('cx');
+    view.rerender(<GuidedLearningStage {...props('b')} />);
+    expect(screen.getByTestId('gl-spotlight-dim')).toBe(dim);
+    const cutout = dim.querySelector('mask circle') as SVGCircleElement;
+    expect(cutout.getAttribute('cx')).not.toBe(before);
+    expect(cutout.style.transition).toContain('cx 900ms');
+  });
+
+  it('drops the dim when the next step is not a spotlight', () => {
+    const handle = layout();
+    const view = render(<GuidedLearningStage {...props('a')} />);
+    act(() => handle.fireResize());
+    const tip = step({ id: 'c' });
+    view.rerender(
+      <GuidedLearningStage
+        {...props('c')}
+        set={v3([...spots, tip], 'structured')}
+        steps={[...spots, tip]}
+      />
+    );
+    expect(screen.queryByTestId('gl-spotlight-dim')).toBeNull();
+  });
+});

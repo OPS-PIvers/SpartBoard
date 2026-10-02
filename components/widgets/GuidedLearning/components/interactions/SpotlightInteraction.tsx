@@ -12,6 +12,10 @@ interface Props {
   region?: EffectiveRegion;
   /** Studio inline editor shown in place of the label. */
   editor?: React.ReactNode;
+  /** Draw only the dim or only the label; both by default. */
+  part?: 'all' | 'dim' | 'label';
+  /** Glide the cutout to a new spot with this CSS transition. */
+  move?: { ms: number; ease: string };
 }
 
 /**
@@ -25,6 +29,8 @@ export const SpotlightInteraction: React.FC<Props> = ({
   containerHeight,
   region,
   editor,
+  part = 'all',
+  move,
 }) => {
   const cx = (step.xPct / 100) * containerWidth;
   const cy = (step.yPct / 100) * containerHeight;
@@ -35,64 +41,82 @@ export const SpotlightInteraction: React.FC<Props> = ({
   const path = region ? regionPath(region) : null;
   const labelX = region ? region.cx : cx;
   const shapeBottom = region ? regionRect(region).y + region.h : cy + radius;
+  const moveStyle: React.CSSProperties | undefined =
+    move && move.ms > 0
+      ? {
+          transition: ['cx', 'cy', 'r', 'd']
+            .map((prop) => `${prop} ${move.ms}ms ${move.ease}`)
+            .join(', '),
+        }
+      : undefined;
 
   return (
     <>
-      <svg
-        className="absolute inset-0 pointer-events-none z-20"
-        width={containerWidth}
-        height={containerHeight}
-        style={{ top: 0, left: 0 }}
-      >
-        <defs>
-          <mask id={maskId}>
-            {/* White = visible, black = hidden  */}
-            <rect width="100%" height="100%" fill="white" />
-            {path ? (
-              <path data-gl-spot={step.id} d={path} fill="black" />
-            ) : (
-              <circle
-                data-gl-spot={step.id}
-                cx={cx}
-                cy={cy}
-                r={radius}
-                fill="black"
-              />
-            )}
-          </mask>
-        </defs>
-        {/* Dark overlay with hole cut out via mask */}
-        <rect
-          width="100%"
-          height="100%"
-          fill="rgba(0,0,0,0.72)"
-          mask={`url(#${maskId})`}
-        />
-        {/* Spotlight rim */}
-        {path ? (
-          <path
-            data-testid="gl-spotlight-rim"
-            data-gl-spot={step.id}
-            d={path}
-            fill="none"
-            stroke="rgba(255,255,255,0.3)"
-            strokeWidth={2}
+      {part !== 'label' && (
+        <svg
+          className="absolute inset-0 pointer-events-none z-20"
+          width={containerWidth}
+          height={containerHeight}
+          style={{ top: 0, left: 0 }}
+        >
+          <defs>
+            <mask id={maskId}>
+              {/* White = visible, black = hidden  */}
+              <rect width="100%" height="100%" fill="white" />
+              {path ? (
+                <path
+                  data-gl-spot={step.id}
+                  d={path}
+                  fill="black"
+                  style={moveStyle}
+                />
+              ) : (
+                <circle
+                  data-gl-spot={step.id}
+                  cx={cx}
+                  cy={cy}
+                  r={radius}
+                  fill="black"
+                  style={moveStyle}
+                />
+              )}
+            </mask>
+          </defs>
+          {/* Dark overlay with hole cut out via mask */}
+          <rect
+            width="100%"
+            height="100%"
+            fill="rgba(0,0,0,0.72)"
+            mask={`url(#${maskId})`}
           />
-        ) : (
-          <circle
-            data-testid="gl-spotlight-rim"
-            data-gl-spot={step.id}
-            cx={cx}
-            cy={cy}
-            r={radius}
-            fill="none"
-            stroke="rgba(255,255,255,0.3)"
-            strokeWidth={2}
-          />
-        )}
-      </svg>
+          {/* Spotlight rim */}
+          {path ? (
+            <path
+              data-testid="gl-spotlight-rim"
+              data-gl-spot={step.id}
+              d={path}
+              fill="none"
+              stroke="rgba(255,255,255,0.3)"
+              strokeWidth={2}
+              style={moveStyle}
+            />
+          ) : (
+            <circle
+              data-testid="gl-spotlight-rim"
+              data-gl-spot={step.id}
+              cx={cx}
+              cy={cy}
+              r={radius}
+              fill="none"
+              stroke="rgba(255,255,255,0.3)"
+              strokeWidth={2}
+              style={moveStyle}
+            />
+          )}
+        </svg>
+      )}
       {/* Label below the lit area, as HTML so it can carry bold and links */}
-      {(!!step.label || !!editor) && (
+      {part !== 'dim' && (!!step.label || !!editor) && (
         <div
           data-gl-callout={step.id}
           data-gl-overlay={step.id}
