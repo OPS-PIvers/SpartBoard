@@ -2184,6 +2184,28 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
     );
   });
 
+  it('still writes the KPI snapshot when history fails', async () => {
+    mockFirestoreState.organizations = [{ id: 'orono', status: 'active' }];
+    mockFirestoreState.users = [
+      {
+        id: 'uid-1',
+        data: { email: 'a@orono.k12.mn.us', lastLogin: Date.now() },
+      },
+    ];
+    mockFirestoreState.activityDays = {
+      entries: () => {
+        throw new Error('history read failed');
+      },
+    } as unknown as Map<string, Record<string, unknown>>;
+    await (recomputeAdminAnalytics as unknown as () => Promise<void>)();
+
+    const snapshot = mockFirestoreState.docs.get(
+      'organizations/orono/analytics/snapshot'
+    ) as { payload: { users: { total: number }; history?: unknown } };
+    expect(snapshot.payload.users.total).toBe(1);
+    expect(snapshot.payload.history).toBeUndefined();
+  });
+
   it('fills estimated days once per org', async () => {
     const day = 24 * 60 * 60 * 1000;
     mockFirestoreState.organizations = [{ id: 'orono', status: 'active' }];

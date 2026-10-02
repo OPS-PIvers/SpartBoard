@@ -273,8 +273,18 @@ export async function computeAnalyticsForOrg(
   const widgetToUserUids: Record<string, Set<string>> = {};
   const activeThreshold = now - 30 * 24 * 60 * 60 * 1000;
   const lastEditByUser = new Map<string, number>();
-  // Dated (uid, ms) events, only kept when estimating past history.
+  // Dated (uid, ms) events, only kept while the one-time history estimate is still owed.
   const datedEvents: [string, number][] = [];
+  const estimateMarkerRef = db.doc(
+    `organizations/${orgId}/analytics/history_estimate`
+  );
+  const estimateOwed =
+    historyOptions.record &&
+    historyOptions.estimate &&
+    !(await estimateMarkerRef
+      .get()
+      .then((snap) => snap.exists === true)
+      .catch(() => true));
 
   const dashboardsStream = db
     .collectionGroup('dashboards')
@@ -295,7 +305,7 @@ export async function computeAnalyticsForOrg(
 
     totalDashboards++;
     allDashboardOwnerUids.add(ownerUid);
-    if (historyOptions.estimate) {
+    if (estimateOwed) {
       datedEvents.push([ownerUid, toMs(dashData.createdAt)]);
       datedEvents.push([ownerUid, updatedAt]);
     }
@@ -609,7 +619,7 @@ export async function computeAnalyticsForOrg(
       callsPerUser[uid] = (callsPerUser[uid] ?? 0) + count;
       dailyCallCounts[datePart] = (dailyCallCounts[datePart] ?? 0) + count;
       // Usage dates are UTC; midday UTC keeps them on the same district day.
-      if (historyOptions.estimate && count > 0) {
+      if (estimateOwed && count > 0) {
         datedEvents.push([uid, parseTimeMs(`${datePart}T17:00:00Z`)]);
       }
     }
@@ -670,17 +680,26 @@ export async function computeAnalyticsForOrg(
 
   let history: AnalyticsHistory | undefined;
   if (historyOptions.record) {
-    history = await recordAndBuildHistory({
-      orgId,
-      now,
-      dailyActiveUids: members
-        .filter((m) => m.uid && now - lastActiveFor(m) <= oneDayMs)
-        .map((m) => m.uid as string),
-      memberUids,
-      authUsersMap,
-      datedEvents,
-      estimate: historyOptions.estimate,
-    });
+    // History is an add-on: a failure here must not block the KPI snapshot.
+    try {
+      history = await recordAndBuildHistory({
+        orgId,
+        now,
+        dailyActiveUids: members
+          .filter((m) => m.uid && now - lastActiveFor(m) <= oneDayMs)
+          .map((m) => m.uid as string),
+        memberUids,
+        authUsersMap,
+        datedEvents,
+        estimateMarkerRef: estimateOwed ? estimateMarkerRef : null,
+      });
+    } catch (err) {
+      console.error('[getAdminAnalytics] history failed', {
+        ...logContext,
+        orgId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   return {
@@ -734,7 +753,8 @@ async function recordAndBuildHistory(input: {
     { lastSignInMs: number; lastRefreshMs: number; creationMs: number }
   >;
   datedEvents: [string, number][];
-  estimate: boolean;
+  // Set only while the one-time estimate is owed; written once it is done.
+  estimateMarkerRef: admin.firestore.DocumentReference | null;
 }): Promise<AnalyticsHistory> {
   const { orgId, now, memberUids, authUsersMap } = input;
   const today = measuredDateKey(now);
@@ -747,13 +767,8 @@ async function recordAndBuildHistory(input: {
     },
   ];
 
-  // A marker, not the estimated docs, records the fill so an org with nothing to estimate is not rescanned nightly.
-  const markerRef = admin
-    .firestore()
-    .doc(`organizations/${orgId}/analytics/history_estimate`);
-  const alreadyEstimated =
-    input.estimate && (await markerRef.get()).exists === true;
-  if (input.estimate && !alreadyEstimated) {
+  const markerRef = input.estimateMarkerRef;
+  if (markerRef) {
     const firstMeasured = existing
       .filter((d) => !d.estimated)
       .map((d) => d.date)
@@ -767,7 +782,8 @@ async function recordAndBuildHistory(input: {
   }
 
   await writeActivityDays(orgId, toWrite);
-  if (input.estimate && !alreadyEstimated) {
+  // A marker, not the estimated docs, records the fill so an org with nothing to estimate is not rescanned.
+  if (markerRef) {
     await markerRef.set({
       estimatedAt: now,
       days: toWrite.length - 1,
