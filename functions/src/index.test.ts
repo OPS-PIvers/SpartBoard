@@ -664,6 +664,23 @@ describe('fetchExternalProxy', () => {
     );
   });
 
+  it('sends a browser User-Agent so Nutrislice does not refuse the request', async () => {
+    const mockGet = vi.mocked(axios.get);
+    mockGet.mockResolvedValue({ data: {} });
+
+    const handler = fetchExternalProxy as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+    const url =
+      'https://orono.api.nutrislice.com/menu/api/weeks/school/schumann-elementary/menu-type/lunch/2026/10/02/';
+    await handler({ url }, { auth: { uid: '123' } });
+
+    const config = mockGet.mock.calls[0]?.[1];
+    expect(mockGet.mock.calls[0]?.[0]).toBe(url);
+    expect(config?.headers?.['User-Agent']).toMatch(/^Mozilla\/5\.0 /);
+  });
+
   it('translates an axios maxContentLength error into a resource-exhausted HttpsError', async () => {
     const mockGet = vi.mocked(axios.get);
     // Axios's actual message format when the limit is exceeded. `vi.mock('axios')`
