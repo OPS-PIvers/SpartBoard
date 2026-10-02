@@ -118,6 +118,8 @@ export interface AssignmentSummary {
   flashcardKind?: 'check' | 'study';
   /** Work is turned in; a Resource is only there to study (the session field, else the kind default). */
   workKind: WorkKind;
+  /** A teacher-paced quiz or video activity running now; the student joins it live. */
+  live?: boolean;
   /** Per-period sessions: the gate fields plus this student's periods, for the card's lock. */
   periodGate?: PeriodAccessSessionFields & { periodKeys: string[] };
 }
@@ -464,6 +466,7 @@ function buildAssignmentSummary(
         ? record.kind
         : undefined,
     workKind: resolveWorkKind(kind, record),
+    live: isLiveSession(kind, channel, record) ? true : undefined,
     periodGate: hasPeriodAccess(record as PeriodAccessSessionFields)
       ? {
           periodAccess: (record as PeriodAccessSessionFields).periodAccess,
@@ -474,6 +477,23 @@ function buildAssignmentSummary(
         }
       : undefined,
   };
+}
+
+const LIVE_QUIZ_MODES: ReadonlySet<unknown> = new Set([
+  'teacher',
+  'auto',
+  'game',
+]);
+
+function isLiveSession(
+  kind: SessionKind,
+  channel: AssignmentChannel,
+  record: Record<string, unknown>
+): boolean {
+  if (channel !== 'active' || record.status === 'ended') return false;
+  if (kind === 'quiz') return LIVE_QUIZ_MODES.has(record.sessionMode);
+  if (kind === 'video-activity') return record.sessionMode === 'teacher';
+  return false;
 }
 
 /**

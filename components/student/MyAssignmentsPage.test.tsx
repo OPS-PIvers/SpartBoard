@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import type { BuildingScheduleDefaults } from '@/types';
 import type { ClassDirectoryResult } from '@/hooks/useStudentClassDirectory';
 import { MyAssignmentsPage } from './MyAssignmentsPage';
@@ -157,11 +157,12 @@ describe('MyAssignmentsPage bell period', () => {
     };
   };
   const sidebarOrder = () =>
-    screen
+    within(
+      screen.queryByRole('navigation', { name: 'Classes' }) ?? document.body
+    )
       .getAllByRole('button')
-      .map((b) => b.textContent ?? '')
-      .filter((t) => /^(Art|Algebra|Biology)/.test(t))
-      .map((t) => t.replace(/T-.*$/, ''));
+      .map((b) => /^\w?(Art|Algebra|Biology)/.exec(b.textContent ?? '')?.[1])
+      .filter(Boolean);
   const heading = () =>
     screen.queryByRole('heading', { level: 1 })?.textContent;
 
@@ -192,7 +193,7 @@ describe('MyAssignmentsPage bell period', () => {
     landing.v2 = true;
     clock.now = at(12, 0);
     render(<MyAssignmentsPage />);
-    expect(screen.getByText('overview')).toBeTruthy();
+    expect(screen.getByText('Up next')).toBeTruthy();
   });
 
   it('lets a class in the URL win', () => {
