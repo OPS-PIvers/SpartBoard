@@ -147,6 +147,7 @@
       "classLinkMerge": "Merge",
       "duplicatePins": "Duplicate PINs: {{pins}}",
       "saveFailed": "Could not save this class. Your changes are still here — check your Google Drive connection and try again.",
+      "saveViewOnly": "Read-only in View as, so this class was not saved.",
       "namesOnePerLine": "Names (One per line)",
       "firstNames": "First Names",
       "lastNames": "Last Names",
