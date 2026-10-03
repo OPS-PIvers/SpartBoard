@@ -277,7 +277,7 @@ export {
   cleanupPlcNormingOnSessionDelete,
 } from './plcNorming';
 
-// PLC meeting notes: transcript and drafted notes from a recording (docs/plans/PLC_MEETING_RECORDING.md).
+// PLC meeting notes: transcript and drafted notes from a recording (docs/plans/shipped/PLC_MEETING_RECORDING.md).
 export {
   requestPlcMeetingNotesV1,
   resolvePlcMeetingNotesDraftV1,

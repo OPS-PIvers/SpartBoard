@@ -1,4 +1,4 @@
-// Group meeting recording callables, schedules and the late-segment trigger (docs/plans/PLC_MEETING_RECORDING.md, MR-D6 to MR-D11).
+// Group meeting recording callables, schedules and the late-segment trigger (docs/plans/shipped/PLC_MEETING_RECORDING.md, MR-D6 to MR-D11).
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onObjectFinalized } from 'firebase-functions/v2/storage';

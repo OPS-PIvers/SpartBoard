@@ -287,7 +287,10 @@ const ActivitySection: React.FC<{
       <ChoiceGroup
         legend={t('glStudio.playMode')}
         value={mode}
-        options={MODES.map((value) => ({
+        options={(liveTours || mode === 'tour'
+          ? [...MODES, 'tour' as const]
+          : MODES
+        ).map((value) => ({
           value,
           label: t(`glStudio.mode_${value}`),
           desc: t(`glStudio.modeDesc_${value}`),

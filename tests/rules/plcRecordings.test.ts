@@ -1,4 +1,4 @@
-// Rules for group meeting recordings (docs/plans/PLC_MEETING_RECORDING.md):
+// Rules for group meeting recordings (docs/plans/shipped/PLC_MEETING_RECORDING.md):
 //   - plcs/{plcId}/recordings/{id}: members read; the recorder writes live fields only.
 //   - .../transcript/main: members read; server writes.
 //   - Storage plc_meeting_audio/{plcId}/{id}/{part}/{segment}.webm: members read, recorder uploads.

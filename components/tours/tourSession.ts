@@ -3,6 +3,7 @@ import {
   isPersistsAnchor,
   isTourAnchorId,
   parseTourAnchorRef,
+  WHOLE_BOARD_ANCHOR,
 } from '@/config/tourAnchors';
 import type { TourLayoutOverride } from '@/context/dashboardCanvasStore';
 import type {
@@ -24,10 +25,17 @@ export type TourStep = GuidedLearningStep & {
 export const tourStepsOf = (set: GuidedLearningSet): TourStep[] =>
   set.steps.filter((s): s is TourStep => !!s.tour);
 
-/** Every step a live tour plays, anchored or plain, or none when nothing is anchored. */
+// A whole-board step plays as a centred card on the board, like a plain step.
+const runStep = (s: GuidedLearningStep): GuidedLearningStep =>
+  s.tour?.anchor === WHOLE_BOARD_ANCHOR ? { ...s, tour: undefined } : s;
+
+/** Every step a live tour plays, anchored or plain; none for a non-tour set with nothing anchored. */
 export const liveTourStepsOf = (
-  set: Pick<GuidedLearningSet, 'steps'>
-): GuidedLearningStep[] => (set.steps.some((s) => !!s.tour) ? set.steps : []);
+  set: Pick<GuidedLearningSet, 'mode' | 'steps'>
+): GuidedLearningStep[] =>
+  set.mode === 'tour' || set.steps.some((s) => !!s.tour)
+    ? set.steps.map(runStep)
+    : [];
 
 /** The set's welcome message when it is switched on and not blank. */
 export const tourWelcome = (

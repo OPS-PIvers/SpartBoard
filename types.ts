@@ -898,7 +898,7 @@ export interface PlcNote {
   deletedAt?: number | null;
 }
 
-/** Lifecycle of a note's meeting recording (docs/plans/PLC_MEETING_RECORDING.md). */
+/** Lifecycle of a note's meeting recording (docs/plans/shipped/PLC_MEETING_RECORDING.md). */
 export type PlcRecordingStatus =
   | 'recording'
   | 'paused'
@@ -7652,7 +7652,7 @@ export interface HotspotImageConfig {
 
 // --- GUIDED LEARNING WIDGET TYPES ---
 
-export type GuidedLearningMode = 'structured' | 'guided' | 'explore';
+export type GuidedLearningMode = 'structured' | 'guided' | 'explore' | 'tour';
 export type GuidedLearningInteractionType =
   | 'text-popover'
   | 'tooltip'
@@ -7947,8 +7947,10 @@ export interface GuidedLearningSet {
     layouts?: TourWidgetLayout[];
     /** Play on the teacher's board as-is; absent = hide their widgets and add fresh ones. */
     useTeacherBoard?: true;
+    /** A tour-mode set starts with Autopilot on (what `mode: 'guided'` did before tours had a mode). */
+    autopilot?: true;
   };
-  /** Stamped on every building-set save: true when any step has a live-tour binding. */
+  /** Stamped on every building-set save: true for tour mode or when any step has a live-tour binding. */
   hasLiveTour?: boolean;
 }
 
@@ -9583,7 +9585,7 @@ export type GlobalFeature =
   | 'flashcard-smart-paste'
   /** Assign modals: Availability & Due Date (opens, closes, late work) replaces the Schedule and period-mode toggle. */
   | 'assign-availability'
-  /** Record a group meeting on a note, with playback (docs/plans/PLC_MEETING_RECORDING.md). */
+  /** Record a group meeting on a note, with playback (docs/plans/shipped/PLC_MEETING_RECORDING.md). */
   | 'plc-meeting-recording'
   /** Transcript and drafted notes from a meeting recording; AND-ed with `gemini-functions`. */
   | 'plc-meeting-ai-notes'

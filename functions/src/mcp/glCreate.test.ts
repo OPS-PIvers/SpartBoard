@@ -54,7 +54,7 @@ describe('create_guided_learning', () => {
       id: 'g1',
       title: 'Open the dock',
       imageUrls: [],
-      mode: 'structured',
+      mode: 'tour',
       isBuilding: true,
       authorUid: 'u1',
       hasLiveTour: true,
@@ -66,6 +66,29 @@ describe('create_guided_learning', () => {
     expect(set).not.toHaveProperty('description');
     expect(set).not.toHaveProperty('imagePaths');
     expect(Object.values(set)).not.toContain(undefined);
+  });
+
+  it('starts a tour with Autopilot on only when asked', () => {
+    const req = input({ autopilot: true });
+    const set = buildNewSet(
+      req,
+      { id: 'g2', uid: 'u1', now: 5 },
+      'building',
+      validateCreate(req),
+      { urls: [], paths: [] }
+    );
+    expect(set.tourSetup).toEqual({ widgets: [], autopilot: true });
+  });
+
+  it('accepts whole-board opening steps only as observe steps', () => {
+    const board = (action: 'observe' | 'click') =>
+      tourStep({ tour: { anchor: 'board.whole', action } });
+    expect(() =>
+      validateCreate(input({ steps: [board('observe')] }))
+    ).not.toThrow();
+    expect(() => validateCreate(input({ steps: [board('click')] }))).toThrow(
+      /"board.whole" steps observe/
+    );
   });
 
   it('needs a tour binding on every live tour step and imageIndex 0 without slides', () => {

@@ -15,6 +15,7 @@ import {
   stepUsesSpotlight,
 } from '../utils/setMigration';
 import { calculateImageFootprint, toImageOffset } from '../utils/imageUtils';
+import { isLiveTourSet } from '../utils/liveTour';
 import {
   GuidedLearningSaveConflictError,
   type GuidedLearningSaveGuard,
@@ -571,7 +572,9 @@ export function useSetDraftPersistence({
           }
         : {}),
       // Launch points read this instead of loading every step.
-      ...(set.isBuilding ? { hasLiveTour: steps.some((s) => !!s.tour) } : {}),
+      ...(set.isBuilding
+        ? { hasLiveTour: isLiveTourSet({ mode: editorState.mode, steps }) }
+        : {}),
     };
   };
 
