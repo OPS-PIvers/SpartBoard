@@ -36,6 +36,8 @@ export interface UnifiedAssignmentRow {
   targetSkippedCount: number;
   openAt?: number | null;
   closeAt?: number | null;
+  /** Quiz rows only: the shared due date. */
+  dueAt?: number | null;
   createdAt: number;
   /** Paired session doc id — always `id` (1:1 shared UUID, spec §1). D2 name/status resolution. */
   sessionId: string;
@@ -118,6 +120,7 @@ export const useUnifiedAssignments = (
       targetSkippedCount: a.targetSkippedCount ?? 0,
       openAt: a.openAt,
       closeAt: a.closeAt,
+      dueAt: a.dueAt,
       createdAt: a.createdAt,
       sessionId: a.id,
       rosterIds: a.rosterIds,
