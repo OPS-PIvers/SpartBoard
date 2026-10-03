@@ -24,6 +24,8 @@ interface EditorWorkspaceProps {
   autosave?: EditorAutosaveConfig;
   /** Pass-through to `EditorModalShell.incompleteNotice`. */
   incompleteNotice?: string | null;
+  /** Pass-through to `EditorModalShell.tourScope`. */
+  tourScope?: string;
   onClose: () => void;
   confirmDiscardMessage?: string;
   confirmDiscardTitle?: string;

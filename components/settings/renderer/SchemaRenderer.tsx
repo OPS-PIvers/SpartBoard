@@ -10,6 +10,7 @@ import {
   type UpdateConfig,
   type WidgetSettingsSchema,
 } from '@/components/settings/schema/types';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { FieldRenderer } from './FieldRenderer';
 import { resolveLabel } from './resolveLabel';
 
@@ -66,9 +67,11 @@ export const SchemaRenderer: React.FC<SchemaRendererProps> = ({
             aria-labelledby={headingId}
             data-group={group.id}
           >
-            <SettingsLabel as="span" id={headingId} tone="drawer">
-              {title}
-            </SettingsLabel>
+            <div {...tourFieldAttr('settings.group', widget.type, group.id)}>
+              <SettingsLabel as="span" id={headingId} tone="drawer">
+                {title}
+              </SettingsLabel>
+            </div>
             <div className="divide-y divide-slate-100">
               {(() => {
                 const printedSections = new Set<string>();

@@ -609,6 +609,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       title={title}
       onTitleChange={setTitle}
       titlePlaceholder={isBank ? 'Bank title' : 'Quiz title'}
+      tourScope="quiz"
       headerExtras={headerExtras}
       subtitle={subtitle}
       isDirty={isDirty}

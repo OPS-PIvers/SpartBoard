@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildingRecordToBuilding, gradeLabelFromType } from './buildings';
+import {
+  buildingRecordToBuilding,
+  canonicalBuildingId,
+  gradeLabelFromType,
+  toLunchCountSchoolSite,
+} from './buildings';
 import type { BuildingRecord } from '@/types/organization';
 
 describe('buildingRecordToBuilding — Other-type buildings', () => {
@@ -30,5 +35,18 @@ describe('gradeLabelFromType', () => {
     expect(gradeLabelFromType('middle')).toBe('6-8');
     expect(gradeLabelFromType('high')).toBe('9-12');
     expect(gradeLabelFromType('other')).toBe('K-12');
+  });
+});
+
+describe('building id lookups ignore Object.prototype keys', () => {
+  it('canonicalBuildingId returns inherited-name ids unchanged', () => {
+    expect(canonicalBuildingId('constructor')).toBe('constructor');
+    expect(canonicalBuildingId('toString')).toBe('toString');
+    expect(canonicalBuildingId('orono-high-school')).toBe('high');
+  });
+
+  it('toLunchCountSchoolSite returns null for inherited-name ids', () => {
+    expect(toLunchCountSchoolSite('constructor')).toBeNull();
+    expect(toLunchCountSchoolSite('high')).toBe('orono-high-school');
   });
 });

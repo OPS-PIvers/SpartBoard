@@ -317,6 +317,8 @@ const hitEllipse = (obj: EllipseObject, p: Point): boolean => {
  * — applying it here would double-rotate.
  */
 export const hitTestObject = (obj: DrawableObject, p: Point): boolean => {
+  // Eraser strokes paint nothing, so they must not shadow the objects they erase.
+  if (obj.kind === 'path' && obj.color === 'eraser') return false;
   const rot = obj.rotation ?? 0;
   const testP =
     objectHonorsRotation(obj) && Number.isFinite(rot) && rot !== 0

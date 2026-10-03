@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { logError } from '@/utils/logError';
 
 /**
@@ -25,37 +25,45 @@ export function useDebouncedCallback<TArgs extends unknown[]>(
   fnRef.current = fn;
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingArgsRef = useRef<TArgs | null>(null);
 
-  // Cleanup on unmount
+  const invoke = useCallback((args: TArgs) => {
+    const current = fnRef.current;
+    if (!current) return;
+    try {
+      // Cast to unknown first to avoid unsafe-assignment while still
+      // allowing us to check for a returned Promise at runtime.
+      const result: unknown = (current as (...a: TArgs) => unknown)(...args);
+      if (result instanceof Promise) {
+        result.catch((err: unknown) => logError('useDebouncedCallback', err));
+      }
+    } catch (err) {
+      logError('useDebouncedCallback', err);
+    }
+  }, []);
+
+  // Unmount flushes the pending call so a last drag value is not dropped.
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+      const args = pendingArgsRef.current;
+      pendingArgsRef.current = null;
+      if (args) invoke(args);
     };
-  }, []);
+  }, [invoke]);
 
   return useMemo(
     () =>
       (...args: TArgs) => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        pendingArgsRef.current = args;
         timeoutRef.current = setTimeout(() => {
-          const current = fnRef.current;
-          if (!current) return;
-          try {
-            // Cast to unknown first to avoid unsafe-assignment while still
-            // allowing us to check for a returned Promise at runtime.
-            const result: unknown = (current as (...a: TArgs) => unknown)(
-              ...args
-            );
-            if (result instanceof Promise) {
-              result.catch((err: unknown) =>
-                logError('useDebouncedCallback', err)
-              );
-            }
-          } catch (err) {
-            logError('useDebouncedCallback', err);
-          }
+          timeoutRef.current = null;
+          pendingArgsRef.current = null;
+          invoke(args);
         }, delayMs);
       },
-    [delayMs]
+    [delayMs, invoke]
   );
 }
