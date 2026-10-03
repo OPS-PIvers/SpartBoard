@@ -186,6 +186,23 @@ describe('hitTestObjects', () => {
     expect(hit?.id).toBe('higher');
   });
 
+  it('ignores eraser strokes so the object under them stays selectable', () => {
+    const base = rect({ id: 'base', z: 0, x: 0, y: 0, w: 100, h: 100 });
+    const eraser: PathObject = {
+      id: 'eraser',
+      kind: 'path',
+      z: 1,
+      points: [
+        { x: 0, y: 50 },
+        { x: 100, y: 50 },
+      ],
+      color: 'eraser',
+      width: 20,
+    };
+    expect(hitTestObject(eraser, { x: 50, y: 50 })).toBe(false);
+    expect(hitTestObjects([base, eraser], { x: 50, y: 50 })?.id).toBe('base');
+  });
+
   it('returns null when no object is hit', () => {
     const hit = hitTestObjects([rect()], { x: 500, y: 500 });
     expect(hit).toBeNull();
