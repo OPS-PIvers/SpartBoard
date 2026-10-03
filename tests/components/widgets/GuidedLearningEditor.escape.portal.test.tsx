@@ -72,6 +72,7 @@ const makeState = (): GuidedLearningEditorController => ({
   addCapturedMedia: vi.fn().mockResolvedValue(undefined),
   deleteImage: vi.fn(),
   replaceSlideImage: vi.fn(),
+  replaceSlideFromFile: vi.fn(),
   moveImage: vi.fn(),
   reorderImages: vi.fn(),
   slideMoveReordersSteps: vi.fn(),
