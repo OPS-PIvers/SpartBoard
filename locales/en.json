@@ -3748,6 +3748,7 @@
     "slideActionsN": "More actions for slide {{n}}",
     "duplicateSlide": "Duplicate slide",
     "pasteStepsHere": "Paste steps onto this slide",
+    "replaceImage": "Replace image",
     "stepActions": "Step actions",
     "duplicateStep": "Duplicate step",
     "copyStep": "Copy step",
