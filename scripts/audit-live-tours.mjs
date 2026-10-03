@@ -116,7 +116,7 @@ async function run() {
     process.exit(args.help ? 0 : 1);
   }
   if (args.apply && args.project === 'spartboard' && !args.confirmProd) {
-    console.error('--apply on prod also needs --confirm-prod (Paul\'s word).');
+    console.error("--apply on prod also needs --confirm-prod (Paul's word).");
     process.exit(1);
   }
 
@@ -125,7 +125,9 @@ async function run() {
   const { getFirestore } = await import('firebase-admin/firestore');
   initializeApp({
     credential:
-      args.project === 'spartboard' ? prodCredential(cert) : applicationDefault(),
+      args.project === 'spartboard'
+        ? prodCredential(cert)
+        : applicationDefault(),
     projectId: args.project,
   });
   const db = getFirestore();
