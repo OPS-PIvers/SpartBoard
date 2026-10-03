@@ -1,4 +1,4 @@
-// Every Sparty pose at each supported size on light and dark at /sparty-dev (dev builds only).
+// Every Sparty pose at each supported size, plus flipped, on light and dark at /sparty-dev (dev builds only).
 
 import React from 'react';
 import { Sparty } from '@/components/sparty/Sparty';
@@ -17,13 +17,24 @@ const Surface: React.FC<{ dark: boolean }> = ({ dark }) => (
       <div key={pose} className="flex flex-wrap items-end gap-6">
         <span className="w-16 text-sm font-semibold">{pose}</span>
         {SIZES.map((size) => (
-          <Sparty key={size} pose={pose} size={size} label={`Sparty ${pose}`} />
+          <Sparty
+            key={size}
+            pose={pose}
+            size={size}
+            onDark={dark}
+            label={`Sparty ${pose}`}
+          />
         ))}
-        {SPARTY_POSES[pose].frames.map((_, i) => (
-          <span key={i} className="text-xs tabular-nums">
-            f{i + 1} {SPARTY_POSES[pose].durations[i]}ms
-          </span>
-        ))}
+        <Sparty
+          pose={pose}
+          size={64}
+          onDark={dark}
+          flip
+          label={`Sparty ${pose} flipped`}
+        />
+        <span className="text-xs tabular-nums">
+          {SPARTY_POSES[pose].frames.length} frames
+        </span>
       </div>
     ))}
   </div>
