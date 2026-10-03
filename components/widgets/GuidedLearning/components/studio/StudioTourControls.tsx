@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, Circle, Copy, Footprints } from 'lucide-react';
+import { AlertTriangle, Camera, Circle, Copy, Footprints } from 'lucide-react';
 import type {
   GuidedLearningStep,
   GuidedLearningTourAction,
@@ -33,6 +33,8 @@ interface StudioTourControlsProps {
   onRunFromStep?: () => void;
   /** Captures one new click for this step. */
   onRerecord?: () => void;
+  /** Runs the draft from this step and retakes its picture. */
+  onRetakePicture?: () => void;
 }
 
 const GROUPS = [
@@ -164,6 +166,7 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
   onPeekBoard,
   onRunFromStep,
   onRerecord,
+  onRetakePicture,
 }) => {
   const { t } = useTranslation();
   const tour = step.tour;
@@ -445,7 +448,7 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
           </span>
         </label>
       )}
-      {(!!onRunFromStep || !!onRerecord) && (
+      {(!!onRunFromStep || !!onRerecord || !!onRetakePicture) && (
         <div className="flex flex-wrap gap-2">
           {onRunFromStep && (
             <button
@@ -461,6 +464,16 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
             <button type="button" onClick={onRerecord} className={actionClass}>
               <Circle className="h-3.5 w-3.5" aria-hidden="true" />
               {t('glStudio.rerecordStep')}
+            </button>
+          )}
+          {onRetakePicture && (
+            <button
+              type="button"
+              onClick={onRetakePicture}
+              className={actionClass}
+            >
+              <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('glStudio.retakePicture')}
             </button>
           )}
         </div>

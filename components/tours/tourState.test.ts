@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   clearStudioReturn,
+  handOffSnapshots,
   requestRecordTour,
   requestRerecordStep,
   requestStartTour,
@@ -8,6 +9,7 @@ import {
   setTourRunning,
   TOUR_OPEN_STUDIO_EVENT,
   TOUR_RECORD_EVENT,
+  TOUR_SNAPSHOTS_EVENT,
   TOUR_START_EVENT,
 } from './tourState';
 
@@ -50,6 +52,42 @@ describe('tourState', () => {
     setTourRunning(true);
     setTourRunning(false);
     expect(open).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends a draft run's pictures to review instead of reopening the Studio", () => {
+    const open = listen(TOUR_OPEN_STUDIO_EVENT);
+    const review = listen(TOUR_SNAPSHOTS_EVENT);
+    requestStartTour({ setId: 'set-1', draft: true, returnToStepId: 's' });
+    setTourRunning(true);
+    const shots = {
+      setId: 'set-1',
+      stepId: 's',
+      shots: [
+        {
+          stepId: 's',
+          tour: { anchor: 'dock.open-tools', action: 'click' as const },
+          frame: new Blob(['x']),
+          boxes: [],
+          placement: {
+            xPct: 50,
+            yPct: 50,
+            region: { shape: 'rect' as const, wPct: 5, hPct: 5 },
+          },
+        },
+      ],
+    };
+    handOffSnapshots(shots);
+    setTourRunning(false);
+    expect(detailOf(review)).toBe(shots);
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it('ignores an empty hand-off', () => {
+    const review = listen(TOUR_SNAPSHOTS_EVENT);
+    setTourRunning(true);
+    handOffSnapshots({ setId: 'a', stepId: 'b', shots: [] });
+    setTourRunning(false);
+    expect(review).not.toHaveBeenCalled();
   });
 
   it('does not reopen the Studio after a run started elsewhere', () => {

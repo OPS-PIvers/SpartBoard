@@ -42,16 +42,16 @@ vi.mock('./RerecordSession', () => ({
 vi.mock('./StudioReopen', () => ({
   default: ({
     target,
-    recapture,
+    recaptures,
     onEnd,
   }: {
     target: StudioReturn;
-    recapture?: StepRecapture;
+    recaptures?: StepRecapture[];
     onEnd: () => void;
   }) => (
     <button type="button" onClick={onEnd}>
       Stub studio {target.setId} {target.stepId}{' '}
-      {recapture ? recapture.url : 'no recapture'}
+      {recaptures?.[0] ? recaptures[0].url : 'no recapture'}
     </button>
   ),
 }));

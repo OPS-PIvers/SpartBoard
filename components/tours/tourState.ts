@@ -1,3 +1,7 @@
+import type { GuidedLearningTourBinding } from '@/types';
+import type { RecordedPlacement } from '@/components/widgets/GuidedLearning/components/recorder/resolveAnchor';
+import type { RedactRect } from '@/components/widgets/GuidedLearning/utils/redactImage';
+
 export interface TourStartRequest {
   setId: string;
   /** Index among ALL of the set's steps (liveTourStepsOf), not only the anchored ones. */
@@ -6,6 +10,8 @@ export interface TourStartRequest {
   draft?: boolean;
   /** Studio runs: reopen the Studio at this step when the run ends. */
   returnToStepId?: string;
+  /** Draft runs: a step id to retake its picture, or 'all'; absent = only steps without one. */
+  retake?: string;
 }
 
 export const TOUR_START_EVENT = 'spart:start-tour';
@@ -26,6 +32,26 @@ export function requestOpenStudio<T extends StudioReturn>(req: T): void {
 }
 
 let studioReturn: StudioReturn | null = null;
+
+/** Pictures a draft run took, already blurred, for review before they reach the Studio. */
+export interface TourSnapshots extends StudioReturn {
+  shots: {
+    stepId: string;
+    tour: GuidedLearningTourBinding;
+    frame: Blob;
+    boxes: RedactRect[];
+    placement: RecordedPlacement;
+  }[];
+}
+
+export const TOUR_SNAPSHOTS_EVENT = 'spart:tour-snapshots';
+
+let pendingSnapshots: TourSnapshots | null = null;
+
+/** Called by the runner as a draft run ends; the review replaces the plain Studio return. */
+export const handOffSnapshots = (snapshots: TourSnapshots): void => {
+  pendingSnapshots = snapshots.shots.length > 0 ? snapshots : null;
+};
 
 // Set by the runner so launch points don't offer a tour while one is running.
 let tourRunning = false;
@@ -48,6 +74,15 @@ export const clearStudioReturn = (): void => {
 export const setTourRunning = (running: boolean): void => {
   const ended = tourRunning && !running;
   tourRunning = running;
+  if (ended && pendingSnapshots) {
+    const shots = pendingSnapshots;
+    pendingSnapshots = null;
+    studioReturn = null;
+    window.dispatchEvent(
+      new CustomEvent<TourSnapshots>(TOUR_SNAPSHOTS_EVENT, { detail: shots })
+    );
+    return;
+  }
   if (!ended || !studioReturn) return;
   const back = studioReturn;
   studioReturn = null;
