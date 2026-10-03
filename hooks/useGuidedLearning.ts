@@ -157,6 +157,18 @@ const buildingIndexSource: SharedSource<BuildingIndexState> = {
   },
 };
 
+/** Building sets with a live tour, read from the shared library index; empty while disabled. */
+export const useLiveTourSetIds = (enabled: boolean): ReadonlySet<string> => {
+  const { buildingSets } = useSharedSubscription(
+    buildingIndexSource,
+    enabled ? 'all' : null
+  );
+  return useMemo(
+    () => new Set(buildingSets.filter((e) => e.hasLiveTour).map((e) => e.id)),
+    [buildingSets]
+  );
+};
+
 export interface UseGuidedLearningResult {
   sets: GuidedLearningSetMetadata[];
   /** Library entries only; fetch the full set with `loadBuildingSet` on Play, Edit or preview. */

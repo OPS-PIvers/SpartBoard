@@ -7,6 +7,7 @@ import { HelpResourceViewer } from './HelpResourceViewer';
 
 const h = vi.hoisted(() => ({
   canTour: true,
+  canRunLive: true,
   published: true,
   loadBuildingSet: vi.fn(),
 }));
@@ -16,6 +17,10 @@ vi.mock('@/components/tours/publishedTours', () => ({
   getToursVersion: () => 0,
   isTourRunnable: () => h.published,
   loadRunnableTour: vi.fn(),
+}));
+
+vi.mock('@/components/tours/useCanRunLiveTour', () => ({
+  useCanRunLiveTour: () => h.canRunLive,
 }));
 
 vi.mock('@/hooks/useGuidedLearning', () => ({
@@ -59,6 +64,7 @@ const set = (withTour: boolean) =>
 
 beforeEach(() => {
   h.canTour = true;
+  h.canRunLive = true;
   h.published = true;
   h.loadBuildingSet.mockReset();
 });
@@ -96,5 +102,36 @@ describe('HelpResourceViewer live tours', () => {
     expect(
       screen.queryByRole('button', { name: 'Show me live' })
     ).not.toBeInTheDocument();
+  });
+
+  it('lists the steps instead of the player where a tour cannot run live', async () => {
+    h.canRunLive = false;
+    h.loadBuildingSet.mockResolvedValue({
+      ...set(true),
+      imageUrls: [],
+      steps: [
+        {
+          id: 'a',
+          label: 'Open Boards',
+          text: 'Click **Boards** in the sidebar.',
+          imageIndex: 0,
+          tour: { anchor: 'sidebar.boards', action: 'click' },
+        },
+      ],
+    });
+    render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
+    expect(await screen.findByTestId('tour-step-list')).toBeInTheDocument();
+    expect(screen.getByText('Open Boards')).toBeInTheDocument();
+    expect(screen.queryByText('player')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Show me live' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps the player for a plain activity where tours cannot run', async () => {
+    h.canRunLive = false;
+    h.loadBuildingSet.mockResolvedValue(set(false));
+    render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
+    expect(await screen.findByText('player')).toBeInTheDocument();
   });
 });

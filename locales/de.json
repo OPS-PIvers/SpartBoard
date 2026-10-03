@@ -3056,8 +3056,10 @@
         "slides": "Präsentationen",
         "videos": "Videos",
         "activities": "Aktivitäten",
-        "other": "Sonstiges"
-      }
+        "other": "Sonstiges",
+        "tours": "Live-Touren"
+      },
+      "liveTourBadge": "Live-Tour"
     },
     "shortcuts": {
       "open-help": "Hilfe öffnen",
@@ -3615,7 +3617,8 @@
     "autoConfirm": "Autopilot führt diesen Schritt aus. Fortfahren?",
     "autoConfirmYes": "Ausführen",
     "autoConfirmNo": "Selbst machen",
-    "moveHint": "Zum Verschieben ziehen. Doppelklick setzt sie wieder nach oben."
+    "moveHint": "Zum Verschieben ziehen. Doppelklick setzt sie wieder nach oben.",
+    "stepListNote": "Öffne SpartBoard an einem Computer, um diese Tour auf deiner Tafel zu starten."
   },
   "glPlayer": {
     "modeChip": {

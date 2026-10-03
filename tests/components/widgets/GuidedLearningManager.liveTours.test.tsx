@@ -77,7 +77,7 @@ const renderManager = (liveTours: boolean, isAdmin = true) =>
         userId="teacher-1"
         sets={[]}
         buildingSets={[
-          buildingSet('live-1', 'Live tour', true),
+          buildingSet('live-1', 'Boards walkthrough', true),
           buildingSet('plain-1', 'Plain set', false),
         ].map(toBuildingIndexEntry)}
         assignments={[]}
@@ -140,11 +140,11 @@ describe('GuidedLearningManager live tours', () => {
 
   it('hides Record a tour without the flag or for non-admins', async () => {
     renderManager(false);
-    await screen.findByText('Live tour');
+    await screen.findByText('Boards walkthrough');
     expect(screen.queryByRole('button', { name: 'Record a tour' })).toBeNull();
     cleanup();
     renderManager(true, false);
-    await screen.findByText('Live tour');
+    await screen.findByText('Boards walkthrough');
     expect(screen.queryByRole('button', { name: 'Record a tour' })).toBeNull();
   });
 
@@ -152,7 +152,7 @@ describe('GuidedLearningManager live tours', () => {
     runnable.set('live-1', true);
     const start = listen(TOUR_START_EVENT);
     renderManager(true, false);
-    await cardMenu('Live tour');
+    await cardMenu('Boards walkthrough');
     fireEvent.click(
       await screen.findByRole('menuitem', { name: /Run live on my board/ })
     );
@@ -172,7 +172,7 @@ describe('GuidedLearningManager live tours', () => {
   it('hides Run live from teachers until the tour is published', async () => {
     // A teacher's card has no menu at all without a runnable tour.
     const noRunLive = async () => {
-      await screen.findByText('Live tour');
+      await screen.findByText('Boards walkthrough');
       const more = screen.queryAllByRole('button', { name: 'More actions' });
       more.forEach((b) => fireEvent.click(b));
       expect(screen.queryByRole('menuitem', { name: /Run live/ })).toBeNull();
@@ -190,7 +190,7 @@ describe('GuidedLearningManager live tours', () => {
     runnable.set('live-1', false);
     const start = listen(TOUR_START_EVENT);
     renderManager(true, true);
-    await cardMenu('Live tour');
+    await cardMenu('Boards walkthrough');
     fireEvent.click(
       await screen.findByRole('menuitem', {
         name: /Run live on my board \(draft\)/,
@@ -200,5 +200,30 @@ describe('GuidedLearningManager live tours', () => {
       setId: 'live-1',
       draft: true,
     });
+  });
+
+  it('badges tours and filters the library by type', async () => {
+    renderManager(true, false);
+    const tourCard = await screen.findByText('Boards walkthrough');
+    expect(screen.getAllByText('Live tour')).toHaveLength(1);
+    expect(screen.getByText('Guided')).toBeInTheDocument();
+    expect(tourCard).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Type'), {
+      target: { value: 'tour' },
+    });
+    expect(screen.getByText('Boards walkthrough')).toBeInTheDocument();
+    expect(screen.queryByText('Plain set')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Type'), {
+      target: { value: 'activity' },
+    });
+    expect(screen.queryByText('Boards walkthrough')).toBeNull();
+    expect(screen.getByText('Plain set')).toBeInTheDocument();
+  });
+
+  it('shows no tour badge or type filter without the flag', async () => {
+    renderManager(false);
+    await screen.findByText('Boards walkthrough');
+    expect(screen.queryByText('Live tour')).toBeNull();
+    expect(screen.queryByLabelText('Type')).toBeNull();
   });
 });

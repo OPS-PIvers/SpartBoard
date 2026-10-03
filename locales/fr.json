@@ -3056,8 +3056,10 @@
         "slides": "Diaporamas",
         "videos": "Vidéos",
         "activities": "Activités",
-        "other": "Autres"
-      }
+        "other": "Autres",
+        "tours": "Visites guidées"
+      },
+      "liveTourBadge": "Visite guidée"
     },
     "shortcuts": {
       "open-help": "Ouvrir l'aide",
@@ -3615,7 +3617,8 @@
     "autoConfirm": "Autopilot va effectuer cette étape. Continuer ?",
     "autoConfirmYes": "Vas-y",
     "autoConfirmNo": "Je le fais",
-    "moveHint": "Faites glisser pour la déplacer. Double-cliquez pour la remettre en haut."
+    "moveHint": "Faites glisser pour la déplacer. Double-cliquez pour la remettre en haut.",
+    "stepListNote": "Ouvrez SpartBoard sur un ordinateur pour suivre cette visite sur votre tableau."
   },
   "glPlayer": {
     "modeChip": {

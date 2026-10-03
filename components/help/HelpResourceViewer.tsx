@@ -23,6 +23,9 @@ import { useAuth } from '@/context/useAuth';
 import { requestStartTour } from '@/components/tours/tourState';
 import { useFirstRunnableTour } from '@/components/tours/useTourOffers';
 import { tourAttr } from '@/config/tourAnchors';
+import { tourStepsOf } from '@/components/tours/tourSession';
+import { TourStepList } from '@/components/tours/TourStepList';
+import { useCanRunLiveTour } from '@/components/tours/useCanRunLiveTour';
 
 // Lazy so the Help modal never pulls the Guided Learning player for teachers who only read embeds.
 const GuidedLearningPlayer = lazy(() =>
@@ -49,11 +52,10 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
   const { t } = useTranslation();
   const { canAccessFeature } = useAuth();
   const [state, setState] = useState<GlState>({ status: 'loading' });
+  const liveTours = canAccessFeature('gl-live-tours');
+  const canRunLive = useCanRunLiveTour();
   const hasTour =
-    useFirstRunnableTour(
-      [setId],
-      !fill && canAccessFeature('gl-live-tours')
-    ) !== null;
+    useFirstRunnableTour([setId], !fill && canRunLive && liveTours) !== null;
 
   useEffect(() => {
     let cancelled = false;
@@ -84,6 +86,20 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
       <p className="py-16 text-center text-sm text-slate-500">
         {t('helpCenter.guides.activityUnavailable')}
       </p>
+    );
+  }
+
+  const offBoardTour =
+    liveTours &&
+    !canRunLive &&
+    (state.set.hasLiveTour ?? tourStepsOf(state.set).length > 0);
+  if (offBoardTour) {
+    return (
+      <div
+        className={fill ? 'h-full overflow-y-auto bg-slate-50 p-4 pb-8' : ''}
+      >
+        <TourStepList set={state.set} />
+      </div>
     );
   }
 

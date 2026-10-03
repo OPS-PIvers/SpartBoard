@@ -333,12 +333,16 @@ const LIBRARY_SORT_COMPARATORS = {
   },
 };
 
+const TOUR_TYPE = 'tour';
+
 // Help Center sets live in Admin Settings, so every view but their own hides them.
 const LIBRARY_FILTER_PREDICATES = {
   source: (item: LibraryEntry, value: string): boolean =>
     value === HELP_CENTER_SOURCE
       ? !!item.helpCenter
       : !item.helpCenter && (value === '' || item.source === value),
+  type: (item: LibraryEntry, value: string): boolean =>
+    !!item.buildingEntry?.hasLiveTour === (value === TOUR_TYPE),
 };
 
 const LIBRARY_GET_ID = (e: LibraryEntry): string => e.id;
@@ -574,6 +578,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     visible: isAdmin,
   };
 
+  // Teachers never see Help Center sets in the library, so their tours don't count.
+  const hasTours =
+    liveTours &&
+    buildingSets.some((e) => e.hasLiveTour && (isAdmin || !isHelpCenterSet(e)));
+
   const view = useLibraryView<LibraryEntry>({
     items: allEntries,
     initialSort: LIBRARY_INITIAL_SORT,
@@ -583,6 +592,18 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     sortComparators: LIBRARY_SORT_COMPARATORS,
     filterPredicates: LIBRARY_FILTER_PREDICATES,
   });
+
+  const activeTypeFilter = view.state.filterValues.type ?? '';
+  // Stays visible while set, so a filter whose last tour was deleted can be cleared.
+  const typeFilter: LibraryFilter = {
+    id: 'type',
+    label: 'Type',
+    options: [
+      { value: TOUR_TYPE, label: 'Live tours' },
+      { value: 'activity', label: 'Activities' },
+    ],
+    visible: hasTours || (liveTours && activeTypeFilter !== ''),
+  };
 
   const activeSourceFilter = view.state.filterValues.source ?? '';
   const isBuildingFiltered = activeSourceFilter === 'building';
@@ -802,7 +823,9 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     index?: number
   ): React.ReactElement => {
     const badges: LibraryBadge[] = [
-      { label: MODE_LABELS[entry.mode], tone: 'info' },
+      liveTours && entry.buildingEntry?.hasLiveTour
+        ? { label: 'Live tour', tone: 'info' }
+        : { label: MODE_LABELS[entry.mode], tone: 'info' },
     ];
     if (entry.source === 'building') {
       badges.push({
@@ -1482,7 +1505,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
           <LibraryToolbar
             {...view.toolbarProps}
             sortOptions={SORT_OPTIONS}
-            filters={[sourceFilter]}
+            filters={[sourceFilter, typeFilter]}
             searchPlaceholder="Search sets…"
             widgetType="guided-learning"
             rightSlot={
