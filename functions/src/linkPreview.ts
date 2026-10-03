@@ -116,21 +116,25 @@ function decodeHtmlEntities(value: string): string {
 }
 
 function extractMetaContent(html: string, propOrName: string): string | null {
-  // Matches <meta property="og:title" content="..."> in either attribute
-  // order, single or double quotes; case-insensitive on the property name.
-  const patterns = [
-    new RegExp(
-      `<meta[^>]+(?:property|name)=["']${propOrName}["'][^>]+content=["']([^"']*)["']`,
-      'i'
-    ),
-    new RegExp(
-      `<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name)=["']${propOrName}["']`,
-      'i'
-    ),
-  ];
-  for (const pattern of patterns) {
-    const match = pattern.exec(html);
-    if (match) return decodeHtmlEntities(match[1]).trim();
+  const want = propOrName.toLowerCase();
+  // Quote-aware tag and attribute scan, so `'` in a "..." value (and `>` in either) survives.
+  const tagRe = /<meta\b((?:"[^"]*"|'[^']*'|[^>"'])*)>/gi;
+  const attrRe = /([^\s"'<>/=]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g;
+  for (const tag of html.matchAll(tagRe)) {
+    let key: string | null = null;
+    let content: string | null = null;
+    for (const m of tag[1].matchAll(attrRe)) {
+      const name = m[1].toLowerCase();
+      const value = m[2] ?? m[3] ?? m[4] ?? '';
+      if (name === 'property' || name === 'name') {
+        if (key === null && value.toLowerCase() === want) key = value;
+      } else if (name === 'content' && content === null) {
+        content = value;
+      }
+    }
+    if (key !== null && content !== null) {
+      return decodeHtmlEntities(content).trim();
+    }
   }
   return null;
 }
