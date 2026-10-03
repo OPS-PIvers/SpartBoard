@@ -39,7 +39,7 @@ describe('StudioReopen', () => {
     render(
       <StudioReopen
         target={{ setId: 'set-1', stepId: 'step-2' }}
-        recapture={recapture}
+        recaptures={[recapture]}
         onEnd={vi.fn()}
       />
     );
@@ -49,7 +49,7 @@ describe('StudioReopen', () => {
       expect.objectContaining({
         set: SET,
         initialStepId: 'step-2',
-        recapture,
+        recaptures: [recapture],
       })
     );
   });

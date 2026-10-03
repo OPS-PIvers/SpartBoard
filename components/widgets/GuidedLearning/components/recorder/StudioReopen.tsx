@@ -22,14 +22,14 @@ const GuidedLearningStudio = lazy(() =>
 
 interface StudioReopenProps {
   target: StudioReturn;
-  recapture?: StepRecapture;
+  recaptures?: StepRecapture[];
   onEnd: () => void;
 }
 
 /** Reopens the Studio on a building set at a step, after a live run or a re-recorded click. */
 export const StudioReopen: React.FC<StudioReopenProps> = ({
   target,
-  recapture,
+  recaptures,
   onEnd,
 }) => {
   const { t } = useTranslation();
@@ -69,7 +69,7 @@ export const StudioReopen: React.FC<StudioReopenProps> = ({
         onClose={onEnd}
         onSave={(next, _driveFileId, guard) => saveBuildingSet(next, guard)}
         initialStepId={target.stepId}
-        recapture={recapture}
+        recaptures={recaptures}
       />
     </Suspense>
   );

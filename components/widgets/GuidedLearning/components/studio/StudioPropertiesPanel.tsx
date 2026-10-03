@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  Camera,
   Check,
   Film,
   Image as ImageIcon,
@@ -46,6 +47,8 @@ interface StudioPropertiesPanelProps {
   onRunFromStep?: (stepId: string) => void;
   /** Captures one new click for this step. */
   onRerecordStep?: (stepId: string) => void;
+  /** Tour mode: runs the draft to retake one step's picture, or every step's. */
+  onRetakePictures?: (stepId?: string) => void;
   /** Fades the Studio while Find on board flashes a button. */
   onPeekBoard?: (peeking: boolean) => void;
   /** `gl-callout-editing`: callout size and colour summary, and Reset all. */
@@ -54,6 +57,8 @@ interface StudioPropertiesPanelProps {
 
 interface TourTools {
   onRunFromStep?: (stepId: string) => void;
+  /** Tour mode: runs the draft to retake one step's picture, or every step's. */
+  onRetakePictures?: (stepId?: string) => void;
   onRerecordStep?: (stepId: string) => void;
   onPeekBoard?: (peeking: boolean) => void;
 }
@@ -118,11 +123,17 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
   saveForPublish,
   onRunFromStep,
   onRerecordStep,
+  onRetakePictures,
   onPeekBoard,
   calloutEditing = false,
 }) => {
   const { selectedStep } = state;
-  const tools: TourTools = { onRunFromStep, onRerecordStep, onPeekBoard };
+  const tools: TourTools = {
+    onRunFromStep,
+    onRetakePictures,
+    onRerecordStep,
+    onPeekBoard,
+  };
   return (
     <div className="flex flex-col divide-y divide-slate-200">
       {selectedStep ? (
@@ -141,6 +152,7 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
           liveTours={liveTours}
           tourSet={tourSet}
           saveForPublish={saveForPublish}
+          onRetakeAll={onRetakePictures ? () => onRetakePictures() : undefined}
         />
       )}
       {state.imageUrls.length > 0 && (
@@ -236,6 +248,13 @@ const StepSection: React.FC<{
               ? () => tools.onRerecordStep?.(step.id)
               : undefined
           }
+          onRetakePicture={
+            tools.onRetakePictures &&
+            step.tour &&
+            step.tour.anchor !== 'board.whole'
+              ? () => tools.onRetakePictures?.(step.id)
+              : undefined
+          }
         />
       )}
     </section>
@@ -247,7 +266,8 @@ const ActivitySection: React.FC<{
   liveTours: boolean;
   tourSet?: GuidedLearningSet;
   saveForPublish?: () => Promise<GuidedLearningSet | null>;
-}> = ({ state, liveTours, tourSet, saveForPublish }) => {
+  onRetakeAll?: () => void;
+}> = ({ state, liveTours, tourSet, saveForPublish, onRetakeAll }) => {
   const { t } = useTranslation();
   const {
     steps,
@@ -354,6 +374,17 @@ const ActivitySection: React.FC<{
             useTeacherBoard={state.tourUseTeacherBoard}
             onUseTeacherBoardChange={state.setTourUseTeacherBoard}
           />
+          {onRetakeAll && mode === 'tour' && steps.some((s) => !!s.tour) && (
+            <button
+              type="button"
+              onClick={onRetakeAll}
+              data-testid="gl-studio-retake-all"
+              className="flex items-center gap-1.5 self-start rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:border-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+            >
+              <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('glStudio.retakeAllPictures')}
+            </button>
+          )}
         </Group>
       )}
       {imageUrls.length > 0 && (

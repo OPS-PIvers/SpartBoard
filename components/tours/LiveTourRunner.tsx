@@ -46,9 +46,11 @@ import {
 } from '@/components/widgets/GuidedLearning/components/player/useReadAloud';
 import {
   clearStudioReturn,
+  handOffSnapshots,
   isTourRunning,
   setTourRunning,
   TOUR_START_EVENT,
+  type TourSnapshots,
   type TourStartRequest,
 } from './tourState';
 import {
@@ -114,6 +116,7 @@ interface LaunchOptions {
   skipWelcome?: boolean;
   /** Runs the Studio draft instead of the published snapshot. */
   draft?: boolean;
+  retake?: TourStartRequest['retake'];
 }
 
 interface ActiveTour {
@@ -143,6 +146,8 @@ interface ActiveTour {
   /** A cleared stage: widgets the app adds while the tour runs are tour widgets. */
   clearStage?: boolean;
   draft?: boolean;
+  /** Draft runs: whose pictures to retake; steps without one always get one. */
+  retake?: TourStartRequest['retake'];
 }
 
 const EMPTY_LAYER = {
@@ -196,6 +201,9 @@ const PREREQ_RETRY_MS = 400;
 // A board switch this soon after a step's click is that step's own navigation.
 const FOLLOW_BOARD_MS = 3000;
 const CALLOUT_WIDTH = 320;
+/** Lets a scrolled or opened control settle before its picture is taken. */
+const SNAPSHOT_SETTLE_MS = 300;
+
 /** A plain step's centred card reads wider than a pointing callout. */
 const PLAIN_WIDTH = 400;
 /** The 480px mini-player plus the callout's padding. */
@@ -448,6 +456,50 @@ export const LiveTourRunner: React.FC = () => {
   }, [liftEl]);
 
   const binding = step?.tour ?? null;
+
+  // Draft runs picture each bound step that has no slide yet, or that the Studio asked to retake.
+  const snapshots = useRef(new Map<string, TourSnapshots['shots'][number]>());
+  const [shotIds, setShotIds] = useState<ReadonlySet<string>>(() => new Set());
+  const snapStepId =
+    tour?.phase === 'running' &&
+    tour.draft &&
+    step &&
+    binding &&
+    anchor.status === 'found' &&
+    !shotIds.has(step.id) &&
+    (tour.retake === 'all' ||
+      tour.retake === step.id ||
+      !hasStepSlide(tour.set, step))
+      ? step.id
+      : null;
+  const snapElement = snapStepId ? anchor.element : null;
+  useEffect(() => {
+    if (!snapStepId || !snapElement || !binding) return;
+    let live = true;
+    const people = (latest.current.dashboard.rosters ?? []).flatMap(
+      (r) => r.students
+    );
+    const timer = window.setTimeout(() => {
+      void import('./stepSnapshot')
+        .then((m) => m.captureStepSnapshot(snapElement, people))
+        .then((shot) => {
+          if (!live || !shot) return;
+          snapshots.current.set(snapStepId, {
+            stepId: snapStepId,
+            tour: binding,
+            ...shot,
+          });
+          setShotIds((prev) => new Set(prev).add(snapStepId));
+        })
+        .catch((err: unknown) =>
+          console.warn('Live tour step picture failed', err)
+        );
+    }, SNAPSHOT_SETTLE_MS);
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+  }, [snapStepId, snapElement, binding]);
   const anchorScope = { widgetIds: added, slots: tour?.slots };
   const onStage = hiddenIds.length
     ? widgets.filter((w) => !hiddenIds.includes(w.id))
@@ -634,6 +686,7 @@ export const LiveTourRunner: React.FC = () => {
       hidden,
       clearStage,
       draft: opts.draft,
+      retake: opts.retake,
     });
   };
 
@@ -656,6 +709,7 @@ export const LiveTourRunner: React.FC = () => {
       ...EMPTY_LAYER,
       policy: DEFAULT_TOUR_AUTOPILOT_POLICY,
       draft: opts.draft,
+      retake: opts.retake,
     });
     setCheering(false);
     setFinished(false);
@@ -703,7 +757,11 @@ export const LiveTourRunner: React.FC = () => {
           from === 0 && !opts.skipWelcome && tourWelcome(set) !== null
             ? 'welcome'
             : null,
-          { ...opts, draft: req.draft }
+          {
+            ...opts,
+            draft: req.draft,
+            ...(req.draft && req.retake ? { retake: req.retake } : {}),
+          }
         );
       } catch (err) {
         console.error('LiveTourRunner: could not load tour', err);
@@ -748,6 +806,16 @@ export const LiveTourRunner: React.FC = () => {
 
   // Keep saves the tour's widgets; every other ending discards them.
   const endTour = (keep = false) => {
+    if (tour?.draft && snapshots.current.size > 0) {
+      const shots = [...snapshots.current.values()];
+      handOffSnapshots({
+        setId: tour.set.id,
+        stepId: shots[shots.length - 1].stepId,
+        shots,
+      });
+    }
+    snapshots.current = new Map();
+    setShotIds(new Set());
     if (tour) {
       const d = latest.current.dashboard;
       if (keep) d.commitTourWidgets?.(tour.tourIds);
@@ -765,7 +833,7 @@ export const LiveTourRunner: React.FC = () => {
 
   const startOnPracticeBoard = async () => {
     if (!tour) return;
-    const { set, steps, index, draft } = tour;
+    const { set, steps, index, draft, retake } = tour;
     const id = await latest.current.dashboard.createNewDashboard(
       latest.current.t('tours.practiceBoardName')
     );
@@ -788,7 +856,7 @@ export const LiveTourRunner: React.FC = () => {
       abandon();
       return;
     }
-    runSetup(set, steps, index, { draft });
+    runSetup(set, steps, index, { draft, retake });
   };
 
   // A step left while its anchor was still missing counts as a field miss.
@@ -1324,7 +1392,7 @@ export const LiveTourRunner: React.FC = () => {
       </>
     );
   } else if (tour.phase === 'welcome') {
-    const { set, steps, index, draft } = tour;
+    const { set, steps, index, draft, retake } = tour;
     content = dialog(
       set.title.trim() || t('tours.welcomeTitle'),
       tourWelcome(set) ?? '',
@@ -1340,7 +1408,7 @@ export const LiveTourRunner: React.FC = () => {
           type="button"
           data-autofocus=""
           className={primaryBtn}
-          onClick={() => begin(set, steps, index, null, { draft })}
+          onClick={() => begin(set, steps, index, null, { draft, retake })}
         >
           {t('tours.startTour')}
         </button>
