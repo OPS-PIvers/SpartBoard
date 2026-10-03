@@ -54,4 +54,33 @@ describe('useDebouncedCallback', () => {
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledWith('x');
   });
+
+  it('flushes the pending call on unmount instead of dropping it', () => {
+    const fn = vi.fn();
+    const { result, unmount } = renderHook(() =>
+      useDebouncedCallback(fn, 200)
+    );
+
+    result.current('last');
+    unmount();
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(fn).toHaveBeenCalledWith('last');
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call on unmount when nothing is pending', () => {
+    const fn = vi.fn();
+    const { result, unmount } = renderHook(() =>
+      useDebouncedCallback(fn, 200)
+    );
+    result.current('a');
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    unmount();
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
 });
