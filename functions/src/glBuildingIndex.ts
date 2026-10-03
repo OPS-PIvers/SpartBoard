@@ -10,7 +10,7 @@ import { assertViewAsAllowed } from './viewAsGuard';
 export const GL_BUILDING_COLLECTION = 'building_guided_learning';
 export const GL_BUILDING_INDEX_COLLECTION = 'building_guided_learning_index';
 
-const MODES = new Set(['structured', 'guided', 'explore']);
+const MODES = new Set(['structured', 'guided', 'explore', 'tour']);
 const BACKFILL_PAGE = 200;
 
 export interface GlBuildingIndexEntry {
@@ -73,12 +73,13 @@ export function buildGlBuildingIndexEntry(
     createdAt: num(d.createdAt, updatedAt),
     updatedAt,
     hasLiveTour:
-      typeof d.hasLiveTour === 'boolean'
+      d.mode === 'tour' ||
+      (typeof d.hasLiveTour === 'boolean'
         ? d.hasLiveTour
         : steps.some(
             (s) =>
               !!s && typeof s === 'object' && !!(s as { tour?: unknown }).tour
-          ),
+          )),
     isHelpCenter: d.helpCenter === true,
     folderId: typeof d.folderId === 'string' ? d.folderId : null,
     order: typeof d.order === 'number' ? d.order : null,

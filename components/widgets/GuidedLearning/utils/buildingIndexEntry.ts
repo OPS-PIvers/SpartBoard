@@ -10,7 +10,7 @@ export const BUILDING_INDEX_CONTROL_IDS: ReadonlySet<string> = new Set([
   '_lock',
 ]);
 
-const MODES = new Set<string>(['structured', 'guided', 'explore']);
+const MODES = new Set<string>(['structured', 'guided', 'explore', 'tour']);
 
 const num = (v: unknown, fallback: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : fallback;
@@ -59,12 +59,13 @@ export function buildBuildingIndexEntry(
     createdAt: num(d.createdAt, updatedAt),
     updatedAt,
     hasLiveTour:
-      typeof d.hasLiveTour === 'boolean'
+      d.mode === 'tour' ||
+      (typeof d.hasLiveTour === 'boolean'
         ? d.hasLiveTour
         : steps.some(
             (s) =>
               !!s && typeof s === 'object' && !!(s as { tour?: unknown }).tour
-          ),
+          )),
     isHelpCenter: d.helpCenter === true,
     folderId: typeof d.folderId === 'string' ? d.folderId : null,
     order: typeof d.order === 'number' ? d.order : null,

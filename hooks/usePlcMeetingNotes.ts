@@ -1,4 +1,4 @@
-// Callables and the lazy transcript read for PLC meeting notes (docs/plans/PLC_MEETING_RECORDING.md, phase 2).
+// Callables and the lazy transcript read for PLC meeting notes (docs/plans/shipped/PLC_MEETING_RECORDING.md, phase 2).
 import { useCallback } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';

@@ -287,6 +287,11 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     panel: true,
   },
   {
+    id: 'board.whole',
+    label: 'The whole board, for opening and closing steps',
+    scope: 'board',
+  },
+  {
     id: 'board-actions.zoom',
     label: 'Zoom level button',
     scope: 'board',

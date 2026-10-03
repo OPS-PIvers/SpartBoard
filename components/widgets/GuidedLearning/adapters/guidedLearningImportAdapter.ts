@@ -43,7 +43,7 @@ export async function parseGuidedLearningImport(
   return { data: set, warnings };
 }
 
-const VALID_MODES = new Set(['structured', 'guided', 'explore']);
+const VALID_MODES = new Set(['structured', 'guided', 'explore', 'tour']);
 
 const VALID_INTERACTION_TYPES = new Set([
   'text-popover',
@@ -126,7 +126,7 @@ export function validateGuidedLearningImport(
     );
   }
   if (!VALID_MODES.has(data.mode)) {
-    errors.push('Mode must be "structured", "guided", or "explore".');
+    errors.push('Mode must be "structured", "guided", "explore" or "tour".');
   }
   if (!Array.isArray(data.steps) || data.steps.length === 0) {
     errors.push('At least one step is required.');

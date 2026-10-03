@@ -191,6 +191,7 @@ export const TOUR_ANCHORS = {
   },
   'board-nav.manage-boards': { label: 'Manage all boards item', panel: true },
 
+  'board.whole': { label: 'The whole board, for opening and closing steps' },
   'board-actions.zoom': { label: 'Zoom level button' },
   'board-actions.zoom-reset': { label: 'Reset zoom button' },
   'board-actions.help': { label: 'Help button' },
@@ -1715,6 +1716,9 @@ export const TOUR_ANCHORS = {
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;
+
+/** Opening and closing steps of a tour-mode set observe the board itself. */
+export const WHOLE_BOARD_ANCHOR: TourAnchorId = 'board.whole';
 
 export const isTourAnchorId = (id: string): id is TourAnchorId =>
   Object.prototype.hasOwnProperty.call(TOUR_ANCHORS, id);

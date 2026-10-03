@@ -322,7 +322,7 @@ service firebase.storage {
       allow write: if false;
     }
 
-    // Group meeting audio (docs/plans/PLC_MEETING_RECORDING.md). Members read. The
+    // Group meeting audio (docs/plans/shipped/PLC_MEETING_RECORDING.md). Members read. The
     // recorder uploads live 30-second segments, also after finalizing (late uploads,
     // MR-D8); the recording doc must exist first. Only Cloud Functions delete.
     function plcMeetingData(plcId) {

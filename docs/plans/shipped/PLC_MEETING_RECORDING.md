@@ -1,7 +1,7 @@
 # Group meeting recording and AI meeting notes
 
 Source: Paul, grill-me session 2026-10-02.
-Status: decisions confirmed by Paul (grill-me, two rounds). No code yet.
+Status: shipped. Phases 1 to 3 merged (#3739 to #3744, #3747) and promoted to main.
 
 ## Goal
 

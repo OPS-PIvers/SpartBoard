@@ -1,4 +1,4 @@
-// PLC meeting notes: request, queue trigger and draft resolve (docs/plans/PLC_MEETING_RECORDING.md, phase 2).
+// PLC meeting notes: request, queue trigger and draft resolve (docs/plans/shipped/PLC_MEETING_RECORDING.md, phase 2).
 import './functionsInit';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';

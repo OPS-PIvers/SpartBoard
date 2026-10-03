@@ -51,6 +51,7 @@ export interface CreateInput {
   welcome_message?: string;
   slide_urls?: string[];
   tour_widgets?: string[];
+  autopilot?: boolean;
   help_center?: HelpCenterPlacement;
   steps: StepInput[];
 }
@@ -129,7 +130,7 @@ export function buildNewSet(
     title: input.title.trim(),
     imageUrls: slides.urls,
     steps,
-    mode: input.mode ?? 'structured',
+    mode: input.kind === 'live_tour' ? 'tour' : (input.mode ?? 'structured'),
     createdAt: ids.now,
     updatedAt: ids.now,
     claudeCreatedAt: ids.now,
@@ -142,11 +143,14 @@ export function buildNewSet(
   if (source === 'building') {
     set.isBuilding = true;
     set.authorUid = ids.uid;
-    set.hasLiveTour = steps.some((s) => !!s.tour);
+    set.hasLiveTour = set.mode === 'tour' || steps.some((s) => !!s.tour);
   }
   if (input.help_center) set.helpCenter = true;
   if (input.kind === 'live_tour')
-    set.tourSetup = { widgets: [...new Set(input.tour_widgets ?? [])] };
+    set.tourSetup = {
+      widgets: [...new Set(input.tour_widgets ?? [])],
+      ...(input.autopilot ? { autopilot: true } : {}),
+    };
   return set;
 }
 

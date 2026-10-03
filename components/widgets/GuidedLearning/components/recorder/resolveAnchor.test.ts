@@ -65,6 +65,16 @@ describe('resolveRecordedAnchor', () => {
     });
   });
 
+  it('treats a click inside the whole-board anchor as untagged', () => {
+    const root = dom(
+      '<div data-tour="board.whole"><button><span class="u">Add a class</span></button></div>'
+    );
+    expect(resolveRecordedAnchor(pick(root, '.u'))).toMatchObject({
+      anchor: '',
+      untagged: true,
+    });
+  });
+
   it("ignores the recorder's own UI", () => {
     const root = dom(
       '<div data-tour-ignore><button data-tour="sidebar.boards">Pause</button></div>'

@@ -3548,7 +3548,7 @@ service cloud.firestore {
         }
       }
 
-      // Meeting recordings (docs/plans/PLC_MEETING_RECORDING.md). Members read. The
+      // Meeting recordings (docs/plans/shipped/PLC_MEETING_RECORDING.md). Members read. The
       // recorder writes only the live fields while recording or paused; 'finalizing' is
       // the server's merge lock, and every other change goes through Cloud Functions.
       match /recordings/{recordingId} {

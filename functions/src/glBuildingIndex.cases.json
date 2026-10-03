@@ -143,5 +143,36 @@
       "folderId": null,
       "order": null
     }
+  },
+  {
+    "name": "a tour-mode set is a live tour even when stamped false",
+    "id": "t1",
+    "set": {
+      "title": "Clock tour",
+      "steps": [
+        {
+          "id": "a"
+        }
+      ],
+      "mode": "tour",
+      "createdAt": 1,
+      "updatedAt": 2,
+      "hasLiveTour": false,
+      "helpCenter": true
+    },
+    "expected": {
+      "id": "t1",
+      "title": "Clock tour",
+      "description": null,
+      "stepCount": 1,
+      "mode": "tour",
+      "thumbnail": "",
+      "createdAt": 1,
+      "updatedAt": 2,
+      "hasLiveTour": true,
+      "isHelpCenter": true,
+      "folderId": null,
+      "order": null
+    }
   }
 ]

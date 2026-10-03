@@ -609,7 +609,7 @@ export const LiveTourRunner: React.FC = () => {
         ? startTourRunLog(set.id, uid, { v: set.updatedAt, furthest: index })
         : null;
     setAttempt(0);
-    setAutoOn(set.mode === 'guided');
+    setAutoOn(set.mode === 'guided' || set.tourSetup?.autopilot === true);
     setHandsOn(false);
     setAuto(null);
     setCue(null);

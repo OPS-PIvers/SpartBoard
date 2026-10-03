@@ -1,4 +1,4 @@
-// Applying a drafted set of meeting notes to a note (docs/plans/PLC_MEETING_RECORDING.md, MR-D18, MR-D19).
+// Applying a drafted set of meeting notes to a note (docs/plans/shipped/PLC_MEETING_RECORDING.md, MR-D18, MR-D19).
 import type { PlcActionItem, PlcRecording, PlcRecordingDraft } from '@/types';
 import { MAX_ACTION_ITEMS, newActionItem } from '@/utils/plcActionItems';
 import { STALE_NOTES_JOB_MS } from '@/utils/plcRecording';

@@ -414,7 +414,9 @@ const StudioSession: React.FC<
     clipboardStepCount,
   } = editorState;
   const liveTours = !!set.isBuilding && canAccessFeature('gl-live-tours');
-  const canRunLive = liveTours && steps.some((step) => step.tour);
+  const canRunLive =
+    liveTours &&
+    (editorState.mode === 'tour' || steps.some((step) => step.tour));
 
   const selectStepAt = useCallback(
     (index: number) => {
