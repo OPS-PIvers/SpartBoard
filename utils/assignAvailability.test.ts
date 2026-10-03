@@ -6,6 +6,7 @@ import {
   changedWindow,
   closesBeforeOpens,
   defaultAvailability,
+  periodAccessWindowEdits,
   resolveAvailability,
   type AssignAvailability,
 } from './assignAvailability';
@@ -404,5 +405,53 @@ describe('editing a saved window', () => {
     );
     expect(next.closeAt).toBeUndefined();
     expect(next.dueAt).toBe(stored.dueAt);
+  });
+});
+
+describe('editing per-class windows', () => {
+  const row = (rosterId: string, openAt: number, closeAt: number) => ({
+    state: 'open' as const,
+    openAt,
+    closeAt,
+    bellPeriodId: null,
+    verified: true,
+    label: rosterId,
+    rosterId,
+  });
+  const periodAccess = {
+    k3: row('r3', at('2026-10-02', '09:05'), at('2026-10-03', '09:52')),
+    k5: row('r5', at('2026-10-02', '11:40'), at('2026-10-03', '12:27')),
+  };
+  const stored = { createdAt: at('2026-10-01', '08:00'), periodAccess };
+
+  it('hydrates each class from its own row', () => {
+    const value = availabilityFromStored(stored, ['r3', 'r5']);
+    expect(value.byRoster?.r5.opens).toEqual({
+      day: '2026-10-02',
+      time: '11:40',
+    });
+    expect(value.all.opens.time).toBe('09:05');
+  });
+
+  it('writes only the row that changed', () => {
+    const value = availabilityFromStored(stored, ['r3', 'r5']);
+    const before = resolveAvailability(value, [p3, p5], undefined);
+    const after = resolveAvailability(
+      {
+        ...value,
+        byRoster: {
+          ...value.byRoster,
+          r5: {
+            ...(value.byRoster?.r5 ?? value.all),
+            opens: { day: '2026-10-02', time: '13:00' },
+          },
+        },
+      },
+      [p3, p5],
+      undefined
+    );
+    expect(periodAccessWindowEdits(periodAccess, before, after)).toEqual({
+      'periodAccess.k5.openAt': at('2026-10-02', '13:00'),
+    });
   });
 });

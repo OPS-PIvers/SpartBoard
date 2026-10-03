@@ -142,6 +142,7 @@ const SpecRows: React.FC<{
   cqScaled?: boolean;
   resource?: boolean;
   noEnd?: boolean;
+  hideOpens?: boolean;
 }> = ({
   spec,
   bellAvailable,
@@ -150,25 +151,28 @@ const SpecRows: React.FC<{
   cqScaled,
   resource,
   noEnd,
+  hideOpens,
 }) => {
   const { t } = useTranslation();
   return (
     <div className="space-y-2">
-      <PointField
-        label={t('assignAvailability.opens', 'Opens')}
-        side="opens"
-        point={spec.opens}
-        wideLabel={resource}
-        bellAvailable={bellAvailable}
-        onChange={(opens) => {
-          const closes =
-            spec.closes.day < opens.day
-              ? { ...spec.closes, day: opens.day }
-              : spec.closes;
-          onChange({ opens, closes });
-        }}
-        cqScaled={cqScaled}
-      />
+      {!hideOpens && (
+        <PointField
+          label={t('assignAvailability.opens', 'Opens')}
+          side="opens"
+          point={spec.opens}
+          wideLabel={resource}
+          bellAvailable={bellAvailable}
+          onChange={(opens) => {
+            const closes =
+              spec.closes.day < opens.day
+                ? { ...spec.closes, day: opens.day }
+                : spec.closes;
+            onChange({ opens, closes });
+          }}
+          cqScaled={cqScaled}
+        />
+      )}
       {!noEnd && (
         <PointField
           label={
@@ -259,6 +263,8 @@ export const AssignAvailabilitySection: React.FC<{
   periodAccess?: AssignPeriodAccessContext;
   /** False hides "All classes / Each class". */
   eachClass?: boolean;
+  /** Each class keeps one Opens for all classes, where only one open time can be saved. */
+  sharedOpens?: boolean;
   cqScaled?: boolean;
   /** `study-resources` on: the kind this assignment saves as. */
   workKind?: WorkKind;
@@ -270,6 +276,7 @@ export const AssignAvailabilitySection: React.FC<{
   rosters,
   periodAccess,
   eachClass: eachClassAllowed = true,
+  sharedOpens = false,
   cqScaled,
   workKind,
   onWorkKindChange,
@@ -349,6 +356,28 @@ export const AssignAvailabilitySection: React.FC<{
         />
       )}
 
+      {eachClass && sharedOpens && (
+        <SpecRows
+          spec={value.all}
+          bellAvailable={bellAvailable}
+          backwards={false}
+          onChange={({ opens }) =>
+            onChange({
+              ...value,
+              all: { ...value.all, opens },
+              byRoster: Object.fromEntries(
+                rosters.map((r) => [
+                  r.id,
+                  { ...specForRoster(value, r.id), opens },
+                ])
+              ),
+            })
+          }
+          cqScaled={cqScaled}
+          resource={resource}
+          noEnd
+        />
+      )}
       {eachClass ? (
         rosters.map((roster) => (
           <div key={roster.id} className="space-y-2">
@@ -375,6 +404,7 @@ export const AssignAvailabilitySection: React.FC<{
               cqScaled={cqScaled}
               resource={resource}
               noEnd={noEnd}
+              hideOpens={sharedOpens}
             />
           </div>
         ))

@@ -19,6 +19,7 @@ import {
   availabilityFromStored,
   changedWindow,
   closesBeforeOpens,
+  periodAccessWindowEdits,
   resolveAvailability,
   specForRoster,
   type AssignAvailability,
@@ -168,6 +169,9 @@ export const QuizAssignmentSettingsModal: React.FC<
   const canAccessFeature = useContext(AuthContext)?.canAccessFeature;
   const perClassDueOn = canAccessFeature?.('quiz-per-class-due-dates') === true;
   const availabilityOn = canAccessFeature?.('assign-availability') === true;
+  const perPeriod =
+    assignment.accessMode === 'assignment' &&
+    Object.keys(assignment.periodAccess ?? {}).length > 0;
   const selectedRostersForDue = resolveSelectedRosters(options.picker, rosters);
   // The window as saved, resolved the same way as the edit so unchanged fields are never rewritten.
   const [availabilityBaseline] = useState(() => {
@@ -215,10 +219,22 @@ export const QuizAssignmentSettingsModal: React.FC<
     );
     const changed = changedWindow(availabilityBaseline.resolved, resolved);
     const dueChanged = 'dueAt' in changed || 'dueAtByRosterId' in changed;
-    const edit: QuizAssignmentSettingsPatch = {
-      ...('openAt' in changed ? { openAt: changed.openAt } : {}),
-      ...('closeAt' in changed ? { closeAt: changed.closeAt } : {}),
-    };
+    const rowEdits = perPeriod
+      ? periodAccessWindowEdits(
+          assignment.periodAccess ?? {},
+          availabilityBaseline.resolved,
+          resolved
+        )
+      : {};
+    // A per-class session gates on its rows; a shared window would add a second gate.
+    const edit: QuizAssignmentSettingsPatch = perPeriod
+      ? Object.keys(rowEdits).length > 0
+        ? { periodAccessEdits: rowEdits }
+        : {}
+      : {
+          ...('openAt' in changed ? { openAt: changed.openAt } : {}),
+          ...('closeAt' in changed ? { closeAt: changed.closeAt } : {}),
+        };
     if (!dueChanged) return edit;
     const perClass: Record<string, number> | undefined =
       resolved.dueAtByRosterId;
@@ -320,6 +336,7 @@ export const QuizAssignmentSettingsModal: React.FC<
               value={availability}
               onChange={setAvailability}
               rosters={selectedRostersForDue}
+              sharedOpens={!perPeriod}
             />
           ) : (
             <div>
