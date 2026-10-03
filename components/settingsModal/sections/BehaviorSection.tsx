@@ -1,6 +1,6 @@
 /**
  * BehaviorSection — account-wide behavior toggles (close-warning, remote
- * control). These write via updateAccountPreferences and apply to every board,
+ * control, Sparty). These write via updateAccountPreferences and apply to every board,
  * hence the "All boards" scope chip.
  */
 
@@ -12,14 +12,20 @@ import { Card } from '@/components/common/Card';
 import { useAuth } from '@/context/useAuth';
 import { SettingsSectionHeader } from '@/components/settingsModal/SettingsSectionHeader';
 import { tourAttr } from '@/config/tourAnchors';
+import { Sparty } from '@/components/sparty/Sparty';
 
 export const BehaviorSection: React.FC = () => {
   const { t } = useTranslation();
   const {
     disableCloseConfirmation,
     remoteControlEnabled,
+    spartyEnabled,
+    canAccessFeature,
     updateAccountPreferences,
   } = useAuth();
+  const spartyLabel = t('sidebar.settings.showSparty', {
+    defaultValue: 'Show Sparty',
+  });
 
   return (
     <div className="p-5 space-y-5">
@@ -83,6 +89,32 @@ export const BehaviorSection: React.FC = () => {
             </div>
           </div>
         </Card>
+
+        {canAccessFeature('sparty') && (
+          <Card className="flex items-start gap-4" hoverable>
+            <Sparty
+              pose="idle"
+              size={32}
+              decorative
+              className="flex-shrink-0 mt-0.5"
+            />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-bold text-slate-700">
+                  {spartyLabel}
+                </span>
+                <Toggle
+                  size="sm"
+                  label={spartyLabel}
+                  checked={spartyEnabled}
+                  onChange={(checked) =>
+                    void updateAccountPreferences({ spartyEnabled: checked })
+                  }
+                />
+              </div>
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );

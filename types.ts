@@ -9143,7 +9143,7 @@ export interface UserRolesConfig {
  *    `language`, `savedWidgetConfigs`, `savedWidgetPresets`,
  *    `savedWidgetConfigsPreV2`, `setupCompleted`, `disableCloseConfirmation`,
  *    `remoteControlEnabled`, `dockPosition`, `settingsDrawerWidth`, `quizMonitorColorsEnabled`,
- *    `quizMonitorScoreDisplay`, `favoriteBackgrounds`, `recentBackgrounds`.
+ *    `quizMonitorScoreDisplay`, `spartyEnabled`, `favoriteBackgrounds`, `recentBackgrounds`.
  *  - `DashboardContext` owns the board/dock state fields: `dockItems`,
  *    `libraryOrder`, `dockInitialized`, `lastActiveCollectionId`,
  *    `lastBoardIdByCollection`.
@@ -9219,6 +9219,8 @@ export interface UserProfile {
    * Per-teacher account-level preference.
    */
   quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
+  /** Show Sparty the mascot where the `sparty` feature allows; absent means shown. */
+  spartyEnabled?: boolean;
   /**
    * The user's dock layout (tools + folders, ordered). Synced across devices.
    * When absent, the dock is seeded from building-level admin defaults.
@@ -9586,7 +9588,9 @@ export type GlobalFeature =
   /** Transcript and drafted notes from a meeting recording; AND-ed with `gemini-functions`. */
   | 'plc-meeting-ai-notes'
   /** Assign dialogs: mark a session Work (submitted, graded) or Resource (study only) (docs/plans/STUDENT_LANDING_V2.md D27). */
-  | 'study-resources';
+  | 'study-resources'
+  /** Sparty the mascot in tours, first-time setup and the Help Center (docs/plans/shipped/SPARTY.md). */
+  | 'sparty';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

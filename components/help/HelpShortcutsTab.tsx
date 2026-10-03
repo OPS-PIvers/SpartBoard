@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import Fuse from 'fuse.js';
 import { Hand, Keyboard } from 'lucide-react';
+import { Sparty } from '@/components/sparty/Sparty';
+import { useShowSparty } from '@/components/sparty/useShowSparty';
 import {
   HELP_GESTURES,
   HELP_SHORTCUTS,
@@ -57,6 +59,7 @@ export const HelpShortcutsTab: React.FC<HelpShortcutsTabProps> = ({
   query,
 }) => {
   const { t } = useTranslation();
+  const showSparty = useShowSparty();
   const mac = isMac();
 
   const shortcutRows: ShortcutRow[] = useMemo(
@@ -114,9 +117,12 @@ export const HelpShortcutsTab: React.FC<HelpShortcutsTabProps> = ({
 
   if (!hasResults) {
     return (
-      <p className="text-sm text-slate-500 py-10 text-center">
-        {t('helpCenter.noResults')}
-      </p>
+      <div className="flex flex-col items-center gap-3 py-10">
+        {showSparty && <Sparty pose="oops" size={64} decorative />}
+        <p className="text-sm text-slate-500 text-center">
+          {t('helpCenter.noResults')}
+        </p>
+      </div>
     );
   }
 

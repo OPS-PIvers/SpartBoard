@@ -1,6 +1,6 @@
 # Sparty, the SpartBoard mascot
 
-Status: planned (design settled 2026-10-02; art locked 2026-10-02 after six concept rounds). Next step: the component (§8, step 2).
+Status: built behind the `sparty` flag (2026-10-03). Next: Paul tries it in prod, then opens the flag; phase 2 (§9) is a separate plan.
 
 ## 1. Intent
 
@@ -74,39 +74,38 @@ Locked after six concept rounds reviewed on mobile. The source of truth for the 
 - `components/sparty/Sparty.tsx`: `<Sparty pose="wave" size={64} label?="…" />`. Converts each frame to merged horizontal-run `<rect>`s (memoized per pose at module scope), stacks the frames as `<g>`s in one `<svg shape-rendering="crispEdges">`, and shows one at a time with a generated CSS `steps()` keyframe.
 - Accessibility: one `role="img"` with an `aria-label` (default "Sparty"); purely decorative uses pass `aria-hidden`.
 - Reduced motion: frame 1 only, through a `prefers-reduced-motion` media query in the generated keyframes stylesheet (`components/sparty/spartyRender.ts`), not the `tailwind.config.js` plugin list.
-- `components/sparty/SpartyBubble.tsx`: Sparty plus a speech bubble; text is real DOM text.
 - No framer-motion, lottie, canvas or image files.
 
 ## 5. Placements (v1)
 
-| Spot             | File(s)                                                    | Behaviour                                                      |
-| ---------------- | ---------------------------------------------------------- | -------------------------------------------------------------- |
-| Live tour intro  | `components/tours/TourDialog.tsx` / `TourTip.tsx` (step 1) | `wave` beside the existing intro text                          |
-| Live tour outro  | tour completion screen in `components/tours/`              | `cheer`                                                        |
-| First-time setup | `components/auth/NewUserSetup.tsx`                         | small Sparty in the header, one line per step, `cheer` on Done |
-| Help Center      | `components/help/HelpCenterModal.tsx`                      | `wave` greeter; `think` while searching; `oops` on no results  |
-| Chunk-load error | `components/common/LazyChunkErrorBoundary.tsx`             | `oops` beside the existing refresh message                     |
+| Spot             | File(s)                                                                            | Behaviour                                                                                                                                   |
+| ---------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Live tour intro  | `components/tours/TourDialog.tsx`, `LiveTourRunner.tsx`                            | `wave` beside the welcome prompt's text                                                                                                     |
+| Live tour outro  | `components/tours/LiveTourRunner.tsx`                                              | `cheer` on the keep-widgets prompt after the last step; with no widgets to keep, a short "Tour complete" prompt that shows only with Sparty |
+| First-time setup | `components/auth/NewUserSetup.tsx`                                                 | 96 px Sparty in the header: `wave` on step 1, `point` in the middle, `cheer` on the last step                                               |
+| Help Center      | `components/help/HelpCenterModal.tsx`, `HelpGuidesTab.tsx`, `HelpShortcutsTab.tsx` | `wave` at the foot of the tab list, `think` while a search is typed; `think` in place of the guides spinner; `oops` above "no matches"      |
+| Failed widget    | `components/common/LazyChunkErrorBoundary.tsx`                                     | `oops` in place of the warning icon on the "Widget failed to load" tile                                                                     |
 
-Every spot goes through one hook, `useShowSparty()`, which is true only when `canAccessFeature('sparty')` and the profile toggle is on. When false, each spot renders exactly what it renders today. `LazyChunkErrorBoundary` can render outside the dashboard providers, so the hook must not require `DashboardProvider` there.
+Every spot goes through one hook, `components/sparty/useShowSparty.ts`, which is true only with `canAccessFeature('sparty')` and the teacher's switch on. It reads `AuthContext` without throwing, so it returns false outside `AuthProvider`. When it is false, each spot renders exactly what it rendered before.
 
 ## 6. Dialogue
 
-`config/spartyLines.ts` holds every line, keyed by moment (`setup.welcome`, `setup.step.<id>`, `setup.done`, `help.greeting`, `help.searching`, `help.noResults`, `chunkError`, `tour.done`). Tours keep their own intro text; Sparty only adds the pose. Lines are short (one sentence), first person, neutral, and never name a flag or an internal mechanism.
+Sparty says nothing of his own in v1. Each spot already has its title and copy, and new helper text is against the copy rules in `components/CLAUDE.md`, so Sparty only adds the pose. The one new string is the "Tour complete" title. `config/spartyLines.ts` is dropped until a spot needs a line.
 
 ## 7. Rollout and settings
 
-- New `GlobalFeature` id `sparty` in `types.ts`, with a `FEATURE_DEFAULTS` entry in `config/featureDefaults.ts`: `defaultAccessLevel: 'admin'`, `defaultEnabled: true`, `missingDocPublic: false`, `stage: 'preview'`, `afterLaunch: 'keep'`, a label, an icon and a description. Add the id to `functions/src/featureMissingDoc.ts`.
+- `GlobalFeature` id `sparty` in `types.ts`, with a `FEATURE_DEFAULTS` entry in `config/featureDefaults.ts`: `defaultAccessLevel: 'admin'`, `defaultEnabled: true`, `missingDocPublic: false`, `stage: 'preview'`, `afterLaunch: 'keep'`, `category: 'look'` (new "Look & feel" section). The id is also in `functions/src/featureMissingDoc.ts`.
 - On for Paul and the other `/admins` first. To open it: Admin Settings > Access > Previews > Sparty > Public.
-- Per-teacher toggle: new optional `UserProfile` boolean `spartyHidden` (absent means shown), surfaced in `components/settingsModal/sections/AppearanceSection.tsx` as "Show Sparty" and shown only to users who pass the flag.
+- Per-teacher switch: optional `UserProfile.spartyEnabled` (absent means shown), exposed as `spartyEnabled` on the auth context and saved through `updateAccountPreferences`. "Show Sparty" sits in Settings > Behavior next to the other account-wide switches, shown only to users who pass the flag.
 - The `public/changelog.json` entry is written when the flag opens to everyone, not at merge.
 
 ## 8. Build order (one PR into `dev-paul`)
 
 1. **Art concept round.** Done: six rounds on a private claude.ai page; locked 2026-10-02 (§3).
-2. **Component.** `spartyFrames.ts`, `Sparty.tsx`, `SpartyBubble.tsx`, unit tests (grid shape is 32×32, every character is in the palette, run merging is correct), reduced-motion handling.
-3. **Dev gallery.** A dev-only route showing every pose at 1×/2×/4× on light and dark backgrounds, with motion on and off.
-4. **Flag and toggle.** §7.
-5. **Placements.** §5, each with a test that the spot is unchanged when `useShowSparty()` is false.
+2. **Component.** Done in #3795: `spartyFrames.ts`, `Sparty.tsx`, `spartyRender.ts`, unit tests (grid shape is 32×32, every character is in the palette, run merging is correct), reduced-motion handling.
+3. **Dev gallery.** Done in #3795: a dev-only route showing every pose at 1×/2×/4× on light and dark backgrounds, with motion on and off.
+4. **Flag and toggle.** Done: §7.
+5. **Placements.** Done: §5. Tour tests cover Sparty on and off; the other spots keep their existing tests with Sparty off.
 
 ## 9. Phase 2 (separate flag, separate plan)
 

@@ -19,6 +19,8 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { HelpResourceViewer } from './HelpResourceViewer';
 import { HelpCopyLinkButton } from './HelpCopyLinkButton';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { Sparty } from '@/components/sparty/Sparty';
+import { useShowSparty } from '@/components/sparty/useShowSparty';
 
 interface HelpGuidesTabProps {
   query: string;
@@ -67,6 +69,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
   itemId,
 }) => {
   const { t } = useTranslation();
+  const showSparty = useShowSparty();
   const { orgId, isAdmin } = useAuth();
   const { organization } = useOrganization(orgId);
   const { items, categories, loading } = useHelpResources({
@@ -279,16 +282,23 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
 
         {loading ? (
           <div className="flex items-center justify-center py-16 text-slate-400">
-            <Loader2 className="w-5 h-5 animate-spin" />
+            {showSparty ? (
+              <Sparty pose="think" size={64} decorative />
+            ) : (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            )}
           </div>
         ) : items.length === 0 ? (
           <p className="py-16 text-center text-sm text-slate-500">
             {t('helpCenter.guides.empty')}
           </p>
         ) : filtered.length === 0 ? (
-          <p className="py-16 text-center text-sm text-slate-500">
-            {t('helpCenter.guides.noMatches')}
-          </p>
+          <div className="flex flex-col items-center gap-3 py-16">
+            {showSparty && <Sparty pose="oops" size={64} decorative />}
+            <p className="text-center text-sm text-slate-500">
+              {t('helpCenter.guides.noMatches')}
+            </p>
+          </div>
         ) : (
           <ul className="flex flex-col gap-2">
             {filtered.map((item, index) => {

@@ -129,8 +129,13 @@ const h = vi.hoisted(() => {
       flush: vi.fn(),
     },
     startRunLog: vi.fn(),
+    sparty: false,
   };
 });
+
+vi.mock('@/components/sparty/useShowSparty', () => ({
+  useShowSparty: () => h.sparty,
+}));
 
 vi.mock('./tourRuns', () => ({
   startTourRunLog: (...args: unknown[]) => {
@@ -3080,5 +3085,45 @@ describe('LiveTourRunner Autopilot performer', () => {
     expect(typed.length).toBeLessThan('Hello there'.length);
     expect(name()).toHaveValue(typed);
     expect(progress()).toBe('1 / 2');
+  });
+});
+
+describe('LiveTourRunner with Sparty', () => {
+  afterEach(() => {
+    h.sparty = false;
+  });
+
+  it('waves on the welcome and cheers once the last step is done', async () => {
+    h.sparty = true;
+    await start({
+      ...makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]),
+      welcomeEnabled: true,
+      welcomeMessage: 'Hi.',
+    } as GuidedLearningSet);
+    expect(
+      screen.getByRole('dialog').querySelector('svg.sparty-wave')
+    ).not.toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start tour' }));
+    await frames();
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    const cheer = screen.getByRole('dialog', { name: 'Tour complete' });
+    expect(cheer.querySelector('svg.sparty-cheer')).not.toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('shows no Sparty and no extra prompt when he is off', async () => {
+    await start({
+      ...makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]),
+      welcomeEnabled: true,
+      welcomeMessage: 'Hi.',
+    } as GuidedLearningSet);
+    expect(screen.getByRole('dialog').querySelector('svg.sparty')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Start tour' }));
+    await frames();
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

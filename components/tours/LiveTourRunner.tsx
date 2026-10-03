@@ -80,6 +80,8 @@ import { fieldSettingsTab } from './settingsTab';
 import { anchorPrerequisite } from '@/config/tourAnchors';
 import { markSettingsOpenedLocally } from '@/components/settings/settingsOpenSignal';
 import { TourDialog } from './TourDialog';
+import { useShowSparty } from '@/components/sparty/useShowSparty';
+import type { SpartyPose } from '@/components/sparty/spartyFrames';
 import {
   autoLeadMs,
   autoObserveMs,
@@ -254,6 +256,10 @@ export const LiveTourRunner: React.FC = () => {
   const dashboard = useDashboard();
   const { activeDashboard, removeWidgets } = dashboard;
   const [tour, setTour] = useState<ActiveTour | null>(null);
+  const showSparty = useShowSparty();
+  // Set when a run reaches its last step, so the closing prompt can cheer.
+  const [finished, setFinished] = useState(false);
+  const [cheering, setCheering] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [box, setBox] = useState({ w: CALLOUT_WIDTH, h: 140 });
   // The bar's Autopilot switch; handsOn marks a teacher who turned it off this run.
@@ -651,6 +657,8 @@ export const LiveTourRunner: React.FC = () => {
       policy: DEFAULT_TOUR_AUTOPILOT_POLICY,
       draft: opts.draft,
     });
+    setCheering(false);
+    setFinished(false);
     if (phase === 'welcome') setTour(pending('welcome'));
     else if (latest.current.dashboard.isActiveBoardReadOnly)
       setTour(pending('practice-offer'));
@@ -796,11 +804,13 @@ export const LiveTourRunner: React.FC = () => {
       runLog.current?.end(done ? { done } : { done, exit: tour.index });
       runLog.current = null;
     }
+    setFinished(done);
     if (added.length > 0) {
       setTour({ ...tour, phase: 'teardown' });
       return;
     }
     endTour();
+    if (done && showSparty) setCheering(true);
   };
 
   const goTo = (index: number) => {
@@ -1239,17 +1249,49 @@ export const LiveTourRunner: React.FC = () => {
     boxObserver.current.observe(el);
   }, []);
 
-  if (typeof document === 'undefined' || (!tour && !offeringResume)) {
-    return null;
+  if (typeof document === 'undefined') return null;
+  if (!tour && !offeringResume) {
+    if (!cheering) return null;
+    return createPortal(
+      <div
+        data-tour-ignore=""
+        data-click-outside-ignore="true"
+        onClick={(e) => e.stopPropagation()}
+        className="contents"
+      >
+        <TourDialog
+          key="cheer"
+          title={t('tours.completeTitle')}
+          body=""
+          sparty="cheer"
+        >
+          <button
+            type="button"
+            data-autofocus=""
+            className={primaryBtn}
+            onClick={() => setCheering(false)}
+          >
+            {t('tours.done')}
+          </button>
+        </TourDialog>
+      </div>,
+      document.body
+    );
   }
 
   // Keyed by phase so each prompt mounts fresh and takes focus.
   const dialog = (
     title: string,
     body: string,
-    actions: React.ReactNode
+    actions: React.ReactNode,
+    sparty?: SpartyPose
   ): React.ReactNode => (
-    <TourDialog key={tour?.phase ?? 'resume'} title={title} body={body}>
+    <TourDialog
+      key={tour?.phase ?? 'resume'}
+      title={title}
+      body={body}
+      sparty={showSparty ? sparty : undefined}
+    >
       {actions}
     </TourDialog>
   );
@@ -1302,7 +1344,8 @@ export const LiveTourRunner: React.FC = () => {
         >
           {t('tours.startTour')}
         </button>
-      </>
+      </>,
+      'wave'
     );
   } else if (tour.phase === 'practice-offer') {
     content = dialog(
@@ -1345,7 +1388,8 @@ export const LiveTourRunner: React.FC = () => {
         >
           {t('tours.keepWidgets')}
         </button>
-      </>
+      </>,
+      finished ? 'cheer' : undefined
     );
   } else if (step) {
     const total = tour.steps.length;

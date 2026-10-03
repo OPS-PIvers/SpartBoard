@@ -106,6 +106,7 @@ const mockAuth: AuthContextType = {
   quizMonitorScoreDisplay: 'percent',
   quizGraderMode: 'question',
   quizGraderAutoAdvance: true,
+  spartyEnabled: false,
   updateAccountPreferences: async () => {
     // No-op in student view
   },
