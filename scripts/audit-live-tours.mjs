@@ -4,7 +4,8 @@
  * Lists every building Guided Learning set with an anchored step or
  * `hasLiveTour: true`: id, title, Help Center flag, mode, step count, and the
  * steps with no anchor or no image. With --apply, sets whose every step is
- * anchored get `mode: 'tour'` and `hasLiveTour: true`; the rest are only listed.
+ * anchored get `mode: 'tour'` and `hasLiveTour: true` (plus `tourSetup.autopilot`
+ * when they were `guided`); the rest are only listed.
  *
  * Usage:
  *   node scripts/audit-live-tours.mjs --project dev            # dry run (default)
@@ -82,6 +83,7 @@ function classifySet(id, data) {
     withoutImage,
     convertible,
     needsUpdate: convertible && !alreadyTour,
+    keepAutopilot: convertible && d.mode === 'guided',
   };
 }
 
@@ -163,6 +165,7 @@ async function run() {
       batch.update(db.collection(COLLECTION).doc(row.id), {
         mode: 'tour',
         hasLiveTour: true,
+        ...(row.keepAutopilot ? { 'tourSetup.autopilot': true } : {}),
       });
     }
     await batch.commit();

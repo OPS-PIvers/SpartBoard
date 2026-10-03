@@ -66,6 +66,22 @@ describe('classifySet', () => {
     });
   });
 
+  it('keeps Autopilot for guided sets and counts the whole-board anchor', () => {
+    const row = classifySet('t6', {
+      mode: 'guided',
+      imageUrls: ['u0'],
+      steps: [
+        anchored('s1'),
+        { id: 's2', tour: { anchor: 'board.whole', action: 'observe' } },
+      ],
+    });
+    expect(row?.convertible).toBe(true);
+    expect(row?.keepAutopilot).toBe(true);
+    expect(classifySet('t7', { steps: [anchored('s1')] })?.keepAutopilot).toBe(
+      false
+    );
+  });
+
   it('needs no update once mode is tour and hasLiveTour is set', () => {
     const row = classifySet('t5', {
       mode: 'tour',
