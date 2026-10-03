@@ -81,6 +81,7 @@ import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { logError } from '@/utils/logError';
 import { ensureGis, requestAccessToken } from './gisOAuth';
 import { needsKeyMessage } from '@/utils/quizNeedsKey';
+import { applyAvailability } from '@/utils/assignAvailability';
 import {
   ClipboardList,
   Video,
@@ -183,6 +184,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     useAuth();
   // D12: with the split on, settings come from the teacher's last-used, editable inline.
   const reviewSplit = canAccessFeature('quiz-review-split');
+  const availabilityOn = canAccessFeature('assign-availability');
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     user?.uid,
     reviewSplit
@@ -285,6 +287,20 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const addonClassContext = useMemo(
     () => ({ rosters, selectedRosterIds: addonSelectedRosterIds }),
     [rosters, addonSelectedRosterIds]
+  );
+  // Availability on: the section's resolved window and due date; off leaves the Schedule value as is.
+  const resolveWindow = useCallback(
+    (): AssignTargetingValue =>
+      availabilityOn
+        ? applyAvailability(assignTargeting, {
+            enabled: true,
+            rosters: rosters.filter((r) =>
+              addonSelectedRosterIds.includes(r.id)
+            ),
+            bellWindow: undefined,
+          }).targeting
+        : assignTargeting,
+    [availabilityOn, assignTargeting, rosters, addonSelectedRosterIds]
   );
   // Full quiz content backing the per-student override editor (question
   // subset / MC-option hider). Loaded lazily on first expand, cached per quiz.
@@ -542,13 +558,15 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     // (`{questionId}-correct` / `-incorrect-N`) must never reach a
     // student-readable pointer doc. Resolve them to option TEXT here, where the
     // full quiz body is in hand; the student side matches on text.
+    const windowTargeting = resolveWindow();
+    const dueAt = availabilityOn ? (windowTargeting.dueAt ?? null) : null;
     const hiddenOptions = translateHiddenOptionIdsToText(
       Array.isArray(quizData?.questions) ? quizData.questions : [],
-      assignTargeting.overridesByKey
+      windowTargeting.overridesByKey
     );
     const resolvedTargeting: AssignTargetingValue = expandClassTargeting(
       {
-        ...assignTargeting,
+        ...windowTargeting,
         overridesByKey: hiddenOptions.overridesByKey,
       },
       addonClassContext
@@ -608,6 +626,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         ...(targeting.periodNames.length > 0
           ? { periodNames: targeting.periodNames }
           : {}),
+        ...(dueAt != null ? { dueAt, dueAtHasTime: true } : {}),
       },
       {
         classIds: targeting.classIds,
@@ -748,7 +767,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     kind,
     teacherName,
     defaultTeacherName,
-    assignTargeting,
+    availabilityOn,
+    resolveWindow,
     setAssignmentTargets,
     setAssignmentTargetSkippedCount,
     reviewSplit,
@@ -783,9 +803,12 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     // is widget-agnostic — so we build the same linkage and pass it on settings.
     const behavior = getVideoActivityBehavior(selectedActivity);
     const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
+    const windowTargeting = resolveWindow();
+    const dueAt = availabilityOn ? (windowTargeting.dueAt ?? null) : null;
     const sessionOptions: VideoActivitySessionOptions = {
       ...behavior.sessionOptions,
       attemptLimit: behavior.attemptLimit,
+      ...(dueAt != null ? { dueAt, dueAtHasTime: true } : {}),
     };
 
     // Build the PLC linkage when the teacher opted into "Share with PLC" and
@@ -833,25 +856,31 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     // are written post-create — the same pattern the in-app VA assign path
     // uses (session doc owns openAt/closeAt; the teacher archive doc owns
     // targetGroupIds/overridesBySourcedId).
-    if (assignTargeting.openAt != null || assignTargeting.closeAt != null) {
+    if (
+      windowTargeting.openAt != null ||
+      windowTargeting.closeAt != null ||
+      dueAt != null
+    ) {
       await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
-        ...(assignTargeting.openAt != null
-          ? { openAt: assignTargeting.openAt }
+        ...(windowTargeting.openAt != null
+          ? { openAt: windowTargeting.openAt }
           : {}),
-        ...(assignTargeting.closeAt != null
-          ? { closeAt: assignTargeting.closeAt }
+        ...(windowTargeting.closeAt != null
+          ? { closeAt: windowTargeting.closeAt }
           : {}),
+        ...(dueAt != null ? { dueAt } : {}),
       });
       if (user?.uid) {
         await setDoc(
           doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
           {
-            ...(assignTargeting.openAt != null
-              ? { openAt: assignTargeting.openAt }
+            ...(windowTargeting.openAt != null
+              ? { openAt: windowTargeting.openAt }
               : {}),
-            ...(assignTargeting.closeAt != null
-              ? { closeAt: assignTargeting.closeAt }
+            ...(windowTargeting.closeAt != null
+              ? { closeAt: windowTargeting.closeAt }
               : {}),
+            ...(dueAt != null ? { dueAt } : {}),
           },
           { merge: true }
         );
@@ -860,7 +889,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     // Expanded once: the archive doc and the CF payload must agree, or a
     // re-edit reads back overrides the fan-out never saw.
     const expandedTargeting = expandClassTargeting(
-      assignTargeting,
+      windowTargeting,
       addonClassContext
     );
     if (
@@ -999,7 +1028,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     kind,
     teacherName,
     defaultTeacherName,
-    assignTargeting,
+    availabilityOn,
+    resolveWindow,
     setAssignmentTargets,
   ]);
 
@@ -1214,6 +1244,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   allowModifications={addonSelectedRosterIds.length > 0}
                   value={assignTargeting}
                   onChange={setAssignTargeting}
+                  availabilityEnabled={availabilityOn}
                   kind={kind === 'quiz' ? 'quiz' : 'video-activity'}
                   {...(kind === 'quiz'
                     ? {

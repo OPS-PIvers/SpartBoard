@@ -117,6 +117,7 @@ export function assignmentRowToTargetingValue(
     excludedStudents: row.excludedTargets ?? [],
     openAt: row.openAt ?? undefined,
     closeAt: row.closeAt ?? undefined,
+    dueAt: row.dueAt ?? undefined,
   };
 }
 

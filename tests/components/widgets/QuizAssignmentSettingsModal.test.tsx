@@ -607,3 +607,195 @@ describe('QuizAssignmentSettingsModal — per-class due dates', () => {
     expect(patch.dueAt).toBe(combineDateAndTime('2026-06-01', '09:00'));
   });
 });
+
+describe('QuizAssignmentSettingsModal — availability and due date', () => {
+  const rosters = [
+    makeRoster({ id: 'r1', name: 'Period 1' }),
+    makeRoster({ id: 'r2', name: 'Period 2' }),
+  ];
+  const withFlag = (ui: React.ReactElement) => (
+    <AuthContext.Provider
+      value={
+        {
+          canAccessFeature: (id: string) => id === 'assign-availability',
+        } as unknown as AuthContextType
+      }
+    >
+      {ui}
+    </AuthContext.Provider>
+  );
+  const opens = combineDateAndTime('2026-06-01', '09:00') ?? 0;
+  const closes = combineDateAndTime('2026-06-02', '15:00') ?? 0;
+  const saved = (overrides: Partial<QuizAssignment> = {}) =>
+    makePlcAssignment({
+      rosterIds: ['r1'],
+      openAt: opens,
+      closeAt: closes,
+      dueAt: closes,
+      dueAtHasTime: true,
+      ...overrides,
+    });
+
+  const savePatch = async (onSave: ReturnType<typeof vi.fn>) => {
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    return onSave.mock.calls[0][0] as Record<string, unknown>;
+  };
+
+  it('replaces the due date field with the saved window', () => {
+    render(
+      withFlag(
+        <QuizAssignmentSettingsModal
+          assignment={saved()}
+          rosters={rosters}
+          onSave={vi.fn()}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    expect(screen.queryByTestId('assignment-due-date')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Opens')).toHaveValue('2026-06-01');
+    expect(screen.getByLabelText('Closes')).toHaveValue('2026-06-02');
+    expect(screen.getByLabelText('Closes time')).toHaveValue('15:00');
+  });
+
+  it('writes no window fields when the section is untouched', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      withFlag(
+        <QuizAssignmentSettingsModal
+          assignment={saved()}
+          rosters={rosters}
+          onSave={onSave}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    const patch = await savePatch(onSave);
+    for (const key of ['openAt', 'closeAt', 'dueAt', 'dueAtByRosterId'])
+      expect(patch).not.toHaveProperty(key);
+  });
+
+  it('moves the close and the due date together', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      withFlag(
+        <QuizAssignmentSettingsModal
+          assignment={saved()}
+          rosters={rosters}
+          onSave={onSave}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    fireEvent.change(screen.getByLabelText('Closes'), {
+      target: { value: '2026-06-05' },
+    });
+    const patch = await savePatch(onSave);
+    const next = combineDateAndTime('2026-06-05', '15:00');
+    expect(patch.closeAt).toBe(next);
+    expect(patch.dueAt).toBe(next);
+    expect(patch.dueAtHasTime).toBe(true);
+    expect(patch).not.toHaveProperty('openAt');
+  });
+
+  it('keeps one Opens for every class when only one open time is stored', () => {
+    render(
+      withFlag(
+        <QuizAssignmentSettingsModal
+          assignment={saved({ rosterIds: ['r1', 'r2'] })}
+          rosters={rosters}
+          onSave={vi.fn()}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    fireEvent.change(screen.getByLabelText('Dates for'), {
+      target: { value: 'each' },
+    });
+    expect(screen.getAllByLabelText('Opens')).toHaveLength(1);
+    expect(screen.getAllByLabelText('Closes')).toHaveLength(2);
+  });
+
+  it('saves each class Opens to its own row on a per-class session', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const row = (rosterId: string) => ({
+      state: 'open',
+      openAt: opens,
+      closeAt: closes,
+      bellPeriodId: null,
+      verified: true,
+      label: rosterId,
+      rosterId,
+    });
+    render(
+      withFlag(
+        <QuizAssignmentSettingsModal
+          assignment={saved({
+            rosterIds: ['r1', 'r2'],
+            openAt: undefined,
+            closeAt: undefined,
+            accessMode: 'assignment',
+            periodAccess: { k1: row('r1'), k2: row('r2') },
+          } as Partial<QuizAssignment>)}
+          rosters={rosters}
+          onSave={onSave}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    fireEvent.change(screen.getByLabelText('Dates for'), {
+      target: { value: 'each' },
+    });
+    fireEvent.change(screen.getAllByLabelText('Opens time')[1], {
+      target: { value: '10:30' },
+    });
+    const patch = await savePatch(onSave);
+    expect(patch.periodAccessEdits).toEqual({
+      'periodAccess.k2.openAt': combineDateAndTime('2026-06-01', '10:30'),
+    });
+    expect(patch).not.toHaveProperty('openAt');
+    expect(patch).not.toHaveProperty('closeAt');
+  });
+
+  it('saves a date per class with the earliest as dueAt', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      withFlag(
+        <QuizAssignmentSettingsModal
+          assignment={saved({ rosterIds: ['r1', 'r2'] })}
+          rosters={rosters}
+          onSave={onSave}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    fireEvent.change(screen.getByLabelText('Dates for'), {
+      target: { value: 'each' },
+    });
+    fireEvent.change(screen.getAllByLabelText('Closes')[1], {
+      target: { value: '2026-06-04' },
+    });
+    const patch = await savePatch(onSave);
+    expect(patch.dueAtByRosterId).toEqual({
+      r1: closes,
+      r2: combineDateAndTime('2026-06-04', '15:00'),
+    });
+    expect(patch.dueAt).toBe(closes);
+    expect(patch.closeAt).toBe(combineDateAndTime('2026-06-04', '15:00'));
+  });
+
+  it('blocks Save when the window closes before it opens', () => {
+    render(
+      withFlag(
+        <QuizAssignmentSettingsModal
+          assignment={saved({ closeAt: opens - 60_000, dueAt: opens - 60_000 })}
+          rosters={rosters}
+          onSave={vi.fn()}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    expect(screen.getByRole('button', { name: /^Save$/ })).toBeDisabled();
+  });
+});
