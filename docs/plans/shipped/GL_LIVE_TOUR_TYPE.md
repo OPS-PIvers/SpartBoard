@@ -27,10 +27,10 @@ Scope was settled in a design interview with Paul on 2026-10-02. Each PR is self
 
 1. **Connector** (merged as #3794): `create_live_tour`, `list_help_center_categories`, admin-only listing via `slimToolListing`'s hidden set, every live tour step bound, the claude-skills reference.
 2. **Type**, split into three parallel PRs:
-   - **2a, mode:** `'tour'` in `GuidedLearningMode` (client, both index builders, the import adapter), `hasLiveTour` stamped from the mode (`isLiveTourSet`; the anchored-step fallback stays until the T11 migration has run on prod), the Studio's Live tour play mode for building sets, recorded tours saved as `'tour'`, and the connector writing `'tour'` and refusing a mode change on a tour. The whole-board anchor is `board.whole` on `#dashboard-root`: the runner plays it as a centred card on the dimmed board, exactly like a plain step (`liveTourStepsOf`), and the recorder never resolves a click to it. Q2 is `tourSetup.autopilot`.
-   - **2b, badge, filter and off-board list (T3, T5):** keyed off `hasLiveTour`, so it does not wait on 2a.
-   - **2c, audit and migration script (T11):** sets that were `mode: 'guided'` also get `tourSetup.autopilot: true`, so they keep starting with Autopilot on.
-3. **Studio and snapshots**: T6 and T7.
+   - **2a, mode** (merged as #3803): `'tour'` in `GuidedLearningMode` (client, both index builders, the import adapter), `hasLiveTour` stamped from the mode (`isLiveTourSet`; the anchored-step fallback stays until the T11 migration has run on prod), the Studio's Live tour play mode for building sets, recorded tours saved as `'tour'`, and the connector writing `'tour'` and refusing a mode change on a tour. The whole-board anchor is `board.whole` on `#dashboard-root`: the runner plays it as a centred card on the dimmed board, exactly like a plain step (`liveTourStepsOf`), and the recorder never resolves a click to it. Q2 is `tourSetup.autopilot`.
+   - **2b, badge, filter and off-board list (T3, T5)** (merged as #3802): keyed off `hasLiveTour`, so it does not wait on 2a.
+   - **2c, audit and migration script (T11)** (merged as #3799): sets that were `mode: 'guided'` also get `tourSetup.autopilot: true`, so they keep starting with Autopilot on.
+3. **Studio and snapshots** (merged as #3804): T6 and T7.
 
 ## Open questions
 

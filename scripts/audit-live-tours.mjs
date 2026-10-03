@@ -1,5 +1,5 @@
 /**
- * Live tour type migration (docs/plans/GL_LIVE_TOUR_TYPE.md T11).
+ * Live tour type migration (docs/plans/shipped/GL_LIVE_TOUR_TYPE.md T11).
  *
  * Lists every building Guided Learning set with an anchored step or
  * `hasLiveTour: true`: id, title, Help Center flag, mode, step count, and the
