@@ -191,6 +191,20 @@ describe('slim tool listing', () => {
         .annotations
     ).toEqual({ readOnlyHint: false, destructiveHint: true });
   });
+
+  it('leaves hidden tools out of the listing', async () => {
+    const client = await connect((server) => {
+      for (const name of ['get_x', 'admin_x'])
+        server.registerTool(
+          name,
+          { description: 'd', inputSchema: {}, annotations: READ_ONLY },
+          () => ({ content: [] })
+        );
+      slimToolListing(server, () => Promise.resolve(new Set(['admin_x'])));
+    });
+    const { tools } = await client.listTools();
+    expect(tools.map((t) => t.name)).toEqual(['get_x']);
+  });
 });
 
 describe('standards lookup cap', () => {

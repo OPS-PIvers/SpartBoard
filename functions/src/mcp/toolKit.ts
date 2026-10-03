@@ -158,6 +158,7 @@ export function titleAndFolderFilter(
 
 type ListHandler = (request: unknown, extra: unknown) => Promise<unknown>;
 interface ListedTool {
+  name?: string;
   inputSchema?: Record<string, unknown>;
   execution?: { taskSupport?: string };
   annotations?: Record<string, unknown>;
@@ -181,8 +182,11 @@ export function slimTool(tool: ListedTool): ListedTool {
   return out;
 }
 
-/** Wraps the SDK's tools/list handler with slimTool; a no-op if the SDK internals change. */
-export function slimToolListing(server: McpServer): void {
+/** Wraps the SDK's tools/list handler with slimTool, leaving out `hidden` tools; a no-op if the SDK internals change. */
+export function slimToolListing(
+  server: McpServer,
+  hidden?: () => Promise<ReadonlySet<string>>
+): void {
   const handlers = (
     server.server as unknown as { _requestHandlers?: Map<string, ListHandler> }
   )._requestHandlers;
@@ -190,8 +194,11 @@ export function slimToolListing(server: McpServer): void {
   if (!handlers || !original) return;
   handlers.set('tools/list', async (request, extra) => {
     const result = (await original(request, extra)) as { tools?: ListedTool[] };
-    return Array.isArray(result.tools)
-      ? { ...result, tools: result.tools.map(slimTool) }
-      : result;
+    if (!Array.isArray(result.tools)) return result;
+    const skip = hidden ? await hidden() : new Set<string>();
+    return {
+      ...result,
+      tools: result.tools.filter((t) => !skip.has(t.name ?? '')).map(slimTool),
+    };
   });
 }
