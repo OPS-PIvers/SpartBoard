@@ -57,9 +57,7 @@ describe('useDebouncedCallback', () => {
 
   it('flushes the pending call on unmount instead of dropping it', () => {
     const fn = vi.fn();
-    const { result, unmount } = renderHook(() =>
-      useDebouncedCallback(fn, 200)
-    );
+    const { result, unmount } = renderHook(() => useDebouncedCallback(fn, 200));
 
     result.current('last');
     unmount();
@@ -73,9 +71,7 @@ describe('useDebouncedCallback', () => {
 
   it('does not call on unmount when nothing is pending', () => {
     const fn = vi.fn();
-    const { result, unmount } = renderHook(() =>
-      useDebouncedCallback(fn, 200)
-    );
+    const { result, unmount } = renderHook(() => useDebouncedCallback(fn, 200));
     result.current('a');
     act(() => {
       vi.advanceTimersByTime(200);
