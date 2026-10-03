@@ -10,10 +10,19 @@ import React, { useContext, useState } from 'react';
 import { ClipboardCheck, Share2 } from 'lucide-react';
 import type {
   QuizAssignment,
-  QuizAssignmentSettings,
   QuizBehaviorSettings,
   ClassRoster,
 } from '@/types';
+import type { QuizAssignmentSettingsPatch } from '@/hooks/useQuizAssignments';
+import { AssignAvailabilitySection } from '@/components/common/library/AssignAvailabilitySection';
+import {
+  availabilityFromStored,
+  changedWindow,
+  closesBeforeOpens,
+  resolveAvailability,
+  specForRoster,
+  type AssignAvailability,
+} from '@/utils/assignAvailability';
 import {
   AssignModal,
   CollapsibleSection,
@@ -41,7 +50,7 @@ interface QuizAssignmentSettingsModalProps {
   assignment: QuizAssignment;
   rosters: ClassRoster[];
   onClose: () => void;
-  onSave: (patch: Partial<QuizAssignmentSettings>) => Promise<void> | void;
+  onSave: (patch: QuizAssignmentSettingsPatch) => Promise<void> | void;
   /** True when the teacher belongs to at least one PLC. */
   canShareWithPlc?: boolean;
   /** Opens the "Share results with PLC…" picker (unlinked assignments). */
@@ -156,10 +165,29 @@ export const QuizAssignmentSettingsModal: React.FC<
   > | null>(() =>
     assignment.dueAtByRosterId ? { ...assignment.dueAtByRosterId } : null
   );
-  const perClassDueOn =
-    useContext(AuthContext)?.canAccessFeature?.('quiz-per-class-due-dates') ===
-    true;
+  const canAccessFeature = useContext(AuthContext)?.canAccessFeature;
+  const perClassDueOn = canAccessFeature?.('quiz-per-class-due-dates') === true;
+  const availabilityOn = canAccessFeature?.('assign-availability') === true;
   const selectedRostersForDue = resolveSelectedRosters(options.picker, rosters);
+  // The window as saved, resolved the same way as the edit so unchanged fields are never rewritten.
+  const [availabilityBaseline] = useState(() => {
+    const ids = selectedRostersForDue.map((r) => r.id);
+    const value = availabilityFromStored(assignment, ids);
+    return {
+      value,
+      resolved: resolveAvailability(value, selectedRostersForDue, undefined),
+    };
+  });
+  const [availability, setAvailability] = useState<AssignAvailability>(
+    availabilityBaseline.value
+  );
+  const availabilityBackwards =
+    availabilityOn &&
+    (selectedRostersForDue.length > 1 && availability.byRoster
+      ? selectedRostersForDue.some((r) =>
+          closesBeforeOpens(specForRoster(availability, r.id), [r], undefined)
+        )
+      : closesBeforeOpens(availability.all, selectedRostersForDue, undefined));
   const showDueModeSwitch =
     dueByRoster !== null || (perClassDueOn && selectedRostersForDue.length > 1);
   const perClassDue = dueByRoster !== null && showDueModeSwitch;
@@ -179,7 +207,33 @@ export const QuizAssignmentSettingsModal: React.FC<
     }
   };
 
-  const dueFields = (): Partial<QuizAssignmentSettings> => {
+  const windowFields = (): QuizAssignmentSettingsPatch => {
+    const resolved = resolveAvailability(
+      availability,
+      selectedRostersForDue,
+      undefined
+    );
+    const changed = changedWindow(availabilityBaseline.resolved, resolved);
+    const dueChanged = 'dueAt' in changed || 'dueAtByRosterId' in changed;
+    const edit: QuizAssignmentSettingsPatch = {
+      ...('openAt' in changed ? { openAt: changed.openAt } : {}),
+      ...('closeAt' in changed ? { closeAt: changed.closeAt } : {}),
+    };
+    if (!dueChanged) return edit;
+    const perClass: Record<string, number> | undefined =
+      resolved.dueAtByRosterId;
+    const dueAt = perClass ? earliestDueAt(perClass) : (resolved.dueAt ?? null);
+    const out: QuizAssignmentSettingsPatch = {
+      ...edit,
+      dueAt,
+      dueAtHasTime: dueAt != null,
+    };
+    if (perClass || assignment.dueAtByRosterId) out.dueAtByRosterId = perClass;
+    return out;
+  };
+
+  const dueFields = (): QuizAssignmentSettingsPatch => {
+    if (availabilityOn) return windowFields();
     if (perClassDue) {
       const selectedIds = new Set(selectedRostersForDue.map((r) => r.id));
       const map = numericDueMap(dueByRoster ?? {}, selectedIds);
@@ -215,7 +269,7 @@ export const QuizAssignmentSettingsModal: React.FC<
     const selectedRosters = resolveSelectedRosters(options.picker, rosters);
     const targets = deriveSessionTargetsFromRosters(selectedRosters);
 
-    const patch: Partial<QuizAssignmentSettings> = {
+    const patch: QuizAssignmentSettingsPatch = {
       className: options.className.trim(),
       rosterIds: targets.rosterIds,
       periodName: targets.periodNames[0] ?? '',
@@ -251,6 +305,7 @@ export const QuizAssignmentSettingsModal: React.FC<
         setOptions((prev) => ({ ...prev, className: v }))
       }
       confirmLabel="Save"
+      confirmDisabled={availabilityBackwards}
       onAssign={handleAssign}
       extraSlot={
         <>
@@ -260,57 +315,64 @@ export const QuizAssignmentSettingsModal: React.FC<
             onChange={(picker) => setOptions((prev) => ({ ...prev, picker }))}
           />
 
-          {/* Due date + time */}
-          <div>
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <label
-                htmlFor="assignment-settings-due-date"
-                className="block text-xxs font-bold text-slate-400 uppercase tracking-widest"
-              >
-                Due Date <span className="font-normal">(optional)</span>
-              </label>
-              {showDueModeSwitch && (
-                <DueDateModeSwitch
-                  perClass={perClassDue}
-                  onChange={setPerClassDue}
+          {availabilityOn ? (
+            <AssignAvailabilitySection
+              value={availability}
+              onChange={setAvailability}
+              rosters={selectedRostersForDue}
+            />
+          ) : (
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <label
+                  htmlFor="assignment-settings-due-date"
+                  className="block text-xxs font-bold text-slate-400 uppercase tracking-widest"
+                >
+                  Due Date <span className="font-normal">(optional)</span>
+                </label>
+                {showDueModeSwitch && (
+                  <DueDateModeSwitch
+                    perClass={perClassDue}
+                    onChange={setPerClassDue}
+                  />
+                )}
+              </div>
+              {perClassDue ? (
+                <PerClassDueDateRows
+                  rosters={selectedRostersForDue}
+                  value={dueByRoster ?? {}}
+                  onChange={setDueByRoster}
                 />
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    id="assignment-settings-due-date"
+                    type="date"
+                    data-testid="assignment-due-date"
+                    value={options.dueDate}
+                    onChange={(e) =>
+                      setOptions((p) => ({ ...p, dueDate: e.target.value }))
+                    }
+                    className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <input
+                    type="time"
+                    data-testid="assignment-due-time"
+                    aria-label="Due time"
+                    value={options.dueTime}
+                    disabled={!options.dueDate}
+                    onChange={(e) =>
+                      setOptions((p) => ({
+                        ...p,
+                        dueTime: e.target.value || DEFAULT_DUE_TIME,
+                      }))
+                    }
+                    className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                </div>
               )}
             </div>
-            {perClassDue ? (
-              <PerClassDueDateRows
-                rosters={selectedRostersForDue}
-                value={dueByRoster ?? {}}
-                onChange={setDueByRoster}
-              />
-            ) : (
-              <div className="flex gap-2">
-                <input
-                  id="assignment-settings-due-date"
-                  type="date"
-                  data-testid="assignment-due-date"
-                  value={options.dueDate}
-                  onChange={(e) =>
-                    setOptions((p) => ({ ...p, dueDate: e.target.value }))
-                  }
-                  className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <input
-                  type="time"
-                  data-testid="assignment-due-time"
-                  aria-label="Due time"
-                  value={options.dueTime}
-                  disabled={!options.dueDate}
-                  onChange={(e) =>
-                    setOptions((p) => ({
-                      ...p,
-                      dueTime: e.target.value || DEFAULT_DUE_TIME,
-                    }))
-                  }
-                  className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-              </div>
-            )}
-          </div>
+          )}
 
           <CollapsibleSection
             label="Assessment Settings"

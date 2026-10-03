@@ -257,6 +257,8 @@ export const AssignAvailabilitySection: React.FC<{
   /** The checked classes. */
   rosters: ClassRoster[];
   periodAccess?: AssignPeriodAccessContext;
+  /** False hides "All classes / Each class". */
+  eachClass?: boolean;
   cqScaled?: boolean;
   /** `study-resources` on: the kind this assignment saves as. */
   workKind?: WorkKind;
@@ -267,6 +269,7 @@ export const AssignAvailabilitySection: React.FC<{
   onChange,
   rosters,
   periodAccess,
+  eachClass: eachClassAllowed = true,
   cqScaled,
   workKind,
   onWorkKindChange,
@@ -275,7 +278,8 @@ export const AssignAvailabilitySection: React.FC<{
   const bellAvailable = !!periodAccess && rosters.length > 0;
   const resource = workKind === 'resource';
   const noEnd = resource && !!value.noEnd;
-  const eachClass = !!value.byRoster && rosters.length > 1;
+  const scoped = eachClassAllowed && rosters.length > 1;
+  const eachClass = !!value.byRoster && scoped;
   const usesBell = (spec: AvailabilitySpec) =>
     spec.opens.time === 'bell' || spec.closes.time === 'bell';
   const bellWindow = periodAccess?.bellWindow;
@@ -298,7 +302,7 @@ export const AssignAvailabilitySection: React.FC<{
           <CalendarClock className="h-4 w-4 text-brand-blue-primary" />
           {t('assignAvailability.title', 'Availability & Due Date')}
         </span>
-        {rosters.length > 1 && (
+        {scoped && (
           <span className="relative flex items-center">
             <select
               aria-label={t('assignAvailability.scope', 'Dates for')}

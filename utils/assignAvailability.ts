@@ -222,3 +222,94 @@ export function applyAvailability(
     dueAtByRosterId: resolved.dueAtByRosterId,
   };
 }
+
+const pointAt = (ms: number): AvailabilityPoint => {
+  const d = new Date(ms);
+  return { day: getLocalIsoDate(d), time: localTime(d) };
+};
+
+/** The section's state for a saved assignment, every point a set time; per-class closes come from its per-class due dates. */
+export function availabilityFromStored(
+  stored: {
+    openAt?: number | null;
+    closeAt?: number | null;
+    dueAt?: number | null;
+    dueAtByRosterId?: Record<string, number>;
+    createdAt: number;
+  },
+  rosterIds: readonly string[]
+): AssignAvailability {
+  const opens = pointAt(stored.openAt ?? stored.createdAt);
+  const closeMs = stored.closeAt ?? stored.dueAt;
+  const closes =
+    closeMs != null ? pointAt(closeMs) : { day: opens.day, time: '23:59' };
+  const perClass = stored.dueAtByRosterId ?? {};
+  const eachClass = rosterIds.filter((id) => perClass[id] != null).length > 1;
+  return {
+    all: { opens, closes },
+    ...(eachClass
+      ? {
+          byRoster: Object.fromEntries(
+            rosterIds.map((id) => [
+              id,
+              {
+                opens,
+                closes: perClass[id] != null ? pointAt(perClass[id]) : closes,
+              },
+            ])
+          ),
+        }
+      : {}),
+    allowLate: stored.closeAt == null && stored.dueAt != null,
+  };
+}
+
+export interface WindowEdit {
+  openAt?: number | null;
+  closeAt?: number | null;
+  dueAt?: number | null;
+  /** Present with undefined to clear the per-class dates. */
+  dueAtByRosterId?: Record<string, number>;
+}
+
+/** Only the stored fields an edit actually changed, so an untouched section writes nothing. */
+export function changedWindow(
+  before: ResolvedAvailability,
+  after: ResolvedAvailability
+): WindowEdit {
+  const out: WindowEdit = {};
+  if (before.openAt !== after.openAt) out.openAt = after.openAt ?? null;
+  if (before.closeAt !== after.closeAt) out.closeAt = after.closeAt ?? null;
+  if (before.dueAt !== after.dueAt) out.dueAt = after.dueAt ?? null;
+  if (
+    JSON.stringify(before.dueAtByRosterId ?? null) !==
+    JSON.stringify(after.dueAtByRosterId ?? null)
+  )
+    out.dueAtByRosterId = after.dueAtByRosterId;
+  return out;
+}
+
+/** An edit of a saved assignment: only the window fields the section changed, the section state dropped. */
+export function applyWindowEdit(
+  value: AssignTargetingValue,
+  stored: Parameters<typeof availabilityFromStored>[0],
+  withDue: boolean
+): AssignTargetingValue {
+  const { availability, ...rest } = value;
+  if (!availability) return rest;
+  const before = resolveAvailability(
+    availabilityFromStored(stored, []),
+    [],
+    undefined
+  );
+  const edit = changedWindow(
+    before,
+    resolveAvailability(availability, [], undefined)
+  );
+  return {
+    ...rest,
+    ...('openAt' in edit ? { openAt: edit.openAt ?? undefined } : {}),
+    ...('closeAt' in edit ? { closeAt: edit.closeAt ?? undefined } : {}),
+    ...(withDue && 'dueAt' in edit ? { dueAt: edit.dueAt ?? undefined } : {}),
+  };
+}

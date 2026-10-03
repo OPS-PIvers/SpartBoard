@@ -275,6 +275,10 @@ export interface AssignmentQuizRef {
   sections?: QuizSection[];
 }
 
+/** Editable settings plus the open/close window the edit modal changes. */
+export type QuizAssignmentSettingsPatch = Partial<QuizAssignmentSettings> &
+  Pick<QuizAssignment, 'openAt' | 'closeAt'>;
+
 export interface UseQuizAssignmentsResult {
   assignments: QuizAssignment[];
   loading: boolean;
@@ -321,7 +325,7 @@ export interface UseQuizAssignmentsResult {
   /** Update editable settings (className, PLC fields, session toggles). */
   updateAssignmentSettings: (
     assignmentId: string,
-    patch: Partial<QuizAssignmentSettings>,
+    patch: QuizAssignmentSettingsPatch,
     /** Per-class due dates by class id, when `patch.dueAtByRosterId` is set. */
     dueAtByClassId?: Record<string, number>
   ) => Promise<void>;
@@ -2085,6 +2089,8 @@ export const useQuizAssignments = (
         sessionPatch.attemptLimit = patch.attemptLimit ?? null;
       // /my-assignments reads due dates off the session doc.
       if ('dueAt' in patch) sessionPatch.dueAt = patch.dueAt ?? null;
+      if ('openAt' in patch) sessionPatch.openAt = patch.openAt ?? null;
+      if ('closeAt' in patch) sessionPatch.closeAt = patch.closeAt ?? null;
       if (clearingPerClassDue) sessionPatch.dueAtByClassId = deleteField();
       else if (dueAtByClassId) sessionPatch.dueAtByClassId = dueAtByClassId;
       if (patch.sessionOptions) {
