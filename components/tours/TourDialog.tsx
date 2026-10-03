@@ -74,7 +74,13 @@ export const TourDialog: React.FC<Props> = ({
       <div className="w-full max-w-sm rounded-2xl bg-slate-900/95 p-5 text-white shadow-2xl ring-1 ring-white/15 backdrop-blur-xl">
         <div className="flex items-start gap-3">
           {sparty && (
-            <Sparty pose={sparty} size={64} decorative className="shrink-0" />
+            <Sparty
+              pose={sparty}
+              size={64}
+              decorative
+              onDark
+              className="shrink-0"
+            />
           )}
           <div className="min-w-0">
             <h2 id="tour-dialog-title" className="text-base font-bold">

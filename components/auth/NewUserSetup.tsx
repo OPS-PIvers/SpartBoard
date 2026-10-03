@@ -298,6 +298,7 @@ export const NewUserSetup: React.FC = () => {
               }
               size={96}
               decorative
+              onDark
               className="shrink-0"
             />
           )}
