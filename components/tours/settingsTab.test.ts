@@ -19,6 +19,11 @@ describe('settingsTabOf', () => {
     expect(settingsTabOf(schema, 'fontFamily')).toBe('style');
     expect(settingsTabOf(schema, 'nowhere')).toBeNull();
   });
+
+  it('resolves a group id to the tab that renders the group', () => {
+    expect(settingsTabOf(schema, 'behavior')).toBe('settings');
+    expect(settingsTabOf(schema, 'display')).toBe('style');
+  });
 });
 
 describe('fieldSettingsTab', () => {

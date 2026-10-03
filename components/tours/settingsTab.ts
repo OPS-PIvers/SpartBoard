@@ -8,7 +8,7 @@ import type { WidgetType } from '@/types';
 
 const TABS: readonly SettingsTab[] = ['settings', 'style'];
 
-/** The drawer tab that renders a schema field; a list row (`list.2.key`) resolves by its list. */
+/** The drawer tab that renders a schema field or group; a list row (`list.2.key`) resolves by its list. */
 export function settingsTabOf(
   schema: WidgetSettingsSchema,
   fieldKey: string
@@ -23,7 +23,13 @@ export function settingsTabOf(
     if (inTab) return tab;
   }
   const styleKeys: readonly string[] = schema.styleKeys ?? [];
-  return styleKeys.includes(key) ? 'style' : null;
+  if (styleKeys.includes(key)) return 'style';
+  const groupTab = TABS.find(
+    (tab) =>
+      (TAB_GROUPS[tab] as readonly string[]).includes(key) &&
+      schema.groups.some((group) => group.id === key)
+  );
+  return groupTab ?? null;
 }
 
 const loaded = new Map<string, WidgetSettingsSchema | null>();

@@ -169,6 +169,26 @@ describe('ScheduleWidget', () => {
     expect(screen.getByText('Reading')).toBeInTheDocument();
   });
 
+  it('tags the start-timer button so tours can find the active row', () => {
+    const date = new Date();
+    date.setHours(8, 30, 0, 0);
+    vi.setSystemTime(date);
+    const { container } = render(
+      <ScheduleWidget
+        widget={createWidget({
+          items: [
+            { time: '08:00', endTime: '09:00', task: 'Math', done: false },
+            { time: '09:00', endTime: '10:00', task: 'Reading', done: false },
+          ],
+        })}
+      />
+    );
+    const tagged = Array.from(
+      container.querySelectorAll('[data-tour="schedule.start-timer"]')
+    ).map((el) => el.getAttribute('data-tour-field'));
+    expect(tagged).toEqual(['active', 'row-2']);
+  });
+
   describe('expanded current event', () => {
     /** Sets the clock to 08:30, which makes the 08:00 "Math" item active. */
     const setTimeTo = (h: number, m: number) => {

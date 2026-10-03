@@ -13,6 +13,7 @@ import { useModalFullscreenEnabled } from '@/hooks/useModalFullscreenEnabled';
 import { useDialog } from '@/context/useDialog';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { useAutosave, type AutosaveStatus } from '@/hooks/useAutosave';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 export interface EditorAutosaveConfig {
   /**
@@ -129,6 +130,8 @@ interface EditorModalShellProps {
   saveErrorMessage?: string | false;
   /** Offers the "View full screen" toggle (behind the modal-fullscreen flag). */
   allowFullscreen?: boolean;
+  /** Widget type that scopes the title and Close live-tour anchors; omit to leave them untagged. */
+  tourScope?: string;
   children: React.ReactNode;
 }
 
@@ -173,6 +176,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   bodyClassName = 'px-6 py-5',
   saveErrorMessage = 'Could not save your changes. Please try again.',
   allowFullscreen = true,
+  tourScope,
   children,
 }) => {
   const fullscreenAvailable = useModalFullscreenEnabled() && allowFullscreen;
@@ -299,6 +303,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
               // here because the id is preserved.
               className="font-black text-lg text-slate-800 truncate bg-transparent border-0 focus:outline-none focus:ring-0 placeholder:text-slate-400 placeholder:font-bold w-full p-0"
               aria-label="Title"
+              {...(tourScope ? tourTypeAttr('editor.title', tourScope) : {})}
             />
           ) : (
             <h3
@@ -342,6 +347,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       requestClose,
       fullscreenAvailable,
       isFullscreen,
+      tourScope,
     ]
   );
 
@@ -350,6 +356,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       <button
         onClick={() => void requestClose()}
         className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+        {...(tourScope ? tourTypeAttr('editor.close', tourScope) : {})}
       >
         {hideSaveButton || autosaveOn ? 'Close' : 'Cancel'}
       </button>
@@ -405,6 +412,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
     autosaveStatus,
     autosaveFlush,
     incompleteNotice,
+    tourScope,
   ]);
 
   return (

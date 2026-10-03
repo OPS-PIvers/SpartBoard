@@ -10,6 +10,7 @@ import {
   rowsFromQuestion,
 } from '@/utils/quizChoiceRows';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { inputClass, labelClass } from './quizEditorFieldStyles';
 
 type ChoiceUpdates = Partial<
@@ -145,6 +146,11 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
                   tabIndex={multi || idx === tabStop ? 0 : -1}
                   aria-label={`Option ${letter} is correct`}
                   onClick={() => toggleCorrect(idx)}
+                  {...tourFieldAttr(
+                    'quiz-editor.correct',
+                    'quiz',
+                    letter.toLowerCase()
+                  )}
                   className={`shrink-0 w-7 h-7 flex items-center justify-center border-2 ${Marker} transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
                     row.correct
                       ? 'bg-emerald-600 border-emerald-600 text-white'
@@ -157,6 +163,11 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
                   type="text"
                   value={row.text}
                   aria-label={`Option ${letter}`}
+                  {...tourFieldAttr(
+                    'quiz-editor.option',
+                    'quiz',
+                    letter.toLowerCase()
+                  )}
                   onChange={(e) =>
                     commit(
                       rows.map((r, i) =>
