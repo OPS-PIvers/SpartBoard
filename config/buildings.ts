@@ -122,7 +122,7 @@ export const BUILDING_ID_ALIASES: Readonly<Record<string, string>> = {
  * data continues to work.
  */
 export function canonicalBuildingId(id: string): string {
-  return BUILDING_ID_ALIASES[id] ?? id;
+  return Object.hasOwn(BUILDING_ID_ALIASES, id) ? BUILDING_ID_ALIASES[id] : id;
 }
 
 /**
@@ -223,7 +223,9 @@ export function toLunchCountSchoolSite(
   id: string
 ): LunchCountConfig['schoolSite'] | null {
   const canonical = canonicalBuildingId(id);
-  return LUNCH_COUNT_SCHOOL_SITE_BY_CANONICAL[canonical] ?? null;
+  return Object.hasOwn(LUNCH_COUNT_SCHOOL_SITE_BY_CANONICAL, canonical)
+    ? LUNCH_COUNT_SCHOOL_SITE_BY_CANONICAL[canonical]
+    : null;
 }
 
 /**
