@@ -83,9 +83,17 @@ describe('parseArgs', () => {
     expect(parseArgs(['--project', 'prod'])).toEqual({
       apply: false,
       project: 'spartboard',
+      confirmProd: false,
       help: false,
     });
     expect(parseArgs(['--project', 'dev', '--apply']).apply).toBe(true);
     expect(parseArgs(['--project', 'dev']).project).toBe('spartboard-dev');
+  });
+
+  it('rejects unknown projects and reads --confirm-prod', () => {
+    expect(parseArgs(['--project', 'prd']).project).toBe('invalid');
+    expect(
+      parseArgs(['--project', 'prod', '--apply', '--confirm-prod']).confirmProd
+    ).toBe(true);
   });
 });

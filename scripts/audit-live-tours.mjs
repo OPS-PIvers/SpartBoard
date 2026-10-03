@@ -10,6 +10,7 @@
  *   node scripts/audit-live-tours.mjs --project dev            # dry run (default)
  *   node scripts/audit-live-tours.mjs --project dev --apply    # write
  *   node scripts/audit-live-tours.mjs --project prod           # read-only audit
+ *   --apply on prod also needs --confirm-prod.
  *
  * Credentials: dev uses `gcloud auth application-default login`; prod uses
  * FIREBASE_SERVICE_ACCOUNT (JSON) or scripts/service-account-key.json.
@@ -27,15 +28,16 @@ const COLLECTION = 'building_guided_learning';
 const BATCH_LIMIT = 400;
 
 function parseArgs(argv) {
-  const args = { apply: false, project: null, help: false };
+  const args = { apply: false, project: null, confirmProd: false, help: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--apply') args.apply = true;
     else if (a === '--dry-run') args.apply = false;
     else if (a === '--project') args.project = argv[++i] ?? null;
+    else if (a === '--confirm-prod') args.confirmProd = true;
     else if (a === '--help' || a === '-h') args.help = true;
   }
-  if (args.project) args.project = PROJECTS[args.project] ?? args.project;
+  if (args.project) args.project = PROJECTS[args.project] ?? 'invalid';
   return args;
 }
 
@@ -107,11 +109,15 @@ function prodCredential(cert) {
 
 async function run() {
   const args = parseArgs(process.argv.slice(2));
-  if (args.help || !args.project) {
+  if (args.help || !args.project || args.project === 'invalid') {
     console.log(
-      'Usage: node scripts/audit-live-tours.mjs --project dev|prod [--apply]'
+      'Usage: node scripts/audit-live-tours.mjs --project dev|prod [--apply] [--confirm-prod]'
     );
     process.exit(args.help ? 0 : 1);
+  }
+  if (args.apply && args.project === 'spartboard' && !args.confirmProd) {
+    console.error('--apply on prod also needs --confirm-prod (Paul\'s word).');
+    process.exit(1);
   }
 
   const { initializeApp, cert, applicationDefault } =
