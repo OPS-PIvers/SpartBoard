@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type {
   LibrarySortDir,
   LibraryViewMode,
@@ -30,17 +30,14 @@ export function useLibraryView<TItem>(
   );
   const [viewMode, setViewModeState] =
     useState<LibraryViewMode>(initialViewMode);
+  const viewModeRef = useRef(viewMode);
   const handleViewModeChange = useCallback(
     (next: LibraryViewMode) => {
-      setViewModeState((prev) => {
-        // Only notify the consumer when the mode actually changes. Without
-        // this guard, clicking the active view-mode button would trigger a
-        // redundant Firestore write from every consumer that persists this.
-        if (prev !== next) {
-          onViewModeChange?.(next);
-        }
-        return next;
-      });
+      // Notify outside the state updater: updaters must be pure (StrictMode double-runs them).
+      if (viewModeRef.current === next) return;
+      viewModeRef.current = next;
+      setViewModeState(next);
+      onViewModeChange?.(next);
     },
     [onViewModeChange]
   );
