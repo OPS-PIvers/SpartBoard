@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-02_
+_Last audited: 2026-10-03_
 _Last action: 2026-09-24 — MEDIUM `QuizStimulusView.tsx` zero-`cqmin` blocker resolved: added an optional `cqScaled?: boolean` prop (default `false`) threaded through every subcomponent in the file, applying `min(Xpx, Ycqmin)` inline styles only when set, so the two CQ-container consumers (`CurrentQuestionCard.tsx`, `QuizPreview.tsx`) now scale while the two non-CQ consumers (`QuizStudentApp.tsx`, `FreeResponseGrader.tsx`) keep today's fixed styling untouched — the same `cqScaled` pattern proven on `AssignTargetingSection.tsx`. 1250/1250 relevant tests pass. Item moved to Completed. PR opened against dev-paul._
 
 ---
@@ -39,6 +39,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-10-03: Daily audit (Saturday). No `Widget.tsx` front-face changes since the 2026-10-02 baseline. Re-scanned all `Widget.tsx` under `components/widgets/`: 0 `max-h-[Npx]`/`max-w-[Npx]` caps; the only fixed-px classes are the two `fixed` portal popovers in `DrawingWidget/Widget.tsx` (:1293, :1378), already treated as acceptable. 0 new issues, 0 resolved; existing Open items unchanged._
 
 _2026-10-02: Daily audit (Friday). Scanned all `Widget.tsx` under `components/widgets/`: 0 `max-h-[Npx]`/`max-w-[Npx]` caps; only 2 fixed-px `w-[Npx]`/`min-w-[Npx]` classes, both `fixed` portal popovers in `DrawingWidget/Widget.tsx` (:1293, :1378), not content-area sizing. New `RoutineGuide` widget has no hex colors or fixed-px content sizing. 0 new issues._
 
