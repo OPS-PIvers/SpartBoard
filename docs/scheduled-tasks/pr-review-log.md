@@ -4464,3 +4464,17 @@ rather than "no data") is also still open.
   - On #3749, `config/flashcardCharBars.test.ts` passes 4/4.
   - #3737 has no CI check runs (doc-only) and merges cleanly into the current `dev-paul`.
   - `gh` is unauthenticated, so GitHub access went through MCP. The log goes to the session branch, not `scheduled-tasks`, per the session's branch rules.
+
+## 2026-10-03
+
+- PRs reviewed:
+  - #3797 docs(unifier): run 105 log — D1/D2/D4 aligned
+  - #3792 Tag Quiz editor, Schedule row timer and settings group live-tour anchors
+- Comments processed: 1 total — 0 fixed, 1 explained. No inline review threads existed. The only comment was a claude[bot] no-issues summary on #3792, which needed no action.
+- Fixes pushed: none
+- Reviews posted: 2
+- Merge readiness: Ready: #3792. Ready with minor notes: #3797 (the Run Log row lists D1, but the PR body says D1 was not re-swept).
+- Notes:
+  - #3792 CI is fully green on `d3c4e4c`. `ChoiceOptionsEditor` is imported only by `QuizEditor`, so the hardcoded `quiz` scope is safe.
+  - #3797 has no CI check runs (doc-only).
+  - `gh` is unauthenticated, so GitHub access went through MCP. The log goes to the session branch, not `scheduled-tasks`, per the session's branch rules.
