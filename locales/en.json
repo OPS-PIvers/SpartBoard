@@ -4179,8 +4179,10 @@
         "slides": "Slides",
         "videos": "Videos",
         "activities": "Activities",
-        "other": "Other"
-      }
+        "other": "Other",
+        "tours": "Live tours"
+      },
+      "liveTourBadge": "Live tour"
     },
     "shortcuts": {
       "open-help": "Open Help",
@@ -4655,7 +4657,8 @@
     "autoConfirm": "Autopilot will do this step. Go ahead?",
     "autoConfirmYes": "Do it",
     "autoConfirmNo": "I'll do it",
-    "moveHint": "Drag to move. Double-click to put it back at the top."
+    "moveHint": "Drag to move. Double-click to put it back at the top.",
+    "stepListNote": "Open SpartBoard on a computer to run this tour on your board."
   },
   "glPlayer": {
     "modeChip": {

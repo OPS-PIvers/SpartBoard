@@ -77,6 +77,11 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(),
 }));
 
+vi.mock('@/hooks/useGuidedLearning', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/useGuidedLearning')>()),
+  useLiveTourSetIds: () => new Set<string>(),
+}));
+
 vi.mock('@/hooks/useLiveSession', () => ({
   useLiveSession: vi.fn(),
 }));
