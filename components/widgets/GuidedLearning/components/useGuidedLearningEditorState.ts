@@ -165,7 +165,9 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   /** `tag` marks the edit so `undoIfLatest` can target it. */
   deleteImage: (index: number, tag?: object) => void;
   /** Uploads a redacted copy over a slide and queues the old image for deletion on close. */
-  replaceSlideImage: (index: number, blob: Blob) => Promise<boolean>;
+  replaceSlideImage: (index: number, blob: Blob | File) => Promise<boolean>;
+  /** Swaps a slide's image for an uploaded one; steps keep their positions. */
+  replaceSlideFromFile: (index: number, file: File) => Promise<boolean>;
   moveImage: (fromIndex: number, direction: -1 | 1) => void;
   /** Reorder slides; `order[i]` is the old index of the slide now at `i`. `moveStepsOf` (an old index) takes that slide's steps along in play order. */
   reorderImages: (order: number[], moveStepsOf?: number) => void;
@@ -645,13 +647,17 @@ export function useGuidedLearningEditorState({
   );
 
   const replaceSlideImage = useCallback(
-    async (index: number, blob: Blob): Promise<boolean> => {
+    async (index: number, blob: Blob | File): Promise<boolean> => {
       const oldUrl = historyRef.current.present.imageUrls[index];
       if (!user || !oldUrl) return false;
       const ext = blob.type === 'image/webp' ? 'webp' : 'png';
       const url = await uploadSlideImage(
         user.uid,
-        new File([blob], `redacted.${ext}`, { type: blob.type || 'image/png' })
+        blob instanceof File
+          ? blob
+          : new File([blob], `redacted.${ext}`, {
+              type: blob.type || 'image/png',
+            })
       );
       if (!url) return false;
       // Slides may have moved during the upload, so find the old image again.
@@ -665,13 +671,55 @@ export function useGuidedLearningEditorState({
         return {
           ...doc,
           imageUrls: doc.imageUrls.map((u, i) => (i === at ? url : u)),
+          imageKinds: doc.imageKinds.map((k, i) => (i === at ? 'image' : k)),
+          videoTrims: doc.videoTrims.map((v, i) => (i === at ? null : v)),
         };
       });
-      const ref = slideMediaRef(oldUrl);
-      if (ref) dispatch({ type: 'queueMedia', ref });
+      for (const old of [oldUrl, slideThumbnailsRef.current[oldUrl]]) {
+        const ref = old ? slideMediaRef(old) : null;
+        if (ref) dispatch({ type: 'queueMedia', ref });
+      }
       return true;
     },
     [user, uploadSlideImage, applyDoc]
+  );
+
+  const replaceSlideFromFile = useCallback(
+    async (index: number, file: File): Promise<boolean> => {
+      setImageError('');
+      const issue = slideFileIssue(file);
+      const error =
+        validateSlideFile(file) ??
+        (getMediaKind(file) === 'image'
+          ? null
+          : `"${file.name}" is not an image.`);
+      if (error) {
+        setImageError(error);
+        onUploadIssuesRef.current?.([
+          { ...(issue ?? { code: 'unsupported' }), fileName: file.name },
+        ]);
+        return false;
+      }
+      setUploadProgress({
+        current: 1,
+        total: 1,
+        fileName: file.name,
+        percent: null,
+      });
+      try {
+        return await replaceSlideImage(index, file);
+      } catch (err) {
+        console.error('[GuidedLearningEditor] Slide replace failed:', err);
+        setImageError(`"${file.name}" failed to upload.`);
+        onUploadIssuesRef.current?.([
+          { code: 'uploadFailed', fileName: file.name },
+        ]);
+        return false;
+      } finally {
+        setUploadProgress(null);
+      }
+    },
+    [replaceSlideImage]
   );
 
   const recaptureStep = useCallback(
@@ -1224,6 +1272,7 @@ export function useGuidedLearningEditorState({
     addCapturedMedia,
     deleteImage,
     replaceSlideImage,
+    replaceSlideFromFile,
     moveImage,
     reorderImages,
     slideMoveReordersSteps,

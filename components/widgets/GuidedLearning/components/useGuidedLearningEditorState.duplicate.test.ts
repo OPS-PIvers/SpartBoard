@@ -368,3 +368,48 @@ describe('copy and paste steps', () => {
     expect(deleteFile).not.toHaveBeenCalled();
   });
 });
+
+describe('replace slide image', () => {
+  it('swaps the image, keeps every step where it was, and undoes in one step', async () => {
+    const NEW = storageUrl('new.webp');
+    storage.uploadGuidedLearningImage.mockResolvedValue({ url: NEW });
+    const set = makeSet({
+      steps: [
+        step('s1', 0, { xPct: 33, yPct: 71 }),
+        step('s2', 1, { xPct: 5, yPct: 9 }),
+      ],
+    });
+    const { result } = renderEditor(set);
+    const before = result.current.steps;
+    let ok = false;
+    await act(async () => {
+      ok = await result.current.replaceSlideFromFile(
+        0,
+        new File(['x'], 'shot.png', { type: 'image/png' })
+      );
+    });
+    expect(ok).toBe(true);
+    expect(result.current.imageUrls).toEqual([NEW, SLIDE_B]);
+    expect(result.current.steps).toEqual(before);
+    expect((await flush(result.current)).deleteFile).toHaveBeenCalledWith(
+      'users/teacher-1/hotspot_images/a.webp'
+    );
+
+    act(() => result.current.undo());
+    expect(result.current.imageUrls).toEqual([SLIDE_A, SLIDE_B]);
+  });
+
+  it('refuses a file that is not an image', async () => {
+    const { result } = renderEditor();
+    let ok = true;
+    await act(async () => {
+      ok = await result.current.replaceSlideFromFile(
+        0,
+        new File(['x'], 'clip.mp4', { type: 'video/mp4' })
+      );
+    });
+    expect(ok).toBe(false);
+    expect(storage.uploadGuidedLearningImage).not.toHaveBeenCalled();
+    expect(result.current.imageUrls).toEqual([SLIDE_A, SLIDE_B]);
+  });
+});
