@@ -296,6 +296,7 @@ const MODE_LABELS: Record<GuidedLearningSet['mode'], string> = {
   structured: 'Structured',
   guided: 'Guided',
   explore: 'Explore',
+  tour: 'Live tour',
 };
 
 /* ─── Library hook option constants (module-level for referential stability) ─
