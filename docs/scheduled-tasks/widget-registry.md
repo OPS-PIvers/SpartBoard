@@ -44,6 +44,7 @@ _2026-09-29: Daily audit (Tuesday). Baseline `a5072c05` → HEAD `9af6386c` (aft
 
 - **Detected:** 2026-08-24 (scope updated 2026-09-25 — the settings-drawer migration that was "trending toward completion" finished)
 - **File:** `components/widgets/WidgetRegistry.ts:375-379` (shifted from :390-393 — waves 13/14 (`4a190f9a`/`4d33d571`) removed the map's last 5 entries, shrinking everything below it in the file; `WIDGET_SETTINGS_COMPONENTS` at :369-373 has the identical problem and is cited alongside it below)
+- **Action note (2026-10-03):** Skipped again — `components/widgets/WidgetRegistry.ts` was modified within its last 5 commits (`aa1d7719` Routine Guide widget 2026-10-01, `f78cdacf` 2026-09-30). The other two Open items (`projects` w/h, `routineGuide` schema) also edit this file, so nothing else was started. Revisit once the file has settled.
 - **Action note (2026-10-02):** Skipped again — `components/widgets/WidgetRegistry.ts` was modified within its last 5 commits (`aa1d7719` Routine Guide widget, `f78cdacf` 2026-09-30). Revisit once the file has settled.
 - **Action note (2026-10-01):** Skipped again — `components/widgets/WidgetRegistry.ts` was modified within its last 5 commits (`f78cdacf` 2026-09-30, `fb2ef117` 2026-09-24). Revisit once the file has settled.
 - **Action note (2026-09-29):** Skipped this cycle — `components/widgets/WidgetRegistry.ts` was modified within its last 5 commits (`4d33d571`, `4a190f9a` on 2026-09-24). Revisit once the file has settled.
