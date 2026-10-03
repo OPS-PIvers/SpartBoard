@@ -176,6 +176,11 @@ Each item names the plan it came from; the plan holds the detail.
 
 - [ ] PR 4: remove star UI, activeRosterId/setActiveRoster, localStorage key, Classes widget catalog entry — only after Paul opens the flag to Public. (S)
 
+#### `docs/plans/shipped/SPARTY.md`
+
+- [ ] Paul tries Sparty in prod (tours, first-time setup, Help Center), then opens the `sparty` flag in Admin Settings > Access > Previews and writes the changelog entry. (S)
+- [ ] Phase 2: plan student-side Sparty (quiz and video activity finish screens, lobby) behind its own flag. (M)
+
 #### `docs/plans/shipped/SUB_SHARE_COLLECTIONS.md`
 
 - [ ] Flip admin_settings/sub_launch_as_teacher to enabled in spartboard-dev for Paul's testing, then to Public in prod after he validates on his real account. (S)

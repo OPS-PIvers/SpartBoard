@@ -1,7 +1,8 @@
 import React from 'react';
-import { AlertTriangle, RotateCw } from 'lucide-react';
+import { RotateCw } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { attemptChunkReload, isChunkLoadError } from '@/utils/chunkLoadError';
+import { LazyChunkFailedTile } from './LazyChunkFailedTile';
 
 interface LazyChunkErrorBoundaryProps {
   children: React.ReactNode;
@@ -11,13 +12,6 @@ interface LazyChunkErrorBoundaryState {
   error: Error | null;
   reloadInFlight: boolean;
 }
-
-const RETRY_BUTTON_CLASS =
-  'rounded-md bg-slate-700/80 font-medium text-white transition hover:bg-slate-600';
-const RETRY_BUTTON_STYLE: React.CSSProperties = {
-  fontSize: 'min(12px, 4cqmin)',
-  padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-};
 
 /**
  * Catches errors thrown by a Suspended descendant — most importantly, the
@@ -84,22 +78,6 @@ export class LazyChunkErrorBoundary extends React.Component<
       );
     }
 
-    return (
-      <ScaledEmptyState
-        icon={AlertTriangle}
-        title="Widget failed to load"
-        iconClassName="text-amber-400"
-        action={
-          <button
-            type="button"
-            onClick={this.handleRetry}
-            className={RETRY_BUTTON_CLASS}
-            style={RETRY_BUTTON_STYLE}
-          >
-            Retry
-          </button>
-        }
-      />
-    );
+    return <LazyChunkFailedTile onRetry={this.handleRetry} />;
   }
 }

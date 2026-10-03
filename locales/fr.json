@@ -277,6 +277,7 @@
     "settings": {
       "googleDriveIntegration": "Intégration Google Drive",
       "remoteControl": "Contrôle à distance",
+      "showSparty": "Afficher Sparty",
       "googleDriveDescription": "Vos tableaux sont sauvegardés dans votre dossier \"{{appName}}\" sur Drive.",
       "connectedSynced": "Connecté",
       "disconnected": "Déconnecté",
@@ -3586,6 +3587,7 @@
     "retry": "Réessayer",
     "next": "Suivant",
     "done": "Terminé",
+    "completeTitle": "Visite terminée",
     "skip": "Passer",
     "showMeLive": "Montrez-moi en direct",
     "openGuides": "Ouvrir les guides",

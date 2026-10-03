@@ -403,6 +403,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     'question' | 'student'
   >('question');
   const [quizGraderAutoAdvance, setQuizGraderAutoAdvanceState] = useState(true);
+  const [spartyEnabled, setSpartyEnabledState] = useState(true);
   const [lastActiveCollectionId, setLastActiveCollectionIdState] = useState<
     string | null | undefined
   >(undefined);
@@ -2011,6 +2012,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           } else {
             setQuizGraderAutoAdvanceState(true);
           }
+          setSpartyEnabledState(
+            typeof data.spartyEnabled === 'boolean' ? data.spartyEnabled : true
+          );
 
           // Load Collections navigation memory
           if ('lastActiveCollectionId' in data) {
@@ -2442,6 +2446,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
       quizGraderMode?: 'question' | 'student';
       quizGraderAutoAdvance?: boolean;
+      spartyEnabled?: boolean;
     }) => {
       if (updates.disableCloseConfirmation !== undefined) {
         setDisableCloseConfirmationState(updates.disableCloseConfirmation);
@@ -2464,6 +2469,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (updates.quizGraderAutoAdvance !== undefined) {
         setQuizGraderAutoAdvanceState(updates.quizGraderAutoAdvance);
       }
+      if (updates.spartyEnabled !== undefined) {
+        setSpartyEnabledState(updates.spartyEnabled);
+      }
 
       // Build a sanitized payload — Firestore rejects `undefined` field values
       const sanitizedUpdates: {
@@ -2474,6 +2482,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
         quizGraderMode?: 'question' | 'student';
         quizGraderAutoAdvance?: boolean;
+        spartyEnabled?: boolean;
       } = {};
       if (typeof updates.disableCloseConfirmation === 'boolean') {
         sanitizedUpdates.disableCloseConfirmation =
@@ -2509,6 +2518,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       if (typeof updates.quizGraderAutoAdvance === 'boolean') {
         sanitizedUpdates.quizGraderAutoAdvance = updates.quizGraderAutoAdvance;
+      }
+      if (typeof updates.spartyEnabled === 'boolean') {
+        sanitizedUpdates.spartyEnabled = updates.spartyEnabled;
       }
 
       if (
@@ -3380,6 +3392,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         quizMonitorScoreDisplay,
         quizGraderMode,
         quizGraderAutoAdvance,
+        spartyEnabled,
         updateAccountPreferences,
         lastActiveCollectionId,
         lastBoardIdByCollection,
