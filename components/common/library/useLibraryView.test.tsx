@@ -17,10 +17,10 @@ describe('useLibraryView view mode', () => {
       () => useLibraryView(options(onViewModeChange)),
       { wrapper: React.StrictMode }
     );
-    act(() => result.current.toolbarProps.onViewModeChange('list'));
+    act(() => result.current.toolbarProps.onViewModeChange?.('list'));
     expect(onViewModeChange).toHaveBeenCalledTimes(1);
     expect(onViewModeChange).toHaveBeenCalledWith('list');
-    act(() => result.current.toolbarProps.onViewModeChange('list'));
+    act(() => result.current.toolbarProps.onViewModeChange?.('list'));
     expect(onViewModeChange).toHaveBeenCalledTimes(1);
   });
 });
