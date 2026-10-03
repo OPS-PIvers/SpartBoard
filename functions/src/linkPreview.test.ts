@@ -156,6 +156,26 @@ describe('fetchLinkPreview', () => {
     });
   });
 
+  it('keeps apostrophes and quotes inside quoted meta content', async () => {
+    axiosGet.mockResolvedValue({
+      data: `<html><head>
+        <meta content="Teacher's Guide to 5 > 4" property="og:title">
+        <meta property="og:description" content='She said "hi"'>
+      </head></html>`,
+      headers: { 'content-type': 'text/html' },
+    });
+
+    const result = await call({
+      auth: AUTH,
+      data: { url: 'https://example.com/apostrophe' },
+    });
+
+    expect(result).toMatchObject({
+      title: "Teacher's Guide to 5 > 4",
+      description: 'She said "hi"',
+    });
+  });
+
   it('falls back to <title> when og:title is missing', async () => {
     axiosGet.mockResolvedValue({
       data: '<html><head><title>Plain Title</title></head></html>',
