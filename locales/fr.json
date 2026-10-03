@@ -277,6 +277,7 @@
     "settings": {
       "googleDriveIntegration": "Intégration Google Drive",
       "remoteControl": "Contrôle à distance",
+      "showSparty": "Afficher Sparty",
       "googleDriveDescription": "Vos tableaux sont sauvegardés dans votre dossier \"{{appName}}\" sur Drive.",
       "connectedSynced": "Connecté",
       "disconnected": "Déconnecté",
@@ -2624,6 +2625,7 @@
     "slideActionsN": "Plus d’actions pour la diapositive {{n}}",
     "duplicateSlide": "Dupliquer la diapositive",
     "pasteStepsHere": "Coller les étapes sur cette diapositive",
+    "replaceImage": "Remplacer l’image",
     "stepActions": "Actions de l’étape",
     "duplicateStep": "Dupliquer l’étape",
     "copyStep": "Copier l’étape",
@@ -2820,6 +2822,7 @@
     "hubAiDesc": "Décrivez la leçon et obtenez un premier brouillon à modifier",
     "hubImport": "Importer un .gl.json",
     "hubImportDesc": "Ouvrez une activité exportée depuis SpartBoard",
+    "hubRunLiveDesc": "Prend une image de chaque étape pendant la visite",
     "uploadUnsupported": "« {{name}} » n’est pas un fichier pris en charge. Utilisez une image, un GIF ou une vidéo (MP4, WebM, MOV).",
     "uploadTooLargeImage": "« {{name}} » est trop volumineux. Les images peuvent faire jusqu’à {{max}} Mo.",
     "uploadTooLargeVideo": "« {{name}} » est trop volumineux. Les vidéos peuvent faire jusqu’à {{max}} Mo ; coupez-la ou enregistrez un extrait plus court.",
@@ -2902,9 +2905,11 @@
     "mode_structured": "Structuré",
     "mode_guided": "Guidé",
     "mode_explore": "Explorer",
+    "mode_tour": "Visite en direct",
     "modeDesc_structured": "Les élèves avancent étape par étape.",
     "modeDesc_guided": "Lit chaque étape automatiquement.",
     "modeDesc_explore": "Les élèves ouvrent les étapes dans n'importe quel ordre.",
+    "modeDesc_tour": "Se déroule sur le vrai tableau, une commande à la fois.",
     "watchPace": "Rythme guidé",
     "pace_standard": "Standard",
     "pace_calm": "Calme",
@@ -2985,6 +2990,8 @@
     "runLiveDraft": "Lancer en direct sur mon tableau (brouillon)",
     "runLiveFromStep": "Lancer en direct à partir de cette étape",
     "rerecordStep": "Réenregistrer cette étape",
+    "retakePicture": "Reprendre l'image de cette étape",
+    "retakeAllPictures": "Reprendre toutes les images",
     "rerecordFailed": "Impossible d'enregistrer la visite, le réenregistrement n'a donc pas démarré.",
     "reopenFailed": "Impossible de rouvrir la visite dans le Studio.",
     "tourAnchorId": "Id :",
@@ -3055,8 +3062,10 @@
         "slides": "Diaporamas",
         "videos": "Vidéos",
         "activities": "Activités",
-        "other": "Autres"
-      }
+        "other": "Autres",
+        "tours": "Visites guidées"
+      },
+      "liveTourBadge": "Visite guidée"
     },
     "shortcuts": {
       "open-help": "Ouvrir l'aide",
@@ -3586,6 +3595,7 @@
     "retry": "Réessayer",
     "next": "Suivant",
     "done": "Terminé",
+    "completeTitle": "Visite terminée",
     "skip": "Passer",
     "showMeLive": "Montrez-moi en direct",
     "openGuides": "Ouvrir les guides",
@@ -3613,7 +3623,8 @@
     "autoConfirm": "Autopilot va effectuer cette étape. Continuer ?",
     "autoConfirmYes": "Vas-y",
     "autoConfirmNo": "Je le fais",
-    "moveHint": "Faites glisser pour la déplacer. Double-cliquez pour la remettre en haut."
+    "moveHint": "Faites glisser pour la déplacer. Double-cliquez pour la remettre en haut.",
+    "stepListNote": "Ouvrez SpartBoard sur un ordinateur pour suivre cette visite sur votre tableau."
   },
   "glPlayer": {
     "modeChip": {

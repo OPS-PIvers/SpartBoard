@@ -32,6 +32,9 @@ export const suggestAnchorId = (
 ): string | undefined =>
   fallback ? `${fallback.role}.${slug(fallback.name)}` : undefined;
 
+// The whole-board anchor wraps everything, so a click inside it is not a click on it.
+const TAGGED = "[data-tour]:not([data-tour='board.whole'])";
+
 const fallbackOf = (el: Element): RecordedAnchor['fallback'] => {
   const role = roleOf(el);
   const name = accessibleName(el);
@@ -41,7 +44,7 @@ const fallbackOf = (el: Element): RecordedAnchor['fallback'] => {
 /** Resolves what a recorded click landed on; null for the recorder's own UI. */
 export function resolveRecordedAnchor(target: Element): RecordedAnchor | null {
   if (target.closest('[data-tour-ignore]')) return null;
-  const tagged = target.closest<HTMLElement>('[data-tour]');
+  const tagged = target.closest<HTMLElement>(TAGGED);
   if (tagged) {
     const id = tagged.getAttribute('data-tour') ?? '';
     const type = tagged.getAttribute('data-tour-widget-type');
@@ -190,8 +193,7 @@ export function captureUnmappedContext(
     name: pii ? null : (fallback?.name ?? null),
     widgetType: (widgetType as WidgetType | undefined) ?? null,
     pathname: pathname ?? window.location.pathname,
-    nearestAnchor:
-      element.closest('[data-tour]')?.getAttribute('data-tour') ?? null,
+    nearestAnchor: element.closest(TAGGED)?.getAttribute('data-tour') ?? null,
     ancestors: ancestorChain(element, matcher),
     htmlExcerpt: redactedExcerpt(element, matcher),
   };

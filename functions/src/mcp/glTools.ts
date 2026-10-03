@@ -337,6 +337,8 @@ export function mergeSteps(
           `${at}.tour.value: ${action} steps take ${want === 'undefined' ? 'no value' : `a ${want} value`}.`
         );
     }
+    if (s.tour?.anchor === 'board.whole' && s.tour.action !== 'observe')
+      throw new ToolError(`${at}.tour: "board.whole" steps observe.`);
     if (s.missing_anchor && s.tour?.anchor !== '')
       throw new ToolError(`${at}.missing_anchor needs tour.anchor "".`);
     const prior = byId.get(s.id);
@@ -398,7 +400,7 @@ function publicStep(step: Step) {
   return out;
 }
 
-async function isAdmin(ctx: ToolContext): Promise<boolean> {
+export async function isAdmin(ctx: ToolContext): Promise<boolean> {
   return (await ctx.db.collection('admins').doc(ctx.email.toLowerCase()).get())
     .exists;
 }
@@ -613,6 +615,8 @@ function applyEdit(loaded: Loaded, input: EditInput): GlSet {
       'This set uses an older spotlight format. Open it once in SpartBoard and save it, then edit it here.'
     );
   }
+  if (input.mode && set.mode === 'tour')
+    throw new ToolError("A live tour's mode can't be changed.");
   const next: GlSet = {
     ...set,
     title: input.title ?? set.title,

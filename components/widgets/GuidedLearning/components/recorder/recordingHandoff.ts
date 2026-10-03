@@ -1,6 +1,7 @@
 import type { GuidedLearningTourBinding } from '@/types';
 import type { RecordedPlacement } from './resolveAnchor';
 import type { TourRecording } from './useTourCapture';
+import type { TourSnapshots } from '@/components/tours/tourState';
 
 /** One re-recorded click: the uploaded frame and the step's new placement and binding. */
 export interface StepRecapture {
@@ -53,3 +54,16 @@ export async function uploadFramesOnce(
   }
   return out;
 }
+
+/** A draft run's step pictures as a recording, so they get the same review as recorded frames. */
+export const snapshotRecording = (snapshots: TourSnapshots): TourRecording => ({
+  frames: snapshots.shots.map((s) => s.frame),
+  redactions: snapshots.shots.map((s) => s.boxes),
+  steps: snapshots.shots.map((s, i) => ({
+    id: s.stepId,
+    ...s.placement,
+    tour: s.tour,
+    frameIndex: i,
+    untagged: false,
+  })),
+});

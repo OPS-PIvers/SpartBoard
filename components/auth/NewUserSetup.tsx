@@ -24,6 +24,8 @@ import {
   GlobalStyle,
   WidgetType,
 } from '@/types';
+import { Sparty } from '@/components/sparty/Sparty';
+import { useShowSparty } from '@/components/sparty/useShowSparty';
 
 // ─── Curated dock tool list for step 3 ───────────────────────────────────────
 
@@ -261,27 +263,45 @@ export const NewUserSetup: React.FC = () => {
           : selectedBuildings.length > 0;
 
   const firstName = user?.displayName?.split(' ')[0] ?? 'there';
+  const showSparty = useShowSparty();
 
   return (
     <div className="fixed inset-0 z-critical bg-slate-900 flex flex-col items-center justify-center p-4">
       {/* Card */}
       <div className="w-full max-w-2xl bg-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-700">
         {/* Header */}
-        <div className="bg-gradient-to-r from-brand-blue-primary to-brand-blue-light px-8 py-6">
-          <div className="flex items-center gap-3 mb-4">
-            <Sparkles className="w-6 h-6 text-white/80" />
-            <span className="text-white/80 text-sm font-medium font-sans uppercase tracking-widest">
-              Quick Setup
-            </span>
+        <div className="bg-gradient-to-r from-brand-blue-primary to-brand-blue-light px-8 py-6 flex items-end justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3 mb-4">
+              <Sparkles className="w-6 h-6 text-white/80" />
+              <span className="text-white/80 text-sm font-medium font-sans uppercase tracking-widest">
+                Quick Setup
+              </span>
+            </div>
+            <h1 className="text-3xl font-bold text-white font-sans">
+              {step === 0
+                ? `Welcome, ${firstName}!`
+                : STEP_DEFS[currentKind].heading}
+            </h1>
+            <p className="text-white/70 mt-1 text-sm">
+              {STEP_DEFS[currentKind].subtitle}
+            </p>
           </div>
-          <h1 className="text-3xl font-bold text-white font-sans">
-            {step === 0
-              ? `Welcome, ${firstName}!`
-              : STEP_DEFS[currentKind].heading}
-          </h1>
-          <p className="text-white/70 mt-1 text-sm">
-            {STEP_DEFS[currentKind].subtitle}
-          </p>
+          {showSparty && (
+            <Sparty
+              pose={
+                finishing || isLastStep
+                  ? 'cheer'
+                  : step === 0
+                    ? 'wave'
+                    : 'point'
+              }
+              size={96}
+              decorative
+              onDark
+              className="shrink-0"
+            />
+          )}
         </div>
 
         {/* Step indicator */}

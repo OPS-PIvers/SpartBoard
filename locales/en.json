@@ -277,6 +277,7 @@
     "settings": {
       "googleDriveIntegration": "Google Drive Integration",
       "remoteControl": "Remote Control",
+      "showSparty": "Show Sparty",
       "googleDriveDescription": "Your boards back up to your \"{{appName}}\" folder in Drive.",
       "connectedSynced": "Connected",
       "disconnected": "Disconnected",
@@ -3747,6 +3748,7 @@
     "slideActionsN": "More actions for slide {{n}}",
     "duplicateSlide": "Duplicate slide",
     "pasteStepsHere": "Paste steps onto this slide",
+    "replaceImage": "Replace image",
     "stepActions": "Step actions",
     "duplicateStep": "Duplicate step",
     "copyStep": "Copy step",
@@ -3943,6 +3945,7 @@
     "hubAiDesc": "Describe the lesson and get a first draft to edit",
     "hubImport": "Import .gl.json",
     "hubImportDesc": "Open an activity exported from SpartBoard",
+    "hubRunLiveDesc": "Takes a picture of each step as it plays",
     "uploadUnsupported": "\"{{name}}\" isn't a supported file. Use an image, a GIF or a video (MP4, WebM, MOV).",
     "uploadTooLargeImage": "\"{{name}}\" is too large. Images can be up to {{max}} MB.",
     "uploadTooLargeVideo": "\"{{name}}\" is too large. Videos can be up to {{max}} MB, so trim it or record a shorter clip.",
@@ -4025,9 +4028,11 @@
     "mode_structured": "Structured",
     "mode_guided": "Guided",
     "mode_explore": "Explore",
+    "mode_tour": "Live tour",
     "modeDesc_structured": "Students click through step by step.",
     "modeDesc_guided": "Plays each step automatically.",
     "modeDesc_explore": "Students click steps in any order.",
+    "modeDesc_tour": "Runs on the real board, one control at a time.",
     "watchPace": "Guided pace",
     "pace_standard": "Standard",
     "pace_calm": "Calm",
@@ -4108,6 +4113,8 @@
     "runLiveDraft": "Run live on my board (draft)",
     "runLiveFromStep": "Run live from this step",
     "rerecordStep": "Re-record this step",
+    "retakePicture": "Retake this step's picture",
+    "retakeAllPictures": "Retake all pictures",
     "rerecordFailed": "Couldn't save the tour, so re-recording didn't start.",
     "reopenFailed": "Couldn't reopen the tour in the Studio.",
     "tourAnchorId": "Id:",
@@ -4178,8 +4185,10 @@
         "slides": "Slides",
         "videos": "Videos",
         "activities": "Activities",
-        "other": "Other"
-      }
+        "other": "Other",
+        "tours": "Live tours"
+      },
+      "liveTourBadge": "Live tour"
     },
     "shortcuts": {
       "open-help": "Open Help",
@@ -4626,6 +4635,7 @@
     "retry": "Try again",
     "next": "Next",
     "done": "Done",
+    "completeTitle": "Tour complete",
     "skip": "Skip",
     "showMeLive": "Show me live",
     "openGuides": "Open guides",
@@ -4653,7 +4663,8 @@
     "autoConfirm": "Autopilot will do this step. Go ahead?",
     "autoConfirmYes": "Do it",
     "autoConfirmNo": "I'll do it",
-    "moveHint": "Drag to move. Double-click to put it back at the top."
+    "moveHint": "Drag to move. Double-click to put it back at the top.",
+    "stepListNote": "Open SpartBoard on a computer to run this tour on your board."
   },
   "glPlayer": {
     "modeChip": {

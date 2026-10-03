@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Z_INDEX } from '@/config/zIndex';
+import { Sparty } from '@/components/sparty/Sparty';
+import type { SpartyPose } from '@/components/sparty/spartyFrames';
 
 const FOCUSABLE =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -9,10 +11,17 @@ interface Props {
   body: string;
   /** Buttons; the one marked `data-autofocus` takes focus when the dialog opens. */
   children: React.ReactNode;
+  /** Sparty beside the text, when the caller has checked `useShowSparty`. */
+  sparty?: SpartyPose;
 }
 
 /** A modal tour prompt that traps Tab and hands focus back when it closes. */
-export const TourDialog: React.FC<Props> = ({ title, body, children }) => {
+export const TourDialog: React.FC<Props> = ({
+  title,
+  body,
+  children,
+  sparty,
+}) => {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -63,14 +72,27 @@ export const TourDialog: React.FC<Props> = ({ title, body, children }) => {
       style={{ zIndex: Z_INDEX.tourCallout }}
     >
       <div className="w-full max-w-sm rounded-2xl bg-slate-900/95 p-5 text-white shadow-2xl ring-1 ring-white/15 backdrop-blur-xl">
-        <h2 id="tour-dialog-title" className="text-base font-bold">
-          {title}
-        </h2>
-        {body && (
-          <p className="mt-2 whitespace-pre-line text-sm text-slate-200">
-            {body}
-          </p>
-        )}
+        <div className="flex items-start gap-3">
+          {sparty && (
+            <Sparty
+              pose={sparty}
+              size={64}
+              decorative
+              onDark
+              className="shrink-0"
+            />
+          )}
+          <div className="min-w-0">
+            <h2 id="tour-dialog-title" className="text-base font-bold">
+              {title}
+            </h2>
+            {body && (
+              <p className="mt-2 whitespace-pre-line text-sm text-slate-200">
+                {body}
+              </p>
+            )}
+          </div>
+        </div>
         <div className="mt-4 flex justify-end gap-2">{children}</div>
       </div>
     </div>

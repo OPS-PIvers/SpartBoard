@@ -191,7 +191,7 @@ export async function buildRecordedSet(
         byStep.get(s.id)
       ),
     })),
-    mode: 'structured',
+    mode: 'tour',
     createdAt: now,
     updatedAt: now,
     isBuilding: true,

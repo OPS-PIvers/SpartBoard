@@ -1,4 +1,4 @@
-// Gemini prompts, schemas and parsers for PLC meeting notes (docs/plans/PLC_MEETING_RECORDING.md, MR-D13, MR-D17, MR-D18).
+// Gemini prompts, schemas and parsers for PLC meeting notes (docs/plans/shipped/PLC_MEETING_RECORDING.md, MR-D13, MR-D17, MR-D18).
 import { Type, type Schema } from '@google/genai';
 import { parseGeminiJson } from './parseGeminiJson';
 

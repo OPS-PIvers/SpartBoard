@@ -36,6 +36,7 @@ import {
   Send,
   Share2,
   Smartphone,
+  Smile,
   Sparkles,
   StickyNote,
   Table2,
@@ -59,13 +60,19 @@ import type {
 } from '@/types';
 
 export type FeatureStage = 'preview' | 'permanent';
-export type FeatureCategory = 'ai' | 'sharing' | 'integrations' | 'students';
+export type FeatureCategory =
+  | 'ai'
+  | 'sharing'
+  | 'integrations'
+  | 'students'
+  | 'look';
 
 export const FEATURE_CATEGORY_LABELS: Record<FeatureCategory, string> = {
   ai: 'AI',
   sharing: 'Sharing & sessions',
   integrations: 'Integrations',
   students: 'Students',
+  look: 'Look & feel',
 };
 
 /** Sections of a widget's admin config modal that graduated switches sort into. */
@@ -1106,6 +1113,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
   },
   // Assign dialogs' Submissions Enabled / Study Resource toggle. Off: every session uses its kind default (STUDENT_LANDING_V2 D8).
+  sparty: {
+    label: 'Sparty',
+    icon: Smile,
+    description: 'Pixel Spartan mascot in tours, setup and help.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'look',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'study-resources': {
     label: 'Study resources',
     icon: BookOpen,

@@ -15,6 +15,8 @@ interface ScaledEmptyStateProps {
    * default cqmin coefficient (tuned for whole-widget scope) would resolve
    * larger than intended. */
   iconSize?: string;
+  /** Drawn in the icon's box instead of `icon`, e.g. Sparty. */
+  art?: React.ReactNode;
 }
 
 /**
@@ -39,6 +41,7 @@ export const ScaledEmptyState: React.FC<ScaledEmptyStateProps> = ({
   titleClassName = 'text-slate-200',
   subtitleClassName = 'text-slate-300',
   iconSize = 'min(48px, 15cqmin)',
+  art,
 }) => {
   return (
     <div
@@ -52,7 +55,9 @@ export const ScaledEmptyState: React.FC<ScaledEmptyStateProps> = ({
           height: iconSize,
         }}
       >
-        <Icon aria-hidden="true" style={{ width: '100%', height: '100%' }} />
+        {art ?? (
+          <Icon aria-hidden="true" style={{ width: '100%', height: '100%' }} />
+        )}
       </div>
       <div className="flex flex-col" style={{ gap: '0.5cqmin' }}>
         <p

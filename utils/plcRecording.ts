@@ -10,7 +10,7 @@ import type {
 } from '@/types';
 import { tsToMillis } from '@/utils/plc';
 
-// Limits from docs/plans/PLC_MEETING_RECORDING.md; firestore.rules and storage.rules pin the same numbers.
+// Limits from docs/plans/shipped/PLC_MEETING_RECORDING.md; firestore.rules and storage.rules pin the same numbers.
 export const PLC_RECORDINGS_SUBCOLLECTION = 'recordings';
 export const PLC_TRANSCRIPT_SUBCOLLECTION = 'transcript';
 export const PLC_TRANSCRIPT_DOC_ID = 'main';

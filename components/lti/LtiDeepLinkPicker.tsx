@@ -95,6 +95,7 @@ import { videoActivityMaxPoints } from '@/utils/videoActivityGrading';
 import { logError } from '@/utils/logError';
 import { isGoogleSession } from '@/utils/googleSession';
 import { needsKeyMessage } from '@/utils/quizNeedsKey';
+import { applyAvailability } from '@/utils/assignAvailability';
 import {
   AddonShell,
   AddonHeader,
@@ -310,6 +311,7 @@ const LtiDeepLinkFlow: React.FC = () => {
     useAuth();
   // D12: with the split on, settings come from the teacher's last-used, editable inline.
   const reviewSplit = canAccessFeature('quiz-review-split');
+  const availabilityOn = canAccessFeature('assign-availability');
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     user?.uid,
     reviewSplit
@@ -556,6 +558,20 @@ const LtiDeepLinkFlow: React.FC = () => {
     return buildPlcLinkage(selectedPlc);
   }, [plcShareEnabled, selectedPlcId, plcs, user]);
 
+  // Availability on: the section's resolved window and due replace the standalone due field.
+  const resolveWindow = useCallback((): {
+    targeting: AssignTargetingValue;
+    dueAt: number | null;
+  } => {
+    if (!availabilityOn) return { targeting: assignTargeting, dueAt };
+    const { targeting } = applyAvailability(assignTargeting, {
+      enabled: true,
+      rosters: rosters.filter((r) => ltiSelectedRosterIds.includes(r.id)),
+      bellWindow: undefined,
+    });
+    return { targeting, dueAt: targeting.dueAt ?? null };
+  }, [availabilityOn, assignTargeting, dueAt, rosters, ltiSelectedRosterIds]);
+
   // Sign the deep-link response for an already-created assignment/session and
   // POST it back to Schoology. Shared tail of both the quiz and VA paths — the
   // create step is idempotent (cached in createdRef), so only this sign/POST
@@ -632,13 +648,15 @@ const LtiDeepLinkFlow: React.FC = () => {
         // (`{questionId}-correct` / `-incorrect-N`) must never reach a
         // student-readable pointer doc. Resolve them to option TEXT here,
         // where the full quiz body is in hand; the student side matches on text.
+        const resolvedWindow = resolveWindow();
+        const dueAt = resolvedWindow.dueAt;
         const hiddenOptions = translateHiddenOptionIdsToText(
           quizData.questions,
-          assignTargeting.overridesByKey
+          resolvedWindow.targeting.overridesByKey
         );
         const resolvedTargeting: AssignTargetingValue = expandClassTargeting(
           {
-            ...assignTargeting,
+            ...resolvedWindow.targeting,
             overridesByKey: hiddenOptions.overridesByKey,
           },
           ltiClassContext
@@ -786,10 +804,9 @@ const LtiDeepLinkFlow: React.FC = () => {
       contextTitle,
       teacherName,
       defaultTeacherName,
-      dueAt,
+      resolveWindow,
       resolvePlcLinkage,
       signAndReturn,
-      assignTargeting,
       setAssignmentTargets,
       setAssignmentTargetSkippedCount,
     ]
@@ -812,6 +829,7 @@ const LtiDeepLinkFlow: React.FC = () => {
         // Results push via videoActivityMaxPoints so the line item and the push
         // denominator can't drift.
         const maxPoints = videoActivityMaxPoints(activityData.questions);
+        const { targeting: windowTargeting, dueAt } = resolveWindow();
 
         // Respect the activity's OWN configured behavior, mirroring the normal
         // VA assign flow: `sessionOptions` + `attemptLimit` come from the
@@ -867,16 +885,16 @@ const LtiDeepLinkFlow: React.FC = () => {
         // assign path uses (session doc owns openAt/closeAt/dueAt; the
         // teacher archive doc owns targetGroupIds/overridesBySourcedId).
         if (
-          assignTargeting.openAt != null ||
-          assignTargeting.closeAt != null ||
+          windowTargeting.openAt != null ||
+          windowTargeting.closeAt != null ||
           dueAt != null
         ) {
           await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
-            ...(assignTargeting.openAt != null
-              ? { openAt: assignTargeting.openAt }
+            ...(windowTargeting.openAt != null
+              ? { openAt: windowTargeting.openAt }
               : {}),
-            ...(assignTargeting.closeAt != null
-              ? { closeAt: assignTargeting.closeAt }
+            ...(windowTargeting.closeAt != null
+              ? { closeAt: windowTargeting.closeAt }
               : {}),
             ...(dueAt != null ? { dueAt } : {}),
           });
@@ -884,7 +902,7 @@ const LtiDeepLinkFlow: React.FC = () => {
         // Expanded once: the archive doc and the CF payload must agree, or a
         // re-edit reads back overrides the fan-out never saw.
         const expandedTargeting = expandClassTargeting(
-          assignTargeting,
+          windowTargeting,
           ltiClassContext
         );
         if (user?.uid) {
@@ -897,11 +915,11 @@ const LtiDeepLinkFlow: React.FC = () => {
               ...(Object.keys(expandedTargeting.overridesByKey).length > 0
                 ? { overridesBySourcedId: expandedTargeting.overridesByKey }
                 : {}),
-              ...(assignTargeting.openAt != null
-                ? { openAt: assignTargeting.openAt }
+              ...(windowTargeting.openAt != null
+                ? { openAt: windowTargeting.openAt }
                 : {}),
-              ...(assignTargeting.closeAt != null
-                ? { closeAt: assignTargeting.closeAt }
+              ...(windowTargeting.closeAt != null
+                ? { closeAt: windowTargeting.closeAt }
                 : {}),
               ...(dueAt != null ? { dueAt } : {}),
             },
@@ -972,10 +990,9 @@ const LtiDeepLinkFlow: React.FC = () => {
       contextTitle,
       teacherName,
       defaultTeacherName,
-      dueAt,
+      resolveWindow,
       resolvePlcLinkage,
       signAndReturn,
-      assignTargeting,
       setAssignmentTargets,
       user,
     ]
@@ -1207,27 +1224,29 @@ const LtiDeepLinkFlow: React.FC = () => {
               {/* Due date — set once here, applied to BOTH the SpartBoard
                   assignment and the Schoology gradebook item (submission end
                   date). Optional; date-only, matching the normal assign flow. */}
-              <div>
-                <label
-                  htmlFor={dueDateId}
-                  className="mb-1.5 block text-sm font-medium text-slate-700"
-                >
-                  Due date{' '}
-                  <span className="font-normal text-slate-500">(optional)</span>
-                </label>
-                <input
-                  id={dueDateId}
-                  type="date"
-                  value={dueDateInputValue}
-                  onChange={handleDueDateChange}
-                  disabled={busy}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
-                />
-              </div>
+              {!availabilityOn && (
+                <div>
+                  <label
+                    htmlFor={dueDateId}
+                    className="mb-1.5 block text-sm font-medium text-slate-700"
+                  >
+                    Due date{' '}
+                    <span className="font-normal text-slate-500">
+                      (optional)
+                    </span>
+                  </label>
+                  <input
+                    id={dueDateId}
+                    type="date"
+                    value={dueDateInputValue}
+                    onChange={handleDueDateChange}
+                    disabled={busy}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+              )}
 
-              {/* M17 schedule window + individual-student targeting. The
-                  standalone "Due date" field above stays the single source of
-                  dueAt, so the section's own due picker is off. */}
+              {/* Schedule (or Availability & Due Date when on) + individual-student targeting. */}
               <div className="border-t border-slate-200 pt-4">
                 <AssignTargetingSection
                   rosters={rosters}
@@ -1235,6 +1254,7 @@ const LtiDeepLinkFlow: React.FC = () => {
                   allowModifications={ltiSelectedRosterIds.length > 0}
                   value={assignTargeting}
                   onChange={setAssignTargeting}
+                  availabilityEnabled={availabilityOn}
                   kind={kind === 'quiz' ? 'quiz' : 'video-activity'}
                   {...(kind === 'quiz'
                     ? {

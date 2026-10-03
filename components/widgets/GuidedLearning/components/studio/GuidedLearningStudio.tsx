@@ -130,8 +130,8 @@ export interface GuidedLearningStudioProps {
   initialStepId?: string;
   /** Closes the Studio and opens the .gl.json import; offered on an empty set. */
   onImport?: () => void;
-  /** A re-recorded click to apply to its step as one undoable edit on open. */
-  recapture?: StepRecapture;
+  /** Re-recorded clicks or retaken pictures, each applied to its step as one undoable edit on open. */
+  recaptures?: StepRecapture[];
 }
 
 /** Full-screen Guided Learning editor whose canvas is the real player stage. */
@@ -181,7 +181,7 @@ const StudioSession: React.FC<
   onFolderChange,
   initialStepId,
   onImport,
-  recapture,
+  recaptures,
   loadedUpdatedAt,
   onReloaded,
 }) => {
@@ -256,7 +256,7 @@ const StudioSession: React.FC<
     resetKey: set.id,
     // No slide, an in-flight upload, an unresolved conflict or a newer schema: nothing safe to write.
     enabled:
-      editorState.imageUrls.length > 0 &&
+      (editorState.imageUrls.length > 0 || editorState.mode === 'tour') &&
       !editorState.uploading &&
       !conflict &&
       !readOnly,
@@ -312,7 +312,11 @@ const StudioSession: React.FC<
       closeEditor();
       return true;
     }
-    if (imageUrls.length === 0 && (title.trim() || description.trim())) {
+    if (
+      imageUrls.length === 0 &&
+      editorState.mode !== 'tour' &&
+      (title.trim() || description.trim())
+    ) {
       const discard = await showConfirm(t('glStudio.emptySetBody'), {
         title: t('glStudio.emptySetTitle'),
         variant: 'warning',
@@ -339,7 +343,7 @@ const StudioSession: React.FC<
 
   // The runner loads the saved draft, so edits are saved first and never need publishing to test.
   const runLive = useCallback(
-    async (fromStepId?: string) => {
+    async (fromStepId?: string, retake?: string) => {
       if (conflict || !(await autosave.flush())) {
         addToast?.(t('glStudio.runLiveFailed'), 'error');
         return;
@@ -354,6 +358,7 @@ const StudioSession: React.FC<
         ...(fromStepId && fromStep >= 0
           ? { fromStep, returnToStepId: fromStepId }
           : {}),
+        ...(retake ? { retake } : {}),
       });
     },
     [conflict, autosave, addToast, t, closeEditor, set.id, editorState.steps]
@@ -414,7 +419,9 @@ const StudioSession: React.FC<
     clipboardStepCount,
   } = editorState;
   const liveTours = !!set.isBuilding && canAccessFeature('gl-live-tours');
-  const canRunLive = liveTours && steps.some((step) => step.tour);
+  const canRunLive =
+    liveTours &&
+    (editorState.mode === 'tour' || steps.some((step) => step.tour));
 
   const selectStepAt = useCallback(
     (index: number) => {
@@ -426,15 +433,17 @@ const StudioSession: React.FC<
     [steps, setSelectedStepId, setCurrentImageIndex]
   );
 
-  const [pendingRecapture, setPendingRecapture] = useState(recapture);
-  if (pendingRecapture) {
-    setPendingRecapture(undefined);
-    editorState.recaptureStep(pendingRecapture);
+  // One per render, so each recapture sees the slides the one before it added.
+  const [pendingRecaptures, setPendingRecaptures] = useState(recaptures ?? []);
+  if (pendingRecaptures.length > 0) {
+    const [next, ...rest] = pendingRecaptures;
+    setPendingRecaptures(rest);
+    editorState.recaptureStep(next);
   }
 
   // A recapture selects its own step, wherever its slide ended up.
   const [pendingStepId, setPendingStepId] = useState(
-    recapture ? undefined : initialStepId
+    recaptures?.length ? undefined : initialStepId
   );
   if (pendingStepId) {
     const opening = steps.find((s) => s.id === pendingStepId);
@@ -778,7 +787,7 @@ const StudioSession: React.FC<
         notice={
           autosave.error instanceof SetTooLargeError
             ? autosave.error.message
-            : editorState.imageUrls.length === 0
+            : editorState.imageUrls.length === 0 && editorState.mode !== 'tour'
               ? t('glStudio.needSlide')
               : !editorState.title.trim()
                 ? t('glStudio.needTitle')
@@ -1018,6 +1027,7 @@ const StudioSession: React.FC<
                 }
                 onDraftWithAi={canUseAi ? () => setShowAiGen(true) : undefined}
                 onImport={onImport ? () => leaveThen(onImport) : undefined}
+                onRunLive={canRunLive ? () => void runLive() : undefined}
               />
             ) : (
               <StudioCanvas
@@ -1072,6 +1082,11 @@ const StudioSession: React.FC<
             }
             saveForPublish={saveForPublish}
             onRunFromStep={canRunLive ? (id) => void runLive(id) : undefined}
+            onRetakePictures={
+              canRunLive && editorState.mode === 'tour' && !readOnly
+                ? (id) => void runLive(id, id ?? 'all')
+                : undefined
+            }
             onRerecordStep={
               canRecordTour && !readOnly
                 ? (id) => void rerecordStep(id)

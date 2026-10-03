@@ -468,7 +468,9 @@ the set, `get_guided_learning_slide` shows a slide with its steps, and
 server checks the importer's ranges, and slides can't be added or replaced
 that way. `list_tour_anchors` lists the anchors a step's `tour` can bind to.
 The server refuses an anchor it doesn't know, unless the stored step already
-had it.
+had it. A new live tour is made with the admin-only `create_live_tour`, which
+can file it straight into the Help Center as a hidden draft; follow
+`skills/spartboard/references/live-tours.md` in `OPS-PIvers/claude-skills`.
 
 ## Round-trip guarantee
 

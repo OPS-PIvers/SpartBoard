@@ -54,7 +54,7 @@ describe('create_guided_learning', () => {
       id: 'g1',
       title: 'Open the dock',
       imageUrls: [],
-      mode: 'structured',
+      mode: 'tour',
       isBuilding: true,
       authorUid: 'u1',
       hasLiveTour: true,
@@ -68,10 +68,36 @@ describe('create_guided_learning', () => {
     expect(Object.values(set)).not.toContain(undefined);
   });
 
-  it('needs a tour binding on a live tour and imageIndex 0 without slides', () => {
-    expect(() => validateCreate(input({ steps: [step()] }))).toThrow(
-      /at least one step with a tour binding/
+  it('starts a tour with Autopilot on only when asked', () => {
+    const req = input({ autopilot: true });
+    const set = buildNewSet(
+      req,
+      { id: 'g2', uid: 'u1', now: 5 },
+      'building',
+      validateCreate(req),
+      { urls: [], paths: [] }
     );
+    expect(set.tourSetup).toEqual({ widgets: [], autopilot: true });
+  });
+
+  it('accepts whole-board opening steps only as observe steps', () => {
+    const board = (action: 'observe' | 'click') =>
+      tourStep({ tour: { anchor: 'board.whole', action } });
+    expect(() =>
+      validateCreate(input({ steps: [board('observe')] }))
+    ).not.toThrow();
+    expect(() => validateCreate(input({ steps: [board('click')] }))).toThrow(
+      /"board.whole" steps observe/
+    );
+  });
+
+  it('needs a tour binding on every live tour step and imageIndex 0 without slides', () => {
+    expect(() => validateCreate(input({ steps: [step()] }))).toThrow(
+      /steps\[0\]: every live tour step needs a tour binding/
+    );
+    expect(() =>
+      validateCreate(input({ steps: [tourStep(), step({ id: 's2' })] }))
+    ).toThrow(/steps\[1\]: every live tour step/);
     expect(() =>
       validateCreate(input({ steps: [tourStep({ imageIndex: 1 })] }))
     ).toThrow(/must be 0 when there are no slides/);
@@ -88,6 +114,32 @@ describe('create_guided_learning', () => {
     expect(() => validateCreate(input({ tour_widgets: ['clocks'] }))).toThrow(
       /"clocks" is not a widget type/
     );
+    expect(() =>
+      validateCreate(
+        input({ help_center: { category_id: 'admin', widget_types: ['nope'] } })
+      )
+    ).toThrow(/help_center.widget_types: "nope" is not a widget type/);
+  });
+
+  it('marks a Help Center tour so the library hides it', () => {
+    const req = input({ help_center: { category_id: 'admin' } });
+    const set = buildNewSet(
+      req,
+      { id: 'g3', uid: 'u1', now: 9 },
+      'building',
+      validateCreate(req),
+      { urls: [], paths: [] }
+    );
+    expect(set).toMatchObject({ helpCenter: true, hasLiveTour: true });
+    expect(
+      buildNewSet(
+        input(),
+        { id: 'g4', uid: 'u1', now: 9 },
+        'building',
+        validateCreate(input()),
+        { urls: [], paths: [] }
+      )
+    ).not.toHaveProperty('helpCenter');
   });
 
   it('needs slides on a standard activity and keeps tours out of it', () => {

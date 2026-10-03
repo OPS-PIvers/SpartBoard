@@ -12,8 +12,8 @@ import {
 const PERSISTS_ID = 'plc-edit.send-invite';
 
 describe('liveTourStepsOf', () => {
-  const set = (steps: object[]) =>
-    ({ steps }) as unknown as Pick<GuidedLearningSet, 'steps'>;
+  const set = (steps: object[], mode = 'structured') =>
+    ({ steps, mode }) as unknown as Pick<GuidedLearningSet, 'mode' | 'steps'>;
 
   it('keeps plain steps in order when any step is anchored', () => {
     const steps = [
@@ -30,6 +30,20 @@ describe('liveTourStepsOf', () => {
 
   it('is empty when nothing is anchored', () => {
     expect(liveTourStepsOf(set([{ id: 'intro' }]))).toEqual([]);
+  });
+
+  it('plays every step of a tour-mode set, even with nothing anchored', () => {
+    expect(liveTourStepsOf(set([{ id: 'intro' }], 'tour'))).toHaveLength(1);
+  });
+
+  it('plays a whole-board step as a plain card', () => {
+    const steps = [
+      { id: 'intro', tour: { anchor: 'board.whole', action: 'observe' } },
+      { id: 'a', tour: { anchor: 'sidebar.boards', action: 'click' } },
+    ];
+    const run = liveTourStepsOf(set(steps, 'tour'));
+    expect(run[0].tour).toBeUndefined();
+    expect(run[1].tour?.anchor).toBe('sidebar.boards');
   });
 });
 

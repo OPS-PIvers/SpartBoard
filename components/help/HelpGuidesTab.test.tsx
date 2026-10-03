@@ -20,6 +20,8 @@ const helpState = vi.hoisted(() => ({
 }));
 
 const glMocks = vi.hoisted(() => ({
+  liveTours: false,
+  tourSetIds: new Set<string>(),
   loadBuildingSet: vi.fn(),
   playerProps: [] as { teacherMode?: boolean; setTitle: string }[],
 }));
@@ -48,7 +50,8 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     orgId: 'org-1',
     user: { uid: 'u1' },
-    canAccessFeature: () => false,
+    canAccessFeature: (id: string) =>
+      glMocks.liveTours && id === 'gl-live-tours',
   }),
 }));
 
@@ -72,6 +75,8 @@ vi.mock('@/hooks/useHelpResources', async (importOriginal) => {
 
 vi.mock('@/hooks/useGuidedLearning', () => ({
   loadBuildingSet: glMocks.loadBuildingSet,
+  useLiveTourSetIds: (enabled: boolean) =>
+    enabled ? glMocks.tourSetIds : new Set<string>(),
 }));
 
 vi.mock(
@@ -117,6 +122,8 @@ describe('HelpGuidesTab', () => {
     firestoreMocks.updateDoc.mockClear();
     glMocks.loadBuildingSet.mockReset();
     glMocks.playerProps.length = 0;
+    glMocks.liveTours = false;
+    glMocks.tourSetIds = new Set();
     helpState.items = [
       makeItem({ id: 'v1', title: 'Welcome video' }),
       makeItem({
@@ -164,6 +171,45 @@ describe('HelpGuidesTab', () => {
     await user.click(screen.getByRole('button', { name: 'Videos' }));
     expect(screen.getByText('Welcome video')).toBeInTheDocument();
     expect(screen.queryByText('Board basics')).toBeNull();
+  });
+
+  it('badges live tours and filters to them with the tours chip', async () => {
+    const user = userEvent.setup();
+    glMocks.liveTours = true;
+    glMocks.tourSetIds = new Set(['tour-set']);
+    helpState.items.push(
+      makeItem({
+        id: 'g1',
+        kind: 'guided-learning',
+        title: 'Boards walkthrough',
+        url: null,
+        embedType: null,
+        setId: 'tour-set',
+      })
+    );
+    render(<HelpGuidesTab query="" />);
+    expect(screen.getAllByText('Live tour')).toHaveLength(1);
+
+    await user.click(screen.getByRole('button', { name: 'Live tours' }));
+    expect(screen.getByText('Boards walkthrough')).toBeInTheDocument();
+    expect(screen.queryByText('Welcome video')).toBeNull();
+  });
+
+  it('shows no tour badge or chip without the flag', () => {
+    glMocks.tourSetIds = new Set(['tour-set']);
+    helpState.items.push(
+      makeItem({
+        id: 'g1',
+        kind: 'guided-learning',
+        title: 'Boards walkthrough',
+        url: null,
+        embedType: null,
+        setId: 'tour-set',
+      })
+    );
+    render(<HelpGuidesTab query="" />);
+    expect(screen.queryByText('Live tour')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Live tours' })).toBeNull();
   });
 
   it('preselects the widget filter and clears it from the chip', async () => {

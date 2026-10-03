@@ -298,6 +298,7 @@ describe('defaultImportDestination', () => {
     expect(defaultImportDestination(base)).toBe('personal');
     expect(
       defaultImportDestination({
+        mode: 'structured',
         steps: [
           ...base.steps,
           {

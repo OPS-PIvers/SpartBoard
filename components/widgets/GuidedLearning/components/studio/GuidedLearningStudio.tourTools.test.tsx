@@ -243,16 +243,18 @@ describe('Studio tour tools', () => {
   it('applies a re-recorded click on open, selected and undoable', async () => {
     const { onSave } = renderStudio({
       initialStepId: 'step-2',
-      recapture: {
-        stepId: 'step-2',
-        url: 'https://example.com/new.png',
-        placement: {
-          xPct: 70,
-          yPct: 20,
-          region: { shape: 'rect', wPct: 6, hPct: 5 },
+      recaptures: [
+        {
+          stepId: 'step-2',
+          url: 'https://example.com/new.png',
+          placement: {
+            xPct: 70,
+            yPct: 20,
+            region: { shape: 'rect', wPct: 6, hPct: 5 },
+          },
+          tour: { anchor: 'widget.close', action: 'click' },
         },
-        tour: { anchor: 'widget.close', action: 'click' },
-      },
+      ],
     });
     expect(screen.getByTestId('gl-studio-step-section')).toHaveTextContent(
       'Step 2'

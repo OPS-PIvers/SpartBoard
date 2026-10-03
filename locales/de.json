@@ -277,6 +277,7 @@
     "settings": {
       "googleDriveIntegration": "Google Drive-Integration",
       "remoteControl": "Fernsteuerung",
+      "showSparty": "Sparty anzeigen",
       "googleDriveDescription": "Deine Tafeln werden in deinem \"{{appName}}\"-Ordner in Drive gesichert.",
       "connectedSynced": "Verbunden",
       "disconnected": "Getrennt",
@@ -2624,6 +2625,7 @@
     "slideActionsN": "Weitere Aktionen für Folie {{n}}",
     "duplicateSlide": "Folie duplizieren",
     "pasteStepsHere": "Schritte auf diese Folie einfügen",
+    "replaceImage": "Bild ersetzen",
     "stepActions": "Schrittaktionen",
     "duplicateStep": "Schritt duplizieren",
     "copyStep": "Schritt kopieren",
@@ -2820,6 +2822,7 @@
     "hubAiDesc": "Beschreibe die Lektion und erhalte einen ersten Entwurf zum Bearbeiten",
     "hubImport": ".gl.json importieren",
     "hubImportDesc": "Eine aus SpartBoard exportierte Aktivität öffnen",
+    "hubRunLiveDesc": "Nimmt während der Tour von jedem Schritt ein Bild auf",
     "uploadUnsupported": "„{{name}}“ wird nicht unterstützt. Verwende ein Bild, ein GIF oder ein Video (MP4, WebM, MOV).",
     "uploadTooLargeImage": "„{{name}}“ ist zu groß. Bilder dürfen bis zu {{max}} MB groß sein.",
     "uploadTooLargeVideo": "„{{name}}“ ist zu groß. Videos dürfen bis zu {{max}} MB groß sein. Kürze es oder nimm einen kürzeren Clip auf.",
@@ -2902,9 +2905,11 @@
     "mode_structured": "Strukturiert",
     "mode_guided": "Geführt",
     "mode_explore": "Erkunden",
+    "mode_tour": "Live-Tour",
     "modeDesc_structured": "Schüler klicken sich Schritt für Schritt durch.",
     "modeDesc_guided": "Spielt jeden Schritt automatisch ab.",
     "modeDesc_explore": "Schüler klicken Schritte in beliebiger Reihenfolge an.",
+    "modeDesc_tour": "Läuft auf der echten Tafel, ein Bedienelement nach dem anderen.",
     "watchPace": "Tempo im geführten Modus",
     "pace_standard": "Standard",
     "pace_calm": "Ruhig",
@@ -2985,6 +2990,8 @@
     "runLiveDraft": "Live auf meiner Tafel starten (Entwurf)",
     "runLiveFromStep": "Ab diesem Schritt live starten",
     "rerecordStep": "Diesen Schritt neu aufnehmen",
+    "retakePicture": "Bild dieses Schritts neu aufnehmen",
+    "retakeAllPictures": "Alle Bilder neu aufnehmen",
     "rerecordFailed": "Die Tour konnte nicht gespeichert werden, daher wurde die Neuaufnahme nicht gestartet.",
     "reopenFailed": "Die Tour konnte nicht wieder im Studio geöffnet werden.",
     "tourAnchorId": "ID:",
@@ -3055,8 +3062,10 @@
         "slides": "Präsentationen",
         "videos": "Videos",
         "activities": "Aktivitäten",
-        "other": "Sonstiges"
-      }
+        "other": "Sonstiges",
+        "tours": "Live-Touren"
+      },
+      "liveTourBadge": "Live-Tour"
     },
     "shortcuts": {
       "open-help": "Hilfe öffnen",
@@ -3586,6 +3595,7 @@
     "retry": "Erneut versuchen",
     "next": "Weiter",
     "done": "Fertig",
+    "completeTitle": "Tour abgeschlossen",
     "skip": "Überspringen",
     "showMeLive": "Live zeigen",
     "openGuides": "Anleitungen öffnen",
@@ -3613,7 +3623,8 @@
     "autoConfirm": "Autopilot führt diesen Schritt aus. Fortfahren?",
     "autoConfirmYes": "Ausführen",
     "autoConfirmNo": "Selbst machen",
-    "moveHint": "Zum Verschieben ziehen. Doppelklick setzt sie wieder nach oben."
+    "moveHint": "Zum Verschieben ziehen. Doppelklick setzt sie wieder nach oben.",
+    "stepListNote": "Öffne SpartBoard an einem Computer, um diese Tour auf deiner Tafel zu starten."
   },
   "glPlayer": {
     "modeChip": {

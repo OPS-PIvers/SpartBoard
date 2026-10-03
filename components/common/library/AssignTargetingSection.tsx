@@ -155,6 +155,8 @@ export interface AssignTargetingSectionProps {
   scheduleLabel?: string;
   /** `assign-availability` on: Availability & Due Date replaces Schedule and the period mode; the host saves through `applyAvailability`. */
   availabilityEnabled?: boolean;
+  /** False hides "All classes / Each class" where only one window can be saved. */
+  availabilityEachClass?: boolean;
   /** `study-resources` on: adds the Submissions Enabled / Study Resource choice to Availability, preset to the kind's default. */
   workKind?: WorkKindSetting;
   /** Collapsed-state summary for `scheduleExtra`. */
@@ -326,6 +328,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   scheduleExtraSummary,
   scheduleLabel,
   availabilityEnabled = false,
+  availabilityEachClass = true,
   workKind: workKindSetting,
 }) => {
   const { t } = useTranslation();
@@ -1006,6 +1009,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
           onChange={(availability) => patch({ availability })}
           rosters={rosters.filter((r) => effectiveRosterIds.includes(r.id))}
           periodAccess={periodAccess}
+          eachClass={availabilityEachClass}
           cqScaled={cqScaled}
           workKind={workKind}
           onWorkKindChange={

@@ -245,6 +245,8 @@ export interface AuthContextType {
   quizGraderMode: 'question' | 'student';
   /** Whether the Free Response grader moves on by itself once a grade is complete. */
   quizGraderAutoAdvance: boolean;
+  /** Teacher's own "Show Sparty" switch; Sparty also needs the `sparty` feature. */
+  spartyEnabled: boolean;
   /**
    * The Collection the teacher was most recently in. Restored from the
    * userProfile doc on sign-in so the app can re-open the correct Collection
@@ -267,6 +269,7 @@ export interface AuthContextType {
     quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
     quizGraderMode?: 'question' | 'student';
     quizGraderAutoAdvance?: boolean;
+    spartyEnabled?: boolean;
   }) => Promise<void>;
   /**
    * The organization this user belongs to, derived from their membership doc.

@@ -33,6 +33,7 @@ import { BoardNavFab } from './BoardNavFab';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
 import { GroupReminderHost } from '@/components/groupReminders/GroupReminderHost';
 import { MountedBoardsLayer } from './MountedBoardsLayer';
+import { tourAttr } from '@/config/tourAnchors';
 import { HelpCenterModal } from '@/components/help/HelpCenterModal';
 import { LiveTourRunner } from '@/components/tours/LiveTourRunner';
 import { TourStageTransition } from '@/components/tours/TourStageTransition';
@@ -1507,6 +1508,7 @@ export const DashboardView: React.FC = () => {
     <div
       ref={dashboardRef}
       id="dashboard-root"
+      {...tourAttr('board.whole')}
       style={cssVars}
       className={`relative h-screen w-screen overflow-hidden transition-all duration-1000 ${fontClass}`}
       onClick={(e) => {

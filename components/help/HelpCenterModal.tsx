@@ -7,6 +7,8 @@ import { HelpGuidesTab } from './HelpGuidesTab';
 import { setLastHelpTab, type HelpTab } from './helpCenterState';
 import type { WidgetType } from '@/types';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { Sparty } from '@/components/sparty/Sparty';
+import { useShowSparty } from '@/components/sparty/useShowSparty';
 
 interface HelpCenterModalProps {
   isOpen: boolean;
@@ -36,6 +38,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
+  const showSparty = useShowSparty();
   const tabRefs = useRef<Partial<Record<HelpTab, HTMLButtonElement | null>>>(
     {}
   );
@@ -163,6 +166,15 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
               {t(`helpCenter.tabs.${id}`)}
             </button>
           ))}
+          {showSparty && (
+            <div className="mt-auto flex justify-center pt-4">
+              <Sparty
+                pose={query.trim() ? 'think' : 'wave'}
+                size={64}
+                decorative
+              />
+            </div>
+          )}
         </nav>
 
         <div className="md:hidden p-3 border-b border-slate-200">

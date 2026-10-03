@@ -46,9 +46,11 @@ import {
 } from '@/components/widgets/GuidedLearning/components/player/useReadAloud';
 import {
   clearStudioReturn,
+  handOffSnapshots,
   isTourRunning,
   setTourRunning,
   TOUR_START_EVENT,
+  type TourSnapshots,
   type TourStartRequest,
 } from './tourState';
 import {
@@ -80,6 +82,8 @@ import { fieldSettingsTab } from './settingsTab';
 import { anchorPrerequisite } from '@/config/tourAnchors';
 import { markSettingsOpenedLocally } from '@/components/settings/settingsOpenSignal';
 import { TourDialog } from './TourDialog';
+import { useShowSparty } from '@/components/sparty/useShowSparty';
+import type { SpartyPose } from '@/components/sparty/spartyFrames';
 import {
   autoLeadMs,
   autoObserveMs,
@@ -112,6 +116,7 @@ interface LaunchOptions {
   skipWelcome?: boolean;
   /** Runs the Studio draft instead of the published snapshot. */
   draft?: boolean;
+  retake?: TourStartRequest['retake'];
 }
 
 interface ActiveTour {
@@ -141,6 +146,8 @@ interface ActiveTour {
   /** A cleared stage: widgets the app adds while the tour runs are tour widgets. */
   clearStage?: boolean;
   draft?: boolean;
+  /** Draft runs: whose pictures to retake; steps without one always get one. */
+  retake?: TourStartRequest['retake'];
 }
 
 const EMPTY_LAYER = {
@@ -194,6 +201,9 @@ const PREREQ_RETRY_MS = 400;
 // A board switch this soon after a step's click is that step's own navigation.
 const FOLLOW_BOARD_MS = 3000;
 const CALLOUT_WIDTH = 320;
+/** Lets a scrolled or opened control settle before its picture is taken. */
+const SNAPSHOT_SETTLE_MS = 300;
+
 /** A plain step's centred card reads wider than a pointing callout. */
 const PLAIN_WIDTH = 400;
 /** The 480px mini-player plus the callout's padding. */
@@ -254,6 +264,10 @@ export const LiveTourRunner: React.FC = () => {
   const dashboard = useDashboard();
   const { activeDashboard, removeWidgets } = dashboard;
   const [tour, setTour] = useState<ActiveTour | null>(null);
+  const showSparty = useShowSparty();
+  // Set when a run reaches its last step, so the closing prompt can cheer.
+  const [finished, setFinished] = useState(false);
+  const [cheering, setCheering] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [box, setBox] = useState({ w: CALLOUT_WIDTH, h: 140 });
   // The bar's Autopilot switch; handsOn marks a teacher who turned it off this run.
@@ -442,6 +456,50 @@ export const LiveTourRunner: React.FC = () => {
   }, [liftEl]);
 
   const binding = step?.tour ?? null;
+
+  // Draft runs picture each bound step that has no slide yet, or that the Studio asked to retake.
+  const snapshots = useRef(new Map<string, TourSnapshots['shots'][number]>());
+  const [shotIds, setShotIds] = useState<ReadonlySet<string>>(() => new Set());
+  const snapStepId =
+    tour?.phase === 'running' &&
+    tour.draft &&
+    step &&
+    binding &&
+    anchor.status === 'found' &&
+    !shotIds.has(step.id) &&
+    (tour.retake === 'all' ||
+      tour.retake === step.id ||
+      !hasStepSlide(tour.set, step))
+      ? step.id
+      : null;
+  const snapElement = snapStepId ? anchor.element : null;
+  useEffect(() => {
+    if (!snapStepId || !snapElement || !binding) return;
+    let live = true;
+    const people = (latest.current.dashboard.rosters ?? []).flatMap(
+      (r) => r.students
+    );
+    const timer = window.setTimeout(() => {
+      void import('./stepSnapshot')
+        .then((m) => m.captureStepSnapshot(snapElement, people))
+        .then((shot) => {
+          if (!live || !shot) return;
+          snapshots.current.set(snapStepId, {
+            stepId: snapStepId,
+            tour: binding,
+            ...shot,
+          });
+          setShotIds((prev) => new Set(prev).add(snapStepId));
+        })
+        .catch((err: unknown) =>
+          console.warn('Live tour step picture failed', err)
+        );
+    }, SNAPSHOT_SETTLE_MS);
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+  }, [snapStepId, snapElement, binding]);
   const anchorScope = { widgetIds: added, slots: tour?.slots };
   const onStage = hiddenIds.length
     ? widgets.filter((w) => !hiddenIds.includes(w.id))
@@ -603,7 +661,7 @@ export const LiveTourRunner: React.FC = () => {
         ? startTourRunLog(set.id, uid, { v: set.updatedAt, furthest: index })
         : null;
     setAttempt(0);
-    setAutoOn(set.mode === 'guided');
+    setAutoOn(set.mode === 'guided' || set.tourSetup?.autopilot === true);
     setHandsOn(false);
     setAuto(null);
     setCue(null);
@@ -628,6 +686,7 @@ export const LiveTourRunner: React.FC = () => {
       hidden,
       clearStage,
       draft: opts.draft,
+      retake: opts.retake,
     });
   };
 
@@ -650,7 +709,10 @@ export const LiveTourRunner: React.FC = () => {
       ...EMPTY_LAYER,
       policy: DEFAULT_TOUR_AUTOPILOT_POLICY,
       draft: opts.draft,
+      retake: opts.retake,
     });
+    setCheering(false);
+    setFinished(false);
     if (phase === 'welcome') setTour(pending('welcome'));
     else if (latest.current.dashboard.isActiveBoardReadOnly)
       setTour(pending('practice-offer'));
@@ -695,7 +757,11 @@ export const LiveTourRunner: React.FC = () => {
           from === 0 && !opts.skipWelcome && tourWelcome(set) !== null
             ? 'welcome'
             : null,
-          { ...opts, draft: req.draft }
+          {
+            ...opts,
+            draft: req.draft,
+            ...(req.draft && req.retake ? { retake: req.retake } : {}),
+          }
         );
       } catch (err) {
         console.error('LiveTourRunner: could not load tour', err);
@@ -740,6 +806,16 @@ export const LiveTourRunner: React.FC = () => {
 
   // Keep saves the tour's widgets; every other ending discards them.
   const endTour = (keep = false) => {
+    if (tour?.draft && snapshots.current.size > 0) {
+      const shots = [...snapshots.current.values()];
+      handOffSnapshots({
+        setId: tour.set.id,
+        stepId: shots[shots.length - 1].stepId,
+        shots,
+      });
+    }
+    snapshots.current = new Map();
+    setShotIds(new Set());
     if (tour) {
       const d = latest.current.dashboard;
       if (keep) d.commitTourWidgets?.(tour.tourIds);
@@ -757,7 +833,7 @@ export const LiveTourRunner: React.FC = () => {
 
   const startOnPracticeBoard = async () => {
     if (!tour) return;
-    const { set, steps, index, draft } = tour;
+    const { set, steps, index, draft, retake } = tour;
     const id = await latest.current.dashboard.createNewDashboard(
       latest.current.t('tours.practiceBoardName')
     );
@@ -780,7 +856,7 @@ export const LiveTourRunner: React.FC = () => {
       abandon();
       return;
     }
-    runSetup(set, steps, index, { draft });
+    runSetup(set, steps, index, { draft, retake });
   };
 
   // A step left while its anchor was still missing counts as a field miss.
@@ -796,11 +872,13 @@ export const LiveTourRunner: React.FC = () => {
       runLog.current?.end(done ? { done } : { done, exit: tour.index });
       runLog.current = null;
     }
+    setFinished(done);
     if (added.length > 0) {
       setTour({ ...tour, phase: 'teardown' });
       return;
     }
     endTour();
+    if (done && showSparty) setCheering(true);
   };
 
   const goTo = (index: number) => {
@@ -1001,6 +1079,13 @@ export const LiveTourRunner: React.FC = () => {
   const isClick = acted;
   // A step with no anchor is a centred card on the dimmed board.
   const plain = running && !!step && !step.tour;
+  // The dim stays up while the next step's anchor is found, so back-to-back spotlights never flash.
+  const dimNow = running && (anchor.status === 'found' || plain);
+  const [dimHeld, setDimHeld] = useState(false);
+  if (dimNow !== dimHeld && (dimNow || anchor.status !== 'searching')) {
+    setDimHeld(dimNow);
+  }
+  const showDim = dimNow || (running && dimHeld);
   const cursorAllowed =
     running && center !== null && isClick && !step?.cursor?.hide;
   // Guided sets start with the Autopilot switch on; the teacher can flip it either way.
@@ -1232,17 +1317,49 @@ export const LiveTourRunner: React.FC = () => {
     boxObserver.current.observe(el);
   }, []);
 
-  if (typeof document === 'undefined' || (!tour && !offeringResume)) {
-    return null;
+  if (typeof document === 'undefined') return null;
+  if (!tour && !offeringResume) {
+    if (!cheering) return null;
+    return createPortal(
+      <div
+        data-tour-ignore=""
+        data-click-outside-ignore="true"
+        onClick={(e) => e.stopPropagation()}
+        className="contents"
+      >
+        <TourDialog
+          key="cheer"
+          title={t('tours.completeTitle')}
+          body=""
+          sparty="cheer"
+        >
+          <button
+            type="button"
+            data-autofocus=""
+            className={primaryBtn}
+            onClick={() => setCheering(false)}
+          >
+            {t('tours.done')}
+          </button>
+        </TourDialog>
+      </div>,
+      document.body
+    );
   }
 
   // Keyed by phase so each prompt mounts fresh and takes focus.
   const dialog = (
     title: string,
     body: string,
-    actions: React.ReactNode
+    actions: React.ReactNode,
+    sparty?: SpartyPose
   ): React.ReactNode => (
-    <TourDialog key={tour?.phase ?? 'resume'} title={title} body={body}>
+    <TourDialog
+      key={tour?.phase ?? 'resume'}
+      title={title}
+      body={body}
+      sparty={showSparty ? sparty : undefined}
+    >
       {actions}
     </TourDialog>
   );
@@ -1275,7 +1392,7 @@ export const LiveTourRunner: React.FC = () => {
       </>
     );
   } else if (tour.phase === 'welcome') {
-    const { set, steps, index, draft } = tour;
+    const { set, steps, index, draft, retake } = tour;
     content = dialog(
       set.title.trim() || t('tours.welcomeTitle'),
       tourWelcome(set) ?? '',
@@ -1291,11 +1408,12 @@ export const LiveTourRunner: React.FC = () => {
           type="button"
           data-autofocus=""
           className={primaryBtn}
-          onClick={() => begin(set, steps, index, null, { draft })}
+          onClick={() => begin(set, steps, index, null, { draft, retake })}
         >
           {t('tours.startTour')}
         </button>
-      </>
+      </>,
+      'wave'
     );
   } else if (tour.phase === 'practice-offer') {
     content = dialog(
@@ -1338,7 +1456,8 @@ export const LiveTourRunner: React.FC = () => {
         >
           {t('tours.keepWidgets')}
         </button>
-      </>
+      </>,
+      finished ? 'cheer' : undefined
     );
   } else if (step) {
     const total = tour.steps.length;
@@ -1409,7 +1528,7 @@ export const LiveTourRunner: React.FC = () => {
         : null;
     content = (
       <>
-        {(anchor.status === 'found' || plain) && (
+        {showDim && (
           <TourSpotlight
             rect={rect}
             onMisclick={misclick}

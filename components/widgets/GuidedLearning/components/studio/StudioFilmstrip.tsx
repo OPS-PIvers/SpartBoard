@@ -12,6 +12,7 @@ import {
   ClipboardPaste,
   Copy,
   Film,
+  ImageUp,
   Loader2,
   PanelLeftClose,
   PanelLeftOpen,
@@ -57,6 +58,7 @@ interface SlideThumbProps {
   onDelete: (index: number) => void;
   onDuplicate: (index: number) => void;
   onPaste: (index: number) => void;
+  onReplace: (index: number) => void;
   /** Steps waiting on the clipboard. */
   pasteCount: number;
 }
@@ -68,6 +70,7 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
   onDelete,
   onDuplicate,
   onPaste,
+  onReplace,
   pasteCount,
   current,
   count,
@@ -154,6 +157,12 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
               disabled: pasteCount === 0,
               onSelect: () => onPaste(slide.index),
             },
+            {
+              id: 'replace',
+              label: t('glStudio.replaceImage'),
+              icon: ImageUp,
+              onSelect: () => onReplace(slide.index),
+            },
           ]}
         />
       </div>
@@ -207,6 +216,7 @@ type FilmstripState = Pick<
   | 'uploading'
   | 'uploadProgress'
   | 'uploadFromFiles'
+  | 'replaceSlideFromFile'
   | 'uploadFromClipboard'
   | 'addCapturedMedia'
 >;
@@ -242,6 +252,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
   uploading,
   uploadProgress,
   uploadFromFiles,
+  replaceSlideFromFile,
   uploadFromClipboard,
   addCapturedMedia,
   stepCounts,
@@ -250,6 +261,12 @@ const FilmstripBody = React.memo(function FilmstripBody({
 }: FilmstripBodyProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const replaceIndexRef = useRef(0);
+  const onReplace = useCallback((index: number) => {
+    replaceIndexRef.current = index;
+    replaceInputRef.current?.click();
+  }, []);
   const [captureMode, setCaptureMode] = useState<CaptureMode | null>(null);
   const drop = useFileDrop((files) => void uploadFromFiles(files));
 
@@ -289,6 +306,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
         onDelete={deleteImage}
         onDuplicate={duplicateSlide}
         onPaste={pasteSteps}
+        onReplace={onReplace}
         pasteCount={clipboardStepCount}
       />
     ),
@@ -297,6 +315,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
       deleteImage,
       duplicateSlide,
       pasteSteps,
+      onReplace,
       clipboardStepCount,
     ]
   );
@@ -329,6 +348,12 @@ const FilmstripBody = React.memo(function FilmstripBody({
     if (files.length === 0) return;
     await uploadFromFiles(files);
     e.target.value = '';
+  };
+
+  const handleReplaceFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) void replaceSlideFromFile(replaceIndexRef.current, file);
   };
 
   const dropOverlay = drop.active && (
@@ -444,6 +469,14 @@ const FilmstripBody = React.memo(function FilmstripBody({
           className="hidden"
           onChange={handleFiles}
         />
+        <input
+          ref={replaceInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          data-testid="gl-studio-replace-input"
+          onChange={handleReplaceFile}
+        />
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
@@ -486,7 +519,7 @@ interface StudioFilmstripProps {
   onToggleCollapsed?: () => void;
 }
 
-/** Left column: slide thumbnails to pick, reorder, add and delete. */
+/** Left column: slide thumbnails to pick, reorder, add, replace and delete. */
 export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({
   state,
   onDeleteSlide,
@@ -534,6 +567,7 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({
       uploading={state.uploading}
       uploadProgress={state.uploadProgress}
       uploadFromFiles={state.uploadFromFiles}
+      replaceSlideFromFile={state.replaceSlideFromFile}
       uploadFromClipboard={state.uploadFromClipboard}
       addCapturedMedia={state.addCapturedMedia}
       stepCounts={stepCounts}

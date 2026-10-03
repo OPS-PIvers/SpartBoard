@@ -1,5 +1,6 @@
 // glTransfer — pure .gl.json export/import helpers with injected network/storage effects.
 
+import { isLiveTourSet } from './liveTour';
 import type { GuidedLearningSet } from '@/types';
 import {
   GL_SET_SCHEMA_VERSION,
@@ -189,12 +190,13 @@ export async function rehostImportedSetImages(
 
 export type ImportDestination = 'personal' | 'building';
 
-export const hasTourBindings = (set: Pick<GuidedLearningSet, 'steps'>) =>
-  set.steps.some((s) => !!s.tour);
+export const hasTourBindings = (
+  set: Pick<GuidedLearningSet, 'mode' | 'steps'>
+) => isLiveTourSet(set);
 
-// Live tours only run from building sets, so a file with tour steps defaults there.
+// Live tours only run from building sets, so a tour file defaults there.
 export const defaultImportDestination = (
-  set: Pick<GuidedLearningSet, 'steps'>
+  set: Pick<GuidedLearningSet, 'mode' | 'steps'>
 ): ImportDestination => (hasTourBindings(set) ? 'building' : 'personal');
 
 // Mint fresh identity; schemaVersion passes through so legacy files keep legacy semantics.

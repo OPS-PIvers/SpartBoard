@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyAvailability,
+  applyWindowEdit,
+  availabilityFromStored,
+  changedWindow,
   closesBeforeOpens,
   defaultAvailability,
+  periodAccessWindowEdits,
   resolveAvailability,
   type AssignAvailability,
 } from './assignAvailability';
@@ -292,5 +296,162 @@ describe('study resources', () => {
       'work'
     );
     expect(resolved.closeAt).toBe(at('2026-10-02', '09:52'));
+  });
+});
+
+describe('editing a saved window', () => {
+  const createdAt = at('2026-10-02', '08:13');
+
+  it('hydrates set times from the stored window', () => {
+    const value = availabilityFromStored(
+      {
+        openAt: at('2026-10-02', '09:00'),
+        closeAt: at('2026-10-03', '15:00'),
+        dueAt: at('2026-10-03', '15:00'),
+        createdAt,
+      },
+      []
+    );
+    expect(value.all).toEqual({
+      opens: { day: '2026-10-02', time: '09:00' },
+      closes: { day: '2026-10-03', time: '15:00' },
+    });
+    expect(value.allowLate).toBe(false);
+  });
+
+  it('reads a due date with no close as late work allowed', () => {
+    const value = availabilityFromStored(
+      { dueAt: at('2026-10-03', '15:00'), createdAt },
+      []
+    );
+    expect(value.allowLate).toBe(true);
+    expect(value.all.opens).toEqual({ day: '2026-10-02', time: '08:13' });
+  });
+
+  it('splits per-class due dates into each class', () => {
+    const value = availabilityFromStored(
+      {
+        closeAt: at('2026-10-04', '15:00'),
+        dueAtByRosterId: {
+          r3: at('2026-10-03', '15:00'),
+          r5: at('2026-10-04', '15:00'),
+        },
+        createdAt,
+      },
+      ['r3', 'r5']
+    );
+    expect(value.byRoster?.r3.closes).toEqual({
+      day: '2026-10-03',
+      time: '15:00',
+    });
+    const resolved = resolveAvailability(value, [p3, p5], undefined);
+    expect(resolved.dueAtByRosterId).toEqual({
+      r3: at('2026-10-03', '15:00'),
+      r5: at('2026-10-04', '15:00'),
+    });
+  });
+
+  it('reports only the fields that changed', () => {
+    expect(
+      changedWindow(
+        { openAt: 1, closeAt: 2, dueAt: 2 },
+        { openAt: 1, closeAt: 3, dueAt: 3 }
+      )
+    ).toEqual({ closeAt: 3, dueAt: 3 });
+  });
+
+  it('leaves a window with no close untouched when only opens moves', () => {
+    const stored = { openAt: at('2026-10-02', '09:00'), createdAt };
+    const availability = availabilityFromStored(stored, []);
+    const next = applyWindowEdit(
+      {
+        ...EMPTY_ASSIGN_TARGETING_VALUE,
+        openAt: stored.openAt,
+        availability: {
+          ...availability,
+          all: {
+            ...availability.all,
+            opens: { day: '2026-10-02', time: '10:00' },
+          },
+        },
+      },
+      stored,
+      true
+    );
+    expect(next.openAt).toBe(at('2026-10-02', '10:00'));
+    expect(next.closeAt).toBeUndefined();
+    expect(next.dueAt).toBeUndefined();
+    expect('availability' in next).toBe(false);
+  });
+
+  it('clears the close and keeps the due date when late work is allowed', () => {
+    const stored = {
+      openAt: at('2026-10-02', '09:00'),
+      closeAt: at('2026-10-03', '15:00'),
+      dueAt: at('2026-10-03', '15:00'),
+      createdAt,
+    };
+    const availability = availabilityFromStored(stored, []);
+    const next = applyWindowEdit(
+      {
+        ...EMPTY_ASSIGN_TARGETING_VALUE,
+        openAt: stored.openAt,
+        closeAt: stored.closeAt,
+        dueAt: stored.dueAt,
+        availability: { ...availability, allowLate: true },
+      },
+      stored,
+      true
+    );
+    expect(next.closeAt).toBeUndefined();
+    expect(next.dueAt).toBe(stored.dueAt);
+  });
+});
+
+describe('editing per-class windows', () => {
+  const row = (rosterId: string, openAt: number, closeAt: number) => ({
+    state: 'open' as const,
+    openAt,
+    closeAt,
+    bellPeriodId: null,
+    verified: true,
+    label: rosterId,
+    rosterId,
+  });
+  const periodAccess = {
+    k3: row('r3', at('2026-10-02', '09:05'), at('2026-10-03', '09:52')),
+    k5: row('r5', at('2026-10-02', '11:40'), at('2026-10-03', '12:27')),
+  };
+  const stored = { createdAt: at('2026-10-01', '08:00'), periodAccess };
+
+  it('hydrates each class from its own row', () => {
+    const value = availabilityFromStored(stored, ['r3', 'r5']);
+    expect(value.byRoster?.r5.opens).toEqual({
+      day: '2026-10-02',
+      time: '11:40',
+    });
+    expect(value.all.opens.time).toBe('09:05');
+  });
+
+  it('writes only the row that changed', () => {
+    const value = availabilityFromStored(stored, ['r3', 'r5']);
+    const before = resolveAvailability(value, [p3, p5], undefined);
+    const after = resolveAvailability(
+      {
+        ...value,
+        byRoster: {
+          ...value.byRoster,
+          r5: {
+            ...(value.byRoster?.r5 ?? value.all),
+            opens: { day: '2026-10-02', time: '13:00' },
+          },
+        },
+      },
+      [p3, p5],
+      undefined
+    );
+    expect(periodAccessWindowEdits(periodAccess, before, after)).toEqual({
+      'periodAccess.k5.openAt': at('2026-10-02', '13:00'),
+    });
   });
 });

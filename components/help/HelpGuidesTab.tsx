@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import Fuse from 'fuse.js';
 import {
   FileText,
+  Footprints,
   GraduationCap,
   Link2,
   Loader2,
@@ -16,9 +17,12 @@ import type { HelpResourceItem } from '@/types/helpCenter';
 import { useAuth } from '@/context/useAuth';
 import { useHelpResources } from '@/hooks/useHelpResources';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useLiveTourSetIds } from '@/hooks/useGuidedLearning';
 import { HelpResourceViewer } from './HelpResourceViewer';
 import { HelpCopyLinkButton } from './HelpCopyLinkButton';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { Sparty } from '@/components/sparty/Sparty';
+import { useShowSparty } from '@/components/sparty/useShowSparty';
 
 interface HelpGuidesTabProps {
   query: string;
@@ -27,9 +31,10 @@ interface HelpGuidesTabProps {
 }
 
 type HelpKindFilter = 'docs' | 'slides' | 'videos' | 'activities' | 'other';
+type HelpChip = HelpKindFilter | 'tours';
 
 const KIND_FILTERS: {
-  id: HelpKindFilter;
+  id: HelpChip;
   icon: React.ComponentType<{ className?: string }>;
 }[] = [
   { id: 'docs', icon: FileText },
@@ -37,6 +42,7 @@ const KIND_FILTERS: {
   { id: 'videos', icon: Play },
   { id: 'activities', icon: GraduationCap },
   { id: 'other', icon: Link2 },
+  { id: 'tours', icon: Footprints },
 ];
 
 const kindOf = (item: HelpResourceItem): HelpKindFilter => {
@@ -67,13 +73,19 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
   itemId,
 }) => {
   const { t } = useTranslation();
-  const { orgId, isAdmin } = useAuth();
+  const showSparty = useShowSparty();
+  const { orgId, isAdmin, canAccessFeature } = useAuth();
+  const tourSetIds = useLiveTourSetIds(canAccessFeature('gl-live-tours'));
+  const isTour = (item: HelpResourceItem): boolean =>
+    item.kind === 'guided-learning' &&
+    !!item.setId &&
+    tourSetIds.has(item.setId);
   const { organization } = useOrganization(orgId);
   const { items, categories, loading } = useHelpResources({
     includeHidden: false,
   });
   const [categoryId, setCategoryId] = useState('all');
-  const [kinds, setKinds] = useState<HelpKindFilter[]>([]);
+  const [kinds, setKinds] = useState<HelpChip[]>([]);
   const [openItem, setOpenItem] = useState<HelpResourceItem | null>(null);
   const returnFocusId = useRef<string | null>(null);
   const [widgetFilter, setWidgetFilter] = useState<WidgetType | undefined>(
@@ -160,7 +172,12 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
       item.categoryId !== effectiveCategoryId
     )
       return false;
-    if (kinds.length > 0 && !kinds.includes(kindOf(item))) return false;
+    if (
+      kinds.length > 0 &&
+      !kinds.includes(kindOf(item)) &&
+      !(kinds.includes('tours') && isTour(item))
+    )
+      return false;
     return true;
   });
 
@@ -183,7 +200,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
       ?.focus();
   }, [openItem]);
 
-  const toggleKind = (kind: HelpKindFilter) =>
+  const toggleKind = (kind: HelpChip) =>
     setKinds((prev) =>
       prev.includes(kind) ? prev.filter((k) => k !== kind) : [...prev, kind]
     );
@@ -191,6 +208,12 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
   if (openItem) {
     return <HelpResourceViewer item={openItem} onBack={closeItem} />;
   }
+
+  // The tours chip shows only while some guide in view is a tour.
+  const hasTours = scopedItems.some(isTour);
+  const chips = KIND_FILTERS.filter(
+    ({ id }) => id !== 'tours' || hasTours || kinds.includes('tours')
+  );
 
   const categoryOptions = [
     { id: 'all', name: t('helpCenter.guides.allCategories') },
@@ -246,7 +269,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
 
       <div className="flex-1 min-w-0 flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
-          {KIND_FILTERS.map(({ id, icon: Icon }) => (
+          {chips.map(({ id, icon: Icon }) => (
             <button
               key={id}
               type="button"
@@ -279,16 +302,23 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
 
         {loading ? (
           <div className="flex items-center justify-center py-16 text-slate-400">
-            <Loader2 className="w-5 h-5 animate-spin" />
+            {showSparty ? (
+              <Sparty pose="think" size={64} decorative />
+            ) : (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            )}
           </div>
         ) : items.length === 0 ? (
           <p className="py-16 text-center text-sm text-slate-500">
             {t('helpCenter.guides.empty')}
           </p>
         ) : filtered.length === 0 ? (
-          <p className="py-16 text-center text-sm text-slate-500">
-            {t('helpCenter.guides.noMatches')}
-          </p>
+          <div className="flex flex-col items-center gap-3 py-16">
+            {showSparty && <Sparty pose="oops" size={64} decorative />}
+            <p className="text-center text-sm text-slate-500">
+              {t('helpCenter.guides.noMatches')}
+            </p>
+          </div>
         ) : (
           <ul className="flex flex-col gap-2">
             {filtered.map((item, index) => {
@@ -331,6 +361,12 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
                         </span>
                       )}
                     </span>
+                    {isTour(item) && (
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-slate-200 text-slate-700 text-[11px] font-semibold shrink-0">
+                        <Footprints className="w-3 h-3" aria-hidden="true" />
+                        {t('helpCenter.guides.liveTourBadge')}
+                      </span>
+                    )}
                     {item.orgId && (
                       <span className="px-2 py-0.5 rounded-full bg-brand-blue-primary/10 text-brand-blue-primary text-[11px] shrink-0">
                         {organization?.shortName ??

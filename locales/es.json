@@ -277,6 +277,7 @@
     "settings": {
       "googleDriveIntegration": "Integración Google Drive",
       "remoteControl": "Control Remoto",
+      "showSparty": "Mostrar a Sparty",
       "googleDriveDescription": "Tus tableros se guardan en tu carpeta \"{{appName}}\" en Drive.",
       "connectedSynced": "Conectado",
       "disconnected": "Desconectado",
@@ -2624,6 +2625,7 @@
     "slideActionsN": "Más acciones para la diapositiva {{n}}",
     "duplicateSlide": "Duplicar diapositiva",
     "pasteStepsHere": "Pegar pasos en esta diapositiva",
+    "replaceImage": "Reemplazar imagen",
     "stepActions": "Acciones del paso",
     "duplicateStep": "Duplicar paso",
     "copyStep": "Copiar paso",
@@ -2820,6 +2822,7 @@
     "hubAiDesc": "Describe la lección y recibe un primer borrador para editar",
     "hubImport": "Importar .gl.json",
     "hubImportDesc": "Abre una actividad exportada desde SpartBoard",
+    "hubRunLiveDesc": "Toma una imagen de cada paso mientras se reproduce",
     "uploadUnsupported": "\"{{name}}\" no es un archivo compatible. Usa una imagen, un GIF o un video (MP4, WebM, MOV).",
     "uploadTooLargeImage": "\"{{name}}\" es demasiado grande. Las imágenes pueden ocupar hasta {{max}} MB.",
     "uploadTooLargeVideo": "\"{{name}}\" es demasiado grande. Los videos pueden ocupar hasta {{max}} MB; recórtalo o graba un clip más corto.",
@@ -2902,9 +2905,11 @@
     "mode_structured": "Estructurado",
     "mode_guided": "Guiado",
     "mode_explore": "Explorar",
+    "mode_tour": "Recorrido en vivo",
     "modeDesc_structured": "Los estudiantes avanzan paso a paso.",
     "modeDesc_guided": "Reproduce cada paso automáticamente.",
     "modeDesc_explore": "Los estudiantes abren los pasos en cualquier orden.",
+    "modeDesc_tour": "Se ejecuta en el tablero real, un control a la vez.",
     "watchPace": "Ritmo guiado",
     "pace_standard": "Estándar",
     "pace_calm": "Tranquilo",
@@ -2985,6 +2990,8 @@
     "runLiveDraft": "Ejecutar en vivo en mi pizarra (borrador)",
     "runLiveFromStep": "Ejecutar en vivo desde este paso",
     "rerecordStep": "Volver a grabar este paso",
+    "retakePicture": "Volver a tomar la imagen de este paso",
+    "retakeAllPictures": "Volver a tomar todas las imágenes",
     "rerecordFailed": "No se pudo guardar el recorrido, así que no empezó la nueva grabación.",
     "reopenFailed": "No se pudo volver a abrir el recorrido en el Studio.",
     "tourAnchorId": "Id:",
@@ -3055,8 +3062,10 @@
         "slides": "Presentaciones",
         "videos": "Vídeos",
         "activities": "Actividades",
-        "other": "Otros"
-      }
+        "other": "Otros",
+        "tours": "Recorridos en vivo"
+      },
+      "liveTourBadge": "Recorrido en vivo"
     },
     "shortcuts": {
       "open-help": "Abrir la ayuda",
@@ -3586,6 +3595,7 @@
     "retry": "Intentar de nuevo",
     "next": "Siguiente",
     "done": "Listo",
+    "completeTitle": "Recorrido completado",
     "skip": "Omitir",
     "showMeLive": "Muéstramelo en vivo",
     "openGuides": "Abrir guías",
@@ -3613,7 +3623,8 @@
     "autoConfirm": "Autopilot hará este paso. ¿Continuar?",
     "autoConfirmYes": "Hazlo",
     "autoConfirmNo": "Lo hago yo",
-    "moveHint": "Arrastra para moverla. Doble clic para volver a ponerla arriba."
+    "moveHint": "Arrastra para moverla. Doble clic para volver a ponerla arriba.",
+    "stepListNote": "Abre SpartBoard en una computadora para hacer este recorrido en tu tablero."
   },
   "glPlayer": {
     "modeChip": {

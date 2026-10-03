@@ -140,7 +140,7 @@ export const mcpServer = onRequest(
     const [
       { McpServer },
       { StreamableHTTPServerTransport },
-      { registerTools, SERVER_INSTRUCTIONS },
+      { registerTools, hiddenToolsFor, SERVER_INSTRUCTIONS },
       { registerPrompts },
       { slimToolListing },
     ] = await Promise.all([
@@ -166,14 +166,15 @@ export const mcpServer = onRequest(
       },
       { instructions: SERVER_INSTRUCTIONS }
     );
-    registerTools(server, {
+    const ctx = {
       db,
       uid: claims.uid,
       email: claims.email,
       grantId: claims.grantId,
-    });
+    };
+    registerTools(server, ctx);
     registerPrompts(server);
-    slimToolListing(server);
+    slimToolListing(server, () => hiddenToolsFor(ctx));
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
