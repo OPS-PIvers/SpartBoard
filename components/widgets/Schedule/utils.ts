@@ -30,20 +30,24 @@ export const getTodayStr = (): string => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+const HH_MM = /^(\d{1,2}):(\d{2})$/;
+
 /** Parses an "HH:MM" time string and returns minutes since midnight, or -1 if invalid. */
 export const parseScheduleTime = (t: string | undefined): number => {
-  if (!t || !t.includes(':')) return -1;
-  const [h, m] = t.split(':').map(Number);
-  if (isNaN(h) || isNaN(m)) return -1;
+  const match = t ? HH_MM.exec(t) : null;
+  if (!match) return -1;
+  const h = Number(match[1]);
+  const m = Number(match[2]);
   if (h < 0 || h > 23 || m < 0 || m > 59) return -1;
   return h * 60 + m;
 };
 
 /** Parses an "HH:MM" time string and returns seconds since midnight, or -1 if invalid. */
 export const parseScheduleTimeSeconds = (t: string | undefined): number => {
-  if (!t || !t.includes(':')) return -1;
-  const [h, m] = t.split(':').map(Number);
-  if (isNaN(h) || isNaN(m)) return -1;
+  const match = t ? HH_MM.exec(t) : null;
+  if (!match) return -1;
+  const h = Number(match[1]);
+  const m = Number(match[2]);
   if (h < 0 || h > 23 || m < 0 || m > 59) return -1;
   return h * 3600 + m * 60;
 };
