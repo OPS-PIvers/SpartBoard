@@ -69,7 +69,10 @@ export const parseGeminiJson = <T>(raw: string): T => {
     const start = pos + m.index;
     const closeCh = fenced[start] === '[' ? ']' : '}';
     const end = scanToClose(fenced, start, fenced[start], closeCh);
-    if (end === -1) break;
+    if (end === -1) {
+      pos = start + 1;
+      continue;
+    }
     try {
       return JSON.parse(fenced.slice(start, end + 1)) as T;
     } catch {
