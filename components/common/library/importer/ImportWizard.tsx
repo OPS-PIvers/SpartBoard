@@ -137,6 +137,9 @@ export function ImportWizard<TData>({
   // The document uploader renders its Import button into the footer.
   const [submitSlot, setSubmitSlot] = useState<HTMLDivElement | null>(null);
   const [creatingTemplate, setCreatingTemplate] = useState(false);
+  const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied'>(
+    'idle'
+  );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bulkInputRef = useRef<HTMLInputElement>(null);
@@ -171,6 +174,7 @@ export function ImportWizard<TData>({
       setAiGenerating(false);
       setShowFormat(false);
       setCreatingTemplate(false);
+      setCopyState('idle');
     }
   }
 
@@ -391,15 +395,18 @@ export function ImportWizard<TData>({
   };
 
   const handleCopyTemplateUrl = async (): Promise<void> => {
-    if (!adapter.templateHelper) return;
+    if (!adapter.templateHelper || copyState === 'copying') return;
     const session = sessionRef.current;
     setParseError(null);
+    setCopyState('copying');
     try {
       const { url } = await adapter.templateHelper.createTemplate();
       if (session !== sessionRef.current) return;
       await navigator.clipboard.writeText(url);
+      if (session === sessionRef.current) setCopyState('copied');
     } catch (err) {
       if (session !== sessionRef.current) return;
+      setCopyState('idle');
       setParseError(
         err instanceof Error ? err.message : 'Failed to copy template URL.'
       );
@@ -716,10 +723,15 @@ export function ImportWizard<TData>({
             <button
               type="button"
               onClick={() => void handleCopyTemplateUrl()}
-              className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-1.5 py-2 bg-white border-2 border-brand-blue-primary/20 hover:border-brand-blue-primary/40 rounded-xl text-brand-blue-primary font-black transition-all shadow-sm active:scale-95 text-xs uppercase tracking-widest"
+              disabled={copyState === 'copying'}
+              className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-1.5 py-2 bg-white border-2 border-brand-blue-primary/20 hover:border-brand-blue-primary/40 rounded-xl text-brand-blue-primary font-black transition-all shadow-sm active:scale-95 disabled:opacity-50 text-xs uppercase tracking-widest"
             >
-              <Copy className="w-3.5 h-3.5" />
-              Copy template URL
+              {copyState === 'copying' ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Copy className="w-3.5 h-3.5" />
+              )}
+              {copyState === 'copied' ? 'Link copied' : 'Copy template URL'}
             </button>
           </div>
         </div>
