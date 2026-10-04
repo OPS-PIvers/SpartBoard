@@ -129,4 +129,9 @@ describe('parseGeminiJson', () => {
       items: [1, 2],
     });
   });
+
+  it('skips a stray brace pair in leading prose before the real object', () => {
+    const raw = 'Use the {placeholder} syntax: {"foo":"bar"}';
+    expect(parseGeminiJson<Sample>(raw)).toEqual({ foo: 'bar' });
+  });
 });

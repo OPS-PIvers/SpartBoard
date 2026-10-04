@@ -60,42 +60,22 @@ export const parseGeminiJson = <T>(raw: string): T => {
     .replace(/```\s*$/i, '')
     .trim();
 
-  // Detect whether the response is a top-level array or object and find the
-  // matching opener so we can extract the correct slice.
-  //
-  // When Gemini returns an array of objects, e.g. `[{…},{…}]` optionally
-  // followed by trailing prose, the previous brace-only scanner would find
-  // the first `{` *inside* the array and close at depth 0 on the *first*
-  // object's `}`, silently truncating every subsequent element.
-  const firstBracket = fenced.indexOf('[');
-  const firstBrace = fenced.indexOf('{');
-
-  // Try the array path first when its opener appears before any brace, but
-  // fall back to the brace path if parsing the array slice fails — leading
-  // prose may contain a stray `[` (e.g. a Markdown link `[docs]`) that
-  // precedes the real JSON object.
-  const tryArrayFirst =
-    firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace);
-
-  if (tryArrayFirst) {
-    const closingPos = scanToClose(fenced, firstBracket, '[', ']');
-    if (closingPos !== -1) {
-      const candidate = fenced.slice(firstBracket, closingPos + 1);
-      try {
-        return JSON.parse(candidate) as T;
-      } catch {
-        // Stray `[…]` in leading prose — fall through to the brace path.
-      }
+  // Try each top-level `{`/`[` in order, skipping stray ones in leading prose (e.g. `{x}` or `[docs]`).
+  let pos = 0;
+  while (pos < fenced.length) {
+    const rest = fenced.slice(pos);
+    const m = /[[{]/.exec(rest);
+    if (!m) break;
+    const start = pos + m.index;
+    const closeCh = fenced[start] === '[' ? ']' : '}';
+    const end = scanToClose(fenced, start, fenced[start], closeCh);
+    if (end === -1) break;
+    try {
+      return JSON.parse(fenced.slice(start, end + 1)) as T;
+    } catch {
+      pos = end + 1;
     }
   }
 
-  let slice = fenced;
-  if (firstBrace !== -1) {
-    const closingPos = scanToClose(fenced, firstBrace, '{', '}');
-    if (closingPos !== -1) {
-      slice = fenced.slice(firstBrace, closingPos + 1);
-    }
-  }
-
-  return JSON.parse(slice) as T;
+  return JSON.parse(fenced) as T;
 };
