@@ -4,6 +4,25 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-10-01
+
+- PRs reviewed: **6** (every open PR). All six target `dev-paul`, all six are drafts, and no head branch was `main` or `dev-*`, so all were writable.
+  - **#3694** SSRF guard: block IPv6 forms embedding private IPv4 and CGNAT/multicast ranges (`nightly/build-tooling-2026-10-01`)
+  - **#3693** Fix word count splitting words at inline formatting tags (`nightly/state-data-2026-10-01`)
+  - **#3692** Fix widget title rename dropped after an Escape-cancelled rename (`nightly/dashboard-layout-2026-10-01`)
+  - **#3691** Calendar widget: order same-day events by start time (`nightly/widgets-2026-10-01`)
+  - **#3685** Unify PaperBoxSizeField on the radiogroup pattern (unifier run 103) (`claude/kind-johnson-pbxnhp`)
+  - **#3665** Add live tour for assigning a quiz (`codex/create-live-tour-for-assigning-quiz`)
+- Comments processed: **6 — 0 fixed, 0 explained, 6 no action.** No PR had an unresolved inline review thread. #3694, #3691 and #3685 each carried one `claude[bot]` "no issues" summary; #3665's three comments (a spacing regression on the `quiz.assign-options` wrapper and a stray root `.gl.json`) were already fixed in `c1ab9ba` or already answered and left to Paul. #3693 and #3692 had no comments at all.
+- Fixes pushed: **none.**
+- Reviews posted: **6** (one structured COMMENT review per PR). Verdicts and notable findings:
+  - **#3694 — Ready with minor notes.** The new IPv6 checks still miss long-form loopback/unspecified (`0:0:0:0:0:0:0:1`, `0:0:0:0:0:0:0:0`) and zone-id `::1%lo`; verified by running the branch's `ssrfGuard.ts`. Probably not exploitable since `dns.lookup` returns canonical short form, but the PR claims to cover long forms. SIIT/Teredo unwrapping noted as optional.
+  - **#3693 — Ready.** Inline tags now strip without a space, block/`br` tags still split; `\b` correctly avoids `<pre>`/`<thead>` matches. Optional test for adjacent inline elements suggested.
+  - **#3692 — Ready with minor notes.** `DraggableWindow.test.tsx` 87/87 locally, CI 14/14 green. Nits: test comment states browser blur behaviour as fact; pre-existing `saveTitle` comment describes the flag order backwards.
+  - **#3691 — Ready.** `Calendar/Widget.test.tsx` 9/9 locally (description claims 11/11). The "across sources" test uses only local events; the time parser only understands `am`/`pm` (pre-existing).
+  - **#3685 — Ready.** Types line up with `handleRadioGroupKeyDown`, CI 14/14 green. Minor: an out-of-range saved size would leave no tabbable radio (same gap as sibling radiogroups); keyboard test covers ArrowRight only.
+  - **#3665 — Ready with minor notes.** `tests/tourAnchors.test.ts` 8/8 and the gl-author validator pass. Step 1 targets the first quiz card, which doesn't exist for a teacher with an empty library; step 4 publishes a real assignment; the root `.gl.json` still needs Paul's ship/remove decision.
+
 ## 2026-09-20
 
 - PRs reviewed: **8** (every open PR). All eight target `dev-paul`, all eight are drafts, and every head branch was a `nightly/*` or `claude/*` branch — none was `main`- or `dev-*`-headed, so all were writable.
