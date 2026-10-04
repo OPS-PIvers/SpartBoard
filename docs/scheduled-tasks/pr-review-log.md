@@ -4478,3 +4478,21 @@ rather than "no data") is also still open.
   - #3792 CI is fully green on `d3c4e4c`. `ChoiceOptionsEditor` is imported only by `QuizEditor`, so the hardcoded `quiz` scope is safe.
   - #3797 has no CI check runs (doc-only).
   - `gh` is unauthenticated, so GitHub access went through MCP. The log goes to the session branch, not `scheduled-tasks`, per the session's branch rules.
+
+## 2026-10-04
+
+- PRs reviewed:
+  - #3819 fix(utils): future-dated lastActive stamp no longer blocks writes
+  - #3818 fix(functions): parseGeminiJson skips stray brace pairs in leading prose
+  - #3817 fix(widgets): reject partial and out-of-range times in schedule parsers
+  - #3816 docs(widget-registry): clarify legacy settings/appearance map comments
+  - #3815 docs(unifier): run 106 log (2026-10-04)
+- Comments processed: 3 total — 0 fixed, 3 explained. No inline review threads existed. All three were claude[bot] no-issues summaries (#3819, #3817, #3816), which needed no action.
+- Fixes pushed: none
+- Reviews posted: 5
+- Merge readiness: Ready: #3819, #3816, #3815. Ready with minor notes: #3817 (the regex is duplicated across the two utils files). Needs changes: #3818.
+- Notes:
+  - #3818 regression, reproduced with `tsx` against both versions: `'Step [1 of 2: {"foo":"bar"}'` parsed on `dev-paul` but now throws, because `if (end === -1) break;` stops at an unclosed stray opener. The review suggests `pos = start + 1; continue;` plus a test. CI on #3818 is green because no test covers this case.
+  - #3817: the only `HH:MM:SS` input that is now rejected comes from no current writer. Google Calendar `"9:00 AM"` times were already rejected before this PR.
+  - #3816 also edits this log file, so expect a trivial append conflict when both land.
+  - `gh` is unauthenticated, so GitHub access went through MCP. The log goes to the session branch, not `scheduled-tasks`, per the session's branch rules.
