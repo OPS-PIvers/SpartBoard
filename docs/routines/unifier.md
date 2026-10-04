@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 105_
-_Last run: 2026-10-03_
+_Run count: 106_
+_Last run: 2026-10-04_
 _Base branch: dev-paul_
 
 ---
@@ -570,6 +570,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-10-04 | `nightly/unifier-log-2026-10-04` | D1/D2/D4/D5 | Aligned (run 106) — light probe of the 68 source files changed since run 105 (dev-paul `f6d09422`: tours, Sparty, help, LTI/classroom-addon pickers, assignments hub). D2: only hits are `sparty/spartyFrames.ts:6` (pixel-art palette, same rationale as D2-E6) and `types.ts` comments/defaults (existing). D4: only `functions/src/mcp/*` single-level `../` (functions/ has no `@/` alias). D5: no `<Toast>` imports. D1: empty-state strings are in non-widget surfaces (auth setup, LTI/classroom-addon pickers, assignments hub) and the GL manager already uses a shared empty state — out of scope. D3 candidates (`GroupColorPicker`, `ProjectBoardView` toggle) still need a human decision (D3-E35). No code shipped; full `validate` not run (CLAUDE.md forbids it). Doc-only PR. | — |
 | 2026-10-03 | `claude/kind-johnson-lkakr8` | D2/D4 | Aligned (run 105) — light probe on dev-paul `efdf32b4` (D1/D3/D5 not re-swept): D2 inline-style grep found only `MusicWidget/Widget.tsx:348` (existing D2-E5); D4 deep-relative grep hit only intra-`GuidedLearning` sibling paths (`../../utils/*`), not cross-directory. D3 remaining candidates (`GroupColorPicker`, `ProjectBoardView` layout toggle) still need a human decision on non-selecting radiogroup nav (D3-E35). No code shipped; full `validate` not run (CLAUDE.md forbids it). Doc-only PR. | — |
 | 2026-10-02 | `claude/kind-johnson-okuyzx` | D3 Settings Labels | Rejected (run 104) — the last run-100 candidate, `ProjectStepStatePicker.tsx`, is a pick-and-close popover (`onPick` commits and dismisses), so selection-follows-focus radiogroup nav would dismiss on the first arrow key. Formalized as D3-E35; no code shipped. Remaining run-100 candidates `GroupColorPicker` and `ProjectBoardView` layout toggle carry the same trap and need a non-selecting nav design (human decision). D1/D2/D4/D5 not investigated. Doc-only PR. | — |
 | 2026-10-01 | `claude/kind-johnson-pbxnhp` | D3 Settings Labels | Shipped (run 103) — `components/widgets/QuizWidget/components/PaperBoxSizeField.tsx` (paper answer box size S/M/L/Full) converted `role="group"` + `aria-pressed` → `radiogroup`/`radio`/`aria-checked`/roving tabindex via `handleRadioGroupKeyDown`. Non-nullable value, single setter, no side effect; visuals unchanged. `QuizEditorModal.paperBox.test.tsx` updated + arrow-key test; 121 related suites pass. Solo run; scoped checks only (CLAUDE.md forbids full validate). Remaining D3 candidate: `ProjectStepStatePicker.tsx`. Mechanical. | PR (this branch) |
