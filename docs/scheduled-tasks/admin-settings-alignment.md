@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Sunday_
-_Last audited: 2026-09-27_
+_Last audited: 2026-10-04_
 _Last action: 2026-09-27 — HIGH ActivityWall `no case 'activity-wall'` in admin building config resolved: added `BuildingActivityWallDefaults` (fontFamily/fontColor/cardColor/cardOpacity/imageSize) to types.ts, a `case 'activity-wall':` handler to `getAdminBuildingConfig()`, and an "Appearance Defaults" section to `ActivityWallConfigurationPanel.tsx`. Moved to Completed._
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-10-04: Weekly D1 (Sunday). No legacy `Settings.tsx` files remain (settings are schema-driven via `settings.schema.ts`). `utils/adminBuildingConfig.ts` has not changed since the 2026-09-27 audit and still has 35 cases against 67 widget types; spot-checked Open items (`random.autoStartTimer`, `projects`, `lunchCount`, `music`) still reproduce. 0 new issues._
 
 ### LOW Randomizer (`random`): `autoStartTimer` user-configurable but not in admin building config
 

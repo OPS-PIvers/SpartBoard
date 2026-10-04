@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-03_
+_Last audited: 2026-10-04_
 _Last action: 2026-09-24 — MEDIUM `QuizStimulusView.tsx` zero-`cqmin` blocker resolved: added an optional `cqScaled?: boolean` prop (default `false`) threaded through every subcomponent in the file, applying `min(Xpx, Ycqmin)` inline styles only when set, so the two CQ-container consumers (`CurrentQuestionCard.tsx`, `QuizPreview.tsx`) now scale while the two non-CQ consumers (`QuizStudentApp.tsx`, `FreeResponseGrader.tsx`) keep today's fixed styling untouched — the same `cqScaled` pattern proven on `AssignTargetingSection.tsx`. 1250/1250 relevant tests pass. Item moved to Completed. PR opened against dev-paul._
 
 ---
@@ -39,6 +39,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-10-04: Daily audit (Sunday). No widget `*Widget.tsx` file changed in a way that adds new anti-patterns since the 2026-10-03 pass: 1 arbitrary `max/min-[w|h]-[Npx]` hit and 0 `text-[Npx]` hits across `*Widget.tsx` roots, both already covered by existing Open items. Recent widget commits (Drawing eraser hit-test, GL live-tour/Studio work) touch logic, not scaling. 0 new issues._
 
 _2026-10-03: Daily audit (Saturday). No `Widget.tsx` front-face changes since the 2026-10-02 baseline. Re-scanned all `Widget.tsx` under `components/widgets/`: 0 `max-h-[Npx]`/`max-w-[Npx]` caps; the only fixed-px classes are the two `fixed` portal popovers in `DrawingWidget/Widget.tsx` (:1293, :1378), already treated as acceptable. 0 new issues, 0 resolved; existing Open items unchanged._
 
