@@ -130,7 +130,9 @@ export function ttsLanguageForTranslationLocale(
   locale: string | undefined | null
 ): string | null {
   if (!locale) return null;
-  return QUIZ_TRANSLATION_TTS_LANGUAGE[locale] ?? null;
+  return Object.hasOwn(QUIZ_TRANSLATION_TTS_LANGUAGE, locale)
+    ? (QUIZ_TRANSLATION_TTS_LANGUAGE[locale] ?? null)
+    : null;
 }
 
 /** Voiced locales held by students flagged for read-aloud; the prepare scope. */
