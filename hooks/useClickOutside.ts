@@ -21,8 +21,11 @@ export const useClickOutside = <T extends HTMLElement = HTMLElement>(
   // Using useLayoutEffect ensures the ref is updated before any subsequent
   // event listener invocation can read a stale value.
   const ignoreRefsRef = useRef(ignoreRefs);
+  // Same for the handler, which callers usually pass as an inline closure.
+  const handlerRef = useRef(handler);
   useLayoutEffect(() => {
     ignoreRefsRef.current = ignoreRefs;
+    handlerRef.current = handler;
   });
 
   useEffect(() => {
@@ -53,7 +56,7 @@ export const useClickOutside = <T extends HTMLElement = HTMLElement>(
         node = node.parentNode;
       }
 
-      handler(event);
+      handlerRef.current(event);
     };
 
     // Listen on `pointerdown` rather than `mousedown` + `touchstart`. Pointer
@@ -70,5 +73,5 @@ export const useClickOutside = <T extends HTMLElement = HTMLElement>(
     return () => {
       document.removeEventListener('pointerdown', listener);
     };
-  }, [ref, handler]);
+  }, [ref]);
 };
