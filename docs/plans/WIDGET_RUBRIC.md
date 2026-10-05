@@ -27,7 +27,7 @@ Status: plan, not built. Decisions settled in a grill session on 2026-10-05.
 | R16 | **Thresholds:** touch hit areas ≥44×44 CSS px at default size and ≥32 px at the envelope minimum; primary content ≥24 px and any readable text ≥14 px at default size on a 1920×1080 board; text contrast ≥4.5:1 (≥3:1 for large text) at 0.8 window transparency over the board background.                                     |
 | R17 | **Harness:** a `/widget-grader-dev` route mounts one widget in the real `DraggableWindow` at a given size and fixture with no Firestore listeners. A Playwright script walks widget × size × fixture.                                                                                                                            |
 | R18 | **Fixtures:** each widget ships `empty`, `typical` and `stress` configs. Scaling and clutter are graded on typical and stress; first-use clarity on empty.                                                                                                                                                                       |
-| R19 | **Storage:** rubric and scorecards are committed files under `docs/widget-rubric/`. A local review page shows screenshots and scores and writes Paul's scores back to the JSON through the dev server.                                                                                                                           |
+| R19 | **Storage:** rubric and scorecards are committed files under `docs/widget-rubric/`, the official record. Paul grades on a Claude artifact (R27); his scores reach the JSON through `/grade-widget`.                                                                                                                              |
 | R20 | **Loop output:** one widget, one dimension, one PR to `dev-paul` with before/after scorecard and screenshots. The whole widget is re-graded; the PR is rejected if any criterion drops or a gate fails.                                                                                                                          |
 | R21 | **Flags:** visual and scaling fixes ship unflagged (styling exemption). Changes to what a widget does, or new settings, ship behind that widget's flag per the flag-first rule.                                                                                                                                                  |
 | R22 | **Calibration gate:** Paul scores about 6 seed widgets and picks the Visual exemplars. Loops are enabled only once the judge, grading blind, is within ±1 of Paul on ≥90% of criteria. Re-checked on every major rubric version.                                                                                                 |
@@ -35,6 +35,10 @@ Status: plan, not built. Decisions settled in a grill session on 2026-10-05.
 | R24 | **New widgets:** the `new-widget` skill requires a scorecard of B or better before the widget's PR.                                                                                                                                                                                                                              |
 | R25 | **Runner:** a scheduled cloud routine picks the top widget from the queue, runs one loop and opens a PR. At most 3 grader PRs open at once.                                                                                                                                                                                      |
 | R26 | **Versioning:** the rubric has a semver. Each scorecard records the version it was graded under. A minor change re-grades the affected criteria only. A major change (new criterion, weight change) marks every scorecard stale; the routine re-grades and re-runs calibration before any further improvement loop.              |
+| R27 | **Paul grades on a Claude artifact.** `/grade-widget` runs the harness for the chosen widgets, publishes a grading page with screenshots and measurements, and records Paul's clicks in the artifact's database. When he finishes, the command writes his scores into the scorecards and commits them.                           |
+| R28 | **Three grading modes:** one widget through every criterion; one criterion across many widgets (most consistent for subjective criteria); and disagreements only (script vs judge, or where Paul and the judge disagreed before).                                                                                                |
+| R29 | **Blind grading.** The judge's score stays hidden until Paul picks a level. A gap of 2+ levels asks Paul one question: what did the descriptor miss? Those answers drive descriptor rewrites.                                                                                                                                    |
+| R30 | **No grill-style questions for grading.** The question tool holds 4 options and no images; grading needs 5 levels and screenshots.                                                                                                                                                                                               |
 
 ## Gates
 
@@ -403,13 +407,30 @@ Graded once, not per widget. The criteria are the window chrome:
 Same 0–4 scale. A Platform fix lifts every widget's I1 and I7 at once, so Platform gaps are queued
 ahead of per-widget work on those criteria.
 
+## Manual grading
+
+`/grade-widget <types…>` or `/grade-widget --criterion V2 <types…>` or `/grade-widget --disagreements`:
+
+1. Run the harness for the chosen widgets: the 18 renders and the script measurements.
+2. Publish or update the grading artifact. Upload only the screenshots each card needs as assets.
+3. Paul grades. Each card is one criterion for one widget and shows:
+   - the screenshots relevant to that criterion (S1 shows the minimum-size renders; V1 shows the widget beside the exemplars; C5 shows the `empty` fixture)
+   - the script measurements in plain words, with the level they imply ("smallest tap target 28 px: level 1 under R16")
+   - the five levels as their full descriptor sentences; Paul clicks one, or presses 0–4
+   - N/A pre-filled from the applicability rule, not editable
+   - a link to the live harness for that widget, size and fixture, for criteria that need a feel test (I1, I3, C6); it works only with the local dev server running
+4. After each click the judge's score appears. A gap of 2+ levels asks what the descriptor missed.
+5. On "Done", the command reads the artifact database, writes `source: "paul"` scores and notes into each scorecard, appends the cards to `docs/widget-rubric/calibration/`, lists descriptor-rewrite candidates from the gap answers, and commits.
+
+The repo JSON is always the official record. The cloud routine reads only the JSON, never the artifact.
+
 ## Files
 
 - `docs/widget-rubric/rubric.json`: the criteria above in machine-readable form, with version, weights, applicability rules, method, thresholds and descriptors. This doc stays the human copy; the JSON is generated from or checked against it.
 - `docs/widget-rubric/scorecards/<widgetType>.json`: per-criterion score, source (`script`, `judge`, `paul`), evidence (measurements, screenshot paths), note, rubric version, graded-at, stale flag.
 - `docs/widget-rubric/calibration/`: Paul's scores with notes, and the chosen Visual exemplars.
 - `docs/widget-rubric/proposals.md`: Nexus additions and removals, and envelope changes, awaiting Paul.
-- Screenshots: kept out of git. They live in CI artifacts and the local review page; scorecards reference them by run id.
+- Screenshots: kept out of git. They live in CI artifacts and the grading artifact's assets; scorecards reference them by run id.
 
 ## PRs
 
@@ -417,7 +438,7 @@ ahead of per-widget work on those criteria.
 2. **Size envelopes.** A `minSize` and `aspectRange` per widget in config, starting from today's `WIDGET_MIN_SIZE_OVERRIDES`; `DraggableWindow` reads min size from it. Envelopes start generous; S7 judges them later.
 3. **Grader harness.** `/widget-grader-dev` (DEV only) mounting one widget in the real `DraggableWindow` from URL params, no Firestore listeners, and `empty`/`typical`/`stress` fixtures for every widget.
 4. **Measurer and CI gates.** Playwright script producing measurements for every Script criterion and the four gates; affected-widget scoping per PR, full sweep on shared-code changes, nightly full sweep that opens an issue on new gate failures.
-5. **Judge, review page, calibration.** Judge prompt that reads `rubric.json`, calibration examples and screenshots; local review page where Paul scores and picks exemplars (writes JSON through the dev server); Platform scorecard; the calibration check.
+5. **Judge, grading artifact, calibration.** Judge prompt that reads `rubric.json`, calibration examples and screenshots; the `/grade-widget` skill and its artifact with the three modes, blind reveal and exemplar picking; Platform scorecard; the calibration check.
 6. **Loop routine.** Priority queue (prod usage × gap, gates first), the scheduled routine running one widget/one dimension per PR with the no-regression check, cap of 3 open grader PRs, and the `new-widget` skill requirement (B or better).
 
 ## Open items
