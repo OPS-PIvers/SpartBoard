@@ -13,6 +13,8 @@ interface CountdownDay {
   number?: number;
 }
 
+const MAX_PAST_GRID_DAYS = 366;
+
 const normalizeDate = (value: Date): Date => {
   const normalized = new Date(value);
   normalized.setHours(0, 0, 0, 0);
@@ -103,7 +105,10 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
 
     const validDays: CountdownDay[] = [];
     const countedDays: Date[] = [];
-    const current = new Date(start);
+    // Start no earlier than a year of crossed-out days so a far-past startDate can't render thousands of cells.
+    const gridStart = new Date(countStart);
+    gridStart.setDate(gridStart.getDate() - MAX_PAST_GRID_DAYS);
+    const current = new Date(Math.max(start.getTime(), gridStart.getTime()));
 
     while (current <= event) {
       const normalizedCurrent = new Date(current);
