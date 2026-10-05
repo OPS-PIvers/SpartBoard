@@ -182,6 +182,52 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
+  # Widget grader gates (docs/plans/WIDGET_RUBRIC.md R23) on the widgets this PR touches;
+  # shared window, config or harness changes check every widget. Report-only until
+  # docs/widget-rubric/gate-baseline.json lands; then it fails on failures missing from it.
+  widget-grader-gates:
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.0-jammy
+      options: --shm-size=1g
+    name: Widget Grader Gates
+    timeout-minutes: 150
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup
+        with:
+          cache: ''
+
+      - name: Find affected widgets
+        id: affected
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          node scripts/widget-grader/affected.ts --base "origin/${{ github.base_ref }}"
+
+      - name: Run gate checks
+        if: steps.affected.outputs.mode != 'none'
+        run: node scripts/widget-grader/run.ts --gates-only --run-id ci ${TYPES:+--type "$TYPES"}
+        env:
+          TYPES: ${{ steps.affected.outputs.types }}
+          VITE_AUTH_BYPASS: 'true'
+          GRADER_WORKERS: '4'
+
+      - name: Upload grader report
+        if: always() && steps.affected.outputs.mode != 'none'
+        uses: actions/upload-artifact@v4
+        with:
+          name: widget-grader-gates
+          path: |
+            scripts/widget-grader/out/ci/summary.md
+            scripts/widget-grader/out/ci/gate-report.json
+            scripts/widget-grader/out/ci/measurements/
+          retention-days: 14
+
   rules:
     needs: preflight
     if: needs.preflight.outputs.reuse != 'true'
@@ -228,7 +274,17 @@ jobs:
         run: pnpm run build:all
 
   summary:
-    needs: [preflight, quality, test, test-counts, rules, build, e2e]
+    needs:
+      [
+        preflight,
+        quality,
+        test,
+        test-counts,
+        rules,
+        build,
+        e2e,
+        widget-grader-gates,
+      ]
     runs-on: ubuntu-24.04
     if: always()
     steps:

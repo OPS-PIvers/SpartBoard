@@ -11,6 +11,8 @@ export interface HarnessQuery {
   selected?: boolean;
   settingsOpen?: boolean;
   count?: 1 | 2;
+  state?: 'loading' | 'error' | 'offline' | 'noRoster';
+  style?: 'alt';
 }
 
 export const harnessUrl = (q: HarnessQuery): string => {
@@ -24,6 +26,8 @@ export const harnessUrl = (q: HarnessQuery): string => {
   if (q.selected) params.set('selected', '1');
   if (q.settingsOpen) params.set('settings', 'open');
   if (q.count === 2) params.set('count', '2');
+  if (q.state) params.set('state', q.state);
+  if (q.style) params.set('style', q.style);
   return `/widget-grader-dev?${params.toString()}`;
 };
 

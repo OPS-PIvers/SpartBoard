@@ -1,7 +1,8 @@
-// pnpm run grader:measure [--type clock,poll] [--fixtures typical] [--run-id name] [--workers 3]
+// pnpm run grader:measure [--type clock,poll] [--fixtures typical] [--run-id name] [--workers 3] [--gates-only] [--check-baseline] [--write-baseline]
 
 import { spawnSync } from 'node:child_process';
 import {
+  appendFileSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -11,6 +12,14 @@ import {
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Measurement } from './types.ts';
+import {
+  BASELINE_PATH,
+  buildBaseline,
+  compareBaseline,
+  comparisonMarkdown,
+  currentFailures,
+  type GateBaseline,
+} from './measure/baseline.ts';
 import { gateFailures, summaryTable } from './measure/summary.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -26,6 +35,9 @@ const option = (name: string): string[] => {
   }
   return values.filter(Boolean);
 };
+
+const flag = (name: string): boolean => args.includes(`--${name}`);
+const gatesOnly = flag('gates-only');
 
 const runId =
   option('run-id')[0] ?? new Date().toISOString().replace(/[:.]/g, '-');
@@ -51,6 +63,7 @@ const result = spawnSync(
       GRADER_TYPES: option('type').join(','),
       GRADER_FIXTURES: option('fixtures').join(','),
       GRADER_OUT: outDir,
+      ...(gatesOnly ? { GRADER_GATES_ONLY: '1' } : {}),
       ...(option('workers')[0] ? { GRADER_WORKERS: option('workers')[0] } : {}),
     },
   }
@@ -67,10 +80,21 @@ if (existsSync(dir)) {
 const table = summaryTable(byWidget);
 const failures = gateFailures(byWidget);
 const minutes = ((Date.now() - started) / 60000).toFixed(1);
+const baselineFile = join(root, BASELINE_PATH);
+const baseline: GateBaseline = existsSync(baselineFile)
+  ? JSON.parse(readFileSync(baselineFile, 'utf8'))
+  : { runId: 'none', generatedAt: '', failures: {} };
+const current = currentFailures(byWidget);
+const measured = Object.keys(byWidget);
+const comparison = compareBaseline(baseline, current, measured);
+writeFileSync(
+  join(outDir, 'gate-report.json'),
+  `${JSON.stringify({ runId, measured, ...comparison }, null, 2)}\n`
+);
 const report = [
   `# Widget grader run ${runId}`,
   '',
-  `${Object.keys(byWidget).length} widgets in ${minutes} min. "judge" means the script leaves the level to the judge.`,
+  `${measured.length} widgets in ${minutes} min${gatesOnly ? ', gates only' : ''}. "judge" means the script leaves the level to the judge.`,
   '',
   table,
   '',
@@ -78,7 +102,26 @@ const report = [
   '',
   ...(failures.length ? failures.map((f) => `- ${f}`) : ['None.']),
   '',
+  comparisonMarkdown(comparison),
+  '',
 ].join('\n');
 writeFileSync(join(outDir, 'summary.md'), report);
 console.log(`\n${report}\nWrote ${join(outDir, 'summary.md')}`);
-process.exit(result.status ?? 1);
+if (process.env.GITHUB_STEP_SUMMARY)
+  appendFileSync(process.env.GITHUB_STEP_SUMMARY, report);
+
+if (flag('write-baseline')) {
+  // Widgets left out of this run keep their baseline entries.
+  const kept = Object.entries(baseline.failures)
+    .filter(([type]) => !measured.includes(type))
+    .flatMap(([type, gates]) =>
+      gates.map((gate) => ({ type, gate, detail: '' }))
+    );
+  const next = buildBaseline(runId, [...kept, ...current]);
+  writeFileSync(baselineFile, `${JSON.stringify(next, null, 2)}\n`);
+  console.log(`Wrote ${BASELINE_PATH}`);
+}
+
+const playwrightFailed = (result.status ?? 1) !== 0;
+const newFailures = flag('check-baseline') && comparison.added.length > 0;
+process.exit(playwrightFailed || newFailures ? 1 : 0);

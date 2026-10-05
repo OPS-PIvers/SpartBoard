@@ -1,6 +1,12 @@
 // One real widget in DraggableWindow on fixtures at /widget-grader-dev (auth-bypass builds only), for the widget grader.
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  Profiler,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { disableNetwork } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { AuthContext } from '@/context/AuthContextValue';
@@ -13,6 +19,7 @@ import {
   DEFAULT_GLOBAL_STYLE,
   type ClassRoster,
   type Dashboard,
+  type GlobalStyle,
   type LiveSession,
   type WidgetConfig,
   type WidgetData,
@@ -21,7 +28,7 @@ import { WIDGET_FIXTURES, UNSUPPORTED_FIXTURES } from './fixtures';
 import { parseHarnessParams, type HarnessParams } from './harnessParams';
 import { buildHarnessAuth, buildHarnessDashboard } from './harnessContexts';
 import { seedFirestoreDocs } from './harnessSeed';
-import { installGraderStatus } from './graderStatus';
+import { installGraderStatus, recordCommit } from './graderStatus';
 import { WIDGET_STUBS } from './stubs';
 
 export const BOARD_WIDTH = 1920;
@@ -31,6 +38,14 @@ const ORIGIN = 120;
 const GAP = 40;
 const QUIET_MS = 250;
 const SETTLE_TIMEOUT_MS = 4000;
+
+// A non-default global style for the V5 theming check.
+const ALT_GLOBAL_STYLE: GlobalStyle = {
+  ...DEFAULT_GLOBAL_STYLE,
+  fontFamily: 'mono',
+  windowTransparency: 0.2,
+  windowBorderRadius: 'none',
+};
 
 const noop = (): void => undefined;
 const resolved = (): Promise<void> => Promise.resolve();
@@ -157,6 +172,8 @@ const HarnessBoard: React.FC<{ params: HarnessParams }> = ({ params }) => {
     params.selected ? `grader-${params.type}-1` : null
   );
   const ready = useSettledSignal(params.count);
+  const globalStyle =
+    params.style === 'alt' ? ALT_GLOBAL_STYLE : DEFAULT_GLOBAL_STYLE;
 
   const updateWidget = useCallback(
     (id: string, updates: Partial<WidgetData>) => {
@@ -202,12 +219,12 @@ const HarnessBoard: React.FC<{ params: HarnessParams }> = ({ params }) => {
       name: 'Grader board',
       background: BOARD_BACKGROUND,
       widgets,
-      globalStyle: DEFAULT_GLOBAL_STYLE,
+      globalStyle,
       createdAt: 0,
       viewportWidth: BOARD_WIDTH,
       viewportHeight: BOARD_HEIGHT,
     }),
-    [widgets]
+    [widgets, globalStyle]
   );
   const dashboardValue = useMemo(
     () =>
@@ -235,7 +252,8 @@ const HarnessBoard: React.FC<{ params: HarnessParams }> = ({ params }) => {
   return (
     <DashboardContext.Provider value={dashboardValue}>
       <div
-        className={`relative overflow-hidden ${BOARD_BACKGROUND}`}
+        // Same font classes DashboardView puts on the board root.
+        className={`relative overflow-hidden ${BOARD_BACKGROUND} font-${globalStyle.fontFamily} font-bold`}
         style={{ width: BOARD_WIDTH, height: BOARD_HEIGHT }}
         data-grader-board=""
         data-grader-ready={ready ? 'true' : 'false'}
@@ -243,27 +261,28 @@ const HarnessBoard: React.FC<{ params: HarnessParams }> = ({ params }) => {
         data-grader-fixture={params.fixture}
       >
         {widgets.map((widget) => (
-          <WidgetRenderer
-            key={widget.id}
-            widget={widget}
-            isLive={false}
-            students={[]}
-            updateSessionConfig={resolved}
-            updateSessionBackground={resolved}
-            startSession={noSession}
-            endSession={resolved}
-            removeStudent={resolved}
-            toggleFreezeStudent={resolved}
-            toggleGlobalFreeze={resolved}
-            updateWidget={updateWidget}
-            removeWidget={removeWidget}
-            duplicateWidget={noop}
-            bringToFront={bringToFront}
-            addToast={noop}
-            globalStyle={DEFAULT_GLOBAL_STYLE}
-            dashboardBackground={BOARD_BACKGROUND}
-            dashboardSettings={dashboard.settings}
-          />
+          <Profiler key={widget.id} id={widget.id} onRender={recordCommit}>
+            <WidgetRenderer
+              widget={widget}
+              isLive={false}
+              students={[]}
+              updateSessionConfig={resolved}
+              updateSessionBackground={resolved}
+              startSession={noSession}
+              endSession={resolved}
+              removeStudent={resolved}
+              toggleFreezeStudent={resolved}
+              toggleGlobalFreeze={resolved}
+              updateWidget={updateWidget}
+              removeWidget={removeWidget}
+              duplicateWidget={noop}
+              bringToFront={bringToFront}
+              addToast={noop}
+              globalStyle={globalStyle}
+              dashboardBackground={BOARD_BACKGROUND}
+              dashboardSettings={dashboard.settings}
+            />
+          </Profiler>
         ))}
       </div>
     </DashboardContext.Provider>

@@ -8,7 +8,10 @@ import {
   WIDGET_FIXTURES,
 } from '../../../components/dev/widgetGrader/fixtures';
 import type { FixtureName } from '../types';
-import { loadThresholds, REPO_ROOT } from './constants';
+import { resolveWidgetFiles } from '../widgetFiles';
+import { chunkBytes, distSize, loadManifest } from './chunks';
+import { loadThresholds, PARTIAL_COVERAGE, REPO_ROOT } from './constants';
+import { measureExtras } from './extras';
 import { HarnessUnsupported, measureWidget } from './measureWidget';
 
 const ALL_FIXTURES: FixtureName[] = ['empty', 'typical', 'stress'];
@@ -30,17 +33,44 @@ const sharedRosterText = (type: string): string =>
     .join(' ');
 const outDir =
   process.env.GRADER_OUT ?? join(REPO_ROOT, 'scripts/widget-grader/out/adhoc');
+// Gate runs (CI) skip the renders that only feed criteria.
+const gatesOnly = process.env.GRADER_GATES_ONLY === '1';
+const manifest = gatesOnly ? null : loadManifest(REPO_ROOT);
+const entries = manifest ? resolveWidgetFiles(REPO_ROOT) : {};
 
 test.describe('widget grader', () => {
   for (const type of types) {
     test(type, async ({ page }) => {
       try {
+        const started = Date.now();
         const measurements = await measureWidget(page, type, {
           outDir,
           thresholds: loadThresholds(),
           fixtures: fixtures.length ? fixtures : ALL_FIXTURES,
           sharedText: sharedRosterText(type),
+          gatesOnly,
         });
+        if (process.env.GRADER_TRACE)
+          console.log(
+            `${type} base ${((Date.now() - started) / 1000).toFixed(1)}s`
+          );
+        if (
+          !gatesOnly &&
+          (fixtures.length === 0 || fixtures.includes('typical'))
+        ) {
+          const g4 = measurements.find((m) => m.gate === 'G4' && !m.size);
+          const entry = entries[type]?.entry;
+          measurements.push(
+            ...(await measureExtras(page, type, {
+              chunkBytes:
+                manifest && entry
+                  ? chunkBytes(manifest, entry, distSize(REPO_ROOT))
+                  : null,
+              g4Pass: g4 ? (g4.pass ?? null) : null,
+              partial: PARTIAL_COVERAGE[type],
+            }))
+          );
+        }
         const dir = join(outDir, 'measurements');
         mkdirSync(dir, { recursive: true });
         writeFileSync(

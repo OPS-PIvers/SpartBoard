@@ -65,13 +65,14 @@ describe('parseHarnessParams', () => {
         state: null,
         selected: false,
         settingsOpen: false,
+        style: null,
       },
     });
   });
 
   it('reads every option', () => {
     const result = parseHarnessParams(
-      '?type=random&w=1400&h=900&fixture=stress&maximized=1&count=2&state=noRoster&selected=1&settings=open'
+      '?type=random&w=1400&h=900&fixture=stress&maximized=1&count=2&state=noRoster&selected=1&settings=open&style=alt'
     );
     expect(result.ok && result.params).toMatchObject({
       w: 1400,
@@ -82,6 +83,7 @@ describe('parseHarnessParams', () => {
       state: 'noRoster',
       selected: true,
       settingsOpen: true,
+      style: 'alt',
     });
   });
 
@@ -89,6 +91,7 @@ describe('parseHarnessParams', () => {
     '?type=nope',
     '?type=clock&fixture=huge',
     '?type=clock&state=asleep',
+    '?type=clock&style=loud',
   ])('rejects %s', (search) => {
     expect(parseHarnessParams(search).ok).toBe(false);
   });

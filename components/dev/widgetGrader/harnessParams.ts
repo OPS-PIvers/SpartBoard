@@ -10,6 +10,9 @@ export const HARNESS_STATES = [
 ] as const;
 export type HarnessState = (typeof HARNESS_STATES)[number];
 
+export const HARNESS_STYLES = ['alt'] as const;
+export type HarnessStyle = (typeof HARNESS_STYLES)[number];
+
 export interface HarnessParams {
   type: WidgetType;
   w: number;
@@ -20,6 +23,8 @@ export interface HarnessParams {
   state: HarnessState | null;
   selected: boolean;
   settingsOpen: boolean;
+  /** `alt` swaps in a non-default global style for the V5 theming check. */
+  style: HarnessStyle | null;
 }
 
 export type HarnessParamsResult =
@@ -50,6 +55,13 @@ export function parseHarnessParams(search: string): HarnessParamsResult {
   ) {
     return { ok: false, error: `Unknown state "${state}"` };
   }
+  const style = q.get('style');
+  if (
+    style !== null &&
+    !(HARNESS_STYLES as readonly string[]).includes(style)
+  ) {
+    return { ok: false, error: `Unknown style "${style}"` };
+  }
   const defaults = WIDGET_DEFAULTS[type];
   return {
     ok: true,
@@ -63,6 +75,7 @@ export function parseHarnessParams(search: string): HarnessParamsResult {
       state: state as HarnessState | null,
       selected: q.get('selected') === '1',
       settingsOpen: q.get('settings') === 'open',
+      style: style as HarnessStyle | null,
     },
   };
 }

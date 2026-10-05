@@ -11,6 +11,16 @@ const CRITERIA: CriterionId[] = [
   'I1',
   'I2',
   'I7',
+  'I3',
+  'I4',
+  'I5',
+  'V5',
+  'C4',
+  'C6',
+  'R1',
+  'R2',
+  'R3',
+  'R5',
 ];
 
 /** Markdown table: one row per widget, gate pass/fail and the level each criterion's script implies. */
