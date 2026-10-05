@@ -143,6 +143,14 @@ export async function measureWidget(
   opts: MeasureOptions
 ): Promise<Measurement[]> {
   const errors = new ErrorLog(page);
+  // First 5 embeds a live page; a stub keeps renders stable and offline.
+  await page.route(/edtomorrow\.com/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><title>stub</title>',
+    })
+  );
   const shots = join(opts.outDir, 'screenshots', type);
   mkdirSync(shots, { recursive: true });
   const sizes = renderSizes(type);
