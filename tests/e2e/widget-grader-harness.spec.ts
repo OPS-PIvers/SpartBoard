@@ -8,10 +8,25 @@ const PATTERN_WIDGETS = [
   'schedule',
   'poll',
 ];
+const BATCH_3_WIDGETS = [
+  'blending-board',
+  'car-rider-pro',
+  'concept-web',
+  'graphic-organizer',
+  'guided-learning',
+  'hotspot-image',
+  'music',
+  'numberLine',
+  'reveal-grid',
+  'specialist-schedule',
+  'starter-pack',
+  'syntax-framer',
+  'video-activity',
+];
 const FIXTURES = ['empty', 'typical', 'stress'];
 
 test.describe('widget grader harness', () => {
-  for (const type of PATTERN_WIDGETS) {
+  for (const type of [...PATTERN_WIDGETS, ...BATCH_3_WIDGETS]) {
     for (const fixture of FIXTURES) {
       test(`${type} ${fixture} renders with no errors`, async ({ page }) => {
         await page.goto(`/widget-grader-dev?type=${type}&fixture=${fixture}`);
