@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { GuidedLearningTourBinding } from '@/types';
 import {
+  anchorInView,
   findTourAnchor,
-  isAnchorUsable,
+  isAnchorReachable,
+  scrollParent,
   type TourAnchorScope,
 } from './resolveTourAnchor';
 
@@ -64,8 +66,11 @@ export function drawerScroller(el: HTMLElement): HTMLElement | null {
   return null;
 }
 
-/** Scrolls `scroller` so `el` sits in its vertical centre, clamped to the scroll range. */
-export function centreInScroller(el: HTMLElement, scroller: HTMLElement): void {
+/** Scrolls `scroller` so `el` sits in its vertical centre, clamped; returns the target scrollTop. */
+export function centreInScroller(
+  el: HTMLElement,
+  scroller: HTMLElement
+): number {
   const box = scroller.getBoundingClientRect();
   const r = el.getBoundingClientRect();
   const max = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
@@ -81,6 +86,7 @@ export function centreInScroller(el: HTMLElement, scroller: HTMLElement): void {
   } else {
     scroller.scrollTop = next;
   }
+  return next;
 }
 
 const isTourUi = (node: Node) =>
@@ -135,6 +141,10 @@ export function useAnchorElement(
     let element: HTMLElement | null = null;
     let lastRect: DOMRect | null = null;
     let scrolled = false;
+    // An anchor that needs scrolling reads as searching until its scroll has settled.
+    let scroll: 'none' | 'pending' | 'scrolling' | 'done' = 'none';
+    let scrollSince = 0;
+    let scrollTarget = 0;
     // A drawer anchor is centred once the drawer stops moving, not when first found.
     let scroller: HTMLElement | null = null;
     let centred = false;
@@ -173,8 +183,8 @@ export function useAnchorElement(
       raf = 0;
       const el = element;
       if (cancelled || !el) return;
-      // Faded, click-through or off-screen reads as searching, not found.
-      if (!el.isConnected || !isAnchorUsable(el)) {
+      // Faded, click-through, or off-screen with no panel to scroll reads as searching.
+      if (!el.isConnected || !isAnchorReachable(el)) {
         lose();
         return;
       }
@@ -182,28 +192,54 @@ export function useAnchorElement(
       const moved = !sameRect(lastRect, next);
       lastRect = next;
       const settled = !moved && !stillMoving();
-      if (scroller && !centred && settled) {
-        centred = true;
-        centreInScroller(el, scroller);
+      if (scroll === 'pending' && scroller && settled) {
+        scroll = 'scrolling';
+        scrollSince = Date.now();
+        scrollTarget = centreInScroller(el, scroller);
+      } else if (scroll === 'scrolling') {
+        const arrived = scroller
+          ? Math.abs(scroller.scrollTop - scrollTarget) <= 1
+          : anchorInView(el) !== 'none';
+        if ((settled && arrived) || Date.now() - scrollSince > MAX_MOTION_MS) {
+          scroll = 'done';
+          centred = !!scroller;
+        }
       }
-      publish({
-        element: el,
-        rect: next,
-        status: 'found',
-        ...(centred ? { centred } : {}),
-      });
-      // Keep following while it moves; stop reading layout once it settles.
-      if (!settled) schedule();
+      const waiting = scroll === 'pending' || scroll === 'scrolling';
+      // The spotlight, cursor and click only get a rect the teacher can see.
+      if (waiting || anchorInView(el) === 'none') {
+        publish({ element: null, rect: null, status: 'searching' });
+        if (!waiting && missTimer === undefined) startMissTimer();
+      } else {
+        stopMissTimer();
+        publish({
+          element: el,
+          rect: next,
+          status: 'found',
+          ...(centred ? { centred } : {}),
+        });
+      }
+      // Keep following while it moves or scrolls; stop reading layout once it settles.
+      if (!settled || waiting) schedule();
     };
 
     const track = (found: HTMLElement) => {
       element = found;
       lastRect = null;
-      clearTimeout(missTimer);
+      stopMissTimer();
       if (!scrolled) {
         scrolled = true;
         scroller = drawerScroller(found);
-        if (!scroller) found.scrollIntoView?.({ block: 'nearest' });
+        if (scroller) {
+          scroll = 'pending';
+        } else {
+          const hidden = anchorInView(found) !== 'full';
+          found.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+          if (hidden && scrollParent(found)) {
+            scroll = 'scrolling';
+            scrollSince = Date.now();
+          }
+        }
       }
       if (typeof ResizeObserver !== 'undefined') {
         resizeObserver = new ResizeObserver(schedule);
@@ -219,7 +255,7 @@ export function useAnchorElement(
       const found = findTourAnchor(target, {
         widgetIds,
         slots,
-        accept: isAnchorUsable,
+        accept: isAnchorReachable,
       });
       if (found) track(found);
     };
@@ -233,13 +269,18 @@ export function useAnchorElement(
       searchTimer = setTimeout(runSearch, wait);
     };
 
-    const startMissTimer = () => {
+    function stopMissTimer() {
+      clearTimeout(missTimer);
+      missTimer = undefined;
+    }
+
+    function startMissTimer() {
       clearTimeout(missTimer);
       missTimer = setTimeout(
         () => publish({ element: null, rect: null, status: 'missing' }),
         ANCHOR_SEARCH_MS
       );
-    };
+    }
 
     function lose() {
       element = null;

@@ -389,7 +389,10 @@ describe('LiveTourRunner', () => {
     await start(makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]));
     await frames();
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: 'nearest',
+      inline: 'nearest',
+    });
     expect(scrollIntoView.mock.contexts[0]).toBe(screen.getByText('Boards'));
   });
 
