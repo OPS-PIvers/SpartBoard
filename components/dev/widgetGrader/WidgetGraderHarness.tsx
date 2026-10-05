@@ -19,7 +19,8 @@ import {
 } from '@/types';
 import { WIDGET_FIXTURES, UNSUPPORTED_FIXTURES } from './fixtures';
 import { parseHarnessParams, type HarnessParams } from './harnessParams';
-import { buildHarnessDashboard, harnessAuth } from './harnessContexts';
+import { buildHarnessAuth, buildHarnessDashboard } from './harnessContexts';
+import { seedFirestoreDocs } from './harnessSeed';
 import { installGraderStatus } from './graderStatus';
 
 export const BOARD_WIDTH = 1920;
@@ -44,6 +45,12 @@ if (PARSED.ok && PARSED.params.state === 'offline') {
     configurable: true,
     get: () => false,
   });
+}
+
+if (PARSED.ok) {
+  seedFirestoreDocs(
+    WIDGET_FIXTURES[PARSED.params.type]?.[PARSED.params.fixture].firestoreDocs
+  );
 }
 
 const rostersFor = (
@@ -280,6 +287,9 @@ const HarnessMessage: React.FC<{ text: string }> = ({ text }) => {
 export const WidgetGraderHarness: React.FC = () => {
   if (!PARSED.ok) return <HarnessMessage text={PARSED.error} />;
   const { params } = PARSED;
+  const authValue = buildHarnessAuth(
+    WIDGET_FIXTURES[params.type]?.[params.fixture].auth
+  );
   const unsupported = UNSUPPORTED_FIXTURES[params.type];
   if (unsupported)
     return (
@@ -290,7 +300,7 @@ export const WidgetGraderHarness: React.FC = () => {
   if (!WIDGET_FIXTURES[params.type])
     return <HarnessMessage text={`${params.type} has no fixtures yet`} />;
   return (
-    <AuthContext.Provider value={harnessAuth}>
+    <AuthContext.Provider value={authValue}>
       <DialogProvider>
         <HarnessBoard params={params} />
         <DialogContainer />

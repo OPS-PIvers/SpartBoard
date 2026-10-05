@@ -61,21 +61,6 @@ const PENDING_FIXTURES: WidgetType[] = [
   'starter-pack',
   'video-activity',
   'guided-learning',
-  // S5d
-  'custom-widget',
-  'soundboard',
-  'url',
-  'activity-wall',
-  'first-5',
-  'work-symbols',
-  'blooms-taxonomy',
-  'blooms-detail',
-  'need-do-put-then',
-  'stations',
-  'flashcards',
-  'projects',
-  'review',
-  'routineGuide',
 ];
 
 const ALL_TYPES = Object.keys(WIDGET_DEFAULTS) as WidgetType[];

@@ -30,4 +30,6 @@ Wait for `[data-grader-ready="true"]` or `window.__widgetGrader.ready`. `window.
 3. Remove the type from `PENDING_FIXTURES` in `tests/widgetGraderFixtures.test.ts`.
 4. Add the type to `tests/e2e/widget-grader-harness.spec.ts` and check all three fixtures render with no errors at default size and at `w=1400&h=900`.
 
+A fixture can also set `auth` (`featurePermissions` for admin config such as the Soundboard sound library, `selectedBuildings`, `userGradeLevels`) and `firestoreDocs` (a path-to-data map written to the offline cache before mount, for library listeners such as Flashcards, Projects and Activity Wall; use `userPath()` for `users/{uid}/...`). Copy each doc's shape from the code that writes it.
+
 Stubs a widget needs go in `stubs/<widgetType>.ts`, never in the widget. If a widget can't mount without real Firestore data, add it to `UNSUPPORTED_FIXTURES` with a one-line reason instead.
