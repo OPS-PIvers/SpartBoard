@@ -2709,6 +2709,8 @@
     "tourPublish": {
       "title": "Version für Lehrkräfte",
       "hint": "Lehrkräfte führen nur die veröffentlichte Tour aus. Änderungen bleiben hier, bis du erneut veröffentlichst.",
+      "whereHelpCenter": "Lehrkräfte finden die Tour in der Hilfe, sobald ihr Eintrag im Hilfecenter sichtbar ist (Admin-Einstellungen > Hilfecenter).",
+      "whereLibrary": "Lehrkräfte starten die Tour in der Guided-Learning-Bibliothek mit „Live auf meiner Tafel starten“. Um sie in der Hilfe anzubieten, verknüpfe sie mit einem Eintrag im Hilfecenter.",
       "status_draft": "Entwurf",
       "status_published": "Veröffentlicht",
       "status_changed": "Änderungen nicht veröffentlicht",
@@ -3027,7 +3029,7 @@
     "search": "Hilfe durchsuchen",
     "close": "Hilfe schließen",
     "noResults": "Keine Treffer für deine Suche",
-    "onboardingTask": "Das Hilfe-Center öffnen",
+    "onboardingTask": "Das Hilfecenter öffnen",
     "footer": "Drücke jederzeit <kbd>Strg/⌘</kbd> + <kbd>/</kbd>, um die Hilfe zu öffnen",
     "tabs": {
       "shortcuts": "Tastenkürzel",

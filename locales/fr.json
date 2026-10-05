@@ -2709,6 +2709,8 @@
     "tourPublish": {
       "title": "Version enseignants",
       "hint": "Les enseignants ne lancent que la visite publiée. Vos modifications restent ici jusqu'à la prochaine publication.",
+      "whereHelpCenter": "Les enseignants la trouvent dans l’Aide dès que son élément du Centre d’aide est visible (Paramètres d’administration > Centre d’aide).",
+      "whereLibrary": "Les enseignants la lancent depuis la bibliothèque Guided Learning avec « Lancer sur mon tableau ». Pour la proposer dans l’Aide, liez-la depuis un élément du Centre d’aide.",
       "status_draft": "Brouillon",
       "status_published": "Publiée",
       "status_changed": "Modifications non publiées",

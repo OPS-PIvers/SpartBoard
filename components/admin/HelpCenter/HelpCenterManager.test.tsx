@@ -31,6 +31,11 @@ const authState = vi.hoisted(() => ({
   },
 }));
 
+const tourState = vi.hoisted(() => ({
+  tourSetIds: new Set<string>(),
+  runnable: new Map<string, boolean>(),
+}));
+
 const helpState = vi.hoisted(() => ({
   items: [] as HelpResourceItem[],
   categories: [
@@ -60,7 +65,7 @@ vi.mock('firebase/firestore', () => ({
 vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => authState.value,
+  useAuth: () => ({ canAccessFeature: () => true, ...authState.value }),
 }));
 
 vi.mock('@/context/useDialog', () => ({
@@ -102,6 +107,13 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
     saveBuildingSet: vi.fn(),
   }),
   markHelpCenterSets: glState.markHelpCenterSets,
+  useLiveTourSetIds: () => tourState.tourSetIds,
+}));
+
+vi.mock('@/components/tours/publishedTours', () => ({
+  watchTours: () => () => undefined,
+  getToursVersion: () => 0,
+  isTourRunnable: (id: string) => tourState.runnable.get(id),
 }));
 
 vi.mock('@/components/common/SortableList', () => ({
@@ -223,6 +235,8 @@ describe('HelpCenterManager', () => {
     ];
     helpState.error = null;
     glState.buildingSets = [];
+    tourState.tourSetIds = new Set();
+    tourState.runnable = new Map();
     asSuperAdmin();
   });
 
@@ -518,5 +532,46 @@ describe('HelpCenterManager', () => {
         name: 'Linked activities in the Guided Learning library',
       })
     ).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [false, true, 'Live tour · Draft', /Publish tour in the Studio/],
+    [true, false, 'Live tour · Hidden', /turn on Visible/],
+    [true, true, 'Live tour · Live', null],
+  ])(
+    'labels a linked tour (published %s, visible %s) with its state and next step',
+    (published, visible, label, nextStep) => {
+      tourState.tourSetIds = new Set(['tour1']);
+      tourState.runnable = new Map([['tour1', published]]);
+      helpState.items = [
+        makeItem({
+          kind: 'guided-learning',
+          setId: 'tour1',
+          url: null,
+          embedType: null,
+          visible,
+          title: 'Clock tour',
+        }),
+      ];
+      render(<HelpCenterManager />);
+      expect(screen.getByText(label)).toBeInTheDocument();
+      if (nextStep) expect(screen.getByText(nextStep)).toBeInTheDocument();
+      else
+        expect(screen.queryByText(/turn on Visible|Publish tour/)).toBeNull();
+    }
+  );
+
+  it('shows no tour label on an activity that is not a live tour', () => {
+    tourState.runnable = new Map([['set1', true]]);
+    helpState.items = [
+      makeItem({
+        kind: 'guided-learning',
+        setId: 'set1',
+        url: null,
+        embedType: null,
+      }),
+    ];
+    render(<HelpCenterManager />);
+    expect(screen.queryByText(/Live tour ·/)).toBeNull();
   });
 });
