@@ -22,6 +22,7 @@ import { parseHarnessParams, type HarnessParams } from './harnessParams';
 import { buildHarnessAuth, buildHarnessDashboard } from './harnessContexts';
 import { seedFirestoreDocs } from './harnessSeed';
 import { installGraderStatus } from './graderStatus';
+import { WIDGET_STUBS } from './stubs';
 
 export const BOARD_WIDTH = 1920;
 export const BOARD_HEIGHT = 1080;
@@ -46,6 +47,7 @@ if (PARSED.ok && PARSED.params.state === 'offline') {
     get: () => false,
   });
 }
+if (PARSED.ok) WIDGET_STUBS[PARSED.params.type]?.install?.();
 
 if (PARSED.ok) {
   seedFirestoreDocs(
@@ -299,10 +301,13 @@ export const WidgetGraderHarness: React.FC = () => {
     );
   if (!WIDGET_FIXTURES[params.type])
     return <HarnessMessage text={`${params.type} has no fixtures yet`} />;
+  const Wrapper = WIDGET_STUBS[params.type]?.Wrapper ?? React.Fragment;
   return (
     <AuthContext.Provider value={authValue}>
       <DialogProvider>
-        <HarnessBoard params={params} />
+        <Wrapper>
+          <HarnessBoard params={params} />
+        </Wrapper>
         <DialogContainer />
       </DialogProvider>
     </AuthContext.Provider>

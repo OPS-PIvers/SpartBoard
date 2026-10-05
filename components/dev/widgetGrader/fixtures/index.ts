@@ -6,6 +6,23 @@ import { pollFixtures } from './poll';
 import { randomFixtures } from './random';
 import { scheduleFixtures } from './schedule';
 import { textFixtures } from './text';
+import { calendarFixtures } from './calendar';
+import { classesFixtures } from './classes';
+import { diceFixtures } from './dice';
+import { drawingFixtures } from './drawing';
+import { embedFixtures } from './embed';
+import { expectationsFixtures } from './expectations';
+import { instructionalRoutinesFixtures } from './instructionalRoutines';
+import { lunchCountFixtures } from './lunchCount';
+import { materialsFixtures } from './materials';
+import { miniAppFixtures } from './miniApp';
+import { qrFixtures } from './qr';
+import { scoreboardFixtures } from './scoreboard';
+import { soundFixtures } from './sound';
+import { timeToolFixtures } from './time-tool';
+import { trafficFixtures } from './traffic';
+import { weatherFixtures } from './weather';
+import { webcamFixtures } from './webcam';
 import { activityWallFixtures } from './activity-wall';
 import { bloomsDetailFixtures } from './blooms-detail';
 import { bloomsTaxonomyFixtures } from './blooms-taxonomy';
@@ -40,6 +57,24 @@ export const WIDGET_FIXTURES: Partial<Record<WidgetType, WidgetFixtureSet>> = {
   random: randomFixtures,
   schedule: scheduleFixtures,
   text: textFixtures,
+  // S5a
+  calendar: calendarFixtures,
+  classes: classesFixtures,
+  dice: diceFixtures,
+  drawing: drawingFixtures,
+  embed: embedFixtures,
+  expectations: expectationsFixtures,
+  instructionalRoutines: instructionalRoutinesFixtures,
+  lunchCount: lunchCountFixtures,
+  materials: materialsFixtures,
+  miniApp: miniAppFixtures,
+  qr: qrFixtures,
+  scoreboard: scoreboardFixtures,
+  sound: soundFixtures,
+  'time-tool': timeToolFixtures,
+  traffic: trafficFixtures,
+  weather: weatherFixtures,
+  webcam: webcamFixtures,
   // S5d
   'activity-wall': activityWallFixtures,
   'blooms-detail': bloomsDetailFixtures,

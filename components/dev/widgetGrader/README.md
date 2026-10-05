@@ -32,4 +32,4 @@ Wait for `[data-grader-ready="true"]` or `window.__widgetGrader.ready`. `window.
 
 A fixture can also set `auth` (`featurePermissions` for admin config such as the Soundboard sound library, `selectedBuildings`, `userGradeLevels`) and `firestoreDocs` (a path-to-data map written to the offline cache before mount, for library listeners such as Flashcards, Projects and Activity Wall; use `userPath()` for `users/{uid}/...`). Copy each doc's shape from the code that writes it.
 
-Stubs a widget needs go in `stubs/<widgetType>.ts`, never in the widget. If a widget can't mount without real Firestore data, add it to `UNSUPPORTED_FIXTURES` with a one-line reason instead.
+Stubs a widget needs go in `stubs/` and are registered in `stubs/index.ts` (`install` runs at page load, `Wrapper` adds a provider), never in the widget. `media.ts` fakes a camera and microphone for Webcam and Sound. If a widget can't mount without real Firestore data, add it to `UNSUPPORTED_FIXTURES` with a one-line reason instead.
