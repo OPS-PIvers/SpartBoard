@@ -2,8 +2,562 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "clock",
   "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "gradedAt": "2026-10-05T23:27:48.952Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "S6": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I2": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I3": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I4": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I6": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 0,
+      "source": "script",
+      "candidates": {
+        "script": 0,
+        "judge": 0
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/envelope-min__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/envelope-min__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/large-1400x900__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/large-1400x900__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "At 1400×900 the time caps at about 160px and sits small in the middle, leaving roughly 90% of the card empty.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/widest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/widest-aspect__stress.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/tallest-aspect__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The envelope is the global 150×100 floor, which does not hide anything from the test; the clipping at the minimum is a scaling defect, not an envelope that is too narrow.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/maximized-1920x1080__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Maximized at 1920×1080 shows the same capped-size time and date in the middle of a mostly empty screen, which is the S2 level-1 problem at full screen.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I5": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The default face is clean: bold digits, a muted colon and a small tracked date with no borders, boxes or browser controls, though it lacks the confident glass treatment of a level-4 exemplar.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 4,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The time and date are legible from the back of the room in under a second, and the face has only those two elements, neither of which could go without losing function.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 4,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The time dominates, PM and seconds step down, and the small date comes last, which matches the order a teacher reads it.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The script found no one-off colors, radii or raw controls, and the drawer uses the shared schema and ColorPresetPicker, so styling is consistent throughout.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The face has no icons and only the plain date label, with no copy violations and no mixed icon libraries.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "12/24-hour format, seconds, style, glow, time and date color and font are all configurable; the only plausible hardcoded choice is that the date cannot be hidden.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The drawer is not visible in the settings screenshot, but the schema has two short standard groups (Behavior, Display) with toggles, a segmented control and color pickers, and too few options to need an advanced section.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The widget drops in as a working, good-looking clock with a date, though the 24-hour default with seconds is an odd starting point for a US classroom.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "On first drop the face shows the live time and date and needs no setup, so it is never blank or confusing, even though there is no empty state.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C6": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The clock reads no remote data, so the forced loading, error, offline and no-roster states all render the same working face, and no raw errors or spinners appear.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The face shows only the time and date, with no student data in the DOM to protect.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The clock has no connections; proposals: add an optional link to the Schedule widget (show the current or next period under the time), and add nothing that only adds settings noise.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/clock/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Six folder tests and five external tests cover a 268-line widget with no large files, no any, no useDashboard calls and no derived-state effects.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G2": {
+      "pass": false,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    }
+  }
 }

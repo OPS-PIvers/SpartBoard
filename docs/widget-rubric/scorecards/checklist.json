@@ -2,8 +2,589 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "checklist",
   "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "gradedAt": "2026-10-05T23:27:48.952Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "S6": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 0,
+      "source": "script",
+      "candidates": {
+        "script": 0,
+        "judge": 0
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/envelope-min__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/envelope-min__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/large-1400x900__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/large-1400x900__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "At 1400x900 the rows, check circles and labels grow proportionally to fill the card and lines stay readable, but the typical list only zooms and the footer pills stay tiny.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/widest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/widest-aspect__stress.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/tallest-aspect__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The same stacked-row layout is used at every shape with no reflow, so the tallest aspect breaks labels mid-word ('war m-up', 'ho...') and the widest stress view packs rows on top of each other.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The envelope reaches the global 150x100 floor, so it hides nothing, and a short task list genuinely needs about that little at its smallest.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/maximized-1920x1080__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Maximized fills the screen with the same row cards and huge labels, while Reset/Delete Checked stay tiny pills and the empty state remains a faint centered message, so it reads as an enlarged card.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Checked rows clearly change to a green check, strikethrough and tinted fill, but the small footer pills show no visible pressed or active treatment.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Clean rounded row cards, but the tiny uppercase footer pills and the gray-on-gray, near-invisible empty-state text are ban-list hits.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "A to-do list with tappable rows reads in under three seconds, and 7 controls, 2 font sizes and 21 words stay modest.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Open tasks are the bold primary rows, completed tasks fade back with strikethrough, and the footer actions step well down in size.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The drawer uses the shared settings schema and the empty state uses ScaledEmptyState, but the face has raw controls and 6 one-off colors on the rows and pills.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Labels are short and plain ('Reset checked', 'Delete checked') with lucide icons only, though the empty-state 'Flip to add your class tasks' uses app jargon.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Settings cover the task list, a manual or roster source with custom names and roster groups, task import, row style, and text size, font and colors, with no bloat.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The settings screenshot cuts the drawer off, but the schema puts content (list source, tasks, import) first and display (row style, appearance) after in standard sections.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "On first drop the widget shows only a faint 'No tasks' state with no starter tasks, so it works but looks unfinished until configured.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "ScaledEmptyState gives a 'No tasks' title and one sentence pointing to settings, but its very low contrast makes it hard to read and the task cannot be added on the face.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C6": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The empty state is designed, but the screenshots show no designed views for loading, error, offline or no-roster, and no recovery actions.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The typical face shows only teacher-authored tasks, and student names appear only in roster mode, where they are the content and are set up from the drawer.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The roster and roster-group sources and routine import work, but there is no link to Schedule or Timer to move through tasks, and the face does not show what the list is linked to; proposals: add Schedule/Timer link, show the linked class on the face; remove none.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": false,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G2": {
+      "pass": false,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    }
+  }
 }

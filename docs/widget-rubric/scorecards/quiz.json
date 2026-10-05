@@ -2,8 +2,566 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "quiz",
   "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "gradedAt": "2026-10-05T23:27:48.952Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 0,
+      "source": "script",
+      "candidates": {
+        "script": 0,
+        "judge": 0
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/envelope-min__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/envelope-min__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/large-1400x900__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/large-1400x900__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "At 1400x900 the typical In Progress face keeps a small faint empty state in the middle of a mostly blank card, and the Library view's empty state stays at default size with no growth (1x).",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/widest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/widest-aspect__stress.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/tallest-aspect__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "At the tallest aspect the tabs collapse to icons, New Quiz becomes a plus button, the toolbar wraps into stacked rows and the folder sidebar collapses, while the widest aspect keeps a single-row toolbar.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S6": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/envelope-min__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/envelope-min__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "A tabbed library manager with search, sort, folders and a quiz grid cannot work at the 150x100 floor shown in the minimum shots, so the envelope does not match what the content needs.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/maximized-1920x1080__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Maximized shows the same library or In Progress layout stretched to 1920x1080 with unchanged type and a tiny empty state, so it reads as an enlarged card rather than a presenting layout.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The active tab is a white pill against the green header and the selected All items folder is filled, which matches the shared segmented-control and library styles.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The clean green header and white body look current, but the In Progress empty state is pale gray on white and the tiny uppercase TARGETS/SELECT labels count as gray-on-gray, tiny-text ban-list hits.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The default face has four tabs and one empty state (4 controls, 3 font sizes, 16 words), so it reads at a glance as a quiz manager without busy-ness.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "On the typical face the green tab bar is the heaviest element while the In Progress empty state is too faint to anchor the eye, so no clear primary element leads.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The face uses shared library pieces (LibraryShell, LibraryToolbar, FolderSidebar, ScaledEmptyState, SegmentedControl) with no one-off colors or radii, though the 426 raw controls keep it short of 4.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Labels such as Library, Banks, In Progress, Archive and New Quiz are short and plain with lucide icons throughout, but TARGETS is unclear and Start Importing does not match the Create or import a quiz line.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The face is a library whose content is teacher-authored quizzes, with folders, sort, banks and assignment targeting, so little structure is hardcoded and the plausible choices are covered.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The settings-open capture shows only a sliver of the drawer at the right edge, so its organization cannot be verified and no higher level can be credited.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "An empty widget lands on the In Progress tab with a pale, nearly invisible empty state instead of the Library with its Start Importing action, so it is usable but looks unfinished.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The empty face shows a ScaledEmptyState with the title No quizzes in progress and one sentence pointing to the Library tab, but the next action has to be taken on another tab rather than on this face.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The empty In Progress and Library states are designed with ScaledEmptyState, but the screenshots show no loading, error, offline or no-roster view, so only some states are evidenced as designed.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "No student names or scores appear on the default face; results sit behind the In Progress and results views that a teacher opens on purpose.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Question banks, class targeting and Drive import connect and work, but high-value links are missing: proposals are to add sending live results to Scoreboard and a Randomizer pick from the roster of students who have not submitted, and to remove nothing.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": false,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G2": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    }
+  }
 }

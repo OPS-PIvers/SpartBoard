@@ -2,8 +2,556 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "embed",
   "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "gradedAt": "2026-10-05T23:27:48.952Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "S6": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I2": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I3": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I4": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I6": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/envelope-min__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/envelope-min__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "At 150×100 the empty state shrinks to 2.7 px unreadable text, the typical page shows only a clipped title, and the stress fixture renders a blank card, so nothing was chosen to keep.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/large-1400x900__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/large-1400x900__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The frame fills 100% of the 1400×900 card and the embedded page reflows to it with readable lines; any empty space comes from the hosted page, not the widget.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/widest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/widest-aspect__stress.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/tallest-aspect__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The frame fills every shape with about 1% dead area, but the widget has one layout, and at the tallest aspect the stress page's text runs off the right edge.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The envelope sits at the global floor, which is no narrower than an embedded web page needs, though the face is unusable at that floor.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/maximized-1920x1080__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Maximized is the same frame enlarged to 1920×1080 with two corner buttons and no presenting changes, so it reads as an enlarged card.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The face is a clean full-bleed frame, but the empty state is faint gray-on-gray tiny text, which is a ban-list hit.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 4,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The face is only the embedded page with no widget chrome, so its purpose is clear at a glance, every proxy is zero, and nothing could be removed.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The embedded page is the only primary element and no widget chrome competes with it.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The widget imports only ScaledEmptyState, and the hover toolbar uses 5 raw controls and a one-off radius instead of shared components.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Lucide icons are used throughout and the copy guard passes, but 'No URL Provided / Flip to add a link.' uses insider wording ('Flip') and shouting caps.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "URL or code mode, refresh interval, zoom, autoplay and start time cover the plausible choices without bloat.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The drawer schema has a Content group (mode and URL) followed by a short Behavior group (refresh), using standard sections, though the settings screenshot barely shows the drawer.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "On first drop the widget shows only 'No URL Provided' and stays unusable until a link is added.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "ScaledEmptyState gives a globe icon, a title and one line naming the next action, though the text is so faint it is hard to read.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C6": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The empty states use the shared component, but none of the screenshots shows a designed load-failure or blocked-frame view, and generation errors only go to a toast.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The widget renders no student data of its own, and the face shows only teacher-chosen page content.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "No connections show on the face; proposals: add a Link/QR share of the embedded URL and a Schedule/Timer-driven switch of embeds, and remove nothing.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The folder has 7 tests, no any types, no useDashboard or derived-state effects, and its largest file is 628 lines.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G2": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    }
+  }
 }

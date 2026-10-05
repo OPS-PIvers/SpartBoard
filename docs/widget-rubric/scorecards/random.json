@@ -2,8 +2,572 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "random",
   "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "gradedAt": "2026-10-05T23:27:48.952Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "S6": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 0,
+      "source": "script",
+      "candidates": {
+        "script": 0,
+        "judge": 0
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/envelope-min__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/envelope-min__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/large-1400x900__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/large-1400x900__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "At 1400x900 the name scales up proportionally to fill the card and long names wrap to two readable lines, but the layout only zooms and shows nothing more.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/widest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/widest-aspect__stress.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/tallest-aspect__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The layout is the same at every shape: at 1400x350 the typical name overflows and is clipped top and bottom, and at 225x900 the stress name shrinks to tiny text in a mostly empty column.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The envelope uses the global 150x100 floor and does not hide any defect, and a name picker reasonably needs about the default 300x320 to show a name.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/maximized-1920x1080__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Maximized is the default card blown up with a huge name, and the shuffle button sits under the minimize and menu controls in the bottom-right corner rather than being laid out for presenting.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The default face shows no selected or active treatment on the mode pill, and the reset icon is a faint gray glyph with no visible state, so pressed and active feedback is not evident for every control.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The face is a clean glass card with bold navy type, rounded white chips and a single navy FAB, and it hits no ban-list items beyond a slightly faint reset icon.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "From the back of the room a big student name and a shuffle button say what it does, and the proxies (4 controls, 2 font sizes, 4 words) are low.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The picked name is clearly dominant, and the Pick One pill, reset, target and shuffle FAB step down in size and weight around it.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "It imports Button and ScaledEmptyState, but 16 raw controls and custom pill, FAB and radius values make the face mostly one-off styling.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The drawer schema covers roster source or pasted names, mode (pick, shuffle, groups, jigsaw), animation style, sound, group size or count, locked groups and the timer link, which spans the plausible choices without obvious bloat.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The settings screenshot barely shows the drawer, and the schema groups Content and Behavior, but advanced group options (locked groups, save as class groups, send to Stations or Projects) sit inline with common ones instead of collapsed.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "With no roster the widget shows only a washed-out 'No names provided' state, so it is not usable until names or a class are supplied, and the empty face looks unfinished.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "On first drop it uses ScaledEmptyState with the title 'No names provided' and one sentence telling the teacher to flip the widget and enter names, although the text is very low contrast.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The harness forced loading, error, offline and no-roster states, and the empty state is a designed shared view, but no retry or pick-a-class action is visible on the face.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R2": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Only the picked student's name appears on the face, which is the point of the widget, and no other protected fields are shown.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "It connects to the class roster, the Timer (auto-start), Stations, Projects and class groups, and the face has a class target button, but it does not say which class is linked.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": false,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G2": {
+      "pass": false,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    }
+  }
 }

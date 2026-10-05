@@ -2,8 +2,580 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "time-tool",
   "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "gradedAt": "2026-10-05T23:27:48.952Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "S6": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/envelope-min__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/envelope-min__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "At 150x100 the digits stay large and readable, but the -1m/play/reset/+1m row shrinks to about 10 px targets instead of collapsing or moving to an overflow.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/large-1400x900__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/large-1400x900__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The ring and digits grow to fill the 1400x900 card, but the control row stays at its default tiny size and the stress digits ghost past the card's right edge.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/widest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/widest-aspect__stress.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/tallest-aspect__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "A timer only needs digits and a play button, and the 150x100 floor still shows a readable time with its controls, which matches what the content needs.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/maximized-1920x1080__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Maximized, the digits fill the screen, but the controls stay a small cluster and the stress digits run off the right edge, so it reads as an enlarged card rather than a presenting layout.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I5": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The default screenshot shows a filled primary play button and a dimmed reset, but no pressed or selected states can be seen for the -1m/+1m buttons.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The glass card and bold numerals look modern, but the tiny gray '1m' labels on gray chips are a gray-on-gray, tiny-text ban-list hit.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The time and the play button can be named at a glance, and there are only 5 controls, 5 words and 2 font sizes on the face.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 4,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The huge numerals lead, the accent play button is next, and the muted adjust and reset chips step down, which is the order a teacher uses them: set, start, adjust.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 4,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The play and reset icons are lucide only and read without labels, and the only text is the terse '1m' a teacher would write.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Mode, sound, adjust step, ring or digital display, clock style, color, glow, font and timer-end actions are all configurable, with no needless options.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The settings screenshot shows only the selected face with the drawer off-frame, so beyond the schema's content/behavior/display groups there is no evidence that common settings come first or that advanced ones collapse.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The empty default is a clean 10:00 countdown that is ready to start with no setup.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 4,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "On first drop the face shows 10:00 with a prominent play button, so the next action can be done right on the face.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The timer has no data dependencies, and both the empty and typical renders are fully designed views with no spinners or raw errors.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R2": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The face shows only a countdown and controls, with no student data.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Timer-end links to Expectations, Traffic Light, Random, Stations and Next Up are partner-gated in the drawer, but the face never shows what the timer is linked to. Proposals: add a small face indicator for active timer-end links; remove nothing.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G2": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    }
+  }
 }

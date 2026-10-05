@@ -2,8 +2,559 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "traffic",
   "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "gradedAt": "2026-10-05T23:27:48.952Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "S6": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/envelope-min__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/envelope-min__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "At 150x100 the three lights shrink uniformly to about 25px taps; they stay readable and tappable, but nothing adapts for the small size.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/large-1400x900__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/large-1400x900__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "At 1400x900 the lights grow with height only, so a narrow column sits in the middle of wide empty side bands.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/widest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/widest-aspect__stress.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/tallest-aspect__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The same vertical stack is used at every aspect, and the 1400x350 shape leaves wide dead bands on both sides of a small column.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The widget still works at the global 150x100 floor, which matches a three-light control.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/maximized-1920x1080__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Maximized is the same centered column of three circles with large empty sides, an enlarged card rather than a presenting layout.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The active light glows clearly, but the buttons have no hover or pressed state.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "A dark rounded housing with purposeful glow on the lit lamp, no ban-list hits, though the look is skeuomorphic rather than the glass style.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 4,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The face is only three lights, its purpose is obvious from across the room, and nothing could be removed.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The lit lamp dominates while the unlit lamps recede as dim circles.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Three raw buttons with a one-off 2.5rem radius and no shared components, though colors stay on the Tailwind palette.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 4,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "There is no copy and no icons, and red, yellow and green lamps need no label to be understood.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Three lights, vertical orientation and meanings are hardcoded, with no settings for plausible variants like labels per color or a horizontal layout.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The settings screenshot shows an empty drawer with no sections or controls.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "On first drop it shows a complete, good-looking traffic light with all lamps off, ready to use.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 4,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The empty face is the control itself, and a teacher sets a light by tapping it right there.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The widget has no async data, so the empty and typical views are the only reachable states and both are designed.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The face shows no student data at all.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "No connections exist, and high-value ones are missing, such as setting the light from the Sound meter, a Timer or the Expectations widget. Proposals: add Sound-level auto-light and Timer-end light change; remove none.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/traffic/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "A 71-line widget with a folder test covering toggle behavior, it uses the canvas store, and has no any or effect violations.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G2": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    }
+  }
 }

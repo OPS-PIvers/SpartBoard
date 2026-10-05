@@ -2,8 +2,602 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "lunchCount",
   "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "gradedAt": "2026-10-05T23:27:48.952Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 0,
+      "source": "script",
+      "candidates": {
+        "script": 0,
+        "judge": 0
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/envelope-min__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/envelope-min__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/large-1400x900__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/large-1400x900__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "At 1400x900 the three columns stretch to the full height but hold one small chip each, leaving huge empty gaps while header labels stay tiny; only the stress fixture uses the extra room.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/widest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/widest-aspect__stress.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/tallest-aspect__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The same three-column-plus-pool layout appears at every shape: at the widest aspect the pool covers the column contents, and at the tallest the columns are so narrow that names and the header get clipped.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S6": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/widest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/envelope-min__stress.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "A three-column drag board with a roster pool can't work anywhere near the 150x100 floor, so the envelope doesn't match what the content needs and should have a larger minimum.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/maximized-1920x1080__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Maximized fills the screen with mostly empty columns, and the category labels and counts stay small, so it reads as an enlarged card rather than a presenting layout.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Chips have a raised shadow and the Bento zone shows an active tint, but the Assign button looks disabled in a gray-on-gray style with no clear state, and the icon buttons show no visible state.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Clean type, but dashed borders box every column and the pool, the header labels are tiny, and the Assign button is gray-on-gray.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "A lunch count is recognizable at a glance, but 27 controls, 93 words, 16 colors and 36 boxes put the proxies well over a lean face.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The unassigned pool's large name chips are as heavy as the column contents and overlap them, while the category counts and labels that answer the lunch-count question are small.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The face uses ActiveClassChip but otherwise has one-off dashed drop zones, raw buttons and custom count badges, and shared Button/Modal use is mostly confined to the report flow.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Labels are short and plain with only lucide icons, but the lone refresh, undo and box icons aren't self-explanatory, and \"Assign 21 more students\" reads oddly as a disabled button.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Settings cover school site, grade level, lunch time, roster source, a custom roster and manual menu text, though the three category buckets themselves are fixed.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The settings-open screenshot shows no drawer, and the schema groups content then behavior, so roster mode, the most common setting, sits below site and time fields.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "With no data the face shows zero counts, \"Loading...\" stuck in two columns, an empty pool and a disabled \"Assign 0 more students\" button, which looks unfinished.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The first drop shows zeros and \"Loading...\" with no empty state telling the teacher to pick a class or roster.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "The empty fixture leaves a raw \"Loading...\" string sitting indefinitely in the menu columns, with no designed loading, error or no-roster view.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R2": {
+      "score": 0,
+      "source": "script",
+      "candidates": {
+        "script": 0
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Only student names and their lunch choice appear, which is the point of the widget, and no protected fields show on the face.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "R5": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "note": "Roster and active-class linking (shown on the face as the class chip) and the Nutrislice menu work, but a high-value attendance link is missing, which would send absent students straight to Home/Other. Proposal: add an attendance link; remove nothing.",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": false,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G2": {
+      "pass": false,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G3": {
+      "pass": false,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    },
+    "G4": {
+      "pass": false,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-05T23:27:48.952Z"
+    }
+  }
 }
