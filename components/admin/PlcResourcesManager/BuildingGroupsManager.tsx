@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Check, Pencil, Plus, RefreshCw, Trash2, Users, X } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { usePlcs } from '@/hooks/usePlcs';
@@ -10,12 +10,20 @@ import {
   callSyncBuildingGroup,
 } from '@/hooks/useBuildingGroups';
 import { getPlcMembers } from '@/utils/plc';
-import { getPlcGroupType } from '@/types';
+import { getPlcGroupType, type Plc, type PlcMember } from '@/types';
+import {
+  PlcAdminMembersEditor,
+  type AdminMemberRole,
+  type AdminMemberTarget,
+} from './PlcAdminMembersEditor';
 
 const inputClass =
   'w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary';
 const labelClass =
   'block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1.5';
+
+const actionClass =
+  'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-brand-blue-primary hover:bg-slate-100 disabled:opacity-40';
 
 function errorText(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;
@@ -26,7 +34,8 @@ export const BuildingGroupsManager: React.FC = () => {
   const { t } = useTranslation();
   const { orgId } = useAuth();
   const { addToast } = useDashboard();
-  const { plcs, loading } = usePlcs({ asAdmin: true });
+  const { plcs, loading, adminSetMember, adminRemoveMember, deletePlc } =
+    usePlcs({ asAdmin: true });
   const { buildings } = useOrgBuildings(orgId);
   const [showForm, setShowForm] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -35,6 +44,9 @@ export const BuildingGroupsManager: React.FC = () => {
   const [leadEmail, setLeadEmail] = useState('');
   const [coLeads, setCoLeads] = useState('');
   const [autoRoster, setAutoRoster] = useState(true);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [membersOpenId, setMembersOpenId] = useState<string | null>(null);
 
   const groups = useMemo(
     () =>
@@ -121,6 +133,109 @@ export const BuildingGroupsManager: React.FC = () => {
     } finally {
       setBusyId(null);
     }
+  };
+
+  const runAction = async (
+    plcId: string,
+    action: () => Promise<void>,
+    success: string
+  ) => {
+    setBusyId(plcId);
+    try {
+      await action();
+      addToast(success, 'success');
+    } catch (err) {
+      addToast(
+        errorText(
+          err,
+          t('admin.buildingGroups.syncFailed', {
+            defaultValue: "Couldn't update the group.",
+          })
+        ),
+        'error'
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleRename = (g: Plc) => {
+    const next = renameValue.trim();
+    if (!next || next === g.name) {
+      setRenamingId(null);
+      return;
+    }
+    void runAction(
+      g.id,
+      async () => {
+        await callSyncBuildingGroup({ plcId: g.id, name: next });
+        setRenamingId(null);
+      },
+      t('admin.buildingGroups.renamed', { defaultValue: 'Group renamed.' })
+    );
+  };
+
+  const handleSetMember = (
+    g: Plc,
+    target: AdminMemberTarget,
+    role: AdminMemberRole
+  ) =>
+    void runAction(
+      g.id,
+      () => adminSetMember(g.id, target, role),
+      t('admin.buildingGroups.memberSaved', {
+        defaultValue: '{{member}} updated.',
+        member: target.displayName || target.email,
+      })
+    );
+
+  const handleRemoveMember = (g: Plc, member: PlcMember) => {
+    const label = member.displayName || member.email || member.uid;
+    if (
+      !window.confirm(
+        t('admin.buildingGroups.confirmRemoveMember', {
+          defaultValue: 'Remove {{member}} from “{{name}}”?',
+          member: label,
+          name: g.name,
+        })
+      )
+    ) {
+      return;
+    }
+    void runAction(
+      g.id,
+      () => adminRemoveMember(g.id, member.uid),
+      t('admin.buildingGroups.memberRemoved', {
+        defaultValue: '{{member}} removed.',
+        member: label,
+      })
+    );
+  };
+
+  const handleDelete = (g: Plc) => {
+    if (
+      !window.confirm(
+        t('admin.buildingGroups.confirmDelete', {
+          defaultValue:
+            'Delete “{{name}}”? It disappears for all {{count}} members and cannot be undone.',
+          name: g.name,
+          count: getPlcMembers(g).length,
+        })
+      )
+    ) {
+      return;
+    }
+    void runAction(
+      g.id,
+      async () => {
+        await deletePlc(g.id);
+        if (membersOpenId === g.id) setMembersOpenId(null);
+      },
+      t('admin.buildingGroups.deleted', {
+        defaultValue: '“{{name}}” deleted.',
+        name: g.name,
+      })
+    );
   };
 
   const canCreate =
@@ -260,46 +375,152 @@ export const BuildingGroupsManager: React.FC = () => {
           {groups.map((g) => {
             const busy = busyId === g.id;
             const on = g.autoRoster === true;
+            const membersOpen = membersOpenId === g.id;
             return (
-              <li key={g.id} className="flex items-center gap-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-slate-800">
-                    {g.name}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {buildingName(g.buildingId)} ·{' '}
-                    {t('admin.buildingGroups.memberCount', {
-                      count: getPlcMembers(g).length,
-                      defaultValue: '{{count}} members',
+              <li key={g.id} className="py-3">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <div className="min-w-0 flex-1">
+                    {renamingId === g.id ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleRename(g);
+                        }}
+                        className="flex items-center gap-1.5"
+                      >
+                        <label
+                          className="sr-only"
+                          htmlFor={`bg-rename-${g.id}`}
+                        >
+                          {t('admin.buildingGroups.name', {
+                            defaultValue: 'Name',
+                          })}
+                        </label>
+                        <input
+                          id={`bg-rename-${g.id}`}
+                          autoFocus
+                          maxLength={120}
+                          className={`${inputClass} py-1.5`}
+                          value={renameValue}
+                          disabled={busy}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') setRenamingId(null);
+                          }}
+                        />
+                        <button
+                          type="submit"
+                          disabled={busy || !renameValue.trim()}
+                          aria-label={t('admin.buildingGroups.saveName', {
+                            defaultValue: 'Save name',
+                          })}
+                          className="rounded-lg p-1.5 text-brand-blue-primary hover:bg-slate-100 disabled:opacity-40"
+                        >
+                          <Check className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRenamingId(null)}
+                          aria-label={t('common.cancel', {
+                            defaultValue: 'Cancel',
+                          })}
+                          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+                        >
+                          <X className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      </form>
+                    ) : (
+                      <p className="truncate text-sm font-bold text-slate-800">
+                        {g.name}
+                      </p>
+                    )}
+                    <p className="text-xs text-slate-500">
+                      {buildingName(g.buildingId)} ·{' '}
+                      {t('admin.buildingGroups.memberCount', {
+                        count: getPlcMembers(g).length,
+                        defaultValue: '{{count}} members',
+                      })}
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      disabled={busy}
+                      onChange={() => void handleSync(g.id, !on)}
+                      className="h-4 w-4 accent-brand-blue-primary"
+                    />
+                    {t('admin.buildingGroups.autoRosterShort', {
+                      defaultValue: 'Auto-add staff',
                     })}
-                  </p>
+                  </label>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => void handleSync(g.id)}
+                      disabled={busy || !on}
+                      className={actionClass}
+                    >
+                      <RefreshCw
+                        className={`h-3.5 w-3.5 ${busy ? 'animate-spin' : ''}`}
+                        aria-hidden="true"
+                      />
+                      {t('admin.buildingGroups.sync', {
+                        defaultValue: 'Add staff now',
+                      })}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRenamingId(g.id);
+                        setRenameValue(g.name);
+                      }}
+                      disabled={busy}
+                      className={actionClass}
+                    >
+                      <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                      {t('admin.buildingGroups.rename', {
+                        defaultValue: 'Rename',
+                      })}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setMembersOpenId(membersOpen ? null : g.id)
+                      }
+                      disabled={busy}
+                      aria-expanded={membersOpen}
+                      className={actionClass}
+                    >
+                      <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                      {t('admin.buildingGroups.members', {
+                        defaultValue: 'Members',
+                      })}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(g)}
+                      disabled={busy}
+                      className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-40"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      {t('admin.buildingGroups.delete', {
+                        defaultValue: 'Delete',
+                      })}
+                    </button>
+                  </div>
                 </div>
-                <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                  <input
-                    type="checkbox"
-                    checked={on}
-                    disabled={busy}
-                    onChange={() => void handleSync(g.id, !on)}
-                    className="h-4 w-4 accent-brand-blue-primary"
+                {membersOpen && orgId && (
+                  <PlcAdminMembersEditor
+                    plc={g}
+                    orgId={orgId}
+                    busy={busy}
+                    onSetMember={(target, role) =>
+                      handleSetMember(g, target, role)
+                    }
+                    onRemoveMember={(member) => handleRemoveMember(g, member)}
                   />
-                  {t('admin.buildingGroups.autoRosterShort', {
-                    defaultValue: 'Auto-add staff',
-                  })}
-                </label>
-                <button
-                  type="button"
-                  onClick={() => void handleSync(g.id)}
-                  disabled={busy || !on}
-                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-brand-blue-primary hover:bg-slate-100 disabled:opacity-40"
-                >
-                  <RefreshCw
-                    className={`h-3.5 w-3.5 ${busy ? 'animate-spin' : ''}`}
-                    aria-hidden="true"
-                  />
-                  {t('admin.buildingGroups.sync', {
-                    defaultValue: 'Add staff now',
-                  })}
-                </button>
+                )}
               </li>
             );
           })}
