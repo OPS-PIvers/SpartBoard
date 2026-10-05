@@ -1,5 +1,18 @@
 import type { WidgetType } from '@/types';
 import type { WidgetFixtureSet } from './types';
+import { blendingBoardFixtures } from './blending-board';
+import { carRiderProFixtures } from './car-rider-pro';
+import { conceptWebFixtures } from './concept-web';
+import { graphicOrganizerFixtures } from './graphic-organizer';
+import { guidedLearningFixtures } from './guided-learning';
+import { hotspotImageFixtures } from './hotspot-image';
+import { musicFixtures } from './music';
+import { numberLineFixtures } from './numberLine';
+import { revealGridFixtures } from './reveal-grid';
+import { specialistScheduleFixtures } from './specialist-schedule';
+import { starterPackFixtures } from './starter-pack';
+import { syntaxFramerFixtures } from './syntax-framer';
+import { videoActivityFixtures } from './video-activity';
 import { checklistFixtures } from './checklist';
 import { clockFixtures } from './clock';
 import { pollFixtures } from './poll';
@@ -59,6 +72,20 @@ export const WIDGET_FIXTURES: Partial<Record<WidgetType, WidgetFixtureSet>> = {
   random: randomFixtures,
   schedule: scheduleFixtures,
   text: textFixtures,
+  // S5c
+  'blending-board': blendingBoardFixtures,
+  'car-rider-pro': carRiderProFixtures,
+  'concept-web': conceptWebFixtures,
+  'graphic-organizer': graphicOrganizerFixtures,
+  'guided-learning': guidedLearningFixtures,
+  'hotspot-image': hotspotImageFixtures,
+  music: musicFixtures,
+  numberLine: numberLineFixtures,
+  'reveal-grid': revealGridFixtures,
+  'specialist-schedule': specialistScheduleFixtures,
+  'starter-pack': starterPackFixtures,
+  'syntax-framer': syntaxFramerFixtures,
+  'video-activity': videoActivityFixtures,
   // S5a
   calendar: calendarFixtures,
   classes: classesFixtures,
