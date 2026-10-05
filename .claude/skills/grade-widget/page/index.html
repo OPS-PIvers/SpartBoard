@@ -1,0 +1,727 @@
+<title>Widget Grading</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+/>
+<style>
+  /* Layout: card index on the left, screenshots then the scoring column; hairlines, no boxes. */
+  :root {
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --fg: #17202c;
+    --muted: #5b6676;
+    --line: #dde2e9;
+    --accent: #1d5fd1;
+    --accent-ink: #ffffff;
+    --pass: #1f7a4d;
+    --fail: #b4232c;
+    --font: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --bg: #12161c;
+      --surface: #191f27;
+      --fg: #e6eaf0;
+      --muted: #9aa5b4;
+      --line: #2c3540;
+      --accent: #6ea2ff;
+      --accent-ink: #0b1220;
+      --pass: #5cc48d;
+      --fail: #ff7a80;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme='dark'] {
+    --bg: #12161c;
+    --surface: #191f27;
+    --fg: #e6eaf0;
+    --muted: #9aa5b4;
+    --line: #2c3540;
+    --accent: #6ea2ff;
+    --accent-ink: #0b1220;
+    --pass: #5cc48d;
+    --fail: #ff7a80;
+    color-scheme: dark;
+  }
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font: 15px/1.5 var(--font);
+  }
+  .app {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    height: 100%;
+  }
+  header,
+  footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 20px;
+    padding: 10px 16px;
+    background: var(--surface);
+  }
+  header {
+    border-bottom: 1px solid var(--line);
+  }
+  footer {
+    border-top: 1px solid var(--line);
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  h1 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+  }
+  .meta {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .spacer {
+    flex: 1;
+  }
+  .body {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    min-height: 0;
+  }
+  nav {
+    overflow-y: auto;
+    border-right: 1px solid var(--line);
+    padding-block: 8px 48px;
+  }
+  nav h2 {
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 12px 16px 4px;
+  }
+  nav button {
+    display: flex;
+    width: 100%;
+    gap: 8px;
+    padding: 4px 16px;
+    border: 0;
+    background: none;
+    color: var(--fg);
+    font: inherit;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+  }
+  nav button[aria-current='true'] {
+    background: var(--line);
+  }
+  nav .mark {
+    width: 1.2em;
+    font-family: var(--mono);
+    color: var(--muted);
+  }
+  main {
+    overflow-y: auto;
+    padding: 20px 24px 64px;
+  }
+  .card {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(320px, 1fr);
+    gap: 28px;
+    max-width: 1500px;
+  }
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  h2.criterion {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 2px 0 4px;
+    text-wrap: balance;
+  }
+  .rule {
+    color: var(--muted);
+    margin: 0 0 16px;
+  }
+  .shots {
+    display: grid;
+    gap: 18px;
+    align-content: start;
+  }
+  figure {
+    margin: 0;
+  }
+  figure img {
+    display: block;
+    min-width: min(100%, 320px);
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--line);
+    background: repeating-conic-gradient(var(--line) 0 25%, transparent 0 50%)
+      0 0 / 16px 16px;
+  }
+  figcaption {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .exemplars {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  section + section {
+    margin-top: 20px;
+  }
+  h3 {
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 6px;
+    font-weight: 600;
+  }
+  ul.plain {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  ul.plain li {
+    padding: 3px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .levels {
+    border-top: 1px solid var(--line);
+  }
+  .level {
+    display: grid;
+    grid-template-columns: 2.2em minmax(0, 1fr) auto;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 4px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    background: none;
+    color: var(--fg);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .level:hover:not(:disabled) {
+    background: var(--surface);
+  }
+  .level:disabled {
+    cursor: default;
+    color: var(--muted);
+  }
+  .num {
+    display: inline-grid;
+    place-items: center;
+    width: 1.9em;
+    height: 1.9em;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    font-family: var(--mono);
+    font-weight: 600;
+  }
+  .level[aria-pressed='true'] .num {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+  .tags {
+    display: flex;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .tags .you {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .na {
+    padding: 10px 0;
+    font-weight: 600;
+  }
+  .judge {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .judge strong {
+    font-family: var(--mono);
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    margin: 12px 0 4px;
+  }
+  textarea {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 3.2em;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--fg);
+    font: inherit;
+    resize: vertical;
+  }
+  .check {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    color: var(--fg);
+    font-size: 14px;
+  }
+  .gates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    font-size: 14px;
+  }
+  .pass {
+    color: var(--pass);
+  }
+  .fail {
+    color: var(--fail);
+    font-weight: 600;
+  }
+  a {
+    color: var(--accent);
+  }
+  .btn {
+    padding: 7px 14px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--fg);
+    font: inherit;
+    cursor: pointer;
+  }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .status {
+    color: var(--muted);
+  }
+  .status.error {
+    color: var(--fail);
+  }
+  @media (max-width: 900px) {
+    .body {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    nav {
+      display: none;
+    }
+    .card {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    main {
+      padding: 16px 16px 64px;
+    }
+  }
+</style>
+
+<div class="app">
+  <header>
+    <h1 id="title">Widget Grading</h1>
+    <span class="meta" id="progress"></span>
+    <span class="spacer"></span>
+    <span class="status" id="status" role="status"></span>
+  </header>
+  <div class="body">
+    <nav id="index" aria-label="Cards"></nav>
+    <main id="main">
+      <p class="status">Loading deck</p>
+    </main>
+  </div>
+  <footer>
+    <button class="btn" id="prev" type="button">Previous</button>
+    <button class="btn" id="next" type="button">Next</button>
+    <span class="spacer"></span>
+    <button class="btn primary" id="done" type="button">Done</button>
+  </footer>
+</div>
+
+<script>
+  (() => {
+    const REWRITE_GAP = 2;
+    const $ = (id) => document.getElementById(id);
+    const el = (tag, attrs = {}, ...kids) => {
+      const n = document.createElement(tag);
+      for (const [k, v] of Object.entries(attrs)) {
+        if (v == null || v === false) continue;
+        if (k === 'class') n.className = v;
+        else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+        else n.setAttribute(k, v === true ? '' : v);
+      }
+      for (const kid of kids.flat())
+        if (kid != null)
+          n.append(kid instanceof Node ? kid : document.createTextNode(kid));
+      return n;
+    };
+
+    let deck = null;
+    let db = null;
+    let index = 0;
+    let finished = false;
+    const grades = {};
+    const DIMENSIONS = {
+      layout: 'Layout & Scaling',
+      visual: 'Visual Design',
+      interaction: 'Interaction',
+      config: 'Configurability',
+      robustness: 'Robustness',
+      ecosystem: 'Ecosystem',
+    };
+
+    const status = (text, error = false) => {
+      $('status').textContent = text;
+      $('status').className = error ? 'status error' : 'status';
+    };
+    const gradePath = (id) => `decks/${deck.deckId}/grades/${id}`;
+    const card = () => deck.cards[index];
+    const gradable = (c) => !c.na;
+
+    const save = async (c, patch) => {
+      const prev = grades[c.id] || {};
+      const row = {
+        cardId: c.id,
+        level: prev.level,
+        note: prev.note || '',
+        missed: prev.missed || '',
+        exemplar: Boolean(prev.exemplar),
+        ...patch,
+        gradedAt: new Date().toISOString(),
+      };
+      if (row.level == null) return;
+      grades[c.id] = row;
+      render();
+      if (!db) {
+        status('Not saved: grades need the database', true);
+        return;
+      }
+      try {
+        await db.doc(gradePath(c.id)).set(row);
+        status('Saved');
+      } catch (e) {
+        status(`Not saved: ${e && e.message ? e.message : 'database error'}`, true);
+      }
+    };
+
+    const go = (to) => {
+      if (!deck || !deck.cards.length) return;
+      index = Math.max(0, Math.min(deck.cards.length - 1, to));
+      try {
+        localStorage.setItem(`grading:${deck.deckId}:index`, String(index));
+      } catch {}
+      render();
+      $('main').scrollTop = 0;
+    };
+
+    const renderIndex = () => {
+      const nav = $('index');
+      nav.replaceChildren();
+      let group = null;
+      deck.cards.forEach((c, i) => {
+        const key = deck.mode === 'criterion' ? c.criterionId : c.widgetName;
+        if (key !== group) {
+          group = key;
+          nav.append(
+            el(
+              'h2',
+              {},
+              deck.mode === 'criterion' ? `${c.criterionId} ${c.criterionName}` : c.widgetName
+            )
+          );
+        }
+        const g = grades[c.id];
+        const mark = c.na ? '–' : g ? String(g.level) : '';
+        nav.append(
+          el(
+            'button',
+            {
+              type: 'button',
+              'aria-current': i === index ? 'true' : 'false',
+              onclick: () => go(i),
+            },
+            el('span', { class: 'mark' }, mark),
+            deck.mode === 'criterion' ? c.widgetName : `${c.criterionId} ${c.criterionName}`
+          )
+        );
+      });
+    };
+
+    const renderShots = (c) => {
+      const col = el('div', { class: 'shots' });
+      for (const s of c.shots)
+        col.append(
+          el(
+            'figure',
+            {},
+            el('img', { src: s.src, alt: `${c.widgetName}, ${s.caption}`, loading: 'lazy' }),
+            el('figcaption', {}, s.caption)
+          )
+        );
+      if (c.exemplars.length)
+        col.append(
+          el(
+            'section',
+            {},
+            el('h3', {}, 'Exemplars'),
+            el(
+              'div',
+              { class: 'exemplars' },
+              c.exemplars.map((x) =>
+                el(
+                  'figure',
+                  {},
+                  el('img', { src: x.src, alt: `${x.widgetType}, level ${x.level} exemplar` }),
+                  el('figcaption', {}, `Level ${x.level}: ${x.widgetType}`)
+                )
+              )
+            )
+          )
+        );
+      return col;
+    };
+
+    const renderScoring = (c) => {
+      const g = grades[c.id];
+      const picked = g ? g.level : null;
+      const col = el('div');
+      col.append(
+        el('div', { class: 'eyebrow' }, `${c.widgetName} · ${DIMENSIONS[c.dimension] || c.dimension}`),
+        el('h2', { class: 'criterion' }, `${c.criterionId} ${c.criterionName}`),
+        el('p', { class: 'rule' }, c.rule)
+      );
+      if (c.measurements.length || c.scriptLevel != null)
+        col.append(
+          el(
+            'section',
+            {},
+            el('h3', {}, 'Script measurements'),
+            el(
+              'ul',
+              { class: 'plain' },
+              c.measurements.map((m) => el('li', {}, m)),
+              c.scriptLevel != null ? el('li', {}, `Script level: ${c.scriptLevel}`) : null
+            )
+          )
+        );
+      const levels = el('div', { class: 'levels', role: 'group', 'aria-label': 'Level' });
+      for (const l of c.levels) {
+        const tags = el('span', { class: 'tags' });
+        if (picked === l.level) tags.append(el('span', { class: 'you' }, 'Your score'));
+        if (c.previous === l.level) tags.append(el('span', {}, 'Previous'));
+        if (picked != null && c.judge && c.judge.score === l.level)
+          tags.append(el('span', {}, 'Judge'));
+        levels.append(
+          el(
+            'button',
+            {
+              type: 'button',
+              class: 'level',
+              disabled: c.na || finished,
+              'aria-pressed': picked === l.level ? 'true' : 'false',
+              onclick: () => save(c, { level: l.level }),
+            },
+            el('span', { class: 'num' }, String(l.level)),
+            el('span', {}, l.text),
+            tags
+          )
+        );
+      }
+      col.append(el('section', {}, c.na ? el('div', { class: 'na' }, 'N/A by rule') : null, levels));
+
+      if (picked != null && !c.na) {
+        if (c.judge) {
+          col.append(
+            el(
+              'div',
+              { class: 'judge' },
+              'Judge ',
+              el('strong', {}, c.judge.score == null ? 'none' : String(c.judge.score)),
+              c.judge.why ? `. ${c.judge.why}` : ''
+            )
+          );
+        }
+        const note = el('textarea', { id: `note-${c.id}`, disabled: finished });
+        note.value = g.note || '';
+        note.addEventListener('change', () => save(c, { note: note.value }));
+        col.append(el('label', { for: note.id }, 'Note'), note);
+        if (c.judge && c.judge.score != null && Math.abs(c.judge.score - picked) >= REWRITE_GAP) {
+          const missed = el('textarea', { id: `missed-${c.id}`, disabled: finished });
+          missed.value = g.missed || '';
+          missed.addEventListener('change', () => save(c, { missed: missed.value }));
+          col.append(el('label', { for: missed.id }, 'What did the descriptor miss?'), missed);
+        }
+        if (c.exemplarPick) {
+          const box = el('input', {
+            type: 'checkbox',
+            id: `exemplar-${c.id}`,
+            checked: Boolean(g.exemplar),
+            disabled: finished,
+            onchange: (e) => save(c, { exemplar: e.target.checked }),
+          });
+          col.append(el('label', { class: 'check', for: box.id }, box, `Use as level ${picked} exemplar`));
+        }
+      }
+
+      if (c.harness.length)
+        col.append(
+          el(
+            'section',
+            {},
+            el('h3', {}, 'Harness'),
+            el(
+              'ul',
+              { class: 'plain' },
+              c.harness.map((h) =>
+                el('li', {}, el('a', { href: deck.harnessOrigin + h.path, target: '_blank', rel: 'noopener' }, h.label))
+              )
+            )
+          )
+        );
+      const gates = deck.gates[c.widgetType] || [];
+      if (gates.length)
+        col.append(
+          el(
+            'section',
+            {},
+            el('h3', {}, 'Gates'),
+            el(
+              'div',
+              { class: 'gates' },
+              gates.map((x) =>
+                el(
+                  'span',
+                  { title: x.where || '' },
+                  `${x.gate} `,
+                  el('span', { class: x.pass ? 'pass' : 'fail' }, x.pass ? 'Pass' : 'Fail')
+                )
+              )
+            )
+          )
+        );
+      return col;
+    };
+
+    const render = () => {
+      if (!deck) return;
+      const total = deck.cards.length;
+      const toGrade = deck.cards.filter(gradable);
+      const done = toGrade.filter((c) => grades[c.id]).length;
+      $('progress').textContent = total
+        ? `Card ${index + 1} of ${total} · Graded ${done} of ${toGrade.length}`
+        : '';
+      $('prev').disabled = index === 0;
+      $('next').disabled = index >= total - 1;
+      $('done').disabled = finished || !db;
+      $('done').textContent = finished ? 'Finished' : 'Done';
+      renderIndex();
+      const main = $('main');
+      if (!total) {
+        main.replaceChildren(el('p', { class: 'status' }, 'No cards in this deck'));
+        return;
+      }
+      const c = card();
+      main.replaceChildren(el('div', { class: 'card' }, renderShots(c), renderScoring(c)));
+    };
+
+    $('prev').addEventListener('click', () => go(index - 1));
+    $('next').addEventListener('click', () => go(index + 1));
+    $('done').addEventListener('click', async () => {
+      if (!db || finished) return;
+      try {
+        await db.doc(`decks/${deck.deckId}`).set({ done: true, doneAt: new Date().toISOString() });
+        finished = true;
+        status('Finished');
+        render();
+      } catch (e) {
+        status(`Not saved: ${e && e.message ? e.message : 'database error'}`, true);
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      const inField = e.target instanceof Element && e.target.closest('textarea, input');
+      if (!deck || inField || e.metaKey || e.ctrlKey || e.altKey) return;
+      const c = card();
+      if (/^[0-4]$/.test(e.key) && c && !c.na && !finished) {
+        const level = Number(e.key);
+        if (c.levels.some((l) => l.level === level)) {
+          e.preventDefault();
+          save(c, { level });
+        }
+      } else if (e.key === 'ArrowRight') go(index + 1);
+      else if (e.key === 'ArrowLeft') go(index - 1);
+    });
+
+    const connect = async () => {
+      db = window.claude && window.claude.use ? await window.claude.use('db') : null;
+      if (!db) {
+        status('Grades can’t be saved in this view', true);
+        render();
+        return;
+      }
+      db.collection(`decks/${deck.deckId}/grades`).onSnapshot(
+        (snap) => {
+          for (const d of snap.docs) {
+            const row = d.data();
+            if (row && row.cardId) grades[row.cardId] = row;
+          }
+          render();
+        },
+        (e) => status(`Database error: ${e.message}`, true)
+      );
+      db.doc(`decks/${deck.deckId}`).onSnapshot((snap) => {
+        finished = Boolean(snap.exists && snap.data() && snap.data().done);
+        render();
+      });
+      render();
+    };
+
+    window
+      .fetch('deck.json')
+      .then((r) => {
+        if (!r.ok) throw new Error(`deck.json ${r.status}`);
+        return r.json();
+      })
+      .then((d) => {
+        deck = d;
+        const modes = { widget: 'By widget', criterion: 'By criterion', disagreements: 'Disagreements' };
+        $('title').textContent = `Widget Grading · ${modes[deck.mode] || deck.mode}`;
+        try {
+          const saved = Number(localStorage.getItem(`grading:${deck.deckId}:index`));
+          if (Number.isInteger(saved) && saved >= 0 && saved < deck.cards.length) index = saved;
+        } catch {}
+        render();
+        connect();
+      })
+      .catch((e) => {
+        $('main').replaceChildren(el('p', { class: 'status error' }, `Deck didn’t load: ${e.message}`));
+      });
+  })();
+</script>
