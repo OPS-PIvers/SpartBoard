@@ -106,4 +106,6 @@ export interface CollectOptions {
   controlSelector: string;
   gridCols: number;
   gridRows: number;
+  /** Most controls to hit-test; beyond this every nth control is tested. */
+  maxHitTests: number;
 }

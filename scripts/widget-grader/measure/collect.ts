@@ -64,7 +64,7 @@ export function collectFaceSnapshot(opts: CollectOptions): FaceSnapshot {
   const cumulativeOpacity = (el: Element): number => {
     const cached = opacityCache.get(el);
     if (cached !== undefined) return cached;
-    const own = Number(getComputedStyle(el).opacity) || 0;
+    const own = Number(styleOf(el).opacity) || 0;
     const value =
       el === card || !el.parentElement
         ? own
@@ -73,44 +73,70 @@ export function collectFaceSnapshot(opts: CollectOptions): FaceSnapshot {
     return value;
   };
 
-  // Walk overflow ancestors from `el` up to and including the card.
+  const styles = new Map<Element, CSSStyleDeclaration>();
+  const styleOf = (el: Element): CSSStyleDeclaration => {
+    let st = styles.get(el);
+    if (!st) {
+      st = getComputedStyle(el);
+      styles.set(el, st);
+    }
+    return st;
+  };
+
+  // Overflow-clipping boxes from `el` up to and including the card, memoized per element.
+  interface Clipper {
+    clip: Box;
+    scrolls: boolean;
+    truncates: boolean;
+  }
+  const chains = new Map<Element, Clipper[]>();
+  const clippers = (el: Element): Clipper[] => {
+    const cached = chains.get(el);
+    if (cached) return cached;
+    const style = styleOf(el);
+    const clipsX = clipsStyle(style.overflowX);
+    const clipsY = clipsStyle(style.overflowY);
+    const rest =
+      el === card || !el.parentElement ? [] : clippers(el.parentElement);
+    let chain = rest;
+    if ((clipsX || clipsY) && el instanceof HTMLElement) {
+      const r = el.getBoundingClientRect();
+      chain = [
+        {
+          clip: {
+            x: clipsX ? r.left + el.clientLeft : -1e6,
+            y: clipsY ? r.top + el.clientTop : -1e6,
+            w: clipsX ? el.clientWidth : 2e6,
+            h: clipsY ? el.clientHeight : 2e6,
+          },
+          scrolls:
+            (clipsX && isScrollStyle(style.overflowX)) ||
+            (clipsY && isScrollStyle(style.overflowY)),
+          truncates:
+            style.textOverflow === 'ellipsis' ||
+            Boolean(style.webkitLineClamp && style.webkitLineClamp !== 'none'),
+        },
+        ...rest,
+      ];
+    }
+    chains.set(el, chain);
+    return chain;
+  };
+
   const clipInfo = (el: Element, box: Box, includeSelf: boolean) => {
     let visible: Box | null = box;
     let nonScroll: Box | null = box;
     let inScroller = false;
     let truncated = false;
-    for (
-      let n: Element | null = includeSelf ? el : el.parentElement;
-      n;
-      n = n.parentElement
-    ) {
-      const style = getComputedStyle(n);
-      const clipsX = clipsStyle(style.overflowX);
-      const clipsY = clipsStyle(style.overflowY);
-      if ((clipsX || clipsY) && n instanceof HTMLElement) {
-        const r = n.getBoundingClientRect();
-        const clip: Box = {
-          x: clipsX ? r.left + n.clientLeft : -1e6,
-          y: clipsY ? r.top + n.clientTop : -1e6,
-          w: clipsX ? n.clientWidth : 2e6,
-          h: clipsY ? n.clientHeight : 2e6,
-        };
-        const before = visible;
-        visible = visible ? intersect(visible, clip) : null;
-        if (before && cuts(before, visible)) {
-          const scrolls =
-            (clipsX && isScrollStyle(style.overflowX)) ||
-            (clipsY && isScrollStyle(style.overflowY));
-          if (scrolls) inScroller = true;
-          else if (
-            style.textOverflow === 'ellipsis' ||
-            (style.webkitLineClamp && style.webkitLineClamp !== 'none')
-          )
-            truncated = true;
-          else nonScroll = nonScroll ? intersect(nonScroll, clip) : null;
-        }
+    const start = includeSelf ? el : el === card ? null : el.parentElement;
+    for (const c of start ? clippers(start) : []) {
+      const before = visible;
+      visible = visible ? intersect(visible, c.clip) : null;
+      if (before && cuts(before, visible)) {
+        if (c.scrolls) inScroller = true;
+        else if (c.truncates) truncated = true;
+        else nonScroll = nonScroll ? intersect(nonScroll, c.clip) : null;
       }
-      if (n === card) break;
     }
     return {
       visible,
@@ -141,8 +167,15 @@ export function collectFaceSnapshot(opts: CollectOptions): FaceSnapshot {
   );
   const controlSet = new Set<Element>(controlEls);
   const controls: ControlInfo[] = [];
+  // Hit-testing is the slow part on huge faces (a number line has thousands of ticks), so sample evenly.
+  const hitStride = Math.max(
+    1,
+    Math.ceil(controlEls.length / opts.maxHitTests)
+  );
+  let index = -1;
   for (const el of controlEls) {
-    const style = getComputedStyle(el);
+    index++;
+    const style = styleOf(el);
     if (style.visibility !== 'visible' || style.display === 'none') continue;
     let target: HTMLElement = el;
     let box = toBox(el.getBoundingClientRect());
@@ -162,7 +195,7 @@ export function collectFaceSnapshot(opts: CollectOptions): FaceSnapshot {
     else {
       const cx = clip.visible.x + clip.visible.w / 2;
       const cy = clip.visible.y + clip.visible.h / 2;
-      const hit = firstHit(cx, cy);
+      const hit = index % hitStride === 0 ? firstHit(cx, cy) : el;
       if (!hit) centerHit = 'offscreen';
       else {
         const label = hit.closest('label');
@@ -208,17 +241,21 @@ export function collectFaceSnapshot(opts: CollectOptions): FaceSnapshot {
   }
 
   // Text
+  const layerMemo = new Map<Element, BackgroundLayer[]>();
   const layersFor = (el: Element): BackgroundLayer[] => {
-    const layers: BackgroundLayer[] = [];
-    for (let n: Element | null = el; n; n = n.parentElement) {
-      const s = getComputedStyle(n);
-      const image =
-        s.backgroundImage && s.backgroundImage !== 'none'
-          ? s.backgroundImage
-          : null;
-      if (image || s.backgroundColor !== 'rgba(0, 0, 0, 0)')
-        layers.push({ color: s.backgroundColor, image });
-    }
+    const cached = layerMemo.get(el);
+    if (cached) return cached;
+    const st = styleOf(el);
+    const rest = el.parentElement ? layersFor(el.parentElement) : [];
+    const image =
+      st.backgroundImage && st.backgroundImage !== 'none'
+        ? st.backgroundImage
+        : null;
+    const layers =
+      image || st.backgroundColor !== 'rgba(0, 0, 0, 0)'
+        ? [{ color: st.backgroundColor, image }, ...rest]
+        : rest;
+    layerMemo.set(el, layers);
     return layers;
   };
   const texts: TextInfo[] = [];
@@ -232,7 +269,7 @@ export function collectFaceSnapshot(opts: CollectOptions): FaceSnapshot {
       parent.closest('[data-inner-edge-strip], .resize-handle, script, style')
     )
       continue;
-    const style = getComputedStyle(parent);
+    const style = styleOf(parent);
     if (style.visibility !== 'visible' || cumulativeOpacity(parent) < 0.05)
       continue;
     const range = document.createRange();
@@ -282,7 +319,7 @@ export function collectFaceSnapshot(opts: CollectOptions): FaceSnapshot {
     if (el.tagName.toLowerCase() === 'svg' && el.parentElement?.closest('svg'))
       continue;
     if (el.closest('[data-inner-edge-strip], .resize-handle')) continue;
-    const style = getComputedStyle(el);
+    const style = styleOf(el);
     if (style.visibility !== 'visible' || cumulativeOpacity(el) < 0.05)
       continue;
     const box = toBox(el.getBoundingClientRect());
@@ -317,7 +354,7 @@ export function collectFaceSnapshot(opts: CollectOptions): FaceSnapshot {
     ...Array.from(card.querySelectorAll<HTMLElement>('*')),
   ].filter((el): el is HTMLElement => {
     if (!(el instanceof HTMLElement)) return false;
-    const s = getComputedStyle(el);
+    const s = styleOf(el);
     return (
       (isScrollStyle(s.overflowY) && el.scrollHeight > el.clientHeight + 1) ||
       (isScrollStyle(s.overflowX) && el.scrollWidth > el.clientWidth + 1)

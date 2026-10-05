@@ -14,6 +14,7 @@ export const CONTROL_SELECTOR =
 
 export const GRID_COLS = 24;
 export const GRID_ROWS = 16;
+export const MAX_HIT_TESTS = 300;
 
 // Words that mark protected student data on the projected face (R4).
 export const PROTECTED_PATTERNS: { name: string; pattern: RegExp }[] = [
