@@ -25,6 +25,9 @@ export interface EpochWindow {
   closeAt: number;
 }
 
+/** Grace added to an end-of-class bell so work doesn't lock as the period ends. */
+export const BELL_CLOSE_CUSHION_MS = 2 * 60 * 1000;
+
 /** The `periodAccess` key a roster's students match on: their class claim, else the roster itself. */
 export function periodKeyForRoster(roster: PeriodRoster): string {
   if (roster.classlinkClassId) return roster.classlinkClassId;
@@ -85,7 +88,12 @@ export function resolveRowWindow(
     closeAt: sharedWindow.closeAt ?? null,
   };
   if (!row || row.source === 'same') return shared;
-  if (row.source === 'bell') return bell() ?? shared;
+  if (row.source === 'bell') {
+    const window = bell();
+    return window
+      ? { ...window, closeAt: window.closeAt + BELL_CLOSE_CUSHION_MS }
+      : shared;
+  }
   return { openAt: row.openAt ?? null, closeAt: row.closeAt ?? null };
 }
 

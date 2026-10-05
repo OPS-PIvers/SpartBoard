@@ -10,7 +10,7 @@ import {
   resolveAvailability,
   type AssignAvailability,
 } from './assignAvailability';
-import type { PeriodRoster } from './periodPlan';
+import { BELL_CLOSE_CUSHION_MS, type PeriodRoster } from './periodPlan';
 import { EMPTY_ASSIGN_TARGETING_VALUE } from './studentTargetRef';
 
 const at = (day: string, time: string): number => {
@@ -74,7 +74,7 @@ describe('resolveAvailability', () => {
       bellWindow
     );
     expect(r.openAt).toBe(at('2026-10-02', '09:05'));
-    expect(r.closeAt).toBe(at('2026-10-02', '12:27'));
+    expect(r.closeAt).toBe(at('2026-10-02', '12:27') + BELL_CLOSE_CUSHION_MS);
     expect(r.dueAt).toBe(at('2026-10-02', '12:27'));
     expect(r.periodPlan).toEqual({
       mode: 'assignment',
@@ -82,12 +82,12 @@ describe('resolveAvailability', () => {
         r3: {
           source: 'custom',
           openAt: at('2026-10-02', '09:05'),
-          closeAt: at('2026-10-02', '09:52'),
+          closeAt: at('2026-10-02', '09:52') + BELL_CLOSE_CUSHION_MS,
         },
         r5: {
           source: 'custom',
           openAt: at('2026-10-02', '11:40'),
-          closeAt: at('2026-10-02', '12:27'),
+          closeAt: at('2026-10-02', '12:27') + BELL_CLOSE_CUSHION_MS,
         },
       },
     });
@@ -191,7 +191,9 @@ describe('applyAvailability', () => {
     );
     expect(targeting.availability).toBeUndefined();
     expect(targeting.openAt).toBe(at('2026-10-02', '09:05'));
-    expect(targeting.closeAt).toBe(at('2026-10-02', '09:52'));
+    expect(targeting.closeAt).toBe(
+      at('2026-10-02', '09:52') + BELL_CLOSE_CUSHION_MS
+    );
     expect(targeting.dueAt).toBe(at('2026-10-02', '09:52'));
   });
 
@@ -256,7 +258,9 @@ describe('study resources', () => {
         workKind: { default: 'work' },
       }
     );
-    expect(targeting.closeAt).toBe(at('2026-10-02', '09:52'));
+    expect(targeting.closeAt).toBe(
+      at('2026-10-02', '09:52') + BELL_CLOSE_CUSHION_MS
+    );
     expect(targeting.dueAt).toBeUndefined();
   });
 
@@ -295,6 +299,23 @@ describe('study resources', () => {
       bellWindow,
       'work'
     );
+    expect(resolved.closeAt).toBe(
+      at('2026-10-02', '09:52') + BELL_CLOSE_CUSHION_MS
+    );
+  });
+
+  it('keeps a clock-time close exact, with no cushion', () => {
+    const resolved = resolveAvailability(
+      {
+        all: {
+          opens: { day: '2026-10-02', time: '09:05' },
+          closes: { day: '2026-10-02', time: '09:52' },
+        },
+        allowLate: false,
+      },
+      [p3],
+      bellWindow
+    );
     expect(resolved.closeAt).toBe(at('2026-10-02', '09:52'));
   });
 });
@@ -317,6 +338,20 @@ describe('editing a saved window', () => {
       closes: { day: '2026-10-03', time: '15:00' },
     });
     expect(value.allowLate).toBe(false);
+  });
+
+  it('shows the class bell when the stored close carries the cushion', () => {
+    const due = at('2026-10-02', '09:52');
+    const value = availabilityFromStored(
+      {
+        openAt: at('2026-10-02', '09:05'),
+        closeAt: due + BELL_CLOSE_CUSHION_MS,
+        dueAt: due,
+        createdAt,
+      },
+      []
+    );
+    expect(value.all.closes).toEqual({ day: '2026-10-02', time: '09:52' });
   });
 
   it('reads a due date with no close as late work allowed', () => {
