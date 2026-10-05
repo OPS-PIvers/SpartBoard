@@ -10,7 +10,29 @@ export interface GoogleCalendarEvent {
     date?: string;
     dateTime?: string;
   };
+  end?: {
+    date?: string;
+    dateTime?: string;
+  };
+  location?: string;
+  description?: string;
 }
+
+const formatClockTime = (dateTime: string | undefined) => {
+  if (!dateTime) return undefined;
+  const dateObj = new Date(dateTime);
+  if (isNaN(dateObj.getTime())) return undefined;
+  return dateObj.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+};
+
+// Google returns event descriptions as HTML; the details modal shows plain text.
+export const stripHtml = (html: string): string => {
+  const withBreaks = html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li)>/gi, '\n');
+  const doc = new DOMParser().parseFromString(withBreaks, 'text/html');
+  return (doc.body.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim();
+};
 
 export interface CalendarApiError extends Error {
   status?: number;
@@ -56,7 +78,8 @@ export class GoogleCalendarService {
   async getEvents(
     calendarId: string,
     timeMin: string,
-    timeMax: string
+    timeMax: string,
+    { details = false }: { details?: boolean } = {}
   ): Promise<CalendarEvent[]> {
     const url = new URL(
       `${CALENDAR_API_URL}/calendars/${encodeURIComponent(calendarId)}/events`
@@ -82,7 +105,10 @@ export class GoogleCalendarService {
       throw error;
     }
 
-    const data = (await response.json()) as { items?: GoogleCalendarEvent[] };
+    const data = (await response.json()) as {
+      summary?: string;
+      items?: GoogleCalendarEvent[];
+    };
     const items = data.items ?? [];
 
     return items.map((item) => {
@@ -91,21 +117,26 @@ export class GoogleCalendarService {
       // Format to YYYY-MM-DD for consistency
       const dateOnly = startValue.split('T')[0];
 
-      let time: string | undefined = undefined;
-      if (item.start.dateTime) {
-        const dateObj = new Date(item.start.dateTime);
-        if (!isNaN(dateObj.getTime())) {
-          time = dateObj.toLocaleTimeString([], {
-            hour: 'numeric',
-            minute: '2-digit',
-          });
-        }
+      const time = formatClockTime(item.start.dateTime);
+      if (!details) {
+        return {
+          title: item.summary,
+          date: dateOnly,
+          ...(time ? { time } : {}),
+        };
       }
-
+      const endTime = formatClockTime(item.end?.dateTime);
+      const description = item.description
+        ? stripHtml(item.description)
+        : undefined;
       return {
         title: item.summary,
         date: dateOnly,
         ...(time ? { time } : {}),
+        ...(endTime ? { endTime } : {}),
+        ...(item.location ? { location: item.location } : {}),
+        ...(description ? { description } : {}),
+        ...(data.summary ? { calendarName: data.summary } : {}),
       };
     });
   }

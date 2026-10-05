@@ -57,6 +57,8 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'assign-availability',
   'study-resources',
   'sparty',
+  'calendar-day-view',
+  'list-line-style',
 ];
 
 /** Plan D7: admins pass a default-off flag (preview, or admin-default like `guided-learning-ai`) that has no saved doc yet. */

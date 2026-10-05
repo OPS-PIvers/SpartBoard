@@ -1,5 +1,7 @@
 export const GAP_STYLE = 'min(10px, 2cqmin)';
 
+export const DEFAULT_HEADER_COLOR = '#2d3f89';
+
 export const FONTS = [
   { id: 'global', label: 'Inherit', icon: 'G' },
   { id: 'font-mono', label: 'Digital', icon: '01' },

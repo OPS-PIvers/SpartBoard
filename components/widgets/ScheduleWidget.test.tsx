@@ -118,6 +118,7 @@ describe('ScheduleWidget', () => {
     (useDashboard as unknown as Mock).mockReturnValue(mockDashboardContext);
     (useAuth as unknown as Mock).mockReturnValue({
       profile: { selectedBuildings: ['b1'] },
+      canAccessFeature: () => false,
     });
     (useFeaturePermissions as unknown as Mock).mockReturnValue({
       subscribeToPermission: vi.fn((type, cb) => {

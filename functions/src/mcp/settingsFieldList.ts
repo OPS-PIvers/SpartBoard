@@ -323,6 +323,14 @@ export const SETTINGS_FIELD_LIST: Readonly<
       anchor: 'settings.field:checklist#completedNames',
       label: 'Import tasks',
     },
+    {
+      anchor: 'settings.group:checklist#display',
+      label: 'Display',
+    },
+    {
+      anchor: 'settings.field:checklist#rowStyle',
+      label: 'Task style',
+    },
   ],
   weather: [
     {
@@ -540,6 +548,14 @@ export const SETTINGS_FIELD_LIST: Readonly<
     {
       anchor: 'settings.field:calendar#daysVisible',
       label: 'Days to display',
+    },
+    {
+      anchor: 'settings.field:calendar#pastEvents',
+      label: 'Past events',
+    },
+    {
+      anchor: 'settings.field:calendar#headerColor',
+      label: 'Day header color',
     },
   ],
   poll: [
@@ -958,6 +974,14 @@ export const SETTINGS_FIELD_LIST: Readonly<
     {
       anchor: 'settings.toggle:schedule#isBuildingSyncEnabled',
       label: 'Sync building schedule',
+    },
+    {
+      anchor: 'settings.group:schedule#display',
+      label: 'Display',
+    },
+    {
+      anchor: 'settings.field:schedule#rowStyle',
+      label: 'Event style',
     },
   ],
   recessGear: [
