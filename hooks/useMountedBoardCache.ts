@@ -2,6 +2,8 @@ import { useEffect, useRef, useMemo } from 'react';
 import type { Dashboard } from '@/types';
 import { MOUNTED_BOARD_CACHE_SIZE } from '@/config/mountedBoardCache';
 
+const MAX_LRU_HISTORY = 50;
+
 /**
  * Maintains an LRU set of Dashboard IDs that should be mounted.
  *
@@ -32,23 +34,13 @@ export const useMountedBoardCache = (
   useEffect(() => {
     if (!activeId) return;
     const existing = lruRef.current.filter((id) => id !== activeId);
-    lruRef.current = [...existing, activeId];
+    // Bounded history; stale ids are filtered at read time so a transient empty list can't wipe it.
+    lruRef.current = [...existing, activeId].slice(-MAX_LRU_HISTORY);
   }, [activeId]);
-
-  // Housekeeping: prune stale IDs from the ref when the dashboard list
-  // changes (e.g. a Board was deleted). Doing it in an effect rather than
-  // inside useMemo keeps the memoized computation pure. The deps are
-  // `dashboards` because that's what determines which IDs are stale.
-  useEffect(() => {
-    const knownIds = new Set(dashboards.map((d) => d.id));
-    lruRef.current = lruRef.current.filter((id) => knownIds.has(id));
-  }, [dashboards]);
 
   return useMemo(() => {
     const knownIds = new Set(dashboards.map((d) => d.id));
-    // PURE prune: compute a local view without mutating the ref. The
-    // useMemo body must be side-effect free (StrictMode dev double-runs
-    // it). The ref is pruned later in a useEffect for housekeeping.
+    // Pure filter of stale ids; the ref is never mutated here.
     const pruned = lruRef.current.filter((id) => knownIds.has(id));
 
     // Force `activeId` to the tail even on the first render (the effect
