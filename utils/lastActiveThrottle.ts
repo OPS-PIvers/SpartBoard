@@ -41,7 +41,9 @@ export const canWriteLastActive = (
     if (!raw) return true;
     const lastMs = Date.parse(raw);
     if (Number.isNaN(lastMs)) return true;
-    return nowMs - lastMs >= ONE_HOUR_MS;
+    const elapsed = nowMs - lastMs;
+    // A future-dated stamp (clock skew) must not block writes.
+    return elapsed < 0 || elapsed >= ONE_HOUR_MS;
   } catch {
     return true;
   }

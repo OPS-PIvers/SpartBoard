@@ -372,17 +372,15 @@ export const WIDGET_SETTINGS_SCHEMAS: Partial<
   stickers: () => import('./stickers/settings.schema').then((m) => m.default),
 };
 
+// Legacy hand-written settings panels only; absent type = schema-driven drawer. Handle undefined.
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
   Record<WidgetType, SettingsComponent>
-> = {
-  // onboarding has no settings panel
-};
+> = {};
 
+// Legacy hand-written appearance panels only; absent type = schema-driven drawer. Handle undefined.
 export const WIDGET_APPEARANCE_COMPONENTS: Partial<
   Record<WidgetType, SettingsComponent>
-> = {
-  // Populated per-widget in components/widgets/*/Settings.tsx
-};
+> = {};
 
 export const DEFAULT_SCALING_CONFIG: ScalingConfig = {
   baseWidth: 300,

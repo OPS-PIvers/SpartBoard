@@ -133,6 +133,13 @@ describe('lastActiveThrottle', () => {
     });
   });
 
+  it('treats a future-dated stamp (clock skew) as due', () => {
+    const now = Date.parse('2026-01-01T00:00:00Z');
+    const future = new Date(now + 24 * 60 * 60 * 1000).toISOString();
+    const store = makeStore({ [KEY]: future });
+    expect(canWriteLastActive(UID, ORG, now, store)).toBe(true);
+  });
+
   it('falls back to real localStorage when storage arg is omitted', () => {
     // When `storage` is undefined, the helper resolves to the ambient
     // localStorage (jsdom provides one). Exercise that default path.

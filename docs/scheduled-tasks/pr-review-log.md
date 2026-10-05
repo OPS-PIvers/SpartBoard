@@ -4,6 +4,25 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-10-01
+
+- PRs reviewed: **6** (every open PR). All six target `dev-paul`, all six are drafts, and no head branch was `main` or `dev-*`, so all were writable.
+  - **#3694** SSRF guard: block IPv6 forms embedding private IPv4 and CGNAT/multicast ranges (`nightly/build-tooling-2026-10-01`)
+  - **#3693** Fix word count splitting words at inline formatting tags (`nightly/state-data-2026-10-01`)
+  - **#3692** Fix widget title rename dropped after an Escape-cancelled rename (`nightly/dashboard-layout-2026-10-01`)
+  - **#3691** Calendar widget: order same-day events by start time (`nightly/widgets-2026-10-01`)
+  - **#3685** Unify PaperBoxSizeField on the radiogroup pattern (unifier run 103) (`claude/kind-johnson-pbxnhp`)
+  - **#3665** Add live tour for assigning a quiz (`codex/create-live-tour-for-assigning-quiz`)
+- Comments processed: **6 — 0 fixed, 0 explained, 6 no action.** No PR had an unresolved inline review thread. #3694, #3691 and #3685 each carried one `claude[bot]` "no issues" summary; #3665's three comments (a spacing regression on the `quiz.assign-options` wrapper and a stray root `.gl.json`) were already fixed in `c1ab9ba` or already answered and left to Paul. #3693 and #3692 had no comments at all.
+- Fixes pushed: **none.**
+- Reviews posted: **6** (one structured COMMENT review per PR). Verdicts and notable findings:
+  - **#3694 — Ready with minor notes.** The new IPv6 checks still miss long-form loopback/unspecified (`0:0:0:0:0:0:0:1`, `0:0:0:0:0:0:0:0`) and zone-id `::1%lo`; verified by running the branch's `ssrfGuard.ts`. Probably not exploitable since `dns.lookup` returns canonical short form, but the PR claims to cover long forms. SIIT/Teredo unwrapping noted as optional.
+  - **#3693 — Ready.** Inline tags now strip without a space, block/`br` tags still split; `\b` correctly avoids `<pre>`/`<thead>` matches. Optional test for adjacent inline elements suggested.
+  - **#3692 — Ready with minor notes.** `DraggableWindow.test.tsx` 87/87 locally, CI 14/14 green. Nits: test comment states browser blur behaviour as fact; pre-existing `saveTitle` comment describes the flag order backwards.
+  - **#3691 — Ready.** `Calendar/Widget.test.tsx` 9/9 locally (description claims 11/11). The "across sources" test uses only local events; the time parser only understands `am`/`pm` (pre-existing).
+  - **#3685 — Ready.** Types line up with `handleRadioGroupKeyDown`, CI 14/14 green. Minor: an out-of-range saved size would leave no tabbable radio (same gap as sibling radiogroups); keyboard test covers ArrowRight only.
+  - **#3665 — Ready with minor notes.** `tests/tourAnchors.test.ts` 8/8 and the gl-author validator pass. Step 1 targets the first quiz card, which doesn't exist for a teacher with an empty library; step 4 publishes a real assignment; the root `.gl.json` still needs Paul's ship/remove decision.
+
 ## 2026-09-20
 
 - PRs reviewed: **8** (every open PR). All eight target `dev-paul`, all eight are drafts, and every head branch was a `nightly/*` or `claude/*` branch — none was `main`- or `dev-*`-headed, so all were writable.
@@ -4477,4 +4496,22 @@ rather than "no data") is also still open.
 - Notes:
   - #3792 CI is fully green on `d3c4e4c`. `ChoiceOptionsEditor` is imported only by `QuizEditor`, so the hardcoded `quiz` scope is safe.
   - #3797 has no CI check runs (doc-only).
+  - `gh` is unauthenticated, so GitHub access went through MCP. The log goes to the session branch, not `scheduled-tasks`, per the session's branch rules.
+
+## 2026-10-04
+
+- PRs reviewed:
+  - #3819 fix(utils): future-dated lastActive stamp no longer blocks writes
+  - #3818 fix(functions): parseGeminiJson skips stray brace pairs in leading prose
+  - #3817 fix(widgets): reject partial and out-of-range times in schedule parsers
+  - #3816 docs(widget-registry): clarify legacy settings/appearance map comments
+  - #3815 docs(unifier): run 106 log (2026-10-04)
+- Comments processed: 3 total — 0 fixed, 3 explained. No inline review threads existed. All three were claude[bot] no-issues summaries (#3819, #3817, #3816), which needed no action.
+- Fixes pushed: none
+- Reviews posted: 5
+- Merge readiness: Ready: #3819, #3816, #3815. Ready with minor notes: #3817 (the regex is duplicated across the two utils files). Needs changes: #3818.
+- Notes:
+  - #3818 regression, reproduced with `tsx` against both versions: `'Step [1 of 2: {"foo":"bar"}'` parsed on `dev-paul` but now throws, because `if (end === -1) break;` stops at an unclosed stray opener. The review suggests `pos = start + 1; continue;` plus a test. CI on #3818 is green because no test covers this case.
+  - #3817: the only `HH:MM:SS` input that is now rejected comes from no current writer. Google Calendar `"9:00 AM"` times were already rejected before this PR.
+  - #3816 also edits this log file, so expect a trivial append conflict when both land.
   - `gh` is unauthenticated, so GitHub access went through MCP. The log goes to the session branch, not `scheduled-tasks`, per the session's branch rules.

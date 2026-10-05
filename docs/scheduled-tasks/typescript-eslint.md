@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-09-30_
+_Last audited: 2026-10-04_
 _Last action: never_
 
 ---
@@ -15,6 +15,21 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-10-04: Daily audit (Sunday). `pnpm type-check` exit 0, 0 errors. `pnpm lint` (app + functions, `--max-warnings 0`, run with `NODE_OPTIONS=--max-old-space-size=6144`) exit 0, 0 errors/warnings. 0 new issues._
+
+_2026-10-03: Daily audit (Saturday). `pnpm type-check` exit 0, 0 errors. `pnpm lint` (app and functions, `--max-warnings 0`) exit 0, 0 errors and warnings in any category. 0 new issues._
+
+_2026-10-02: Daily audit (Friday). `pnpm type-check` exit 0, 0 errors. `pnpm lint:functions` exit 0. `eslint . --max-warnings 0` on the app exit 0 with 0 errors/warnings when run with `NODE_OPTIONS=--max-old-space-size=6144`; plain `pnpm lint` was OOM-killed (exit 137) on this 16 GB runner at the default heap. 1 new LOW item (tooling, below)._
+
+### LOW `pnpm lint` (full-repo type-aware ESLint) is OOM-killed at the default Node heap
+
+- **Detected:** 2026-10-02
+- **File:** `package.json` (`lint:app` script)
+- **Detail:** `eslint . --max-warnings 0` exits 137 (killed) with Node's default heap on a 16 GB runner; it passes cleanly with `--max-old-space-size=6144`. Scheduled audits and any contributor running the full lint can get a false failure.
+- **Fix:** Set `NODE_OPTIONS=--max-old-space-size=6144` in the `lint:app` script (or document it), keeping the CLAUDE.md guidance against running full lint casually.
+
+_2026-10-01: Daily audit (HEAD `00ce6828`). `pnpm type-check` exit 0 with no errors. `pnpm lint` (app + functions, `--max-warnings 0`) exit 0 with no errors or warnings. 0 issues._
 
 _2026-09-30: Daily audit (Wednesday), run from the main session. `pnpm type-check` (`tsc --noEmit`) exit 0; `pnpm lint` (root eslint plus `functions` lint, `--max-warnings 0`) exit 0. 0 errors, 0 warnings in any category (a/b/c). **Net: 0 new issues, 0 resolved.**_
 

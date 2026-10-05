@@ -121,7 +121,9 @@ export const WIDGET_GRADE_LEVELS: Record<
 export function getWidgetGradeLevels(
   widgetType: WidgetType | InternalToolType
 ): GradeLevel[] {
-  const levels = WIDGET_GRADE_LEVELS[widgetType];
+  const levels = Object.hasOwn(WIDGET_GRADE_LEVELS, widgetType)
+    ? WIDGET_GRADE_LEVELS[widgetType]
+    : undefined;
 
   // Development-mode warning for missing widget configuration
   if (!levels && process.env.NODE_ENV === 'development') {
@@ -131,7 +133,7 @@ export function getWidgetGradeLevels(
   }
 
   // Gracefully handle migration by filtering out any "universal" strings if they persist in data/cache
-  const safeLevels = (levels || ALL_GRADE_LEVELS).filter(
+  const safeLevels = (levels ?? ALL_GRADE_LEVELS).filter(
     (l) => l !== ('universal' as string)
   );
 

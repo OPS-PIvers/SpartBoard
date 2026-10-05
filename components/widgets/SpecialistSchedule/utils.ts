@@ -3,9 +3,11 @@
  * Returns -1 if the string is missing, empty, or not a valid "HH:MM" value.
  */
 export const parseTime = (t: string | undefined): number => {
-  if (!t || !t.includes(':')) return -1;
-  const [h, m] = t.split(':').map(Number);
-  if (isNaN(h) || isNaN(m)) return -1;
+  const match = t ? /^(\d{1,2}):(\d{2})$/.exec(t) : null;
+  if (!match) return -1;
+  const h = Number(match[1]);
+  const m = Number(match[2]);
+  if (h > 23 || m > 59) return -1;
   return h * 60 + m;
 };
 

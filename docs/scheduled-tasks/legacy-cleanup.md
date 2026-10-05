@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Sunday_
-_Last audited: 2026-09-27_
+_Last audited: 2026-10-04_
 _Last action: 2026-08-09 — Deleted the entire `scripts/tools/` directory (9 stale Python/Playwright dev-session scripts, zero references anywhere, including `fix_buttons.py` which auto-edited widget source). Resolves the source-modification-risk portion of the "scripts/tools/\*.py" MEDIUM; the root `scripts/*.js` audit portion remains Open (narrowed)._
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-10-04: Weekly D2 (Sunday). `migrateLocalStorageToFirestore` still invoked at `context/DashboardContext.tsx:2710` (existing MEDIUM stands). No `timer`/`stopwatch`/`workSymbols` type strings generated; 0 `console.log` calls in app code; no commented-out code runs over 10 lines; `scripts/tools/` stays deleted. All 8 previously-filed dead exports still have a single (definition-only) non-test reference. 0 new issues._
 
 ### LOW `utils/paperSheetMarker.ts:156` — `markerFitsGrid` dead export (test-only, no production call site)
 
