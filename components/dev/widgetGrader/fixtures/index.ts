@@ -36,6 +36,20 @@ import { timeToolFixtures } from './time-tool';
 import { trafficFixtures } from './traffic';
 import { weatherFixtures } from './weather';
 import { webcamFixtures } from './webcam';
+import { activityWallFixtures } from './activity-wall';
+import { bloomsDetailFixtures } from './blooms-detail';
+import { bloomsTaxonomyFixtures } from './blooms-taxonomy';
+import { customWidgetFixtures } from './custom-widget';
+import { first5Fixtures } from './first-5';
+import { flashcardsFixtures } from './flashcards';
+import { needDoPutThenFixtures } from './need-do-put-then';
+import { projectsFixtures } from './projects';
+import { reviewFixtures } from './review';
+import { routineGuideFixtures } from './routineGuide';
+import { soundboardFixtures } from './soundboard';
+import { stationsFixtures } from './stations';
+import { urlFixtures } from './url';
+import { workSymbolsFixtures } from './work-symbols';
 import { breathingFixtures } from './breathing';
 import { catalystFixtures } from './catalyst';
 import { catalystInstructionFixtures } from './catalyst-instruction';
@@ -104,6 +118,21 @@ export const WIDGET_FIXTURES: Partial<Record<WidgetType, WidgetFixtureSet>> = {
   traffic: trafficFixtures,
   weather: weatherFixtures,
   webcam: webcamFixtures,
+  // S5d
+  'activity-wall': activityWallFixtures,
+  'blooms-detail': bloomsDetailFixtures,
+  'blooms-taxonomy': bloomsTaxonomyFixtures,
+  'custom-widget': customWidgetFixtures,
+  'first-5': first5Fixtures,
+  flashcards: flashcardsFixtures,
+  'need-do-put-then': needDoPutThenFixtures,
+  projects: projectsFixtures,
+  review: reviewFixtures,
+  routineGuide: routineGuideFixtures,
+  soundboard: soundboardFixtures,
+  stations: stationsFixtures,
+  url: urlFixtures,
+  'work-symbols': workSymbolsFixtures,
   // S5b
   breathing: breathingFixtures,
   catalyst: catalystFixtures,

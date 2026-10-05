@@ -11,23 +11,7 @@ import {
 import { parseHarnessParams } from '@/components/dev/widgetGrader/harnessParams';
 
 // Widget types still waiting on fixtures; the S5 batches shrink this to empty.
-const PENDING_FIXTURES: WidgetType[] = [
-  // S5d
-  'custom-widget',
-  'soundboard',
-  'url',
-  'activity-wall',
-  'first-5',
-  'work-symbols',
-  'blooms-taxonomy',
-  'blooms-detail',
-  'need-do-put-then',
-  'stations',
-  'flashcards',
-  'projects',
-  'review',
-  'routineGuide',
-];
+const PENDING_FIXTURES: WidgetType[] = [];
 
 const ALL_TYPES = Object.keys(WIDGET_DEFAULTS) as WidgetType[];
 
