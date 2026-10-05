@@ -9592,7 +9592,9 @@ export type GlobalFeature =
   /** Assign dialogs: mark a session Work (submitted, graded) or Resource (study only) (docs/plans/STUDENT_LANDING_V2.md D27). */
   | 'study-resources'
   /** Sparty the mascot in tours, first-time setup and the Help Center (docs/plans/shipped/SPARTY.md). */
-  | 'sparty';
+  | 'sparty'
+  /** Group Notes & Docs: notes and linked Google Docs in one list, and Open in Docs on a note. */
+  | 'plc-notes-unified';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
