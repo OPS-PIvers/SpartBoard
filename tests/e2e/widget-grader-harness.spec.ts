@@ -27,7 +27,27 @@ const S5B_WIDGETS = [
   'talking-tool',
 ];
 const FIXTURES = ['empty', 'typical', 'stress'];
-const LARGE = 'w=1400&h=900';
+
+const S5A_WIDGETS = [
+  'calendar',
+  'classes',
+  'dice',
+  'drawing',
+  'embed',
+  'expectations',
+  'instructionalRoutines',
+  'lunchCount',
+  'materials',
+  'miniApp',
+  'qr',
+  'scoreboard',
+  'sound',
+  'time-tool',
+  'traffic',
+  'weather',
+  'webcam',
+];
+const BIG = '&w=1400&h=900';
 
 test.describe('widget grader harness', () => {
   for (const type of PATTERN_WIDGETS) {
@@ -42,9 +62,9 @@ test.describe('widget grader harness', () => {
     }
   }
 
-  for (const type of S5B_WIDGETS) {
+  for (const type of [...S5A_WIDGETS, ...S5B_WIDGETS]) {
     for (const fixture of FIXTURES) {
-      for (const size of ['', `&${LARGE}`]) {
+      for (const size of ['', BIG]) {
         test(`${type} ${fixture}${size ? ' at 1400x900' : ''} renders with no errors`, async ({
           page,
         }) => {
