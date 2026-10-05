@@ -4515,3 +4515,22 @@ rather than "no data") is also still open.
   - #3817: the only `HH:MM:SS` input that is now rejected comes from no current writer. Google Calendar `"9:00 AM"` times were already rejected before this PR.
   - #3816 also edits this log file, so expect a trivial append conflict when both land.
   - `gh` is unauthenticated, so GitHub access went through MCP. The log goes to the session branch, not `scheduled-tasks`, per the session's branch rules.
+
+## 2026-10-05
+
+- PRs reviewed:
+  - #3831 fix(functions): building-id canonicalization ignores Object.prototype members
+  - #3830 fix(admin): ignore a cleared Calendar sync-frequency field instead of saving NaN
+  - #3829 fix(hooks): stop useMountedBoardCache wiping its LRU when dashboards briefly empty
+  - #3828 fix(hooks): keep one pointerdown listener in useClickOutside
+  - #3827 fix(countdown): cap crossed-out past cells in grid mode
+  - #3826 test(mcp): cover video activity connector tools
+  - #3825 docs(unifier): run 107 log (2026-10-05)
+- Comments processed: 6 total — 0 fixed, 0 newly explained. The one inline thread (#3830, snap-back UX on the sync-frequency field) had already been answered by the author. The others were claude[bot] no-issues summaries (#3829, #3828, #3827, #3826) and earlier comments on #3824 that were already answered, so none needed action.
+- Fixes pushed: none
+- Reviews posted: 7
+- Merge readiness: Ready: #3831, #3830, #3829, #3828, #3826, #3825. Ready with minor notes: #3827 (an `eventDate` far in the future still renders uncapped future cells; follow-up suggested).
+- Notes:
+  - #3824 (dev-paul → main) was not re-reviewed. Its head `d9ad9283` is unchanged since the 2026-10-04 scheduled review, and both of that review's comments were already answered.
+  - #3826's `test-coverage.md` entry says the audit ran full `pnpm test`, which CLAUDE.md forbids for agents. Flagged in that review.
+  - `gh` is unauthenticated, so GitHub access went through MCP. The log goes to the session branch, not `scheduled-tasks`, per the session's branch rules.
