@@ -183,8 +183,8 @@ jobs:
           retention-days: 30
 
   # Widget grader gates (docs/plans/WIDGET_RUBRIC.md R23) on the widgets this PR touches;
-  # shared window, config or harness changes check every widget. Fails only on gate
-  # failures missing from docs/widget-rubric/gate-baseline.json.
+  # shared window, config or harness changes check every widget. Report-only until
+  # docs/widget-rubric/gate-baseline.json lands; then it fails on failures missing from it.
   widget-grader-gates:
     runs-on: ubuntu-24.04
     container:
@@ -211,7 +211,7 @@ jobs:
 
       - name: Run gate checks
         if: steps.affected.outputs.mode != 'none'
-        run: node scripts/widget-grader/run.ts --gates-only --check-baseline --run-id ci ${TYPES:+--type "$TYPES"}
+        run: node scripts/widget-grader/run.ts --gates-only --run-id ci ${TYPES:+--type "$TYPES"}
         env:
           TYPES: ${{ steps.affected.outputs.types }}
           VITE_AUTH_BYPASS: 'true'
