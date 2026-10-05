@@ -67,6 +67,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { normalizeGuidedLearningSet } from './utils/setMigration';
+import { isLiveTourSet } from './utils/liveTour';
 import { useStorage, type GuidedLearningMediaHome } from '@/hooks/useStorage';
 import { ImportWizard } from '@/components/common/library/importer/ImportWizard';
 import { createGuidedLearningImportAdapter } from './adapters/guidedLearningImportAdapter';
@@ -1245,7 +1246,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           await saveBuildingSet({
             ...prepared,
             isBuilding: true,
-            hasLiveTour: hasTourBindings(prepared),
+            hasLiveTour: isLiveTourSet(prepared),
           });
         } else {
           await saveSet(prepared);
