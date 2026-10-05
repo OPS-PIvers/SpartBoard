@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-09-28_
+_Last audited: 2026-10-05_
 _Last action: 2026-08-30 (starterPacks `notDeactivated()` gate, via nightly debugger routine)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-10-05: Weekly rules audit (Monday). Read `firestore.rules` (catch-all deny at the end). Every `collection()`/`collectionGroup()` segment in `components/`, `context/`, `hooks/`, `utils/`, `config/` has a matching rule path: 0 client-side gaps. Server-only (Admin SDK, rules-bypassing) names without explicit match blocks, all already covered by the catch-all: `mcp_oauth_codes`, `contributions`, `grade_index_sessions`, `notesJobs`, `contexts`, `answers`, `cards`, `questions`, `steps` (subcollections). 0 new HIGH items._
 
 _2026-09-28: Weekly rules audit (Audit A2 — Monday), delegated to a sub-agent, HEAD `a5072c05`. 24 commits touched `firestore.rules` since the 2026-09-21 audit (`0a7784b`); file grew 5371 → 5819 lines. **Coverage result: 100% — zero new HIGH findings.** Every client-reachable collection has a corresponding rules match block; no client `collectionGroup()` calls exist; default-deny catch-all confirmed present and unchanged. New collections/subcollections from this cycle's feature work (Handwritten paper answers, Live Tours v2, PLC norming flags, per-period session access, GL Studio Phase 5b, Claude MCP connector) all verified to have explicit, correctly-scoped match blocks. **One new LOW filed** (`mcp_oauth_codes`, Admin-SDK-only, no live exposure — see below). **One item moved to Completed**: `plc_layouts` — PLC Home v2 shipped this cycle and now actively uses the path from production code, so the rule was covering an unlanded feature rather than a retired one. **One item's detail updated** (`organizations/analytics`): the documenting comment its Fix recommended already landed via `a23a1bc6`, so it's now "intentionally-dead, well-documented" rather than an unexplained dead rule; the read-path-unused caveat still holds. All other tracked items re-verified present, unchanged, still accurate. **Net this cycle: 1 new LOW, 1 resolved (feature shipped), 1 detail update, 0 HIGH, 0 MEDIUM, 0 regressions.**_
 

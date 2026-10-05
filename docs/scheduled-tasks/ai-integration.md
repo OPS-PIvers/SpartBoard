@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-09-28_
+_Last audited: 2026-10-05_
 _Last action: 2026-09-18 — MEDIUM per-feature AI permission enforcement gap resolved: `generateWithAI`'s `specificFeatureId` branch now enforces `enabled`/`accessLevel`/`betaUsers` server-side, mirroring the existing global `gemini-functions` check, so a disabled/admin-only/beta-restricted feature (e.g. `embed-mini-app`) can no longer be reached by calling the Cloud Function directly. Moved to Completed._
 
 ---
@@ -242,3 +242,5 @@ _2026-05-13: Full AI integration audit. All 12 generation types from the table v
 - **Completed:** 2026-06-08
 - **File:** functions/src/index.ts (AIData interface)
 - **Resolution:** The `AIData` interface now includes `'video-activity-recommend'` at line 99 (added in a prior dev-paul merge before the 2026-06-08 rebase). Also includes `specificFeatureId = 'video-activity-recommend'` (PR #1857). Confirmed at line 643-644 of functions/src/index.ts.
+
+_2026-10-05: Full AI integration audit (Audit E2 — Monday weekly). Gemini model strings consistent: `aiGeneration.ts` and `quizTranslation.ts` use only `gemini-3.7-flash` (advanced) and `gemini-3.5-flash-lite` (standard) defaults via `getGeminiModelConfig`. New AI path since the type map: PLC meeting notes (`plcMeetingNotes.ts`/`plcMeetingNotesAi.ts`) — uses the configured advanced model, charges quota for non-admins with refund on failure, gated by `enforceAiFeatureAccess` (`PLC_MEETING_AI_FEATURE_ID`); it is missing from the Generation Type Map table above (doc gap only, LOW). Widget opportunity and Settings-button JSON-mode checks not re-run this cycle. 0 functional issues._
