@@ -177,7 +177,13 @@ async function settingsChanges(
   base: HarnessQuery
 ): Promise<ExtrasRaw['settings']> {
   const widgetId = windowId(type);
-  await openHarness(page, { ...base, settingsOpen: true });
+  try {
+    await openHarness(page, { ...base, settingsOpen: true });
+  } catch (err) {
+    // A settings face that never settles is measured as having no panel.
+    if (!(err instanceof Error) || err.name !== 'TimeoutError') throw err;
+    return { hasPanel: false, panelOverlap: 0, tried: [] };
+  }
   const panel = page.locator(
     `[data-widget-portal][data-widget-id="${widgetId}"] .overflow-y-auto`
   );

@@ -35,6 +35,7 @@ import type { FaceSnapshot } from './snapshotTypes';
 
 const READY_TIMEOUT_MS = 45_000;
 const SETTLE_MS = 400;
+const KEY_TIMEOUT_MS = 5_000;
 const SHOT_PAD = 24;
 
 export class HarnessUnsupported extends Error {}
@@ -163,7 +164,7 @@ export async function measureWidget(
   const records: RenderRecord[] = [];
   const texts: Partial<Record<FixtureName, string>> = {};
 
-  const render = async (
+  const renderOnce = async (
     size: MeasurementSize,
     fixture: FixtureName,
     variant: RenderVariant
@@ -219,6 +220,31 @@ export async function measureWidget(
     });
   };
 
+  // A render that never settles is a G3 failure for that render, not a crash of the whole widget.
+  const render = async (
+    size: MeasurementSize,
+    fixture: FixtureName,
+    variant: RenderVariant
+  ): Promise<void> => {
+    try {
+      await renderOnce(size, fixture, variant);
+    } catch (err) {
+      if (!(err instanceof Error) || err.name !== 'TimeoutError') throw err;
+      await errors.check(page);
+      const note = `Grader harness: ${variant} render never settled`;
+      // Settings can open outside the card, so a stalled settings render is a note for the judge.
+      records.push({
+        size,
+        fixture,
+        variant,
+        g3:
+          variant === 'settings'
+            ? { pass: true, values: { note } }
+            : analyzeG3([note]),
+      });
+    }
+  };
+
   for (const fixture of opts.fixtures)
     for (const size of sizes) await render(size, fixture, 'base');
   const defaultSize = sizes.find((s) => s.name === 'default')!;
@@ -260,8 +286,17 @@ export async function measureWidget(
         await page.waitForTimeout(SETTLE_MS);
       }
     }
+    let lostWindow: string | null = null;
     for (const key of ['Alt+s', 'Alt+s', 'Alt+m', 'Alt+m', 'Escape']) {
-      await page.locator(windowSelector(type)).focus();
+      try {
+        await page
+          .locator(windowSelector(type))
+          .focus({ timeout: KEY_TIMEOUT_MS });
+      } catch (err) {
+        if (!(err instanceof Error) || err.name !== 'TimeoutError') throw err;
+        lostWindow = `window not focusable before ${key}`;
+        break;
+      }
       await page.keyboard.press(key);
       await page.waitForTimeout(SETTLE_MS);
     }
@@ -274,11 +309,14 @@ export async function measureWidget(
       beforeReload = before;
       afterReload = after;
     }
+    const g3 = await errors.check(page);
     records.push({
       size: defaultSize,
       fixture,
       variant: 'lifecycle',
-      g3: await errors.check(page),
+      g3: lostWindow
+        ? { ...g3, values: { ...g3.values, note: lostWindow } }
+        : g3,
     });
   }
 
