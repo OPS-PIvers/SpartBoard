@@ -57,7 +57,7 @@ const buildingSet = (id: string, title: string, live: boolean) =>
           : {}),
       },
     ],
-    mode: 'guided',
+    mode: live ? 'tour' : 'guided',
     isBuilding: true,
     createdAt: 1,
     updatedAt: 2,
@@ -220,10 +220,10 @@ describe('GuidedLearningManager live tours', () => {
     expect(screen.getByText('Plain set')).toBeInTheDocument();
   });
 
-  it('shows no tour badge or type filter without the flag', async () => {
+  it('shows only the mode label and no type filter without the flag', async () => {
     renderManager(false);
     await screen.findByText('Boards walkthrough');
-    expect(screen.queryByText('Live tour')).toBeNull();
+    expect(screen.getAllByText('Live tour')).toHaveLength(1);
     expect(screen.queryByLabelText('Type')).toBeNull();
   });
 });

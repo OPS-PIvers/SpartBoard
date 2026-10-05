@@ -74,7 +74,7 @@ const tourSet = (): GuidedLearningSet => ({
     'https://example.com/slide-2.png',
   ],
   steps: [step('step-1', 0), step('step-2', 1)],
-  mode: 'guided',
+  mode: 'tour',
   isBuilding: true,
   tourSetup: { widgets: ['time-tool'] },
   createdAt: 1,

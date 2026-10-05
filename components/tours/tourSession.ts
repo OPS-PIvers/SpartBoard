@@ -1,3 +1,4 @@
+import { isLiveTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import {
   isDestructiveAnchor,
   isPersistsAnchor,
@@ -29,13 +30,10 @@ export const tourStepsOf = (set: GuidedLearningSet): TourStep[] =>
 const runStep = (s: GuidedLearningStep): GuidedLearningStep =>
   s.tour?.anchor === WHOLE_BOARD_ANCHOR ? { ...s, tour: undefined } : s;
 
-/** Every step a live tour plays, anchored or plain; none for a non-tour set with nothing anchored. */
+/** Every step a live tour plays, anchored or plain; none for a set that is not a live tour. */
 export const liveTourStepsOf = (
   set: Pick<GuidedLearningSet, 'mode' | 'steps'>
-): GuidedLearningStep[] =>
-  set.mode === 'tour' || set.steps.some((s) => !!s.tour)
-    ? set.steps.map(runStep)
-    : [];
+): GuidedLearningStep[] => (isLiveTourSet(set) ? set.steps.map(runStep) : []);
 
 /** The set's welcome message when it is switched on and not blank. */
 export const tourWelcome = (
