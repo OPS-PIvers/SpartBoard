@@ -23,6 +23,7 @@ import {
   judgedCriteria,
 } from '@/scripts/widget-grader/judge/prompt';
 import { parseJudgeOutput } from '@/scripts/widget-grader/judge/parse';
+import { buildHelpIndex } from '@/scripts/widget-grader/helpIndex';
 import {
   appendAgreement,
   computeAgreement,
@@ -471,6 +472,40 @@ describe('calibration check (R22)', () => {
     const file = appendAgreement(appendAgreement(null, a), a);
     expect(file.history).toHaveLength(2);
     expect(file.latest).toBe(a);
+  });
+});
+
+describe('help index (E2)', () => {
+  it('counts visible items per widget and marks live tours', () => {
+    expect(
+      buildHelpIndex(
+        [
+          { kind: 'embed', visible: true, widgetTypes: ['clock', 'timer'] },
+          {
+            kind: 'guided-learning',
+            visible: true,
+            widgetTypes: ['clock'],
+            setId: 's1',
+          },
+          {
+            kind: 'guided-learning',
+            visible: true,
+            widgetTypes: ['poll'],
+            setId: 's2',
+          },
+          { kind: 'embed', visible: false, widgetTypes: ['checklist'] },
+          { kind: 'embed', visible: true, widgetTypes: [] },
+        ],
+        [
+          { id: 's1', mode: 'tour' },
+          { id: 's2', mode: 'guided', hasLiveTour: false },
+        ]
+      )
+    ).toEqual({
+      clock: { article: true, liveTour: true },
+      timer: { article: true, liveTour: false },
+      poll: { article: true, liveTour: false },
+    });
   });
 });
 

@@ -23,7 +23,7 @@ pnpm run grader:static
 ```
 
 - Cloud sessions: add `GRADER_CHROMIUM=/opt/pw-browsers/chromium-1194/chrome-linux/chrome` when the pinned Playwright browser isn't installed.
-- E2 needs `pnpm run grader:static --help-index <file>` (`{ "<widgetType>": { "article": true, "liveTour": false } }`). Help Center content lives in prod Firestore, so building that file is a production read: ask Paul first. Without it E2 shows "unknown" and the judge and Paul decide.
+- E2 needs a Help index. On a machine with prod credentials (Paul's computer) run `node scripts/widget-grader/helpIndex.ts --project prod`, which reads `help_resources` and `building_guided_learning` read-only and writes `scripts/widget-grader/out/help-index.json`; then `pnpm run grader:static --help-index scripts/widget-grader/out/help-index.json`. Cloud sessions have no prod credentials, so there E2 shows "unknown" and the judge and Paul decide.
 - Disagreements mode with no types uses every widget in the run.
 
 ## 2. Judge (blind, separate from the maker)
