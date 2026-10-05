@@ -23,6 +23,24 @@ const BATCH_3_WIDGETS = [
   'syntax-framer',
   'video-activity',
 ];
+const S5B_WIDGETS = [
+  'breathing',
+  'catalyst',
+  'catalyst-instruction',
+  'catalyst-visual',
+  'countdown',
+  'mathTool',
+  'mathTools',
+  'nextUp',
+  'onboarding',
+  'pdf',
+  'quiz',
+  'recessGear',
+  'seating-chart',
+  'smartNotebook',
+  'stickers',
+  'talking-tool',
+];
 const FIXTURES = ['empty', 'typical', 'stress'];
 
 const S5A_WIDGETS = [
@@ -47,7 +65,7 @@ const S5A_WIDGETS = [
 const BIG = '&w=1400&h=900';
 
 test.describe('widget grader harness', () => {
-  for (const type of [...PATTERN_WIDGETS, ...BATCH_3_WIDGETS]) {
+  for (const type of PATTERN_WIDGETS) {
     for (const fixture of FIXTURES) {
       test(`${type} ${fixture} renders with no errors`, async ({ page }) => {
         await page.goto(`/widget-grader-dev?type=${type}&fixture=${fixture}`);
@@ -59,7 +77,7 @@ test.describe('widget grader harness', () => {
     }
   }
 
-  for (const type of S5A_WIDGETS) {
+  for (const type of [...S5A_WIDGETS, ...S5B_WIDGETS, ...BATCH_3_WIDGETS]) {
     for (const fixture of FIXTURES) {
       for (const size of ['', BIG]) {
         test(`${type} ${fixture}${size ? ' at 1400x900' : ''} renders with no errors`, async ({
