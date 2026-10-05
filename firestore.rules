@@ -953,6 +953,11 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Nutrislice lunch menus, written only by the Sync Lunch Menus GitHub Action (Admin credentials).
+    match /lunch_menus/{schoolSite} {
+      allow read: if signedIn();
+    }
+
     // Content areas (subjects) — teachers read them for their profile; admins edit.
     match /admin_settings/subjects {
       allow read: if signedIn();
