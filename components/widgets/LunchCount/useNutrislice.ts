@@ -302,9 +302,20 @@ export const useNutrislice = ({
   }, [widgetId, updateWidget, addToast, isSyncing, t]);
 
   const hasLegacyShape = isLegacyCachedMenu(config.cachedMenu);
+  const needsRetry = !!config.syncError || !config.cachedMenu;
+  const checkedOnMountRef = useRef(false);
 
   useEffect(() => {
     if (isSyncing) return;
+
+    // A failed or empty sync stamps lastSyncDate too, so a widget loaded in that state retries once.
+    if (!checkedOnMountRef.current) {
+      checkedOnMountRef.current = true;
+      if (needsRetry) {
+        void fetchNutrislice();
+        return;
+      }
+    }
 
     const lastSyncDate = config.lastSyncDate
       ? new Date(config.lastSyncDate)
@@ -319,7 +330,13 @@ export const useNutrislice = ({
     if (!isSyncedToday || hasLegacyShape) {
       void fetchNutrislice();
     }
-  }, [fetchNutrislice, config.lastSyncDate, isSyncing, hasLegacyShape]);
+  }, [
+    fetchNutrislice,
+    config.lastSyncDate,
+    isSyncing,
+    hasLegacyShape,
+    needsRetry,
+  ]);
 
   return { isSyncing, fetchNutrislice };
 };
