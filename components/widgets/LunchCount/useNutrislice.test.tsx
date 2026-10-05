@@ -4,11 +4,34 @@ import { useState, useCallback } from 'react';
 import { useNutrislice } from './useNutrislice';
 import { LunchCountConfig, WidgetData } from '@/types';
 
-vi.mock('firebase/functions', () => ({
-  httpsCallable: vi.fn(),
-  getFunctions: vi.fn(),
+vi.mock('@/config/firebase', () => ({ db: {} }));
+vi.mock('firebase/firestore', () => ({
+  doc: vi.fn((_db: unknown, ...path: string[]) => path.join('/')),
+  getDoc: vi.fn(),
 }));
-import { httpsCallable } from 'firebase/functions';
+import { doc, getDoc } from 'firebase/firestore';
+
+interface WeekFixture {
+  days: { date: string; menu_items?: unknown[] }[];
+}
+
+// Stores a Nutrislice week the way scripts/sync-lunch-menus.mjs writes it: items keyed by date.
+const mockStoredMenu = (week: WeekFixture | null) => {
+  (getDoc as Mock).mockResolvedValue({
+    exists: () => week !== null,
+    data: () => ({
+      days: Object.fromEntries(
+        (week?.days ?? []).map((d) => [d.date, d.menu_items ?? []])
+      ),
+    }),
+  });
+  return getDoc as Mock;
+};
+
+const mockStoredMenuFailure = () => {
+  (getDoc as Mock).mockRejectedValue(new Error('Fail'));
+  return getDoc as Mock;
+};
 
 describe('useNutrislice', () => {
   const mockUpdateWidget = vi.fn((id: string, updates: Partial<WidgetData>) => {
@@ -117,8 +140,7 @@ describe('useNutrislice', () => {
   };
 
   it('parses entree, sides, and bento with image URLs', async () => {
-    const mockProxy = vi.fn().mockResolvedValue({ data: mockMenuData });
-    (httpsCallable as Mock).mockReturnValue(mockProxy);
+    const mockProxy = mockStoredMenu(mockMenuData);
 
     render(<TestComponent />);
 
@@ -126,12 +148,7 @@ describe('useNutrislice', () => {
       expect(mockProxy).toHaveBeenCalledTimes(1);
     });
 
-    const lastCall = mockProxy.mock.calls[0][0] as { url: string };
-    const fetchUrl = lastCall.url;
-    expect(fetchUrl).toContain('schumann-elementary');
-    expect(fetchUrl).toContain('2023');
-    expect(fetchUrl).toContain('10');
-    expect(fetchUrl).toContain('27');
+    expect(doc).toHaveBeenCalledWith({}, 'lunch_menus', 'schumann-elementary');
 
     await waitFor(() => {
       expect(mockUpdateWidget).toHaveBeenCalledWith(
@@ -172,8 +189,7 @@ describe('useNutrislice', () => {
   });
 
   it('handles proxy failure', async () => {
-    const mockProxy = vi.fn().mockRejectedValue(new Error('Fail'));
-    (httpsCallable as Mock).mockReturnValue(mockProxy);
+    const mockProxy = mockStoredMenuFailure();
 
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
@@ -216,8 +232,7 @@ describe('useNutrislice', () => {
       },
     };
 
-    const mockProxy = vi.fn().mockResolvedValue({ data: mockMenuData });
-    (httpsCallable as Mock).mockReturnValue(mockProxy);
+    const mockProxy = mockStoredMenu(mockMenuData);
 
     render(<TestComponent initialConfig={freshConfig} />);
 
@@ -241,8 +256,7 @@ describe('useNutrislice', () => {
       } as unknown as LunchCountConfig['cachedMenu'],
     };
 
-    const mockProxy = vi.fn().mockResolvedValue({ data: mockMenuData });
-    (httpsCallable as Mock).mockReturnValue(mockProxy);
+    const mockProxy = mockStoredMenu(mockMenuData);
 
     render(<TestComponent initialConfig={legacyConfig} />);
 
@@ -266,8 +280,7 @@ describe('useNutrislice', () => {
       } as unknown as LunchCountConfig['cachedMenu'],
     };
 
-    const mockProxy = vi.fn().mockRejectedValue(new Error('Fail'));
-    (httpsCallable as Mock).mockReturnValue(mockProxy);
+    const mockProxy = mockStoredMenuFailure();
 
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
@@ -309,8 +322,7 @@ describe('useNutrislice', () => {
       ],
     };
 
-    const mockProxy = vi.fn().mockResolvedValue({ data: noEntreeData });
-    (httpsCallable as Mock).mockReturnValue(mockProxy);
+    mockStoredMenu(noEntreeData);
 
     render(<TestComponent />);
 
@@ -349,8 +361,7 @@ describe('useNutrislice', () => {
       ],
     };
 
-    const mockProxy = vi.fn().mockResolvedValue({ data: bentoOnlyData });
-    (httpsCallable as Mock).mockReturnValue(mockProxy);
+    mockStoredMenu(bentoOnlyData);
 
     render(<TestComponent />);
 
@@ -389,8 +400,7 @@ describe('useNutrislice', () => {
       ],
     };
 
-    const mockProxy = vi.fn().mockResolvedValue({ data: altEntreeData });
-    (httpsCallable as Mock).mockReturnValue(mockProxy);
+    mockStoredMenu(altEntreeData);
 
     render(<TestComponent />);
 
@@ -431,10 +441,7 @@ describe('useNutrislice', () => {
       ],
     };
 
-    const mockProxy = vi
-      .fn()
-      .mockResolvedValue({ data: twoItemAltSectionData });
-    (httpsCallable as Mock).mockReturnValue(mockProxy);
+    mockStoredMenu(twoItemAltSectionData);
 
     render(<TestComponent />);
 
@@ -473,10 +480,7 @@ describe('useNutrislice', () => {
       ],
     };
 
-    const mockProxy = vi
-      .fn()
-      .mockResolvedValue({ data: soleEntreeNamedBentoData });
-    (httpsCallable as Mock).mockReturnValue(mockProxy);
+    mockStoredMenu(soleEntreeNamedBentoData);
 
     render(<TestComponent />);
 
@@ -517,8 +521,7 @@ describe('useNutrislice', () => {
       ],
     };
 
-    const mockProxy = vi.fn().mockResolvedValue({ data: bentoData });
-    (httpsCallable as Mock).mockReturnValue(mockProxy);
+    mockStoredMenu(bentoData);
 
     render(<TestComponent />);
 
@@ -537,5 +540,39 @@ describe('useNutrislice', () => {
         })
       );
     });
+  });
+  it.each([
+    ['no menu doc exists for the site', null],
+    [
+      'the stored menu has no entry for today',
+      {
+        days: [
+          { date: '2023-10-30', menu_items: mockMenuData.days[0].menu_items },
+        ],
+      },
+    ],
+  ])('shows an empty menu without an error when %s', async (_label, week) => {
+    mockStoredMenu(week);
+
+    render(<TestComponent />);
+
+    await waitFor(() => {
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        mockWidgetId,
+        expect.objectContaining({
+          config: expect.objectContaining({
+            cachedMenu: expect.objectContaining({
+              hotLunch: { name: 'No Hot Lunch Listed' },
+              hotLunchSides: [],
+            }) as unknown,
+            syncError: null,
+          }) as unknown,
+        })
+      );
+    });
+    expect(mockAddToast).not.toHaveBeenCalledWith(
+      'Failed to sync menu',
+      'error'
+    );
   });
 });
