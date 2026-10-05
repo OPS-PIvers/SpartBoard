@@ -147,6 +147,17 @@ describe('settings drawer fields', () => {
     expect(settingsFieldAnchor('button', 'Behavior', 'schedule')).toBeNull();
   });
 
+  it('uses the role to pick between a row and its switch', () => {
+    const name = 'Control Traffic Light automatically';
+    expect(settingsFieldAnchor('switch', name, 'sound')).toBe(
+      'settings.toggle:sound#autoTrafficLight'
+    );
+    expect(settingsFieldAnchor('group', name, 'sound')).toBeNull();
+    expect(settingsFieldAnchor('region', name, 'sound')).toBe(
+      'settings.field:sound#autoTrafficLight'
+    );
+  });
+
   it('needs a single match when the widget type is unknown', () => {
     expect(settingsFieldAnchor('heading', 'Behavior', null)).toBeNull();
     expect(settingsFieldAnchor('switch', 'Behavior', 'toString')).toBeNull();

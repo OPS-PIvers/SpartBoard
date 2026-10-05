@@ -45,6 +45,7 @@ export const requestFingerprint = (
 const tourOf = (s: Step | undefined) => s?.tour as Tour | undefined;
 
 const SECTION_ROLES = new Set(['heading', 'group']);
+const SWITCH_ROLES = new Set(['switch', 'checkbox']);
 
 /** A widget type's settings drawer anchors; empty for unknown types. */
 export const settingsFieldsOf = (widgetType: string) =>
@@ -69,7 +70,13 @@ export function settingsFieldAnchor(
         f.anchor.startsWith('settings.group:') === section
     )
   );
-  return hits.length === 1 ? hits[0].anchor : null;
+  // A partner field has a row and a switch with one label; the role picks which.
+  const prefix = SWITCH_ROLES.has(role)
+    ? 'settings.toggle:'
+    : 'settings.field:';
+  const narrowed =
+    hits.length > 1 ? hits.filter((f) => f.anchor.startsWith(prefix)) : hits;
+  return narrowed.length === 1 ? narrowed[0].anchor : null;
 }
 
 /** Stamps `tour.unmapped` on fallback-only steps and returns the new queue requests; recorder fingerprints are kept as stored. */
