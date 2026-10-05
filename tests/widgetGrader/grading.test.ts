@@ -628,7 +628,10 @@ describe('grading page click-through', () => {
         use: (name: string) => Promise.resolve(name === 'db' ? store.db : null),
       },
     };
-    const [markup, script] = page.split(/<script>|<\/script>/);
+    const open = page.indexOf('<script>');
+    const close = page.indexOf('</script>', open);
+    const markup = page.slice(0, open);
+    const script = page.slice(open + '<script>'.length, close);
     document.body.innerHTML = markup;
     runInNewContext(script, {
       window: fakeWindow,
