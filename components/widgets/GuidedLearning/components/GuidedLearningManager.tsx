@@ -99,6 +99,7 @@ import {
   requestStartTour,
 } from '@/components/tours/tourState';
 import { useLiveToursEnabled } from '@/components/tours/useTourOffers';
+import { useCanRunLiveTour } from '@/components/tours/useCanRunLiveTour';
 import {
   getToursVersion,
   isTourRunnable,
@@ -482,6 +483,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
   const liveTours = useLiveToursEnabled();
+  const canRunLiveTour = useCanRunLiveTour();
   // Only a published snapshot runs from the library; the shared watchers read each tour once per page.
   const liveTourKey = liveTours
     ? buildingSets
@@ -901,24 +903,40 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       });
     }
 
+    let runLive: LibraryMenuAction | null = null;
+    let runLiveIsDraft = false;
     if (liveTours && entry.buildingEntry?.hasLiveTour) {
       const runnable = isTourRunnable(rawId);
       if (runnable === true) {
-        secondary.push({
+        runLive = {
           id: 'run-live',
           label: t('glStudio.runLive'),
           icon: Footprints,
           onClick: () => requestStartTour({ setId: rawId }),
-        });
+        };
       } else if (runnable === false && canEdit) {
         // Authors can try an unpublished tour; teachers never see it.
-        secondary.push({
+        runLiveIsDraft = true;
+        runLive = {
           id: 'run-live',
           label: t('glStudio.runLiveDraft'),
           icon: Footprints,
           onClick: () => requestStartTour({ setId: rawId, draft: true }),
-        });
+        };
       }
+    }
+    const play = () => onPlay(rawId, entry.driveFileId, entry.buildingEntry);
+    // On a board, a runnable tour's Play runs it live; the slides move to the menu.
+    const playsLive = runLive !== null && canRunLiveTour;
+    if (runLive && playsLive) {
+      secondary.push({
+        id: 'play-slides',
+        label: 'Play as slides',
+        icon: Play,
+        onClick: play,
+      });
+    } else if (runLive) {
+      secondary.push(runLive);
     }
 
     if (
@@ -1062,11 +1080,15 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         subtitle={subtitle}
         thumbnail={thumbnail}
         badges={badges}
-        secondaryPrimaryAction={{
-          label: 'Play',
-          icon: Play,
-          onClick: () => onPlay(rawId, entry.driveFileId, entry.buildingEntry),
-        }}
+        secondaryPrimaryAction={
+          playsLive && runLive
+            ? {
+                label: runLiveIsDraft ? 'Play draft live' : 'Play live',
+                icon: Footprints,
+                onClick: runLive.onClick,
+              }
+            : { label: 'Play', icon: Play, onClick: play }
+        }
         primaryAction={{
           label: primaryActionLabel,
           icon: Link2,

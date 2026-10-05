@@ -26,6 +26,7 @@ import {
 import { tourHealthOf } from '@/components/tours/tourHealth';
 import { isHelpCenterSet } from '@/components/widgets/GuidedLearning/utils/helpCenterSets';
 import { logError } from '@/utils/logError';
+import { StudioHelpVisibility } from './StudioHelpVisibility';
 
 const STATUS_STYLE: Record<
   TourPublishStatus,
@@ -111,13 +112,16 @@ export const StudioTourPublish: React.FC<{
         )}
       </div>
       <p className="text-xs text-slate-500">{t('glStudio.tourPublish.hint')}</p>
-      <p className="text-xs text-slate-500">
-        {t(
-          isHelpCenterSet(set)
-            ? 'glStudio.tourPublish.whereHelpCenter'
-            : 'glStudio.tourPublish.whereLibrary'
-        )}
-      </p>
+      {isHelpCenterSet(set) ? (
+        <StudioHelpVisibility
+          setId={set.id}
+          published={loaded && status !== 'draft'}
+        />
+      ) : (
+        <p className="text-xs text-slate-500">
+          {t('glStudio.tourPublish.whereLibrary')}
+        </p>
+      )}
       {tour && tour.publishedAt > 0 && (
         <p className="text-xs text-slate-500">
           {t('glStudio.tourPublish.publishedAt', {

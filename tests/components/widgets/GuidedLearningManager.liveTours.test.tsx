@@ -36,6 +36,11 @@ vi.mock('@/components/tours/publishedTours', () => ({
   isTourRunnable: (id: string) => runnable.get(id),
 }));
 
+const board = vi.hoisted(() => ({ canRun: false }));
+vi.mock('@/components/tours/useCanRunLiveTour', () => ({
+  useCanRunLiveTour: () => board.canRun,
+}));
+
 vi.mock('@/hooks/useSessionViewCount', () => ({
   useSessionViewCount: () => ({ count: 0 }),
 }));
@@ -149,6 +154,7 @@ afterEach(() => {
   listeners.forEach(([type, fn]) => window.removeEventListener(type, fn));
   listeners.length = 0;
   runnable.clear();
+  board.canRun = false;
 });
 
 describe('GuidedLearningManager live tours', () => {
@@ -297,5 +303,42 @@ describe('GuidedLearningManager live tours', () => {
     });
     expect(screen.getByText('Help Center tour')).toBeInTheDocument();
     expect(screen.getByText('Where live tours live')).toBeInTheDocument();
+  });
+
+  it('makes Play run a published tour live on a board, with the slides in the menu', async () => {
+    board.canRun = true;
+    runnable.set('live-1', true);
+    const start = listen(TOUR_START_EVENT);
+    renderManager(true, false);
+    fireEvent.click(await screen.findByRole('button', { name: 'Play live' }));
+    expect((start.mock.calls[0][0] as CustomEvent).detail).toEqual({
+      setId: 'live-1',
+    });
+    await cardMenu('Boards walkthrough');
+    expect(
+      await screen.findByRole('menuitem', { name: 'Play as slides' })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Run live/ })).toBeNull();
+  });
+
+  it('lets an author play a draft tour live from Play', async () => {
+    board.canRun = true;
+    runnable.set('live-1', false);
+    const start = listen(TOUR_START_EVENT);
+    renderManager(true, true);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Play draft live' })
+    );
+    expect((start.mock.calls[0][0] as CustomEvent).detail).toEqual({
+      setId: 'live-1',
+      draft: true,
+    });
+  });
+
+  it('keeps Play as slides off a board', async () => {
+    runnable.set('live-1', true);
+    renderManager(true, false);
+    await screen.findByText('Boards walkthrough');
+    expect(screen.queryByRole('button', { name: 'Play live' })).toBeNull();
   });
 });
