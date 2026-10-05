@@ -95,6 +95,10 @@ function formatDate(ms: number): string {
   }
 }
 
+// Notes open formatted; an empty one opens ready to type.
+const openModeFor = (body: string): 'edit' | 'preview' =>
+  body.trim() ? 'preview' : 'edit';
+
 /**
  * Two-pane shared notebook for the PLC — the native structured meeting-notes
  * surface (Decision 2.5/2.5b), wired live into the Notes & Docs section.
@@ -236,6 +240,7 @@ const NotesBodyInner: React.FC<
     if (first) {
       setSelectedId(first.id);
       seedDraft(first);
+      setBodyMode(openModeFor(first.body));
     }
   }
 
@@ -253,7 +258,7 @@ const NotesBodyInner: React.FC<
     if (note) {
       setSelectedId(note.id);
       seedDraft(note);
-      setBodyMode('preview');
+      setBodyMode(openModeFor(note.body));
     }
   }
 
@@ -276,6 +281,15 @@ const NotesBodyInner: React.FC<
     title: CapturedCaret | null;
     body: CapturedCaret | null;
   } | null>(null);
+
+  // Browsers without field-sizing (Firefox, Safari) grow the markdown box here.
+  useLayoutEffect(() => {
+    const el = bodyFieldRef.current;
+    if (!el || globalThis.CSS?.supports?.('field-sizing', 'content')) return;
+    if (el.scrollHeight > el.clientHeight) {
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  });
 
   const crdt = usePlcNoteCrdt({
     plcId: plc.id,
@@ -591,7 +605,7 @@ const NotesBodyInner: React.FC<
       lastEditedAt: note.lastEditedAt,
       version: note.version,
     });
-    setBodyMode('preview');
+    setBodyMode(openModeFor(note.body));
   };
 
   if (loading) {

@@ -190,6 +190,12 @@ afterEach(() => {
 });
 
 describe('NotesBody concurrent editing (legacy save path)', () => {
+  it('opens an empty note ready to type', () => {
+    notes = [noteAt('', 1000, 1)];
+    render(<NotesBody plc={plc} />);
+    expect(screen.getByPlaceholderText(BODY_PLACEHOLDER)).toBeTruthy();
+  });
+
   it('opens a note rendered, not as raw markdown', () => {
     render(<NotesBody plc={plc} />);
     expect(screen.queryByPlaceholderText(BODY_PLACEHOLDER)).toBeNull();
