@@ -195,7 +195,7 @@ export const ActiveUsersPanel: React.FC<{ days: ActivityPoint[] }> = ({
           />
           <Tooltip content={<ActivityTooltip />} />
           <Line
-            type="stepAfter"
+            type="monotone"
             dataKey="mau"
             name="Monthly active"
             stroke={NAVY}

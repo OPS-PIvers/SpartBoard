@@ -57,6 +57,8 @@ export interface AdminAnalyticsPayload {
     avgDailyCallsPerUser: number;
     byFeature: Record<string, number>;
   };
+  // Omitted when the student sign-in read fails.
+  students?: { monthly: number; daily: number };
   history?: AnalyticsHistory;
   // Compute-time signals. `partial` is set when one or more
   // `auth().getUsers()` chunks failed during compute — the engagement
@@ -98,6 +100,22 @@ interface MemberLite {
   buildingIds: string[];
   lastActiveStampMs: number;
 }
+
+/** Counts SSO students by last sign-in time over rolling 30-day and 24-hour windows. */
+export const countActiveStudents = (
+  lastSignInMs: number[],
+  now: number
+): { monthly: number; daily: number } => {
+  let monthly = 0;
+  let daily = 0;
+  for (const ms of lastSignInMs) {
+    if (!(ms > 0)) continue;
+    const age = now - ms;
+    if (age <= 30 * 24 * 60 * 60 * 1000) monthly += 1;
+    if (age <= 24 * 60 * 60 * 1000) daily += 1;
+  }
+  return { monthly, daily };
+};
 
 const parseTimeMs = (raw: unknown): number => {
   if (typeof raw !== 'string' || !raw) return 0;
@@ -678,6 +696,29 @@ export async function computeAnalyticsForOrg(
       email: topUserEmails[uid] ?? `Unknown (${uid})`,
     }));
 
+  // studentLoginV1 stamps student_sections/{uid}.updatedAt on every SSO sign-in.
+  let students: { monthly: number; daily: number } | undefined;
+  try {
+    const studentSnap = await db
+      .collection('student_sections')
+      .where('orgId', '==', orgId)
+      .select('updatedAt')
+      .get();
+    students = countActiveStudents(
+      studentSnap.docs.map((d) => {
+        const at: unknown = d.get('updatedAt');
+        return typeof at === 'number' ? at : 0;
+      }),
+      now
+    );
+  } catch (err) {
+    console.warn('[getAdminAnalytics] student sign-in read failed', {
+      ...logContext,
+      orgId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   let history: AnalyticsHistory | undefined;
   if (historyOptions.record) {
     // History is an add-on: a failure here must not block the KPI snapshot.
@@ -735,6 +776,7 @@ export async function computeAnalyticsForOrg(
       avgDailyCallsPerUser,
       byFeature: aiCallsByFeature,
     },
+    ...(students ? { students } : {}),
     ...(history ? { history } : {}),
     // Only emit `meta` when something noteworthy happened during compute —
     // keeps the snapshot payload identical to the previous shape for the

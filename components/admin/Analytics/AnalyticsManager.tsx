@@ -116,6 +116,7 @@ interface AnalyticsData {
     avgDailyCallsPerUser: number;
     byFeature: Record<string, number>;
   };
+  students?: { monthly: number; daily: number };
   history?: AnalyticsHistory;
   // Snapshot freshness metadata returned alongside the payload. The server
   // computes the analytics once a day; these timestamps drive the
@@ -449,7 +450,7 @@ const OverviewPanel: React.FC<{
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard
           title="Total Dashboards"
           value={formatNumber(dashboards.total)}
@@ -457,6 +458,14 @@ const OverviewPanel: React.FC<{
         <KpiCard
           title="Avg Widgets / Dashboard"
           value={dashboards.avgWidgetsPerDashboard.toFixed(1)}
+        />
+        <KpiCard
+          title="Monthly Active Students"
+          value={data.students ? formatNumber(data.students.monthly) : '—'}
+        />
+        <KpiCard
+          title="Daily Active Students"
+          value={data.students ? formatNumber(data.students.daily) : '—'}
         />
       </div>
 
@@ -1580,6 +1589,7 @@ export const AnalyticsManager: React.FC = () => {
           avgDailyCallsPerUser: raw.api?.avgDailyCallsPerUser ?? 0,
           byFeature: raw.api?.byFeature ?? {},
         },
+        students: raw.students,
         history: raw.history,
         meta: raw.meta,
       };
