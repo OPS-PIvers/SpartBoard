@@ -1,6 +1,7 @@
 import type { User } from 'firebase/auth';
 import type { AuthContextType } from '@/context/AuthContextValue';
 import type { DashboardContextValue } from '@/context/DashboardContextValue';
+import { HARNESS_UID, type HarnessAuthOverrides } from './fixtures/types';
 import { mockAuth, mockDashboard } from '@/components/student/studentMocks';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 import { resolveAuthBypassFeatureOverride } from '@/utils/authBypassFeatureOverrides';
@@ -12,7 +13,7 @@ import type {
 } from '@/types';
 
 const HARNESS_USER = {
-  uid: 'mock-user-id',
+  uid: HARNESS_UID,
   email: 'teacher@example.com',
   displayName: 'Harness Teacher',
   emailVerified: true,
@@ -27,14 +28,17 @@ const teacherCanAccessFeature = (featureId: GlobalFeature): boolean =>
   resolveAuthBypassFeatureOverride(featureId, undefined, window.localStorage) ??
   FEATURE_DEFAULTS[featureId]?.missingDocPublic === true;
 
-export const harnessAuth: AuthContextType = {
+export const buildHarnessAuth = (
+  overrides: HarnessAuthOverrides = {}
+): AuthContextType => ({
   ...mockAuth,
   user: HARNESS_USER,
   isAdmin: false,
   canAccessFeature: teacherCanAccessFeature,
   hasOrg: true,
   userTier: 'org',
-};
+  ...overrides,
+});
 
 export interface HarnessDashboardInput {
   dashboard: Dashboard;
