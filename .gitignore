@@ -103,5 +103,6 @@ Dashboards/
 # Written by the Claude review workflow, never committed
 pr.diff
 
-# Widget grader scan output
+# Widget grader output (scans, measurements, screenshots) and its build
 scripts/widget-grader/out/
+dist-grader/
