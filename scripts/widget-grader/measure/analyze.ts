@@ -160,13 +160,18 @@ export interface G4Input {
   typicalText: string;
   /** Face text of a second instance added on default config beside the typical one. */
   secondText: string;
+  /** Words both instances may show legitimately, such as the board's shared roster names. */
+  sharedText?: string;
 }
 
 /** G4: content lost on reload, content following the type to another instance, or protected data on the face. */
 export function analyzeG4(input: G4Input): Check {
   const reloadKeeps =
     normalize(input.beforeReload) === normalize(input.afterReload);
-  const empty = tokens(input.emptyText);
+  const empty = new Set([
+    ...tokens(input.emptyText),
+    ...tokens(input.sharedText ?? ''),
+  ]);
   const own = [...tokens(input.typicalText)].filter((t) => !empty.has(t));
   const second = tokens(input.secondText);
   const leaked = own.filter((t) => second.has(t));

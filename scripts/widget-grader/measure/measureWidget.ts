@@ -40,6 +40,8 @@ export class HarnessUnsupported extends Error {}
 
 export interface MeasureOptions {
   outDir: string;
+  /** Roster and class names the board shares with every instance (G4). */
+  sharedText?: string;
   thresholds: Thresholds;
   fixtures: FixtureName[];
   /** Runs after the widget settles and before collection; the planted-failure check uses it. */
@@ -298,6 +300,7 @@ export async function measureWidget(
       emptyText: texts.empty ?? '',
       typicalText: texts.typical ?? '',
       secondText: second,
+      sharedText: opts.sharedText,
     });
   }
   return summarize(type, records, g4, opts.thresholds);

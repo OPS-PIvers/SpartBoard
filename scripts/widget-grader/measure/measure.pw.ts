@@ -20,6 +20,14 @@ const types = Object.keys(WIDGET_FIXTURES)
 const fixtures = (process.env.GRADER_FIXTURES ?? '')
   .split(',')
   .filter((f): f is FixtureName => (ALL_FIXTURES as string[]).includes(f));
+// The harness gives every instance the board's rosters, so their names aren't a G4 leak.
+const sharedRosterText = (type: string): string =>
+  (WIDGET_FIXTURES[type as keyof typeof WIDGET_FIXTURES]?.typical.rosters ?? [])
+    .flatMap((r) => [
+      r.name,
+      ...r.students.flatMap((st) => [st.firstName, st.lastName]),
+    ])
+    .join(' ');
 const outDir =
   process.env.GRADER_OUT ?? join(REPO_ROOT, 'scripts/widget-grader/out/adhoc');
 
@@ -31,6 +39,7 @@ test.describe('widget grader', () => {
           outDir,
           thresholds: loadThresholds(),
           fixtures: fixtures.length ? fixtures : ALL_FIXTURES,
+          sharedText: sharedRosterText(type),
         });
         const dir = join(outDir, 'measurements');
         mkdirSync(dir, { recursive: true });

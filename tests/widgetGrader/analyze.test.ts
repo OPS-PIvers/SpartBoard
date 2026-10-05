@@ -274,3 +274,18 @@ describe('renderMetrics', () => {
     expect(m.wholeCardScroll).toBe(true);
   });
 });
+
+describe('analyzeG4 shared roster', () => {
+  it('does not count shared roster names as a leak', () => {
+    const typicalText = 'Harper Okafor Jordan Smith Taylor Brown';
+    const result = analyzeG4({
+      beforeReload: typicalText,
+      afterReload: typicalText,
+      emptyText: '',
+      typicalText,
+      secondText: typicalText,
+      sharedText: 'Harper Okafor Jordan Smith Taylor Brown',
+    });
+    expect(result.pass).toBe(true);
+  });
+});
