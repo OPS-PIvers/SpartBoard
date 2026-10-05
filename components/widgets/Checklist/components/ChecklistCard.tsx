@@ -14,6 +14,8 @@ interface ChecklistCardProps {
   cardColor: string;
   cardOpacity: number;
   fontColor: string;
+  lines?: boolean;
+  first?: boolean;
 }
 
 export const ChecklistCard = React.memo<ChecklistCardProps>(
@@ -29,6 +31,8 @@ export const ChecklistCard = React.memo<ChecklistCardProps>(
     cardColor,
     cardOpacity,
     fontColor,
+    lines = false,
+    first = false,
   }) => {
     const handleKeyDown = (e: React.KeyboardEvent) => {
       if (e.key === ' ') e.preventDefault();
@@ -51,15 +55,25 @@ export const ChecklistCard = React.memo<ChecklistCardProps>(
         tabIndex={0}
         onClick={() => onToggle(id)}
         onKeyDown={handleKeyDown}
-        className="w-full h-full flex items-center cursor-pointer select-none rounded-2xl border shadow-sm transition-all active:scale-[0.98] overflow-hidden"
-        style={{
-          gap: cardGap,
-          padding: cardPadding,
-          backgroundColor: bgColor,
-          borderColor: isCompleted
-            ? hexToRgba('#e2e8f0', cardOpacity * 0.5)
-            : borderColor,
-        }}
+        className={`w-full h-full flex items-center cursor-pointer select-none transition-all overflow-hidden ${lines ? '' : 'rounded-2xl border shadow-sm active:scale-[0.98]'}`}
+        style={
+          lines
+            ? {
+                gap: cardGap,
+                padding: cardPadding,
+                borderTop: first
+                  ? undefined
+                  : `1px solid color-mix(in srgb, ${fontColor} 14%, transparent)`,
+              }
+            : {
+                gap: cardGap,
+                padding: cardPadding,
+                backgroundColor: bgColor,
+                borderColor: isCompleted
+                  ? hexToRgba('#e2e8f0', cardOpacity * 0.5)
+                  : borderColor,
+              }
+        }
       >
         <div className="shrink-0 transition-transform active:scale-90">
           {isCompleted ? (

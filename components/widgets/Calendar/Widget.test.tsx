@@ -35,9 +35,12 @@ vi.mock('@/hooks/useWidgetBuildingId', () => ({
 // Path B: the widget acquires the calendar.readonly scope on demand via
 // useAuth().ensureGoogleScope. Tests override this per-scenario.
 const ensureGoogleScopeMock = vi.fn();
+const dayView = vi.hoisted(() => ({ enabled: false }));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     ensureGoogleScope: ensureGoogleScopeMock,
+    canAccessFeature: (id: string) =>
+      id === 'calendar-day-view' && dayView.enabled,
   }),
 }));
 
@@ -360,5 +363,107 @@ describe('CalendarWidget — inside a sub share', () => {
       expect(screen.getByText('Local Event')).toBeInTheDocument();
     });
     expect(screen.getByText('Bundled Staff Meeting')).toBeInTheDocument();
+  });
+});
+
+describe('CalendarWidget day view', () => {
+  beforeEach(() => {
+    dayView.enabled = true;
+    vi.mocked(useGlobalStyle).mockReturnValue({
+      ...DEFAULT_GLOBAL_STYLE,
+      fontFamily: 'sans',
+    });
+    vi.mocked(useDashboardActions).mockReturnValue({
+      addWidget: vi.fn(),
+      updateWidget: vi.fn(),
+    } as unknown as DashboardActions);
+    ensureGoogleScopeMock.mockReset();
+    ensureGoogleScopeMock.mockResolvedValue(null);
+    getEventsMock.mockReset();
+    getEventsMock.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    dayView.enabled = false;
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const monday: CalendarEvent[] = [
+    {
+      date: '2026-10-05',
+      time: '7:30 AM',
+      endTime: '8:15 AM',
+      title: 'Staff meeting',
+    },
+    {
+      date: '2026-10-05',
+      time: '10:30 AM',
+      endTime: '11:20 AM',
+      title: 'Grade 7 PLC',
+      location: 'Room 118',
+      description: 'Bring unit 2 data.',
+    },
+    { date: '2026-10-06', time: '8:00 AM', title: 'Picture day' },
+  ];
+
+  it('shows a header per day and hides events that have ended', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-05T10:40:00'));
+    render(<CalendarWidget widget={buildWidget({ events: monday })} />);
+
+    expect(screen.getByText('Monday')).toBeInTheDocument();
+    expect(screen.getByText('October 5th')).toBeInTheDocument();
+    expect(screen.getByText('Tuesday')).toBeInTheDocument();
+    expect(screen.getByText('Grade 7 PLC')).toBeInTheDocument();
+    expect(screen.queryByText('Staff meeting')).not.toBeInTheDocument();
+    expect(screen.queryByText('Today')).not.toBeInTheDocument();
+  });
+
+  it('keeps ended events above the fold when set to scroll', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-05T10:40:00'));
+    render(
+      <CalendarWidget
+        widget={buildWidget({ events: monday, pastEvents: 'scroll' })}
+      />
+    );
+
+    expect(screen.getByText('Staff meeting')).toBeInTheDocument();
+  });
+
+  it('opens the event details on tap', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-05T10:40:00'));
+    render(<CalendarWidget widget={buildWidget({ events: monday })} />);
+
+    act(() => {
+      screen.getByText('Grade 7 PLC').click();
+    });
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent(
+      'Monday, October 5th · 10:30 AM – 11:20 AM'
+    );
+    expect(dialog).toHaveTextContent('Room 118');
+    expect(dialog).toHaveTextContent('Bring unit 2 data.');
+  });
+
+  it('asks Google for event details', async () => {
+    ensureGoogleScopeMock.mockResolvedValue('calendar-token');
+    render(
+      <CalendarWidget
+        widget={buildWidget({ personalCalendarIds: ['teacher@example.com'] })}
+      />
+    );
+
+    await waitFor(() => {
+      expect(getEventsMock).toHaveBeenCalledWith(
+        'teacher@example.com',
+        expect.any(String),
+        expect.any(String),
+        { details: true }
+      );
+    });
   });
 });

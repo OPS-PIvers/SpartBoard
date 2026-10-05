@@ -47,6 +47,43 @@ describe('GoogleCalendarService', () => {
     });
   });
 
+  it('adds end time, location, plain-text description and calendar name on request', async () => {
+    (global.fetch as Mock).mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          summary: 'Room 118',
+          items: [
+            {
+              id: '1',
+              summary: 'PLC',
+              start: { dateTime: '2026-03-02T10:30:00Z' },
+              end: { dateTime: '2026-03-02T11:20:00Z' },
+              location: 'Media Center',
+              description: 'Bring <b>data</b><br>Agenda: norming',
+            },
+          ],
+        }),
+    });
+
+    const [event] = await service.getEvents(
+      'test-cal',
+      '2026-03-01T00:00:00Z',
+      '2026-03-31T00:00:00Z',
+      { details: true }
+    );
+
+    expect(event).toEqual({
+      title: 'PLC',
+      date: '2026-03-02',
+      time: '10:30 AM',
+      endTime: '11:20 AM',
+      location: 'Media Center',
+      description: 'Bring data\nAgenda: norming',
+      calendarName: 'Room 118',
+    });
+  });
+
   it('handles API errors gracefully by throwing', async () => {
     (global.fetch as Mock).mockResolvedValue({
       ok: false,

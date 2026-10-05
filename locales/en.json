@@ -1291,7 +1291,11 @@
       "buildingSchedule": "Building schedule",
       "syncBuildingSchedule": "Sync building schedule",
       "syncedAt": "Synced {{time}}",
-      "daysVisible": "Days to display"
+      "daysVisible": "Days to display",
+      "pastEvents": "Past events",
+      "pastHide": "Hide",
+      "pastScroll": "Scroll up to see",
+      "headerColor": "Day header color"
     },
     "materials": {
       "title": "Title",
@@ -1387,7 +1391,10 @@
       "wednesday": "Wednesday",
       "thursday": "Thursday",
       "friday": "Friday",
-      "saturday": "Saturday"
+      "saturday": "Saturday",
+      "rowStyle": "Event style",
+      "rowCards": "Cards",
+      "rowLines": "Lines"
     },
     "recessGear": {
       "connections": "Connections",
@@ -2201,7 +2208,10 @@
       "poolGroup": "Draw from",
       "poolWholeClass": "Whole class",
       "poolGroupEmpty": "Save a group for this class in My Classes to use it here.",
-      "rosterGroupsOff": "Class groups are switched off for your school right now."
+      "rosterGroupsOff": "Class groups are switched off for your school right now.",
+      "rowStyle": "Task style",
+      "rowCards": "Cards",
+      "rowLines": "Lines"
     },
     "weather": {
       "weatherMode": "Weather mode",

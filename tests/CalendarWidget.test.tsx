@@ -26,6 +26,7 @@ vi.mock('@/context/useAuth', () => ({
     // no personal calendars configured in these tests it's never called, but
     // provide a null-resolving stub so the surface matches the real hook.
     ensureGoogleScope: vi.fn().mockResolvedValue(null),
+    canAccessFeature: () => false,
   }),
 }));
 

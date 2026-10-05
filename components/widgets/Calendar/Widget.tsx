@@ -16,11 +16,12 @@ import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { useAuth } from '@/context/useAuth';
 import { GoogleCalendarService } from '@/utils/googleCalendarService';
-import { GAP_STYLE } from './constants';
+import { DEFAULT_HEADER_COLOR, GAP_STYLE } from './constants';
 import { hexToRgba } from '@/utils/styles';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { useSubShareCalendar } from './useSubShareCalendar';
+import { CalendarAgenda } from './CalendarAgenda';
 
 /** Parses a time string (e.g. "14:30", "2:30 PM") into seconds since midnight, or -1 if invalid. */
 const parseTimeSeconds = (t: string | undefined): number => {
@@ -53,7 +54,8 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   // a token and the fetch proceeds exactly as before; for never-granted users
   // it returns null and we render a "Connect Google Calendar" CTA whose click
   // (a user gesture) re-requests the scope interactively.
-  const { ensureGoogleScope } = useAuth();
+  const { ensureGoogleScope, canAccessFeature } = useAuth();
+  const dayView = canAccessFeature('calendar-day-view');
   const globalStyle = useGlobalStyle();
   const config = widget.config as CalendarConfig;
   const localEvents = useMemo(() => config.events ?? [], [config.events]);
@@ -104,11 +106,14 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     d.setHours(0, 0, 0, 0);
     return d.getTime();
   });
+  // Minute tick so finished events drop off the day view.
+  const [, setMinuteTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => {
       const d = new Date();
       d.setHours(0, 0, 0, 0);
       setTodayMidnightMs(d.getTime());
+      setMinuteTick((n) => n + 1);
     }, 60_000);
     return () => clearInterval(id);
   }, []);
@@ -168,7 +173,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
         ).toISOString();
 
         const allPromises = personalIds.map((id) =>
-          calendarService.getEvents(id, timeMin, timeMax)
+          calendarService.getEvents(id, timeMin, timeMax, { details: dayView })
         );
         const results = await Promise.all(allPromises);
         if (!cancelled) setPersonalEvents(results.flat());
@@ -192,7 +197,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     return () => {
       cancelled = true;
     };
-  }, [calendarService, personalIds]);
+  }, [calendarService, personalIds, dayView]);
 
   // Connect CTA handler — INTERACTIVE (driven by a user click), so a popup is
   // allowed. On success we store the token, which triggers the fetch effect.
@@ -370,6 +375,39 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   // a substitute is never asked to connect their own Google account.
   const showConnectCalendar =
     personalIds.length > 0 && calendarNeedsConnect && !isCalendarConnected;
+
+  if (dayView && !showConnectCalendar && displayEvents.length > 0) {
+    return (
+      <WidgetLayout
+        padding="p-0"
+        content={
+          <div
+            className={`h-full w-full flex flex-col overflow-hidden ${getFontClass()}`}
+            style={{ padding: 'min(12px, 2.5cqmin)' }}
+          >
+            <div
+              className="flex-1 flex flex-col min-h-0 overflow-hidden"
+              style={{
+                backgroundColor: bgColor,
+                borderRadius: 'min(12px, 2.5cqmin)',
+              }}
+            >
+              <CalendarAgenda
+                events={displayEvents}
+                today={today}
+                nowSeconds={nowSeconds}
+                pastEvents={config.pastEvents ?? 'hide'}
+                fontColor={fontColor}
+                headerColor={config.headerColor ?? DEFAULT_HEADER_COLOR}
+                textScale={textScale}
+                onStartTimer={handleStartTimer}
+              />
+            </div>
+          </div>
+        }
+      />
+    );
+  }
 
   return (
     <WidgetLayout
