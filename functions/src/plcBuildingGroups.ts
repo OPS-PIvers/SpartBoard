@@ -537,12 +537,13 @@ export async function createBuildingGroup(
   return { plcId: ref.id, added };
 }
 
-/** Optionally switch auto-roster, then backfill; returns the backfill count. */
+/** Optionally rename and switch auto-roster, then backfill; returns the backfill count. */
 export async function syncBuildingGroup(
   deps: BuildingGroupDeps,
   plcId: string,
   callerEmailLower: string,
-  autoRoster: boolean | undefined
+  autoRoster: boolean | undefined,
+  name?: string
 ): Promise<{ added: number; autoRoster: boolean }> {
   const ref = deps.db.collection('plcs').doc(plcId);
   const snap = await ref.get();
@@ -557,6 +558,9 @@ export async function syncBuildingGroup(
     );
   }
   await assertCallerIsOrgAdmin(deps.db, data.orgId, callerEmailLower);
+  if (name !== undefined && name !== data.name) {
+    await ref.update({ name, updatedAt: deps.serverTimestamp() });
+  }
   let enabled = data.autoRoster === true;
   if (autoRoster !== undefined && autoRoster !== enabled) {
     await ref.update({ autoRoster, updatedAt: deps.serverTimestamp() });
@@ -640,7 +644,23 @@ export const syncBuildingGroupV1 = onCall(
     if (raw.autoRoster !== undefined && typeof raw.autoRoster !== 'boolean') {
       throw new HttpsError('invalid-argument', 'autoRoster must be a boolean.');
     }
-    return syncBuildingGroup(defaultDeps(), plcId, callerEmail, raw.autoRoster);
+    let name: string | undefined;
+    if (raw.name !== undefined) {
+      name = typeof raw.name === 'string' ? raw.name.trim() : '';
+      if (!name || name.length > 120) {
+        throw new HttpsError(
+          'invalid-argument',
+          'A name up to 120 characters is required.'
+        );
+      }
+    }
+    return syncBuildingGroup(
+      defaultDeps(),
+      plcId,
+      callerEmail,
+      raw.autoRoster,
+      name
+    );
   }
 );
 

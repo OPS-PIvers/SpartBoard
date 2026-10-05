@@ -21,13 +21,14 @@ export async function callCreateBuildingGroup(
   return (await fn(req)).data;
 }
 
-/** Admin-only: switch auto-roster and add everyone whose building matches. */
+/** Admin-only: rename, switch auto-roster, and add everyone whose building matches. */
 export async function callSyncBuildingGroup(req: {
   plcId: string;
   autoRoster?: boolean;
+  name?: string;
 }): Promise<{ added: number; autoRoster: boolean }> {
   const fn = httpsCallable<
-    { plcId: string; autoRoster?: boolean },
+    { plcId: string; autoRoster?: boolean; name?: string },
     { added: number; autoRoster: boolean }
   >(functions, 'syncBuildingGroupV1');
   return (await fn(req)).data;
