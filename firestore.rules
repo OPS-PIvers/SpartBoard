@@ -3631,6 +3631,21 @@ service cloud.firestore {
         allow delete: if plcEditor(plcId);
       }
 
+      // A note's Google Doc from "Open in Docs". Create-only, so the first
+      // teammate to make it wins and later clicks open that same doc.
+      match /noteDocs/{noteId} {
+        allow read: if plcReader(plcId);
+        allow create: if plcEditor(plcId)
+          && incoming().keys().hasOnly(['fileId', 'url', 'createdBy', 'createdAt'])
+          && isStr('fileId')
+          && isStr('url')
+          && incoming().url.matches('https://docs[.]google[.]com/.*')
+          && incoming().createdBy == authUid()
+          && plcSubTimeFieldOk('createdAt');
+        allow update: if false;
+        allow delete: if plcEditor(plcId);
+      }
+
       // My Groups resources: links posted by a non-viewer member.
       match /links/{linkId} {
         allow read: if plcReader(plcId);

@@ -9607,7 +9607,9 @@ export type GlobalFeature =
   /** Calendar widget day headers, hairline rows, past-event handling and event details. */
   | 'calendar-day-view'
   /** Schedule and To-Do "Lines" row style. */
-  | 'list-line-style';
+  | 'list-line-style'
+  /** Group Notes & Docs: notes and linked Google Docs in one list, and Open in Docs on a note. */
+  | 'plc-notes-unified';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
