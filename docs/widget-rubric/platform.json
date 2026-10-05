@@ -1,0 +1,98 @@
+{
+  "rubricVersion": "1.0.0",
+  "source": "docs/plans/WIDGET_RUBRIC.md#platform-scorecard",
+  "files": [
+    "components/common/DraggableWindow.tsx",
+    "components/settings/SettingsDrawer.tsx",
+    "components/settings/SettingsDrawerHost.tsx"
+  ],
+  "lifts": ["I1", "I7"],
+  "criteria": [
+    {
+      "id": "P1",
+      "name": "Drag edge zones",
+      "method": "both",
+      "methodNotes": "Script: width of the inner edge strips that start a drag on every widget, and whether front-face content can cover them. Judge: whether a teacher finds the grab area without being told.",
+      "descriptors": {
+        "1": "Dragging needs a precise grab on a thin or hidden strip.",
+        "2": "Edge strips work but are narrow or easy to cover with content.",
+        "3": "Edge strips are wide enough for a finger and widgets cannot cover them.",
+        "4": "As 3, and the grab area shows itself on hover or touch without adding chrome."
+      }
+    },
+    {
+      "id": "P2",
+      "name": "Resize corners",
+      "method": "both",
+      "methodNotes": "Script: hit area of each resize handle at the envelope minimum and at default size (R16). Judge: whether resizing feels predictable.",
+      "descriptors": {
+        "1": "Resize handles are under 32 px or hidden behind content.",
+        "2": "Handles are 32 to 44 px or only some corners resize.",
+        "3": "Every corner resizes with a hit area of at least 44 px at default size.",
+        "4": "As 3, and the handles stay usable at the envelope minimum without covering controls."
+      }
+    },
+    {
+      "id": "P3",
+      "name": "Toolbar placement and reach",
+      "method": "both",
+      "methodNotes": "Script: toolbar position against the board edges and the selected widget at every size. Judge: whether the actions a teacher needs most are first.",
+      "descriptors": {
+        "1": "The toolbar goes off screen or covers the widget's primary content.",
+        "2": "The toolbar stays on screen but covers content at some sizes or edges.",
+        "3": "The toolbar stays on screen and clear of the widget at every size and board position.",
+        "4": "As 3, and its most used actions are reachable from the board's lower edge on a large panel."
+      }
+    },
+    {
+      "id": "P4",
+      "name": "Snap layouts",
+      "method": "judge",
+      "methodNotes": "Judge: snapping to the grid, to other widgets and to screen halves, with screenshots of each.",
+      "descriptors": {
+        "1": "Widgets do not snap, or snap to positions a teacher did not aim for.",
+        "2": "Snapping works but fights the teacher near other widgets.",
+        "3": "Snapping lines up widgets predictably and can be overridden.",
+        "4": "As 3, and snap layouts arrange several widgets in one gesture."
+      }
+    },
+    {
+      "id": "P5",
+      "name": "Touch on a large panel",
+      "method": "judge",
+      "methodNotes": "Judge: drag, resize, select and toolbar use with a finger on a 1920×1080 interactive panel.",
+      "descriptors": {
+        "1": "A core window action needs a mouse.",
+        "2": "Everything works by touch but needs precision.",
+        "3": "Every window action works with a single finger at arm's length.",
+        "4": "As 3, with gestures that suit a panel (two-finger resize, long-press menu) and tap fallbacks."
+      }
+    },
+    {
+      "id": "P6",
+      "name": "Minimize and maximize",
+      "method": "both",
+      "methodNotes": "Script: console errors and layout during the transitions (G3). Judge: whether the transitions keep the teacher oriented.",
+      "descriptors": {
+        "0": "A transition throws an error or loses the widget's content.",
+        "1": "Transitions jump or leave the widget in the wrong place.",
+        "2": "Transitions work but give no sense of where the widget went.",
+        "3": "Transitions are quick, respect reduced motion and return the widget to where it was.",
+        "4": "As 3, and a minimized widget still shows what it is."
+      }
+    },
+    {
+      "id": "P7",
+      "name": "Settings drawer shell",
+      "method": "both",
+      "methodNotes": "Script: drawer scroll end padding, header controls reachable, drawer never covers the whole widget. Judge: section and control consistency across widgets.",
+      "descriptors": {
+        "1": "The drawer covers the widget or its controls clip.",
+        "2": "The drawer works but its sections and controls vary between widgets.",
+        "3": "One drawer shell with standard sections and controls on every widget, with end padding.",
+        "4": "As 3, and the drawer sits beside the widget so changes show while editing."
+      }
+    }
+  ],
+  "scores": {}
+}
