@@ -549,11 +549,8 @@ const NotesBodyInner: React.FC<
               agenda: t('plcDashboard.notes.meeting.agenda', {
                 defaultValue: 'Agenda',
               }),
-              decisions: t('plcDashboard.notes.meeting.decisions', {
-                defaultValue: 'Decisions',
-              }),
-              actionItems: t('plcDashboard.notes.meeting.actionItems', {
-                defaultValue: 'Action items',
+              discussionNotes: t('plcDashboard.notes.meeting.discussionNotes', {
+                defaultValue: 'Discussion Notes',
               }),
             })
           : '';
