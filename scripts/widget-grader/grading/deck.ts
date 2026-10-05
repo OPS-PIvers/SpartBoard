@@ -45,6 +45,8 @@ export interface DeckOptions {
   runId: string;
   createdAt: string;
   harnessOrigin?: string;
+  /** Spot check (R33): only these widget/criterion pairs, as "type:criterion". */
+  only?: string[];
 }
 
 const MAX_SHOTS = 6;
@@ -368,7 +370,9 @@ export function buildDeck(opts: DeckOptions): GradingDeck {
     throw new Error('criterion mode needs a criterion id');
   const shotWidgets = new Map(widgets.map((w) => [w.type, w.measurements]));
   const cards: DeckCard[] = [];
+  const only = opts.only ? new Set(opts.only) : null;
   const add = (dim: Dimension, c: Criterion, w: WidgetInput) => {
+    if (only && !only.has(`${w.type}:${c.id}`)) return;
     const card = buildCard(
       dim,
       c,
