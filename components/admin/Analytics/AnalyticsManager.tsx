@@ -116,6 +116,7 @@ interface AnalyticsData {
     avgDailyCallsPerUser: number;
     byFeature: Record<string, number>;
   };
+  students?: { monthly: number; daily: number };
   history?: AnalyticsHistory;
   // Snapshot freshness metadata returned alongside the payload. The server
   // computes the analytics once a day; these timestamps drive the
@@ -371,6 +372,7 @@ const OverviewPanel: React.FC<{
   registeredIsFallback: boolean;
   usersWithDashboards: number;
   dashboards: { total: number; avgWidgetsPerDashboard: number };
+  isFiltered: boolean;
   users: KpiUser[];
   buildingBuckets: Record<string, EngagementCounts>;
   onKpiClick?: (category: KpiCategory) => void;
@@ -385,6 +387,7 @@ const OverviewPanel: React.FC<{
   registeredIsFallback,
   usersWithDashboards,
   dashboards,
+  isFiltered,
   onKpiClick,
 }) => {
   const KNOWN_BUILDINGS = useKnownBuildings();
@@ -449,7 +452,7 @@ const OverviewPanel: React.FC<{
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard
           title="Total Dashboards"
           value={formatNumber(dashboards.total)}
@@ -457,6 +460,16 @@ const OverviewPanel: React.FC<{
         <KpiCard
           title="Avg Widgets / Dashboard"
           value={dashboards.avgWidgetsPerDashboard.toFixed(1)}
+        />
+        <KpiCard
+          title="Monthly Active Students"
+          value={data.students ? formatNumber(data.students.monthly) : '—'}
+          subtitle={isFiltered ? 'All buildings' : 'School Google sign-in'}
+        />
+        <KpiCard
+          title="Daily Active Students"
+          value={data.students ? formatNumber(data.students.daily) : '—'}
+          subtitle={isFiltered ? 'All buildings' : 'School Google sign-in'}
         />
       </div>
 
@@ -1580,6 +1593,7 @@ export const AnalyticsManager: React.FC = () => {
           avgDailyCallsPerUser: raw.api?.avgDailyCallsPerUser ?? 0,
           byFeature: raw.api?.byFeature ?? {},
         },
+        students: raw.students,
         history: raw.history,
         meta: raw.meta,
       };
@@ -1914,6 +1928,7 @@ export const AnalyticsManager: React.FC = () => {
             dashboards={
               data.dashboards ?? { total: 0, avgWidgetsPerDashboard: 0 }
             }
+            isFiltered={isFiltered}
             users={filteredUserList}
             buildingBuckets={
               selectedDomain === 'all'
