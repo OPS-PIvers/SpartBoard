@@ -1,5 +1,7 @@
 import React, { useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
+import { hexToRgba } from '@/utils/styles';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { rosterGroupMemberIds } from '@/utils/rosterGroups';
 import { ChecklistConfig, WidgetData, DEFAULT_GLOBAL_STYLE } from '@/types';
@@ -17,6 +19,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     useDashboard();
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as ChecklistConfig;
+  const { canAccessFeature } = useAuth();
   const {
     items = [],
     mode = 'manual',
@@ -171,6 +174,8 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   const cardPadding = `clamp(10px, ${padVCqh}cqh, ${Math.round(22 * sm)}px) clamp(8px, ${padHCqw}cqw, ${Math.round(20 * sm)}px)`;
   const cardGap = `clamp(6px, ${gapCqw}cqw, 16px)`;
   const listGap = 'min(6px, 2cqmin)';
+  const lines =
+    config.rowStyle === 'lines' && canAccessFeature('list-line-style');
 
   if (!hasContent) {
     return (
@@ -203,11 +208,19 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
             className={`flex-1 min-h-0 overflow-hidden flex flex-col ${getFontClass()}`}
             style={{
               padding: 'min(10px, 2.2cqmin) min(12px, 2.5cqmin)',
-              gap: listGap,
+              gap: lines ? 0 : listGap,
+              ...(lines
+                ? {
+                    backgroundColor: hexToRgba(cardColor, cardOpacity),
+                    borderRadius: 'min(12px, 2.5cqmin)',
+                    margin: 'min(10px, 2.2cqmin) min(12px, 2.5cqmin) 0',
+                    padding: '0 min(4px, 1cqmin)',
+                  }
+                : {}),
             }}
           >
             {mode === 'manual'
-              ? items.map((item) => (
+              ? items.map((item, idx) => (
                   <div
                     key={item.id}
                     role="listitem"
@@ -229,10 +242,12 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                       cardColor={cardColor}
                       cardOpacity={cardOpacity}
                       fontColor={fontColor}
+                      lines={lines}
+                      first={idx === 0}
                     />
                   </div>
                 ))
-              : students.map((student) => (
+              : students.map((student, idx) => (
                   <div
                     key={student.id}
                     role="listitem"
@@ -254,6 +269,8 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                       cardColor={cardColor}
                       cardOpacity={cardOpacity}
                       fontColor={fontColor}
+                      lines={lines}
+                      first={idx === 0}
                     />
                   </div>
                 ))}

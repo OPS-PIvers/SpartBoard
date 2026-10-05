@@ -484,12 +484,19 @@ describe('NotesBody with the rich text editor flag', () => {
     expect(updateNoteMock).not.toHaveBeenCalled();
   });
 
-  it('falls back to the plain editor when collaboration is on', () => {
+  it('keeps the rich editor when collaboration is on and writes through it', () => {
     collabEnabled = true;
+    richEditorAccess = true;
     crdtContent = { title: 'Shared note', body: 'Hello', actionItems: [] };
     render(<NotesBody plc={plc} />);
-    expect(screen.queryByRole('toolbar', { name: 'Formatting' })).toBeNull();
-    expect(document.querySelector('[contenteditable="true"]')).toBeNull();
+    expect(screen.getByRole('toolbar', { name: 'Formatting' })).toBeTruthy();
+    const box = screen.getByRole('textbox', { name: 'Note' });
+    const p = box.querySelector('p');
+    if (!p) throw new Error('missing paragraph');
+    p.textContent = 'Hello team';
+    fireEvent.input(box);
+    expect(setBodyMock).toHaveBeenCalledWith('Hello team');
+    expect(updateNoteMock).not.toHaveBeenCalled();
   });
 });
 

@@ -15,21 +15,26 @@ describe('liveTourStepsOf', () => {
   const set = (steps: object[], mode = 'structured') =>
     ({ steps, mode }) as unknown as Pick<GuidedLearningSet, 'mode' | 'steps'>;
 
-  it('keeps plain steps in order when any step is anchored', () => {
+  it('keeps plain steps in order in a tour-mode set', () => {
     const steps = [
       { id: 'intro' },
       { id: 'a', tour: { anchor: 'sidebar.boards', action: 'click' } },
       { id: 'wrap' },
     ];
-    expect(liveTourStepsOf(set(steps)).map((s) => s.id)).toEqual([
+    expect(liveTourStepsOf(set(steps, 'tour')).map((s) => s.id)).toEqual([
       'intro',
       'a',
       'wrap',
     ]);
   });
 
-  it('is empty when nothing is anchored', () => {
+  it('is empty for a set that is not a live tour, even with an anchored step', () => {
     expect(liveTourStepsOf(set([{ id: 'intro' }]))).toEqual([]);
+    expect(
+      liveTourStepsOf(
+        set([{ id: 'a', tour: { anchor: 'sidebar.boards', action: 'click' } }])
+      )
+    ).toEqual([]);
   });
 
   it('plays every step of a tour-mode set, even with nothing anchored', () => {

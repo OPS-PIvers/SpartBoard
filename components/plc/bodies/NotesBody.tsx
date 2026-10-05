@@ -309,8 +309,7 @@ const NotesBodyInner: React.FC<
   // on the legacy read-only path — they have nothing to publish.
   const collabSettings = usePlcNoteCollabSettings();
   const collab = collabSettings.enabled && canEdit && !!selectedId;
-  // Its whole-body re-serialize would overwrite teammates' concurrent edits.
-  const richEditor = richEditorFlag && !collab;
+  const richEditor = richEditorFlag;
 
   const titleFieldRef = useRef<HTMLInputElement>(null);
   const bodyFieldRef = useRef<HTMLTextAreaElement>(null);

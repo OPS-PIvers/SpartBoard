@@ -1681,6 +1681,11 @@ export interface CalendarEvent {
   date: string;
   time?: string;
   title: string;
+  endTime?: string;
+  location?: string;
+  description?: string;
+  /** Name of the calendar the event came from. */
+  calendarName?: string;
 }
 
 export type RoutineStructure = 'linear' | 'cycle' | 'visual-cue' | 'components';
@@ -1771,6 +1776,7 @@ export interface ChecklistConfig {
   textSizePreset?: TextSizePreset;
   cardColor?: string;
   cardOpacity?: number;
+  rowStyle?: 'cards' | 'lines';
 }
 
 export interface RandomGroup {
@@ -3059,6 +3065,7 @@ export interface ScheduleConfig {
   cardColor?: string;
   /** Card background opacity, 0 (fully transparent) to 1 (fully opaque). Default: 1. */
   cardOpacity?: number;
+  rowStyle?: 'cards' | 'lines';
   /** Persisted schedule tab selection in the settings panel. Not used by the front-face display. */
   settingsSelectedScheduleId?: string | null;
 }
@@ -3070,6 +3077,10 @@ export interface CalendarConfig {
   daysVisible?: number;
   /** Individual Google Calendar IDs added by the user */
   personalCalendarIds?: string[];
+  /** Today's finished events: removed, or kept above the fold. Default 'hide'. */
+  pastEvents?: 'hide' | 'scroll';
+  /** Day header band color. Default brand blue. */
+  headerColor?: string;
   fontFamily?: string;
   fontColor?: string;
   textSizePreset?: TextSizePreset;
@@ -9593,6 +9604,10 @@ export type GlobalFeature =
   | 'study-resources'
   /** Sparty the mascot in tours, first-time setup and the Help Center (docs/plans/shipped/SPARTY.md). */
   | 'sparty'
+  /** Calendar widget day headers, hairline rows, past-event handling and event details. */
+  | 'calendar-day-view'
+  /** Schedule and To-Do "Lines" row style. */
+  | 'list-line-style'
   /** Group Notes & Docs: notes and linked Google Docs in one list, and Open in Docs on a note. */
   | 'plc-notes-unified';
 

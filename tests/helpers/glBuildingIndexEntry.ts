@@ -15,7 +15,7 @@ export const toBuildingIndexEntry = (
   thumbnail: set.imageUrls[0] ?? '',
   createdAt: set.createdAt,
   updatedAt: set.updatedAt,
-  hasLiveTour: set.hasLiveTour ?? set.steps.some((step) => !!step.tour),
+  hasLiveTour: set.mode === 'tour' || set.hasLiveTour === true,
   isHelpCenter: set.helpCenter === true,
   folderId: null,
   order: null,

@@ -177,7 +177,7 @@ describe('one-time publish of existing tours', () => {
     h.store.set('building_guided_learning/live', tourSet({ id: 'live' }));
     h.store.set(
       'building_guided_learning/unstamped',
-      tourSet({ id: 'unstamped', hasLiveTour: undefined })
+      tourSet({ id: 'unstamped', hasLiveTour: undefined, mode: 'tour' })
     );
     h.store.set(
       'building_guided_learning/plain',

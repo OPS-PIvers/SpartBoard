@@ -1158,6 +1158,27 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'calendar-day-view': {
+    label: 'Calendar day view',
+    icon: CalendarClock,
+    description:
+      'Calendar day headers, line dividers, past events and event details.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'list-line-style': {
+    label: 'Schedule and To-Do lines',
+    icon: ListChecks,
+    description: 'A Lines option for Schedule and To-Do rows.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */
