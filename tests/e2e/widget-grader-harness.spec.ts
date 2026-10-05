@@ -8,6 +8,24 @@ const PATTERN_WIDGETS = [
   'schedule',
   'poll',
 ];
+const S5B_WIDGETS = [
+  'breathing',
+  'catalyst',
+  'catalyst-instruction',
+  'catalyst-visual',
+  'countdown',
+  'mathTool',
+  'mathTools',
+  'nextUp',
+  'onboarding',
+  'pdf',
+  'quiz',
+  'recessGear',
+  'seating-chart',
+  'smartNotebook',
+  'stickers',
+  'talking-tool',
+];
 const FIXTURES = ['empty', 'typical', 'stress'];
 
 const S5A_WIDGETS = [
@@ -44,7 +62,7 @@ test.describe('widget grader harness', () => {
     }
   }
 
-  for (const type of S5A_WIDGETS) {
+  for (const type of [...S5A_WIDGETS, ...S5B_WIDGETS]) {
     for (const fixture of FIXTURES) {
       for (const size of ['', BIG]) {
         test(`${type} ${fixture}${size ? ' at 1400x900' : ''} renders with no errors`, async ({
