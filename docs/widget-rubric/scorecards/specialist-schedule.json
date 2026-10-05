@@ -1,0 +1,9 @@
+{
+  "$schema": "../scorecard.schema.json",
+  "widgetType": "specialist-schedule",
+  "rubricVersion": "1.0.0",
+  "gradedAt": null,
+  "stale": false,
+  "criteria": {},
+  "gates": {}
+}
