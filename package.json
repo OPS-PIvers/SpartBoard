@@ -40,6 +40,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "new-widget-settings": "node scripts/new-widget-settings.ts",
+    "grader:measure": "node scripts/widget-grader/run.ts",
     "grader:static": "node scripts/widget-grader/static/run.ts",
     "prepare": "husky"
   },
