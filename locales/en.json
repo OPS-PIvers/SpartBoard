@@ -3842,6 +3842,8 @@
     "tourPublish": {
       "title": "Teachers' version",
       "hint": "Teachers only run the published tour. Edits stay here until you publish again.",
+      "whereHelpCenter": "Teachers find it in Help once its Help Center item is visible (Admin Settings > Help Center).",
+      "whereLibrary": "Teachers run it from the Guided Learning library with Run live on my board. To offer it in Help, link it from a Help Center item.",
       "status_draft": "Draft",
       "status_published": "Published",
       "status_changed": "Changes not published",

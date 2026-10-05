@@ -1,4 +1,12 @@
-import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import React, {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import {
   collection,
   deleteDoc,
@@ -25,6 +33,12 @@ import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useHelpResources } from '@/hooks/useHelpResources';
+import { useLiveTourSetIds } from '@/hooks/useGuidedLearning';
+import {
+  getToursVersion,
+  isTourRunnable,
+  watchTours,
+} from '@/components/tours/publishedTours';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useOrganizations } from '@/hooks/useOrganizations';
 import {
@@ -62,7 +76,7 @@ const UNCATEGORIZED: HelpCategory = {
 };
 
 export const HelpCenterManager: React.FC = () => {
-  const { user, userRoles, orgId, roleId } = useAuth();
+  const { user, userRoles, orgId, roleId, canAccessFeature } = useAuth();
   const { showConfirm } = useDialog();
   const isSuperAdmin = isSuperAdminActor(
     user?.email,
@@ -127,6 +141,20 @@ export const HelpCenterManager: React.FC = () => {
   );
   const flatByOpens = [...items].sort((a, b) => b.openCount - a.openCount);
   const helpCenterSetIds = helpCenterSetIdsOf(items);
+  const tourSetIds = useLiveTourSetIds(canAccessFeature('gl-live-tours'));
+  // Rows show each linked tour's publish state, so a hidden draft doesn't look ready.
+  const linkedTourKey = [...helpCenterSetIds]
+    .filter((id) => tourSetIds.has(id))
+    .sort()
+    .join(',');
+  const watchLinkedTours = useCallback(
+    (onChange: () => void) =>
+      linkedTourKey
+        ? watchTours(linkedTourKey.split(','), onChange)
+        : () => undefined,
+    [linkedTourKey]
+  );
+  useSyncExternalStore(watchLinkedTours, getToursVersion, getToursVersion);
 
   const scopeLabel = (item: HelpResourceItem): string =>
     item.orgId === null ? 'Everyone' : (orgNames.get(item.orgId) ?? item.orgId);
@@ -220,82 +248,128 @@ export const HelpCenterManager: React.FC = () => {
       return next;
     });
 
+  // Undefined while loading or when the item links no live tour.
+  const tourStateOf = (
+    item: HelpResourceItem
+  ): 'draft' | 'hidden' | 'live' | undefined => {
+    if (item.kind !== 'guided-learning' || !item.setId) return undefined;
+    if (!tourSetIds.has(item.setId)) return undefined;
+    const runnable = isTourRunnable(item.setId);
+    if (runnable === undefined) return undefined;
+    if (!runnable) return 'draft';
+    return item.visible ? 'live' : 'hidden';
+  };
+
+  const TOUR_NEXT_STEP = {
+    draft:
+      'Not published yet: press Edit, then Edit activity, then Publish tour in the Studio.',
+    hidden: 'Published: turn on Visible so teachers can find it in Help.',
+  } as const;
+
+  const renderTourStatus = (state: 'draft' | 'hidden' | 'live') => {
+    const ready = state === 'live';
+    return (
+      <span
+        className={`px-2 py-0.5 rounded-full text-xs shrink-0 ${
+          ready
+            ? 'bg-emerald-50 text-emerald-700'
+            : 'bg-amber-50 text-amber-800'
+        }`}
+      >
+        {state === 'draft'
+          ? 'Live tour · Draft'
+          : state === 'hidden'
+            ? 'Live tour · Hidden'
+            : 'Live tour · Live'}
+      </span>
+    );
+  };
+
   // handle is null where rows are not draggable; canWrite gates the edit controls independently.
   const renderRow = (
     item: HelpResourceItem,
     handle: SortableListDragHandleProps | null,
     canWrite: boolean
-  ) => (
-    <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg px-2 py-2">
-      {handle ? (
-        <button
-          type="button"
-          aria-label={`Reorder ${item.title}`}
-          className="text-slate-400 cursor-grab"
-          {...handle.attributes}
-          {...handle.listeners}
-        >
-          <GripVertical className="w-4 h-4" />
-        </button>
-      ) : (
-        <span className="w-4 h-4 shrink-0" aria-hidden="true" />
-      )}
-      {item.kind === 'embed' ? (
-        <Link2 className="w-4 h-4 text-slate-500" />
-      ) : (
-        <GraduationCap className="w-4 h-4 text-slate-500" />
-      )}
-      <span className="flex-1 min-w-0">
-        <span className="block text-sm text-slate-900 truncate">
-          {item.title}
-        </span>
-        {item.description && (
-          <span className="block text-xs text-slate-500 truncate">
-            {item.description}
-          </span>
+  ) => {
+    const tourState = tourStateOf(item);
+    return (
+      <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg px-2 py-2">
+        {handle ? (
+          <button
+            type="button"
+            aria-label={`Reorder ${item.title}`}
+            className="text-slate-400 cursor-grab"
+            {...handle.attributes}
+            {...handle.listeners}
+          >
+            <GripVertical className="w-4 h-4" />
+          </button>
+        ) : (
+          <span className="w-4 h-4 shrink-0" aria-hidden="true" />
         )}
-      </span>
-      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs shrink-0">
-        {scopeLabel(item)}
-      </span>
-      <span className="flex items-center gap-1 text-xs text-slate-500 shrink-0">
-        <Eye className="w-3.5 h-3.5" />
-        {item.openCount}
-      </span>
-      {canWrite ? (
-        <>
-          <Toggle
-            checked={item.visible}
-            onChange={() => void handleToggleVisible(item)}
-            label={`Visible: ${item.title}`}
-            size="sm"
-            showLabels={false}
-          />
-          <button
-            type="button"
-            aria-label={`Edit ${item.title}`}
-            onClick={() => {
-              setEditing(item);
-              setFormOpen(true);
-            }}
-            className="text-slate-400 hover:text-slate-900"
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            aria-label={`Delete ${item.title}`}
-            onClick={() => void handleDelete(item)}
-            className="text-slate-400 hover:text-red-600"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </>
-      ) : (
-        <span className="text-xs text-slate-400 shrink-0">Read only</span>
-      )}
-    </div>
-  );
+        {item.kind === 'embed' ? (
+          <Link2 className="w-4 h-4 text-slate-500" />
+        ) : (
+          <GraduationCap className="w-4 h-4 text-slate-500" />
+        )}
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm text-slate-900 truncate">
+            {item.title}
+          </span>
+          {item.description && (
+            <span className="block text-xs text-slate-500 truncate">
+              {item.description}
+            </span>
+          )}
+          {(tourState === 'draft' || tourState === 'hidden') && (
+            <span className="block text-xs text-amber-800">
+              {TOUR_NEXT_STEP[tourState]}
+            </span>
+          )}
+        </span>
+        {tourState && renderTourStatus(tourState)}
+        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs shrink-0">
+          {scopeLabel(item)}
+        </span>
+        <span className="flex items-center gap-1 text-xs text-slate-500 shrink-0">
+          <Eye className="w-3.5 h-3.5" />
+          {item.openCount}
+        </span>
+        {canWrite ? (
+          <>
+            <Toggle
+              checked={item.visible}
+              onChange={() => void handleToggleVisible(item)}
+              label={`Visible: ${item.title}`}
+              size="sm"
+              showLabels={false}
+            />
+            <button
+              type="button"
+              aria-label={`Edit ${item.title}`}
+              onClick={() => {
+                setEditing(item);
+                setFormOpen(true);
+              }}
+              className="text-slate-400 hover:text-slate-900"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              aria-label={`Delete ${item.title}`}
+              onClick={() => void handleDelete(item)}
+              className="text-slate-400 hover:text-red-600"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </>
+        ) : (
+          <span className="text-xs text-slate-400 shrink-0">Read only</span>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="p-6 space-y-4">
