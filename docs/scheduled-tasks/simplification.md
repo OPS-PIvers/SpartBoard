@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-09-28_
+_Last audited: 2026-10-05_
 _Last action: 2026-05-01_
 
 ---
 
 ## Audit Log
+
+_2026-10-05: Full audit (Audit E1 — Monday weekly). Zero `Object.assign({}` in `DashboardContext.tsx` or elsewhere in app code. `as WidgetConfig`: 36 sites; `as unknown as`: 213 sites (non-test). Hooks with >5 useState/useRef: 27 (top: `useQuizSession` 27, `useMeetingRecorder` 23, `useVideoActivitySession` 22, `useAudioRecording` 17). Newly filed: `useMeetingRecorder`. Nested-ternary and passthrough-prop scans not re-run this cycle._
 
 _2026-09-28: Full audit (Audit E1 — Monday weekly), delegated to a sub-agent, HEAD `a5072c05` (238 commits since the 2026-09-21 baseline `0a7784b` — GuidedLearning Studio rebuild, sub-share/substitute system, quiz document import, paper sheets, PLC Home v2, tours, period access). (1) `Object.assign` in `DashboardContext.tsx`: still zero, `mergeWidgetConfig()` still the sole merge point (now `:5680`/`:5902`, pure line drift), the one `Object.assign` still inside `widgetConfigPersistence.ts:87` — no change. (2) Cast sweep: `as WidgetConfig` 34→36, `as unknown as` 192→204. **2 new findings filed:** class (b) risk `GuidedLearning/utils/generatedStep.ts:46` (AI-draft `question` field cast with no structural validation, unlike its properly-guarded `calloutBox` sibling); `dashboardSaveMerge.ts:148` folded into the existing `BuildingConfigPanel` `Record<string,unknown>` bridge MEDIUM item as a new call site of the same root cause, not filed separately. The tracked settings-schema-cast MEDIUM confirmed widened into `ActivityWall`/`MusicWidget`/`CustomWidget` settings files. (3) Hook state-density sweep: **2 new LOW hooks filed** — `useAutosave.ts` (13) and `useGuidedLearningProgress.ts` (11), both new GL-Studio-era hooks. `useQuizSession.ts` and `useVideoActivitySession.ts` both grew +5 calls (27 and 22 respectively) — count-only drift, no new item. `useGuidedLearning.ts` (previously borderline-6, never itself filed) was split into 3 hooks during the rebuild and now has zero state calls — nothing to move to Completed. (4) Prop-drilling sweep of ~10 new large-props components from this cycle's biggest feature areas (GL Studio, Projects, Quiz results) found none blindly forwarding a majority of their props — no new item. (5) Nested-ternary/chained-`&&` sweep of newly-added files: zero 3+-level ternaries, 17 ordinary 3+-chained `&&` guard-renders (same safe, unremarkable pattern every prior cycle declined to flag) — no new item. **Net this cycle: 2 new Open items (1 MEDIUM-adjacent, 1 LOW), 1 fold-in note, 1 widened-item update, 0 moved to Completed.**_
 
@@ -364,3 +366,11 @@ _2026-05-27: Audited Object.assign patterns (mergeWidgetConfig helper already ex
 - **File:** context/DashboardContext.tsx (addWidget + addWidgets paths), utils/widgetConfigPersistence.ts
 - **Detail:** Two `Object.assign` call sites (one in `addWidget` for single-widget adds, one in `addWidgets` for batch/AI/paste adds) implemented an identical four-layer config merge: `defaults.config → adminConfig → savedWidgetConfigs → overrides`.
 - **Resolution:** Extracted `mergeWidgetConfig(defaults, adminConfig, saved, overrides)` as a pure helper in `utils/widgetConfigPersistence.ts` next to `stripTransientKeys`. The helper documents the layer order in JSDoc, calls `stripTransientKeys` internally on the saved layer, and tolerates `undefined` for any layer. Both call sites in `DashboardContext.tsx` now delegate to it; the now-redundant `stripTransientKeys` import there was removed (still imported by `AuthContext.tsx` for save-side filtering, which is unchanged). Added three unit tests covering layer ordering, transient-key stripping, and all-undefined inputs. `pnpm type-check`, `pnpm lint --max-warnings 0`, and `pnpm format:check` clean; all 1680 tests pass.
+
+
+### LOW `hooks/useMeetingRecorder.ts` has 23 useState/useRef calls
+
+- **Detected:** 2026-10-05
+- **File:** hooks/useMeetingRecorder.ts (741 lines)
+- **Detail:** New meeting-recording hook with the second-highest state density in hooks/; also untracked: `useTabAwayTracker` (8), `useStudentProjectRun` (7), `useGradebookSettings` (7), `useQuizAssignments` (6), `useFlashcardResults` (6).
+- **Fix:** Fold recorder lifecycle state into a `useReducer` state machine (idle/recording/finalizing/error) or split capture and upload into two hooks.

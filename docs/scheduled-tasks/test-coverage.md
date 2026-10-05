@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-09-28_
+_Last audited: 2026-10-05_
 _Last action: 2026-09-28 — Claude MCP connector: added coverage for the auth gate (`mcpEndpoint.ts`) and write-budget/revision infra (`authorizeCallables.ts`'s `revokeMcpGrantV1`, `activity.ts`). Item stays Open — the quiz/video tool-execution layer is still untested._
 
 ---
@@ -15,6 +15,13 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### MEDIUM New gradebook and view-as logic untested (13 files, zero test imports)
+
+- **Detected:** 2026-10-05
+- **File:** `hooks/gradebook/useItemAnalysis.ts` (174 lines), `hooks/useStudentGrades.ts` (104), `hooks/gradebook/useMarkHistory.ts` (58), `hooks/useServerNow.ts`, `utils/gradebook/liveRawScores.ts` (90), `utils/gradebook/resultsView.ts`, `utils/answerDistribution.ts` (55), `utils/studentResponseDoc.ts` (114), `utils/viewAsSession.ts` (128), `utils/viewAsFormat.ts`, `utils/quizDocumentImport/readTestDocument.ts` (107), `functions/src/glMediaReferences.ts` (217), `functions/src/plcMeetingRecording.ts` (111)
+- **Detail:** Added since 2026-09-28 or not yet tracked; no test file and no test imports them. Mostly pure derivation (score aggregation, answer distributions, session/format helpers), plus Firestore-reference scanning in `glMediaReferences.ts`.
+- **Fix:** Add table-driven unit tests for the pure utils first, then hook tests with mocked Firestore for `useItemAnalysis`/`useStudentGrades`; test `glMediaReferences` against stub Firestore.
 
 ### HIGH Claude MCP connector: per-call auth gate, write-budget/revision infra, and quiz/video tool-execution layer untested
 
@@ -241,6 +248,8 @@ _Nothing currently in progress._
 - **File:** `utils/printHtmlDocument.ts` (64 lines, new since 2026-09-14, zero tests anywhere)
 - **Detail:** The one print path shared by the new paper answer sheets and the paper test (per its header comment), so a regression here breaks printing across both features at once. `escapeHtml` is the only thing standing between a teacher-authored quiz/class title and `document.write()`-injected markup. The popup-blocked throw, and the `closeOnce` idempotency guard covering both the `onafterprint` event and a 60s fallback `setTimeout` (Chrome fires `onafterprint` whether the teacher printed or cancelled; other browsers may not fire it at all), are both unverified.
 - **Fix:** Assert `escapeHtml` escapes `&`, `<`, `>`, and `"` and leaves plain text alone; assert `printHtmlDocument` throws the exact pop-up-blocked message when `openWindow` returns `null`, with no `document.write` attempted; assert the happy path writes a document containing the escaped title, the raw `styles`, and the raw `body`, then calls `focus()` and `print()`; assert `onafterprint` firing calls `printWindow.close()` exactly once even if the 60s timeout also elapses (fake timers), and that a `close()` throwing (already-closed window) doesn't propagate.
+
+_2026-10-05: Weekly coverage audit (Monday). `pnpm test`: 1649 files passed, 17371 tests passed, 5 skipped, 0 failures (1 obsolete snapshot file reported). Re-scanned utils/hooks/widgets/functions for files with no test; filed one new MEDIUM item above. Widget directories with no tests: BlendingBoard, BloomsTaxonomy, CarRiderPro, MathToolInstance, MathTools, Onboarding, Webcam, WorkSymbols. Existing Open items not re-verified individually._
 
 _2026-09-28: Weekly coverage audit (Monday), gap analysis delegated to a sub-agent, test suite run from the main session. **Test suite run: `pnpm test` — 1495 test files / 15,696 tests passed, 5 skipped, 0 failures (730s).** HEAD `a5072c05` (baseline `0a7784b`, the 2026-09-21 audit's last commit) — an unusually large window, 239 commits (~153 touching utils/hooks/widgets/functions): the Handwritten Paper Answers pipeline (waves 0–4D), a full Quiz Document Import subsystem, the Claude MCP connector (PRs 1–4b), PLC Home v2/norming, sub-launch-as-teacher, and more. Scanned `utils/`, `hooks/`, `components/widgets/`, and `functions/src/` new-file diffs against both colocated and `tests/`-relative test locations, then spot-checked every currently-Open item's file for a same-cycle test addition. **6 new items filed** (1 HIGH, 3 MEDIUM, 2 LOW), consolidating ~25 individually-identified untested new files into coherent-subsystem items per this journal's established convention: the Claude MCP connector's auth gate/write-budget/tool-execution layer (HIGH — a brand-new, load-bearing subsystem with zero execution-path coverage); Quiz Document Import's parsing trio (`docxNumbering.ts`/`fileKind.ts`/`readTestAndKey.ts`, MEDIUM); new per-period/session hooks including `useQuizDocumentImportGate.ts` repeating the tracked `useRosterGroupsGate.ts` double-gate risk shape (MEDIUM); paper-answer grading/sharing hooks (LOW); and a grab-bag of session-content-merge/PLC-Home/rubric-tag/sub-share-Drive/backdrop-dismiss utilities and hooks (LOW). **2 existing LOW items found partially (not fully) resolved** and kept Open with Progress notes: `utils/paperCropStore.ts` and `utils/paperBatchStore.ts` both gained test files this cycle, but each covers only newly-added functions, leaving the originally-flagged functions in both files still untested. **1 existing MEDIUM item widened**: the tracked Projects run-writes item now also covers two new sibling hooks (`useProjectGroupWork.ts`/`useProjectGroupEvents.ts`) that are only mocked, never exercised, in the widget's own test file. No new widget type was added this cycle; the tracked fully-untested-6 widget list (BloomsTaxonomy, CarRiderPro, Onboarding, WorkSymbols, Webcam, BlendingBoard) is unchanged. All other tracked Open items re-spot-checked with no new test coverage found. Net this cycle: **6 new Open items** (1 HIGH, 3 MEDIUM, 2 LOW), **0 moved to Completed**, **2 items narrowed via Progress notes** (partial test coverage), **1 item widened** (Projects hooks), **0 test failures** across the full suite._
 
