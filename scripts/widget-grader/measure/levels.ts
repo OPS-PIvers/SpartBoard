@@ -294,7 +294,7 @@ export function summarize(
 ): Measurement[] {
   const out: Measurement[] = [];
   for (const r of records) {
-    const shot = r.screenshot ? { screenshot: r.screenshot } : {};
+    const shot: Values = r.screenshot ? { screenshot: r.screenshot } : {};
     const gates: [GateId, Check | undefined][] = [
       ['G1', r.g1],
       ['G2', r.g2],
@@ -341,7 +341,7 @@ export function summarize(
     ['G3', gateFrom(records, (r) => r.g3)],
   ];
   if (g4) gates.push(['G4', { pass: g4.pass, values: g4.values }]);
-  const partial = PARTIAL_COVERAGE[widgetType]
+  const partial: Values = PARTIAL_COVERAGE[widgetType]
     ? { partial: PARTIAL_COVERAGE[widgetType] }
     : {};
   for (const [gate, result] of gates)
