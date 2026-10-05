@@ -106,4 +106,31 @@ describe('useClickOutside', () => {
 
     expect(handler).not.toHaveBeenCalled();
   });
+
+  it('keeps one document listener and calls the latest handler when the handler changes each render', () => {
+    const div = document.createElement('div');
+    const ref = { current: div };
+    document.body.appendChild(div);
+    elementsToCleanup.push(div);
+    const addSpy = vi.spyOn(document, 'addEventListener');
+    const removeSpy = vi.spyOn(document, 'removeEventListener');
+    const first = vi.fn();
+    const second = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ h }: { h: () => void }) => useClickOutside(ref, () => h()),
+      { initialProps: { h: first } }
+    );
+    rerender({ h: second });
+    rerender({ h: second });
+
+    const count = (spy: typeof addSpy) =>
+      spy.mock.calls.filter(([type]) => type === 'pointerdown').length;
+    expect(count(addSpy)).toBe(1);
+    expect(count(removeSpy)).toBe(0);
+
+    dispatchPointerDown(document.body);
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+  });
 });
