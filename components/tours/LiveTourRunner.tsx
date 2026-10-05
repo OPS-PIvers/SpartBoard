@@ -72,7 +72,7 @@ import {
   type TourWidgetClaims,
 } from './tourSession';
 import { ANCHOR_SEARCH_MS, useAnchorElement } from './useAnchorElement';
-import { findTourAnchor, isAnchorUsable } from './resolveTourAnchor';
+import { findTourAnchor, isAnchorReachable } from './resolveTourAnchor';
 import {
   prerequisiteWidgetId,
   satisfyPrerequisite,
@@ -1116,6 +1116,16 @@ export const LiveTourRunner: React.FC = () => {
     });
   };
   const cursorCue = useEffectEvent(() => playCursor());
+  // An anchor that moves mid-glide gets the cursor aimed at where it is now.
+  if (
+    cue &&
+    center &&
+    cue.index === tour?.index &&
+    cue.attempt === attempt &&
+    Math.hypot(cue.to.x - center.x, cue.to.y - center.y) >= 8
+  ) {
+    setCue({ ...cue, to: center });
+  }
   const cueRef = useRef(cue);
   cueRef.current = cue;
   // A glide cut short when the anchor vanished never lands, so start the step over.
@@ -1189,7 +1199,7 @@ export const LiveTourRunner: React.FC = () => {
             !!findTourAnchor(nextBinding, {
               widgetIds: latestAdded.current,
               slots: latestSlots.current,
-              accept: isAnchorUsable,
+              accept: isAnchorReachable,
             }),
           ANCHOR_SEARCH_MS,
           ctrl.signal
@@ -1614,7 +1624,7 @@ export const LiveTourRunner: React.FC = () => {
             style={{ pointerEvents: 'none', zIndex: Z_INDEX.tourCursor }}
           >
             <AnimatedCursor
-              key={cueShown.key}
+              key={`${cueShown.key}:${cueShown.to.x}:${cueShown.to.y}`}
               from={cueShown.from}
               to={cueShown.to}
               durationMs={cursorMs(
