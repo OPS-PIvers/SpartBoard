@@ -1,0 +1,746 @@
+{
+  "version": "1.0.0",
+  "source": "docs/plans/WIDGET_RUBRIC.md",
+  "scale": {
+    "0": "missing or broken",
+    "1": "poor",
+    "2": "acceptable",
+    "3": "good",
+    "4": "exemplary"
+  },
+  "levelZeroRule": "Level 0 always means the thing is missing or broken. Where a gate covers the failure, level 0 is the gate. A criterion lists a level 0 only where the plan does.",
+  "letterGrades": [
+    {
+      "letter": "A",
+      "min": 3.5
+    },
+    {
+      "letter": "B",
+      "min": 3.0
+    },
+    {
+      "letter": "C",
+      "min": 2.0
+    },
+    {
+      "letter": "D",
+      "min": 1.0
+    },
+    {
+      "letter": "F",
+      "min": 0
+    }
+  ],
+  "gateCap": "D",
+  "loopTarget": {
+    "minDimensionScore": 3.0,
+    "gateFailures": 0
+  },
+  "thresholds": {
+    "touchHitAreaDefaultPx": 44,
+    "touchHitAreaMinimumPx": 32,
+    "primaryContentMinPx": 24,
+    "readableTextMinPx": 14,
+    "textContrast": 4.5,
+    "largeTextContrast": 3,
+    "windowTransparency": 0.8,
+    "boardWidth": 1920,
+    "boardHeight": 1080
+  },
+  "sizes": [
+    "envelope-min",
+    "default",
+    "large-1400x900",
+    "maximized-1920x1080",
+    "widest-aspect",
+    "tallest-aspect"
+  ],
+  "fixtures": ["empty", "typical", "stress"],
+  "gates": [
+    {
+      "id": "G1",
+      "name": "Unreachable control",
+      "method": "script",
+      "failsWhen": "A front-face control is clipped, hidden, overlapped, or outside the card at any size and fixture inside the envelope."
+    },
+    {
+      "id": "G2",
+      "name": "Clipped content",
+      "method": "script",
+      "failsWhen": "Text or content overflows the card or is cut mid-glyph without a scroll container, at any size and fixture inside the envelope."
+    },
+    {
+      "id": "G3",
+      "name": "Runtime errors",
+      "method": "script",
+      "failsWhen": "A console error or crash while adding, resizing, configuring, minimizing/maximizing or reloading the widget."
+    },
+    {
+      "id": "G4",
+      "name": "Data leak or loss",
+      "method": "script",
+      "failsWhen": "Content follows the widget type to another board, teacher content is lost on reload, or protected student data (R4) is on the projected face by default."
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "layout",
+      "name": "Layout & Scaling",
+      "weight": 25,
+      "criteria": [
+        {
+          "id": "S1",
+          "name": "Small size",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "both",
+          "methodNotes": "Script: controls in bounds, hit areas, text sizes at the envelope minimum. Judge: did the widget choose what to keep.",
+          "descriptors": {
+            "0": "Gate G1 or G2 fails at the minimum size.",
+            "1": "Everything fits but has shrunk uniformly to the point of being unreadable or untappable.",
+            "2": "Readable and usable, but secondary content crowds the primary content.",
+            "3": "Secondary content collapses, hides or moves into an overflow so the primary content stays dominant and readable.",
+            "4": "The small layout is a deliberate design of its own (a compact mode) that a teacher would choose on purpose."
+          }
+        },
+        {
+          "id": "S2",
+          "name": "Large size",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "both",
+          "methodNotes": "Script: fraction of card area occupied by content, size of the primary element. Judge: proportion and value of the large layout.",
+          "descriptors": {
+            "1": "Content stays at its default size in a corner or the middle, leaving most of the card empty.",
+            "2": "Content grows, but proportions break: stretched controls, giant gaps, or lines too long to read.",
+            "3": "Content grows proportionally and fills the card; line lengths stay readable.",
+            "4": "The large layout adds value, such as showing more items or detail, rather than only zooming."
+          }
+        },
+        {
+          "id": "S3",
+          "name": "Aspect ratio",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "both",
+          "methodNotes": "Script: dead band area at the widest and tallest aspect. Judge: reflow and fit to shape.",
+          "descriptors": {
+            "1": "One layout at every aspect ratio; wide or tall shapes leave large dead bands.",
+            "2": "Content centers sensibly but does not reflow.",
+            "3": "Layout reflows between row and column arrangements at the extremes of the envelope.",
+            "4": "Each aspect ratio looks designed for that shape."
+          }
+        },
+        {
+          "id": "S4",
+          "name": "Scaling technique",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets. Widgets on container-query scaling (skipScaling: true) are scored on the levels below; widgets that keep transform: scale() (drawing, seating-chart, sticker) are scored on whether that choice is still justified."
+          },
+          "method": "script",
+          "methodNotes": "Script: static scan of the front-face files for fixed Tailwind text, width, gap and padding classes and fixed icon size props.",
+          "descriptors": {
+            "1": "The front face mostly uses fixed sizes.",
+            "2": "Mixed: primary content scales, many secondary elements are fixed.",
+            "3": "All front-face sizing uses cqmin / min() / clamp() per components/widgets/CLAUDE.md; a few justified exceptions.",
+            "4": "Fully compliant, with sizes following the hero/secondary/tertiary targets in components/widgets/CLAUDE.md."
+          }
+        },
+        {
+          "id": "S5",
+          "name": "Projector legibility",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "script",
+          "methodNotes": "Script: computed font sizes and contrast at default size, R16 thresholds.",
+          "descriptors": {
+            "1": "Primary content under 24 px or text contrast under 3:1.",
+            "2": "Primary content meets the threshold; some readable text under 14 px or under 4.5:1.",
+            "3": "All thresholds met.",
+            "4": "Thresholds met at the envelope minimum too, and the primary content is readable from across a room (≥36 px at default size)."
+          },
+          "thresholds": {
+            "primaryContentMinPx": 24,
+            "readableTextMinPx": 14,
+            "contrastMin": 4.5,
+            "largeTextContrastMin": 3,
+            "windowTransparency": 0.8,
+            "boardWidth": 1920,
+            "boardHeight": 1080,
+            "acrossRoomPx": 36
+          }
+        },
+        {
+          "id": "S6",
+          "name": "Scrolling",
+          "applicability": {
+            "applies": "scrollableContent",
+            "rule": "Applies when any fixture produces scrollable content."
+          },
+          "method": "script",
+          "methodNotes": "Script: nested scroll containers, end padding per tests/e2e/helpers/scrollEndPadding.ts, whole-card scroll.",
+          "descriptors": {
+            "1": "The whole card scrolls, or scrollbars nest.",
+            "2": "One scroller, but its last item sits flush against the bottom edge or the scroller sits under fixed content.",
+            "3": "Scrolling is confined to the content list, keeps end padding, and fixed controls stay visible.",
+            "4": "As 3, and the widget avoids scrolling at default size with typical content by adapting density."
+          }
+        },
+        {
+          "id": "S7",
+          "name": "Size envelope",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "judge",
+          "methodNotes": "Judge, against the widget's purpose and the global 150×100 floor.",
+          "descriptors": {
+            "1": "The envelope is far narrower than the content needs, which hides scaling defects from the test.",
+            "2": "Somewhat narrower than necessary.",
+            "3": "The envelope matches what the content genuinely needs.",
+            "4": "The widget works below what one would expect for its content."
+          },
+          "thresholds": {
+            "globalFloorWidth": 150,
+            "globalFloorHeight": 100
+          }
+        },
+        {
+          "id": "S8",
+          "name": "Maximized / presenting",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "both",
+          "methodNotes": "Script: maximized render. Judge: whether it reads as a presenting layout.",
+          "descriptors": {
+            "1": "Maximized is the default layout stretched, with the S2 level-1 problems.",
+            "2": "Fills the screen but looks like an enlarged card.",
+            "3": "Looks intentional at full screen: type and spacing suit presenting.",
+            "4": "Maximized is a real presentation mode, with layout or detail changes made for presenting."
+          }
+        }
+      ]
+    },
+    {
+      "id": "interaction",
+      "name": "Interaction",
+      "weight": 15,
+      "criteria": [
+        {
+          "id": "I1",
+          "name": "Drag surface",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "script",
+          "methodNotes": "Script: fraction of the card where a pointer-down starts a drag at default size; whether the inner edge strips are covered by no-drag elements.",
+          "descriptors": {
+            "1": "Under 15% of the card is grabbable, or the inner edge strips are covered.",
+            "2": "15–35% grabbable; edge strips free.",
+            "3": "35–60% grabbable, with an obvious grab area.",
+            "4": "Over 60% grabbable, with no accidental drags from controls."
+          },
+          "thresholds": {
+            "level2MinFraction": 0.15,
+            "level3MinFraction": 0.35,
+            "level4MinFraction": 0.6
+          }
+        },
+        {
+          "id": "I2",
+          "name": "Touch targets",
+          "applicability": {
+            "applies": "hasControls",
+            "rule": "Applies when the front face has controls."
+          },
+          "method": "script",
+          "methodNotes": "Script: hit-area sizes per R16.",
+          "descriptors": {
+            "1": "Most controls under 32 px at default size.",
+            "2": "Some controls under 44 px at default size.",
+            "3": "All ≥44 px at default size and ≥32 px at the envelope minimum.",
+            "4": "As 3, with spacing between adjacent targets (≥8 px) so a finger cannot hit two at once."
+          },
+          "thresholds": {
+            "hitAreaDefaultPx": 44,
+            "hitAreaMinimumPx": 32,
+            "targetSpacingPx": 8
+          }
+        },
+        {
+          "id": "I3",
+          "name": "Finger-friendly",
+          "applicability": {
+            "applies": "hasControls",
+            "rule": "Applies when the front face has controls."
+          },
+          "method": "both",
+          "methodNotes": "Script: controls revealed only on :hover, required double-clicks, small drag targets. Judge: whether core actions work with a single finger.",
+          "descriptors": {
+            "1": "A core action needs hover or a precise drag.",
+            "2": "Secondary actions are hover-only.",
+            "3": "Everything works with a single finger tap; nothing needs hover.",
+            "4": "Large-panel gestures where they help (swipe, long-press) with tap fallbacks."
+          }
+        },
+        {
+          "id": "I4",
+          "name": "Keyboard and screen reader",
+          "applicability": {
+            "applies": "hasControls",
+            "rule": "Applies when the front face has controls."
+          },
+          "method": "script",
+          "methodNotes": "Script: axe run, tab order, visible focus, accessible names.",
+          "descriptors": {
+            "1": "Controls unreachable by keyboard or unnamed.",
+            "2": "Reachable, but focus invisible or tab order illogical; axe violations.",
+            "3": "No axe violations; logical order; visible focus.",
+            "4": "As 3, with useful shortcuts or live-region announcements for changing values."
+          }
+        },
+        {
+          "id": "I5",
+          "name": "Reduced motion",
+          "applicability": {
+            "applies": "animates",
+            "rule": "Applies when the widget animates."
+          },
+          "method": "script",
+          "methodNotes": "Script: animations under prefers-reduced-motion: reduce.",
+          "descriptors": {
+            "1": "Looping animation ignores reduced motion.",
+            "3": "Every looping or large motion has a motion-reduce: guard.",
+            "4": "Reduced-motion mode is designed, not just disabled."
+          }
+        },
+        {
+          "id": "I6",
+          "name": "Feedback",
+          "applicability": {
+            "applies": "hasControls",
+            "rule": "Applies when the front face has controls."
+          },
+          "method": "judge",
+          "methodNotes": "Judge: screenshots of pressed, active and selected states.",
+          "descriptors": {
+            "1": "Controls show no state change.",
+            "2": "Some controls lack pressed or active states.",
+            "3": "Every control shows hover/pressed/active/selected states consistent with shared components.",
+            "4": "As 3, with feedback for slow actions (pending state) and success."
+          }
+        },
+        {
+          "id": "I7",
+          "name": "Toolbar",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "script",
+          "methodNotes": "Script: overlap between the floating toolbar and front-face controls when selected.",
+          "descriptors": {
+            "1": "The toolbar covers a primary control.",
+            "2": "The toolbar covers secondary controls at some sizes.",
+            "3": "No overlap at any size in the envelope.",
+            "4": "As 3, and the widget's own controls do not duplicate toolbar actions."
+          }
+        }
+      ]
+    },
+    {
+      "id": "visual",
+      "name": "Visual Design",
+      "weight": 20,
+      "criteria": [
+        {
+          "id": "V1",
+          "name": "Modern appearance",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "judge",
+          "methodNotes": "Judge, against Paul's exemplar widgets for each level and the ban list.",
+          "descriptors": {
+            "1": "Three or more ban-list hits; reads as 2005.",
+            "2": "One or two ban-list hits, or clean but dated.",
+            "3": "No ban-list hits; matches the level-3 exemplar.",
+            "4": "Matches the level-4 exemplar: confident type, restraint, glass look per components/CLAUDE.md."
+          },
+          "banList": [
+            "heavy gradients, bevels, drop shadows on everything",
+            "default browser controls on the front face",
+            "gray-on-gray or tiny text",
+            "every element boxed in a border",
+            "emoji as icons",
+            "everything centered",
+            "inconsistent corner radii",
+            "crowded rows of pills or chips",
+            "decorative helper text"
+          ]
+        },
+        {
+          "id": "V2",
+          "name": "Clutter",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "both",
+          "methodNotes": "Script proxies at default size with the typical fixture (visible controls, distinct font sizes, distinct colors, words, borders and boxes), plus Judge: a 3-second test (can the purpose and primary action be named at a glance from the back of the room) and a holistic busy-ness rating. Proxy thresholds are set from the first full sweep.",
+          "descriptors": {
+            "1": "Fails the 3-second test; proxies far over threshold.",
+            "2": "Passes the 3-second test but proxies over threshold.",
+            "3": "Passes; proxies within threshold.",
+            "4": "Passes; nothing on the face could be removed without losing function."
+          },
+          "thresholds": {
+            "proxyThresholdsSetFrom": "first full sweep"
+          }
+        },
+        {
+          "id": "V3",
+          "name": "Hierarchy",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "judge",
+          "methodNotes": "Judge.",
+          "descriptors": {
+            "1": "No primary element; everything competes.",
+            "2": "A primary element exists but secondary elements are equally heavy.",
+            "3": "One clear primary element; secondary and tertiary elements step down in size and weight.",
+            "4": "As 3, and the eye path matches the order a teacher uses it."
+          }
+        },
+        {
+          "id": "V4",
+          "name": "Consistency",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "both",
+          "methodNotes": "Script: imports of shared components for buttons, inputs, selects, empty states, drawer sections; one-off color and radius values. Judge: overall consistency.",
+          "descriptors": {
+            "1": "Mostly one-off controls and styling.",
+            "2": "Shared components in the drawer, one-off styling on the face.",
+            "3": "Shared components and tokens throughout; few one-offs.",
+            "4": "No one-offs; anything new was added to the shared set."
+          }
+        },
+        {
+          "id": "V5",
+          "name": "Theming",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "script",
+          "methodNotes": "Script: base background transparent; global transparency, font and window radius honored; standard appearance keys used and wired.",
+          "descriptors": {
+            "1": "Ignores global style settings.",
+            "2": "Honors some global settings; non-standard appearance keys.",
+            "3": "Honors every global setting; uses the standard appearance controls and keys.",
+            "4": "As 3, and looks good across the full range of transparency and surface colors."
+          }
+        },
+        {
+          "id": "V6",
+          "name": "Icons and copy",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "both",
+          "methodNotes": "Script: tests/copyGuard.test.ts rules, icon library use. Judge: wording.",
+          "descriptors": {
+            "1": "Copy guard violations or mixed icon styles.",
+            "2": "Compliant but wordy or unclear labels.",
+            "3": "Short, plain labels; one icon style.",
+            "4": "Labels a teacher would write; icons need no label to be understood where used alone."
+          }
+        }
+      ]
+    },
+    {
+      "id": "config",
+      "name": "Configurability",
+      "weight": 15,
+      "criteria": [
+        {
+          "id": "C1",
+          "name": "Coverage",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "judge",
+          "methodNotes": "Judge: list every hardcoded content, structure or visual choice on the face; decide which a teacher would plausibly vary.",
+          "descriptors": {
+            "1": "Structure and content are hardcoded; settings cover little.",
+            "2": "Main choices configurable; notable plausible ones hardcoded, or settings bloated with choices nobody needs.",
+            "3": "Every plausible choice is configurable; no bloat.",
+            "4": "As 3, and settings anticipate classroom variants (grade level, multiple sections, sub use)."
+          }
+        },
+        {
+          "id": "C2",
+          "name": "Drawer organization",
+          "applicability": {
+            "applies": "hasSettings",
+            "rule": "Applies when the widget has settings."
+          },
+          "method": "both",
+          "methodNotes": "Judge: drawer screenshots. Script: drawer schema renders, scroll end padding.",
+          "descriptors": {
+            "1": "One long unordered list.",
+            "2": "Grouped, but advanced options mixed in with common ones.",
+            "3": "Common settings first, advanced ones collapsed; standard sections and controls.",
+            "4": "As 3, and a teacher finds any setting in one look."
+          }
+        },
+        {
+          "id": "C3",
+          "name": "Zero-config defaults",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "judge",
+          "methodNotes": "Judge: the empty fixture and the default config.",
+          "descriptors": {
+            "1": "Unusable until configured.",
+            "2": "Usable but defaults look unfinished.",
+            "3": "Defaults produce a useful, good-looking widget.",
+            "4": "Defaults adapt to context (class, grade level, time of day) where it makes sense."
+          }
+        },
+        {
+          "id": "C4",
+          "name": "No dead controls",
+          "applicability": {
+            "applies": "hasSettings",
+            "rule": "Applies when the widget has settings."
+          },
+          "method": "script",
+          "methodNotes": "Script: toggle each setting in the harness and diff the rendered face.",
+          "descriptors": {
+            "0": "A setting changes nothing visible or behavioral.",
+            "3": "Every setting has an effect.",
+            "4": "As 3, and settings that only apply in some modes are hidden in the others."
+          }
+        },
+        {
+          "id": "C5",
+          "name": "First-use clarity",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "judge",
+          "methodNotes": "Judge: the empty fixture at default size.",
+          "descriptors": {
+            "1": "A blank or confusing face on first drop.",
+            "2": "An empty state exists but does not say what to do next.",
+            "3": "ScaledEmptyState with a title, at most one sentence, and a clear next action.",
+            "4": "The next action can be done right on the face."
+          }
+        },
+        {
+          "id": "C6",
+          "name": "Live settings preview",
+          "applicability": {
+            "applies": "hasSettings",
+            "rule": "Applies when the widget has settings."
+          },
+          "method": "script",
+          "methodNotes": "Script: change a setting with the drawer open; check the face updates without closing the drawer.",
+          "descriptors": {
+            "1": "Changes show only after closing or saving.",
+            "3": "Every change shows on the face immediately.",
+            "4": "As 3, and the drawer never covers the part of the widget being changed."
+          }
+        }
+      ]
+    },
+    {
+      "id": "robustness",
+      "name": "Robustness",
+      "weight": 15,
+      "criteria": [
+        {
+          "id": "R1",
+          "name": "States",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "both",
+          "methodNotes": "Script: forced loading, error, offline and no-roster states in the harness. Judge: quality of each designed view.",
+          "descriptors": {
+            "1": "Raw errors, blank cards or infinite spinners.",
+            "2": "Some states designed.",
+            "3": "Every reachable state has a designed view using shared components.",
+            "4": "As 3, with recovery actions (retry, reconnect, pick a class)."
+          }
+        },
+        {
+          "id": "R2",
+          "name": "Data safety",
+          "applicability": {
+            "applies": "holdsTeacherContent",
+            "rule": "Applies to widgets that hold teacher content."
+          },
+          "method": "script",
+          "methodNotes": "Script: reload keeps content; a second board does not inherit content; destructive actions confirm or undo.",
+          "descriptors": {
+            "0": "Gate G4.",
+            "1": "Destructive actions are instant and unrecoverable.",
+            "3": "Content persists, stays per-board, and destructive actions confirm or support undo.",
+            "4": "As 3, and integrates with the toolbar undo."
+          }
+        },
+        {
+          "id": "R3",
+          "name": "Performance",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "script",
+          "methodNotes": "Script: React Profiler in the harness.",
+          "descriptors": {
+            "1": "Two or more budgets missed.",
+            "2": "One budget missed.",
+            "3": "All budgets met.",
+            "4": "As 3, with headroom of at least 25% on chunk size and no work at all when off-screen or minimized."
+          },
+          "budgets": [
+            "zero re-renders while a neighboring widget is dragged",
+            "no timers faster than 1 s unless something visibly animates",
+            "at most one Firestore listener per instance, removed on unmount",
+            "resize settles within one frame without layout thrash",
+            "lazy chunk within its per-widget budget (set from the baseline at build time)"
+          ],
+          "thresholds": {
+            "maxTimerIntervalMs": 1000,
+            "maxFirestoreListeners": 1,
+            "chunkHeadroomLevel4": 0.25,
+            "chunkBudgetSetFrom": "baseline at build time"
+          }
+        },
+        {
+          "id": "R4",
+          "name": "Student privacy on screen",
+          "applicability": {
+            "applies": "showsRosterData",
+            "rule": "Applies when the widget can display roster or response data."
+          },
+          "method": "both",
+          "methodNotes": "Script: protected fields in the face DOM under the typical fixture. Judge: reveal design. Names are fine where they are the point (pickers, groups, seating).",
+          "descriptors": {
+            "0": "Gate G4.",
+            "2": "Protected data is hidden by default but reveals with one accidental tap.",
+            "3": "Protected data lives in the drawer or behind an explicit teacher reveal.",
+            "4": "As 3, and the revealed state is visibly marked so a teacher notices it before projecting."
+          },
+          "protectedData": [
+            "scores and grades",
+            "accommodations, IEP and 504 information",
+            "behavior notes",
+            "attendance flags",
+            "per-student response correctness"
+          ]
+        },
+        {
+          "id": "R5",
+          "name": "Multi-instance",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "script",
+          "methodNotes": "Script: two instances on one harness board, each configured differently.",
+          "descriptors": {
+            "1": "Instances share state or one breaks the other.",
+            "2": "Independent, but Nexus links or partner lookups pick the wrong instance.",
+            "3": "Fully independent; Nexus lets the teacher choose the partner.",
+            "4": "As 3, and the widget makes multiple instances useful (labels, color coding)."
+          }
+        }
+      ]
+    },
+    {
+      "id": "ecosystem",
+      "name": "Ecosystem",
+      "weight": 10,
+      "criteria": [
+        {
+          "id": "E1",
+          "name": "Nexus",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets; scored against docs/nexus.md and its Value + Feasibility − Coupling method."
+          },
+          "method": "judge",
+          "methodNotes": "Judge. Output always includes a proposal list (add, remove) for Paul; loops act on neither (R14).",
+          "descriptors": {
+            "1": "Existing connections misfire or add settings noise; obvious high-value connections missing.",
+            "2": "Connections work; one or more high-value candidates missing.",
+            "3": "All high-value connections present and discoverable; none that only add noise.",
+            "4": "As 3, and connections show their state on the face (what this widget is linked to)."
+          },
+          "proposeOnly": true
+        },
+        {
+          "id": "E2",
+          "name": "Help and tour coverage",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "script",
+          "methodNotes": "Script: a Help Center article exists for the widget; key controls carry registered data-tour anchors from config/tourAnchors.ts.",
+          "descriptors": {
+            "1": "Neither.",
+            "2": "One of the two.",
+            "3": "Article plus anchors on every primary control.",
+            "4": "As 3, plus a live tour."
+          }
+        },
+        {
+          "id": "E3",
+          "name": "Code health",
+          "applicability": {
+            "applies": "all",
+            "rule": "Applies to all widgets."
+          },
+          "method": "both",
+          "methodNotes": "Script: tests exist for the widget folder, file sizes, any count, architecture rules (canvas store not useDashboard() on the hot path, no derived-state useEffect). Judge: overall.",
+          "descriptors": {
+            "1": "No tests; architecture rule violations.",
+            "2": "Some tests; large files or violations.",
+            "3": "Tests for main behavior; no violations; files of reasonable size.",
+            "4": "As 3, and fixtures and harness coverage make the widget safe for an agent to change."
+          }
+        }
+      ]
+    }
+  ]
+}
