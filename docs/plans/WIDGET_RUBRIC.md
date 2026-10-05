@@ -30,7 +30,7 @@ Status: plan, not built. Decisions settled in a grill session on 2026-10-05.
 | R19 | **Storage:** rubric and scorecards are committed files under `docs/widget-rubric/`, the official record. Paul grades on a Claude artifact (R27); his scores reach the JSON through `/grade-widget`.                                                                                                                              |
 | R20 | **Loop output:** one widget, one dimension, one PR to `dev-paul` with before/after scorecard and screenshots. The whole widget is re-graded; the PR is rejected if any criterion drops or a gate fails.                                                                                                                          |
 | R21 | **Flags:** visual and scaling fixes ship unflagged (styling exemption). Changes to what a widget does, or new settings, ship behind that widget's flag per the flag-first rule.                                                                                                                                                  |
-| R22 | **Calibration gate:** Paul scores about 6 seed widgets and picks the Visual exemplars. Loops are enabled only once the judge, grading blind, is within ±1 of Paul on ≥90% of criteria. Re-checked on every major rubric version.                                                                                                 |
+| R22 | **Calibration gate:** loops turn on only after the norming runbook (below) passes: a 10-widget seed set, Paul's self-check, and the judge on 5 held-out widgets at ≥60% exact and ≥95% within one level, 3-run spread ≤1, every gate failure caught. Re-run on every major rubric version.                                       |
 | R23 | **CI:** scripted gate checks run on affected widgets per PR (folder, registry entry or fixture changed). A change to shared code (`DraggableWindow`, `ScaledEmptyState`, widget config, the harness) runs the full sweep. A nightly run sweeps everything and opens an issue on new gate failures. Judge scores never run in CI. |
 | R24 | **New widgets:** the `new-widget` skill requires a scorecard of B or better before the widget's PR.                                                                                                                                                                                                                              |
 | R25 | **Runner:** a scheduled cloud routine picks the top widget from the queue, runs one loop and opens a PR. At most 3 grader PRs open at once.                                                                                                                                                                                      |
@@ -39,6 +39,10 @@ Status: plan, not built. Decisions settled in a grill session on 2026-10-05.
 | R28 | **Three grading modes:** one widget through every criterion; one criterion across many widgets (most consistent for subjective criteria); and disagreements only (script vs judge, or where Paul and the judge disagreed before).                                                                                                |
 | R29 | **Blind grading.** The judge's score stays hidden until Paul picks a level. A gap of 2+ levels asks Paul one question: what did the descriptor miss? Those answers drive descriptor rewrites.                                                                                                                                    |
 | R30 | **No grill-style questions for grading.** The question tool holds 4 options and no images; grading needs 5 levels and screenshots.                                                                                                                                                                                               |
+| R31 | **Maker and grader are separate.** A loop's after-state is graded by a fresh judge run that sees neither the diff nor the loop's intent.                                                                                                                                                                                         |
+| R32 | **Supervised start.** Paul fully reviews and blind-grades the first 10 loop PRs; lighter review once 8 of 10 are accepted without changes. A failed spot check returns the loop to full review.                                                                                                                                  |
+| R33 | **Weekly spot check:** 8 random recent cards, graded blind (~10 min). Drift on a criterion pauses loops on that criterion until it is re-normed.                                                                                                                                                                                 |
+| R34 | **Gaming check.** A criterion whose script or judge scores rise while Paul's spot-check scores don't is paused and its descriptor or measurement rewritten.                                                                                                                                                                      |
 
 ## Gates
 
@@ -217,7 +221,7 @@ Levels:
 **V2 Clutter.** Applies to all. Method: Script proxies at default size with the typical fixture
 (visible controls, distinct font sizes, distinct colors, words, borders and boxes), plus Judge: a
 3-second test (can the purpose and primary action be named at a glance from the back of the room)
-and a holistic busy-ness rating. Proxy thresholds are set from the calibration seed set.
+and a holistic busy-ness rating. Proxy thresholds are set from the first full sweep.
 
 - 1: Fails the 3-second test; proxies far over threshold.
 - 2: Passes the 3-second test but proxies over threshold.
@@ -407,6 +411,20 @@ Graded once, not per widget. The criteria are the window chrome:
 Same 0–4 scale. A Platform fix lifts every widget's I1 and I7 at once, so Platform gaps are queued
 ahead of per-widget work on those criteria.
 
+## Norming runbook
+
+What Paul does once all six PRs have merged, in order.
+
+1. **First sweep (no Paul time).** The routine runs the scripts on all widgets, with no judge. It sets the clutter proxy thresholds and per-widget chunk budgets from the results, lists gate failures, and sends Paul a one-page summary.
+2. **Pick the seed set.** 10 widgets spanning the range: two Paul rates highly, two he rates poorly, two trivial, two complex, two in between.
+3. **Norming session (~2–3 h, can be split).** `/grade-widget --criterion` through every criterion across all 10. Paul picks the level exemplars for V1, V2 and V3 along the way.
+4. **Self-check.** At least 2 days later, about 15 of Paul's cards come back blind. Wherever he disagrees with himself, that descriptor is rewritten before the judge is tested.
+5. **Judge test.** The judge learns from Paul's scores on 5 seed widgets and is tested blind on the other 5, three runs each. It passes at ≥60% exact and ≥95% within one level, a 3-run spread of at most 1, and 100% of gate failures caught. On a miss, rewrite the failing descriptors and repeat.
+6. **Supervised loops (R32).** Each loop PR shows a before/after screenshot grid, score changes and one sentence on what changed. Paul grades the after-state in disagreements-only mode (~5 min) before merging.
+7. **Steady state.** Merge loop PRs and do the weekly spot check (R33). Rubric changes go through the versioning rule (R26); a major version repeats steps 4 and 5.
+
+The routine records agreement on every check in `docs/widget-rubric/calibration/agreement.json` so trust is a number, not an impression.
+
 ## Manual grading
 
 `/grade-widget <types…>` or `/grade-widget --criterion V2 <types…>` or `/grade-widget --disagreements`:
@@ -439,10 +457,10 @@ The repo JSON is always the official record. The cloud routine reads only the JS
 3. **Grader harness.** `/widget-grader-dev` (DEV only) mounting one widget in the real `DraggableWindow` from URL params, no Firestore listeners, and `empty`/`typical`/`stress` fixtures for every widget.
 4. **Measurer and CI gates.** Playwright script producing measurements for every Script criterion and the four gates; affected-widget scoping per PR, full sweep on shared-code changes, nightly full sweep that opens an issue on new gate failures.
 5. **Judge, grading artifact, calibration.** Judge prompt that reads `rubric.json`, calibration examples and screenshots; the `/grade-widget` skill and its artifact with the three modes, blind reveal and exemplar picking; Platform scorecard; the calibration check.
-6. **Loop routine.** Priority queue (prod usage × gap, gates first), the scheduled routine running one widget/one dimension per PR with the no-regression check, cap of 3 open grader PRs, and the `new-widget` skill requirement (B or better).
+6. **Loop routine.** Priority queue (prod usage × gap, gates first), the scheduled routine running one widget/one dimension per PR with the no-regression check and a separate grading run (R31), cap of 3 open grader PRs, supervised-start tracking, the weekly spot check with automatic pause, `agreement.json`, and the `new-widget` skill requirement (B or better).
 
 ## Open items
 
-- Paul picks the ~6 calibration seed widgets and the Visual exemplars during PR 5.
+- Paul picks the 10 seed widgets and the Visual exemplars during the norming runbook.
 - Clutter proxy thresholds and the per-widget chunk-size budgets are set from the first full sweep, not guessed now.
 - Student-facing app scorecards are a later rubric version.
