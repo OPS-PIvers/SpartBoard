@@ -249,14 +249,14 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
   const isEmpty = value.trim() === '';
 
   return (
-    <div className="flex-1 min-h-[8rem] flex flex-col">
+    <div className="min-h-[12rem] flex flex-col">
       {showToolbar && (
         <div
           role="toolbar"
           aria-label={t('plcDashboard.notes.rich.toolbar', {
             defaultValue: 'Formatting',
           })}
-          className="shrink-0 flex items-center gap-0.5 px-3 py-1.5 border-b border-slate-100"
+          className="sticky top-0 z-10 shrink-0 flex items-center gap-0.5 px-3 py-1.5 bg-white border-b border-slate-100"
         >
           {tools.map((tool) => {
             const Icon = tool.icon;
@@ -284,7 +284,7 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
           )}
         </div>
       )}
-      <div className="relative flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+      <div className="relative flex-1">
         <div
           ref={editorRef}
           role="textbox"

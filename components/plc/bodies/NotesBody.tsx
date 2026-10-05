@@ -95,6 +95,10 @@ function formatDate(ms: number): string {
   }
 }
 
+// Notes open formatted; an empty one opens ready to type.
+const openModeFor = (body: string): 'edit' | 'preview' =>
+  body.trim() ? 'preview' : 'edit';
+
 /**
  * Two-pane shared notebook for the PLC — the native structured meeting-notes
  * surface (Decision 2.5/2.5b), wired live into the Notes & Docs section.
@@ -151,9 +155,8 @@ const NotesBodyInner: React.FC<
   const [draftTitle, setDraftTitle] = useState('');
   const [draftBody, setDraftBody] = useState('');
   const [draftActionItems, setDraftActionItems] = useState<PlcActionItem[]>([]);
-  // Body view mode — 'edit' shows the raw markdown textarea; 'preview' renders
-  // it. New selections default to edit.
-  const [bodyMode, setBodyMode] = useState<'edit' | 'preview'>('edit');
+  // Body view mode: notes open rendered; the pencil switches to the raw markdown.
+  const [bodyMode, setBodyMode] = useState<'edit' | 'preview'>('preview');
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Accumulates patches from rapid edits across fields so a same-window
   // title→body sequence doesn't drop the title patch. Reset on flush /
@@ -237,6 +240,7 @@ const NotesBodyInner: React.FC<
     if (first) {
       setSelectedId(first.id);
       seedDraft(first);
+      setBodyMode(openModeFor(first.body));
     }
   }
 
@@ -254,7 +258,7 @@ const NotesBodyInner: React.FC<
     if (note) {
       setSelectedId(note.id);
       seedDraft(note);
-      setBodyMode('edit');
+      setBodyMode(openModeFor(note.body));
     }
   }
 
@@ -300,6 +304,17 @@ const NotesBodyInner: React.FC<
     restoreCaret(noteTitle(yDoc), titleFieldRef.current, pending.title);
     restoreCaret(noteBody(yDoc), bodyFieldRef.current, pending.body);
   }, [crdt.content, crdt.doc]);
+
+  // Browsers without field-sizing (Firefox, Safari) size the markdown box here.
+  useLayoutEffect(() => {
+    const el = bodyFieldRef.current;
+    if (!el || globalThis.CSS?.supports?.('field-sizing', 'content')) return;
+    const scroller = el.parentElement;
+    const top = scroller?.scrollTop ?? 0;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+    if (scroller) scroller.scrollTop = top;
+  }, [draftBody, crdt.content.body, bodyMode, selectedId]);
 
   // When the selection changes (different note picked OR teammate edited
   // the active one), seed the draft fields from the canonical note. We also
@@ -592,7 +607,7 @@ const NotesBodyInner: React.FC<
       lastEditedAt: note.lastEditedAt,
       version: note.version,
     });
-    setBodyMode('edit');
+    setBodyMode(openModeFor(note.body));
   };
 
   if (loading) {
@@ -618,6 +633,7 @@ const NotesBodyInner: React.FC<
       ? crdt.content.body
       : (selectedNote?.body ?? '')
     : draftBody;
+
   const editorActionItems = collab
     ? collabReady
       ? crdt.content.actionItems
@@ -904,81 +920,84 @@ const NotesBodyInner: React.FC<
                 </button>
               )}
             </div>
-            {richEditor ? (
-              <PlcNoteRichEditor
-                key={selectedNote.id}
-                value={editorBody}
-                onChange={handleBodyChange}
-                readOnly={editorReadOnly}
-                showToolbar={canEdit}
-                toolbarEnd={recordControl}
-              />
-            ) : bodyMode === 'edit' ? (
-              <textarea
-                ref={bodyFieldRef}
-                value={editorBody}
-                readOnly={editorReadOnly}
-                onChange={(e) => handleBodyChange(e.target.value)}
-                placeholder={t('plcDashboard.notes.bodyPlaceholder', {
-                  defaultValue: 'Write your notes… (markdown supported)',
-                })}
-                className="flex-1 min-h-[8rem] w-full p-4 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none text-sm text-slate-700 leading-relaxed font-mono"
-              />
-            ) : (
-              <div className="flex-1 min-h-[8rem] w-full p-4 overflow-y-auto custom-scrollbar">
-                {editorBody.trim() ? (
-                  <NotesMarkdown body={editorBody} />
-                ) : (
-                  <p className="text-sm text-slate-400 italic">
-                    {t('plcDashboard.notes.emptyPreview', {
-                      defaultValue: 'Nothing to preview yet.',
-                    })}
-                  </p>
-                )}
-              </div>
-            )}
-            {recorder && (
-              <NoteRecordings
-                plcId={plc.id}
-                noteTitle={editorTitle}
-                recordings={noteRecordings}
+            {/* Body, action items and recordings scroll together as one page. */}
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pb-4">
+              {richEditor ? (
+                <PlcNoteRichEditor
+                  key={selectedNote.id}
+                  value={editorBody}
+                  onChange={handleBodyChange}
+                  readOnly={editorReadOnly}
+                  showToolbar={canEdit}
+                  toolbarEnd={recordControl}
+                />
+              ) : bodyMode === 'edit' ? (
+                <textarea
+                  ref={bodyFieldRef}
+                  value={editorBody}
+                  readOnly={editorReadOnly}
+                  onChange={(e) => handleBodyChange(e.target.value)}
+                  placeholder={t('plcDashboard.notes.bodyPlaceholder', {
+                    defaultValue: 'Write your notes… (markdown supported)',
+                  })}
+                  className="block min-h-[12rem] w-full p-4 bg-transparent border-0 resize-none [field-sizing:content] focus:ring-0 focus:outline-none text-sm text-slate-700 leading-relaxed font-mono"
+                />
+              ) : (
+                <div className="min-h-[12rem] w-full p-4">
+                  {editorBody.trim() ? (
+                    <NotesMarkdown body={editorBody} />
+                  ) : (
+                    <p className="text-sm text-slate-400 italic">
+                      {t('plcDashboard.notes.emptyPreview', {
+                        defaultValue: 'Nothing to preview yet.',
+                      })}
+                    </p>
+                  )}
+                </div>
+              )}
+              <NoteActionItems
+                items={editorActionItems}
                 members={members}
-                canEdit={canEdit}
-                onDeleteAudio={deleteAudio}
-                renderExtra={(r) => (
-                  <RecordingMeetingNotes
-                    plcId={plc.id}
-                    recording={r}
-                    label={t('plcDashboard.notes.meetingNotes.recordingN', {
-                      defaultValue: 'Recording {{n}}',
-                      n: noteRecordings.indexOf(r) + 1,
-                    })}
-                    members={members}
-                    canEdit={!editorReadOnly}
-                    aiEnabled={aiNotesEnabled}
-                    onApply={handleApplyMeetingNotes}
-                  />
-                )}
+                canEdit={!editorReadOnly}
+                currentUid={currentUid}
+                onChange={(next) => {
+                  if (collab) {
+                    crdt.setActionItems(next);
+                    return;
+                  }
+                  setDraftActionItems(next);
+                  scheduleSave(
+                    selectedNote.id,
+                    { actionItems: next },
+                    syncedSnapshot?.version
+                  );
+                }}
               />
-            )}
-            <NoteActionItems
-              items={editorActionItems}
-              members={members}
-              canEdit={!editorReadOnly}
-              currentUid={currentUid}
-              onChange={(next) => {
-                if (collab) {
-                  crdt.setActionItems(next);
-                  return;
-                }
-                setDraftActionItems(next);
-                scheduleSave(
-                  selectedNote.id,
-                  { actionItems: next },
-                  syncedSnapshot?.version
-                );
-              }}
-            />
+              {recorder && (
+                <NoteRecordings
+                  plcId={plc.id}
+                  noteTitle={editorTitle}
+                  recordings={noteRecordings}
+                  members={members}
+                  canEdit={canEdit}
+                  onDeleteAudio={deleteAudio}
+                  renderExtra={(r) => (
+                    <RecordingMeetingNotes
+                      plcId={plc.id}
+                      recording={r}
+                      label={t('plcDashboard.notes.meetingNotes.recordingN', {
+                        defaultValue: 'Recording {{n}}',
+                        n: noteRecordings.indexOf(r) + 1,
+                      })}
+                      members={members}
+                      canEdit={!editorReadOnly}
+                      aiEnabled={aiNotesEnabled}
+                      onApply={handleApplyMeetingNotes}
+                    />
+                  )}
+                />
+              )}
+            </div>
             <div className="shrink-0 px-4 py-2 border-t border-slate-100 text-xxs text-slate-400">
               {t('plcDashboard.notes.lastEdited', {
                 defaultValue: 'Last edited {{when}}',
