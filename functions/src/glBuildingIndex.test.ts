@@ -198,7 +198,7 @@ describe('buildGlBuildingIndexEntry', () => {
       thumbnail: 'https://i/slide.png',
       createdAt: 100,
       updatedAt: 200,
-      hasLiveTour: true,
+      hasLiveTour: false,
       isHelpCenter: false,
       folderId: null,
       order: null,

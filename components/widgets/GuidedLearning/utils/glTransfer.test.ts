@@ -293,22 +293,23 @@ describe('prepareImportedSet', () => {
 });
 
 describe('defaultImportDestination', () => {
-  it('sends a file with tour steps to the building library', () => {
+  it('sends a live tour file to the building library', () => {
     const base = makeSet();
+    const anchored = [
+      ...base.steps,
+      {
+        ...base.steps[0],
+        id: 's2',
+        tour: { anchor: 'dock.open-tools', action: 'observe' as const },
+      },
+    ];
     expect(defaultImportDestination(base)).toBe('personal');
     expect(
-      defaultImportDestination({
-        mode: 'structured',
-        steps: [
-          ...base.steps,
-          {
-            ...base.steps[0],
-            id: 's2',
-            tour: { anchor: 'dock.open-tools', action: 'observe' },
-          },
-        ],
-      })
-    ).toBe('building');
+      defaultImportDestination({ mode: 'structured', steps: anchored })
+    ).toBe('personal');
+    expect(defaultImportDestination({ mode: 'tour', steps: anchored })).toBe(
+      'building'
+    );
   });
 });
 
