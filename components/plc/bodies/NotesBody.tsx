@@ -282,15 +282,6 @@ const NotesBodyInner: React.FC<
     body: CapturedCaret | null;
   } | null>(null);
 
-  // Browsers without field-sizing (Firefox, Safari) grow the markdown box here.
-  useLayoutEffect(() => {
-    const el = bodyFieldRef.current;
-    if (!el || globalThis.CSS?.supports?.('field-sizing', 'content')) return;
-    if (el.scrollHeight > el.clientHeight) {
-      el.style.height = `${el.scrollHeight}px`;
-    }
-  });
-
   const crdt = usePlcNoteCrdt({
     plcId: plc.id,
     noteId: collab ? selectedId : null,
@@ -313,6 +304,17 @@ const NotesBodyInner: React.FC<
     restoreCaret(noteTitle(yDoc), titleFieldRef.current, pending.title);
     restoreCaret(noteBody(yDoc), bodyFieldRef.current, pending.body);
   }, [crdt.content, crdt.doc]);
+
+  // Browsers without field-sizing (Firefox, Safari) size the markdown box here.
+  useLayoutEffect(() => {
+    const el = bodyFieldRef.current;
+    if (!el || globalThis.CSS?.supports?.('field-sizing', 'content')) return;
+    const scroller = el.parentElement;
+    const top = scroller?.scrollTop ?? 0;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+    if (scroller) scroller.scrollTop = top;
+  }, [draftBody, crdt.content.body, bodyMode, selectedId]);
 
   // When the selection changes (different note picked OR teammate edited
   // the active one), seed the draft fields from the canonical note. We also
@@ -631,6 +633,7 @@ const NotesBodyInner: React.FC<
       ? crdt.content.body
       : (selectedNote?.body ?? '')
     : draftBody;
+
   const editorActionItems = collab
     ? collabReady
       ? crdt.content.actionItems
