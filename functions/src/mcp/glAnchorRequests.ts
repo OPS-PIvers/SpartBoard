@@ -2,6 +2,7 @@
 import * as admin from 'firebase-admin';
 import { createHash } from 'node:crypto';
 import { TOUR_ANCHOR_BATCHES, TOUR_ANCHOR_QUEUE } from '../tourAnchorQueue';
+import { SETTINGS_FIELD_LIST } from './settingsFieldList';
 
 type Step = Record<string, unknown> & { id: string };
 interface Tour {
@@ -43,6 +44,34 @@ export const requestFingerprint = (
 
 const tourOf = (s: Step | undefined) => s?.tour as Tour | undefined;
 
+const SECTION_ROLES = new Set(['heading', 'group']);
+
+/** A widget type's settings drawer anchors; empty for unknown types. */
+export const settingsFieldsOf = (widgetType: string) =>
+  Object.prototype.hasOwnProperty.call(SETTINGS_FIELD_LIST, widgetType)
+    ? SETTINGS_FIELD_LIST[widgetType]
+    : [];
+
+/** The settings drawer anchor whose English label is the fallback name, when exactly one matches. */
+export function settingsFieldAnchor(
+  role: string,
+  name: string,
+  widgetType: string | null
+): string | null {
+  const want = name.trim().toLowerCase();
+  if (!want) return null;
+  const section = SECTION_ROLES.has(role);
+  const types = widgetType ? [widgetType] : Object.keys(SETTINGS_FIELD_LIST);
+  const hits = types.flatMap((type) =>
+    settingsFieldsOf(type).filter(
+      (f) =>
+        f.label.toLowerCase() === want &&
+        f.anchor.startsWith('settings.group:') === section
+    )
+  );
+  return hits.length === 1 ? hits[0].anchor : null;
+}
+
 /** Stamps `tour.unmapped` on fallback-only steps and returns the new queue requests; recorder fingerprints are kept as stored. */
 export function planAnchorRequests(
   steps: readonly Step[],
@@ -73,6 +102,12 @@ export function planAnchorRequests(
       const name = typeof n === 'string' ? n : '';
       const note = notes.get(step.id);
       const widgetType = note?.widget_type ?? null;
+      const fieldAnchor = settingsFieldAnchor(role, name, widgetType);
+      if (fieldAnchor) {
+        next.anchor = fieldAnchor;
+        nearestAnchor = fieldAnchor.split(/[:#]/)[0];
+        return { ...step, tour: next };
+      }
       const fingerprint = requestFingerprint(role, name, widgetType);
       next.unmapped = fingerprint;
       const known = requests.get(fingerprint);

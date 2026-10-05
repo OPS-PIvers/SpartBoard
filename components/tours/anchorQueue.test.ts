@@ -48,6 +48,7 @@ const item = (
 const registry: Record<string, TourAnchorDef> = {
   'timer.start': { label: 'Start button' },
   'dock.item': { label: 'Dock item', perWidgetType: true },
+  'settings.toggle': { label: 'Settings switch', perField: true },
 };
 
 describe('anchorFingerprint', () => {
@@ -154,8 +155,33 @@ describe('queueDisplayState and rebind gating', () => {
     ).toBe(true);
     expect(reboundAnchorRef(item({ anchorId: 'nope' }), registry)).toBeNull();
     expect(
+      reboundAnchorRef(item({ anchorId: 'nope:time-tool#x' }), registry)
+    ).toBeNull();
+    expect(
       reboundAnchorRef(item({ anchorId: 'toString' }), registry)
     ).toBeNull();
+  });
+});
+
+describe('full anchor refs from the routine', () => {
+  it('rebinds per-field refs and fills a missing type from the click', () => {
+    const ref = 'settings.toggle:schedule#autoProgress';
+    expect(
+      queueDisplayState(item({ status: 'pr-open', anchorId: ref }), registry)
+    ).toBe('mapped');
+    expect(reboundAnchorRef(item({ anchorId: ref }), registry)).toBe(ref);
+    expect(
+      reboundAnchorRef(item({ anchorId: 'settings.toggle#sound' }), registry)
+    ).toBe('settings.toggle:time-tool#sound');
+    expect(
+      reboundAnchorRef(item({ anchorId: 'dock.item:clock' }), registry)
+    ).toBe('dock.item:clock');
+  });
+
+  it('will not rebind a per-field anchor without its field', () => {
+    const bare = item({ status: 'pr-open', anchorId: 'settings.toggle' });
+    expect(reboundAnchorRef(bare, registry)).toBeNull();
+    expect(canRebind(bare, registry)).toBe(false);
   });
 });
 

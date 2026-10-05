@@ -21,6 +21,7 @@ import { TOUR_ANCHOR_LIST } from './tourAnchorList';
 import {
   planAnchorRequests,
   queueAnchorRequests,
+  settingsFieldsOf,
   type AnchorRequest,
   type MissingAnchorNote,
 } from './glAnchorRequests';
@@ -780,24 +781,35 @@ export function registerGuidedLearningTools(
     {
       title: 'List live tour anchors',
       description:
-        'Lists the SpartBoard controls a live tour step can point at (tour.anchor). Scope "widget type" refs add ":<widgetType>" (dock.item:clock); "field" refs add ":<widgetType>#<fieldKey>". panel anchors appear only once a menu or panel is open, so an earlier step must open it. A control not listed can use anchor "" with a fallback role and accessible name, which works in English only. In a building set, saving that step also asks a developer to add an anchor; describe the control in the step\'s missing_anchor.',
+        'Lists the SpartBoard controls a live tour step can point at (tour.anchor). Scope "widget type" refs add ":<widgetType>" (dock.item:clock); "field" refs add ":<widgetType>#<fieldKey>". panel anchors appear only once a menu or panel is open, so an earlier step must open it. A control not listed can use anchor "" with a fallback role and accessible name, which works in English only. In a building set, saving that step also asks a developer to add an anchor; describe the control in the step\'s missing_anchor. Pass widget_type to also get that widget\'s settings drawer refs (switches, fields and section headings) with their English labels.',
       inputSchema: {
         search: z
           .string()
           .max(100)
           .optional()
           .describe('Matches the id or label, e.g. "assign" or "quiz".'),
+        widget_type: z
+          .string()
+          .max(60)
+          .optional()
+          .describe(
+            'Adds this widget\'s settings drawer refs, e.g. "schedule".'
+          ),
       },
       annotations: READ_ONLY,
     },
-    ({ search }) =>
+    ({ search, widget_type }) =>
       run('list_tour_anchors', ctx, async () => {
         await assertAccess(ctx, 'mine');
         const words = (search ?? '').toLowerCase().split(/\s+/).filter(Boolean);
         const anchors = TOUR_ANCHOR_LIST.filter((a) =>
           words.every((w) => `${a.id} ${a.label}`.toLowerCase().includes(w))
         );
-        return { count: anchors.length, anchors };
+        if (!widget_type) return { count: anchors.length, anchors };
+        const settings_fields = settingsFieldsOf(widget_type).filter((f) =>
+          words.every((w) => `${f.anchor} ${f.label}`.toLowerCase().includes(w))
+        );
+        return { count: anchors.length, anchors, settings_fields };
       })
   );
 

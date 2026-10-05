@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { planAnchorRequests, requestFingerprint } from './glAnchorRequests';
+import {
+  planAnchorRequests,
+  requestFingerprint,
+  settingsFieldAnchor,
+} from './glAnchorRequests';
 
-const fallbackStep = (id: string, name = 'Show seconds') => ({
+const fallbackStep = (id: string, name = 'Flip digits') => ({
   id,
   imageIndex: 0,
   tour: {
@@ -25,7 +29,7 @@ describe('planAnchorRequests', () => {
       ['b', { where: 'Clock settings, under Display', widget_type: 'clock' }],
     ]);
     const { steps: out, requests } = planAnchorRequests(steps, [], notes);
-    const fp = requestFingerprint('switch', 'Show seconds', 'clock');
+    const fp = requestFingerprint('switch', 'Flip digits', 'clock');
     expect(fp).toMatch(/^[0-9a-f]{40}$/);
     expect(out[1].tour).toMatchObject({ unmapped: fp });
     expect(requests).toEqual([
@@ -35,7 +39,7 @@ describe('planAnchorRequests', () => {
         context: {
           suggestedId: null,
           role: 'switch',
-          name: 'Show seconds',
+          name: 'Flip digits',
           widgetType: 'clock',
           pathname: '/',
           nearestAnchor: 'widget.settings-opener',
@@ -97,7 +101,7 @@ describe('planAnchorRequests', () => {
     };
     const planned = planAnchorRequests([sent], [], new Map());
     expect(planned.steps[0].tour).toMatchObject({
-      unmapped: requestFingerprint('switch', 'Show seconds', null),
+      unmapped: requestFingerprint('switch', 'Flip digits', null),
     });
     const bound = planAnchorRequests(
       [
@@ -119,5 +123,35 @@ describe('planAnchorRequests', () => {
     const { steps, requests } = planAnchorRequests([step], [], new Map());
     expect(steps[0]).toBe(step);
     expect(requests).toEqual([]);
+  });
+});
+
+describe('settings drawer fields', () => {
+  it('binds a fallback step that names a settings field instead of queueing it', () => {
+    const step = fallbackStep('a', 'auto-complete items');
+    const notes = new Map([
+      ['a', { where: 'Schedule settings', widget_type: 'schedule' }],
+    ]);
+    const { steps, requests } = planAnchorRequests([step], [], notes);
+    expect(steps[0].tour).toMatchObject({
+      anchor: 'settings.toggle:schedule#autoProgress',
+    });
+    expect(steps[0].tour).not.toHaveProperty('unmapped');
+    expect(requests).toEqual([]);
+  });
+
+  it('matches section headings only for heading roles', () => {
+    expect(settingsFieldAnchor('heading', 'Behavior', 'schedule')).toBe(
+      'settings.group:schedule#behavior'
+    );
+    expect(settingsFieldAnchor('button', 'Behavior', 'schedule')).toBeNull();
+  });
+
+  it('needs a single match when the widget type is unknown', () => {
+    expect(settingsFieldAnchor('heading', 'Behavior', null)).toBeNull();
+    expect(settingsFieldAnchor('switch', 'Behavior', 'toString')).toBeNull();
+    expect(settingsFieldAnchor('switch', 'Auto-scroll view', null)).toBe(
+      'settings.toggle:schedule#autoScroll'
+    );
   });
 });

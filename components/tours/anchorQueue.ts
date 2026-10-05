@@ -1,6 +1,10 @@
 import type { Timestamp } from 'firebase/firestore';
 import type { GuidedLearningSet, WidgetType } from '@/types';
-import { TOUR_ANCHORS, type TourAnchorDef } from '@/config/tourAnchors';
+import {
+  parseTourAnchorRef,
+  TOUR_ANCHORS,
+  type TourAnchorDef,
+} from '@/config/tourAnchors';
 
 // Untagged recorded clicks, queued per project for the anchor-mapping routine (Live Tours v2).
 export const TOUR_ANCHOR_QUEUE_COLLECTION = 'tour_anchor_queue';
@@ -160,8 +164,10 @@ export type QueueDisplayState =
   | 'rebound'
   | 'needs-human';
 
-const inRegistry = (id: string | undefined, registry: Registry) =>
-  !!id && Object.prototype.hasOwnProperty.call(registry, id);
+// `anchorId` may be a full ref (`id:type#field`); only its registry id has to be deployed.
+const inRegistry = (ref: string | undefined, registry: Registry) =>
+  !!ref &&
+  Object.prototype.hasOwnProperty.call(registry, parseTourAnchorRef(ref).id);
 
 /** What Tour Health shows; a PR's anchor counts as mapped once this build registers it. */
 export function queueDisplayState(
@@ -174,16 +180,21 @@ export function queueDisplayState(
   return inRegistry(item.anchorId, registry) ? 'mapped' : 'waiting-deploy';
 }
 
-/** The step anchor ref a rebind writes; null when this build lacks the id or a per-type anchor lacks its type. */
+/** The step anchor ref a rebind writes; null when this build lacks the id or a scoped anchor lacks its type or field. */
 export function reboundAnchorRef(
   item: Pick<TourAnchorQueueItem, 'anchorId' | 'widgetType'>,
   registry: Registry = TOUR_ANCHORS
 ): string | null {
-  const id = item.anchorId;
-  if (!id || !inRegistry(id, registry)) return null;
-  if (!registry[id].perWidgetType) return id;
+  const ref = item.anchorId;
+  if (!ref || !inRegistry(ref, registry)) return null;
+  const { id, widgetType, fieldKey } = parseTourAnchorRef(ref);
+  const def = registry[id];
+  if (!def.perWidgetType && !def.perField) return ref;
   // A bare per-type ref would match every widget's copy and pick the first.
-  return item.widgetType ? `${id}:${item.widgetType}` : null;
+  const type = widgetType ?? item.widgetType;
+  if (!type) return null;
+  if (!def.perField) return `${id}:${type}`;
+  return fieldKey ? `${id}:${type}#${fieldKey}` : null;
 }
 
 export const canRebind = (
