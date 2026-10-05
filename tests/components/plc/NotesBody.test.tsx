@@ -160,10 +160,15 @@ function noteAt(
   };
 }
 
-const bodyBox = () =>
-  screen.getByPlaceholderText<HTMLTextAreaElement>(
-    'Write your notes… (markdown supported)'
-  );
+const BODY_PLACEHOLDER = 'Write your notes… (markdown supported)';
+
+// Notes open rendered, so switch to the markdown box first when needed.
+const bodyBox = () => {
+  if (!screen.queryByPlaceholderText(BODY_PLACEHOLDER)) {
+    fireEvent.click(screen.getByLabelText('Edit note'));
+  }
+  return screen.getByPlaceholderText<HTMLTextAreaElement>(BODY_PLACEHOLDER);
+};
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -185,6 +190,12 @@ afterEach(() => {
 });
 
 describe('NotesBody concurrent editing (legacy save path)', () => {
+  it('opens a note rendered, not as raw markdown', () => {
+    render(<NotesBody plc={plc} />);
+    expect(screen.queryByPlaceholderText(BODY_PLACEHOLDER)).toBeNull();
+    expect(screen.getByLabelText('Edit note')).toBeTruthy();
+  });
+
   it('keeps text typed while a save is in flight when a teammate edit lands', () => {
     const { rerender } = render(<NotesBody plc={plc} />);
     expect(bodyBox().value).toBe('Hello');

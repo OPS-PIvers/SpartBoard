@@ -110,7 +110,7 @@ export const NoteRecordings: React.FC<NoteRecordingsProps> = ({
   };
 
   return (
-    <div className="shrink-0 px-4 py-3 border-t border-slate-100">
+    <div className="shrink-0 max-h-[30%] overflow-y-auto custom-scrollbar px-4 py-3 border-t border-slate-100">
       <h4 className="text-xxs font-bold uppercase tracking-widest text-slate-500 mb-1">
         {t('plcDashboard.notes.recording.heading', {
           defaultValue: 'Recordings',

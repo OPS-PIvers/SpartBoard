@@ -151,9 +151,8 @@ const NotesBodyInner: React.FC<
   const [draftTitle, setDraftTitle] = useState('');
   const [draftBody, setDraftBody] = useState('');
   const [draftActionItems, setDraftActionItems] = useState<PlcActionItem[]>([]);
-  // Body view mode — 'edit' shows the raw markdown textarea; 'preview' renders
-  // it. New selections default to edit.
-  const [bodyMode, setBodyMode] = useState<'edit' | 'preview'>('edit');
+  // Body view mode: notes open rendered; the pencil switches to the raw markdown.
+  const [bodyMode, setBodyMode] = useState<'edit' | 'preview'>('preview');
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Accumulates patches from rapid edits across fields so a same-window
   // title→body sequence doesn't drop the title patch. Reset on flush /
@@ -254,7 +253,7 @@ const NotesBodyInner: React.FC<
     if (note) {
       setSelectedId(note.id);
       seedDraft(note);
-      setBodyMode('edit');
+      setBodyMode('preview');
     }
   }
 
@@ -592,7 +591,7 @@ const NotesBodyInner: React.FC<
       lastEditedAt: note.lastEditedAt,
       version: note.version,
     });
-    setBodyMode('edit');
+    setBodyMode('preview');
   };
 
   if (loading) {
@@ -937,6 +936,24 @@ const NotesBodyInner: React.FC<
                 )}
               </div>
             )}
+            <NoteActionItems
+              items={editorActionItems}
+              members={members}
+              canEdit={!editorReadOnly}
+              currentUid={currentUid}
+              onChange={(next) => {
+                if (collab) {
+                  crdt.setActionItems(next);
+                  return;
+                }
+                setDraftActionItems(next);
+                scheduleSave(
+                  selectedNote.id,
+                  { actionItems: next },
+                  syncedSnapshot?.version
+                );
+              }}
+            />
             {recorder && (
               <NoteRecordings
                 plcId={plc.id}
@@ -961,24 +978,6 @@ const NotesBodyInner: React.FC<
                 )}
               />
             )}
-            <NoteActionItems
-              items={editorActionItems}
-              members={members}
-              canEdit={!editorReadOnly}
-              currentUid={currentUid}
-              onChange={(next) => {
-                if (collab) {
-                  crdt.setActionItems(next);
-                  return;
-                }
-                setDraftActionItems(next);
-                scheduleSave(
-                  selectedNote.id,
-                  { actionItems: next },
-                  syncedSnapshot?.version
-                );
-              }}
-            />
             <div className="shrink-0 px-4 py-2 border-t border-slate-100 text-xxs text-slate-400">
               {t('plcDashboard.notes.lastEdited', {
                 defaultValue: 'Last edited {{when}}',
