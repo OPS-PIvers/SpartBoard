@@ -72,3 +72,18 @@ describe('useMountedBoardCache', () => {
     expect(result.current.map((d) => d.id)).toEqual(['b']);
   });
 });
+
+describe('useMountedBoardCache transient empty list', () => {
+  it('keeps the LRU when dashboards momentarily empty', () => {
+    const all = [board('a'), board('b')];
+    const { result, rerender } = renderHook(
+      ({ activeId, dbs }) => useMountedBoardCache(activeId, dbs),
+      { initialProps: { activeId: 'a', dbs: all } }
+    );
+    rerender({ activeId: 'b', dbs: all });
+    expect(result.current.map((d) => d.id)).toEqual(['a', 'b']);
+    rerender({ activeId: 'b', dbs: [] });
+    rerender({ activeId: 'b', dbs: all });
+    expect(result.current.map((d) => d.id)).toEqual(['a', 'b']);
+  });
+});

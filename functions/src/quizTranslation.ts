@@ -28,6 +28,7 @@ import { parseGeminiJson } from './parseGeminiJson';
 import { normalizeModelName } from './shared';
 import { LANGUAGE_TAG_RE } from './languageTag';
 import { adminPassesMissingDoc } from './featureMissingDoc';
+import { canonicalizeBuildingIdsServer } from './buildingIds';
 import {
   hashQuestionForTranslation,
   type HashableQuestion,
@@ -304,14 +305,6 @@ async function isSpartBoardAdmin(
   return doc.exists;
 }
 
-/** Mirrors `BUILDING_ID_ALIASES` in `config/buildings.ts`; functions cannot import it. */
-const BUILDING_ID_ALIASES: Readonly<Record<string, string>> = {
-  'orono-high-school': 'high',
-  'orono-middle-school': 'middle',
-  'orono-intermediate-school': 'intermediate',
-  'schumann-elementary': 'schumann',
-};
-
 /** Mirrors `INTERNAL_TIER_DOMAINS` in `utils/userTier.ts`. */
 const INTERNAL_TIER_DOMAINS: readonly string[] = ['orono.k12.mn.us'];
 
@@ -326,17 +319,6 @@ const TIER_RANK: Readonly<Record<string, number>> = {
 function meetsMinTierServer(tier: string, minTier: unknown): boolean {
   if (typeof minTier !== 'string' || !minTier) return true;
   return (TIER_RANK[tier] ?? 0) >= (TIER_RANK[minTier] ?? 0);
-}
-
-/** Server twin of `canonicalizeBuildingIds` — legacy ids, de-duplicated. */
-function canonicalizeBuildingIdsServer(ids: readonly unknown[]): string[] {
-  const out: string[] = [];
-  for (const raw of ids) {
-    if (typeof raw !== 'string') continue;
-    const canonical = BUILDING_ID_ALIASES[raw] ?? raw;
-    if (!out.includes(canonical)) out.push(canonical);
-  }
-  return out;
 }
 
 /** The teacher's `selectedBuildings`, canonicalized the way AuthContext does. */
