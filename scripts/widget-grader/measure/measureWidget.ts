@@ -18,6 +18,7 @@ import {
   DRAG_BLOCKING_SELECTOR,
   GRID_COLS,
   GRID_ROWS,
+  MAX_HIT_TESTS,
   INTERACTIVE_ELEMENTS_SELECTOR,
   REPO_ROOT,
   type Thresholds,
@@ -32,7 +33,7 @@ import {
 import { summarize, type RenderRecord, type RenderVariant } from './levels';
 import type { FaceSnapshot } from './snapshotTypes';
 
-const READY_TIMEOUT_MS = 20_000;
+const READY_TIMEOUT_MS = 45_000;
 const SETTLE_MS = 400;
 const SHOT_PAD = 24;
 
@@ -110,6 +111,7 @@ export const snapshot = (
     controlSelector: CONTROL_SELECTOR,
     gridCols: GRID_COLS,
     gridRows: GRID_ROWS,
+    maxHitTests: MAX_HIT_TESTS,
   });
 
 async function screenshot(
