@@ -216,7 +216,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
   };
 
   return (
-    <div className="flex flex-col min-h-0 max-h-[40%] px-4 py-3 border-t border-slate-100">
+    <div className="flex flex-col min-h-0 px-4 py-3 border-t border-slate-100">
       <h4 className="shrink-0 text-xxs font-bold uppercase tracking-widest text-slate-500 mb-2">
         {t('plcDashboard.notes.actionItems.title', {
           defaultValue: 'Action items',
@@ -232,7 +232,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
         />
       )}
       {/* Scrolls once the list outgrows the editor pane so the add row stays reachable. */}
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar -mx-1 px-1 pb-2">
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar -mx-1 px-1">
         <SortableList
           items={visible}
           getId={(item) => item.id}
