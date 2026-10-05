@@ -10,7 +10,7 @@ export const BUILDING_ID_ALIASES: Readonly<Record<string, string>> = {
 
 /** The canonical id for one stored building id. */
 export function canonicalBuildingIdServer(id: string): string {
-  return BUILDING_ID_ALIASES[id] ?? id;
+  return Object.hasOwn(BUILDING_ID_ALIASES, id) ? BUILDING_ID_ALIASES[id] : id;
 }
 
 /** Server twin of `canonicalizeBuildingIds` — legacy ids, de-duplicated. */
