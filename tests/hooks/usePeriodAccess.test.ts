@@ -21,6 +21,7 @@ import {
   usePeriodAccess,
   LET_IN_FALLBACK_MS,
 } from '@/hooks/usePeriodAccess';
+import { BELL_CLOSE_CUSHION_MS } from '@/utils/periodPlan';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn((_db: unknown, ...segs: string[]) => segs.join('/')),
@@ -105,7 +106,7 @@ describe('bell helpers', () => {
   it('reads the end bell only while it is still ahead', () => {
     expect(
       bellCloseFor({ rosterId: 'r1' }, rosters, permissions, at(8, 30))
-    ).toBe(at(9, 5));
+    ).toBe(at(9, 5) + BELL_CLOSE_CUSHION_MS);
     expect(
       bellCloseFor({ rosterId: 'r1' }, rosters, permissions, at(9, 30))
     ).toBeNull();
@@ -139,7 +140,9 @@ describe('bell helpers', () => {
 
   it('lets a student in until the bell of whichever period is in session', () => {
     const pa = { a: period({ rosterId: 'r1' }), b: period({ rosterId: 'r3' }) };
-    expect(letInUntil(pa, rosters, permissions, at(10, 50))).toBe(at(11, 30));
+    expect(letInUntil(pa, rosters, permissions, at(10, 50))).toBe(
+      at(11, 30) + BELL_CLOSE_CUSHION_MS
+    );
     expect(letInUntil(pa, rosters, permissions, at(10, 0))).toBe(
       at(10, 0) + LET_IN_FALLBACK_MS
     );
@@ -208,7 +211,7 @@ describe('usePeriodAccess', () => {
     const expected = {
       'periodAccess.cl-1.state': 'open',
       'periodAccess.cl-1.openAt': null,
-      'periodAccess.cl-1.closeAt': at(9, 5),
+      'periodAccess.cl-1.closeAt': at(9, 5) + BELL_CLOSE_CUSHION_MS,
     };
     expect(fieldWrites('quiz_sessions/s1')).toEqual([expected]);
     expect(fieldWrites('users/teacher-1/quiz_assignments/s1')).toEqual([
@@ -249,7 +252,7 @@ describe('usePeriodAccess', () => {
     ];
     expect(ref).toBe('quiz_sessions/s1');
     expect(path.segments).toEqual(['studentAccess', 'student-9']);
-    expect(until).toBe(at(9, 5));
+    expect(until).toBe(at(9, 5) + BELL_CLOSE_CUSHION_MS);
   });
 
   it('extends a live period by ten minutes or clears its close', async () => {
