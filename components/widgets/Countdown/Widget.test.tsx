@@ -65,6 +65,22 @@ describe('CountdownWidget', () => {
     expect(screen.getByText('1')).toBeInTheDocument();
   });
 
+  it('caps crossed-out past cells when startDate is years in the past', () => {
+    const { container } = render(
+      <CountdownWidget
+        widget={buildWidget({
+          startDate: '2000-01-01',
+          eventDate: '2026-04-10',
+          viewMode: 'grid',
+        })}
+      />
+    );
+
+    expect(
+      container.querySelectorAll('.rounded-lg.border-2').length
+    ).toBeLessThan(500);
+  });
+
   it('still marks the event day in grid mode when it falls on an excluded weekend', () => {
     const { container } = render(
       <CountdownWidget
