@@ -811,11 +811,11 @@ describe('DraggableWindow', () => {
     expect(windowEl.style.width).toBe('250px');
   });
 
-  // explicit min-size floor is enforced during interactive resize (above),
+  // The explicit min-size floor is enforced during interactive resize (above),
   // but a widget can also be smaller on load — e.g. a dashboard saved before
   // an override existed or was raised. Render must clamp up to the current
   // floor too, or the stored size renders below it and clips content.
-  it('clamps a stored size below explicit min-size floor up to the floor on render', () => {
+  it('clamps a stored size below the explicit min-size floor up to the floor on render', () => {
     renderComponent({ type: 'blooms-taxonomy', w: 200, h: 200 });
     const windowEl = screen.getByTestId('draggable-window');
 
@@ -823,7 +823,7 @@ describe('DraggableWindow', () => {
     expect(windowEl.style.height).toBe('300px');
   });
 
-  it('leaves a stored size above explicit min-size floor untouched on render', () => {
+  it('leaves a stored size above the explicit min-size floor untouched on render', () => {
     renderComponent({ type: 'blooms-taxonomy', w: 450, h: 550 });
     const windowEl = screen.getByTestId('draggable-window');
 
@@ -832,7 +832,7 @@ describe('DraggableWindow', () => {
   });
 
   // The render-time floor must NOT apply the generic 150x100 default to
-  // widget types with no explicit explicit min-size floor entry — otherwise
+  // widget types with no explicit min-size floor — otherwise
   // an intentionally narrow/short widget (e.g. the 120px-wide Traffic Light)
   // would be forced wider/taller than designed on every load.
   it('does not clamp a widget type with no explicit min-size floor entry up to the generic default', () => {
@@ -844,7 +844,7 @@ describe('DraggableWindow', () => {
   });
 
   // Resize deltas must be seeded from the render-clamped size, not the raw
-  // stored size, for a widget below its explicit min-size floor floor —
+  // stored size, for a widget below its explicit min-size floor —
   // otherwise the resize math desyncs from what's on screen (see the two
   // cases below).
   it('grows immediately from the render-clamped size when resizing a below-floor widget', async () => {
