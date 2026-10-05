@@ -575,4 +575,61 @@ describe('useNutrislice', () => {
       'error'
     );
   });
+  it('retries once on load when an earlier sync today failed and left no menu', async () => {
+    const getDocMock = mockStoredMenuFailure();
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+
+    render(
+      <TestComponent
+        initialConfig={{
+          ...mockConfig,
+          cachedMenu: null,
+          lastSyncDate: new Date().toISOString(),
+          syncError: 'E-SYNC-404',
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(getDocMock).toHaveBeenCalledTimes(1);
+    });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(getDocMock).toHaveBeenCalledTimes(1);
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('loads the stored menu on load after an earlier failed sync today', async () => {
+    mockStoredMenu(mockMenuData);
+
+    render(
+      <TestComponent
+        initialConfig={{
+          ...mockConfig,
+          cachedMenu: null,
+          lastSyncDate: new Date().toISOString(),
+          syncError: 'E-SYNC-404',
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        mockWidgetId,
+        expect.objectContaining({
+          config: expect.objectContaining({
+            cachedMenu: expect.objectContaining({
+              hotLunch: {
+                name: 'Cheese Pizza',
+                imageUrl: 'https://cdn/pizza.jpg',
+              },
+            }) as unknown,
+            syncError: null,
+          }) as unknown,
+        })
+      );
+    });
+  });
 });
