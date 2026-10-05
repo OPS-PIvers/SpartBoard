@@ -10,6 +10,27 @@ const PATTERN_WIDGETS = [
 ];
 const FIXTURES = ['empty', 'typical', 'stress'];
 
+const S5A_WIDGETS = [
+  'calendar',
+  'classes',
+  'dice',
+  'drawing',
+  'embed',
+  'expectations',
+  'instructionalRoutines',
+  'lunchCount',
+  'materials',
+  'miniApp',
+  'qr',
+  'scoreboard',
+  'sound',
+  'time-tool',
+  'traffic',
+  'weather',
+  'webcam',
+];
+const BIG = '&w=1400&h=900';
+
 test.describe('widget grader harness', () => {
   for (const type of PATTERN_WIDGETS) {
     for (const fixture of FIXTURES) {
@@ -20,6 +41,28 @@ test.describe('widget grader harness', () => {
         const errors = await page.evaluate(() => window.__widgetGrader?.errors);
         expect(errors).toEqual([]);
       });
+    }
+  }
+
+  for (const type of S5A_WIDGETS) {
+    for (const fixture of FIXTURES) {
+      for (const size of ['', BIG]) {
+        test(`${type} ${fixture}${size ? ' at 1400x900' : ''} renders with no errors`, async ({
+          page,
+        }) => {
+          await page.goto(
+            `/widget-grader-dev?type=${type}&fixture=${fixture}${size}`
+          );
+          await expect(
+            page.locator('[data-grader-ready="true"]')
+          ).toBeVisible();
+          await expect(page.locator('[data-draggable-window]')).toHaveCount(1);
+          const errors = await page.evaluate(
+            () => window.__widgetGrader?.errors
+          );
+          expect(errors).toEqual([]);
+        });
+      }
     }
   }
 });
