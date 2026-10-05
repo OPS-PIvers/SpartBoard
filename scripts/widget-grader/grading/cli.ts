@@ -1,7 +1,7 @@
 // /grade-widget steps. Run from the repo root:
 //   node scripts/widget-grader/grading/cli.ts judge-prompt --run <runId> --type clock,poll [--exclude a,b] [--criteria V1,V2]
 //   node scripts/widget-grader/grading/cli.ts judge-check  --run <runId> --type clock --answer <file> [--out <file>]
-//   node scripts/widget-grader/grading/cli.ts deck   --run <runId> --mode widget|criterion|disagreements [--criterion V2] [--type a,b]
+//   node scripts/widget-grader/grading/cli.ts deck   --run <runId> --mode widget|criterion|disagreements [--criterion V2] [--type a,b] [--cards clock:S1,poll:V2]
 //   node scripts/widget-grader/grading/cli.ts apply  --run <runId> --deck <deckId> --rows <rows folder or file>
 //   node scripts/widget-grader/grading/cli.ts record --run <runId> --deck <deckId>
 
@@ -185,6 +185,7 @@ function main(argv: string[]): void {
       deckId,
       runId,
       createdAt: now,
+      only: list('cards').length ? list('cards') : undefined,
     });
     const dir = dirname(deckPath(runId, deckId));
     const files: Record<string, string> = { 'deck.json': 'deck.json' };

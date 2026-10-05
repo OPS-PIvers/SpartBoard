@@ -152,6 +152,22 @@ describe('grading deck', () => {
     expect(deck.cards).toHaveLength(35);
   });
 
+  it('keeps only the listed pairs for a spot check deck', () => {
+    const deck = buildDeck({
+      rubric,
+      mode: 'widget',
+      widgets: [widget('clock'), widget('poll')],
+      deckId: 'spot',
+      runId: 'run1',
+      createdAt: NOW,
+      only: ['clock:S1', 'poll:V2'],
+    });
+    expect(deck.cards.map((c) => `${c.widgetType}:${c.criterionId}`)).toEqual([
+      'clock:S1',
+      'poll:V2',
+    ]);
+  });
+
   it('drops settings criteria for a widget with no settings', () => {
     const deck = deckFor([widget('clock', { hasSettings: false })]);
     const na = deck.cards.filter((c) => c.na).map((c) => c.criterionId);

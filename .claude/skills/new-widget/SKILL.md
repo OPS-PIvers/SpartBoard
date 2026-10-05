@@ -36,6 +36,13 @@ transparency ownership rule:
 
 Tour anchors (row 9): tag a click that assigns, shares, publishes, starts a live session or changes account settings `persists: true`, and one that deletes or clears `destructive: true`.
 
+**Rubric scorecard (required before the PR).** A new widget needs a scorecard of B or better under the widget quality rubric (`docs/plans/WIDGET_RUBRIC.md`, R24):
+
+1. Add `empty`, `typical` and `stress` fixtures in `components/dev/widgetGrader/fixtures/` (see `components/dev/widgetGrader/README.md`) and an empty `docs/widget-rubric/scorecards/<type>.json`.
+2. Grade it with `/grade-widget <type>`.
+3. `node scripts/widget-grader/loop.ts new-widget --type <type>` must pass: every dimension graded, no gate failure, B or better. Fix the lowest dimension first and re-grade until it does.
+4. Commit the scorecard with the widget and put the letter and dimension scores in the PR description.
+
 ---
 
 ## Step 1 — types.ts
