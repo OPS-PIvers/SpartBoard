@@ -1,0 +1,74 @@
+name: Sync Lunch Menus
+
+# Nutrislice refuses requests from Google Cloud IPs, so the Lunch Count menu is
+# fetched here and written to Firestore `lunch_menus/{schoolSite}`.
+# Schedules run from main only and write prod; pushes to dev-* that touch the
+# sync write spartboard-dev; workflow_dispatch writes whichever project is chosen.
+on:
+  schedule:
+    # 4:17 and 6:47 AM Central (CDT; an hour earlier in CST), plus Sunday evening for Monday.
+    - cron: '17 9 * * *'
+    - cron: '47 11 * * *'
+    - cron: '23 0 * * 1'
+  push:
+    branches:
+      - 'dev-*'
+    paths:
+      - 'scripts/sync-lunch-menus.mjs'
+      - '.github/workflows/sync-lunch-menus.yml'
+  workflow_dispatch:
+    inputs:
+      project:
+        description: Firebase project to write
+        type: choice
+        options:
+          - spartboard
+          - spartboard-dev
+        default: spartboard
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PROJECT_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.project || (github.event_name == 'push' && 'spartboard-dev' || 'spartboard') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/sync-lunch-menus.mjs
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Authenticate to prod
+        if: env.PROJECT_ID == 'spartboard'
+        id: prod-auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      # Keyless WIF only trusts dev-* refs, so a dev write must run from a dev-* branch.
+      - name: Authenticate to dev
+        if: env.PROJECT_ID == 'spartboard-dev'
+        id: dev-auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/258543092004/locations/global/workloadIdentityPools/github/providers/spartboard-repo
+          service_account: github-deploy@spartboard-dev.iam.gserviceaccount.com
+          token_format: access_token
+
+      - name: Copy Nutrislice menus into Firestore
+        run: node scripts/sync-lunch-menus.mjs
+        env:
+          ACCESS_TOKEN: ${{ steps.prod-auth.outputs.access_token || steps.dev-auth.outputs.access_token }}

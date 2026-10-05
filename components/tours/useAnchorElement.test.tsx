@@ -266,4 +266,76 @@ describe('useAnchorElement', () => {
     await advance(ANCHOR_SEARCH_MS * 2);
     expect(h.searches).toBe(before);
   });
+
+  // A scrolling panel whose row starts 1500px down, below the window.
+  const scrollPanel = (inDrawer: boolean) => {
+    const root = document.createElement('div');
+    if (inDrawer) root.setAttribute('data-tour', 'settings.root');
+    const body = document.createElement('div');
+    body.style.overflowY = 'auto';
+    let top = 0;
+    Object.defineProperties(body, {
+      scrollHeight: { value: 2000 },
+      clientHeight: { value: 768 },
+      scrollTop: { get: () => top, set: (v: number) => (top = v) },
+      getBoundingClientRect: { value: () => new DOMRect(0, 0, 400, 768) },
+    });
+    const scrollTo = vi.fn();
+    body.scrollTo = scrollTo as typeof body.scrollTo;
+    root.appendChild(body);
+    document.body.appendChild(root);
+    const el = addAnchor(body);
+    Object.defineProperty(el, 'getBoundingClientRect', {
+      value: () => new DOMRect(10, 1500 - top, 40, 40),
+    });
+    const scrollBy = (next: number) =>
+      act(() => {
+        top = next;
+        window.dispatchEvent(new Event('scroll'));
+      });
+    return { el, scrollTo, scrollBy };
+  };
+
+  it('finds a drawer row below the fold, centres it, and reports it only once the scroll lands', async () => {
+    const { el, scrollTo, scrollBy } = scrollPanel(true);
+    const { result } = renderHook(() => useAnchorElement(binding, scope));
+    await advance(100);
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(scrollTo.mock.calls[0][0]).toMatchObject({ top: 1136 });
+    expect(result.current.status).toBe('searching');
+    scrollBy(600);
+    await advance(50);
+    expect(result.current.status).toBe('searching');
+    scrollBy(1136);
+    await advance(100);
+    expect(result.current.status).toBe('found');
+    expect(result.current.element).toBe(el);
+    expect(result.current.rect?.y).toBe(364);
+    expect(result.current.centred).toBe(true);
+  });
+
+  it('reports a drawer row whose scroll never lands once the motion window ends', async () => {
+    const { scrollTo } = scrollPanel(true);
+    const { result } = renderHook(() => useAnchorElement(binding, scope));
+    await advance(100);
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(result.current.status).toBe('searching');
+    await advance(2100 + ANCHOR_SEARCH_MS);
+    // Still below the window, so there is nothing to point at yet.
+    expect(result.current.status).toBe('missing');
+  });
+
+  it('scrolls a row below the fold of any other panel into view before reporting it', async () => {
+    const { el, scrollBy } = scrollPanel(false);
+    const scrollIntoView = vi.fn(() => scrollBy(1200));
+    el.scrollIntoView = scrollIntoView;
+    const { result } = renderHook(() => useAnchorElement(binding, scope));
+    await advance(100);
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: 'nearest',
+      inline: 'nearest',
+    });
+    expect(result.current.status).toBe('found');
+    expect(result.current.rect?.y).toBe(300);
+  });
 });

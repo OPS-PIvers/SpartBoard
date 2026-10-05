@@ -6,8 +6,8 @@ import {
   LunchMenuItem,
   WidgetData,
 } from '@/types';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/config/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/config/firebase';
 import { toLunchCountSchoolSite } from '@/config/buildings';
 import { logError } from '@/utils/logError';
 
@@ -37,6 +37,11 @@ interface NutrisliceDay {
 
 interface NutrisliceWeek {
   days?: NutrisliceDay[];
+}
+
+// Written by scripts/sync-lunch-menus.mjs: Nutrislice menu items keyed by YYYY-MM-DD.
+interface StoredLunchMenu {
+  days?: Record<string, NutrisliceMenuItem[]>;
 }
 
 const ALT_MEAL_SECTION_PATTERNS = [
@@ -109,23 +114,6 @@ export const useNutrislice = ({
     configRef.current = config;
   }, [config]);
 
-  const fetchWithFallback = async (url: string) => {
-    const fetchProxy = httpsCallable<{ url: string }, NutrisliceWeek>(
-      functions,
-      'fetchExternalProxy'
-    );
-    try {
-      const result = await fetchProxy({ url });
-      console.warn(
-        '[LunchCountWidget] Fetched Nutrislice Data successfully via Cloud Proxy'
-      );
-      return result.data;
-    } catch (error) {
-      logError('useNutrislice.fetchProxy', error);
-      throw error;
-    }
-  };
-
   const fetchNutrislice = useCallback(async () => {
     if (configRef.current.isManualMode || isSyncing) return;
     setIsSyncing(true);
@@ -142,8 +130,17 @@ export const useNutrislice = ({
         toLunchCountSchoolSite(configRef.current.schoolSite ?? '') ??
         'schumann-elementary';
 
-      const apiUrl = `https://orono.api.nutrislice.com/menu/api/weeks/school/${schoolSite}/menu-type/lunch/${year}/${month}/${day}/`;
-      const data = await fetchWithFallback(apiUrl);
+      // Nutrislice blocks Google Cloud IPs, so a GitHub Action stores the menus in Firestore.
+      const snap = await getDoc(doc(db, 'lunch_menus', schoolSite));
+      const storedDays = snap.exists()
+        ? ((snap.data() as StoredLunchMenu).days ?? {})
+        : {};
+      const data: NutrisliceWeek = {
+        days: Object.entries(storedDays).map(([date, menu_items]) => ({
+          date,
+          menu_items,
+        })),
+      };
 
       const noHotLunch = t('widgets.lunchCount.noHotLunch');
       const noBentoBox = t('widgets.lunchCount.noBentoBox');
@@ -274,26 +271,6 @@ export const useNutrislice = ({
       logError('useNutrislice.fetchNutrislice', err, { widgetId });
 
       const stamp = new Date().toISOString();
-      const errCode = (err as { code?: string } | null)?.code;
-
-      // Upstream returned 404 (no menu published for this date). Treat as a
-      // benign "no menu today" — install an empty menu and skip the toast so
-      // users on non-instructional days aren't spammed with errors.
-      if (errCode === 'functions/not-found') {
-        updateWidget(widgetId, {
-          config: {
-            ...configRef.current,
-            cachedMenu: buildEmptyMenu(
-              t('widgets.lunchCount.noHotLunch'),
-              t('widgets.lunchCount.noBentoBox'),
-              stamp
-            ),
-            syncError: null,
-            lastSyncDate: stamp,
-          },
-        });
-        return;
-      }
 
       // If we were trying to migrate a legacy-shape cache and the fetch
       // failed, install a non-legacy stub so the migration check flips to
