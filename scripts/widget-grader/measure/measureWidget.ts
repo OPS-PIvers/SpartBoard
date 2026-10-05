@@ -44,6 +44,8 @@ export interface MeasureOptions {
   sharedText?: string;
   thresholds: Thresholds;
   fixtures: FixtureName[];
+  /** CI gate runs skip the toolbar and settings renders, which feed criteria only. */
+  gatesOnly?: boolean;
   /** Runs after the widget settles and before collection; the planted-failure check uses it. */
   beforeCollect?: (page: Page) => Promise<void>;
 }
@@ -218,7 +220,7 @@ export async function measureWidget(
   for (const fixture of opts.fixtures)
     for (const size of sizes) await render(size, fixture, 'base');
   const defaultSize = sizes.find((s) => s.name === 'default')!;
-  if (opts.fixtures.includes('typical')) {
+  if (opts.fixtures.includes('typical') && !opts.gatesOnly) {
     for (const size of sizes)
       if (size.name !== 'maximized-1920x1080')
         await render(size, 'typical', 'selected');

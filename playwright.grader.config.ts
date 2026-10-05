@@ -34,7 +34,7 @@ export default defineConfig({
     // A built preview serves bundled chunks; the dev server's unbundled modules exhaust the browser under parallel workers.
     command:
       process.env.CI || process.env.GRADER_BUILD
-        ? `node scripts/generate-version.js && pnpm exec vite build --outDir dist-grader && pnpm exec vite preview --outDir dist-grader --port ${PORT} --strictPort`
+        ? `node scripts/generate-version.js && pnpm exec vite build --outDir dist-grader --manifest && pnpm exec vite preview --outDir dist-grader --port ${PORT} --strictPort`
         : `node scripts/generate-version.js && pnpm exec vite --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}/widget-grader-dev?type=clock`,
     reuseExistingServer: !process.env.CI,
@@ -42,6 +42,7 @@ export default defineConfig({
     env: {
       ...Object.fromEntries(DUMMY_ENV.map((k) => [k, 'dummy'])),
       VITE_AUTH_BYPASS: 'true',
+      GRADER_PROFILE: '1',
     },
   },
 });
