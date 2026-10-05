@@ -396,11 +396,13 @@ export const CalendarConfigurationModal: React.FC<
                       min="1"
                       max="24"
                       value={config.updateFrequencyHours ?? 4}
-                      onChange={(e) =>
-                        updateGlobal({
-                          updateFrequencyHours: parseInt(e.target.value, 10),
-                        })
-                      }
+                      onChange={(e) => {
+                        // Ignore a non-finite parse (empty field) — NaN freshness never skips, so the fetcher would sync every run.
+                        const next = parseInt(e.target.value, 10);
+                        if (Number.isFinite(next)) {
+                          updateGlobal({ updateFrequencyHours: next });
+                        }
+                      }}
                       className="w-10 text-xs font-black text-blue-700 text-center bg-transparent outline-none"
                     />
                     <span className="text-xxs font-bold text-slate-500 uppercase tracking-widest">
