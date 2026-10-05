@@ -142,12 +142,16 @@ export function resolveAvailability(
   const keepsOpen = resource ? noEnd : availability.allowLate;
   // "Each class" only applies while two or more classes are checked, as the section shows it.
   const eachClass = rosters.length > 1;
+  // A resource keeps no due date to mark the cushion by, so it closes on the bell.
   const cushioned: BellWindowFn | undefined =
-    bellWindow &&
-    ((roster, date) => {
-      const bell = bellWindow(roster, date);
-      return bell && { ...bell, closeAt: bell.closeAt + BELL_CLOSE_CUSHION_MS };
-    });
+    bellWindow && !resource
+      ? (roster, date) => {
+          const bell = bellWindow(roster, date);
+          return (
+            bell && { ...bell, closeAt: bell.closeAt + BELL_CLOSE_CUSHION_MS }
+          );
+        }
+      : bellWindow;
   const windows = (rosters.length > 0 ? rosters : [null]).map((roster) => {
     const spec =
       roster && eachClass

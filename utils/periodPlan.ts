@@ -26,7 +26,7 @@ export interface EpochWindow {
 }
 
 /** Grace added to an end-of-class bell so work doesn't lock as the period ends. */
-export const BELL_CLOSE_CUSHION_MS = 2 * 60 * 1000;
+export const BELL_CLOSE_CUSHION_MS = 60 * 1000;
 
 /** The `periodAccess` key a roster's students match on: their class claim, else the roster itself. */
 export function periodKeyForRoster(roster: PeriodRoster): string {

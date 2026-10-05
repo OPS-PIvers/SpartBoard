@@ -258,9 +258,7 @@ describe('study resources', () => {
         workKind: { default: 'work' },
       }
     );
-    expect(targeting.closeAt).toBe(
-      at('2026-10-02', '09:52') + BELL_CLOSE_CUSHION_MS
-    );
+    expect(targeting.closeAt).toBe(at('2026-10-02', '09:52'));
     expect(targeting.dueAt).toBeUndefined();
   });
 
