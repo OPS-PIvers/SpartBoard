@@ -372,7 +372,6 @@ const OverviewPanel: React.FC<{
   registeredIsFallback: boolean;
   usersWithDashboards: number;
   dashboards: { total: number; avgWidgetsPerDashboard: number };
-  isFiltered: boolean;
   users: KpiUser[];
   buildingBuckets: Record<string, EngagementCounts>;
   onKpiClick?: (category: KpiCategory) => void;
@@ -387,7 +386,6 @@ const OverviewPanel: React.FC<{
   registeredIsFallback,
   usersWithDashboards,
   dashboards,
-  isFiltered,
   onKpiClick,
 }) => {
   const KNOWN_BUILDINGS = useKnownBuildings();
@@ -464,12 +462,10 @@ const OverviewPanel: React.FC<{
         <KpiCard
           title="Monthly Active Students"
           value={data.students ? formatNumber(data.students.monthly) : '—'}
-          subtitle={isFiltered ? 'All buildings' : 'School Google sign-in'}
         />
         <KpiCard
           title="Daily Active Students"
           value={data.students ? formatNumber(data.students.daily) : '—'}
-          subtitle={isFiltered ? 'All buildings' : 'School Google sign-in'}
         />
       </div>
 
@@ -1928,7 +1924,6 @@ export const AnalyticsManager: React.FC = () => {
             dashboards={
               data.dashboards ?? { total: 0, avgWidgetsPerDashboard: 0 }
             }
-            isFiltered={isFiltered}
             users={filteredUserList}
             buildingBuckets={
               selectedDomain === 'all'
