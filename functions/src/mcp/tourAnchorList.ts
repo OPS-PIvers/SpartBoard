@@ -2247,6 +2247,12 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     panel: true,
   },
   {
+    id: 'help-center.shortcuts.gestures',
+    label: 'Touchscreen gestures heading in the Shortcuts tab',
+    scope: 'board',
+    panel: true,
+  },
+  {
     id: 'help-center.viewer.show-live',
     label: 'Show me live button in the resource viewer',
     scope: 'board',

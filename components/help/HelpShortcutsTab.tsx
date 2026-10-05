@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import Fuse from 'fuse.js';
 import { Hand, Keyboard } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 import { Sparty } from '@/components/sparty/Sparty';
 import { useShowSparty } from '@/components/sparty/useShowSparty';
 import {
@@ -48,8 +49,12 @@ const KeyBadge: React.FC<{ label: string }> = ({ label }) => (
 const SectionHeading: React.FC<{
   icon: React.ReactNode;
   children: React.ReactNode;
-}> = ({ icon, children }) => (
-  <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+  tour?: ReturnType<typeof tourAttr>;
+}> = ({ icon, children, tour }) => (
+  <h3
+    {...tour}
+    className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 mb-3"
+  >
     {icon}
     {children}
   </h3>
@@ -177,7 +182,10 @@ export const HelpShortcutsTab: React.FC<HelpShortcutsTabProps> = ({
 
       {visibleGestures.length > 0 && (
         <section>
-          <SectionHeading icon={<Hand className="w-4 h-4 text-emerald-600" />}>
+          <SectionHeading
+            icon={<Hand className="w-4 h-4 text-emerald-600" />}
+            tour={tourAttr('help-center.shortcuts.gestures')}
+          >
             {t('helpCenter.sections.gestures')}
           </SectionHeading>
           <div className="flex flex-col gap-5">

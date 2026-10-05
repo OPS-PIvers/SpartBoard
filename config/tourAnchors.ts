@@ -1752,6 +1752,10 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'help-center.shortcuts.gestures': {
+    label: 'Touchscreen gestures heading in the Shortcuts tab',
+    panel: true,
+  },
   'help-center.viewer.show-live': {
     label: 'Show me live button in the resource viewer',
     panel: true,
