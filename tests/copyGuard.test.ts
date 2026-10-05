@@ -3,31 +3,22 @@ import { readFileSync, readdirSync, statSync, writeFileSync } from 'fs';
 import { join, relative, resolve, dirname, sep } from 'path';
 import { fileURLToPath } from 'url';
 import ts from 'typescript';
+import {
+  copyProblem,
+  copyProblemTexts,
+} from '@/scripts/widget-grader/static/copyGuard.ts';
 
 // Blocks new long or slop-marked on-screen copy (docs/plans/shipped/ALWAYS_VISIBLE_COPY.md, Phase 6).
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BASELINE_PATH = join(repoRoot, 'tests/fixtures/copyGuardBaseline.json');
 const SCAN_ROOTS = ['components', 'App.tsx'];
 const SKIP_DIRS = ['components/legal', 'components/dev'];
-const MAX_WORDS = 30;
 // Baseline keys use POSIX separators; path.relative returns `\` on Windows.
 const toRel = (abs: string) => relative(repoRoot, abs).split(sep).join('/');
-const TEXT_PROPS =
-  /^(placeholder|description|subtitle|hint|helperText|helpText|label|emptyMessage|emptyText|message|caption|body|detail|note|heading|text|blurb|prompt|defaultValue)$/;
-
 interface Baseline {
   locale: string[];
   source: string[];
 }
-
-const copyProblem = (text: string): string | null => {
-  const clean = text.replace(/\s+/g, ' ').trim();
-  if (!/[A-Za-z]{2}/.test(clean)) return null;
-  if (clean.includes('—')) return 'em dash';
-  if (/^(Pro-tip|Tip|Note):/i.test(clean)) return 'Tip/Note prefix';
-  if (clean.split(' ').length > MAX_WORDS) return `over ${MAX_WORDS} words`;
-  return null;
-};
 
 const localeViolations = (): string[] => {
   const en = JSON.parse(
@@ -73,41 +64,9 @@ const sourceViolations = (): string[] => {
       true,
       abs.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
     );
-    const check = (text: string) => {
-      if (copyProblem(text)) {
-        out.add(`${rel}::${text.replace(/\s+/g, ' ').trim().slice(0, 60)}`);
-      }
-    };
-    const visit = (node: ts.Node) => {
-      if (ts.isJsxText(node)) {
-        check(node.text);
-      } else if (ts.isJsxAttribute(node) && node.initializer) {
-        let init: ts.Node | undefined = node.initializer;
-        if (ts.isJsxExpression(init)) init = init.expression;
-        if (
-          init &&
-          ts.isStringLiteralLike(init) &&
-          TEXT_PROPS.test(node.name.getText(sf))
-        ) {
-          check(init.text);
-        }
-      } else if (
-        ts.isJsxExpression(node) &&
-        node.expression &&
-        ts.isStringLiteralLike(node.expression) &&
-        (ts.isJsxElement(node.parent) || ts.isJsxFragment(node.parent))
-      ) {
-        check(node.expression.text);
-      } else if (
-        ts.isPropertyAssignment(node) &&
-        ts.isStringLiteralLike(node.initializer) &&
-        TEXT_PROPS.test(node.name.getText(sf))
-      ) {
-        check(node.initializer.text);
-      }
-      ts.forEachChild(node, visit);
-    };
-    visit(sf);
+    for (const text of copyProblemTexts(sf)) {
+      out.add(`${rel}::${text.replace(/\s+/g, ' ').trim().slice(0, 60)}`);
+    }
   }
   return [...out].sort();
 };
