@@ -573,7 +573,7 @@ export function useSetDraftPersistence({
         : {}),
       // Launch points read this instead of loading every step.
       ...(set.isBuilding
-        ? { hasLiveTour: isLiveTourSet({ mode: editorState.mode, steps }) }
+        ? { hasLiveTour: isLiveTourSet({ mode: editorState.mode }) }
         : {}),
     };
   };

@@ -657,6 +657,7 @@ describe('GuidedLearningStudio', () => {
       const base = buildSet();
       return {
         ...base,
+        mode: 'tour',
         isBuilding,
         steps: base.steps.map((step) => ({
           ...step,

@@ -95,6 +95,7 @@ import {
   useMediaQuery,
 } from './useMediaQuery';
 import { SetTooLargeError } from '@/utils/firestoreDocSize';
+import { isLiveTourSet } from '../../utils/liveTour';
 
 const MAX_ISSUE_TOASTS = 3;
 const SMALL_SCREEN_NOTE_KEY = 'gl-studio-small-screen-note-dismissed';
@@ -419,9 +420,7 @@ const StudioSession: React.FC<
     clipboardStepCount,
   } = editorState;
   const liveTours = !!set.isBuilding && canAccessFeature('gl-live-tours');
-  const canRunLive =
-    liveTours &&
-    (editorState.mode === 'tour' || steps.some((step) => step.tour));
+  const canRunLive = liveTours && isLiveTourSet({ mode: editorState.mode });
 
   const selectStepAt = useCallback(
     (index: number) => {
