@@ -5,7 +5,7 @@ import * as admin from 'firebase-admin';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { TOUR_ANCHOR_API_TOKEN } from './secrets';
 import {
-  ANCHOR_ID_RE,
+  ANCHOR_REF_RE,
   DAY_MS,
   FINGERPRINT_RE,
   TOUR_ANCHOR_QUEUE,
@@ -44,15 +44,17 @@ const STAMP_KEYS = new Set(['updatedAt', 'firstSeenAt', 'reboundAt']);
 const millis = (t: Stamp) =>
   typeof t?.toMillis === 'function' ? t.toMillis() : 0;
 
-/** Open items, plus PRs older than a week so abandoned ones are retried. */
+/** Open items, plus PRs older than a week so abandoned ones are retried; needs-human only on request. */
 export function selectOpenItems(
   docs: Array<{ id: string; data: QueueDoc }>,
-  now: number
+  now: number,
+  includeNeedsHuman = false
 ): Array<Record<string, unknown>> {
   return docs
     .filter(
       ({ data }) =>
         data.status === 'open' ||
+        (includeNeedsHuman && data.status === 'needs-human') ||
         (data.status === 'pr-open' &&
           now - millis(data.updatedAt) > STALE_PR_MS)
     )
@@ -100,7 +102,7 @@ export function parseResolutions(
       return bad('status');
     const item: Resolution = { fingerprint: r.fingerprint, status: r.status };
     if (r.anchorId !== undefined) {
-      if (typeof r.anchorId !== 'string' || !ANCHOR_ID_RE.test(r.anchorId))
+      if (typeof r.anchorId !== 'string' || !ANCHOR_REF_RE.test(r.anchorId))
         return bad('anchorId');
       item.anchorId = r.anchorId;
     }
@@ -148,13 +150,21 @@ export const tourAnchorApi = onRequest(
     const path = req.path.replace(/\/+$/, '') || '/';
     try {
       if (req.method === 'GET' && path === '/') {
+        const needsHuman = req.query?.include === 'needs-human';
         const snap = await db
           .collection(TOUR_ANCHOR_QUEUE)
-          .where('status', 'in', ['open', 'pr-open'])
+          .where(
+            'status',
+            'in',
+            needsHuman
+              ? ['open', 'pr-open', 'needs-human']
+              : ['open', 'pr-open']
+          )
           .get();
         const items = selectOpenItems(
           snap.docs.map((d) => ({ id: d.id, data: d.data() as QueueDoc })),
-          Date.now()
+          Date.now(),
+          needsHuman
         );
         res.json({
           project: process.env.GCLOUD_PROJECT ?? null,

@@ -20,13 +20,26 @@ vi.mock('@/components/plc/docs/PlcDocsBody', () => ({
 }));
 
 vi.mock('@/components/plc/bodies/NotesBody', () => ({
-  NotesBody: ({ selectNoteId }: { selectNoteId?: string | null }) => (
-    <div data-testid="notes-body">{selectNoteId ?? 'none'}</div>
+  NotesBody: ({
+    selectNoteId,
+    selectDocId,
+  }: {
+    selectNoteId?: string | null;
+    selectDocId?: string | null;
+  }) => (
+    <div data-testid="notes-body" data-doc={selectDocId ?? 'none'}>
+      {selectNoteId ?? 'none'}
+    </div>
   ),
 }));
 
+let unifiedAccess = false;
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: 'me' } }),
+  useAuth: () => ({
+    user: { uid: 'me' },
+    canAccessFeature: (id: string) =>
+      id === 'plc-notes-unified' && unifiedAccess,
+  }),
 }));
 
 const addToastMock = vi.fn();
@@ -91,6 +104,7 @@ const fakePlc: Plc = {
 
 describe('NotesDocsBody', () => {
   beforeEach(() => {
+    unifiedAccess = false;
     mockTodos = [];
     createNoteMock.mockClear();
     updateNoteMock.mockClear();
@@ -152,5 +166,20 @@ describe('NotesDocsBody', () => {
       expect.stringContaining('Could not import'),
       'error'
     );
+  });
+
+  it('shows the Meeting Notes and Google Docs tabs while the flag is off', () => {
+    render(<NotesDocsBody plc={fakePlc} />);
+    expect(
+      screen.getByRole('tab', { name: 'Google Docs' })
+    ).toBeInTheDocument();
+  });
+
+  it('drops the tabs and passes a requested doc to the list when the flag is on', () => {
+    unifiedAccess = true;
+    render(<NotesDocsBody plc={fakePlc} docId="d1" />);
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('docs-body')).not.toBeInTheDocument();
+    expect(screen.getByTestId('notes-body')).toHaveAttribute('data-doc', 'd1');
   });
 });

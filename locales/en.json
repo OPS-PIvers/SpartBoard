@@ -635,7 +635,7 @@
         "newMeetingNote": "New meeting note",
         "newMeetingNoteShort": "Meeting",
         "agenda": "Agenda",
-        "decisions": "Decisions",
+        "discussionNotes": "Discussion Notes",
         "actionItems": "Action items"
       },
       "actionItems": {
@@ -1291,7 +1291,11 @@
       "buildingSchedule": "Building schedule",
       "syncBuildingSchedule": "Sync building schedule",
       "syncedAt": "Synced {{time}}",
-      "daysVisible": "Days to display"
+      "daysVisible": "Days to display",
+      "pastEvents": "Past events",
+      "pastHide": "Hide",
+      "pastScroll": "Scroll up to see",
+      "headerColor": "Day header color"
     },
     "materials": {
       "title": "Title",
@@ -1387,7 +1391,10 @@
       "wednesday": "Wednesday",
       "thursday": "Thursday",
       "friday": "Friday",
-      "saturday": "Saturday"
+      "saturday": "Saturday",
+      "rowStyle": "Event style",
+      "rowCards": "Cards",
+      "rowLines": "Lines"
     },
     "recessGear": {
       "connections": "Connections",
@@ -2201,7 +2208,10 @@
       "poolGroup": "Draw from",
       "poolWholeClass": "Whole class",
       "poolGroupEmpty": "Save a group for this class in My Classes to use it here.",
-      "rosterGroupsOff": "Class groups are switched off for your school right now."
+      "rosterGroupsOff": "Class groups are switched off for your school right now.",
+      "rowStyle": "Task style",
+      "rowCards": "Cards",
+      "rowLines": "Lines"
     },
     "weather": {
       "weatherMode": "Weather mode",
@@ -3832,6 +3842,8 @@
     "tourPublish": {
       "title": "Teachers' version",
       "hint": "Teachers only run the published tour. Edits stay here until you publish again.",
+      "whereHelpCenter": "Teachers find it in Help once its Help Center item is visible (Admin Settings > Help Center).",
+      "whereLibrary": "Teachers run it from the Guided Learning library with Run live on my board. To offer it in Help, link it from a Help Center item.",
       "status_draft": "Draft",
       "status_published": "Published",
       "status_changed": "Changes not published",

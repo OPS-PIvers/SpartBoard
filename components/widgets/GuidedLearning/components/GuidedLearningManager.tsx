@@ -221,6 +221,13 @@ export interface GuidedLearningManagerProps {
   /** Busy-state probe for the building-set Duplicate kebab. */
   isDuplicatingBuilding?: (setId: string) => boolean;
   onDeleteBuilding: (setId: string) => void | Promise<void>;
+  /** Admin-only: copies a personal live tour into the building library, where tours run. */
+  onCopyTourToBuilding?: (
+    setId: string,
+    driveFileId: string
+  ) => void | Promise<void>;
+  /** Busy-state probe for the copy-to-building kebab item. */
+  isCopyingTourToBuilding?: (setId: string) => boolean;
   /** Admin-only: moves a building set into (true) or out of (false) the Help Center. */
   onSetBuildingHelpCenter?: (
     setId: string,
@@ -336,6 +343,9 @@ const LIBRARY_SORT_COMPARATORS = {
 
 const TOUR_TYPE = 'tour';
 
+const isTourEntry = (e: LibraryEntry): boolean =>
+  e.mode === 'tour' || !!e.buildingEntry?.hasLiveTour;
+
 // Help Center sets live in Admin Settings, so every view but their own hides them.
 const LIBRARY_FILTER_PREDICATES = {
   source: (item: LibraryEntry, value: string): boolean =>
@@ -343,7 +353,7 @@ const LIBRARY_FILTER_PREDICATES = {
       ? !!item.helpCenter
       : !item.helpCenter && (value === '' || item.source === value),
   type: (item: LibraryEntry, value: string): boolean =>
-    !!item.buildingEntry?.hasLiveTour === (value === TOUR_TYPE),
+    isTourEntry(item) === (value === TOUR_TYPE),
 };
 
 const LIBRARY_GET_ID = (e: LibraryEntry): string => e.id;
@@ -446,6 +456,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onDuplicateBuilding,
   isDuplicatingBuilding,
   onDeleteBuilding,
+  onCopyTourToBuilding,
+  isCopyingTourToBuilding,
   onSetBuildingHelpCenter,
   onExport,
   onImport,
@@ -582,7 +594,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   // Teachers never see Help Center sets in the library, so their tours don't count.
   const hasTours =
     liveTours &&
-    buildingSets.some((e) => e.hasLiveTour && (isAdmin || !isHelpCenterSet(e)));
+    (sets.some((s) => s.mode === 'tour') ||
+      buildingSets.some(
+        (e) => e.hasLiveTour && (isAdmin || !isHelpCenterSet(e))
+      ));
 
   const view = useLibraryView<LibraryEntry>({
     items: allEntries,
@@ -609,13 +624,16 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const activeSourceFilter = view.state.filterValues.source ?? '';
   const isBuildingFiltered = activeSourceFilter === 'building';
   const isHelpCenterFiltered = activeSourceFilter === HELP_CENTER_SOURCE;
+  // Admins' "Live tours" view lists every tour, so Help Center tours are findable from the library.
+  const showHelpCenterTours =
+    isAdmin && activeTypeFilter === TOUR_TYPE && activeSourceFilter === '';
   // The "All" view skips the source predicate, so Help Center sets are dropped here too.
   const libraryItems = useMemo(
     () =>
-      isHelpCenterFiltered
+      isHelpCenterFiltered || showHelpCenterTours
         ? view.visibleItems
         : view.visibleItems.filter((entry) => !entry.helpCenter),
-    [view.visibleItems, isHelpCenterFiltered]
+    [view.visibleItems, isHelpCenterFiltered, showHelpCenterTours]
   );
 
   // Adjust-during-render: on import success, show the Personal view the set landed in.
@@ -823,8 +841,13 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     entry: LibraryEntry,
     index?: number
   ): React.ReactElement => {
+    const rawId =
+      entry.source === 'personal'
+        ? entry.id.slice('personal:'.length)
+        : entry.id.slice('building:'.length);
+    const isTour = liveTours && isTourEntry(entry);
     const badges: LibraryBadge[] = [
-      liveTours && entry.buildingEntry?.hasLiveTour
+      isTour
         ? { label: 'Live tour', tone: 'info' }
         : { label: MODE_LABELS[entry.mode], tone: 'info' },
     ];
@@ -833,6 +856,21 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         label: entry.helpCenter ? 'Help Center' : 'Building',
         tone: 'warn',
       });
+    }
+    // Authors see where a tour stands: only a published building tour reaches teachers.
+    if (isTour && isAdmin) {
+      if (entry.source === 'personal') {
+        badges.push({ label: "Can't run live", tone: 'danger' });
+      } else {
+        const runnable = isTourRunnable(rawId);
+        if (runnable !== undefined) {
+          badges.push(
+            runnable
+              ? { label: 'Published', tone: 'success' }
+              : { label: 'Draft', tone: 'neutral' }
+          );
+        }
+      }
     }
 
     const isBuildingEntry = entry.source === 'building';
@@ -863,11 +901,6 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       });
     }
 
-    const rawId =
-      entry.source === 'personal'
-        ? entry.id.slice('personal:'.length)
-        : entry.id.slice('building:'.length);
-
     if (liveTours && entry.buildingEntry?.hasLiveTour) {
       const runnable = isTourRunnable(rawId);
       if (runnable === true) {
@@ -886,6 +919,24 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
           onClick: () => requestStartTour({ setId: rawId, draft: true }),
         });
       }
+    }
+
+    if (
+      isTour &&
+      isAdmin &&
+      entry.source === 'personal' &&
+      entry.driveFileId &&
+      onCopyTourToBuilding
+    ) {
+      const fileId = entry.driveFileId;
+      secondary.push({
+        id: 'copy-tour-to-building',
+        label: 'Copy to building to run live',
+        icon: Library,
+        disabled: isCopyingTourToBuilding?.(rawId),
+        disabledReason: 'Copying…',
+        onClick: () => void onCopyTourToBuilding(rawId, fileId),
+      });
     }
 
     const recentSessionId = recentSessionIds[rawId];
@@ -1284,6 +1335,40 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
               }}
             >
               Sign out and back in to allow Drive access for your sets.
+            </div>
+          )}
+
+          {isAdmin && liveTours && activeTypeFilter === TOUR_TYPE && (
+            <div
+              role="note"
+              className="rounded-xl border border-blue-200 bg-blue-50 text-blue-900"
+              style={{
+                marginBottom: 'min(12px, 3cqmin)',
+                paddingInline: 'min(12px, 3cqmin)',
+                paddingBlock: 'min(8px, 2cqmin)',
+                fontSize: 'min(12px, 4cqmin)',
+              }}
+            >
+              <p className="font-semibold">Where live tours live</p>
+              <ol
+                className="list-decimal"
+                style={{ paddingInlineStart: '1.25em' }}
+              >
+                <li>
+                  Tours run only from the building library or the Help Center. A
+                  personal copy can&apos;t run live: use &ldquo;Copy to building
+                  to run live&rdquo; from its menu.
+                </li>
+                <li>
+                  Edit the tour and press Publish tour in the Studio. Until then
+                  it&apos;s a Draft only admins can run.
+                </li>
+                <li>
+                  Teachers run a published building tour from this library, and
+                  a Help Center tour from Help once its item is visible (Admin
+                  Settings &gt; Help Center).
+                </li>
+              </ol>
             </div>
           )}
 

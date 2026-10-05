@@ -102,6 +102,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
+      // The widget grader's build keeps React Profiler callbacks (R3 in docs/plans/WIDGET_RUBRIC.md).
+      ...(process.env.GRADER_PROFILE
+        ? { 'react-dom/client': 'react-dom/profiling' }
+        : {}),
     },
   },
   build: {

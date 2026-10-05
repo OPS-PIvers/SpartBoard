@@ -198,18 +198,22 @@ describe('GuidedLearningEditorModal with a v3 set', () => {
     expect(saved.steps).toEqual(set.steps);
   });
 
-  it('stamps hasLiveTour on building sets as tour steps come and go', async () => {
-    const building = { ...buildV3Set(), isBuilding: true };
-    const first = renderModal(building);
-    fireEvent.click(screen.getByRole('button', { name: 'Drop tour' }));
+  it('stamps hasLiveTour on building sets from the mode, not the anchors', async () => {
+    const first = renderModal({ ...buildV3Set(), isBuilding: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Add tour' }));
     closeEditor();
     await waitFor(() => expect(first.onSave).toHaveBeenCalledTimes(1));
-    const dropped = first.onSave.mock.calls[0][0] as GuidedLearningSet;
-    expect(dropped.hasLiveTour).toBe(false);
+    expect(
+      (first.onSave.mock.calls[0][0] as GuidedLearningSet).hasLiveTour
+    ).toBe(false);
     cleanup();
 
-    const second = renderModal({ ...dropped, hasLiveTour: false });
-    fireEvent.click(screen.getByRole('button', { name: 'Add tour' }));
+    const second = renderModal({
+      ...buildV3Set(),
+      mode: 'tour',
+      isBuilding: true,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Drop tour' }));
     closeEditor();
     await waitFor(() => expect(second.onSave).toHaveBeenCalledTimes(1));
     expect(

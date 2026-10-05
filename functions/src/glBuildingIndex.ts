@@ -72,14 +72,7 @@ export function buildGlBuildingIndexEntry(
     thumbnail: pickThumbnail(d),
     createdAt: num(d.createdAt, updatedAt),
     updatedAt,
-    hasLiveTour:
-      d.mode === 'tour' ||
-      (typeof d.hasLiveTour === 'boolean'
-        ? d.hasLiveTour
-        : steps.some(
-            (s) =>
-              !!s && typeof s === 'object' && !!(s as { tour?: unknown }).tour
-          )),
+    hasLiveTour: d.mode === 'tour' || d.hasLiveTour === true,
     isHelpCenter: d.helpCenter === true,
     folderId: typeof d.folderId === 'string' ? d.folderId : null,
     order: typeof d.order === 'number' ? d.order : null,

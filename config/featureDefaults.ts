@@ -799,6 +799,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'plc-notes-unified': {
+    label: 'Notes and Docs in one list',
+    icon: StickyNote,
+    description:
+      'Group notes and linked Google Docs share one list; notes open in Docs.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Handwritten answer boxes on paper sheets; AND-ed with the paper-answer-sheets gate.
   'paper-handwritten-responses': {
     label: 'Handwritten answers on paper sheets',
@@ -1143,6 +1154,27 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'ai',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'calendar-day-view': {
+    label: 'Calendar day view',
+    icon: CalendarClock,
+    description:
+      'Calendar day headers, line dividers, past events and event details.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'list-line-style': {
+    label: 'Schedule and To-Do lines',
+    icon: ListChecks,
+    description: 'A Lines option for Schedule and To-Do rows.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

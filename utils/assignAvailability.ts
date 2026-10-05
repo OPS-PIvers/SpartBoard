@@ -1,10 +1,11 @@
 import { combineDateAndTime, getLocalIsoDate } from '@/utils/localDate';
 import type { PeriodAccess } from '@/types';
-import type {
-  EpochWindow,
-  PeriodPlan,
-  PeriodPlanRow,
-  PeriodRoster,
+import {
+  BELL_CLOSE_CUSHION_MS,
+  type EpochWindow,
+  type PeriodPlan,
+  type PeriodPlanRow,
+  type PeriodRoster,
 } from '@/utils/periodPlan';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
@@ -141,6 +142,16 @@ export function resolveAvailability(
   const keepsOpen = resource ? noEnd : availability.allowLate;
   // "Each class" only applies while two or more classes are checked, as the section shows it.
   const eachClass = rosters.length > 1;
+  // A resource keeps no due date to mark the cushion by, so it closes on the bell.
+  const cushioned: BellWindowFn | undefined =
+    bellWindow && !resource
+      ? (roster, date) => {
+          const bell = bellWindow(roster, date);
+          return (
+            bell && { ...bell, closeAt: bell.closeAt + BELL_CLOSE_CUSHION_MS }
+          );
+        }
+      : bellWindow;
   const windows = (rosters.length > 0 ? rosters : [null]).map((roster) => {
     const spec =
       roster && eachClass
@@ -149,16 +160,19 @@ export function resolveAvailability(
     return {
       roster,
       openAt: resolvePoint(spec.opens, 'opens', roster, bellWindow),
-      closeAt: resolvePoint(spec.closes, 'closes', roster, bellWindow),
+      dueAt: resolvePoint(spec.closes, 'closes', roster, bellWindow),
+      closeAt: resolvePoint(spec.closes, 'closes', roster, cushioned),
     };
   });
   const opens = windows.flatMap((w) => (w.openAt == null ? [] : [w.openAt]));
   const closes = windows.flatMap((w) => (w.closeAt == null ? [] : [w.closeAt]));
   const latestClose = closes.length > 0 ? Math.max(...closes) : undefined;
+  const dues = windows.flatMap((w) => (w.dueAt == null ? [] : [w.dueAt]));
+  const latestDue = dues.length > 0 ? Math.max(...dues) : undefined;
   const out: ResolvedAvailability = {
     openAt: opens.length > 0 ? Math.min(...opens) : undefined,
     closeAt: keepsOpen ? undefined : latestClose,
-    dueAt: resource ? undefined : latestClose,
+    dueAt: resource ? undefined : latestDue,
   };
   if (rosters.length > 1) {
     const rows: Record<string, PeriodPlanRow> = {};
@@ -170,8 +184,7 @@ export function resolveAvailability(
         openAt: w.openAt ?? undefined,
         closeAt: keepsOpen ? undefined : (w.closeAt ?? undefined),
       };
-      if (!resource && w.closeAt != null)
-        dueAtByRosterId[w.roster.id] = w.closeAt;
+      if (!resource && w.dueAt != null) dueAtByRosterId[w.roster.id] = w.dueAt;
     }
     out.periodPlan = { mode: 'assignment', rows };
     if (!resource) out.dueAtByRosterId = dueAtByRosterId;
@@ -250,7 +263,12 @@ export function availabilityFromStored(
     stored.openAt ??
       (rowOpens.length > 0 ? Math.min(...rowOpens) : stored.createdAt)
   );
-  const closeMs = stored.closeAt ?? stored.dueAt;
+  // A close one cushion past the due time is the class bell, so show the bell.
+  const cushioned =
+    stored.closeAt != null &&
+    stored.dueAt != null &&
+    stored.closeAt - stored.dueAt === BELL_CLOSE_CUSHION_MS;
+  const closeMs = cushioned ? stored.dueAt : (stored.closeAt ?? stored.dueAt);
   const closes =
     closeMs != null ? pointAt(closeMs) : { day: opens.day, time: '23:59' };
   const perClass = stored.dueAtByRosterId ?? {};

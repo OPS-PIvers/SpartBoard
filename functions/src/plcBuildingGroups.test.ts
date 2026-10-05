@@ -544,6 +544,28 @@ describe('syncBuildingGroup', () => {
     expect(stub.get('plcs/g1')!.autoRoster).toBe(true);
   });
 
+  it('renames without touching auto-roster', async () => {
+    const seed = rosterSeed();
+    seed['organizations/orono/members/boss@orono.k12.mn.us'] = orgMember(
+      'boss',
+      { roleId: 'domain_admin' }
+    );
+    seed['plcs/g1'] = group(
+      { lead: member('lead', 'lead') },
+      { autoRoster: false }
+    );
+    const { stub, deps } = makeDeps(seed);
+    const out = await syncBuildingGroup(
+      deps,
+      'g1',
+      'boss@orono.k12.mn.us',
+      undefined,
+      'OHS Staff'
+    );
+    expect(out).toEqual({ added: 0, autoRoster: false });
+    expect(stub.get('plcs/g1')!.name).toBe('OHS Staff');
+  });
+
   it('rejects a non-admin and a non-building group', async () => {
     const seed = rosterSeed();
     seed['plcs/g1'] = group({ lead: member('lead', 'lead') });

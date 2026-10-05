@@ -66,6 +66,7 @@ type Req = {
   method: string;
   path: string;
   headers: { authorization?: string };
+  query?: Record<string, string>;
   body?: unknown;
 };
 type Handler = (
@@ -173,6 +174,12 @@ describe('selectOpenItems', () => {
       data: { status: 'open', firstSeenAt: ts(i) },
     }));
     expect(selectOpenItems(many, now)).toHaveLength(API_ITEM_CAP);
+    expect(selectOpenItems(docs, now, true).map((i) => i.fingerprint)).toEqual([
+      'human',
+      'old',
+      'stale-pr',
+      'new',
+    ]);
   });
 
   it('drops reboundAt and returns ISO timestamps', () => {
@@ -212,6 +219,13 @@ describe('GET /', () => {
     expect((out.body as { items: unknown[] }).items).toHaveLength(1);
   });
 
+  it('also reads needs-human items when asked', async () => {
+    await call({ headers: bearer, query: { include: 'needs-human' } });
+    expect(h.whereArgs).toEqual([
+      ['tour_anchor_queue', 'status', 'in', ['open', 'pr-open', 'needs-human']],
+    ]);
+  });
+
   it('404s anything else', async () => {
     expect((await call({ headers: bearer, path: '/other' })).status).toBe(404);
     expect(
@@ -241,6 +255,12 @@ describe('parseResolutions', () => {
     });
   });
 
+  it('accepts full anchor refs with a widget type and field', () => {
+    const ref = 'settings.toggle:schedule#autoProgress';
+    const r = parseResolutions([{ ...pr, anchorId: ref }]);
+    expect(r.ok && r.items[0].anchorId).toBe(ref);
+  });
+
   it.each([
     ['not an array', {}],
     ['empty', []],
@@ -248,6 +268,7 @@ describe('parseResolutions', () => {
     ['status outside the enum', [{ ...pr, status: 'mapped' }]],
     ['status rebound', [{ ...pr, status: 'rebound' }]],
     ['bad anchor id', [{ ...pr, anchorId: 'Drop Table' }]],
+    ['ref with a bad field', [{ ...pr, anchorId: 'dock.item:clock#a b' }]],
     ['non-github pr url', [{ ...pr, prUrl: 'https://evil.test/pull/1' }]],
     [
       'another repo',

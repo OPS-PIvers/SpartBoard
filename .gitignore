@@ -70,6 +70,7 @@ skills-lock.json
 !.claude/skills/admin-widget-config/
 !.claude/skills/new-widget/
 !.claude/skills/gl-author/
+!.claude/skills/grade-widget/
 
 # Playwright MCP scratch
 .playwright-mcp/
@@ -102,3 +103,7 @@ Dashboards/
 
 # Written by the Claude review workflow, never committed
 pr.diff
+
+# Widget grader output (scans, measurements, screenshots) and its build
+scripts/widget-grader/out/
+dist-grader/

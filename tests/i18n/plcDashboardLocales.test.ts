@@ -145,7 +145,7 @@ const REQUIRED_NOTES_KEYS = [
   'meeting.newMeetingNote',
   'meeting.newMeetingNoteShort',
   'meeting.agenda',
-  'meeting.decisions',
+  'meeting.discussionNotes',
   'meeting.actionItems',
   'actionItems.title',
   'actionItems.add',

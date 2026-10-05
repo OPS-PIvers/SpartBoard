@@ -456,6 +456,41 @@ export class GoogleDriveService {
     }
   }
 
+  /** Create a Google Doc from HTML; Drive converts it on upload. */
+  async createGoogleDocFromHtml(
+    name: string,
+    html: string,
+    folderPath: string
+  ): Promise<{ id: string; webViewLink: string }> {
+    const folderId = await this.getFolderPath(folderPath);
+    const boundary = `spart-${Date.now().toString(36)}`;
+    const body =
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
+      JSON.stringify({
+        name,
+        mimeType: 'application/vnd.google-apps.document',
+        parents: [folderId],
+      }) +
+      `\r\n--${boundary}\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n` +
+      html +
+      `\r\n--${boundary}--`;
+    const response = await this.fetchWithRetry(
+      `${UPLOAD_API_URL}/files?uploadType=multipart&fields=id,webViewLink`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          'Content-Type': `multipart/related; boundary=${boundary}`,
+        },
+        body,
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to create Google Doc: ${response.status}`);
+    }
+    return (await response.json()) as { id: string; webViewLink: string };
+  }
+
   /**
    * Upload a general file to a specific Drive folder path.
    */

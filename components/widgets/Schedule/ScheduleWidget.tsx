@@ -7,6 +7,8 @@ import React, {
   useLayoutEffect,
 } from 'react';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
+import { hexToRgba } from '@/utils/styles';
 import {
   WidgetData,
   ScheduleItem,
@@ -43,6 +45,9 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   const { subscribeToPermission } = useFeaturePermissions();
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as ScheduleConfig;
+  const { canAccessFeature } = useAuth();
+  const lines =
+    config.rowStyle === 'lines' && canAccessFeature('list-line-style');
   const { schedules = [], items: legacyItems = [] } = config;
 
   // Single shared ticker for all CountdownDisplay instances in this widget.
@@ -555,7 +560,13 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
             ref={scrollContainerRef}
             className="flex-1 overflow-y-auto no-scrollbar flex flex-col min-h-0 snap-y snap-mandatory"
             style={{
-              gap: GAP_STYLE,
+              gap: lines ? 0 : GAP_STYLE,
+              ...(lines
+                ? {
+                    backgroundColor: hexToRgba(cardColor, cardOpacity),
+                    borderRadius: scheduleSize(3, 12),
+                  }
+                : {}),
               scrollbarWidth: 'none',
               msOverflowStyle: 'none',
             }}
@@ -585,6 +596,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                   isExpanded={i === focusIndex}
                   textScale={textScale}
                   fontColor={fontColor}
+                  lines={lines}
                 />
               );
             })}

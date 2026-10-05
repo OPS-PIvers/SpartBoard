@@ -97,6 +97,7 @@ export interface ScheduleRowProps {
   isExpanded?: boolean;
   textScale?: number;
   fontColor?: string;
+  lines?: boolean;
 }
 
 const areScheduleRowPropsEqual = (
@@ -114,6 +115,7 @@ const areScheduleRowPropsEqual = (
   if (prev.format24 !== next.format24) return false;
   if (prev.textScale !== next.textScale) return false;
   if (prev.fontColor !== next.fontColor) return false;
+  if (prev.lines !== next.lines) return false;
   if (prev.effectiveStartSec !== next.effectiveStartSec) return false;
   if (prev.effectiveEndSec !== next.effectiveEndSec) return false;
   if (prev.isIdle !== next.isIdle) return false;
@@ -186,6 +188,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
   isExpanded = false,
   textScale = 1,
   fontColor = '#334155',
+  lines = false,
 }) {
   const { t } = useTranslation();
 
@@ -226,16 +229,26 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
 
   // Rows size to their content so all events are visible when the widget is
   // tall enough. Auto-scroll keeps the active item in view.
-  const rowStyle = {
-    flex: '0 0 auto',
-    minHeight: scheduleSize(18, 72),
-    backgroundColor: bgColor,
-    // Active rows get a thicker accent border; width set inline so it can use
-    // the same clamp()-based sizing (Tailwind arbitrary values can't hold the
-    // commas/spaces a clamp() expression needs). border-style:solid comes from
-    // Tailwind's preflight, so only the width + color need setting here.
-    borderWidth: isActive ? scheduleSize(1.5, 6) : '1px',
-  };
+  const rowStyle = lines
+    ? {
+        flex: '0 0 auto',
+        minHeight: scheduleSize(18, 72),
+        backgroundColor: isActive ? 'rgba(45, 63, 137, 0.07)' : 'transparent',
+        borderTop:
+          index === 0
+            ? undefined
+            : `1px solid color-mix(in srgb, ${fontColor} 14%, transparent)`,
+      }
+    : {
+        flex: '0 0 auto',
+        minHeight: scheduleSize(18, 72),
+        backgroundColor: bgColor,
+        // Active rows get a thicker accent border; width set inline so it can use
+        // the same clamp()-based sizing (Tailwind arbitrary values can't hold the
+        // commas/spaces a clamp() expression needs). border-style:solid comes from
+        // Tailwind's preflight, so only the width + color need setting here.
+        borderWidth: isActive ? scheduleSize(1.5, 6) : '1px',
+      };
 
   // Timer-start icon: strictly mode-aware so the button only appears when
   // handleStartTimer can actually launch something. Clock-mode needs a valid
@@ -256,14 +269,18 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
 
   return (
     <div
-      className={`w-full flex items-center rounded-2xl transition-all relative snap-start overflow-hidden ${
-        isActive
-          ? 'border-brand-blue-primary shadow-md z-10'
-          : 'border-slate-200 shadow-sm'
+      className={`w-full flex items-center transition-all relative snap-start overflow-hidden ${
+        lines
+          ? ''
+          : `rounded-2xl ${
+              isActive
+                ? 'border-brand-blue-primary shadow-md z-10'
+                : 'border-slate-200 shadow-sm'
+            }`
       }`}
       style={rowStyle}
     >
-      {isActive && (
+      {isActive && !lines && (
         <div
           className="absolute top-0 right-0 bg-brand-blue-primary text-white font-black uppercase tracking-widest z-20"
           style={{
@@ -350,6 +367,17 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
           </span>
         </div>
       </button>
+      {isActive && lines && (
+        <span
+          className="shrink-0 font-black uppercase tracking-widest text-brand-blue-primary"
+          style={{
+            fontSize: scheduleSize(4 * textScale, 15 * textScale),
+            marginRight: scheduleSize(2, 8),
+          }}
+        >
+          Now
+        </span>
+      )}
       {canLaunchStandaloneTimer && (
         <button
           onClick={() => onStartTimer?.(item)}

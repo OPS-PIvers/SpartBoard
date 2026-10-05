@@ -13,7 +13,7 @@ import {
   TOUR_RECORD_EVENT,
   TOUR_START_EVENT,
 } from '@/components/tours/tourState';
-import type { GuidedLearningSet } from '@/types';
+import type { GuidedLearningSet, GuidedLearningSetMetadata } from '@/types';
 import { toBuildingIndexEntry } from '@/tests/helpers/glBuildingIndexEntry';
 
 vi.mock('@/hooks/useFolders', () => ({
@@ -57,13 +57,34 @@ const buildingSet = (id: string, title: string, live: boolean) =>
           : {}),
       },
     ],
-    mode: 'guided',
+    mode: live ? 'tour' : 'guided',
     isBuilding: true,
     createdAt: 1,
     updatedAt: 2,
   }) as GuidedLearningSet;
 
-const renderManager = (liveTours: boolean, isAdmin = true) =>
+interface Extras {
+  sets?: GuidedLearningSetMetadata[];
+  extraBuilding?: GuidedLearningSet[];
+  onCopyTourToBuilding?: (setId: string, driveFileId: string) => void;
+}
+
+const personalTour: GuidedLearningSetMetadata = {
+  id: 'p-tour',
+  title: 'My recorded tour',
+  stepCount: 3,
+  mode: 'tour',
+  imageUrl: '',
+  driveFileId: 'drive-1',
+  createdAt: 1,
+  updatedAt: 2,
+};
+
+const renderManager = (
+  liveTours: boolean,
+  isAdmin = true,
+  extras: Extras = {}
+) =>
   render(
     <AuthContext.Provider
       value={
@@ -75,11 +96,13 @@ const renderManager = (liveTours: boolean, isAdmin = true) =>
     >
       <GuidedLearningManager
         userId="teacher-1"
-        sets={[]}
+        sets={extras.sets ?? []}
         buildingSets={[
           buildingSet('live-1', 'Boards walkthrough', true),
           buildingSet('plain-1', 'Plain set', false),
+          ...(extras.extraBuilding ?? []),
         ].map(toBuildingIndexEntry)}
+        onCopyTourToBuilding={extras.onCopyTourToBuilding}
         assignments={[]}
         loading={false}
         buildingLoading={false}
@@ -220,10 +243,59 @@ describe('GuidedLearningManager live tours', () => {
     expect(screen.getByText('Plain set')).toBeInTheDocument();
   });
 
-  it('shows no tour badge or type filter without the flag', async () => {
+  it('shows only the mode label and no type filter without the flag', async () => {
     renderManager(false);
     await screen.findByText('Boards walkthrough');
-    expect(screen.queryByText('Live tour')).toBeNull();
+    expect(screen.getAllByText('Live tour')).toHaveLength(1);
     expect(screen.queryByLabelText('Type')).toBeNull();
+  });
+
+  it('shows authors whether a building tour is published or a draft', async () => {
+    runnable.set('live-1', false);
+    renderManager(true, true);
+    expect(await screen.findByText('Draft')).toBeInTheDocument();
+    cleanup();
+    runnable.set('live-1', true);
+    renderManager(true, true);
+    expect(await screen.findByText('Published')).toBeInTheDocument();
+    cleanup();
+    renderManager(true, false);
+    await screen.findByText('Boards walkthrough');
+    expect(screen.queryByText('Published')).toBeNull();
+  });
+
+  it('files a personal tour under Live tours and offers to copy it to the building', async () => {
+    const copy = vi.fn();
+    renderManager(true, true, {
+      sets: [personalTour],
+      onCopyTourToBuilding: copy,
+    });
+    expect(await screen.findByText("Can't run live")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Type'), {
+      target: { value: 'tour' },
+    });
+    expect(screen.getByText('My recorded tour')).toBeInTheDocument();
+    await cardMenu('My recorded tour');
+    fireEvent.click(
+      await screen.findByRole('menuitem', {
+        name: 'Copy to building to run live',
+      })
+    );
+    expect(copy).toHaveBeenCalledWith('p-tour', 'drive-1');
+  });
+
+  it('lists Help Center tours and explains where tours live in the Live tours view', async () => {
+    const helpTour = {
+      ...buildingSet('help-1', 'Help Center tour', true),
+      helpCenter: true,
+    };
+    renderManager(true, true, { extraBuilding: [helpTour] });
+    await screen.findByText('Boards walkthrough');
+    expect(screen.queryByText('Help Center tour')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Type'), {
+      target: { value: 'tour' },
+    });
+    expect(screen.getByText('Help Center tour')).toBeInTheDocument();
+    expect(screen.getByText('Where live tours live')).toBeInTheDocument();
   });
 });

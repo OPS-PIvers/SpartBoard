@@ -38,6 +38,14 @@ vi.mock('@/hooks/useRosterGroupsGate', () => ({
   useRosterGroupsGate: () => gate.enabled,
 }));
 
+const lineStyle = vi.hoisted(() => ({ enabled: false }));
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({
+    canAccessFeature: (id: string) =>
+      id === 'list-line-style' && lineStyle.enabled,
+  }),
+}));
+
 const mockUpdateWidget = vi.fn();
 const mockAddToast = vi.fn();
 const mockUpdateConfig = vi.fn();
@@ -517,5 +525,47 @@ describe('ChecklistWidget — class group pool', () => {
       <ChecklistWidget widget={rosterWidget({ rosterPoolGroupId: 'gone' })} />
     );
     expect(screen.getByText('Cy Da')).toBeInTheDocument();
+  });
+});
+
+describe('ChecklistWidget lines style', () => {
+  beforeEach(() => {
+    (useDashboard as Mock).mockReturnValue({
+      updateWidget: mockUpdateWidget,
+      addToast: mockAddToast,
+      rosters: [],
+      activeRosterId: null,
+    } as unknown as DashboardContextValue);
+  });
+
+  const lineWidget = (rowStyle: 'cards' | 'lines'): WidgetData => ({
+    ...mockWidget,
+    flipped: false,
+    config: {
+      ...(mockWidget.config as ChecklistConfig),
+      mode: 'manual',
+      items: [
+        { id: '1', text: 'First', completed: false },
+        { id: '2', text: 'Second', completed: false },
+      ],
+      rowStyle,
+    } as ChecklistConfig,
+  });
+
+  it('draws hairline rows instead of cards when Lines is chosen', () => {
+    lineStyle.enabled = true;
+    render(<ChecklistWidget widget={lineWidget('lines')} />);
+    const [first, second] = screen.getAllByRole('checkbox');
+    expect(first.className).not.toContain('rounded-2xl');
+    expect(first.style.borderTop).toBe('');
+    expect(second.style.borderTop).toContain('1px solid');
+    lineStyle.enabled = false;
+  });
+
+  it('keeps cards while the preview is off', () => {
+    render(<ChecklistWidget widget={lineWidget('lines')} />);
+    expect(screen.getAllByRole('checkbox')[0].className).toContain(
+      'rounded-2xl'
+    );
   });
 });

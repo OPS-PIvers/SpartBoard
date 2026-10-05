@@ -46,10 +46,12 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
   docId = null,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { addToast } = useDashboard();
   const canEdit = useCanEditPlcContent();
-  const [tab, setTab] = useState<NotesDocsTab>(docId ? 'docs' : 'notes');
+  const unified = canAccessFeature('plc-notes-unified');
+  const [legacyTab, setTab] = useState<NotesDocsTab>(docId ? 'docs' : 'notes');
+  const tab: NotesDocsTab = unified ? 'notes' : legacyTab;
   const [rollupOpen, setRollupOpen] = useState(false);
   const [selectNoteId, setSelectNoteId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
@@ -141,39 +143,45 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
   return (
     <div className="flex flex-col h-full gap-4 overflow-hidden">
       {/* Tab switcher + open action items rollup */}
-      <div className="flex items-center justify-between gap-2 shrink-0 flex-wrap">
-        <div
-          className="flex items-center gap-1"
-          role="tablist"
-          aria-label={t('plcDashboard.notesDocs.tablistLabel', {
-            defaultValue: 'Notes and docs',
-          })}
-        >
-          {tabs.map(({ id, label, icon: Icon }) => {
-            const active = tab === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                id={`plc-notesdocs-tab-${id}`}
-                aria-controls={`plc-notesdocs-panel-${id}`}
-                onClick={() => setTab(id)}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/60 ${
-                  active
-                    ? 'bg-brand-blue-primary text-white shadow-sm'
-                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {label}
-              </button>
-            );
-          })}
-        </div>
+      <div
+        className={`flex items-center justify-between gap-2 shrink-0 flex-wrap ${
+          unified && openCount === 0 ? 'hidden' : ''
+        }`}
+      >
+        {!unified && (
+          <div
+            className="flex items-center gap-1"
+            role="tablist"
+            aria-label={t('plcDashboard.notesDocs.tablistLabel', {
+              defaultValue: 'Notes and docs',
+            })}
+          >
+            {tabs.map(({ id, label, icon: Icon }) => {
+              const active = tab === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  id={`plc-notesdocs-tab-${id}`}
+                  aria-controls={`plc-notesdocs-panel-${id}`}
+                  onClick={() => setTab(id)}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/60 ${
+                    active
+                      ? 'bg-brand-blue-primary text-white shadow-sm'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
         {openCount > 0 && (
-          <div className="relative">
+          <div className="relative ml-auto">
             <button
               type="button"
               onClick={() => setRollupOpen((v) => !v)}
@@ -253,7 +261,11 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
             aria-labelledby="plc-notesdocs-tab-notes"
             className="h-full"
           >
-            <NotesBody plc={plc} selectNoteId={selectNoteId} />
+            <NotesBody
+              plc={plc}
+              selectNoteId={selectNoteId}
+              selectDocId={unified ? docId : null}
+            />
           </div>
         ) : (
           <div

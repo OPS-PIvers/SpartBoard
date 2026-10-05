@@ -197,6 +197,7 @@ type Binding = {
   fallback?: { role: string; name: string };
 };
 
+// Every fixture is a tour-mode set; 'guided' turns autopilot on, as the migration did.
 const makeSet = (
   steps: Binding[],
   setupWidgets: WidgetType[] = [],
@@ -205,7 +206,7 @@ const makeSet = (
   ({
     id: 'set-1',
     title: 'Tour',
-    mode,
+    mode: 'tour',
     imageUrls: [],
     steps: [
       ...steps.map((tour, i) => ({
@@ -214,7 +215,11 @@ const makeSet = (
         tour,
       })),
     ],
-    tourSetup: { widgets: setupWidgets, useTeacherBoard: true },
+    tourSetup: {
+      widgets: setupWidgets,
+      useTeacherBoard: true,
+      ...(mode === 'guided' ? { autopilot: true } : {}),
+    },
   }) as unknown as GuidedLearningSet;
 
 // A stand-in board that renders the anchors a tour needs.
@@ -1278,9 +1283,13 @@ describe('LiveTourRunner plain steps and welcome', () => {
     ({
       id: 'set-1',
       title: 'Boards tour',
-      mode,
+      mode: 'tour',
       imageUrls: [],
-      tourSetup: { widgets: [], useTeacherBoard: true },
+      tourSetup: {
+        widgets: [],
+        useTeacherBoard: true,
+        ...(mode === 'guided' ? { autopilot: true } : {}),
+      },
       steps: [
         {
           id: 'intro',
@@ -1477,10 +1486,8 @@ describe('LiveTourRunner plain steps and welcome', () => {
     expect(progress()).toBe('1 / 5');
   });
 
-  it('toasts when no step is anchored', async () => {
-    await start(
-      mixedSet('structured', { steps: [{ id: 'p', label: 'Only plain' }] })
-    );
+  it('toasts when the set is not a live tour', async () => {
+    await start(mixedSet('structured', { mode: 'structured' }));
     expect(h.actions.addToast).toHaveBeenCalledWith(
       "This tour isn't available right now.",
       'error'

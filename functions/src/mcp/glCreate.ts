@@ -143,7 +143,7 @@ export function buildNewSet(
   if (source === 'building') {
     set.isBuilding = true;
     set.authorUid = ids.uid;
-    set.hasLiveTour = set.mode === 'tour' || steps.some((s) => !!s.tour);
+    set.hasLiveTour = set.mode === 'tour';
   }
   if (input.help_center) set.helpCenter = true;
   if (input.kind === 'live_tour')

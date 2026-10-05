@@ -46,6 +46,21 @@ function isChecklistItem(el: HTMLElement): boolean {
   );
 }
 
+// A teammate's edit above the caret moves it by the same amount, so it stays on the same word.
+const shiftOffsetsPastEdit = (
+  saved: { start: number; end: number },
+  before: string,
+  after: string
+): { start: number; end: number } => {
+  let prefix = 0;
+  const max = Math.min(before.length, after.length);
+  while (prefix < max && before[prefix] === after[prefix]) prefix += 1;
+  const delta = after.length - before.length;
+  const shift = (offset: number) =>
+    offset > prefix ? Math.max(prefix, offset + delta) : offset;
+  return { start: shift(saved.start), end: shift(saved.end) };
+};
+
 export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
   value,
   onChange,
@@ -66,9 +81,15 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
     const range =
       document.activeElement === editor ? selectionRange(editor) : null;
     const saved = range ? saveSelectionOffsets(editor, range) : null;
+    const before = editor.textContent ?? '';
     editor.innerHTML = markdownToEditorHtml(value);
     renderedRef.current = value;
-    if (saved) restoreSelectionOffsets(editor, saved);
+    if (saved) {
+      restoreSelectionOffsets(
+        editor,
+        shiftOffsetsPastEdit(saved, before, editor.textContent ?? '')
+      );
+    }
   }, [value]);
 
   useEffect(() => {
@@ -249,14 +270,14 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
   const isEmpty = value.trim() === '';
 
   return (
-    <div className="flex-1 min-h-[8rem] flex flex-col">
+    <div className="min-h-[12rem] flex flex-col">
       {showToolbar && (
         <div
           role="toolbar"
           aria-label={t('plcDashboard.notes.rich.toolbar', {
             defaultValue: 'Formatting',
           })}
-          className="shrink-0 flex items-center gap-0.5 px-3 py-1.5 border-b border-slate-100"
+          className="sticky top-0 z-10 shrink-0 flex items-center gap-0.5 px-3 py-1.5 bg-white border-b border-slate-100"
         >
           {tools.map((tool) => {
             const Icon = tool.icon;
@@ -284,7 +305,7 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
           )}
         </div>
       )}
-      <div className="relative flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+      <div className="relative flex-1">
         <div
           ref={editorRef}
           role="textbox"

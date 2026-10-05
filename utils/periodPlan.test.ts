@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BELL_CLOSE_CUSHION_MS,
   buildPeriodAccess,
   buildPeriodGate,
   periodKeyForRoster,
@@ -78,7 +79,11 @@ describe('buildPeriodAccess', () => {
       sharedWindow: { openAt: 5 },
       bellWindow: (r) => (r.id === 'r1' ? bell : null),
     });
-    expect(pa['cl-1']).toMatchObject({ state: 'open', ...bell });
+    expect(pa['cl-1']).toMatchObject({
+      state: 'open',
+      openAt: bell.openAt,
+      closeAt: bell.closeAt + BELL_CLOSE_CUSHION_MS,
+    });
     expect(pa['t-3']).toMatchObject({ state: 'open', openAt: 7, closeAt: 8 });
     expect(pa['roster:r3']).toMatchObject({
       state: 'open',

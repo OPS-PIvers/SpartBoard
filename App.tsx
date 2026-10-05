@@ -285,6 +285,15 @@ const LibraryManagersDevHarness =
         }))
       )
     : null;
+// Also built into auth-bypass (E2E) builds for the widget grader.
+const WidgetGraderHarness =
+  import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
+    ? lazy(() =>
+        import('./components/dev/widgetGrader/WidgetGraderHarness').then(
+          (module) => ({ default: module.WidgetGraderHarness })
+        )
+      )
+    : null;
 // Also built into auth-bypass (E2E) builds for the student page end-padding guard.
 const StudentLandingDevHarness =
   import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
@@ -869,6 +878,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <LibraryManagersDevHarness />
+      </Suspense>
+    );
+  }
+
+  // One widget on fixtures for the widget grader; auth-bypass only, so never on a deployed site.
+  if (
+    WidgetGraderHarness &&
+    isAuthBypass &&
+    pathname === '/widget-grader-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WidgetGraderHarness />
       </Suspense>
     );
   }

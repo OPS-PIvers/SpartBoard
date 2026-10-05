@@ -24,6 +24,7 @@ import {
   readBuildingScheduleDefaults,
   resolveBellWindow,
 } from '@/utils/bellSchedule';
+import { BELL_CLOSE_CUSHION_MS } from '@/utils/periodPlan';
 
 /** Stale in-progress responses get a fresh `lastWriteAt` on start, inside the idle finalizer's 90-minute window. */
 const IDLE_REFRESH_CUTOFF_MS = 80 * 60 * 1000;
@@ -56,11 +57,14 @@ function todaysBell(
 ): { openAt: number; closeAt: number } | null {
   const roster = rosters.find((r) => r.id === access.rosterId);
   if (!roster?.bellPeriod) return null;
-  return resolveBellWindow(
+  const window = resolveBellWindow(
     readBuildingScheduleDefaults(permissions, roster.bellPeriod.buildingId),
     roster.bellPeriod,
     new Date(nowMs)
   );
+  return window
+    ? { ...window, closeAt: window.closeAt + BELL_CLOSE_CUSHION_MS }
+    : null;
 }
 
 /** Today's end bell for the period's roster, when it is still ahead. */

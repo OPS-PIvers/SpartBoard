@@ -67,6 +67,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { normalizeGuidedLearningSet } from './utils/setMigration';
+import { isLiveTourSet } from './utils/liveTour';
 import { useStorage, type GuidedLearningMediaHome } from '@/hooks/useStorage';
 import { ImportWizard } from '@/components/common/library/importer/ImportWizard';
 import { createGuidedLearningImportAdapter } from './adapters/guidedLearningImportAdapter';
@@ -281,6 +282,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // See `hooks/useBusyIdSet.ts`.
   const personalDuplicateBusy = useBusyIdSet();
   const buildingDuplicateBusy = useBusyIdSet();
+  const tourCopyBusy = useBusyIdSet();
   const [recentSessionIds, setRecentSessionIds] = useState<
     Record<string, string>
   >({});
@@ -1244,7 +1246,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           await saveBuildingSet({
             ...prepared,
             isBuilding: true,
-            hasLiveTour: hasTourBindings(prepared),
+            hasLiveTour: isLiveTourSet(prepared),
           });
         } else {
           await saveSet(prepared);
@@ -1414,6 +1416,33 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                     });
                   }}
                   isDuplicatingBuilding={buildingDuplicateBusy.isBusy}
+                  onCopyTourToBuilding={(setId, driveFileId) => {
+                    // Drive sets can't run live, so the building library keeps its own copy.
+                    void tourCopyBusy.run(setId, async () => {
+                      try {
+                        const loaded = await loadSetData(driveFileId);
+                        const now = Date.now();
+                        await saveBuildingSet({
+                          ...loaded,
+                          id: crypto.randomUUID(),
+                          isBuilding: true,
+                          authorUid: user?.uid,
+                          createdAt: now,
+                          updatedAt: now,
+                        });
+                        addToast(
+                          `Copied "${loaded.title}" to the building library. Edit it and press Publish tour so teachers can run it.`,
+                          'success'
+                        );
+                      } catch (err) {
+                        addToast(
+                          err instanceof Error ? err.message : 'Copy failed',
+                          'error'
+                        );
+                      }
+                    });
+                  }}
+                  isCopyingTourToBuilding={tourCopyBusy.isBusy}
                   onDeleteBuilding={(setId) => {
                     void handleDeleteBuilding(setId);
                   }}

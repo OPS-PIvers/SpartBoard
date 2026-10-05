@@ -1,0 +1,118 @@
+name: Widget Grader Nightly
+
+# Full widget grader sweep on dev-paul (docs/plans/WIDGET_RUBRIC.md R23). Opens or updates
+# one issue when a gate fails that docs/widget-rubric/gate-baseline.json doesn't list.
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch to sweep
+        required: false
+        default: dev-paul
+
+concurrency:
+  group: widget-grader-nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  VITE_FIREBASE_API_KEY: test-key
+  VITE_FIREBASE_AUTH_DOMAIN: test.firebaseapp.com
+  VITE_FIREBASE_PROJECT_ID: test-project
+  VITE_FIREBASE_STORAGE_BUCKET: test.appspot.com
+  VITE_FIREBASE_MESSAGING_SENDER_ID: '123456789'
+  VITE_FIREBASE_APP_ID: '1:123456789:web:abc123'
+  VITE_AUTH_BYPASS: 'true'
+
+jobs:
+  sweep:
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.0-jammy
+      options: --shm-size=1g
+    name: Full widget sweep
+    timeout-minutes: 300
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || 'dev-paul' }}
+
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup
+        with:
+          cache: ''
+
+      - name: Sweep every widget
+        id: sweep
+        continue-on-error: true
+        run: node scripts/widget-grader/run.ts --check-baseline --run-id nightly
+        env:
+          GRADER_WORKERS: '4'
+
+      - name: Upload grader output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: widget-grader-nightly
+          path: scripts/widget-grader/out/nightly/
+          retention-days: 14
+
+      - name: Open or update the gate issue
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'scripts/widget-grader/out/nightly/gate-report.json';
+            if (!fs.existsSync(path)) {
+              core.setFailed('The sweep wrote no gate report.');
+              return;
+            }
+            const report = JSON.parse(fs.readFileSync(path, 'utf8'));
+            if (report.added.length === 0) {
+              core.info('No new gate failures.');
+              return;
+            }
+            const title = 'Widget grader: new gate failures';
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              `The nightly sweep of \`${process.env.REF}\` found gate failures that \`docs/widget-rubric/gate-baseline.json\` doesn't list. [Run and screenshots](${run}).`,
+              '',
+              ...report.added.map((f) => `- ${f.type} ${f.gate}: ${f.detail}`),
+            ].join('\n');
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              creator: 'github-actions[bot]',
+              per_page: 100,
+            });
+            const existing = open.find((i) => i.title === title && !i.pull_request);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+              });
+            }
+            core.setFailed(`${report.added.length} new gate failure(s).`);
+        env:
+          REF: ${{ inputs.ref || 'dev-paul' }}
+
+      - name: Fail when the sweep crashed
+        if: steps.sweep.outcome == 'failure'
+        run: exit 1

@@ -76,6 +76,7 @@ import { PenColorSwatches } from '@/components/common/PenColorSwatches';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { Z_INDEX } from '@/config/zIndex';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { getWidgetMinSize, hasExplicitMinSize } from '@/config/widgetEnvelopes';
 
 // Widgets that cannot be snapshotted due to CORS/Technical limitations
 const SCREENSHOT_BLACKLIST: WidgetType[] = ['webcam', 'embed'];
@@ -87,26 +88,6 @@ const GRID_ROWS = 10;
 // Stable empty set returned by `occupiedCells` while the snap menu is closed
 // so the memo stays allocation-free and reference-stable on every render.
 const EMPTY_OCCUPIED_CELLS: ReadonlySet<string> = new Set();
-
-// Default min size all widgets shrink to during resize.
-const DEFAULT_MIN_W = 150;
-const DEFAULT_MIN_H = 100;
-
-// Per-widget overrides — used for widget types that intentionally need a
-// floor different from the default: either smaller (e.g. URL bookmarks meant
-// to feel like a floating icon on the board) or larger (e.g. BloomsTaxonomy's
-// pyramid, whose 6 stacked tiers each carry their own clamp() px floor and
-// would clip below the height needed to fit all six without shrinking past it).
-const WIDGET_MIN_SIZE_OVERRIDES: Partial<
-  Record<WidgetType, { w: number; h: number }>
-> = {
-  url: { w: 80, h: 80 },
-  // min(w,h) here must stay above ~240 so 13cqmin/5cqmin (the pyramid tier
-  // height / label formulas) clear their 24px/12px clamp() floors at the
-  // enforced minimum — otherwise the floors bind while the box is still too
-  // short to contain all 6 stacked tiers, and the bottom tier(s) clip.
-  'blooms-taxonomy': { w: 280, h: 300 },
-};
 
 const INTERACTIVE_ELEMENTS_SELECTOR =
   'button, input, textarea, select, canvas, iframe, label, a, summary, [role="button"], [role="tab"], [role="menuitem"], [role="checkbox"], [role="switch"], .cursor-pointer, [contenteditable="true"]';
@@ -204,19 +185,15 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   useSettingsDrawer = false,
 }) => {
   const { t } = useTranslation();
-  // Interactive-resize floor: every widget type gets at least the generic
-  // 150x100 default unless it has its own WIDGET_MIN_SIZE_OVERRIDES entry.
-  const effectiveMinW =
-    WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.w ?? DEFAULT_MIN_W;
-  const effectiveMinH =
-    WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.h ?? DEFAULT_MIN_H;
-  // Render-time floor: only widget types with an EXPLICIT override are
-  // lifted up to it on load (e.g. a dashboard saved before the override
-  // existed or was raised). Left undefined for every other type so a
-  // deliberately narrow/short default or stored size (e.g. the 120px-wide
-  // `traffic` widget) is never forced up to the generic 150x100 default.
-  const renderMinW = WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.w;
-  const renderMinH = WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.h;
+  // Interactive-resize floor comes from the widget's size envelope.
+  const { w: effectiveMinW, h: effectiveMinH } = getWidgetMinSize(widget.type);
+  // Render-time floor applies only to types with an explicit floor, so narrow defaults like `traffic` are never lifted.
+  const renderMinW = hasExplicitMinSize(widget.type)
+    ? effectiveMinW
+    : undefined;
+  const renderMinH = hasExplicitMinSize(widget.type)
+    ? effectiveMinH
+    : undefined;
   // Mount-stable actions surface — identities never change, so dep arrays
   // listing them are trivially satisfied and never re-fire.
   const {
@@ -1518,7 +1495,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     setIsResizing(true);
     // Initialize transient state. Seed w/h from the render-clamped size
     // (resolvedW/resolvedH), not raw widget.w/widget.h — for a widget stored
-    // below its WIDGET_MIN_SIZE_OVERRIDES floor, the box is already visually
+    // below its explicit min-size floor, the box is already visually
     // rendered at the clamped size, and seeding from the raw stored size
     // would desync the resize math from what's on screen (dead handles).
     dragState.current = {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Plc, PlcActionItem, PlcNote } from '@/types';
+import type { Plc, PlcActionItem, PlcDoc, PlcNote } from '@/types';
 import { NotesBody } from '@/components/plc/bodies/NotesBody';
 
 vi.mock('react-i18next', () => ({
@@ -20,13 +20,15 @@ vi.mock('@/context/useDashboard', () => ({
 
 let richEditorAccess = false;
 let recordingAccess = false;
+let unifiedAccess = false;
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'me' },
     canAccessFeature: (id: string) =>
       (id === 'plc-notes-rich-editor' && richEditorAccess) ||
-      (id === 'plc-meeting-recording' && recordingAccess),
+      (id === 'plc-meeting-recording' && recordingAccess) ||
+      (id === 'plc-notes-unified' && unifiedAccess),
   }),
 }));
 
@@ -51,6 +53,29 @@ vi.mock('@/hooks/useMeetingRecorder', () => ({
     selectMic: vi.fn(),
     refreshMics: vi.fn(),
     dismissMicFallback: vi.fn(),
+  }),
+}));
+
+let docs: PlcDoc[] = [];
+vi.mock('@/hooks/usePlcDocs', () => ({
+  usePlcDocs: () => ({
+    docs,
+    loading: false,
+    error: null,
+    createDoc: vi.fn(() => Promise.resolve('d-new')),
+    updateDoc: vi.fn(),
+    deleteDoc: vi.fn(),
+    restoreDoc: vi.fn(),
+  }),
+}));
+
+const getOrCreateDocUrlMock = vi.fn(() =>
+  Promise.resolve('https://docs.google.com/document/d/made/edit')
+);
+vi.mock('@/hooks/usePlcNoteGoogleDoc', () => ({
+  usePlcNoteGoogleDoc: () => ({
+    creatingNoteId: null,
+    getOrCreateDocUrl: getOrCreateDocUrlMock,
   }),
 }));
 
@@ -160,10 +185,15 @@ function noteAt(
   };
 }
 
-const bodyBox = () =>
-  screen.getByPlaceholderText<HTMLTextAreaElement>(
-    'Write your notes… (markdown supported)'
-  );
+const BODY_PLACEHOLDER = 'Write your notes… (markdown supported)';
+
+// Notes open rendered, so switch to the markdown box first when needed.
+const bodyBox = () => {
+  if (!screen.queryByPlaceholderText(BODY_PLACEHOLDER)) {
+    fireEvent.click(screen.getByLabelText('Edit note'));
+  }
+  return screen.getByPlaceholderText<HTMLTextAreaElement>(BODY_PLACEHOLDER);
+};
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -174,6 +204,9 @@ beforeEach(() => {
   collabEnabled = false;
   richEditorAccess = false;
   recordingAccess = false;
+  unifiedAccess = false;
+  docs = [];
+  getOrCreateDocUrlMock.mockClear();
   recorderStart.mockClear();
   crdtStatus = 'ready';
   crdtContent = { title: '', body: '', actionItems: [] };
@@ -185,6 +218,18 @@ afterEach(() => {
 });
 
 describe('NotesBody concurrent editing (legacy save path)', () => {
+  it('opens an empty note ready to type', () => {
+    notes = [noteAt('', 1000, 1)];
+    render(<NotesBody plc={plc} />);
+    expect(screen.getByPlaceholderText(BODY_PLACEHOLDER)).toBeTruthy();
+  });
+
+  it('opens a note rendered, not as raw markdown', () => {
+    render(<NotesBody plc={plc} />);
+    expect(screen.queryByPlaceholderText(BODY_PLACEHOLDER)).toBeNull();
+    expect(screen.getByLabelText('Edit note')).toBeTruthy();
+  });
+
   it('keeps text typed while a save is in flight when a teammate edit lands', () => {
     const { rerender } = render(<NotesBody plc={plc} />);
     expect(bodyBox().value).toBe('Hello');
@@ -439,12 +484,19 @@ describe('NotesBody with the rich text editor flag', () => {
     expect(updateNoteMock).not.toHaveBeenCalled();
   });
 
-  it('falls back to the plain editor when collaboration is on', () => {
+  it('keeps the rich editor when collaboration is on and writes through it', () => {
     collabEnabled = true;
+    richEditorAccess = true;
     crdtContent = { title: 'Shared note', body: 'Hello', actionItems: [] };
     render(<NotesBody plc={plc} />);
-    expect(screen.queryByRole('toolbar', { name: 'Formatting' })).toBeNull();
-    expect(document.querySelector('[contenteditable="true"]')).toBeNull();
+    expect(screen.getByRole('toolbar', { name: 'Formatting' })).toBeTruthy();
+    const box = screen.getByRole('textbox', { name: 'Note' });
+    const p = box.querySelector('p');
+    if (!p) throw new Error('missing paragraph');
+    p.textContent = 'Hello team';
+    fireEvent.input(box);
+    expect(setBodyMock).toHaveBeenCalledWith('Hello team');
+    expect(updateNoteMock).not.toHaveBeenCalled();
   });
 });
 
@@ -482,5 +534,65 @@ describe('NotesBody meeting recording', () => {
       { kind: 'meeting' },
       { expectedVersion: 1 }
     );
+  });
+});
+
+describe('NotesBody with notes and docs in one list', () => {
+  const pacingDoc: PlcDoc = {
+    id: 'd1',
+    title: 'Pacing guide',
+    url: 'https://docs.google.com/document/d/pacing/edit',
+    createdBy: 'them',
+    createdByName: 'Them',
+    createdAt: 0,
+    updatedAt: 500,
+  };
+
+  it('keeps the Meeting button and hides docs while the flag is off', () => {
+    docs = [pacingDoc];
+    render(<NotesBody plc={plc} />);
+    expect(screen.getByText('Meeting')).toBeTruthy();
+    expect(screen.queryByText('Pacing guide')).toBeNull();
+    expect(screen.queryByText('Open in Docs')).toBeNull();
+  });
+
+  it('lists linked Google Docs with the notes and opens one in the pane', () => {
+    unifiedAccess = true;
+    docs = [pacingDoc];
+    render(<NotesBody plc={plc} />);
+    fireEvent.click(screen.getByText('Pacing guide'));
+    expect(screen.getByTitle('Pacing guide').tagName).toBe('IFRAME');
+  });
+
+  it('offers a meeting note, a blank note and a Google Doc from New', () => {
+    unifiedAccess = true;
+    render(<NotesBody plc={plc} />);
+    expect(screen.queryByText('Meeting')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /New/ }));
+    expect(screen.getAllByRole('menuitem').map((el) => el.textContent)).toEqual(
+      ['Meeting note', 'Blank note', 'Link a Google Doc']
+    );
+  });
+
+  it('Open in Docs opens the doc made for the note', async () => {
+    unifiedAccess = true;
+    const tab = { opener: {}, location: { href: '' }, close: vi.fn() };
+    const openSpy = vi
+      .spyOn(window, 'open')
+      .mockReturnValue(tab as unknown as Window);
+    render(<NotesBody plc={plc} />);
+    fireEvent.click(screen.getByText('Open in Docs'));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(getOrCreateDocUrlMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'n1' }),
+      expect.objectContaining({ title: 'Shared note', body: 'Hello' })
+    );
+    expect(tab.location.href).toBe(
+      'https://docs.google.com/document/d/made/edit'
+    );
+    expect(tab.opener).toBeNull();
+    openSpy.mockRestore();
   });
 });

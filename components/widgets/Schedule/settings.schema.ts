@@ -93,6 +93,22 @@ export default defineSettings<ScheduleConfig>({
         },
       ],
     },
+    {
+      id: 'display',
+      fields: [
+        {
+          key: 'rowStyle',
+          type: 'segmented',
+          label: 'rowStyle',
+          visibleWhen: (ctx) => ctx.canAccessFeature('list-line-style'),
+          readValue: (ctx) => ctx.config.rowStyle ?? 'cards',
+          options: [
+            { value: 'cards', label: 'rowCards' },
+            { value: 'lines', label: 'rowLines' },
+          ],
+        },
+      ],
+    },
   ],
   styleKeys: ['textSizePreset', 'fontFamily', 'fontColor', 'cardColor'],
 });

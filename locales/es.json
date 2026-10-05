@@ -635,7 +635,7 @@
         "newMeetingNote": "Nueva nota de reunión",
         "newMeetingNoteShort": "Reunión",
         "agenda": "Agenda",
-        "decisions": "Decisiones",
+        "discussionNotes": "Notas de la discusión",
         "actionItems": "Acciones"
       },
       "actionItems": {
@@ -2709,6 +2709,8 @@
     "tourPublish": {
       "title": "Versión para docentes",
       "hint": "Los docentes solo ejecutan el recorrido publicado. Los cambios se quedan aquí hasta que vuelvas a publicar.",
+      "whereHelpCenter": "Los docentes la encuentran en Ayuda cuando su elemento del Centro de ayuda está visible (Configuración de administrador > Centro de ayuda).",
+      "whereLibrary": "Los docentes la ejecutan desde la biblioteca de Guided Learning con «Ejecutar en mi tablero». Para ofrecerla en Ayuda, vincúlala desde un elemento del Centro de ayuda.",
       "status_draft": "Borrador",
       "status_published": "Publicado",
       "status_changed": "Cambios sin publicar",

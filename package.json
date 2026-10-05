@@ -40,6 +40,10 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "new-widget-settings": "node scripts/new-widget-settings.ts",
+    "grader:affected": "node scripts/widget-grader/affected.ts",
+    "grader:gates": "node scripts/widget-grader/run.ts --gates-only --check-baseline",
+    "grader:measure": "node scripts/widget-grader/run.ts",
+    "grader:static": "node scripts/widget-grader/static/run.ts",
     "prepare": "husky"
   },
   "pnpm": {
@@ -118,6 +122,7 @@
     "@typescript-eslint/parser": "~8.54.0",
     "@vitejs/plugin-react": "^5.2.0",
     "@vitest/coverage-v8": "^4.1.11",
+    "ajv": "^8.20.0",
     "autoprefixer": "^10.6.1",
     "axios": "^1.20.0",
     "cors": "^2.8.6",
