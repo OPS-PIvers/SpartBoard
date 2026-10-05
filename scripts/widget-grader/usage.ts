@@ -2,7 +2,7 @@
 // Writes only aggregate counts to docs/widget-rubric/usage.json; no ids, names or content leave the script.
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import type { UsageFile } from './queue.ts';
@@ -41,7 +41,7 @@ export function usageFile(
 
 const isMain =
   process.argv[1] &&
-  fileURLToPath(import.meta.url) === process.argv[1].replace(/\\/g, '/');
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isMain) {
   const here = dirname(fileURLToPath(import.meta.url));
