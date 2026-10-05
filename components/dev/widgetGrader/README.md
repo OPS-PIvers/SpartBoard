@@ -30,4 +30,4 @@ Wait for `[data-grader-ready="true"]` or `window.__widgetGrader.ready`. `window.
 3. Remove the type from `PENDING_FIXTURES` in `tests/widgetGraderFixtures.test.ts`.
 4. Add the type to `tests/e2e/widget-grader-harness.spec.ts` and check all three fixtures render with no errors at default size and at `w=1400&h=900`.
 
-Stubs a widget needs go in `stubs/<widgetType>.ts`, never in the widget. If a widget can't mount without real Firestore data, add it to `UNSUPPORTED_FIXTURES` with a one-line reason instead.
+Stubs a widget needs go in `stubs/` and are registered in `stubs/index.ts` (`install` runs at page load, `Wrapper` adds a provider), never in the widget. `media.ts` fakes a camera and microphone for Webcam and Sound. If a widget can't mount without real Firestore data, add it to `UNSUPPORTED_FIXTURES` with a one-line reason instead.
