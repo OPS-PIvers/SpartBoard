@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "lunchCount",
   "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-06T02:49:23.447Z",
+  "gradedAt": "2026-10-06T03:13:32.259Z",
   "stale": false,
   "criteria": {
     "I5": {
@@ -10,7 +10,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "S1": {
@@ -260,9 +260,10 @@
     },
     "I7": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -275,15 +276,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:51:18.677Z",
       "stale": false
     },
     "V1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -291,17 +293,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Clean type, but dashed borders box every column and the pool, the header labels are tiny, and the Assign button is gray-on-gray.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:52:18.814Z",
       "stale": false
     },
     "V2": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -310,17 +312,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "A lunch count is recognizable at a glance, but 27 controls, 93 words, 16 colors and 36 boxes put the proxies well over a lean face.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:53:57.097Z",
       "stale": false
     },
     "V3": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -328,17 +330,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The unassigned pool's large name chips are as heavy as the column contents and overlap them, while the category counts and labels that answer the lunch-count question are small.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:55:06.260Z",
       "stale": false
     },
     "V4": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -346,16 +348,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The face uses ActiveClassChip but otherwise has one-off dashed drop zones, raw buttons and custom count badges, and shared Button/Modal use is mostly confined to the report flow.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:55:45.705Z",
       "stale": false
     },
     "V5": {
       "score": 2,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 2
+        "script": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -364,15 +366,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:56:36.580Z",
       "stale": false
     },
     "V6": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -380,17 +383,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Labels are short and plain with only lucide icons, but the lone refresh, undo and box icons aren't self-explanatory, and \"Assign 21 more students\" reads oddly as a disabled button.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:57:24.775Z",
       "stale": false
     },
     "C1": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -398,17 +401,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Settings cover school site, grade level, lunch time, roster source, a custom roster and manual menu text, though the three category buckets themselves are fixed.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:58:38.614Z",
       "stale": false
     },
     "C2": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -416,17 +419,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The settings-open screenshot shows no drawer, and the schema groups content then behavior, so roster mode, the most common setting, sits below site and time fields.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:59:33.273Z",
       "stale": false
     },
     "C3": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -434,17 +437,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "With no data the face shows zero counts, \"Loading...\" stuck in two columns, an empty pool and a disabled \"Assign 0 more students\" button, which looks unfinished.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:00:16.212Z",
       "stale": false
     },
     "C5": {
-      "score": 1,
-      "source": "judge",
+      "score": 2,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -452,17 +455,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The first drop shows zeros and \"Loading...\" with no empty state telling the teacher to pick a class or roster.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:02:45.806Z",
       "stale": false
     },
     "R1": {
       "score": 1,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
@@ -471,16 +474,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The empty fixture leaves a raw \"Loading...\" string sitting indefinitely in the menu columns, with no designed loading, error or no-roster view.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:05:00.135Z",
       "stale": false
     },
     "R2": {
       "score": 0,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 0
+        "script": 0,
+        "paul": 0
       },
       "evidence": {
         "screenshots": [
@@ -489,14 +492,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:07:09.343Z",
       "stale": false
     },
     "R3": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -505,15 +509,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:07:55.910Z",
       "stale": false
     },
     "R4": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -521,16 +526,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Only student names and their lunch choice appear, which is the point of the widget, and no protected fields show on the face.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:08:57.482Z",
       "stale": false
     },
     "R5": {
       "score": 1,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
@@ -539,15 +544,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:09:46.396Z",
       "stale": false
     },
     "E1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -555,17 +561,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Roster and active-class linking (shown on the face as the class chip) and the Nutrislice menu work, but a high-value attendance link is missing, which would send absent students straight to Home/Other. Proposal: add an attendance link; remove nothing.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:10:32.391Z",
       "stale": false
     },
     "E3": {
       "score": 2,
-      "source": "script",
+      "source": "paul",
       "candidates": {
         "script": 2,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -574,7 +580,58 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:12:22.414Z",
+      "stale": false
+    },
+    "C4": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:01:38.677Z",
+      "stale": false
+    },
+    "C6": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:03:36.113Z",
+      "stale": false
+    },
+    "E2": {
+      "score": 1,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:11:31.974Z",
       "stale": false
     }
   },
@@ -584,28 +641,28 @@
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G2": {
       "pass": false,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G3": {
       "pass": false,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G4": {
       "pass": false,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     }
   }
 }

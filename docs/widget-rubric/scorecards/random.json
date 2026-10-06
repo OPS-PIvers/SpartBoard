@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "random",
   "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-06T02:49:23.447Z",
+  "gradedAt": "2026-10-06T03:13:32.259Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -10,7 +10,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "I5": {
@@ -18,7 +18,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "S1": {
@@ -246,9 +246,10 @@
     },
     "I7": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -261,15 +262,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:51:29.736Z",
       "stale": false
     },
     "V1": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -277,17 +279,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The face is a clean glass card with bold navy type, rounded white chips and a single navy FAB, and it hits no ban-list items beyond a slightly faint reset icon.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:52:24.658Z",
       "stale": false
     },
     "V2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -296,17 +298,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "From the back of the room a big student name and a shuffle button say what it does, and the proxies (4 controls, 2 font sizes, 4 words) are low.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:54:09.596Z",
       "stale": false
     },
     "V3": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -314,17 +316,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The picked name is clearly dominant, and the Pick One pill, reset, target and shuffle FAB step down in size and weight around it.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:55:12.705Z",
       "stale": false
     },
     "V4": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -332,16 +334,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "It imports Button and ScaledEmptyState, but 16 raw controls and custom pill, FAB and radius values make the face mostly one-off styling.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:55:54.223Z",
       "stale": false
     },
     "V5": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -350,15 +352,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:56:44.369Z",
       "stale": false
     },
     "V6": {
-      "score": 1,
-      "source": "script",
+      "score": 3,
+      "source": "paul",
       "candidates": {
         "script": 1,
-        "judge": 1
+        "judge": 1,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -367,15 +370,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:57:55.033Z",
       "stale": false
     },
     "C1": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -383,17 +387,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The drawer schema covers roster source or pasted names, mode (pick, shuffle, groups, jigsaw), animation style, sound, group size or count, locked groups and the timer link, which spans the plausible choices without obvious bloat.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:58:47.108Z",
       "stale": false
     },
     "C2": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -401,17 +405,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The settings screenshot barely shows the drawer, and the schema groups Content and Behavior, but advanced group options (locked groups, save as class groups, send to Stations or Projects) sit inline with common ones instead of collapsed.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:59:40.280Z",
       "stale": false
     },
     "C3": {
-      "score": 2,
-      "source": "judge",
+      "score": 1,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
@@ -419,17 +423,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "With no roster the widget shows only a washed-out 'No names provided' state, so it is not usable until names or a class are supplied, and the empty face looks unfinished.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:00:39.784Z",
       "stale": false
     },
     "C5": {
-      "score": 3,
-      "source": "judge",
+      "score": 2,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -437,17 +441,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "On first drop it uses ScaledEmptyState with the title 'No names provided' and one sentence telling the teacher to flip the widget and enter names, although the text is very low contrast.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:02:51.707Z",
       "stale": false
     },
     "R1": {
-      "score": 3,
-      "source": "judge",
+      "score": 2,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -456,16 +460,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The harness forced loading, error, offline and no-roster states, and the empty state is a designed shared view, but no retry or pick-a-class action is visible on the face.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:05:06.829Z",
       "stale": false
     },
     "R2": {
       "score": 1,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
@@ -474,14 +478,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:07:16.389Z",
       "stale": false
     },
     "R3": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -490,15 +495,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:08:02.277Z",
       "stale": false
     },
     "R4": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -506,17 +512,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Only the picked student's name appears on the face, which is the point of the widget, and no other protected fields are shown.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:09:04.314Z",
       "stale": false
     },
     "E1": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -524,17 +530,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "It connects to the class roster, the Timer (auto-start), Stations, Projects and class groups, and the face has a class target button, but it does not say which class is linked.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:10:38.622Z",
       "stale": false
     },
     "E3": {
       "score": 2,
-      "source": "script",
+      "source": "paul",
       "candidates": {
         "script": 2,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -543,7 +549,75 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:12:28.475Z",
+      "stale": false
+    },
+    "C4": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:01:47.662Z",
+      "stale": false
+    },
+    "C6": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:03:50.517Z",
+      "stale": false
+    },
+    "E2": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:11:42.300Z",
+      "stale": false
+    },
+    "R5": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/random/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:09:58.647Z",
       "stale": false
     }
   },
@@ -553,28 +627,28 @@
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G2": {
       "pass": false,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     }
   }
 }

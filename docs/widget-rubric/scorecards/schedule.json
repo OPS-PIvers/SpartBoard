@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "schedule",
   "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-06T02:49:23.447Z",
+  "gradedAt": "2026-10-06T03:13:32.259Z",
   "stale": false,
   "criteria": {
     "I5": {
@@ -10,7 +10,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "S1": {
@@ -261,9 +261,10 @@
     },
     "I7": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -276,15 +277,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:51:37.576Z",
       "stale": false
     },
     "V1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -292,17 +294,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The face is clean and uses confident type, but every row is a boxed card and the empty state is gray-on-gray text that is close to invisible.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:52:28.030Z",
       "stale": false
     },
     "V2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -311,17 +313,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "A time-ordered list of periods is readable in under three seconds, the face uses only two font sizes and two colors, and the 12 controls are just a checkbox and a timer per row.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:54:24.287Z",
       "stale": false
     },
     "V3": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -329,17 +331,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Each bold period title is the primary element, with a smaller time above it and light lavender icons stepping down further.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:55:15.197Z",
       "stale": false
     },
     "V4": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -347,16 +349,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The only shared import is ScaledEmptyState, while the row checkboxes and timer buttons are raw controls with five one-off colors.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:56:04.952Z",
       "stale": false
     },
     "V5": {
       "score": 2,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 2
+        "script": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -365,15 +367,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:56:47.616Z",
       "stale": false
     },
     "V6": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -381,17 +384,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The labels are just times and period names and the icons all come from lucide, though the unlabeled stopwatch icon isn't self-explanatory.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:58:02.187Z",
       "stale": false
     },
     "C1": {
       "score": 4,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 4
+        "judge": 4,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
@@ -399,17 +402,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Settings cover multiple schedules, day-of-week assignment, building schedule sync, Calendar import, linked-widget launch, timer or clock modes, auto-progress and styling, which anticipates teachers who run several sections.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:58:53.458Z",
       "stale": false
     },
     "C2": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -417,17 +420,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The settings screenshot does not show the drawer contents, and the schema groups settings as content, behavior and display with niche toggles (building sync, auto scroll) mixed in with common ones and no collapsed advanced section.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:59:44.348Z",
       "stale": false
     },
     "C3": {
       "score": 1,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
@@ -435,17 +438,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The default config produces an empty face with no schedule items, so the widget does nothing until a teacher configures it.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:00:54.053Z",
       "stale": false
     },
     "C5": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -453,17 +456,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "A ScaledEmptyState with 'No Schedule' and 'Flip to add schedule items.' exists, but it renders white-on-light-gray and is nearly unreadable, so the next action doesn't come across.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:02:57.272Z",
       "stale": false
     },
     "R1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -472,16 +475,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The empty state is designed but nearly invisible, and none of the screenshots show a loading, error or offline view.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:05:12.287Z",
       "stale": false
     },
     "R3": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -490,15 +493,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:08:05.089Z",
       "stale": false
     },
     "R4": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -506,17 +510,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The face shows only period names and times, with no student data.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:09:06.880Z",
       "stale": false
     },
     "E1": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -524,17 +528,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Calendar import, Clock time-format mirroring, the per-row timer launch and linked-widget auto-launch cover the high-value connections; proposal: add a Clock or now-line link, and remove nothing.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:10:43.923Z",
       "stale": false
     },
     "E3": {
       "score": 2,
-      "source": "script",
+      "source": "paul",
       "candidates": {
         "script": 2,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -543,7 +547,92 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:12:31.092Z",
+      "stale": false
+    },
+    "C4": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/schedule/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:01:51.645Z",
+      "stale": false
+    },
+    "C6": {
+      "score": 4,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/schedule/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:03:54.486Z",
+      "stale": false
+    },
+    "E2": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/schedule/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:11:45.296Z",
+      "stale": false
+    },
+    "R2": {
+      "score": 0,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 0
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/schedule/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:07:19.005Z",
+      "stale": false
+    },
+    "R5": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/schedule/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:10:01.851Z",
       "stale": false
     }
   },
@@ -553,28 +642,28 @@
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     }
   }
 }

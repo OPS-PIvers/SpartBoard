@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "weather",
   "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-06T02:49:23.447Z",
+  "gradedAt": "2026-10-06T03:13:32.259Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -10,7 +10,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "I2": {
@@ -18,7 +18,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "I3": {
@@ -26,7 +26,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "I4": {
@@ -34,7 +34,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "I5": {
@@ -42,7 +42,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "I6": {
@@ -50,7 +50,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "S1": {
@@ -208,9 +208,10 @@
     },
     "I7": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -223,15 +224,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:51:56.791Z",
       "stale": false
     },
     "V1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -239,17 +241,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The face is clean and uses confident type, but the color emoji clothing icons and the boxed white card with a shadow are ban-list hits.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:52:41.670Z",
       "stale": false
     },
     "V2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -258,17 +260,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The temperature and what to wear can be read at a glance from the back of the room, and the proxies are low (0 controls, 14 words, 1 box).",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:54:55.636Z",
       "stale": false
     },
     "V3": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -276,17 +278,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The large temperature is clearly primary, and the smaller 'Actual' line and the clothing card step down below it.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:55:30.913Z",
       "stale": false
     },
     "V4": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -294,16 +296,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The drawer is schema-driven with shared controls and the face uses WidgetLayout, leaving only the two one-off colors and the emoji card as one-offs.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:56:17.513Z",
       "stale": false
     },
     "V5": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -312,15 +314,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:56:59.491Z",
       "stale": false
     },
     "V6": {
-      "score": 1,
-      "source": "judge",
+      "score": 3,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -328,17 +331,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The copy reads like a teacher wrote it ('Today is CLOUDY. Wear a Light Jacket!'), but the face mixes an outlined lucide weather icon with full-color emoji clothing icons.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:58:17.934Z",
       "stale": false
     },
     "C1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -346,17 +349,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Manual or automatic mode, condition, feels-like, clothing, background sync and colors can all be set, but the temperature unit is fixed and the manual temperature slider stops at 0, so the below-zero days a Minnesota teacher needs can't be set by hand.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:59:12.253Z",
       "stale": false
     },
     "C2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -364,17 +367,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The settings screenshot shows only the selected card and no open drawer, so this rests on the schema: Content, Behavior and Display groups, mode first and manual fields shown only when needed.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:59:59.298Z",
       "stale": false
     },
     "C3": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -382,17 +385,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "On first drop the widget shows a finished-looking 72 degrees, sunny, with a clothing tip and nothing left to set up.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:01:10.039Z",
       "stale": false
     },
     "C5": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -400,17 +403,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "On first drop the face shows placeholder manual weather (72 degrees, sunny) with no hint that it is not live or that automatic mode is in settings.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:03:15.294Z",
       "stale": false
     },
     "R1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -419,16 +422,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Fetch and subscription errors only go to the console, so the face keeps showing the last or default reading with no designed loading, error or offline view, though it never goes blank.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:05:51.352Z",
       "stale": false
     },
     "R3": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -437,15 +440,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:08:15.571Z",
       "stale": false
     },
     "R4": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -453,17 +457,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The face shows only weather and a clothing tip, with no student data.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:09:18.835Z",
       "stale": false
     },
     "E1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -471,17 +475,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The board-background sync works, but there is no link to the schedule for an indoor/outdoor recess call or to a location shared with other widgets (proposals for Paul: add a recess indicator tied to the schedule; remove nothing).",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:11:07.798Z",
       "stale": false
     },
     "E3": {
       "score": 2,
-      "source": "script",
+      "source": "paul",
       "candidates": {
         "script": 2,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -490,7 +494,92 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:12:42.344Z",
+      "stale": false
+    },
+    "C4": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/weather/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:02:10.616Z",
+      "stale": false
+    },
+    "C6": {
+      "score": 4,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/weather/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:04:06.719Z",
+      "stale": false
+    },
+    "E2": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/weather/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:12:00.411Z",
+      "stale": false
+    },
+    "R2": {
+      "score": 0,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 0
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/weather/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:07:33.854Z",
+      "stale": false
+    },
+    "R5": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/weather/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:10:16.020Z",
       "stale": false
     }
   },
@@ -500,28 +589,28 @@
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G2": {
       "pass": false,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     }
   }
 }

@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "checklist",
   "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-06T02:49:23.447Z",
+  "gradedAt": "2026-10-06T03:13:32.259Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -10,7 +10,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "I5": {
@@ -18,7 +18,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "S1": {
@@ -246,9 +246,10 @@
     },
     "I7": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -261,15 +262,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:51:41.632Z",
       "stale": false
     },
     "V1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -277,17 +279,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Clean rounded row cards, but the tiny uppercase footer pills and the gray-on-gray, near-invisible empty-state text are ban-list hits.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:52:31.232Z",
       "stale": false
     },
     "V2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -296,17 +298,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "A to-do list with tappable rows reads in under three seconds, and 7 controls, 2 font sizes and 21 words stay modest.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:54:36.836Z",
       "stale": false
     },
     "V3": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -314,17 +316,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Open tasks are the bold primary rows, completed tasks fade back with strikethrough, and the footer actions step well down in size.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:55:18.217Z",
       "stale": false
     },
     "V4": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -332,16 +334,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The drawer uses the shared settings schema and the empty state uses ScaledEmptyState, but the face has raw controls and 6 one-off colors on the rows and pills.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:56:08.155Z",
       "stale": false
     },
     "V5": {
       "score": 2,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 2
+        "script": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -350,15 +352,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:56:50.656Z",
       "stale": false
     },
     "V6": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -366,17 +369,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Labels are short and plain ('Reset checked', 'Delete checked') with lucide icons only, though the empty-state 'Flip to add your class tasks' uses app jargon.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:58:05.528Z",
       "stale": false
     },
     "C1": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -384,17 +387,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Settings cover the task list, a manual or roster source with custom names and roster groups, task import, row style, and text size, font and colors, with no bloat.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:58:57.275Z",
       "stale": false
     },
     "C2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -402,17 +405,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The settings screenshot cuts the drawer off, but the schema puts content (list source, tasks, import) first and display (row style, appearance) after in standard sections.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:59:48.467Z",
       "stale": false
     },
     "C3": {
-      "score": 2,
-      "source": "judge",
+      "score": 1,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
@@ -420,16 +423,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "On first drop the widget shows only a faint 'No tasks' state with no starter tasks, so it works but looks unfinished until configured.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:00:57.235Z",
       "stale": false
     },
     "C4": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -438,15 +441,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:01:55.198Z",
       "stale": false
     },
     "C5": {
-      "score": 3,
-      "source": "judge",
+      "score": 2,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -454,16 +458,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "ScaledEmptyState gives a 'No tasks' title and one sentence pointing to settings, but its very low contrast makes it hard to read and the task cannot be added on the face.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:03:00.109Z",
       "stale": false
     },
     "C6": {
       "score": 4,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 4
+        "script": 4,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
@@ -472,15 +476,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:03:57.517Z",
       "stale": false
     },
     "R1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -489,16 +494,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The empty state is designed, but the screenshots show no designed views for loading, error, offline or no-roster, and no recovery actions.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:05:36.502Z",
       "stale": false
     },
     "R3": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -507,15 +512,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:08:07.589Z",
       "stale": false
     },
     "R4": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -523,17 +529,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The typical face shows only teacher-authored tasks, and student names appear only in roster mode, where they are the content and are set up from the drawer.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:09:10.101Z",
       "stale": false
     },
     "E1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -541,17 +547,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The roster and roster-group sources and routine import work, but there is no link to Schedule or Timer to move through tasks, and the face does not show what the list is linked to; proposals: add Schedule/Timer link, show the linked class on the face; remove none.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:10:46.323Z",
       "stale": false
     },
     "E3": {
       "score": 2,
-      "source": "script",
+      "source": "paul",
       "candidates": {
         "script": 2,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -560,7 +566,58 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:12:33.575Z",
+      "stale": false
+    },
+    "E2": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:11:49.149Z",
+      "stale": false
+    },
+    "R2": {
+      "score": 0,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 0
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:07:22.120Z",
+      "stale": false
+    },
+    "R5": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:10:04.885Z",
       "stale": false
     }
   },
@@ -570,28 +627,28 @@
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G2": {
       "pass": false,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     }
   }
 }

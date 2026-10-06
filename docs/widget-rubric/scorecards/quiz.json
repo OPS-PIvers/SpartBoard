@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "quiz",
   "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-06T02:49:23.447Z",
+  "gradedAt": "2026-10-06T03:13:32.259Z",
   "stale": false,
   "criteria": {
     "I5": {
@@ -10,7 +10,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "S1": {
@@ -258,9 +258,10 @@
     },
     "I7": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -273,15 +274,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:51:25.375Z",
       "stale": false
     },
     "V1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -289,17 +291,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The clean green header and white body look current, but the In Progress empty state is pale gray on white and the tiny uppercase TARGETS/SELECT labels count as gray-on-gray, tiny-text ban-list hits.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:52:21.824Z",
       "stale": false
     },
     "V2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -308,17 +310,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The default face has four tabs and one empty state (4 controls, 3 font sizes, 16 words), so it reads at a glance as a quiz manager without busy-ness.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:54:05.422Z",
       "stale": false
     },
     "V3": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -326,17 +328,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "On the typical face the green tab bar is the heaviest element while the In Progress empty state is too faint to anchor the eye, so no clear primary element leads.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:55:09.335Z",
       "stale": false
     },
     "V4": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -344,16 +346,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The face uses shared library pieces (LibraryShell, LibraryToolbar, FolderSidebar, ScaledEmptyState, SegmentedControl) with no one-off colors or radii, though the 426 raw controls keep it short of 4.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:55:49.758Z",
       "stale": false
     },
     "V5": {
       "score": 2,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 2
+        "script": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -362,15 +364,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:56:40.886Z",
       "stale": false
     },
     "V6": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -378,17 +381,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Labels such as Library, Banks, In Progress, Archive and New Quiz are short and plain with lucide icons throughout, but TARGETS is unclear and Start Importing does not match the Create or import a quiz line.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:57:29.385Z",
       "stale": false
     },
     "C1": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -396,17 +399,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The face is a library whose content is teacher-authored quizzes, with folders, sort, banks and assignment targeting, so little structure is hardcoded and the plausible choices are covered.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:58:43.919Z",
       "stale": false
     },
     "C2": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -414,17 +417,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The settings-open capture shows only a sliver of the drawer at the right edge, so its organization cannot be verified and no higher level can be credited.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:59:37.216Z",
       "stale": false
     },
     "C3": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -432,17 +435,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "An empty widget lands on the In Progress tab with a pale, nearly invisible empty state instead of the Library with its Start Importing action, so it is usable but looks unfinished.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:00:21.213Z",
       "stale": false
     },
     "C5": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -450,17 +453,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The empty face shows a ScaledEmptyState with the title No quizzes in progress and one sentence pointing to the Library tab, but the next action has to be taken on another tab rather than on this face.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:02:49.057Z",
       "stale": false
     },
     "R1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -469,16 +472,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The empty In Progress and Library states are designed with ScaledEmptyState, but the screenshots show no loading, error, offline or no-roster view, so only some states are evidenced as designed.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:05:03.370Z",
       "stale": false
     },
     "R3": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -487,15 +490,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:07:58.909Z",
       "stale": false
     },
     "R4": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -503,17 +507,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "No student names or scores appear on the default face; results sit behind the In Progress and results views that a teacher opens on purpose.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:09:01.898Z",
       "stale": false
     },
     "E1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -521,17 +525,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Question banks, class targeting and Drive import connect and work, but high-value links are missing: proposals are to add sending live results to Scoreboard and a Randomizer pick from the roster of students who have not submitted, and to remove nothing.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:10:35.289Z",
       "stale": false
     },
     "E3": {
       "score": 2,
-      "source": "script",
+      "source": "paul",
       "candidates": {
         "script": 2,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -540,7 +544,92 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:12:25.499Z",
+      "stale": false
+    },
+    "C4": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:01:44.690Z",
+      "stale": false
+    },
+    "C6": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:03:47.081Z",
+      "stale": false
+    },
+    "E2": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:11:37.653Z",
+      "stale": false
+    },
+    "R2": {
+      "score": 0,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 0
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:07:12.243Z",
+      "stale": false
+    },
+    "R5": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/quiz/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:09:49.984Z",
       "stale": false
     }
   },
@@ -550,28 +639,28 @@
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     }
   }
 }

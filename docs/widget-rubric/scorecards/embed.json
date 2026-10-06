@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "embed",
   "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-06T02:49:23.447Z",
+  "gradedAt": "2026-10-06T03:13:32.259Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -10,7 +10,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "I2": {
@@ -18,7 +18,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "I3": {
@@ -26,7 +26,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "I4": {
@@ -34,7 +34,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "I5": {
@@ -42,7 +42,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "I6": {
@@ -50,7 +50,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "S1": {
@@ -208,9 +208,10 @@
     },
     "I7": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -223,15 +224,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:51:11.998Z",
       "stale": false
     },
     "V1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -239,17 +241,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The face is a clean full-bleed frame, but the empty state is faint gray-on-gray tiny text, which is a ban-list hit.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:52:15.058Z",
       "stale": false
     },
     "V2": {
       "score": 4,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 4
+        "judge": 4,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
@@ -258,17 +260,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The face is only the embedded page with no widget chrome, so its purpose is clear at a glance, every proxy is zero, and nothing could be removed.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:53:51.270Z",
       "stale": false
     },
     "V3": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -276,17 +278,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The embedded page is the only primary element and no widget chrome competes with it.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:55:03.453Z",
       "stale": false
     },
     "V4": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -294,16 +296,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The widget imports only ScaledEmptyState, and the hover toolbar uses 5 raw controls and a one-off radius instead of shared components.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:55:41.790Z",
       "stale": false
     },
     "V5": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -312,15 +314,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:56:32.435Z",
       "stale": false
     },
     "V6": {
-      "score": 2,
-      "source": "judge",
+      "score": 4,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
@@ -328,17 +331,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Lucide icons are used throughout and the copy guard passes, but 'No URL Provided / Flip to add a link.' uses insider wording ('Flip') and shouting caps.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:57:19.342Z",
       "stale": false
     },
     "C1": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -346,17 +349,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "URL or code mode, refresh interval, zoom, autoplay and start time cover the plausible choices without bloat.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:58:34.123Z",
       "stale": false
     },
     "C2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -364,17 +367,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The drawer schema has a Content group (mode and URL) followed by a short Behavior group (refresh), using standard sections, though the settings screenshot barely shows the drawer.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:59:28.607Z",
       "stale": false
     },
     "C3": {
       "score": 1,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
@@ -382,16 +385,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "On first drop the widget shows only 'No URL Provided' and stays unusable until a link is added.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:00:13.179Z",
       "stale": false
     },
     "C4": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -400,15 +403,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:01:24.994Z",
       "stale": false
     },
     "C5": {
-      "score": 3,
-      "source": "judge",
+      "score": 2,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -416,16 +420,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "ScaledEmptyState gives a globe icon, a title and one line naming the next action, though the text is so faint it is hard to read.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:02:28.985Z",
       "stale": false
     },
     "C6": {
       "score": 4,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 4
+        "script": 4,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
@@ -434,15 +438,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:03:25.012Z",
       "stale": false
     },
     "R1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -451,16 +456,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The empty states use the shared component, but none of the screenshots shows a designed load-failure or blocked-frame view, and generation errors only go to a toast.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:04:53.935Z",
       "stale": false
     },
     "R3": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -469,15 +474,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:07:52.207Z",
       "stale": false
     },
     "R4": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -485,17 +491,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The widget renders no student data of its own, and the face shows only teacher-chosen page content.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:08:44.442Z",
       "stale": false
     },
     "E1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -503,17 +509,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "No connections show on the face; proposals: add a Link/QR share of the embedded URL and a Schedule/Timer-driven switch of embeds, and remove nothing.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:10:28.820Z",
       "stale": false
     },
     "E3": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -521,9 +527,59 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The folder has 7 tests, no any types, no useDashboard or derived-state effects, and its largest file is 628 lines.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:12:18.712Z",
+      "stale": false
+    },
+    "E2": {
+      "score": 1,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:11:28.237Z",
+      "stale": false
+    },
+    "R2": {
+      "score": 0,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 0
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:07:04.560Z",
+      "stale": false
+    },
+    "R5": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:09:37.611Z",
       "stale": false
     }
   },
@@ -533,28 +589,28 @@
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     }
   }
 }

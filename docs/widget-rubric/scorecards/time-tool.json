@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "time-tool",
   "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-06T02:49:23.447Z",
+  "gradedAt": "2026-10-06T03:13:32.259Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -10,7 +10,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:49:23.447Z",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
       "stale": false
     },
     "S1": {
@@ -256,9 +256,10 @@
     },
     "I7": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -271,15 +272,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:51:46.765Z",
       "stale": false
     },
     "V1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -287,17 +289,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The glass card and bold numerals look modern, but the tiny gray '1m' labels on gray chips are a gray-on-gray, tiny-text ban-list hit.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:52:33.936Z",
       "stale": false
     },
     "V2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -306,17 +308,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The time and the play button can be named at a glance, and there are only 5 controls, 5 words and 2 font sizes on the face.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:54:43.133Z",
       "stale": false
     },
     "V3": {
       "score": 4,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 4
+        "judge": 4,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
@@ -324,17 +326,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The huge numerals lead, the accent play button is next, and the muted adjust and reset chips step down, which is the order a teacher uses them: set, start, adjust.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:55:23.950Z",
       "stale": false
     },
     "V4": {
-      "score": 1,
-      "source": "script",
+      "score": 2,
+      "source": "paul",
       "candidates": {
         "script": 1,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -343,14 +345,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:56:10.835Z",
       "stale": false
     },
     "V5": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -359,15 +362,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:56:54.197Z",
       "stale": false
     },
     "V6": {
       "score": 4,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 4
+        "judge": 4,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
@@ -375,17 +379,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The play and reset icons are lucide only and read without labels, and the only text is the terse '1m' a teacher would write.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:58:09.849Z",
       "stale": false
     },
     "C1": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -393,17 +397,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Mode, sound, adjust step, ring or digital display, clock style, color, glow, font and timer-end actions are all configurable, with no needless options.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:59:00.559Z",
       "stale": false
     },
     "C2": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -411,17 +415,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The settings screenshot shows only the selected face with the drawer off-frame, so beyond the schema's content/behavior/display groups there is no evidence that common settings come first or that advanced ones collapse.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:59:50.900Z",
       "stale": false
     },
     "C3": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -429,17 +433,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The empty default is a clean 10:00 countdown that is ready to start with no setup.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:01:03.801Z",
       "stale": false
     },
     "C5": {
       "score": 4,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 4
+        "judge": 4,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
@@ -447,17 +451,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "On first drop the face shows 10:00 with a prominent play button, so the next action can be done right on the face.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:03:03.340Z",
       "stale": false
     },
     "R1": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -466,16 +470,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The timer has no data dependencies, and both the empty and typical renders are fully designed views with no spinners or raw errors.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:05:42.254Z",
       "stale": false
     },
     "R2": {
       "score": 1,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
@@ -484,14 +488,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:07:27.654Z",
       "stale": false
     },
     "R3": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -500,15 +505,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:08:10.103Z",
       "stale": false
     },
     "R4": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -516,17 +522,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The face shows only a countdown and controls, with no student data.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:09:13.682Z",
       "stale": false
     },
     "E1": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -534,17 +540,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Timer-end links to Expectations, Traffic Light, Random, Stations and Next Up are partner-gated in the drawer, but the face never shows what the timer is linked to. Proposals: add a small face indicator for active timer-end links; remove nothing.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:11:01.948Z",
       "stale": false
     },
     "E3": {
       "score": 2,
-      "source": "script",
+      "source": "paul",
       "candidates": {
         "script": 2,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -553,7 +559,75 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T03:12:37.042Z",
+      "stale": false
+    },
+    "C4": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:01:59.181Z",
+      "stale": false
+    },
+    "C6": {
+      "score": 4,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:04:00.086Z",
+      "stale": false
+    },
+    "E2": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:11:54.978Z",
+      "stale": false
+    },
+    "R5": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/time-tool/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:10:08.167Z",
       "stale": false
     }
   },
@@ -563,28 +637,28 @@
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-06T02:49:23.447Z"
+      "gradedAt": "2026-10-06T03:13:32.259Z"
     }
   }
 }
