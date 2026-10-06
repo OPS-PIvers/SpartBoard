@@ -128,7 +128,7 @@ scroll containers, end padding per `tests/e2e/helpers/scrollEndPadding.ts`, whol
 150×100 floor.
 
 - 1: The minimum size is set higher than the content needs, so small-size problems never get tested.
-- 2: Somewhat narrower than necessary.
+- 2: The minimum is somewhat higher than the content needs.
 - 3: The envelope matches what the content genuinely needs.
 - 4: The widget works below what one would expect for its content.
 
