@@ -829,8 +829,9 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
-    defaultEnabled: true,
+    defaultEnabled: false,
     missingDocPublic: false,
+    failClosedForAdmins: true,
   },
   // Handwritten answer boxes on paper sheets; AND-ed with the paper-answer-sheets gate.
   'paper-handwritten-responses': {

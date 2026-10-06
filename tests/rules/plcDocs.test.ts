@@ -297,3 +297,78 @@ describe('plcs/{plcId}/docs — delete', () => {
     );
   });
 });
+
+describe('plcs/{plcId}/docs — actionItems', () => {
+  const item = (n: number) => ({
+    id: `a${n}`,
+    text: `Item ${n}`,
+    done: false,
+    createdAt: 1000,
+  });
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `plcs/${PLC_ID}/docs/${DOC_ID}`), {
+        ...validDoc(),
+        actionItems: [item(1)],
+      });
+    });
+  });
+
+  it('a member can read a doc that has action items', async () => {
+    await assertSucceeds(
+      getDoc(doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`))
+    );
+  });
+
+  it('a non-member cannot read a doc that has action items', async () => {
+    await assertFails(
+      getDoc(doc(asNonMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`))
+    );
+  });
+
+  it('a member can create a doc with action items', async () => {
+    await assertSucceeds(
+      setDoc(doc(asMember(), `plcs/${PLC_ID}/docs/d2`), {
+        ...validDoc({ id: 'd2' }),
+        actionItems: [item(1), item(2)],
+      })
+    );
+  });
+
+  it('a member can update action items', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`), {
+        actionItems: [item(1), item(2)],
+        updatedAt: 2000,
+      })
+    );
+  });
+
+  it('a non-member cannot update action items', async () => {
+    await assertFails(
+      updateDoc(doc(asNonMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`), {
+        actionItems: [],
+        updatedAt: 2000,
+      })
+    );
+  });
+
+  it('rejects actionItems that is not a list', async () => {
+    await assertFails(
+      updateDoc(doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`), {
+        actionItems: 'nope',
+        updatedAt: 2000,
+      })
+    );
+  });
+
+  it('rejects more than 200 action items', async () => {
+    await assertFails(
+      updateDoc(doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`), {
+        actionItems: Array.from({ length: 201 }, (_, i) => item(i)),
+        updatedAt: 2000,
+      })
+    );
+  });
+});
