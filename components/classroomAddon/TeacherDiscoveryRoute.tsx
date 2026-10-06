@@ -37,6 +37,7 @@ import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import { useBankSources } from '@/hooks/useBankSources';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { usePlcs } from '@/hooks/usePlcs';
@@ -63,6 +64,7 @@ import {
 } from '@/utils/studentTargetRef';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
+import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
 import {
   getAssignBehaviorSeed,
   formatBehaviorSummary,
@@ -195,7 +197,13 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     () => editedAssignSettings ?? getQuizAssignPrefill(lastAssignSettings),
     [editedAssignSettings, lastAssignSettings]
   );
-  const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
+  const {
+    quizzes,
+    loadQuizData,
+    saveDriveSnapshot,
+    loading: quizzesLoading,
+  } = useQuiz(user?.uid);
+  const { loadBankContentsForQuiz } = useBankSources(user?.uid);
   const { createAssignment, setAssignmentTargetSkippedCount } =
     useQuizAssignments(user?.uid);
   const {
@@ -603,14 +611,20 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     // (that's where the quiz hook reads it from for both the assignment +
     // session docs); `rosterIds`/`classPeriodByClassId` ride on the options
     // bag. Both are only set when the course is linked to a roster.
+    const content = await resolveQuizAssignContent(
+      quizData,
+      selectedQuiz.driveFileId,
+      { loadBankContentsForQuiz, saveDriveSnapshot }
+    );
+
     append('Creating a class-targeted assignment…');
     const { id: sessionId, code } = await createAssignment(
       {
         id: selectedQuiz.id,
         title: selectedQuiz.title,
-        driveFileId: selectedQuiz.driveFileId,
-        questions: quizData.questions,
-        ...(quizData.stimuli ? { stimuli: quizData.stimuli } : {}),
+        driveFileId: content.driveFileId,
+        questions: content.questions,
+        ...(content.stimuli ? { stimuli: content.stimuli } : {}),
         ...(quizData.language ? { language: quizData.language } : {}),
         ...(quizData.sections?.length
           ? { order: quizData.order, sections: quizData.sections }
@@ -627,9 +641,13 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
           ? { periodNames: targeting.periodNames }
           : {}),
         ...(dueAt != null ? { dueAt, dueAtHasTime: true } : {}),
+        ...(content.resolvedDriveFileId
+          ? { resolvedDriveFileId: content.resolvedDriveFileId }
+          : {}),
       },
       {
         classIds: targeting.classIds,
+        ...(content.bankSlots ? { bankSlots: content.bankSlots } : {}),
         initialStatus: 'active',
         ...(targeting.rosterIds.length > 0
           ? { rosterIds: targeting.rosterIds }
@@ -757,6 +775,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     selectedQuiz,
     googleAccessToken,
     loadQuizData,
+    loadBankContentsForQuiz,
+    saveDriveSnapshot,
     resolveClassTargeting,
     createAssignment,
     createAttachment,

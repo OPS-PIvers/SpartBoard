@@ -1263,6 +1263,27 @@ const QuizJoinFlow: React.FC<{
     );
   }
 
+  // A response listener that failed after join would otherwise spin forever.
+  if (error && !myResponse) {
+    const light = isStudentRole || session.sessionMode === 'student';
+    return (
+      <div
+        className={`min-h-screen flex flex-col items-center justify-center gap-4 p-6 ${
+          light ? 'bg-gradient-to-b from-white to-slate-100' : 'bg-slate-900'
+        }`}
+      >
+        <AlertCircle
+          className={`w-10 h-10 ${light ? 'text-red-500' : 'text-red-400'}`}
+        />
+        <p
+          className={`text-sm text-center max-w-sm ${light ? 'text-slate-600' : 'text-slate-300'}`}
+        >
+          {error}
+        </p>
+      </div>
+    );
+  }
+
   // Per-period session whose period isn't open for this student: a locked
   // card before they start, the paused screen once they have (answers kept).
   if (periodLocked && myResponse?.status !== 'completed') {

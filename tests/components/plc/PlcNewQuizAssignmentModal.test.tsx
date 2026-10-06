@@ -48,6 +48,7 @@ const mockCreateAssignment = vi.fn();
 const mockLoadQuizData = vi.fn();
 const mockAttachSyncLinkage = vi.fn();
 const mockAddToast = vi.fn();
+const mockSaveDriveSnapshot = vi.fn();
 
 const fakeQuiz: QuizMetadata = {
   id: 'quiz-1',
@@ -79,10 +80,18 @@ vi.mock('@/hooks/useQuiz', () => ({
     quizzes: [fakeQuiz],
     loadQuizData: mockLoadQuizData,
     attachSyncLinkage: mockAttachSyncLinkage,
+    saveDriveSnapshot: mockSaveDriveSnapshot,
     isDriveConnected: true,
     saveQuiz: vi.fn(),
     deleteQuiz: vi.fn(),
   })),
+}));
+
+const mockBankContents = new Map<string, unknown>();
+vi.mock('@/hooks/useBankSources', () => ({
+  useBankSources: () => ({
+    loadBankContentsForQuiz: () => Promise.resolve(mockBankContents),
+  }),
 }));
 
 vi.mock('@/hooks/useQuizAssignments', () => ({
@@ -338,6 +347,60 @@ describe('PlcNewQuizAssignmentModal (Task 10 — slimmed configure step)', () =>
     expect(
       (settings.sessionOptions as Record<string, unknown>).showResultToStudent
     ).toBe(true);
+  });
+
+  it('assigns a question-bank quiz with its pool, slots and frozen copy', async () => {
+    const bankQ = (id: string) => ({
+      id,
+      type: 'MC',
+      text: id,
+      correctAnswer: 'a',
+      incorrectAnswers: ['b'],
+    });
+    mockBankContents.set('bank-1', {
+      id: 'bank-1',
+      title: 'Vocab bank',
+      questions: [bankQ('b1'), bankQ('b2'), bankQ('b3')],
+    });
+    mockSaveDriveSnapshot.mockResolvedValue('snapshot-1');
+    mockLoadQuizData.mockResolvedValue({
+      id: 'quiz-1',
+      title: 'Cell Division',
+      questions: [],
+      bankSlots: [
+        {
+          id: 's1',
+          bankId: 'bank-1',
+          bankTitle: 'Vocab bank',
+          mode: 'random',
+          count: 2,
+        },
+      ],
+      createdAt: 1000,
+      updatedAt: 2000,
+    });
+    try {
+      await renderAndPickQuiz();
+      act(() => {
+        fireEvent.click(
+          screen.getByRole('button', { name: /create assignment/i })
+        );
+      });
+      await waitFor(() => {
+        expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
+      });
+      const [quiz, settings, opts] = mockCreateAssignment.mock.calls[0] as [
+        { driveFileId: string; questions: unknown[] },
+        Record<string, unknown>,
+        Record<string, unknown>,
+      ];
+      expect(quiz.questions).toHaveLength(3);
+      expect(quiz.driveFileId).toBe('snapshot-1');
+      expect(settings.resolvedDriveFileId).toBe('snapshot-1');
+      expect(opts.bankSlots).toHaveLength(1);
+    } finally {
+      mockBankContents.clear();
+    }
   });
 
   it('passes plc linkage (id + name) into settings on submit', async () => {
