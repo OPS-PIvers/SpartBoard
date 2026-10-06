@@ -279,6 +279,15 @@ describe('MembersBody — mutator wiring', () => {
     );
   });
 
+  it('shows an error when "Make lead" fails to save', async () => {
+    transferLead.mockRejectedValueOnce(new Error('permission-denied'));
+    render(<MembersBody plc={mapPlc()} />);
+    fireEvent.click(screen.getByLabelText('Make co@school.edu the lead'));
+    expect(
+      await screen.findByText("Couldn't save that change. Try again.")
+    ).toBeInTheDocument();
+  });
+
   it('"Remove" confirms then calls removeMember(plcId, uid)', async () => {
     render(<MembersBody plc={mapPlc()} />);
     fireEvent.click(screen.getByLabelText('Remove mem@school.edu'));
