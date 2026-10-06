@@ -314,11 +314,11 @@ describe('MembersBody — mutator wiring', () => {
     await waitFor(() => expect(leavePlc).toHaveBeenCalledWith('plc-1'));
   });
 
-  it('says "Leave this group" under the my-groups flag', () => {
+  it('says "Leave this team" under the my-groups flag', () => {
     mockUser = { uid: 'uid-mem', email: 'mem@school.edu' };
     mockGroupWording = true;
     render(<MembersBody plc={mapPlc()} />);
-    expect(screen.getByText('Leave this group')).toBeInTheDocument();
+    expect(screen.getByText('Leave this team')).toBeInTheDocument();
     expect(screen.queryByText('Leave this PLC')).not.toBeInTheDocument();
   });
 

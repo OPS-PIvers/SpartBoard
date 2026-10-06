@@ -68,30 +68,32 @@ export const FeaturesPanel: React.FC = () => {
           <h3 className="pt-2 text-xs font-bold uppercase tracking-widest text-slate-500">
             {SECTION_LABELS[key]}
           </h3>
-          {key === 'ai' && showModels && (
-            <GeminiModelsCard
-              permission={editor.getPermission('gemini-functions')}
-              onUpdate={(updates) =>
-                editor.updatePermission('gemini-functions', updates)
-              }
-              onSave={() => void editor.savePermission('gemini-functions')}
-              isSaving={editor.saving.has('gemini-functions')}
-              hasUnsaved={editor.unsavedChanges.has('gemini-functions')}
-            />
-          )}
-          {ids.map((id) => (
-            <AccessFeatureRow
-              key={id}
-              featureId={id}
-              permission={editor.getPermission(id)}
-              isSaved={editor.isSaved(id)}
-              isSaving={editor.saving.has(id)}
-              hasUnsaved={editor.unsavedChanges.has(id)}
-              onUpdate={(updates) => editor.updatePermission(id, updates)}
-              onSave={() => void editor.savePermission(id)}
-              showMessage={editor.showMessage}
-            />
-          ))}
+          <div className="divide-y divide-slate-200 border-y border-slate-200">
+            {key === 'ai' && showModels && (
+              <GeminiModelsCard
+                permission={editor.getPermission('gemini-functions')}
+                onUpdate={(updates) =>
+                  editor.updatePermission('gemini-functions', updates)
+                }
+                onSave={() => void editor.savePermission('gemini-functions')}
+                isSaving={editor.saving.has('gemini-functions')}
+                hasUnsaved={editor.unsavedChanges.has('gemini-functions')}
+              />
+            )}
+            {ids.map((id) => (
+              <AccessFeatureRow
+                key={id}
+                featureId={id}
+                permission={editor.getPermission(id)}
+                isSaved={editor.isSaved(id)}
+                isSaving={editor.saving.has(id)}
+                hasUnsaved={editor.unsavedChanges.has(id)}
+                onUpdate={(updates) => editor.updatePermission(id, updates)}
+                onSave={() => void editor.savePermission(id)}
+                showMessage={editor.showMessage}
+              />
+            ))}
+          </div>
         </section>
       ))}
     </div>

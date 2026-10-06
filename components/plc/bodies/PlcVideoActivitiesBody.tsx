@@ -296,7 +296,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
           groupWording
             ? t('plcDashboard.videoActivities.groupDriveRequired', {
                 defaultValue:
-                  'Connect Google Drive in your account to import group video activities.',
+                  'Connect Google Drive in your account to import team video activities.',
               })
             : t('plcDashboard.videoActivities.driveRequired', {
                 defaultValue:
@@ -434,7 +434,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
           groupWording
             ? t('plcDashboard.videoActivities.groupDriveRequiredForEdit', {
                 defaultValue:
-                  'Connect Google Drive in your account to edit group video activities.',
+                  'Connect Google Drive in your account to edit team video activities.',
               })
             : t('plcDashboard.videoActivities.driveRequiredForEdit', {
                 defaultValue:
@@ -743,7 +743,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
             : groupWording
               ? t('plcDashboard.videoActivities.sharePicker.groupShareFailed', {
                   defaultValue:
-                    'Failed to share video activity with this group.',
+                    'Failed to share video activity with this team.',
                 })
               : t('plcDashboard.videoActivities.sharePicker.shareFailed', {
                   defaultValue: 'Failed to share video activity with this PLC.',
@@ -892,7 +892,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
             : groupWording
               ? t('plcDashboard.videoActivities.shareCta.groupTooltip', {
                   defaultValue:
-                    'Pick a video activity from your personal library to share with this group.',
+                    'Pick a video activity from your personal library to share with this team.',
                 })
               : t('plcDashboard.videoActivities.shareCta.tooltip', {
                   defaultValue:
@@ -913,7 +913,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
       title={
         groupWording
           ? t('plcDashboard.videoActivities.sharePicker.groupTitle', {
-              defaultValue: 'Share a video activity with this group',
+              defaultValue: 'Share a video activity with this team',
             })
           : t('plcDashboard.videoActivities.sharePicker.title', {
               defaultValue: 'Share a video activity with this PLC',
@@ -1149,7 +1149,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
                           ? t(
                               'plcDashboard.videoActivities.groupUnshareYours',
                               {
-                                defaultValue: 'Unshare from group',
+                                defaultValue: 'Unshare from team',
                               }
                             )
                           : t('plcDashboard.videoActivities.unshareYours', {
@@ -1160,7 +1160,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
                               'plcDashboard.videoActivities.groupUnshareTeammate',
                               {
                                 defaultValue:
-                                  'Unshare from group (any member can remove)',
+                                  'Unshare from team (any member can remove)',
                               }
                             )
                           : t('plcDashboard.videoActivities.unshareTeammate', {

@@ -312,7 +312,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
         <p className="text-sm text-slate-500">
           {groupWording
             ? t('plcDashboard.teammatePrint.groupNoTeammates', {
-                defaultValue: 'This group has no other members yet.',
+                defaultValue: 'This team has no other members yet.',
               })
             : t('plcDashboard.teammatePrint.noTeammates', {
                 defaultValue: 'This PLC has no other members yet.',

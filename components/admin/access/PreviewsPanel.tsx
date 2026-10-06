@@ -120,7 +120,7 @@ const RolloutOnlyRow: React.FC<{ sw: RolloutSwitch }> = ({ sw }) => {
   return (
     <div
       data-testid={`rollout-row-${rolloutSwitchKey(sw)}`}
-      className="bg-white border border-slate-200 rounded-xl flex items-center gap-3 p-3"
+      className="bg-white flex items-center gap-3 p-3"
     >
       <span className="bg-brand-blue-lighter p-2 rounded-lg text-brand-blue-primary shrink-0">
         <FlaskConical className="w-4 h-4" aria-hidden />
@@ -180,17 +180,25 @@ export const PreviewsPanel: React.FC = () => {
         />
       ) : (
         <>
-          {features.map((id) => (
-            <PreviewRow key={id} featureId={id} editor={editor} />
-          ))}
+          {features.length > 0 && (
+            <div className="divide-y divide-slate-200 border-y border-slate-200">
+              {features.map((id) => (
+                <PreviewRow key={id} featureId={id} editor={editor} />
+              ))}
+            </div>
+          )}
           {rolloutOnly.length > 0 && (
             <h3 className="pt-3 text-xs font-bold uppercase tracking-widest text-slate-500">
               District switches
             </h3>
           )}
-          {rolloutOnly.map((sw) => (
-            <RolloutOnlyRow key={rolloutSwitchKey(sw)} sw={sw} />
-          ))}
+          {rolloutOnly.length > 0 && (
+            <div className="divide-y divide-slate-200 border-y border-slate-200">
+              {rolloutOnly.map((sw) => (
+                <RolloutOnlyRow key={rolloutSwitchKey(sw)} sw={sw} />
+              ))}
+            </div>
+          )}
         </>
       )}
     </div>

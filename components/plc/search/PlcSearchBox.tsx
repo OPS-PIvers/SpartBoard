@@ -189,7 +189,7 @@ export const PlcSearchBox: React.FC<PlcSearchBoxProps> = ({
           aria-label={
             groupWording
               ? t('plcDashboard.search.groupAriaLabel', {
-                  defaultValue: 'Search this group',
+                  defaultValue: 'Search this team',
                 })
               : t('plcDashboard.search.ariaLabel', {
                   defaultValue: 'Search this PLC',
@@ -198,7 +198,7 @@ export const PlcSearchBox: React.FC<PlcSearchBoxProps> = ({
           placeholder={
             groupWording
               ? t('plcDashboard.search.groupPlaceholder', {
-                  defaultValue: 'Search this group…',
+                  defaultValue: 'Search this team…',
                 })
               : t('plcDashboard.search.placeholder', {
                   defaultValue: 'Search this PLC…',

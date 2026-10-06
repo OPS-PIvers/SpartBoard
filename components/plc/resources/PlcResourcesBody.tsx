@@ -334,7 +334,7 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
                           <Check className="w-3 h-3" />
                           {groupWording
                             ? t('plcDashboard.resources.groupUsedStatus', {
-                                defaultValue: 'Added to your group',
+                                defaultValue: 'Added to your team',
                               })
                             : t('plcDashboard.resources.usedStatus', {
                                 defaultValue: 'Added to your PLC',

@@ -124,8 +124,7 @@ export const PlcSharedBoardsBody: React.FC<PlcSharedBoardsBodyProps> = ({
         <p className="text-sm text-slate-500 max-w-md leading-relaxed">
           {groupWording
             ? t('plcDashboard.sharedBoards.groupEmptySubtitle', {
-                defaultValue:
-                  'Share a board to this group from its Share menu.',
+                defaultValue: 'Share a board to this team from its Share menu.',
               })
             : t('plcDashboard.sharedBoards.emptySubtitle', {
                 defaultValue: 'Share a board to this PLC from its Share menu.',

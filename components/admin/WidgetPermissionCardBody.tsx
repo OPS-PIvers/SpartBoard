@@ -65,11 +65,8 @@ export const WidgetPermissionCardBody: React.FC<
     : currentLevels.map((l) => l.toUpperCase()).join(', ') || 'No grades';
 
   return (
-    <div
-      data-testid={`widget-row-${tool.type}`}
-      className="bg-white border border-slate-200 rounded-xl hover:border-brand-blue-light transition-colors"
-    >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 p-3">
+    <div data-testid={`widget-row-${tool.type}`} className="bg-white">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 p-3 hover:bg-slate-50 transition-colors">
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
@@ -153,7 +150,7 @@ export const WidgetPermissionCardBody: React.FC<
       {expanded && (
         <div
           id={panelId}
-          className="border-t border-slate-100 bg-slate-50 p-4 space-y-4 rounded-b-xl"
+          className="border-t border-slate-100 bg-slate-50 p-4 space-y-4"
         >
           <label className="block max-w-xs">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 block">
@@ -219,11 +216,13 @@ export const WidgetPermissionCardBody: React.FC<
             />
           )}
           {subFeatures && (
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block">
+            <div>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-2">
                 Switches
               </span>
-              {subFeatures}
+              <div className="divide-y divide-slate-200 border-y border-slate-200">
+                {subFeatures}
+              </div>
             </div>
           )}
         </div>

@@ -105,7 +105,7 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
         addToast(
           groupWording
             ? t('plcDashboard.bankLibrary.groupShareFailed', {
-                defaultValue: 'Failed to share question bank with this group.',
+                defaultValue: 'Failed to share question bank with this team.',
               })
             : t('plcDashboard.bankLibrary.shareFailed', {
                 defaultValue: 'Failed to share question bank with this PLC.',
@@ -424,7 +424,7 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
           title={
             groupWording
               ? t('plcDashboard.bankLibrary.groupSharePickerTitle', {
-                  defaultValue: 'Share a question bank with this group',
+                  defaultValue: 'Share a question bank with this team',
                 })
               : t('plcDashboard.bankLibrary.sharePickerTitle', {
                   defaultValue: 'Share a question bank with this PLC',

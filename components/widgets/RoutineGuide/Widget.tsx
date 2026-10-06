@@ -190,7 +190,7 @@ const RoutineLibrary: React.FC<{
             </optgroup>
           )}
           {groups.length > 0 && (
-            <optgroup label="My groups">
+            <optgroup label="My teams">
               {groups.map((g) => (
                 <option key={g.id} value={`${GROUP_FILTER_PREFIX}${g.id}`}>
                   {g.name}
