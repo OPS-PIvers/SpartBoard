@@ -127,8 +127,8 @@ scroll containers, end padding per `tests/e2e/helpers/scrollEndPadding.ts`, whol
 **S7 Size envelope.** Applies to all. Method: Judge, against the widget's purpose and the global
 150×100 floor.
 
-- 1: The envelope is far narrower than the content needs, which hides scaling defects from the test.
-- 2: Somewhat narrower than necessary.
+- 1: The minimum size is set higher than the content needs, so small-size problems never get tested.
+- 2: The minimum is somewhat higher than the content needs.
 - 3: The envelope matches what the content genuinely needs.
 - 4: The widget works below what one would expect for its content.
 
@@ -298,7 +298,7 @@ the harness and diff the rendered face).
 - 1: A blank or confusing face on first drop.
 - 2: An empty state exists but does not say what to do next.
 - 3: `ScaledEmptyState` with a title, at most one sentence, and a clear next action.
-- 4: The next action can be done right on the face.
+- 4: The next action can be done right on the face, or the controls themselves are the empty state (such as lamps to tap).
 
 **C6 Live settings preview.** Applies when the widget has settings. Method: Script (change a setting
 with the drawer open; check the face updates without closing the drawer).

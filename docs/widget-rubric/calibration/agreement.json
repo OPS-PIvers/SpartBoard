@@ -1,0 +1,589 @@
+{
+  "latest": {
+    "checkedAt": "2026-10-06T03:36:11.456Z",
+    "rubricVersion": "1.1.0",
+    "heldOut": ["clock", "checklist", "quiz", "weather", "traffic"],
+    "pairs": 288,
+    "exact": 0.74,
+    "withinOne": 0.993,
+    "maxSpread": 1,
+    "gatesCaught": {
+      "caught": 3,
+      "total": 3
+    },
+    "pass": true,
+    "failures": [],
+    "perCriterion": {
+      "C1": {
+        "pairs": 15,
+        "exact": 0.6,
+        "withinOne": 1
+      },
+      "C2": {
+        "pairs": 15,
+        "exact": 0.267,
+        "withinOne": 1
+      },
+      "C3": {
+        "pairs": 15,
+        "exact": 0.6,
+        "withinOne": 1
+      },
+      "C5": {
+        "pairs": 15,
+        "exact": 0.467,
+        "withinOne": 0.933
+      },
+      "E1": {
+        "pairs": 15,
+        "exact": 0.867,
+        "withinOne": 1
+      },
+      "E3": {
+        "pairs": 15,
+        "exact": 1,
+        "withinOne": 1
+      },
+      "I3": {
+        "pairs": 9,
+        "exact": 1,
+        "withinOne": 1
+      },
+      "I6": {
+        "pairs": 9,
+        "exact": 0.667,
+        "withinOne": 1
+      },
+      "R1": {
+        "pairs": 15,
+        "exact": 0.867,
+        "withinOne": 1
+      },
+      "R4": {
+        "pairs": 15,
+        "exact": 1,
+        "withinOne": 1
+      },
+      "S1": {
+        "pairs": 15,
+        "exact": 1,
+        "withinOne": 1
+      },
+      "S2": {
+        "pairs": 15,
+        "exact": 0.333,
+        "withinOne": 1
+      },
+      "S3": {
+        "pairs": 15,
+        "exact": 0.733,
+        "withinOne": 1
+      },
+      "S7": {
+        "pairs": 15,
+        "exact": 0.533,
+        "withinOne": 0.933
+      },
+      "S8": {
+        "pairs": 15,
+        "exact": 0.8,
+        "withinOne": 1
+      },
+      "V1": {
+        "pairs": 15,
+        "exact": 0.8,
+        "withinOne": 1
+      },
+      "V2": {
+        "pairs": 15,
+        "exact": 0.933,
+        "withinOne": 1
+      },
+      "V3": {
+        "pairs": 15,
+        "exact": 0.733,
+        "withinOne": 1
+      },
+      "V4": {
+        "pairs": 15,
+        "exact": 0.8,
+        "withinOne": 1
+      },
+      "V6": {
+        "pairs": 15,
+        "exact": 0.867,
+        "withinOne": 1
+      }
+    }
+  },
+  "history": [
+    {
+      "checkedAt": "2026-10-06T03:20:47.721Z",
+      "rubricVersion": "1.0.0",
+      "heldOut": ["clock", "checklist", "quiz", "weather", "traffic"],
+      "pairs": 288,
+      "exact": 0.753,
+      "withinOne": 0.986,
+      "maxSpread": 2,
+      "gatesCaught": {
+        "caught": 3,
+        "total": 3
+      },
+      "pass": false,
+      "failures": ["3-run spread 2 over 1"],
+      "perCriterion": {
+        "C1": {
+          "pairs": 15,
+          "exact": 0.733,
+          "withinOne": 1
+        },
+        "C2": {
+          "pairs": 15,
+          "exact": 0.2,
+          "withinOne": 1
+        },
+        "C3": {
+          "pairs": 15,
+          "exact": 0.667,
+          "withinOne": 1
+        },
+        "C5": {
+          "pairs": 15,
+          "exact": 0.267,
+          "withinOne": 0.933
+        },
+        "E1": {
+          "pairs": 15,
+          "exact": 0.933,
+          "withinOne": 1
+        },
+        "E3": {
+          "pairs": 15,
+          "exact": 1,
+          "withinOne": 1
+        },
+        "I3": {
+          "pairs": 9,
+          "exact": 1,
+          "withinOne": 1
+        },
+        "I6": {
+          "pairs": 9,
+          "exact": 0.667,
+          "withinOne": 1
+        },
+        "R1": {
+          "pairs": 15,
+          "exact": 0.8,
+          "withinOne": 1
+        },
+        "R4": {
+          "pairs": 15,
+          "exact": 1,
+          "withinOne": 1
+        },
+        "S1": {
+          "pairs": 15,
+          "exact": 0.933,
+          "withinOne": 1
+        },
+        "S2": {
+          "pairs": 15,
+          "exact": 0.4,
+          "withinOne": 0.933
+        },
+        "S3": {
+          "pairs": 15,
+          "exact": 0.667,
+          "withinOne": 1
+        },
+        "S7": {
+          "pairs": 15,
+          "exact": 0.6,
+          "withinOne": 0.867
+        },
+        "S8": {
+          "pairs": 15,
+          "exact": 0.867,
+          "withinOne": 1
+        },
+        "V1": {
+          "pairs": 15,
+          "exact": 0.933,
+          "withinOne": 1
+        },
+        "V2": {
+          "pairs": 15,
+          "exact": 1,
+          "withinOne": 1
+        },
+        "V3": {
+          "pairs": 15,
+          "exact": 0.867,
+          "withinOne": 1
+        },
+        "V4": {
+          "pairs": 15,
+          "exact": 0.733,
+          "withinOne": 1
+        },
+        "V6": {
+          "pairs": 15,
+          "exact": 0.867,
+          "withinOne": 1
+        }
+      }
+    },
+    {
+      "checkedAt": "2026-10-06T03:30:17.542Z",
+      "rubricVersion": "1.1.0",
+      "heldOut": ["clock", "checklist", "quiz", "weather", "traffic"],
+      "pairs": 288,
+      "exact": 0.743,
+      "withinOne": 0.983,
+      "maxSpread": 1,
+      "gatesCaught": {
+        "caught": 3,
+        "total": 3
+      },
+      "pass": true,
+      "failures": [],
+      "perCriterion": {
+        "C1": {
+          "pairs": 15,
+          "exact": 0.667,
+          "withinOne": 1
+        },
+        "C2": {
+          "pairs": 15,
+          "exact": 0.267,
+          "withinOne": 1
+        },
+        "C3": {
+          "pairs": 15,
+          "exact": 0.667,
+          "withinOne": 1
+        },
+        "C5": {
+          "pairs": 15,
+          "exact": 0.4,
+          "withinOne": 0.867
+        },
+        "E1": {
+          "pairs": 15,
+          "exact": 0.867,
+          "withinOne": 1
+        },
+        "E3": {
+          "pairs": 15,
+          "exact": 1,
+          "withinOne": 1
+        },
+        "I3": {
+          "pairs": 9,
+          "exact": 1,
+          "withinOne": 1
+        },
+        "I6": {
+          "pairs": 9,
+          "exact": 0.667,
+          "withinOne": 1
+        },
+        "R1": {
+          "pairs": 15,
+          "exact": 0.867,
+          "withinOne": 1
+        },
+        "R4": {
+          "pairs": 15,
+          "exact": 1,
+          "withinOne": 1
+        },
+        "S1": {
+          "pairs": 15,
+          "exact": 0.933,
+          "withinOne": 1
+        },
+        "S2": {
+          "pairs": 15,
+          "exact": 0.333,
+          "withinOne": 0.933
+        },
+        "S3": {
+          "pairs": 15,
+          "exact": 0.733,
+          "withinOne": 1
+        },
+        "S7": {
+          "pairs": 15,
+          "exact": 0.6,
+          "withinOne": 0.867
+        },
+        "S8": {
+          "pairs": 15,
+          "exact": 0.667,
+          "withinOne": 1
+        },
+        "V1": {
+          "pairs": 15,
+          "exact": 1,
+          "withinOne": 1
+        },
+        "V2": {
+          "pairs": 15,
+          "exact": 0.867,
+          "withinOne": 1
+        },
+        "V3": {
+          "pairs": 15,
+          "exact": 0.8,
+          "withinOne": 1
+        },
+        "V4": {
+          "pairs": 15,
+          "exact": 0.8,
+          "withinOne": 1
+        },
+        "V6": {
+          "pairs": 15,
+          "exact": 0.8,
+          "withinOne": 1
+        }
+      }
+    },
+    {
+      "checkedAt": "2026-10-06T03:36:01.564Z",
+      "rubricVersion": "1.1.0",
+      "heldOut": ["clock", "checklist", "quiz", "weather", "traffic"],
+      "pairs": 288,
+      "exact": 0.74,
+      "withinOne": 0.993,
+      "maxSpread": 1,
+      "gatesCaught": {
+        "caught": 3,
+        "total": 3
+      },
+      "pass": true,
+      "failures": [],
+      "perCriterion": {
+        "C1": {
+          "pairs": 15,
+          "exact": 0.6,
+          "withinOne": 1
+        },
+        "C2": {
+          "pairs": 15,
+          "exact": 0.267,
+          "withinOne": 1
+        },
+        "C3": {
+          "pairs": 15,
+          "exact": 0.6,
+          "withinOne": 1
+        },
+        "C5": {
+          "pairs": 15,
+          "exact": 0.467,
+          "withinOne": 0.933
+        },
+        "E1": {
+          "pairs": 15,
+          "exact": 0.867,
+          "withinOne": 1
+        },
+        "E3": {
+          "pairs": 15,
+          "exact": 1,
+          "withinOne": 1
+        },
+        "I3": {
+          "pairs": 9,
+          "exact": 1,
+          "withinOne": 1
+        },
+        "I6": {
+          "pairs": 9,
+          "exact": 0.667,
+          "withinOne": 1
+        },
+        "R1": {
+          "pairs": 15,
+          "exact": 0.867,
+          "withinOne": 1
+        },
+        "R4": {
+          "pairs": 15,
+          "exact": 1,
+          "withinOne": 1
+        },
+        "S1": {
+          "pairs": 15,
+          "exact": 1,
+          "withinOne": 1
+        },
+        "S2": {
+          "pairs": 15,
+          "exact": 0.333,
+          "withinOne": 1
+        },
+        "S3": {
+          "pairs": 15,
+          "exact": 0.733,
+          "withinOne": 1
+        },
+        "S7": {
+          "pairs": 15,
+          "exact": 0.533,
+          "withinOne": 0.933
+        },
+        "S8": {
+          "pairs": 15,
+          "exact": 0.8,
+          "withinOne": 1
+        },
+        "V1": {
+          "pairs": 15,
+          "exact": 0.8,
+          "withinOne": 1
+        },
+        "V2": {
+          "pairs": 15,
+          "exact": 0.933,
+          "withinOne": 1
+        },
+        "V3": {
+          "pairs": 15,
+          "exact": 0.733,
+          "withinOne": 1
+        },
+        "V4": {
+          "pairs": 15,
+          "exact": 0.8,
+          "withinOne": 1
+        },
+        "V6": {
+          "pairs": 15,
+          "exact": 0.867,
+          "withinOne": 1
+        }
+      }
+    },
+    {
+      "checkedAt": "2026-10-06T03:36:11.456Z",
+      "rubricVersion": "1.1.0",
+      "heldOut": ["clock", "checklist", "quiz", "weather", "traffic"],
+      "pairs": 288,
+      "exact": 0.74,
+      "withinOne": 0.993,
+      "maxSpread": 1,
+      "gatesCaught": {
+        "caught": 3,
+        "total": 3
+      },
+      "pass": true,
+      "failures": [],
+      "perCriterion": {
+        "C1": {
+          "pairs": 15,
+          "exact": 0.6,
+          "withinOne": 1
+        },
+        "C2": {
+          "pairs": 15,
+          "exact": 0.267,
+          "withinOne": 1
+        },
+        "C3": {
+          "pairs": 15,
+          "exact": 0.6,
+          "withinOne": 1
+        },
+        "C5": {
+          "pairs": 15,
+          "exact": 0.467,
+          "withinOne": 0.933
+        },
+        "E1": {
+          "pairs": 15,
+          "exact": 0.867,
+          "withinOne": 1
+        },
+        "E3": {
+          "pairs": 15,
+          "exact": 1,
+          "withinOne": 1
+        },
+        "I3": {
+          "pairs": 9,
+          "exact": 1,
+          "withinOne": 1
+        },
+        "I6": {
+          "pairs": 9,
+          "exact": 0.667,
+          "withinOne": 1
+        },
+        "R1": {
+          "pairs": 15,
+          "exact": 0.867,
+          "withinOne": 1
+        },
+        "R4": {
+          "pairs": 15,
+          "exact": 1,
+          "withinOne": 1
+        },
+        "S1": {
+          "pairs": 15,
+          "exact": 1,
+          "withinOne": 1
+        },
+        "S2": {
+          "pairs": 15,
+          "exact": 0.333,
+          "withinOne": 1
+        },
+        "S3": {
+          "pairs": 15,
+          "exact": 0.733,
+          "withinOne": 1
+        },
+        "S7": {
+          "pairs": 15,
+          "exact": 0.533,
+          "withinOne": 0.933
+        },
+        "S8": {
+          "pairs": 15,
+          "exact": 0.8,
+          "withinOne": 1
+        },
+        "V1": {
+          "pairs": 15,
+          "exact": 0.8,
+          "withinOne": 1
+        },
+        "V2": {
+          "pairs": 15,
+          "exact": 0.933,
+          "withinOne": 1
+        },
+        "V3": {
+          "pairs": 15,
+          "exact": 0.733,
+          "withinOne": 1
+        },
+        "V4": {
+          "pairs": 15,
+          "exact": 0.8,
+          "withinOne": 1
+        },
+        "V6": {
+          "pairs": 15,
+          "exact": 0.867,
+          "withinOne": 1
+        }
+      }
+    }
+  ]
+}

@@ -64,8 +64,8 @@ const OMITTED_LEVELS: Partial<Record<string, string[]>> = {
 const allCriteria = rubric.dimensions.flatMap((d) => d.criteria);
 
 describe('rubric.json', () => {
-  it('is version 1.0.0 with the six weighted dimensions', () => {
-    expect(rubric.version).toBe('1.0.0');
+  it('is version 1.1.0 with the six weighted dimensions', () => {
+    expect(rubric.version).toBe('1.1.0');
     expect(rubric.dimensions.map((d) => [d.id, d.weight])).toEqual([
       ['layout', 25],
       ['interaction', 15],
@@ -182,7 +182,8 @@ describe('scorecards', () => {
     const card = readJson<Scorecard>(join(cardDir, file));
     expect(validate(card), JSON.stringify(validate.errors)).toBe(true);
     expect(card.widgetType).toBe(file.replace(/\.json$/, ''));
-    expect(card.rubricVersion).toBe(rubric.version);
+    // A minor rubric bump re-grades only the changed criteria (R26).
+    expect(card.rubricVersion.split('.')[0]).toBe(rubric.version.split('.')[0]);
   });
 
   it('rejects malformed cards', () => {
