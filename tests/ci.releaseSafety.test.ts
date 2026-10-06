@@ -25,6 +25,16 @@ describe('PR Validation as a required check', () => {
   });
 });
 
+describe('change-aware backend deploys', () => {
+  it('diff against the last successful deploy, not the previous push', () => {
+    for (const name of ['firebase-deploy.yml', 'firebase-dev-deploy.yml']) {
+      const yaml = read(name);
+      expect(yaml).not.toContain('github.event.before');
+      expect(yaml).toContain('/runs?branch=$GITHUB_REF_NAME&status=success');
+    }
+  });
+});
+
 describe('production deploy', () => {
   const yaml = read('firebase-deploy.yml');
 

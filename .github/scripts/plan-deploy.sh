@@ -8,14 +8,16 @@
 # it already contains origin/dev-paul (functions deploy with --force, so a stale
 # branch would delete functions dev-paul added).
 #
-# Usage: plan-deploy.sh <branch> <before-sha> <full-backend:true|false>
+# Usage: plan-deploy.sh <branch> <last-deployed-sha> <full-backend:true|false>
+# For dev-paul and main the diff base is the last successfully deployed commit, so a cancelled or
+# failed run's backend changes carry into the next run instead of being dropped.
 # Writes key=value lines to $GITHUB_OUTPUT (or stdout). CHANGED_FILES and
 # CONTAINS_DEV_PAUL override the git lookups, for tests.
 
 set -euo pipefail
 
-BRANCH="${1:?usage: $0 <branch> <before-sha> <full-backend>}"
-BEFORE="${2:-}"
+BRANCH="${1:?usage: $0 <branch> <last-deployed-sha> <full-backend>}"
+BASE_SHA="${2:-}"
 FULL="${3:-false}"
 OUT="${GITHUB_OUTPUT:-/dev/stdout}"
 
@@ -41,7 +43,7 @@ changed_files() {
   fi
   local base
   if [[ "$BRANCH" == "dev-paul" || "$BRANCH" == "main" ]]; then
-    base="$BEFORE"
+    base="$BASE_SHA"
   else
     base="$(git merge-base origin/dev-paul HEAD)"
   fi
