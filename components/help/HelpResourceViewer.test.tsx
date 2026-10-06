@@ -9,6 +9,7 @@ const h = vi.hoisted(() => ({
   canTour: true,
   canRunLive: true,
   published: true,
+  isAdmin: false,
   loadBuildingSet: vi.fn(),
 }));
 
@@ -34,6 +35,7 @@ vi.mock('@/hooks/useHelpResources', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     canAccessFeature: (id: string) => h.canTour && id === 'gl-live-tours',
+    isAdmin: h.isAdmin,
   }),
 }));
 
@@ -66,6 +68,7 @@ beforeEach(() => {
   h.canTour = true;
   h.canRunLive = true;
   h.published = true;
+  h.isAdmin = false;
   h.loadBuildingSet.mockReset();
 });
 
@@ -92,6 +95,24 @@ describe('HelpResourceViewer live tours', () => {
     expect(
       screen.queryByRole('button', { name: 'Show me live' })
     ).not.toBeInTheDocument();
+  });
+
+  it('lets an admin run a tour that was never published as a draft', async () => {
+    h.published = false;
+    h.isAdmin = true;
+    h.loadBuildingSet.mockResolvedValue(set(true));
+    const started = vi.fn();
+    window.addEventListener(TOUR_START_EVENT, started);
+    render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'Run live on my board (draft)',
+      })
+    );
+    window.removeEventListener(TOUR_START_EVENT, started);
+    expect(
+      (started.mock.calls[0][0] as CustomEvent<{ setId: string }>).detail
+    ).toEqual({ setId: 'set-1', draft: true });
   });
 
   it('hides Show me live without the flag', async () => {
