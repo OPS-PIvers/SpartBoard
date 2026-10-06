@@ -5,10 +5,16 @@ on:
     branches:
       - 'dev-*'
   workflow_dispatch:
+    inputs:
+      full_backend:
+        description: Deploy every backend target (functions, rules, indexes, storage), not just changed ones
+        type: boolean
+        default: false
 
-# Concurrency is per job, not per workflow: a newer push cancels superseded checks, but a deploy
-# that has started always finishes (the newest pending deploy waits behind it). workflow_dispatch
-# re-runs a deploy from the Actions tab.
+# Hosting goes to the branch owner's own site once type-check and build pass; the shared backend
+# deploys only changed targets, after every check, and only from a branch containing dev-paul
+# (.github/scripts/plan-dev-deploy.sh). Concurrency is per job: a newer push cancels superseded
+# checks, but a deploy that has started always finishes.
 
 # Build and deploy add id-token: write for keyless Workload Identity Federation into spartboard-dev.
 permissions:
@@ -190,16 +196,39 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-  deploy:
-    needs: [lint, type-check, test, test-counts, rules, build]
+  # What this push deploys: the hosting site for this branch and which backend targets changed.
+  plan:
     runs-on: ubuntu-24.04
-    # Never cancel a running deploy: a half-finished functions deploy leaves dev inconsistent.
+    outputs:
+      site_suffix: ${{ steps.plan.outputs.site_suffix }}
+      backend: ${{ steps.plan.outputs.backend }}
+      deploy_only: ${{ steps.plan.outputs.deploy_only }}
+      release_rules: ${{ steps.plan.outputs.release_rules }}
+      indexes: ${{ steps.plan.outputs.indexes }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - id: plan
+        env:
+          BEFORE: ${{ github.event.before }}
+          FULL: ${{ inputs.full_backend || false }}
+        run: ./.github/scripts/plan-dev-deploy.sh "$GITHUB_REF_NAME" "$BEFORE" "$FULL"
+
+  # Fast lane: the preview updates as soon as the bundle builds and type-checks. Lint, tests and
+  # rules tests still gate the PR and the backend deploy.
+  deploy-hosting:
+    needs: [plan, type-check, build]
+    if: needs.plan.outputs.site_suffix != ''
+    runs-on: ubuntu-24.04
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-deploy
+      group: dev-hosting-${{ needs.plan.outputs.site_suffix }}
       cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
+    env:
+      SITE: spartboard-${{ needs.plan.outputs.site_suffix }}
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
@@ -213,26 +242,74 @@ jobs:
           workload_identity_provider: ${{ env.DEV_WIF_PROVIDER }}
           service_account: ${{ env.DEV_DEPLOY_SA }}
 
-      # Wrapped in a retry helper: `firebase deploy` occasionally hits a
-      # transient Google API blip (e.g. an HTTP 503 on the Firestore
-      # field/index reconciliation read) that fails the whole deploy even
-      # though the code is fine. The script retries those transient
-      # signatures with exponential backoff and fails fast on real errors.
-      - name: Deploy Firebase Rules, Indexes, Functions, Storage
-        run: ./.github/scripts/firebase-deploy-with-retry.sh "$DEV_PROJECT_ID"
-
-      # `firebase deploy --only firestore` returns once index creation is
-      # queued, not when the build is ready. Wait here so the new client
-      # bundle can't run a query before its index is built — matches the
-      # production workflow's safety order.
-      - name: Wait for Firestore composite indexes to be READY
-        run: ./.github/scripts/wait-for-firestore-indexes.sh "$DEV_PROJECT_ID"
-
       - name: Deploy Hosting
-        run: pnpm exec firebase deploy --only hosting --project "$DEV_PROJECT_ID" --force
+        run: |
+          jq --arg site "$SITE" '.hosting.site = $site' firebase.json > firebase.json.tmp
+          mv firebase.json.tmp firebase.json
+          pnpm exec firebase deploy --only hosting --project "$DEV_PROJECT_ID" --force
 
       - name: Comment deployment URL
         run: |
-          echo "### 🚀 Deployed to spartboard-dev" >> $GITHUB_STEP_SUMMARY
-          echo "**URL:** https://spartboard-dev.web.app" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Preview deployed" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** https://${SITE}.web.app" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${GITHUB_REF#refs/heads/}" >> $GITHUB_STEP_SUMMARY
+
+  # Shared backend: only changed targets, after every check. One group for the whole project so two
+  # branches never deploy functions at the same time.
+  deploy:
+    needs: [plan, lint, type-check, test, test-counts, rules, build]
+    if: needs.plan.outputs.backend == 'true'
+    runs-on: ubuntu-24.04
+    # Never cancel a running deploy: a half-finished functions deploy leaves dev inconsistent.
+    concurrency:
+      group: dev-backend-spartboard-dev
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+
+      # dev-paul may have moved while the checks ran; functions deploy with --force would delete its new ones.
+      - name: Confirm this branch still contains dev-paul
+        if: github.ref_name != 'dev-paul'
+        run: |
+          git fetch --quiet origin dev-paul
+          git merge-base --is-ancestor origin/dev-paul HEAD || {
+            echo "::error::dev-paul moved during this run. Bring origin/dev-paul into this branch and push again to deploy the backend."
+            exit 1
+          }
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-output
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.DEV_WIF_PROVIDER }}
+          service_account: ${{ env.DEV_DEPLOY_SA }}
+
+      # Wrapped in a retry helper: `firebase deploy` occasionally hits a transient Google API blip
+      # that fails the whole deploy even though the code is fine.
+      - name: Deploy Firebase Rules, Indexes, Functions, Storage
+        env:
+          FIREBASE_DEPLOY_ONLY: ${{ needs.plan.outputs.deploy_only }}
+          RELEASE_FIRESTORE_RULES: ${{ needs.plan.outputs.release_rules }}
+        run: ./.github/scripts/firebase-deploy-with-retry.sh "$DEV_PROJECT_ID"
+
+      # `firebase deploy` returns once index creation is queued, not when the build is ready.
+      - name: Wait for Firestore composite indexes to be READY
+        if: needs.plan.outputs.indexes == 'true'
+        run: ./.github/scripts/wait-for-firestore-indexes.sh "$DEV_PROJECT_ID"
+
+      - name: Summarize backend deploy
+        env:
+          DEPLOY_ONLY: ${{ needs.plan.outputs.deploy_only }}
+          RULES: ${{ needs.plan.outputs.release_rules }}
+        run: |
+          echo "### Backend deployed to spartboard-dev" >> $GITHUB_STEP_SUMMARY
+          echo "**Targets:** ${DEPLOY_ONLY:-none}; rules released: ${RULES}" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** ${GITHUB_REF#refs/heads/}" >> $GITHUB_STEP_SUMMARY

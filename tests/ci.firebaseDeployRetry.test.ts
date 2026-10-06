@@ -34,15 +34,17 @@ const scriptPath = resolve(
   '.github/scripts/firebase-deploy-with-retry.sh'
 );
 
-// The pattern is composed from two assignments, so evaluate them as bash
+// The pattern is composed from three assignments, so evaluate them as bash
 // rather than reading either one as a literal.
 function patternAssignments(): string {
   const lines = readFileSync(scriptPath, 'utf-8')
     .split('\n')
-    .filter((line) => /^(RULES_RELEASE_409|TRANSIENT_PATTERN)=/.test(line));
-  if (lines.length !== 2) {
+    .filter((line) =>
+      /^(RULES_RELEASE_409|INVOKER_IAM|TRANSIENT_PATTERN)=/.test(line)
+    );
+  if (lines.length !== 3) {
     throw new Error(
-      `expected RULES_RELEASE_409 and TRANSIENT_PATTERN assignments, found ${lines.length}`
+      `expected RULES_RELEASE_409, INVOKER_IAM and TRANSIENT_PATTERN assignments, found ${lines.length}`
     );
   }
   return lines.join('\n');
@@ -75,6 +77,14 @@ describe('firebase-deploy-with-retry.sh transient classification', () => {
       )
     ).toBe(true);
     expect(classifiedTransient('Error: read ECONNRESET')).toBe(true);
+  });
+
+  it('retries the Cloud Run invoker IAM flake', () => {
+    expect(
+      classifiedTransient(
+        'Error: Failed to get the IAM Policy on the Service projects/spartboard/locations/us-central1/services/foo'
+      )
+    ).toBe(true);
   });
 
   it('does not retry a 409 from another service', () => {

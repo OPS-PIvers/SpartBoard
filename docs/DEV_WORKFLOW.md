@@ -6,7 +6,8 @@ Dev branches deploy to a separate Firebase project, `spartboard-dev`, with its o
 
 ### Branch Names
 
-- Any branch starting with `dev-` (e.g., `dev-paul`) deploys the whole app — hosting, rules, indexes, Storage rules and functions — to `spartboard-dev`. The project has one site, so concurrent `dev-*` branches overwrite each other.
+- `dev-paul` deploys hosting to https://spartboard-dev.web.app and `dev-bailey` to https://spartboard-dev-bailey.web.app. Add a new developer's site in `.github/scripts/plan-dev-deploy.sh`, create it with `firebase hosting:sites:create spartboard-dev-<name> --project spartboard-dev`, and add it to Auth authorized domains and `ALLOWED_ORIGINS` in `functions/src/classlinkShared.ts`.
+- Rules, indexes, Storage rules and functions are shared. A push deploys only the ones whose files changed, and only from a branch that already contains `origin/dev-paul`.
 
 ### How It Works
 
@@ -31,7 +32,7 @@ Dev branches deploy to a separate Firebase project, `spartboard-dev`, with its o
 
 4. **Automatic deployment**: GitHub Actions will automatically:
    - Build your code
-   - Deploy everything to `spartboard-dev`, served at `https://spartboard-dev.web.app`
+   - Deploy hosting to your site as soon as build and type-check pass, then any changed backend parts after every check
 5. **Find your URL**:
    - Go to your repo's "Actions" tab on GitHub
    - Click on the latest workflow run
