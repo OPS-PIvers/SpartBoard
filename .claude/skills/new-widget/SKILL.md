@@ -317,13 +317,8 @@ Use `--dry-run` to preview without writing. Register the finished schema in
 (orchestrator-owned during the drawer migration waves — coordinate before
 editing it directly).
 
-**Legacy path still applies for now**: until wave 4 of the settings-drawer
-series flips the default and deletes `SettingsPanel.tsx`, every widget also
-needs the hand-written `Settings.tsx` panel described in Step 3 and the
-`WIDGET_SETTINGS_COMPONENTS` / `WIDGET_APPEARANCE_COMPONENTS` entries in Step
-4 — the schema and the legacy panel coexist during the migration. **Already
-cut over:** every widget in `WIDGET_SETTINGS_SCHEMAS` (the
-authoritative list) is schema-only — none has a `Settings.tsx` file or a
+**Schema-only settings:** every widget in `WIDGET_SETTINGS_SCHEMAS` (the
+authoritative list) has no `Settings.tsx` file and no
 `WIDGET_SETTINGS_COMPONENTS`/`WIDGET_APPEARANCE_COMPONENTS` entry (both maps
 are now empty). Don't use them as legacy-panel references.
 
