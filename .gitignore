@@ -75,6 +75,12 @@ skills-lock.json
 !.claude/skills/gl-author/
 !.claude/skills/grade-widget/
 !.claude/skills/hotfix/
+!.claude/skills/new-feature/
+!.claude/skills/fix/
+!.claude/skills/show-me/
+!.claude/skills/preview/
+!.claude/skills/ship/
+!.claude/skills/undo/
 
 # Playwright MCP scratch
 .playwright-mcp/
