@@ -234,7 +234,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
       ? {
           flex: '0 0 auto',
           minHeight: scheduleSize(18, 72),
-          backgroundColor: isActive ? 'rgba(45, 63, 137, 0.07)' : 'transparent',
+          backgroundColor: 'transparent',
           borderTop:
             index === 0
               ? undefined
