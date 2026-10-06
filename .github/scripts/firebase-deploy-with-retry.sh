@@ -63,7 +63,10 @@ trap 'rm -f "$LOG_FILE"' EXIT
 # storage rules release still does, so keep retrying it. Scoped to that one
 # endpoint: a 409 anywhere else (e.g. functions) is left non-retryable.
 RULES_RELEASE_409='firebaserules\.googleapis\.com[^ ]*/releases had HTTP Error: 409'
-TRANSIENT_PATTERN="HTTP Error: 5[0-9][0-9]|HTTP Error: 429|service is currently unavailable|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|premature close|Client network socket disconnected|Deadline exceeded|code.?UNAVAILABLE|${RULES_RELEASE_409}"
+# Cloud Run's getIamPolicy flakes on existing services mid-deploy ("Failed to
+# set invoker function"); the same functions deploy cleanly on a re-run.
+INVOKER_IAM='Failed to get the IAM Policy on the Service'
+TRANSIENT_PATTERN="HTTP Error: 5[0-9][0-9]|HTTP Error: 429|service is currently unavailable|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|premature close|Client network socket disconnected|Deadline exceeded|code.?UNAVAILABLE|${RULES_RELEASE_409}|${INVOKER_IAM}"
 
 # Comments count toward the 256 KiB ruleset cap, so deploy a comment-stripped
 # copy. Every surviving line is byte-identical to the source; tests still run
