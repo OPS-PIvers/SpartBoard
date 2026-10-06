@@ -1882,6 +1882,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 roster={activeRoster}
                 rosterMode={rosterMode}
                 onOpenAbsentModal={() => setAbsentModalOpen(true)}
+                widgetId={widget.id}
                 {...(rosterGroupsEnabled
                   ? {
                       poolGroupId: rosterPoolGroupId,

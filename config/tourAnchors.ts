@@ -489,6 +489,14 @@ export const TOUR_ANCHORS = {
     label: 'Randomize/Pick button in Random Picker',
     perWidget: true,
   },
+  'random.class-context': {
+    label: 'Active class button in the Randomizer header',
+    perWidget: true,
+  },
+  'random.mark-absent': {
+    label: 'Mark absent students item in the Randomizer class menu',
+    panel: true,
+  },
   'random.reset': {
     label: 'Reset student pool button in Random Picker',
     perWidget: true,
