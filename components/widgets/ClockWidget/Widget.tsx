@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGlobalStyle } from '@/context/dashboardCanvasStore';
 import { WidgetData, ClockConfig } from '@/types';
@@ -13,10 +13,49 @@ export const getClockTimeFontSize = (showSeconds: boolean): string =>
 
 export const CLOCK_DATE_FONT_SIZE = 'min(16px, 12cqmin)';
 
+const PROBE_PX = 100;
+const DATE_RATIO = 0.17;
+const MIN_DATE_PX = 9;
+
+type ClockFit = { time: number; date: number | null; stacked: boolean };
+
+// Largest time and date sizes that fit the card, from probe widths measured at PROBE_PX; tall cards stack the digits.
+// eslint-disable-next-line react-refresh/only-export-components
+export const fitClockText = (
+  width: number,
+  height: number,
+  timeEm: number,
+  dateEm: number,
+  stack?: { em: number; rows: number }
+): ClockFit => {
+  const w = width * 0.9;
+  const h = height * 0.86;
+  const fitLines = (em: number, lines: number): ClockFit => {
+    const withDate = Math.min(w / em, h / (lines * 1.04 + DATE_RATIO * 1.25));
+    const date = Math.min(withDate * DATE_RATIO, w / dateEm);
+    if (date >= MIN_DATE_PX)
+      return { time: withDate, date, stacked: lines > 1 };
+    return {
+      time: Math.min(w / em, h / lines),
+      date: null,
+      stacked: lines > 1,
+    };
+  };
+  const row = fitLines(timeEm, 1);
+  if (!stack) return row;
+  const stacked = fitLines(stack.em, stack.rows);
+  return stacked.time > row.time * 1.25 ? stacked : row;
+};
+
 export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { i18n } = useTranslation();
   const globalStyle = useGlobalStyle();
   const [time, setTime] = useState(new Date());
+  const containerRef = useRef<HTMLDivElement>(null);
+  const timeProbeRef = useRef<HTMLDivElement>(null);
+  const dateProbeRef = useRef<HTMLDivElement>(null);
+  const stackProbeRef = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState<ClockFit | null>(null);
 
   const {
     format24 = true,
@@ -83,21 +122,128 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     return fontFamily;
   };
 
+  const dateLabel = time.toLocaleDateString(i18n.language, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+  const fontClass = getFontClass();
+  const styleClasses = getStyleClasses();
+  const probeHours = displayHours.replace(/\d/g, '8');
+  const stackRows = (showSeconds ? 3 : 2) + (format24 ? 0 : 0.3);
+
+  // Re-fit when the card resizes, fonts load, or the time format or date text changes.
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    const timeProbe = timeProbeRef.current;
+    const dateProbe = dateProbeRef.current;
+    const stackProbe = stackProbeRef.current;
+    if (!el || !timeProbe || !dateProbe || !stackProbe) return;
+    const measure = () => {
+      const { clientWidth: w, clientHeight: h } = el;
+      const timeEm = timeProbe.scrollWidth / PROBE_PX;
+      const dateEm = dateProbe.scrollWidth / PROBE_PX;
+      if (!w || !h || !timeEm || !dateEm) return;
+      const next = fitClockText(w, h, timeEm, dateEm, {
+        em: stackProbe.scrollWidth / PROBE_PX,
+        rows: stackRows,
+      });
+      setFit((prev) =>
+        prev &&
+        prev.stacked === next.stacked &&
+        Math.abs(prev.time - next.time) < 0.5 &&
+        (prev.date === null) === (next.date === null) &&
+        Math.abs((prev.date ?? 0) - (next.date ?? 0)) < 0.5
+          ? prev
+          : next
+      );
+    };
+    measure();
+    const ro =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(measure);
+    ro?.observe(el);
+    let live = true;
+    void document.fonts?.ready.then(() => live && measure());
+    return () => {
+      live = false;
+      ro?.disconnect();
+    };
+  }, [
+    showSeconds,
+    format24,
+    clockStyle,
+    fontClass,
+    dateLabel,
+    probeHours,
+    stackRows,
+  ]);
+
+  const renderTimeRow = (h: string, m: string, s: string, ap: string) => (
+    <>
+      <span>{h}</span>
+      <span
+        className={`${
+          clockStyle === 'minimal' ? '' : 'animate-pulse'
+        } mx-[0.1em] opacity-60`}
+      >
+        :
+      </span>
+      <span>{m}</span>
+      {showSeconds && (
+        <>
+          <span className="opacity-60 mx-[0.1em]">:</span>
+          <span className="opacity-80" style={{ fontSize: '0.85em' }}>
+            {s}
+          </span>
+        </>
+      )}
+      {!format24 && (
+        <span
+          className="opacity-70 uppercase"
+          style={{ fontSize: '0.25em', marginLeft: '0.1em' }}
+        >
+          {ap}
+        </span>
+      )}
+    </>
+  );
+
+  const renderStack = (h: string, m: string, s: string, ap: string) => (
+    <div className="flex flex-col items-center leading-none">
+      <span>{h}</span>
+      <span>{m}</span>
+      {showSeconds && <span className="opacity-80">{s}</span>}
+      {!format24 && (
+        <span className="opacity-70 uppercase" style={{ fontSize: '0.3em' }}>
+          {ap}
+        </span>
+      )}
+    </div>
+  );
+
+  const stacked = fit?.stacked ?? false;
+  const renderTime = stacked ? renderStack : renderTimeRow;
+
   return (
     <WidgetLayout
       padding="p-0"
       content={
         <div
-          className={`flex flex-col items-center justify-center h-full w-full transition-all duration-500 ${
+          ref={containerRef}
+          className={`relative flex flex-col items-center justify-center h-full w-full overflow-hidden ${
             clockStyle === 'lcd' ? 'bg-black/5' : ''
           }`}
-          style={{ gap: '1cqmin' }}
+          style={{ gap: fit ? `${fit.time * 0.04}px` : '1cqmin' }}
         >
           <div
             data-testid="clock-time-container"
-            className={`flex items-baseline leading-none transition-all ${getFontClass()} ${getStyleClasses()}`}
+            className={`relative flex items-baseline leading-none whitespace-nowrap transition-colors ${fontClass} ${styleClasses}`}
             style={{
-              fontSize: getClockTimeFontSize(showSeconds),
+              fontSize: fit
+                ? `${fit.time}px`
+                : getClockTimeFontSize(showSeconds),
               color: themeColor,
               textShadow: glow
                 ? `0 0 0.1em ${themeColor}, 0 0 0.25em ${themeColor}66`
@@ -107,63 +253,52 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             {clockStyle === 'lcd' && (
               <div
                 data-testid="clock-lcd-background"
-                className="absolute opacity-5 pointer-events-none select-none flex"
+                className="absolute inset-0 opacity-5 pointer-events-none select-none flex items-baseline justify-center"
               >
-                <span>88</span>
-                <span className="mx-[0.25em]">:</span>
-                <span>88</span>
-                {showSeconds && (
-                  <>
-                    <span className="mx-[0.25em]">:</span>
-                    <span>88</span>
-                  </>
-                )}
+                {renderTime('88', '88', '88', '')}
               </div>
             )}
-
-            <span>{displayHours}</span>
-            <span
-              className={`${
-                clockStyle === 'minimal' ? '' : 'animate-pulse'
-              } mx-[0.1em] opacity-60`}
-            >
-              :
-            </span>
-            <span>{minutes}</span>
-
-            {showSeconds && (
-              <>
-                <span className="opacity-60 mx-[0.1em]">:</span>
-                <span className="opacity-80" style={{ fontSize: '0.85em' }}>
-                  {seconds}
-                </span>
-              </>
-            )}
-
-            {!format24 && (
-              <span
-                className="opacity-70 uppercase"
-                style={{ fontSize: '0.25em', marginLeft: '0.1em' }}
-              >
-                {ampm}
-              </span>
-            )}
+            {renderTime(displayHours, minutes, seconds, ampm)}
           </div>
 
+          {(fit === null || fit.date !== null) && (
+            <div
+              data-testid="clock-date"
+              className={`opacity-80 uppercase tracking-[0.2em] whitespace-nowrap ${fontClass}`}
+              style={{
+                fontSize: fit?.date ? `${fit.date}px` : CLOCK_DATE_FONT_SIZE,
+                fontWeight: 900,
+                color: dateColor ?? themeColor,
+              }}
+            >
+              {dateLabel}
+            </div>
+          )}
           <div
-            data-testid="clock-date"
-            className={`opacity-80 uppercase tracking-[0.2em] ${getFontClass()}`}
-            style={{
-              fontSize: CLOCK_DATE_FONT_SIZE,
-              fontWeight: 900,
-              color: dateColor ?? themeColor,
-            }}
+            aria-hidden="true"
+            className="absolute left-0 top-0 invisible pointer-events-none flex flex-col items-start"
           >
-            {time.toLocaleDateString(i18n.language, {
-              weekday: 'long',
-              month: 'short',
-              day: 'numeric',
-            })}
+            <div
+              ref={timeProbeRef}
+              className={`flex items-baseline leading-none whitespace-nowrap w-max ${fontClass} ${styleClasses}`}
+              style={{ fontSize: `${PROBE_PX}px` }}
+            >
+              {renderTimeRow(probeHours, '88', '88', 'MM')}
+            </div>
+            <div
+              ref={stackProbeRef}
+              className={`leading-none whitespace-nowrap w-max ${fontClass} ${styleClasses}`}
+              style={{ fontSize: `${PROBE_PX}px` }}
+            >
+              88
+            </div>
+            <div
+              ref={dateProbeRef}
+              className={`uppercase tracking-[0.2em] whitespace-nowrap w-max ${fontClass}`}
+              style={{ fontSize: `${PROBE_PX}px`, fontWeight: 900 }}
+            >
+              {dateLabel}
+            </div>
           </div>
         </div>
       }

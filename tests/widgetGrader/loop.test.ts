@@ -12,6 +12,7 @@ import {
   type UsageFile,
 } from '@/scripts/widget-grader/queue';
 import {
+  compareFill,
   compareScorecards,
   findDrift,
   findGaming,
@@ -259,6 +260,30 @@ describe('loop: no-regression check (R20)', () => {
       compareScorecards(rubric, card('a', 2), card('a', 3, {}, { G1: false }))
         .ok
     ).toBe(false);
+  });
+});
+
+describe('loop: fill check', () => {
+  const render = (size: string, f: number, variant = 'base') => ({
+    size: { name: size },
+    fixture: 'typical',
+    values: { variant, contentFraction: f },
+  });
+  it('flags a base render whose content shrank inside the card', () => {
+    expect(
+      compareFill(
+        [render('default', 0.58), render('large', 0.6)],
+        [render('default', 0.45), render('large', 0.58)]
+      )
+    ).toEqual([{ render: 'default/typical', before: 0.58, after: 0.45 }]);
+  });
+  it('ignores tiny changes and non-base variants', () => {
+    expect(
+      compareFill(
+        [render('narrow', 0.2), render('default', 0.5, 'settings')],
+        [render('narrow', 0.16), render('default', 0.1, 'settings')]
+      )
+    ).toEqual([]);
   });
 });
 
