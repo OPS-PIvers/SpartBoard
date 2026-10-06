@@ -177,6 +177,9 @@ export type FlagVisibility = 'off' | 'teacher' | 'students';
 /** Built-in ids that auto flags and Excused depend on (D14). */
 export type BuiltInFlagId = 'missing' | 'excused' | 'late';
 
+/** Work in the minute after the bell (the class-close cushion) is on time. */
+export const ON_TIME_CUSHION_MS = 60 * 1000;
+
 /** Whether a numeric flag value sets an unscored cell's percent or takes points off a scored one. */
 export type FlagValueMode = 'score' | 'deduct';
 
@@ -398,11 +401,12 @@ export function activeFlags(
   if (
     row.submittedAt !== null &&
     row.dueAt !== null &&
-    row.submittedAt > row.dueAt
+    row.submittedAt > row.dueAt + ON_TIME_CUSHION_MS
   ) {
     addAuto('late');
   }
-  const deadline = row.dueAt ?? row.closeAt;
+  const deadline =
+    row.dueAt !== null ? row.dueAt + ON_TIME_CUSHION_MS : row.closeAt;
   if (row.submittedAt === null && deadline !== null && now > deadline) {
     addAuto('missing');
   }

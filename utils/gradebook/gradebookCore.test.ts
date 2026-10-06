@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import * as core from './gradebookCore';
+import { BELL_CLOSE_CUSHION_MS } from '@/utils/periodPlan';
 
 interface CoreCase {
   name: string;
@@ -167,7 +168,7 @@ describe('gradebook core', () => {
         state: 'not-attempted',
         points: null,
         submittedAt: null,
-        dueAt: 1,
+        dueAt: 1 - core.ON_TIME_CUSHION_MS,
       },
       null,
       null,
@@ -206,5 +207,57 @@ describe('work kind', () => {
   it('ignores an unrecognised value', () => {
     expect(core.resolveWorkKind('quiz', { workKind: 'both' })).toBe('work');
     expect(core.isResourceSession('guided-learning', null)).toBe(true);
+  });
+});
+
+describe('auto Late and Missing around the class-close cushion', () => {
+  const due = 1_000_000;
+  const rowAt = (submittedAt: number | null): core.GradeIndexRow => ({
+    kind: 'quiz',
+    sessionId: 's',
+    studentUid: 'u',
+    ownerUid: 't',
+    editorUids: [],
+    rosterIds: [],
+    classIds: [],
+    title: 'Q',
+    rawPct: null,
+    points: null,
+    max: null,
+    state: submittedAt === null ? 'not-attempted' : 'awaiting-grade',
+    submittedAt,
+    dueAt: due,
+    openAt: null,
+    closeAt: due + BELL_CLOSE_CUSHION_MS,
+    createdAt: 0,
+    attempts: [],
+    targetEvidence: [],
+    published: true,
+    assigned: true,
+    updatedAt: 0,
+  });
+  const flags = (row: core.GradeIndexRow, now: number) =>
+    core
+      .activeFlags(row, null, core.DEFAULT_GRADEBOOK_FLAGS, true, now)
+      .map((f) => f.id);
+
+  it('matches the class-close cushion', () => {
+    expect(core.ON_TIME_CUSHION_MS).toBe(BELL_CLOSE_CUSHION_MS);
+  });
+
+  it('counts work turned in during the cushion as on time', () => {
+    expect(flags(rowAt(due + BELL_CLOSE_CUSHION_MS), due + 600_000)).toEqual(
+      []
+    );
+    expect(
+      flags(rowAt(due + BELL_CLOSE_CUSHION_MS + 1), due + 600_000)
+    ).toEqual(['late']);
+  });
+
+  it('waits out the cushion before marking work missing', () => {
+    expect(flags(rowAt(null), due + BELL_CLOSE_CUSHION_MS)).toEqual([]);
+    expect(flags(rowAt(null), due + BELL_CLOSE_CUSHION_MS + 1)).toEqual([
+      'missing',
+    ]);
   });
 });
