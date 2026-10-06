@@ -357,6 +357,14 @@ describe('ClockWidget', () => {
     expect(big.time * 3).toBeLessThan(1900 * 0.9);
   });
 
+  it('stacks the digits when that makes them clearly bigger', () => {
+    const tall = fitClockText(220, 600, 5.3, 14, { em: 1.1, rows: 3 });
+    expect(tall.stacked).toBe(true);
+    expect(tall.time).toBeGreaterThan((220 * 0.9) / 5.3);
+    const wide = fitClockText(420, 270, 5.3, 14, { em: 1.1, rows: 3 });
+    expect(wide.stacked).toBe(false);
+  });
+
   it('drops the date before it gets unreadably small', () => {
     const tiny = fitClockText(150, 100, 5, 14);
     expect(tiny.date).toBeNull();

@@ -17,20 +17,34 @@ const PROBE_PX = 100;
 const DATE_RATIO = 0.17;
 const MIN_DATE_PX = 9;
 
-// Largest time and date sizes that fit the card, from probe widths measured at PROBE_PX.
+type ClockFit = { time: number; date: number | null; stacked: boolean };
+
+// Largest time and date sizes that fit the card, from probe widths measured at PROBE_PX; tall cards stack the digits.
 // eslint-disable-next-line react-refresh/only-export-components
 export const fitClockText = (
   width: number,
   height: number,
   timeEm: number,
-  dateEm: number
-): { time: number; date: number | null } => {
+  dateEm: number,
+  stack?: { em: number; rows: number }
+): ClockFit => {
   const w = width * 0.9;
   const h = height * 0.86;
-  const withDate = Math.min(w / timeEm, h / (1.04 + DATE_RATIO * 1.25));
-  const date = Math.min(withDate * DATE_RATIO, w / dateEm);
-  if (date >= MIN_DATE_PX) return { time: withDate, date };
-  return { time: Math.min(w / timeEm, h), date: null };
+  const fitLines = (em: number, lines: number): ClockFit => {
+    const withDate = Math.min(w / em, h / (lines * 1.04 + DATE_RATIO * 1.25));
+    const date = Math.min(withDate * DATE_RATIO, w / dateEm);
+    if (date >= MIN_DATE_PX)
+      return { time: withDate, date, stacked: lines > 1 };
+    return {
+      time: Math.min(w / em, h / lines),
+      date: null,
+      stacked: lines > 1,
+    };
+  };
+  const row = fitLines(timeEm, 1);
+  if (!stack) return row;
+  const stacked = fitLines(stack.em, stack.rows);
+  return stacked.time > row.time * 1.25 ? stacked : row;
 };
 
 export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
@@ -40,9 +54,8 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const timeProbeRef = useRef<HTMLDivElement>(null);
   const dateProbeRef = useRef<HTMLDivElement>(null);
-  const [fit, setFit] = useState<{ time: number; date: number | null } | null>(
-    null
-  );
+  const stackProbeRef = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState<ClockFit | null>(null);
 
   const {
     format24 = true,
@@ -116,21 +129,28 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   });
   const fontClass = getFontClass();
   const styleClasses = getStyleClasses();
+  const probeHours = displayHours.replace(/\d/g, '8');
+  const stackRows = (showSeconds ? 3 : 2) + (format24 ? 0 : 0.3);
 
   // Re-fit when the card resizes, fonts load, or the time format or date text changes.
   useLayoutEffect(() => {
     const el = containerRef.current;
     const timeProbe = timeProbeRef.current;
     const dateProbe = dateProbeRef.current;
-    if (!el || !timeProbe || !dateProbe) return;
+    const stackProbe = stackProbeRef.current;
+    if (!el || !timeProbe || !dateProbe || !stackProbe) return;
     const measure = () => {
       const { clientWidth: w, clientHeight: h } = el;
       const timeEm = timeProbe.scrollWidth / PROBE_PX;
       const dateEm = dateProbe.scrollWidth / PROBE_PX;
       if (!w || !h || !timeEm || !dateEm) return;
-      const next = fitClockText(w, h, timeEm, dateEm);
+      const next = fitClockText(w, h, timeEm, dateEm, {
+        em: stackProbe.scrollWidth / PROBE_PX,
+        rows: stackRows,
+      });
       setFit((prev) =>
         prev &&
+        prev.stacked === next.stacked &&
         Math.abs(prev.time - next.time) < 0.5 &&
         (prev.date === null) === (next.date === null) &&
         Math.abs((prev.date ?? 0) - (next.date ?? 0)) < 0.5
@@ -150,7 +170,15 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       live = false;
       ro?.disconnect();
     };
-  }, [showSeconds, format24, clockStyle, fontClass, dateLabel]);
+  }, [
+    showSeconds,
+    format24,
+    clockStyle,
+    fontClass,
+    dateLabel,
+    probeHours,
+    stackRows,
+  ]);
 
   const renderTimeRow = (h: string, m: string, s: string, ap: string) => (
     <>
@@ -182,6 +210,22 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     </>
   );
 
+  const renderStack = (h: string, m: string, s: string, ap: string) => (
+    <div className="flex flex-col items-center leading-none">
+      <span>{h}</span>
+      <span>{m}</span>
+      {showSeconds && <span className="opacity-80">{s}</span>}
+      {!format24 && (
+        <span className="opacity-70 uppercase" style={{ fontSize: '0.3em' }}>
+          {ap}
+        </span>
+      )}
+    </div>
+  );
+
+  const stacked = fit?.stacked ?? false;
+  const renderTime = stacked ? renderStack : renderTimeRow;
+
   return (
     <WidgetLayout
       padding="p-0"
@@ -202,7 +246,14 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               className={`flex items-baseline leading-none whitespace-nowrap w-max ${fontClass} ${styleClasses}`}
               style={{ fontSize: `${PROBE_PX}px` }}
             >
-              {renderTimeRow('88', '88', '88', 'MM')}
+              {renderTimeRow(probeHours, '88', '88', 'MM')}
+            </div>
+            <div
+              ref={stackProbeRef}
+              className={`leading-none whitespace-nowrap w-max ${fontClass} ${styleClasses}`}
+              style={{ fontSize: `${PROBE_PX}px` }}
+            >
+              88
             </div>
             <div
               ref={dateProbeRef}
@@ -229,12 +280,12 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             {clockStyle === 'lcd' && (
               <div
                 data-testid="clock-lcd-background"
-                className="absolute inset-0 opacity-5 pointer-events-none select-none flex items-baseline"
+                className="absolute inset-0 opacity-5 pointer-events-none select-none flex items-baseline justify-center"
               >
-                {renderTimeRow('88', '88', '88', '')}
+                {renderTime('88', '88', '88', '')}
               </div>
             )}
-            {renderTimeRow(displayHours, minutes, seconds, ampm)}
+            {renderTime(displayHours, minutes, seconds, ampm)}
           </div>
 
           {(fit === null || fit.date !== null) && (
