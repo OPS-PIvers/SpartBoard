@@ -27,6 +27,8 @@ import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { requestStartTour } from '@/components/tours/tourState';
 import { useRunnableTourIds } from '@/components/tours/useTourOffers';
 import { useCanRunLiveTour } from '@/components/tours/useCanRunLiveTour';
+import { isTourRunnable } from '@/components/tours/publishedTours';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { Sparty } from '@/components/sparty/Sparty';
 import { useShowSparty } from '@/components/sparty/useShowSparty';
 
@@ -84,16 +86,30 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
   const liveTours = canAccessFeature('gl-live-tours');
   const tourSetIds = useLiveTourSetIds(liveTours);
   const canRunLive = useCanRunLiveTour();
+  const isMobile = useIsMobile();
   const { organization } = useOrganization(orgId);
   const { items, categories, loading } = useHelpResources({
     includeHidden: false,
   });
+  // A shared link names one resource; open it once the list has loaded.
+  const [pendingItemId, setPendingItemId] = useState(itemId);
+  const [trackedItemId, setTrackedItemId] = useState(itemId);
+  if (trackedItemId !== itemId) {
+    setTrackedItemId(itemId);
+    setPendingItemId(itemId);
+  }
+  const linked =
+    pendingItemId && !loading
+      ? items.find((item) => item.id === pendingItemId)
+      : undefined;
+  const linkedSetId =
+    linked?.kind === 'guided-learning' ? (linked.setId ?? null) : null;
   // Badge only tours whose published snapshot runs, so the badge never promises a draft.
   const runnableTourIds = useRunnableTourIds(
     items.flatMap((item) =>
       item.kind === 'guided-learning' &&
       item.setId &&
-      tourSetIds.has(item.setId)
+      (tourSetIds.has(item.setId) || item.setId === linkedSetId)
         ? [item.setId]
         : []
     ),
@@ -117,18 +133,31 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
     setWidgetFilter(widgetType);
     setOpenItem(null);
   }
-  // A shared link names one resource; open it once the list has loaded.
-  const [pendingItemId, setPendingItemId] = useState(itemId);
-  const [trackedItemId, setTrackedItemId] = useState(itemId);
-  if (trackedItemId !== itemId) {
-    setTrackedItemId(itemId);
-    setPendingItemId(itemId);
-  }
-  if (pendingItemId && !loading) {
+  // A linked live tour waits for its published state and the board, then runs instead of opening.
+  const linkedRunnable =
+    liveTours && linkedSetId ? isTourRunnable(linkedSetId) : false;
+  const linkedTourId =
+    linkedRunnable === true && canRunLive ? linkedSetId : null;
+  const linkedWaiting =
+    linkedRunnable === undefined ||
+    (linkedRunnable && !canRunLive && !isMobile);
+  const [linkStart, setLinkStart] = useState<{
+    itemId: string;
+    setId: string;
+  } | null>(null);
+  if (pendingItemId && linkedTourId) {
     setPendingItemId(undefined);
-    const linked = items.find((item) => item.id === pendingItemId);
+    setLinkStart({ itemId: pendingItemId, setId: linkedTourId });
+  } else if (pendingItemId && !loading && !linkedWaiting) {
+    setPendingItemId(undefined);
     if (linked) setOpenItem(linked);
   }
+  // Dispatching starts the runner and closes Help, so it waits for commit.
+  useEffect(() => {
+    if (!linkStart) return;
+    void incrementHelpOpenCount(linkStart.itemId);
+    requestStartTour({ setId: linkStart.setId });
+  }, [linkStart]);
 
   const categoryName = useMemo(() => {
     const byId = new Map(categories.map((c) => [c.id, c.name]));

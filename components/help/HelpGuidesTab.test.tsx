@@ -54,6 +54,10 @@ vi.mock('@/components/tours/useCanRunLiveTour', () => ({
   useCanRunLiveTour: () => glMocks.canRunLive,
 }));
 
+vi.mock('@/hooks/useIsMobile', () => ({
+  useIsMobile: () => false,
+}));
+
 vi.mock('@/config/firebase', () => ({
   db: {},
   isAuthBypass: false,
@@ -251,6 +255,48 @@ describe('HelpGuidesTab', () => {
     window.addEventListener(TOUR_START_EVENT, started);
     render(<HelpGuidesTab query="" />);
     await user.click(screen.getByText('Boards walkthrough'));
+    window.removeEventListener(TOUR_START_EVENT, started);
+    expect(started).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+  });
+
+  it('starts a live tour from a shared link on a board', () => {
+    glMocks.liveTours = true;
+    glMocks.published = new Set(['tour-set']);
+    helpState.items.push(tourItem());
+    const started = vi.fn();
+    window.addEventListener(TOUR_START_EVENT, started);
+    render(<HelpGuidesTab query="" itemId="g1" />);
+    window.removeEventListener(TOUR_START_EVENT, started);
+    expect(
+      (started.mock.calls[0][0] as CustomEvent<{ setId: string }>).detail
+    ).toEqual({ setId: 'tour-set' });
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
+  });
+
+  it('holds a shared tour link until the board is open', () => {
+    glMocks.liveTours = true;
+    glMocks.canRunLive = false;
+    glMocks.published = new Set(['tour-set']);
+    helpState.items.push(tourItem());
+    const started = vi.fn();
+    window.addEventListener(TOUR_START_EVENT, started);
+    const { rerender } = render(<HelpGuidesTab query="" itemId="g1" />);
+    expect(started).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
+    glMocks.canRunLive = true;
+    rerender(<HelpGuidesTab query="" itemId="g1" />);
+    window.removeEventListener(TOUR_START_EVENT, started);
+    expect(started).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the viewer from a shared link to an unpublished tour', () => {
+    glMocks.liveTours = true;
+    glMocks.loadBuildingSet.mockResolvedValue(null);
+    helpState.items.push(tourItem());
+    const started = vi.fn();
+    window.addEventListener(TOUR_START_EVENT, started);
+    render(<HelpGuidesTab query="" itemId="g1" />);
     window.removeEventListener(TOUR_START_EVENT, started);
     expect(started).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
