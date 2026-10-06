@@ -7,6 +7,7 @@ import { WidgetData, ClockConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
 import {
   ClockWidget,
   getClockTimeFontSize,
+  fitClockText,
   CLOCK_DATE_FONT_SIZE,
 } from './Widget';
 
@@ -343,6 +344,23 @@ describe('ClockWidget', () => {
       expect(fontSize).toMatch(/cqmin/);
       expect(fontSize).toMatch(showSeconds ? /16cqw/ : /23cqw/);
     }
+  });
+
+  it('fits the time to the narrower of width and height', () => {
+    // A default 12h card: width-bound, so the time fills 90% of it.
+    const wide = fitClockText(400, 250, 3, 12);
+    expect(wide.time * 3).toBeCloseTo(360);
+    expect(wide.date).not.toBeNull();
+    // A short card is height-bound and the time grows past any fixed px cap on a big screen.
+    const big = fitClockText(1900, 500, 3, 12);
+    expect(big.time).toBeGreaterThan(160);
+    expect(big.time * 3).toBeLessThan(1900 * 0.9);
+  });
+
+  it('drops the date before it gets unreadably small', () => {
+    const tiny = fitClockText(150, 100, 5, 14);
+    expect(tiny.date).toBeNull();
+    expect(tiny.time * 5).toBeCloseTo(135);
   });
 
   it('date label uses cqmin units for font scaling (not cqh/cqw)', () => {
