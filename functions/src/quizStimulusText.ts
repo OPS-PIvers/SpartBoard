@@ -2,11 +2,18 @@
 // (docs/plans/shipped/QUIZ_READ_ALOUD.md §4.2): PDF text layer first, Gemini OCR fallback.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
+import axios from 'axios';
 import type { Firestore } from 'firebase-admin/firestore';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { isGlobalFeatureGranted } from './quizMediaArchive';
 import { QUIZ_READ_ALOUD_FEATURE_ID } from './quizReadAloud';
 import './functionsInit';
+import {
+  createPinnedAgent,
+  isBlockedIp,
+  resolveAndValidateHost,
+  type ResolvedAddress,
+} from './ssrfGuard';
 import { assertViewAsAllowed } from './viewAsGuard';
 
 export const MAX_STORED_CHARS = 50_000;
@@ -85,12 +92,8 @@ export function assertFetchableUrl(url: string): void {
     host === 'localhost' ||
     host.endsWith('.local') ||
     host.endsWith('.internal') ||
-    /^(127|10|0)\./.test(host) ||
-    /^192\.168\./.test(host) ||
-    /^169\.254\./.test(host) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
-    host === '::1' ||
-    host.startsWith('[');
+    host.startsWith('[') ||
+    isBlockedIp(host);
   if (blocked)
     throw new HttpsError('invalid-argument', 'That url cannot be fetched.');
 }
@@ -244,48 +247,62 @@ const OCR_PROMPT =
   'Keep paragraphs separated by a blank line. Output only the transcribed text with no commentary. ' +
   'If there is no readable text, output nothing.';
 
-/** Streams the body so a missing or understated content-length can't buffer past the cap. */
-async function readCappedBody(res: Response): Promise<Buffer> {
-  if (!res.body) return Buffer.alloc(0);
-  const reader = (res.body as ReadableStream<Uint8Array>).getReader();
-  const parts: Buffer[] = [];
-  let total = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done || !value) break;
-      total += value.byteLength;
-      if (total > MAX_SOURCE_BYTES) throw new Error('Source too large');
-      parts.push(Buffer.from(value));
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
-  }
-  return Buffer.concat(parts, total);
+const FETCH_TIMEOUT_MS = 20_000;
+
+export interface PublicResponse {
+  status: number;
+  location: string | null;
+  body: Buffer;
 }
 
-/** Redirects are followed by hand so every hop is re-checked against the public-host rules (no SSRF via 302). */
+export type PublicGet = (
+  url: string,
+  addresses: ResolvedAddress[]
+) => Promise<PublicResponse>;
+
+/** One GET pinned to the already-validated addresses; redirects are returned, never followed. */
+const pinnedGet: PublicGet = async (url, addresses) => {
+  const res = await axios.get<ArrayBuffer>(url, {
+    maxContentLength: MAX_SOURCE_BYTES,
+    maxBodyLength: MAX_SOURCE_BYTES,
+    maxRedirects: 0,
+    timeout: FETCH_TIMEOUT_MS,
+    responseType: 'arraybuffer',
+    validateStatus: () => true,
+    httpsAgent: createPinnedAgent(addresses),
+  });
+  const location: unknown = res.headers?.location;
+  return {
+    status: res.status,
+    location: typeof location === 'string' ? location : null,
+    body: Buffer.from(res.data),
+  };
+};
+
+/** Redirects are followed by hand; every hop is resolved and checked, then pinned, so no SSRF via 302 or DNS. */
 export async function fetchPublicUrl(
   url: string,
-  doFetch: typeof fetch = fetch
+  get: PublicGet = pinnedGet,
+  resolveHost: typeof resolveAndValidateHost = resolveAndValidateHost
 ): Promise<Buffer> {
   let target = url;
   for (let hop = 0; hop <= MAX_FETCH_REDIRECTS; hop += 1) {
     assertFetchableUrl(target);
-    const res = await doFetch(target, { redirect: 'manual' });
-    const location =
-      res.status >= 300 && res.status < 400
-        ? res.headers.get('location')
-        : null;
-    if (location) {
-      await res.body?.cancel().catch(() => undefined);
-      target = new URL(location, target).toString();
+    let addresses: ResolvedAddress[];
+    try {
+      addresses = await resolveHost(new URL(target).hostname);
+    } catch {
+      throw new HttpsError('invalid-argument', 'That url cannot be fetched.');
+    }
+    const res = await get(target, addresses);
+    if (res.status >= 300 && res.status < 400 && res.location) {
+      target = new URL(res.location, target).toString();
       continue;
     }
-    if (!res.ok) throw new Error(`Fetch responded ${res.status}`);
-    const declared = Number(res.headers.get('content-length') ?? 0);
-    if (declared > MAX_SOURCE_BYTES) throw new Error('Source too large');
-    return readCappedBody(res);
+    if (res.status < 200 || res.status >= 300)
+      throw new Error(`Fetch responded ${res.status}`);
+    if (res.body.length > MAX_SOURCE_BYTES) throw new Error('Source too large');
+    return res.body;
   }
   throw new Error('Too many redirects');
 }

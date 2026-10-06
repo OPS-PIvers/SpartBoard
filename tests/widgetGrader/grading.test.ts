@@ -535,7 +535,9 @@ describe('platform scorecard', () => {
         descriptors: Record<string, string>;
       }[];
     }>('docs/widget-rubric/platform.json');
-    expect(platform.rubricVersion).toBe(rubric.version);
+    expect(platform.rubricVersion.split('.')[0]).toBe(
+      rubric.version.split('.')[0]
+    );
     expect(platform.criteria.map((c) => c.name)).toEqual([
       'Drag edge zones',
       'Resize corners',

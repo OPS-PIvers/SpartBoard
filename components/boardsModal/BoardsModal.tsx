@@ -533,7 +533,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     (singleMoveTargetId
       ? (dashboards.find((d) => d.id === singleMoveTargetId)?.collectionId ??
         null)
-      : null);
+      : undefined); // bulk move: nothing excluded, Root stays available
 
   return (
     <div

@@ -4534,3 +4534,33 @@ rather than "no data") is also still open.
   - #3824 (dev-paul → main) was not re-reviewed. Its head `d9ad9283` is unchanged since the 2026-10-04 scheduled review, and both of that review's comments were already answered.
   - #3826's `test-coverage.md` entry says the audit ran full `pnpm test`, which CLAUDE.md forbids for agents. Flagged in that review.
   - `gh` is unauthenticated, so GitHub access went through MCP. The log goes to the session branch, not `scheduled-tasks`, per the session's branch rules.
+
+## 2026-10-06
+
+- PRs reviewed:
+  - #3881 docs(debugger): run 91 log
+  - #3880 fix(functions): stimulus URL fetch resolves and pins hosts via the SSRF guard
+  - #3879 Daily AI limit field: allow clearing, clamp to 1-1000
+  - #3878 fix(hooks): restore the PLC sync conflict prompt when keep/pull fails
+  - #3877 fix(boards): bulk Move keeps Root as a destination
+  - #3876 fix(flashcards): treat mid-cell quotes as literal in text import
+  - #3875 Skills: fix stale Checklist/Settings.tsx reference in new-widget
+  - #3874 Widget loop: Clock layout D → C
+  - #3872 docs(unifier): run 108 log — D1/D2/D4/D5 aligned
+  - #3860 Tour anchors: tag 1 recorded element
+- Comments processed: 1 total — 0 fixed, 1 explained. The only actionable comment was claude[bot]'s non-blocking note on #3880 about `createPinnedAgent` sockets. No change was made: `new https.Agent()` defaults to `keepAlive: false`, and the helper is shared with `fetchImportImage.ts` and `linkPreview.ts`. No PR had an unresolved inline review thread. The other comments were claude[bot] no-issues summaries.
+- Fixes pushed: none
+- Reviews posted: 10
+- Merge readiness:
+  - Ready: #3881, #3877, #3876, #3872.
+  - Ready with minor notes:
+    - #3880: the description's error-message claim is swallowed by the caller's catch, and `pinnedGet` is untested.
+    - #3879: the clamp is client-only, so a stored `dailyLimit` of 0 or below still blocks; a server-side floor is suggested.
+    - #3878: a narrow stale-snapshot re-add after a failed write.
+    - #3875: the "Legacy path still applies" paragraph and Step 4 now contradict the new text.
+    - #3874: two-line comments, and tight `18cqw` headroom for wide fonts.
+    - #3860: the mapper log PR column says `pending`.
+- Notes:
+  - #3879's `Unit Tests (shard 2/3)` failed on a `tests/widgetGraderStatic.test.ts` timeout that the diff doesn't touch; the PR author is already re-running it.
+  - #3860's CI run was cancelled and needs a re-run.
+  - `gh` is unauthenticated, so GitHub access went through MCP.

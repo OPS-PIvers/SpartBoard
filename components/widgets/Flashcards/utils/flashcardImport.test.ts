@@ -30,6 +30,20 @@ describe('flashcard import', () => {
     expect(rows[1]).toEqual(['hello, friend', 'line one\nline two']);
   });
 
+  it('treats a quote inside a cell as literal text, not a quoted span', () => {
+    const result = parseFlashcardText(
+      'ruler\t12" long\nyard\t3 feet\nmeter\t39 inches'
+    );
+
+    expect(
+      result.cards.map(({ term, definition }) => [term, definition])
+    ).toEqual([
+      ['ruler', '12" long'],
+      ['yard', '3 feet'],
+      ['meter', '39 inches'],
+    ]);
+  });
+
   it('supports space-dash-space and custom separators', () => {
     expect(parseFlashcardText('uno - one\ndos - two').cards).toHaveLength(2);
     expect(

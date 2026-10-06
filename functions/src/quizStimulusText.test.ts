@@ -43,6 +43,7 @@ vi.mock('./quizMediaArchive', () => ({
   isGlobalFeatureGranted: vi.fn(() => Promise.resolve(true)),
 }));
 
+import dns from 'dns';
 import * as admin from 'firebase-admin';
 import { isGlobalFeatureGranted } from './quizMediaArchive';
 import {
@@ -58,6 +59,7 @@ import {
   parseExtractRequest,
   sniffImageMime,
   type ExtractDeps,
+  type PublicGet,
 } from './quizStimulusText';
 import type { Firestore } from 'firebase-admin/firestore';
 
@@ -189,6 +191,8 @@ describe('parseExtractRequest', () => {
     expect(() => assertFetchableUrl('https://169.254.169.254/x')).toThrow();
     expect(() => assertFetchableUrl('https://172.20.1.1/x')).toThrow();
     expect(() => assertFetchableUrl('https://[::1]/x')).toThrow();
+    expect(() => assertFetchableUrl('https://100.64.0.1/x')).toThrow();
+    expect(() => assertFetchableUrl('https://198.18.0.1/x')).toThrow();
     expect(() => assertFetchableUrl('not a url')).toThrow(/Invalid url/);
     expect(() =>
       assertFetchableUrl('https://drive.google.com/uc?id=1')
@@ -375,78 +379,89 @@ describe('extractStimulusReadAloudText', () => {
 });
 
 describe('fetchPublicUrl', () => {
-  const redirectTo = (location: string) =>
-    new Response(null, { status: 302, headers: { location } });
+  const PUBLIC = [{ address: '93.184.216.34', family: 4 }];
+  const resolvePublic = vi.fn(() => Promise.resolve(PUBLIC));
+  const reply = (status: number, body = '', location: string | null = null) =>
+    Promise.resolve({ status, location, body: Buffer.from(body) });
 
   it('re-validates every redirect hop against the public-host rules', async () => {
-    const doFetch = vi.fn((input: string) =>
-      Promise.resolve(
-        input === 'https://example.com/a.png'
-          ? redirectTo('https://169.254.169.254/latest/meta-data')
-          : new Response('secret')
-      )
-    ) as unknown as typeof fetch;
+    const get = vi.fn((input: string) =>
+      input === 'https://example.com/a.png'
+        ? reply(302, '', 'https://169.254.169.254/latest/meta-data')
+        : reply(200, 'secret')
+    );
     await expect(
-      fetchPublicUrl('https://example.com/a.png', doFetch)
+      fetchPublicUrl('https://example.com/a.png', get, resolvePublic)
     ).rejects.toThrow(/cannot be fetched/);
-    expect(doFetch).toHaveBeenCalledTimes(1);
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it('SECURITY: refuses a public hostname that resolves to a private address', async () => {
+    const get = vi.fn(() => reply(200, 'internal'));
+    const resolvePrivate = vi.fn(() => {
+      throw new Error('Host resolves to a private address');
+    });
+    await expect(
+      fetchPublicUrl('https://rebind.example.com/a.png', get, resolvePrivate)
+    ).rejects.toThrow(/cannot be fetched/);
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it('SECURITY: resolves through the shared guard when no resolver is injected', async () => {
+    const lookup = vi
+      .spyOn(dns.promises, 'lookup')
+      .mockResolvedValue([{ address: '10.0.0.8', family: 4 }] as never);
+    const get = vi.fn(() => reply(200, 'internal'));
+    await expect(
+      fetchPublicUrl('https://rebind.example.com/a.png', get)
+    ).rejects.toThrow(/cannot be fetched/);
+    expect(get).not.toHaveBeenCalled();
+    lookup.mockRestore();
+  });
+
+  it('pins the request to the addresses it validated', async () => {
+    const get = vi.fn(() => reply(200, 'ok'));
+    await fetchPublicUrl('https://example.com/a.png', get, resolvePublic);
+    expect(get).toHaveBeenCalledWith('https://example.com/a.png', PUBLIC);
   });
 
   it('follows a public redirect and returns the body', async () => {
-    const doFetch = vi.fn((input: string) =>
-      Promise.resolve(
-        input === 'https://example.com/a.png'
-          ? redirectTo('/final.png')
-          : new Response('ok bytes')
-      )
-    ) as unknown as typeof fetch;
-    const bytes = await fetchPublicUrl('https://example.com/a.png', doFetch);
+    const get = vi.fn((input: string) =>
+      input === 'https://example.com/a.png'
+        ? reply(302, '', '/final.png')
+        : reply(200, 'ok bytes')
+    );
+    const bytes = await fetchPublicUrl(
+      'https://example.com/a.png',
+      get,
+      resolvePublic
+    );
     expect(bytes.toString()).toBe('ok bytes');
-    expect(doFetch).toHaveBeenLastCalledWith('https://example.com/final.png', {
-      redirect: 'manual',
-    });
+    expect(get).toHaveBeenLastCalledWith(
+      'https://example.com/final.png',
+      PUBLIC
+    );
   });
 
   it('gives up after too many redirects', async () => {
-    const doFetch = vi.fn(() =>
-      Promise.resolve(redirectTo('https://example.com/next'))
-    ) as unknown as typeof fetch;
+    const get = vi.fn(() => reply(302, '', 'https://example.com/next'));
     await expect(
-      fetchPublicUrl('https://example.com/a.png', doFetch)
+      fetchPublicUrl('https://example.com/a.png', get, resolvePublic)
     ).rejects.toThrow(/Too many redirects/);
   });
 
-  it('stops streaming past the cap when content-length lies or is absent', async () => {
-    const stream = new ReadableStream<Uint8Array>({
-      start(controller) {
-        controller.enqueue(new Uint8Array(MAX_SOURCE_BYTES + 1));
-        controller.close();
-      },
-    });
-    const doFetch = vi.fn(() =>
-      Promise.resolve(new Response(stream))
-    ) as unknown as typeof fetch;
+  it('rejects an oversized body and non-ok responses', async () => {
+    const big = vi.fn(() => ({
+      status: 200,
+      location: null,
+      body: Buffer.alloc(MAX_SOURCE_BYTES + 1),
+    })) as unknown as PublicGet;
     await expect(
-      fetchPublicUrl('https://example.com/a.png', doFetch)
+      fetchPublicUrl('https://example.com/a.png', big, resolvePublic)
     ).rejects.toThrow(/too large/i);
-  });
-
-  it('rejects an oversized declared content-length and non-ok responses', async () => {
-    const big = vi.fn(() =>
-      Promise.resolve(
-        new Response('x', {
-          headers: { 'content-length': String(MAX_SOURCE_BYTES + 1) },
-        })
-      )
-    ) as unknown as typeof fetch;
+    const missing = vi.fn(() => reply(404, 'nope'));
     await expect(
-      fetchPublicUrl('https://example.com/a.png', big)
-    ).rejects.toThrow(/too large/i);
-    const missing = vi.fn(() =>
-      Promise.resolve(new Response('nope', { status: 404 }))
-    ) as unknown as typeof fetch;
-    await expect(
-      fetchPublicUrl('https://example.com/a.png', missing)
+      fetchPublicUrl('https://example.com/a.png', missing, resolvePublic)
     ).rejects.toThrow(/404/);
   });
 });

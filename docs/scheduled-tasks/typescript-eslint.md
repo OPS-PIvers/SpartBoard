@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-05_
+_Last audited: 2026-10-06_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-10-06: Daily audit (Tuesday). `pnpm type-check` exit clean (0 errors). `pnpm lint` (app + functions, `--max-warnings 0`) clean (0 errors, 0 warnings). 0 issues. Note: run on Node v22.22 (repo wants >=24); no impact seen._
 
 _2026-10-05: Daily audit (Monday). `pnpm type-check` exit 0, 0 errors. `pnpm lint` (app + functions, `--max-warnings 0`) exit 0, 0 errors/warnings. 0 issues to classify._
 

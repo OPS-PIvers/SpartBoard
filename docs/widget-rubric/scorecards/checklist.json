@@ -2,8 +2,653 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "checklist",
   "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "gradedAt": "2026-10-06T03:13:32.259Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "S6": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
+      "stale": false
+    },
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:13:32.259Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 0,
+      "source": "paul",
+      "candidates": {
+        "script": 0,
+        "judge": 0,
+        "paul": 0
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/envelope-min__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/envelope-min__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:28:28.807Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "judge": 3,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/large-1400x900__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/large-1400x900__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:32:29.551Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 1,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "judge": 2,
+        "paul": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/widest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/widest-aspect__stress.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/tallest-aspect__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:35:08.267Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": 2,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:36:50.753Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": 1,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:37:54.722Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "judge": 3,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/envelope-min__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:41:06.748Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "judge": 2,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/maximized-1920x1080__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:42:39.057Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": 1,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:43:29.794Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": 1,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:44:10.632Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": 3,
+        "judge": 3,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:44:48.943Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": 3,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:45:34.379Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "judge": 2,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:47:00.909Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": 3,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:51:41.632Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "judge": 2,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:52:31.232Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "judge": 3,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__stress.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:54:36.836Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "judge": 3,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:55:18.217Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "judge": 2,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:56:08.155Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": 2,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:56:50.656Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "judge": 3,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:58:05.528Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "judge": 3,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:58:57.275Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "judge": 3,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T02:59:48.467Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 1,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "judge": 2,
+        "paul": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:00:57.235Z",
+      "stale": false
+    },
+    "C4": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": 3,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:01:55.198Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "judge": 3,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__empty.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:03:00.109Z",
+      "stale": false
+    },
+    "C6": {
+      "score": 4,
+      "source": "paul",
+      "candidates": {
+        "script": 4,
+        "paul": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical__settings.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:03:57.517Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "judge": 2,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__empty.png",
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:05:36.502Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": 3,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:08:07.589Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "judge": 3,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:09:10.101Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "judge": 2,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:10:46.323Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": 2,
+        "judge": 2,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:12:33.575Z",
+      "stale": false
+    },
+    "E2": {
+      "score": 2,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:11:49.149Z",
+      "stale": false
+    },
+    "R2": {
+      "score": 0,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 0
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:07:22.120Z",
+      "stale": false
+    },
+    "R5": {
+      "score": 3,
+      "source": "paul",
+      "candidates": {
+        "script": null,
+        "paul": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__typical.png"
+        ],
+        "runId": "norming-1"
+      },
+      "rubricVersion": "1.0.0",
+      "gradedAt": "2026-10-06T03:10:04.885Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": false,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-06T03:13:32.259Z"
+    },
+    "G2": {
+      "pass": false,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-06T03:13:32.259Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-06T03:13:32.259Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "norming-1"
+      },
+      "gradedAt": "2026-10-06T03:13:32.259Z"
+    }
+  }
 }

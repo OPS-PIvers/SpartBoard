@@ -95,8 +95,12 @@ export function parseDelimitedRows(
       if (quoted && source[index + 1] === '"') {
         cell += '"';
         index += 1;
+      } else if (quoted) {
+        quoted = false;
+      } else if (cell.trim() === '') {
+        quoted = true;
       } else {
-        quoted = !quoted;
+        cell += character; // a mid-cell quote (12" ruler) is literal
       }
       continue;
     }
