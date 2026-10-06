@@ -676,8 +676,9 @@ describe('usePlcs - transferLead', () => {
       (m) => m.role === 'lead'
     ).length;
     expect(leadCount).toBe(1);
-    // Membership set is unchanged (transfer reassigns a role).
-    expect(w.memberUids).toEqual([LEAD_UID, MEMBER_UID, OTHER_UID]);
+    // Membership set is unchanged (transfer reassigns a role), so the indexes aren't rewritten.
+    expect(w).not.toHaveProperty('memberUids');
+    expect(w).not.toHaveProperty('memberEmails');
     expect(w.updatedAt).toBe(SERVER_TS);
 
     // Activity (Decision 2.2): a transfer is a role change for the promoted
@@ -948,5 +949,110 @@ describe('usePlcs - legacy (un-migrated) PLC backfills the members map', () => {
     expect(w.leadUid).toBe(MEMBER_UID);
     // Synthesized joins get a serverTimestamp so they aren't frozen at 0.
     expect(members[MEMBER_UID].joinedAt).toBe(SERVER_TS);
+  });
+});
+
+// Invite accept writes only memberUids/memberEmails, so a joined teacher can be missing from the map.
+describe('usePlcs - members known only to the arrays (invite accepted)', () => {
+  const ARRAY_ONLY_UID = 'array-only-uid';
+  const driftedDoc = (): Record<string, unknown> => {
+    const plc = basePlcDoc();
+    plc.memberUids = [LEAD_UID, MEMBER_UID, OTHER_UID, ARRAY_ONLY_UID];
+    plc.memberEmails = {
+      ...(plc.memberEmails as Record<string, string>),
+      [ARRAY_ONLY_UID]: 'joined@x.com',
+    };
+    return plc;
+  };
+
+  beforeEach(() => {
+    useAuthMock.mockReturnValue({
+      user: { uid: LEAD_UID, email: 'lead@x.com', displayName: 'Lead' },
+    } as ReturnType<typeof useAuthMock>);
+  });
+
+  it('transferLead to an array-only member adds only that entry to the map', async () => {
+    const captured = stubTransaction(driftedDoc());
+    const { result } = render();
+
+    await act(async () => {
+      await result.current.transferLead('plc-1', ARRAY_ONLY_UID);
+    });
+
+    const w = captured.update as Record<string, unknown>;
+    const members = w.members as Record<string, Record<string, unknown>>;
+    expect(w.leadUid).toBe(ARRAY_ONLY_UID);
+    expect(members[ARRAY_ONLY_UID]).toMatchObject({
+      uid: ARRAY_ONLY_UID,
+      email: 'joined@x.com',
+      role: 'lead',
+      status: 'active',
+    });
+    expect(members[LEAD_UID].role).toBe('member');
+    expect(Object.keys(members).sort()).toEqual(
+      [LEAD_UID, MEMBER_UID, OTHER_UID, ARRAY_ONLY_UID].sort()
+    );
+    expect(w).not.toHaveProperty('memberUids');
+  });
+
+  it('setMemberRole on an array-only member writes their entry with the new role', async () => {
+    const captured = stubTransaction(driftedDoc());
+    const { result } = render();
+
+    await act(async () => {
+      await result.current.setMemberRole('plc-1', ARRAY_ONLY_UID, 'coLead');
+    });
+
+    const w = captured.update as Record<string, unknown>;
+    const members = w.members as Record<string, Record<string, unknown>>;
+    expect(members[ARRAY_ONLY_UID]).toMatchObject({
+      role: 'coLead',
+      status: 'active',
+    });
+    expect(w.roleChangeUid).toBe(ARRAY_ONLY_UID);
+  });
+
+  it('removeMember keeps array-only members in the indexes', async () => {
+    const captured = stubTransaction(driftedDoc());
+    const { result } = render();
+
+    await act(async () => {
+      await result.current.removeMember('plc-1', MEMBER_UID);
+    });
+
+    const w = captured.update as Record<string, unknown>;
+    expect(w.memberUids).toEqual([LEAD_UID, OTHER_UID, ARRAY_ONLY_UID]);
+    expect(w.memberEmails).toHaveProperty(ARRAY_ONLY_UID, 'joined@x.com');
+  });
+
+  it('removeMember of an array-only member drops them from the indexes without touching the map', async () => {
+    const captured = stubTransaction(driftedDoc());
+    const { result } = render();
+
+    await act(async () => {
+      await result.current.removeMember('plc-1', ARRAY_ONLY_UID);
+    });
+
+    const w = captured.update as Record<string, unknown>;
+    expect(w).not.toHaveProperty('members');
+    expect(w).not.toHaveProperty('removeMemberUid');
+    expect(w.memberUids).toEqual([LEAD_UID, MEMBER_UID, OTHER_UID]);
+    expect(w.memberEmails).not.toHaveProperty(ARRAY_ONLY_UID);
+  });
+
+  it('an array-only member can leave', async () => {
+    useAuthMock.mockReturnValue({
+      user: { uid: ARRAY_ONLY_UID, email: 'joined@x.com', displayName: 'J' },
+    } as ReturnType<typeof useAuthMock>);
+    const captured = stubTransaction(driftedDoc());
+    const { result } = render();
+
+    await act(async () => {
+      await result.current.leavePlc('plc-1');
+    });
+
+    const w = captured.update as Record<string, unknown>;
+    expect(w).not.toHaveProperty('members');
+    expect(w.memberUids).toEqual([LEAD_UID, MEMBER_UID, OTHER_UID]);
   });
 });

@@ -337,6 +337,34 @@ function synthesizeMembers(
   return out;
 }
 
+/** Adds `uid` to the map from the arrays when only the arrays know it (invite accept writes only those). */
+function backfillArrayMember(
+  members: Record<string, PlcMemberWrite>,
+  data: Record<string, unknown>,
+  uid: string
+): void {
+  if (members[uid]) return;
+  const synthesized = synthesizeMembers(data)[uid];
+  if (synthesized) members[uid] = synthesized;
+}
+
+/** Stored indexes minus `uid`, so array-only members survive a write that drops someone else. */
+function indexesWithout(
+  data: Record<string, unknown>,
+  uid: string
+): { memberUids: string[]; memberEmails: Record<string, unknown> } {
+  const memberUids = Array.isArray(data.memberUids)
+    ? (data.memberUids as unknown[]).filter(
+        (u): u is string => typeof u === 'string' && u !== uid
+      )
+    : [];
+  const memberEmails = {
+    ...((data.memberEmails ?? {}) as Record<string, unknown>),
+  };
+  delete memberEmails[uid];
+  return { memberUids, memberEmails };
+}
+
 /** Active member uids derived from a write-shape members map. */
 function activeMemberUids(members: Record<string, PlcMemberWrite>): string[] {
   return Object.values(members)
@@ -695,23 +723,31 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
         // Mark removed in the canonical map (audit trail) AND drop from the
         // denormalized indexes so the array-contains list query no longer
         // returns this PLC for the removed member.
+        const indexes = indexesWithout(data, uid);
         if (members[uid]) {
           removedName = members[uid].displayName || members[uid].email || uid;
           didRemove = true;
           members[uid] = { ...members[uid], status: 'removed' };
+          tx.update(ref, {
+            members,
+            ...indexes,
+            // Transient pointer naming the single member this broad-branch write
+            // removes. The rules' `plcBroadMembersOk()` uses it to confirm the
+            // members-map mutation is a lone removal (not a second-lead mint) —
+            // the same pointer convention `setMemberRole` uses with
+            // `roleChangeUid`. Not persisted as membership data; ignored on read.
+            removeMemberUid: uid,
+            updatedAt: serverTimestamp(),
+          });
+          return;
         }
-        tx.update(ref, {
-          members,
-          memberUids: activeMemberUids(members),
-          memberEmails: activeMemberEmails(members),
-          // Transient pointer naming the single member this broad-branch write
-          // removes. The rules' `plcBroadMembersOk()` uses it to confirm the
-          // members-map mutation is a lone removal (not a second-lead mint) —
-          // the same pointer convention `setMemberRole` uses with
-          // `roleChangeUid`. Not persisted as membership data; ignored on read.
-          removeMemberUid: uid,
-          updatedAt: serverTimestamp(),
-        });
+        // Array-only member (never written to the map): drop them from the indexes alone.
+        const emails = (data.memberEmails ?? {}) as Record<string, unknown>;
+        const email = typeof emails[uid] === 'string' ? emails[uid] : '';
+        removedName = email || uid;
+        didRemove =
+          Array.isArray(data.memberUids) && data.memberUids.includes(uid);
+        tx.update(ref, { ...indexes, updatedAt: serverTimestamp() });
       });
       // Activity log (Decision 2.2, §3.4) — fire-and-forget after the canonical
       // membership write commits; never blocks or fails it. The actor is the
@@ -745,15 +781,13 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
         if (isLead) {
           throw new Error(i18n.t('plc.errors.leadCannotLeave'));
         }
+        const indexes = indexesWithout(data, user.uid);
         if (members[user.uid]) {
           members[user.uid] = { ...members[user.uid], status: 'removed' };
+          tx.update(ref, { members, ...indexes, updatedAt: serverTimestamp() });
+          return;
         }
-        tx.update(ref, {
-          members,
-          memberUids: activeMemberUids(members),
-          memberEmails: activeMemberEmails(members),
-          updatedAt: serverTimestamp(),
-        });
+        tx.update(ref, { ...indexes, updatedAt: serverTimestamp() });
       });
       // Activity log (Decision 2.2, §3.4) — fire-and-forget AFTER the leave
       // commits. The departing member is the actor (no target — the
@@ -799,6 +833,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
         if (!snap.exists()) throw new Error(i18n.t('plc.errors.plcNotFound'));
         const data = snap.data() as Record<string, unknown>;
         const members = readMembersForWrite(data);
+        backfillArrayMember(members, data, uid);
         const target = members[uid];
         if (!target || target.status !== 'active') {
           throw new Error(i18n.t('plc.errors.notAMember'));
@@ -859,6 +894,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
             ? data.leadUid
             : (Object.values(members).find((m) => m.role === 'lead')?.uid ??
               '');
+        backfillArrayMember(members, data, toUid);
         const target = members[toUid];
         if (!target || target.status !== 'active') {
           throw new Error(i18n.t('plc.errors.targetNotActiveMember'));
@@ -873,11 +909,10 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
           if (m.role === 'lead') members[uid] = { ...m, role: 'member' };
         }
         members[toUid] = { ...members[toUid], role: 'lead' };
+        // memberUids / memberEmails stay as stored: a transfer never changes who is in the group.
         tx.update(ref, {
           members,
           leadUid: toUid,
-          memberUids: activeMemberUids(members),
-          memberEmails: activeMemberEmails(members),
           updatedAt: serverTimestamp(),
         });
       });

@@ -483,7 +483,8 @@
       "pendingSince": "Eingeladen {{when}}",
       "revoke": "Widerrufen",
       "revokeAriaLabel": "Einladung für {{email}} widerrufen",
-      "notManager": "Nur die Leitung kann Mitglieder verwalten."
+      "notManager": "Nur die Leitung kann Mitglieder verwalten.",
+      "actionError": "Die Änderung konnte nicht gespeichert werden. Bitte erneut versuchen."
     },
     "completedAssignments": {
       "heading": "Geteilte Ergebnisse",
