@@ -127,8 +127,8 @@ SpartBoard stays a working gradebook. The district SIS keeps the official report
   | Absent     | A   | blank    | Teacher only          |
 
 - **D15.** Late and Missing are applied automatically.
-  - **Late:** `submittedAt > dueAt`.
-  - **Missing:** `dueAt` (or `closeAt` when there's no due date) has passed with no submission.
+  - **Late:** `submittedAt > dueAt` plus the one-minute class-close cushion, so work turned in during the cushion is on time.
+  - **Missing:** `dueAt` plus the cushion (or `closeAt` when there's no due date) has passed with no submission.
   - Auto flags render differently from manual ones.
   - Auto flags can be cleared, and a cleared auto flag stays cleared (`suppressedAuto` on the mark). Auto-Missing clears on its own when work arrives.
   - A per-teacher setting turns auto flags off.
