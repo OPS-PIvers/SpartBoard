@@ -62,3 +62,4 @@ The scheduled trigger is not set up yet. Paul turns it on after the norming runb
 
 | Date | Widget | Dimension | PR | Before → after | Notes |
 | ---- | ------ | --------- | -- | -------------- | ----- |
+| 2026-10-06 | Clock | Layout | (this PR) | G2 fail → pass; D → C (2.76) | Lunch Count skipped: its G4 failure is the known "Absent" false positive, which a loop can't fix. |

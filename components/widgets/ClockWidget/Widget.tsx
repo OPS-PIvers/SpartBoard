@@ -7,9 +7,10 @@ import { STANDARD_COLORS } from '@/config/colors';
 import { WidgetLayout } from '../WidgetLayout';
 
 // Exported so tests can assert on the formula directly (jsdom drops min()/clamp() font-size from the rendered DOM).
+// The cqw cap keeps the full time string (about 5em wide with seconds) inside narrow and tall clocks.
 // eslint-disable-next-line react-refresh/only-export-components
 export const getClockTimeFontSize = (showSeconds: boolean): string =>
-  showSeconds ? 'min(140px, 40cqmin)' : 'min(160px, 50cqmin)';
+  showSeconds ? 'min(140px, 40cqmin, 18cqw)' : 'min(160px, 50cqmin, 26cqw)';
 
 export const CLOCK_DATE_FONT_SIZE = 'min(16px, 12cqmin)';
 
