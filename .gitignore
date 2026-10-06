@@ -48,6 +48,9 @@ tests/fixtures/private-quiz-import/
 .vitest-reports/
 .env
 .env.*
+!.env.example
+!.env.development
+!.env.prod-local
 
 # Secrets
 *.pem
