@@ -1181,6 +1181,28 @@ const NotesBodyInner: React.FC<
     </aside>
   );
 
+  const noteOpenInDocs = selectedNote && canEdit && unified && (
+    <button
+      type="button"
+      disabled={noteGoogleDoc.creatingNoteId === selectedNote.id}
+      onClick={() => void handleOpenInDocs(selectedNote)}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/40 disabled:opacity-60 rounded-lg transition-colors shrink-0`}
+    >
+      {noteGoogleDoc.creatingNoteId === selectedNote.id ? (
+        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+      ) : (
+        <ExternalLink className="w-3.5 h-3.5" />
+      )}
+      {noteGoogleDoc.creatingNoteId === selectedNote.id
+        ? t('plcDashboard.notes.googleDoc.creating', {
+            defaultValue: 'Creating doc',
+          })
+        : t('plcDashboard.notes.googleDoc.open', {
+            defaultValue: 'Open in Docs',
+          })}
+    </button>
+  );
+
   const editor = (
     <main
       className={`flex flex-col overflow-hidden ${
@@ -1193,20 +1215,25 @@ const NotesBodyInner: React.FC<
         <>
           <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-slate-100">
             <FileText className="w-4 h-4 text-brand-blue-primary shrink-0" />
-            <h3 className="flex-1 min-w-0 truncate text-base font-bold text-slate-900">
+            <h3
+              className={`min-w-0 truncate text-base font-bold text-slate-900 ${
+                sidePanels ? '' : 'flex-1'
+              }`}
+            >
               {selectedDoc.title}
             </h3>
             <a
               href={ensureProtocol(selectedDoc.url)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/40 rounded-lg transition-colors shrink-0"
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/40 rounded-lg transition-colors shrink-0`}
             >
               <ExternalLink className="w-3.5 h-3.5" />
               {t('plcDashboard.notes.googleDoc.open', {
                 defaultValue: 'Open in Docs',
               })}
             </a>
+            {sidePanels && <span className="flex-1" />}
             {canEdit && (
               <button
                 type="button"
@@ -1264,8 +1291,12 @@ const NotesBodyInner: React.FC<
               placeholder={t('plcDashboard.notes.titlePlaceholder', {
                 defaultValue: 'Note title',
               })}
-              className="flex-1 min-w-0 bg-transparent border-0 focus:ring-0 focus:outline-none text-base font-bold text-slate-900 placeholder:text-slate-300"
+              className={`min-w-0 bg-transparent border-0 focus:ring-0 focus:outline-none text-base font-bold text-slate-900 placeholder:text-slate-300 ${
+                sidePanels ? 'p-0 max-w-full [field-sizing:content]' : 'flex-1'
+              }`}
             />
+            {sidePanels && noteOpenInDocs}
+            {sidePanels && <span className="flex-1" />}
             {(!richEditor || !canEdit) && recordControl}
             {!richEditor && (
               <button
@@ -1300,27 +1331,7 @@ const NotesBodyInner: React.FC<
                 )}
               </button>
             )}
-            {canEdit && unified && (
-              <button
-                type="button"
-                disabled={noteGoogleDoc.creatingNoteId === selectedNote.id}
-                onClick={() => void handleOpenInDocs(selectedNote)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/40 disabled:opacity-60 rounded-lg transition-colors shrink-0"
-              >
-                {noteGoogleDoc.creatingNoteId === selectedNote.id ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <ExternalLink className="w-3.5 h-3.5" />
-                )}
-                {noteGoogleDoc.creatingNoteId === selectedNote.id
-                  ? t('plcDashboard.notes.googleDoc.creating', {
-                      defaultValue: 'Creating doc',
-                    })
-                  : t('plcDashboard.notes.googleDoc.open', {
-                      defaultValue: 'Open in Docs',
-                    })}
-              </button>
-            )}
+            {!sidePanels && noteOpenInDocs}
             {canEdit && (
               <button
                 type="button"
