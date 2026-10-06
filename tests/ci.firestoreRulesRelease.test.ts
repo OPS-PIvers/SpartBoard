@@ -65,10 +65,17 @@ describe('firestore.rules deploy path', () => {
     expect(deployScript()).toContain(
       'DEPLOY_ONLY="${FIREBASE_DEPLOY_ONLY-functions,firestore:indexes,storage}"'
     );
-    for (const only of ['firestore', 'firestore:rules', 'functions,firestore']) {
+    for (const only of [
+      'firestore',
+      'firestore:rules',
+      'functions,firestore',
+    ]) {
       const result = spawnSync(
         'bash',
-        [resolve(repoRoot, '.github/scripts/firebase-deploy-with-retry.sh'), 'demo'],
+        [
+          resolve(repoRoot, '.github/scripts/firebase-deploy-with-retry.sh'),
+          'demo',
+        ],
         { env: { ...process.env, FIREBASE_DEPLOY_ONLY: only } }
       );
       expect(result.status).toBe(2);

@@ -44,10 +44,10 @@ Do not duplicate that locally.
 
 ## Firebase projects: `spartboard` (prod) and `spartboard-dev`
 
-| Branch  | Firebase project | Gets                                                        | URL                            |
-| ------- | ---------------- | ----------------------------------------------------------- | ------------------------------ |
+| Branch  | Firebase project | Gets                                                                          | URL                                                                                               |
+| ------- | ---------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `dev-*` | `spartboard-dev` | hosting on the owner's site; changed rules, indexes, Storage rules, functions | https://spartboard-dev.web.app (`dev-paul`), https://spartboard-dev-bailey.web.app (`dev-bailey`) |
-| `main`  | `spartboard`     | the same, and nothing else writes to prod                   | https://spartboard.web.app     |
+| `main`  | `spartboard`     | the same, and nothing else writes to prod                                     | https://spartboard.web.app                                                                        |
 
 Since 2026-09-21 a push to `dev-paul` never touches production. `.github/scripts/plan-dev-deploy.sh` maps each branch to its hosting site and deploys only changed backend targets; a branch other than `dev-paul` deploys backend only when it already contains `origin/dev-paul`, because functions deploy with `--force`. Actions > Deploy Dev Branches > Run workflow with `full_backend` redeploys everything. Plan and decisions: `docs/plans/shipped/DEV_FIREBASE_PROJECT.md`.
 

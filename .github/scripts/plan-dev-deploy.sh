@@ -20,9 +20,9 @@ FULL="${3:-false}"
 OUT="${GITHUB_OUTPUT:-/dev/stdout}"
 
 case "$BRANCH" in
-  dev-paul | dev-paul-*) SITE=spartboard-dev ;;
-  dev-bailey | dev-bailey-*) SITE=spartboard-dev-bailey ;;
-  *) SITE= ;;
+  dev-paul | dev-paul-*) SITE_SUFFIX=dev ;;
+  dev-bailey | dev-bailey-*) SITE_SUFFIX=dev-bailey ;;
+  *) SITE_SUFFIX= ;;
 esac
 
 contains_dev_paul() {
@@ -79,12 +79,13 @@ if [[ "$BACKEND" == "true" && "$BRANCH" != "dev-paul" ]] && ! contains_dev_paul;
   BACKEND=false
 fi
 
-if [[ -z "$SITE" ]]; then
+if [[ -z "$SITE_SUFFIX" ]]; then
   echo "::notice::No dev hosting site for '$BRANCH'; add one to .github/scripts/plan-dev-deploy.sh."
 fi
 
 {
-  echo "site=$SITE"
+  # The site is spartboard-<suffix>; outputs containing a secret value (the prod project id) are dropped.
+  echo "site_suffix=$SITE_SUFFIX"
   echo "backend=$BACKEND"
   echo "deploy_only=$DEPLOY_ONLY"
   echo "release_rules=$RULES"

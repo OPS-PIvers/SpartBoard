@@ -39,18 +39,16 @@ function plan(
 
 describe('plan-dev-deploy.sh', () => {
   it('gives each developer their own hosting site', () => {
-    expect(plan('dev-paul', []).site).toBe('spartboard-dev');
-    expect(plan('dev-bailey', []).site).toBe('spartboard-dev-bailey');
-    expect(plan('dev-someone', []).site).toBe('');
+    expect(plan('dev-paul', []).site_suffix).toBe('dev');
+    expect(plan('dev-bailey', []).site_suffix).toBe('dev-bailey');
+    expect(plan('dev-someone', []).site_suffix).toBe('');
   });
 
   it('skips the backend for frontend-only and test-only changes', () => {
     expect(plan('dev-paul', ['components/a.tsx', 'docs/b.md']).backend).toBe(
       'false'
     );
-    expect(plan('dev-paul', ['functions/src/a.test.ts']).backend).toBe(
-      'false'
-    );
+    expect(plan('dev-paul', ['functions/src/a.test.ts']).backend).toBe('false');
   });
 
   it('deploys only the backend targets that changed', () => {

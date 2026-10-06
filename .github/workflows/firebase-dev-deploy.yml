@@ -200,7 +200,7 @@ jobs:
   plan:
     runs-on: ubuntu-24.04
     outputs:
-      site: ${{ steps.plan.outputs.site }}
+      site_suffix: ${{ steps.plan.outputs.site_suffix }}
       backend: ${{ steps.plan.outputs.backend }}
       deploy_only: ${{ steps.plan.outputs.deploy_only }}
       release_rules: ${{ steps.plan.outputs.release_rules }}
@@ -219,16 +219,16 @@ jobs:
   # rules tests still gate the PR and the backend deploy.
   deploy-hosting:
     needs: [plan, type-check, build]
-    if: needs.plan.outputs.site != ''
+    if: needs.plan.outputs.site_suffix != ''
     runs-on: ubuntu-24.04
     concurrency:
-      group: dev-hosting-${{ needs.plan.outputs.site }}
+      group: dev-hosting-${{ needs.plan.outputs.site_suffix }}
       cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
     env:
-      SITE: ${{ needs.plan.outputs.site }}
+      SITE: spartboard-${{ needs.plan.outputs.site_suffix }}
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
