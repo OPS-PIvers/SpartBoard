@@ -1,6 +1,11 @@
 import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ListChecks, PanelRightClose, StickyNote } from 'lucide-react';
+import {
+  ListChecks,
+  PanelLeftOpen,
+  PanelRightClose,
+  type LucideIcon,
+} from 'lucide-react';
 import {
   ACTION_PANEL_MAX,
   ACTION_PANEL_MIN,
@@ -53,44 +58,99 @@ export const PanelResizer: React.FC<PanelResizerProps> = ({
           onResize(width - 24);
         }
       }}
-      className="group relative w-3 shrink-0 cursor-col-resize touch-none focus:outline-none"
+      className="group relative z-10 -mx-1 w-2 shrink-0 cursor-col-resize touch-none focus:outline-none"
     >
-      <span className="absolute inset-y-6 left-1/2 w-px -translate-x-1/2 bg-slate-200 transition-colors group-hover:bg-brand-blue-primary group-focus-visible:bg-brand-blue-primary" />
+      <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-slate-200 transition-colors group-hover:w-0.5 group-hover:bg-brand-blue-primary group-focus-visible:w-0.5 group-focus-visible:bg-brand-blue-primary" />
     </div>
   );
 };
 
-interface RailProps {
-  side: 'left' | 'right';
-  onOpen: () => void;
-  count?: number;
+export interface NotesRailEntry {
+  key: string;
+  title: string;
+  icon: LucideIcon;
+  active: boolean;
+  onSelect: () => void;
 }
 
-/** The folded panel: a narrow strip that reopens it. */
-export const PanelRail: React.FC<RailProps> = ({ side, onOpen, count }) => {
+interface NotesRailProps {
+  entries: NotesRailEntry[];
+  onOpen: () => void;
+}
+
+/** The folded notes list: one button per note or doc, under the button that reopens the list. */
+export const NotesRail: React.FC<NotesRailProps> = ({ entries, onOpen }) => {
   const { t } = useTranslation();
-  const label =
-    side === 'left'
-      ? t('plcDashboard.notes.heading', { defaultValue: 'Notes' })
-      : t('plcDashboard.notes.actionItems.title', {
-          defaultValue: 'Action items',
-        });
-  const Icon = side === 'left' ? StickyNote : ListChecks;
+  const showList = t('plcDashboard.notes.sidePanels.showNotes', {
+    defaultValue: 'Show notes list',
+  });
+  return (
+    <nav
+      aria-label={t('plcDashboard.notes.heading', { defaultValue: 'Notes' })}
+      className="w-[5.5rem] shrink-0 flex flex-col border-r border-slate-200 bg-slate-50"
+    >
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={showList}
+        title={showList}
+        className="shrink-0 h-14 flex items-center justify-center border-b border-slate-200 text-slate-400 hover:text-brand-blue-primary hover:bg-white transition-colors"
+      >
+        <PanelLeftOpen className="w-4 h-4" />
+      </button>
+      <ul className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-1.5 pt-2 pb-4 flex flex-col gap-1">
+        {entries.map(({ key, title, icon: Icon, active, onSelect }) => (
+          <li key={key}>
+            <button
+              type="button"
+              onClick={onSelect}
+              aria-current={active ? 'true' : undefined}
+              title={title}
+              className={`w-full flex flex-col items-center gap-1 px-1 py-2 rounded-lg transition-colors ${
+                active
+                  ? 'bg-brand-blue-primary text-white'
+                  : 'text-slate-600 hover:bg-white hover:text-brand-blue-primary'
+              }`}
+            >
+              <Icon
+                className={`w-4 h-4 shrink-0 ${active ? '' : 'text-slate-400'}`}
+                aria-hidden
+              />
+              <span className="w-full text-center text-xxs font-semibold leading-tight line-clamp-2 break-words">
+                {title}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+};
+
+interface ActionItemsRailProps {
+  onOpen: () => void;
+  count: number;
+}
+
+/** The folded Action items panel: reopens it and shows how many are open. */
+export const ActionItemsRail: React.FC<ActionItemsRailProps> = ({
+  onOpen,
+  count,
+}) => {
+  const { t } = useTranslation();
+  const label = t('plcDashboard.notes.sidePanels.showActionItems', {
+    defaultValue: 'Show action items',
+  });
   return (
     <button
       type="button"
       onClick={onOpen}
       aria-label={label}
       title={label}
-      className={`${side === 'left' ? 'w-16' : 'w-12'} h-full shrink-0 flex flex-col items-center gap-2 pt-3 bg-white border border-slate-200 rounded-2xl text-slate-500 hover:text-brand-blue-primary hover:bg-slate-50 transition-colors`}
+      className="w-12 shrink-0 flex flex-col items-center gap-1.5 pt-3.5 border-l border-slate-200 bg-slate-50 text-slate-500 hover:text-brand-blue-primary hover:bg-white transition-colors"
     >
-      {side === 'left' && (
-        <span className="text-xxs font-bold uppercase tracking-widest">
-          {label}
-        </span>
-      )}
-      <Icon className="w-5 h-5" aria-hidden />
-      {count != null && count > 0 && (
+      <ListChecks className="w-4 h-4" aria-hidden />
+      {count > 0 && (
         <span className="text-xs font-bold text-slate-700">{count}</span>
       )}
     </button>
@@ -109,27 +169,22 @@ export const ActionItemsPanel: React.FC<ActionItemsPanelProps> = ({
   children,
 }) => {
   const { t } = useTranslation();
-  const title = t('plcDashboard.notes.actionItems.title', {
-    defaultValue: 'Action items',
+  const showList = t('plcDashboard.notes.sidePanels.showNotes', {
+    defaultValue: 'Show notes list',
   });
   return (
-    <aside
-      style={{ width }}
-      className="shrink-0 bg-white border border-slate-200 rounded-2xl flex flex-col overflow-hidden"
-    >
-      <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2.5 border-b border-slate-100">
+    <aside style={{ width }} className="shrink-0 flex flex-col overflow-hidden">
+      <div className="shrink-0 h-14 flex items-center justify-between gap-2 px-3 border-b border-slate-200">
         <h3 className="text-xxs font-bold uppercase tracking-widest text-slate-500">
-          {title}
+          {t('plcDashboard.notes.actionItems.title', {
+            defaultValue: 'Action items',
+          })}
         </h3>
         <button
           type="button"
           onClick={onClose}
-          aria-label={t('plcDashboard.notes.sidePanels.showNotes', {
-            defaultValue: 'Show notes list',
-          })}
-          title={t('plcDashboard.notes.sidePanels.showNotes', {
-            defaultValue: 'Show notes list',
-          })}
+          aria-label={showList}
+          title={showList}
           className="p-1 text-slate-400 hover:text-brand-blue-primary hover:bg-slate-100 rounded-md transition-colors"
         >
           <PanelRightClose className="w-4 h-4" />

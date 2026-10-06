@@ -1,6 +1,12 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { GripVertical, Plus, Trash2 } from 'lucide-react';
+import {
+  CalendarDays,
+  GripVertical,
+  Plus,
+  Trash2,
+  UserRound,
+} from 'lucide-react';
 import type { PlcActionItem, PlcMember } from '@/types';
 import {
   SortableList,
@@ -43,6 +49,74 @@ function msToDateInput(ms: number | null | undefined): string {
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
+
+const formatDue = (ms: number) =>
+  new Date(ms).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  });
+
+/** Due date shown as plain text; clicking it opens the browser's date picker. */
+const DueDateText: React.FC<{
+  dueAt: number | null;
+  overdue: boolean;
+  canEdit: boolean;
+  onChange: (dueAt: number | null) => void;
+}> = ({ dueAt, overdue, canEdit, onChange }) => {
+  const { t } = useTranslation();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const label = t('plcDashboard.notes.actionItems.dueDate', {
+    defaultValue: 'Due date',
+  });
+  const text =
+    dueAt == null
+      ? label
+      : overdue
+        ? `${t('plcDashboard.notes.actionItems.view.dueOverdue', {
+            defaultValue: 'Overdue',
+          })} ${formatDue(dueAt)}`
+        : formatDue(dueAt);
+  const tone =
+    dueAt == null
+      ? 'text-slate-400'
+      : overdue
+        ? 'text-amber-700 font-semibold'
+        : 'text-slate-600';
+  return (
+    <span className="relative inline-flex shrink-0 items-center gap-1 text-xs">
+      <CalendarDays className="w-3.5 h-3.5 text-slate-400" aria-hidden />
+      {canEdit ? (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                inputRef.current?.showPicker();
+              } catch {
+                inputRef.current?.focus();
+              }
+            }}
+            aria-label={label}
+            className={`rounded hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${tone}`}
+          >
+            {text}
+          </button>
+          <input
+            ref={inputRef}
+            type="date"
+            tabIndex={-1}
+            aria-hidden
+            value={msToDateInput(dueAt)}
+            onChange={(e) => onChange(dateInputToMs(e.target.value))}
+            className="absolute left-0 bottom-0 w-px h-px opacity-0 pointer-events-none"
+          />
+        </>
+      ) : (
+        <span className={tone}>{text}</span>
+      )}
+    </span>
+  );
+};
 
 /**
  * Per-note action item list — checkbox, inline text, assignee, due date, and
@@ -223,6 +297,57 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
         />
       </>
     );
+    const panelMeta = (
+      <>
+        <span className="relative inline-flex min-w-0 items-center gap-1 text-xs text-slate-500">
+          <UserRound
+            className="w-3.5 h-3.5 shrink-0 text-slate-400"
+            aria-hidden
+          />
+          {canEdit ? (
+            <select
+              value={item.assigneeUid ?? ''}
+              onChange={(e) =>
+                updateItem(item.id, { assigneeUid: e.target.value || null })
+              }
+              aria-label={t('plcDashboard.notes.actionItems.assignee', {
+                defaultValue: 'Assignee',
+              })}
+              className={`w-32 truncate appearance-none bg-none bg-transparent border-0 p-0 text-xs cursor-pointer rounded hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+                item.assigneeUid ? 'text-slate-600' : 'text-slate-400'
+              }`}
+            >
+              <option value="">
+                {t('plcDashboard.notes.actionItems.unassigned', {
+                  defaultValue: 'Unassigned',
+                })}
+              </option>
+              {members.map((m) => (
+                <option key={m.uid} value={m.uid}>
+                  {m.displayName}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span
+              className={item.assigneeUid ? 'text-slate-600' : 'text-slate-400'}
+            >
+              {item.assigneeUid
+                ? nameFor(item.assigneeUid)
+                : t('plcDashboard.notes.actionItems.unassigned', {
+                    defaultValue: 'Unassigned',
+                  })}
+            </span>
+          )}
+        </span>
+        <DueDateText
+          dueAt={item.dueAt ?? null}
+          overdue={overdue}
+          canEdit={canEdit}
+          onChange={(dueAt) => updateItem(item.id, { dueAt })}
+        />
+      </>
+    );
     const removeControl = (
       <>
         {canEdit && (
@@ -241,15 +366,17 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
     );
     if (panel) {
       return (
-        <div className="py-1">
-          <div className="flex items-center gap-2">
+        <div className="group/row py-2">
+          <div className="flex items-start gap-2 [&>button:first-child]:mt-0.5 [&>input[type=checkbox]]:mt-0.5">
             {leadControls}
-            {removeControl}
+            <span className="shrink-0 opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-within/row:opacity-100">
+              {removeControl}
+            </span>
           </div>
           <div
-            className={`flex items-center gap-2 mt-1 ${canEdit ? 'pl-11' : 'pl-6'}`}
+            className={`flex items-center gap-4 mt-1 ${canEdit ? 'pl-11' : 'pl-6'}`}
           >
-            {metaControls}
+            {panelMeta}
           </div>
         </div>
       );
@@ -283,6 +410,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
           members={members}
           visibleCount={visible.length}
           totalCount={items.length}
+          quiet={panel}
         />
       )}
       {/* Scrolls once the list outgrows the editor pane so the add row stays reachable. */}
@@ -292,7 +420,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
           getId={(item) => item.id}
           onReorder={(next) => onChange(applyVisibleReorder(items, next))}
           renderItem={renderRow}
-          className="space-y-1"
+          className={panel ? 'divide-y divide-slate-100' : 'space-y-1'}
         />
         {items.length > 0 && visible.length === 0 && (
           <p className="text-xxs text-slate-400 py-1">

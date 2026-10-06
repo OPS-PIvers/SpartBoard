@@ -17,10 +17,14 @@ interface NoteActionItemsToolbarProps {
   members: PlcMember[];
   visibleCount: number;
   totalCount: number;
+  /** Side panel: borderless selects that fit one line. */
+  quiet?: boolean;
 }
 
-const SELECT_CLASS =
+const BOXED_SELECT_CLASS =
   'shrink-0 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xxs text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
+const QUIET_SELECT_CLASS =
+  'min-w-0 rounded border-0 bg-transparent py-0.5 pl-0 pr-5 bg-[length:1rem] bg-[right_0_center] text-xxs font-semibold text-slate-500 hover:text-slate-800 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40';
 
 /**
  * Sort + filter controls above a note's action-item list. The view is local to
@@ -33,8 +37,10 @@ export const NoteActionItemsToolbar: React.FC<NoteActionItemsToolbarProps> = ({
   members,
   visibleCount,
   totalCount,
+  quiet = false,
 }) => {
   const { t } = useTranslation();
+  const SELECT_CLASS = quiet ? QUIET_SELECT_CLASS : BOXED_SELECT_CLASS;
 
   const sortOptions: Array<{ value: ActionItemSort; label: string }> = [
     {
@@ -133,7 +139,9 @@ export const NoteActionItemsToolbar: React.FC<NoteActionItemsToolbarProps> = ({
   const filtered = visibleCount !== totalCount;
 
   return (
-    <div className="shrink-0 flex items-center flex-wrap gap-1.5 mb-2">
+    <div
+      className={`shrink-0 flex items-center flex-wrap mb-2 ${quiet ? 'gap-x-3 gap-y-1 pb-2 border-b border-slate-100' : 'gap-1.5'}`}
+    >
       <select
         value={view.sort}
         onChange={(e) =>

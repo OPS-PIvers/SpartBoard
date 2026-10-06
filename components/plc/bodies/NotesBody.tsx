@@ -49,7 +49,8 @@ import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnl
 import { NoteActionItems } from '@/components/plc/notes/NoteActionItems';
 import {
   ActionItemsPanel,
-  PanelRail,
+  ActionItemsRail,
+  NotesRail,
   PanelResizer,
 } from '@/components/plc/notes/NotesSidePanels';
 import { useActionPanelWidth } from '@/hooks/usePlcActionPanelWidth';
@@ -944,11 +945,19 @@ const NotesBodyInner: React.FC<
 
   const notesList = (
     <aside
-      className={`bg-white border border-slate-200 rounded-2xl flex flex-col overflow-hidden ${
-        sidePanels ? 'w-[260px] shrink-0' : ''
+      className={`flex flex-col overflow-hidden ${
+        sidePanels
+          ? 'w-[260px] shrink-0 border-r border-slate-200'
+          : 'bg-white border border-slate-200 rounded-2xl'
       }`}
     >
-      <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100 gap-1">
+      <div
+        className={`flex items-center justify-between px-3 border-b gap-1 ${
+          sidePanels
+            ? 'h-14 shrink-0 border-slate-200'
+            : 'py-2.5 border-slate-100'
+        }`}
+      >
         <h3 className="text-xxs font-bold uppercase tracking-widest text-slate-500">
           {t('plcDashboard.notes.heading', { defaultValue: 'Notes' })}
         </h3>
@@ -1166,8 +1175,10 @@ const NotesBodyInner: React.FC<
 
   const editor = (
     <main
-      className={`bg-white border border-slate-200 rounded-2xl flex flex-col overflow-hidden ${
-        sidePanels ? 'flex-1 min-w-0' : ''
+      className={`flex flex-col overflow-hidden ${
+        sidePanels
+          ? 'flex-1 min-w-0'
+          : 'bg-white border border-slate-200 rounded-2xl'
       }`}
     >
       {selectedDoc ? (
@@ -1462,21 +1473,44 @@ const NotesBodyInner: React.FC<
   ).filter((i) => !i.done).length;
 
   return (
-    <div className="flex gap-4 h-full min-h-[400px]">
+    <div className="flex h-full min-h-[400px] bg-white border border-slate-200 rounded-2xl overflow-hidden">
       {listOpen ? (
         notesList
       ) : (
-        <PanelRail side="left" onOpen={() => setOpenPanel('list')} />
+        <NotesRail
+          onOpen={() => setOpenPanel('list')}
+          entries={listEntries.map((entry) =>
+            entry.type === 'doc'
+              ? {
+                  key: `doc-${entry.id}`,
+                  title: entry.doc.title,
+                  icon: FileText,
+                  active: selectedDoc?.id === entry.id,
+                  onSelect: () => handleSelectDoc(entry.id),
+                }
+              : {
+                  key: entry.id,
+                  title:
+                    entry.note.title ||
+                    t('plcDashboard.notes.untitled', {
+                      defaultValue: 'Untitled',
+                    }),
+                  icon:
+                    entry.note.kind === 'meeting' ? CalendarClock : StickyNote,
+                  active: !selectedDoc && selectedId === entry.id,
+                  onSelect: () => handleSelect(entry.id),
+                }
+          )}
+        />
       )}
       {editor}
       {listOpen ? (
-        <PanelRail
-          side="right"
+        <ActionItemsRail
           count={openItemCount}
           onOpen={() => setOpenPanel('actions')}
         />
       ) : (
-        <div className="flex shrink-0 -ml-4">
+        <>
           <PanelResizer
             width={actionPanelWidth}
             onResize={setActionPanelWidth}
@@ -1487,7 +1521,7 @@ const NotesBodyInner: React.FC<
           >
             {sidePanelActionItems}
           </ActionItemsPanel>
-        </div>
+        </>
       )}
       {addDocModal}
     </div>
