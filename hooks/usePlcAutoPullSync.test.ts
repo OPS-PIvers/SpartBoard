@@ -136,6 +136,34 @@ describe('usePlcAutoPullSync', () => {
     expect(result.current.conflicts).toHaveLength(0);
   });
 
+  it.each(['theirs', 'mine'] as const)(
+    'resolveConflict("%s") puts the prompt back when the write fails',
+    async (choice) => {
+      const pull = vi.fn(() => Promise.reject(new Error('drive down')));
+      const acknowledgeVersion = vi.fn(() =>
+        Promise.reject(new Error('drive down'))
+      );
+      const onError = vi.fn();
+      const { result } = renderHook(() =>
+        usePlcAutoPullSync<Meta>({
+          replicas: [replica()],
+          canonicalGroups: canonical([['g1', 2]]),
+          dirtyReplicaId: 'r1',
+          pull,
+          acknowledgeVersion,
+          onError,
+        })
+      );
+      await waitFor(() => expect(result.current.conflicts).toHaveLength(1));
+      act(() => {
+        result.current.resolveConflict('g1', choice);
+      });
+      await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+      expect(result.current.conflicts).toHaveLength(1);
+      expect(result.current.conflicts[0]).toMatchObject({ groupId: 'g1' });
+    }
+  );
+
   it('ignores a suspended replica (own publish in flight): no conflict, no pull', async () => {
     const pull = pullMock();
     const { result, rerender } = renderHook(
