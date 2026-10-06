@@ -5,16 +5,22 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc as firestoreUpdateDoc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
-import { PlcDoc } from '@/types';
+import { PlcActionItem, PlcDoc } from '@/types';
 import { logError } from '@/utils/logError';
 import { tsToMillis } from '@/utils/plc';
 import { usePlcSubcollection } from '@/context/usePlcContext';
+import {
+  parseActionItems,
+  rebaseActionItems,
+  sanitizeActionItemsForWrite,
+} from '@/utils/plcActionItems';
 
 const PLCS_COLLECTION = 'plcs';
 const DOCS_SUBCOLLECTION = 'docs';
@@ -29,10 +35,16 @@ interface UsePlcDocsResult {
   error: Error | null;
   /** Create a new doc. Returns the new doc id. */
   createDoc: (input: { title: string; url: string }) => Promise<string>;
-  /** Patch title/url; bumps updatedAt. */
+  /** Patch title/url/action items; bumps updatedAt. */
   updateDoc: (
     docId: string,
-    patch: { title?: string; url?: string }
+    patch: {
+      title?: string;
+      url?: string;
+      actionItems?: PlcActionItem[];
+      /** The saved items these edits started from; a teammate's edits since then are kept. */
+      actionItemsBase?: PlcActionItem[];
+    }
   ) => Promise<void>;
   /**
    * Soft-delete a doc (Decision 3.1): writes a `deletedAt` tombstone rather
@@ -76,6 +88,9 @@ export function parseDoc(
     plcDoc.deletedAt = tsToMillis(data.deletedAt);
   } else if (data.deletedAt === null) {
     plcDoc.deletedAt = null;
+  }
+  if (data.actionItems !== undefined) {
+    plcDoc.actionItems = parseActionItems(data.actionItems);
   }
   return plcDoc;
 }
@@ -161,7 +176,12 @@ export const usePlcDocs = (plcId: string | null): UsePlcDocsResult => {
   const updateDoc = useCallback(
     async (
       docId: string,
-      patch: { title?: string; url?: string }
+      patch: {
+        title?: string;
+        url?: string;
+        actionItems?: PlcActionItem[];
+        actionItemsBase?: PlcActionItem[];
+      }
     ): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
       // Patch-only updates so a teammate's concurrent edit on the *other*
@@ -174,10 +194,23 @@ export const usePlcDocs = (plcId: string | null): UsePlcDocsResult => {
       };
       if (patch.title !== undefined) fields.title = patch.title;
       if (patch.url !== undefined) fields.url = patch.url;
-      await firestoreUpdateDoc(
-        doc(db, PLCS_COLLECTION, plcId, DOCS_SUBCOLLECTION, docId),
-        fields
-      );
+      const ref = doc(db, PLCS_COLLECTION, plcId, DOCS_SUBCOLLECTION, docId);
+      const { actionItems, actionItemsBase } = patch;
+      if (actionItems !== undefined && actionItemsBase !== undefined) {
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(ref);
+          const saved = parseActionItems(snap.data()?.actionItems);
+          fields.actionItems = sanitizeActionItemsForWrite(
+            rebaseActionItems(actionItemsBase, actionItems, saved)
+          );
+          tx.update(ref, fields);
+        });
+        return;
+      }
+      if (actionItems !== undefined) {
+        fields.actionItems = sanitizeActionItemsForWrite(actionItems);
+      }
+      await firestoreUpdateDoc(ref, fields);
     },
     [plcId, user]
   );

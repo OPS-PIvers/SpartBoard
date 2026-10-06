@@ -209,6 +209,11 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
   };
 
   const activeSectionDef = visibleSections.find((s) => s.id === activeSection);
+  // Notes & Docs side panels run edge to edge.
+  const notesSidePanels =
+    activeSection === 'docs' &&
+    canAccessFeature('plc-notes-unified') &&
+    canAccessFeature('plc-notes-side-panels');
 
   return (
     <div
@@ -340,7 +345,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
                   role="tabpanel"
                   id={`plc-panel-${activeSection}`}
                   aria-labelledby={`plc-tab-${activeSection}`}
-                  className={`animate-in fade-in slide-in-from-bottom-2 duration-300 h-full ${activeSectionDef.fullBleed ? '' : 'overflow-y-auto p-4 md:p-6'}`}
+                  className={`animate-in fade-in slide-in-from-bottom-2 duration-300 h-full ${activeSectionDef.fullBleed || notesSidePanels ? '' : 'overflow-y-auto p-4 md:p-6'}`}
                 >
                   {renderSection(activeSection)}
                 </div>

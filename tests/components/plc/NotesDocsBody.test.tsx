@@ -87,6 +87,18 @@ vi.mock('@/hooks/usePlcNotes', () => ({
   }),
 }));
 
+vi.mock('@/hooks/usePlcDocs', () => ({
+  usePlcDocs: () => ({
+    docs: [],
+    loading: false,
+    error: null,
+    createDoc: vi.fn(),
+    updateDoc: vi.fn(),
+    deleteDoc: vi.fn(),
+    restoreDoc: vi.fn(),
+  }),
+}));
+
 vi.mock('@/hooks/usePlcTodos', () => ({
   usePlcTodos: () => ({
     todos: mockTodos,
