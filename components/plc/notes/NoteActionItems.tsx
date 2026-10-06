@@ -22,6 +22,8 @@ interface NoteActionItemsProps {
   canEdit: boolean;
   onChange: (next: PlcActionItem[]) => void;
   currentUid: string;
+  /** Side panel: no heading, and assignee and due date sit under the text. */
+  panel?: boolean;
 }
 
 /** Parse a `<input type="date">` value into ms at local midnight, or null. */
@@ -58,6 +60,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
   canEdit,
   onChange,
   currentUid,
+  panel = false,
 }) => {
   const { t } = useTranslation();
   const [draft, setDraft] = useState('');
@@ -95,8 +98,9 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
     handle: SortableListDragHandleProps
   ) => {
     const overdue = isActionItemOverdue(item, now);
-    return (
-      <div className="flex items-center gap-2 py-0.5">
+
+    const leadControls = (
+      <>
         {canEdit && (
           <button
             type="button"
@@ -143,15 +147,33 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
           }
           className="shrink-0 h-4 w-4 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
         />
-        <input
-          type="text"
-          value={item.text}
-          readOnly={!canEdit}
-          onChange={(e) => updateItem(item.id, { text: e.target.value })}
-          className={`flex-1 min-w-0 bg-transparent border-0 focus:ring-0 focus:outline-none text-sm ${
-            item.done ? 'line-through text-slate-400' : 'text-slate-700'
-          }`}
-        />
+        {panel ? (
+          <textarea
+            rows={1}
+            value={item.text}
+            readOnly={!canEdit}
+            onChange={(e) =>
+              updateItem(item.id, { text: e.target.value.replace(/\n/g, ' ') })
+            }
+            className={`flex-1 min-w-0 p-0 bg-transparent border-0 resize-none [field-sizing:content] focus:ring-0 focus:outline-none text-sm leading-snug ${
+              item.done ? 'line-through text-slate-400' : 'text-slate-700'
+            }`}
+          />
+        ) : (
+          <input
+            type="text"
+            value={item.text}
+            readOnly={!canEdit}
+            onChange={(e) => updateItem(item.id, { text: e.target.value })}
+            className={`flex-1 min-w-0 bg-transparent border-0 focus:ring-0 focus:outline-none text-sm ${
+              item.done ? 'line-through text-slate-400' : 'text-slate-700'
+            }`}
+          />
+        )}
+      </>
+    );
+    const metaControls = (
+      <>
         {canEdit ? (
           <select
             value={item.assigneeUid ?? ''}
@@ -199,6 +221,10 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
             overdue ? 'text-amber-600 font-semibold' : 'text-slate-600'
           }`}
         />
+      </>
+    );
+    const removeControl = (
+      <>
         {canEdit && (
           <button
             type="button"
@@ -211,17 +237,45 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
+      </>
+    );
+    if (panel) {
+      return (
+        <div className="py-1">
+          <div className="flex items-center gap-2">
+            {leadControls}
+            {removeControl}
+          </div>
+          <div
+            className={`flex items-center gap-2 mt-1 ${canEdit ? 'pl-11' : 'pl-6'}`}
+          >
+            {metaControls}
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center gap-2 py-0.5">
+        {leadControls}
+        {metaControls}
+        {removeControl}
       </div>
     );
   };
 
   return (
-    <div className="flex flex-col min-h-0 px-4 py-3 border-t border-slate-100">
-      <h4 className="shrink-0 text-xxs font-bold uppercase tracking-widest text-slate-500 mb-2">
-        {t('plcDashboard.notes.actionItems.title', {
-          defaultValue: 'Action items',
-        })}
-      </h4>
+    <div
+      className={`flex flex-col min-h-0 px-4 py-3 ${
+        panel ? 'flex-1' : 'border-t border-slate-100'
+      }`}
+    >
+      {!panel && (
+        <h4 className="shrink-0 text-xxs font-bold uppercase tracking-widest text-slate-500 mb-2">
+          {t('plcDashboard.notes.actionItems.title', {
+            defaultValue: 'Action items',
+          })}
+        </h4>
+      )}
       {items.length > 0 && (
         <NoteActionItemsToolbar
           view={view}
@@ -269,12 +323,20 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
             <button
               type="button"
               onClick={addItem}
+              aria-label={
+                panel
+                  ? t('plcDashboard.notes.actionItems.add', {
+                      defaultValue: 'Add action item',
+                    })
+                  : undefined
+              }
               className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
             >
-              <Plus className="w-3 h-3" />
-              {t('plcDashboard.notes.actionItems.add', {
-                defaultValue: 'Add action item',
-              })}
+              <Plus className={panel ? 'w-4 h-4' : 'w-3 h-3'} />
+              {!panel &&
+                t('plcDashboard.notes.actionItems.add', {
+                  defaultValue: 'Add action item',
+                })}
             </button>
           </div>
         ) : (

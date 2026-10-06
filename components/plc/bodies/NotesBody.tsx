@@ -14,6 +14,7 @@ import {
   Eye,
   FileText,
   Loader2,
+  PanelLeftClose,
   Pencil,
   Plus,
   StickyNote,
@@ -46,6 +47,12 @@ import { PlcNoteRichEditor } from './PlcNoteRichEditor';
 import { buildMeetingNoteTemplate } from './notesTemplate';
 import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnlyBadge';
 import { NoteActionItems } from '@/components/plc/notes/NoteActionItems';
+import {
+  ActionItemsPanel,
+  PanelRail,
+  PanelResizer,
+} from '@/components/plc/notes/NotesSidePanels';
+import { useActionPanelWidth } from '@/hooks/usePlcActionPanelWidth';
 import {
   useMeetingRecorder,
   type UseMeetingRecorderResult,
@@ -152,6 +159,10 @@ const NotesBodyInner: React.FC<
   const { user, canAccessFeature } = useAuth();
   const richEditorFlag = canAccessFeature('plc-notes-rich-editor');
   const unified = canAccessFeature('plc-notes-unified');
+  const sidePanels = unified && canAccessFeature('plc-notes-side-panels');
+  // One side panel is open at a time; opening one folds the other.
+  const [openPanel, setOpenPanel] = useState<'list' | 'actions'>('list');
+  const [actionPanelWidth, setActionPanelWidth] = useActionPanelWidth();
   const currentUid = user?.uid ?? '';
   // Viewers can read notes but can't create / edit / delete (Decision 3.2).
   // Rules hard-deny viewer writes; this gates the UI to match.
@@ -159,7 +170,7 @@ const NotesBodyInner: React.FC<
   const { notes, loading, createNote, updateNote, deleteNote, restoreNote } =
     usePlcNotes(plc.id);
   const { softDelete } = usePlcSoftDelete(plc.id);
-  const { docs, deleteDoc, restoreDoc } = usePlcDocs(plc.id);
+  const { docs, updateDoc, deleteDoc, restoreDoc } = usePlcDocs(plc.id);
   const noteGoogleDoc = usePlcNoteGoogleDoc(plc);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [appliedSelectDocId, setAppliedSelectDocId] = useState<string | null>(
@@ -176,6 +187,7 @@ const NotesBodyInner: React.FC<
   ) {
     setAppliedSelectDocId(selectDocId);
     setSelectedDocId(selectDocId);
+    setOpenPanel('actions');
   }
   const selectedDoc = unified
     ? (docs.find((d) => d.id === selectedDocId) ?? null)
@@ -296,6 +308,7 @@ const NotesBodyInner: React.FC<
       setSelectedId(note.id);
       seedDraft(note);
       setBodyMode(openModeFor(note.body));
+      setOpenPanel('actions');
     }
   }
 
@@ -540,6 +553,50 @@ const NotesBodyInner: React.FC<
     [flushPendingSave]
   );
 
+  // A linked doc's action items save after typing pauses, like a note's.
+  const [docItemsDraft, setDocItemsDraft] = useState<{
+    docId: string;
+    items: PlcActionItem[];
+  } | null>(null);
+  const docItemsPendingRef = useRef<{
+    docId: string;
+    items: PlcActionItem[];
+  } | null>(null);
+  const docItemsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flushDocActionItems = useCallback(() => {
+    if (docItemsTimerRef.current) clearTimeout(docItemsTimerRef.current);
+    docItemsTimerRef.current = null;
+    const pending = docItemsPendingRef.current;
+    docItemsPendingRef.current = null;
+    if (!pending) return;
+    updateDoc(pending.docId, { actionItems: pending.items })
+      .then(() =>
+        setDocItemsDraft((cur) => (cur?.items === pending.items ? null : cur))
+      )
+      .catch((err: unknown) => {
+        logError('NotesBody.docActionItems', err, {
+          plcId: plc.id,
+          docId: pending.docId,
+        });
+        addToast(
+          t('plcDashboard.notes.saveFailed', {
+            defaultValue: "Couldn't save your changes. Please try again.",
+          }),
+          'error'
+        );
+      });
+  }, [updateDoc, plc.id, addToast, t]);
+  useEffect(() => flushDocActionItems, [flushDocActionItems]);
+  const handleDocActionItems = (docId: string, items: PlcActionItem[]) => {
+    setDocItemsDraft({ docId, items });
+    docItemsPendingRef.current = { docId, items };
+    if (docItemsTimerRef.current) clearTimeout(docItemsTimerRef.current);
+    docItemsTimerRef.current = setTimeout(
+      flushDocActionItems,
+      SAVE_DEBOUNCE_MS
+    );
+  };
+
   const handleCreate = async (kind: 'freeform' | 'meeting' = 'freeform') => {
     try {
       const body =
@@ -632,8 +689,10 @@ const NotesBodyInner: React.FC<
 
   const handleSelect = (id: string) => {
     flushPendingSave();
+    flushDocActionItems();
     const note = notes.find((n) => n.id === id);
     if (!note) return;
+    setOpenPanel('actions');
     setSelectedDocId(null);
     setSelectedId(id);
     seedDraft(note);
@@ -647,6 +706,8 @@ const NotesBodyInner: React.FC<
 
   const handleSelectDoc = (id: string) => {
     flushPendingSave();
+    flushDocActionItems();
+    setOpenPanel('actions');
     setSelectedDocId(id);
   };
 
@@ -834,159 +895,189 @@ const NotesBodyInner: React.FC<
       />
     ) : null;
 
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4 h-full min-h-[400px]">
-      {/* Notes list */}
-      <aside className="bg-white border border-slate-200 rounded-2xl flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100 gap-1">
-          <h3 className="text-xxs font-bold uppercase tracking-widest text-slate-500">
-            {t('plcDashboard.notes.heading', { defaultValue: 'Notes' })}
-          </h3>
-          {canEdit && !unified && (
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => void handleCreate('meeting')}
-                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
-                title={t('plcDashboard.notes.meeting.newMeetingNote', {
-                  defaultValue: 'New meeting note',
-                })}
+  const noteActionItemsList = selectedNote ? (
+    <NoteActionItems
+      items={editorActionItems}
+      members={members}
+      canEdit={!editorReadOnly}
+      currentUid={currentUid}
+      panel={sidePanels}
+      onChange={(next) => {
+        if (collab) {
+          crdt.setActionItems(next);
+          return;
+        }
+        setDraftActionItems(next);
+        scheduleSave(
+          selectedNote.id,
+          { actionItems: next },
+          syncedSnapshot?.version
+        );
+      }}
+    />
+  ) : null;
+  const selectedDocActionItems = selectedDoc
+    ? docItemsDraft?.docId === selectedDoc.id
+      ? docItemsDraft.items
+      : (selectedDoc.actionItems ?? [])
+    : [];
+  const sidePanelActionItems = selectedDoc ? (
+    <NoteActionItems
+      key={selectedDoc.id}
+      items={selectedDocActionItems}
+      members={members}
+      canEdit={canEdit}
+      currentUid={currentUid}
+      panel
+      onChange={(next) => handleDocActionItems(selectedDoc.id, next)}
+    />
+  ) : selectedNote ? (
+    noteActionItemsList
+  ) : (
+    <p className="px-4 py-6 text-center text-xs text-slate-400">
+      {t('plcDashboard.notes.sidePanels.pickNote', {
+        defaultValue: 'Pick a note or doc.',
+      })}
+    </p>
+  );
+  const listOpen = !sidePanels || openPanel === 'list';
+
+  const notesList = (
+    <aside
+      className={`bg-white border border-slate-200 rounded-2xl flex flex-col overflow-hidden ${
+        sidePanels ? 'w-[260px] shrink-0' : ''
+      }`}
+    >
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100 gap-1">
+        <h3 className="text-xxs font-bold uppercase tracking-widest text-slate-500">
+          {t('plcDashboard.notes.heading', { defaultValue: 'Notes' })}
+        </h3>
+        {sidePanels && (
+          <button
+            type="button"
+            onClick={() => setOpenPanel('actions')}
+            aria-label={t('plcDashboard.notes.sidePanels.showActionItems', {
+              defaultValue: 'Show action items',
+            })}
+            title={t('plcDashboard.notes.sidePanels.showActionItems', {
+              defaultValue: 'Show action items',
+            })}
+            className="ml-auto p-1 text-slate-400 hover:text-brand-blue-primary hover:bg-slate-100 rounded-md transition-colors"
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
+        )}
+        {canEdit && !unified && (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => void handleCreate('meeting')}
+              className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
+              title={t('plcDashboard.notes.meeting.newMeetingNote', {
+                defaultValue: 'New meeting note',
+              })}
+            >
+              <CalendarClock className="w-3 h-3" />
+              {t('plcDashboard.notes.meeting.newMeetingNoteShort', {
+                defaultValue: 'Meeting',
+              })}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleCreate('freeform')}
+              className="inline-flex items-center gap-1 px-2 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+              {t('plcDashboard.notes.newNote', { defaultValue: 'New' })}
+            </button>
+          </div>
+        )}
+        {canEdit && unified && (
+          <div ref={newMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setNewMenuOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={newMenuOpen}
+              className="inline-flex items-center gap-1 px-2 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+              {t('plcDashboard.notes.newNote', { defaultValue: 'New' })}
+              <ChevronDown className="w-3 h-3" />
+            </button>
+            {newMenuOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-full mt-1 z-20 w-48 py-1 bg-white border border-slate-200 rounded-xl shadow-lg"
               >
-                <CalendarClock className="w-3 h-3" />
-                {t('plcDashboard.notes.meeting.newMeetingNoteShort', {
-                  defaultValue: 'Meeting',
-                })}
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleCreate('freeform')}
-                className="inline-flex items-center gap-1 px-2 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
-              >
-                <Plus className="w-3 h-3" />
-                {t('plcDashboard.notes.newNote', { defaultValue: 'New' })}
-              </button>
-            </div>
-          )}
-          {canEdit && unified && (
-            <div ref={newMenuRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setNewMenuOpen((v) => !v)}
-                aria-haspopup="menu"
-                aria-expanded={newMenuOpen}
-                className="inline-flex items-center gap-1 px-2 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
-              >
-                <Plus className="w-3 h-3" />
-                {t('plcDashboard.notes.newNote', { defaultValue: 'New' })}
-                <ChevronDown className="w-3 h-3" />
-              </button>
-              {newMenuOpen && (
-                <div
-                  role="menu"
-                  className="absolute right-0 top-full mt-1 z-20 w-48 py-1 bg-white border border-slate-200 rounded-xl shadow-lg"
-                >
-                  {(
-                    [
-                      {
-                        id: 'meeting',
-                        icon: CalendarClock,
-                        label: t('plcDashboard.notes.newMenu.meeting', {
-                          defaultValue: 'Meeting note',
-                        }),
-                        run: () => void handleCreate('meeting'),
-                      },
-                      {
-                        id: 'note',
-                        icon: StickyNote,
-                        label: t('plcDashboard.notes.newMenu.note', {
-                          defaultValue: 'Blank note',
-                        }),
-                        run: () => void handleCreate('freeform'),
-                      },
-                      {
-                        id: 'doc',
-                        icon: FileText,
-                        label: t('plcDashboard.notes.newMenu.googleDoc', {
-                          defaultValue: 'Link a Google Doc',
-                        }),
-                        run: () => setAddDocOpen(true),
-                      },
-                    ] as const
-                  ).map(({ id, icon: Icon, label, run }) => (
-                    <button
-                      key={id}
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setNewMenuOpen(false);
-                        run();
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                    >
-                      <Icon className="w-4 h-4 text-slate-400 shrink-0" />
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="flex-1 overflow-y-auto custom-scrollbar pb-2">
-          {listEntries.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center text-xs text-slate-500 py-10 px-4">
-              <StickyNote className="w-7 h-7 text-slate-300 mb-2" />
-              <p className="font-semibold text-slate-600">
-                {t('plcDashboard.notes.emptyTitle', {
-                  defaultValue: 'No notes yet',
-                })}
-              </p>
-            </div>
-          ) : (
-            <ul>
-              {listEntries.map((entry) => {
-                if (entry.type === 'doc') {
-                  const doc = entry.doc;
-                  const isActive = selectedDoc?.id === doc.id;
-                  return (
-                    <li key={`doc-${doc.id}`}>
-                      <button
-                        type="button"
-                        onClick={() => handleSelectDoc(doc.id)}
-                        className={`w-full text-left px-3 py-2.5 border-b border-slate-100 transition-colors ${
-                          isActive
-                            ? 'bg-brand-blue-lighter/50'
-                            : 'hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <FileText
-                            className="w-3 h-3 text-brand-blue-primary shrink-0"
-                            aria-hidden
-                          />
-                          <div className="text-xs font-bold text-slate-800 truncate">
-                            {doc.title}
-                          </div>
-                        </div>
-                        <div className="text-xxs text-slate-500 truncate mt-0.5">
-                          {t('plcDashboard.notes.googleDocRow', {
-                            defaultValue: 'Google Doc',
-                          })}
-                        </div>
-                        <div className="text-xxs text-slate-400 mt-1">
-                          {formatDate(doc.updatedAt)}
-                        </div>
-                      </button>
-                    </li>
-                  );
-                }
-                const note = entry.note;
-                const isActive = !selectedDoc && selectedId === note.id;
+                {(
+                  [
+                    {
+                      id: 'meeting',
+                      icon: CalendarClock,
+                      label: t('plcDashboard.notes.newMenu.meeting', {
+                        defaultValue: 'Meeting note',
+                      }),
+                      run: () => void handleCreate('meeting'),
+                    },
+                    {
+                      id: 'note',
+                      icon: StickyNote,
+                      label: t('plcDashboard.notes.newMenu.note', {
+                        defaultValue: 'Blank note',
+                      }),
+                      run: () => void handleCreate('freeform'),
+                    },
+                    {
+                      id: 'doc',
+                      icon: FileText,
+                      label: t('plcDashboard.notes.newMenu.googleDoc', {
+                        defaultValue: 'Link a Google Doc',
+                      }),
+                      run: () => setAddDocOpen(true),
+                    },
+                  ] as const
+                ).map(({ id, icon: Icon, label, run }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setNewMenuOpen(false);
+                      run();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <Icon className="w-4 h-4 text-slate-400 shrink-0" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="flex-1 overflow-y-auto custom-scrollbar pb-2">
+        {listEntries.length === 0 ? (
+          <div className="flex flex-col items-center justify-center text-center text-xs text-slate-500 py-10 px-4">
+            <StickyNote className="w-7 h-7 text-slate-300 mb-2" />
+            <p className="font-semibold text-slate-600">
+              {t('plcDashboard.notes.emptyTitle', {
+                defaultValue: 'No notes yet',
+              })}
+            </p>
+          </div>
+        ) : (
+          <ul>
+            {listEntries.map((entry) => {
+              if (entry.type === 'doc') {
+                const doc = entry.doc;
+                const isActive = selectedDoc?.id === doc.id;
                 return (
-                  <li key={note.id}>
+                  <li key={`doc-${doc.id}`}>
                     <button
                       type="button"
-                      onClick={() => handleSelect(note.id)}
+                      onClick={() => handleSelectDoc(doc.id)}
                       className={`w-full text-left px-3 py-2.5 border-b border-slate-100 transition-colors ${
                         isActive
                           ? 'bg-brand-blue-lighter/50'
@@ -994,343 +1085,411 @@ const NotesBodyInner: React.FC<
                       }`}
                     >
                       <div className="flex items-center gap-1.5">
-                        {note.kind === 'meeting' && (
-                          <CalendarClock
-                            className="w-3 h-3 text-brand-blue-primary shrink-0"
-                            aria-label={t('plcDashboard.notes.meeting.label', {
-                              defaultValue: 'Meeting notes',
-                            })}
-                          />
-                        )}
+                        <FileText
+                          className="w-3 h-3 text-brand-blue-primary shrink-0"
+                          aria-hidden
+                        />
                         <div className="text-xs font-bold text-slate-800 truncate">
-                          {note.title || (
-                            <span className="italic text-slate-400">
-                              {t('plcDashboard.notes.untitled', {
-                                defaultValue: 'Untitled',
-                              })}
-                            </span>
-                          )}
+                          {doc.title}
                         </div>
-                        {notesWithDraft.has(note.id) && (
-                          <span className="ml-auto shrink-0 text-xxs font-bold text-brand-blue-primary">
-                            {t('plcDashboard.notes.meetingNotes.ready', {
-                              defaultValue: 'Notes ready',
-                            })}
-                          </span>
-                        )}
                       </div>
                       <div className="text-xxs text-slate-500 truncate mt-0.5">
-                        {note.body
-                          ? note.body.replace(/[#*_`>\\-]/g, '').slice(0, 60)
-                          : t('plcDashboard.notes.empty', {
-                              defaultValue: 'Empty note',
-                            })}
+                        {t('plcDashboard.notes.googleDocRow', {
+                          defaultValue: 'Google Doc',
+                        })}
                       </div>
                       <div className="text-xxs text-slate-400 mt-1">
-                        {formatDate(note.lastEditedAt)}
+                        {formatDate(doc.updatedAt)}
                       </div>
                     </button>
                   </li>
                 );
-              })}
-            </ul>
-          )}
-        </div>
-      </aside>
+              }
+              const note = entry.note;
+              const isActive = !selectedDoc && selectedId === note.id;
+              return (
+                <li key={note.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleSelect(note.id)}
+                    className={`w-full text-left px-3 py-2.5 border-b border-slate-100 transition-colors ${
+                      isActive
+                        ? 'bg-brand-blue-lighter/50'
+                        : 'hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      {note.kind === 'meeting' && (
+                        <CalendarClock
+                          className="w-3 h-3 text-brand-blue-primary shrink-0"
+                          aria-label={t('plcDashboard.notes.meeting.label', {
+                            defaultValue: 'Meeting notes',
+                          })}
+                        />
+                      )}
+                      <div className="text-xs font-bold text-slate-800 truncate">
+                        {note.title || (
+                          <span className="italic text-slate-400">
+                            {t('plcDashboard.notes.untitled', {
+                              defaultValue: 'Untitled',
+                            })}
+                          </span>
+                        )}
+                      </div>
+                      {notesWithDraft.has(note.id) && (
+                        <span className="ml-auto shrink-0 text-xxs font-bold text-brand-blue-primary">
+                          {t('plcDashboard.notes.meetingNotes.ready', {
+                            defaultValue: 'Notes ready',
+                          })}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xxs text-slate-500 truncate mt-0.5">
+                      {note.body
+                        ? note.body.replace(/[#*_`>\\-]/g, '').slice(0, 60)
+                        : t('plcDashboard.notes.empty', {
+                            defaultValue: 'Empty note',
+                          })}
+                    </div>
+                    <div className="text-xxs text-slate-400 mt-1">
+                      {formatDate(note.lastEditedAt)}
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </aside>
+  );
 
-      {/* Editor */}
-      <main className="bg-white border border-slate-200 rounded-2xl flex flex-col overflow-hidden">
-        {selectedDoc ? (
-          <>
-            <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-              <FileText className="w-4 h-4 text-brand-blue-primary shrink-0" />
-              <h3 className="flex-1 min-w-0 truncate text-base font-bold text-slate-900">
-                {selectedDoc.title}
-              </h3>
-              <a
-                href={ensureProtocol(selectedDoc.url)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/40 rounded-lg transition-colors shrink-0"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                {t('plcDashboard.notes.googleDoc.open', {
-                  defaultValue: 'Open in Docs',
-                })}
-              </a>
-              {canEdit && (
-                <button
-                  type="button"
-                  onClick={() => void handleDeleteDoc(selectedDoc)}
-                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
-                  aria-label={t('plcDashboard.docs.remove', {
-                    defaultValue: 'Remove doc',
-                  })}
-                  title={t('plcDashboard.docs.remove', {
-                    defaultValue: 'Remove doc',
-                  })}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-            <iframe
-              key={selectedDoc.id}
-              src={convertToEmbedUrl(ensureProtocol(selectedDoc.url))}
-              title={selectedDoc.title}
-              className="flex-1 min-h-0 w-full border-0"
-              sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
-              allow="clipboard-write"
-            />
-          </>
-        ) : selectedNote ? (
-          <>
-            <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-              {isMeeting && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-blue-lighter/60 text-brand-blue-primary text-xxs font-bold uppercase tracking-wider shrink-0">
-                  <CalendarClock className="w-3 h-3" />
-                  {t('plcDashboard.notes.meeting.label', {
-                    defaultValue: 'Meeting notes',
-                  })}
-                </span>
-              )}
-              <input
-                type="text"
-                ref={titleFieldRef}
-                value={editorTitle}
-                readOnly={editorReadOnly}
-                onChange={(e) => {
-                  if (editorReadOnly) return;
-                  if (collab) {
-                    crdt.setTitle(e.target.value);
-                    return;
-                  }
-                  setDraftTitle(e.target.value);
-                  scheduleSave(
-                    selectedNote.id,
-                    { title: e.target.value },
-                    syncedSnapshot?.version
-                  );
-                }}
-                placeholder={t('plcDashboard.notes.titlePlaceholder', {
-                  defaultValue: 'Note title',
-                })}
-                className="flex-1 min-w-0 bg-transparent border-0 focus:ring-0 focus:outline-none text-base font-bold text-slate-900 placeholder:text-slate-300"
-              />
-              {(!richEditor || !canEdit) && recordControl}
-              {!richEditor && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setBodyMode((m) => (m === 'edit' ? 'preview' : 'edit'))
-                  }
-                  className="p-2 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/40 rounded-lg transition-colors shrink-0"
-                  aria-label={
-                    bodyMode === 'edit'
-                      ? t('plcDashboard.notes.previewMarkdown', {
-                          defaultValue: 'Preview formatted note',
-                        })
-                      : t('plcDashboard.notes.editMarkdown', {
-                          defaultValue: 'Edit note',
-                        })
-                  }
-                  title={
-                    bodyMode === 'edit'
-                      ? t('plcDashboard.notes.previewMarkdown', {
-                          defaultValue: 'Preview formatted note',
-                        })
-                      : t('plcDashboard.notes.editMarkdown', {
-                          defaultValue: 'Edit note',
-                        })
-                  }
-                >
-                  {bodyMode === 'edit' ? (
-                    <Eye className="w-4 h-4" />
-                  ) : (
-                    <Pencil className="w-4 h-4" />
-                  )}
-                </button>
-              )}
-              {canEdit && unified && (
-                <button
-                  type="button"
-                  disabled={noteGoogleDoc.creatingNoteId === selectedNote.id}
-                  onClick={() => void handleOpenInDocs(selectedNote)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/40 disabled:opacity-60 rounded-lg transition-colors shrink-0"
-                >
-                  {noteGoogleDoc.creatingNoteId === selectedNote.id ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  )}
-                  {noteGoogleDoc.creatingNoteId === selectedNote.id
-                    ? t('plcDashboard.notes.googleDoc.creating', {
-                        defaultValue: 'Creating doc',
-                      })
-                    : t('plcDashboard.notes.googleDoc.open', {
-                        defaultValue: 'Open in Docs',
-                      })}
-                </button>
-              )}
-              {canEdit && (
-                <button
-                  type="button"
-                  onClick={() => void handleDelete(selectedNote)}
-                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
-                  aria-label={t('plcDashboard.notes.deleteNote', {
-                    defaultValue: 'Delete note',
-                  })}
-                  title={t('plcDashboard.notes.deleteNote', {
-                    defaultValue: 'Delete note',
-                  })}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-            {/* Body, action items and recordings scroll together as one page. */}
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pb-4">
-              {richEditor ? (
-                <PlcNoteRichEditor
-                  key={selectedNote.id}
-                  value={editorBody}
-                  onChange={handleBodyChange}
-                  readOnly={editorReadOnly}
-                  showToolbar={canEdit}
-                  toolbarEnd={recordControl}
-                />
-              ) : bodyMode === 'edit' ? (
-                <textarea
-                  ref={bodyFieldRef}
-                  value={editorBody}
-                  readOnly={editorReadOnly}
-                  onChange={(e) => handleBodyChange(e.target.value)}
-                  placeholder={t('plcDashboard.notes.bodyPlaceholder', {
-                    defaultValue: 'Write your notes… (markdown supported)',
-                  })}
-                  className="block min-h-[12rem] w-full p-4 bg-transparent border-0 resize-none [field-sizing:content] focus:ring-0 focus:outline-none text-sm text-slate-700 leading-relaxed font-mono"
-                />
-              ) : (
-                <div className="min-h-[12rem] w-full p-4">
-                  {editorBody.trim() ? (
-                    <NotesMarkdown body={editorBody} />
-                  ) : (
-                    <p className="text-sm text-slate-400 italic">
-                      {t('plcDashboard.notes.emptyPreview', {
-                        defaultValue: 'Nothing to preview yet.',
-                      })}
-                    </p>
-                  )}
-                </div>
-              )}
-              <NoteActionItems
-                items={editorActionItems}
-                members={members}
-                canEdit={!editorReadOnly}
-                currentUid={currentUid}
-                onChange={(next) => {
-                  if (collab) {
-                    crdt.setActionItems(next);
-                    return;
-                  }
-                  setDraftActionItems(next);
-                  scheduleSave(
-                    selectedNote.id,
-                    { actionItems: next },
-                    syncedSnapshot?.version
-                  );
-                }}
-              />
-              {recorder && (
-                <NoteRecordings
-                  plcId={plc.id}
-                  noteTitle={editorTitle}
-                  recordings={noteRecordings}
-                  members={members}
-                  canEdit={canEdit}
-                  onDeleteAudio={deleteAudio}
-                  renderExtra={(r) => (
-                    <RecordingMeetingNotes
-                      plcId={plc.id}
-                      recording={r}
-                      label={t('plcDashboard.notes.meetingNotes.recordingN', {
-                        defaultValue: 'Recording {{n}}',
-                        n: noteRecordings.indexOf(r) + 1,
-                      })}
-                      members={members}
-                      canEdit={!editorReadOnly}
-                      aiEnabled={aiNotesEnabled}
-                      onApply={handleApplyMeetingNotes}
-                    />
-                  )}
-                />
-              )}
-            </div>
-            <div className="shrink-0 px-4 py-2 border-t border-slate-100 text-xxs text-slate-400">
-              {t('plcDashboard.notes.lastEdited', {
-                defaultValue: 'Last edited {{when}}',
-                when: formatDate(selectedNote.lastEditedAt),
+  const editor = (
+    <main
+      className={`bg-white border border-slate-200 rounded-2xl flex flex-col overflow-hidden ${
+        sidePanels ? 'flex-1 min-w-0' : ''
+      }`}
+    >
+      {selectedDoc ? (
+        <>
+          <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-slate-100">
+            <FileText className="w-4 h-4 text-brand-blue-primary shrink-0" />
+            <h3 className="flex-1 min-w-0 truncate text-base font-bold text-slate-900">
+              {selectedDoc.title}
+            </h3>
+            <a
+              href={ensureProtocol(selectedDoc.url)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/40 rounded-lg transition-colors shrink-0"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              {t('plcDashboard.notes.googleDoc.open', {
+                defaultValue: 'Open in Docs',
               })}
-            </div>
-          </>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center text-slate-500 p-8">
-            <StickyNote className="w-10 h-10 text-slate-300 mb-3" />
-            <p className="text-sm font-bold text-slate-700 mb-1">
-              {canEdit
-                ? t('plcDashboard.notes.pickOrCreate', {
-                    defaultValue: 'Select a note to edit, or create a new one.',
-                  })
-                : t('plcDashboard.notes.pickToRead', {
-                    defaultValue: 'Select a note to read.',
-                  })}
-            </p>
-            {canEdit ? (
-              <div className="mt-3 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => void handleCreate('freeform')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-lg transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  {t('plcDashboard.notes.newNote', {
-                    defaultValue: 'New note',
-                  })}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleCreate('meeting')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xxs font-bold uppercase tracking-wider rounded-lg transition-colors"
-                >
-                  <CalendarClock className="w-3.5 h-3.5" />
-                  {t('plcDashboard.notes.meeting.newMeetingNote', {
-                    defaultValue: 'New meeting note',
-                  })}
-                </button>
-              </div>
-            ) : (
-              <div className="mt-3">
-                <PlcViewerReadOnlyBadge
-                  note={t('plcDashboard.viewer.notesNote', {
-                    defaultValue:
-                      'Viewers can read notes and docs but can’t add or change them.',
-                  })}
-                />
-              </div>
+            </a>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => void handleDeleteDoc(selectedDoc)}
+                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                aria-label={t('plcDashboard.docs.remove', {
+                  defaultValue: 'Remove doc',
+                })}
+                title={t('plcDashboard.docs.remove', {
+                  defaultValue: 'Remove doc',
+                })}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             )}
           </div>
-        )}
-      </main>
-      {addDocOpen && (
-        <PlcAddDocModal
-          plc={plc}
-          onClose={() => setAddDocOpen(false)}
-          onCreated={(id) => {
-            setAddDocOpen(false);
-            handleSelectDoc(id);
-          }}
-        />
+          <iframe
+            key={selectedDoc.id}
+            src={convertToEmbedUrl(ensureProtocol(selectedDoc.url))}
+            title={selectedDoc.title}
+            className="flex-1 min-h-0 w-full border-0"
+            sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
+            allow="clipboard-write"
+          />
+        </>
+      ) : selectedNote ? (
+        <>
+          <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-slate-100">
+            {isMeeting && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-blue-lighter/60 text-brand-blue-primary text-xxs font-bold uppercase tracking-wider shrink-0">
+                <CalendarClock className="w-3 h-3" />
+                {t('plcDashboard.notes.meeting.label', {
+                  defaultValue: 'Meeting notes',
+                })}
+              </span>
+            )}
+            <input
+              type="text"
+              ref={titleFieldRef}
+              value={editorTitle}
+              readOnly={editorReadOnly}
+              onChange={(e) => {
+                if (editorReadOnly) return;
+                if (collab) {
+                  crdt.setTitle(e.target.value);
+                  return;
+                }
+                setDraftTitle(e.target.value);
+                scheduleSave(
+                  selectedNote.id,
+                  { title: e.target.value },
+                  syncedSnapshot?.version
+                );
+              }}
+              placeholder={t('plcDashboard.notes.titlePlaceholder', {
+                defaultValue: 'Note title',
+              })}
+              className="flex-1 min-w-0 bg-transparent border-0 focus:ring-0 focus:outline-none text-base font-bold text-slate-900 placeholder:text-slate-300"
+            />
+            {(!richEditor || !canEdit) && recordControl}
+            {!richEditor && (
+              <button
+                type="button"
+                onClick={() =>
+                  setBodyMode((m) => (m === 'edit' ? 'preview' : 'edit'))
+                }
+                className="p-2 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/40 rounded-lg transition-colors shrink-0"
+                aria-label={
+                  bodyMode === 'edit'
+                    ? t('plcDashboard.notes.previewMarkdown', {
+                        defaultValue: 'Preview formatted note',
+                      })
+                    : t('plcDashboard.notes.editMarkdown', {
+                        defaultValue: 'Edit note',
+                      })
+                }
+                title={
+                  bodyMode === 'edit'
+                    ? t('plcDashboard.notes.previewMarkdown', {
+                        defaultValue: 'Preview formatted note',
+                      })
+                    : t('plcDashboard.notes.editMarkdown', {
+                        defaultValue: 'Edit note',
+                      })
+                }
+              >
+                {bodyMode === 'edit' ? (
+                  <Eye className="w-4 h-4" />
+                ) : (
+                  <Pencil className="w-4 h-4" />
+                )}
+              </button>
+            )}
+            {canEdit && unified && (
+              <button
+                type="button"
+                disabled={noteGoogleDoc.creatingNoteId === selectedNote.id}
+                onClick={() => void handleOpenInDocs(selectedNote)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/40 disabled:opacity-60 rounded-lg transition-colors shrink-0"
+              >
+                {noteGoogleDoc.creatingNoteId === selectedNote.id ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <ExternalLink className="w-3.5 h-3.5" />
+                )}
+                {noteGoogleDoc.creatingNoteId === selectedNote.id
+                  ? t('plcDashboard.notes.googleDoc.creating', {
+                      defaultValue: 'Creating doc',
+                    })
+                  : t('plcDashboard.notes.googleDoc.open', {
+                      defaultValue: 'Open in Docs',
+                    })}
+              </button>
+            )}
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => void handleDelete(selectedNote)}
+                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                aria-label={t('plcDashboard.notes.deleteNote', {
+                  defaultValue: 'Delete note',
+                })}
+                title={t('plcDashboard.notes.deleteNote', {
+                  defaultValue: 'Delete note',
+                })}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          {/* Body, action items and recordings scroll together as one page. */}
+          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pb-4">
+            {richEditor ? (
+              <PlcNoteRichEditor
+                key={selectedNote.id}
+                value={editorBody}
+                onChange={handleBodyChange}
+                readOnly={editorReadOnly}
+                showToolbar={canEdit}
+                toolbarEnd={recordControl}
+              />
+            ) : bodyMode === 'edit' ? (
+              <textarea
+                ref={bodyFieldRef}
+                value={editorBody}
+                readOnly={editorReadOnly}
+                onChange={(e) => handleBodyChange(e.target.value)}
+                placeholder={t('plcDashboard.notes.bodyPlaceholder', {
+                  defaultValue: 'Write your notes… (markdown supported)',
+                })}
+                className="block min-h-[12rem] w-full p-4 bg-transparent border-0 resize-none [field-sizing:content] focus:ring-0 focus:outline-none text-sm text-slate-700 leading-relaxed font-mono"
+              />
+            ) : (
+              <div className="min-h-[12rem] w-full p-4">
+                {editorBody.trim() ? (
+                  <NotesMarkdown body={editorBody} />
+                ) : (
+                  <p className="text-sm text-slate-400 italic">
+                    {t('plcDashboard.notes.emptyPreview', {
+                      defaultValue: 'Nothing to preview yet.',
+                    })}
+                  </p>
+                )}
+              </div>
+            )}
+            {!sidePanels && noteActionItemsList}
+            {recorder && (
+              <NoteRecordings
+                plcId={plc.id}
+                noteTitle={editorTitle}
+                recordings={noteRecordings}
+                members={members}
+                canEdit={canEdit}
+                onDeleteAudio={deleteAudio}
+                renderExtra={(r) => (
+                  <RecordingMeetingNotes
+                    plcId={plc.id}
+                    recording={r}
+                    label={t('plcDashboard.notes.meetingNotes.recordingN', {
+                      defaultValue: 'Recording {{n}}',
+                      n: noteRecordings.indexOf(r) + 1,
+                    })}
+                    members={members}
+                    canEdit={!editorReadOnly}
+                    aiEnabled={aiNotesEnabled}
+                    onApply={handleApplyMeetingNotes}
+                  />
+                )}
+              />
+            )}
+          </div>
+          <div className="shrink-0 px-4 py-2 border-t border-slate-100 text-xxs text-slate-400">
+            {t('plcDashboard.notes.lastEdited', {
+              defaultValue: 'Last edited {{when}}',
+              when: formatDate(selectedNote.lastEditedAt),
+            })}
+          </div>
+        </>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-full text-center text-slate-500 p-8">
+          <StickyNote className="w-10 h-10 text-slate-300 mb-3" />
+          <p className="text-sm font-bold text-slate-700 mb-1">
+            {canEdit
+              ? t('plcDashboard.notes.pickOrCreate', {
+                  defaultValue: 'Select a note to edit, or create a new one.',
+                })
+              : t('plcDashboard.notes.pickToRead', {
+                  defaultValue: 'Select a note to read.',
+                })}
+          </p>
+          {canEdit ? (
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void handleCreate('freeform')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-lg transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {t('plcDashboard.notes.newNote', {
+                  defaultValue: 'New note',
+                })}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleCreate('meeting')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xxs font-bold uppercase tracking-wider rounded-lg transition-colors"
+              >
+                <CalendarClock className="w-3.5 h-3.5" />
+                {t('plcDashboard.notes.meeting.newMeetingNote', {
+                  defaultValue: 'New meeting note',
+                })}
+              </button>
+            </div>
+          ) : (
+            <div className="mt-3">
+              <PlcViewerReadOnlyBadge
+                note={t('plcDashboard.viewer.notesNote', {
+                  defaultValue:
+                    'Viewers can read notes and docs but can’t add or change them.',
+                })}
+              />
+            </div>
+          )}
+        </div>
       )}
+    </main>
+  );
+
+  const addDocModal = addDocOpen && (
+    <PlcAddDocModal
+      plc={plc}
+      onClose={() => setAddDocOpen(false)}
+      onCreated={(id) => {
+        setAddDocOpen(false);
+        handleSelectDoc(id);
+      }}
+    />
+  );
+
+  if (!sidePanels) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4 h-full min-h-[400px]">
+        {notesList}
+        {editor}
+        {addDocModal}
+      </div>
+    );
+  }
+
+  const openItemCount = (
+    selectedDoc ? selectedDocActionItems : selectedNote ? editorActionItems : []
+  ).filter((i) => !i.done).length;
+
+  return (
+    <div className="flex gap-4 h-full min-h-[400px]">
+      {listOpen ? (
+        notesList
+      ) : (
+        <PanelRail side="left" onOpen={() => setOpenPanel('list')} />
+      )}
+      {editor}
+      {listOpen ? (
+        <PanelRail
+          side="right"
+          count={openItemCount}
+          onOpen={() => setOpenPanel('actions')}
+        />
+      ) : (
+        <div className="flex shrink-0 -ml-4">
+          <PanelResizer
+            width={actionPanelWidth}
+            onResize={setActionPanelWidth}
+          />
+          <ActionItemsPanel
+            width={actionPanelWidth}
+            onClose={() => setOpenPanel('list')}
+          >
+            {sidePanelActionItems}
+          </ActionItemsPanel>
+        </div>
+      )}
+      {addDocModal}
     </div>
   );
 };

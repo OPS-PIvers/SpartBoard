@@ -8,6 +8,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useCanEditPlcContent } from '@/context/usePlcContext';
 import { usePlcNotes } from '@/hooks/usePlcNotes';
+import { usePlcDocs } from '@/hooks/usePlcDocs';
 import { usePlcTodos } from '@/hooks/usePlcTodos';
 import { logError } from '@/utils/logError';
 import {
@@ -50,17 +51,36 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
   const { addToast } = useDashboard();
   const canEdit = useCanEditPlcContent();
   const unified = canAccessFeature('plc-notes-unified');
+  const sidePanels = unified && canAccessFeature('plc-notes-side-panels');
   const [legacyTab, setTab] = useState<NotesDocsTab>(docId ? 'docs' : 'notes');
   const tab: NotesDocsTab = unified ? 'notes' : legacyTab;
   const [rollupOpen, setRollupOpen] = useState(false);
   const [selectNoteId, setSelectNoteId] = useState<string | null>(null);
+  const [selectDocId, setSelectDocId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
 
   const { notes, createNote, updateNote } = usePlcNotes(plc.id);
   const { todos, loading: todosLoading, archiveTodos } = usePlcTodos(plc.id);
 
-  const openCount = countOpenActionItems(notes);
+  const { docs } = usePlcDocs(plc.id);
+  // Linked docs carry action items only once the side panels are on.
+  const docGroups = sidePanels
+    ? docs
+        .map((d) => ({
+          doc: d,
+          items: (d.actionItems ?? []).filter((i) => !i.done),
+        }))
+        .filter((g) => g.items.length > 0)
+    : [];
+  const openCount =
+    countOpenActionItems(notes) +
+    docGroups.reduce((n, g) => n + g.items.length, 0);
   const groups = openActionItemsByNote(notes);
+
+  const handleSelectDoc = (id: string) => {
+    setSelectDocId(id);
+    setRollupOpen(false);
+  };
 
   const handleSelectNote = (noteId: string) => {
     setSelectNoteId(noteId);
@@ -195,7 +215,28 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
             </button>
             {rollupOpen && (
               <div className="absolute right-0 top-full mt-1 z-10 w-72 max-h-80 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg custom-scrollbar">
-                {groups.length === 0 ? (
+                {docGroups.map(({ doc: d, items }) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => handleSelectDoc(d.id)}
+                    className="block w-full text-left px-3 py-2 border-b border-slate-100 last:border-b-0 hover:bg-slate-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <FileText
+                        className="w-3 h-3 text-brand-blue-primary shrink-0"
+                        aria-hidden
+                      />
+                      <div className="text-xs font-bold text-slate-800 truncate">
+                        {d.title}
+                      </div>
+                    </div>
+                    <div className="text-xxs text-slate-400 mt-0.5">
+                      {items.length}
+                    </div>
+                  </button>
+                ))}
+                {groups.length === 0 && docGroups.length === 0 ? (
                   <p className="px-3 py-3 text-xs text-slate-400">
                     {t('plcDashboard.notes.actionItems.noneOpen', {
                       defaultValue: 'No open action items',
@@ -264,7 +305,7 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
             <NotesBody
               plc={plc}
               selectNoteId={selectNoteId}
-              selectDocId={unified ? docId : null}
+              selectDocId={unified ? (selectDocId ?? docId) : null}
             />
           </div>
         ) : (
