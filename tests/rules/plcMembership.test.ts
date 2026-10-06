@@ -26,7 +26,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, updateDoc, doc } from 'firebase/firestore';
+import { setDoc, updateDoc, getDoc, doc } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-plc-membership';
 const PLC_ID = 'plc-membership-test';
@@ -649,6 +649,144 @@ describe('plcs/{plcId} update — leavePlc (members-map aware)', () => {
         memberEmails: {
           [LEAD_UID]: LEAD_EMAIL,
           [OTHER_UID]: OTHER_EMAIL,
+        },
+        updatedAt: 2,
+      })
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Members who joined by invite sit in memberUids/memberEmails but not the map.
+// ---------------------------------------------------------------------------
+
+describe('plcs/{plcId} — members known only to the arrays (invite accepted)', () => {
+  const JOINED_UID = 'joined-uid';
+  const JOINED_EMAIL = 'joined@example.com';
+  const asJoined = () =>
+    testEnv
+      .authenticatedContext(JOINED_UID, { email: JOINED_EMAIL })
+      .firestore();
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        name: 'Test Department',
+        groupType: 'department',
+        leadUid: LEAD_UID,
+        memberUids: [LEAD_UID, MEMBER_UID, JOINED_UID],
+        memberEmails: {
+          [LEAD_UID]: LEAD_EMAIL,
+          [MEMBER_UID]: MEMBER_EMAIL,
+          [JOINED_UID]: JOINED_EMAIL,
+        },
+        members: {
+          [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
+          [MEMBER_UID]: member(MEMBER_UID, MEMBER_EMAIL, 'member'),
+        },
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+  });
+
+  it('the array-only member can read the group; a non-member cannot', async () => {
+    await assertSucceeds(getDoc(doc(asJoined(), `plcs/${PLC_ID}`)));
+    await assertFails(getDoc(doc(asNonMember(), `plcs/${PLC_ID}`)));
+  });
+
+  it('the lead can transfer leadership to an array-only member', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
+        leadUid: JOINED_UID,
+        [`members.${LEAD_UID}`]: member(LEAD_UID, LEAD_EMAIL, 'member'),
+        [`members.${JOINED_UID}`]: member(JOINED_UID, JOINED_EMAIL, 'lead'),
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('rejects a transfer to an array-only member that also writes a third entry', async () => {
+    await assertFails(
+      updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
+        leadUid: JOINED_UID,
+        [`members.${LEAD_UID}`]: member(LEAD_UID, LEAD_EMAIL, 'member'),
+        [`members.${JOINED_UID}`]: member(JOINED_UID, JOINED_EMAIL, 'lead'),
+        [`members.${MEMBER_UID}`]: member(MEMBER_UID, MEMBER_EMAIL, 'coLead'),
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('the lead can make an array-only member a co-lead', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
+        [`members.${JOINED_UID}`]: member(JOINED_UID, JOINED_EMAIL, 'coLead'),
+        roleChangeUid: JOINED_UID,
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('rejects a role change that writes an array-only member in as removed', async () => {
+    await assertFails(
+      updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
+        [`members.${JOINED_UID}`]: member(
+          JOINED_UID,
+          JOINED_EMAIL,
+          'coLead',
+          'removed'
+        ),
+        roleChangeUid: JOINED_UID,
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('rejects a role change that adds a non-member to the map', async () => {
+    await assertFails(
+      updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
+        [`members.${NON_MEMBER_UID}`]: member(
+          NON_MEMBER_UID,
+          NON_MEMBER_EMAIL,
+          'coLead'
+        ),
+        roleChangeUid: NON_MEMBER_UID,
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('rejects a plain member making an array-only member a co-lead', async () => {
+    await assertFails(
+      updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
+        [`members.${JOINED_UID}`]: member(JOINED_UID, JOINED_EMAIL, 'coLead'),
+        roleChangeUid: JOINED_UID,
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('the lead can remove an array-only member from the indexes', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
+        memberUids: [LEAD_UID, MEMBER_UID],
+        memberEmails: {
+          [LEAD_UID]: LEAD_EMAIL,
+          [MEMBER_UID]: MEMBER_EMAIL,
+        },
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('the array-only member can leave without touching the map', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asJoined(), `plcs/${PLC_ID}`), {
+        memberUids: [LEAD_UID, MEMBER_UID],
+        memberEmails: {
+          [LEAD_UID]: LEAD_EMAIL,
+          [MEMBER_UID]: MEMBER_EMAIL,
         },
         updatedAt: 2,
       })
