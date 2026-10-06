@@ -255,6 +255,10 @@ export function usePlcAutoPullSync<TMeta extends PlcSyncReplica>({
             replicaId: replica.id,
             choice,
           });
+          // Roll back the optimistic dismissal so the teacher can retry.
+          setConflicts((prev) =>
+            prev.some((c) => c.groupId === groupId) ? prev : [...prev, conflict]
+          );
           onError?.(replica, err);
         }
       })();
