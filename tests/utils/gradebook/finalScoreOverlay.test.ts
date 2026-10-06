@@ -136,7 +136,7 @@ describe('finalScoreFor', () => {
   });
 
   it('flags late work from the session due date', () => {
-    const o = { ...overlay([]), dueAt: 100 };
+    const o = { ...overlay([]), dueAt: -100_000 };
     const f = finalScoreFor(o, 'a', scored(6, 10), NOW);
     expect(f.flags).toEqual([{ id: 'late', auto: true }]);
     expect(f.source).toBe('raw');

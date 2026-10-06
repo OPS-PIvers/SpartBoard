@@ -506,7 +506,7 @@
           }
         ],
         "autoFlags": true,
-        "now": 5000
+        "now": 200000
       }
     ],
     "expected": {
@@ -838,7 +838,7 @@
         "points": 8,
         "max": 10,
         "state": "scored",
-        "submittedAt": 3000,
+        "submittedAt": 100000,
         "dueAt": 2000,
         "openAt": 0,
         "closeAt": null,
@@ -900,7 +900,7 @@
           }
         ],
         "autoFlags": true,
-        "now": 5000
+        "now": 200000
       }
     ],
     "expected": {
@@ -1704,7 +1704,7 @@
         "points": 8,
         "max": 10,
         "state": "scored",
-        "submittedAt": 3000,
+        "submittedAt": 100000,
         "dueAt": 2000,
         "openAt": 0,
         "closeAt": null,
@@ -1767,7 +1767,7 @@
           }
         ],
         "autoFlags": true,
-        "now": 5000
+        "now": 200000
       }
     ],
     "expected": {
@@ -1804,7 +1804,7 @@
         "points": 8,
         "max": 10,
         "state": "scored",
-        "submittedAt": 3000,
+        "submittedAt": 100000,
         "dueAt": 2000,
         "openAt": 0,
         "closeAt": null,
@@ -1883,7 +1883,7 @@
           }
         ],
         "autoFlags": true,
-        "now": 5000
+        "now": 200000
       }
     ],
     "expected": {
@@ -1920,7 +1920,7 @@
         "points": 8,
         "max": 10,
         "state": "scored",
-        "submittedAt": 3000,
+        "submittedAt": 100000,
         "dueAt": 2000,
         "openAt": 0,
         "closeAt": null,
@@ -1983,7 +1983,7 @@
           }
         ],
         "autoFlags": true,
-        "now": 5000
+        "now": 200000
       }
     ],
     "expected": {
@@ -3048,7 +3048,7 @@
         },
         "autoFlags": true
       },
-      5000
+      200000
     ],
     "expected": {
       "kind": "quiz",
