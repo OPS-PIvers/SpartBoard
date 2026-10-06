@@ -335,25 +335,14 @@ describe('ClockWidget', () => {
     expect(ampm.className).not.toContain('opacity-40');
   });
 
-  // Regression: font-size formulas must use cqmin (not cqh or cqw separately).
-  // cqh/cqw formulas like `min(82cqh, 20cqw)` break at non-default aspect ratios:
-  // a very tall narrow clock (200×400) gives `min(328px, 40px) = 40px` (10% of
-  // height — near-invisible); a very wide clock (800×100) gives `min(82px, 160px)
-  // = 82px` (82% of height — overflows into the date row). cqmin scales both axes
-  // symmetrically: `40cqmin` = 40% of the smaller dimension in all orientations.
-  // Asserted against the exported formula directly — jsdom drops min()/clamp() font-size from the rendered DOM.
-  it('time display uses cqmin units for font scaling (not cqh/cqw)', () => {
-    const fontSize = getClockTimeFontSize(true);
-    expect(fontSize).not.toMatch(/cqh/);
-    expect(fontSize).not.toMatch(/cqw/);
-    expect(fontSize).toMatch(/cqmin/);
-  });
-
-  it('time display uses cqmin units in no-seconds path', () => {
-    const fontSize = getClockTimeFontSize(false);
-    expect(fontSize).not.toMatch(/cqh/);
-    expect(fontSize).not.toMatch(/cqw/);
-    expect(fontSize).toMatch(/cqmin/);
+  // Scales on cqmin (never cqh) with a cqw cap so the time can't clip in narrow clocks.
+  it('time display scales on cqmin with a width cap', () => {
+    for (const showSeconds of [true, false]) {
+      const fontSize = getClockTimeFontSize(showSeconds);
+      expect(fontSize).not.toMatch(/cqh/);
+      expect(fontSize).toMatch(/cqmin/);
+      expect(fontSize).toMatch(showSeconds ? /16cqw/ : /23cqw/);
+    }
   });
 
   it('date label uses cqmin units for font scaling (not cqh/cqw)', () => {

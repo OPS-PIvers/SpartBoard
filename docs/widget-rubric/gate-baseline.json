@@ -5,7 +5,6 @@
     "catalyst-visual": ["G2"],
     "checklist": ["G1", "G2"],
     "classes": ["G4"],
-    "clock": ["G2"],
     "concept-web": ["G1"],
     "countdown": ["G2"],
     "custom-widget": ["G1", "G2", "G3"],
