@@ -42,6 +42,9 @@ import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments
 import type { AssignmentActivityRef } from '@/hooks/useVideoActivityAssignments';
 import { writePlcVideoActivityAssignmentTemplate } from '@/hooks/usePlcAssignments';
 import { createSyncedQuizGroup } from '@/hooks/useSyncedQuizGroups';
+import { useQuiz } from '@/hooks/useQuiz';
+import { useBankSources } from '@/hooks/useBankSources';
+import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
 import { createSyncedVideoActivityGroup } from '@/hooks/useSyncedVideoActivityGroups';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { getPlcMemberEmails } from '@/utils/plc';
@@ -60,6 +63,7 @@ import type {
   PlcLinkage,
   QuizAssignmentSettings,
   QuizBehaviorSettings,
+  QuizData,
   QuizSessionMode,
   QuizSessionOptions,
   VideoActivityAssignmentSettings,
@@ -69,6 +73,7 @@ import type {
   BaseSessionOptions,
   ClassRoster,
 } from '@/types';
+import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -84,6 +89,8 @@ type PlcAssignmentConfigModalProps = {
   | {
       kind: 'quiz';
       quizRef: AssignmentQuizRef;
+      /** The authored quiz, so bank slots seed the synced group and resolve at assign. */
+      quizData?: QuizData;
       activityRef?: never;
       /**
        * Task 10: when provided, the mode picker + settings toggles are
@@ -98,6 +105,7 @@ type PlcAssignmentConfigModalProps = {
       kind: 'video-activity';
       activityRef: AssignmentActivityRef;
       quizRef?: never;
+      quizData?: never;
       quizBehavior?: never;
       /**
        * Task 10 (VA parity): when provided, the settings toggles are replaced
@@ -156,6 +164,7 @@ export const PlcAssignmentConfigModal: React.FC<
   plc,
   kind,
   quizRef,
+  quizData,
   activityRef,
   quizBehavior,
   vaBehavior,
@@ -185,6 +194,9 @@ export const PlcAssignmentConfigModal: React.FC<
   const { createAssignment: createVaAssignment } = useVideoActivityAssignments(
     user?.uid
   );
+  const quizUid = kind === 'quiz' ? user?.uid : undefined;
+  const { saveDriveSnapshot } = useQuiz(quizUid);
+  const { loadBankContentsForQuiz } = useBankSources(quizUid);
 
   const assignmentMode = getAssignmentMode(
     kind === 'quiz' ? 'quiz' : 'videoActivity'
@@ -238,6 +250,13 @@ export const PlcAssignmentConfigModal: React.FC<
       };
 
       if (kind === 'quiz') {
+        // Before the group exists, so a bank problem leaves nothing behind.
+        const content = quizData
+          ? await resolveQuizAssignContent(quizData, quizRef.driveFileId, {
+              loadBankContentsForQuiz,
+              saveDriveSnapshot,
+            })
+          : undefined;
         // Mint a synced group for the new quiz
         const syncGroupId = crypto.randomUUID();
         try {
@@ -246,6 +265,7 @@ export const PlcAssignmentConfigModal: React.FC<
             uid: user.uid,
             title: quizRef.title,
             questions: quizRef.questions,
+            ...(quizData ? syncedQuizContentFields(quizData) : {}),
             plcId: plc.id,
             behavior: quizBehavior,
           });
@@ -300,10 +320,22 @@ export const PlcAssignmentConfigModal: React.FC<
           ...(parsedDueAt != null
             ? { dueAt: parsedDueAt, dueAtHasTime: true }
             : {}),
+          ...(content?.resolvedDriveFileId
+            ? { resolvedDriveFileId: content.resolvedDriveFileId }
+            : {}),
         };
 
-        await createQuizAssignment(quizRef, settings, {
+        const assignRef: AssignmentQuizRef = content
+          ? {
+              ...quizRef,
+              driveFileId: content.driveFileId,
+              questions: content.questions,
+              ...(content.stimuli ? { stimuli: content.stimuli } : {}),
+            }
+          : quizRef;
+        await createQuizAssignment(assignRef, settings, {
           initialStatus: 'paused',
+          ...(content?.bankSlots ? { bankSlots: content.bankSlots } : {}),
           classIds: derived.classIds,
           rosterIds: derived.rosterIds,
           classPeriodByClassId: derived.classPeriodByClassId,
@@ -453,6 +485,7 @@ export const PlcAssignmentConfigModal: React.FC<
     plc,
     kind,
     quizRef,
+    quizData,
     activityRef,
     quizBehavior,
     vaBehavior,
@@ -467,6 +500,8 @@ export const PlcAssignmentConfigModal: React.FC<
     assignmentMode,
     createQuizAssignment,
     createVaAssignment,
+    loadBankContentsForQuiz,
+    saveDriveSnapshot,
     addToast,
     t,
     onClose,

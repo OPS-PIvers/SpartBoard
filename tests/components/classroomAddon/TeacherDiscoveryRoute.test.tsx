@@ -74,6 +74,12 @@ const createAssignment = vi.fn((..._args: unknown[]) => ({
   code: 'ABC123',
 }));
 
+vi.mock('@/hooks/useBankSources', () => ({
+  useBankSources: () => ({
+    loadBankContentsForQuiz: () => Promise.resolve(new Map()),
+  }),
+}));
+
 vi.mock('@/hooks/useQuiz', () => ({
   useQuiz: () => ({
     quizzes: [

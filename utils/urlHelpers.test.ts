@@ -3,6 +3,7 @@ import {
   getOriginUrl,
   getJoinUrl,
   convertToEmbedUrl,
+  withGoogleDocsToolbar,
   extractGoogleFileId,
   withPreviewFlag,
 } from './urlHelpers';
@@ -385,5 +386,24 @@ describe('urlHelpers', () => {
         expect(convertToEmbedUrl(url)).toBe(url);
       });
     });
+  });
+});
+
+describe('withGoogleDocsToolbar', () => {
+  it('drops rm=minimal from a Docs embed and keeps the tab', () => {
+    const embed = convertToEmbedUrl(
+      'https://docs.google.com/document/d/abc123/edit?tab=t.0'
+    );
+    expect(embed).toContain('rm=minimal');
+    const out = withGoogleDocsToolbar(embed);
+    expect(out).not.toContain('rm=');
+    expect(out).toContain('tab=t.0');
+    expect(out).toContain('/document/d/abc123/edit');
+  });
+
+  it('leaves non-Docs URLs alone', () => {
+    const url = 'https://docs.google.com/presentation/d/x/preview';
+    expect(withGoogleDocsToolbar(url)).toBe(url);
+    expect(withGoogleDocsToolbar('not a url')).toBe('not a url');
   });
 });

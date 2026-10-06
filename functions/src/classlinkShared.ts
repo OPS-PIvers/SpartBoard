@@ -29,6 +29,7 @@ export const ALLOWED_ORIGINS: (string | RegExp)[] = [
   'https://spartboard.firebaseapp.com',
   'https://spartboard-dev.web.app',
   'https://spartboard-dev.firebaseapp.com',
+  'https://spartboard-dev-bailey.web.app',
   /^https:\/\/spartboard--[\w-]+\.web\.app$/,
   /^http:\/\/localhost(:\d+)?$/,
 ];

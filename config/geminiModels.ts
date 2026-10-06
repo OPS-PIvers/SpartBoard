@@ -20,5 +20,5 @@ export const KNOWN_GEMINI_MODELS = [
     label: 'Gemini 2.5 Flash Lite',
     tier: 'standard',
   },
-  // gemini-2.0-*/1.5-* dropped: GEMINI.md marks them deprecated and normalizeModelName rejects them server-side. 2.5-* kept — Google's Vertex locations doc lists both as global-endpoint models.
+  // gemini-2.0-*/1.5-* dropped: docs/AI_MODELS.md marks them deprecated and normalizeModelName rejects them server-side. 2.5-* kept — Google's Vertex locations doc lists both as global-endpoint models.
 ] as const;

@@ -42,6 +42,8 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import { useBankSources } from '@/hooks/useBankSources';
+import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
 import {
   callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
@@ -75,6 +77,7 @@ import {
 import { PlcNewAssignmentSharingSlot } from './PlcNewAssignmentSharingSlot';
 import { formatShortDate } from './newAssignmentHelpers';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
+import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
 
 interface PlcNewQuizAssignmentModalProps {
   plc: Plc;
@@ -126,8 +129,14 @@ export const PlcNewQuizAssignmentModal: React.FC<
     [editedAssignSettings, lastAssignSettings]
   );
   const { addToast, rosters } = useDashboard();
-  const { quizzes, loadQuizData, attachSyncLinkage, isDriveConnected } =
-    useQuiz(user?.uid);
+  const {
+    quizzes,
+    loadQuizData,
+    saveDriveSnapshot,
+    attachSyncLinkage,
+    isDriveConnected,
+  } = useQuiz(user?.uid);
+  const { loadBankContentsForQuiz } = useBankSources(user?.uid);
   const { createAssignment } = useQuizAssignments(user?.uid);
   // PLC library, used to pool this run with an existing group of the same title.
   const { quizzes: plcLibrary } = usePlcQuizzes(plc.id);
@@ -213,6 +222,12 @@ export const PlcNewQuizAssignmentModal: React.FC<
       // without questions, and so any Drive auth issue surfaces a toast
       // before we touch shared state.
       const data = await loadQuizData(pickedQuiz.driveFileId);
+      // Before any PLC sync writes, so a bank problem can't leave a half-made group.
+      const content = await resolveQuizAssignContent(
+        data,
+        pickedQuiz.driveFileId,
+        { loadBankContentsForQuiz, saveDriveSnapshot }
+      );
 
       const visibleRosterIds = new Set(
         rosters.filter((r) => !r.loadError).map((r) => r.id)
@@ -245,6 +260,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
             uid: user.uid,
             title: data.title,
             questions: data.questions,
+            ...syncedQuizContentFields(data),
             plcId: plc.id,
             behavior: pickedQuiz.behavior,
           });
@@ -308,9 +324,9 @@ export const PlcNewQuizAssignmentModal: React.FC<
         {
           id: pickedQuiz.id,
           title: pickedQuiz.title,
-          driveFileId: pickedQuiz.driveFileId,
-          questions: data.questions,
-          ...(data.stimuli ? { stimuli: data.stimuli } : {}),
+          driveFileId: content.driveFileId,
+          questions: content.questions,
+          ...(content.stimuli ? { stimuli: content.stimuli } : {}),
           ...(data.language ? { language: data.language } : {}),
           ...(data.sections?.length
             ? { order: data.order, sections: data.sections }
@@ -325,9 +341,13 @@ export const PlcNewQuizAssignmentModal: React.FC<
           periodNames: derived.periodNames,
           plc: plcLinkage,
           ...(dueAt != null ? { dueAt, dueAtHasTime: true } : {}),
+          ...(content.resolvedDriveFileId
+            ? { resolvedDriveFileId: content.resolvedDriveFileId }
+            : {}),
         },
         {
           initialStatus: 'paused',
+          ...(content.bankSlots ? { bankSlots: content.bankSlots } : {}),
           classIds: derived.classIds,
           rosterIds: derived.rosterIds,
           classPeriodByClassId: derived.classPeriodByClassId,
@@ -401,6 +421,8 @@ export const PlcNewQuizAssignmentModal: React.FC<
     createAssignment,
     dueAt,
     loadQuizData,
+    loadBankContentsForQuiz,
+    saveDriveSnapshot,
     onClose,
     onCreated,
     options,

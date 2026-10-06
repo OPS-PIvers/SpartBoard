@@ -2,7 +2,7 @@
 
 A Claude Code routine that improves one widget, one dimension at a time, against the widget quality rubric (`docs/plans/WIDGET_RUBRIC.md`, `docs/widget-rubric/rubric.json`). Each run opens at most one PR into `dev-paul` with a before/after scorecard and screenshot grid (R20, R25).
 
-The scheduled trigger is not set up yet. Paul turns it on after the norming runbook passes; until then this doc is run by hand with "run the widget rubric loop".
+A scheduled trigger runs this nightly; it can also be run by hand with "run the widget rubric loop".
 
 ## Each run
 
@@ -22,7 +22,7 @@ The scheduled trigger is not set up yet. Paul turns it on after the norming runb
    - `widget`: improve that dimension, starting with the named criterion (R8). Read every descriptor in the dimension in `rubric.json` and the calibration examples for it in `docs/widget-rubric/calibration/examples.jsonl`.
    - The queue already skips criteria paused by a spot check (`spot-checks.json`). Don't touch a paused criterion even if the fix would lift it.
 
-4. **Snapshot before.** Pick a run id `loop-<type>-<date>`. Copy `docs/widget-rubric/scorecards/<type>.json` to `scripts/widget-grader/out/<runId>/before.json`, and keep the latest measure run's screenshots for the grid.
+4. **Snapshot before.** Pick a run id `loop-<type>-<date>`. Copy `docs/widget-rubric/scorecards/<type>.json` to `scripts/widget-grader/out/<runId>/before.json`. Run `grader:measure --type <type>` on `origin/dev-paul` and copy its `measurements/<type>.json` to `scripts/widget-grader/out/<runId>/before-measure.json`; keep its screenshots for the grid.
 
 5. **Make the change.** Branch `claude/widget-loop-<type>-<dimension>-<date>` from `origin/dev-paul`.
    - Visual and scaling fixes ship unflagged; a change to what the widget does, or a new setting, ships behind the widget's flag (R21, CLAUDE.md flag-first rule).
@@ -35,10 +35,10 @@ The scheduled trigger is not set up yet. Paul turns it on after the norming runb
 7. **No-regression check (R20).**
 
    ```
-   node scripts/widget-grader/loop.ts compare --before scripts/widget-grader/out/<runId>/before.json --after docs/widget-rubric/scorecards/<type>.json
+   node scripts/widget-grader/loop.ts compare --before scripts/widget-grader/out/<runId>/before.json --after docs/widget-rubric/scorecards/<type>.json --before-measure scripts/widget-grader/out/<runId>/before-measure.json --after-measure scripts/widget-grader/out/<afterRunId>/measurements/<type>.json
    ```
 
-   Exit 1 means a criterion dropped, a score went missing, or a gate fails. Try once more to fix it without losing the gain; if it still fails, close the branch without a PR and record the attempt in the journal. A run that raises nothing also opens no PR.
+   Exit 1 means a criterion dropped, a score went missing, a gate fails, or a render lost fill (`fillDrops`: content covers clearly less of the card than before, which is wasted space even when no score moved). Try once more to fix it without losing the gain; if it still fails, close the branch without a PR and record the attempt in the journal. A run that raises nothing also opens no PR.
 
 8. **Open the PR** into `dev-paul`. Title: `Widget loop: <Widget name> <dimension> <before> → <after>`. The body has:
    - one sentence on what changed, in plain words;

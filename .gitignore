@@ -48,6 +48,9 @@ tests/fixtures/private-quiz-import/
 .vitest-reports/
 .env
 .env.*
+!.env.example
+!.env.development
+!.env.prod-local
 
 # Secrets
 *.pem
@@ -71,6 +74,13 @@ skills-lock.json
 !.claude/skills/new-widget/
 !.claude/skills/gl-author/
 !.claude/skills/grade-widget/
+!.claude/skills/hotfix/
+!.claude/skills/new-feature/
+!.claude/skills/fix/
+!.claude/skills/show-me/
+!.claude/skills/preview/
+!.claude/skills/ship/
+!.claude/skills/undo/
 
 # Playwright MCP scratch
 .playwright-mcp/

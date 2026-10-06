@@ -65,7 +65,7 @@ The app uses a hybrid scaling approach:
 
 Widgets can communicate via the "Nexus" system.
 
-- **Documentation:** All active connections must be documented in `.Jules/nexus.md`.
+- **Documentation:** All active connections must be documented in `docs/nexus.md`.
 - **Pattern:** Widgets can "push" actions (e.g., Randomizer triggering a Timer) or "pull" data (e.g., Weather widget reading location).
 
 ---

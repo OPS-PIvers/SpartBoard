@@ -94,6 +94,13 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
   // uid currently mid-mutation (role change / remove / transfer), so its row
   // controls can disable to prevent a double-submit racing the snapshot.
   const [pendingUid, setPendingUid] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const showActionError = () =>
+    setActionError(
+      t('plcDashboard.members.actionError', {
+        defaultValue: "Couldn't save that change. Try again.",
+      })
+    );
 
   // Read membership through the T1 helpers so this renders identically whether
   // the PLC carries the canonical `members` map or only the legacy arrays.
@@ -223,9 +230,11 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
     );
     if (!confirmed) return;
     setPendingUid(member.uid);
+    setActionError(null);
     try {
       await setMemberRole(plc.id, member.uid, nextRole);
     } catch (err) {
+      showActionError();
       logError('MembersBody.setMemberRole', err, {
         plcId: plc.id,
         memberUid: member.uid,
@@ -261,9 +270,11 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
     );
     if (!confirmed) return;
     setPendingUid(member.uid);
+    setActionError(null);
     try {
       await transferLead(plc.id, member.uid);
     } catch (err) {
+      showActionError();
       logError('MembersBody.transferLead', err, {
         plcId: plc.id,
         memberUid: member.uid,
@@ -296,9 +307,11 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
     );
     if (!confirmed) return;
     setPendingUid(member.uid);
+    setActionError(null);
     try {
       await removeMember(plc.id, member.uid);
     } catch (err) {
+      showActionError();
       logError('MembersBody.removeMember', err, {
         plcId: plc.id,
         memberUid: member.uid,
@@ -334,9 +347,11 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
       }
     );
     if (!confirmed) return;
+    setActionError(null);
     try {
       await leavePlc(plc.id);
     } catch (err) {
+      showActionError();
       logError('MembersBody.leavePlc', err, { plcId: plc.id });
     }
   };
@@ -535,6 +550,14 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
             );
           })}
         </ul>
+        {actionError && (
+          <p
+            role="alert"
+            className="mt-2 text-xxs text-brand-red-primary font-semibold"
+          >
+            {actionError}
+          </p>
+        )}
       </section>
 
       {isManager && (

@@ -33,6 +33,7 @@ export const PlcAuthorQuizModal: React.FC<PlcAuthorQuizModalProps> = ({
 
   // After authoring, hold the AssignmentQuizRef + behavior to pass to the config modal.
   const [quizRef, setQuizRef] = useState<AssignmentQuizRef | null>(null);
+  const [savedQuiz, setSavedQuiz] = useState<QuizData | null>(null);
   const [savedBehavior, setSavedBehavior] =
     useState<QuizBehaviorSettings | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
@@ -59,6 +60,7 @@ export const PlcAuthorQuizModal: React.FC<PlcAuthorQuizModalProps> = ({
         ...(quiz.language ? { language: quiz.language } : {}),
       };
       setQuizRef(ref);
+      setSavedQuiz(quiz);
       setSavedBehavior(behavior);
       setConfigOpen(true);
     },
@@ -68,6 +70,7 @@ export const PlcAuthorQuizModal: React.FC<PlcAuthorQuizModalProps> = ({
   const handleConfigClose = useCallback(() => {
     setConfigOpen(false);
     setQuizRef(null);
+    setSavedQuiz(null);
     setSavedBehavior(null);
     onClose();
   }, [onClose]);
@@ -78,6 +81,7 @@ export const PlcAuthorQuizModal: React.FC<PlcAuthorQuizModalProps> = ({
         plc={plc}
         kind="quiz"
         quizRef={quizRef}
+        quizData={savedQuiz ?? undefined}
         quizBehavior={savedBehavior ?? undefined}
         onQuizSyncGroupCreated={(syncGroupId) =>
           attachSyncLinkage(quizRef.id, {

@@ -210,6 +210,100 @@ describe('synced_quizzes — paperSheetStimuli', () => {
   });
 });
 
+describe('synced_quizzes — bank slots, order and sections', () => {
+  const BANK_FIELDS = {
+    bankSlots: [
+      {
+        id: 'slot-1',
+        bankId: 'bank-1',
+        syncGroupId: 'synced-bank-1',
+        bankTitle: 'Vocab bank',
+        mode: 'random',
+        count: 10,
+      },
+    ],
+    order: [{ kind: 'slot', id: 'slot-1' }],
+    sections: [{ id: 'sec-1', title: 'Part A' }],
+  };
+
+  it('a participant can publish them', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asTeacherA(), `synced_quizzes/${GROUP_ID}`), {
+        version: 2,
+        ...BANK_FIELDS,
+        updatedAt: 2000,
+        updatedBy: TEACHER_A_UID,
+      })
+    );
+  });
+
+  it('rejects a non-list in any of them', async () => {
+    for (const field of ['bankSlots', 'order', 'sections']) {
+      await assertFails(
+        updateDoc(doc(asTeacherA(), `synced_quizzes/${GROUP_ID}`), {
+          version: 2,
+          [field]: { id: 'not-a-list' },
+          updatedAt: 2000,
+          updatedBy: TEACHER_A_UID,
+        })
+      );
+    }
+  });
+
+  it('a non-participant still cannot write them', async () => {
+    await assertFails(
+      updateDoc(doc(asNonParticipant(), `synced_quizzes/${GROUP_ID}`), {
+        version: 2,
+        ...BANK_FIELDS,
+        updatedAt: 2000,
+        updatedBy: NON_PARTICIPANT_UID,
+      })
+    );
+  });
+
+  it('a peer can read a group carrying them, which is how the draws reach them', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `synced_quizzes/${GROUP_ID}`),
+        seededGroup(BANK_FIELDS)
+      );
+    });
+    const snap = await assertSucceeds(
+      getDoc(doc(asNonParticipant(), `synced_quizzes/${GROUP_ID}`))
+    );
+    expect(snap.data()?.bankSlots).toEqual(BANK_FIELDS.bankSlots);
+    expect(snap.data()?.order).toEqual(BANK_FIELDS.order);
+    expect(snap.data()?.sections).toEqual(BANK_FIELDS.sections);
+  });
+
+  it('a create carrying them is accepted, and a non-list create is not', async () => {
+    await testEnv.clearFirestore();
+    const base = {
+      version: 1,
+      title: 'Fresh',
+      questions: [],
+      participants: { [TEACHER_A_UID]: { joinedAt: 1000 } },
+      createdAt: 1000,
+      updatedAt: 1000,
+      updatedBy: TEACHER_A_UID,
+    };
+    await assertSucceeds(
+      setDoc(doc(asTeacherA(), 'synced_quizzes/fresh-group'), {
+        id: 'fresh-group',
+        ...base,
+        ...BANK_FIELDS,
+      })
+    );
+    await assertFails(
+      setDoc(doc(asTeacherA(), 'synced_quizzes/bad-group'), {
+        id: 'bad-group',
+        ...base,
+        bankSlots: 'nope',
+      })
+    );
+  });
+});
+
 describe('synced_quizzes — update (content publish)', () => {
   it('participant can publish a content update with version + 1', async () => {
     await assertSucceeds(

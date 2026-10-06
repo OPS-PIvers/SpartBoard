@@ -1,7 +1,0 @@
-description = "Reverses your last 'save' while keeping your work in the editor."
-prompt = """
-
-1. Run `git reset --soft HEAD~1`.
-
-2. Report: "Last save undone. Your code changes have been kept in your editor, but they are no longer saved in your project history. You can make adjustments and run /preview again when ready."
-"""

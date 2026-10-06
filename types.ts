@@ -1050,6 +1050,8 @@ export interface PlcDoc {
    * hard-deletes it after 30 days).
    */
   deletedAt?: number | null;
+  /** The doc's own action items, kept in SpartBoard beside the link. */
+  actionItems?: PlcActionItem[];
 }
 
 /**
@@ -6422,6 +6424,12 @@ export interface SyncedQuizGroup {
   paperSheetStimuli?: PaperSheetStimulus[];
   /** Mirrors `QuizData.language`. */
   language?: string;
+  /** Mirrors `QuizData.bankSlots`; slots resolve through `syncGroupId` for peers. */
+  bankSlots?: QuizBankSlot[];
+  /** Mirrors `QuizData.order`. */
+  order?: QuizOrderEntry[];
+  /** Mirrors `QuizData.sections`. */
+  sections?: QuizSection[];
   /** Behavior settings authored in the editor; synced to PLC members. */
   behavior?: QuizBehaviorSettings;
   /**
@@ -6566,6 +6574,9 @@ export interface PlcQuizVersionContent {
   paperSheetStimuli?: PaperSheetStimulus[];
   /** Mirrors `QuizData.language`. */
   language?: string;
+  bankSlots?: QuizBankSlot[];
+  order?: QuizOrderEntry[];
+  sections?: QuizSection[];
   behavior?: QuizBehaviorSettings;
 }
 
@@ -9609,7 +9620,11 @@ export type GlobalFeature =
   /** Schedule and To-Do "Lines" row style. */
   | 'list-line-style'
   /** Group Notes & Docs: notes and linked Google Docs in one list, and Open in Docs on a note. */
-  | 'plc-notes-unified';
+  | 'plc-notes-unified'
+  /** Group Notes & Docs: notes list and Action items as swapping side panels, with action items on linked Google Docs. */
+  | 'plc-notes-side-panels'
+  /** Group Notes & Docs: embedded Google Docs keep Google's menus and toolbar. */
+  | 'plc-docs-toolbar';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

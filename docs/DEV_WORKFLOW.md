@@ -6,36 +6,16 @@ Dev branches deploy to a separate Firebase project, `spartboard-dev`, with its o
 
 ### Branch Names
 
-- Any branch starting with `dev-` (e.g., `dev-paul`) deploys the whole app — hosting, rules, indexes, Storage rules and functions — to `spartboard-dev`. The project has one site, so concurrent `dev-*` branches overwrite each other.
+- `dev-paul` deploys hosting to https://spartboard-dev.web.app and `dev-bailey` to https://spartboard-dev-bailey.web.app. Add a new developer's site in `.github/scripts/plan-deploy.sh`, create it with `firebase hosting:sites:create spartboard-dev-<name> --project spartboard-dev`, and add it to Auth authorized domains and `ALLOWED_ORIGINS` in `functions/src/classlinkShared.ts`.
+- Rules, indexes, Storage rules and functions are shared. A push deploys only the ones whose files changed, and only from a branch that already contains `origin/dev-paul`.
 
 ### How It Works
 
-1. **Create your branch** (if it doesn't exist):
+Day to day, use the repo skills in the Claude desktop app; [ONBOARDING.md](ONBOARDING.md) has setup and the full loop.
 
-   ```bash
-   git checkout -b dev-[your-name]
-   ```
-
-2. **Make your changes and commit**:
-
-   ```bash
-   git add .
-   git commit -m "Your commit message"
-   ```
-
-3. **Push to your dev branch**:
-
-   ```bash
-   git push origin dev-lead  # or your specific branch
-   ```
-
-4. **Automatic deployment**: GitHub Actions will automatically:
-   - Build your code
-   - Deploy everything to `spartboard-dev`, served at `https://spartboard-dev.web.app`
-5. **Find your URL**:
-   - Go to your repo's "Actions" tab on GitHub
-   - Click on the latest workflow run
-   - Look for the "Comment deployment URL" step or check the workflow summary
+1. Each session branches from `dev-paul` (`/new-feature`, `/fix`).
+2. `/preview` force-updates your preview branch (`dev-bailey`, or `dev-paul-preview` for Paul) to the session's commit. The run's summary shows the URL; hosting is live in about 3 minutes.
+3. `/ship` opens a PR into `dev-paul`, waits for the required `summary` check and the Claude review, and squash-merges.
 
 ### Dev Project Characteristics
 
@@ -46,23 +26,16 @@ Dev branches deploy to a separate Firebase project, `spartboard-dev`, with its o
 
 ### Creating Pull Requests
 
-Once you're happy with your changes on your dev branch:
+Once you're happy with your change:
 
-1. Test thoroughly on https://spartboard-dev.web.app
-2. Create a PR from your dev branch → `main`
-3. Request code review
-4. After approval and merge, changes will deploy to production (main site)
+1. Feature and fix PRs go into `dev-paul` (`/ship`). Rulesets require the `summary` check; there's no approval step.
+2. Paul opens the release PR, `dev-paul` into `main`, and merges it. Only Paul can merge into `main`.
+3. The prod deploy reuses the release PR's checks when the tree is identical, deploys changed backend targets, smoke-tests https://spartboard.web.app and rolls hosting back if the smoke test fails.
 
 ### Tips
 
-- **Share the dev URL** with team members for early feedback (they sign in with their district account)
-- **Test Firebase features** on your preview before merging
-- **Keep branches updated**: Regularly merge `main` into your dev branch to stay current
-  ```bash
-  git checkout dev-lead
-  git merge main
-  git push origin dev-lead
-  ```
+- **Share your dev URL** for early feedback (people sign in with their district account).
+- **Stay current**: `/preview` and `/ship` rebase onto `origin/dev-paul` for you.
 
 ## Release Notes ("What's New")
 
@@ -124,5 +97,5 @@ Run `/deslop --writing public/changelog.json` as a final pass before committing.
 
 ## Troubleshooting
 
-- **Workflow not triggering?** Make sure your branch name starts with `dev-` (e.g., `dev-jane`).
+- **Preview not updating?** Only branches mapped in `.github/scripts/plan-deploy.sh` get a hosting site; others build but skip hosting.
 - **Build failing?** Check the Actions tab for error details

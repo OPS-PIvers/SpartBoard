@@ -14,7 +14,6 @@ playwright-report/
 .agents
 .gemini
 .claude/workflows
-.Jules/admin-widget-config_implementation.md
 tests/perf/results/
 # Append-only nightly automation logs: prettier's GFM table alignment pads
 # every cell in a column to match the widest cell, and these tables grow

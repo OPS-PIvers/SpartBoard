@@ -57,6 +57,16 @@ const mockAddToast = vi.fn();
 // PlcAssignmentsLibrarySubTab for the OLD flow that DID call this.
 const mockSetPendingAssignmentEdit = vi.fn();
 
+const loadBankContentsForQuiz = vi.fn().mockResolvedValue(new Map());
+const saveDriveSnapshot = vi.fn().mockResolvedValue('snapshot-file');
+vi.mock('@/hooks/useBankSources', () => ({
+  useBankSources: () => ({ loadBankContentsForQuiz }),
+}));
+
+vi.mock('@/hooks/useQuiz', () => ({
+  useQuiz: () => ({ saveDriveSnapshot }),
+}));
+
 vi.mock('@/hooks/useQuizAssignments', () => ({
   useQuizAssignments: vi.fn(() => ({
     createAssignment: mockCreateQuizAssignment,
@@ -243,6 +253,81 @@ describe('PlcAssignmentConfigModal (quiz kind)', () => {
     expect(settings.plc).toBeDefined();
     expect((settings.plc as Record<string, unknown>).id).toBe(fakePlc.id);
     expect((settings.plc as Record<string, unknown>).name).toBe(fakePlc.name);
+  });
+
+  it('seeds the group with the bank slots and assigns the drawn pool', async () => {
+    const bankQ = (id: string) => ({
+      id,
+      type: 'MC' as const,
+      text: id,
+      timeLimit: 0,
+      correctAnswer: 'a',
+      incorrectAnswers: ['b'],
+    });
+    const bankSlots = [
+      {
+        id: 'slot-1',
+        bankId: 'bank-1',
+        bankTitle: 'Vocab bank',
+        mode: 'random' as const,
+        count: 2,
+      },
+    ];
+    loadBankContentsForQuiz.mockResolvedValueOnce(
+      new Map([
+        [
+          'bank-1',
+          {
+            id: 'bank-1',
+            title: 'Vocab bank',
+            questions: [bankQ('b1'), bankQ('b2'), bankQ('b3')],
+          },
+        ],
+      ])
+    );
+    saveDriveSnapshot.mockResolvedValueOnce('snapshot-file');
+    render(
+      <PlcAssignmentConfigModal
+        plc={fakePlc}
+        kind="quiz"
+        quizRef={fakeQuizRef}
+        quizData={{
+          id: fakeQuizRef.id,
+          title: fakeQuizRef.title,
+          questions: [],
+          bankSlots,
+          createdAt: 0,
+          updatedAt: 0,
+        }}
+        isOpen
+        onClose={vi.fn()}
+      />
+    );
+
+    act(() => {
+      fireEvent.click(
+        screen.getByRole('button', { name: /create assignment/i })
+      );
+    });
+
+    await waitFor(() => {
+      expect(mockCreateQuizAssignment).toHaveBeenCalledTimes(1);
+    });
+    const { createSyncedQuizGroup } =
+      await import('@/hooks/useSyncedQuizGroups');
+    expect(createSyncedQuizGroup).toHaveBeenCalledWith(
+      expect.objectContaining({ bankSlots })
+    );
+    const [quizArg, settings, opts] = mockCreateQuizAssignment.mock
+      .calls[0] as [
+      { driveFileId: string; questions: { id: string }[] },
+      Record<string, unknown>,
+      Record<string, unknown>,
+    ];
+    expect(quizArg.questions.map((q) => q.id)).toEqual(['b1', 'b2', 'b3']);
+    expect(quizArg.driveFileId).toBe('snapshot-file');
+    expect(settings.resolvedDriveFileId).toBe('snapshot-file');
+    expect(opts.bankSlots).toHaveLength(1);
   });
 
   it('forwards dueAt onto settings when a date is entered', async () => {

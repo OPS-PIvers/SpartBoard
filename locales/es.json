@@ -483,7 +483,8 @@
       "pendingSince": "Invitado {{when}}",
       "revoke": "Revocar",
       "revokeAriaLabel": "Revocar invitación para {{email}}",
-      "notManager": "Solo los líderes pueden gestionar miembros."
+      "notManager": "Solo los líderes pueden gestionar miembros.",
+      "actionError": "No se pudo guardar ese cambio. Inténtalo de nuevo."
     },
     "completedAssignments": {
       "heading": "Resultados Compartidos",

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { PlcActionItem, PlcMeeting, PlcNote, PlcTodo } from '@/types';
 import {
+  rebaseActionItems,
   actionItemFromMeetingItem,
   buildImportedTodosNote,
   countOpenActionItems,
@@ -237,5 +238,46 @@ describe('mergeActionItems', () => {
     const incoming = [actionItem({ id: 'a1' }), actionItem({ id: 'a2' })];
     const result = mergeActionItems(existing, incoming);
     expect(result.map((i) => i.id)).toEqual(['a1', 'a2']);
+  });
+});
+
+describe('rebaseActionItems', () => {
+  const it0 = (
+    id: string,
+    extra: Partial<PlcActionItem> = {}
+  ): PlcActionItem => ({
+    id,
+    text: id,
+    done: false,
+    createdBy: 'u',
+    createdAt: 1,
+    ...extra,
+  });
+
+  it('keeps a teammate addition made while I edited', () => {
+    const base = [it0('a')];
+    const mine = [it0('a', { done: true }), it0('b')];
+    const theirs = [it0('a'), it0('c')];
+    expect(rebaseActionItems(base, mine, theirs).map((i) => i.id)).toEqual([
+      'a',
+      'b',
+      'c',
+    ]);
+  });
+
+  it('keeps a teammate edit on an item I did not touch', () => {
+    const base = [it0('a'), it0('b')];
+    const mine = [it0('a', { text: 'mine' }), it0('b')];
+    const theirs = [it0('a'), it0('b', { done: true })];
+    const out = rebaseActionItems(base, mine, theirs);
+    expect(out[0].text).toBe('mine');
+    expect(out[1].done).toBe(true);
+  });
+
+  it('honors deletes on both sides', () => {
+    const base = [it0('a'), it0('b')];
+    const mine = [it0('b')];
+    const theirs = [it0('a')];
+    expect(rebaseActionItems(base, mine, theirs)).toEqual([]);
   });
 });

@@ -233,3 +233,15 @@ export const convertToEmbedUrl = (url: string): string => {
 
   return trimmedUrl;
 };
+
+/** Drops `rm=minimal` from a Google Docs embed so Google's menus and toolbar show. */
+export const withGoogleDocsToolbar = (embedUrl: string): string => {
+  try {
+    const parsed = new URL(embedUrl);
+    if (!parsed.pathname.includes('/document/d/')) return embedUrl;
+    parsed.searchParams.delete('rm');
+    return parsed.toString();
+  } catch {
+    return embedUrl;
+  }
+};

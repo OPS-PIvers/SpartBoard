@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      full_backend:
+        description: Deploy every backend target (functions, rules, indexes, storage), not just changed ones
+        type: boolean
+        default: false
 
 # Never run two production deploys at once; a newer main commit waits for the
 # in-flight one to finish rather than cancelling it mid-release.
@@ -12,9 +17,11 @@ concurrency:
   group: ${{ github.workflow }}-production
   cancel-in-progress: false
 
-# Deploys authenticate with the service-account secret, so GITHUB_TOKEN only needs to read the repo.
+# Deploys authenticate with the service-account secret; GITHUB_TOKEN reads runs and files a rollback issue.
 permissions:
   contents: read
+  actions: read
+  issues: write
 
 env:
   VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
@@ -29,9 +36,67 @@ env:
   VITE_SPOTIFY_CLIENT_ID: ${{ secrets.VITE_SPOTIFY_CLIENT_ID }}
 
 jobs:
+  # A release or hotfix merge whose tree is identical to its already-validated PR head skips the
+  # checks; anything else (a direct push, a merge that picked up other main commits) runs them all.
+  preflight:
+    runs-on: ubuntu-24.04
+    outputs:
+      reuse: ${{ steps.check.outputs.reuse }}
+    steps:
+      - uses: actions/checkout@v6.0.3
+        with:
+          fetch-depth: 2
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          reuse=false
+          head2=$(git rev-parse -q --verify 'HEAD^2' || true)
+          if [[ -n "$head2" && "$(git rev-parse 'HEAD^{tree}')" == "$(git rev-parse "${head2}^{tree}")" ]]; then
+            for wf in pr-validation.yml firebase-dev-deploy.yml; do
+              url=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$wf/runs?head_sha=$head2&status=success&per_page=1" --jq '.workflow_runs[0].html_url // empty')
+              if [[ -n "$url" ]]; then
+                reuse=true
+                echo "Checks already passed on identical tree ${head2}: $url" | tee -a "$GITHUB_STEP_SUMMARY"
+                break
+              fi
+            done
+          fi
+          [[ "$reuse" == "true" ]] || echo "No validated identical tree; running every check."
+          echo "reuse=$reuse" >> "$GITHUB_OUTPUT"
+
+  # Which backend targets changed since the last successful prod deploy.
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      backend: ${{ steps.plan.outputs.backend }}
+      deploy_only: ${{ steps.plan.outputs.deploy_only }}
+      release_rules: ${{ steps.plan.outputs.release_rules }}
+      indexes: ${{ steps.plan.outputs.indexes }}
+    steps:
+      - uses: actions/checkout@v6.0.3
+        with:
+          fetch-depth: 0
+      # Last commit this workflow deployed successfully on this branch; empty deploys every target.
+      - id: base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW: firebase-deploy.yml
+        run: |
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW/runs?branch=$GITHUB_REF_NAME&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty')
+          echo "Last successful deploy: ${sha:-none}"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - id: plan
+        env:
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+          FULL: ${{ inputs.full_backend || false }}
+        run: ./.github/scripts/plan-deploy.sh main "$BASE_SHA" "$FULL"
+
   # Same parallel layout as the dev-branch workflow: every check runs on its
   # own runner and deploy waits for all of them.
   lint:
+    needs: preflight
+    if: needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
     name: lint (${{ matrix.check }})
     strategy:
@@ -54,6 +119,8 @@ jobs:
         run: pnpm run format:check
 
   type-check:
+    needs: preflight
+    if: needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6.0.3
@@ -61,6 +128,8 @@ jobs:
       - run: pnpm run type-check:all
 
   test:
+    needs: preflight
+    if: needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
     name: test (shard ${{ matrix.shard }}/3)
     strategy:
@@ -96,6 +165,8 @@ jobs:
 
   # test:all doesn't include test:rules; without this a firestore.rules regression could reach prod unverified.
   rules:
+    needs: preflight
+    if: needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6.0.3
@@ -131,7 +202,9 @@ jobs:
           if-no-files-found: error
 
   deploy:
-    needs: [lint, type-check, test, test-counts, rules, build]
+    needs: [preflight, plan, lint, type-check, test, test-counts, rules, build]
+    # Skipped checks (reuse) are fine; a failed or cancelled one is not.
+    if: ${{ !failure() && !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6.0.3
@@ -141,44 +214,39 @@ jobs:
         with:
           name: build-output
 
-      # Deploy backend (rules, indexes, functions, storage) BEFORE hosting.
-      # Reason: a new Firestore composite index isn't usable until it
-      # finishes building, but `firebase deploy --only firestore` returns
-      # success as soon as the build is queued. If hosting went first, a
-      # query in the new client bundle that needs a not-yet-built index
-      # would fail with FAILED_PRECONDITION the moment a teacher hit the
-      # code path. Order: backend first, wait for indexes, hosting last.
+      # Backend before hosting: a new composite index isn't usable until it builds, so hosting waits for it.
       - name: Create Service Account File
         run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > service-account.json
 
-      # Wrapped in a retry helper: `firebase deploy` occasionally hits a
-      # transient Google API blip (e.g. an HTTP 503 on the Firestore
-      # field/index reconciliation read) that fails the whole deploy even
-      # though the code is fine. The script retries those transient
-      # signatures with exponential backoff and fails fast on real errors.
+      # Only changed targets (.github/scripts/plan-deploy.sh), wrapped in a retry for transient Google API blips.
       - name: Deploy Firebase Rules, Indexes, Functions, Storage
+        if: needs.plan.outputs.backend == 'true'
         run: ./.github/scripts/firebase-deploy-with-retry.sh spartboard
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
+          FIREBASE_DEPLOY_ONLY: ${{ needs.plan.outputs.deploy_only }}
+          RELEASE_FIRESTORE_RULES: ${{ needs.plan.outputs.release_rules }}
 
       - name: Wait for Firestore composite indexes to be READY
+        if: needs.plan.outputs.indexes == 'true'
         run: ./.github/scripts/wait-for-firestore-indexes.sh spartboard
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
 
+      - name: Record the live hosting version for rollback
+        id: prev
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
+        run: |
+          version=$(pnpm exec firebase hosting:channel:list --project spartboard --site spartboard --json \
+            | jq -r '.result.channels[] | select(.name | endswith("/channels/live")) | .release.version.name | split("/") | last')
+          echo "Live version before deploy: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # Repo firebase-tools rather than action-hosting-deploy, whose bundled CLI hits "premature close".
+      # An identical bundle is rejected as "the current active version": a no-op success.
       - name: Deploy to Firebase Hosting (Live)
-        # CLI deploy via the repo's firebase-tools (15.22.3) instead of
-        # FirebaseExtended/action-hosting-deploy@v0.10.0, whose OWN bundled
-        # (older) firebase-tools hits "premature close" on googleapis
-        # token/cloudfunctions calls under the current GitHub runner image —
-        # the same root cause that broke the 15.8.0 backend deploy. dist was
-        # built in the parallel build job (firebase.json has no predeploy
-        # hook), so this just releases it to the live channel.
-        # Idempotent: when the built bundle is byte-identical to the current
-        # live version, firebase rejects the re-release with 400 "is the current
-        # active version". That's a no-op success (backend/workflow/docs-only
-        # deploys don't change dist), so treat it as such; any other error still
-        # fails the deploy.
+        id: hosting
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
         run: |
@@ -194,15 +262,42 @@ jobs:
             exit "$CODE"
           fi
 
+      - name: Install Chromium for the smoke test
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Smoke test production
+        id: smoke
+        run: node scripts/smoke-test.mjs https://spartboard.web.app "${GITHUB_SHA::12}"
+
+      # Hosting only: backend changes stay live, which the release-time compatibility rule already requires.
+      - name: Roll hosting back to the previous release
+        if: ${{ always() && steps.hosting.outcome == 'success' && steps.smoke.outcome == 'failure' && steps.prev.outputs.version != '' }}
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
+          VERSION: ${{ steps.prev.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pnpm exec firebase hosting:clone "spartboard@${VERSION}" spartboard:live --project spartboard
+          node scripts/smoke-test.mjs https://spartboard.web.app || echo "::error::The rolled-back release also fails the smoke test."
+          gh issue create --repo "$GITHUB_REPOSITORY" --assignee "$GITHUB_ACTOR" \
+            --title "Prod smoke test failed for ${GITHUB_SHA::7}; hosting rolled back" \
+            --body "The smoke test failed after deploying ${GITHUB_SHA} (${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). Hosting is back on version ${VERSION}. Backend changes from this release are still live."
+
       - name: Cleanup Service Account File
         if: always()
         run: rm -f service-account.json
 
       - name: Deployment Summary
         if: success()
+        env:
+          REUSED: ${{ needs.preflight.outputs.reuse }}
+          DEPLOY_ONLY: ${{ needs.plan.outputs.deploy_only }}
+          RULES: ${{ needs.plan.outputs.release_rules }}
         run: |
           echo "### 🚀 Production Deployment Successful!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**URL**: https://spartboard.web.app" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: ${GITHUB_SHA}" >> $GITHUB_STEP_SUMMARY
+          echo "**Checks reused**: ${REUSED}; **backend targets**: ${DEPLOY_ONLY:-none}; rules released: ${RULES}" >> $GITHUB_STEP_SUMMARY
+          echo "**Smoke test**: passed" >> $GITHUB_STEP_SUMMARY
           echo "**Triggered by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY

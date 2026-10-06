@@ -1861,7 +1861,7 @@ service cloud.firestore {
       return incoming().keys().hasOnly([
         'id', 'version', 'title', 'questions', 'participants', 'plcId', 'createdAt',
         'updatedAt', 'updatedBy', 'behavior', 'stimuli', 'paperSheetStimuli',
-        'translations'
+        'translations', 'bankSlots', 'order', 'sections'
       ]);
     }
     function versionKeysOk() {
@@ -1901,7 +1901,11 @@ service cloud.firestore {
         && optList(incoming(), 'stimuli')
         // Items printed on a paper answer sheet; same list shape as `stimuli`.
         && optList(incoming(), 'paperSheetStimuli')
-        && optMap(incoming(), 'translations');
+        && optMap(incoming(), 'translations')
+        // Bank draws and their layout; same list shape as `stimuli`.
+        && optList(incoming(), 'bankSlots')
+        && optList(incoming(), 'order')
+        && optList(incoming(), 'sections');
 
       // Content updates: caller must be a participant; participants + id are
       // client-immutable; version must increase by exactly 1 (concurrent loser
@@ -1919,7 +1923,11 @@ service cloud.firestore {
         && optMap(incoming(), 'behavior')
         && optList(incoming(), 'stimuli')
         && optList(incoming(), 'paperSheetStimuli')
-        && optMap(incoming(), 'translations');
+        && optMap(incoming(), 'translations')
+        // Bank draws and their layout; same list shape as `stimuli`.
+        && optList(incoming(), 'bankSlots')
+        && optList(incoming(), 'order')
+        && optList(incoming(), 'sections');
 
       // No client delete. An orphaned (empty-participants) group stays so an old
       // share URL still resolves the bootstrap snapshot rather than 404.
@@ -2438,9 +2446,16 @@ service cloud.firestore {
         && target != resource.data.get('leadUid', '')
         // …to a non-lead role (coLead | member | viewer) — never 'lead'.
         && request.resource.data.members[target].role in ['coLead', 'member', 'viewer']
-        // The changed member must already be (and remain) a real member entry —
-        // role changes don't add/drop people (that's invite/leave/remove).
-        && (target in resource.data.get('members', {}))
+        // The changed member must already be a member — in the map, or (invite accept
+        // writes only the arrays) in memberUids and written in as active. Role changes
+        // don't add/drop people (that's invite/leave/remove).
+        && (
+             (target in resource.data.get('members', {}))
+             || (
+                  (target in resource.data.memberUids)
+                  && request.resource.data.members[target].status == 'active'
+                )
+           )
         && request.resource.data.members[target].uid == target
         && plcUpdatedAtOk();
     }
@@ -2638,8 +2653,13 @@ service cloud.firestore {
     function plcDocKeysOk() {
       return incoming().keys().hasOnly([
         'id', 'title', 'url', 'createdBy', 'createdByName', 'createdAt', 'updatedAt',
-        'deletedAt'
+        'deletedAt', 'actionItems'
       ]);
+    }
+    // A linked doc's action items: same 200-item cap as a note's.
+    function plcDocActionItemsOk() {
+      return !('actionItems' in incoming())
+        || (isList('actionItems') && incoming().actionItems.size() <= 200);
     }
     function plcCommentKeysOk() {
       return incoming().keys().hasOnly([
@@ -3613,6 +3633,7 @@ service cloud.firestore {
           && isStr('url')
           && isStr('createdByName')
           && plcSubDeletedAtOk()
+          && plcDocActionItemsOk()
           && plcSubTimeFieldOk('createdAt')
           && plcSubTimeFieldOk('updatedAt');
 
@@ -3625,6 +3646,7 @@ service cloud.firestore {
           && isStr('title')
           && isStr('url')
           && plcSubDeletedAtOk()
+          && plcDocActionItemsOk()
           && plcSubTimeFieldOk('updatedAt');
 
         // A viewer (Decision 3.2) is denied via plcCanEditContent.

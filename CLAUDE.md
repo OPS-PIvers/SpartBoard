@@ -6,6 +6,8 @@ SpartBoard is a classroom management dashboard (React 19, TypeScript, Vite, Fire
 place drag-and-drop widgets on boards, plus student-facing apps (quiz, video activity, guided learning,
 activity wall, mini-apps), an admin panel, PLCs, and a substitute portal. Widget-specific guidance lives
 in `components/widgets/CLAUDE.md`; UI design context in `components/CLAUDE.md`.
+Developer setup and the everyday loop (`/new-feature`, `/fix`, `/show-me`, `/preview`, `/ship`, `/undo`; Paul's `/hotfix`)
+are in [docs/ONBOARDING.md](docs/ONBOARDING.md).
 
 ## Layout
 
@@ -22,12 +24,13 @@ in `components/widgets/CLAUDE.md`; UI design context in `components/CLAUDE.md`.
 - `pnpm run test:counts` fails if Vitest silently collected fewer suites than baseline. CI shards with `test:shard --shard=N/3`, then `test:merge-reports` before `test:counts`.
 - `pnpm run changelog:draft` prints a draft `public/changelog.json` entry. Every bullet must be rewritten before committing — the rules are in [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md#how-to-write-a-release-note), and both `overview` and `details` are shown to every user.
 - `pnpm run <script> -- <flags>` forwards a literal `--` and Vitest then ignores the flags. Omit the `--`.
-- Claude Code dev servers (`.claude/launch.json`): `vite-dev` (3000), `vite-dev-bypass` (56300, `VITE_AUTH_BYPASS=true`), `functions-emulator` (5001).
+- Claude Code dev servers (`.claude/launch.json`): `vite-dev` (3000, real sign-in on `spartboard-dev`), `vite-dev-prod` (3004, localhost on **prod**, red banner), `vite-harness` (56300, `VITE_AUTH_BYPASS=true`, for `/*-dev` harness pages and screenshots only), `functions-emulator` (5001).
 
 ## Local verification — scope checks to what you changed
 
 CI runs the full type-check, lint, format, unit-test, rules and build gates on every push to `dev-*`
-and every PR, and the dev-branch `deploy` job depends on all of them, so a broken push never deploys.
+and every PR. On a `dev-*` push the preview hosting deploys once build and type-check pass; the shared backend deploys
+only after every gate, so a broken push never reaches functions or rules.
 Do not duplicate that locally.
 
 - **Tests:** `pnpm exec vitest related --run <changed source and test files>` runs only the suites that import them.
@@ -38,23 +41,24 @@ Do not duplicate that locally.
 
 ## Environment
 
-- Firebase config goes in `.env.local` (see `.env.example`). Never commit `.env.local`. It points local dev servers at prod (`spartboard`) unless swapped for the `spartboard-dev` web config.
+- `pnpm dev` reads the committed `.env.development` (the `spartboard-dev` web config), which beats `.env.local`; personal overrides go in `.env.development.local`. `pnpm run dev:prod` uses `.env.prod-local`. Never commit `.env.local`.
+- Sign in with Google for real on localhost; the session persists per origin. Drive and the Picker need one of the registered origins `http://localhost:3000`-`3004`.
 - `VITE_AUTH_BYPASS='true'` signs in a mock admin (`mock-user-id`) and skips Auth/permission listeners. It is disabled in production builds and is client-side only — it does **not** bypass Firestore security rules.
 
 ## Firebase projects: `spartboard` (prod) and `spartboard-dev`
 
-| Branch  | Firebase project | Gets                                                        | URL                            |
-| ------- | ---------------- | ----------------------------------------------------------- | ------------------------------ |
-| `dev-*` | `spartboard-dev` | hosting, Firestore rules, indexes, Storage rules, functions | https://spartboard-dev.web.app |
-| `main`  | `spartboard`     | the same, and nothing else writes to prod                   | https://spartboard.web.app     |
+| Branch  | Firebase project | Gets                                                                          | URL                                                                                               |
+| ------- | ---------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `dev-*` | `spartboard-dev` | hosting on the owner's site; changed rules, indexes, Storage rules, functions | https://spartboard-dev.web.app (`dev-paul`), https://spartboard-dev-bailey.web.app (`dev-bailey`) |
+| `main`  | `spartboard`     | the same, and nothing else writes to prod                                     | https://spartboard.web.app                                                                        |
 
-Since 2026-09-21 a push to `dev-paul` never touches production. Plan and decisions: `docs/plans/shipped/DEV_FIREBASE_PROJECT.md`.
+Since 2026-09-21 a push to `dev-paul` never touches production. `.github/scripts/plan-deploy.sh` maps each branch to its hosting site and deploys only changed backend targets; a branch other than `dev-paul` deploys backend only when it already contains `origin/dev-paul`, because functions deploy with `--force`. Actions > Deploy Dev Branches > Run workflow with `full_backend` redeploys everything. Plan and decisions: `docs/plans/shipped/DEV_FIREBASE_PROJECT.md`.
 
 - **Compatibility is a release-time rule now, not a per-merge rule.** Merges into `dev-paul` no longer need gating on a marker only the new client writes. At a `main` release, rules and function changes still have to tolerate a teacher's already-open tab running the previous client, and read-rule tightening still needs that marker.
 - **CLI and MCP default to prod.** `.firebaserc` `default` (and the Firebase MCP's active project) is `spartboard`. Pass `--project dev` for any ad-hoc deploy, rules release, log read or data change, and never deploy to prod by hand unless Paul asks.
-- **Verify on dev.** Browser checks of unreleased work go to https://spartboard-dev.web.app, not prod or a `spartboard--*` preview channel (preview channels are retired).
+- **Verify on localhost-on-dev.** Agents check UI changes with `vite-dev` in the Browser pane, signed in for real. The deployed https://spartboard-dev.web.app is for phone, Chromebook and student-flow checks. Never verify unreleased work on prod.
 - **Dev data is config only.** Admins, admin settings, feature/global permissions, standards, buildings, help content and the mock test class, copied by `node scripts/dev-seed/copy-config-from-prod.mjs` (`--dry-run` first; read-only on prod, top-level docs only). Never copy student-bearing collections (sessions, responses, rosters, `users`) into dev. Student sign-in on dev uses the mock class (`organizations/orono/testClasses`).
-- **Credentials.** Prod scripts use `scripts/service-account-key.json`; dev uses `gcloud auth application-default login`. CI deploys dev with keyless Workload Identity Federation (`github-deploy@spartboard-dev`, only `dev-*` refs); prod CI still uses the `FIREBASE_SERVICE_ACCOUNT` key.
+- **Credentials.** Prod scripts use `scripts/service-account-key.json`; dev uses `gcloud auth application-default login`. CI deploys dev with keyless Workload Identity Federation (`github-deploy@spartboard-dev`; the provider condition admits only `refs/heads/dev-*` in this repo); prod CI still uses the `FIREBASE_SERVICE_ACCOUNT` key.
 - **New function secrets go in both projects.** A `defineSecret` missing from `spartboard-dev` fails the dev deploy. Paul sets real values; ClassLink and Spotify are placeholders in dev (ClassLink nightly sync is off there).
 - **Shared Drive app.** Dev reuses prod's Google OAuth client (`drive.file` is per client), so a dev bug can still edit Paul's real Drive files. AI runs on Vertex billed to the dev project.
 - **Rules have two size caps**: 256 KiB of source (comments are stripped at deploy) and 250 KB compiled. Crossing the compiled cap makes every release fail with a bare 400. Test a rules change with `node scripts/releaseFirestoreRules.mjs spartboard-dev` before it reaches `main`. `pnpm run check:rules-size` measures the compiled size with the emulator's own compiler (needs Java); comments cost nothing, expression nodes do, so write new rules with the `signedIn()`/`incoming()`/`existing()`/`authUid()`/`unchanged()`/`isStr()` shorthands, except inside `// shorthands: off` regions, which sit near Firestore's 1,000-expression evaluation limit.
@@ -121,9 +125,10 @@ allowlist fails toward a cosmetic annoyance.
 
 ## CI and conventions
 
-- **Every PR targets `dev-paul`, never `main`**, including cloud-session PRs. A session branch can start from `main`, so before the first push run `git rebase --onto origin/dev-paul $(git merge-base HEAD origin/main)` if `git log origin/dev-paul..HEAD` shows commits that are not yours. Only Paul's promotion PRs go into `main`.
+- **Every PR targets `dev-paul`, never `main`**, including cloud-session PRs. A session branch can start from `main`, so before the first push run `git rebase --onto origin/dev-paul $(git merge-base HEAD origin/main)` if `git log origin/dev-paul..HEAD` shows commits that are not yours. Only Paul's promotion PRs and `/hotfix` PRs go into `main`. Rulesets require a PR and a green `summary` check on `main` and `dev-paul`; only Paul can bypass, and only Paul merges into `main`.
 - Pushes to `dev-*` deploy to `spartboard-dev`; pushes to `main` deploy production. See "Firebase projects" above.
-- `pr-validation.yml` has a `preflight` job: if `firebase-dev-deploy.yml` already passed on the PR's head SHA, everything except E2E is skipped.
+- `pr-validation.yml` runs on every PR; its `summary` job is the required check and fails when any job fails. Docs-only PRs pass in seconds. `preflight` waits for an in-progress `firebase-dev-deploy.yml` run on the PR's head SHA and, if it passed, skips everything except E2E. Release PRs (`dev-paul` into `main`) skip the widget grader.
+- A push to `main` skips the checks when its tree equals an already-validated PR head, deploys only changed backend targets, then smoke-tests prod (`scripts/smoke-test.mjs`) and rolls hosting back to the previous release, opening an issue, if it fails.
 - **Release notes**: `public/changelog.json` is read by teachers, not developers. Never name a feature flag, a Firestore path or an internal mechanism in it, and check every claim against what admin settings actually enable rather than what the code defines. See [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md#how-to-write-a-release-note).
 - **Comments**: One short line max — never multi-paragraph docstrings or multi-line comment blocks. Root-cause narrative and verification rationale belong in the PR description, not the diff. Exception: match the surrounding file's convention where one already differs consistently (e.g. `firestore.rules`). Enforced in review; see [docs/routines/debugger.md](docs/routines/debugger.md).
 - TypeScript strict mode; no `any` without explicit annotation. ESLint fails on warnings.

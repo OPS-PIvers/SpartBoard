@@ -9,7 +9,13 @@
       "autoPort": true
     },
     {
-      "name": "vite-dev-bypass",
+      "name": "vite-dev-prod",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "dev:prod", "--port", "3004", "--strictPort"],
+      "port": 3004
+    },
+    {
+      "name": "vite-harness",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["run", "dev", "--port", "56300", "--strictPort"],
       "env": {

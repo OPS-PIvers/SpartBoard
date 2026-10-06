@@ -177,3 +177,33 @@ export function mergeActionItems(
   }
   return merged;
 }
+
+const sameActionItem = (a: PlcActionItem, b: PlcActionItem): boolean =>
+  a.text === b.text &&
+  a.done === b.done &&
+  (a.assigneeUid ?? null) === (b.assigneeUid ?? null) &&
+  (a.dueAt ?? null) === (b.dueAt ?? null) &&
+  (a.doneAt ?? null) === (b.doneAt ?? null);
+
+/** Three-way merge by id: my edits since `base` applied over the saved `theirs`. */
+export function rebaseActionItems(
+  base: readonly PlcActionItem[],
+  mine: readonly PlcActionItem[],
+  theirs: readonly PlcActionItem[]
+): PlcActionItem[] {
+  const baseById = new Map(base.map((item) => [item.id, item]));
+  const theirsById = new Map(theirs.map((item) => [item.id, item]));
+  const mineIds = new Set(mine.map((item) => item.id));
+  const merged: PlcActionItem[] = [];
+  for (const item of mine) {
+    const before = baseById.get(item.id);
+    const saved = theirsById.get(item.id);
+    const untouched = before !== undefined && sameActionItem(item, before);
+    if (untouched && !saved) continue;
+    merged.push(untouched && saved ? saved : item);
+  }
+  for (const item of theirs) {
+    if (!mineIds.has(item.id) && !baseById.has(item.id)) merged.push(item);
+  }
+  return merged;
+}

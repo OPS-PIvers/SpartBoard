@@ -483,7 +483,8 @@
       "pendingSince": "Invité {{when}}",
       "revoke": "Révoquer",
       "revokeAriaLabel": "Révoquer l'invitation pour {{email}}",
-      "notManager": "Seuls les responsables peuvent gérer les membres."
+      "notManager": "Seuls les responsables peuvent gérer les membres.",
+      "actionError": "Impossible d'enregistrer cette modification. Réessayez."
     },
     "completedAssignments": {
       "heading": "Résultats partagés",

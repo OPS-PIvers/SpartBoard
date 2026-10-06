@@ -34,6 +34,44 @@ export interface Comparison {
   after: { weighted: number | null; letter: string | null };
 }
 
+export interface FillDrop {
+  render: string;
+  before: number;
+  after: number;
+}
+
+interface MeasuredRender {
+  size?: { name?: string };
+  fixture?: string;
+  values?: { variant?: string; contentFraction?: unknown };
+}
+
+const fillByRender = (records: MeasuredRender[]): Map<string, number> => {
+  const out = new Map<string, number>();
+  for (const r of records) {
+    const f = r.values?.contentFraction;
+    if (r.values?.variant !== 'base' || typeof f !== 'number') continue;
+    const key = `${r.size?.name}/${r.fixture}`;
+    if (!out.has(key)) out.set(key, f);
+  }
+  return out;
+};
+
+// Wasted space: a base render whose content fills clearly less of the card than before.
+export function compareFill(
+  before: MeasuredRender[],
+  after: MeasuredRender[]
+): FillDrop[] {
+  const a = fillByRender(after);
+  const drops: FillDrop[] = [];
+  for (const [render, b] of fillByRender(before)) {
+    const f = a.get(render);
+    if (f !== undefined && f < b * 0.85 && b - f > 0.05)
+      drops.push({ render, before: b, after: f });
+  }
+  return drops;
+}
+
 /** R20: the whole widget is re-graded; any criterion drop or any gate failure rejects the loop. */
 export function compareScorecards(
   rubric: Rubric,
@@ -305,7 +343,9 @@ function main(argv: string[]): void {
     const before = arg('before');
     const after = arg('after');
     if (!before || !after) {
-      console.error('usage: loop.ts compare --before <file> --after <file>');
+      console.error(
+        'usage: loop.ts compare --before <file> --after <file> [--before-measure <file> --after-measure <file>]'
+      );
       process.exit(2);
     }
     const c = compareScorecards(
@@ -313,8 +353,18 @@ function main(argv: string[]): void {
       readJson<Scorecard>(resolve(root, before), {} as Scorecard),
       readJson<Scorecard>(resolve(root, after), {} as Scorecard)
     );
-    console.log(JSON.stringify(c, null, 2));
-    process.exit(c.ok ? 0 : 1);
+    const bm = arg('before-measure');
+    const am = arg('after-measure');
+    const fillDrops =
+      bm && am
+        ? compareFill(
+            readJson<MeasuredRender[]>(resolve(root, bm), []),
+            readJson<MeasuredRender[]>(resolve(root, am), [])
+          )
+        : [];
+    const ok = c.ok && fillDrops.length === 0;
+    console.log(JSON.stringify({ ...c, ok, fillDrops }, null, 2));
+    process.exit(ok ? 0 : 1);
   }
   if (cmd === 'new-widget') {
     const type = arg('type');

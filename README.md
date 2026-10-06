@@ -53,52 +53,19 @@ Widgets are the core building blocks of the dashboard. They are modular, draggab
 
 ## 🚀 Getting Started
 
-### Option 1: GitHub Codespaces (Recommended)
+New developers start with [docs/ONBOARDING.md](docs/ONBOARDING.md). On a district Windows PC:
 
-The easiest way to start coding is with GitHub Codespaces. This environment comes pre-configured with the Gemini CLI and all necessary dependencies.
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/bootstrap-dev.ps1
+```
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=OPS-PIvers/SPART_Board)
+That installs Git, Node 24, pnpm, the GitHub CLI and the Google Cloud CLI, signs you in, and installs dependencies. Then start the app:
 
-1.  Click the button above.
-2.  Wait for the environment to load.
-3.  Follow the prompts in the terminal to authenticate with Gemini.
+```bash
+pnpm run dev
+```
 
-### Option 2: Local Development
-
-**Prerequisites:** Node.js (v24+ recommended), pnpm (v10+)
-
-1.  **Clone the repository:**
-
-    ```bash
-    git clone https://github.com/OPS-PIvers/SPART_Board.git
-    cd SPART_Board
-    ```
-
-2.  **Install dependencies:**
-
-    ```bash
-    pnpm run install:all
-    ```
-
-3.  **Configure Environment:**
-    Create a `.env.local` file in the root directory and add your credentials:
-
-    ```env
-    VITE_FIREBASE_API_KEY=...
-    VITE_FIREBASE_AUTH_DOMAIN=...
-    VITE_FIREBASE_PROJECT_ID=...
-    VITE_FIREBASE_STORAGE_BUCKET=...
-    VITE_FIREBASE_MESSAGING_SENDER_ID=...
-    VITE_FIREBASE_APP_ID=...
-    VITE_OPENWEATHER_API_KEY=...
-    ```
-
-    _Note: For local development without Firebase credentials, set `VITE_AUTH_BYPASS=true` in `.env.local` to skip login and use a mock admin account._
-
-4.  **Run the app:**
-    ```bash
-    pnpm run dev
-    ```
+`pnpm run dev` runs against the `spartboard-dev` Firebase project (config committed in `.env.development`). Sign in with your district Google account; nothing you do locally touches production.
 
 ## 📂 Project Structure
 
@@ -121,7 +88,6 @@ This project primarily uses a **flat file structure**, with most source code res
 - `pnpm run dev` - Start the development server (port 3000)
 - `pnpm run build` - Build the application for production
 - `pnpm run preview` - Preview the production build locally
-- `pnpm run validate` - Run type-check, linting, formatting check, and unit tests
 - `pnpm run test` - Execute unit tests with Vitest
 - `pnpm run test:e2e` - Execute end-to-end tests with Playwright
 - `pnpm run test:coverage` - Generate test coverage reports
@@ -131,14 +97,16 @@ This project primarily uses a **flat file structure**, with most source code res
 
 ## 🤖 AI Development Workflow
 
-This repository is optimized for AI-assisted development using the **Gemini CLI**.
-Common slash commands available in the environment:
+Development happens in the Claude desktop app (Code tab). Repo skills cover the everyday loop:
 
-- `/preview` - Save changes and update the preview URL.
-- `/submit` - Create a Pull Request for review.
-- `/sync` - Update your workspace with the latest changes from main.
-- `/clean` - Discard all unsaved changes and return to the last saved state.
-- `/undo` - Revert the most recent save while keeping work in the editor.
+- `/new-feature` - Start a feature on a fresh branch, with a feature flag when it's user-facing.
+- `/fix` - Reproduce and fix a reported bug.
+- `/show-me` - Run the app locally and open the change in the browser pane.
+- `/preview` - Put your work on your dev site to try on a phone or Chromebook.
+- `/ship` - Open the PR into `dev-paul`, wait for checks and review, and merge.
+- `/undo` - Back out a change safely.
+
+See [docs/ONBOARDING.md](docs/ONBOARDING.md) and [CLAUDE.md](CLAUDE.md).
 
 ## 📄 License
 

@@ -483,7 +483,8 @@
       "pendingSince": "Invited {{when}}",
       "revoke": "Revoke",
       "revokeAriaLabel": "Revoke invite for {{email}}",
-      "notManager": "Only leads can manage members."
+      "notManager": "Only leads can manage members.",
+      "actionError": "Couldn't save that change. Try again."
     },
     "completedAssignments": {
       "heading": "Shared Results",

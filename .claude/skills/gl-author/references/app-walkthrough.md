@@ -28,7 +28,7 @@ title slide or UI that doesn't exist in the app.
 
 In order of preference:
 
-1. **The full board in `vite-dev-bypass`** (section 3). It boots a real
+1. **The full board in `vite-harness`** (section 3). It boots a real
    board for the mock admin; add the widgets the guide needs through the
    dock, as a teacher would.
 2. **The same board with a narrow mock** when a state needs data the bypass
@@ -60,7 +60,7 @@ cannot share a group. Use fictional names and no personal data.
 ## 3. Start Vite without incidental tracked edits
 
 Launch Vite directly so screenshot work does not run unrelated pre-dev scripts
-(this is the `vite-dev-bypass` launch config):
+(this is the `vite-harness` launch config):
 
 ```bash
 VITE_AUTH_BYPASS=true pnpm exec vite \
