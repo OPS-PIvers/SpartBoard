@@ -49,3 +49,4 @@ Once the PR merges and deploys, Tour Health shows **Rebind N steps** for each it
 | Date | PR | Mapped | Needs human | Notes |
 | ---- | -- | ------ | ----------- | ----- |
 | 2026-10-05 | #3860 | 1 | 0 | Prod only; dev queue empty. Item name "Swipe gestures" matches the "Touchscreen gestures" heading. |
+| 2026-10-06 | pending | 3 | 8 | Prod only; dev queue empty. Per-row color swatches, group names, class rows and unlabeled dialog controls left for a human. |
