@@ -748,6 +748,18 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     destructive: true,
   },
   {
+    id: 'random.group-color',
+    label: 'Color button on a Randomizer group header, by group number',
+    scope: 'field',
+  },
+  {
+    id: 'random.group-color-swatch',
+    label:
+      'Swatch in the Randomizer group color picker, by color (e.g. indigo-500)',
+    scope: 'field',
+    panel: true,
+  },
+  {
     id: 'schedule.start-timer',
     label:
       'Start timer button on a Schedule row, by row (active = the Now row)',

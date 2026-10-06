@@ -502,6 +502,16 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'random.group-color': {
+    label: 'Color button on a Randomizer group header, by group number',
+    perField: true,
+  },
+  'random.group-color-swatch': {
+    label:
+      'Swatch in the Randomizer group color picker, by color (e.g. indigo-500)',
+    perField: true,
+    panel: true,
+  },
   'schedule.start-timer': {
     label:
       'Start timer button on a Schedule row, by row (active = the Now row)',
