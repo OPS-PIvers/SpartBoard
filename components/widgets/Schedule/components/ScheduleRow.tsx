@@ -229,26 +229,27 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
 
   // Rows size to their content so all events are visible when the widget is
   // tall enough. Auto-scroll keeps the active item in view.
-  const rowStyle = lines
-    ? {
-        flex: '0 0 auto',
-        minHeight: scheduleSize(18, 72),
-        backgroundColor: isActive ? 'rgba(45, 63, 137, 0.07)' : 'transparent',
-        borderTop:
-          index === 0
-            ? undefined
-            : `1px solid color-mix(in srgb, ${fontColor} 14%, transparent)`,
-      }
-    : {
-        flex: '0 0 auto',
-        minHeight: scheduleSize(18, 72),
-        backgroundColor: bgColor,
-        // Active rows get a thicker accent border; width set inline so it can use
-        // the same clamp()-based sizing (Tailwind arbitrary values can't hold the
-        // commas/spaces a clamp() expression needs). border-style:solid comes from
-        // Tailwind's preflight, so only the width + color need setting here.
-        borderWidth: isActive ? scheduleSize(1.5, 6) : '1px',
-      };
+  const rowStyle =
+    lines && !isActive
+      ? {
+          flex: '0 0 auto',
+          minHeight: scheduleSize(18, 72),
+          backgroundColor: 'transparent',
+          borderTop:
+            index === 0
+              ? undefined
+              : `1px solid color-mix(in srgb, ${fontColor} 14%, transparent)`,
+        }
+      : {
+          flex: '0 0 auto',
+          minHeight: scheduleSize(18, 72),
+          backgroundColor: bgColor,
+          // Active rows get a thicker accent border; width set inline so it can use
+          // the same clamp()-based sizing (Tailwind arbitrary values can't hold the
+          // commas/spaces a clamp() expression needs). border-style:solid comes from
+          // Tailwind's preflight, so only the width + color need setting here.
+          borderWidth: isActive ? scheduleSize(1.5, 6) : '1px',
+        };
 
   // Timer-start icon: strictly mode-aware so the button only appears when
   // handleStartTimer can actually launch something. Clock-mode needs a valid
@@ -270,7 +271,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
   return (
     <div
       className={`w-full flex items-center transition-all relative snap-start overflow-hidden ${
-        lines
+        lines && !isActive
           ? ''
           : `rounded-2xl ${
               isActive
@@ -280,7 +281,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
       }`}
       style={rowStyle}
     >
-      {isActive && !lines && (
+      {isActive && (
         <div
           className="absolute top-0 right-0 bg-brand-blue-primary text-white font-black uppercase tracking-widest z-20"
           style={{
@@ -314,22 +315,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
             }}
           />
         )}
-        <div
-          className="flex flex-col items-start justify-center min-w-0 flex-1 min-h-0"
-          style={{
-            // Reserve room for the absolutely-positioned "Now" badge so wrapped
-            // title lines don't run underneath it. Only needed when BOTH are
-            // true: the badge is present (isActive) and the title wraps
-            // (isExpanded) — they are not always the same row. A truncated
-            // title ends in an ellipsis well before the badge anyway, so
-            // leaving it unpadded keeps non-expanded rows pixel-identical to
-            // their previous rendering.
-            paddingRight:
-              isActive && isExpanded
-                ? scheduleSize(9 * textScale, 44 * textScale)
-                : undefined,
-          }}
-        >
+        <div className="flex flex-col items-start justify-center min-w-0 flex-1 min-h-0">
           {showCountdown ? (
             <CountdownDisplay
               remainingSeconds={countdownRemaining}
@@ -367,17 +353,6 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
           </span>
         </div>
       </button>
-      {isActive && lines && (
-        <span
-          className="shrink-0 font-black uppercase tracking-widest text-brand-blue-primary"
-          style={{
-            fontSize: scheduleSize(4 * textScale, 15 * textScale),
-            marginRight: scheduleSize(2, 8),
-          }}
-        >
-          Now
-        </span>
-      )}
       {canLaunchStandaloneTimer && (
         <button
           onClick={() => onStartTimer?.(item)}
