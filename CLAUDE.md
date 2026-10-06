@@ -6,6 +6,8 @@ SpartBoard is a classroom management dashboard (React 19, TypeScript, Vite, Fire
 place drag-and-drop widgets on boards, plus student-facing apps (quiz, video activity, guided learning,
 activity wall, mini-apps), an admin panel, PLCs, and a substitute portal. Widget-specific guidance lives
 in `components/widgets/CLAUDE.md`; UI design context in `components/CLAUDE.md`.
+Developer setup and the everyday loop (`/new-feature`, `/fix`, `/show-me`, `/preview`, `/ship`, `/undo`; Paul's `/hotfix`)
+are in [docs/ONBOARDING.md](docs/ONBOARDING.md).
 
 ## Layout
 
