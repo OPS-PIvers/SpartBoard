@@ -6,7 +6,7 @@ Dev branches deploy to a separate Firebase project, `spartboard-dev`, with its o
 
 ### Branch Names
 
-- `dev-paul` deploys hosting to https://spartboard-dev.web.app and `dev-bailey` to https://spartboard-dev-bailey.web.app. Add a new developer's site in `.github/scripts/plan-dev-deploy.sh`, create it with `firebase hosting:sites:create spartboard-dev-<name> --project spartboard-dev`, and add it to Auth authorized domains and `ALLOWED_ORIGINS` in `functions/src/classlinkShared.ts`.
+- `dev-paul` deploys hosting to https://spartboard-dev.web.app and `dev-bailey` to https://spartboard-dev-bailey.web.app. Add a new developer's site in `.github/scripts/plan-deploy.sh`, create it with `firebase hosting:sites:create spartboard-dev-<name> --project spartboard-dev`, and add it to Auth authorized domains and `ALLOWED_ORIGINS` in `functions/src/classlinkShared.ts`.
 - Rules, indexes, Storage rules and functions are shared. A push deploys only the ones whose files changed, and only from a branch that already contains `origin/dev-paul`.
 
 ### How It Works

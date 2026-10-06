@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 #
-# Decide what a dev-* push deploys to spartboard-dev.
+# Decide what a push deploys: main to spartboard, dev-* to spartboard-dev.
 #
-# Hosting goes to the branch owner's own site. The backend (functions, rules,
+# On dev, hosting goes to the branch owner's own site. The backend (functions, rules,
 # indexes, storage) is shared by every dev branch, so it deploys only the parts
 # whose files changed, and a branch other than dev-paul may deploy it only when
 # it already contains origin/dev-paul (functions deploy with --force, so a stale
 # branch would delete functions dev-paul added).
 #
-# Usage: plan-dev-deploy.sh <branch> <before-sha> <full-backend:true|false>
+# Usage: plan-deploy.sh <branch> <before-sha> <full-backend:true|false>
 # Writes key=value lines to $GITHUB_OUTPUT (or stdout). CHANGED_FILES and
 # CONTAINS_DEV_PAUL override the git lookups, for tests.
 
@@ -22,6 +22,7 @@ OUT="${GITHUB_OUTPUT:-/dev/stdout}"
 case "$BRANCH" in
   dev-paul | dev-paul-*) SITE_SUFFIX=dev ;;
   dev-bailey | dev-bailey-*) SITE_SUFFIX=dev-bailey ;;
+  main) SITE_SUFFIX=prod ;;
   *) SITE_SUFFIX= ;;
 esac
 
@@ -39,7 +40,7 @@ changed_files() {
     return
   fi
   local base
-  if [[ "$BRANCH" == "dev-paul" ]]; then
+  if [[ "$BRANCH" == "dev-paul" || "$BRANCH" == "main" ]]; then
     base="$BEFORE"
   else
     base="$(git merge-base origin/dev-paul HEAD)"
@@ -74,17 +75,17 @@ DEPLOY_ONLY="$(IFS=,; echo "${targets[*]}")"
 BACKEND=false
 if [[ -n "$DEPLOY_ONLY" || "$RULES" == "true" ]]; then BACKEND=true; fi
 
-if [[ "$BACKEND" == "true" && "$BRANCH" != "dev-paul" ]] && ! contains_dev_paul; then
+if [[ "$BACKEND" == "true" && "$BRANCH" != "dev-paul" && "$BRANCH" != "main" ]] && ! contains_dev_paul; then
   echo "::warning::Backend changes were not deployed: this branch is behind dev-paul. Rebase or merge origin/dev-paul and push again."
   BACKEND=false
 fi
 
 if [[ -z "$SITE_SUFFIX" ]]; then
-  echo "::notice::No dev hosting site for '$BRANCH'; add one to .github/scripts/plan-dev-deploy.sh."
+  echo "::notice::No dev hosting site for '$BRANCH'; add one to .github/scripts/plan-deploy.sh."
 fi
 
 {
-  # The site is spartboard-<suffix>; outputs containing a secret value (the prod project id) are dropped.
+  # The dev site is spartboard-<suffix>; outputs containing a secret value (the prod project id) are dropped.
   echo "site_suffix=$SITE_SUFFIX"
   echo "backend=$BACKEND"
   echo "deploy_only=$DEPLOY_ONLY"

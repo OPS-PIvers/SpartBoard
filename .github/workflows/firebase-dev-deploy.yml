@@ -13,7 +13,7 @@ on:
 
 # Hosting goes to the branch owner's own site once type-check and build pass; the shared backend
 # deploys only changed targets, after every check, and only from a branch containing dev-paul
-# (.github/scripts/plan-dev-deploy.sh). Concurrency is per job: a newer push cancels superseded
+# (.github/scripts/plan-deploy.sh). Concurrency is per job: a newer push cancels superseded
 # checks, but a deploy that has started always finishes.
 
 # Build and deploy add id-token: write for keyless Workload Identity Federation into spartboard-dev.
@@ -213,7 +213,7 @@ jobs:
         env:
           BEFORE: ${{ github.event.before }}
           FULL: ${{ inputs.full_backend || false }}
-        run: ./.github/scripts/plan-dev-deploy.sh "$GITHUB_REF_NAME" "$BEFORE" "$FULL"
+        run: ./.github/scripts/plan-deploy.sh "$GITHUB_REF_NAME" "$BEFORE" "$FULL"
 
   # Fast lane: the preview updates as soon as the bundle builds and type-checks. Lint, tests and
   # rules tests still gate the PR and the backend deploy.

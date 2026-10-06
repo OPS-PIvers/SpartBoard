@@ -1,4 +1,4 @@
-// Guards plan-dev-deploy.sh: per-branch hosting sites and the shared-backend guard.
+// Guards plan-deploy.sh: per-branch hosting sites and the shared-backend guard.
 import { describe, it, expect } from 'vitest';
 import { mkdtempSync, readFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
@@ -7,14 +7,14 @@ import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const script = resolve(repoRoot, '.github/scripts/plan-dev-deploy.sh');
+const script = resolve(repoRoot, '.github/scripts/plan-deploy.sh');
 
 function plan(
   branch: string,
   files: string[],
   { containsDevPaul = true, full = false } = {}
 ): Record<string, string> {
-  const dir = mkdtempSync(join(tmpdir(), 'plan-dev-deploy-'));
+  const dir = mkdtempSync(join(tmpdir(), 'plan-deploy-'));
   const out = join(dir, 'out');
   try {
     const result = spawnSync('bash', [script, branch, 'abc', String(full)], {
@@ -37,7 +37,7 @@ function plan(
   }
 }
 
-describe('plan-dev-deploy.sh', () => {
+describe('plan-deploy.sh', () => {
   it('gives each developer their own hosting site', () => {
     expect(plan('dev-paul', []).site_suffix).toBe('dev');
     expect(plan('dev-bailey', []).site_suffix).toBe('dev-bailey');
@@ -71,6 +71,13 @@ describe('plan-dev-deploy.sh', () => {
       'false'
     );
     expect(plan('dev-bailey', files).backend).toBe('true');
+  });
+
+  it('plans prod from the previous main commit without the dev-paul guard', () => {
+    expect(
+      plan('main', ['functions/src/a.ts'], { containsDevPaul: false })
+    ).toMatchObject({ backend: 'true', deploy_only: 'functions' });
+    expect(plan('main', ['components/a.tsx']).backend).toBe('false');
   });
 
   it('deploys every target on a full-backend dispatch', () => {
