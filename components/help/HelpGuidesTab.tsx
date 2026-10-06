@@ -15,12 +15,18 @@ import { TOOLS } from '@/config/tools';
 import type { WidgetType } from '@/types';
 import type { HelpResourceItem } from '@/types/helpCenter';
 import { useAuth } from '@/context/useAuth';
-import { useHelpResources } from '@/hooks/useHelpResources';
+import {
+  incrementHelpOpenCount,
+  useHelpResources,
+} from '@/hooks/useHelpResources';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useLiveTourSetIds } from '@/hooks/useGuidedLearning';
 import { HelpResourceViewer } from './HelpResourceViewer';
 import { HelpCopyLinkButton } from './HelpCopyLinkButton';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { requestStartTour } from '@/components/tours/tourState';
+import { useRunnableTourIds } from '@/components/tours/useTourOffers';
+import { useCanRunLiveTour } from '@/components/tours/useCanRunLiveTour';
 import { Sparty } from '@/components/sparty/Sparty';
 import { useShowSparty } from '@/components/sparty/useShowSparty';
 
@@ -75,15 +81,28 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
   const { t } = useTranslation();
   const showSparty = useShowSparty();
   const { orgId, isAdmin, canAccessFeature } = useAuth();
-  const tourSetIds = useLiveTourSetIds(canAccessFeature('gl-live-tours'));
-  const isTour = (item: HelpResourceItem): boolean =>
-    item.kind === 'guided-learning' &&
-    !!item.setId &&
-    tourSetIds.has(item.setId);
+  const liveTours = canAccessFeature('gl-live-tours');
+  const tourSetIds = useLiveTourSetIds(liveTours);
+  const canRunLive = useCanRunLiveTour();
   const { organization } = useOrganization(orgId);
   const { items, categories, loading } = useHelpResources({
     includeHidden: false,
   });
+  // Badge only tours whose published snapshot runs, so the badge never promises a draft.
+  const runnableTourIds = useRunnableTourIds(
+    items.flatMap((item) =>
+      item.kind === 'guided-learning' &&
+      item.setId &&
+      tourSetIds.has(item.setId)
+        ? [item.setId]
+        : []
+    ),
+    liveTours
+  );
+  const isTour = (item: HelpResourceItem): boolean =>
+    item.kind === 'guided-learning' &&
+    !!item.setId &&
+    runnableTourIds.has(item.setId);
   const [categoryId, setCategoryId] = useState('all');
   const [kinds, setKinds] = useState<HelpChip[]>([]);
   const [openItem, setOpenItem] = useState<HelpResourceItem | null>(null);
@@ -182,6 +201,11 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
   });
 
   const openCard = (item: HelpResourceItem) => {
+    if (canRunLive && isTour(item) && item.setId) {
+      void incrementHelpOpenCount(item.id);
+      requestStartTour({ setId: item.setId });
+      return;
+    }
     returnFocusId.current = item.id;
     setOpenItem(item);
   };
