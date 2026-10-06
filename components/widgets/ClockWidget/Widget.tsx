@@ -238,33 +238,6 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           style={{ gap: fit ? `${fit.time * 0.04}px` : '1cqmin' }}
         >
           <div
-            aria-hidden="true"
-            className="absolute left-0 top-0 invisible pointer-events-none flex flex-col items-start"
-          >
-            <div
-              ref={timeProbeRef}
-              className={`flex items-baseline leading-none whitespace-nowrap w-max ${fontClass} ${styleClasses}`}
-              style={{ fontSize: `${PROBE_PX}px` }}
-            >
-              {renderTimeRow(probeHours, '88', '88', 'MM')}
-            </div>
-            <div
-              ref={stackProbeRef}
-              className={`leading-none whitespace-nowrap w-max ${fontClass} ${styleClasses}`}
-              style={{ fontSize: `${PROBE_PX}px` }}
-            >
-              88
-            </div>
-            <div
-              ref={dateProbeRef}
-              className={`uppercase tracking-[0.2em] whitespace-nowrap w-max ${fontClass}`}
-              style={{ fontSize: `${PROBE_PX}px`, fontWeight: 900 }}
-            >
-              {dateLabel}
-            </div>
-          </div>
-
-          <div
             data-testid="clock-time-container"
             className={`relative flex items-baseline leading-none whitespace-nowrap transition-colors ${fontClass} ${styleClasses}`}
             style={{
@@ -301,6 +274,32 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               {dateLabel}
             </div>
           )}
+          <div
+            aria-hidden="true"
+            className="absolute left-0 top-0 invisible pointer-events-none flex flex-col items-start"
+          >
+            <div
+              ref={timeProbeRef}
+              className={`flex items-baseline leading-none whitespace-nowrap w-max ${fontClass} ${styleClasses}`}
+              style={{ fontSize: `${PROBE_PX}px` }}
+            >
+              {renderTimeRow(probeHours, '88', '88', 'MM')}
+            </div>
+            <div
+              ref={stackProbeRef}
+              className={`leading-none whitespace-nowrap w-max ${fontClass} ${styleClasses}`}
+              style={{ fontSize: `${PROBE_PX}px` }}
+            >
+              88
+            </div>
+            <div
+              ref={dateProbeRef}
+              className={`uppercase tracking-[0.2em] whitespace-nowrap w-max ${fontClass}`}
+              style={{ fontSize: `${PROBE_PX}px`, fontWeight: 900 }}
+            >
+              {dateLabel}
+            </div>
+          </div>
         </div>
       }
     />
