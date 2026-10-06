@@ -25,7 +25,11 @@ import { usePlcDocs } from '@/hooks/usePlcDocs';
 import { usePlcNoteGoogleDoc } from '@/hooks/usePlcNoteGoogleDoc';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { PlcAddDocModal } from '@/components/plc/docs/PlcAddDocModal';
-import { convertToEmbedUrl, ensureProtocol } from '@/utils/urlHelpers';
+import {
+  convertToEmbedUrl,
+  ensureProtocol,
+  withGoogleDocsToolbar,
+} from '@/utils/urlHelpers';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -169,6 +173,7 @@ const NotesBodyInner: React.FC<
   const richEditorFlag = canAccessFeature('plc-notes-rich-editor');
   const unified = canAccessFeature('plc-notes-unified');
   const sidePanels = unified && canAccessFeature('plc-notes-side-panels');
+  const docsToolbar = unified && canAccessFeature('plc-docs-toolbar');
   // One side panel is open at a time; opening one folds the other.
   const [openPanel, setOpenPanel] = useState<'list' | 'actions'>('list');
   const [actionPanelWidth, setActionPanelWidth] = useActionPanelWidth();
@@ -1252,7 +1257,13 @@ const NotesBodyInner: React.FC<
           </div>
           <iframe
             key={selectedDoc.id}
-            src={convertToEmbedUrl(ensureProtocol(selectedDoc.url))}
+            src={
+              docsToolbar
+                ? withGoogleDocsToolbar(
+                    convertToEmbedUrl(ensureProtocol(selectedDoc.url))
+                  )
+                : convertToEmbedUrl(ensureProtocol(selectedDoc.url))
+            }
             title={selectedDoc.title}
             className="flex-1 min-h-0 w-full border-0"
             sandbox="allow-scripts allow-forms allow-popups allow-same-origin"

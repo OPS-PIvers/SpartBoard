@@ -9622,7 +9622,9 @@ export type GlobalFeature =
   /** Group Notes & Docs: notes and linked Google Docs in one list, and Open in Docs on a note. */
   | 'plc-notes-unified'
   /** Group Notes & Docs: notes list and Action items as swapping side panels, with action items on linked Google Docs. */
-  | 'plc-notes-side-panels';
+  | 'plc-notes-side-panels'
+  /** Group Notes & Docs: embedded Google Docs keep Google's menus and toolbar. */
+  | 'plc-docs-toolbar';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
