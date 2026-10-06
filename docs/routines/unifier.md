@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 107_
-_Last run: 2026-10-05_
+_Run count: 108_
+_Last run: 2026-10-06_
 _Base branch: dev-paul_
 
 ---
@@ -570,6 +570,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-10-06 | `claude/kind-johnson-5clo31` | D1/D2/D4/D5 | Aligned (run 108) — light probe of the ~128 source files changed since run 107 (dev-paul `a97392c4`: Calendar/Checklist/Countdown/Schedule widgets, Gradebook admin cards, live tours, assignments hub). D2: only hits are `Calendar/constants.ts` `DEFAULT_HEADER_COLOR` and a `Brand red` swatch in `Calendar/settings.schema.ts` (user-configurable defaults/swatches, same class as the existing Countdown/NextUp exceptions). D4: only `GuidedLearningStudio.tsx` → `'../../utils/liveTour'` (intra-GuidedLearning sibling, D4-E3 gray zone). D5: no new `<Toast>` imports. D1: 4 front-face widget diffs are edits to existing content, no new hand-rolled empty states. No code shipped; full `validate` not run (CLAUDE.md forbids it). Doc-only PR. | — |
 | 2026-10-05 | `nightly/unifier-log-2026-10-05` | D1/D2/D4/D5 | Aligned (run 107) — light probe of the 9 source files changed since run 106 (dev-paul 17 commits: `ImportWizard.tsx`, Schedule/SpecialistSchedule utils, `WidgetRegistry.ts`, `quizReadAloud.ts`, `widgetGradeLevels.ts`, `lastActiveThrottle.ts`). D2: no `#2d3f89`/`#ad2122`. D4: only hit is `ImportWizard.tsx` `'../types'` (existing D4-E2 gray zone). D5: no `<Toast>`. D1/D3: no widget front-face or settings-panel changes. Full `validate` not run (CLAUDE.md forbids it; sandbox is Node 22 vs required 24). No code shipped; doc-only PR. | — |
 | 2026-10-04 | `nightly/unifier-log-2026-10-04` | D1/D2/D4/D5 | Aligned (run 106) — light probe of the 68 source files changed since run 105 (dev-paul `f6d09422`: tours, Sparty, help, LTI/classroom-addon pickers, assignments hub). D2: only hits are `sparty/spartyFrames.ts:6` (pixel-art palette, same rationale as D2-E6) and `types.ts` comments/defaults (existing). D4: only `functions/src/mcp/*` single-level `../` (functions/ has no `@/` alias). D5: no `<Toast>` imports. D1: empty-state strings are in non-widget surfaces (auth setup, LTI/classroom-addon pickers, assignments hub) and the GL manager already uses a shared empty state — out of scope. D3 candidates (`GroupColorPicker`, `ProjectBoardView` toggle) still need a human decision (D3-E35). No code shipped; full `validate` not run (CLAUDE.md forbids it). Doc-only PR. | — |
 | 2026-10-03 | `claude/kind-johnson-lkakr8` | D2/D4 | Aligned (run 105) — light probe on dev-paul `efdf32b4` (D1/D3/D5 not re-swept): D2 inline-style grep found only `MusicWidget/Widget.tsx:348` (existing D2-E5); D4 deep-relative grep hit only intra-`GuidedLearning` sibling paths (`../../utils/*`), not cross-directory. D3 remaining candidates (`GroupColorPicker`, `ProjectBoardView` layout toggle) still need a human decision on non-selecting radiogroup nav (D3-E35). No code shipped; full `validate` not run (CLAUDE.md forbids it). Doc-only PR. | — |
