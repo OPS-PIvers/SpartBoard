@@ -175,11 +175,18 @@ const saveQuiz = vi.fn().mockResolvedValue({
 const deleteQuiz = vi.fn();
 const attachSyncLinkage = vi.fn().mockResolvedValue(undefined);
 
+const loadBankContentsForQuiz = vi.fn().mockResolvedValue(new Map());
+const saveDriveSnapshot = vi.fn().mockResolvedValue('snapshot-file');
+vi.mock('@/hooks/useBankSources', () => ({
+  useBankSources: () => ({ loadBankContentsForQuiz }),
+}));
+
 vi.mock('@/hooks/useQuiz', () => ({
   useQuiz: () => ({
     saveQuiz,
     deleteQuiz,
     attachSyncLinkage,
+    saveDriveSnapshot,
     isDriveConnected: true,
   }),
 }));

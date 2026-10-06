@@ -6422,6 +6422,12 @@ export interface SyncedQuizGroup {
   paperSheetStimuli?: PaperSheetStimulus[];
   /** Mirrors `QuizData.language`. */
   language?: string;
+  /** Mirrors `QuizData.bankSlots`; slots resolve through `syncGroupId` for peers. */
+  bankSlots?: QuizBankSlot[];
+  /** Mirrors `QuizData.order`. */
+  order?: QuizOrderEntry[];
+  /** Mirrors `QuizData.sections`. */
+  sections?: QuizSection[];
   /** Behavior settings authored in the editor; synced to PLC members. */
   behavior?: QuizBehaviorSettings;
   /**
@@ -6566,6 +6572,9 @@ export interface PlcQuizVersionContent {
   paperSheetStimuli?: PaperSheetStimulus[];
   /** Mirrors `QuizData.language`. */
   language?: string;
+  bankSlots?: QuizBankSlot[];
+  order?: QuizOrderEntry[];
+  sections?: QuizSection[];
   behavior?: QuizBehaviorSettings;
 }
 

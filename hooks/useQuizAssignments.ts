@@ -154,6 +154,10 @@ import {
 } from '@/utils/quizScoreOnSubmit';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
+import {
+  syncedQuizContentFields,
+  type SyncedQuizContentFields,
+} from '@/utils/syncedQuizContent';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -2342,10 +2346,7 @@ export const useQuizAssignments = (
           uid: userId,
           title: quizData.title,
           questions: quizData.questions,
-          ...(quizData.stimuli && quizData.stimuli.length > 0
-            ? { stimuli: quizData.stimuli }
-            : {}),
-          ...(quizData.language ? { language: quizData.language } : {}),
+          ...syncedQuizContentFields(quizData),
           // Plumb the PLC id through so downstream notification routing
           // can scope stale-content alerts to the right inbox. Not
           // consumed today; the field is reserved for future use.
@@ -2437,6 +2438,7 @@ export const useQuizAssignments = (
       let initialTitle = shared.title;
       let initialStimuli = restored?.content.stimuli ?? shared.stimuli;
       let initialLanguage = shared.language;
+      let canonicalFields: SyncedQuizContentFields | undefined;
       let canonicalVersion: number | undefined = undefined;
       if (effectiveMode === 'sync' && shared.syncGroupId) {
         // Fail the sync import outright if the canonical doc is
@@ -2454,11 +2456,13 @@ export const useQuizAssignments = (
         initialStimuli = canonical.stimuli;
         initialLanguage = canonical.language;
         canonicalVersion = canonical.version;
+        canonicalFields = syncedQuizContentFields(canonical);
       }
 
       const now = Date.now();
       const newQuiz: QuizData = {
         ...(restored?.content ?? {}),
+        ...(canonicalFields ?? {}),
         id: crypto.randomUUID(),
         title: initialTitle,
         questions: initialQuestions,
@@ -2786,6 +2790,12 @@ export const useQuizAssignments = (
           version: canonical.version,
           taggedResponseCount: 0,
         };
+      }
+      // The fixed questions alone would drop every bank draw.
+      if (quizHasBankSlots(canonical)) {
+        throw new Error(
+          'This quiz now draws from a question bank; re-assign the quiz to pick up the changes'
+        );
       }
       // Floor the tag value at 1 so a response is never tagged with `0`.
       // Canonical versions start at 1, so a synced assignment should

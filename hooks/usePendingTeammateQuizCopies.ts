@@ -32,6 +32,7 @@ import {
   callJoinPlcQuizSyncGroup,
   pullSyncedQuizContent,
 } from '@/hooks/useSyncedQuizGroups';
+import { quizServedQuestionCount } from '@/utils/questionBanks';
 import {
   clearPendingQuizCopy,
   listPendingQuizCopyBatches,
@@ -39,6 +40,7 @@ import {
 import { buildQuizSearchText } from '@/utils/quizSearchText';
 import { countQuestionsNeedingKey } from '@/utils/quizNeedsKey';
 import { logError } from '@/utils/logError';
+import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
 
 const SESSION_KEY_PREFIX = 'spartboard:pendingQuizCopies:';
 const QUIZZES_COLLECTION = 'quizzes';
@@ -168,11 +170,7 @@ export async function reconcilePendingQuizCopies(
         id: batch.quizId,
         title: canonical.title,
         questions: canonical.questions,
-        ...(canonical.stimuli?.length ? { stimuli: canonical.stimuli } : {}),
-        ...(canonical.paperSheetStimuli?.length
-          ? { paperSheetStimuli: canonical.paperSheetStimuli }
-          : {}),
-        ...(canonical.language ? { language: canonical.language } : {}),
+        ...syncedQuizContentFields(canonical),
         createdAt: pending.requestedAt,
         updatedAt: now,
       };
@@ -182,7 +180,7 @@ export async function reconcilePendingQuizCopies(
         id: batch.quizId,
         title: canonical.title,
         driveFileId,
-        questionCount: canonical.questions.length,
+        questionCount: quizServedQuestionCount(quizData),
         searchText: buildQuizSearchText(canonical.questions),
         needsKeyCount: countQuestionsNeedingKey(canonical.questions),
         createdAt: pending.requestedAt,

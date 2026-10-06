@@ -35,6 +35,7 @@ import { useQuestionBanks } from '@/hooks/useQuestionBanks';
 import {
   BankSlotResolutionError,
   quizHasBankSlots,
+  quizServedQuestionCount,
   resolveQuizAssignment,
   sampleQuizDraw,
 } from '@/utils/questionBanks';
@@ -184,6 +185,7 @@ import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
 import { revealValueFor } from '@/utils/quizFibAlternates';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
+import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
 
 const QuizStudentView = lazy(() =>
   import('@/components/quiz/QuizStudentView').then((m) => ({
@@ -902,6 +904,7 @@ const TeacherQuizWidget: React.FC<{
           uid: user.uid,
           title: data.title,
           questions: data.questions,
+          ...syncedQuizContentFields(data),
           plcId,
           behavior: quizMeta.behavior,
           // Peers cannot read the owner's drive.file sidecars, so seed the
@@ -946,7 +949,7 @@ const TeacherQuizWidget: React.FC<{
         plcQuizId: crypto.randomUUID(),
         syncGroupId,
         title: data.title,
-        questionCount: data.questions.length,
+        questionCount: quizServedQuestionCount(data),
         sharedByName: user.displayName ?? '',
         sharedByEmail: ownerEmailLower,
         sessionMode,
@@ -2303,6 +2306,7 @@ const TeacherQuizWidget: React.FC<{
                 uid: user.uid,
                 title: data.title,
                 questions: data.questions,
+                ...syncedQuizContentFields(data),
                 plcId: plcLinkage.id,
                 behavior: meta.behavior,
                 ...syncedTranslationsInput(

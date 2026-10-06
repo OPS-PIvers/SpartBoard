@@ -1861,7 +1861,7 @@ service cloud.firestore {
       return incoming().keys().hasOnly([
         'id', 'version', 'title', 'questions', 'participants', 'plcId', 'createdAt',
         'updatedAt', 'updatedBy', 'behavior', 'stimuli', 'paperSheetStimuli',
-        'translations'
+        'translations', 'bankSlots', 'order', 'sections'
       ]);
     }
     function versionKeysOk() {
@@ -1901,7 +1901,11 @@ service cloud.firestore {
         && optList(incoming(), 'stimuli')
         // Items printed on a paper answer sheet; same list shape as `stimuli`.
         && optList(incoming(), 'paperSheetStimuli')
-        && optMap(incoming(), 'translations');
+        && optMap(incoming(), 'translations')
+        // Bank draws and their layout; same list shape as `stimuli`.
+        && optList(incoming(), 'bankSlots')
+        && optList(incoming(), 'order')
+        && optList(incoming(), 'sections');
 
       // Content updates: caller must be a participant; participants + id are
       // client-immutable; version must increase by exactly 1 (concurrent loser
@@ -1919,7 +1923,11 @@ service cloud.firestore {
         && optMap(incoming(), 'behavior')
         && optList(incoming(), 'stimuli')
         && optList(incoming(), 'paperSheetStimuli')
-        && optMap(incoming(), 'translations');
+        && optMap(incoming(), 'translations')
+        // Bank draws and their layout; same list shape as `stimuli`.
+        && optList(incoming(), 'bankSlots')
+        && optList(incoming(), 'order')
+        && optList(incoming(), 'sections');
 
       // No client delete. An orphaned (empty-participants) group stays so an old
       // share URL still resolves the bootstrap snapshot rather than 404.

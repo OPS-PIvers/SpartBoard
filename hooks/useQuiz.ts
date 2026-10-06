@@ -64,6 +64,7 @@ import {
 } from '@/utils/quizTranslationIndex';
 import { noDriveMessage } from '@/utils/viewAsDrive';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
+import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
 
 const QUIZZES_COLLECTION = 'quizzes';
 
@@ -327,13 +328,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         const result = await publishSyncedQuiz(existingSync.groupId, {
           title: updatedQuiz.title,
           questions: updatedQuiz.questions,
-          ...(updatedQuiz.stimuli && updatedQuiz.stimuli.length > 0
-            ? { stimuli: updatedQuiz.stimuli }
-            : {}),
-          ...(updatedQuiz.paperSheetStimuli?.length
-            ? { paperSheetStimuli: updatedQuiz.paperSheetStimuli }
-            : {}),
-          ...(updatedQuiz.language ? { language: updatedQuiz.language } : {}),
+          ...syncedQuizContentFields(updatedQuiz),
           expectedVersion: existingSync.lastSyncedVersion,
           uid: userId,
           ...(effectiveBehavior !== undefined
@@ -420,13 +415,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         id: quizMeta.id,
         title: canonical.title,
         questions: canonical.questions,
-        ...(canonical.stimuli && canonical.stimuli.length > 0
-          ? { stimuli: canonical.stimuli }
-          : {}),
-        ...(canonical.paperSheetStimuli?.length
-          ? { paperSheetStimuli: canonical.paperSheetStimuli }
-          : {}),
-        ...(canonical.language ? { language: canonical.language } : {}),
+        ...syncedQuizContentFields(canonical),
         createdAt: quizMeta.createdAt,
         updatedAt: now,
       };
@@ -474,7 +463,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         id: quizMeta.id,
         title: canonical.title,
         driveFileId,
-        questionCount: canonical.questions.length,
+        questionCount: quizServedQuestionCount(refreshed),
         searchText: buildQuizSearchText(canonical.questions),
         needsKeyCount: countQuestionsNeedingKey(canonical.questions),
         createdAt: quizMeta.createdAt,
