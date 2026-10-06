@@ -317,15 +317,10 @@ Use `--dry-run` to preview without writing. Register the finished schema in
 (orchestrator-owned during the drawer migration waves — coordinate before
 editing it directly).
 
-**Legacy path still applies for now**: until wave 4 of the settings-drawer
-series flips the default and deletes `SettingsPanel.tsx`, every widget also
-needs the hand-written `Settings.tsx` panel described in Step 3 and the
-`WIDGET_SETTINGS_COMPONENTS` / `WIDGET_APPEARANCE_COMPONENTS` entries in Step
-4 — the schema and the legacy panel coexist during the migration. **Already
-cut over:** `clock`, `time-tool`, `text`, `embed`, and `lunchCount` (wave 2)
-are schema-only — none of them has a `Settings.tsx` file, and none has a
-`WIDGET_SETTINGS_COMPONENTS`/`WIDGET_APPEARANCE_COMPONENTS` entry, only a
-`WIDGET_SETTINGS_SCHEMAS` one. Don't use them as legacy-panel references.
+**Schema-only settings:** every widget in `WIDGET_SETTINGS_SCHEMAS` (the
+authoritative list) has no `Settings.tsx` file and no
+`WIDGET_SETTINGS_COMPONENTS`/`WIDGET_APPEARANCE_COMPONENTS` entry (both maps
+are now empty). Don't use them as legacy-panel references.
 
 ---
 
@@ -609,7 +604,7 @@ gold standard for each pattern:
 | Icon + text layout                  | `components/widgets/Weather/Widget.tsx`                                                                                                   |
 | List with cqmin rows                | `components/widgets/LunchCount/Widget.tsx`                                                                                                |
 | Building-defaults consumption       | `components/widgets/SpecialistSchedule/SpecialistScheduleWidget.tsx` (exception to the standard `Widget.tsx` convention — do not imitate) |
-| Settings + Appearance split         | `components/widgets/Checklist/Settings.tsx`                                                                                               |
+| Schema-driven settings              | `components/widgets/Checklist/settings.schema.ts`                                                                                         |
 | Good empty state usage              | `components/widgets/QRWidget/Widget.tsx`                                                                                                  |
 | Transparent-root front-face pattern | `components/widgets/ExpectationsWidget/Widget.tsx`                                                                                        |
 
