@@ -335,14 +335,13 @@ describe('ClockWidget', () => {
     expect(ampm.className).not.toContain('opacity-40');
   });
 
-  // Regression: the time scales on cqmin and never on cqh alone (a wide clock would overflow into the date row).
-  // A cqw cap is allowed: it keeps the time string from clipping in tall or narrow clocks.
+  // Scales on cqmin (never cqh) with a cqw cap so the time can't clip in narrow clocks.
   it('time display scales on cqmin with a width cap', () => {
     for (const showSeconds of [true, false]) {
       const fontSize = getClockTimeFontSize(showSeconds);
       expect(fontSize).not.toMatch(/cqh/);
       expect(fontSize).toMatch(/cqmin/);
-      expect(fontSize).toMatch(/cqw/);
+      expect(fontSize).toMatch(showSeconds ? /16cqw/ : /23cqw/);
     }
   });
 
