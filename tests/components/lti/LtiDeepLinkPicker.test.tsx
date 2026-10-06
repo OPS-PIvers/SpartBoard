@@ -68,6 +68,16 @@ const createAssignment = vi.fn((..._args: unknown[]) => ({
   code: 'ABC123',
 }));
 
+const bankContents = new Map<string, unknown>();
+const saveDriveSnapshot = vi.fn((..._args: unknown[]) =>
+  Promise.resolve('snapshot-file-1')
+);
+vi.mock('@/hooks/useBankSources', () => ({
+  useBankSources: () => ({
+    loadBankContentsForQuiz: () => Promise.resolve(bankContents),
+  }),
+}));
+
 vi.mock('@/hooks/useQuiz', () => ({
   useQuiz: () => ({
     quizzes: [
@@ -81,6 +91,7 @@ vi.mock('@/hooks/useQuiz', () => ({
       },
     ],
     loadQuizData,
+    saveDriveSnapshot,
     loading: false,
   }),
 }));
@@ -159,6 +170,70 @@ describe('LtiDeepLinkPicker — availability', () => {
       expect(signed?.dueAt).toBe(options.closeAt);
     } finally {
       availabilityOn = false;
+    }
+  });
+});
+
+describe('LtiDeepLinkPicker — question bank quizzes', () => {
+  beforeEach(() => {
+    signCallable.mockClear();
+    createAssignment.mockClear();
+    saveDriveSnapshot.mockClear();
+    vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(
+      () => undefined
+    );
+    window.history.pushState({}, '', '/lti/deep-link?lc=code-1');
+  });
+
+  it('assigns the bank pool and slots instead of an empty quiz', async () => {
+    const bankQ = (id: string) =>
+      ({
+        id,
+        type: 'MC',
+        text: id,
+        correctAnswer: 'a',
+        incorrectAnswers: ['b'],
+      }) as unknown as QuizQuestion;
+    bankContents.set('bank-1', {
+      id: 'bank-1',
+      title: 'Vocab bank',
+      questions: [bankQ('b1'), bankQ('b2'), bankQ('b3')],
+    });
+    loadQuizData.mockImplementationOnce(() => ({
+      id: 'quiz-1',
+      title: 'My Quiz',
+      questions: [],
+      bankSlots: [
+        {
+          id: 's1',
+          bankId: 'bank-1',
+          bankTitle: 'Vocab bank',
+          mode: 'random',
+          count: 2,
+        },
+      ],
+      createdAt: 0,
+      updatedAt: 0,
+    }));
+    try {
+      render(<LtiDeepLinkPicker />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Quiz' }));
+      fireEvent.click(await screen.findByRole('option', { name: 'My Quiz' }));
+      fireEvent.click(
+        screen.getByRole('button', { name: /add quiz to schoology/i })
+      );
+      await waitFor(() => expect(signCallable).toHaveBeenCalled());
+      const call = createAssignment.mock.calls.at(-1) as unknown[];
+      const quiz = call[0] as { driveFileId: string; questions: unknown[] };
+      const settings = call[1] as Record<string, unknown>;
+      const options = call[2] as Record<string, unknown>;
+      expect(quiz.questions).toHaveLength(3);
+      expect(quiz.driveFileId).toBe('snapshot-file-1');
+      expect(settings.resolvedDriveFileId).toBe('snapshot-file-1');
+      expect(options.bankSlots).toHaveLength(1);
+      expect(saveDriveSnapshot).toHaveBeenCalledOnce();
+    } finally {
+      bankContents.clear();
     }
   });
 });

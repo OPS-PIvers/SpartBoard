@@ -51,6 +51,7 @@ import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import { useBankSources } from '@/hooks/useBankSources';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { usePlcs } from '@/hooks/usePlcs';
@@ -77,6 +78,7 @@ import {
 } from '@/utils/studentTargetRef';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
+import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
 import {
   getAssignBehaviorSeed,
   formatBehaviorSummary,
@@ -331,8 +333,10 @@ const LtiDeepLinkFlow: React.FC = () => {
   const {
     quizzes,
     loadQuizData,
+    saveDriveSnapshot,
     loading: quizzesLoading,
   } = useQuiz(libraryUid);
+  const { loadBankContentsForQuiz } = useBankSources(libraryUid);
   const { createAssignment, setAssignmentTargetSkippedCount } =
     useQuizAssignments(libraryUid);
   const {
@@ -697,13 +701,19 @@ const LtiDeepLinkFlow: React.FC = () => {
             ? { [`schoology:${contextId}`]: contextTitle }
             : undefined;
 
+        const content = await resolveQuizAssignContent(
+          quizData,
+          selectedQuiz.driveFileId,
+          { loadBankContentsForQuiz, saveDriveSnapshot }
+        );
+
         const { id: assignmentId, code: quizCode } = await createAssignment(
           {
             id: selectedQuiz.id,
             title: selectedQuiz.title,
-            driveFileId: selectedQuiz.driveFileId,
-            questions: quizData.questions,
-            ...(quizData.stimuli ? { stimuli: quizData.stimuli } : {}),
+            driveFileId: content.driveFileId,
+            questions: content.questions,
+            ...(content.stimuli ? { stimuli: content.stimuli } : {}),
             ...(quizData.language ? { language: quizData.language } : {}),
             ...(quizData.sections?.length
               ? { order: quizData.order, sections: quizData.sections }
@@ -723,9 +733,13 @@ const LtiDeepLinkFlow: React.FC = () => {
             // it directly on settings), so the teacher's single entry drives
             // both SpartBoard and the Schoology line item.
             ...(dueAt ? { dueAt, dueAtHasTime: true } : {}),
+            ...(content.resolvedDriveFileId
+              ? { resolvedDriveFileId: content.resolvedDriveFileId }
+              : {}),
           },
           {
             classIds: [`schoology:${contextId}`],
+            ...(content.bankSlots ? { bankSlots: content.bankSlots } : {}),
             initialStatus: 'active',
             ...(classPeriodByClassId ? { classPeriodByClassId } : {}),
             // M17 targeting — `targetMode`/`targetStudents` are written only
@@ -799,6 +813,8 @@ const LtiDeepLinkFlow: React.FC = () => {
       reviewSplit,
       splitAssignSettings,
       loadQuizData,
+      loadBankContentsForQuiz,
+      saveDriveSnapshot,
       createAssignment,
       contextId,
       contextTitle,
