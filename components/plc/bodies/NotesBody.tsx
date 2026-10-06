@@ -79,6 +79,8 @@ interface NotesBodyProps {
   selectNoteId?: string | null;
   /** Selects this linked Google Doc once it loads. */
   selectDocId?: string | null;
+  /** Side panels: replaces the Action items panel heading (the open items menu). */
+  actionItemsHeading?: React.ReactNode;
 }
 
 type NotesListEntry =
@@ -153,7 +155,13 @@ const NotesBodyWithRecorder: React.FC<NotesBodyProps> = (props) => {
 
 const NotesBodyInner: React.FC<
   NotesBodyProps & { recorder: UseMeetingRecorderResult | null }
-> = ({ plc, selectNoteId, selectDocId = null, recorder }) => {
+> = ({
+  plc,
+  selectNoteId,
+  selectDocId = null,
+  actionItemsHeading = null,
+  recorder,
+}) => {
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
@@ -1473,7 +1481,7 @@ const NotesBodyInner: React.FC<
   ).filter((i) => !i.done).length;
 
   return (
-    <div className="flex h-full min-h-[400px] bg-white border border-slate-200 rounded-2xl overflow-hidden">
+    <div className="flex h-full min-h-[400px] bg-white overflow-hidden">
       {listOpen ? (
         notesList
       ) : (
@@ -1518,6 +1526,7 @@ const NotesBodyInner: React.FC<
           <ActionItemsPanel
             width={actionPanelWidth}
             onClose={() => setOpenPanel('list')}
+            heading={actionItemsHeading}
           >
             {sidePanelActionItems}
           </ActionItemsPanel>

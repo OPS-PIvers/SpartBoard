@@ -87,18 +87,18 @@ export const NotesRail: React.FC<NotesRailProps> = ({ entries, onOpen }) => {
   return (
     <nav
       aria-label={t('plcDashboard.notes.heading', { defaultValue: 'Notes' })}
-      className="w-[5.5rem] shrink-0 flex flex-col border-r border-slate-200 bg-slate-50"
+      className="w-28 shrink-0 flex flex-col border-r border-slate-200"
     >
       <button
         type="button"
         onClick={onOpen}
         aria-label={showList}
         title={showList}
-        className="shrink-0 h-14 flex items-center justify-center border-b border-slate-200 text-slate-400 hover:text-brand-blue-primary hover:bg-white transition-colors"
+        className="shrink-0 h-14 flex items-center justify-center border-b border-slate-200 text-slate-400 hover:text-brand-blue-primary hover:bg-slate-50 transition-colors"
       >
         <PanelLeftOpen className="w-4 h-4" />
       </button>
-      <ul className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-1.5 pt-2 pb-4 flex flex-col gap-1">
+      <ul className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pb-4">
         {entries.map(({ key, title, icon: Icon, active, onSelect }) => (
           <li key={key}>
             <button
@@ -106,17 +106,19 @@ export const NotesRail: React.FC<NotesRailProps> = ({ entries, onOpen }) => {
               onClick={onSelect}
               aria-current={active ? 'true' : undefined}
               title={title}
-              className={`w-full flex flex-col items-center gap-1 px-1 py-2 rounded-lg transition-colors ${
+              className={`w-full flex flex-col items-center gap-1.5 px-2 py-3 border-b border-slate-100 transition-colors ${
                 active
-                  ? 'bg-brand-blue-primary text-white'
-                  : 'text-slate-600 hover:bg-white hover:text-brand-blue-primary'
+                  ? 'bg-brand-blue-lighter/50 text-slate-900'
+                  : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
               <Icon
-                className={`w-4 h-4 shrink-0 ${active ? '' : 'text-slate-400'}`}
+                className={`w-4 h-4 shrink-0 ${
+                  active ? 'text-brand-blue-primary' : 'text-slate-400'
+                }`}
                 aria-hidden
               />
-              <span className="w-full text-center text-xxs font-semibold leading-tight line-clamp-2 break-words">
+              <span className="w-full text-center text-xxs font-bold leading-snug line-clamp-2 break-words">
                 {title}
               </span>
             </button>
@@ -160,12 +162,14 @@ export const ActionItemsRail: React.FC<ActionItemsRailProps> = ({
 interface ActionItemsPanelProps {
   width: number;
   onClose: () => void;
+  heading?: React.ReactNode;
   children: React.ReactNode;
 }
 
 export const ActionItemsPanel: React.FC<ActionItemsPanelProps> = ({
   width,
   onClose,
+  heading,
   children,
 }) => {
   const { t } = useTranslation();
@@ -175,11 +179,13 @@ export const ActionItemsPanel: React.FC<ActionItemsPanelProps> = ({
   return (
     <aside style={{ width }} className="shrink-0 flex flex-col overflow-hidden">
       <div className="shrink-0 h-14 flex items-center justify-between gap-2 px-3 border-b border-slate-200">
-        <h3 className="text-xxs font-bold uppercase tracking-widest text-slate-500">
-          {t('plcDashboard.notes.actionItems.title', {
-            defaultValue: 'Action items',
-          })}
-        </h3>
+        {heading ?? (
+          <h3 className="text-xxs font-bold uppercase tracking-widest text-slate-500">
+            {t('plcDashboard.notes.actionItems.title', {
+              defaultValue: 'Action items',
+            })}
+          </h3>
+        )}
         <button
           type="button"
           onClick={onClose}
