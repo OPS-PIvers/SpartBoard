@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "embed",
   "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-05T23:27:48.952Z",
+  "gradedAt": "2026-10-06T02:49:23.447Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -10,7 +10,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:49:23.447Z",
       "stale": false
     },
     "I2": {
@@ -18,7 +18,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:49:23.447Z",
       "stale": false
     },
     "I3": {
@@ -26,7 +26,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:49:23.447Z",
       "stale": false
     },
     "I4": {
@@ -34,7 +34,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:49:23.447Z",
       "stale": false
     },
     "I5": {
@@ -42,7 +42,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:49:23.447Z",
       "stale": false
     },
     "I6": {
@@ -50,15 +50,16 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:49:23.447Z",
       "stale": false
     },
     "S1": {
       "score": 1,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
@@ -68,17 +69,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "At 150×100 the empty state shrinks to 2.7 px unreadable text, the typical page shows only a clipped title, and the stress fixture renders a blank card, so nothing was chosen to keep.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:27:12.570Z",
       "stale": false
     },
     "S2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -88,17 +89,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The frame fills 100% of the 1400×900 card and the embedded page reflows to it with readable lines; any empty space comes from the hosted page, not the widget.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:29:51.443Z",
       "stale": false
     },
     "S3": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -109,16 +110,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The frame fills every shape with about 1% dead area, but the widget has one layout, and at the tallest aspect the stress page's text runs off the right edge.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:33:58.566Z",
       "stale": false
     },
     "S4": {
-      "score": 2,
-      "source": "script",
+      "score": 3,
+      "source": "paul",
       "candidates": {
-        "script": 2
+        "script": 2,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -127,14 +128,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:36:30.253Z",
       "stale": false
     },
     "S5": {
-      "score": 1,
-      "source": "script",
+      "score": 2,
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -145,15 +147,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:37:17.996Z",
       "stale": false
     },
     "S7": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -162,17 +165,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The envelope sits at the global floor, which is no narrower than an embedded web page needs, though the face is unusable at that floor.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:40:05.911Z",
       "stale": false
     },
     "S8": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -182,16 +185,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Maximized is the same frame enlarged to 1920×1080 with two corner buttons and no presenting changes, so it reads as an enlarged card.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:42:02.653Z",
       "stale": false
     },
     "I1": {
       "score": 1,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
@@ -200,7 +203,7 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:43:10.611Z",
       "stale": false
     },
     "I7": {
@@ -530,28 +533,28 @@
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     }
   }
 }

@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "traffic",
   "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-05T23:27:48.952Z",
+  "gradedAt": "2026-10-06T02:49:23.447Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -10,7 +10,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:49:23.447Z",
       "stale": false
     },
     "I5": {
@@ -18,15 +18,16 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:49:23.447Z",
       "stale": false
     },
     "S1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -36,17 +37,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "At 150x100 the three lights shrink uniformly to about 25px taps; they stay readable and tappable, but nothing adapts for the small size.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:28:52.882Z",
       "stale": false
     },
     "S2": {
-      "score": 2,
-      "source": "judge",
+      "score": 3,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -56,17 +57,18 @@
         ],
         "runId": "norming-1"
       },
-      "note": "At 1400x900 the lights grow with height only, so a narrow column sits in the middle of wide empty side bands.",
+      "note": "Not sure what else it’s supposed to do as a stoplight?",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:33:26.978Z",
       "stale": false
     },
     "S3": {
-      "score": 1,
-      "source": "judge",
+      "score": 2,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -77,16 +79,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The same vertical stack is used at every aspect, and the 1400x350 shape leaves wide dead bands on both sides of a small column.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:35:25.867Z",
       "stale": false
     },
     "S4": {
-      "score": 3,
-      "source": "script",
+      "score": 4,
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
@@ -95,14 +97,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:37:00.820Z",
       "stale": false
     },
     "S5": {
-      "score": 1,
-      "source": "script",
+      "score": 4,
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
@@ -113,15 +116,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:38:06.416Z",
       "stale": false
     },
     "S7": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -130,17 +134,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The widget still works at the global 150x100 floor, which matches a three-light control.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:41:22.079Z",
       "stale": false
     },
     "S8": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -150,16 +154,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Maximized is the same centered column of three circles with large empty sides, an enlarged card rather than a presenting layout.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:42:48.374Z",
       "stale": false
     },
     "I1": {
-      "score": 3,
-      "source": "script",
+      "score": 4,
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
@@ -168,14 +172,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:43:36.537Z",
       "stale": false
     },
     "I2": {
-      "score": 2,
-      "source": "script",
+      "score": 4,
+      "source": "paul",
       "candidates": {
-        "script": 2
+        "script": 2,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
@@ -184,15 +189,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:44:18.024Z",
       "stale": false
     },
     "I3": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
         "script": 3,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -201,14 +207,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:45:00.104Z",
       "stale": false
     },
     "I4": {
-      "score": 1,
-      "source": "script",
+      "score": 3,
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -217,15 +224,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:45:39.650Z",
       "stale": false
     },
     "I6": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -233,9 +241,8 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The active light glows clearly, but the buttons have no hover or pressed state.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:47:06.452Z",
       "stale": false
     },
     "I7": {
@@ -533,28 +540,28 @@
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     }
   }
 }

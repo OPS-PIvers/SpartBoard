@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "lunchCount",
   "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-05T23:27:48.952Z",
+  "gradedAt": "2026-10-06T02:49:23.447Z",
   "stale": false,
   "criteria": {
     "I5": {
@@ -10,15 +10,16 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:49:23.447Z",
       "stale": false
     },
     "S1": {
       "score": 0,
-      "source": "script",
+      "source": "paul",
       "candidates": {
         "script": 0,
-        "judge": 0
+        "judge": 0,
+        "paul": 0
       },
       "evidence": {
         "screenshots": [
@@ -29,15 +30,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:27:26.303Z",
       "stale": false
     },
     "S2": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -47,17 +49,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "At 1400x900 the three columns stretch to the full height but hold one small chip each, leaving huge empty gaps while header labels stay tiny; only the stress fixture uses the extra room.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:30:44.101Z",
       "stale": false
     },
     "S3": {
       "score": 1,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
@@ -68,16 +70,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The same three-column-plus-pool layout appears at every shape: at the widest aspect the pool covers the column contents, and at the tallest the columns are so narrow that names and the header get clipped.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:34:08.751Z",
       "stale": false
     },
     "S4": {
       "score": 2,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 2
+        "script": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -86,14 +88,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:36:34.688Z",
       "stale": false
     },
     "S5": {
-      "score": 1,
-      "source": "script",
+      "score": 2,
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -104,14 +107,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:37:23.457Z",
       "stale": false
     },
     "S6": {
       "score": 2,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 2
+        "script": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -125,15 +129,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:38:55.887Z",
       "stale": false
     },
     "S7": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -142,17 +147,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "A three-column drag board with a roster pool can't work anywhere near the 150x100 floor, so the envelope doesn't match what the content needs and should have a larger minimum.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:40:13.834Z",
       "stale": false
     },
     "S8": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -162,16 +167,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Maximized fills the screen with mostly empty columns, and the category labels and counts stay small, so it reads as an enlarged card rather than a presenting layout.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:42:06.607Z",
       "stale": false
     },
     "I1": {
-      "score": 4,
-      "source": "script",
+      "score": 2,
+      "source": "paul",
       "candidates": {
-        "script": 4
+        "script": 4,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -180,14 +185,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:43:14.807Z",
       "stale": false
     },
     "I2": {
-      "score": 2,
-      "source": "script",
+      "score": 3,
+      "source": "paul",
       "candidates": {
-        "script": 2
+        "script": 2,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -196,15 +202,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:43:56.333Z",
       "stale": false
     },
     "I3": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
         "script": 3,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -213,14 +220,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:44:32.534Z",
       "stale": false
     },
     "I4": {
-      "score": 1,
-      "source": "script",
+      "score": 3,
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -229,15 +237,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:45:16.232Z",
       "stale": false
     },
     "I6": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -245,9 +254,8 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Chips have a raised shadow and the Bento zone shows an active tint, but the Assign button looks disabled in a gray-on-gray style with no clear state, and the icon buttons show no visible state.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:46:44.917Z",
       "stale": false
     },
     "I7": {
@@ -576,28 +584,28 @@
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G2": {
       "pass": false,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G3": {
       "pass": false,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G4": {
       "pass": false,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     }
   }
 }

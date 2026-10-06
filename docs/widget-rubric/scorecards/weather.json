@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "weather",
   "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-05T23:27:48.952Z",
+  "gradedAt": "2026-10-06T02:49:23.447Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -10,7 +10,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:49:23.447Z",
       "stale": false
     },
     "I2": {
@@ -18,7 +18,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:49:23.447Z",
       "stale": false
     },
     "I3": {
@@ -26,7 +26,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:49:23.447Z",
       "stale": false
     },
     "I4": {
@@ -34,7 +34,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:49:23.447Z",
       "stale": false
     },
     "I5": {
@@ -42,7 +42,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:49:23.447Z",
       "stale": false
     },
     "I6": {
@@ -50,15 +50,16 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:49:23.447Z",
       "stale": false
     },
     "S1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -68,17 +69,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "At 150x100 the temperature stays readable, but the full-width clothing card still takes nearly half the face and the 'Actual' line shrinks to about 5 px instead of hiding.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:29:05.175Z",
       "stale": false
     },
     "S2": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -88,17 +89,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "At 1400x900 the temperature grows, but the clothing card stretches into a full-width bar with two short lines at its left edge and a large empty gap to the right.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:33:38.264Z",
       "stale": false
     },
     "S3": {
       "score": 1,
-      "source": "script",
+      "source": "paul",
       "candidates": {
         "script": 1,
-        "judge": 1
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
@@ -110,14 +111,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:35:34.638Z",
       "stale": false
     },
     "S4": {
-      "score": 3,
-      "source": "script",
+      "score": 2,
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -126,14 +128,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:37:04.059Z",
       "stale": false
     },
     "S5": {
-      "score": 2,
-      "source": "script",
+      "score": 3,
+      "source": "paul",
       "candidates": {
-        "script": 2
+        "script": 2,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -144,15 +147,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:38:11.025Z",
       "stale": false
     },
     "S7": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -161,17 +165,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The envelope uses the global 150x100 floor and the temperature still reads there, which fits what a temperature-and-tip widget needs.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:41:25.513Z",
       "stale": false
     },
     "S8": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -181,16 +185,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Maximized fills the screen with a huge temperature, but the clothing tip is the same edge-to-edge white bar with small left-aligned text, so it looks like an enlarged card.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:42:53.744Z",
       "stale": false
     },
     "I1": {
       "score": 4,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 4
+        "script": 4,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
@@ -199,7 +203,7 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:43:40.230Z",
       "stale": false
     },
     "I7": {
@@ -496,28 +500,28 @@
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G2": {
       "pass": false,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     }
   }
 }

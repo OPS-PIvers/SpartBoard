@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "schedule",
   "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-05T23:27:48.952Z",
+  "gradedAt": "2026-10-06T02:49:23.447Z",
   "stale": false,
   "criteria": {
     "I5": {
@@ -10,15 +10,16 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:49:23.447Z",
       "stale": false
     },
     "S1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -28,17 +29,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "At 150x100 one row stays readable with its time and title, but the checkbox and timer icon keep their space beside it, nothing collapses, and the empty state at that size is a blank gray card.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:28:17.940Z",
       "stale": false
     },
     "S2": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -48,17 +49,18 @@
         ],
         "runId": "norming-1"
       },
-      "note": "At 1400x900 the rows only zoom and stretch across the full width, leaving a big gap between each short title and its far-right timer icon and an empty bottom third.",
+      "note": "We’re missing other states like lines vs cards",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:32:20.945Z",
       "stale": false
     },
     "S3": {
       "score": 1,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
@@ -69,16 +71,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The same stacked list appears at every aspect ratio with no reflow, and the tallest shape leaves more than half the card as a dead gray band below the rows.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:34:59.938Z",
       "stale": false
     },
     "S4": {
-      "score": 1,
-      "source": "script",
+      "score": 2,
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -87,14 +89,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:36:47.418Z",
       "stale": false
     },
     "S5": {
-      "score": 1,
-      "source": "script",
+      "score": 2,
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -105,14 +108,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:37:49.934Z",
       "stale": false
     },
     "S6": {
-      "score": 1,
-      "source": "script",
+      "score": 3,
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -126,15 +130,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:39:28.380Z",
       "stale": false
     },
     "S7": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -143,17 +148,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The 150x100 global floor still shows a readable item with its time, which is about what a schedule list needs, and it does not go meaningfully lower.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:40:52.267Z",
       "stale": false
     },
     "S8": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -163,16 +168,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Maximized fills the screen with the same rows enlarged and stretched edge to edge, leaving the bottom third empty, and the empty-state text is almost invisible at full screen.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:42:30.590Z",
       "stale": false
     },
     "I1": {
-      "score": 1,
-      "source": "script",
+      "score": 3,
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -181,14 +186,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:43:26.557Z",
       "stale": false
     },
     "I2": {
-      "score": 2,
-      "source": "script",
+      "score": 3,
+      "source": "paul",
       "candidates": {
-        "script": 2
+        "script": 2,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -197,15 +203,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:44:07.007Z",
       "stale": false
     },
     "I3": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
         "script": 3,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -214,14 +221,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:44:45.429Z",
       "stale": false
     },
     "I4": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -230,15 +238,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:45:31.854Z",
       "stale": false
     },
     "I6": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -246,9 +255,8 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The static screenshot shows no pressed, active or done state on the checkboxes or timer icons, so feedback on those controls can't be confirmed.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:46:54.344Z",
       "stale": false
     },
     "I7": {
@@ -545,28 +553,28 @@
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     }
   }
 }

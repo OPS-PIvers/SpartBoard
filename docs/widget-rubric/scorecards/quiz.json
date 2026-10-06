@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "quiz",
   "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-05T23:27:48.952Z",
+  "gradedAt": "2026-10-06T02:49:23.447Z",
   "stale": false,
   "criteria": {
     "I5": {
@@ -10,15 +10,16 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:49:23.447Z",
       "stale": false
     },
     "S1": {
       "score": 0,
-      "source": "script",
+      "source": "paul",
       "candidates": {
         "script": 0,
-        "judge": 0
+        "judge": 0,
+        "paul": 0
       },
       "evidence": {
         "screenshots": [
@@ -29,15 +30,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:27:31.865Z",
       "stale": false
     },
     "S2": {
-      "score": 1,
-      "source": "judge",
+      "score": 3,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -47,17 +49,18 @@
         ],
         "runId": "norming-1"
       },
-      "note": "At 1400x900 the typical In Progress face keeps a small faint empty state in the middle of a mostly blank card, and the Library view's empty state stays at default size with no growth (1x).",
+      "note": "The current view isn’t actually what would be displayed for the class but rather the teacher utility set up. It doesn’t need to be viewed across the room.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:31:43.768Z",
       "stale": false
     },
     "S3": {
-      "score": 3,
-      "source": "judge",
+      "score": 2,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -68,16 +71,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "At the tallest aspect the tabs collapse to icons, New Quiz becomes a plus button, the toolbar wraps into stacked rows and the folder sidebar collapses, while the widest aspect keeps a single-row toolbar.",
+      "note": "Do not understand how you view this as better than the previous layout",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:34:47.075Z",
       "stale": false
     },
     "S4": {
-      "score": 1,
-      "source": "script",
+      "score": 3,
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -86,14 +90,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:36:38.277Z",
       "stale": false
     },
     "S5": {
-      "score": 1,
-      "source": "script",
+      "score": 3,
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -104,14 +109,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:37:29.161Z",
       "stale": false
     },
     "S6": {
-      "score": 4,
-      "source": "script",
+      "score": 2,
+      "source": "paul",
       "candidates": {
-        "script": 4
+        "script": 4,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -121,15 +127,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:39:15.520Z",
       "stale": false
     },
     "S7": {
-      "score": 2,
-      "source": "judge",
+      "score": 3,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -138,17 +145,17 @@
         ],
         "runId": "norming-1"
       },
-      "note": "A tabbed library manager with search, sort, folders and a quiz grid cannot work at the 150x100 floor shown in the minimum shots, so the envelope does not match what the content needs.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:40:16.820Z",
       "stale": false
     },
     "S8": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -158,16 +165,16 @@
         ],
         "runId": "norming-1"
       },
-      "note": "Maximized shows the same library or In Progress layout stretched to 1920x1080 with unchanged type and a tiny empty state, so it reads as an enlarged card rather than a presenting layout.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:42:16.624Z",
       "stale": false
     },
     "I1": {
-      "score": 4,
-      "source": "script",
+      "score": 3,
+      "source": "paul",
       "candidates": {
-        "script": 4
+        "script": 4,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -176,14 +183,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:43:19.138Z",
       "stale": false
     },
     "I2": {
-      "score": 1,
-      "source": "script",
+      "score": 3,
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -192,15 +200,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:44:00.489Z",
       "stale": false
     },
     "I3": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
         "script": 3,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -209,14 +218,15 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:44:36.609Z",
       "stale": false
     },
     "I4": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -225,15 +235,16 @@
         "runId": "norming-1"
       },
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:45:24.625Z",
       "stale": false
     },
     "I6": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -241,9 +252,8 @@
         ],
         "runId": "norming-1"
       },
-      "note": "The active tab is a white pill against the green header and the selected All items folder is filled, which matches the shared segmented-control and library styles.",
       "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-05T23:27:48.952Z",
+      "gradedAt": "2026-10-06T02:46:48.878Z",
       "stale": false
     },
     "I7": {
@@ -540,28 +550,28 @@
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
         "runId": "norming-1"
       },
-      "gradedAt": "2026-10-05T23:27:48.952Z"
+      "gradedAt": "2026-10-06T02:49:23.447Z"
     }
   }
 }
