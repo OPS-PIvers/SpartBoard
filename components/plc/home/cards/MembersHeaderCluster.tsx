@@ -76,7 +76,7 @@ export const MembersHeaderCluster: React.FC<MembersHeaderClusterProps> = ({
         aria-label={
           groupWording
             ? t('plcDashboard.home.members.groupListAriaLabel', {
-                defaultValue: 'Group members',
+                defaultValue: 'Team members',
               })
             : t('plcDashboard.home.members.listAriaLabel', {
                 defaultValue: 'PLC members',

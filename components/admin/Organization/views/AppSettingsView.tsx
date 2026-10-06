@@ -204,7 +204,7 @@ export const AppSettingsView: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="divide-y divide-slate-200 border-y border-slate-200">
               {ASSIGNMENT_WIDGETS.map(({ key, label, Icon }) => {
                 const currentMode: AssignmentMode =
                   config[key] === 'view-only' ? 'view-only' : 'submissions';
@@ -212,7 +212,7 @@ export const AppSettingsView: React.FC = () => {
                 return (
                   <div
                     key={key}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-3"
                   >
                     <div className="flex items-start gap-3 min-w-0">
                       <Icon className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
@@ -275,16 +275,18 @@ export const AppSettingsView: React.FC = () => {
         );
       })()}
 
-      <AccessFeatureRow
-        featureId="org-admin-writes"
-        permission={getPermission('org-admin-writes')}
-        isSaved={isSaved('org-admin-writes')}
-        isSaving={saving.has('org-admin-writes')}
-        hasUnsaved={unsavedChanges.has('org-admin-writes')}
-        onUpdate={(updates) => updatePermission('org-admin-writes', updates)}
-        onSave={() => void savePermission('org-admin-writes')}
-        showMessage={showMessage}
-      />
+      <div className="border-y border-slate-200">
+        <AccessFeatureRow
+          featureId="org-admin-writes"
+          permission={getPermission('org-admin-writes')}
+          isSaved={isSaved('org-admin-writes')}
+          isSaving={saving.has('org-admin-writes')}
+          hasUnsaved={unsavedChanges.has('org-admin-writes')}
+          onUpdate={(updates) => updatePermission('org-admin-writes', updates)}
+          onSave={() => void savePermission('org-admin-writes')}
+          showMessage={showMessage}
+        />
+      </div>
     </div>
   );
 };

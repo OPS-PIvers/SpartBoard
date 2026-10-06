@@ -167,7 +167,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
           {canAccessFeature('my-groups')
             ? t('plcDashboard.settings.groupDescription', {
                 defaultValue:
-                  "Choose which sections appear on this group's page. Any member can update these.",
+                  "Choose which sections appear on this team's page. Any member can update these.",
               })
             : t('plcDashboard.settings.description', {
                 defaultValue:
@@ -254,7 +254,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
         <p className="text-xs text-slate-500 mt-1 leading-relaxed">
           {canAccessFeature('my-groups')
             ? t('plcDashboard.settings.digest.groupDescription', {
-                defaultValue: 'Control how this group stays in the loop.',
+                defaultValue: 'Control how this team stays in the loop.',
               })
             : t('plcDashboard.settings.digest.description', {
                 defaultValue: 'Control how this PLC stays in the loop.',
@@ -291,7 +291,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
               {canAccessFeature('my-groups')
                 ? t('plcDashboard.settings.digest.groupOptInDescription', {
                     defaultValue:
-                      'Send every member one weekly email summarizing what happened in the group. Off by default; any member can change this.',
+                      'Send every member one weekly email summarizing what happened in the team. Off by default; any member can change this.',
                   })
                 : t('plcDashboard.settings.digest.optInDescription', {
                     defaultValue:

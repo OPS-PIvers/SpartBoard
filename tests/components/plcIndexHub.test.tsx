@@ -179,7 +179,7 @@ describe('PlcIndexHub — Your PLCs section', () => {
 });
 
 describe('PlcIndexHub — My Groups flag', () => {
-  it('titles the hub My Groups and labels each row with its type', () => {
+  it('titles the hub My Teams and labels each row with its type', () => {
     mockGroups = true;
     try {
       renderHub({
@@ -188,7 +188,7 @@ describe('PlcIndexHub — My Groups flag', () => {
           makePlc({ id: 'p2', name: 'Grade 4' }),
         ],
       });
-      expect(screen.getByText('My Groups')).toBeInTheDocument();
+      expect(screen.getByText('My Teams')).toBeInTheDocument();
       expect(screen.getByText(/Mentoring ·/)).toBeInTheDocument();
       expect(screen.getByText(/PLC ·/)).toBeInTheDocument();
     } finally {

@@ -532,7 +532,7 @@ export const FeaturePermissionsManager: React.FC = () => {
             fallback="No widgets match the current filters."
           />
         )}
-        <div className="space-y-2">
+        <div className="divide-y divide-slate-200 border-y border-slate-200">
           {filteredTools.map((tool) => {
             const permission = getPermission(tool.type);
             const isSaving = saving.has(tool.type);

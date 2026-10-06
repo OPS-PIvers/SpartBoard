@@ -104,7 +104,7 @@ const PlcsMenuButton: React.FC<PlcsMenuButtonProps> = ({
       </div>
       <span className="flex-grow text-[13px]">
         {canAccessFeature('my-groups')
-          ? t('sidebar.nav.groups', { defaultValue: 'My Groups' })
+          ? t('sidebar.nav.groups', { defaultValue: 'My Teams' })
           : t('sidebar.nav.plcs', { defaultValue: 'My PLCs' })}
       </span>
       <span className="text-xxs bg-brand-blue-lighter text-brand-blue-primary px-2 py-0.5 rounded-full font-bold">
@@ -472,7 +472,7 @@ export const Sidebar: React.FC = () => {
                   {activeSection === 'main'
                     ? t('sidebar.header.classroomManager')
                     : activeSection === 'plcs' && canAccessFeature('my-groups')
-                      ? t('sidebar.nav.groups', { defaultValue: 'My Groups' })
+                      ? t('sidebar.nav.groups', { defaultValue: 'My Teams' })
                       : t(`sidebar.nav.${activeSection}`, {
                           defaultValue: activeSection.replace('-', ' '),
                         })}

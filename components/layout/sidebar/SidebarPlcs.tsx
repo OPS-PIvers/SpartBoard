@@ -297,7 +297,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
       {
         title: groups
           ? t('sidebar.groups.confirmLeaveTitle', {
-              defaultValue: 'Leave group',
+              defaultValue: 'Leave team',
             })
           : t('sidebar.plcs.confirmLeaveTitle', {
               defaultValue: 'Leave PLC',
@@ -325,7 +325,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
       {
         title: groups
           ? t('sidebar.groups.confirmDeleteTitle', {
-              defaultValue: 'Delete group',
+              defaultValue: 'Delete team',
             })
           : t('sidebar.plcs.confirmDeleteTitle', {
               defaultValue: 'Delete PLC',
@@ -358,7 +358,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                 </div>
                 <h2 className="text-sm font-bold text-slate-800">
                   {groups
-                    ? t('sidebar.groups.title', { defaultValue: 'My Groups' })
+                    ? t('sidebar.groups.title', { defaultValue: 'My Teams' })
                     : t('sidebar.plcs.title', { defaultValue: 'My PLCs' })}
                 </h2>
               </div>
@@ -374,7 +374,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                 <Plus className="w-4 h-4" />
                 <span className="text-xxs font-bold uppercase tracking-wider">
                   {groups
-                    ? t('sidebar.groups.new', { defaultValue: 'New group' })
+                    ? t('sidebar.groups.new', { defaultValue: 'New team' })
                     : t('sidebar.plcs.newPlc', { defaultValue: 'New PLC' })}
                 </span>
               </button>
@@ -410,7 +410,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                   <p className="text-sm font-bold text-slate-600">
                     {groups
                       ? t('sidebar.groups.emptyTitle', {
-                          defaultValue: 'No groups yet',
+                          defaultValue: 'No teams yet',
                         })
                       : t('sidebar.plcs.emptyTitle', {
                           defaultValue: 'No PLCs yet',
@@ -425,7 +425,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                       : groups
                         ? t('sidebar.groups.emptySubtitle', {
                             defaultValue:
-                              'Create a group and invite your colleagues by email.',
+                              'Create a team and invite your colleagues by email.',
                           })
                         : t('sidebar.plcs.emptySubtitle', {
                             defaultValue:
@@ -439,7 +439,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                 >
                   {groups
                     ? t('sidebar.groups.createNew', {
-                        defaultValue: 'Create a group',
+                        defaultValue: 'Create a team',
                       })
                     : t('sidebar.plcs.createNewPlc', {
                         defaultValue: 'Create New PLC',
@@ -451,7 +451,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                 <h3 className="text-xxs font-bold text-slate-400 uppercase tracking-widest px-1">
                   {groups
                     ? t('sidebar.groups.yours', {
-                        defaultValue: 'Your groups',
+                        defaultValue: 'Your teams',
                       })
                     : t('sidebar.plcs.yourPlcs', {
                         defaultValue: 'Your PLCs',

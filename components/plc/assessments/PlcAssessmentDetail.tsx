@@ -414,7 +414,7 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
           <p className="text-sm text-slate-500 mt-1">
             {groupWording
               ? t('plcDashboard.assessmentDetail.groupNotFoundSubtitle', {
-                  defaultValue: 'It may have been removed from this group.',
+                  defaultValue: 'It may have been removed from this team.',
                 })
               : t('plcDashboard.assessmentDetail.notFoundSubtitle', {
                   defaultValue: 'It may have been removed from this PLC.',

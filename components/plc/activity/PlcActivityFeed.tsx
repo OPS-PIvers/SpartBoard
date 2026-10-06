@@ -150,7 +150,7 @@ export const PlcActivityFeed: React.FC<PlcActivityFeedProps> = ({
             aria-label={
               groupWording
                 ? t('plcDashboard.activity.groupFeedAria', {
-                    defaultValue: 'Recent group activity',
+                    defaultValue: 'Recent team activity',
                   })
                 : t('plcDashboard.activity.feedAria', {
                     defaultValue: 'Recent PLC activity',

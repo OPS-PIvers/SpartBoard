@@ -1082,7 +1082,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
   },
   // My PLCs becomes My Groups with group types (docs/plans/MY_GROUPS.md).
   'my-groups': {
-    label: 'My Groups',
+    label: 'My Teams',
     icon: UsersRound,
     description: 'PLC, department and mentoring groups.',
     stage: 'preview',

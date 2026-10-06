@@ -146,7 +146,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
                 aria-label={
                   groupWording
                     ? t('plcRoute.groupLoading', {
-                        defaultValue: 'Loading group…',
+                        defaultValue: 'Loading team…',
                       })
                     : t('plcRoute.loading', {
                         defaultValue: 'Loading PLC…',

@@ -67,7 +67,7 @@ export const PlcImportModeOptions: React.FC<{
         recommendedLabel={
           groupWording
             ? t('plcDashboard.quizImportModal.groupRecommendedLabel', {
-                defaultValue: 'Recommended for groups',
+                defaultValue: 'Recommended for teams',
               })
             : t('plcDashboard.quizImportModal.recommendedLabel', {
                 defaultValue: 'Recommended for PLCs',
