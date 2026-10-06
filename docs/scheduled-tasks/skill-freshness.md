@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-10-01_
+_Last audited: 2026-10-06_
 _Last action: 2026-09-22 — HIGH `SpecialistSchedule` stale `Settings.tsx` reference fixed in both new-widget and admin-widget-config skills (all 4 mirror files): file-layout callout rewritten to the current schema-driven files, `featurePermissions`-read example repointed to `settingsFields.tsx`. Moved to Completed._
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-10-06: Tuesday Audit B1. Path scan of `.claude/skills/{new-widget,admin-widget-config}/SKILL.md`: only template placeholders (`YourWidget/*`) and `components/widgets/Checklist/Settings.tsx` fail to resolve — the latter is the already-open HIGH item from 2026-09-15, still unfixed. `SpecialistSchedule/` still has the schema-driven layout; `lazyNamed` convention matches `WidgetRegistry.ts`; `WIDGET_SETTINGS_COMPONENTS`/`WIDGET_APPEARANCE_COMPONENTS` are now empty `{}` maps (skills should describe schema-driven drawer as the default — spot-checked, no new drift found). 0 new issues. (`/mnt/skills/user/*` does not exist in this environment; repo `.claude/skills/` used.)_
 
 _2026-10-01: Thursday Audit B1. Path-existence scan of `.claude/skills/{new-widget,admin-widget-config}/SKILL.md`: only template placeholders (`YourWidget/*`, `Appearance.tsx`) and `components/widgets/Checklist/Settings.tsx` fail to resolve. The Checklist reference is the already-open HIGH item from 2026-09-15 and remains unfixed. The five checklist files (`types.ts`, `config/tools.ts`, `config/widgetDefaults.ts`, `config/widgetGradeLevels.ts`, `WidgetRegistry.ts`) exist, and the `lazyNamed` convention still matches. New observation: `WIDGET_SETTINGS_COMPONENTS`/`WIDGET_APPEARANCE_COMPONENTS` are now empty and settings come from `WIDGET_SETTINGS_SCHEMAS` (63/66), so any skill text describing hand-registered settings/appearance components should be checked when the open HIGH item is fixed. 0 new items._
 
