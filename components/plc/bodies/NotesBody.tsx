@@ -571,10 +571,12 @@ const NotesBodyInner: React.FC<
   const [docItemsDraft, setDocItemsDraft] = useState<{
     docId: string;
     items: PlcActionItem[];
+    base: PlcActionItem[];
   } | null>(null);
   const docItemsPendingRef = useRef<{
     docId: string;
     items: PlcActionItem[];
+    base: PlcActionItem[];
   } | null>(null);
   const docItemsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flushDocActionItems = useCallback(() => {
@@ -583,9 +585,17 @@ const NotesBodyInner: React.FC<
     const pending = docItemsPendingRef.current;
     docItemsPendingRef.current = null;
     if (!pending) return;
-    updateDoc(pending.docId, { actionItems: pending.items })
+    updateDoc(pending.docId, {
+      actionItems: pending.items,
+      actionItemsBase: pending.base,
+    })
       .then(() =>
-        setDocItemsDraft((cur) => (cur?.items === pending.items ? null : cur))
+        setDocItemsDraft((cur) => {
+          if (cur?.items === pending.items) return null;
+          return cur?.docId === pending.docId
+            ? { ...cur, base: pending.items }
+            : cur;
+        })
       )
       .catch((err: unknown) => {
         logError('NotesBody.docActionItems', err, {
@@ -602,8 +612,12 @@ const NotesBodyInner: React.FC<
   }, [updateDoc, plc.id, addToast, t]);
   useEffect(() => flushDocActionItems, [flushDocActionItems]);
   const handleDocActionItems = (docId: string, items: PlcActionItem[]) => {
-    setDocItemsDraft({ docId, items });
-    docItemsPendingRef.current = { docId, items };
+    const base =
+      docItemsDraft?.docId === docId
+        ? docItemsDraft.base
+        : (docs.find((d) => d.id === docId)?.actionItems ?? []);
+    setDocItemsDraft({ docId, items, base });
+    docItemsPendingRef.current = { docId, items, base };
     if (docItemsTimerRef.current) clearTimeout(docItemsTimerRef.current);
     docItemsTimerRef.current = setTimeout(
       flushDocActionItems,

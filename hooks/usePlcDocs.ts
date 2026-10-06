@@ -5,6 +5,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc as firestoreUpdateDoc,
@@ -17,6 +18,7 @@ import { tsToMillis } from '@/utils/plc';
 import { usePlcSubcollection } from '@/context/usePlcContext';
 import {
   parseActionItems,
+  rebaseActionItems,
   sanitizeActionItemsForWrite,
 } from '@/utils/plcActionItems';
 
@@ -36,7 +38,13 @@ interface UsePlcDocsResult {
   /** Patch title/url/action items; bumps updatedAt. */
   updateDoc: (
     docId: string,
-    patch: { title?: string; url?: string; actionItems?: PlcActionItem[] }
+    patch: {
+      title?: string;
+      url?: string;
+      actionItems?: PlcActionItem[];
+      /** The saved items these edits started from; a teammate's edits since then are kept. */
+      actionItemsBase?: PlcActionItem[];
+    }
   ) => Promise<void>;
   /**
    * Soft-delete a doc (Decision 3.1): writes a `deletedAt` tombstone rather
@@ -168,7 +176,12 @@ export const usePlcDocs = (plcId: string | null): UsePlcDocsResult => {
   const updateDoc = useCallback(
     async (
       docId: string,
-      patch: { title?: string; url?: string; actionItems?: PlcActionItem[] }
+      patch: {
+        title?: string;
+        url?: string;
+        actionItems?: PlcActionItem[];
+        actionItemsBase?: PlcActionItem[];
+      }
     ): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
       // Patch-only updates so a teammate's concurrent edit on the *other*
@@ -181,13 +194,23 @@ export const usePlcDocs = (plcId: string | null): UsePlcDocsResult => {
       };
       if (patch.title !== undefined) fields.title = patch.title;
       if (patch.url !== undefined) fields.url = patch.url;
-      if (patch.actionItems !== undefined) {
-        fields.actionItems = sanitizeActionItemsForWrite(patch.actionItems);
+      const ref = doc(db, PLCS_COLLECTION, plcId, DOCS_SUBCOLLECTION, docId);
+      const { actionItems, actionItemsBase } = patch;
+      if (actionItems !== undefined && actionItemsBase !== undefined) {
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(ref);
+          const saved = parseActionItems(snap.data()?.actionItems);
+          fields.actionItems = sanitizeActionItemsForWrite(
+            rebaseActionItems(actionItemsBase, actionItems, saved)
+          );
+          tx.update(ref, fields);
+        });
+        return;
       }
-      await firestoreUpdateDoc(
-        doc(db, PLCS_COLLECTION, plcId, DOCS_SUBCOLLECTION, docId),
-        fields
-      );
+      if (actionItems !== undefined) {
+        fields.actionItems = sanitizeActionItemsForWrite(actionItems);
+      }
+      await firestoreUpdateDoc(ref, fields);
     },
     [plcId, user]
   );
