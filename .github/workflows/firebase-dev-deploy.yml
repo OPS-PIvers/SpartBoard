@@ -13,7 +13,7 @@ on:
 
 # Hosting goes to the branch owner's own site once type-check and build pass; the shared backend
 # deploys only changed targets, after every check, and only from a branch containing dev-paul
-# (.github/scripts/plan-dev-deploy.sh). Concurrency is per job: a newer push cancels superseded
+# (.github/scripts/plan-deploy.sh). Concurrency is per job: a newer push cancels superseded
 # checks, but a deploy that has started always finishes.
 
 # Build and deploy add id-token: write for keyless Workload Identity Federation into spartboard-dev.
@@ -199,6 +199,9 @@ jobs:
   # What this push deploys: the hosting site for this branch and which backend targets changed.
   plan:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
     outputs:
       site_suffix: ${{ steps.plan.outputs.site_suffix }}
       backend: ${{ steps.plan.outputs.backend }}
@@ -209,11 +212,20 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+      # Last commit this workflow deployed successfully on this branch; empty deploys every target.
+      - id: base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW: firebase-dev-deploy.yml
+        run: |
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW/runs?branch=$GITHUB_REF_NAME&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty')
+          echo "Last successful deploy: ${sha:-none}"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
       - id: plan
         env:
-          BEFORE: ${{ github.event.before }}
+          BASE_SHA: ${{ steps.base.outputs.sha }}
           FULL: ${{ inputs.full_backend || false }}
-        run: ./.github/scripts/plan-dev-deploy.sh "$GITHUB_REF_NAME" "$BEFORE" "$FULL"
+        run: ./.github/scripts/plan-deploy.sh "$GITHUB_REF_NAME" "$BASE_SHA" "$FULL"
 
   # Fast lane: the preview updates as soon as the bundle builds and type-checks. Lint, tests and
   # rules tests still gate the PR and the backend deploy.

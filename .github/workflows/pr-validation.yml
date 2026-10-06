@@ -5,14 +5,8 @@ on:
     branches:
       - main
       - dev-*
-    # Skip the full suite for docs-only PRs. The nightly agent fleet opens
-    # many journal-only PRs (docs/routines/*.md), and Markdown never affects the
-    # build, tests, or rules — so validating it is pure Actions spend. A PR that
-    # also touches any non-doc file still runs everything (paths-ignore only
-    # skips when *every* changed file matches).
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
+    # No paths-ignore: `summary` is a required check, so it must report on every PR. Docs-only PRs
+    # (the nightly journal PRs) pass in seconds via the `changes` job instead.
 
 # Cancel a superseded run when a newer commit is pushed to the same PR, so
 # rapid successive pushes don't each run the full suite to completion.
@@ -36,10 +30,37 @@ env:
   VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY || 'test-key' }}
 
 jobs:
-  # A dev-* push already ran lint, type-check, unit tests, rules tests and the
-  # build on this exact commit. When that run succeeded, only E2E (which the
-  # dev workflow doesn't run) still needs to execute here.
+  # Markdown and docs/ never affect the build, tests or rules. A release PR (dev-paul into main)
+  # skips the widget grader: every feature PR into dev-paul already ran it on its own diff.
+  changes:
+    runs-on: ubuntu-24.04
+    name: Classify changes
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+      release: ${{ steps.classify.outputs.release }}
+    steps:
+      - id: classify
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+            const docsOnly = files.length > 0 && files.every((f) => f.filename.endsWith('.md') || f.filename.startsWith('docs/'));
+            const release = pr.base.ref === 'main' && pr.head.ref === 'dev-paul';
+            core.info(`${files.length} files; docs only: ${docsOnly}; release PR: ${release}`);
+            core.setOutput('docs_only', String(docsOnly));
+            core.setOutput('release', String(release));
+
+  # A dev-* push already ran lint, type-check, unit tests, rules tests and the build on this exact
+  # commit. When that run succeeds (waiting for it if it's still going), only E2E runs here.
   preflight:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-24.04
     name: Check for prior dev-branch validation
     outputs:
@@ -50,15 +71,25 @@ jobs:
         with:
           script: |
             const headSha = context.payload.pull_request.head.sha;
-            const { data } = await github.rest.actions.listWorkflowRuns({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'firebase-dev-deploy.yml',
-              head_sha: headSha,
-              status: 'success',
-              per_page: 5,
-            });
-            const run = data.workflow_runs.find((r) => r.event === 'push');
+            const list = async () =>
+              (
+                await github.rest.actions.listWorkflowRuns({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: 'firebase-dev-deploy.yml',
+                  head_sha: headSha,
+                  event: 'push',
+                  per_page: 5,
+                })
+              ).data.workflow_runs;
+            // A release PR is usually opened while dev-paul's own run is still going: wait up to 25 min for it.
+            let runs = await list();
+            for (let i = 0; i < 50 && !runs.some((r) => r.conclusion === 'success') && runs.some((r) => r.status !== 'completed'); i++) {
+              core.info(`Waiting for the in-progress dev-branch run on ${headSha}...`);
+              await new Promise((r) => setTimeout(r, 30000));
+              runs = await list();
+            }
+            const run = runs.find((r) => r.conclusion === 'success');
             if (run) {
               core.info(`Reusing dev-branch validation for ${headSha}: ${run.html_url}`);
               await core.summary
@@ -72,7 +103,7 @@ jobs:
 
   quality:
     needs: preflight
-    if: needs.preflight.outputs.reuse != 'true'
+    if: needs.preflight.result == 'success' && needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
     name: Code Quality (${{ matrix.check }})
     strategy:
@@ -105,7 +136,7 @@ jobs:
   # test-counts job can merge them and apply the silent-omission guard.
   test:
     needs: preflight
-    if: needs.preflight.outputs.reuse != 'true'
+    if: needs.preflight.result == 'success' && needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
     name: Unit Tests (shard ${{ matrix.shard }}/3)
     strategy:
@@ -152,6 +183,8 @@ jobs:
       - run: pnpm run test:counts
 
   e2e:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-24.04
     container:
       image: mcr.microsoft.com/playwright:v1.58.0-jammy
@@ -186,6 +219,8 @@ jobs:
   # shared window, config or harness changes check every widget. Fails only on gate
   # failures missing from docs/widget-rubric/gate-baseline.json.
   widget-grader-gates:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.release != 'true'
     runs-on: ubuntu-24.04
     container:
       image: mcr.microsoft.com/playwright:v1.58.0-jammy
@@ -230,7 +265,7 @@ jobs:
 
   rules:
     needs: preflight
-    if: needs.preflight.outputs.reuse != 'true'
+    if: needs.preflight.result == 'success' && needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
     name: Firestore Rules Tests
     steps:
@@ -260,7 +295,7 @@ jobs:
 
   build:
     needs: preflight
-    if: needs.preflight.outputs.reuse != 'true'
+    if: needs.preflight.result == 'success' && needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
     name: Build
     steps:
@@ -276,6 +311,7 @@ jobs:
   summary:
     needs:
       [
+        changes,
         preflight,
         quality,
         test,
@@ -318,3 +354,10 @@ jobs:
               repo: context.repo.repo,
               body: '❌ Validation checks failed. Please review the workflow logs and fix the issues before merging.'
             })
+
+      # The required check: fail when any job failed or was cancelled (skipped is fine).
+      - name: Fail when a check failed
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          echo "::error::One or more validation jobs failed or were cancelled."
+          exit 1
