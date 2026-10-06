@@ -128,6 +128,9 @@ export const AccessLevelPicker: React.FC<{
   </div>
 );
 
+const DAILY_LIMIT_MIN = 1;
+const DAILY_LIMIT_MAX = 1000;
+
 export const DailyLimitEditor: React.FC<{
   featureId: GlobalFeature;
   permission: GlobalFeaturePermission;
@@ -135,6 +138,10 @@ export const DailyLimitEditor: React.FC<{
 }> = ({ featureId, permission, onUpdate }) => {
   const enabled = (permission.config?.dailyLimitEnabled as boolean) ?? true;
   const label = FEATURE_DEFAULTS[featureId].label;
+  const stored =
+    (permission.config?.dailyLimit as number) ?? defaultDailyLimit(featureId);
+  // Raw text while editing so the field can be emptied; null shows the stored value.
+  const [draft, setDraft] = useState<string | null>(null);
   return (
     <div className="flex items-center gap-3 flex-wrap">
       <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
@@ -152,23 +159,28 @@ export const DailyLimitEditor: React.FC<{
       />
       <input
         type="number"
-        min="1"
-        max="1000"
+        min={DAILY_LIMIT_MIN}
+        max={DAILY_LIMIT_MAX}
         disabled={!enabled}
         aria-label={`${label} uses per day`}
-        value={
-          (permission.config?.dailyLimit as number) ??
-          defaultDailyLimit(featureId)
-        }
+        value={draft ?? stored}
         onChange={(e) => {
-          const val = parseInt(e.target.value);
+          const raw = e.target.value;
+          const val = parseInt(raw, 10);
+          if (!Number.isFinite(val)) {
+            setDraft(raw);
+            return;
+          }
+          const clamped = Math.min(
+            DAILY_LIMIT_MAX,
+            Math.max(DAILY_LIMIT_MIN, val)
+          );
+          setDraft(clamped === val ? raw : String(clamped));
           onUpdate({
-            config: {
-              ...permission.config,
-              dailyLimit: isNaN(val) ? defaultDailyLimit(featureId) : val,
-            },
+            config: { ...permission.config, dailyLimit: clamped },
           });
         }}
+        onBlur={() => setDraft(null)}
         className="w-20 px-2 py-1 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-blue-primary disabled:opacity-50"
       />
       <span className="text-xs text-slate-500">
