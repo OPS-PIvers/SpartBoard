@@ -5,6 +5,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { RandomGroup, SharedGroup } from '@/types';
 import { StudentChip } from './StudentChip';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
@@ -86,6 +87,8 @@ const computeColumnCount = (
 interface GroupDropZoneProps {
   groupId: string;
   groupName: string;
+  /** 1-based position, the key of its tour anchors. */
+  groupNumber: number;
   /** Tailwind class for the header band background (e.g. 'bg-blue-500'). */
   headerColorClass: string;
   children: React.ReactNode;
@@ -99,6 +102,7 @@ interface GroupDropZoneProps {
 const GroupDropZone: React.FC<GroupDropZoneProps> = ({
   groupId,
   groupName,
+  groupNumber,
   headerColorClass,
   children,
   editable,
@@ -331,6 +335,11 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
               setColorPickerOpen((prev) => !prev);
             }}
             onPointerDown={(e) => e.stopPropagation()}
+            {...tourFieldAttr(
+              'random.group-color',
+              'random',
+              String(groupNumber)
+            )}
             aria-label={`Change ${groupName} color`}
             aria-expanded={colorPickerOpen}
             title="Change header color"
@@ -382,6 +391,11 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
                       setColorPickerOpen(false);
                     }}
                     className={`w-6 h-6 rounded-full ${color} border-2 border-white ring-1 ring-slate-200 hover:scale-110 transition-transform`}
+                    {...tourFieldAttr(
+                      'random.group-color-swatch',
+                      'random',
+                      color.replace('bg-', '')
+                    )}
                     aria-label={`Set color to ${color.replace('bg-', '').replace('-', ' ')}`}
                     title={color.replace('bg-', '').replace('-', ' ')}
                   />
@@ -617,6 +631,7 @@ export const RandomGroups: React.FC<RandomGroupsProps> = ({
             key={key}
             groupId={dropZoneId}
             groupName={groupName}
+            groupNumber={i + 1}
             headerColorClass={headerColorClass}
             editable={editable}
             onRename={
