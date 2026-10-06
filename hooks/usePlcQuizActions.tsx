@@ -26,6 +26,9 @@ import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 import { logError } from '@/utils/logError';
 import { canEditPlcContent, getPlcMemberEmail } from '@/utils/plc';
+import { quizServedQuestionCount } from '@/utils/questionBanks';
+import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
+import { useBankSources } from '@/hooks/useBankSources';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import {
   DEFAULT_QUIZ_BEHAVIOR,
@@ -43,6 +46,7 @@ import {
 } from '@/components/plc/PlcSharePickerModal';
 import { QuizEditorModal } from '@/components/widgets/QuizWidget/components/QuizEditorModal';
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
+import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
 
 /** The slice of an assessment row these actions need. */
 export interface PlcQuizActionTarget {
@@ -102,6 +106,7 @@ export function usePlcQuizActions(
     loadQuizData,
     loadSyncedTranslations,
     pullSyncedQuiz,
+    saveDriveSnapshot,
     isDriveConnected,
   } = useQuiz(user?.uid);
 
@@ -130,6 +135,9 @@ export function usePlcQuizActions(
   // Cost guard: only subscribe to quiz_assignments while an assign is live.
   const { assignments, createAssignment, setAssignmentRosters } =
     useQuizAssignments(assignTarget || pendingSetup ? user?.uid : undefined);
+  const { loadBankContentsForQuiz } = useBankSources(
+    assignTarget || busyRowId ? user?.uid : undefined
+  );
 
   const canEdit = useMemo(
     () => (user ? canEditPlcContent(plc, user.uid) : false),
@@ -294,10 +302,7 @@ export function usePlcQuizActions(
           id: crypto.randomUUID(),
           title: canonical.title,
           questions: canonical.questions,
-          ...(canonical.stimuli && canonical.stimuli.length > 0
-            ? { stimuli: canonical.stimuli }
-            : {}),
-          ...(canonical.language ? { language: canonical.language } : {}),
+          ...syncedQuizContentFields(canonical),
           createdAt: now,
           updatedAt: now,
         };
@@ -410,10 +415,7 @@ export function usePlcQuizActions(
           id: crypto.randomUUID(),
           title: canonical.title,
           questions: canonical.questions,
-          ...(canonical.stimuli && canonical.stimuli.length > 0
-            ? { stimuli: canonical.stimuli }
-            : {}),
-          ...(canonical.language ? { language: canonical.language } : {}),
+          ...syncedQuizContentFields(canonical),
           createdAt: now,
           updatedAt: now,
         };
@@ -431,17 +433,23 @@ export function usePlcQuizActions(
           });
         }
 
+        const content = await resolveQuizAssignContent(
+          fresh,
+          savedMeta.driveFileId,
+          { loadBankContentsForQuiz, saveDriveSnapshot }
+        );
         const plcLinkage = buildPlcLinkage(plc);
         const created = await createAssignment(
           {
             id: savedMeta.id,
             title: savedMeta.title,
-            driveFileId: savedMeta.driveFileId,
-            questions: canonical.questions,
-            ...(canonical.stimuli && canonical.stimuli.length > 0
-              ? { stimuli: canonical.stimuli }
-              : {}),
+            driveFileId: content.driveFileId,
+            questions: content.questions,
+            ...(content.stimuli?.length ? { stimuli: content.stimuli } : {}),
             ...(canonical.language ? { language: canonical.language } : {}),
+            ...(fresh.sections?.length
+              ? { order: fresh.order, sections: fresh.sections }
+              : {}),
           },
           {
             ...(reviewSplit
@@ -459,10 +467,14 @@ export function usePlcQuizActions(
             // Assign always runs in Assessment Mode.
             sessionMode: 'student',
             ...(plcLinkage ? { plc: plcLinkage } : {}),
+            ...(content.resolvedDriveFileId
+              ? { resolvedDriveFileId: content.resolvedDriveFileId }
+              : {}),
           },
           {
             initialStatus: 'paused',
             skipPlcTemplateWrite: true,
+            ...(content.bankSlots ? { bankSlots: content.bankSlots } : {}),
             ...(mode === 'sync' && liveVersion !== undefined
               ? {
                   syncedFrom: {
@@ -542,6 +554,8 @@ export function usePlcQuizActions(
       user,
       reviewSplit,
       lastAssignSettings,
+      loadBankContentsForQuiz,
+      saveDriveSnapshot,
     ]
   );
 
@@ -575,10 +589,7 @@ export function usePlcQuizActions(
             id: crypto.randomUUID(),
             title: canonical.title,
             questions: canonical.questions,
-            ...(canonical.stimuli && canonical.stimuli.length > 0
-              ? { stimuli: canonical.stimuli }
-              : {}),
-            ...(canonical.language ? { language: canonical.language } : {}),
+            ...syncedQuizContentFields(canonical),
             createdAt: now,
             updatedAt: now,
           };
@@ -679,7 +690,7 @@ export function usePlcQuizActions(
         if (header) {
           void mirrorPlcQuizHeader(header.id, {
             title: updated.title,
-            questionCount: updated.questions.length,
+            questionCount: quizServedQuestionCount(updated),
             sessionMode: behavior.sessionMode,
             sessionOptions: behavior.sessionOptions,
             attemptLimit: behavior.attemptLimit,
@@ -759,6 +770,7 @@ export function usePlcQuizActions(
             uid: user.uid,
             title: data.title,
             questions: data.questions,
+            ...syncedQuizContentFields(data),
             plcId: plc.id,
             behavior: meta.behavior,
             // Peers cannot read the owner's drive.file sidecars, so seed the
@@ -801,7 +813,7 @@ export function usePlcQuizActions(
           plcQuizId: crypto.randomUUID(),
           syncGroupId,
           title: data.title,
-          questionCount: data.questions.length,
+          questionCount: quizServedQuestionCount(data),
           sharedByName: user.displayName ?? '',
           sharedByEmail: ownerEmailLower,
           sessionMode,

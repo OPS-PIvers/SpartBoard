@@ -336,6 +336,71 @@ describe('paperSheetStimuli threading', () => {
   });
 });
 
+describe('bank slot threading', () => {
+  const BANK_FIELDS = {
+    bankSlots: [
+      {
+        id: 'slot-1',
+        bankId: 'bank-1',
+        syncGroupId: 'synced-bank-1',
+        bankTitle: 'Vocab bank',
+        mode: 'random' as const,
+        count: 10,
+      },
+    ],
+    order: [{ kind: 'slot' as const, id: 'slot-1' }],
+    sections: [{ id: 'sec-1', title: 'Part A' }],
+  };
+
+  it('seeds them on a new group so peers get the draws', async () => {
+    await createSyncedQuizGroup({
+      groupId: GROUP_ID,
+      uid: UID,
+      title: 'New Quiz',
+      questions: [],
+      ...BANK_FIELDS,
+    });
+    const [, payload] = (firestore.setDoc as unknown as Mock).mock.calls[0] as [
+      unknown,
+      Record<string, unknown>,
+    ];
+    expect(payload).toMatchObject(BANK_FIELDS);
+  });
+
+  it('publishes them, and clears them when the quiz no longer has any', async () => {
+    const run = async (withBank: boolean) => {
+      const { tx, updates } = makeFakeTx();
+      tx.get.mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ ...BASE_GROUP_DOC }),
+      });
+      (firestore.runTransaction as unknown as Mock).mockImplementation(
+        async (_db: unknown, fn: (tx: FakeTx) => Promise<unknown>) => fn(tx)
+      );
+      await publishSyncedQuiz(GROUP_ID, {
+        title: BASE_GROUP_DOC.title,
+        questions: BASE_GROUP_DOC.questions as never,
+        expectedVersion: BASE_GROUP_DOC.version,
+        uid: UID,
+        ...(withBank ? BANK_FIELDS : {}),
+      });
+      return updates[0].patch;
+    };
+    expect(await run(true)).toMatchObject(BANK_FIELDS);
+    const cleared = await run(false);
+    expect(cleared.bankSlots).not.toEqual(BANK_FIELDS.bankSlots);
+    expect(cleared).toHaveProperty('bankSlots');
+  });
+
+  it('returns them to a peer pulling the canonical', async () => {
+    (firestore.getDoc as unknown as Mock).mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({ ...BASE_GROUP_DOC, ...BANK_FIELDS }),
+    });
+    expect(await pullSyncedQuizContent(GROUP_ID)).toMatchObject(BANK_FIELDS);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // useSyncedQuizGroupsByIds — loading must resolve even with duplicate ids
 // ---------------------------------------------------------------------------

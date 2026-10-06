@@ -19,6 +19,7 @@ import { usePlcDocs } from '@/hooks/usePlcDocs';
 import { writePlcQuizEntry } from '@/hooks/usePlcQuizzes';
 import { writePlcVideoActivityEntry } from '@/hooks/usePlcVideoActivities';
 import { pullSyncedQuizContent } from '@/hooks/useSyncedQuizGroups';
+import { quizServedQuestionCount } from '@/utils/questionBanks';
 import { pullSyncedVideoActivityContent } from '@/hooks/useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
 import { getPlcMemberEmail } from '@/utils/plc';
@@ -141,7 +142,7 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
         plcQuizId: crypto.randomUUID(),
         syncGroupId: res.refId,
         title: canonical.title || res.title,
-        questionCount: canonical.questions.length,
+        questionCount: quizServedQuestionCount(canonical),
         sharedByName,
         sharedByEmail,
       });

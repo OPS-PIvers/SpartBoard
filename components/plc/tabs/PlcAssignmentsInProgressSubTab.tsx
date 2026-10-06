@@ -16,6 +16,8 @@ import { usePlcAssignmentIndex } from '@/hooks/usePlcAssignmentIndex';
 import { usePlcAssignments } from '@/hooks/usePlcAssignments';
 import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import { useBankSources } from '@/hooks/useBankSources';
+import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
 import {
   callJoinPlcAssignmentSyncGroup,
   callLeaveSyncedQuizGroup,
@@ -28,6 +30,7 @@ import { PlcAssignmentImportModal } from '../PlcAssignmentImportModal';
 import { PlcAssignmentSessionModal } from '@/components/plc/assignments/PlcAssignmentSessionModal';
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
 import { PlcAssignmentIndexRow } from './PlcAssignmentIndexRow';
+import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
 
 interface PlcAssignmentsInProgressSubTabProps {
   plc: Plc;
@@ -107,11 +110,18 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
   // post-import setup modal reads `assignments` and calls `setAssignmentRosters`.
   const importActive =
     importTarget !== null || busyRowId !== null || pendingSetup !== null;
-  const { saveQuiz, deleteQuiz, attachSyncLinkage, isDriveConnected } = useQuiz(
-    importActive ? user?.uid : undefined
-  );
+  const {
+    saveQuiz,
+    deleteQuiz,
+    attachSyncLinkage,
+    saveDriveSnapshot,
+    isDriveConnected,
+  } = useQuiz(importActive ? user?.uid : undefined);
   const { assignments, createAssignment, setAssignmentRosters } =
     useQuizAssignments(importActive ? user?.uid : undefined);
+  const { loadBankContentsForQuiz } = useBankSources(
+    importActive ? user?.uid : undefined
+  );
 
   const visible = useMemo(
     () =>
@@ -193,10 +203,7 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
           // Deep-clone so the saved copy doesn't share question objects with
           // the canonical doc (or the assignment payload built below).
           questions: structuredClone(canonical.questions),
-          ...(canonical.stimuli && canonical.stimuli.length > 0
-            ? { stimuli: structuredClone(canonical.stimuli) }
-            : {}),
-          ...(canonical.language ? { language: canonical.language } : {}),
+          ...structuredClone(syncedQuizContentFields(canonical)),
           createdAt: now,
           updatedAt: now,
         };
@@ -222,19 +229,28 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
           });
         }
 
+        const content = await resolveQuizAssignContent(
+          fresh,
+          savedMeta.driveFileId,
+          { loadBankContentsForQuiz, saveDriveSnapshot }
+        );
         const created = await createAssignment(
           {
             id: savedMeta.id,
             title: savedMeta.title,
-            driveFileId: savedMeta.driveFileId,
-            questions: canonical.questions,
-            ...(canonical.stimuli && canonical.stimuli.length > 0
-              ? { stimuli: canonical.stimuli }
-              : {}),
+            driveFileId: content.driveFileId,
+            questions: content.questions,
+            ...(content.stimuli?.length ? { stimuli: content.stimuli } : {}),
             ...(canonical.language ? { language: canonical.language } : {}),
+            ...(fresh.sections?.length
+              ? { order: fresh.order, sections: fresh.sections }
+              : {}),
           },
           {
             ...behavior,
+            ...(content.resolvedDriveFileId
+              ? { resolvedDriveFileId: content.resolvedDriveFileId }
+              : {}),
             // PLC linkage so this pickup registers on the In-progress tab
             // alongside the originator's run.
             plc: {
@@ -247,6 +263,7 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
           {
             initialStatus: 'paused',
             skipPlcTemplateWrite: true,
+            ...(content.bankSlots ? { bankSlots: content.bankSlots } : {}),
             ...(mode === 'sync' && liveVersion !== undefined
               ? {
                   syncedFrom: {
@@ -319,6 +336,8 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
       busyRowId,
       createAssignment,
       deleteQuiz,
+      loadBankContentsForQuiz,
+      saveDriveSnapshot,
       isDriveConnected,
       plc,
       saveQuiz,

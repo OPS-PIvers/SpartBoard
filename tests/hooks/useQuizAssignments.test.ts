@@ -1772,6 +1772,40 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     expect(batchCommit).not.toHaveBeenCalled();
   });
 
+  it('refuses to sync when the shared quiz now draws from a question bank', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [],
+      bankSlots: [
+        {
+          id: 'slot-1',
+          bankId: 'bank-1',
+          bankTitle: 'Bank',
+          mode: 'random',
+          count: 5,
+        },
+      ],
+      version: 5,
+    });
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        teacherUid: TEACHER_UID,
+        sync: { groupId: 'group-1', syncedVersion: 4 },
+      }),
+    });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await expect(
+      result.current.syncAssignmentToLatest(ASSIGNMENT_ID)
+    ).rejects.toThrow(/question bank/);
+    expect(batchCommit).not.toHaveBeenCalled();
+  });
+
   it('returns updated:false when the canonical version is not ahead of the assignment snapshot', async () => {
     // Pull the synced-quizzes module so we can override the per-call
     // mock without touching the global `vi.mock` factory.

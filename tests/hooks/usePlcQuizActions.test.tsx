@@ -114,6 +114,12 @@ let mockIsDriveConnected = true;
 const loadSyncedTranslations = vi
   .fn()
   .mockResolvedValue({ translations: {}, complete: true });
+const loadBankContentsForQuiz = vi.fn().mockResolvedValue(new Map());
+const saveDriveSnapshot = vi.fn().mockResolvedValue('snapshot-file');
+vi.mock('@/hooks/useBankSources', () => ({
+  useBankSources: () => ({ loadBankContentsForQuiz }),
+}));
+
 vi.mock('@/hooks/useQuiz', () => ({
   SyncedQuizVersionConflictError: class extends Error {},
   useQuiz: () => ({
@@ -124,6 +130,7 @@ vi.mock('@/hooks/useQuiz', () => ({
     loadQuizData,
     loadSyncedTranslations,
     pullSyncedQuiz,
+    saveDriveSnapshot,
     isDriveConnected: mockIsDriveConnected,
   }),
 }));
@@ -427,6 +434,62 @@ describe('usePlcQuizActions', () => {
       ];
       expect(settings.plc).toEqual(linkage);
       expect(settings.plc).not.toHaveProperty('sheetUrl');
+    });
+
+    it('keeps the bank slots on the library copy and assigns the drawn pool', async () => {
+      const bankQ = (id: string) => ({
+        id,
+        type: 'MC',
+        text: id,
+        timeLimit: 0,
+        correctAnswer: 'a',
+        incorrectAnswers: ['b'],
+      });
+      const bankSlots = [
+        {
+          id: 'slot-1',
+          bankId: 'bank-1',
+          syncGroupId: 'synced-bank-1',
+          bankTitle: 'Vocab bank',
+          mode: 'random' as const,
+          count: 2,
+        },
+      ];
+      vi.mocked(pullSyncedQuizContent).mockResolvedValueOnce({
+        title: 'Photosynthesis Quiz',
+        questions: [],
+        bankSlots,
+        version: 1,
+      });
+      loadBankContentsForQuiz.mockResolvedValueOnce(
+        new Map([
+          [
+            'synced-bank-1',
+            {
+              id: 'bank-1',
+              title: 'Vocab bank',
+              questions: [bankQ('b1'), bankQ('b2'), bankQ('b3')],
+            },
+          ],
+        ])
+      );
+      saveDriveSnapshot.mockResolvedValueOnce('snapshot-file');
+      renderSubject();
+      fireEvent.click(screen.getByText('Assign'));
+      await pickCopy();
+
+      await waitFor(() => expect(createAssignment).toHaveBeenCalledTimes(1));
+      expect(saveQuiz.mock.calls[0][0]).toMatchObject({ bankSlots });
+      const [quizArg, settings, opts] = createAssignment.mock
+        .calls[0] as unknown as [
+        { driveFileId: string; questions: { id: string }[] },
+        Record<string, unknown>,
+        Record<string, unknown>,
+      ];
+      expect(quizArg.questions.map((q) => q.id)).toEqual(['b1', 'b2', 'b3']);
+      expect(quizArg.driveFileId).toBe('snapshot-file');
+      expect(settings.resolvedDriveFileId).toBe('snapshot-file');
+      expect(opts.bankSlots).toHaveLength(1);
     });
 
     it('Save invokes setAssignmentRosters with the new assignment id', async () => {

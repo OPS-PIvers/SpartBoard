@@ -77,6 +77,7 @@ import {
 import { PlcNewAssignmentSharingSlot } from './PlcNewAssignmentSharingSlot';
 import { formatShortDate } from './newAssignmentHelpers';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
+import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
 
 interface PlcNewQuizAssignmentModalProps {
   plc: Plc;
@@ -259,6 +260,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
             uid: user.uid,
             title: data.title,
             questions: data.questions,
+            ...syncedQuizContentFields(data),
             plcId: plc.id,
             behavior: pickedQuiz.behavior,
           });

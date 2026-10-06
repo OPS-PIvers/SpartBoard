@@ -42,12 +42,16 @@ import { db, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
 import { normalizeQuizTranslation } from '@/utils/quizTranslationNormalize';
+import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
 import type { QuizDriveLike } from '@/utils/mockQuizDriveService';
 import type {
   PaperSheetStimulus,
   PlcQuizVersionContent,
+  QuizBankSlot,
   QuizBehaviorSettings,
+  QuizOrderEntry,
   QuizQuestion,
+  QuizSection,
   QuizStimulus,
   QuizTranslation,
   QuizTranslationIndexEntry,
@@ -78,6 +82,10 @@ export interface PublishSyncedQuizInput {
   paperSheetStimuli?: PaperSheetStimulus[];
   /** Read-aloud language. Omitted = clear on the canonical. */
   language?: string;
+  /** Bank slots, order and sections. Omitted = clear on the canonical. */
+  bankSlots?: QuizBankSlot[];
+  order?: QuizOrderEntry[];
+  sections?: QuizSection[];
   /**
    * The version of the canonical doc the caller's local Drive replica is
    * based on. The transaction asserts `current.version === expectedVersion`;
@@ -340,6 +348,9 @@ export async function pullSyncedQuizContent(groupId: string): Promise<{
   stimuli?: QuizStimulus[];
   paperSheetStimuli?: PaperSheetStimulus[];
   language?: string;
+  bankSlots?: QuizBankSlot[];
+  order?: QuizOrderEntry[];
+  sections?: QuizSection[];
   behavior?: QuizBehaviorSettings;
   translations?: Record<string, QuizTranslation>;
   version: number;
@@ -355,6 +366,9 @@ export async function pullSyncedQuizContent(groupId: string): Promise<{
     | 'stimuli'
     | 'paperSheetStimuli'
     | 'language'
+    | 'bankSlots'
+    | 'order'
+    | 'sections'
     | 'behavior'
     | 'translations'
     | 'version'
@@ -366,6 +380,9 @@ export async function pullSyncedQuizContent(groupId: string): Promise<{
     stimuli: data.stimuli,
     paperSheetStimuli: data.paperSheetStimuli,
     language: data.language,
+    ...(data.bankSlots?.length ? { bankSlots: data.bankSlots } : {}),
+    ...(data.order?.length ? { order: data.order } : {}),
+    ...(data.sections?.length ? { sections: data.sections } : {}),
     behavior: data.behavior,
     ...(translations ? { translations } : {}),
     version: data.version ?? 1,
@@ -389,6 +406,9 @@ export async function createSyncedQuizGroup(input: {
   stimuli?: QuizStimulus[];
   paperSheetStimuli?: PaperSheetStimulus[];
   language?: string;
+  bankSlots?: QuizBankSlot[];
+  order?: QuizOrderEntry[];
+  sections?: QuizSection[];
   plcId?: string;
   behavior?: QuizBehaviorSettings;
   translations?: Record<string, QuizTranslation>;
@@ -399,13 +419,7 @@ export async function createSyncedQuizGroup(input: {
     version: 1,
     title: input.title,
     questions: input.questions,
-    ...(input.stimuli && input.stimuli.length > 0
-      ? { stimuli: input.stimuli }
-      : {}),
-    ...(input.paperSheetStimuli && input.paperSheetStimuli.length > 0
-      ? { paperSheetStimuli: input.paperSheetStimuli }
-      : {}),
-    ...(input.language ? { language: input.language } : {}),
+    ...syncedQuizContentFields(input),
     participants: { [input.uid]: { joinedAt: now } },
     ...(input.plcId ? { plcId: input.plcId } : {}),
     ...(input.behavior ? { behavior: input.behavior } : {}),
@@ -479,6 +493,9 @@ export async function publishSyncedQuiz(
           ? input.paperSheetStimuli
           : deleteField(),
       language: input.language ?? deleteField(),
+      bankSlots: input.bankSlots?.length ? input.bankSlots : deleteField(),
+      order: input.order?.length ? input.order : deleteField(),
+      sections: input.sections?.length ? input.sections : deleteField(),
       // Preserve-on-omit like `behavior`: a caller that never loaded the
       // sidecars must not wipe the whole PLC's locales. An explicit empty map
       // is the only way to clear.
@@ -529,19 +546,16 @@ function buildQuizVersionContent(
     | 'stimuli'
     | 'paperSheetStimuli'
     | 'language'
+    | 'bankSlots'
+    | 'order'
+    | 'sections'
     | 'behavior'
   >
 ): PlcQuizVersionContent {
   return {
     title: source.title,
     questions: source.questions ?? [],
-    ...(source.stimuli && source.stimuli.length > 0
-      ? { stimuli: source.stimuli }
-      : {}),
-    ...(source.paperSheetStimuli && source.paperSheetStimuli.length > 0
-      ? { paperSheetStimuli: source.paperSheetStimuli }
-      : {}),
-    ...(source.language ? { language: source.language } : {}),
+    ...syncedQuizContentFields(source),
     ...(source.behavior ? { behavior: source.behavior } : {}),
   };
 }
@@ -646,6 +660,8 @@ export async function restoreSyncedVersion(
     content.paperSheetStimuli ?? current.paperSheetStimuli;
   // Snapshots predate translations, so a restore preserves the canonical's.
   const restoredTranslations = current.translations;
+  // Older snapshots carry no bank slots; keep the canonical's draws.
+  const restoredBankSlots = content.bankSlots ?? current.bankSlots;
   return publishSyncedQuiz(groupId, {
     title: content.title,
     questions: normalizeQuizQuestions(content.questions),
@@ -658,6 +674,9 @@ export async function restoreSyncedVersion(
       ? { paperSheetStimuli: restoredSheetStimuli }
       : {}),
     ...(content.language ? { language: content.language } : {}),
+    ...(restoredBankSlots?.length ? { bankSlots: restoredBankSlots } : {}),
+    ...(content.order?.length ? { order: content.order } : {}),
+    ...(content.sections?.length ? { sections: content.sections } : {}),
     ...(content.behavior ? { behavior: content.behavior } : {}),
     ...(restoredTranslations ? { translations: restoredTranslations } : {}),
   });
