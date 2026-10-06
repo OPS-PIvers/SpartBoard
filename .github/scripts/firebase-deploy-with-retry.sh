@@ -28,11 +28,21 @@
 # Required env: GOOGLE_APPLICATION_CREDENTIALS pointing at a service
 # account JSON file with deploy permissions.
 # Optional env: FIREBASE_DEPLOY_MAX_ATTEMPTS (default 4).
+# Optional env: FIREBASE_DEPLOY_ONLY (default functions,firestore:indexes,storage;
+# empty skips the CLI deploy) and RELEASE_FIRESTORE_RULES (default true).
 
 set -uo pipefail
 
 PROJECT_ID="${1:?usage: $0 <project-id>}"
 MAX_ATTEMPTS="${FIREBASE_DEPLOY_MAX_ATTEMPTS:-4}"
+DEPLOY_ONLY="${FIREBASE_DEPLOY_ONLY-functions,firestore:indexes,storage}"
+RELEASE_RULES="${RELEASE_FIRESTORE_RULES:-true}"
+
+# Rules never ride the CLI deploy (see release_firestore_rules below).
+if [[ ",$DEPLOY_ONLY," =~ ,firestore(:rules)?, ]]; then
+  echo "ERROR: FIREBASE_DEPLOY_ONLY must not include firestore rules (got '$DEPLOY_ONLY')." >&2
+  exit 2
+fi
 
 LOG_FILE="$(mktemp)"
 trap 'rm -f "$LOG_FILE"' EXIT
@@ -67,6 +77,10 @@ node scripts/stripRulesComments.mjs firestore.rules --write
 # retry for transient statuses. It runs after the CLI deploy, which is where the
 # rules release sat when the CLI still owned it.
 release_firestore_rules() {
+  if [[ "$RELEASE_RULES" != "true" ]]; then
+    echo "Skipping firestore.rules release (RELEASE_FIRESTORE_RULES=$RELEASE_RULES)."
+    return 0
+  fi
   echo "::group::release firestore.rules"
   node scripts/releaseFirestoreRules.mjs "$PROJECT_ID"
   local code=$?
@@ -77,6 +91,11 @@ release_firestore_rules() {
   return "$code"
 }
 
+if [[ -z "$DEPLOY_ONLY" ]]; then
+  release_firestore_rules
+  exit $?
+fi
+
 attempt=1
 backoff=10
 while true; do
@@ -84,7 +103,7 @@ while true; do
   # `tee` keeps the deploy output streaming in the CI log while also
   # capturing it for the transient-error check. PIPESTATUS[0] is the
   # firebase exit code (tee always succeeds).
-  pnpm exec firebase deploy --only functions,firestore:indexes,storage --project "$PROJECT_ID" --force 2>&1 | tee "$LOG_FILE"
+  pnpm exec firebase deploy --only "$DEPLOY_ONLY" --project "$PROJECT_ID" --force 2>&1 | tee "$LOG_FILE"
   code=${PIPESTATUS[0]}
   echo "::endgroup::"
 

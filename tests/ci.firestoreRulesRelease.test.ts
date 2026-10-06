@@ -21,6 +21,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { spawnSync } from 'child_process';
 import {
   blockingIssues,
   isTransientStatus,
@@ -53,10 +54,24 @@ describe('firestore.rules deploy path', () => {
     const commands = deployCommands();
     expect(commands).toHaveLength(1);
     for (const command of commands) {
-      expect(command).toContain('--only functions,firestore:indexes,storage');
+      expect(command).toContain('--only "$DEPLOY_ONLY"');
       // `--only firestore` would sweep rules back in alongside indexes.
       expect(command).not.toMatch(/--only \S*(^|,)firestore(,|\s|$)/);
       expect(command).not.toContain('firestore:rules');
+    }
+  });
+
+  it('defaults the deploy targets to everything except rules and refuses rules', () => {
+    expect(deployScript()).toContain(
+      'DEPLOY_ONLY="${FIREBASE_DEPLOY_ONLY-functions,firestore:indexes,storage}"'
+    );
+    for (const only of ['firestore', 'firestore:rules', 'functions,firestore']) {
+      const result = spawnSync(
+        'bash',
+        [resolve(repoRoot, '.github/scripts/firebase-deploy-with-retry.sh'), 'demo'],
+        { env: { ...process.env, FIREBASE_DEPLOY_ONLY: only } }
+      );
+      expect(result.status).toBe(2);
     }
   });
 
