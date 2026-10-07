@@ -8,6 +8,7 @@ import type {
 import { dateAggregates } from '@/utils/plcDataOverview';
 import type { ResolvedTeamLayout } from '@/utils/teamLayout';
 import { saveTeamLayout } from '@/hooks/useTeamLayout';
+import { pinnedHero, type TeamHeroPinner } from './heroPin';
 
 export interface NewerHeroData {
   assessmentId: string;
@@ -61,16 +62,17 @@ export function writeNudgeDismissed(plcId: string, assessmentId: string): void {
 export async function showLatestHero(
   plcId: string,
   layout: ResolvedTeamLayout,
-  newer: NewerHeroData
+  newer: NewerHeroData,
+  pinner?: TeamHeroPinner
 ): Promise<void> {
   await saveTeamLayout(plcId, {
     ...layout,
     hero:
       layout.heroRule === 'latestAssessment'
         ? { mode: 'default' }
-        : {
-            mode: 'pinned',
-            ref: { kind: 'assessment', assessmentId: newer.assessmentId },
-          },
+        : pinnedHero(
+            { kind: 'assessment', assessmentId: newer.assessmentId },
+            pinner
+          ),
   });
 }

@@ -12,8 +12,10 @@ import { usePlcGoals } from '@/hooks/usePlcGoals';
 import { usePlcLearningTargets } from '@/hooks/useLearningTargets';
 import { usePlcAggregatesData, usePlcNotesData } from '@/context/usePlcContext';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { logError } from '@/utils/logError';
 import { selectNewerHeroData } from '@/components/plc/teams/heroes/heroStaleness';
+import { heroPinner } from '@/components/plc/teams/heroes/heroPin';
 import { teamHeroKindLabel } from '@/components/plc/teams/teamLabels';
 import { districtDefaultLayout } from '@/components/plc/teams/teamRollout';
 import { LayoutEditorView, type HeroPinGroup } from './LayoutEditorView';
@@ -27,6 +29,7 @@ export const TeamLayoutEditor: React.FC<{
 }> = ({ plc, layout, adminDefaults, isLead, onClose }) => {
   const { t } = useTranslation();
   const { addToast } = useDashboard();
+  const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const { assessments } = usePlcAssessments(plc.id);
   const { data: aggregates } = usePlcAggregatesData();
@@ -113,6 +116,7 @@ export const TeamLayoutEditor: React.FC<{
       pinGroups={pinGroups}
       newerFor={(ref) => selectNewerHeroData(ref, aggregates, assessments)}
       isLead={isLead}
+      pinner={heroPinner(user)}
       saving={saving}
       onSave={handleSave}
       onClose={onClose}

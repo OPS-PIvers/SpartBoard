@@ -5,8 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { Clock } from 'lucide-react';
 import type { Plc } from '@/types';
 import type { ResolvedTeamLayout } from '@/utils/teamLayout';
+import { useAuth } from '@/context/useAuth';
 import { logError } from '@/utils/logError';
 import { TextLink } from '@/components/plc/redesignMockup/ui';
+import { heroPinner } from './heroPin';
 import {
   readNudgeDismissed,
   showLatestHero,
@@ -66,6 +68,7 @@ export const HeroStaleNudge: React.FC<{
   isLead: boolean;
   className?: string;
 }> = ({ plc, layout, isLead, className }) => {
+  const { user } = useAuth();
   const newer = useNewerHeroData(layout);
   const [dismissed, setDismissed] = useState(() => readNudgeDismissed(plc.id));
   if (!isLead || !newer || dismissed === newer.assessmentId) return null;
@@ -74,8 +77,9 @@ export const HeroStaleNudge: React.FC<{
       newer={newer}
       className={className}
       onShowLatest={() => {
-        showLatestHero(plc.id, layout, newer).catch((err: unknown) =>
-          logError('HeroStaleNudge.showLatest', err, { plcId: plc.id })
+        showLatestHero(plc.id, layout, newer, heroPinner(user)).catch(
+          (err: unknown) =>
+            logError('HeroStaleNudge.showLatest', err, { plcId: plc.id })
         );
       }}
       onKeepPinned={() => {

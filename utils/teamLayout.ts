@@ -81,10 +81,19 @@ export function parseTeamHeroRef(raw: unknown): TeamHeroRef | undefined {
 }
 
 /** A pinned hero needs a valid ref; anything else follows the type's default rule. */
+function parsePinnedBy(raw: unknown): TeamHero['pinnedBy'] {
+  if (!isRecord(raw) || !nonEmptyString(raw.uid)) return undefined;
+  return { uid: raw.uid, name: typeof raw.name === 'string' ? raw.name : '' };
+}
+
 export function parseTeamHero(raw: unknown): TeamHero {
   if (isRecord(raw) && raw.mode === 'pinned') {
     const ref = parseTeamHeroRef(raw.ref);
-    if (ref) return { mode: 'pinned', ref };
+    const pinnedBy = parsePinnedBy(raw.pinnedBy);
+    if (ref)
+      return pinnedBy
+        ? { mode: 'pinned', ref, pinnedBy }
+        : { mode: 'pinned', ref };
   }
   return { mode: 'default' };
 }
@@ -292,7 +301,13 @@ export function resolveTeamLayout(
 export function toStoredTeamLayout(layout: PlcTeamLayout): PlcTeamLayout {
   const hero: TeamHero =
     layout.hero.mode === 'pinned' && layout.hero.ref
-      ? { mode: 'pinned', ref: layout.hero.ref }
+      ? layout.hero.pinnedBy
+        ? {
+            mode: 'pinned',
+            ref: layout.hero.ref,
+            pinnedBy: layout.hero.pinnedBy,
+          }
+        : { mode: 'pinned', ref: layout.hero.ref }
       : { mode: 'default' };
   return {
     pages: layout.pages.map((p) => ({ id: p.id, enabled: p.enabled })),

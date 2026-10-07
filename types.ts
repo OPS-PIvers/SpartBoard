@@ -532,6 +532,7 @@ export type TeamHeroRule =
 export interface TeamHero {
   mode: 'default' | 'pinned';
   ref?: TeamHeroRef;
+  pinnedBy?: { uid: string; name: string };
 }
 
 export interface TeamPageSetting {

@@ -2,7 +2,13 @@
 
 import type { ComponentType, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import type { Plc, TeamCardId, TeamHeroRef, TeamPageId } from '@/types';
+import type {
+  Plc,
+  TeamCardId,
+  TeamHero,
+  TeamHeroRef,
+  TeamPageId,
+} from '@/types';
 import type { ResolvedTeamLayout } from '@/utils/teamLayout';
 
 export interface TeamPageProps {
@@ -21,6 +27,8 @@ export interface TeamCardProps {
 export interface TeamHeroProps {
   plc: Plc;
   heroRef: TeamHeroRef | null;
+  /** Set on a pinned hero; renders as "Pinned by {name}". */
+  pinnedBy?: TeamHero['pinnedBy'];
   isLead: boolean;
 }
 

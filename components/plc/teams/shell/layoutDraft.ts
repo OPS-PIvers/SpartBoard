@@ -4,10 +4,15 @@ import type {
   PlcGroupType,
   PlcTeamLayout,
   TeamCardId,
+  TeamHero,
   TeamHeroRef,
   TeamPageId,
   TeamPageSetting,
 } from '@/types';
+import {
+  pinnedHero,
+  type TeamHeroPinner,
+} from '@/components/plc/teams/heroes/heroPin';
 import { TEAM_CARD_ROWS } from './cardRows';
 import {
   TEAM_LANDING_CARD_CATALOG,
@@ -124,7 +129,9 @@ export function cardBlocked(
 
 export function layoutFromDraft(
   draft: LayoutDraft,
-  refByKey: ReadonlyMap<string, TeamHeroRef>
+  refByKey: ReadonlyMap<string, TeamHeroRef>,
+  pinner?: TeamHeroPinner,
+  previous?: TeamHero
 ): PlcTeamLayout {
   const ref =
     draft.heroMode === 'pinned' && draft.heroKey
@@ -142,7 +149,7 @@ export function layoutFromDraft(
         .flatMap((c) => c.ids),
       ...draft.extraCards,
     ],
-    hero: ref ? { mode: 'pinned', ref } : { mode: 'default' },
+    hero: ref ? pinnedHero(ref, pinner, previous) : { mode: 'default' },
   };
 }
 

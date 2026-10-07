@@ -10,6 +10,8 @@ import { packLandingRows } from './landing/landingRows';
 import { TEAM_CARD_REGISTRY } from './cardRegistry';
 import { selectNewerHeroData } from './heroes/heroStaleness';
 import { resolveTeamHeroEntry } from './heroes/heroRegistry';
+import { heroPinner } from './heroes/heroPin';
+import { parseTeamHero, toStoredTeamLayout } from '@/utils/teamLayout';
 import {
   cardBlocked,
   cardRows,
@@ -150,6 +152,69 @@ describe('layout draft', () => {
       mode: 'pinned',
       ref,
     });
+  });
+});
+
+describe('hero pinnedBy', () => {
+  const ref = { kind: 'goal' as const, goalId: 'g1' };
+  const priya = { uid: 'u-priya', name: 'Priya Shah' };
+  const sam = { uid: 'u-sam', name: 'Sam Lee' };
+  const pinnedDraft = {
+    ...draftFromLayout(plcLayout, 'plc'),
+    heroMode: 'pinned' as const,
+    heroKey: 'goal:g1',
+  };
+  const refs = new Map([['goal:g1', ref]]);
+
+  it('writes the pinning lead and clears it on Follow default', () => {
+    const pinned = layoutFromDraft(pinnedDraft, refs, priya);
+    expect(pinned.hero).toEqual({ mode: 'pinned', ref, pinnedBy: priya });
+    const followed = layoutFromDraft(
+      { ...draftFromLayout(pinned, 'plc'), heroMode: 'default' },
+      refs,
+      sam,
+      pinned.hero
+    );
+    expect(followed.hero).toEqual({ mode: 'default' });
+  });
+
+  it('keeps the first pinner when the same item stays pinned', () => {
+    const previous = { mode: 'pinned' as const, ref, pinnedBy: priya };
+    expect(layoutFromDraft(pinnedDraft, refs, sam, previous).hero).toEqual(
+      previous
+    );
+    const other = {
+      mode: 'pinned' as const,
+      ref: { kind: 'goal' as const, goalId: 'g2' },
+      pinnedBy: priya,
+    };
+    expect(
+      layoutFromDraft(pinnedDraft, refs, sam, other).hero.pinnedBy
+    ).toEqual(sam);
+  });
+
+  it('survives parse and store, and drops a malformed value', () => {
+    const hero = { mode: 'pinned', ref, pinnedBy: priya };
+    expect(parseTeamHero(hero)).toEqual(hero);
+    expect(
+      parseTeamHero({ mode: 'pinned', ref, pinnedBy: { name: 'x' } })
+    ).toEqual({ mode: 'pinned', ref });
+    expect(parseTeamHero({ mode: 'default', pinnedBy: priya })).toEqual({
+      mode: 'default',
+    });
+    expect(
+      toStoredTeamLayout({
+        ...plcLayout,
+        hero: { mode: 'pinned', ref, pinnedBy: priya },
+      }).hero
+    ).toEqual(hero);
+  });
+
+  it('names the pinner from the signed-in user', () => {
+    expect(
+      heroPinner({ uid: 'u1', displayName: null, email: 'a@b.org' })
+    ).toEqual({ uid: 'u1', name: 'a@b.org' });
+    expect(heroPinner(null)).toBeUndefined();
   });
 });
 

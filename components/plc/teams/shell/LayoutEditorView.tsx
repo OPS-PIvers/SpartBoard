@@ -22,6 +22,7 @@ import {
 } from '@/components/plc/teams/teamLabels';
 import { HeroStaleNudgeView } from '@/components/plc/teams/heroes/HeroStaleNudge';
 import type { NewerHeroData } from '@/components/plc/teams/heroes/heroStaleness';
+import type { TeamHeroPinner } from '@/components/plc/teams/heroes/heroPin';
 import {
   cardBlocked,
   cardRows,
@@ -48,6 +49,8 @@ export interface LayoutEditorViewProps {
   /** Newer data than the item being pinned, if any. */
   newerFor?: (ref: TeamHeroRef) => NewerHeroData | null;
   isLead: boolean;
+  /** Written as `pinnedBy` when this save pins a new item. */
+  pinner?: TeamHeroPinner;
   saving?: boolean;
   onSave: (layout: PlcTeamLayout) => void;
   onClose: () => void;
@@ -61,6 +64,7 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
   pinGroups,
   newerFor,
   isLead,
+  pinner,
   saving = false,
   onSave,
   onClose,
@@ -94,7 +98,9 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
     onSave(
       layoutFromDraft(
         { ...draft, heroKey: draft.heroMode === 'pinned' ? selectedKey : null },
-        refByKey
+        refByKey,
+        pinner,
+        layout.hero
       )
     );
 
