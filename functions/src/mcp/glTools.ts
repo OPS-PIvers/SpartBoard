@@ -645,6 +645,14 @@ interface EditInput {
   steps?: StepInput[];
 }
 
+/** Whether a revision's steps still point at slides the set has; tour steps don't use slides. */
+export const revisionStepsFitSlides = (
+  set: Pick<GlSet, 'mode' | 'imageUrls'>,
+  steps: readonly Pick<Step, 'imageIndex'>[]
+): boolean =>
+  set.mode === 'tour' ||
+  steps.every((s) => !(s.imageIndex >= (set.imageUrls?.length ?? 0)));
+
 /** restore_revision for Guided Learning; called from tools.ts. */
 export async function restoreGuidedLearningRevision(
   ctx: ToolContext,
@@ -655,7 +663,7 @@ export async function restoreGuidedLearningRevision(
   await assertAccess(ctx, source);
   const loaded = await loadSet(ctx, source, String(rev.get('itemId')));
   const steps = (data.steps as Step[] | undefined) ?? loaded.set.steps;
-  if (steps.some((s) => s.imageIndex >= loaded.set.imageUrls.length)) {
+  if (!revisionStepsFitSlides(loaded.set, steps)) {
     throw new ToolError(
       "The set's slides changed since that version, so it can't be restored here. Restore it in SpartBoard."
     );

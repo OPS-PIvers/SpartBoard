@@ -257,6 +257,7 @@ const MISSING_STEP = {
     },
   },
 } as GuidedLearningStep;
+const NO_SLIDES = { imageUrls: [] } as unknown as GuidedLearningSet;
 const GUTTER = 16;
 
 const boldText = (text: string) =>
@@ -540,7 +541,7 @@ export const LiveTourViewsDevHarness: React.FC = () => {
         >
           {state === 'missing' ? (
             <>
-              <TourMiniPlayer step={MISSING_STEP} />
+              <TourMiniPlayer set={NO_SLIDES} step={MISSING_STEP} />
               <p className="text-sm text-slate-200">
                 {t('tours.anchorMissingPreview')}
               </p>

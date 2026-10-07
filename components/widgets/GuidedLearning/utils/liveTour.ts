@@ -21,3 +21,28 @@ export const freshTourThumbnail = (
   const thumb = tourThumbnail(step);
   return thumb && thumb.anchor === step.tour?.anchor ? thumb : null;
 };
+
+type PictureStep = Pick<GuidedLearningStep, 'tour' | 'imageIndex'>;
+type PictureSet = Pick<GuidedLearningSet, 'imageUrls' | 'imageKinds'>;
+
+/** The step's still slide from a tour recorded before thumbnails, or null. */
+const legacySlideUrl = (step: PictureStep, set: PictureSet): string | null => {
+  const index = step.imageIndex ?? 0;
+  const url = set.imageUrls?.[index];
+  return url && set.imageKinds?.[index] !== 'video' ? url : null;
+};
+
+/** The step's picture URL, falling back to its legacy slide when it has no thumbnail. */
+export const tourPictureUrl = (
+  step: PictureStep,
+  set: PictureSet
+): string | null => tourThumbnail(step)?.url ?? legacySlideUrl(step, set);
+
+/** Like `tourPictureUrl`, but a thumbnail of a different anchor counts as none. */
+export const freshTourPictureUrl = (
+  step: PictureStep,
+  set: PictureSet
+): string | null =>
+  tourThumbnail(step)
+    ? (freshTourThumbnail(step)?.url ?? null)
+    : legacySlideUrl(step, set);

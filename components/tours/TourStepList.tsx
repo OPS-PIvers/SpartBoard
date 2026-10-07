@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GuidedLearningSet } from '@/types';
 import { renderStepText } from '@/components/widgets/GuidedLearning/utils/richText';
-import { tourThumbnail } from '@/components/widgets/GuidedLearning/utils/liveTour';
+import { tourPictureUrl } from '@/components/widgets/GuidedLearning/utils/liveTour';
 
 /** A tour read as numbered steps, for screens where it can't run live. */
 export const TourStepList: React.FC<{ set: GuidedLearningSet }> = ({ set }) => {
@@ -13,9 +13,10 @@ export const TourStepList: React.FC<{ set: GuidedLearningSet }> = ({ set }) => {
       <ol className="flex flex-col gap-3">
         {set.steps.map((step, i) => {
           // Consecutive steps with the same picture show it once.
-          const image = tourThumbnail(step)?.url ?? null;
+          const image = tourPictureUrl(step, set);
           const shown =
-            image && (i === 0 || tourThumbnail(set.steps[i - 1])?.url !== image)
+            image &&
+            (i === 0 || tourPictureUrl(set.steps[i - 1], set) !== image)
               ? image
               : null;
           return (
