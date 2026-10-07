@@ -4545,7 +4545,7 @@
     "startWhat": "What does this tour show?",
     "startWhatPlaceholder": "Add a widget to your board",
     "startBlur": "Your students' names, photos and work are blurred as you record.",
-    "startReview": "You can check and change the blur before anything uploads.",
+    "startReview": "Check and change the blur before uploading.",
     "startTip": "Record on a board that uses test classes.",
     "startUnloaded_one": "{{count}} class list didn't load, so its names can't be blurred automatically.",
     "startUnloaded_other": "{{count}} class lists didn't load, so their names can't be blurred automatically.",

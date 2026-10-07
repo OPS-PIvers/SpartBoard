@@ -3495,7 +3495,7 @@
     "startWhat": "Was zeigt diese Tour?",
     "startWhatPlaceholder": "Ein Widget zur Tafel hinzufügen",
     "startBlur": "Namen, Fotos und Arbeiten deiner Lernenden werden beim Aufnehmen unscharf gemacht.",
-    "startReview": "Du kannst die Unschärfe prüfen und ändern, bevor etwas hochgeladen wird.",
+    "startReview": "Prüfe und ändere die Unschärfe vor dem Hochladen.",
     "startTip": "Nimm auf einer Tafel mit Testklassen auf.",
     "startUnloaded_one": "{{count}} Klassenliste wurde nicht geladen, daher können ihre Namen nicht automatisch unscharf gemacht werden.",
     "startUnloaded_other": "{{count}} Klassenlisten wurden nicht geladen, daher können ihre Namen nicht automatisch unscharf gemacht werden.",

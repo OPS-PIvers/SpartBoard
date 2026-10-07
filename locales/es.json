@@ -3495,7 +3495,7 @@
     "startWhat": "¿Qué muestra este recorrido?",
     "startWhatPlaceholder": "Agregar un widget a tu tablero",
     "startBlur": "Los nombres, fotos y trabajos de tus estudiantes se difuminan mientras grabas.",
-    "startReview": "Puedes revisar y cambiar el difuminado antes de que se suba algo.",
+    "startReview": "Revisa y cambia el difuminado antes de subir.",
     "startTip": "Graba en un tablero que use clases de prueba.",
     "startUnloaded_one": "{{count}} lista de clase no se cargó, así que sus nombres no se pueden difuminar automáticamente.",
     "startUnloaded_other": "{{count}} listas de clase no se cargaron, así que sus nombres no se pueden difuminar automáticamente.",

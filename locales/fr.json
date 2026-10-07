@@ -3495,7 +3495,7 @@
     "startWhat": "Que montre cette visite ?",
     "startWhatPlaceholder": "Ajouter un widget au tableau",
     "startBlur": "Les noms, photos et travaux de tes élèves sont floutés pendant l'enregistrement.",
-    "startReview": "Tu peux vérifier et modifier le flou avant tout envoi.",
+    "startReview": "Vérifie et modifie le flou avant l'envoi.",
     "startTip": "Enregistre sur un tableau qui utilise des classes de test.",
     "startUnloaded_one": "{{count}} liste de classe ne s'est pas chargée, ses noms ne peuvent donc pas être floutés automatiquement.",
     "startUnloaded_other": "{{count}} listes de classe ne se sont pas chargées, leurs noms ne peuvent donc pas être floutés automatiquement.",
