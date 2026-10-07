@@ -2,6 +2,11 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Play, Pause, Volume2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { GuidedLearningPublicStep } from '@/types';
+import {
+  chromeSurface,
+  chromeBody,
+  focusRing,
+} from '@/components/common/lightChrome';
 
 interface Props {
   step: GuidedLearningPublicStep;
@@ -74,7 +79,7 @@ export const AudioInteraction: React.FC<Props> = ({
       style={{ padding: 'min(16px, 4cqmin)' }}
     >
       <div
-        className="bg-slate-800/95 border border-white/20 rounded-2xl w-full shadow-xl"
+        className={`${chromeSurface} rounded-2xl w-full`}
         style={{ maxWidth: 'min(320px, 80cqw)', padding: 'min(20px, 5cqmin)' }}
       >
         <audio
@@ -98,7 +103,7 @@ export const AudioInteraction: React.FC<Props> = ({
           }}
         >
           <div
-            className="rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0"
+            className="rounded-full bg-brand-blue-primary flex items-center justify-center flex-shrink-0"
             style={{
               width: 'min(40px, 10cqmin)',
               height: 'min(40px, 10cqmin)',
@@ -114,14 +119,14 @@ export const AudioInteraction: React.FC<Props> = ({
           </div>
           <div className="flex-1 min-w-0">
             <p
-              className="text-white font-bold truncate"
+              className="text-slate-900 font-bold truncate"
               style={{ fontSize: 'min(14px, 3.5cqmin)' }}
             >
               {step.label ?? t('glPlayer.audio')}
             </p>
             {step.text && (
               <p
-                className="text-slate-300 font-medium truncate"
+                className={`${chromeBody} font-medium truncate`}
                 style={{ fontSize: 'min(11px, 2.8cqmin)' }}
               >
                 {step.text}
@@ -130,7 +135,7 @@ export const AudioInteraction: React.FC<Props> = ({
           </div>
           <button
             onClick={togglePlay}
-            className="rounded-full bg-indigo-600 hover:bg-indigo-500 flex items-center justify-center flex-shrink-0 transition-all active:scale-90"
+            className={`rounded-full bg-brand-blue-primary hover:bg-brand-blue-dark flex items-center justify-center flex-shrink-0 transition-all active:scale-90 ${focusRing}`}
             style={{ width: 'min(36px, 9cqmin)', height: 'min(36px, 9cqmin)' }}
             aria-label={playing ? t('glPlayer.pause') : t('glPlayer.play')}
           >
@@ -156,18 +161,18 @@ export const AudioInteraction: React.FC<Props> = ({
         </div>
         {/* Progress bar */}
         <div
-          className="relative bg-slate-700 rounded-full overflow-hidden"
+          className="relative bg-slate-200 rounded-full overflow-hidden"
           style={{ height: 'min(6px, 1.5cqmin)' }}
         >
           <div
-            className="absolute left-0 top-0 h-full bg-indigo-500 rounded-full transition-all"
+            className="absolute left-0 top-0 h-full bg-brand-blue-primary rounded-full transition-all"
             style={{
               width: duration > 0 ? `${(progress / duration) * 100}%` : '0%',
             }}
           />
         </div>
         <div
-          className="flex justify-between text-slate-300 font-mono mt-1"
+          className="flex justify-between text-slate-500 font-mono mt-1"
           style={{ fontSize: 'min(10px, 2.5cqmin)' }}
         >
           <span>{formatTime(progress)}</span>

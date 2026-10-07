@@ -15,6 +15,7 @@ import { formatUnmappedAnchors } from '@/components/tours/anchorQueue';
 import { redactImage, type RedactRect } from '../../utils/redactImage';
 import type { TourRecording } from './useTourCapture';
 import { keepFrames } from './recordingHandoff';
+import { primaryBtn } from '@/components/common/lightChrome';
 
 /** Smallest drawn area, in image-%, so a stray click draws nothing. */
 const MIN_RECT_PCT = 1;
@@ -357,7 +358,7 @@ export const FrameReview: React.FC<FrameReviewProps> = ({
               type="button"
               onClick={() => void applyBlur()}
               disabled={pending.length === 0 || locked}
-              className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-40"
+              className={`${primaryBtn} disabled:opacity-40`}
             >
               {pending.length > 0
                 ? t('glRecorder.reviewBlur', { count: pending.length })

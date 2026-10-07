@@ -4,6 +4,11 @@ import type {
   GuidedLearningStep,
 } from '@/types';
 import type { PctPoint, PxRect } from '../types/stage';
+import {
+  chromeBody,
+  chromeShadow,
+  chromeSurface,
+} from '@/components/common/lightChrome';
 
 export const CALLOUT_WIDTH_PCT_MIN = 10;
 export const CALLOUT_WIDTH_PCT_MAX = 95;
@@ -191,16 +196,14 @@ export interface CalloutToneStyle {
   labelKey: string;
 }
 
-// Dark matches the pre-v4 cards; Light and Accent keep text at AA contrast or better.
+// Solid cards with the light-chrome shadow; Light matches the tour tip, and every tone keeps AA text contrast.
 export const CALLOUT_TONE_STYLES: Record<
   GuidedLearningCalloutTone,
   CalloutToneStyle
 > = {
   dark: {
-    tooltipCard:
-      'bg-slate-900/90 backdrop-blur-xl text-white border border-white/20 ring-1 ring-black/40',
-    popoverCard:
-      'bg-slate-800/95 backdrop-blur-sm text-white border border-white/20',
+    tooltipCard: `bg-slate-900 text-white border border-white/40 ${chromeShadow}`,
+    popoverCard: `bg-slate-900 text-white border border-white/40 ${chromeShadow}`,
     title: 'text-white',
     body: 'text-slate-100',
     closeButton: 'text-slate-300 hover:text-white',
@@ -210,11 +213,10 @@ export const CALLOUT_TONE_STYLES: Record<
     labelKey: 'glStudio.calloutToneDark',
   },
   light: {
-    tooltipCard:
-      'bg-white text-slate-900 border border-slate-300 ring-1 ring-black/10',
-    popoverCard: 'bg-white text-slate-900 border border-slate-300',
+    tooltipCard: chromeSurface,
+    popoverCard: chromeSurface,
     title: 'text-slate-900',
-    body: 'text-slate-700',
+    body: chromeBody,
     closeButton: 'text-slate-500 hover:text-slate-900',
     line: 'rgb(15,23,42)',
     halo: 'rgba(255,255,255,0.85)',
@@ -222,10 +224,8 @@ export const CALLOUT_TONE_STYLES: Record<
     labelKey: 'glStudio.calloutToneLight',
   },
   accent: {
-    tooltipCard:
-      'bg-[var(--spart-primary,#2d3f89)] text-white border border-white/25 ring-1 ring-black/30',
-    popoverCard:
-      'bg-[var(--spart-primary,#2d3f89)] text-white border border-white/25',
+    tooltipCard: `bg-[var(--spart-primary,#2d3f89)] text-white border border-white/25 ${chromeShadow}`,
+    popoverCard: `bg-[var(--spart-primary,#2d3f89)] text-white border border-white/25 ${chromeShadow}`,
     title: 'text-white',
     body: 'text-white',
     closeButton: 'text-white/80 hover:text-white',

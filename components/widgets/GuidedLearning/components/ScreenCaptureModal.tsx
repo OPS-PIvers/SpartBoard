@@ -410,7 +410,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
           {mode === 'record' && recording && (
             <button
               onClick={stopRecording}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg text-sm transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg text-sm transition-colors"
             >
               <Square className="w-4 h-4 fill-current" />
               Stop &amp; add slide

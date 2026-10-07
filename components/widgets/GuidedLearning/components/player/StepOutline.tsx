@@ -2,6 +2,11 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { GuidedLearningPublicStep } from '@/types';
+import {
+  chromeMuted,
+  chromeSurface,
+  focusRing,
+} from '@/components/common/lightChrome';
 import { plainStepText } from '../../utils/stepText';
 import { TouchHitBox } from './TouchHitBox';
 
@@ -61,7 +66,7 @@ export const StepOutline: React.FC<Props> = ({
           total: steps.length,
         })}
         onClick={() => setOpen((v) => !v)}
-        className="relative text-slate-200 font-bold tabular-nums rounded-full hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+        className={`relative text-slate-700 font-bold tabular-nums rounded-full hover:bg-slate-100 ${focusRing}`}
         style={{
           fontSize: 'var(--gl-text-small, min(12px, 3.2cqmin))',
           padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
@@ -82,7 +87,7 @@ export const StepOutline: React.FC<Props> = ({
               close(true);
             }
           }}
-          className="absolute bottom-full right-0 z-50 overflow-y-auto rounded-xl border border-white/15 bg-slate-900/95 backdrop-blur-md shadow-2xl"
+          className={`absolute bottom-full right-0 z-50 overflow-y-auto rounded-xl ${chromeSurface}`}
           style={{
             marginBottom: 'min(8px, 2cqmin)',
             width: 'min(300px, 80cqw)',
@@ -92,7 +97,7 @@ export const StepOutline: React.FC<Props> = ({
         >
           <div
             id={titleId}
-            className="text-slate-300 font-bold uppercase tracking-wide"
+            className={`${chromeMuted} font-bold uppercase tracking-wide`}
             style={{
               fontSize: 'var(--gl-text-small, min(11px, 3cqmin))',
               padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
@@ -109,7 +114,7 @@ export const StepOutline: React.FC<Props> = ({
                   <li
                     key={`slide-${i}`}
                     aria-hidden="true"
-                    className="text-slate-300 font-semibold"
+                    className={`${chromeMuted} font-semibold`}
                     style={{
                       fontSize: 'var(--gl-text-small, min(11px, 3cqmin))',
                       padding: 'min(8px, 2cqmin) min(8px, 2cqmin) 0',
@@ -135,10 +140,10 @@ export const StepOutline: React.FC<Props> = ({
                         onJump(i);
                         close(false);
                       }}
-                      className={`w-full flex items-center text-left rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 ${
+                      className={`w-full flex items-center text-left rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${focusRing} ${
                         current
-                          ? 'bg-indigo-500/25 text-white'
-                          : 'text-slate-200 hover:bg-white/10'
+                          ? 'bg-brand-blue-lighter text-brand-blue-primary'
+                          : 'text-slate-700 hover:bg-slate-100'
                       }`}
                       style={{
                         gap: 'min(8px, 2cqmin)',
@@ -146,7 +151,9 @@ export const StepOutline: React.FC<Props> = ({
                         fontSize: 'var(--gl-text-body, min(13px, 3.4cqmin))',
                       }}
                     >
-                      <span className="tabular-nums text-slate-300 flex-shrink-0">
+                      <span
+                        className={`tabular-nums ${chromeMuted} flex-shrink-0`}
+                      >
                         {i + 1}
                       </span>
                       <span className="flex-1 truncate">{label}</span>
@@ -158,7 +165,7 @@ export const StepOutline: React.FC<Props> = ({
                       {done && (
                         <Check
                           aria-label={t('glPlayer.outline.done')}
-                          className="text-emerald-300 flex-shrink-0"
+                          className="text-emerald-600 flex-shrink-0"
                           style={{
                             width: 'min(14px, 3.5cqmin)',
                             height: 'min(14px, 3.5cqmin)',

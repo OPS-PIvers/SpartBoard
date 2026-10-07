@@ -17,7 +17,7 @@ export const MisclickHeatmap: React.FC<Props> = ({ set, misclicksBySlide }) => {
 
   if (slides.length === 0) {
     return (
-      <p className="text-slate-300" style={{ fontSize: 'min(12px, 4.5cqmin)' }}>
+      <p className="text-slate-500" style={{ fontSize: 'min(12px, 4.5cqmin)' }}>
         {t('glEngagement.noMisclicks')}
       </p>
     );
@@ -31,10 +31,10 @@ export const MisclickHeatmap: React.FC<Props> = ({ set, misclicksBySlide }) => {
         return (
           <figure
             key={idx}
-            className="bg-white/5 rounded-xl overflow-hidden"
+            className="bg-white border border-slate-200 rounded-xl overflow-hidden"
             data-testid={`heatmap-slide-${idx}`}
           >
-            <div className="relative">
+            <div className="relative bg-slate-950">
               {set.imageKinds?.[idx] === 'video' ? (
                 <video
                   src={url}
@@ -60,14 +60,14 @@ export const MisclickHeatmap: React.FC<Props> = ({ set, misclicksBySlide }) => {
               ))}
             </div>
             <figcaption
-              className="flex justify-between text-slate-300"
+              className="flex justify-between text-slate-500"
               style={{
                 fontSize: 'min(12px, 4.5cqmin)',
                 padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
                 gap: 'min(8px, 2cqmin)',
               }}
             >
-              <span className="text-white font-medium">{caption}</span>
+              <span className="text-slate-900 font-medium">{caption}</span>
               <span className="tabular-nums">
                 {t('glEngagement.misclicks', { count: dots.length })}
               </span>

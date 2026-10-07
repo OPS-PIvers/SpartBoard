@@ -123,7 +123,11 @@ describe('useTourEditorSession', () => {
     act(() => {
       id = result.current?.insertStepAfter('a', { label: 'New' }).id ?? '';
     });
-    expect(getTourEdit()?.set.steps[1]).toMatchObject({ id, label: 'New' });
+    expect(getTourEdit()?.set.steps[1]).toMatchObject({
+      id,
+      label: 'New',
+      calloutTone: 'light',
+    });
     expect(getTourEdit()?.selected).toBe(1);
   });
 

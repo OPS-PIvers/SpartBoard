@@ -91,9 +91,9 @@ export function cleanGeneratedStep(
         >
       );
     }
-    if (isCalloutTone(raw.calloutTone) && raw.calloutTone !== 'dark') {
-      step.calloutTone = raw.calloutTone;
-    }
+    // An explicit 'dark' stays absent; no tone from the model means the new-step default.
+    if (!isCalloutTone(raw.calloutTone)) step.calloutTone = 'light';
+    else if (raw.calloutTone !== 'dark') step.calloutTone = raw.calloutTone;
   }
   if (isRecord(raw.cursor) && raw.cursor.hide === true) {
     step.cursor = { hide: true };

@@ -314,6 +314,29 @@ describe('defaultImportDestination', () => {
 });
 
 describe('parseGuidedLearningJson', () => {
+  it('keeps each step callout tone through export and reimport', async () => {
+    const base = makeSet().steps[0];
+    const exported = await embedSetImages(
+      makeSet({
+        schemaVersion: 4,
+        imageUrls: [PNG_DATA_URI],
+        steps: [
+          { ...base, id: 'old' },
+          { ...base, id: 'new', calloutTone: 'light' },
+          { ...base, id: 'accent', calloutTone: 'accent' },
+        ],
+      }),
+      () => Promise.reject(new Error('no fetch'))
+    );
+    const { set } = parseGuidedLearningJson(JSON.stringify(exported.set));
+    const imported = prepareImportedSet(set);
+    expect(imported.steps.map((s) => s.calloutTone)).toEqual([
+      undefined,
+      'light',
+      'accent',
+    ]);
+  });
+
   it('parses a valid export and warns about remote slides', () => {
     const { set, warnings } = parseGuidedLearningJson(
       JSON.stringify(makeSet())

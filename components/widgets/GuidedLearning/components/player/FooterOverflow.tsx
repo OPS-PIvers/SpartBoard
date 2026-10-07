@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { chromeSurface, focusRing } from '@/components/common/lightChrome';
 import { TouchHitBox } from './TouchHitBox';
 
 interface Props {
@@ -35,7 +36,7 @@ export const FooterOverflow: React.FC<Props> = ({ children }) => {
         aria-label={t('glPlayer.more')}
         title={t('glPlayer.more')}
         onClick={() => setOpen((v) => !v)}
-        className="relative flex items-center justify-center rounded-full bg-white/10 border border-white/15 hover:bg-white/20 text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+        className={`relative flex items-center justify-center rounded-full bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 transition-colors ${focusRing}`}
         style={{ width: 'min(36px, 5.5cqmin)', height: 'min(36px, 5.5cqmin)' }}
       >
         <TouchHitBox round />
@@ -57,7 +58,7 @@ export const FooterOverflow: React.FC<Props> = ({ children }) => {
               buttonRef.current?.focus();
             }
           }}
-          className="absolute bottom-full right-0 z-50 flex flex-col items-end rounded-xl border border-white/15 bg-slate-900/95 backdrop-blur-md shadow-2xl"
+          className={`absolute bottom-full right-0 z-50 flex flex-col items-end rounded-xl ${chromeSurface}`}
           style={{
             marginBottom: 'min(8px, 2cqmin)',
             padding: 'min(10px, 2.5cqmin)',

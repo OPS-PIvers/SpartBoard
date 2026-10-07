@@ -179,6 +179,13 @@ describe('useGuidedLearningEditorState history', () => {
     expect(result.current.steps[3]).toMatchObject({ xPct: 20, yPct: 30 });
   });
 
+  it('creates a new step with an explicit Light callout while older steps keep no tone', () => {
+    const { result } = renderEditor();
+    act(() => result.current.addStepAt(40, 40));
+    expect(result.current.steps[3].calloutTone).toBe('light');
+    expect(result.current.steps[0].calloutTone).toBeUndefined();
+  });
+
   it('records a whole move gesture as one entry', () => {
     const { result } = renderEditor();
     act(() => result.current.addStepAt(10, 10));
