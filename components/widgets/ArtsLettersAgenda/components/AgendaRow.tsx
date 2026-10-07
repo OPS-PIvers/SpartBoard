@@ -52,7 +52,7 @@ export const AgendaRow = React.memo<AgendaRowProps>(
           variant="glass"
           shape="square"
           onClick={() => onToggle(id)}
-          className={`shrink-0 active:scale-90 [@container(max-height:48px)]:after:hidden ${
+          className={`shrink-0 transition-all hover:scale-105 hover:ring-2 hover:ring-green-500/50 active:scale-90 [@container(max-height:48px)]:after:hidden ${
             isDone
               ? 'bg-green-500 shadow-sm hover:!bg-green-600'
               : 'border-2 border-slate-400 bg-white/70 hover:border-green-500'
@@ -77,7 +77,11 @@ export const AgendaRow = React.memo<AgendaRowProps>(
           <label
             htmlFor={checkboxId}
             className={`font-bold leading-none truncate cursor-pointer select-none ${textClass}`}
-            style={{ fontSize: titleSize, ...textStyle }}
+            style={{
+              fontSize: titleSize,
+              minHeight: 'min(44px, 42cqh)',
+              ...textStyle,
+            }}
           >
             {label}
           </label>
