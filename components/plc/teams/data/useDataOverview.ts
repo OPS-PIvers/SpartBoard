@@ -9,6 +9,7 @@ import { usePlcAssessments } from '@/hooks/usePlcAssessments';
 import { usePlcLearningTargets } from '@/hooks/useLearningTargets';
 import { usePlcGoals } from '@/hooks/usePlcGoals';
 import { usePlcNotes } from '@/hooks/usePlcNotes';
+import { usePlcDocs } from '@/hooks/usePlcDocs';
 import { selectDecisionsToRevisit } from '@/utils/plcNoteBlocks';
 import { usePlcGoalCoach } from '@/hooks/usePlcGoalCoach';
 import { saveTeamLayout, useTeamTypeDefaults } from '@/hooks/useTeamLayout';
@@ -122,6 +123,7 @@ export function useMeetingStrip(plc: Plc) {
   const { user } = useAuth();
   const { i18n } = useTranslation();
   const { notes } = usePlcNotes(plc.id);
+  const { docs } = usePlcDocs(plc.id);
   const [now] = useState(() => Date.now());
   const nextMeeting = useMemo(() => {
     const cadence = plc.meetingCadence;
@@ -131,9 +133,9 @@ export function useMeetingStrip(plc: Plc) {
     return `${formatDateKeyShort(occurrence.date, i18n.language)} · ${formatCadenceTime(cadence.time, i18n.language)}`;
   }, [plc.meetingCadence, i18n.language, now]);
   const openItems = useMemo(() => {
-    const counts = countOpenItems(notes, user?.uid ?? null);
+    const counts = countOpenItems([...notes, ...docs], user?.uid ?? null);
     return counts.total > 0 ? counts : null;
-  }, [notes, user?.uid]);
+  }, [notes, docs, user?.uid]);
   const revisit = useMemo(() => {
     const due = selectDecisionsToRevisit(notes, now);
     const next = due[0]?.block.revisitAt;
