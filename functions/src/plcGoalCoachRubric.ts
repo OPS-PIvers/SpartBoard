@@ -13,30 +13,30 @@ export const GOAL_COACH_MAX_CRITERIA = 10;
 export const DEFAULT_GOAL_COACH_RUBRIC: readonly GoalCoachCriterion[] = [
   {
     id: 'student-focused',
-    label: 'Student-focused',
+    label: 'Focuses on students, not a teacher task',
     description:
       'The goal names a change in student learning, not a task the teachers will complete.',
   },
   {
     id: 'named-measure',
-    label: 'Named measure',
+    label: 'Names the assessment or measure',
     description:
       'The goal is tied to a named assessment or measure the team will use to check progress.',
   },
   {
     id: 'baseline-target',
-    label: 'Baseline and target',
+    label: 'States a baseline and a target',
     description:
       'The goal states where students are now and the result the team is aiming for.',
   },
   {
     id: 'time-frame',
-    label: 'Time frame',
+    label: 'Has a time frame',
     description: 'The goal says by when the target should be reached.',
   },
   {
     id: 'practice-change',
-    label: 'Practice change',
+    label: 'Names a practice the team will change',
     description:
       'The goal names a teaching practice the team will change or start to reach the target.',
   },
