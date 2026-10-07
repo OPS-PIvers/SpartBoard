@@ -21,7 +21,7 @@ const TourEditorSessionView: React.FC = () => {
   // A failed save keeps the editor open with its alert; a conflict can't be saved, so it closes.
   const close = async () => {
     const saved = await session.flush();
-    if (saved || session.saveState === 'conflict') clearTourEdit();
+    if (saved || session.isConflicted()) clearTourEdit();
   };
   return (
     <TourEditorPanel

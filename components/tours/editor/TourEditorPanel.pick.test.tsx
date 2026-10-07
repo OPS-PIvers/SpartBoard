@@ -58,6 +58,7 @@ const makeSession = (steps: GuidedLearningStep[]) => {
     canRedo: false,
     saveState: 'saved',
     flush: vi.fn(),
+    isConflicted: () => false,
   } satisfies TourEditorSession;
   return session;
 };
