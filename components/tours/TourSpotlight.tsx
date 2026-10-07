@@ -86,6 +86,7 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
     <>
       <svg
         data-testid="tour-spotlight"
+        data-tour-overlay=""
         aria-hidden="true"
         className="fixed inset-0 pointer-events-none"
         style={{ zIndex: Z_INDEX.tour }}
@@ -107,6 +108,7 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
         // The ring sits above a lifted dock so the target stays outlined.
         <svg
           aria-hidden="true"
+          data-tour-overlay=""
           className="fixed inset-0 pointer-events-none"
           style={{ zIndex: Z_INDEX.tourCallout }}
           width={vw}

@@ -217,6 +217,8 @@ const useFakeSession = (selected: number): TourEditorSession => {
     updateStep: (id, patch) => editStep(id, (st) => ({ ...st, ...patch })),
     setBinding: (id, tour) => editStep(id, (st) => ({ ...st, tour })),
     insertStepAfter: () => EDIT_STEPS[0],
+    insertStepsAfter: () => undefined,
+    setThumbnail: () => undefined,
     deleteStep: (id) =>
       setSet((cur) => ({
         ...cur,
@@ -235,7 +237,7 @@ const useFakeSession = (selected: number): TourEditorSession => {
     canUndo: true,
     canRedo: false,
     saveState: 'saved',
-    flush: () => Promise.resolve(),
+    flush: () => Promise.resolve(true),
   };
 };
 

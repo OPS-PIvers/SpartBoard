@@ -18,17 +18,3 @@ export function settleAiDraft(
     (prev.text ?? '') !== (next.text ?? '');
   return edited ? markReviewed(next) : next;
 }
-
-/** Index of the next (or previous) drafted step after `from`, wrapping; -1 when none. */
-export function nextDraftIndex(
-  steps: readonly GuidedLearningStep[],
-  from: number,
-  direction: 1 | -1
-): number {
-  const n = steps.length;
-  for (let k = 1; k <= n; k++) {
-    const i = (((from + direction * k) % n) + n) % n;
-    if (steps[i].aiDraft) return i;
-  }
-  return -1;
-}

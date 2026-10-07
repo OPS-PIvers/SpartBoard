@@ -7,6 +7,8 @@ import type {
   GuidedLearningSet,
 } from '@/types';
 import { isHelpCenterSet } from '@/components/widgets/GuidedLearning/utils/helpCenterSets';
+import { isLiveTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
+import { requestEditTour } from '@/components/tours/editor/tourEditStore';
 
 const GuidedLearningStudio = lazy(() =>
   import('@/components/widgets/GuidedLearning/components/studio/GuidedLearningStudio').then(
@@ -59,6 +61,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
 }) => {
   const { user, canAccessFeature } = useAuth();
   const studioEditor = canAccessFeature('gl-studio');
+  const liveTours = canAccessFeature('gl-live-tours');
   const { sets, buildingSets, buildingLoading, loadSetData, saveBuildingSet } =
     useGuidedLearning(user?.uid);
   const [search, setSearch] = useState('');
@@ -83,8 +86,10 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
     setOpeningEditor(true);
     try {
       const full = await loadBuildingSet(setId);
-      if (full) openEditor({ ...full, isBuilding: true });
-      else onError('This activity was deleted. Pick another one.');
+      if (!full) onError('This activity was deleted. Pick another one.');
+      // Tours are edited on the board; Admin Settings closes to show it.
+      else if (isLiveTourSet(full) && liveTours) requestEditTour({ setId });
+      else openEditor({ ...full, isBuilding: true });
     } catch (err) {
       onError(err instanceof Error ? err.message : String(err));
     } finally {

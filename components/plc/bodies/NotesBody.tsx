@@ -76,6 +76,14 @@ import {
 import { NoteRecordControl } from '@/components/plc/recording/NoteRecordControl';
 import { NoteRecordings } from '@/components/plc/recording/NoteRecordings';
 import { RecordingMeetingNotes } from '@/components/plc/notes/meetingNotes/RecordingMeetingNotes';
+import { NoteBlocksReadOnly } from '@/components/plc/notes/NoteBlocksReadOnly';
+import {
+  noteBlocksNeedLiveData,
+  noteDocBlocks,
+} from '@/components/plc/notes/noteBlocksRead';
+import { usePlcAssessments } from '@/hooks/usePlcAssessments';
+import { usePlcAggregate } from '@/hooks/usePlcAggregate';
+import { usePlcLearningTargets } from '@/hooks/useLearningTargets';
 
 interface NotesBodyProps {
   plc: Plc;
@@ -329,6 +337,27 @@ const NotesBodyInner: React.FC<
   const selectedNote = useMemo<PlcNote | null>(
     () => notes.find((n) => n.id === selectedId) ?? null,
     [notes, selectedId]
+  );
+
+  // Blocks written from the Teams redesign show read-only here; their live data loads only when needed.
+  const noteBlocks = useMemo(() => selectedNote?.blocks ?? [], [selectedNote]);
+  const blockNeeds = noteBlocksNeedLiveData(noteBlocks);
+  const { assessments: blockAssessments } = usePlcAssessments(
+    blockNeeds.results ? plc.id : null
+  );
+  const { aggregates: blockAggregates } = usePlcAggregate(
+    blockNeeds.results ? plc.id : null
+  );
+  const { list: blockTargetList } = usePlcLearningTargets(
+    blockNeeds.targets ? plc.id : null
+  );
+  const blockLive = useMemo(
+    () => ({
+      assessments: blockAssessments,
+      aggregates: blockAggregates,
+      targets: blockTargetList?.targets ?? [],
+    }),
+    [blockAssessments, blockAggregates, blockTargetList]
   );
 
   // Real-time editing rides an admin rollout switch. While it is off, every
@@ -895,6 +924,7 @@ const NotesBodyInner: React.FC<
         title: editorTitle,
         body: editorBody,
         actionItems: editorActionItems,
+        blocks: noteDocBlocks(note.blocks ?? [], blockLive, members, t),
       });
       if (tab) tab.location.href = url;
       else window.open(url, '_blank', 'noopener,noreferrer');
@@ -1408,6 +1438,12 @@ const NotesBodyInner: React.FC<
                 )}
               </div>
             )}
+            <NoteBlocksReadOnly
+              body={editorBody}
+              blocks={noteBlocks}
+              members={members}
+              live={blockLive}
+            />
             {!sidePanels && noteActionItemsList}
             {recorder && (
               <NoteRecordings

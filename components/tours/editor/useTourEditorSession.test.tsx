@@ -46,6 +46,34 @@ afterEach(() => {
 });
 
 describe('useTourEditorSession', () => {
+  it('stores a picture without an undo step, only while the step keeps that anchor', () => {
+    const { result } = open();
+    const thumb = { url: 'u', anchor: 'sidebar.boards', w: 2, h: 1 };
+    act(() => result.current?.setThumbnail('a', thumb));
+    expect(getTourEdit()?.set.steps[0].tour?.thumbnail).toEqual(thumb);
+    expect(result.current?.canUndo).toBe(false);
+    act(() =>
+      result.current?.setThumbnail('b', { ...thumb, anchor: 'dock.open-tools' })
+    );
+    expect(getTourEdit()?.set.steps[1].tour?.thumbnail).toBeUndefined();
+  });
+
+  it('reports whether the draft was saved', async () => {
+    const { result } = open();
+    act(() => result.current?.updateStep('a', { label: 'A1' }));
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await result.current?.flush();
+    });
+    expect(ok).toBe(true);
+    save.mockRejectedValueOnce(new Error('offline'));
+    act(() => result.current?.updateStep('a', { label: 'A2' }));
+    await act(async () => {
+      ok = await result.current?.flush();
+    });
+    expect(ok).toBe(false);
+  });
+
   it('undoes a run of typing in one step', () => {
     const { result } = open();
     act(() => result.current?.updateStep('a', { label: 'A1' }, 'label'));
@@ -56,6 +84,23 @@ describe('useTourEditorSession', () => {
     expect(result.current?.canRedo).toBe(true);
     act(() => result.current?.redo());
     expect(getTourEdit()?.set.steps[0].label).toBe('A12');
+  });
+
+  it('inserts recorded steps as one edit and selects the last', () => {
+    const { result } = open(0);
+    const steps = ['x', 'y'].map((id) => ({
+      id,
+      xPct: 50,
+      yPct: 50,
+      imageIndex: 0,
+      interactionType: 'text-popover' as const,
+    }));
+    act(() => result.current?.insertStepsAfter('a', steps, ['p/x.png']));
+    expect(ids()).toBe('axybc');
+    expect(getTourEdit()).toMatchObject({ selected: 2, replay: 1 });
+    expect(getTourEdit()?.set.imagePaths).toEqual(['p/x.png']);
+    act(() => result.current?.undo());
+    expect(ids()).toBe('abc');
   });
 
   it('keeps the selected step selected through a reorder and asks for a replay', () => {

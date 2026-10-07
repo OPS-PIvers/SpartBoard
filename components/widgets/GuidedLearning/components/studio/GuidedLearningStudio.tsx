@@ -12,7 +12,6 @@ import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
   Folder as FolderIcon,
-  Footprints,
   History,
   Inbox,
   Keyboard,
@@ -36,11 +35,8 @@ import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { useAutosave } from '@/hooks/useAutosave';
-import {
-  requestRecordTour,
-  requestRerecordStep,
-  requestStartTour,
-} from '@/components/tours/tourState';
+import { requestRecordTour } from '@/components/tours/tourState';
+import { requestEditTour } from '@/components/tours/editor/tourEditStore';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import {
   decrementOpenModalCount,
@@ -63,7 +59,6 @@ import type {
   GuidedLearningSaveGuard,
 } from '../../utils/saveConflict';
 import type { DevicePreset } from '../../types/stage';
-import type { StepRecapture } from '../recorder/recordingHandoff';
 import { StudioCanvas } from './StudioCanvas';
 import { StudioStartHub } from './StudioStartHub';
 import { useFileDrop } from './useFileDrop';
@@ -73,7 +68,6 @@ import { StudioPlayMode } from './StudioPlayMode';
 import { StudioFilmstrip } from './StudioFilmstrip';
 import { StudioTimeline } from './StudioTimeline';
 import { StudioPropertiesPanel } from './StudioPropertiesPanel';
-import { StudioDraftReview } from './StudioDraftReview';
 import { DevicePresetPicker } from './DevicePresetPicker';
 import { loadDevicePreset, saveDevicePreset } from './devicePresets';
 import {
@@ -95,7 +89,6 @@ import {
   useMediaQuery,
 } from './useMediaQuery';
 import { SetTooLargeError } from '@/utils/firestoreDocSize';
-import { isLiveTourSet } from '../../utils/liveTour';
 
 const MAX_ISSUE_TOASTS = 3;
 const SMALL_SCREEN_NOTE_KEY = 'gl-studio-small-screen-note-dismissed';
@@ -131,8 +124,6 @@ export interface GuidedLearningStudioProps {
   initialStepId?: string;
   /** Closes the Studio and opens the .gl.json import; offered on an empty set. */
   onImport?: () => void;
-  /** Re-recorded clicks or retaken pictures, each applied to its step as one undoable edit on open. */
-  recaptures?: StepRecapture[];
 }
 
 /** Full-screen Guided Learning editor whose canvas is the real player stage. */
@@ -182,7 +173,6 @@ const StudioSession: React.FC<
   onFolderChange,
   initialStepId,
   onImport,
-  recaptures,
   loadedUpdatedAt,
   onReloaded,
 }) => {
@@ -342,49 +332,15 @@ const StudioSession: React.FC<
     [requestClose]
   );
 
-  // The runner loads the saved draft, so edits are saved first and never need publishing to test.
-  const runLive = useCallback(
-    async (fromStepId?: string, retake?: string) => {
-      if (conflict || !(await autosave.flush())) {
-        addToast?.(t('glStudio.runLiveFailed'), 'error');
-        return;
-      }
-      const fromStep = fromStepId
-        ? editorState.steps.findIndex((s) => s.id === fromStepId)
-        : -1;
-      closeEditor();
-      requestStartTour({
-        setId: set.id,
-        draft: true,
-        ...(fromStepId && fromStep >= 0
-          ? { fromStep, returnToStepId: fromStepId }
-          : {}),
-        ...(retake ? { retake } : {}),
-      });
-    },
-    [conflict, autosave, addToast, t, closeEditor, set.id, editorState.steps]
-  );
-
-  // The recorder takes over the board, then reopens the Studio with the new click applied.
-  const rerecordStep = useCallback(
-    async (stepId: string) => {
-      if (conflict || !(await autosave.flush())) {
-        addToast?.(t('glStudio.rerecordFailed'), 'error');
-        return;
-      }
-      closeEditor();
-      requestRerecordStep({ setId: set.id, stepId });
-    },
-    [conflict, autosave, addToast, t, closeEditor, set.id]
-  );
-  const [peeking, setPeeking] = useState(false);
-
-  // Teachers get exactly what is saved: publish only after the same forced save close uses.
-  const saveForPublish = useCallback(async () => {
-    if (conflict || readOnly || !(await autosave.flush({ force: true })))
-      return null;
-    return buildSavedSet();
-  }, [conflict, readOnly, autosave, buildSavedSet]);
+  // Live tours are edited on the board, so the Studio saves and hands the set over.
+  const editOnBoard = useCallback(async () => {
+    if (conflict || readOnly || !(await autosave.flush({ force: true }))) {
+      addToast?.(t('glStudio.editOnBoardFailed'), 'error');
+      return;
+    }
+    closeEditor();
+    requestEditTour({ setId: set.id });
+  }, [conflict, readOnly, autosave, addToast, t, closeEditor, set.id]);
 
   // The draft travels to the classic editor, which keeps saving it, so nothing to confirm.
   const openClassic = useCallback(async () => {
@@ -420,7 +376,6 @@ const StudioSession: React.FC<
     clipboardStepCount,
   } = editorState;
   const liveTours = !!set.isBuilding && canAccessFeature('gl-live-tours');
-  const canRunLive = liveTours && isLiveTourSet({ mode: editorState.mode });
 
   const selectStepAt = useCallback(
     (index: number) => {
@@ -432,18 +387,7 @@ const StudioSession: React.FC<
     [steps, setSelectedStepId, setCurrentImageIndex]
   );
 
-  // One per render, so each recapture sees the slides the one before it added.
-  const [pendingRecaptures, setPendingRecaptures] = useState(recaptures ?? []);
-  if (pendingRecaptures.length > 0) {
-    const [next, ...rest] = pendingRecaptures;
-    setPendingRecaptures(rest);
-    editorState.recaptureStep(next);
-  }
-
-  // A recapture selects its own step, wherever its slide ended up.
-  const [pendingStepId, setPendingStepId] = useState(
-    recaptures?.length ? undefined : initialStepId
-  );
+  const [pendingStepId, setPendingStepId] = useState(initialStepId);
   if (pendingStepId) {
     const opening = steps.find((s) => s.id === pendingStepId);
     setPendingStepId(undefined);
@@ -664,7 +608,7 @@ const StudioSession: React.FC<
     if (hasFiles) return;
     if (pasteSteps() > 0) e.preventDefault();
   });
-  // Empty deps: counts as an open modal for its whole lifetime (peeking included) so the widget toolbar and dashboard Escape stand down.
+  // Empty deps: counts as an open modal for its whole lifetime so the widget toolbar and dashboard Escape stand down.
   useEffect(() => {
     acquireBodyScrollLock();
     incrementOpenModalCount();
@@ -715,16 +659,6 @@ const StudioSession: React.FC<
   // Below ~1100px the less-used header actions fold into one menu.
   const overflowItems: StudioMenuItem[] = compact
     ? [
-        ...(canRunLive && !playing
-          ? [
-              {
-                id: 'run-live',
-                label: t('glStudio.runLive'),
-                icon: Footprints,
-                onSelect: () => void runLive(),
-              },
-            ]
-          : []),
         ...(canUseAi
           ? [
               {
@@ -772,10 +706,7 @@ const StudioSession: React.FC<
       aria-label={t('glStudio.dialogLabel')}
       tabIndex={-1}
       data-testid="gl-studio"
-      data-peeking={peeking || undefined}
-      className={`fixed inset-0 flex flex-col bg-slate-100 transition-opacity focus:outline-none motion-reduce:transition-none ${
-        peeking ? 'opacity-0' : ''
-      }`}
+      className="fixed inset-0 flex flex-col bg-slate-100 focus:outline-none"
       style={{ zIndex: Z_INDEX.modalContent }}
     >
       <EditorHeader
@@ -804,14 +735,6 @@ const StudioSession: React.FC<
         compact={compact}
         extras={
           <>
-            {!playing && (
-              <StudioDraftReview
-                steps={steps}
-                selectedIndex={selectedIndex}
-                onSelect={selectStepAt}
-                compact={compact}
-              />
-            )}
             {!playing && (
               <div className="flex items-center gap-1">
                 <button
@@ -848,17 +771,6 @@ const StudioSession: React.FC<
               >
                 <Play className="h-4 w-4" aria-hidden="true" />
                 {t('glStudio.playFromHere')}
-              </button>
-            )}
-            {canRunLive && !playing && !compact && (
-              <button
-                type="button"
-                onClick={() => void runLive()}
-                title={t('glStudio.runLiveHint')}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:border-slate-400"
-              >
-                <Footprints className="h-4 w-4" aria-hidden="true" />
-                {t('glStudio.runLive')}
               </button>
             )}
             <DevicePresetPicker
@@ -1026,7 +938,6 @@ const StudioSession: React.FC<
                 }
                 onDraftWithAi={canUseAi ? () => setShowAiGen(true) : undefined}
                 onImport={onImport ? () => leaveThen(onImport) : undefined}
-                onRunLive={canRunLive ? () => void runLive() : undefined}
               />
             ) : (
               <StudioCanvas
@@ -1073,25 +984,12 @@ const StudioSession: React.FC<
             onDeleteStep={deleteStepWithUndo}
             canvasRef={canvasRef}
             calloutEditing={calloutEditing}
-            liveTours={liveTours}
-            tourSet={
-              liveTours && !readOnly
-                ? (buildSavedSet() ?? undefined)
+            onEditOnBoard={
+              liveTours && isAdmin === true && !readOnly
+                ? () => void editOnBoard()
                 : undefined
             }
-            saveForPublish={saveForPublish}
-            onRunFromStep={canRunLive ? (id) => void runLive(id) : undefined}
-            onRetakePictures={
-              canRunLive && editorState.mode === 'tour' && !readOnly
-                ? (id) => void runLive(id, id ?? 'all')
-                : undefined
-            }
-            onRerecordStep={
-              canRecordTour && !readOnly
-                ? (id) => void rerecordStep(id)
-                : undefined
-            }
-            onPeekBoard={setPeeking}
+            canOfferTour={liveTours}
           />
         </aside>
       </div>

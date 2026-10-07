@@ -67,12 +67,15 @@ vi.mock('@/config/firebase', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'u-self', displayName: 'Self', email: 'self@x.edu' },
-    canAccessFeature: (id: string) => id === 'plc-home-v2' && mockHomeV2,
+    canAccessFeature: (id: string) =>
+      (id === 'plc-home-v2' && mockHomeV2) ||
+      (id === 'teams-redesign' && mockTeamsRedesign),
     globalPermissionsLoaded: true,
     isAdmin: false,
   }),
 }));
 let mockHomeV2 = false;
+let mockTeamsRedesign = false;
 
 // usePlcs is mounted by the provider only for its membership mutators. Mock it
 // to no-op resolvers — none of these tests exercise membership writes.
@@ -150,6 +153,7 @@ function fakeSnap(
 beforeEach(() => {
   vi.clearAllMocks();
   mockHomeV2 = false;
+  mockTeamsRedesign = false;
   listeners = [];
   renderCounts.clear();
   // collection(db, ...segments) → a path-bearing ref so onSnapshot can record
@@ -262,6 +266,20 @@ describe('PlcProvider — listener dedup', () => {
     expect(subscriptionCount('docs')).toBe(0);
     expect(subscriptionCount('quizzes')).toBe(0);
     expect(subscriptionCount('video_activities')).toBe(0);
+  });
+});
+
+describe('PlcProvider — Teams redesign slice gating', () => {
+  it('opens the meeting record slices on the record route', () => {
+    mockTeamsRedesign = true;
+    render(
+      <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="meeting">
+        <div />
+      </PlcProvider>
+    );
+    expect(subscriptionCount('meetings')).toBe(1);
+    expect(subscriptionCount('assessments')).toBe(1);
+    expect(subscriptionCount('aggregates')).toBe(1);
   });
 });
 

@@ -19,15 +19,18 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 import {
   AlertTriangle,
+  Camera,
   ChevronLeft,
   ChevronsLeft,
   ChevronsRight,
+  Circle,
   GripVertical,
   LayoutDashboard,
   Loader2,
   MousePointerClick,
   PanelLeft,
   PanelRight,
+  Plus,
   Redo2,
   Trash2,
   Undo2,
@@ -41,6 +44,7 @@ import type {
   TourWidgetLayout,
 } from '@/types';
 import { Z_INDEX } from '@/config/zIndex';
+import { WHOLE_BOARD_ANCHOR } from '@/config/tourAnchors';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { DialogContext } from '@/context/DialogContextValue';
 import { useTourHidden } from '@/context/dashboardCanvasStore';
@@ -55,7 +59,12 @@ import {
   buildRecordedLayouts,
 } from '@/components/widgets/GuidedLearning/components/recorder/recordedLayouts';
 import { MAX_TYPED_CHARS } from '@/components/widgets/GuidedLearning/components/recorder/useTourCapture';
-import type { TourEditPlayback } from './tourEditStore';
+import {
+  retakeTourEditThumbnail,
+  setTourEditRecording,
+  type TourEditPlayback,
+} from './tourEditStore';
+import { tourThumbnail } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import {
   PANEL_EDGE,
   PANEL_WIDTH,
@@ -68,6 +77,10 @@ import {
   type Side,
 } from './panelPlacement';
 import type { TourEditorSession } from './useTourEditorSession';
+import { TourAnchorPicker } from './TourAnchorPicker';
+import { RecordFromHere } from './RecordFromHere';
+import { TourAnchorList } from './TourAnchorList';
+import { applyAnchorPick, type TourAnchorPick } from './pickAnchor';
 import {
   TOUR_ACTIONS,
   isRedStatus,
@@ -113,6 +126,11 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
       (readStored(TOUR_EDITOR_SIDE_KEY) === 'left' ? 'left' : 'right')
   );
   const [tab, setTab] = useState<'steps' | 'settings'>('steps');
+  // Which step is choosing its control, on the board or from the list.
+  const [picking, setPicking] = useState<{
+    stepId: string;
+    from: 'board' | 'list';
+  } | null>(null);
   const width = collapsed ? RAIL_WIDTH : PANEL_WIDTH;
   const side = panelSide(
     preferred,
@@ -122,6 +140,34 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
   );
   const { set, selected } = session;
   const total = set.steps.length;
+  const pickingStep = picking
+    ? set.steps.find((s) => s.id === picking.stepId)
+    : undefined;
+  const bindPick = (pick: TourAnchorPick) => {
+    if (pickingStep)
+      session.setBinding(
+        pickingStep.id,
+        applyAnchorPick(pickingStep.tour, pick)
+      );
+    setPicking(null);
+  };
+  const addStep = () => {
+    const created = session.insertStepAfter(set.steps[selected]?.id ?? null);
+    setPicking({ stepId: created.id, from: 'board' });
+  };
+  // The step new recorded clicks go after; the panel steps aside while recording.
+  const [recording, setRecording] = useState<{ afterId: string | null } | null>(
+    null
+  );
+  const startRecording = () => {
+    setPicking(null);
+    setTourEditRecording(true);
+    setRecording({ afterId: set.steps[selected]?.id ?? null });
+  };
+  const endRecording = () => {
+    setTourEditRecording(false);
+    setRecording(null);
+  };
 
   const toggleCollapsed = () => {
     setCollapsed((was) => {
@@ -152,6 +198,20 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
     current: Math.min(selected + 1, total),
     total,
   });
+
+  if (recording) {
+    return (
+      <RecordFromHere
+        slots={playback.slots}
+        goal={set.title}
+        onDone={(steps, imagePaths) => {
+          endRecording();
+          session.insertStepsAfter(recording.afterId, steps, imagePaths);
+        }}
+        onCancel={endRecording}
+      />
+    );
+  }
 
   if (collapsed) {
     return (
@@ -228,9 +288,9 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
     >
       <header className="flex flex-col gap-0.5 border-b border-white/10 px-3 pb-2 pt-2.5">
         <div className="flex items-center gap-1">
-          <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-100">
-            {set.title.trim() || t('tours.welcomeTitle')}
-          </h2>
+          <div className="min-w-0 flex-1">
+            <SaveLine state={session.saveState} />
+          </div>
           <button
             type="button"
             onClick={session.undo}
@@ -301,7 +361,10 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
-        <SaveLine state={session.saveState} />
+        <h2 className="mt-1 break-words text-sm font-semibold text-slate-100">
+          {set.title.trim() || t('tours.welcomeTitle')}
+        </h2>
+        <SaveAlert state={session.saveState} />
       </header>
       {settings && (
         <div
@@ -332,7 +395,65 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
         </div>
       ) : (
         <>
-          <StepOutline session={session} playback={playback} />
+          {pickingStep && picking?.from === 'list' ? (
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="flex items-center gap-2 border-b border-white/10 px-3 py-1.5">
+                <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-300">
+                  {t('tourPicker.listTitle')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPicking(null)}
+                  className={secondaryBtn}
+                >
+                  {t('tourPicker.cancel')}
+                </button>
+              </div>
+              <TourAnchorList
+                value={pickingStep.tour?.anchor}
+                onPick={bindPick}
+              />
+            </div>
+          ) : (
+            <>
+              <StepOutline
+                session={session}
+                playback={playback}
+                onPick={(stepId) => setPicking({ stepId, from: 'board' })}
+              />
+              <div className="flex items-center gap-1 border-t border-white/10 px-1.5 py-1">
+                <button
+                  type="button"
+                  onClick={addStep}
+                  className={`${secondaryBtn} flex items-center gap-1.5`}
+                >
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  {t('tourPicker.addStep')}
+                </button>
+                <button
+                  type="button"
+                  onClick={startRecording}
+                  className={`${secondaryBtn} flex items-center gap-1.5`}
+                >
+                  <Circle
+                    className="h-3.5 w-3.5 fill-current"
+                    aria-hidden="true"
+                  />
+                  {t('tourPicker.recordFromHere')}
+                </button>
+              </div>
+            </>
+          )}
+          {pickingStep && picking?.from === 'board' && (
+            <TourAnchorPicker
+              slots={playback.slots}
+              onPick={bindPick}
+              onCancel={() => setPicking(null)}
+              onChooseFromList={() =>
+                setPicking({ stepId: pickingStep.id, from: 'list' })
+              }
+            />
+          )}
           <footer className="flex items-center gap-2 border-t border-white/10 px-3 py-2">
             <span className="flex-1 text-xs font-semibold tabular-nums text-slate-300">
               {progress}
@@ -365,24 +486,7 @@ const SaveLine: React.FC<{ state: TourEditorSession['saveState'] }> = ({
   state,
 }) => {
   const { t } = useTranslation();
-  if (state === 'conflict' || state === 'error') {
-    return (
-      <p
-        role="alert"
-        className="flex items-start gap-1 text-xs font-semibold text-red-300"
-      >
-        <AlertTriangle
-          className="mt-px h-3.5 w-3.5 shrink-0"
-          aria-hidden="true"
-        />
-        {t(
-          state === 'conflict'
-            ? 'tours.editor.saveConflict'
-            : 'tours.editor.saveFailed'
-        )}
-      </p>
-    );
-  }
+  if (state === 'conflict' || state === 'error') return null;
   return (
     <p aria-live="polite" className="text-xs text-slate-300">
       {t(state === 'saving' ? 'common.saving' : 'common.saved')}
@@ -390,10 +494,34 @@ const SaveLine: React.FC<{ state: TourEditorSession['saveState'] }> = ({
   );
 };
 
+const SaveAlert: React.FC<{ state: TourEditorSession['saveState'] }> = ({
+  state,
+}) => {
+  const { t } = useTranslation();
+  if (state !== 'conflict' && state !== 'error') return null;
+  return (
+    <p
+      role="alert"
+      className="flex items-start gap-1 text-xs font-semibold text-red-300"
+    >
+      <AlertTriangle
+        className="mt-px h-3.5 w-3.5 shrink-0"
+        aria-hidden="true"
+      />
+      {t(
+        state === 'conflict'
+          ? 'tours.editor.saveConflict'
+          : 'tours.editor.saveFailed'
+      )}
+    </p>
+  );
+};
+
 const StepOutline: React.FC<{
   session: TourEditorSession;
   playback: TourEditPlayback;
-}> = ({ session, playback }) => {
+  onPick: (stepId: string) => void;
+}> = ({ session, playback, onPick }) => {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, {
@@ -441,6 +569,7 @@ const StepOutline: React.FC<{
                 i === playback.index && playback.jumping && playback.blocked
               }
               session={session}
+              onPick={onPick}
             />
           ))}
         </ol>
@@ -458,7 +587,8 @@ const OutlineRow: React.FC<{
   /** A fast-forward is stopped here for the admin's click. */
   waiting: boolean;
   session: TourEditorSession;
-}> = ({ step, index, selected, status, jumping, waiting, session }) => {
+  onPick: (stepId: string) => void;
+}> = ({ step, index, selected, status, jumping, waiting, session, onPick }) => {
   const { t } = useTranslation();
   const {
     attributes,
@@ -515,7 +645,7 @@ const OutlineRow: React.FC<{
           </span>
           <span className="flex min-w-0 flex-1 flex-col">
             <span
-              className={`truncate text-sm ${
+              className={`break-words text-sm ${
                 selected ? 'font-semibold text-white' : 'text-slate-100'
               }`}
             >
@@ -523,7 +653,7 @@ const OutlineRow: React.FC<{
             </span>
             {subtitle && (
               <span
-                className={`flex items-center gap-1 truncate text-xs ${
+                className={`flex items-start gap-1 text-xs ${
                   waiting
                     ? 'font-semibold text-white'
                     : red && !jumping
@@ -533,23 +663,23 @@ const OutlineRow: React.FC<{
               >
                 {waiting && (
                   <MousePointerClick
-                    className="h-3 w-3 shrink-0"
+                    className="mt-0.5 h-3 w-3 shrink-0"
                     aria-hidden="true"
                   />
                 )}
                 {jumping && (
                   <Loader2
-                    className="h-3 w-3 shrink-0 animate-spin motion-reduce:animate-none"
+                    className="mt-0.5 h-3 w-3 shrink-0 animate-spin motion-reduce:animate-none"
                     aria-hidden="true"
                   />
                 )}
                 {red && !jumping && !waiting && (
                   <AlertTriangle
-                    className="h-3 w-3 shrink-0"
+                    className="mt-0.5 h-3 w-3 shrink-0"
                     aria-hidden="true"
                   />
                 )}
-                <span className="truncate">{subtitle}</span>
+                <span className="min-w-0 break-words">{subtitle}</span>
               </span>
             )}
           </span>
@@ -566,7 +696,13 @@ const OutlineRow: React.FC<{
           <GripVertical className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
-      {selected && <StepCard step={step} session={session} />}
+      {selected && (
+        <StepCard
+          step={step}
+          session={session}
+          onPick={() => onPick(step.id)}
+        />
+      )}
     </li>
   );
 };
@@ -575,18 +711,42 @@ const OutlineRow: React.FC<{
 const StepCard: React.FC<{
   step: GuidedLearningStep;
   session: TourEditorSession;
-}> = ({ step, session }) => {
+  onPick: () => void;
+}> = ({ step, session, onPick }) => {
   const { t } = useTranslation();
   const tour = step.tour;
   const update = (patch: Partial<GuidedLearningStep>, field?: string) =>
     session.updateStep(step.id, patch, field);
   const bind = (next: NonNullable<GuidedLearningStep['tour']>) =>
     session.setBinding(step.id, next);
+  const thumb = tourThumbnail(step);
+  const pictured = !!tour?.anchor && tour.anchor !== WHOLE_BOARD_ANCHOR;
   return (
     <div
       data-testid="tour-editor-card"
       className="flex flex-col gap-3 px-3 pb-3 pl-[42px] pt-1"
     >
+      {pictured && thumb && (
+        <div className="relative">
+          <img
+            src={thumb.url}
+            alt=""
+            data-testid="tour-editor-thumbnail"
+            className={`max-h-32 w-full rounded-lg border border-white/10 object-contain ${
+              thumb.anchor === tour.anchor ? '' : 'opacity-50'
+            }`}
+          />
+          <button
+            type="button"
+            onClick={() => retakeTourEditThumbnail(step.id)}
+            aria-label={t('tours.editor.retake')}
+            title={t('tours.editor.retakeHint')}
+            className="absolute right-1.5 top-1.5 rounded-lg bg-slate-900/85 p-1.5 text-white shadow hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          >
+            <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </div>
+      )}
       <label className={labelClass}>
         {t('glStudio.stepTitle')}
         <input
@@ -605,6 +765,27 @@ const StepCard: React.FC<{
           className={`${inputClass} resize-y`}
         />
       </label>
+      <div className={labelClass}>
+        {t('tourPicker.control')}
+        <div className="flex items-start gap-2">
+          <span
+            data-testid="tour-editor-control"
+            className="min-w-0 flex-1 break-words pt-1 text-sm font-normal text-slate-100"
+          >
+            {tour?.anchor === WHOLE_BOARD_ANCHOR || !tour
+              ? t('tourPicker.wholeBoard')
+              : (tourControlLabel(tour) ?? t('tours.editor.unbound'))}
+          </span>
+          <button
+            type="button"
+            onClick={onPick}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          >
+            <MousePointerClick className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('tourPicker.pick')}
+          </button>
+        </div>
+      </div>
       {tour && (
         <label className={labelClass}>
           {t('glStudio.tourAction')}
@@ -665,7 +846,7 @@ const StepCard: React.FC<{
           {t('glStudio.tourTeacherMustClick')}
         </label>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-1 pt-1">
+      <div className="flex items-center justify-between gap-1 pt-1">
         <CaptureLayoutButton
           onCapture={(layouts) =>
             session.updateSet({

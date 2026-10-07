@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { doc, updateDoc } from 'firebase/firestore';
-import { CheckCircle2, Eye } from 'lucide-react';
+import { CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useHelpResources } from '@/hooks/useHelpResources';
@@ -11,9 +11,10 @@ import {
   buildVisibilityPayload,
   HELP_RESOURCES_COLLECTION,
 } from '@/components/admin/HelpCenter/helpCenterAdmin';
+import { secondaryBtn } from '@/components/tours/tourButtons';
 
 /** Whether teachers can find this Help Center tour in Help, with a one-click Show in Help. */
-export const StudioHelpVisibility: React.FC<{
+export const TourHelpVisibility: React.FC<{
   setId: string;
   published: boolean;
 }> = ({ setId, published }) => {
@@ -51,7 +52,7 @@ export const StudioHelpVisibility: React.FC<{
         )
       );
     } catch (err) {
-      logError('StudioHelpVisibility', err, { setId });
+      logError('TourHelpVisibility', err, { setId });
       setFailed(true);
     } finally {
       setShowing(false);
@@ -60,22 +61,29 @@ export const StudioHelpVisibility: React.FC<{
 
   if (linked.length === 0) {
     return (
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-300">
         {t('glStudio.tourPublish.help_none')}
       </p>
     );
   }
   if (hidden.length === 0) {
     return (
-      <p className="flex items-center gap-1 text-xs font-bold text-emerald-800">
-        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+      <p className="flex items-center gap-1.5 text-xs text-slate-200">
+        <CheckCircle2
+          className="h-3.5 w-3.5 shrink-0 text-emerald-300"
+          aria-hidden="true"
+        />
         {t('glStudio.tourPublish.help_shown')}
       </p>
     );
   }
   return (
     <div className="flex flex-col gap-1.5">
-      <p className="text-xs text-amber-800">
+      <p className="flex items-start gap-1.5 text-xs text-slate-200">
+        <EyeOff
+          className="mt-px h-3.5 w-3.5 shrink-0 text-amber-300"
+          aria-hidden="true"
+        />
         {t(
           published
             ? 'glStudio.tourPublish.help_hidden'
@@ -87,7 +95,7 @@ export const StudioHelpVisibility: React.FC<{
           type="button"
           onClick={() => void showInHelp()}
           disabled={showing}
-          className="flex items-center gap-1.5 self-start rounded-lg border border-brand-blue-primary bg-white px-3 py-1.5 text-xs font-bold text-brand-blue-primary hover:bg-blue-50 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+          className={`${secondaryBtn} -ml-3 flex items-center gap-1.5 self-start text-xs disabled:opacity-40`}
         >
           <Eye className="h-3.5 w-3.5" aria-hidden="true" />
           {showing
@@ -96,7 +104,7 @@ export const StudioHelpVisibility: React.FC<{
         </button>
       )}
       {failed && (
-        <p role="alert" className="text-xs font-bold text-brand-red-primary">
+        <p role="alert" className="text-xs font-semibold text-red-300">
           {t('glStudio.tourPublish.help_showFailed')}
         </p>
       )}

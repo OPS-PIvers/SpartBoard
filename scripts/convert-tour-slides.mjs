@@ -1,5 +1,5 @@
 /**
- * Live tour slide conversion (docs/plans/LIVE_TOUR_EDITOR.md E11, PR 1).
+ * Live tour slide conversion (docs/plans/shipped/LIVE_TOUR_EDITOR.md E11, PR 1).
  *
  * For every `building_guided_learning` set with `mode: 'tour'` and its
  * `building_guided_learning_tours` snapshot, moves each step's slide into

@@ -17,7 +17,7 @@ import {
   SHORT_TITLES,
 } from '@/components/plc/redesignMockup/fixtures';
 import { DataOverviewView } from '../DataOverviewView';
-import { AssessmentHeroView, NoResults } from '../DataOverviewSections';
+import { AssessmentHeroView } from '../DataOverviewSections';
 import { GoalView } from '../GoalView';
 import { TargetHeroView } from '../TargetHeroView';
 import { ManageTargetsModal } from '../ManageTargetsModal';
@@ -99,16 +99,17 @@ function readParams() {
         : 'assessment',
     coach: params.get('coach') === '1',
     capture: params.get('capture') === '1',
+    empty: params.get('empty') === '1',
   };
 }
 
 export const TeamsPlcDataDevHarness: React.FC = () => {
   const [initial] = useState(readParams);
   const [screen, setScreen] = useState(initial.screen);
-  const { lead, tagged, hero: heroKind } = initial;
+  const { lead, tagged, empty, hero: heroKind } = initial;
   const aggregates = useMemo(
-    () => (tagged ? AGGREGATES : AGGREGATES.map(untag)),
-    [tagged]
+    () => (empty ? [] : tagged ? AGGREGATES : AGGREGATES.map(untag)),
+    [empty, tagged]
   );
   const heroRef: TeamHeroRef | null =
     heroKind === 'assessment'
@@ -166,9 +167,7 @@ export const TeamsPlcDataDevHarness: React.FC = () => {
         onOpenResults={() => undefined}
         onShowLatest={() => undefined}
       />
-    ) : (
-      <NoResults />
-    );
+    ) : null;
 
   return (
     <div
