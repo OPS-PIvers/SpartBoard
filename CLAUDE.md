@@ -21,7 +21,7 @@ are in [docs/ONBOARDING.md](docs/ONBOARDING.md).
 - **pnpm only** — never `npm install`. **Node 24+** (`functions/` is pinned to 24).
 - Install with `pnpm run install:all` (root + `functions/`), not bare `pnpm install`.
 - `pnpm run test:rules` boots the Firestore emulator (`vitest.rules.config.ts`, `tests/rules/`).
-- `pnpm run test:counts` fails if Vitest silently collected fewer suites than baseline. CI shards with `test:shard --shard=N/3`, then `test:merge-reports` before `test:counts`.
+- `pnpm run test:counts` fails if Vitest silently collected fewer suites than baseline. CI shards with `test:shard --shard=I/N` (rules with `RULES_SHARD=I/N pnpm run test:rules`), then `test:merge-reports` before `test:counts`.
 - `pnpm run changelog:draft` prints a draft `public/changelog.json` entry. Every bullet must be rewritten before committing — the rules are in [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md#how-to-write-a-release-note), and both `overview` and `details` are shown to every user.
 - `pnpm run <script> -- <flags>` forwards a literal `--` and Vitest then ignores the flags. Omit the `--`.
 - Claude Code dev servers (`.claude/launch.json`): `vite-dev` (3000, real sign-in on `spartboard-dev`), `vite-dev-prod` (3004, localhost on **prod**, red banner), `vite-harness` (56300, `VITE_AUTH_BYPASS=true`, for `/*-dev` harness pages and screenshots only), `functions-emulator` (5001).

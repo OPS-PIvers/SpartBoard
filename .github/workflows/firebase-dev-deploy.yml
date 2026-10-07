@@ -87,15 +87,15 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-test-${{ matrix.shard }}
       cancel-in-progress: true
-    name: test (shard ${{ matrix.shard }}/3)
+    name: test (shard ${{ matrix.shard }}/4)
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
-      - run: pnpm run test:shard --shard=${{ matrix.shard }}/3 --outputFile=.vitest-reports/root-shard-${{ matrix.shard }}.json
+      - run: pnpm run test:shard --shard=${{ matrix.shard }}/4 --outputFile=.vitest-reports/root-shard-${{ matrix.shard }}.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -103,9 +103,9 @@ jobs:
           path: .vitest-reports/root-shard-${{ matrix.shard }}.json
           retention-days: 1
 
-  # Functions suite (~5s) plus the merged-shard count guard from scripts/checkTestCounts.mjs.
+  # Functions suite (~5s) plus the merged-shard count guard (root and rules) from scripts/checkTestCounts.mjs.
   test-counts:
-    needs: test
+    needs: [test, rules]
     runs-on: ubuntu-24.04
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-test-counts
@@ -118,7 +118,13 @@ jobs:
           pattern: vitest-report-shard-*
           path: .vitest-reports/shards
           merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: vitest-rules-report-shard-*
+          path: .vitest-reports/rules-shards
+          merge-multiple: true
       - run: pnpm run test:merge-reports .vitest-reports/root.json .vitest-reports/shards/root-shard-*.json
+      - run: pnpm run test:merge-reports .vitest-reports/rules.json .vitest-reports/rules-shards/rules-shard-*.json
       - run: pnpm -C functions test
       - run: pnpm run test:counts
 
@@ -126,8 +132,13 @@ jobs:
   rules:
     runs-on: ubuntu-24.04
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-rules
+      group: ${{ github.workflow }}-${{ github.ref }}-rules-${{ matrix.shard }}
       cancel-in-progress: true
+    name: rules (shard ${{ matrix.shard }}/2)
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
@@ -144,7 +155,13 @@ jobs:
           key: firebase-emulators-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: firebase-emulators-${{ runner.os }}-
       - name: Run Firestore rules tests
-        run: pnpm run test:rules
+        run: RULES_SHARD=${{ matrix.shard }}/2 pnpm run test:rules
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vitest-rules-report-shard-${{ matrix.shard }}
+          path: .vitest-reports/rules-shard-${{ matrix.shard }}.json
+          retention-days: 1
 
   # Dev's public web config (repo VITE_FIREBASE_* secrets are prod's), fetched apart from build so no build code sees the deploy credential.
   web-config:
