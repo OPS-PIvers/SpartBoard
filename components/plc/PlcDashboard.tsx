@@ -4,6 +4,7 @@ import { ArrowLeft, ChevronRight, Loader2, Users2, X } from 'lucide-react';
 
 import { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
+import { useGoogleTasksPull } from '@/hooks/useGoogleTasksPull';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
 import {
   buildPlcDocPath,
@@ -68,6 +69,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
   const { user, canAccessFeature, globalPermissionsLoaded, isAdmin } =
     useAuth();
   const groupWording = canAccessFeature('my-groups');
+  useGoogleTasksPull(plc.id, canAccessFeature('google-tasks-sync'));
   // On mobile, deep-linking straight to a section (anything but `home`) should
   // open that section, not the drill-in menu; landing on home shows the menu.
   const [showMobileMenu, setShowMobileMenu] = useState(

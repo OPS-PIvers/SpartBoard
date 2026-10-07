@@ -833,6 +833,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
     failClosedForAdmins: true,
   },
+  // Team action items push to the assignee's Google Tasks; each person turns it on in Connected apps.
+  'google-tasks-sync': {
+    label: 'Google Tasks sync',
+    icon: ListChecks,
+    description: "Team action items appear in the assignee's Google Tasks.",
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'integrations',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Handwritten answer boxes on paper sheets; AND-ed with the paper-answer-sheets gate.
   'paper-handwritten-responses': {
     label: 'Handwritten answers on paper sheets',

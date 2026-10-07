@@ -303,6 +303,13 @@ export {
   revokeGoogleRefreshToken,
 } from './googleOAuth';
 export {
+  syncGoogleTasksOnNoteWrite,
+  syncGoogleTasksOnDocWrite,
+  setGoogleTasksSyncV1,
+  getGoogleTasksSyncStatusV1,
+  pullGoogleTasksStatusV1,
+} from './googleTasks';
+export {
   exchangeSpotifyAuthCode,
   refreshSpotifyAccessToken,
   revokeSpotifyAuth,

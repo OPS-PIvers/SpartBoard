@@ -3586,6 +3586,12 @@ describe('index barrel — deployed export set', () => {
     'exchangeGoogleAuthCode',
     'refreshGoogleAccessToken',
     'revokeGoogleRefreshToken',
+    // Google Tasks sync for team action items
+    'syncGoogleTasksOnNoteWrite',
+    'syncGoogleTasksOnDocWrite',
+    'setGoogleTasksSyncV1',
+    'getGoogleTasksSyncStatusV1',
+    'pullGoogleTasksStatusV1',
     'exchangeSpotifyAuthCode',
     'refreshSpotifyAccessToken',
     'revokeSpotifyAuth',
