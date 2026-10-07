@@ -37,6 +37,7 @@ import { selectNewerHeroData } from '@/components/plc/teams/heroes/heroStaleness
 import {
   TeamShellView,
   type TeamOverlay,
+  type TeamRailItem,
 } from '@/components/plc/teams/shell/TeamShellView';
 import {
   GearMenuView,
@@ -210,7 +211,7 @@ export const TeamsShellDevHarness: React.FC = () => {
     screen === 'settings'
       ? BUILT_IN_TEAM_TYPE_PRESETS[settingsType].pages
       : LAYOUT.pages;
-  const pages = pagesSource
+  const pages: TeamRailItem[] = pagesSource
     .filter((p) => p.enabled)
     .map((p) => ({
       id: p.id,
