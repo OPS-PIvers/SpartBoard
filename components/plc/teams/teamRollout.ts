@@ -32,14 +32,22 @@ export function newTeamLayout(
   return districtDefaultLayout({ groupType }, adminDefaults);
 }
 
-/** One read of the admin defaults; built-in presets stand in when it fails. */
+/** One read of the admin defaults; null when the doc is missing, throws when the read fails. */
 export async function fetchTeamTypeDefaults(): Promise<TeamTypeDefaults | null> {
+  const snap = await getDoc(
+    doc(db, 'admin_settings', TEAM_TYPE_DEFAULTS_SETTINGS_DOC)
+  );
+  return snap.exists() ? normalizeTeamTypeDefaults(snap.data()) : null;
+}
+
+/** The layout to freeze on a new team; undefined when the defaults can't be read, so it keeps following them. */
+export async function layoutForNewTeam(
+  groupType: PlcGroupType,
+  fetchDefaults: () => Promise<TeamTypeDefaults | null> = fetchTeamTypeDefaults
+): Promise<PlcTeamLayout | undefined> {
   try {
-    const snap = await getDoc(
-      doc(db, 'admin_settings', TEAM_TYPE_DEFAULTS_SETTINGS_DOC)
-    );
-    return snap.exists() ? normalizeTeamTypeDefaults(snap.data()) : null;
+    return newTeamLayout(groupType, await fetchDefaults());
   } catch {
-    return null;
+    return undefined;
   }
 }

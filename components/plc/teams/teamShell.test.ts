@@ -19,7 +19,7 @@ import {
   layoutFromDraft,
 } from './shell/layoutDraft';
 import { selectMyItems } from './shell/myItems';
-import { districtDefaultLayout } from './teamRollout';
+import { districtDefaultLayout, layoutForNewTeam } from './teamRollout';
 
 const plcLayout: PlcTeamLayout = {
   pages: BUILT_IN_TEAM_TYPE_PRESETS.plc.pages,
@@ -276,6 +276,18 @@ describe('selectMyItems', () => {
     );
     expect(items.open.map((v) => v.item.id)).toEqual(['1']);
     expect(items.done.map((v) => v.item.id)).toEqual(['2']);
+  });
+});
+
+describe('layoutForNewTeam', () => {
+  it('omits the layout when the admin defaults read fails', async () => {
+    const failing = () => Promise.reject(new Error('unavailable'));
+    expect(await layoutForNewTeam('plc', failing)).toBeUndefined();
+  });
+
+  it('freezes the built-in preset when no admin defaults exist', async () => {
+    const out = await layoutForNewTeam('plc', () => Promise.resolve(null));
+    expect(out).toEqual(districtDefaultLayout({ groupType: 'plc' }, null));
   });
 });
 

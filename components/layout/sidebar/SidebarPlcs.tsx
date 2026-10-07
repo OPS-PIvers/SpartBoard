@@ -28,10 +28,7 @@ import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { PlcEditModal } from './PlcEditModal';
 import { PlcInvitesModal } from './PlcInvitesModal';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
-import {
-  fetchTeamTypeDefaults,
-  newTeamLayout,
-} from '@/components/plc/teams/teamRollout';
+import { layoutForNewTeam } from '@/components/plc/teams/teamRollout';
 
 interface SidebarPlcsProps {
   isVisible: boolean;
@@ -303,8 +300,9 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
       await createPlc(name, groupType);
       return;
     }
-    const defaults = await fetchTeamTypeDefaults();
-    await createPlc(name, groupType, newTeamLayout(groupType, defaults));
+    const layout = await layoutForNewTeam(groupType);
+    if (layout) await createPlc(name, groupType, layout);
+    else await createPlc(name, groupType);
   };
 
   const handleLeave = async (plc: Plc) => {
