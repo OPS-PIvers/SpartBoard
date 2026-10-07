@@ -527,7 +527,11 @@ export type TeamHeroRule =
   | 'latestAssessment'
   | 'newestPinnedUpdate'
   | 'nextMeetingNote'
-  | 'nextRequiredTask';
+  | 'nextRequiredTask'
+  | 'teamGoal'
+  | 'lowestTarget'
+  | 'newestDoc'
+  | 'calendar';
 
 export interface TeamHero {
   mode: 'default' | 'pinned';
