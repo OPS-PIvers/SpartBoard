@@ -337,7 +337,9 @@ export const getActiveStudentsV1 = onCall(
     }
     const raw = request.data as { orgId?: unknown } | undefined;
     const orgId = typeof raw?.orgId === 'string' ? raw.orgId.trim() : '';
-    if (!orgId) throw new HttpsError('invalid-argument', 'orgId is required.');
+    if (!orgId || orgId.includes('/')) {
+      throw new HttpsError('invalid-argument', 'orgId is required.');
+    }
 
     const db = admin.firestore();
     await assertOrgWideAdmin(db, orgId, email.toLowerCase());
