@@ -2,18 +2,22 @@
 export function ltiSectionsKey(
   session:
     | {
-        classIds?: string[];
+        classIds?: unknown;
         classPeriodByClassId?: Record<string, string>;
+        ltiNrps?: boolean;
       }
     | null
     | undefined
 ): string {
-  if (!session) return '';
+  if (session?.ltiNrps !== true) return '';
+  const classIds: unknown[] = Array.isArray(session.classIds)
+    ? session.classIds
+    : [];
   const ids = new Set(
-    [
-      ...(session.classIds ?? []),
-      ...Object.keys(session.classPeriodByClassId ?? {}),
-    ].filter((id) => id.startsWith('schoology:'))
+    [...classIds, ...Object.keys(session.classPeriodByClassId ?? {})].filter(
+      (id): id is string =>
+        typeof id === 'string' && id.startsWith('schoology:')
+    )
   );
   return [...ids].sort().join(',');
 }

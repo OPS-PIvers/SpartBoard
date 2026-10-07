@@ -28,6 +28,9 @@ const CLASSLINK_CONCURRENCY = 6;
 const PAGE_LIMIT = 200;
 const MAX_PAGES = 10;
 const API_TIMEOUT_MS = 20000;
+const QUERY_CONCURRENCY = 8;
+const NAME_LOOKUP_BUDGET_MS = 80000;
+const CACHE_TTL_MS = 5 * 60 * 1000;
 const ORG_WIDE_ROLE_IDS = new Set(['super_admin', 'domain_admin']);
 
 export interface ActiveStudentInput {
@@ -160,72 +163,85 @@ async function collectAssignmentOpens(
   studentUids: readonly string[],
   sectionIds: readonly string[],
   sinceMs: number
-): Promise<AssignmentOpen[]> {
+): Promise<{ opens: AssignmentOpen[]; partial: boolean }> {
   const wanted = new Set(studentUids);
+  let partial = false;
   const hits: {
     studentUid: string;
     sessionRef: admin.firestore.DocumentReference;
     openedMs: number;
   }[] = [];
-  const queries: Promise<void>[] = [];
-  for (const src of OPEN_SOURCES) {
-    for (const ids of chunk(studentUids, IN_QUERY_MAX)) {
-      queries.push(
-        db
-          .collectionGroup(src.group)
-          .where(src.studentField, 'in', ids)
-          .where(src.timeField, '>=', sinceMs)
-          .select(src.studentField, src.timeField)
-          .get()
-          .then((snap) => {
-            for (const doc of snap.docs) {
-              const sessionRef = doc.ref.parent.parent;
-              if (sessionRef?.parent.id !== src.sessions) continue;
-              const uid: unknown = doc.get(src.studentField);
-              const at: unknown = doc.get(src.timeField);
-              if (typeof uid !== 'string' || typeof at !== 'number') continue;
-              hits.push({ studentUid: uid, sessionRef, openedMs: at });
-            }
-          })
-      );
-    }
-  }
+  const settle = (label: string) => (err: unknown) => {
+    partial = true;
+    console.error(`[getActiveStudentsV1] ${label} query failed:`, errCode(err));
+  };
+  const jobs = OPEN_SOURCES.flatMap((src) =>
+    chunk(studentUids, IN_QUERY_MAX).map((ids) => ({ src, ids }))
+  );
+  await mapWithConcurrency(jobs, QUERY_CONCURRENCY, ({ src, ids }) =>
+    db
+      .collectionGroup(src.group)
+      .where(src.studentField, 'in', ids)
+      .where(src.timeField, '>=', sinceMs)
+      .select(src.studentField, src.timeField)
+      .get()
+      .then((snap) => {
+        for (const doc of snap.docs) {
+          const sessionRef = doc.ref.parent.parent;
+          if (sessionRef?.parent.id !== src.sessions) continue;
+          const uid: unknown = doc.get(src.studentField);
+          const at: unknown = doc.get(src.timeField);
+          if (typeof uid !== 'string' || typeof at !== 'number') continue;
+          hits.push({ studentUid: uid, sessionRef, openedMs: at });
+        }
+      }, settle(src.sessions))
+  );
   // Flashcard progress is keyed by uid alone, so find sessions for these students' sections and read their recent progress.
-  const flashcardQueries = chunk([...new Set(sectionIds)], IN_QUERY_MAX).map(
-    async (ids) => {
-      const sessions = await db
+  const flashcardSessions = new Map<
+    string,
+    admin.firestore.DocumentReference
+  >();
+  await mapWithConcurrency(
+    chunk([...new Set(sectionIds)], IN_QUERY_MAX),
+    QUERY_CONCURRENCY,
+    (ids) =>
+      db
         .collection('flashcard_sessions')
         .where('classIds', 'array-contains-any', ids)
         .select()
-        .get();
-      await Promise.all(
-        sessions.docs.map(async (session) => {
-          const progress = await session.ref
-            .collection('progress')
-            .where('lastActiveAt', '>=', sinceMs)
-            .select('lastActiveAt')
-            .get();
+        .get()
+        .then((snap) => {
+          for (const d of snap.docs) flashcardSessions.set(d.ref.path, d.ref);
+        }, settle('flashcard_sessions'))
+  );
+  await mapWithConcurrency(
+    [...flashcardSessions.values()],
+    QUERY_CONCURRENCY,
+    (sessionRef) =>
+      sessionRef
+        .collection('progress')
+        .where('lastActiveAt', '>=', sinceMs)
+        .select('lastActiveAt')
+        .get()
+        .then((progress) => {
           for (const doc of progress.docs) {
             const at: unknown = doc.get('lastActiveAt');
             if (!wanted.has(doc.id) || typeof at !== 'number') continue;
-            hits.push({
-              studentUid: doc.id,
-              sessionRef: session.ref,
-              openedMs: at,
-            });
+            hits.push({ studentUid: doc.id, sessionRef, openedMs: at });
           }
-        })
-      );
-    }
+        }, settle('flashcard progress'))
   );
-  queries.push(...flashcardQueries);
-  await Promise.all(queries);
 
   const sessionRefs = new Map<string, admin.firestore.DocumentReference>();
   for (const h of hits) sessionRefs.set(h.sessionRef.path, h.sessionRef);
   const teacherBySession = new Map<string, string>();
   for (const refs of chunk([...sessionRefs.values()], 300)) {
-    const docs = await db.getAll(...refs, { fieldMask: ['teacherUid'] });
+    const docs = await db
+      .getAll(...refs, { fieldMask: ['teacherUid'] })
+      .catch((err: unknown) => {
+        settle('session teacher')(err);
+        return [];
+      });
     for (const d of docs) {
       const teacherUid: unknown = d.get('teacherUid');
       if (typeof teacherUid === 'string' && teacherUid) {
@@ -233,13 +249,28 @@ async function collectAssignmentOpens(
       }
     }
   }
-  return hits.flatMap((h) => {
+  const opens = hits.flatMap((h) => {
     const teacherUid = teacherBySession.get(h.sessionRef.path);
     return teacherUid
       ? [{ studentUid: h.studentUid, teacherUid, openedMs: h.openedMs }]
       : [];
   });
+  return { opens, partial };
 }
+
+function errCode(err: unknown): unknown {
+  if (axios.isAxiosError(err)) return err.response?.status ?? err.code;
+  return (err as { code?: unknown } | null)?.code ?? 'unexpected';
+}
+
+interface ActiveStudentsResult {
+  asOf: number;
+  partial: boolean;
+  students: ActiveStudentRow[];
+}
+
+// Per-instance cache so reopening the modal or retrying doesn't repeat the full fan-out.
+const resultCache = new Map<string, ActiveStudentsResult>();
 
 async function assertOrgWideAdmin(
   db: admin.firestore.Firestore,
@@ -259,7 +290,7 @@ async function assertOrgWideAdmin(
   );
 }
 
-async function mapWithConcurrency<T>(
+export async function mapWithConcurrency<T>(
   items: readonly T[],
   limit: number,
   fn: (item: T) => Promise<void>
@@ -312,6 +343,9 @@ export const getActiveStudentsV1 = onCall(
     await assertOrgWideAdmin(db, orgId, email.toLowerCase());
 
     const now = Date.now();
+    const cached = resultCache.get(orgId);
+    if (cached && now - cached.asOf < CACHE_TTL_MS) return cached;
+    const deadline = now + NAME_LOOKUP_BUDGET_MS;
     const snap = await db
       .collection('student_sections')
       .where('orgId', '==', orgId)
@@ -335,29 +369,43 @@ export const getActiveStudentsV1 = onCall(
     // Sections that teachers imported as rosters; only these can be fetched from ClassLink for names.
     const allSections = [...new Set(active.flatMap((s) => s.sectionIds))];
     const rosteredSections = new Set<string>();
-    const rosterSnaps = await Promise.all(
-      chunk(allSections, IN_CHUNK).map((ids) =>
+    let partial = false;
+    await mapWithConcurrency(
+      chunk(allSections, IN_CHUNK),
+      QUERY_CONCURRENCY,
+      (ids) =>
         db
           .collectionGroup('rosters')
           .where('classlinkClassId', 'in', ids)
           .select('classlinkClassId')
           .get()
-      )
+          .then(
+            (rs) => {
+              for (const doc of rs.docs) {
+                const sectionId: unknown = doc.get('classlinkClassId');
+                if (typeof sectionId === 'string') {
+                  rosteredSections.add(sectionId);
+                }
+              }
+            },
+            (err: unknown) => {
+              partial = true;
+              console.error(
+                '[getActiveStudentsV1] rosters query failed:',
+                errCode(err)
+              );
+            }
+          )
     );
-    for (const rs of rosterSnaps) {
-      for (const doc of rs.docs) {
-        const sectionId: unknown = doc.get('classlinkClassId');
-        if (typeof sectionId === 'string') rosteredSections.add(sectionId);
-      }
-    }
 
-    let partial = false;
-    const opens = await collectAssignmentOpens(
+    const collected = await collectAssignmentOpens(
       db,
       active.map((s) => s.uid),
       allSections,
       now - MONTH_MS
     );
+    if (collected.partial) partial = true;
+    const opens = collected.opens;
     const opensByStudent = latestOpensByStudent(opens);
 
     const teacherNames = new Map<string, string>();
@@ -392,9 +440,18 @@ export const getActiveStudentsV1 = onCall(
             (s) => !namesByUid.has(s.uid) && s.sectionIds.includes(sectionId)
           );
           if (!covers) return;
+          if (Date.now() >= deadline) {
+            partial = true;
+            return;
+          }
           const url = `${tenantUrl}${ONEROSTER_BASE}/classes/${encodeURIComponent(sectionId)}/students`;
           try {
             for (let page = 0; page < MAX_PAGES; page += 1) {
+              const remainingMs = deadline - Date.now();
+              if (remainingMs <= 0) {
+                partial = true;
+                break;
+              }
               const params = {
                 limit: String(PAGE_LIMIT),
                 offset: String(page * PAGE_LIMIT),
@@ -409,7 +466,7 @@ export const getActiveStudentsV1 = onCall(
               const res = await axios.get<{ users?: ClassLinkStudent[] }>(url, {
                 params,
                 headers,
-                timeout: API_TIMEOUT_MS,
+                timeout: Math.min(API_TIMEOUT_MS, remainingMs),
               });
               const batch = res.data.users ?? [];
               for (const st of batch) {
@@ -427,7 +484,7 @@ export const getActiveStudentsV1 = onCall(
             partial = true;
             console.error(
               '[getActiveStudentsV1] ClassLink request failed:',
-              axios.isAxiosError(err) ? err.response?.status : 'unexpected'
+              errCode(err)
             );
           }
         }
@@ -436,7 +493,7 @@ export const getActiveStudentsV1 = onCall(
       partial = true;
     }
 
-    return {
+    const result: ActiveStudentsResult = {
       asOf: now,
       partial,
       students: buildActiveStudentRows({
@@ -446,5 +503,7 @@ export const getActiveStudentsV1 = onCall(
         namesByUid,
       }),
     };
+    if (!partial) resultCache.set(orgId, result);
+    return result;
   }
 );

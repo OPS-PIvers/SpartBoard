@@ -6,6 +6,7 @@ import {
   OPEN_SOURCES,
   buildActiveStudentRows,
   latestOpensByStudent,
+  mapWithConcurrency,
   orderSectionsForNameLookup,
   selectMonthlyActive,
 } from './adminActiveStudents';
@@ -103,5 +104,22 @@ describe('OPEN_SOURCES', () => {
       'quiz_sessions',
       'video_activity_sessions',
     ]);
+  });
+});
+
+describe('mapWithConcurrency', () => {
+  it('runs every item with at most `limit` in flight', async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const seen: number[] = [];
+    await mapWithConcurrency([1, 2, 3, 4, 5, 6, 7], 3, async (n) => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 1));
+      seen.push(n);
+      inFlight -= 1;
+    });
+    expect(peak).toBe(3);
+    expect(seen.sort()).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 });
