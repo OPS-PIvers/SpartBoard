@@ -55,6 +55,15 @@ import {
   secondaryBtn,
 } from '@/components/tours/tourButtons';
 import {
+  chromeMuted,
+  chromeSurface,
+  focusRing,
+  headerBar,
+  headerIconBtn,
+  inputLight,
+  warnChip,
+} from '@/components/common/lightChrome';
+import {
   boardLayoutOf,
   buildRecordedLayouts,
 } from '@/components/widgets/GuidedLearning/components/recorder/recordedLayouts';
@@ -91,9 +100,8 @@ import {
   type TourStepStatus,
 } from './stepStatus';
 
-const inputClass =
-  'w-full rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-sm font-normal text-white placeholder:text-slate-400 [color-scheme:dark] focus:border-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40';
-const labelClass = 'flex flex-col gap-1 text-xs font-semibold text-slate-300';
+const inputClass = `w-full rounded-lg px-2.5 py-1.5 text-sm font-normal ${inputLight}`;
+const labelClass = 'flex flex-col gap-1 text-xs font-semibold text-slate-600';
 
 interface TourEditorPanelProps {
   session: TourEditorSession;
@@ -193,8 +201,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
     ...(collapsed ? {} : { bottom: PANEL_EDGE }),
     [side]: PANEL_EDGE,
   };
-  const shell =
-    'fixed flex flex-col overflow-hidden rounded-2xl border border-white/20 bg-slate-900/90 text-white shadow-2xl ring-1 ring-black/40 backdrop-blur-xl';
+  const shell = `fixed flex flex-col overflow-hidden rounded-2xl ${chromeSurface}`;
   const progress = t('tours.progress', {
     current: Math.min(selected + 1, total),
     total,
@@ -241,7 +248,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
             <ChevronsRight className="h-4 w-4" aria-hidden="true" />
           )}
         </button>
-        <span className="py-2 text-xs font-semibold tabular-nums text-slate-200">
+        <span className="py-2 text-xs font-semibold tabular-nums text-slate-600">
           {Math.min(selected + 1, total)}/{total}
         </span>
         <button
@@ -287,7 +294,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
       className={shell}
       style={frame}
     >
-      <header className="flex flex-col gap-0.5 border-b border-white/10 px-3 pb-2 pt-2.5">
+      <header className={`flex flex-col gap-0.5 px-3 pb-2 pt-2.5 ${headerBar}`}>
         <div className="flex items-center gap-1">
           <div className="min-w-0 flex-1">
             <SaveLine state={session.saveState} />
@@ -298,7 +305,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
             disabled={!session.canUndo}
             aria-label={t('glStudio.undo')}
             title={t('glStudio.undo')}
-            className={`${iconBtn} disabled:opacity-40`}
+            className={`${headerIconBtn} disabled:opacity-40`}
           >
             <Undo2 className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -308,7 +315,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
             disabled={!session.canRedo}
             aria-label={t('glStudio.redo')}
             title={t('glStudio.redo')}
-            className={`${iconBtn} disabled:opacity-40`}
+            className={`${headerIconBtn} disabled:opacity-40`}
           >
             <Redo2 className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -318,7 +325,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
             onClick={readAloud.onToggle}
             aria-label={t('glPlayer.readAloud')}
             title={t('glPlayer.readAloud')}
-            className={iconBtn}
+            className={headerIconBtn}
           >
             {readAloud.on ? (
               <Volume2 className="h-4 w-4" aria-hidden="true" />
@@ -331,7 +338,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
             onClick={swapSide}
             aria-label={t('tours.editor.swapSide')}
             title={t('tours.editor.swapSide')}
-            className={iconBtn}
+            className={headerIconBtn}
           >
             {side === 'right' ? (
               <PanelLeft className="h-4 w-4" aria-hidden="true" />
@@ -344,7 +351,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
             onClick={toggleCollapsed}
             aria-label={t('tours.editor.collapse')}
             title={t('tours.editor.collapse')}
-            className={iconBtn}
+            className={headerIconBtn}
           >
             {side === 'right' ? (
               <ChevronsRight className="h-4 w-4" aria-hidden="true" />
@@ -357,12 +364,12 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
             onClick={onClose}
             aria-label={t('tours.editor.close')}
             title={t('tours.editor.close')}
-            className={iconBtn}
+            className={headerIconBtn}
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
-        <h2 className="mt-1 break-words text-sm font-semibold text-slate-100">
+        <h2 className="mt-1 break-words text-sm font-semibold text-white">
           {set.title.trim() || t('tours.welcomeTitle')}
         </h2>
         <SaveAlert state={session.saveState} />
@@ -370,7 +377,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
       {settings && (
         <div
           role="tablist"
-          className="flex gap-1 border-b border-white/10 px-2 py-1.5"
+          className="flex gap-1 border-b border-slate-200 bg-slate-50 px-2 py-1.5"
         >
           {(['steps', 'settings'] as const).map((id) => (
             <button
@@ -379,10 +386,10 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
               role="tab"
               aria-selected={tab === id}
               onClick={() => setTab(id)}
-              className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
+              className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${focusRing} ${
                 tab === id
-                  ? 'bg-white/15 text-white'
-                  : 'text-slate-300 hover:bg-white/10'
+                  ? 'bg-white text-brand-blue-dark shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
               }`}
             >
               {t(`tours.editor.tab_${id}`)}
@@ -398,8 +405,8 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
         <>
           {pickingStep && picking?.from === 'list' ? (
             <div className="flex min-h-0 flex-1 flex-col">
-              <div className="flex items-center gap-2 border-b border-white/10 px-3 py-1.5">
-                <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-300">
+              <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-1.5">
+                <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-600">
                   {t('tourPicker.listTitle')}
                 </span>
                 <button
@@ -422,7 +429,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
                 playback={playback}
                 onPick={(stepId) => setPicking({ stepId, from: 'board' })}
               />
-              <div className="flex items-center gap-1 border-t border-white/10 px-1.5 py-1">
+              <div className="flex items-center gap-1 border-t border-slate-200 bg-slate-50 px-1.5 py-1">
                 <button
                   type="button"
                   onClick={addStep}
@@ -455,8 +462,10 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
               }
             />
           )}
-          <footer className="flex items-center gap-2 border-t border-white/10 px-3 py-2">
-            <span className="flex-1 text-xs font-semibold tabular-nums text-slate-300">
+          <footer className="flex items-center gap-2 border-t border-slate-200 bg-white px-3 py-2">
+            <span
+              className={`flex-1 text-xs font-semibold tabular-nums ${chromeMuted}`}
+            >
               {progress}
             </span>
             <button
@@ -489,7 +498,16 @@ const SaveLine: React.FC<{ state: TourEditorSession['saveState'] }> = ({
   const { t } = useTranslation();
   if (state === 'conflict' || state === 'error') return null;
   return (
-    <p aria-live="polite" className="text-xs text-slate-300">
+    <p
+      aria-live="polite"
+      className="flex items-center gap-1.5 text-xs text-[#c3cae6]"
+    >
+      <span
+        aria-hidden="true"
+        className={`h-1.5 w-1.5 rounded-full ${
+          state === 'saving' ? 'bg-[#c3cae6]' : 'bg-green-400'
+        }`}
+      />
       {t(state === 'saving' ? 'common.saving' : 'common.saved')}
     </p>
   );
@@ -538,7 +556,7 @@ const StepOutline: React.FC<{
   const { t } = useTranslation();
   if (steps.length === 0) {
     return (
-      <p className="flex-1 px-3 py-4 text-sm text-slate-300">
+      <p className="flex-1 px-3 py-4 text-sm text-slate-500">
         {t('tours.editor.empty')}
       </p>
     );
@@ -556,7 +574,7 @@ const StepOutline: React.FC<{
       >
         <ol
           data-testid="tour-editor-outline"
-          className="min-h-0 flex-1 divide-y divide-white/10 overflow-y-auto pb-3"
+          className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto pb-3"
         >
           {steps.map((step, i) => (
             <OutlineRow
@@ -605,6 +623,7 @@ const OutlineRow: React.FC<{
   const title =
     [label, control].find((part) => !!part) ?? t('tours.editor.untitled');
   const red = isRedStatus(status);
+  const warn = status === 'unbound' && !jumping && !waiting;
   const subtitle = waiting
     ? t('tours.editor.youClick')
     : jumping
@@ -631,23 +650,31 @@ const OutlineRow: React.FC<{
         transform: CSS.Transform.toString(transform),
         transition,
       }}
-      className={`group ${selected ? 'bg-white/[0.07]' : ''} ${
-        isDragging ? 'relative z-10 bg-slate-800' : ''
-      }`}
+      className={`group ${
+        selected
+          ? 'border-b border-[#d5daec] bg-brand-blue-lighter shadow-[inset_3px_0_0_#2d3f89]'
+          : ''
+      } ${isDragging ? 'relative z-10 bg-white shadow-lg' : ''}`}
     >
       <div className="flex items-start">
         <button
           type="button"
           onClick={() => session.select(index)}
-          className="flex min-w-0 flex-1 items-start gap-2.5 px-3 py-2 text-left hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
+          className={`flex min-w-0 flex-1 items-start gap-2.5 px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary/50 ${
+            selected ? '' : 'hover:bg-slate-50'
+          }`}
         >
-          <span className="w-5 shrink-0 pt-px text-right text-xs font-semibold tabular-nums text-slate-300">
+          <span
+            className={`w-5 shrink-0 pt-px text-right text-xs font-semibold tabular-nums ${
+              selected ? 'text-brand-blue-primary' : 'text-slate-400'
+            }`}
+          >
             {index + 1}
           </span>
           <span className="flex min-w-0 flex-1 flex-col">
             <span
               className={`break-words text-sm ${
-                selected ? 'font-semibold text-white' : 'text-slate-100'
+                selected ? 'font-semibold text-slate-900' : 'text-slate-700'
               }`}
             >
               {title}
@@ -656,10 +683,12 @@ const OutlineRow: React.FC<{
               <span
                 className={`flex items-start gap-1 text-xs ${
                   waiting
-                    ? 'font-semibold text-white'
+                    ? 'font-semibold text-brand-blue-primary'
                     : red && !jumping
-                      ? 'font-semibold text-red-300'
-                      : 'text-slate-300'
+                      ? 'font-semibold text-brand-red-primary'
+                      : warn
+                        ? `mt-0.5 self-start py-0.5 font-semibold ${warnChip}`
+                        : 'text-slate-500'
                 }`}
               >
                 {waiting && (
@@ -674,7 +703,7 @@ const OutlineRow: React.FC<{
                     aria-hidden="true"
                   />
                 )}
-                {red && !jumping && !waiting && (
+                {(red || warn) && !jumping && !waiting && (
                   <AlertTriangle
                     className="mt-0.5 h-3 w-3 shrink-0"
                     aria-hidden="true"
@@ -692,7 +721,7 @@ const OutlineRow: React.FC<{
           {...listeners}
           aria-label={t('tours.editor.reorder', { n: index + 1 })}
           title={t('tours.editor.reorder', { n: index + 1 })}
-          className="mr-1 mt-1.5 cursor-grab touch-none rounded-md p-1 text-slate-400 opacity-0 hover:bg-white/10 hover:text-white focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 active:cursor-grabbing group-hover:opacity-100"
+          className="mr-1 mt-1.5 cursor-grab touch-none rounded-md p-1 text-slate-400 opacity-0 hover:bg-slate-100 hover:text-slate-700 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 active:cursor-grabbing group-hover:opacity-100"
         >
           <GripVertical className="h-4 w-4" aria-hidden="true" />
         </button>
@@ -733,7 +762,7 @@ const StepCard: React.FC<{
             src={thumb.url}
             alt=""
             data-testid="tour-editor-thumbnail"
-            className={`max-h-32 w-full rounded-lg border border-white/10 object-contain ${
+            className={`max-h-32 w-full rounded-lg border border-[#d5daec] bg-white object-contain ${
               thumb.anchor === tour.anchor ? '' : 'opacity-50'
             }`}
           />
@@ -742,7 +771,7 @@ const StepCard: React.FC<{
             onClick={() => retakeTourEditThumbnail(step.id)}
             aria-label={t('tours.editor.retake')}
             title={t('tours.editor.retakeHint')}
-            className="absolute right-1.5 top-1.5 rounded-lg bg-slate-900/85 p-1.5 text-white shadow hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            className={`absolute right-1.5 top-1.5 rounded-lg bg-white p-1.5 text-slate-700 shadow hover:bg-slate-50 ${focusRing}`}
           >
             <Camera className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
@@ -771,7 +800,7 @@ const StepCard: React.FC<{
         <div className="flex items-start gap-2">
           <span
             data-testid="tour-editor-control"
-            className="min-w-0 flex-1 break-words pt-1 text-sm font-normal text-slate-100"
+            className="min-w-0 flex-1 break-words pt-1 text-sm font-normal text-slate-900"
           >
             {tour?.anchor === WHOLE_BOARD_ANCHOR || !tour
               ? t('tourPicker.wholeBoard')
@@ -780,7 +809,7 @@ const StepCard: React.FC<{
           <button
             type="button"
             onClick={onPick}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            className={`${secondaryBtn} flex shrink-0 items-center gap-1.5 px-2 text-xs`}
           >
             <MousePointerClick className="h-3.5 w-3.5" aria-hidden="true" />
             {t('tourPicker.pick')}
@@ -843,19 +872,19 @@ const StepCard: React.FC<{
         </label>
       )}
       {tour?.action === 'click' && (
-        <label className="flex items-center gap-2 text-sm text-slate-100">
+        <label className="flex items-center gap-2 text-sm text-slate-700">
           <input
             type="checkbox"
             checked={teacherMustClick(tour, 'destructive-only')}
             onChange={(e) =>
               bind({ ...tour, teacherMustClick: e.target.checked })
             }
-            className="h-4 w-4 shrink-0 rounded border-white/30 accent-white"
+            className="h-4 w-4 shrink-0 rounded border-slate-300 accent-brand-blue-primary [color-scheme:light]"
           />
           {t('glStudio.tourTeacherMustClick')}
         </label>
       )}
-      <div className="flex items-center justify-between gap-1 pt-1">
+      <div className="flex flex-wrap items-center justify-between gap-1 pt-1">
         <CaptureLayoutButton
           onCapture={(layouts) =>
             session.updateSet({
@@ -870,7 +899,7 @@ const StepCard: React.FC<{
         <button
           type="button"
           onClick={() => session.deleteStep(step.id)}
-          className="-mr-2 flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/60"
+          className="flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold text-brand-red-primary hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-red-primary/40"
         >
           <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
           {t('glStudio.deleteStep')}
@@ -907,7 +936,7 @@ const CaptureLayoutButton: React.FC<{
       onClick={() => void capture()}
       disabled={board.length === 0}
       title={t('glStudio.tourLayoutHint')}
-      className="-ml-2 flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+      className={`${secondaryBtn} -ml-2 flex items-center gap-1.5 whitespace-nowrap px-2 text-xs disabled:opacity-40`}
     >
       <LayoutDashboard className="h-3.5 w-3.5" aria-hidden="true" />
       {t('glStudio.tourLayoutCapture')}

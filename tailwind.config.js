@@ -38,6 +38,7 @@ const reducedMotionPlugin = plugin(({ addBase }) => {
         '.animate-marquee',
         '.animate-gl-pulse-reminder',
         '.animate-confetti-fall',
+        '.animate-tour-breathe',
       ].join(', ')]: {
         animation: 'none !important',
       },
@@ -303,6 +304,11 @@ export default {
           from: { transform: 'scale(1)', opacity: '0.9' },
           to: { transform: 'scale(1.15)', opacity: '0' },
         },
+        // Live tour: a looping ring on steps the teacher finishes by clicking the target.
+        'tour-breathe': {
+          '0%': { transform: 'scale(1)', opacity: '0.85' },
+          '70%, 100%': { transform: 'scale(1.14)', opacity: '0' },
+        },
       },
       animation: {
         'spin-slow': 'spin-slow 12s linear infinite',
@@ -314,6 +320,7 @@ export default {
         'gain-pop': 'gain-pop 400ms ease-out both',
         'confetti-fall': 'confetti-fall 4s linear both',
         'tour-pulse': 'tour-pulse 700ms ease-out both',
+        'tour-breathe': 'tour-breathe 2.2s ease-out infinite',
       },
     },
   },

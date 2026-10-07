@@ -4,6 +4,7 @@ import { MousePointerClick, Play } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import { CALLOUT_IN_MS } from '@/components/widgets/GuidedLearning/utils/motion';
 import type { TetherArrow } from '@/components/widgets/GuidedLearning/utils/calloutPlacement';
+import { chromeMuted, chromeSurface } from '@/components/common/lightChrome';
 import { primaryBtn, secondaryBtn } from './tourButtons';
 
 export interface TourTipStatus {
@@ -92,7 +93,7 @@ export const TourTip: React.FC<TourTipProps> = ({
       data-testid="tour-callout"
       data-plain={plain ? '' : undefined}
       data-tether={tether?.edge}
-      className="fixed flex flex-col gap-2 rounded-2xl border border-white/20 bg-slate-900/90 px-4 py-3 leading-relaxed text-white shadow-2xl ring-1 ring-black/40 backdrop-blur-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+      className={`fixed flex flex-col gap-2 rounded-2xl px-4 py-3 leading-relaxed focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 ${chromeSurface}`}
       style={{
         zIndex: Z_INDEX.tourCallout,
         left,
@@ -108,7 +109,7 @@ export const TourTip: React.FC<TourTipProps> = ({
           aria-hidden="true"
           data-testid="tour-tip-arrow"
           viewBox={`0 0 ${ARROW_W} ${ARROW_H}`}
-          className="overflow-visible fill-slate-900 stroke-white/20"
+          className="overflow-visible fill-white stroke-slate-900/[0.08]"
           style={arrowStyle(tether)}
         >
           <path d={`M0 ${ARROW_H} L${ARROW_W / 2} 0 L${ARROW_W} ${ARROW_H}`} />
@@ -119,13 +120,13 @@ export const TourTip: React.FC<TourTipProps> = ({
         ref={headingRef}
         tabIndex={-1}
         data-testid="tour-step-title"
-        className="rounded font-bold tracking-tight text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+        className="rounded font-bold tracking-tight text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50"
       >
         {title}
       </div>
       {children}
       {looking && (
-        <p role="status" className="text-xs text-slate-300">
+        <p role="status" className={`text-xs ${chromeMuted}`}>
           {t('tours.looking')}
         </p>
       )}
@@ -135,8 +136,8 @@ export const TourTip: React.FC<TourTipProps> = ({
           data-testid={status.testId}
           className={`flex items-center gap-1.5 self-start rounded-full px-2.5 py-1 text-xs font-semibold ${
             status.kind === 'turn'
-              ? 'bg-white text-slate-900'
-              : 'bg-white/10 text-slate-200'
+              ? 'bg-brand-blue-primary text-white'
+              : 'bg-brand-blue-lighter text-brand-blue-dark'
           }`}
         >
           {status.kind === 'turn' ? (
@@ -149,7 +150,7 @@ export const TourTip: React.FC<TourTipProps> = ({
       )}
       {confirm && (
         <div data-testid="tour-auto-confirm" className="flex flex-col gap-2">
-          <p className="text-sm font-semibold text-white">
+          <p className="text-sm font-semibold text-slate-900">
             {t('tours.autoConfirm')}
           </p>
           <div className="flex gap-2">

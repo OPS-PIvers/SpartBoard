@@ -1742,6 +1742,7 @@ export const LiveTourRunner: React.FC = () => {
             rect={rect}
             onMisclick={misclick}
             pulse={anchor.centred}
+            breathe={acted && !isMissing && !autoRunning && !autoBusy}
           />
         )}
         {!tour.edit && (
@@ -1807,7 +1808,7 @@ export const LiveTourRunner: React.FC = () => {
             </Suspense>
           )}
           {isMissing ? (
-            <p className="text-sm text-slate-200">
+            <p className="text-sm text-slate-600">
               {t(
                 preview ? 'tours.anchorMissingPreview' : 'tours.anchorMissing'
               )}
@@ -1815,12 +1816,12 @@ export const LiveTourRunner: React.FC = () => {
           ) : (
             <>
               {step.text && (
-                <p className="text-sm text-slate-100">
+                <p className="text-sm text-slate-600">
                   {renderStepText(step.text)}
                 </p>
               )}
               {plain && step.question?.text.trim() && (
-                <p className="text-sm font-semibold text-white">
+                <p className="text-sm font-semibold text-slate-900">
                   {step.question.text}
                 </p>
               )}

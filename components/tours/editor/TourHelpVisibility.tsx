@@ -61,16 +61,16 @@ export const TourHelpVisibility: React.FC<{
 
   if (linked.length === 0) {
     return (
-      <p className="text-xs text-slate-300">
+      <p className="text-xs text-slate-500">
         {t('glStudio.tourPublish.help_none')}
       </p>
     );
   }
   if (hidden.length === 0) {
     return (
-      <p className="flex items-center gap-1.5 text-xs text-slate-200">
+      <p className="flex items-center gap-1.5 text-xs text-slate-600">
         <CheckCircle2
-          className="h-3.5 w-3.5 shrink-0 text-emerald-300"
+          className="h-3.5 w-3.5 shrink-0 text-emerald-600"
           aria-hidden="true"
         />
         {t('glStudio.tourPublish.help_shown')}
@@ -79,9 +79,9 @@ export const TourHelpVisibility: React.FC<{
   }
   return (
     <div className="flex flex-col gap-1.5">
-      <p className="flex items-start gap-1.5 text-xs text-slate-200">
+      <p className="flex items-start gap-1.5 text-xs text-slate-600">
         <EyeOff
-          className="mt-px h-3.5 w-3.5 shrink-0 text-amber-300"
+          className="mt-px h-3.5 w-3.5 shrink-0 text-amber-600"
           aria-hidden="true"
         />
         {t(
@@ -104,7 +104,10 @@ export const TourHelpVisibility: React.FC<{
         </button>
       )}
       {failed && (
-        <p role="alert" className="text-xs font-semibold text-red-300">
+        <p
+          role="alert"
+          className="text-xs font-semibold text-brand-red-primary"
+        >
           {t('glStudio.tourPublish.help_showFailed')}
         </p>
       )}
