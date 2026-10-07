@@ -149,6 +149,28 @@ describe('GoalView meter', () => {
   });
 });
 
+describe('GoalView pinned label', () => {
+  it('labels a pinned goal hero and leaves the card unlabelled', () => {
+    const { rerender } = render(
+      <GoalView
+        goal={GOAL}
+        practices={[]}
+        isLead={false}
+        hero
+        pinned
+        pinnedBy="Priya Shah"
+      />
+    );
+    expect(screen.getByText('Pinned by Priya Shah')).toBeTruthy();
+    rerender(
+      <GoalView goal={GOAL} practices={[]} isLead={false} hero pinned />
+    );
+    expect(screen.getByText('Pinned')).toBeTruthy();
+    rerender(<GoalView goal={GOAL} practices={[]} isLead={false} />);
+    expect(screen.queryByText(/Pinned/)).toBeNull();
+  });
+});
+
 describe('AssessmentHeroView pinned label', () => {
   const featured = () => {
     const model = buildDataOverviewModel({

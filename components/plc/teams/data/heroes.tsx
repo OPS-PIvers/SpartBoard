@@ -125,7 +125,9 @@ export const GoalSection: React.FC<{
   isLead: boolean;
   goalId?: string;
   hero?: boolean;
-}> = ({ plc, isLead, goalId, hero = false }) => {
+  pinned?: boolean;
+  pinnedBy?: string;
+}> = ({ plc, isLead, goalId, hero = false, pinned = false, pinnedBy }) => {
   const { goals, saveGoal, deleteGoal, routines, practicesFor, coach } =
     useGoals(plc);
   const [editing, setEditing] = useState<PlcGoal | 'new' | null>(null);
@@ -140,6 +142,8 @@ export const GoalSection: React.FC<{
         practices={practicesFor(goal)}
         isLead={isLead}
         hero={hero}
+        pinned={pinned}
+        pinnedBy={pinnedBy}
         onEdit={setEditing}
         onAdd={() => setEditing('new')}
         coach={isLead ? coach : undefined}
@@ -163,7 +167,12 @@ export const GoalSection: React.FC<{
   );
 };
 
-export const GoalHero: React.FC<TeamHeroProps> = ({ plc, heroRef, isLead }) => {
+export const GoalHero: React.FC<TeamHeroProps> = ({
+  plc,
+  heroRef,
+  pinnedBy,
+  isLead,
+}) => {
   if (!useFlag()) return null;
   return (
     <Section first>
@@ -171,6 +180,8 @@ export const GoalHero: React.FC<TeamHeroProps> = ({ plc, heroRef, isLead }) => {
         plc={plc}
         isLead={isLead}
         hero
+        pinned={heroRef?.kind === 'goal'}
+        pinnedBy={pinnedBy?.name}
         {...(heroRef?.kind === 'goal' ? { goalId: heroRef.goalId } : {})}
       />
     </Section>

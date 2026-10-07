@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, MoreHorizontal, Sparkles } from 'lucide-react';
+import { Loader2, MoreHorizontal, Pin, Sparkles } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
 import type { PlcGoal } from '@/types';
 import type { GoalCoachDraft, GoalCoachResult } from '@/config/goalCoachRubric';
@@ -22,6 +22,10 @@ export interface GoalViewProps {
   practices: string[];
   isLead: boolean;
   hero?: boolean;
+  /** Shows the pinned label; set on a pinned goal hero. */
+  pinned?: boolean;
+  /** Name of whoever pinned this hero. */
+  pinnedBy?: string;
   onEdit?: (goal: PlcGoal) => void;
   onAdd?: () => void;
   /** Present only when the lead can use the goal coach. */
@@ -58,6 +62,8 @@ export const GoalView: React.FC<GoalViewProps> = ({
   practices,
   isLead,
   hero = false,
+  pinned = false,
+  pinnedBy,
   onEdit,
   onAdd,
   coach,
@@ -161,6 +167,17 @@ export const GoalView: React.FC<GoalViewProps> = ({
           >
             {goal.title}
           </p>
+          {pinned && (
+            <p className={`${META} -mt-2 mb-3 flex items-center gap-1`}>
+              <Pin className="h-3 w-3" aria-hidden="true" />
+              {pinnedBy
+                ? t('plcDataOverview.pinnedBy', {
+                    name: pinnedBy,
+                    defaultValue: 'Pinned by {{name}}',
+                  })
+                : t('plcDataOverview.pinned', { defaultValue: 'Pinned' })}
+            </p>
+          )}
           {goal.current !== undefined && goal.target !== undefined && (
             <GoalProgressMeter
               current={goal.current}

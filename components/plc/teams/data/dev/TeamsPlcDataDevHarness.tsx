@@ -134,6 +134,8 @@ export const TeamsPlcDataDevHarness: React.FC = () => {
       practices={['Weekly small-group reteach']}
       isLead={lead}
       hero={heroAsHero}
+      pinned={heroAsHero}
+      pinnedBy="Priya Shah"
       onEdit={() => undefined}
       onAdd={() => undefined}
       coach={() => Promise.resolve(COACH_RESULT)}

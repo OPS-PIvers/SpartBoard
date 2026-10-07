@@ -72,7 +72,14 @@ export default function DataOverviewPage({
       />
     ) : heroRef?.kind === 'goal' ? (
       <Section first>
-        <GoalSection plc={plc} isLead={isLead} goalId={heroRef.goalId} hero />
+        <GoalSection
+          plc={plc}
+          isLead={isLead}
+          goalId={heroRef.goalId}
+          hero
+          pinned
+          pinnedBy={layout.hero.pinnedBy?.name}
+        />
       </Section>
     ) : (
       <AssessmentHeroFromModel
