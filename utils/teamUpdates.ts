@@ -103,7 +103,9 @@ export function pickHeroUpdate(
   updates: PlcUpdate[],
   pinnedId?: string
 ): PlcUpdate | null {
-  if (pinnedId) return updates.find((u) => u.id === pinnedId) ?? null;
+  const pinned = pinnedId ? updates.find((u) => u.id === pinnedId) : undefined;
+  if (pinned) return pinned;
+  // A deleted pin falls back to the type default.
   const sorted = sortUpdates(updates);
   return sorted.find((u) => u.pinned) ?? sorted[0] ?? null;
 }

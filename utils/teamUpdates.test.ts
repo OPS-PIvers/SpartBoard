@@ -97,7 +97,9 @@ describe('ordering, hero pick and filters', () => {
     expect(pickHeroUpdate(list)?.id).toBe('mid');
     expect(pickHeroUpdate([upd('a', { createdAt: 5 })])?.id).toBe('a');
     expect(pickHeroUpdate(list, 'old')?.id).toBe('old');
-    expect(pickHeroUpdate(list, 'gone')).toBeNull();
+    expect(pickHeroUpdate(list, 'gone')?.id).toBe('mid');
+    expect(pickHeroUpdate([upd('x', { createdAt: 9 })], 'gone')?.id).toBe('x');
+    expect(pickHeroUpdate([], 'gone')).toBeNull();
     expect(pickHeroUpdate([])).toBeNull();
   });
 
