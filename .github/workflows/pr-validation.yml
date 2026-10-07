@@ -105,11 +105,18 @@ jobs:
     needs: preflight
     if: needs.preflight.result == 'success' && needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
-    name: Code Quality (${{ matrix.check }})
+    name: Code Quality (${{ matrix.check }}${{ matrix.shard && format(' {0}/3', matrix.shard) || '' }})
     strategy:
       fail-fast: false
       matrix:
-        check: [lint-app, lint-functions, format, type-check]
+        # The type-aware app lint is the long pole, so it runs as 3 size-balanced shards (scripts/lintApp.mjs).
+        include:
+          - { check: lint-app, shard: 1 }
+          - { check: lint-app, shard: 2 }
+          - { check: lint-app, shard: 3 }
+          - { check: lint-functions }
+          - { check: format }
+          - { check: type-check }
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -123,7 +130,7 @@ jobs:
       # program would hit an unraised limit and get OOM-killed — see
       # tests/ci.eslintConcurrencyMemory.test.ts.
       - if: matrix.check == 'lint-app'
-        run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app
+        run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app --shard=${{ matrix.shard }}/3
       - if: matrix.check == 'lint-functions'
         run: pnpm run lint:functions
       - if: matrix.check == 'format'

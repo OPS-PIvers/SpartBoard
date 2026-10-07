@@ -6,7 +6,6 @@ import tseslint from 'typescript-eslint';
 import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
 import reactRefreshPlugin from 'eslint-plugin-react-refresh';
-import prettierPlugin from 'eslint-plugin-prettier';
 import prettierConfig from 'eslint-config-prettier';
 import globals from 'globals';
 
@@ -98,7 +97,6 @@ export default tseslint.config(
       react: reactPlugin,
       'react-hooks': reactHooksPlugin,
       'react-refresh': reactRefreshPlugin,
-      prettier: prettierPlugin,
     },
     settings: {
       react: {
@@ -106,9 +104,6 @@ export default tseslint.config(
       },
     },
     rules: {
-      // Prettier integration
-      'prettier/prettier': 'error',
-
       // React rules
       ...reactPlugin.configs.recommended.rules,
       ...reactPlugin.configs['jsx-runtime'].rules,

@@ -77,7 +77,7 @@ The ESLint configuration uses:
 
 - `@typescript-eslint` recommended rules for type checking
 - React and React Hooks rules
-- Prettier integration
+- `eslint-config-prettier` (turns off rules that fight Prettier; formatting itself is checked by `format:check`)
 - Custom rules for code quality
 
 Key rules:
@@ -86,7 +86,6 @@ Key rules:
   - `@typescript-eslint/no-unused-vars` - Unused variables must start with `_`
   - `@typescript-eslint/no-floating-promises` - Promises must be handled
   - `no-debugger` - No debugger statements
-  - `prettier/prettier` - Code must be formatted
 
 - **Warnings** (won't block commits):
   - `@typescript-eslint/no-explicit-any` - Avoid using `any` type
@@ -165,7 +164,7 @@ This project has three automated workflows configured:
 Runs on all pull requests to `main` and `dev-*` branches:
 
 - ✅ Type checking (`npm run type-check`)
-- ✅ Linting (`npm run lint`)
+- ✅ Linting (app ESLint split into 3 size-balanced shards by `scripts/lintApp.mjs`, plus functions)
 - ✅ Code formatting check (`npm run format:check`)
 - ✅ Unit tests (3 Vitest shards, merged for the count guard), Firestore rules tests, E2E
 - ✅ Build verification (`npm run build`)
@@ -189,7 +188,7 @@ Runs on pushes to `main` branch:
 
 Runs on pushes to `dev-*` branches:
 
-- ✅ Type checking, linting (app / functions / format as parallel legs)
+- ✅ Type checking, linting (3 app shards / functions / format as parallel legs)
 - ✅ Unit tests (3 shards + count guard) and Firestore rules tests
 - 🏗️ Preview build (parallel job; uploaded as an artifact the deploy reuses)
 - 🚀 Deploy to the `spartboard-dev` Firebase project (https://spartboard-dev.web.app)

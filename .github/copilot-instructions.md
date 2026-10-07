@@ -76,14 +76,13 @@ The ESLint config (`eslint.config.js`) uses `typescript-eslint` with type-checke
 - `@typescript-eslint/no-misused-promises` — **error**: no async functions in non-async contexts
 - `@typescript-eslint/no-unused-vars` — **error**: unused variables (except `_`-prefixed)
 - `@typescript-eslint/no-non-null-assertion` — **warning**: avoid `!` non-null assertions
-- `prettier/prettier` — **error**: all code must match Prettier formatting exactly
 - `react-hooks/rules-of-hooks` + `react-hooks/exhaustive-deps` — **error/warning**: hooks rules enforced
 - `no-console` — **warning**: only `console.warn` and `console.error` allowed
 - `prefer-const` / `no-var` — **error**: always use `const`/`let`
 
 ### Prettier Formatting
 
-All files must match Prettier formatting. Run `pnpm run format` to auto-format. Run `pnpm run format:check` to verify. The `prettier` ESLint plugin reports formatting violations as errors.
+All files must match Prettier formatting. Run `pnpm run format` to auto-format. Run `pnpm run format:check` to verify. ESLint no longer checks formatting; CI's `format:check` and the pre-commit `prettier --write` enforce it.
 
 ### Build Commands
 
