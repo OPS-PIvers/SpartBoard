@@ -88,6 +88,7 @@ import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
+import { ltiSectionsKey } from '@/utils/ltiSectionsKey';
 import {
   SessionBadge,
   ScorePill,
@@ -652,7 +653,9 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // Gated on `ltiNrps` so non-LTI sessions never make the call.
   const ltiNames = useLtiSessionNames(
     session?.id ?? null,
-    session?.ltiNrps === true
+    session?.ltiNrps === true,
+    'quiz',
+    ltiSectionsKey(session)
   );
   const byStudentUid = useMemo(() => {
     if (ltiNames.size === 0) return classLinkNames;

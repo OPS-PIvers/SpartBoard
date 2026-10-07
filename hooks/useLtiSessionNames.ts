@@ -14,10 +14,10 @@
  *
  * Gated by `enabled` (the session's `ltiNrps` flag) so it is a complete no-op —
  * zero callable invocations — for every non-LTI session, which is the vast
- * majority. The NRPS roster is the whole class (not just joined students) and
- * stable for the session, so a single cached fetch covers everyone; the
- * module-level promise cache de-dupes sibling viewers and is invalidated when
- * the authenticated teacher changes.
+ * majority. Each NRPS roster is a whole section, so one cached fetch per set of
+ * seen sections covers everyone; a section launching later in the day changes
+ * `sectionsKey` and refetches. The module-level promise cache de-dupes sibling
+ * viewers and is invalidated when the authenticated teacher changes.
  */
 
 import { useEffect, useState } from 'react';
@@ -45,20 +45,25 @@ let cacheOwnerUid: string | null = null;
 let cache = new Map<string, Promise<Map<string, StudentName>>>();
 
 /** Cache key — namespaced by kind so quiz/VA sessions never collide. */
-function cacheKey(sessionId: string, kind: LtiSessionKind): string {
-  return `${kind}:${sessionId}`;
+function cacheKey(
+  sessionId: string,
+  kind: LtiSessionKind,
+  sectionsKey: string
+): string {
+  return `${kind}:${sessionId}:${sectionsKey}`;
 }
 
 function fetchSessionNames(
   sessionId: string,
   teacherUid: string,
-  kind: LtiSessionKind
+  kind: LtiSessionKind,
+  sectionsKey: string
 ): Promise<Map<string, StudentName>> {
   if (cacheOwnerUid !== teacherUid) {
     cache = new Map();
     cacheOwnerUid = teacherUid;
   }
-  const key = cacheKey(sessionId, kind);
+  const key = cacheKey(sessionId, kind, sectionsKey);
   const cached = cache.get(key);
   if (cached) return cached;
 
@@ -89,7 +94,8 @@ function fetchSessionNames(
 export function useLtiSessionNames(
   sessionId: string | null | undefined,
   enabled: boolean,
-  kind: LtiSessionKind = 'quiz'
+  kind: LtiSessionKind = 'quiz',
+  sectionsKey = ''
 ): Map<string, StudentName> {
   const [resolved, setResolved] = useState<{
     key: string;
@@ -101,7 +107,7 @@ export function useLtiSessionNames(
     const teacherUid = auth.currentUser?.uid ?? '';
     if (!teacherUid) return;
     let cancelled = false;
-    fetchSessionNames(sessionId, teacherUid, kind)
+    fetchSessionNames(sessionId, teacherUid, kind, sectionsKey)
       .then((map) => {
         if (!cancelled) setResolved({ key: sessionId, map });
       })
@@ -112,7 +118,7 @@ export function useLtiSessionNames(
     return () => {
       cancelled = true;
     };
-  }, [sessionId, enabled, kind]);
+  }, [sessionId, enabled, kind, sectionsKey]);
 
   return resolved.key === sessionId && sessionId ? resolved.map : EMPTY;
 }
