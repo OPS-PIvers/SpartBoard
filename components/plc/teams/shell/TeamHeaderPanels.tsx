@@ -8,7 +8,6 @@ import {
   LayoutTemplate,
   Mic,
   Settings,
-  Target,
   Users2,
   X,
 } from 'lucide-react';
@@ -32,9 +31,7 @@ export const GearMenuView: React.FC<{
   onMembers: () => void;
   onSettings: () => void;
   onLayout: () => void;
-  /** Absent when the team has no quizzes or video activities. */
-  onTargets?: () => void;
-}> = ({ isLead, onMembers, onSettings, onLayout, onTargets }) => {
+}> = ({ isLead, onMembers, onSettings, onLayout }) => {
   const { t } = useTranslation();
   return (
     <div
@@ -52,19 +49,6 @@ export const GearMenuView: React.FC<{
         <Users2 className="h-3.5 w-3.5" aria-hidden="true" />
         {t('plcDashboard.tabs.members', { defaultValue: 'Members' })}
       </button>
-      {onTargets && (
-        <button
-          type="button"
-          role="menuitem"
-          className={MENU_ITEM}
-          onClick={onTargets}
-        >
-          <Target className="h-3.5 w-3.5" aria-hidden="true" />
-          {t('plcDashboard.tabs.targets', {
-            defaultValue: 'Learning Targets',
-          })}
-        </button>
-      )}
       <button
         type="button"
         role="menuitem"

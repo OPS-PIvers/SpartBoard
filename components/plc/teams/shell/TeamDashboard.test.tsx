@@ -140,11 +140,15 @@ describe('TeamDashboard', () => {
     expect(mocks.spaReplace).not.toHaveBeenCalled();
   });
 
-  it('lists Learning Targets in the team menu', () => {
+  it('lists Learning Targets on the rail after Assessments', () => {
     mocks.spaNavigate.mockClear();
     render(<TeamDashboard plc={plc()} activeSection="home" {...props} />);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Team menu' })[0]);
-    fireEvent.click(screen.getByRole('menuitem', { name: /Learning Targets/ }));
+    const tabs = screen.getAllByRole('tab');
+    const at = tabs.findIndex((tab) =>
+      tab.textContent?.includes('Learning Targets')
+    );
+    expect(tabs[at - 1].textContent).toContain('Assessments');
+    fireEvent.click(tabs[at]);
     expect(mocks.spaNavigate).toHaveBeenCalledWith('/plc/p1/targets');
   });
 

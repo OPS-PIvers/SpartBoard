@@ -8,7 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Target } from 'lucide-react';
 import {
   getPlcFeatures,
   getPlcGroupType,
@@ -63,7 +63,11 @@ import {
   resolveTeamRoute,
   teamPageSection,
 } from '@/components/plc/teams/teamSections';
-import { TeamShellView, type TeamOverlay } from './TeamShellView';
+import {
+  TeamShellView,
+  type TeamOverlay,
+  type TeamRailItem,
+} from './TeamShellView';
 import {
   GearMenuView,
   MembersPopoverView,
@@ -262,14 +266,32 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
     layout,
   };
 
-  const railPages = layout.pages
+  const railPages: TeamRailItem[] = layout.pages
     .filter((p) => p.enabled)
     .map((p) => ({
       id: p.id,
       label: teamPageLabel(t, p.id, isLead),
       icon: TEAM_PAGE_REGISTRY[p.id].icon,
     }));
-  const activePage = route.kind === 'page' ? route.page : null;
+  // Learning Targets sits after Assessments (or the data page), as on the legacy rail.
+  if (hasTargets) {
+    const after = railPages.findIndex((p) => p.id === 'assessments');
+    const anchor =
+      after >= 0 ? after : railPages.findIndex((p) => p.id === 'dataOverview');
+    railPages.splice(anchor >= 0 ? anchor + 1 : railPages.length, 0, {
+      id: 'targets',
+      label: t('plcDashboard.tabs.targets', {
+        defaultValue: 'Learning Targets',
+      }),
+      icon: Target,
+    });
+  }
+  const activePage =
+    route.kind === 'page'
+      ? route.page
+      : route.section === 'targets'
+        ? 'targets'
+        : null;
   const activeLabel =
     route.kind === 'page'
       ? teamPageLabel(t, route.page, isLead)
@@ -413,7 +435,11 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
             activeLabel={activeLabel}
             overlay={overlay}
             onOverlay={openOverlay}
-            onPage={(id) => navigate(teamPageSection(id as TeamPageId))}
+            onPage={(id) =>
+              navigate(
+                id === 'targets' ? 'targets' : teamPageSection(id as TeamPageId)
+              )
+            }
             onClose={onClose}
             showMobileMenu={showMobileMenu && route.kind === 'page'}
             onMobileMenu={() => setShowMobileMenu(true)}
@@ -431,7 +457,6 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
                   onMembers={() => navigate('members')}
                   onSettings={() => navigate('settings')}
                   onLayout={openLayoutEditor}
-                  onTargets={hasTargets ? () => navigate('targets') : undefined}
                 />
               ) : null
             }

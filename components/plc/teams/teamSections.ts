@@ -4,7 +4,7 @@ import type { PlcTeamLayout, TeamPageId } from '@/types';
 import { isTeamLandingPage } from '@/config/teamTypePresets';
 import type { PlcSectionId } from '@/components/plc/sections';
 
-/** Sections reached from the gear menu or the meeting banner, never from the rail (T8). */
+/** Sections outside the team layout: gear menu, meeting banner, and the Learning Targets rail item. */
 export type TeamOffRailSection = 'members' | 'settings' | 'meeting' | 'targets';
 
 export type TeamRoute =

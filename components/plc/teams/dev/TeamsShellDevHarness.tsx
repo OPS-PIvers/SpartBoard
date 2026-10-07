@@ -1,6 +1,7 @@
 // Team shell views on the mockup's fixtures at /teams-shell-dev (auth-bypass builds only), for side-by-side screenshots.
 
 import React, { useMemo, useState } from 'react';
+import { Target } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type {
   Plc,
@@ -216,6 +217,16 @@ export const TeamsShellDevHarness: React.FC = () => {
       label: teamPageLabel(t, p.id, lead),
       icon: TEAM_PAGE_REGISTRY[p.id].icon,
     }));
+  if (screen !== 'settings') {
+    const after = pages.findIndex((p) => p.id === 'assessments');
+    pages.splice(after + 1, 0, {
+      id: 'targets',
+      label: t('plcDashboard.tabs.targets', {
+        defaultValue: 'Learning Targets',
+      }),
+      icon: Target,
+    });
+  }
   const newerFor = useMemo(
     () => (ref: TeamHeroRef) =>
       selectNewerHeroData(ref, AGGREGATES, ASSESSMENTS),
@@ -264,9 +275,11 @@ export const TeamsShellDevHarness: React.FC = () => {
           roleLabel={lead ? 'Lead' : null}
           pages={pages}
           activePage={
-            screen === 'settings' || screen === 'targets'
+            screen === 'settings'
               ? null
-              : ('dataOverview' satisfies TeamPageId)
+              : screen === 'targets'
+                ? 'targets'
+                : ('dataOverview' satisfies TeamPageId)
           }
           activeLabel={
             screen === 'targets'
@@ -279,7 +292,7 @@ export const TeamsShellDevHarness: React.FC = () => {
           onOverlay={(next) =>
             setScreen(next && next !== 'search' ? next : 'plc')
           }
-          onPage={() => setScreen('plc')}
+          onPage={(id) => setScreen(id === 'targets' ? 'targets' : 'plc')}
           onClose={() => undefined}
           panelId="dataOverview"
           banner={
@@ -297,7 +310,6 @@ export const TeamsShellDevHarness: React.FC = () => {
                 onMembers={() => setScreen('members')}
                 onSettings={() => undefined}
                 onLayout={() => setScreen('layout')}
-                onTargets={() => setScreen('targets')}
               />
             ) : null
           }

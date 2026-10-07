@@ -52,7 +52,7 @@ describe('resolveTeamRoute', () => {
     expect(resolveTeamRoute('targets', plcLayout).canonical).toBe('home');
   });
 
-  it('opens Learning Targets off the rail when the team has assessments', () => {
+  it('opens Learning Targets outside the layout when the team has assessments', () => {
     expect(resolveTeamRoute('targets', plcLayout, { targets: true })).toEqual({
       route: { kind: 'section', section: 'targets' },
       canonical: 'targets',
