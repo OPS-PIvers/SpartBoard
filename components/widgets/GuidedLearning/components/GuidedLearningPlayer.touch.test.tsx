@@ -192,7 +192,7 @@ describe('P8-6 remembered answers', () => {
     expect(screen.queryByRole('button', { name: /submit answer/i })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /change answer/i }));
     const alpha = screen.getByRole('button', { name: 'Alpha' });
-    expect(alpha.className).toContain('border-indigo-400');
+    expect(alpha.className).toContain('border-brand-blue-primary');
     fireEvent.click(screen.getByRole('button', { name: 'Beta' }));
     fireEvent.click(screen.getByRole('button', { name: /submit answer/i }));
     expect(onAnswer).toHaveBeenCalledWith('q', 'Beta', null);

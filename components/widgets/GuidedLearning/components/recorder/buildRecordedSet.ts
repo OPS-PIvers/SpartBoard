@@ -1,5 +1,6 @@
 import type {
   GuidedLearningSet,
+  GuidedLearningStep,
   GuidedLearningTourBinding,
   WidgetData,
   WidgetType,
@@ -15,6 +16,7 @@ import {
   type UnmappedQueueEntry,
 } from '@/components/tours/anchorQueue';
 import type { RecordedStep, TourRecording } from './useTourCapture';
+import { requiredSchemaVersion } from '../../utils/setMigration';
 import {
   buildRecordedLayouts,
   type RecordedBoardWidget,
@@ -187,37 +189,39 @@ export async function buildRecordedSet(
   const paths = opts.frames.flatMap((f) =>
     f.storagePath ? [f.storagePath] : []
   );
+  const steps: GuidedLearningStep[] = recording.steps.map((s, i) => ({
+    id: s.id,
+    xPct: 50,
+    yPct: 50,
+    imageIndex: 0,
+    label: '',
+    interactionType: 'tooltip',
+    showOverlay: 'tooltip',
+    calloutTone: 'light',
+    tour: withThumbnail(
+      withUnmapped(
+        recorded
+          ? bindWidget(
+              s.tour,
+              s.widgetId,
+              typeOf,
+              recorded.slotOf,
+              recorded.steps[i]
+            )
+          : s.tour,
+        byStep.get(s.id)
+      ),
+      opts.frames[s.frameIndex]
+    ),
+  }));
   const set: GuidedLearningSet = {
     id: opts.id,
-    schemaVersion: 3,
+    schemaVersion: requiredSchemaVersion({ steps }),
     title: opts.title,
     // Tour steps play on the real board; slide fields stay at their defaults.
     imageUrls: [],
     ...(paths.length > 0 ? { imagePaths: paths } : {}),
-    steps: recording.steps.map((s, i) => ({
-      id: s.id,
-      xPct: 50,
-      yPct: 50,
-      imageIndex: 0,
-      label: '',
-      interactionType: 'tooltip',
-      showOverlay: 'tooltip',
-      tour: withThumbnail(
-        withUnmapped(
-          recorded
-            ? bindWidget(
-                s.tour,
-                s.widgetId,
-                typeOf,
-                recorded.slotOf,
-                recorded.steps[i]
-              )
-            : s.tour,
-          byStep.get(s.id)
-        ),
-        opts.frames[s.frameIndex]
-      ),
-    })),
+    steps,
     mode: 'tour',
     createdAt: now,
     updatedAt: now,

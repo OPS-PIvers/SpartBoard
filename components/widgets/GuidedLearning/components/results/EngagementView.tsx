@@ -6,7 +6,7 @@ import type { EngagementSummary } from '../../utils/progress';
 import { StepFunnel } from './StepFunnel';
 import { MisclickHeatmap } from './MisclickHeatmap';
 
-const sectionHeading = 'text-slate-300 font-semibold uppercase tracking-wider';
+const sectionHeading = 'text-slate-500 font-semibold uppercase tracking-wider';
 const headingStyle = {
   fontSize: 'min(12px, 4.5cqmin)',
   marginBottom: 'min(8px, 2cqmin)',
@@ -25,7 +25,7 @@ export const EngagementView: React.FC<Props> = ({ set, summary, failed }) => {
     if (failed) {
       return (
         <p
-          className="text-slate-300"
+          className="text-slate-500"
           style={{ fontSize: 'min(12px, 4.5cqmin)' }}
         >
           {t('glEngagement.loadError')}
@@ -35,7 +35,7 @@ export const EngagementView: React.FC<Props> = ({ set, summary, failed }) => {
     if (!summary) {
       return (
         <Loader2
-          className="text-slate-300 animate-spin mx-auto"
+          className="text-slate-500 animate-spin mx-auto"
           aria-hidden="true"
           style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}
         />
@@ -44,7 +44,7 @@ export const EngagementView: React.FC<Props> = ({ set, summary, failed }) => {
     if (summary.viewers === 0) {
       return (
         <p
-          className="text-slate-300"
+          className="text-slate-500"
           style={{ fontSize: 'min(12px, 4.5cqmin)' }}
         >
           {t('glEngagement.empty')}
@@ -54,7 +54,7 @@ export const EngagementView: React.FC<Props> = ({ set, summary, failed }) => {
     return (
       <div className="flex flex-col" style={{ gap: 'min(16px, 3.5cqmin)' }}>
         <div
-          className="bg-white/5 rounded-xl text-white font-semibold tabular-nums"
+          className="bg-white border border-slate-200 rounded-xl text-slate-900 font-semibold tabular-nums"
           style={{
             padding: 'min(12px, 2.5cqmin)',
             fontSize: 'min(14px, 5.5cqmin)',

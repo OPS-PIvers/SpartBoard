@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { focusRing } from '@/components/common/lightChrome';
 
 interface Props {
   count: number;
@@ -39,7 +40,7 @@ export const WatchScrubber: React.FC<Props> = ({
         current: index + 1,
         total: count,
       })}
-      className="flex-1 flex items-center cursor-pointer touch-none rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+      className={`flex-1 flex items-center cursor-pointer touch-none rounded-full ${focusRing}`}
       style={{
         gap: count > 20 ? 1 : 'min(3px, 0.8cqmin)',
         height: 'clamp(16px, 4cqmin, 24px)',
@@ -80,11 +81,11 @@ export const WatchScrubber: React.FC<Props> = ({
           <div
             key={i}
             data-testid="gl-scrub-segment"
-            className="flex-1 rounded-full bg-white/15 overflow-hidden"
+            className="flex-1 rounded-full bg-slate-200 overflow-hidden"
             style={{ height: 'clamp(6px, 1.5cqmin, 10px)' }}
           >
             <div
-              className="h-full bg-indigo-400"
+              className="h-full bg-brand-blue-primary"
               style={{ width: `${fill * 100}%` }}
             />
           </div>

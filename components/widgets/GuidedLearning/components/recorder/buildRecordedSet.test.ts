@@ -22,7 +22,7 @@ const step = (
 });
 
 describe('buildRecordedSet', () => {
-  it('makes a v3 building set with one tooltip step per recorded click', async () => {
+  it('makes a v4 building set with one Light tooltip step per recorded click', async () => {
     const { set, queue } = await buildRecordedSet(
       { steps: [step('a', 0), step('b', 1, true)] },
       {
@@ -39,7 +39,7 @@ describe('buildRecordedSet', () => {
     );
     expect(set).toMatchObject({
       id: 'set-9',
-      schemaVersion: 3,
+      schemaVersion: 4,
       isBuilding: true,
       hasLiveTour: true,
       imageUrls: [],
@@ -56,6 +56,7 @@ describe('buildRecordedSet', () => {
       id: 'b',
       imageIndex: 0,
       interactionType: 'tooltip',
+      calloutTone: 'light',
       tour: { anchor: '', action: 'click', thumbnail: { url: 'u1' } },
     });
     expect(set.steps[1]).not.toHaveProperty('region');

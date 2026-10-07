@@ -384,6 +384,14 @@ const LiveTourViewsDevHarness = import.meta.env.DEV
     )
   : null;
 
+const GlViewsDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/GlViewsDevHarness').then((module) => ({
+        default: module.GlViewsDevHarness,
+      }))
+    )
+  : null;
+
 const FullPageLoader = () => (
   <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
     <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
@@ -1112,6 +1120,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <LiveTourViewsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: Guided Learning surfaces with mock data, for screenshots.
+  if (
+    import.meta.env.DEV &&
+    GlViewsDevHarness &&
+    pathname === '/gl-views-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <GlViewsDevHarness />
       </Suspense>
     );
   }

@@ -1,5 +1,10 @@
 import React, { useEffect, useId, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  chromeSurface,
+  primaryBtn,
+  secondaryBtn,
+} from '@/components/common/lightChrome';
 
 interface Props {
   stepNumber: number;
@@ -28,7 +33,7 @@ export const ResumePrompt: React.FC<Props> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="bg-slate-900/95 backdrop-blur-md border border-white/15 rounded-2xl shadow-2xl text-center"
+        className={`rounded-2xl text-center ${chromeSurface}`}
         style={{
           padding: 'min(20px, 5cqmin)',
           width: 'min(340px, 86cqw)',
@@ -36,7 +41,7 @@ export const ResumePrompt: React.FC<Props> = ({
       >
         <p
           id={titleId}
-          className="text-white font-bold"
+          className="text-slate-900 font-bold"
           style={{ fontSize: 'min(16px, 4.5cqmin)' }}
         >
           {t('glPlayer.resume.question', { n: stepNumber })}
@@ -48,7 +53,7 @@ export const ResumePrompt: React.FC<Props> = ({
           <button
             type="button"
             onClick={onStartOver}
-            className="rounded-full border border-white/20 bg-white/10 text-slate-100 font-semibold hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+            className={`${secondaryBtn} border border-slate-200`}
             style={{
               padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
               fontSize: 'min(14px, 3.6cqmin)',
@@ -60,7 +65,7 @@ export const ResumePrompt: React.FC<Props> = ({
             ref={resumeRef}
             type="button"
             onClick={onResume}
-            className="rounded-full bg-white text-slate-900 font-bold hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+            className={`${primaryBtn} font-bold`}
             style={{
               padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
               fontSize: 'min(14px, 3.6cqmin)',

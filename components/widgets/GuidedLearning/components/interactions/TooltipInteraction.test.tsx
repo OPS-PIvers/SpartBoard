@@ -125,7 +125,7 @@ describe('TooltipInteraction callout style', () => {
     );
     expect(card().style.width).toBe('max-content');
     expect(card().style.getPropertyValue('--gl-callout-scale')).toBe('1');
-    expect(card().className).toContain('bg-slate-900/90');
+    expect(card().classList.contains('bg-slate-900')).toBe(true);
   });
 
   it('uses the authored width as % of the stage, clamped and capped to fit', () => {
@@ -184,7 +184,7 @@ describe('TooltipInteraction callout style', () => {
         containerHeight={400}
       />
     );
-    expect(card().className).toContain('bg-slate-900/90');
+    expect(card().classList.contains('bg-slate-900')).toBe(true);
   });
 
   it('draws a curved leader, not a straight segment', () => {

@@ -30,7 +30,23 @@ describe('cleanGeneratedStep', () => {
       text: 'Click **Save**.',
       showOverlay: 'tooltip',
       region: { shape: 'rect', wPct: 10, hPct: 6, cornerPct: 20 },
+      calloutTone: 'light',
     });
+  });
+
+  it('defaults a callout to Light, keeps a non-dark tone and leaves an explicit dark absent', () => {
+    const popover = { ...base, interactionType: 'text-popover' as const };
+    expect(cleanGeneratedStep({}, popover).calloutTone).toBe('light');
+    expect(
+      cleanGeneratedStep({ calloutTone: 'pink' }, popover).calloutTone
+    ).toBe('light');
+    expect(
+      cleanGeneratedStep({ calloutTone: 'accent' }, popover).calloutTone
+    ).toBe('accent');
+    expect(
+      cleanGeneratedStep({ calloutTone: 'dark' }, popover).calloutTone
+    ).toBeUndefined();
+    expect(cleanGeneratedStep({}, base).calloutTone).toBeUndefined();
   });
 
   it('pulls a region that runs off the image back inside it', () => {
