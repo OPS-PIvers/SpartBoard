@@ -52,10 +52,12 @@ demonstrate the live tour.
   pause or take over. Any other mode waits for the teacher to click.
 - `welcomeEnabled` + `welcomeMessage` open the tour with a one-sentence
   goal.
-- If an anchor can't be found, the runner shows that step's slide
-  (`imageIndex`, `xPct`, `yPct`, `region`) as a preview and says the
-  control is missing. So every tour step still needs a real screenshot of
-  that moment with its target placed, exactly as in an app walkthrough.
+- Tour sets have no slides. A step's optional picture is
+  `tour.thumbnail` (`{ url, anchor, w, h }`); if the anchor can't be found
+  and the picture was taken of the same anchor, the runner shows it and
+  says the control is missing. Leave `imageUrls` empty and steps without
+  `imageIndex`, `xPct`, `yPct`, `region` or callout fields; pictures are
+  taken in the app, not authored here.
 
 ## The binding
 
@@ -217,20 +219,17 @@ unresolvable; they already match by widget type. The validator rejects it.
 
 ## Converting a screenshot set
 
-A converted set keeps its slides: the Help Center still plays them, and adds
-"Show me live" once the tour is published and the viewer has live tours on. So conversion adds `tour`
-bindings and fixes the step list; it doesn't start over. Paul can also do
-this by hand in the Studio, a step at a time, with the Live tour picker and
-**Re-record this step**.
+A screenshot set converted to a live tour drops its slides: tour sets play
+only on the real board, and each step's picture is taken in the app as an
+optional thumbnail. Conversion adds `tour` bindings and fixes the step
+list; it doesn't start over.
 
 1. Validate the export and render its contact sheets. Write down the task,
    the starting state and each step's target control.
 2. Drive the app through the same task with Playwright (app-walkthrough
    runbook) from that starting state. At each step, find the control,
    `refFor` it (or `fallbackFor` if untagged), `checkAnchor` it, then click
-   it to reach the next state. Recapture the slide and re-measure the
-   region in the same pass, since the slides become the missing-anchor
-   fallback and must match today's UI.
+   it to reach the next state.
 3. Add the steps a live run needs and the slides skipped: a click that
    opens each menu or panel before a step inside it, and `tourSetup` or
    `spawns` for any widget the task uses.
@@ -239,7 +238,7 @@ this by hand in the Studio, a step at a time, with the Live tour picker and
    `click` for everything else.
 5. Steps that can't run live (another site, the sign-in screen, the
    substitute portal, a drag or paste gesture) have no `tour`. The runner
-   shows those as a centred card with the text but not the slide, so put
+   shows those as a centred card with the text, so put
    them at the start or end, or rewrite them to stand on their own as text.
    A set that is mostly such steps stays a slideshow.
 6. Remove question steps; they show only their question text in a tour.

@@ -5,12 +5,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { ToolError, type ToolContext } from './activity';
 import { isStrictSuperAdmin } from '../authz';
-import {
-  MAX_NEW_SLIDES,
-  saveNewSet,
-  savedSummary,
-  type HelpCenterPlacement,
-} from './glCreate';
+import { saveNewSet, savedSummary, type HelpCenterPlacement } from './glCreate';
 import { MAX_STEPS, assertAccess, stepInput } from './glTools';
 import { CREATES, READ_ONLY, run } from './toolKit';
 
@@ -124,12 +119,20 @@ async function nextOrder(
   }, 0);
 }
 
-const tourStep = stepInput.extend({
-  tour: stepInput.shape.tour.unwrap(),
-  xPct: stepInput.shape.xPct.optional(),
-  yPct: stepInput.shape.yPct.optional(),
-  imageIndex: stepInput.shape.imageIndex.optional(),
-});
+// Tour steps point at live controls, so they carry no slide placement.
+export const tourStep = stepInput
+  .omit({
+    imageIndex: true,
+    xPct: true,
+    yPct: true,
+    region: true,
+    calloutPin: true,
+    calloutWidthPct: true,
+    calloutScale: true,
+    calloutTone: true,
+    calloutBox: true,
+  })
+  .extend({ tour: stepInput.shape.tour.unwrap() });
 
 export function registerLiveTourTools(
   server: McpServer,
@@ -160,7 +163,7 @@ export function registerLiveTourTools(
     {
       title: 'Create a live tour',
       description:
-        'Admins only. Creates a live tour that walks a teacher through the real SpartBoard board, one step per control. Every step needs a tour binding (list_tour_anchors); a narration step observes the control it describes, an opening or closing step observes "board.whole", and welcome_message opens the tour. No screenshots are needed. Saved as an unpublished draft: pass help_center to also add it to the Help Center, hidden until an admin test-runs it, publishes it in the Studio and shows the item in Admin Settings > Help Center.',
+        'Admins only. Creates a live tour that walks a teacher through the real SpartBoard board, one step per control. Every step needs a tour binding (list_tour_anchors); a narration step observes the control it describes, an opening or closing step observes "board.whole", and welcome_message opens the tour. Steps have no slides, screenshots or positions. Saved as an unpublished draft: pass help_center to also add it to the Help Center, hidden until an admin test-runs it, publishes it in the Studio and shows the item in Admin Settings > Help Center.',
       inputSchema: {
         title: z.string().trim().min(1).max(200),
         description: z.string().max(1000).optional(),
@@ -193,13 +196,6 @@ export function registerLiveTourTools(
           .strict()
           .optional()
           .describe('A category id from list_help_center_categories.'),
-        slide_urls: z
-          .array(z.string().max(2000))
-          .max(MAX_NEW_SLIDES)
-          .optional()
-          .describe(
-            'Rarely needed: public image links shown off-board. Step imageIndex counts from 0.'
-          ),
         steps: z.array(tourStep).min(1).max(MAX_STEPS),
       },
       annotations: CREATES,
@@ -232,12 +228,6 @@ export function registerLiveTourTools(
             ...input,
             kind: 'live_tour',
             source: 'building',
-            steps: input.steps.map((s) => ({
-              ...s,
-              xPct: s.xPct ?? 50,
-              yPct: s.yPct ?? 50,
-              imageIndex: s.imageIndex ?? 0,
-            })),
           },
           (batch, set) => {
             if (!placement || !help) return;

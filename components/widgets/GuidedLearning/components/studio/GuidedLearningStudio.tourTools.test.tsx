@@ -252,7 +252,16 @@ describe('Studio tour tools', () => {
             yPct: 20,
             region: { shape: 'rect', wPct: 6, hPct: 5 },
           },
-          tour: { anchor: 'widget.close', action: 'click' },
+          tour: {
+            anchor: 'widget.close',
+            action: 'click',
+            thumbnail: {
+              url: 'https://example.com/new.png',
+              anchor: 'widget.close',
+              w: 640,
+              h: 360,
+            },
+          },
         },
       ],
     });
@@ -266,11 +275,15 @@ describe('Studio tour tools', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close editor' }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const saved = onSave.mock.lastCall?.[0] as GuidedLearningSet;
-    expect(saved.imageUrls[1]).toBe('https://example.com/new.png');
+    // Tour steps keep the picture on the binding; no slide is added.
+    expect(saved.imageUrls).not.toContain('https://example.com/new.png');
     expect(saved.steps[1]).toMatchObject({
       id: 'step-2',
-      xPct: 70,
-      tour: { anchor: 'widget.close', action: 'click' },
+      tour: {
+        anchor: 'widget.close',
+        action: 'click',
+        thumbnail: { url: 'https://example.com/new.png' },
+      },
     });
   });
 
