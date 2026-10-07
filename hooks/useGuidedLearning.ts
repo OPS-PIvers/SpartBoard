@@ -486,22 +486,7 @@ export const useGuidedLearning = (
       guard?: GuidedLearningSaveGuard
     ): Promise<void> => {
       if (!isAdmin) throw new Error('Admin access required');
-      const updatedSet: GuidedLearningSet = {
-        ...withSlideFileRefs(normalizeGuidedLearningSet(set)),
-        isBuilding: true,
-        updatedAt: guard ? set.updatedAt : Date.now(),
-      };
-      assertGuidedLearningDocFits(
-        `${BUILDING_GL_COLLECTION}/${set.id}`,
-        updatedSet
-      );
-      const previous = await writeBuildingSet(
-        doc(db, BUILDING_GL_COLLECTION, set.id),
-        updatedSet,
-        guard
-      );
-      const removed = removedOccurrences(previous, updatedSet);
-      if (removed.length > 0) void removeQueueOccurrences(removed);
+      await saveBuildingSetDoc(set, guard);
     },
     [isAdmin]
   );
@@ -588,6 +573,29 @@ const writeBuildingSet = async (
     tx.set(ref, set);
   });
   return previous;
+};
+
+// Writes an admin building set; a guarded save keeps the caller's updatedAt as the new revision.
+export const saveBuildingSetDoc = async (
+  set: GuidedLearningSet,
+  guard?: GuidedLearningSaveGuard
+): Promise<void> => {
+  const updatedSet: GuidedLearningSet = {
+    ...withSlideFileRefs(normalizeGuidedLearningSet(set)),
+    isBuilding: true,
+    updatedAt: guard ? set.updatedAt : Date.now(),
+  };
+  assertGuidedLearningDocFits(
+    `${BUILDING_GL_COLLECTION}/${set.id}`,
+    updatedSet
+  );
+  const previous = await writeBuildingSet(
+    doc(db, BUILDING_GL_COLLECTION, set.id),
+    updatedSet,
+    guard
+  );
+  const removed = removedOccurrences(previous, updatedSet);
+  if (removed.length > 0) void removeQueueOccurrences(removed);
 };
 
 // Single shared-set read for surfaces that reference one set by id (Help center guides).

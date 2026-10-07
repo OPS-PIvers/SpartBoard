@@ -3633,7 +3633,27 @@
     "autoConfirmYes": "Hazlo",
     "autoConfirmNo": "Lo hago yo",
     "moveHint": "Arrastra para moverla. Doble clic para volver a ponerla arriba.",
-    "stepListNote": "Abre SpartBoard en una computadora para hacer este recorrido en tu tablero."
+    "stepListNote": "Abre SpartBoard en una computadora para hacer este recorrido en tu tablero.",
+    "editor": {
+      "panel": "Editor de recorridos",
+      "youClick": "Este paso lo hace usted",
+      "expand": "Mostrar pasos",
+      "collapse": "Ocultar pasos",
+      "swapSide": "Mover al otro lado",
+      "close": "Cerrar editor",
+      "saveFailed": "No se pudo guardar. El próximo cambio lo intentará de nuevo.",
+      "saveConflict": "Otra persona cambió este recorrido. Ciérrelo y vuelva a abrirlo para seguir editando.",
+      "tab_steps": "Pasos",
+      "tab_settings": "Configuración",
+      "empty": "Este recorrido aún no tiene pasos.",
+      "untitled": "Paso sin título",
+      "jumping": "Reproduciendo los pasos anteriores",
+      "missing": "No se encuentra en este tablero",
+      "unregistered": "Ya no está en SpartBoard",
+      "unbound": "Ningún control elegido",
+      "wholeBoard": "Tablero completo",
+      "reorder": "Mover el paso {{n}}"
+    }
   },
   "glPlayer": {
     "modeChip": {
