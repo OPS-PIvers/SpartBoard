@@ -97,6 +97,25 @@ export function sectionPairedOnSession(
   );
 }
 
+function periodMap(
+  sessionData: admin.firestore.DocumentData
+): Record<string, string> {
+  return sessionData.classPeriodByClassId &&
+    typeof sessionData.classPeriodByClassId === 'object'
+    ? (sessionData.classPeriodByClassId as Record<string, string>)
+    : {};
+}
+
+/** The paired class's period label on this session, or null when it has none. */
+function pairedPeriodLabel(
+  sessionData: admin.firestore.DocumentData,
+  pairedClassId: unknown
+): string | null {
+  if (typeof pairedClassId !== 'string' || !pairedClassId) return null;
+  const label = periodMap(sessionData)[pairedClassId];
+  return typeof label === 'string' && label ? label : null;
+}
+
 export interface DedupeLinkedSectionPeriodArgs {
   kind: LtiSessionKind;
   sessionId: string;
@@ -138,6 +157,7 @@ export async function dedupeLinkedSectionPeriod(
 export interface DropLinkedSectionPeriodArgs {
   kind: LtiSessionKind;
   sessionId: string;
+  contextId: string;
   contextTitle: string | null;
   classlinkClassId: unknown;
   rosterId: unknown;
@@ -158,24 +178,89 @@ export async function dropLinkedSectionPeriod(
   const snap = await ref.get();
   if (!snap.exists) return false;
   const sessionData = snap.data() ?? {};
-  const next = await dedupeLinkedSectionPeriod(db, { ...args, sessionData });
-  if (!next) return false;
-  const batch = db.batch();
-  batch.set(ref, { periodNames: next }, { merge: true });
   const teacherUid =
     typeof sessionData.teacherUid === 'string' ? sessionData.teacherUid : '';
-  if (kind === 'quiz' && teacherUid) {
+  const archiveRef =
+    kind === 'quiz' && teacherUid
+      ? db
+          .collection(USERS_COLLECTION)
+          .doc(teacherUid)
+          .collection(QUIZ_ASSIGNMENTS_SUBCOLLECTION)
+          .doc(sessionId)
+      : null;
+  const relabeled = await moveSectionIntoPairedPeriod(db, {
+    ...args,
+    sessionData,
+    sessionRef: ref,
+    archiveRef,
+  });
+  const next = await dedupeLinkedSectionPeriod(db, { ...args, sessionData });
+  if (!next) return relabeled;
+  const batch = db.batch();
+  batch.set(ref, { periodNames: next }, { merge: true });
+  if (archiveRef) batch.set(archiveRef, { periodNames: next }, { merge: true });
+  await batch.commit();
+  return true;
+}
+
+/** Firestore caps a batch at 500 writes; stay under it with room for the session docs. */
+const RELABEL_CHUNK = 400;
+
+/**
+ * Students who launched before the link carry the section title as their period.
+ * Move them, and the section's period-map entry, onto the paired class's label so
+ * the class shows as one period. Returns true when anything was written.
+ */
+async function moveSectionIntoPairedPeriod(
+  db: Db,
+  args: DropLinkedSectionPeriodArgs & {
+    sessionData: admin.firestore.DocumentData;
+    sessionRef: admin.firestore.DocumentReference;
+    archiveRef: admin.firestore.DocumentReference | null;
+  }
+): Promise<boolean> {
+  const { sessionData, contextId, contextTitle } = args;
+  if (
+    !sectionPairedOnSession(sessionData, args.classlinkClassId, args.rosterId)
+  )
+    return false;
+  const target = pairedPeriodLabel(sessionData, args.classlinkClassId);
+  if (!target) return false;
+  const sectionClassId = `schoology:${contextId}`;
+  const responses = await args.sessionRef
+    .collection(RESPONSES_SUBCOLLECTION)
+    .where('classId', '==', sectionClassId)
+    .get();
+  const toMove = responses.docs.filter(
+    (d) => !!contextTitle && d.data().classPeriod === contextTitle
+  );
+  const mapChanged = periodMap(sessionData)[sectionClassId] !== target;
+  if (toMove.length === 0 && !mapChanged) return false;
+
+  for (let i = 0; i < toMove.length; i += RELABEL_CHUNK) {
+    const batch = db.batch();
+    for (const d of toMove.slice(i, i + RELABEL_CHUNK)) {
+      batch.update(d.ref, { classPeriod: target });
+    }
+    await batch.commit();
+  }
+  if (mapChanged) {
+    const nextMap = { ...periodMap(sessionData), [sectionClassId]: target };
+    const batch = db.batch();
     batch.set(
-      db
-        .collection(USERS_COLLECTION)
-        .doc(teacherUid)
-        .collection(QUIZ_ASSIGNMENTS_SUBCOLLECTION)
-        .doc(sessionId),
-      { periodNames: next },
+      args.sessionRef,
+      { classPeriodByClassId: nextMap },
       { merge: true }
     );
+    if (args.archiveRef) {
+      batch.set(
+        args.archiveRef,
+        { classPeriodByClassId: nextMap },
+        { merge: true }
+      );
+    }
+    await batch.commit();
   }
-  await batch.commit();
   return true;
 }
 /** `users/{teacherUid}/lti_seen_sections/{contextId}` — linking-UI inventory. */
@@ -356,7 +441,12 @@ export async function persistLtiLaunchContext(
     // A test-class link pairs on the roster's testClassId slug (also in classIds).
     const pairedClassId: unknown =
       link.classlinkClassId ?? (link.testClassId as unknown);
-    if (sectionPairedOnSession(sessionData, pairedClassId, link.rosterId)) {
+    const paired = sectionPairedOnSession(
+      sessionData,
+      pairedClassId,
+      link.rosterId
+    );
+    if (paired) {
       nextPeriodNames = await dedupeLinkedSectionPeriod(db, {
         kind,
         sessionId,
@@ -374,15 +464,15 @@ export async function persistLtiLaunchContext(
       }
     }
 
-    const currentMap =
-      sessionData.classPeriodByClassId &&
-      typeof sessionData.classPeriodByClassId === 'object'
-        ? (sessionData.classPeriodByClassId as Record<string, string>)
-        : {};
-    if (currentMap[classId] !== args.contextTitle) {
+    const currentMap = periodMap(sessionData);
+    // A linked section's students land in the paired class's period, so the class shows once.
+    const periodLabel =
+      (paired && pairedPeriodLabel(sessionData, pairedClassId)) ||
+      args.contextTitle;
+    if (currentMap[classId] !== periodLabel) {
       update.classPeriodByClassId = {
         ...currentMap,
-        [classId]: args.contextTitle,
+        [classId]: periodLabel,
       };
     }
   }

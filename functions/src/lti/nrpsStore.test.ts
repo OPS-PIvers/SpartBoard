@@ -50,8 +50,15 @@ let seenDocs: Map<string, Record<string, unknown>>;
 let courseLinkDocs: Map<string, Record<string, unknown>>;
 // classPeriod labels already carried by responses, keyed by session id.
 let responsePeriods: Map<string, string[]>;
+// Response docs with ids and fields, keyed by session id.
+let responseRows: Map<
+  string,
+  { id: string; classId?: string; classPeriod?: string }[]
+>;
 // Writes recorded when the batch commits.
 let writes: Write[];
+// Response updates recorded when the batch commits.
+let updates: Write[];
 
 function docRef(path: string) {
   return {
@@ -93,15 +100,24 @@ function docRef(path: string) {
     },
     collection: (sub: string) => ({
       doc: (id: string) => docRef(`${path}/${sub}/${id}`),
-      where: (_field: string, _op: string, value: string) => ({
-        limit: () => ({
-          get: async () => ({
-            empty: !(responsePeriods.get(path.split('/')[1]) ?? []).includes(
-              value
-            ),
-          }),
-        }),
-      }),
+      where: (field: string, _op: string, value: string) => {
+        const sid = path.split('/')[1];
+        const rows = [
+          ...(responsePeriods.get(sid) ?? []).map((classPeriod, i) => ({
+            id: `legacy-${i}`,
+            classPeriod,
+          })),
+          ...(responseRows.get(sid) ?? []),
+        ].filter((r) => (r as Record<string, unknown>)[field] === value);
+        const docs = rows.map((r) => ({
+          ref: { path: `${path}/${sub}/${r.id}` },
+          data: () => r,
+        }));
+        return {
+          get: async () => ({ empty: docs.length === 0, docs }),
+          limit: () => ({ get: async () => ({ empty: docs.length === 0 }) }),
+        };
+      },
     }),
   };
 }
@@ -120,12 +136,22 @@ function makeDb() {
     }),
     batch: () => {
       const ops: Write[] = [];
+      const ups: Write[] = [];
       return {
         set: (ref: { path: string }, data: Record<string, unknown>) => {
           ops.push({ path: ref.path, data });
         },
+        update: (ref: { path: string }, data: Record<string, unknown>) => {
+          ups.push({ path: ref.path, data });
+        },
         commit: async () => {
           writes.push(...ops);
+          updates.push(...ups);
+          for (const u of ups) {
+            const [, sid, , rid] = u.path.split('/');
+            const row = responseRows.get(sid)?.find((r) => r.id === rid);
+            if (row) Object.assign(row, u.data);
+          }
         },
       };
     },
@@ -156,7 +182,9 @@ beforeEach(() => {
   seenDocs = new Map();
   courseLinkDocs = new Map();
   responsePeriods = new Map();
+  responseRows = new Map();
   writes = [];
+  updates = [];
 });
 
 describe('persistLtiLaunchContext — quiz', () => {
@@ -631,6 +659,18 @@ describe('linked-section period dedupe', () => {
     });
   });
 
+  it('files a linked section under the paired class period when the class has one', async () => {
+    pairedSession({ classPeriodByClassId: { 'CL-1': 'Period 1' } });
+    linkCtx1();
+    await persistLtiLaunchContext(db(), {
+      ...QUIZ_ARGS,
+      contextTitle: 'Math: Sec 1',
+    });
+    expect(
+      writeAt(`${QUIZ_SESSIONS_COLLECTION}/sess-1`)?.data.classPeriodByClassId
+    ).toEqual({ 'CL-1': 'Period 1', 'schoology:ctx-1': 'Period 1' });
+  });
+
   it('removes an already-present section title (self-heal) and mirrors the archive', async () => {
     pairedSession({ periodNames: ['Period 1', 'Math: Sec 1'] });
     linkCtx1();
@@ -697,6 +737,7 @@ describe('linked-section period dedupe', () => {
       const changed = await dropLinkedSectionPeriod(db(), {
         kind: 'quiz',
         sessionId: 'sess-1',
+        contextId: 'ctx-1',
         contextTitle: 'Math: Sec 1',
         classlinkClassId: 'CL-1',
         rosterId: 'r-1',
@@ -716,6 +757,7 @@ describe('linked-section period dedupe', () => {
         await dropLinkedSectionPeriod(db(), {
           kind: 'quiz',
           sessionId: 'sess-1',
+          contextId: 'ctx-1',
           contextTitle: 'Math: Sec 1',
           classlinkClassId: 'CL-other',
           rosterId: 'r-other',
@@ -725,12 +767,82 @@ describe('linked-section period dedupe', () => {
         await dropLinkedSectionPeriod(db(), {
           kind: 'quiz',
           sessionId: 'sess-1',
+          contextId: 'ctx-1',
           contextTitle: 'Not here',
           classlinkClassId: 'CL-1',
           rosterId: 'r-1',
         })
       ).toBe(false);
       expect(writes).toHaveLength(0);
+    });
+
+    it('moves students who launched before the link into the paired class period', async () => {
+      pairedSession({
+        periodNames: ['Period 1', 'Math: Sec 1'],
+        classPeriodByClassId: {
+          'CL-1': 'Period 1',
+          'schoology:ctx-1': 'Math: Sec 1',
+        },
+      });
+      responseRows.set('sess-1', [
+        { id: 'a', classId: 'schoology:ctx-1', classPeriod: 'Math: Sec 1' },
+        { id: 'b', classId: 'schoology:ctx-1', classPeriod: 'Math: Sec 1' },
+        { id: 'c', classId: 'CL-1', classPeriod: 'Period 1' },
+      ]);
+      const changed = await dropLinkedSectionPeriod(db(), {
+        kind: 'quiz',
+        sessionId: 'sess-1',
+        contextId: 'ctx-1',
+        contextTitle: 'Math: Sec 1',
+        classlinkClassId: 'CL-1',
+        rosterId: 'r-1',
+      });
+      expect(changed).toBe(true);
+      expect(updates.map((u) => u.path).sort()).toEqual([
+        `${QUIZ_SESSIONS_COLLECTION}/sess-1/responses/a`,
+        `${QUIZ_SESSIONS_COLLECTION}/sess-1/responses/b`,
+      ]);
+      expect(updates.every((u) => u.data.classPeriod === 'Period 1')).toBe(
+        true
+      );
+      const sessWrites = writes.filter(
+        (w) => w.path === `${QUIZ_SESSIONS_COLLECTION}/sess-1`
+      );
+      expect(sessWrites.map((w) => w.data)).toEqual([
+        {
+          classPeriodByClassId: {
+            'CL-1': 'Period 1',
+            'schoology:ctx-1': 'Period 1',
+          },
+        },
+        { periodNames: ['Period 1'] },
+      ]);
+    });
+
+    it('keeps the section title while a PIN student still uses it', async () => {
+      pairedSession({
+        periodNames: ['Period 1', 'Math: Sec 1'],
+        classPeriodByClassId: {
+          'CL-1': 'Period 1',
+          'schoology:ctx-1': 'Math: Sec 1',
+        },
+      });
+      responseRows.set('sess-1', [
+        { id: 'a', classId: 'schoology:ctx-1', classPeriod: 'Math: Sec 1' },
+        { id: 'pin', classPeriod: 'Math: Sec 1' },
+      ]);
+      await dropLinkedSectionPeriod(db(), {
+        kind: 'quiz',
+        sessionId: 'sess-1',
+        contextId: 'ctx-1',
+        contextTitle: 'Math: Sec 1',
+        classlinkClassId: 'CL-1',
+        rosterId: 'r-1',
+      });
+      expect(updates.map((u) => u.path)).toEqual([
+        `${QUIZ_SESSIONS_COLLECTION}/sess-1/responses/a`,
+      ]);
+      expect(writes.some((w) => w.data.periodNames !== undefined)).toBe(false);
     });
   });
 });
