@@ -213,6 +213,11 @@ const SNAPSHOT_SETTLE_MS = 300;
 const PLAIN_WIDTH = 400;
 /** The 480px mini-player plus the callout's padding. */
 const PREVIEW_WIDTH = 512;
+const PLAIN_SLIDE_SKIP: ReadonlySet<string> = new Set([
+  'question',
+  'audio',
+  'video',
+]);
 const VIEWPORT_GUTTER = 16;
 
 const nextFrame = () =>
@@ -1712,7 +1717,9 @@ export const LiveTourRunner: React.FC = () => {
             testId: 'tour-static-hint',
           }
         : null);
-    const preview = isMissing && hasStepSlide(step, tour.set);
+    // A step with no anchor keeps its legacy slide, unless the slide would play media or a question.
+    const plainSlide = plain && !PLAIN_SLIDE_SKIP.has(step.interactionType);
+    const preview = (isMissing || plainSlide) && hasStepSlide(step, tour.set);
     const width = Math.min(
       preview ? PREVIEW_WIDTH : plain ? PLAIN_WIDTH : CALLOUT_WIDTH,
       viewport.w - VIEWPORT_GUTTER * 2

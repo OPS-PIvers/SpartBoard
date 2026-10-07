@@ -168,8 +168,11 @@ describe('plcs/{plcId} layout', () => {
   });
 
   it('a co-lead cannot delete the section switches with a layout save', async () => {
-    await assertSucceeds(writeLayout(CO_LEAD, { 'features.notes': false }));
+    await testEnv.withSecurityRulesDisabled((ctx) =>
+      updateDoc(doc(ctx.firestore(), PLC_PATH), { features: { notes: false } })
+    );
     await assertFails(writeLayout(CO_LEAD, { features: deleteField() }));
+    await assertSucceeds(writeLayout(CO_LEAD, { 'features.notes': true }));
   });
 
   it('a plain member cannot write switches alongside a layout', async () => {

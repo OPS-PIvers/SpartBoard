@@ -30,6 +30,8 @@ const MAX_PAGES = 10;
 const API_TIMEOUT_MS = 20000;
 const QUERY_CONCURRENCY = 8;
 const NAME_LOOKUP_BUDGET_MS = 80000;
+// Firestore lookups stop starting new queries after this, leaving the name walk time under the 120s timeout.
+const QUERY_BUDGET_MS = 50000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const ORG_WIDE_ROLE_IDS = new Set(['super_admin', 'domain_admin']);
 
@@ -162,10 +164,16 @@ async function collectAssignmentOpens(
   db: admin.firestore.Firestore,
   studentUids: readonly string[],
   sectionIds: readonly string[],
-  sinceMs: number
+  sinceMs: number,
+  deadline: number
 ): Promise<{ opens: AssignmentOpen[]; partial: boolean }> {
   const wanted = new Set(studentUids);
   let partial = false;
+  const outOfTime = () => {
+    if (Date.now() < deadline) return false;
+    partial = true;
+    return true;
+  };
   const hits: {
     studentUid: string;
     sessionRef: admin.firestore.DocumentReference;
@@ -178,8 +186,9 @@ async function collectAssignmentOpens(
   const jobs = OPEN_SOURCES.flatMap((src) =>
     chunk(studentUids, IN_QUERY_MAX).map((ids) => ({ src, ids }))
   );
-  await mapWithConcurrency(jobs, QUERY_CONCURRENCY, ({ src, ids }) =>
-    db
+  await mapWithConcurrency(jobs, QUERY_CONCURRENCY, async ({ src, ids }) => {
+    if (outOfTime()) return;
+    await db
       .collectionGroup(src.group)
       .where(src.studentField, 'in', ids)
       .where(src.timeField, '>=', sinceMs)
@@ -194,8 +203,8 @@ async function collectAssignmentOpens(
           if (typeof uid !== 'string' || typeof at !== 'number') continue;
           hits.push({ studentUid: uid, sessionRef, openedMs: at });
         }
-      }, settle(src.sessions))
-  );
+      }, settle(src.sessions));
+  });
   // Flashcard progress is keyed by uid alone, so find sessions for these students' sections and read their recent progress.
   const flashcardSessions = new Map<
     string,
@@ -204,21 +213,24 @@ async function collectAssignmentOpens(
   await mapWithConcurrency(
     chunk([...new Set(sectionIds)], IN_QUERY_MAX),
     QUERY_CONCURRENCY,
-    (ids) =>
-      db
+    async (ids) => {
+      if (outOfTime()) return;
+      await db
         .collection('flashcard_sessions')
         .where('classIds', 'array-contains-any', ids)
         .select()
         .get()
         .then((snap) => {
           for (const d of snap.docs) flashcardSessions.set(d.ref.path, d.ref);
-        }, settle('flashcard_sessions'))
+        }, settle('flashcard_sessions'));
+    }
   );
   await mapWithConcurrency(
     [...flashcardSessions.values()],
     QUERY_CONCURRENCY,
-    (sessionRef) =>
-      sessionRef
+    async (sessionRef) => {
+      if (outOfTime()) return;
+      await sessionRef
         .collection('progress')
         .where('lastActiveAt', '>=', sinceMs)
         .select('lastActiveAt')
@@ -229,13 +241,15 @@ async function collectAssignmentOpens(
             if (!wanted.has(doc.id) || typeof at !== 'number') continue;
             hits.push({ studentUid: doc.id, sessionRef, openedMs: at });
           }
-        }, settle('flashcard progress'))
+        }, settle('flashcard progress'));
+    }
   );
 
   const sessionRefs = new Map<string, admin.firestore.DocumentReference>();
   for (const h of hits) sessionRefs.set(h.sessionRef.path, h.sessionRef);
   const teacherBySession = new Map<string, string>();
   for (const refs of chunk([...sessionRefs.values()], 300)) {
+    if (outOfTime()) break;
     const docs = await db
       .getAll(...refs, { fieldMask: ['teacherUid'] })
       .catch((err: unknown) => {
@@ -346,6 +360,7 @@ export const getActiveStudentsV1 = onCall(
     const cached = resultCache.get(orgId);
     if (cached && now - cached.asOf < CACHE_TTL_MS) return cached;
     resultCache.delete(orgId);
+    const queryDeadline = now + QUERY_BUDGET_MS;
     const deadline = now + NAME_LOOKUP_BUDGET_MS;
     const snap = await db
       .collection('student_sections')
@@ -374,8 +389,12 @@ export const getActiveStudentsV1 = onCall(
     await mapWithConcurrency(
       chunk(allSections, IN_CHUNK),
       QUERY_CONCURRENCY,
-      (ids) =>
-        db
+      async (ids) => {
+        if (Date.now() >= queryDeadline) {
+          partial = true;
+          return;
+        }
+        await db
           .collectionGroup('rosters')
           .where('classlinkClassId', 'in', ids)
           .select('classlinkClassId')
@@ -396,14 +415,16 @@ export const getActiveStudentsV1 = onCall(
                 errCode(err)
               );
             }
-          )
+          );
+      }
     );
 
     const collected = await collectAssignmentOpens(
       db,
       active.map((s) => s.uid),
       allSections,
-      now - MONTH_MS
+      now - MONTH_MS,
+      queryDeadline
     );
     if (collected.partial) partial = true;
     const opens = collected.opens;
