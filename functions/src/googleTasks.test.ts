@@ -282,6 +282,18 @@ describe('push trigger', () => {
     });
   });
 
+  it('replaces a claim abandoned by a dead instance', async () => {
+    store.set('users/u1/private/googleTasks/map/p1_note_n1_a', {
+      pending: true,
+      claimedAt: Date.now() - 120_000,
+    });
+    await write(undefined, note([item()]));
+    expect(calls.map((c) => c.method)).toEqual(['POST']);
+    expect(
+      store.get('users/u1/private/googleTasks/map/p1_note_n1_a')
+    ).toMatchObject({ taskId: 'id1', pending: false });
+  });
+
   it('recreates the SpartBoard list when the user deleted it', async () => {
     respond = (c) => {
       if (c.url.includes('/lists/L1/tasks')) throw notFound();

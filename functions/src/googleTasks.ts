@@ -35,6 +35,8 @@ const TASKS_API = 'https://tasks.googleapis.com/tasks/v1';
 const API_TIMEOUT_MS = 10_000;
 const CLAIM_WAIT_STEPS = 5;
 const CLAIM_WAIT_MS = 1_000;
+// A claim this old belongs to an instance that died between create and insert.
+const STALE_CLAIM_MS = 60_000;
 // Overlap on the pull window so a task edited during the previous pull is not missed.
 const PULL_OVERLAP_MS = 10 * 60 * 1000;
 const SECRETS = [
@@ -53,6 +55,7 @@ interface TasksState {
 }
 
 interface MapDoc {
+  claimedAt?: number;
   taskId?: string;
   listId?: string;
   lastPushedHash?: string;
@@ -267,12 +270,26 @@ async function pushUpsert(
   };
 
   // Claim the map doc first so two concurrent fires can't both insert a task.
-  let claimed = true;
-  try {
-    await ref.create({ ...base, pending: true, claimedAt: Date.now() });
-  } catch (err) {
-    if ((err as { code?: unknown }).code !== 6) throw err;
-    claimed = false;
+  const claim = async (): Promise<boolean> => {
+    try {
+      await ref.create({ ...base, pending: true, claimedAt: Date.now() });
+      return true;
+    } catch (err) {
+      if ((err as { code?: unknown }).code !== 6) throw err;
+      return false;
+    }
+  };
+  let claimed = await claim();
+  if (!claimed) {
+    const held = (await ref.get()).data() as MapDoc | undefined;
+    if (
+      held &&
+      !held.taskId &&
+      Date.now() - (held.claimedAt ?? 0) > STALE_CLAIM_MS
+    ) {
+      await ref.delete();
+      claimed = await claim();
+    }
   }
 
   if (claimed) {
