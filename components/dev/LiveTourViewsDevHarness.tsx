@@ -234,7 +234,7 @@ const useFakeSession = (selected: number): TourEditorSession => {
     canUndo: true,
     canRedo: false,
     saveState: 'saved',
-    flush: () => Promise.resolve(),
+    flush: () => Promise.resolve(true),
   };
 };
 
