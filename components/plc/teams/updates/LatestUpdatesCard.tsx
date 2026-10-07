@@ -67,7 +67,10 @@ export default function LatestUpdatesCard({
   isLead,
   onNavigate,
 }: TeamCardProps) {
-  const { updates, myUid, myAcks } = useTeamUpdatesData(plc, isLead, false);
+  const { updates, myUid, myAcks } = useTeamUpdatesData(plc, isLead, {
+    withRosters: false,
+    visible: LATEST_UPDATES_COUNT,
+  });
   return (
     <LatestUpdatesView
       updates={updates.slice(0, LATEST_UPDATES_COUNT)}

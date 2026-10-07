@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { Plc, PlcUpdate } from '@/types';
 import {
+  MAX_ACK_LISTENERS,
+  ackWatchIds,
   buildAckRoster,
   filterUpdates,
   isCalendarEmbedUrl,
   normalizeCalendarEmbedInput,
   parsePlcUpdate,
   pickHeroUpdate,
+  pickWatched,
   sortUpdates,
   splitComposeText,
 } from '@/utils/teamUpdates';
@@ -176,5 +179,25 @@ describe('buildAckRoster', () => {
       { uid: 'b', name: 'Ben B', ackedAt: 5 },
     ]);
     expect(roster.notYet).toEqual([{ uid: 'a', name: 'Ann' }]);
+  });
+});
+
+describe('ackWatchIds and pickWatched', () => {
+  const many = Array.from({ length: 40 }, (_, i) =>
+    upd(`u${i}`, { requiresAck: i % 2 === 0 })
+  );
+
+  it('watches only ack-required updates within the visible slice, capped', () => {
+    expect(ackWatchIds(many, 5)).toEqual(['u0', 'u2', 'u4']);
+    expect(ackWatchIds(many, 0)).toEqual([]);
+    expect(ackWatchIds(many)).toHaveLength(20);
+    const all = Array.from({ length: 60 }, (_, i) =>
+      upd(`a${i}`, { requiresAck: true })
+    );
+    expect(ackWatchIds(all)).toHaveLength(MAX_ACK_LISTENERS);
+  });
+
+  it('drops entries for ids no longer watched', () => {
+    expect(pickWatched({ a: 1, b: 2, c: 3 }, ['b', 'z'])).toEqual({ b: 2 });
   });
 });

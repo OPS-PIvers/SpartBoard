@@ -21,6 +21,7 @@ import { logError } from '@/utils/logError';
 import {
   parsePlcUpdate,
   parsePlcUpdateAck,
+  pickWatched,
   sortUpdates,
 } from '@/utils/teamUpdates';
 
@@ -213,7 +214,7 @@ export function useMyUpdateAcks(
     return () => unsubs.forEach((u) => u());
   }, [plcId, user, ids]);
 
-  return acks;
+  return useMemo(() => pickWatched(acks, ids), [acks, ids]);
 }
 
 /** Every ack on each listed update: updateId → acks. Rules allow this for the lead and co-leads only. */
@@ -246,7 +247,10 @@ export function useUpdateAcksFor(
     return () => unsubs.forEach((u) => u());
   }, [plcId, user, enabled, ids]);
 
-  return acks;
+  return useMemo(
+    () => (enabled ? pickWatched(acks, ids) : {}),
+    [acks, ids, enabled]
+  );
 }
 
 /** Lead or co-lead: attach (or with null, remove) the team's Google Calendar embed (T28). */

@@ -6,6 +6,8 @@ import { getPlcMembers, tsToMillis } from '@/utils/plc';
 export const UPDATE_TITLE_MAX = 200;
 export const UPDATE_BODY_MAX = 5000;
 export const LATEST_UPDATES_COUNT = 4;
+/** Upper bound on per-update ack listeners one view opens. */
+export const MAX_ACK_LISTENERS = 25;
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -102,6 +104,28 @@ export function pickHeroUpdate(
   if (pinnedId) return updates.find((u) => u.id === pinnedId) ?? null;
   const sorted = sortUpdates(updates);
   return sorted.find((u) => u.pinned) ?? sorted[0] ?? null;
+}
+
+/** Updates whose acks a view listens to: ack-required ones among the first `visible`, capped. */
+export function ackWatchIds(
+  updates: PlcUpdate[],
+  visible: number = updates.length
+): string[] {
+  return updates
+    .slice(0, Math.max(0, visible))
+    .filter((u) => u.requiresAck)
+    .slice(0, MAX_ACK_LISTENERS)
+    .map((u) => u.id);
+}
+
+/** Drops entries for ids no longer watched. */
+export function pickWatched<T>(
+  map: Record<string, T>,
+  ids: string[]
+): Record<string, T> {
+  const out: Record<string, T> = {};
+  for (const id of ids) if (id in map) out[id] = map[id];
+  return out;
 }
 
 export type UpdatesFilter = 'all' | 'ack' | 'pinned';

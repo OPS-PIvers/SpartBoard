@@ -13,12 +13,23 @@ import {
 } from '@/hooks/usePlcUpdates';
 import type { Plc, PlcUpdate } from '@/types';
 import { logError } from '@/utils/logError';
-import { buildAckRoster, type AckRoster } from '@/utils/teamUpdates';
+import {
+  ackWatchIds,
+  buildAckRoster,
+  type AckRoster,
+} from '@/utils/teamUpdates';
+
+export interface TeamUpdatesDataOptions {
+  /** Lead or co-lead: listen to every ack for the who-has view. */
+  withRosters?: boolean;
+  /** How many of the newest updates the view shows; acks are watched only there. */
+  visible?: number;
+}
 
 export function useTeamUpdatesData(
   plc: Plc,
   isLead: boolean,
-  withRosters = true
+  { withRosters = true, visible }: TeamUpdatesDataOptions = {}
 ) {
   const { user } = useAuth();
   const { addToast } = useDashboard();
@@ -28,9 +39,10 @@ export function useTeamUpdatesData(
   const { updates } = api;
 
   const ackIds = useMemo(
-    () => updates.filter((u) => u.requiresAck).map((u) => u.id),
-    [updates]
+    () => ackWatchIds(updates, visible),
+    [updates, visible]
   );
+  // isLead covers lead and co-lead: managers read all acks, members only their own.
   const myAcks = useMyUpdateAcks(isLead ? null : plc.id, ackIds);
   const allAcks = useUpdateAcksFor(plc.id, ackIds, isLead && withRosters);
   const rosters = useMemo(() => {

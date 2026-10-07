@@ -17,11 +17,10 @@ export function BuildingHubPage({
   onNavigate,
   onChangeHero,
 }: TeamPageProps) {
-  const { updates, myUid, myAcks, onReact } = useTeamUpdatesData(
-    plc,
-    isLead,
-    false
-  );
+  const { updates, myUid, myAcks, onReact } = useTeamUpdatesData(plc, isLead, {
+    withRosters: false,
+    visible: LATEST_UPDATES_COUNT + 1,
+  });
   const quickLinks = useQuickLinks(plc.id);
   const categories = useResourceCategories(plc.id);
 

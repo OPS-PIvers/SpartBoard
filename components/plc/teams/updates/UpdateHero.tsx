@@ -57,7 +57,10 @@ export default function UpdateHero({
   isLead,
   onChangeHero,
 }: TeamHeroProps) {
-  const { updates, myUid, onReact } = useTeamUpdatesData(plc, isLead, false);
+  const { updates, myUid, onReact } = useTeamUpdatesData(plc, isLead, {
+    withRosters: false,
+    visible: 0,
+  });
   const update = pickHeroUpdate(
     updates,
     heroRef?.kind === 'update' ? heroRef.updateId : undefined
