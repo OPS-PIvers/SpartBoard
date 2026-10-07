@@ -140,11 +140,13 @@ const LegacyPlcDashboard: React.FC<PlcDashboardProps> = ({
       : retireMeetingMode && requestedSection === 'meeting'
         ? 'docs'
         : 'home';
+  // Wait for the flags: until then the redesign may still own this URL.
+  const flagsReady = globalPermissionsLoaded && isAdmin !== null;
   useEffect(() => {
-    if (activeSection !== requestedSection) {
+    if (flagsReady && activeSection !== requestedSection) {
       spaReplace(buildPlcPath(plc.id, activeSection));
     }
-  }, [activeSection, requestedSection, plc.id]);
+  }, [flagsReady, activeSection, requestedSection, plc.id]);
 
   // Read membership through the T1 helpers so the lead badge + member count
   // work against the canonical `members` map AND legacy arrays.

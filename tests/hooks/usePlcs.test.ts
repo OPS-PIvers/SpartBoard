@@ -579,6 +579,33 @@ describe('usePlcs - createPlc writes the members map + indexes', () => {
     expect(payload.buildingId).toBeNull();
   });
 
+  it('writes the section switches a frozen layout turns off', async () => {
+    useAuthMock.mockReturnValue({
+      user: { uid: LEAD_UID, email: 'Lead@X.com', displayName: 'Lead' },
+      orgId: 'orono',
+    } as ReturnType<typeof useAuthMock>);
+    mockCollection.mockReturnValue('plcs');
+    mockDoc.mockReturnValue('plcs/new-id');
+    mockSetDoc.mockResolvedValue(undefined);
+
+    const { result } = render();
+    await act(async () => {
+      await result.current.createPlc('Dept', 'department', {
+        pages: [
+          { id: 'hub', enabled: true },
+          { id: 'docs', enabled: false },
+          { id: 'assessments', enabled: true },
+        ],
+        landing: 'hub',
+        cards: [],
+        hero: { mode: 'default' },
+      });
+    });
+
+    const payload = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
+    expect(payload.features).toEqual({ notes: false });
+  });
+
   it('refuses to create an untenanted PLC for a no-org caller (W2)', async () => {
     // A fully-resolved no-org caller: createPlc is defense-in-depth and must
     // reject rather than write an org-less PLC. The hook destructures

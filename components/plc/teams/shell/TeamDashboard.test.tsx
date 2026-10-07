@@ -180,18 +180,14 @@ describe('TeamDashboard', () => {
     expect(mocks.spaReplace).not.toHaveBeenCalled();
   });
 
-  it('freezes the resolved layout the first time a lead opens the editor', () => {
+  it('opens the editor without saving, so Cancel leaves the team as it was', () => {
     render(<TeamDashboard plc={plc()} activeSection="home" {...props} />);
     openEditor();
     expect(screen.getByTestId('layout-editor')).toBeTruthy();
-    expect(mocks.saveTeamLayout).toHaveBeenCalledTimes(1);
-    expect(mocks.saveTeamLayout.mock.calls[0]).toEqual([
-      'p1',
-      expect.objectContaining({ landing: 'dataOverview' }),
-    ]);
+    expect(mocks.saveTeamLayout).not.toHaveBeenCalled();
   });
 
-  it('neither freezes nor opens the editor when the defaults read failed', () => {
+  it('does not open the editor when the defaults read failed', () => {
     mocks.defaults = { defaults: { types: {} }, failed: true };
     render(<TeamDashboard plc={plc()} activeSection="home" {...props} />);
     openEditor();
