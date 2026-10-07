@@ -22,6 +22,7 @@ import {
   Plc,
   PlcFeatureSettings,
   PlcGroupType,
+  PlcTeamLayout,
   PLC_GROUP_TYPES,
   PLC_MEMBER_ADDED_BY,
   PlcMeetingCadence,
@@ -36,6 +37,7 @@ import {
 } from '@/utils/plcMeetingCadence';
 import { writePlcActivityEvent } from '@/utils/plcActivity';
 import { parseNormingLevelLabels } from '@/utils/plcNorming';
+import { parseTeamLayout } from '@/utils/teamLayout';
 import { isSuperAdminActor } from '@/utils/superAdmin';
 import i18n from '@/i18n/index';
 
@@ -84,7 +86,11 @@ interface UsePlcsResult {
    */
   error: Error | null;
   /** Create a new PLC with the current user as lead + sole member. Returns the new doc id. */
-  createPlc: (name: string, groupType?: PlcGroupType) => Promise<string>;
+  createPlc: (
+    name: string,
+    groupType?: PlcGroupType,
+    layout?: PlcTeamLayout
+  ) => Promise<string>;
   /** Lead-only: rename the PLC. */
   renamePlc: (
     plcId: string,
@@ -247,6 +253,9 @@ function parsePlcMembers(value: unknown): Record<string, PlcMember> {
       joinedAt: tsToMillis(m.joinedAt),
       status,
       ...(addedBy ? { addedBy } : {}),
+      ...(m.mentorRole === 'mentor' || m.mentorRole === 'mentee'
+        ? { mentorRole: m.mentorRole }
+        : {}),
     };
   }
   return out;
@@ -297,6 +306,7 @@ function readMembersForWrite(
         joinedAt: rawMembers[uid]?.joinedAt ?? serverTimestamp(),
         // Written back unchanged so the rules' single-entry members diff still holds.
         ...(m.addedBy ? { addedBy: m.addedBy } : {}),
+        ...(m.mentorRole ? { mentorRole: m.mentorRole } : {}),
       };
     }
     if (includeArrayOnly) {
@@ -431,6 +441,7 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
   const digestOptIn = data.digestOptIn === true;
   const meetingCadence = parseMeetingCadence(data.meetingCadence);
   const normingLevelLabels = parseNormingLevelLabels(data.normingLevelLabels);
+  const layout = parseTeamLayout(data.layout);
   // orgId / buildingId: optional tenancy (Decision 1.1). Absent ⇒ null.
   const orgId = typeof data.orgId === 'string' ? data.orgId : null;
   const buildingId =
@@ -457,6 +468,7 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
     ...(autoRoster ? { autoRoster } : {}),
     ...(meetingCadence ? { meetingCadence } : {}),
     ...(normingLevelLabels ? { normingLevelLabels } : {}),
+    ...(layout ? { layout } : {}),
     // serverTimestamp-tolerant (Decision 1.3): accept a Firestore Timestamp
     // or a legacy numeric millis value.
     createdAt: tsToMillis(data.createdAt),
@@ -613,7 +625,11 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   }, [user, enabled, asAdmin, isSuperAdmin, orgId]);
 
   const createPlc = useCallback(
-    async (name: string, groupType?: PlcGroupType): Promise<string> => {
+    async (
+      name: string,
+      groupType?: PlcGroupType,
+      layout?: PlcTeamLayout
+    ): Promise<string> => {
       if (!user) throw new Error(i18n.t('plc.errors.notSignedIn'));
       const trimmed = name.trim();
       if (!trimmed) throw new Error(i18n.t('plc.errors.nameRequired'));
@@ -646,6 +662,8 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
         orgId,
         buildingId: creatorBuildingId,
         ...(groupType && groupType !== 'plc' ? { groupType } : {}),
+        // Teams redesign: a new team keeps the district default it was created with (T3).
+        ...(layout ? { layout } : {}),
         // Canonical membership map (Decision 1.2). The creator is the sole
         // member and the lead. `joinedAt` is a serverTimestamp sentinel
         // resolved to millis on read by `parsePlcMembers`.
@@ -844,6 +862,8 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
         }
         targetName = target.displayName || target.email || uid;
         members[uid] = { ...target, role };
+        // Mentor and mentee tags belong to members only (T29).
+        if (role !== 'member') delete members[uid].mentorRole;
         tx.update(ref, {
           members,
           // Explicit target pointer for the rules' `isChangingMemberRole`

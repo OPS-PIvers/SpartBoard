@@ -40,6 +40,7 @@ import {
 } from '@/context/usePlcContext';
 import { usePlcMeetings } from '@/hooks/usePlcMeetings';
 import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
+import { useAuth } from '@/context/useAuth';
 import { weakestQuestions } from '@/components/plc/sharedData/sharedDataSelectors';
 import { MeetingExportButtons } from './PlcMeetingMode';
 
@@ -54,11 +55,18 @@ interface PlcMeetingRecordViewProps {
   meetingId: string;
 }
 
+// Meeting Mode is retired under the Teams redesign (TEAMS_REDESIGN T11), so the link back to it goes too.
+function useShowBackToLive(): boolean {
+  const { canAccessFeature } = useAuth();
+  return !canAccessFeature('teams-redesign');
+}
+
 export const PlcMeetingRecordView: React.FC<PlcMeetingRecordViewProps> = ({
   plc,
   meetingId,
 }) => {
   const { t, i18n } = useTranslation();
+  const showBackToLive = useShowBackToLive();
   const { meetingsById, loading, error } = usePlcMeetings(plc.id);
   const members = usePlcMembers();
   const { data: assessments } = usePlcAssessmentsData();
@@ -128,16 +136,18 @@ export const PlcMeetingRecordView: React.FC<PlcMeetingRecordViewProps> = ({
               'It may have been deleted, or you opened a stale link.',
           })}
         </p>
-        <button
-          type="button"
-          onClick={goLive}
-          className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-blue-primary hover:text-brand-blue-dark px-3 py-2 rounded-lg hover:bg-brand-blue-primary/5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
-        >
-          <ArrowLeft className="w-4 h-4" aria-hidden="true" />
-          {t('plcDashboard.meeting.record.backToLive', {
-            defaultValue: 'Back to Meeting Mode',
-          })}
-        </button>
+        {showBackToLive && (
+          <button
+            type="button"
+            onClick={goLive}
+            className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-blue-primary hover:text-brand-blue-dark px-3 py-2 rounded-lg hover:bg-brand-blue-primary/5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+          >
+            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+            {t('plcDashboard.meeting.record.backToLive', {
+              defaultValue: 'Back to Meeting Mode',
+            })}
+          </button>
+        )}
       </div>
     );
   }
@@ -152,16 +162,18 @@ export const PlcMeetingRecordView: React.FC<PlcMeetingRecordViewProps> = ({
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="min-w-0">
-            <button
-              type="button"
-              onClick={goLive}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 mb-2 px-2 py-1 -ml-2 rounded-lg hover:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
-            >
-              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
-              {t('plcDashboard.meeting.record.backToLive', {
-                defaultValue: 'Back to Meeting Mode',
-              })}
-            </button>
+            {showBackToLive && (
+              <button
+                type="button"
+                onClick={goLive}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 mb-2 px-2 py-1 -ml-2 rounded-lg hover:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+              >
+                <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+                {t('plcDashboard.meeting.record.backToLive', {
+                  defaultValue: 'Back to Meeting Mode',
+                })}
+              </button>
+            )}
             <h1 className="text-2xl lg:text-3xl font-extrabold text-slate-800 leading-tight">
               {t('plcDashboard.meeting.record.title', {
                 defaultValue: 'Meeting record',

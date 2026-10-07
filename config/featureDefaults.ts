@@ -65,6 +65,7 @@ export type FeatureCategory =
   | 'sharing'
   | 'integrations'
   | 'students'
+  | 'groups'
   | 'look';
 
 export const FEATURE_CATEGORY_LABELS: Record<FeatureCategory, string> = {
@@ -72,6 +73,7 @@ export const FEATURE_CATEGORY_LABELS: Record<FeatureCategory, string> = {
   sharing: 'Sharing & sessions',
   integrations: 'Integrations',
   students: 'Students',
+  groups: 'Teams',
   look: 'Look & feel',
 };
 
@@ -845,6 +847,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Per-type team pages, team layout and admin type defaults (docs/plans/TEAMS_REDESIGN.md).
+  'teams-redesign': {
+    label: 'Team pages redesign',
+    icon: LayoutDashboard,
+    description: 'Purpose-built pages for each team type.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Handwritten answer boxes on paper sheets; AND-ed with the paper-answer-sheets gate.
   'paper-handwritten-responses': {
     label: 'Handwritten answers on paper sheets',
@@ -1189,6 +1202,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'ai',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Server also requires gemini-functions and a saved doc (enforceAiFeatureAccess, missingDocAllowed: false).
+  'plc-goal-coach': {
+    label: 'Goal coach',
+    icon: Sparkles,
+    description: 'Checks a draft team goal against the district rubric.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'groups',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

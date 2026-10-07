@@ -269,6 +269,55 @@ const GradebookDevHarness = import.meta.env.DEV
       }))
     )
   : null;
+const TeamsRedesignDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/plc/redesignMockup/TeamsRedesignDevHarness').then(
+        (module) => ({ default: module.TeamsRedesignDevHarness })
+      )
+    )
+  : null;
+const TeamsShellDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/plc/teams/dev/TeamsShellDevHarness').then(
+        (module) => ({ default: module.TeamsShellDevHarness })
+      )
+    )
+  : null;
+const TeamsNotesDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/plc/teams/notes/TeamsNotesDevHarness').then(
+        (module) => ({ default: module.TeamsNotesDevHarness })
+      )
+    )
+  : null;
+const TeamsMentoringDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/plc/teams/mentoring/dev/TeamsMentoringDevHarness').then(
+        (module) => ({ default: module.TeamsMentoringDevHarness })
+      )
+    )
+  : null;
+const TeamsB4DevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/plc/teams/building/TeamsB4DevHarness').then(
+        (module) => ({ default: module.TeamsB4DevHarness })
+      )
+    )
+  : null;
+const TeamsPlcDataDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/plc/teams/data/dev/TeamsPlcDataDevHarness').then(
+        (module) => ({ default: module.TeamsPlcDataDevHarness })
+      )
+    )
+  : null;
+const TeamsAdminDefaultsDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/plc/teams/admin/TeamsAdminDefaultsDevHarness').then(
+        (module) => ({ default: module.TeamsAdminDefaultsDevHarness })
+      )
+    )
+  : null;
 const SpartyDevGallery = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/SpartyDevGallery').then((module) => ({
@@ -858,6 +907,102 @@ const App: React.FC = () => {
           <GradebookDevHarness />
         </Suspense>
       </AuthProvider>
+    );
+  }
+
+  // DEV-ONLY: Teams redesign screens on fixtures; auth-bypass only, so never on a deployed site.
+  if (
+    import.meta.env.DEV &&
+    TeamsRedesignDevHarness &&
+    isAuthBypass &&
+    pathname === '/teams-redesign-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TeamsRedesignDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: the built team shell on the mockup's fixtures; auth-bypass only.
+  if (
+    import.meta.env.DEV &&
+    TeamsShellDevHarness &&
+    isAuthBypass &&
+    pathname === '/teams-shell-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TeamsShellDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: production Notes and Department Hub views on fixtures; auth-bypass only.
+  if (
+    import.meta.env.DEV &&
+    TeamsNotesDevHarness &&
+    isAuthBypass &&
+    pathname === '/teams-notes-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TeamsNotesDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: production mentoring views on fixtures; auth-bypass only.
+  if (
+    import.meta.env.DEV &&
+    TeamsMentoringDevHarness &&
+    isAuthBypass &&
+    pathname === '/teams-mentoring-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TeamsMentoringDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: Teams redesign PLC Data overview build on fixtures; auth-bypass only.
+  if (
+    import.meta.env.DEV &&
+    TeamsPlcDataDevHarness &&
+    isAuthBypass &&
+    pathname === '/teams-plc-data-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TeamsPlcDataDevHarness />
+      </Suspense>
+    );
+  }
+
+  if (
+    import.meta.env.DEV &&
+    TeamsB4DevHarness &&
+    isAuthBypass &&
+    pathname === '/teams-b4-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TeamsB4DevHarness />
+      </Suspense>
+    );
+  }
+
+  if (
+    import.meta.env.DEV &&
+    TeamsAdminDefaultsDevHarness &&
+    isAuthBypass &&
+    pathname === '/teams-admin-defaults-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TeamsAdminDefaultsDevHarness />
+      </Suspense>
     );
   }
 

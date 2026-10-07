@@ -70,6 +70,8 @@ const SECTION_LABELS: Record<
   members: { key: 'plcDashboard.tabs.members', defaultValue: 'Members' },
   resources: { key: 'plcDashboard.tabs.resources', defaultValue: 'Resources' },
   settings: { key: 'plcDashboard.tabs.settings', defaultValue: 'Settings' },
+  updates: { key: 'teams.pages.updates', defaultValue: 'Updates' },
+  workspace: { key: 'teams.pages.workspace', defaultValue: 'Workspace' },
   meeting: {
     key: 'plcDashboard.presence.meetingSection',
     defaultValue: 'the meeting',

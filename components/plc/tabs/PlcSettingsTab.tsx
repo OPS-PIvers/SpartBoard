@@ -16,6 +16,7 @@ import {
   Plc,
   PlcFeatureSettings,
   getPlcFeatures,
+  getPlcGroupType,
 } from '@/types';
 import { usePlcs } from '@/hooks/usePlcs';
 import { useDashboard } from '@/context/useDashboard';
@@ -24,6 +25,9 @@ import { PlcTrashBody } from '@/components/plc/settings/PlcTrashBody';
 import { PlcMeetingCadenceSection } from '@/components/plc/settings/PlcMeetingCadenceSection';
 import { PlcNormingLevelsSection } from '@/components/plc/norming/PlcNormingLevelsSection';
 import { PlcGradebookSection } from '@/components/plc/settings/PlcGradebookSection';
+import { MentoringPairingsSettings } from '@/components/plc/teams/mentoring/MentoringPairingsSettings';
+import { isPlcLeadOrCoLead } from '@/utils/plc';
+import { TeamCalendarSettings } from '@/components/plc/teams/building/TeamCalendarSettings';
 
 interface PlcSettingsTabProps {
   plc: Plc;
@@ -81,13 +85,21 @@ const MEETING_ROW: FeatureRow = {
  * these — they're shared configuration, not lead-only. Failures roll the
  * UI back to the previous value and surface a toast.
  */
+const PAGE_FEATURE_KEYS: ReadonlySet<keyof PlcFeatureSettings> = new Set([
+  'quizzes',
+  'videoActivities',
+  'notes',
+  'sharedBoards',
+  'meeting',
+]);
+
 export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
   const { t } = useTranslation();
   const { updatePlcFeatures, updatePlcDigestOptIn } = usePlcs({
     enabled: false,
   });
   const { addToast } = useDashboard();
-  const { canAccessFeature } = useAuth();
+  const { canAccessFeature, user } = useAuth();
   const features = getPlcFeatures(plc);
   const [busyKey, setBusyKey] = useState<keyof PlcFeatureSettings | null>(null);
   // Trash is a collapsed subsection inside Settings (Decision §6.1) — it mounts
@@ -155,31 +167,38 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
     }
   };
 
+  // Teams redesign: pages are set in the layout editor, so only non-page switches stay.
+  const redesign = canAccessFeature('teams-redesign');
+  const rows = redesign
+    ? FEATURE_ROWS.filter((row) => !PAGE_FEATURE_KEYS.has(row.key))
+    : canAccessFeature('my-groups') || features.meeting === false
+      ? [...FEATURE_ROWS, MEETING_ROW]
+      : FEATURE_ROWS;
+
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h3 className="text-sm font-bold text-slate-800">
-          {t('plcDashboard.settings.heading', {
-            defaultValue: 'Dashboard Sections',
-          })}
-        </h3>
-        <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-          {canAccessFeature('my-groups')
-            ? t('plcDashboard.settings.groupDescription', {
-                defaultValue:
-                  "Choose which sections appear on this team's page. Any member can update these.",
-              })
-            : t('plcDashboard.settings.description', {
-                defaultValue:
-                  "Choose which sections appear in this PLC's dashboard. Any PLC member can update these.",
-              })}
-        </p>
-      </div>
+      {!redesign && (
+        <div>
+          <h3 className="text-sm font-bold text-slate-800">
+            {t('plcDashboard.settings.heading', {
+              defaultValue: 'Dashboard Sections',
+            })}
+          </h3>
+          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+            {canAccessFeature('my-groups')
+              ? t('plcDashboard.settings.groupDescription', {
+                  defaultValue:
+                    "Choose which sections appear on this team's page. Any member can update these.",
+                })
+              : t('plcDashboard.settings.description', {
+                  defaultValue:
+                    "Choose which sections appear in this PLC's dashboard. Any PLC member can update these.",
+                })}
+          </p>
+        </div>
+      )}
       <div className="flex flex-col gap-2">
-        {(canAccessFeature('my-groups') || features.meeting === false
-          ? [...FEATURE_ROWS, MEETING_ROW]
-          : FEATURE_ROWS
-        ).map((row) => {
+        {rows.map((row) => {
           const Icon = row.icon;
           const enabled = features[row.key] !== false;
           const isBusy = busyKey === row.key;
@@ -242,6 +261,14 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
       )}
 
       {canAccessFeature('gradebook') && <PlcGradebookSection plc={plc} />}
+
+      {canAccessFeature('teams-redesign') &&
+        getPlcGroupType(plc) === 'mentoring' &&
+        !!user &&
+        isPlcLeadOrCoLead(plc, user.uid) && (
+          <MentoringPairingsSettings plc={plc} />
+        )}
+      {canAccessFeature('teams-redesign') && <TeamCalendarSettings plc={plc} />}
 
       {/* Notifications — opt-in weekly email digest (Decision 2.3). Any
           member can flip it; default OFF. */}

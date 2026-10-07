@@ -346,7 +346,11 @@ export interface PlcMember {
   status: 'active' | 'removed';
   /** How the member joined; auto-roster removes only its own 'autoRoster' adds. */
   addedBy?: PlcMemberAddedBy;
+  /** Mentoring programs only: set by facilitators on members, never viewers (T29). */
+  mentorRole?: PlcMentorRole;
 }
+
+export type PlcMentorRole = 'mentor' | 'mentee';
 
 export type PlcMemberAddedBy = 'admin' | 'autoRoster' | 'invite';
 
@@ -456,6 +460,12 @@ export interface Plc {
   meetingCadence?: PlcMeetingCadence;
   /** Lead-set names for the High/Medium/Low norming levels; Review is fixed. */
   normingLevelLabels?: PlcNormingLevelLabels;
+  /** Team layout set by the lead and co-leads; absent reads as the type default (TEAMS_REDESIGN T2). */
+  layout?: PlcTeamLayout;
+  /** Lead or co-lead override of the type's meeting-note template; absent uses the type default (T12). */
+  meetingNoteTemplate?: string;
+  /** Google Calendar embed URL the lead attaches (TEAMS_REDESIGN T28). */
+  calendarEmbedUrl?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -476,6 +486,201 @@ export interface PlcMeetingCadence {
   defaultAgenda?: string;
   /** Keyed by an occurrence's original 'YYYY-MM-DD'. */
   overrides?: Record<string, { movedTo?: string; skipped?: true }>;
+}
+
+/** A rail page of a team (TEAMS_REDESIGN T1); dataOverview, hub and programHub are landing pages. */
+export type TeamPageId =
+  | 'dataOverview'
+  | 'hub'
+  | 'programHub'
+  | 'assessments'
+  | 'docs'
+  | 'resources'
+  | 'updates'
+  | 'workspace';
+
+/** A card on a team's landing page, from the fixed catalog (T2); goals is a card, never a page (T21). */
+export type TeamCardId =
+  | 'hero'
+  | 'goals'
+  | 'nextMeeting'
+  | 'openItems'
+  | 'recentAssessments'
+  | 'distribution'
+  | 'trend'
+  | 'participation'
+  | 'masteryByTarget'
+  | 'quickLinks'
+  | 'latestUpdates'
+  | 'resourcesByCategory'
+  | 'calendar'
+  | 'nextTask'
+  | 'submissionStatus'
+  | 'recentDocs'
+  | 'newMaterials'
+  | 'openDecisions';
+
+/** The item a lead pins as the team hero (T5). */
+export type TeamHeroRef =
+  | { kind: 'assessment'; assessmentId: string }
+  | { kind: 'target'; targetId: string }
+  | { kind: 'goal'; goalId: string }
+  | { kind: 'doc'; docId: string }
+  | { kind: 'note'; noteId: string }
+  | { kind: 'update'; updateId: string }
+  | { kind: 'calendar' };
+
+/** What fills an unpinned hero, per team type (T6). */
+export type TeamHeroRule =
+  | 'latestAssessment'
+  | 'newestPinnedUpdate'
+  | 'nextMeetingNote'
+  | 'nextRequiredTask'
+  | 'teamGoal'
+  | 'lowestTarget'
+  | 'newestDoc'
+  | 'calendar';
+
+export interface TeamHero {
+  mode: 'default' | 'pinned';
+  ref?: TeamHeroRef;
+  pinnedBy?: { uid: string; name: string };
+}
+
+export interface TeamPageSetting {
+  id: TeamPageId;
+  enabled: boolean;
+}
+
+/** `plcs/{id}.layout`: one layout every member sees (T2). */
+export interface PlcTeamLayout {
+  /** Rail order; disabled pages stay listed so the editor can turn them back on. */
+  pages: TeamPageSetting[];
+  landing: TeamPageId;
+  cards: TeamCardId[];
+  hero: TeamHero;
+}
+
+/** `plcs/{id}/updates/{updateId}`: a post from a lead or co-lead (TEAMS_REDESIGN T27). */
+export interface PlcUpdate {
+  id: string;
+  title: string;
+  body: string;
+  linkUrl?: string;
+  attachment?: { name: string; url: string };
+  requiresAck: boolean;
+  /** Included in the weekly email digest. */
+  inDigest: boolean;
+  pinned: boolean;
+  /** uid → true for each member who reacted. */
+  reactions: Record<string, true>;
+  authorUid: string;
+  authorName: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** `plcs/{id}/updates/{updateId}/acks/{uid}`: a member's acknowledgement. */
+export interface PlcUpdateAck {
+  uid: string;
+  name: string;
+  ackedAt: number;
+}
+
+/** One group type's district default in `admin_settings/team_type_defaults` (T3). */
+export interface TeamTypePreset {
+  pages: TeamPageSetting[];
+  landing: TeamPageId;
+  cards: TeamCardId[];
+  heroRule: TeamHeroRule;
+  /** Markdown body for a new meeting note (T12). */
+  meetingNoteTemplate?: string;
+  /** Default Resources categories (T9). */
+  resourceCategories?: string[];
+}
+
+/** One criterion of the PLC goal-coach rubric (T22). */
+export interface GoalCoachCriterion {
+  id: string;
+  label: string;
+  description: string;
+}
+
+/** `admin_settings/team_type_defaults`; applies to teams created afterward (T3). */
+export interface TeamTypeDefaults {
+  types: Partial<Record<PlcGroupType, TeamTypePreset>>;
+  goalCoachRubric?: GoalCoachCriterion[];
+}
+
+/** Who submits a mentoring task (T32). */
+export type MentoringSubmitter = 'mentee' | 'mentor' | 'both';
+
+/** A Google Doc link held by a mentoring workspace or a task. */
+export interface MentoringDocLink {
+  id: string;
+  title: string;
+  url: string;
+  /** Set on a task template's copy. */
+  taskId?: string;
+  addedBy: string;
+  addedAt: number;
+}
+
+/** `plcs/{id}/tasks/{taskId}`: a required task posted by facilitators (T32). */
+export interface MentoringTask {
+  id: string;
+  title: string;
+  instructions: string;
+  /** Local calendar date, 'YYYY-MM-DD'. */
+  dueDate: string;
+  submitter: MentoringSubmitter;
+  templateDoc?: { title: string; url: string; fileId?: string } | null;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** A pair's submission state for one task, mirrored on the workspace. */
+export interface MentoringTaskStatus {
+  submittedAt: number;
+  submittedBy: string;
+}
+
+/** `plcs/{id}/workspaces/{workspaceId}`: one mentor and mentee pair (T31). */
+export interface MentoringWorkspace {
+  id: string;
+  mentorUid: string;
+  menteeUid: string;
+  /** [mentorUid, menteeUid], for the pair's array-contains query. */
+  memberUids: string[];
+  mentorName: string;
+  menteeName: string;
+  actionItems: PlcActionItem[];
+  docs: MentoringDocLink[];
+  taskStatus: Record<string, MentoringTaskStatus>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** `workspaces/{id}/checkins/{checkinId}`: a check-in note from the mentoring template. */
+export interface MentoringCheckIn {
+  id: string;
+  title: string;
+  body: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** `workspaces/{id}/submissions/{taskId}`: what a pair handed in for a task. */
+export interface MentoringSubmission {
+  id: string;
+  taskId: string;
+  submittedBy: string;
+  submittedByName: string;
+  submittedAt: number;
+  docUrl?: string;
 }
 
 /**
@@ -878,6 +1083,10 @@ export interface PlcNote {
   meetingId?: string | null;
   /** Action items captured on this note (Decision 3.5/7.4). */
   actionItems?: PlcActionItem[];
+  /** Data, Decision and agenda blocks, each under a body heading (TEAMS_REDESIGN T13, T14). */
+  blocks?: PlcNoteBlock[];
+  /** When the meeting is scheduled (ms); set on meeting notes created ahead of time (T24). */
+  meetingAt?: number | null;
   createdBy: string;
   createdAt: number;
   lastEditedBy: string;
@@ -897,6 +1106,46 @@ export interface PlcNote {
    */
   deletedAt?: number | null;
 }
+
+interface PlcNoteBlockBase {
+  id: string;
+  /** Text of the `## ` body heading the block sits under; '' places it before the first heading. */
+  section: string;
+  createdBy: string;
+  createdAt: number;
+}
+
+/** Live team results for one common assessment (T13). */
+export interface PlcNoteDataBlock extends PlcNoteBlockBase {
+  kind: 'data';
+  assessmentId: string | null;
+}
+
+/** What a Decision block responds to (T14). */
+export type PlcNoteDecisionLink =
+  | { kind: 'question'; assessmentId: string; questionId: string }
+  | { kind: 'target'; targetId: string };
+
+/** A structured team decision (T14). */
+export interface PlcNoteDecisionBlock extends PlcNoteBlockBase {
+  kind: 'decision';
+  text: string;
+  status: 'open' | 'decided';
+  decidedAt?: number | null;
+  revisitAt?: number | null;
+  link?: PlcNoteDecisionLink | null;
+}
+
+/** One agenda item added ahead of a meeting (T24). */
+export interface PlcNoteAgendaBlock extends PlcNoteBlockBase {
+  kind: 'agenda';
+  text: string;
+}
+
+export type PlcNoteBlock =
+  | PlcNoteDataBlock
+  | PlcNoteDecisionBlock
+  | PlcNoteAgendaBlock;
 
 /** Lifecycle of a note's meeting recording (docs/plans/shipped/PLC_MEETING_RECORDING.md). */
 export type PlcRecordingStatus =
@@ -1358,6 +1607,9 @@ export interface PlcGoal {
   id: string;
   title: string;
   measure?: string;
+  baseline?: number;
+  current?: number;
+  target?: number;
   practices: PlcGoalPractice[];
   order: number;
   createdBy: string;
@@ -9626,7 +9878,11 @@ export type GlobalFeature =
   /** Group Notes & Docs: embedded Google Docs keep Google's menus and toolbar. */
   | 'plc-docs-toolbar'
   /** Team action items sync to the assignee's Google Tasks (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md). */
-  | 'google-tasks-sync';
+  | 'google-tasks-sync'
+  /** Purpose-built page set per team type (docs/plans/TEAMS_REDESIGN.md). */
+  | 'teams-redesign'
+  /** AI coach that checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22). */
+  | 'plc-goal-coach';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
