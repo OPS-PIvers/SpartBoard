@@ -28,6 +28,9 @@ interface GradeLinkDoc {
   updatedAt?: number;
 }
 const gradeLinkStore = new Map<string, GradeLinkDoc>();
+// Response doc paths that exist, e.g. 'quiz_sessions/sess-1/responses/uid-student'.
+const existingResponses = new Set<string>();
+let responseLookupFails = false;
 const mintedTokens: { uid: string; claims: Record<string, unknown> }[] = [];
 let nextBridged: {
   uid: string;
@@ -51,7 +54,23 @@ vi.mock('firebase-admin', () => ({
         gradeLinkStore.set(path, { ...existing, ...data });
       },
     }),
-    collection: () => ({ where: () => ({ get: async () => ({ docs: [] }) }) }),
+    collection: (col: string) => ({
+      where: () => ({ get: async () => ({ docs: [] }) }),
+      doc: (sessionId: string) => ({
+        collection: (sub: string) => ({
+          doc: (id: string) => ({
+            get: async () => {
+              if (responseLookupFails) throw new Error('unavailable');
+              return {
+                exists: existingResponses.has(
+                  `${col}/${sessionId}/${sub}/${id}`
+                ),
+              };
+            },
+          }),
+        }),
+      }),
+    }),
     batch: () => ({ set: vi.fn(), commit: async () => {} }),
   })),
   auth: vi.fn(() => ({
@@ -96,6 +115,10 @@ vi.mock('./stores', () => ({
 // Stub persistLtiLaunchContext so we only test the grade-link write path.
 vi.mock('./nrpsStore', () => ({
   persistLtiLaunchContext: vi.fn(async () => 'sess-1'),
+  resolveLtiTargetSession: vi.fn(async () => ({
+    sessionId: 'sess-1',
+    sessionData: {},
+  })),
   QUIZ_SESSIONS_COLLECTION: 'quiz_sessions',
   VIDEO_ACTIVITY_SESSIONS_COLLECTION: 'video_activity_sessions',
   LTI_SESSION_MEMBERSHIPS_COLLECTION: 'lti_session_memberships',
@@ -174,6 +197,8 @@ beforeEach(() => {
   mintedTokens.length = 0;
   nextLaunch = null;
   nextBridged = null;
+  existingResponses.clear();
+  responseLookupFails = false;
 });
 
 describe('ltiExchange — lti_grade_links null-clobber regression', () => {
@@ -257,5 +282,69 @@ describe('ltiExchange — ClassLink identity bridge', () => {
     await callExchange({ data: { code: 'code-1' } });
 
     expect(mintedTokens[0].claims.classIds).toEqual(['class-7']);
+  });
+});
+
+describe('ltiExchange — section linked after the student already launched', () => {
+  const bridged = { uid: 'sid-uid', classlinkClassId: 'class-7', live: true };
+
+  it('keeps the pre-link uid when the session already has a response under it', async () => {
+    existingResponses.add('quiz_sessions/sess-1/responses/uid-student');
+    nextBridged = bridged;
+    nextLaunch = makeLaunch();
+    await callExchange({ data: { code: 'code-1' } });
+
+    expect(mintedTokens[0].uid).toBe('uid-student');
+    // Still a roster member of the linked class: the bridge must never narrow access.
+    expect(mintedTokens[0].claims.classIds).toEqual([
+      'class-7',
+      'schoology:ctx-original',
+    ]);
+    // Grade passback stays keyed on the uid that owns the response.
+    expect(
+      gradeLinkStore.get('lti_grade_links/uid-student/resources/rl-1')?.sub
+    ).toBe('sub-1');
+    expect(gradeLinkStore.has('lti_grade_links/sid-uid/resources/rl-1')).toBe(
+      false
+    );
+  });
+
+  it('keeps the pre-link uid for a video activity launch too', async () => {
+    existingResponses.add(
+      'video_activity_sessions/sess-1/responses/uid-student'
+    );
+    nextBridged = bridged;
+    nextLaunch = makeLaunch({});
+    nextLaunch.custom = { kind: 'va', session_id: 'sess-1' };
+    await callExchange({ data: { code: 'code-1' } });
+
+    expect(mintedTokens[0].uid).toBe('uid-student');
+  });
+
+  it('stays on the bridged uid once a response exists under it', async () => {
+    existingResponses.add('quiz_sessions/sess-1/responses/uid-student');
+    existingResponses.add('quiz_sessions/sess-1/responses/sid-uid');
+    nextBridged = bridged;
+    nextLaunch = makeLaunch();
+    await callExchange({ data: { code: 'code-1' } });
+
+    expect(mintedTokens[0].uid).toBe('sid-uid');
+  });
+
+  it('uses the bridged uid when the student has no response in this session', async () => {
+    nextBridged = bridged;
+    nextLaunch = makeLaunch();
+    await callExchange({ data: { code: 'code-1' } });
+
+    expect(mintedTokens[0].uid).toBe('sid-uid');
+  });
+
+  it('falls back to the bridged uid when the response lookup fails', async () => {
+    responseLookupFails = true;
+    nextBridged = bridged;
+    nextLaunch = makeLaunch();
+    await callExchange({ data: { code: 'code-1' } });
+
+    expect(mintedTokens[0].uid).toBe('sid-uid');
   });
 });
