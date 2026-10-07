@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   matchFlashcardAnswer,
+  parseFlashcardAnswerVariants,
   type FlashcardMatchKind,
 } from './flashcardMatch';
 
@@ -28,4 +29,14 @@ describe('flashcard answer matcher (server mirror)', () => {
       ).toBe(result);
     }
   );
+});
+
+describe('parseFlashcardAnswerVariants size', () => {
+  it('bounds the variants for an answer with many optional groups', () => {
+    const answer = Array.from({ length: 22 }, (_, i) => `(w${i})`).join(' ');
+    const start = Date.now();
+    const variants = parseFlashcardAnswerVariants(answer);
+    expect(Date.now() - start).toBeLessThan(1000);
+    expect(variants.length).toBeLessThanOrEqual(64);
+  });
 });
