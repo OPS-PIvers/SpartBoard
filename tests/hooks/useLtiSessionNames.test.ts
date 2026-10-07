@@ -145,6 +145,7 @@ describe('ltiSectionsKey', () => {
   it('collects Schoology sections from classIds and the period map, sorted', () => {
     expect(
       ltiSectionsKey({
+        ltiNrps: true,
         classIds: ['CL-1', 'schoology:5'],
         classPeriodByClassId: {
           'CL-1': 'Period 1',
@@ -154,5 +155,13 @@ describe('ltiSectionsKey', () => {
       })
     ).toBe('schoology:3,schoology:5');
     expect(ltiSectionsKey(null)).toBe('');
+  });
+
+  it('is empty for non-LTI sessions and skips non-string class ids', () => {
+    expect(ltiSectionsKey({ classIds: ['schoology:5'] })).toBe('');
+    expect(
+      ltiSectionsKey({ ltiNrps: true, classIds: [null, 7, 'schoology:2'] })
+    ).toBe('schoology:2');
+    expect(ltiSectionsKey({ ltiNrps: true, classIds: 'schoology:2' })).toBe('');
   });
 });

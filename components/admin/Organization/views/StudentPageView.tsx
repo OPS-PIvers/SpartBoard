@@ -4,6 +4,7 @@ import { ViewHeader } from '@/components/admin/Organization/components/primitive
 import { PreviewRow } from '@/components/admin/access/PreviewsPanel';
 import { useGlobalPermissionsEditor } from '@/components/admin/access/useGlobalPermissionsEditor';
 import { StudentLandingSample } from '@/components/student/landing/StudentLandingSample';
+import { useAuth } from '@/context/useAuth';
 
 // The access flags that change the student page; each row is the same control as on Access > Previews.
 const STUDENT_PAGE_FEATURES: GlobalFeature[] = [
@@ -18,6 +19,8 @@ const blockLinks = (e: React.MouseEvent) => {
 
 export const StudentPageView: React.FC = () => {
   const editor = useGlobalPermissionsEditor();
+  // Only /admins can write global_permissions; hide controls rules would deny.
+  const { isAdmin } = useAuth();
   const gradesEnabled = editor.getPermission('student-gradebook').enabled;
 
   return (
@@ -26,7 +29,7 @@ export const StudentPageView: React.FC = () => {
         title="Student page"
         blurb="What students see when they sign in."
       />
-      {editor.loading ? (
+      {isAdmin !== true ? null : editor.loading ? (
         <div className="py-4 text-sm text-slate-500">Loading...</div>
       ) : (
         <div className="divide-y divide-slate-200 border-y border-slate-200">
