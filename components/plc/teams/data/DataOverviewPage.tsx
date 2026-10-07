@@ -97,7 +97,11 @@ export default function DataOverviewPage({
         isLead={isLead}
         cards={layout.cards}
         hero={hero}
-        goal={<GoalSection plc={plc} isLead={isLead} />}
+        goal={
+          heroRef?.kind === 'goal' ? null : (
+            <GoalSection plc={plc} isLead={isLead} />
+          )
+        }
         strip={{
           ...strip,
           onOpenNote: nav.openNotes,

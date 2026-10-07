@@ -91,7 +91,8 @@ export const DataOverviewView: React.FC<DataOverviewViewProps> = ({
   const showMastery = on('masteryByTarget') && !!model.mastery;
   const showPrompt =
     on('masteryByTarget') && isLead && !!featured && !model.mastery;
-  const lower = [on('recentAssessments'), on('goals')].filter(Boolean).length;
+  const showGoal = on('goals') && goal != null;
+  const lower = [on('recentAssessments'), showGoal].filter(Boolean).length;
   const showStrip =
     (on('nextMeeting') && !!strip.nextMeeting) ||
     (on('openItems') && !!strip.openItems);
@@ -154,7 +155,7 @@ export const DataOverviewView: React.FC<DataOverviewViewProps> = ({
                 onAll={onAllAssessments}
               />
             )}
-            {on('goals') && goal}
+            {showGoal && goal}
           </div>
         </Section>
       )}

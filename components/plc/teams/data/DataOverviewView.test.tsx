@@ -25,7 +25,11 @@ const untag = (a: PlcAssessmentAggregate): PlcAssessmentAggregate => {
   return copy;
 };
 
-function renderView(isLead: boolean, tagged: boolean) {
+function renderView(
+  isLead: boolean,
+  tagged: boolean,
+  goal: React.ReactNode = null
+) {
   const model = buildDataOverviewModel({
     aggregates: tagged ? AGGREGATES : AGGREGATES.map(untag),
     assessments: ASSESSMENTS,
@@ -40,7 +44,7 @@ function renderView(isLead: boolean, tagged: boolean) {
       isLead={isLead}
       cards={BUILT_IN_TEAM_TYPE_PRESETS.plc.cards}
       hero={null}
-      goal={null}
+      goal={goal}
       strip={{
         nextMeeting: null,
         openItems: null,
@@ -72,6 +76,18 @@ describe('DataOverviewView', () => {
     renderView(false, false);
     expect(screen.queryByText(/Tag questions/)).toBeNull();
     expect(screen.queryByText('Mastery by learning target')).toBeNull();
+  });
+
+  it('drops the goal column when the goal is shown as the hero', () => {
+    renderView(true, true);
+    const grid = screen.getByText('Recent assessments').closest('.gap-x-10');
+    expect(grid?.className).not.toContain('lg:grid-cols');
+  });
+
+  it('keeps the goal column beside recent assessments otherwise', () => {
+    renderView(true, true, <p>Goal card</p>);
+    const grid = screen.getByText('Goal card').closest('.gap-x-10');
+    expect(grid?.className).toContain('lg:grid-cols');
   });
 
   it('never compares classes or teachers', () => {
