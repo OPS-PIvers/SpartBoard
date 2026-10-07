@@ -41,10 +41,9 @@ export const BlurTool: React.FC<BlurToolProps> = ({
     });
     return { left: a.x, top: a.y, width: b.x - a.x, height: b.y - a.y };
   };
+  // The stage draws the blur itself, on the picture under markers and callouts.
   const areaClass =
-    mode === 'solid'
-      ? 'bg-slate-800 ring-2 ring-white'
-      : 'bg-white/20 ring-2 ring-sky-500 backdrop-blur-md';
+    mode === 'solid' ? 'ring-2 ring-white' : 'ring-2 ring-sky-500';
 
   return (
     <div

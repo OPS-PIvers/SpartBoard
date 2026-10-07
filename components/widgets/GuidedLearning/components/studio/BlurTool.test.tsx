@@ -235,6 +235,20 @@ describe('Studio blur tool', () => {
     expect(screen.queryByTestId('gl-blur-layer')).toBeNull();
   });
 
+  it('previews the blur on the picture, under the step markers', () => {
+    renderStudio();
+    fireEvent.click(blurButton());
+    drawArea();
+    const preview = screen.getByTestId('gl-redact-preview');
+    expect(preview.closest('[data-testid="gl-panzoom-layer"]')).not.toBeNull();
+    expect(preview.querySelector('div')?.style.filter).toContain('blur');
+    expect(screen.getByTestId('gl-blur-area').className).not.toContain(
+      'backdrop-blur'
+    );
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByTestId('gl-redact-preview')).toBeNull();
+  });
+
   it('removes an area and leaves with Escape', () => {
     renderStudio();
     fireEvent.click(blurButton());
