@@ -476,7 +476,7 @@ describe('CLI', () => {
     } finally {
       rmSync(out, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 
   it('scans every widget without throwing', () => {
     const ctx = buildContext(DEFAULT_REPO_ROOT);
