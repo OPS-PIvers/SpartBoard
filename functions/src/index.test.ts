@@ -3493,6 +3493,7 @@ describe('index barrel — deployed export set', () => {
     'startViewAsStudentV1',
     'getViewAsDriveTokenV1',
     'getOrgUserActivity',
+    'getActiveStudentsV1',
     // PLC invites / rollout emails
     'plcInvitationEmail',
     'rolloutRequestEmail',
