@@ -1,23 +1,19 @@
 import React, { useCallback, useRef, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Camera,
   Check,
   Film,
   Image as ImageIcon,
+  MonitorPlay,
   Sparkles,
   Trash2,
 } from 'lucide-react';
 import type {
   GuidedLearningMode,
-  GuidedLearningSet,
   GuidedLearningStep,
   GuidedLearningWatchPace,
 } from '@/types';
 import { StudioRegionControls } from './StudioRegionControls';
-import { StudioTourControls } from './StudioTourControls';
-import { StudioTourPublish } from './StudioTourPublish';
-import { StudioTourSetup } from './StudioTourSetup';
 import { StudioNarration, StudioNarrationBatch } from './StudioNarration';
 import { StudioStepFields, StudioStepPlayback } from './StudioStepFields';
 import { VideoTrimBar } from '../editorShared/VideoTrimBar';
@@ -37,30 +33,12 @@ interface StudioPropertiesPanelProps {
   onDeleteStep?: (id: string) => void;
   /** The canvas element, used to find the stage's video for trimming. */
   canvasRef: React.RefObject<HTMLElement | null>;
-  /** Shows each step's live-tour link; building sets with live tours only. */
-  liveTours?: boolean;
-  /** The set as a save would write it now, for the tour's publish status. */
-  tourSet?: GuidedLearningSet;
-  /** Saves the draft and resolves the saved set, or null when the save failed. */
-  saveForPublish?: () => Promise<GuidedLearningSet | null>;
-  /** Runs the saved draft live from this step. */
-  onRunFromStep?: (stepId: string) => void;
-  /** Captures one new click for this step. */
-  onRerecordStep?: (stepId: string) => void;
-  /** Tour mode: runs the draft to retake one step's picture, or every step's. */
-  onRetakePictures?: (stepId?: string) => void;
-  /** Fades the Studio while Find on board flashes a button. */
-  onPeekBoard?: (peeking: boolean) => void;
+  /** Offers the live-tour play mode; building sets with live tours only. */
+  canOfferTour?: boolean;
+  /** Saves, closes the Studio and opens the set in the board editor. */
+  onEditOnBoard?: () => void;
   /** `gl-callout-editing`: callout size and colour summary, and Reset all. */
   calloutEditing?: boolean;
-}
-
-interface TourTools {
-  onRunFromStep?: (stepId: string) => void;
-  /** Tour mode: runs the draft to retake one step's picture, or every step's. */
-  onRetakePictures?: (stepId?: string) => void;
-  onRerecordStep?: (stepId: string) => void;
-  onPeekBoard?: (peeking: boolean) => void;
 }
 
 const MODES: readonly GuidedLearningMode[] = [
@@ -104,10 +82,9 @@ function useStageVideo(
 
 const Group: React.FC<{
   title: string;
-  testId?: string;
   children: React.ReactNode;
-}> = ({ title, testId, children }) => (
-  <div className="flex flex-col gap-4" data-testid={testId}>
+}> = ({ title, children }) => (
+  <div className="flex flex-col gap-4">
     <h3 className={groupHeadingClass}>{title}</h3>
     {children}
   </div>
@@ -118,22 +95,11 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
   state,
   onDeleteStep,
   canvasRef,
-  liveTours = false,
-  tourSet,
-  saveForPublish,
-  onRunFromStep,
-  onRerecordStep,
-  onRetakePictures,
-  onPeekBoard,
+  canOfferTour = false,
+  onEditOnBoard,
   calloutEditing = false,
 }) => {
   const { selectedStep } = state;
-  const tools: TourTools = {
-    onRunFromStep,
-    onRetakePictures,
-    onRerecordStep,
-    onPeekBoard,
-  };
   return (
     <div className="flex flex-col divide-y divide-slate-200">
       {selectedStep ? (
@@ -142,17 +108,13 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
           state={state}
           step={selectedStep}
           onDeleteStep={onDeleteStep}
-          liveTours={liveTours}
-          tools={tools}
           calloutEditing={calloutEditing}
         />
       ) : (
         <ActivitySection
           state={state}
-          liveTours={liveTours}
-          tourSet={tourSet}
-          saveForPublish={saveForPublish}
-          onRetakeAll={onRetakePictures ? () => onRetakePictures() : undefined}
+          canOfferTour={canOfferTour}
+          onEditOnBoard={onEditOnBoard}
         />
       )}
       {state.imageUrls.length > 0 && (
@@ -166,10 +128,8 @@ const StepSection: React.FC<{
   state: GuidedLearningEditorController;
   step: GuidedLearningStep;
   onDeleteStep?: (id: string) => void;
-  liveTours: boolean;
-  tools: TourTools;
   calloutEditing: boolean;
-}> = ({ state, step, onDeleteStep, liveTours, tools, calloutEditing }) => {
+}> = ({ state, step, onDeleteStep, calloutEditing }) => {
   const { t } = useTranslation();
   const { steps, imageUrls, updateStep, deleteStep } = state;
   const n = steps.findIndex((s) => s.id === step.id) + 1;
@@ -232,42 +192,15 @@ const StepSection: React.FC<{
         <StudioStepPlayback step={step} onChange={updateStep} />
       </Group>
       <StudioNarration state={state} step={step} />
-      {liveTours && (
-        <StudioTourControls
-          step={step}
-          onChange={(next) => updateStep(next, false)}
-          setupWidgets={state.tourSetupWidgets}
-          onPeekBoard={tools.onPeekBoard}
-          onRunFromStep={
-            tools.onRunFromStep
-              ? () => tools.onRunFromStep?.(step.id)
-              : undefined
-          }
-          onRerecord={
-            tools.onRerecordStep
-              ? () => tools.onRerecordStep?.(step.id)
-              : undefined
-          }
-          onRetakePicture={
-            tools.onRetakePictures &&
-            step.tour &&
-            step.tour.anchor !== 'board.whole'
-              ? () => tools.onRetakePictures?.(step.id)
-              : undefined
-          }
-        />
-      )}
     </section>
   );
 };
 
 const ActivitySection: React.FC<{
   state: GuidedLearningEditorController;
-  liveTours: boolean;
-  tourSet?: GuidedLearningSet;
-  saveForPublish?: () => Promise<GuidedLearningSet | null>;
-  onRetakeAll?: () => void;
-}> = ({ state, liveTours, tourSet, saveForPublish, onRetakeAll }) => {
+  canOfferTour: boolean;
+  onEditOnBoard?: () => void;
+}> = ({ state, canOfferTour, onEditOnBoard }) => {
   const { t } = useTranslation();
   const {
     steps,
@@ -307,7 +240,7 @@ const ActivitySection: React.FC<{
       <ChoiceGroup
         legend={t('glStudio.playMode')}
         value={mode}
-        options={(liveTours || mode === 'tour'
+        options={(canOfferTour || mode === 'tour'
           ? [...MODES, 'tour' as const]
           : MODES
         ).map((value) => ({
@@ -361,31 +294,16 @@ const ActivitySection: React.FC<{
         )}
       </div>
       {steps.length > 0 && <StudioNarrationBatch state={state} />}
-      {liveTours && (
-        <Group title={t('glStudio.tourTitle')} testId="gl-studio-set-tour">
-          {tourSet && steps.some((s) => !!s.tour) && (
-            <StudioTourPublish set={tourSet} saveFirst={saveForPublish} />
-          )}
-          <StudioTourSetup
-            widgets={state.tourSetupWidgets}
-            onChange={state.setTourSetupWidgets}
-            layouts={state.tourSetupLayouts}
-            onLayoutsChange={state.setTourSetupLayouts}
-            useTeacherBoard={state.tourUseTeacherBoard}
-            onUseTeacherBoardChange={state.setTourUseTeacherBoard}
-          />
-          {onRetakeAll && mode === 'tour' && steps.some((s) => !!s.tour) && (
-            <button
-              type="button"
-              onClick={onRetakeAll}
-              data-testid="gl-studio-retake-all"
-              className="flex items-center gap-1.5 self-start rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:border-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
-            >
-              <Camera className="h-3.5 w-3.5" aria-hidden="true" />
-              {t('glStudio.retakeAllPictures')}
-            </button>
-          )}
-        </Group>
+      {mode === 'tour' && onEditOnBoard && (
+        <button
+          type="button"
+          onClick={onEditOnBoard}
+          data-testid="gl-studio-edit-on-board"
+          className="flex items-center justify-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 focus-visible:ring-offset-2"
+        >
+          <MonitorPlay className="h-4 w-4" aria-hidden="true" />
+          {t('glStudio.editOnBoard')}
+        </button>
       )}
       {imageUrls.length > 0 && (
         <p className={hintClass}>{t('glStudio.selectStepHint')}</p>

@@ -1374,8 +1374,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
                   to run live&rdquo; from its menu.
                 </li>
                 <li>
-                  Edit the tour and press Publish tour in the Studio. Until then
-                  it&apos;s a Draft only admins can run.
+                  Edit the tour and press Publish tour in its Settings. Until
+                  then it&apos;s a Draft teachers can&apos;t see.
                 </li>
                 <li>
                   Teachers run a published building tour from this library, and

@@ -46,6 +46,34 @@ afterEach(() => {
 });
 
 describe('useTourEditorSession', () => {
+  it('stores a picture without an undo step, only while the step keeps that anchor', () => {
+    const { result } = open();
+    const thumb = { url: 'u', anchor: 'sidebar.boards', w: 2, h: 1 };
+    act(() => result.current?.setThumbnail('a', thumb));
+    expect(getTourEdit()?.set.steps[0].tour?.thumbnail).toEqual(thumb);
+    expect(result.current?.canUndo).toBe(false);
+    act(() =>
+      result.current?.setThumbnail('b', { ...thumb, anchor: 'dock.open-tools' })
+    );
+    expect(getTourEdit()?.set.steps[1].tour?.thumbnail).toBeUndefined();
+  });
+
+  it('reports whether the draft was saved', async () => {
+    const { result } = open();
+    act(() => result.current?.updateStep('a', { label: 'A1' }));
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await result.current?.flush();
+    });
+    expect(ok).toBe(true);
+    save.mockRejectedValueOnce(new Error('offline'));
+    act(() => result.current?.updateStep('a', { label: 'A2' }));
+    await act(async () => {
+      ok = await result.current?.flush();
+    });
+    expect(ok).toBe(false);
+  });
+
   it('undoes a run of typing in one step', () => {
     const { result } = open();
     act(() => result.current?.updateStep('a', { label: 'A1' }, 'label'));

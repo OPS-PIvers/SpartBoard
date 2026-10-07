@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import type { GuidedLearningSet } from '@/types';
+import type { GuidedLearningSet, GuidedLearningTourBinding } from '@/types';
 
 export interface TourEditRequest {
   setId: string;
@@ -25,6 +25,8 @@ export interface TourEditTarget {
   /** Bumped to rebuild the stage and replay up to `selected`. */
   replay: number;
   readAloud: boolean;
+  /** Asks the runner to take this step's picture again; `n` changes on every ask. */
+  retake?: { stepId: string; n: number };
 }
 
 /** What the runner reports back to the panel. */
@@ -116,3 +118,36 @@ export const reportTourEditPlayback = (next: TourEditPlayback): void => {
 
 export const useTourEditPlayback = (): TourEditPlayback =>
   useSyncExternalStore(playback.subscribe, playback.get, playback.get);
+
+/** Asks the runner for a new picture of this step when it next shows it. */
+export const retakeTourEditThumbnail = (stepId: string): void => {
+  const current = target.get();
+  if (!current) return;
+  target.set({
+    ...current,
+    retake: { stepId, n: (current.retake?.n ?? 0) + 1 },
+  });
+};
+
+/** A picture the runner took of a step's control, already blurred. */
+export interface TourEditShot {
+  stepId: string;
+  /** The binding the picture was taken of. */
+  tour: GuidedLearningTourBinding;
+  frame: Blob;
+}
+
+const shotListeners = new Set<(shot: TourEditShot) => void>();
+
+/** Called by the runner; the editor uploads the picture as the step's thumbnail. */
+export const reportTourEditShot = (shot: TourEditShot): void =>
+  shotListeners.forEach((l) => l(shot));
+
+export const onTourEditShot = (
+  listener: (shot: TourEditShot) => void
+): (() => void) => {
+  shotListeners.add(listener);
+  return () => {
+    shotListeners.delete(listener);
+  };
+};

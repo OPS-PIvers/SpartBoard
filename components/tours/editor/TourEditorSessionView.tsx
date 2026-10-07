@@ -9,12 +9,14 @@ import {
 import { useTourEditorSession } from './useTourEditorSession';
 import { TourEditorPanel } from './TourEditorPanel';
 import { TourEditorSettings } from './TourEditorSettings';
+import { useEditorThumbnails } from './useEditorThumbnails';
 
 /** The open editor: its session, wired to the docked panel. */
 const TourEditorSessionView: React.FC = () => {
   const session = useTourEditorSession();
   const playback = useTourEditPlayback();
   const target = useTourEditTarget();
+  useEditorThumbnails(session);
   if (!session || !target) return null;
   const close = () => {
     void session.flush();
