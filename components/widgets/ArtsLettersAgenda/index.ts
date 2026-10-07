@@ -1,0 +1,1 @@
+export { ArtsLettersAgendaWidget } from './Widget';

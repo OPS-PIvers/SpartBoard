@@ -81,6 +81,7 @@ export const WIDGET_GRADE_LEVELS: Record<
   quiz: ALL_GRADE_LEVELS,
   review: ALL_GRADE_LEVELS,
   routineGuide: ALL_GRADE_LEVELS,
+  'arts-letters-agenda': ALL_GRADE_LEVELS,
   'talking-tool': ALL_GRADE_LEVELS,
   breathing: ALL_GRADE_LEVELS,
   record: ALL_GRADE_LEVELS,

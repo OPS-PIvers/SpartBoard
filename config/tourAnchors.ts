@@ -556,6 +556,11 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'arts-letters-agenda.reset-checks': {
+    label: 'Reset checks button in Arts & Letters Agenda',
+    perWidget: true,
+    destructive: true,
+  },
   'checklist.remove-completed': {
     label: 'Remove completed items button in Checklist',
     perWidget: true,

@@ -147,6 +147,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./RoutineGuide/Widget'),
     'RoutineGuideWidget'
   ),
+  'arts-letters-agenda': lazyNamed(
+    () => import('./ArtsLettersAgenda'),
+    'ArtsLettersAgendaWidget'
+  ),
   flashcards: lazyNamed(
     () => import('./Flashcards/Widget'),
     'FlashcardsWidget'
@@ -332,6 +336,8 @@ export const WIDGET_SETTINGS_SCHEMAS: Partial<
   quiz: () => import('./QuizWidget/settings.schema').then((m) => m.default),
   review: () => import('./QuizWidget/settings.schema').then((m) => m.default),
   breathing: () => import('./Breathing/settings.schema').then((m) => m.default),
+  'arts-letters-agenda': () =>
+    import('./ArtsLettersAgenda/settings.schema').then((m) => m.default),
   mathTools: () => import('./MathTools/settings.schema').then((m) => m.default),
   mathTool: () =>
     import('./MathToolInstance/settings.schema').then((m) => m.default),
@@ -656,6 +662,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   routineGuide: {
     baseWidth: 420,
     baseHeight: 480,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'arts-letters-agenda': {
+    baseWidth: 420,
+    baseHeight: 420,
     canSpread: true,
     skipScaling: true,
     padding: 0,

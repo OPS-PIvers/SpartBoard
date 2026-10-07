@@ -60,4 +60,5 @@ export const WIDGET_TYPE_LIST: readonly string[] = [
   'need-do-put-then',
   'stations',
   'projects',
+  'arts-letters-agenda',
 ];
