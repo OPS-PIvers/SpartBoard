@@ -283,6 +283,13 @@ const TeamsNotesDevHarness = import.meta.env.DEV
       )
     )
   : null;
+const TeamsPlcDataDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/plc/teams/data/dev/TeamsPlcDataDevHarness').then(
+        (module) => ({ default: module.TeamsPlcDataDevHarness })
+      )
+    )
+  : null;
 const TeamsAdminDefaultsDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/plc/teams/admin/TeamsAdminDefaultsDevHarness').then(
@@ -906,6 +913,20 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <TeamsNotesDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: Teams redesign PLC Data overview build on fixtures; auth-bypass only.
+  if (
+    import.meta.env.DEV &&
+    TeamsPlcDataDevHarness &&
+    isAuthBypass &&
+    pathname === '/teams-plc-data-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TeamsPlcDataDevHarness />
       </Suspense>
     );
   }

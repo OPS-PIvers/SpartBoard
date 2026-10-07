@@ -172,6 +172,74 @@ describe('create', () => {
   });
 });
 
+describe('progress numbers', () => {
+  const nums = { baseline: 58, current: 64, target: 80 };
+
+  it('lets the lead and an editor create a goal with numbers', async () => {
+    await assertSucceeds(setDoc(doc(as(LEAD), GOAL_PATH), goal(LEAD, nums)));
+    await assertSucceeds(
+      setDoc(doc(as(EDITOR), `plcs/${PLC_ID}/goals/g2`), {
+        ...goal(EDITOR, nums),
+        id: 'g2',
+      })
+    );
+  });
+
+  it('refuses viewers and outsiders writing numbers', async () => {
+    await assertFails(setDoc(doc(as(VIEWER), GOAL_PATH), goal(VIEWER, nums)));
+    await assertFails(
+      setDoc(doc(as(OUTSIDER), GOAL_PATH), goal(OUTSIDER, nums))
+    );
+    await seedGoal();
+    await assertFails(
+      updateDoc(doc(as(VIEWER), GOAL_PATH), { current: 70, updatedAt: 2 })
+    );
+    await assertFails(
+      updateDoc(doc(as(OUTSIDER), GOAL_PATH), { current: 70, updatedAt: 2 })
+    );
+  });
+
+  it('refuses out-of-range and non-integer numbers', async () => {
+    for (const bad of [
+      { target: 101 },
+      { baseline: -1 },
+      { current: 64.5 },
+      { current: '64' },
+    ]) {
+      await assertFails(setDoc(doc(as(EDITOR), GOAL_PATH), goal(EDITOR, bad)));
+    }
+    await seedGoal();
+    await assertFails(
+      updateDoc(doc(as(EDITOR), GOAL_PATH), { target: 150, updatedAt: 2 })
+    );
+  });
+
+  it('lets an editor set and then clear the numbers', async () => {
+    await seedGoal();
+    await assertSucceeds(
+      updateDoc(doc(as(EDITOR), GOAL_PATH), { ...nums, updatedAt: 2 })
+    );
+    await assertSucceeds(
+      updateDoc(doc(as(EDITOR), GOAL_PATH), {
+        baseline: deleteField(),
+        current: deleteField(),
+        target: deleteField(),
+        updatedAt: 3,
+      })
+    );
+  });
+
+  it('lets members read a goal with numbers and denies outsiders', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), GOAL_PATH), goal(LEAD, nums));
+    });
+    for (const uid of [LEAD, EDITOR, VIEWER]) {
+      await assertSucceeds(getDoc(doc(as(uid), GOAL_PATH)));
+    }
+    await assertFails(getDoc(doc(as(OUTSIDER), GOAL_PATH)));
+  });
+});
+
 describe('update and delete', () => {
   it('lets an editor change the title, practices and clear the measure', async () => {
     await seedGoal();
