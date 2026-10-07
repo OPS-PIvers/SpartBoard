@@ -342,6 +342,7 @@ export const linkLtiCourseV1 = onCall(
       await dropLinkedSectionPeriod(db, {
         kind,
         sessionId,
+        contextId,
         contextTitle: linkedTitle,
         // Test rosters put their slug on the session's classIds, so it pairs the same way.
         classlinkClassId: classlinkClassId || testClassId,

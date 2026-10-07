@@ -339,6 +339,7 @@ describe('linkLtiCourseV1', () => {
       {
         kind: 'quiz',
         sessionId: 'S1',
+        contextId: 'ctx-1',
         contextTitle: 'Algebra 1 · P1',
         classlinkClassId: 'cl-1',
         rosterId: 'r-1',
