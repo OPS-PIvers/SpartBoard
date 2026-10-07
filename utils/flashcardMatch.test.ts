@@ -44,6 +44,14 @@ describe('flashcard answer matcher', () => {
     expect(parseFlashcardAnswerVariants('km/h')).toEqual(['km/h']);
   });
 
+  it('bounds the variants for an answer with many optional groups', () => {
+    const answer = Array.from({ length: 22 }, (_, i) => `(w${i})`).join(' ');
+    const start = Date.now();
+    const variants = parseFlashcardAnswerVariants(answer);
+    expect(Date.now() - start).toBeLessThan(1000);
+    expect(variants.length).toBeLessThanOrEqual(64);
+  });
+
   it('returns a character diff for a miss', () => {
     const match = matchFlashcardAnswer('house', 'mouse', {
       language: 'en-US',
