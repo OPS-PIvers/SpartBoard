@@ -69,9 +69,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
   const { user, canAccessFeature, globalPermissionsLoaded, isAdmin } =
     useAuth();
   const groupWording = canAccessFeature('my-groups');
-  // TODO(google-tasks-sync): gate on canAccessFeature('google-tasks-sync').
-  const googleTasksPullEnabled = false;
-  useGoogleTasksPull(plc.id, googleTasksPullEnabled);
+  useGoogleTasksPull(plc.id, canAccessFeature('google-tasks-sync'));
   // On mobile, deep-linking straight to a section (anything but `home`) should
   // open that section, not the drill-in menu; landing on home shows the menu.
   const [showMobileMenu, setShowMobileMenu] = useState(

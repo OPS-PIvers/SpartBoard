@@ -56,7 +56,7 @@ export function useGoogleTasksPull(
           readPlcNoteCollabEnabled(),
         ]);
         const changes = result.data?.changes ?? [];
-        // Unmount doesn't cancel: the server has already marked these as known.
+        // Unmount does not cancel: a dropped result would wait out the throttle.
         if (auth.currentUser?.uid !== uid || changes.length === 0) return;
         await applyActionItemDoneChanges(changes, uid, { collab });
       } catch (err) {

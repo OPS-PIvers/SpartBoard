@@ -58,12 +58,10 @@ export const YourActionItemsCard: React.FC<YourActionItemsCardProps> = ({
   onNavigate,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { addToast } = useDashboard();
   const { notes, loading, error, updateNote } = usePlcNotes(plc.id);
-  // TODO(google-tasks-sync): gate on canAccessFeature('google-tasks-sync').
-  const googleTasksPullEnabled = false;
-  useGoogleTasksPull(plc.id, googleTasksPullEnabled);
+  useGoogleTasksPull(plc.id, canAccessFeature('google-tasks-sync'));
 
   // Capture "now" once at mount via a lazy state initializer (the repo pattern
   // for keeping `Date.now()` out of the render body). The card doesn't need

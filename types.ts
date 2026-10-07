@@ -9624,7 +9624,9 @@ export type GlobalFeature =
   /** Group Notes & Docs: notes list and Action items as swapping side panels, with action items on linked Google Docs. */
   | 'plc-notes-side-panels'
   /** Group Notes & Docs: embedded Google Docs keep Google's menus and toolbar. */
-  | 'plc-docs-toolbar';
+  | 'plc-docs-toolbar'
+  /** Team action items sync to the assignee's Google Tasks (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md). */
+  | 'google-tasks-sync';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
