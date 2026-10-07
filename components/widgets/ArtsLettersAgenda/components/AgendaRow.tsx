@@ -36,7 +36,7 @@ export const AgendaRow = React.memo<AgendaRowProps>(
     fontColor,
   }) => {
     const checkboxId = useId();
-    const textClass = isDone ? 'text-slate-500 line-through' : '';
+    const textClass = isDone ? 'text-slate-600 line-through' : '';
     const textStyle = isDone ? undefined : { color: fontColor };
 
     return (
@@ -52,12 +52,12 @@ export const AgendaRow = React.memo<AgendaRowProps>(
           variant="glass"
           shape="square"
           onClick={() => onToggle(id)}
-          className={`shrink-0 !p-0 active:scale-90 ${
+          className={`shrink-0 active:scale-90 [@container(max-height:48px)]:after:hidden ${
             isDone
               ? 'bg-green-500 shadow-sm hover:!bg-green-600'
               : 'border-2 border-slate-400 bg-white/70 hover:border-green-500'
           }`}
-          style={{ width: boxSize, height: boxSize }}
+          style={{ width: boxSize, height: boxSize, padding: 0 }}
           icon={
             <Check
               aria-hidden
@@ -68,7 +68,7 @@ export const AgendaRow = React.memo<AgendaRowProps>(
           }
         />
         <div
-          className="flex-1 min-w-0 h-full flex flex-col justify-center rounded-2xl border border-slate-300/70 shadow-sm overflow-hidden transition-colors"
+          className="flex-1 h-full flex flex-col justify-center rounded-2xl border border-slate-300/70 shadow-sm overflow-hidden transition-colors"
           style={{
             backgroundColor: hexToRgba(cardColor, cardOpacity),
             padding: 'clamp(2px, 4cqh, 14px) clamp(8px, 3.5cqw, 20px)',
@@ -98,7 +98,7 @@ export const AgendaRow = React.memo<AgendaRowProps>(
                 e.currentTarget.blur();
               }
             }}
-            className={`w-full flex-1 min-h-0 resize-none bg-transparent italic leading-tight outline-none overflow-hidden rounded placeholder:opacity-0 hover:placeholder:opacity-50 focus:placeholder:opacity-50 focus:bg-white/40 [@container(max-height:48px)]:hidden ${textClass}`}
+            className={`w-full flex-1 resize-none bg-transparent italic leading-tight outline-none overflow-hidden rounded placeholder:opacity-0 hover:placeholder:opacity-50 focus:placeholder:opacity-50 focus:bg-white/40 [@container(max-height:48px)]:hidden ${textClass}`}
             placeholder="Add details"
             style={{ fontSize: descSize, ...textStyle }}
           />

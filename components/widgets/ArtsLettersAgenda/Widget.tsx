@@ -93,7 +93,7 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
           </h2>
           <div
             role="list"
-            className="flex-1 min-h-0 flex flex-col [@container(min-aspect-ratio:2.4)]:flex-row"
+            className="flex-1 overflow-hidden flex flex-col [@container(min-aspect-ratio:2.4)]:flex-row"
             style={{
               padding: 'min(10px, 2.2cqmin) max(18px, 2.5cqmin) 0',
               gap: 'min(8px, 2cqmin)',
@@ -145,10 +145,10 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
               onClick={resetChecks}
               disabled={!anyDone}
               title="Reset checks"
-              className="relative touch-target-expand"
+              className="relative touch-target-expand [@container(max-height:149px)]:hidden"
               style={{
-                fontSize: 'clamp(9px, 2.8cqmin, 14px)',
-                minHeight: 20,
+                fontSize: 'clamp(14px, 3.2cqmin, 18px)',
+                minHeight: 'max(24px, min(44px, 12cqmin))',
               }}
             >
               reset checks
