@@ -38,7 +38,7 @@ env:
 
 jobs:
   # The app ESLint pass (type-aware, ~8 min unsplit) runs as 3 size-balanced shards; the functions
-  # ESLint pass and Prettier each get their own runner too.
+  # ESLint pass and Prettier share a fourth runner.
   lint:
     runs-on: ubuntu-24.04
     concurrency:
@@ -52,8 +52,7 @@ jobs:
           - { check: app, shard: 1 }
           - { check: app, shard: 2 }
           - { check: app, shard: 3 }
-          - { check: functions }
-          - { check: format }
+          - { check: format + functions }
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
@@ -64,10 +63,10 @@ jobs:
       # tests/ci.eslintConcurrencyMemory.test.ts.
       - if: matrix.check == 'app'
         run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app --shard=${{ matrix.shard }}/3
-      - if: matrix.check == 'functions'
-        run: pnpm run lint:functions
-      - if: matrix.check == 'format'
+      - if: matrix.check != 'app'
         run: pnpm run format:check
+      - if: matrix.check != 'app' && !cancelled()
+        run: pnpm run lint:functions
 
   type-check:
     runs-on: ubuntu-24.04

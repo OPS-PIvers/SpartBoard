@@ -109,14 +109,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The type-aware app lint is the long pole, so it runs as 3 size-balanced shards (scripts/lintApp.mjs).
+        # The type-aware app lint is the long pole, so it runs as 3 size-balanced shards (scripts/lintApp.mjs);
+        # the three short checks share one runner to save job slots (20 concurrent on the free plan).
         include:
           - { check: lint-app, shard: 1 }
           - { check: lint-app, shard: 2 }
           - { check: lint-app, shard: 3 }
-          - { check: lint-functions }
-          - { check: format }
-          - { check: type-check }
+          - { check: type-check + format + lint-functions }
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -131,12 +130,12 @@ jobs:
       # tests/ci.eslintConcurrencyMemory.test.ts.
       - if: matrix.check == 'lint-app'
         run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app --shard=${{ matrix.shard }}/3
-      - if: matrix.check == 'lint-functions'
-        run: pnpm run lint:functions
-      - if: matrix.check == 'format'
-        run: pnpm run format:check
-      - if: matrix.check == 'type-check'
+      - if: matrix.check != 'lint-app'
         run: pnpm run type-check:all
+      - if: matrix.check != 'lint-app' && !cancelled()
+        run: pnpm run format:check
+      - if: matrix.check != 'lint-app' && !cancelled()
+        run: pnpm run lint:functions
 
   # The root suite is ~840 jsdom files; sharding across runners cuts wall time
   # roughly by the shard count. Each shard uploads its JSON report so the
