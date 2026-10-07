@@ -169,9 +169,8 @@ export function payloadHash(payload: TaskPayload): string {
 
 /** Whether a Google grant's space-separated scope string includes Tasks. */
 export function scopeIncludesTasks(scope: unknown): boolean {
-  return (
-    typeof scope === 'string' && scope.split(' ').includes(GOOGLE_TASKS_SCOPE)
-  );
+  if (typeof scope !== 'string') return false;
+  return new Set(scope.split(' ')).has(GOOGLE_TASKS_SCOPE);
 }
 
 /** Active member check that tolerates both the `members` map and the legacy `memberUids` index. */
