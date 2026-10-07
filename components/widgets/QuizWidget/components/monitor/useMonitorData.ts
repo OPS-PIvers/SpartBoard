@@ -11,6 +11,7 @@ import { useAuth } from '@/context/useAuth';
 import type { FibGradingContext } from '@/utils/quizFibAnswers';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
+import { ltiSectionsKey } from '@/utils/ltiSectionsKey';
 import {
   buildPinToNameMap,
   canScoreResponse,
@@ -109,7 +110,12 @@ export function useMonitorData(
   );
   const { byStudentUid: classLinkNames, targetRefKeyByStudentUid } =
     useAssignmentPseudonymsMulti(session.id, sessionClassIds, orgId);
-  const ltiNames = useLtiSessionNames(session.id, session.ltiNrps === true);
+  const ltiNames = useLtiSessionNames(
+    session.id,
+    session.ltiNrps === true,
+    'quiz',
+    ltiSectionsKey(session)
+  );
   const byStudentUid = useMemo(() => {
     if (ltiNames.size === 0) return classLinkNames;
     const merged = new Map(classLinkNames);

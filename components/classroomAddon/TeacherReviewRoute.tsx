@@ -93,6 +93,7 @@ import { requestClassroomTeacherToken } from './gisOAuth';
 import { httpsCallable } from 'firebase/functions';
 import { isGoogleSession } from '@/utils/googleSession';
 import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
+import { ltiSectionsKey } from '@/utils/ltiSectionsKey';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
 import {
   bucketLtiPushResults,
@@ -295,7 +296,12 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     orgId
   );
   // Schoology students live in no ClassLink roster; NRPS names them on read.
-  const ltiNames = useLtiSessionNames(sessionId, session?.ltiNrps === true);
+  const ltiNames = useLtiSessionNames(
+    sessionId,
+    session?.ltiNrps === true,
+    'quiz',
+    ltiSectionsKey(session)
+  );
   const byStudentUid = useMemo(() => {
     if (ltiNames.size === 0) return pseudonyms.byStudentUid;
     const merged = new Map(pseudonyms.byStudentUid);
