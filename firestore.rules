@@ -2362,6 +2362,22 @@ service cloud.firestore {
         && plcUpdatedAtOk();
     }
 
+    // Team calendar (TEAMS_REDESIGN T28): absent, or a Google Calendar embed URL.
+    function plcCalendarFieldOk() {
+      let v = request.resource.data.get('calendarEmbedUrl', null);
+      return v == null
+        || (v is string && v.size() <= 2000
+            && v.matches('^https://calendar[.]google[.]com/calendar/(u/[0-9]+/)?embed[?].+$'));
+    }
+
+    // Lead or co-lead setting or clearing the team calendar and nothing else.
+    function isUpdatingPlcCalendar() {
+      return isPlcMembershipManager(resource.data)
+        && changedOnly(['calendarEmbedUrl', 'updatedAt'])
+        && plcCalendarFieldOk()
+        && plcUpdatedAtOk();
+    }
+
     function isUpdatingPlcDigestOptIn() {
       return (request.auth.uid in resource.data.memberUids)
         && changedOnly(['digestOptIn', 'updatedAt'])
@@ -2761,7 +2777,7 @@ service cloud.firestore {
       // (orgId/buildingId) is immutable-after-set. The update branches are MUTUALLY
       // EXCLUSIVE, each a disjoint shape: broad sitting-lead update; isAcceptingPlcInvite;
       // isLeavingPlc; isTransferringPlcLead / isChangingMemberRole; isSettingPlcSharedSheetUrl
-      // / isUpdatingPlcFeatures / isUpdatingPlcDigestOptIn / isUpdatingPlcMeetingCadence / isUpdatingPlcLayout;
+      // / isUpdatingPlcFeatures / isUpdatingPlcDigestOptIn / isUpdatingPlcMeetingCadence / isUpdatingPlcLayout / isUpdatingPlcCalendar;
       // isAdminManagingPlc (the only
       // non-member branch).
       // shorthands: off (PLC update OR chain runs close to the 1,000-expression limit)
@@ -2777,6 +2793,7 @@ service cloud.firestore {
           // Block minting a second lead — members changes here are a single named
           // removal only (exactly-one-lead invariant, Decision 1.2).
           && plcBroadMembersOk()
+          && plcCalendarFieldOk()
         )
         // Each branch below sits behind a cheap condition it already requires, because a
         // function's `let` bindings run even when its first check fails and every branch
@@ -2801,6 +2818,10 @@ service cloud.firestore {
         || (
           request.resource.data.get('layout', null) != resource.data.get('layout', null)
           && isUpdatingPlcLayout()
+        )
+        || (
+          request.resource.data.get('calendarEmbedUrl', null) != resource.data.get('calendarEmbedUrl', null)
+          && isUpdatingPlcCalendar()
         )
         || (
           request.resource.data.get('leadUid', '') != resource.data.get('leadUid', '')
@@ -2897,6 +2918,68 @@ service cloud.firestore {
           );
         // No client writes — server-only (Admin SDK bypasses rules).
         allow create, update, delete: if false;
+      }
+
+      // ---- Team updates (TEAMS_REDESIGN T27) ----
+      // Leads and co-leads post, edit, pin and delete; members read and toggle only their own reaction.
+      match /updates/{updateId} {
+        function updManager() {
+          return isPlcMembershipManager(get(/databases/$(database)/documents/plcs/$(plcId)).data);
+        }
+        function updShapeOk(d) {
+          return d.keys().hasOnly(['title', 'body', 'linkUrl', 'attachment', 'requiresAck',
+                 'inDigest', 'pinned', 'reactions', 'authorUid', 'authorName', 'createdAt', 'updatedAt'])
+            && d.title is string && d.title.size() > 0 && d.title.size() <= 200
+            && d.body is string && d.body.size() <= 5000
+            && (!('linkUrl' in d) || (d.linkUrl is string && d.linkUrl.size() <= 2000 && d.linkUrl.matches('^https://.+$')))
+            && (!('attachment' in d) || (
+                 d.attachment is map
+                 && d.attachment.keys().hasOnly(['name', 'url'])
+                 && d.attachment.name is string && d.attachment.name.size() <= 200
+                 && d.attachment.url is string && d.attachment.url.size() <= 2000
+                 && d.attachment.url.matches('^https://(drive|docs)[.]google[.]com/.+$')))
+            && d.requiresAck is bool && d.inDigest is bool && d.pinned is bool
+            && d.reactions is map
+            && d.authorName is string && d.authorName.size() <= 200
+            && d.updatedAt == request.time;
+        }
+        allow read: if plcReader(plcId);
+        allow create: if signedIn()
+          && updManager()
+          && incoming().authorUid == authUid()
+          && incoming().createdAt == request.time
+          && incoming().reactions.size() == 0
+          && updShapeOk(incoming());
+        allow update: if signedIn() && (
+          (
+            changedOnly(['reactions'])
+            && plcMember(plcId)
+            && incoming().reactions.diff(existing().reactions).affectedKeys().hasOnly([authUid()])
+            && incoming().reactions.get(authUid(), true) == true
+          )
+          || (
+            updManager()
+            && unchanged('authorUid')
+            && unchanged('createdAt')
+            && unchanged('reactions')
+            && updShapeOk(incoming())
+          )
+        );
+        allow delete: if signedIn() && updManager();
+
+        // One ack per member, doc id = their uid; leads and co-leads read the full list.
+        match /acks/{ackUid} {
+          allow read: if signedIn() && (ackUid == authUid() || updManager());
+          allow create: if signedIn()
+            && ackUid == authUid()
+            && plcMember(plcId)
+            && get(/databases/$(database)/documents/plcs/$(plcId)/updates/$(updateId)).data.requiresAck == true
+            && incoming().keys().hasOnly(['uid', 'name', 'ackedAt'])
+            && incoming().uid == authUid()
+            && isStr('name') && incoming().name.size() <= 200
+            && incoming().ackedAt == request.time;
+          allow update, delete: if false;
+        }
       }
 
       // PLC Common Assessments (Decision 4.0c) - a quiz/VA whose pooled results aggregate

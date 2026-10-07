@@ -1,0 +1,106 @@
+// Data for the Updates page, the latest-updates card and the update hero.
+
+import { useCallback, useMemo } from 'react';
+import { useAuth } from '@/context/useAuth';
+import { useDashboard } from '@/context/useDashboard';
+import { useDialog } from '@/context/useDialog';
+import { useGooglePicker } from '@/hooks/useGooglePicker';
+import {
+  useMyUpdateAcks,
+  usePlcUpdates,
+  useUpdateAcksFor,
+  type PlcUpdateDraft,
+} from '@/hooks/usePlcUpdates';
+import type { Plc, PlcUpdate } from '@/types';
+import { logError } from '@/utils/logError';
+import { buildAckRoster, type AckRoster } from '@/utils/teamUpdates';
+
+export function useTeamUpdatesData(
+  plc: Plc,
+  isLead: boolean,
+  withRosters = true
+) {
+  const { user } = useAuth();
+  const { addToast } = useDashboard();
+  const { showConfirm } = useDialog();
+  const { openPicker } = useGooglePicker();
+  const api = usePlcUpdates(plc.id);
+  const { updates } = api;
+
+  const ackIds = useMemo(
+    () => updates.filter((u) => u.requiresAck).map((u) => u.id),
+    [updates]
+  );
+  const myAcks = useMyUpdateAcks(isLead ? null : plc.id, ackIds);
+  const allAcks = useUpdateAcksFor(plc.id, ackIds, isLead && withRosters);
+  const rosters = useMemo(() => {
+    const out: Record<string, AckRoster> = {};
+    if (!isLead || !withRosters) return out;
+    for (const u of updates) {
+      if (u.requiresAck)
+        out[u.id] = buildAckRoster(plc, u, allAcks[u.id] ?? []);
+    }
+    return out;
+  }, [isLead, withRosters, updates, plc, allAcks]);
+
+  const fail = useCallback(
+    (where: string, err: unknown) => {
+      logError(`teamUpdates.${where}`, err, { plcId: plc.id });
+      addToast('Something went wrong. Try again.', 'error');
+    },
+    [addToast, plc.id]
+  );
+
+  const run =
+    <A extends unknown[]>(where: string, fn: (...a: A) => Promise<void>) =>
+    async (...a: A) => {
+      try {
+        await fn(...a);
+      } catch (err) {
+        fail(where, err);
+      }
+    };
+
+  const onDelete = async (update: PlcUpdate) => {
+    const ok = await showConfirm(`Delete "${update.title}"?`, {
+      title: 'Delete update',
+      variant: 'danger',
+      confirmLabel: 'Delete',
+    });
+    if (ok) await run('delete', api.removeUpdate)(update.id);
+  };
+
+  const onAttach = async () => {
+    try {
+      const file = await openPicker({ mode: 'documents' });
+      return file
+        ? {
+            name: file.name,
+            url: `https://drive.google.com/file/d/${file.id}/view`,
+          }
+        : null;
+    } catch (err) {
+      fail('attach', err);
+      return null;
+    }
+  };
+
+  return {
+    updates,
+    loading: api.loading,
+    myUid: user?.uid ?? '',
+    myAcks,
+    rosters,
+    onPost: run('post', (d: PlcUpdateDraft) => api.postUpdate(d)),
+    onEdit: run('edit', (id: string, d: PlcUpdateDraft) =>
+      api.editUpdate(id, d)
+    ),
+    onDelete: (u: PlcUpdate) => void onDelete(u),
+    onPin: (id: string, pinned: boolean) =>
+      void run('pin', api.setPinned)(id, pinned),
+    onReact: (id: string, reacted: boolean) =>
+      void run('react', api.setReacted)(id, reacted),
+    onAck: (id: string) => void run('ack', api.acknowledge)(id),
+    onAttach,
+  };
+}

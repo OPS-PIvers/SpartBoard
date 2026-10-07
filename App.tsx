@@ -276,6 +276,13 @@ const TeamsRedesignDevHarness = import.meta.env.DEV
       )
     )
   : null;
+const TeamsB4DevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/plc/teams/building/TeamsB4DevHarness').then(
+        (module) => ({ default: module.TeamsB4DevHarness })
+      )
+    )
+  : null;
 const SpartyDevGallery = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/SpartyDevGallery').then((module) => ({
@@ -878,6 +885,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <TeamsRedesignDevHarness />
+      </Suspense>
+    );
+  }
+
+  if (
+    import.meta.env.DEV &&
+    TeamsB4DevHarness &&
+    isAuthBypass &&
+    pathname === '/teams-b4-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TeamsB4DevHarness />
       </Suspense>
     );
   }
