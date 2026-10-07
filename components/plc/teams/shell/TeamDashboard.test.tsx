@@ -63,6 +63,11 @@ vi.mock('@/components/plc/tabs/PlcSettingsTab', () => ({
 vi.mock('@/components/plc/meeting/PlcMeetingMode', () => ({
   PlcMeetingMode: () => null,
 }));
+vi.mock('@/components/plc/meeting/PlcMeetingRecordView', () => ({
+  PlcMeetingRecordView: ({ meetingId }: { meetingId: string }) => (
+    <div data-testid="meeting-record">{meetingId}</div>
+  ),
+}));
 vi.mock('@/components/plc/teams/notes/useTeamNotes', () => ({
   useTeamMyItems: () => ({
     items: [],
@@ -158,6 +163,11 @@ describe('TeamDashboard', () => {
   });
 
   it('sends retired Meeting Mode links to Notes & Docs', () => {
+    render(<TeamDashboard plc={plc()} activeSection="meeting" {...props} />);
+    expect(mocks.spaReplace).toHaveBeenCalledWith('/plc/p1/docs');
+  });
+
+  it('opens a saved meeting record at its own URL', () => {
     render(
       <TeamDashboard
         plc={plc()}
@@ -166,7 +176,8 @@ describe('TeamDashboard', () => {
         meetingId="m1"
       />
     );
-    expect(mocks.spaReplace).toHaveBeenCalledWith('/plc/p1/docs');
+    expect(screen.getByTestId('meeting-record').textContent).toBe('m1');
+    expect(mocks.spaReplace).not.toHaveBeenCalled();
   });
 
   it('freezes the resolved layout the first time a lead opens the editor', () => {

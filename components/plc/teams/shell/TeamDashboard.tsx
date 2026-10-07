@@ -39,6 +39,7 @@ import type { PlcSectionId } from '@/components/plc/sections';
 import { splitSinceYouWereHere } from '@/components/plc/activity/activityDescriptions';
 import { PlcSearchBox } from '@/components/plc/search/PlcSearchBox';
 import { MembersBody } from '@/components/plc/bodies/MembersBody';
+import { PlcMeetingRecordView } from '@/components/plc/meeting/PlcMeetingRecordView';
 import { PlcSettingsTab } from '@/components/plc/tabs/PlcSettingsTab';
 import { TEAM_PAGE_REGISTRY } from '@/components/plc/teams/pageRegistry';
 import {
@@ -120,9 +121,9 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
   const role = uid ? getPlcRole(plc, uid) : null;
   const isLead = role === 'lead' || role === 'coLead';
 
-  // Meeting Mode is retired (T11): meeting links land on Notes & Docs, which opens a saved record.
+  // Meeting Mode is retired (T11): a bare meeting link lands on Notes & Docs; a saved record keeps its URL.
   const section: PlcSectionId =
-    requestedSection === 'meeting' ? 'docs' : requestedSection;
+    requestedSection === 'meeting' && !meetingId ? 'docs' : requestedSection;
   const { route, canonical } = resolveTeamRoute(section, layout);
   useEffect(() => {
     if (layoutReady && canonical !== requestedSection) {
@@ -281,6 +282,9 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
           />
         </div>
       );
+    }
+    if (route.kind === 'section' && route.section === 'meeting') {
+      return <PlcMeetingRecordView plc={plc} meetingId={meetingId ?? ''} />;
     }
     if (route.kind === 'section') {
       return (
