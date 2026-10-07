@@ -345,6 +345,7 @@ export const getActiveStudentsV1 = onCall(
     const now = Date.now();
     const cached = resultCache.get(orgId);
     if (cached && now - cached.asOf < CACHE_TTL_MS) return cached;
+    resultCache.delete(orgId);
     const deadline = now + NAME_LOOKUP_BUDGET_MS;
     const snap = await db
       .collection('student_sections')
