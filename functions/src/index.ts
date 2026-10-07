@@ -88,6 +88,7 @@ export {
 
 // ── Admin analytics HTTP endpoint (snapshot read) ──────────────────────────
 export { adminAnalytics } from './adminAnalyticsEndpoint';
+export { getActiveStudentsV1 } from './adminActiveStudents';
 
 // ── Guided Learning Storage slide GC (on set delete) ───────────────────────
 export {

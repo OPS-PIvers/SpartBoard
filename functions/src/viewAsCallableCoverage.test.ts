@@ -11,6 +11,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   fetchExternalProxy: 'read',
   fetchImportImage: 'read',
   fetchLinkPreview: 'read',
+  getActiveStudentsV1: 'read',
   getAssignmentPseudonymV1: 'read',
   getClassLinkRosterV1: 'read',
   getGoogleTasksSyncStatusV1: 'read',
