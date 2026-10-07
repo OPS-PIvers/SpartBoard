@@ -3927,6 +3927,7 @@
     "control": "Bedienelement",
     "pick": "Auswählen",
     "addStep": "Schritt hinzufügen",
-    "listTitle": "Bedienelement wählen"
+    "listTitle": "Bedienelement wählen",
+    "recordFromHere": "Ab hier aufnehmen"
   }
 }

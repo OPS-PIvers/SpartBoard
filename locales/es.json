@@ -3927,6 +3927,7 @@
     "control": "Control",
     "pick": "Elegir",
     "addStep": "Añadir paso",
-    "listTitle": "Elige un control"
+    "listTitle": "Elige un control",
+    "recordFromHere": "Grabar desde aquí"
   }
 }

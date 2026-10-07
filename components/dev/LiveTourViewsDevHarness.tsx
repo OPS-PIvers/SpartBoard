@@ -217,6 +217,7 @@ const useFakeSession = (selected: number): TourEditorSession => {
     updateStep: (id, patch) => editStep(id, (st) => ({ ...st, ...patch })),
     setBinding: (id, tour) => editStep(id, (st) => ({ ...st, tour })),
     insertStepAfter: () => EDIT_STEPS[0],
+    insertStepsAfter: () => undefined,
     deleteStep: (id) =>
       setSet((cur) => ({
         ...cur,

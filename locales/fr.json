@@ -3927,6 +3927,7 @@
     "control": "Commande",
     "pick": "Choisir",
     "addStep": "Ajouter une étape",
-    "listTitle": "Choisissez une commande"
+    "listTitle": "Choisissez une commande",
+    "recordFromHere": "Enregistrer à partir d'ici"
   }
 }
