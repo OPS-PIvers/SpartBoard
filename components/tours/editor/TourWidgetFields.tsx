@@ -67,9 +67,7 @@ export const TourWidgetFields: React.FC<Props> = ({
         {t('glStudio.tourWidget')}
         <select
           value={widgetType ?? ''}
-          onChange={(e) =>
-            rebind(e.target.value || undefined, perField ? fieldKey : undefined)
-          }
+          onChange={(e) => rebind(e.target.value || undefined)}
           className={inputClass}
           data-testid="tour-editor-widget-type"
         >

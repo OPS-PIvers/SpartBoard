@@ -178,6 +178,20 @@ describe('TourEditorPanel picking', () => {
     });
   });
 
+  it('drops the setting when the widget changes', () => {
+    const session = makeSession([
+      step('a', { anchor: 'settings.field:not-a-widget#x', action: 'click' }),
+    ]);
+    renderPanel(session);
+    fireEvent.change(screen.getByTestId('tour-editor-widget-type'), {
+      target: { value: 'clock' },
+    });
+    expect(session.setBinding).toHaveBeenCalledWith('a', {
+      anchor: 'settings.field:clock',
+      action: 'click',
+    });
+  });
+
   it('hides the widget select for anchors that are not per widget type', () => {
     const session = makeSession([
       step('a', { anchor: 'dock.open-tools', action: 'click' }),
