@@ -283,6 +283,13 @@ const TeamsShellDevHarness = import.meta.env.DEV
       )
     )
   : null;
+const TeamsMentoringDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/plc/teams/mentoring/dev/TeamsMentoringDevHarness').then(
+        (module) => ({ default: module.TeamsMentoringDevHarness })
+      )
+    )
+  : null;
 const TeamsB4DevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/plc/teams/building/TeamsB4DevHarness').then(
@@ -920,6 +927,20 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <TeamsShellDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: production mentoring views on fixtures; auth-bypass only.
+  if (
+    import.meta.env.DEV &&
+    TeamsMentoringDevHarness &&
+    isAuthBypass &&
+    pathname === '/teams-mentoring-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TeamsMentoringDevHarness />
       </Suspense>
     );
   }

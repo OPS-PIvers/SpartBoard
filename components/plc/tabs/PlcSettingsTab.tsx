@@ -16,6 +16,7 @@ import {
   Plc,
   PlcFeatureSettings,
   getPlcFeatures,
+  getPlcGroupType,
 } from '@/types';
 import { usePlcs } from '@/hooks/usePlcs';
 import { useDashboard } from '@/context/useDashboard';
@@ -24,6 +25,8 @@ import { PlcTrashBody } from '@/components/plc/settings/PlcTrashBody';
 import { PlcMeetingCadenceSection } from '@/components/plc/settings/PlcMeetingCadenceSection';
 import { PlcNormingLevelsSection } from '@/components/plc/norming/PlcNormingLevelsSection';
 import { PlcGradebookSection } from '@/components/plc/settings/PlcGradebookSection';
+import { MentoringPairingsSettings } from '@/components/plc/teams/mentoring/MentoringPairingsSettings';
+import { isPlcLeadOrCoLead } from '@/utils/plc';
 import { TeamCalendarSettings } from '@/components/plc/teams/building/TeamCalendarSettings';
 
 interface PlcSettingsTabProps {
@@ -96,7 +99,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
     enabled: false,
   });
   const { addToast } = useDashboard();
-  const { canAccessFeature } = useAuth();
+  const { canAccessFeature, user } = useAuth();
   const features = getPlcFeatures(plc);
   const [busyKey, setBusyKey] = useState<keyof PlcFeatureSettings | null>(null);
   // Trash is a collapsed subsection inside Settings (Decision §6.1) — it mounts
@@ -259,6 +262,12 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
 
       {canAccessFeature('gradebook') && <PlcGradebookSection plc={plc} />}
 
+      {canAccessFeature('teams-redesign') &&
+        getPlcGroupType(plc) === 'mentoring' &&
+        !!user &&
+        isPlcLeadOrCoLead(plc, user.uid) && (
+          <MentoringPairingsSettings plc={plc} />
+        )}
       {canAccessFeature('teams-redesign') && <TeamCalendarSettings plc={plc} />}
 
       {/* Notifications — opt-in weekly email digest (Decision 2.3). Any

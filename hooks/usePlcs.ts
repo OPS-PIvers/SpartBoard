@@ -253,6 +253,9 @@ function parsePlcMembers(value: unknown): Record<string, PlcMember> {
       joinedAt: tsToMillis(m.joinedAt),
       status,
       ...(addedBy ? { addedBy } : {}),
+      ...(m.mentorRole === 'mentor' || m.mentorRole === 'mentee'
+        ? { mentorRole: m.mentorRole }
+        : {}),
     };
   }
   return out;
@@ -303,6 +306,7 @@ function readMembersForWrite(
         joinedAt: rawMembers[uid]?.joinedAt ?? serverTimestamp(),
         // Written back unchanged so the rules' single-entry members diff still holds.
         ...(m.addedBy ? { addedBy: m.addedBy } : {}),
+        ...(m.mentorRole ? { mentorRole: m.mentorRole } : {}),
       };
     }
     if (includeArrayOnly) {
@@ -858,6 +862,8 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
         }
         targetName = target.displayName || target.email || uid;
         members[uid] = { ...target, role };
+        // Mentor and mentee tags belong to members only (T29).
+        if (role !== 'member') delete members[uid].mentorRole;
         tx.update(ref, {
           members,
           // Explicit target pointer for the rules' `isChangingMemberRole`
