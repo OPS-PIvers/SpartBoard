@@ -307,9 +307,16 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
         />
       );
     }
-    const { Component } = TEAM_PAGE_REGISTRY[page];
+    const entry = TEAM_PAGE_REGISTRY[page];
+    const Component = entry.byType?.[groupType] ?? entry.Component;
     return Component ? (
-      <Component plc={plc} layout={layout} isLead={isLead} />
+      <Component
+        plc={plc}
+        layout={layout}
+        isLead={isLead}
+        onNavigate={(id) => navigate(teamPageSection(id))}
+        onChangeHero={isLead ? openLayoutEditor : undefined}
+      />
     ) : (
       <TeamPagePlaceholder label={teamPageLabel(t, page, isLead)} />
     );

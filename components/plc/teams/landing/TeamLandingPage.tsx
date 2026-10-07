@@ -23,7 +23,14 @@ const COL_SPAN: Record<number, string> = {
 
 export const TeamLandingPage: React.FC<
   TeamPageProps & { cards?: TeamCardRegistry }
-> = ({ plc, layout, isLead, cards = TEAM_CARD_REGISTRY }) => {
+> = ({
+  plc,
+  layout,
+  isLead,
+  onNavigate,
+  onChangeHero,
+  cards = TEAM_CARD_REGISTRY,
+}) => {
   const { t } = useTranslation();
   const groupType = getPlcGroupType(plc);
   const rows = packLandingRows(layout.cards, cards);
@@ -36,7 +43,12 @@ export const TeamLandingPage: React.FC<
               if (id === 'hero') {
                 return (
                   <div key={id} className="min-w-0 md:col-span-6">
-                    <TeamHeroRegion plc={plc} layout={layout} isLead={isLead} />
+                    <TeamHeroRegion
+                      plc={plc}
+                      layout={layout}
+                      isLead={isLead}
+                      onChangeHero={onChangeHero}
+                    />
                   </div>
                 );
               }
@@ -48,7 +60,11 @@ export const TeamLandingPage: React.FC<
                   data-team-card={id}
                 >
                   {Component ? (
-                    <Component plc={plc} isLead={isLead} />
+                    <Component
+                      plc={plc}
+                      isLead={isLead}
+                      onNavigate={onNavigate}
+                    />
                   ) : (
                     <TeamCardPlaceholder
                       label={teamCardLabel(t, id, groupType)}

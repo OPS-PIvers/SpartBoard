@@ -108,16 +108,24 @@ describe('hero', () => {
       TEAM_HERO_BY_KIND.target
     );
     expect(resolveTeamHeroEntry(null, 'newestDoc', 'department')).toBeNull();
+    expect(resolveTeamHeroEntry(null, 'calendar', 'building')).toBe(
+      TEAM_HERO_BY_KIND.calendar
+    );
+    expect(resolveTeamHeroEntry(null, 'newestPinnedUpdate', 'building')).toBe(
+      TEAM_HERO_BY_RULE.newestPinnedUpdate
+    );
     expect(
       resolveTeamHeroEntry(null, 'somethingNew' as 'latestAssessment', 'plc')
     ).toBe(TEAM_HERO_BY_RULE.latestAssessment);
   });
 
   it('returns no renderer for an unregistered rule or kind', () => {
-    expect(resolveTeamHeroEntry(null, 'calendar', 'building')).toBeNull();
+    expect(
+      resolveTeamHeroEntry(null, 'nextMeetingNote', 'department')
+    ).toBeNull();
     expect(
       resolveTeamHeroEntry(
-        { kind: 'update', updateId: 'x' },
+        { kind: 'note', noteId: 'x' },
         'latestAssessment',
         'plc'
       )

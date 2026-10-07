@@ -8,7 +8,10 @@ import {
 } from '@/components/plc/redesignMockup/DepartmentHubMock';
 import { SectionHead, TextLink } from '@/components/plc/redesignMockup/ui';
 import { calendarAgendaUrl, isCalendarEmbedUrl } from '@/utils/teamUpdates';
-import type { TeamCardProps, TeamHeroProps } from '../updates/teamContract';
+import type {
+  TeamCardProps,
+  TeamHeroProps,
+} from '@/components/plc/teams/types';
 
 export const GoogleCalendarFrame: React.FC<{ url: string; tall?: boolean }> = ({
   url,

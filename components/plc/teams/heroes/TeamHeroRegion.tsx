@@ -16,7 +16,8 @@ export const TeamHeroRegion: React.FC<{
   plc: Plc;
   layout: ResolvedTeamLayout;
   isLead: boolean;
-}> = ({ plc, layout, isLead }) => {
+  onChangeHero?: () => void;
+}> = ({ plc, layout, isLead, onChangeHero }) => {
   const { t } = useTranslation();
   const heroRef =
     layout.hero.mode === 'pinned' ? (layout.hero.ref ?? null) : null;
@@ -37,7 +38,7 @@ export const TeamHeroRegion: React.FC<{
         />
       )}
       {entry ? (
-        entry.render({ plc, heroRef, pinnedBy, isLead })
+        entry.render({ plc, heroRef, pinnedBy, isLead, onChangeHero })
       ) : (
         <TeamCardPlaceholder
           label={

@@ -6,7 +6,7 @@ import {
   SectionHead,
   TextLink,
 } from '@/components/plc/redesignMockup/ui';
-import type { TeamCardProps } from '../updates/teamContract';
+import type { TeamCardProps } from '@/components/plc/teams/types';
 import {
   PER_CATEGORY,
   useResourceCategories,

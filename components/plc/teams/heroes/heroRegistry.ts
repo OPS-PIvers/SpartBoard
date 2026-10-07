@@ -1,17 +1,28 @@
 // Hero renderers by pinned item kind and by the type's default rule (T5, T6); slices add one line each.
 
+import { createElement } from 'react';
 import type { PlcGroupType, TeamHeroRef, TeamHeroRule } from '@/types';
 import {
   BUILT_IN_TEAM_TYPE_PRESETS,
   isTeamHeroRule,
 } from '@/config/teamTypePresets';
-import type { TeamHeroEntry } from '@/components/plc/teams/types';
+import type {
+  TeamHeroEntry,
+  TeamHeroRenderer,
+} from '@/components/plc/teams/types';
 import {
   assessmentHero,
   goalHero,
   latestAssessmentHero,
   targetHero,
 } from '@/components/plc/teams/data/heroRegistry';
+import UpdateHero from '@/components/plc/teams/updates/UpdateHero';
+import { CalendarHero } from '@/components/plc/teams/building/CalendarCard';
+
+const updateHero: TeamHeroRenderer = (props) =>
+  createElement(UpdateHero, props);
+const calendarHero: TeamHeroRenderer = (props) =>
+  createElement(CalendarHero, props);
 
 /** A pinned item renders through its kind. */
 export const TEAM_HERO_BY_KIND: Partial<
@@ -20,11 +31,14 @@ export const TEAM_HERO_BY_KIND: Partial<
   assessment: { render: assessmentHero, ownsNudge: true },
   target: { render: targetHero },
   goal: { render: goalHero },
+  update: { render: updateHero },
+  calendar: { render: calendarHero },
 };
 
 /** An unpinned hero renders through the type's default rule, with `heroRef: null`. */
 export const TEAM_HERO_BY_RULE: Partial<Record<TeamHeroRule, TeamHeroEntry>> = {
   latestAssessment: { render: latestAssessmentHero, ownsNudge: true },
+  newestPinnedUpdate: { render: updateHero },
 };
 
 /** Rules whose hero is a kind's renderer with `heroRef: null`; that renderer picks the item (read the rule from useTeamNav().layout). */

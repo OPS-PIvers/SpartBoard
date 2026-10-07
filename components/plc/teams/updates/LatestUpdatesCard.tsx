@@ -14,7 +14,7 @@ import type { PlcUpdate } from '@/types';
 import { LATEST_UPDATES_COUNT } from '@/utils/teamUpdates';
 import { shortDate } from './updateFormat';
 import { useTeamUpdatesData } from './useTeamUpdatesData';
-import type { TeamCardProps } from './teamContract';
+import type { TeamCardProps } from '@/components/plc/teams/types';
 
 export const LatestUpdatesView: React.FC<{
   updates: PlcUpdate[];

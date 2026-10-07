@@ -8,7 +8,7 @@ import { pickHeroUpdate } from '@/utils/teamUpdates';
 import { ReactionButton, UpdateBody } from './UpdateParts';
 import { reactionCount, shortDate } from './updateFormat';
 import { useTeamUpdatesData } from './useTeamUpdatesData';
-import type { TeamHeroProps } from './teamContract';
+import type { TeamHeroProps } from '@/components/plc/teams/types';
 
 export const UpdateHeroView: React.FC<{
   update: PlcUpdate;
