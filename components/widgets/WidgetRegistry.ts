@@ -859,8 +859,8 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
     padding: 0,
   },
   projects: {
-    baseWidth: 540,
-    baseHeight: 360,
+    baseWidth: 620,
+    baseHeight: 560,
     canSpread: true,
     skipScaling: true,
     padding: 0,
