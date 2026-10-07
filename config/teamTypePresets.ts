@@ -1,7 +1,6 @@
 /** Built-in team type presets and the page/card catalogs (docs/plans/TEAMS_REDESIGN.md T1, T6). */
 
 import type {
-  GoalCoachCriterion,
   PlcGroupType,
   TeamCardId,
   TeamHeroRef,
@@ -236,32 +235,3 @@ export const BUILT_IN_TEAM_TYPE_PRESETS: Record<PlcGroupType, TeamTypePreset> =
 /** Pages each type can use: its preset's pages, on or off. */
 export const teamTypeAvailablePages = (groupType: PlcGroupType): TeamPageId[] =>
   BUILT_IN_TEAM_TYPE_PRESETS[groupType].pages.map((p) => p.id);
-
-/** Default goal-coach rubric (T22). */
-export const DEFAULT_GOAL_COACH_RUBRIC: GoalCoachCriterion[] = [
-  {
-    id: 'studentFocused',
-    label: 'Student-focused',
-    description: 'Names what students will achieve, not a task for teachers.',
-  },
-  {
-    id: 'measure',
-    label: 'Named measure',
-    description: 'Tied to a named assessment or measure.',
-  },
-  {
-    id: 'baselineTarget',
-    label: 'Baseline and target',
-    description: 'States where students are now and where they will be.',
-  },
-  {
-    id: 'timeFrame',
-    label: 'Time frame',
-    description: 'Says by when the target will be met.',
-  },
-  {
-    id: 'practice',
-    label: 'Practice change',
-    description: 'Names a practice the team will change to get there.',
-  },
-];

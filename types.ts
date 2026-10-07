@@ -9723,7 +9723,9 @@ export type GlobalFeature =
   /** Team action items sync to the assignee's Google Tasks (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md). */
   | 'google-tasks-sync'
   /** Purpose-built page set per team type (docs/plans/TEAMS_REDESIGN.md). */
-  | 'teams-redesign';
+  | 'teams-redesign'
+  /** AI coach that checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22). */
+  | 'plc-goal-coach';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
