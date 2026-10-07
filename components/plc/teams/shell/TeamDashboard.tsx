@@ -9,7 +9,12 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
-import { getPlcGroupType, type Plc, type TeamPageId } from '@/types';
+import {
+  getPlcFeatures,
+  getPlcGroupType,
+  type Plc,
+  type TeamPageId,
+} from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import {
@@ -39,6 +44,7 @@ import type { PlcSectionId } from '@/components/plc/sections';
 import { splitSinceYouWereHere } from '@/components/plc/activity/activityDescriptions';
 import { PlcSearchBox } from '@/components/plc/search/PlcSearchBox';
 import { MembersBody } from '@/components/plc/bodies/MembersBody';
+import { PlcLearningTargetsBody } from '@/components/plc/bodies/PlcLearningTargetsBody';
 import { PlcSettingsTab } from '@/components/plc/tabs/PlcSettingsTab';
 import { TEAM_PAGE_REGISTRY } from '@/components/plc/teams/pageRegistry';
 import {
@@ -123,7 +129,11 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
   // Meeting Mode is retired (T11): meeting links land on Notes & Docs, which opens a saved record.
   const section: PlcSectionId =
     requestedSection === 'meeting' ? 'docs' : requestedSection;
-  const { route, canonical } = resolveTeamRoute(section, layout);
+  const features = getPlcFeatures(plc);
+  const hasTargets = features.quizzes || features.videoActivities;
+  const { route, canonical } = resolveTeamRoute(section, layout, {
+    targets: hasTargets,
+  });
   useEffect(() => {
     if (layoutReady && canonical !== requestedSection) {
       spaReplace(buildPlcPath(plc.id, canonical));
@@ -267,7 +277,11 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
         ? t('plcDashboard.tabs.members', { defaultValue: 'Members' })
         : route.section === 'settings'
           ? t('plcDashboard.tabs.settings', { defaultValue: 'Settings' })
-          : undefined;
+          : route.section === 'targets'
+            ? t('plcDashboard.tabs.targets', {
+                defaultValue: 'Learning Targets',
+              })
+            : undefined;
 
   const renderBody = (): React.ReactNode => {
     if (!layoutReady) {
@@ -287,6 +301,8 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
         <div className="p-4 pb-8 md:p-6">
           {route.section === 'members' ? (
             <MembersBody plc={plc} />
+          ) : route.section === 'targets' ? (
+            <PlcLearningTargetsBody plc={plc} />
           ) : (
             <PlcSettingsTab plc={plc} />
           )}
@@ -415,6 +431,7 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
                   onMembers={() => navigate('members')}
                   onSettings={() => navigate('settings')}
                   onLayout={openLayoutEditor}
+                  onTargets={hasTargets ? () => navigate('targets') : undefined}
                 />
               ) : null
             }

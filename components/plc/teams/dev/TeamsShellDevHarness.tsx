@@ -15,6 +15,7 @@ import {
   type DashboardContextValue,
 } from '@/context/DashboardContextValue';
 import { PlcSettingsTab } from '@/components/plc/tabs/PlcSettingsTab';
+import { PlcLearningTargetsBody } from '@/components/plc/bodies/PlcLearningTargetsBody';
 import { BUILT_IN_TEAM_TYPE_PRESETS } from '@/config/teamTypePresets';
 import { splitSinceYouWereHere } from '@/components/plc/activity/activityDescriptions';
 import { PlcDataOverviewMock } from '@/components/plc/redesignMockup/PlcDataOverviewMock';
@@ -59,6 +60,7 @@ const SCREENS = [
   'members',
   'layout',
   'settings',
+  'targets',
 ] as const;
 type Screen = (typeof SCREENS)[number];
 
@@ -262,7 +264,16 @@ export const TeamsShellDevHarness: React.FC = () => {
           roleLabel={lead ? 'Lead' : null}
           pages={pages}
           activePage={
-            screen === 'settings' ? null : ('dataOverview' satisfies TeamPageId)
+            screen === 'settings' || screen === 'targets'
+              ? null
+              : ('dataOverview' satisfies TeamPageId)
+          }
+          activeLabel={
+            screen === 'targets'
+              ? t('plcDashboard.tabs.targets', {
+                  defaultValue: 'Learning Targets',
+                })
+              : undefined
           }
           overlay={overlay}
           onOverlay={(next) =>
@@ -286,6 +297,7 @@ export const TeamsShellDevHarness: React.FC = () => {
                 onMembers={() => setScreen('members')}
                 onSettings={() => undefined}
                 onLayout={() => setScreen('layout')}
+                onTargets={() => setScreen('targets')}
               />
             ) : null
           }
@@ -300,11 +312,15 @@ export const TeamsShellDevHarness: React.FC = () => {
             ) : null
           }
         >
-          {screen === 'settings' ? (
+          {screen === 'settings' || screen === 'targets' ? (
             <AuthContext.Provider value={HARNESS_AUTH}>
               <DashboardContext.Provider value={HARNESS_DASHBOARD}>
                 <div className="p-4 pb-8 md:p-6">
-                  <PlcSettingsTab plc={settingsPlc} />
+                  {screen === 'targets' ? (
+                    <PlcLearningTargetsBody plc={settingsPlc} />
+                  ) : (
+                    <PlcSettingsTab plc={settingsPlc} />
+                  )}
                 </div>
               </DashboardContext.Provider>
             </AuthContext.Provider>

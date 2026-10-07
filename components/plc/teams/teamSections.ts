@@ -5,7 +5,7 @@ import { isTeamLandingPage } from '@/config/teamTypePresets';
 import type { PlcSectionId } from '@/components/plc/sections';
 
 /** Sections reached from the gear menu or the meeting banner, never from the rail (T8). */
-export type TeamOffRailSection = 'members' | 'settings' | 'meeting';
+export type TeamOffRailSection = 'members' | 'settings' | 'meeting' | 'targets';
 
 export type TeamRoute =
   | { kind: 'page'; page: TeamPageId }
@@ -28,12 +28,14 @@ const PAGE_OF_SECTION: Partial<Record<PlcSectionId, TeamPageId>> = {
 /** The route a section shows under the redesign, and the section its URL should read. */
 export function resolveTeamRoute(
   section: PlcSectionId,
-  layout: Pick<PlcTeamLayout, 'pages' | 'landing'>
+  layout: Pick<PlcTeamLayout, 'pages' | 'landing'>,
+  options: { targets?: boolean } = {}
 ): { route: TeamRoute; canonical: PlcSectionId } {
   if (
     section === 'members' ||
     section === 'settings' ||
-    section === 'meeting'
+    section === 'meeting' ||
+    (section === 'targets' && options.targets)
   ) {
     return { route: { kind: 'section', section }, canonical: section };
   }

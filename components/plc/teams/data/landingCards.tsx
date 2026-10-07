@@ -14,6 +14,7 @@ import {
 import { GoalSection } from './heroes';
 import { ManageTargetsForPlc } from './DataOverviewPage';
 import type { TeamCardProps } from '@/components/plc/teams/types';
+import { useTeamNav } from '@/components/plc/teams/TeamNavContext';
 import { useDataOverviewModel, usePlcNavigation } from './useDataOverview';
 
 const useFlag = () => useAuth().canAccessFeature('teams-redesign');
@@ -49,6 +50,7 @@ export function ParticipationCard({ plc }: TeamCardProps) {
 export function MasteryByTargetCard({ plc, isLead }: TeamCardProps) {
   const { model } = useDataOverviewModel(plc, null);
   const [open, setOpen] = useState(false);
+  const teamNav = useTeamNav();
   if (!useFlag() || !model.featured) return null;
   if (!model.mastery && !isLead) return null;
   return (
@@ -57,7 +59,7 @@ export function MasteryByTargetCard({ plc, isLead }: TeamCardProps) {
         <MasteryView
           layer={model.mastery}
           isLead={isLead}
-          onManageTargets={() => setOpen(true)}
+          onManageTargets={() => teamNav.navigate('targets')}
         />
       ) : (
         <TagPrompt onTag={() => setOpen(true)} />
