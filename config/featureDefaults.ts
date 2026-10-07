@@ -847,6 +847,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Per-type team pages, team layout and admin type defaults (docs/plans/TEAMS_REDESIGN.md).
+  'teams-redesign': {
+    label: 'Team pages redesign',
+    icon: LayoutDashboard,
+    description: 'Purpose-built pages for each team type.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Handwritten answer boxes on paper sheets; AND-ed with the paper-answer-sheets gate.
   'paper-handwritten-responses': {
     label: 'Handwritten answers on paper sheets',

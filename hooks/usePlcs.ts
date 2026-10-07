@@ -36,6 +36,7 @@ import {
 } from '@/utils/plcMeetingCadence';
 import { writePlcActivityEvent } from '@/utils/plcActivity';
 import { parseNormingLevelLabels } from '@/utils/plcNorming';
+import { parseTeamLayout } from '@/utils/teamLayout';
 import { isSuperAdminActor } from '@/utils/superAdmin';
 import i18n from '@/i18n/index';
 
@@ -431,6 +432,7 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
   const digestOptIn = data.digestOptIn === true;
   const meetingCadence = parseMeetingCadence(data.meetingCadence);
   const normingLevelLabels = parseNormingLevelLabels(data.normingLevelLabels);
+  const layout = parseTeamLayout(data.layout);
   // orgId / buildingId: optional tenancy (Decision 1.1). Absent ⇒ null.
   const orgId = typeof data.orgId === 'string' ? data.orgId : null;
   const buildingId =
@@ -457,6 +459,7 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
     ...(autoRoster ? { autoRoster } : {}),
     ...(meetingCadence ? { meetingCadence } : {}),
     ...(normingLevelLabels ? { normingLevelLabels } : {}),
+    ...(layout ? { layout } : {}),
     // serverTimestamp-tolerant (Decision 1.3): accept a Firestore Timestamp
     // or a legacy numeric millis value.
     createdAt: tsToMillis(data.createdAt),

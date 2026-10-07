@@ -1,10 +1,8 @@
 // Default goal-coach rubric (docs/plans/TEAMS_REDESIGN.md T22); mirrored in functions/src/plcGoalCoachRubric.ts.
 
-export interface GoalCoachCriterion {
-  id: string;
-  label: string;
-  description: string;
-}
+import type { GoalCoachCriterion } from '@/types';
+
+export type { GoalCoachCriterion };
 
 /** Admin override lives at `admin_settings/team_type_defaults` in this field. */
 export const GOAL_COACH_RUBRIC_FIELD = 'goalCoachRubric';

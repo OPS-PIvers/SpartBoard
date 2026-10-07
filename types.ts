@@ -456,6 +456,8 @@ export interface Plc {
   meetingCadence?: PlcMeetingCadence;
   /** Lead-set names for the High/Medium/Low norming levels; Review is fixed. */
   normingLevelLabels?: PlcNormingLevelLabels;
+  /** Team layout set by the lead and co-leads; absent reads as the type default (TEAMS_REDESIGN T2). */
+  layout?: PlcTeamLayout;
   createdAt: number;
   updatedAt: number;
 }
@@ -476,6 +478,99 @@ export interface PlcMeetingCadence {
   defaultAgenda?: string;
   /** Keyed by an occurrence's original 'YYYY-MM-DD'. */
   overrides?: Record<string, { movedTo?: string; skipped?: true }>;
+}
+
+/** A rail page of a team (TEAMS_REDESIGN T1); dataOverview, hub and programHub are landing pages. */
+export type TeamPageId =
+  | 'dataOverview'
+  | 'hub'
+  | 'programHub'
+  | 'assessments'
+  | 'docs'
+  | 'resources'
+  | 'updates'
+  | 'workspace';
+
+/** A card on a team's landing page, from the fixed catalog (T2); goals is a card, never a page (T21). */
+export type TeamCardId =
+  | 'hero'
+  | 'goals'
+  | 'nextMeeting'
+  | 'openItems'
+  | 'recentAssessments'
+  | 'distribution'
+  | 'trend'
+  | 'participation'
+  | 'masteryByTarget'
+  | 'quickLinks'
+  | 'latestUpdates'
+  | 'resourcesByCategory'
+  | 'calendar'
+  | 'nextTask'
+  | 'submissionStatus'
+  | 'recentDocs'
+  | 'newMaterials'
+  | 'openDecisions';
+
+/** The item a lead pins as the team hero (T5). */
+export type TeamHeroRef =
+  | { kind: 'assessment'; assessmentId: string }
+  | { kind: 'target'; targetId: string }
+  | { kind: 'goal'; goalId: string }
+  | { kind: 'doc'; docId: string }
+  | { kind: 'note'; noteId: string }
+  | { kind: 'update'; updateId: string }
+  | { kind: 'calendar' };
+
+/** What fills an unpinned hero, per team type (T6). */
+export type TeamHeroRule =
+  | 'latestAssessment'
+  | 'newestPinnedUpdate'
+  | 'nextMeetingNote'
+  | 'nextRequiredTask';
+
+export interface TeamHero {
+  mode: 'default' | 'pinned';
+  ref?: TeamHeroRef;
+}
+
+export interface TeamPageSetting {
+  id: TeamPageId;
+  enabled: boolean;
+}
+
+/** `plcs/{id}.layout`: one layout every member sees (T2). */
+export interface PlcTeamLayout {
+  /** Rail order; disabled pages stay listed so the editor can turn them back on. */
+  pages: TeamPageSetting[];
+  landing: TeamPageId;
+  cards: TeamCardId[];
+  hero: TeamHero;
+}
+
+/** One group type's district default in `admin_settings/team_type_defaults` (T3). */
+export interface TeamTypePreset {
+  pages: TeamPageSetting[];
+  landing: TeamPageId;
+  cards: TeamCardId[];
+  heroRule: TeamHeroRule;
+  /** Markdown body for a new meeting note (T12). */
+  meetingNoteTemplate?: string;
+  /** Default Resources categories (T9). */
+  resourceCategories?: string[];
+}
+
+/** One criterion of the PLC goal-coach rubric (T22). */
+export interface GoalCoachCriterion {
+  id: string;
+  label: string;
+  description: string;
+}
+
+/** `admin_settings/team_type_defaults`; applies to teams created afterward (T3). */
+export interface TeamTypeDefaults {
+  types: Partial<Record<PlcGroupType, TeamTypePreset>>;
+  goalCoachRubric?: GoalCoachCriterion[];
 }
 
 /**
@@ -9627,6 +9722,8 @@ export type GlobalFeature =
   | 'plc-docs-toolbar'
   /** Team action items sync to the assignee's Google Tasks (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md). */
   | 'google-tasks-sync'
+  /** Purpose-built page set per team type (docs/plans/TEAMS_REDESIGN.md). */
+  | 'teams-redesign'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22). */
   | 'plc-goal-coach';
 
