@@ -1,10 +1,12 @@
 // Mentoring `workspace` page (T30 to T33): a pair's own workspace, or the facilitators' Workspaces list and tracker.
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/useAuth';
+import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import {
   addWorkspaceDoc,
   createCheckIn,
+  ensureWorkspaceTemplates,
   getMentoringSubmission,
   submitMentoringTask,
   updateCheckIn,
@@ -245,8 +247,17 @@ export const WorkspaceScreen: React.FC<
 
 const LiveWorkspace: React.FC<DetailProps> = (props) => {
   const { user } = useAuth();
+  const { driveService } = useGoogleDrive();
   const defaults = useTeamTypeDefaults();
   const checkIns = useWorkspaceCheckIns(props.plc.id, props.ws.id);
+  const { plc, ws, isLead } = props;
+  const tasks = props.data.tasks;
+  const uid = user?.uid ?? null;
+  // Facilitators hold the template, so their visit fills in any copy a pair is missing.
+  useEffect(() => {
+    if (!isLead || !uid || !driveService) return;
+    void ensureWorkspaceTemplates(plc, tasks, ws, uid, driveService);
+  }, [isLead, uid, driveService, plc, tasks, ws]);
   const template =
     defaults?.types.mentoring?.meetingNoteTemplate ??
     BUILT_IN_TEAM_TYPE_PRESETS.mentoring.meetingNoteTemplate ??

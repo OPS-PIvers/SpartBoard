@@ -77,7 +77,7 @@ export const PostTaskModal: React.FC<{
       );
       if (failedPairs.length) {
         addToast?.(
-          `Failed to share: ${failedPairs.join(', ')}. Try again.`,
+          `Couldn't copy the template for ${failedPairs.join(', ')}. It copies when you open their workspace.`,
           'error'
         );
       }

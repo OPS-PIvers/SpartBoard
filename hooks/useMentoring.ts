@@ -251,18 +251,21 @@ export interface MentoringTaskInput {
 async function appendWorkspaceDoc(
   plcId: string,
   workspaceId: string,
-  link: MentoringDocLink
-): Promise<void> {
-  await runTransaction(db, async (tx) => {
+  link: MentoringDocLink,
+  ifAbsent = false
+): Promise<boolean> {
+  return runTransaction(db, async (tx) => {
     const ref = wsRef(plcId, workspaceId);
     const snap = await tx.get(ref);
-    if (!snap.exists()) return;
+    if (!snap.exists()) return false;
     const ws = parseMentoringWorkspace(snap.id, snap.data());
-    if (!ws) return;
+    if (!ws) return false;
+    if (ifAbsent && ws.docs.some((d) => d.id === link.id)) return false;
     tx.update(ref, {
       docs: [...ws.docs.filter((d) => d.id !== link.id), link],
       updatedAt: serverTimestamp(),
     });
+    return true;
   });
 }
 
@@ -286,62 +289,134 @@ async function eachBounded<T>(
   );
 }
 
+type TemplateTask = Pick<MentoringTask, 'title' | 'templateDoc'> & {
+  id: string;
+};
+
+export const templateDocId = (taskId: string) => `task-${taskId}`;
+
+/** Copies the template for one pair and lists it once; a losing or failed copy goes to the trash. */
+async function copyTemplateForWorkspace(
+  plc: Plc,
+  task: TemplateTask,
+  ws: MentoringWorkspace,
+  uid: string,
+  drive: GoogleDriveService | null
+): Promise<boolean> {
+  const template = task.templateDoc;
+  const fileId = template?.fileId;
+  if (!template || !drive || !fileId) {
+    throw new Error('Template cannot be copied');
+  }
+  const names = pairNames(plc, ws);
+  let copyId: string | null = null;
+  try {
+    const copy = await drive.copyFile(
+      fileId,
+      `${task.title} · ${names.mentor} and ${names.mentee}`
+    );
+    copyId = copy.id;
+    for (const pairUid of [ws.mentorUid, ws.menteeUid]) {
+      const email = plc.members?.[pairUid]?.email;
+      if (!email) throw new Error('Pair member has no email');
+      await drive.addEditorPermission(copy.id, email);
+    }
+    const listed = await appendWorkspaceDoc(
+      plc.id,
+      ws.id,
+      {
+        id: templateDocId(task.id),
+        title: `${template.title || task.title} (template)`,
+        url:
+          copy.webViewLink ??
+          `https://docs.google.com/document/d/${copy.id}/edit`,
+        taskId: task.id,
+        addedBy: uid,
+        addedAt: Date.now(),
+      },
+      true
+    );
+    if (!listed) {
+      copyId = null;
+      await drive.trashFile(copy.id);
+    }
+    return listed;
+  } catch (err) {
+    if (copyId) {
+      await drive.trashFile(copyId).catch((trashErr: unknown) =>
+        logError('copyTemplateForWorkspace.trash', trashErr, {
+          plcId: plc.id,
+        })
+      );
+    }
+    throw err;
+  }
+}
+
 /** Gives each workspace its own copy of the template, shared with the pair (T32); returns pairs that failed. */
 export async function copyTemplateIntoWorkspaces(
   plc: Plc,
-  taskId: string,
-  input: MentoringTaskInput,
+  task: TemplateTask,
   workspaces: readonly MentoringWorkspace[],
   uid: string,
   drive: GoogleDriveService | null
 ): Promise<string[]> {
-  const template = input.templateDoc;
-  if (!template || workspaces.length === 0) return [];
-  const fileId = template.fileId;
-  const title = `${template.title || input.title} (template)`;
+  if (!task.templateDoc || workspaces.length === 0) return [];
   const failed: string[] = [];
   await eachBounded(workspaces, COPY_CONCURRENCY, async (ws) => {
-    const names = pairNames(plc, ws);
-    let copyId: string | null = null;
     try {
-      if (!drive || !fileId) throw new Error('Template cannot be copied');
-      const copy = await drive.copyFile(
-        fileId,
-        `${input.title} · ${names.mentor} and ${names.mentee}`
-      );
-      copyId = copy.id;
-      for (const pairUid of [ws.mentorUid, ws.menteeUid]) {
-        const email = plc.members?.[pairUid]?.email;
-        if (!email) throw new Error('Pair member has no email');
-        await drive.addEditorPermission(copy.id, email);
-      }
-      await appendWorkspaceDoc(plc.id, ws.id, {
-        id: `task-${taskId}`,
-        title,
-        url:
-          copy.webViewLink ??
-          `https://docs.google.com/document/d/${copy.id}/edit`,
-        taskId,
-        addedBy: uid,
-        addedAt: Date.now(),
-      });
+      await copyTemplateForWorkspace(plc, task, ws, uid, drive);
     } catch (err) {
       logError('copyTemplateIntoWorkspaces', err, {
         plcId: plc.id,
         workspaceId: ws.id,
       });
-      // Trash a half-shared copy so a failed pair leaves no orphaned Drive file.
-      if (drive && copyId) {
-        await drive.trashFile(copyId).catch((trashErr: unknown) =>
-          logError('copyTemplateIntoWorkspaces.trash', trashErr, {
-            plcId: plc.id,
-          })
-        );
-      }
+      const names = pairNames(plc, ws);
       failed.push(`${names.mentor} and ${names.mentee}`);
     }
   });
   return failed;
+}
+
+const templateAttempts = new Set<string>();
+
+/** Copies any missing task templates into a workspace when a facilitator opens it; each copy is tried once per session. */
+export async function ensureWorkspaceTemplates(
+  plc: Plc,
+  tasks: readonly MentoringTask[],
+  ws: MentoringWorkspace,
+  uid: string,
+  drive: GoogleDriveService | null
+): Promise<number> {
+  if (!drive) return 0;
+  let copied = 0;
+  for (const task of tasks) {
+    const key = `${plc.id}/${ws.id}/${task.id}`;
+    if (
+      !task.templateDoc?.fileId ||
+      ws.docs.some((d) => d.id === templateDocId(task.id)) ||
+      templateAttempts.has(key)
+    ) {
+      continue;
+    }
+    templateAttempts.add(key);
+    try {
+      if (await copyTemplateForWorkspace(plc, task, ws, uid, drive)) {
+        copied += 1;
+      }
+    } catch (err) {
+      logError('ensureWorkspaceTemplates', err, {
+        plcId: plc.id,
+        workspaceId: ws.id,
+      });
+    }
+  }
+  return copied;
+}
+
+/** Test hook: forget which lazy copies were tried. */
+export function resetTemplateAttempts(): void {
+  templateAttempts.clear();
 }
 
 export async function postMentoringTask(
@@ -365,8 +440,7 @@ export async function postMentoringTask(
   });
   const failedPairs = await copyTemplateIntoWorkspaces(
     plc,
-    ref.id,
-    input,
+    { id: ref.id, title: input.title, templateDoc: input.templateDoc },
     workspaces,
     uid,
     drive

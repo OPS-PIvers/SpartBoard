@@ -4,6 +4,8 @@ import type { GoogleDriveService } from '@/utils/googleDriveService';
 import {
   BATCH_LIMIT,
   copyTemplateIntoWorkspaces,
+  ensureWorkspaceTemplates,
+  resetTemplateAttempts,
   removePairing,
   submitMentoringTask,
 } from './useMentoring';
@@ -18,7 +20,8 @@ const fs = vi.hoisted(() => {
   }[] = [];
   const subcollections: Record<string, number> = {};
   const order: string[] = [];
-  return { txUpdates, batches, subcollections, order };
+  const existingDocs: Record<string, { id: string; url: string }[]> = {};
+  return { txUpdates, batches, subcollections, order, existingDocs };
 });
 
 vi.mock('firebase/firestore', () => {
@@ -69,14 +72,18 @@ vi.mock('firebase/firestore', () => {
         fn: (tx: {
           get: (r: { path: string }) => Promise<unknown>;
           update: (r: { path: string }, d: Record<string, unknown>) => void;
-        }) => Promise<void>
+        }) => Promise<unknown>
       ) =>
         fn({
           get: (r) =>
             Promise.resolve({
               id: r.path.split('/').pop(),
               exists: () => true,
-              data: () => ({ mentorUid: 'm', menteeUid: 'e', docs: [] }),
+              data: () => ({
+                mentorUid: 'm',
+                menteeUid: 'e',
+                docs: fs.existingDocs[r.path] ?? [],
+              }),
             }),
           update: (r, data) => fs.txUpdates.push({ path: r.path, data }),
         })
@@ -167,6 +174,8 @@ const makeDrive = (failEmail?: string) => {
 };
 
 beforeEach(() => {
+  resetTemplateAttempts();
+  for (const k of Object.keys(fs.existingDocs)) delete fs.existingDocs[k];
   fs.txUpdates.length = 0;
   fs.batches.length = 0;
   fs.order.length = 0;
@@ -178,8 +187,7 @@ describe('copyTemplateIntoWorkspaces', () => {
     const { drive, service } = makeDrive('m1@x.org');
     const failed = await copyTemplateIntoWorkspaces(
       plcWith(3),
-      't1',
-      input,
+      { ...input, id: 't1' },
       [0, 1, 2].map(workspace),
       'lead',
       service
@@ -203,8 +211,7 @@ describe('copyTemplateIntoWorkspaces', () => {
     const { drive, service } = makeDrive();
     const failed = await copyTemplateIntoWorkspaces(
       plcWith(1, ['m0']),
-      't1',
-      input,
+      { ...input, id: 't1' },
       [workspace(0)],
       'lead',
       service
@@ -217,8 +224,7 @@ describe('copyTemplateIntoWorkspaces', () => {
   it('never falls back to the shared template without Drive', async () => {
     const failed = await copyTemplateIntoWorkspaces(
       plcWith(2),
-      't1',
-      input,
+      { ...input, id: 't1' },
       [0, 1].map(workspace),
       'lead',
       null
@@ -231,8 +237,7 @@ describe('copyTemplateIntoWorkspaces', () => {
     const { drive, service, peak } = makeDrive();
     const failed = await copyTemplateIntoWorkspaces(
       plcWith(9),
-      't1',
-      input,
+      { ...input, id: 't1' },
       Array.from({ length: 9 }, (_, i) => workspace(i)),
       'lead',
       service
@@ -248,8 +253,7 @@ describe('copyTemplateIntoWorkspaces', () => {
     expect(
       await copyTemplateIntoWorkspaces(
         plcWith(1),
-        't1',
-        { ...input, templateDoc: null },
+        { ...input, id: 't1', templateDoc: null },
         [workspace(0)],
         'lead',
         service
@@ -314,5 +318,99 @@ describe('submitMentoringTask', () => {
     );
     expect(fs.batches[0].sets).toHaveLength(1);
     expect(fs.batches[0].updates).toHaveLength(0);
+  });
+});
+
+describe('ensureWorkspaceTemplates', () => {
+  const tpl: MentoringTask = {
+    id: 't1',
+    title: 'Goals',
+    instructions: '',
+    dueDate: '2026-10-30',
+    submitter: 'mentee',
+    templateDoc: input.templateDoc,
+    createdBy: 'lead',
+    createdAt: 0,
+    updatedAt: 0,
+  };
+  const noTemplate: MentoringTask = { ...tpl, id: 't2', templateDoc: null };
+
+  it('copies a missing template once, for a failed or late-added pair', async () => {
+    const { drive, service } = makeDrive();
+    const ws = workspace(0);
+    expect(
+      await ensureWorkspaceTemplates(
+        plcWith(1),
+        [tpl, noTemplate],
+        ws,
+        'lead',
+        service
+      )
+    ).toBe(1);
+    expect(drive.copyFile).toHaveBeenCalledTimes(1);
+    expect(fs.txUpdates).toHaveLength(1);
+    expect(
+      await ensureWorkspaceTemplates(plcWith(1), [tpl], ws, 'lead', service)
+    ).toBe(0);
+    expect(drive.copyFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips a workspace that already lists the copy', async () => {
+    const { drive, service } = makeDrive();
+    const ws = {
+      ...workspace(0),
+      docs: [
+        {
+          id: 'task-t1',
+          title: 'Goals',
+          url: 'https://docs.google.com/c',
+          addedBy: 'lead',
+          addedAt: 0,
+        },
+      ],
+    };
+    await ensureWorkspaceTemplates(plcWith(1), [tpl], ws, 'lead', service);
+    expect(drive.copyFile).not.toHaveBeenCalled();
+  });
+
+  it('trashes its copy when another opener listed one first', async () => {
+    const { drive, service } = makeDrive();
+    fs.existingDocs['plcs/p/workspaces/m0_e0'] = [
+      { id: 'task-t1', url: 'https://docs.google.com/other' },
+    ];
+    expect(
+      await ensureWorkspaceTemplates(
+        plcWith(1),
+        [tpl],
+        workspace(0),
+        'lead',
+        service
+      )
+    ).toBe(0);
+    expect(drive.trashFile).toHaveBeenCalledWith('copy1');
+    expect(fs.txUpdates).toHaveLength(0);
+  });
+
+  it('trashes a failed copy and does nothing without Drive', async () => {
+    const { drive, service } = makeDrive('e0@x.org');
+    await ensureWorkspaceTemplates(
+      plcWith(1),
+      [tpl],
+      workspace(0),
+      'lead',
+      service
+    );
+    expect(drive.trashFile).toHaveBeenCalledWith('copy1');
+    expect(fs.txUpdates).toHaveLength(0);
+    resetTemplateAttempts();
+    expect(
+      await ensureWorkspaceTemplates(
+        plcWith(1),
+        [tpl],
+        workspace(0),
+        'lead',
+        null
+      )
+    ).toBe(0);
   });
 });
