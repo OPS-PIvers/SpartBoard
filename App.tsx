@@ -283,6 +283,13 @@ const TeamsShellDevHarness = import.meta.env.DEV
       )
     )
   : null;
+const TeamsNotesDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/plc/teams/notes/TeamsNotesDevHarness').then(
+        (module) => ({ default: module.TeamsNotesDevHarness })
+      )
+    )
+  : null;
 const TeamsMentoringDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/plc/teams/mentoring/dev/TeamsMentoringDevHarness').then(
@@ -927,6 +934,20 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <TeamsShellDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: production Notes and Department Hub views on fixtures; auth-bypass only.
+  if (
+    import.meta.env.DEV &&
+    TeamsNotesDevHarness &&
+    isAuthBypass &&
+    pathname === '/teams-notes-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TeamsNotesDevHarness />
       </Suspense>
     );
   }
