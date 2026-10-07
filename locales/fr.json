@@ -3896,5 +3896,13 @@
         "needsHuman": "Demande une personne"
       }
     }
+  },
+  "tourPicker": {
+    "prompt": "Cliquez sur une commande pour cette étape",
+    "chooseFromList": "Choisir dans la liste",
+    "cancel": "Annuler",
+    "search": "Rechercher des commandes",
+    "wholeBoard": "Tout le tableau",
+    "noMatches": "Aucune commande ne correspond"
   }
 }

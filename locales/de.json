@@ -3896,5 +3896,13 @@
         "needsHuman": "Braucht eine Person"
       }
     }
+  },
+  "tourPicker": {
+    "prompt": "Klicken Sie auf ein Bedienelement für diesen Schritt",
+    "chooseFromList": "Aus Liste wählen",
+    "cancel": "Abbrechen",
+    "search": "Bedienelemente suchen",
+    "wholeBoard": "Ganze Tafel",
+    "noMatches": "Keine passenden Bedienelemente"
   }
 }
