@@ -1,5 +1,6 @@
 // Google Tasks opt-in for team action items (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md D1).
 import React from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import { httpsCallable } from 'firebase/functions';
 import { Loader2 } from 'lucide-react';
@@ -115,6 +116,7 @@ export const GoogleTasksSettings: React.FC = () => {
               }}
               size="sm"
               showLabels={false}
+              anchor={tourAttr('connected-apps.google-tasks-sync')}
               label={t('settings.connectedApps.googleTasks.toggle', {
                 defaultValue: 'Send my team action items to Google Tasks',
               })}

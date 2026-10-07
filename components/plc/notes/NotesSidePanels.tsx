@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import {
   ListChecks,
@@ -145,6 +146,7 @@ export const ActionItemsRail: React.FC<ActionItemsRailProps> = ({
   });
   return (
     <button
+      {...tourAttr('plc-notes.show-actions')}
       type="button"
       onClick={onOpen}
       aria-label={label}

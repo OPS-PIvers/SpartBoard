@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import {
   CalendarDays,
@@ -434,6 +435,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
         (items.length < MAX_ACTION_ITEMS ? (
           <div className="shrink-0 flex items-center gap-2 mt-2">
             <input
+              {...tourAttr('plc-notes.action-text')}
               type="text"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -449,6 +451,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
               className="flex-1 min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
             />
             <button
+              {...tourAttr('plc-notes.add-action')}
               type="button"
               onClick={addItem}
               aria-label={

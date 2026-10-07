@@ -94,6 +94,7 @@ const PlcsMenuButton: React.FC<PlcsMenuButtonProps> = ({
   const { canAccessFeature } = useAuth();
   return (
     <button
+      {...tourAttr('sidebar.plcs')}
       onClick={onClick}
       className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
     >

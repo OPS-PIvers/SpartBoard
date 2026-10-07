@@ -185,6 +185,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'sidebar.whats-new': { label: "What's New item in the menu", panel: true },
+  'sidebar.plcs': { label: 'My Teams item in the menu', panel: true },
 
   'board-nav.select-board': { label: 'Board name button that opens boards' },
   'board-nav.previous': { label: 'Previous board button' },
@@ -442,6 +443,23 @@ export const TOUR_ANCHORS = {
   'plc-edit.save': {
     label: 'Save/Create button in the PLC edit modal',
     persists: true,
+    panel: true,
+  },
+  'connected-apps.google-tasks-sync': {
+    label: 'Google Tasks sync switch in Connected apps',
+    persists: true,
+    panel: true,
+  },
+  'plc-notes.action-text': {
+    label: 'New action item text box in PLC notes',
+    panel: true,
+  },
+  'plc-notes.add-action': {
+    label: 'Add action item button in PLC notes',
+    panel: true,
+  },
+  'plc-notes.show-actions': {
+    label: 'Show action items button in PLC notes',
     panel: true,
   },
   'plc-invites.list': {
