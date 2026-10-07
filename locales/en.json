@@ -4973,6 +4973,10 @@
     "cancel": "Cancel",
     "search": "Search controls",
     "wholeBoard": "Whole board",
-    "noMatches": "No controls match"
+    "noMatches": "No controls match",
+    "control": "Control",
+    "pick": "Pick",
+    "addStep": "Add step",
+    "listTitle": "Choose a control"
   }
 }

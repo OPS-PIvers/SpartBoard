@@ -38,8 +38,27 @@ const pointer = (
     ? new PointerEvent(type, init)
     : new MouseEvent(type, init);
 
+let scripted = 0;
+
+/** True while the tour itself is clicking, so Pick control lets the click through. */
+export const isScriptedClick = (): boolean => scripted > 0;
+
+/** Runs `fn` with its clicks marked as the tour's own. */
+export function asScriptedClick(fn: () => void): void {
+  scripted++;
+  try {
+    fn();
+  } finally {
+    scripted--;
+  }
+}
+
 /** Clicks an element the way a real mouse does: pointer, mouse, focus and click events in order. */
 export function dispatchAutoClick(el: HTMLElement): void {
+  asScriptedClick(() => autoClick(el));
+}
+
+function autoClick(el: HTMLElement): void {
   const r = el.getBoundingClientRect();
   const base: MouseEventInit = {
     bubbles: true,

@@ -1423,6 +1423,7 @@ export const LiveTourRunner: React.FC = () => {
         jumping,
         editBlocked,
         missingIds,
+        tour.slots,
       ])
     : '';
   const playbackRef = useRef({
@@ -1432,6 +1433,7 @@ export const LiveTourRunner: React.FC = () => {
     jumping,
     blocked: editBlocked,
     missing: missingIds,
+    slots: tour?.slots ?? {},
   });
   playbackRef.current = {
     index: stepIndex,
@@ -1440,6 +1442,7 @@ export const LiveTourRunner: React.FC = () => {
     jumping,
     blocked: editBlocked,
     missing: missingIds,
+    slots: tour?.slots ?? {},
   };
   useEffect(() => {
     if (playbackKey) reportTourEditPlayback(playbackRef.current);

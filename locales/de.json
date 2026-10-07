@@ -3923,6 +3923,10 @@
     "cancel": "Abbrechen",
     "search": "Bedienelemente suchen",
     "wholeBoard": "Ganze Tafel",
-    "noMatches": "Keine passenden Bedienelemente"
+    "noMatches": "Keine passenden Bedienelemente",
+    "control": "Bedienelement",
+    "pick": "Auswählen",
+    "addStep": "Schritt hinzufügen",
+    "listTitle": "Bedienelement wählen"
   }
 }
