@@ -3,6 +3,7 @@ import type {
   GuidedLearningSet,
   GuidedLearningStep,
   GuidedLearningTourBinding,
+  GuidedLearningTourThumbnail,
 } from '@/types';
 import { saveBuildingSetDoc } from '@/hooks/useGuidedLearning';
 import { GuidedLearningSaveConflictError } from '@/components/widgets/GuidedLearning/utils/saveConflict';
@@ -48,6 +49,11 @@ export interface TourEditorSession {
     steps: GuidedLearningStep[],
     imagePaths?: string[]
   ) => void;
+  /** Stores a picture on the step if it is still bound to `anchor`; not an undoable edit. */
+  setThumbnail: (
+    stepId: string,
+    thumbnail: GuidedLearningTourThumbnail
+  ) => void;
   deleteStep: (stepId: string) => void;
   moveStep: (stepId: string, toIndex: number) => void;
   updateSet: (patch: Partial<GuidedLearningSet>) => void;
@@ -56,8 +62,8 @@ export interface TourEditorSession {
   canUndo: boolean;
   canRedo: boolean;
   saveState: TourEditorSaveState;
-  /** Writes any unsaved edits now. */
-  flush: () => Promise<void>;
+  /** Writes any unsaved edits now; false when the draft could not be saved. */
+  flush: () => Promise<boolean>;
 }
 
 /** A new tour step: bound to nothing yet, waiting for its click. */
@@ -127,12 +133,16 @@ export function useTourEditorSession(): TourEditorSession | null {
   const commit = useCallback(
     (
       build: (set: GuidedLearningSet) => GuidedLearningSet | null,
-      opts: { coalesce?: string; selectId?: string } = {}
+      opts: { coalesce?: string; selectId?: string; history?: false } = {}
     ) => {
       const cur = getTourEdit();
       if (!cur) return;
       const next = build(cur.set);
       if (!next || next === cur.set) return;
+      if (opts.history === false) {
+        setTourEdit(applyEdit(cur, next, opts.selectId));
+        return;
+      }
       const h = history.current;
       const now = Date.now();
       const merge =
@@ -151,17 +161,20 @@ export function useTourEditorSession(): TourEditorSession | null {
   // The newest draft, kept after the editor closes so the closing save still has it.
   const lastSet = useRef<GuidedLearningSet | null>(opened);
 
-  const save = useCallback(async (): Promise<void> => {
+  const save = useCallback(async (): Promise<boolean> => {
     while (saving.current) await saving.current;
     const set = getTourEdit()?.set ?? lastSet.current;
-    if (!set || blocked.current || set === saved.current.set) return;
+    if (!set || blocked.current) return false;
+    if (set === saved.current.set) return true;
     const updatedAt = Date.now();
     setSaveState('saving');
+    let ok = false;
     const run = saveBuildingSetDoc(
       { ...set, updatedAt },
       { expectedUpdatedAt: saved.current.updatedAt }
     )
       .then(() => {
+        ok = true;
         saved.current = { set, updatedAt };
         setSaveState(lastSet.current === set ? 'saved' : 'saving');
       })
@@ -180,6 +193,7 @@ export function useTourEditorSession(): TourEditorSession | null {
       });
     saving.current = run;
     await run;
+    return ok;
   }, []);
 
   const draft = target?.set;
@@ -282,6 +296,18 @@ export function useTourEditorSession(): TourEditorSession | null {
         { selectId: last.id }
       );
     },
+    setThumbnail: (stepId, thumbnail) =>
+      commit(
+        (set) => {
+          const at = set.steps.findIndex((s) => s.id === stepId);
+          const tour = set.steps[at]?.tour;
+          if (!tour || tour.anchor !== thumbnail.anchor) return null;
+          const steps = [...set.steps];
+          steps[at] = { ...steps[at], tour: { ...tour, thumbnail } };
+          return { ...set, steps };
+        },
+        { history: false }
+      ),
     deleteStep: (stepId) =>
       commit((set) =>
         set.steps.some((s) => s.id === stepId)

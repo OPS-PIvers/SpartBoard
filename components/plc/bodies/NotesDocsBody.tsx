@@ -23,6 +23,8 @@ interface NotesDocsBodyProps {
   plc: Plc;
   /** Opens the Google Docs tab on this doc. */
   docId?: string | null;
+  /** Opens this note on mount. */
+  noteId?: string | null;
 }
 
 type NotesDocsTab = 'notes' | 'docs';
@@ -45,6 +47,7 @@ type NotesDocsTab = 'notes' | 'docs';
 export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
   plc,
   docId = null,
+  noteId = null,
 }) => {
   const { t } = useTranslation();
   const { user, canAccessFeature } = useAuth();
@@ -55,7 +58,7 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
   const [legacyTab, setTab] = useState<NotesDocsTab>(docId ? 'docs' : 'notes');
   const tab: NotesDocsTab = unified ? 'notes' : legacyTab;
   const [rollupOpen, setRollupOpen] = useState(false);
-  const [selectNoteId, setSelectNoteId] = useState<string | null>(null);
+  const [selectNoteId, setSelectNoteId] = useState<string | null>(noteId);
   const [selectDocId, setSelectDocId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
 

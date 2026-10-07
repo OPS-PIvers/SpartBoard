@@ -15,7 +15,7 @@ import UpdatesPage from './updates/UpdatesPage';
 import BuildingHubPage from './building/BuildingHubPage';
 import ProgramHubPage from './mentoring/ProgramHubPage';
 import WorkspacePage from './mentoring/WorkspacePage';
-import NotesDocsPage from './notes/NotesDocsPage';
+import TeamNotesDocsPage from './notes/TeamNotesDocsPage';
 import DepartmentHubPage from './department/DepartmentHubPage';
 import './mentoringBridge';
 import {
@@ -38,7 +38,7 @@ export const TEAM_PAGE_REGISTRY: TeamPageRegistry = {
   },
   programHub: { icon: LayoutDashboard, Component: ProgramHubPage },
   assessments: { icon: ClipboardList, Component: TeamAssessmentsPage },
-  docs: { icon: FileText, Component: NotesDocsPage, fullBleed: true },
+  docs: { icon: FileText, Component: TeamNotesDocsPage, fullBleed: true },
   resources: { icon: Sparkles, Component: TeamResourcesPage },
   updates: { icon: Megaphone, Component: UpdatesPage },
   workspace: { icon: Users2, Component: WorkspacePage },

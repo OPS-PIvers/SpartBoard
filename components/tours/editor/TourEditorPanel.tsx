@@ -19,6 +19,7 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 import {
   AlertTriangle,
+  Camera,
   ChevronLeft,
   ChevronsLeft,
   ChevronsRight,
@@ -58,7 +59,12 @@ import {
   buildRecordedLayouts,
 } from '@/components/widgets/GuidedLearning/components/recorder/recordedLayouts';
 import { MAX_TYPED_CHARS } from '@/components/widgets/GuidedLearning/components/recorder/useTourCapture';
-import { setTourEditRecording, type TourEditPlayback } from './tourEditStore';
+import {
+  retakeTourEditThumbnail,
+  setTourEditRecording,
+  type TourEditPlayback,
+} from './tourEditStore';
+import { tourThumbnail } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import {
   PANEL_EDGE,
   PANEL_WIDTH,
@@ -713,11 +719,34 @@ const StepCard: React.FC<{
     session.updateStep(step.id, patch, field);
   const bind = (next: NonNullable<GuidedLearningStep['tour']>) =>
     session.setBinding(step.id, next);
+  const thumb = tourThumbnail(step);
+  const pictured = !!tour?.anchor && tour.anchor !== WHOLE_BOARD_ANCHOR;
   return (
     <div
       data-testid="tour-editor-card"
       className="flex flex-col gap-3 px-3 pb-3 pl-[42px] pt-1"
     >
+      {pictured && thumb && (
+        <div className="relative">
+          <img
+            src={thumb.url}
+            alt=""
+            data-testid="tour-editor-thumbnail"
+            className={`max-h-32 w-full rounded-lg border border-white/10 object-contain ${
+              thumb.anchor === tour.anchor ? '' : 'opacity-50'
+            }`}
+          />
+          <button
+            type="button"
+            onClick={() => retakeTourEditThumbnail(step.id)}
+            aria-label={t('tours.editor.retake')}
+            title={t('tours.editor.retakeHint')}
+            className="absolute right-1.5 top-1.5 rounded-lg bg-slate-900/85 p-1.5 text-white shadow hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          >
+            <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </div>
+      )}
       <label className={labelClass}>
         {t('glStudio.stepTitle')}
         <input
@@ -817,7 +846,7 @@ const StepCard: React.FC<{
           {t('glStudio.tourTeacherMustClick')}
         </label>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-1 pt-1">
+      <div className="flex items-center justify-between gap-1 pt-1">
         <CaptureLayoutButton
           onCapture={(layouts) =>
             session.updateSet({

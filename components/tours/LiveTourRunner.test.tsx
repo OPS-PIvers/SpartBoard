@@ -5,11 +5,7 @@ import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import type { GuidedLearningSet, WidgetType } from '@/types';
 import { LiveTourRunner } from './LiveTourRunner';
 import { TRY_HINT_MS } from '@/components/widgets/GuidedLearning/components/player/playback';
-import {
-  requestStartTour,
-  setTourRunning,
-  TOUR_OPEN_STUDIO_EVENT,
-} from './tourState';
+import { requestStartTour } from './tourState';
 import { ANCHOR_SEARCH_MS } from './useAnchorElement';
 import { tourHealthOf } from './tourHealth';
 import { SAVED_TOUR_KEY } from './tourResume';
@@ -724,32 +720,6 @@ describe('LiveTourRunner', () => {
       'error'
     );
     expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
-  });
-
-  it('forgets the Studio return of a Studio run that fails to load', async () => {
-    const open = vi.fn();
-    window.addEventListener(TOUR_OPEN_STUDIO_EVENT, open);
-    h.loadDraft.mockResolvedValue(null);
-    render(
-      <>
-        <Fixture />
-        <LiveTourRunner />
-      </>
-    );
-    act(() => {
-      requestStartTour({ setId: 'set-1', draft: true, returnToStepId: 's0' });
-    });
-    await frames();
-    expect(h.actions.addToast).toHaveBeenCalledWith(
-      "This tour isn't available right now.",
-      'error'
-    );
-    act(() => {
-      setTourRunning(true);
-      setTourRunning(false);
-    });
-    window.removeEventListener(TOUR_OPEN_STUDIO_EVENT, open);
-    expect(open).not.toHaveBeenCalled();
   });
 
   it('ignores start requests without the flag', async () => {

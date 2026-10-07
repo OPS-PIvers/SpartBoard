@@ -124,7 +124,7 @@ describe('UnmappedAnchorsSection', () => {
     const props = renderSection();
     fireEvent.click(
       within(rowFor('open')).getByRole('button', {
-        name: 'Open in Studio: Clock tour',
+        name: 'Edit Clock tour',
       })
     );
     expect(props.onOpenStep).toHaveBeenCalledWith('set-1', 'step-open');

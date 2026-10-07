@@ -11,7 +11,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet } from '@/types';
 import { mockStageLayout } from '@/tests/utils/mockStageLayout';
-import { TOUR_START_EVENT } from '@/components/tours/tourState';
+import { TOUR_EDIT_EVENT } from '@/components/tours/editor/tourEditStore';
 import {
   DashboardContext,
   type DashboardContextValue,
@@ -535,25 +535,6 @@ describe('GuidedLearningStudio', () => {
       ];
       return set;
     };
-    const reviewBar = () => screen.getByTestId('gl-studio-ai-drafts');
-    const heading = () =>
-      screen.getByRole('heading', { level: 2, name: /^Step \d+$/ });
-
-    it('counts drafts in the header and steps through them with next and previous', () => {
-      renderStudio({ set: draftedSet() });
-      expect(reviewBar()).toHaveTextContent('2 AI drafts to review');
-      fireEvent.click(screen.getByRole('button', { name: 'Next AI draft' }));
-      expect(heading()).toHaveTextContent('Step 1');
-      fireEvent.click(screen.getByRole('button', { name: 'Next AI draft' }));
-      expect(heading()).toHaveTextContent('Step 3');
-      fireEvent.click(screen.getByRole('button', { name: 'Next AI draft' }));
-      expect(heading()).toHaveTextContent('Step 1');
-      fireEvent.click(
-        screen.getByRole('button', { name: 'Previous AI draft' })
-      );
-      expect(heading()).toHaveTextContent('Step 3');
-    });
-
     it('clears a step once its text is edited', () => {
       renderStudio({ set: draftedSet(), initialStepId: 'step-1' });
       expect(screen.getByText('AI draft')).toBeInTheDocument();
@@ -561,29 +542,25 @@ describe('GuidedLearningStudio', () => {
         target: { value: 'Press Start' },
       });
       expect(screen.queryByText('AI draft')).toBeNull();
-      expect(reviewBar()).toHaveTextContent('1 AI draft to review');
     });
 
-    it('clears a step marked reviewed, saves that, and hides the header when none are left', async () => {
+    it('clears a step marked reviewed, undoably, and saves that', async () => {
       const { onSave, onClose } = renderStudio({
         set: draftedSet(),
         initialStepId: 'step-1',
       });
       fireEvent.click(screen.getByRole('button', { name: 'Mark reviewed' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Next AI draft' }));
-      expect(heading()).toHaveTextContent('Step 3');
-      fireEvent.click(screen.getByRole('button', { name: 'Mark reviewed' }));
-      expect(screen.queryByTestId('gl-studio-ai-drafts')).toBeNull();
+      expect(screen.queryByText('AI draft')).toBeNull();
 
       // Undo brings the marker back, since review is one history entry.
       fireEvent.click(screen.getByTestId('gl-studio-undo'));
-      expect(reviewBar()).toHaveTextContent('1 AI draft to review');
+      expect(screen.getByText('AI draft')).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Mark reviewed' }));
 
       fireEvent.click(screen.getByRole('button', { name: 'Close editor' }));
       await waitFor(() => expect(onClose).toHaveBeenCalled());
       const saved = onSave.mock.calls.at(-1)?.[0] as GuidedLearningSet;
-      expect(saved.steps.some((s) => 'aiDraft' in s)).toBe(false);
+      expect(saved.steps.map((s) => !!s.aiDraft)).toEqual([false, false, true]);
       expect(saved.steps[0].text).toBe('Click **Start**');
     });
 
@@ -597,8 +574,8 @@ describe('GuidedLearningStudio', () => {
       const saved = onSave.mock.calls.at(-1)?.[0] as GuidedLearningSet;
       expect(saved.steps.filter((s) => s.aiDraft)).toHaveLength(2);
       cleanup();
-      renderStudio({ set: saved });
-      expect(reviewBar()).toHaveTextContent('2 AI drafts to review');
+      renderStudio({ set: saved, initialStepId: 'step-3' });
+      expect(screen.getByText('AI draft')).toBeInTheDocument();
     });
   });
 
@@ -652,7 +629,7 @@ describe('GuidedLearningStudio', () => {
     ).toHaveAttribute('aria-pressed', 'true');
   });
 
-  describe('Run live on my board', () => {
+  describe('Edit on the board', () => {
     const tourSet = (isBuilding = true): GuidedLearningSet => {
       const base = buildSet();
       return {
@@ -665,51 +642,46 @@ describe('GuidedLearningStudio', () => {
         })),
       };
     };
+    const editButton = () =>
+      screen.queryByRole('button', { name: 'Edit on the board' });
 
-    it('is offered only for a building set with live steps, behind the live tours flag', () => {
+    it('is offered only for a building tour set, behind the live tours flag', () => {
       renderStudio({ set: tourSet() });
-      expect(screen.queryByRole('button', { name: /Run live/ })).toBeNull();
+      expect(editButton()).toBeNull();
       cleanup();
       features.add('gl-live-tours');
       renderStudio({ set: tourSet(false) });
-      expect(screen.queryByRole('button', { name: /Run live/ })).toBeNull();
+      expect(editButton()).toBeNull();
       cleanup();
-      renderStudio({ set: buildSet() });
-      expect(screen.queryByRole('button', { name: /Run live/ })).toBeNull();
-    });
-
-    it('shows the Live tour link for a selected step only on building sets', () => {
-      features.add('gl-live-tours');
-      renderStudio({ set: tourSet(false) });
-      act(() => {
-        pressKey(']');
-      });
-      expect(screen.queryByTestId('gl-studio-tour-controls')).toBeNull();
+      renderStudio({ set: { ...buildSet(), isBuilding: true } });
+      expect(editButton()).toBeNull();
       cleanup();
       renderStudio({ set: tourSet() });
-      act(() => {
-        pressKey(']');
-      });
-      expect(screen.getByTestId('gl-studio-tour-controls')).toBeInTheDocument();
+      expect(editButton()).toBeInTheDocument();
     });
 
-    it('closes the Studio and starts the saved draft on the board', async () => {
+    it('saves, closes the Studio and opens the set in the board editor', async () => {
       features.add('gl-live-tours');
-      const started = vi.fn();
-      const onStart = (e: Event) => {
-        started((e as CustomEvent<unknown>).detail);
+      const requested = vi.fn();
+      const onEdit = (e: Event) => {
+        requested((e as CustomEvent<unknown>).detail);
       };
-      window.addEventListener(TOUR_START_EVENT, onStart);
+      window.addEventListener(TOUR_EDIT_EVENT, onEdit);
       try {
-        const { onClose } = renderStudio({ set: tourSet() });
-        fireEvent.click(
-          screen.getByRole('button', { name: 'Run live on my board' })
-        );
+        const { onClose, onSave } = renderStudio({ set: tourSet() });
+        fireEvent.change(screen.getByLabelText('Activity title'), {
+          target: { value: 'Edited tour' },
+        });
+        const button = editButton();
+        if (!button) throw new Error('no Edit on the board button');
+        fireEvent.click(button);
         await waitFor(() => expect(onClose).toHaveBeenCalled());
-        // The Studio runs the saved draft, not the published snapshot.
-        expect(started).toHaveBeenCalledWith({ setId: 'set-1', draft: true });
+        expect(onSave.mock.lastCall?.[0]).toMatchObject({
+          title: 'Edited tour',
+        });
+        expect(requested).toHaveBeenCalledWith({ setId: 'set-1' });
       } finally {
-        window.removeEventListener(TOUR_START_EVENT, onStart);
+        window.removeEventListener(TOUR_EDIT_EVENT, onEdit);
       }
     });
   });

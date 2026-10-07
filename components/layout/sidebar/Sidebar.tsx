@@ -66,6 +66,7 @@ import {
   TOUR_RECORD_EVENT,
   TOUR_START_EVENT,
 } from '@/components/tours/tourState';
+import { TOUR_EDIT_EVENT } from '@/components/tours/editor/tourEditStore';
 
 declare const __APP_VERSION__: string;
 
@@ -208,7 +209,7 @@ export const Sidebar: React.FC = () => {
 
   const [showAdminSettings, setShowAdminSettings] = useState(false);
 
-  // Recording and live tours can start from Admin Settings; get out of the way of the board.
+  // Recording, editing and live tours can start from Admin Settings; get out of the way of the board.
   useEffect(() => {
     const clearBoard = () => {
       setShowAdminSettings(false);
@@ -216,9 +217,11 @@ export const Sidebar: React.FC = () => {
     };
     window.addEventListener(TOUR_RECORD_EVENT, clearBoard);
     window.addEventListener(TOUR_START_EVENT, clearBoard);
+    window.addEventListener(TOUR_EDIT_EVENT, clearBoard);
     return () => {
       window.removeEventListener(TOUR_RECORD_EVENT, clearBoard);
       window.removeEventListener(TOUR_START_EVENT, clearBoard);
+      window.removeEventListener(TOUR_EDIT_EVENT, clearBoard);
     };
   }, []);
   const [settingsModalSection, setSettingsModalSection] =

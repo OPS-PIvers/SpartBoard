@@ -8,9 +8,12 @@ import {
   clearTourEdit,
   getTourEdit,
   getTourEditPlayback,
+  onTourEditShot,
+  retakeTourEditThumbnail,
   selectTourEditStep,
   setTourEdit,
   setTourEditRecording,
+  type TourEditShot,
 } from './tourEditStore';
 
 const h = vi.hoisted(() => {
@@ -81,6 +84,8 @@ vi.mock('@/context/useDashboard', () => ({
 }));
 vi.mock('@/hooks/useGuidedLearning', () => ({ loadBuildingSet: vi.fn() }));
 vi.mock('../publishedTours', () => ({ loadRunnableTour: vi.fn() }));
+const snap = vi.hoisted(() => ({ capture: vi.fn() }));
+vi.mock('../stepSnapshot', () => ({ captureStepSnapshot: snap.capture }));
 
 type Binding = {
   anchor: string;
@@ -154,6 +159,12 @@ beforeEach(() => {
   h.board.widgets = [];
   Object.values(h.actions).forEach((fn) => fn.mockClear());
   Object.values(clicks).forEach((fn) => fn.mockClear());
+  snap.capture.mockReset();
+  snap.capture.mockResolvedValue({
+    frame: new Blob(['shot']),
+    boxes: [],
+    placement: { xPct: 50, yPct: 50 },
+  });
 });
 
 afterEach(() => {
@@ -275,5 +286,47 @@ describe('LiveTourRunner edit mode', () => {
     await run(100);
     expect(screen.queryByText('Step 1')).not.toBeInTheDocument();
     expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
+  });
+
+  describe('thumbnails', () => {
+    const shots: TourEditShot[] = [];
+    let stop: () => void = () => undefined;
+    beforeEach(() => {
+      shots.length = 0;
+      stop = onTourEditShot((shot) => shots.push(shot));
+    });
+    afterEach(() => stop());
+
+    it('pictures the step it stops on when the step has no picture', async () => {
+      await edit(makeSet(STEPS));
+      await run(1000);
+      expect(shots).toHaveLength(1);
+      expect(shots[0]).toMatchObject({
+        stepId: 's0',
+        tour: { anchor: 'sidebar.boards' },
+      });
+    });
+
+    it('keeps a current picture until Retake, then takes one new picture', async () => {
+      const set = makeSet(STEPS);
+      set.steps[0].tour = {
+        anchor: 'sidebar.boards',
+        action: 'click',
+        thumbnail: { url: 'u', anchor: 'sidebar.boards', w: 1, h: 1 },
+      };
+      await edit(set);
+      await run(1000);
+      expect(shots).toHaveLength(0);
+      act(() => retakeTourEditThumbnail('s0'));
+      await run(1000);
+      expect(shots).toHaveLength(1);
+      expect(snap.capture).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not picture steps it fast-forwards through', async () => {
+      await edit(makeSet(STEPS), 2);
+      await run(3000);
+      expect(shots.map((s) => s.stepId)).toEqual(['s2']);
+    });
   });
 });
