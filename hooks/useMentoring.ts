@@ -324,13 +324,6 @@ export async function copyTemplateIntoWorkspaces(
         addedAt: Date.now(),
       });
     } catch (err) {
-      if (drive && copyId) {
-        await drive
-          .trashFile(copyId)
-          .catch((e: unknown) =>
-            logError('copyTemplateIntoWorkspaces.trash', e, { plcId: plc.id })
-          );
-      }
       logError('copyTemplateIntoWorkspaces', err, {
         plcId: plc.id,
         workspaceId: ws.id,
