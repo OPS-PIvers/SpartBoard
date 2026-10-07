@@ -24,6 +24,7 @@ import { PlcTrashBody } from '@/components/plc/settings/PlcTrashBody';
 import { PlcMeetingCadenceSection } from '@/components/plc/settings/PlcMeetingCadenceSection';
 import { PlcNormingLevelsSection } from '@/components/plc/norming/PlcNormingLevelsSection';
 import { PlcGradebookSection } from '@/components/plc/settings/PlcGradebookSection';
+import { TeamCalendarSettings } from '@/components/plc/teams/building/TeamCalendarSettings';
 
 interface PlcSettingsTabProps {
   plc: Plc;
@@ -243,6 +244,8 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
       )}
 
       {canAccessFeature('gradebook') && <PlcGradebookSection plc={plc} />}
+
+      {canAccessFeature('teams-redesign') && <TeamCalendarSettings plc={plc} />}
 
       {/* Notifications — opt-in weekly email digest (Decision 2.3). Any
           member can flip it; default OFF. */}

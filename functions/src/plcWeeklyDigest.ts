@@ -64,6 +64,12 @@ export const MAX_ACTIVITY_PER_PLC = 500;
 /** Max event lines rendered in a single digest body (the long tail is summarised by count). */
 export const MAX_DIGEST_LINES = 25;
 
+/** Team updates (TEAMS_REDESIGN T27) join the digest only where the lead has this flag. */
+export const TEAMS_REDESIGN_FEATURE_ID = 'teams-redesign';
+
+/** Max update docs scanned per team per run. */
+export const MAX_UPDATES_PER_PLC = 50;
+
 // ───────────────────────── types (local — no shared tsconfig) ──────────────
 
 export interface DigestEmailConfig {
@@ -92,6 +98,18 @@ export interface DigestActivityEvent {
   actorName: string;
   targetTitle?: string;
   createdAt: number;
+}
+
+/** A team update marked "Include in weekly email". */
+export interface DigestUpdate {
+  title: string;
+  authorName: string;
+  createdAt: number;
+}
+
+export interface DigestDeps {
+  /** Whether a lead has the teams-redesign flag; absent means updates are left out. */
+  updatesGranted?: (email: string | null, uid: string) => Promise<boolean>;
 }
 
 // ───────────────────────── pure helpers (exported for tests) ───────────────
@@ -174,12 +192,19 @@ export function describeDigestEvent(event: DigestActivityEvent): string {
 export function buildPlcDigestEmail(opts: {
   plcName: string;
   events: DigestActivityEvent[];
+  updates?: DigestUpdate[];
 }): { subject: string; text: string; html: string } {
   const { plcName, events } = opts;
+  const updates = [...(opts.updates ?? [])]
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, MAX_DIGEST_LINES);
   const sorted = [...events].sort((a, b) => b.createdAt - a.createdAt);
   const shown = sorted.slice(0, MAX_DIGEST_LINES);
   const overflow = sorted.length - shown.length;
-  const count = sorted.length;
+  const count = sorted.length + updates.length;
+  const updateLines = updates.map((u) =>
+    u.authorName.trim() ? `${u.title} (${u.authorName.trim()})` : u.title
+  );
 
   const subject =
     count === 1
@@ -190,6 +215,9 @@ export function buildPlcDigestEmail(opts: {
   const textLines = [
     `Here's what happened in your Professional Learning Community "${plcName}" this past week.`,
     '',
+    ...(updateLines.length > 0
+      ? ['Updates', ...updateLines.map((l) => `• ${l}`), '']
+      : []),
     ...lines.map((l) => `• ${l}`),
   ];
   if (overflow > 0) {
@@ -210,6 +238,17 @@ export function buildPlcDigestEmail(opts: {
         )}</td></tr>`
     )
     .join('');
+  const updatesHtml =
+    updateLines.length > 0
+      ? `<tr><td style="padding:0 0 4px 0;color:#1d2a5d;font-size:14px;font-weight:600;">Updates</td></tr>${updateLines
+          .map(
+            (l) =>
+              `<tr><td style="padding:6px 0;color:#334155;font-size:14px;line-height:1.5;border-bottom:1px solid #f1f5f9;">${escapeHtml(
+                l
+              )}</td></tr>`
+          )
+          .join('')}<tr><td style="padding:0 0 12px 0;"></td></tr>`
+      : '';
   const overflowHtml =
     overflow > 0
       ? `<tr><td style="padding:8px 0 0 0;color:#64748b;font-size:13px;">…and ${overflow} more update${
@@ -231,6 +270,7 @@ export function buildPlcDigestEmail(opts: {
           </td></tr>
           <tr><td>
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              ${updatesHtml}
               ${itemHtml}
               ${overflowHtml}
             </table>
@@ -366,6 +406,46 @@ async function readWindowedActivity(
   return events;
 }
 
+/** In-window updates the lead marked for the weekly email. */
+async function readWindowedUpdates(
+  plcRef: admin.firestore.DocumentReference,
+  now: number
+): Promise<DigestUpdate[]> {
+  const snap = await plcRef
+    .collection('updates')
+    .orderBy('createdAt', 'desc')
+    .limit(MAX_UPDATES_PER_PLC)
+    .get();
+  const out: DigestUpdate[] = [];
+  for (const doc of snap.docs) {
+    const data = doc.data();
+    if (data.inDigest !== true || typeof data.title !== 'string') continue;
+    if (!isWithinDigestWindow(data.createdAt, now)) continue;
+    out.push({
+      title: data.title,
+      authorName: typeof data.authorName === 'string' ? data.authorName : '',
+      createdAt: toMillis(data.createdAt),
+    });
+  }
+  return out;
+}
+
+/** The lead's uid and email, from the members map or the legacy mirror. */
+export function leadIdentity(
+  plc: Record<string, unknown>
+): { uid: string; email: string | null } | null {
+  const uid = typeof plc.leadUid === 'string' ? plc.leadUid : '';
+  if (!uid) return null;
+  const members = (plc.members ?? {}) as Record<string, { email?: unknown }>;
+  const emails = (plc.memberEmails ?? {}) as Record<string, unknown>;
+  const raw = members[uid]?.email ?? emails[uid];
+  return {
+    uid,
+    email:
+      typeof raw === 'string' && raw.includes('@') ? raw.toLowerCase() : null,
+  };
+}
+
 interface DigestRunCounts {
   plcsConsidered: number;
   optedIn: number;
@@ -381,8 +461,19 @@ interface DigestRunCounts {
  */
 export async function runPlcWeeklyDigest(
   db: Firestore,
-  now: number = Date.now()
+  now: number = Date.now(),
+  deps: DigestDeps = {}
 ): Promise<DigestRunCounts> {
+  const grantedByLead = new Map<string, Promise<boolean>>();
+  const updatesOnFor = (plc: Record<string, unknown>): Promise<boolean> => {
+    const lead = leadIdentity(plc);
+    if (!deps.updatesGranted || !lead) return Promise.resolve(false);
+    const cached = grantedByLead.get(lead.uid);
+    if (cached) return cached;
+    const check = deps.updatesGranted(lead.email, lead.uid).catch(() => false);
+    grantedByLead.set(lead.uid, check);
+    return check;
+  };
   const counts: DigestRunCounts = {
     plcsConsidered: 0,
     optedIn: 0,
@@ -419,7 +510,10 @@ export async function runPlcWeeklyDigest(
       counts.optedIn += 1;
 
       const events = await readWindowedActivity(plcDoc.ref, now);
-      if (events.length === 0) {
+      const updates = (await updatesOnFor(plc))
+        ? await readWindowedUpdates(plcDoc.ref, now)
+        : [];
+      if (events.length === 0 && updates.length === 0) {
         counts.skippedNoActivity += 1;
         continue;
       }
@@ -431,7 +525,7 @@ export async function runPlcWeeklyDigest(
       }
 
       const plcName = typeof plc.name === 'string' ? plc.name : 'your PLC';
-      const body = buildPlcDigestEmail({ plcName, events });
+      const body = buildPlcDigestEmail({ plcName, events, updates });
 
       // ONE mail doc per PLC (NO per-member fan-out, §8). Recipients go in BCC
       // so no teacher sees another's address; the visible To is the sender when
@@ -454,6 +548,7 @@ export async function runPlcWeeklyDigest(
           plcId: plcDoc.id,
           recipients: recipients.length,
           events: events.length,
+          updates: updates.length,
         });
       } catch (err) {
         // Log and continue — a thrown handler would retry the whole weekly run.
@@ -491,7 +586,11 @@ export const plcWeeklyDigest = onSchedule(
   },
   async () => {
     const db = admin.firestore();
-    const counts = await runPlcWeeklyDigest(db);
+    const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+    const counts = await runPlcWeeklyDigest(db, Date.now(), {
+      updatesGranted: (email, uid) =>
+        isGlobalFeatureGranted(db, TEAMS_REDESIGN_FEATURE_ID, email, uid),
+    });
     logger.info('plcWeeklyDigest: run complete', counts);
   }
 );

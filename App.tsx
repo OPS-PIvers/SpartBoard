@@ -283,6 +283,13 @@ const TeamsNotesDevHarness = import.meta.env.DEV
       )
     )
   : null;
+const TeamsB4DevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/plc/teams/building/TeamsB4DevHarness').then(
+        (module) => ({ default: module.TeamsB4DevHarness })
+      )
+    )
+  : null;
 const TeamsPlcDataDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/plc/teams/data/dev/TeamsPlcDataDevHarness').then(
@@ -927,6 +934,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <TeamsPlcDataDevHarness />
+      </Suspense>
+    );
+  }
+
+  if (
+    import.meta.env.DEV &&
+    TeamsB4DevHarness &&
+    isAuthBypass &&
+    pathname === '/teams-b4-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TeamsB4DevHarness />
       </Suspense>
     );
   }

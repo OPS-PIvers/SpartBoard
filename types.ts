@@ -460,6 +460,8 @@ export interface Plc {
   layout?: PlcTeamLayout;
   /** Lead or co-lead override of the type's meeting-note template; absent uses the type default (T12). */
   meetingNoteTemplate?: string;
+  /** Google Calendar embed URL the lead attaches (TEAMS_REDESIGN T28). */
+  calendarEmbedUrl?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -553,6 +555,32 @@ export interface PlcTeamLayout {
   landing: TeamPageId;
   cards: TeamCardId[];
   hero: TeamHero;
+}
+
+/** `plcs/{id}/updates/{updateId}`: a post from a lead or co-lead (TEAMS_REDESIGN T27). */
+export interface PlcUpdate {
+  id: string;
+  title: string;
+  body: string;
+  linkUrl?: string;
+  attachment?: { name: string; url: string };
+  requiresAck: boolean;
+  /** Included in the weekly email digest. */
+  inDigest: boolean;
+  pinned: boolean;
+  /** uid → true for each member who reacted. */
+  reactions: Record<string, true>;
+  authorUid: string;
+  authorName: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** `plcs/{id}/updates/{updateId}/acks/{uid}`: a member's acknowledgement. */
+export interface PlcUpdateAck {
+  uid: string;
+  name: string;
+  ackedAt: number;
 }
 
 /** One group type's district default in `admin_settings/team_type_defaults` (T3). */
