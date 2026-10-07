@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "arts-letters-agenda",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-07T19:54:07.424Z",
+  "gradedAt": "2026-10-07T19:59:42.681Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -10,7 +10,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "I5": {
@@ -18,7 +18,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "S1": {
@@ -30,15 +30,15 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\envelope-min__empty.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\envelope-min__typical.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\envelope-min__stress.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\envelope-min__empty.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\envelope-min__typical.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\envelope-min__stress.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "At 150×100 the title, descriptions and reset button drop away, leaving three tappable circles with the Launch/Learn/Land names legible.",
+      "note": "At 150x100 the title, descriptions and reset button disappear so only the three big step names and tappable checks remain, but the checks are small (about 14px) and the title is lost.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "S2": {
@@ -50,15 +50,15 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\large-1400x900__typical.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\large-1400x900__stress.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\large-1400x900__typical.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\large-1400x900__stress.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "At 1400×900 the titles, descriptions and checkboxes scale up proportionally and fill the card with readable line lengths, though each row keeps empty space under the text.",
+      "note": "At 1400x900 the title, step names and checkboxes scale up proportionally and fill the card, though the description text hugs the top-left of each tall white row.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "S3": {
@@ -70,69 +70,69 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\widest-aspect__typical.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\widest-aspect__stress.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\tallest-aspect__typical.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\tallest-aspect__stress.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\widest-aspect__typical.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\widest-aspect__stress.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\tallest-aspect__typical.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\tallest-aspect__stress.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "The widest shape reflows into three side-by-side cards while the tallest keeps a single stacked column, so the layout changes at the extremes.",
+      "note": "At 1400x350 the three steps reflow into a left-to-right row of cards, and at 225x900 they stack in a column with a smaller title, so the layout changes with the shape.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "S4": {
-      "score": 2,
+      "score": 3,
       "source": "script",
       "candidates": {
-        "script": 2
+        "script": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "S5": {
-      "score": 2,
+      "score": 3,
       "source": "script",
       "candidates": {
-        "script": 2
+        "script": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__empty.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__stress.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__empty.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__stress.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "S7": {
-      "score": 3,
+      "score": 4,
       "source": "judge",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 4
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\envelope-min__typical.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\envelope-min__typical.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "The widget works at the global 150×100 floor with three rows and is not set above what its content needs.",
+      "note": "The widget stays usable at the 150x100 floor by collapsing to three labeled checks, so it works below what the full content would suggest.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "S8": {
@@ -144,15 +144,15 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\maximized-1920x1080__empty.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\maximized-1920x1080__typical.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\maximized-1920x1080__stress.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\maximized-1920x1080__empty.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\maximized-1920x1080__typical.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\maximized-1920x1080__stress.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "At 1920×1080 the type is huge and readable, but it is the same card layout enlarged, with big empty areas in each row and a tiny Reset Checks button.",
+      "note": "Maximized is the same stacked card layout enlarged, with big type but plenty of empty white inside each row and the small reset pill still tucked at the bottom.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "I1": {
@@ -163,12 +163,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "I2": {
@@ -179,12 +179,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "I3": {
@@ -196,12 +196,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "I4": {
@@ -212,30 +212,30 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "I6": {
-      "score": 3,
+      "score": 2,
       "source": "judge",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "Checkboxes switch to green checks with struck-through text, and Reset Checks visibly fades when there is nothing to reset.",
+      "note": "Checked rows show a green check and strikethrough and reset visibly disables when nothing is checked, but the screenshot shows no distinct pressed or hover state on the checkboxes.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "I7": {
@@ -246,16 +246,16 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\envelope-min__typical__selected.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical__selected.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\large-1400x900__typical__selected.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\widest-aspect__typical__selected.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\tallest-aspect__typical__selected.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\envelope-min__typical__selected.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical__selected.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\large-1400x900__typical__selected.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\widest-aspect__typical__selected.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\tallest-aspect__typical__selected.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "V1": {
@@ -267,13 +267,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "The default view is clean, with rounded white row cards, consistent radii, no emoji and no heavy gradients or shadows.",
+      "note": "Clean white rows on a soft glass card with one icon style and consistent radii, and no ban-list hits.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "V2": {
@@ -285,14 +285,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__stress.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__stress.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "The purpose (a three-step agenda with checkboxes) reads at a glance and the face holds only the title, three rows and one small reset button.",
+      "note": "The purpose reads at a glance from three short big words with checks, and the face has just a title, three rows and one reset pill.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "V3": {
@@ -304,13 +304,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "Large bold step names lead each row, with smaller italic descriptions and a tiny reset pill stepping down, though the header title is also heavy.",
+      "note": "The bold step names are clearly primary and the italic descriptions and small reset pill step down, though the title competes slightly with the step names.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "V4": {
@@ -322,13 +322,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "The reset control uses the shared Button/IconButton with no one-off colors or radii, but the checkbox is a raw control and no shared empty state is used.",
+      "note": "It uses shared Button and IconButton with no one-off colors or radii, though there is one raw control and no scaled empty state.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "V5": {
@@ -339,12 +339,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "V6": {
@@ -356,13 +356,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "Labels are short and plain (Launch, Learn, Land, Reset Checks) and the icons all come from lucide-react with no copy violations.",
+      "note": "The labels (Launch, Learn, Land, Reset checks) are short and plain and all icons come from lucide-react.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "C1": {
@@ -374,13 +374,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "Descriptions and checks are editable, but the three-part Launch/Learn/Land structure and its titles look fixed, and the settings screenshot did not show the drawer.",
+      "note": "Step names and descriptions are editable, but the three-step structure, title and reset behavior look fixed and there is no visible control for the number of steps or the layout.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "C2": {
@@ -392,13 +392,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical__settings.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical__settings.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "The settings screenshot shows no visible drawer, only the widget with a sliver of a panel at the right edge, so no clear grouping can be credited.",
+      "note": "The settings view does not clearly show a drawer, and the screenshot gives no evidence of common settings first with advanced ones collapsed.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "C3": {
@@ -410,13 +410,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__empty.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__empty.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "With no configuration the widget shows the title and Launch, Learn and Land rows with checkboxes, which is usable and good-looking.",
+      "note": "The empty fixture already shows Launch, Learn and Land with unchecked boxes, which is a useful, good-looking default.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "C5": {
@@ -428,13 +428,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__empty.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__empty.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "The empty face shows three blank rows with no text saying how to add descriptions or what to do next.",
+      "note": "The empty face shows only bare step names with blank description rows and no prompt saying how to add or edit the content.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "R1": {
@@ -446,14 +446,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__empty.png",
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__empty.png",
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "The empty state is a designed view of bare rows, but it does not use a shared empty-state component and no error or offline view appears.",
+      "note": "The empty and filled states are designed, but nothing shows loading, error or offline views for a widget with no data dependencies.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "R2": {
@@ -464,12 +464,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "R3": {
@@ -480,12 +480,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "R4": {
@@ -497,13 +497,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "The face shows only lesson-agenda text and checkboxes, with no student names or protected data.",
+      "note": "The widget holds only teacher-authored agenda text and no student data, so nothing protected appears on the face.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "E1": {
@@ -515,13 +515,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "No linked-widget state shows on the face and obvious connections, such as a schedule or timer, appear to be missing.",
+      "note": "Nothing on the face shows any link to other widgets such as a schedule, timer or lesson plan, so obvious connections are missing.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     },
     "E3": {
@@ -533,13 +533,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07c\\screenshots\\arts-letters-agenda\\default__typical.png"
+          "scripts\\widget-grader\\out\\grade-2026-10-07d\\screenshots\\arts-letters-agenda\\default__typical.png"
         ],
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "note": "The widget has two folder tests, five small files (largest 161 lines), and no any-types, dashboard hook calls or derived-state effects.",
+      "note": "Two tests exist for the widget folder, files are small (largest 161 lines) and there are no any types, useDashboard calls or effect violations.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T19:54:07.424Z",
+      "gradedAt": "2026-10-07T19:59:42.681Z",
       "stale": false
     }
   },
@@ -547,30 +547,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "gradedAt": "2026-10-07T19:54:07.424Z"
+      "gradedAt": "2026-10-07T19:59:42.681Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "gradedAt": "2026-10-07T19:54:07.424Z"
+      "gradedAt": "2026-10-07T19:59:42.681Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "gradedAt": "2026-10-07T19:54:07.424Z"
+      "gradedAt": "2026-10-07T19:59:42.681Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "grade-2026-10-07c"
+        "runId": "grade-2026-10-07d"
       },
-      "gradedAt": "2026-10-07T19:54:07.424Z"
+      "gradedAt": "2026-10-07T19:59:42.681Z"
     }
   }
 }
