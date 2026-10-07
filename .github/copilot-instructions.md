@@ -82,7 +82,7 @@ The ESLint config (`eslint.config.js`) uses `typescript-eslint` with type-checke
 
 ### Prettier Formatting
 
-All files must match Prettier formatting. Run `pnpm run format` to auto-format. Run `pnpm run format:check` to verify. The `prettier` ESLint plugin reports formatting violations as errors.
+All files must match Prettier formatting. Run `pnpm run format` to auto-format. Run `pnpm run format:check` to verify. ESLint no longer checks formatting; CI's `format:check` and the pre-commit `prettier --write` enforce it.
 
 ### Build Commands
 
