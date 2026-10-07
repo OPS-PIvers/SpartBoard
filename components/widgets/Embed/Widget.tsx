@@ -11,6 +11,7 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
+  RefreshCw,
 } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import {
@@ -30,6 +31,7 @@ import { Z_INDEX } from '@/config/zIndex';
 
 import { applyAutoplay } from './applyAutoplay';
 import { applyStartAt } from './applyStartAt';
+import { applyLinkedSlide } from './applyLinkedSlide';
 
 const NEW_WIDGET_SPACING = 20;
 const TOOLBAR_GAP = 6;
@@ -40,6 +42,8 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { canAccessFeature } = useAuth();
   const canGenerateApp =
     canAccessFeature('gemini-functions') && canAccessFeature('embed-mini-app');
+  const canReload = canAccessFeature('embed-reload');
+  const keepLinkedSlide = canAccessFeature('embed-slide-link');
   const buildingId = useWidgetBuildingId(widget);
   const { config: globalConfig } = useEmbedConfig(buildingId);
   const { getDriveFileTextContent } = useGoogleDrive();
@@ -215,8 +219,13 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // When autoplay is enabled, append ?autoplay=1 for supported hosts
   // and apply the YouTube start-at offset (no-op for non-YouTube hosts).
   const finalEmbedUrl = React.useMemo(
-    () => applyStartAt(applyAutoplay(embedUrl, autoplay), startAtSeconds),
-    [embedUrl, autoplay, startAtSeconds]
+    () =>
+      applyLinkedSlide(
+        applyStartAt(applyAutoplay(embedUrl, autoplay), startAtSeconds),
+        sanitizedUrl,
+        keepLinkedSlide
+      ),
+    [embedUrl, autoplay, startAtSeconds, sanitizedUrl, keepLinkedSlide]
   );
 
   const [refreshKey, setRefreshKey] = useState(0);
@@ -520,6 +529,25 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                         }}
                       />
                     )}
+                  </button>
+                )}
+                {canReload && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRefreshKey((prev) => prev + 1);
+                    }}
+                    className="bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-blue-500 shadow-sm border border-slate-200/50 rounded-lg transition-colors flex items-center justify-center"
+                    style={{ padding: 'min(8px, 1vmin)' }}
+                    title="Reload to get the latest content"
+                    aria-label="Reload embedded content"
+                  >
+                    <RefreshCw
+                      style={{
+                        width: 'min(16px, 2vmin)',
+                        height: 'min(16px, 2vmin)',
+                      }}
+                    />
                   </button>
                 )}
                 {displayMode === 'url' && sanitizedUrl && (

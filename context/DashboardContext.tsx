@@ -1785,6 +1785,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       handleDeferredWriteFailed,
     ]
   );
+  // Read through a ref so a Drive token refresh doesn't re-run the dashboards subscription.
+  const saveDashboardRef = useRef(saveDashboard);
+  saveDashboardRef.current = saveDashboard;
 
   /**
    * Persist a couple of named board fields without touching the rest of the
@@ -2678,7 +2681,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             setLoading(false);
             return;
           }
-          void saveDashboard(defaultDb)
+          void saveDashboardRef
+            .current(defaultDb)
             .then(() => {
               setToasts((prev) => [
                 ...prev,
@@ -2707,7 +2711,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       migrationStartedForUidRef.current !== user.uid
     ) {
       migrationStartedForUidRef.current = user.uid;
-      migrateLocalStorageToFirestore(user.uid, saveDashboard)
+      migrateLocalStorageToFirestore(user.uid, (db) =>
+        saveDashboardRef.current(db)
+      )
         .then((count) => {
           if (count > 0) {
             setToasts((prev) => [
@@ -2745,7 +2751,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     user,
     subscribeToDashboards,
     migrated,
-    saveDashboard,
     updateActiveId,
     roleId,
     isStudentRole,
