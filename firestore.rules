@@ -3789,6 +3789,24 @@ service cloud.firestore {
         return added.size() == 0
           || (added.size() == 1 && added[0] is map && mentHttps(added[0].get('url', null)));
       }
+      // A pair member marks one task submitted only alongside their own submission doc.
+      function mentStatusEntryOk(id, wsId, k, after) {
+        let sub = getAfter(/databases/$(database)/documents/plcs/$(id)/workspaces/$(wsId)/submissions/$(k)).data;
+        return k in after && after[k] is map
+          && after[k].keys().hasOnly(['submittedAt', 'submittedBy'])
+          && after[k].submittedBy == authUid()
+          && sub.submittedBy == authUid()
+          && after[k].submittedAt == sub.submittedAt;
+      }
+      // Entries are only ever added, one per write.
+      function mentStatusOk(id, wsId) {
+        let before = existing().get('taskStatus', {});
+        let after = incoming().get('taskStatus', {});
+        let added = after.keys().removeAll(before.keys());
+        return after.diff(before).affectedKeys().size() == added.size()
+          && (added.size() == 0
+            || (added.size() == 1 && mentStatusEntryOk(id, wsId, added[0], after)));
+      }
       function mentWorkspaceContentOk() {
         let d = incoming();
         return d.keys().hasOnly([
@@ -3822,17 +3840,19 @@ service cloud.firestore {
           && incoming().memberUids == [incoming().mentorUid, incoming().menteeUid]
           && mentTagged(mentPlc(plcId), incoming().mentorUid, 'mentor')
           && mentTagged(mentPlc(plcId), incoming().menteeUid, 'mentee')
+          && incoming().get('taskStatus', {}).size() == 0
           && mentWorkspaceContentOk();
         allow update: if mentWorkspaceContentOk()
           && (
             (mentFacilitator(plcId)
               && changedOnly(['docs', 'mentorName', 'menteeName', 'updatedAt']))
             || (mentInPair(plcId, existing()) && plcEditor(plcId)
-              && changedOnly(['actionItems', 'docs', 'taskStatus', 'updatedAt']))
+              && changedOnly(['actionItems', 'docs', 'taskStatus', 'updatedAt'])
+              && mentStatusOk(plcId, workspaceId))
           );
         allow delete: if mentFacilitator(plcId);
 
-        // Check-in notes: the pair writes; facilitators read.
+        // Check-in notes: the pair writes; facilitators read and clear them with the pair.
         match /checkins/{checkinId} {
           allow read: if mentFacilitator(plcId)
             || mentInPair(plcId, mentWs(plcId, workspaceId));
@@ -3850,10 +3870,11 @@ service cloud.firestore {
               : unchanged('createdBy') && unchanged('createdAt'))
             && plcSubTimeFieldOk('createdAt')
             && plcSubTimeFieldOk('updatedAt');
-          allow delete: if mentInPair(plcId, mentWs(plcId, workspaceId)) && plcEditor(plcId);
+          allow delete: if mentFacilitator(plcId)
+            || (mentInPair(plcId, mentWs(plcId, workspaceId)) && plcEditor(plcId));
         }
 
-        // One submission per task, by whoever the task names; facilitators read.
+        // One submission per task, by whoever the task names; facilitators read and clear them with the pair.
         match /submissions/{subTaskId} {
           function mentMaySubmit(ws) {
             let who = get(/databases/$(database)/documents/plcs/$(plcId)/tasks/$(subTaskId)).data.submitter;
@@ -3875,7 +3896,7 @@ service cloud.firestore {
             && isStr('submittedByName')
             && (!('docUrl' in incoming()) || mentHttps(incoming().docUrl))
             && plcSubTimeFieldOk('submittedAt');
-          allow delete: if false;
+          allow delete: if mentFacilitator(plcId);
         }
       }
       // ---- end Mentoring program ----

@@ -22,6 +22,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-mentoring';
@@ -354,7 +355,6 @@ describe('workspaces', () => {
         updateDoc(doc(as(uid), WS_PATH), {
           actionItems: [],
           docs: [{ id: 'd', title: 'Goals', url: 'https://docs.google.com/d' }],
-          taskStatus: { t1: { submittedAt: 2, submittedBy: uid } },
           updatedAt: 2,
         })
       );
@@ -487,8 +487,11 @@ describe('check-ins', () => {
     }
     for (const uid of [LEAD, MENTOR_B, MEMBER]) {
       await assertFails(updateDoc(doc(as(uid), C_PATH), { body: 'x' }));
+    }
+    for (const uid of [MENTOR_B, MEMBER, VIEWER, OUTSIDER]) {
       await assertFails(deleteDoc(doc(as(uid), C_PATH)));
     }
+    await assertSucceeds(deleteDoc(doc(as(COLEAD), C_PATH)));
     await assertFails(
       setDoc(
         doc(as(MENTOR), `${WS_PATH}/checkins/c2`),
@@ -534,11 +537,86 @@ describe('submissions', () => {
     await assertSucceeds(setDoc(doc(as(MENTEE), S_PATH), submission(MENTEE)));
   });
 
-  it('never deletes a submission', async () => {
+  it('lets only facilitators delete a submission', async () => {
     await seedProgram();
     await seed(S_PATH, submission(MENTEE));
-    for (const uid of [LEAD, MENTEE]) {
+    for (const uid of [MENTOR, MENTEE, MENTOR_B, MEMBER, VIEWER, OUTSIDER]) {
       await assertFails(deleteDoc(doc(as(uid), S_PATH)));
     }
+    await assertSucceeds(deleteDoc(doc(as(LEAD), S_PATH)));
+  });
+});
+
+describe('task status on the workspace', () => {
+  const S_PATH = `${WS_PATH}/submissions/t1`;
+  const mark = (uid: string, at = 2) => ({
+    t1: { submittedAt: at, submittedBy: uid },
+  });
+  const submitWithStatus = (uid: string, status = mark(uid)) => {
+    const fs = as(uid);
+    const batch = writeBatch(fs);
+    batch.set(doc(fs, S_PATH), submission(uid));
+    batch.update(doc(fs, WS_PATH), { taskStatus: status, updatedAt: 2 });
+    return batch.commit();
+  };
+
+  it('lets the named submitter mark a task with its submission', async () => {
+    await seedProgram();
+    await assertSucceeds(submitWithStatus(MENTEE));
+  });
+
+  it('refuses a mentor marking a mentee-only task', async () => {
+    await seedProgram();
+    await assertFails(submitWithStatus(MENTOR));
+    await seed(S_PATH, submission(MENTEE));
+    await assertFails(
+      updateDoc(doc(as(MENTOR), WS_PATH), {
+        taskStatus: mark(MENTOR),
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('refuses marking submitted without a submission', async () => {
+    await seedProgram();
+    for (const uid of [MENTOR, MENTEE]) {
+      await assertFails(
+        updateDoc(doc(as(uid), WS_PATH), {
+          taskStatus: mark(uid),
+          updatedAt: 2,
+        })
+      );
+    }
+  });
+
+  it('refuses a status that does not match the submission, or clearing one', async () => {
+    await seedProgram();
+    await assertFails(submitWithStatus(MENTEE, mark(MENTEE, 99)));
+    await seed(S_PATH, submission(MENTEE));
+    await seed(WS_PATH, { ...workspace(), taskStatus: mark(MENTEE) });
+    await assertFails(
+      updateDoc(doc(as(MENTEE), WS_PATH), { taskStatus: {}, updatedAt: 3 })
+    );
+    await assertFails(
+      updateDoc(doc(as(MENTEE), WS_PATH), {
+        taskStatus: {
+          ...mark(MENTEE),
+          t2: { submittedAt: 2, submittedBy: MENTEE },
+        },
+        updatedAt: 3,
+      })
+    );
+  });
+
+  it('refuses a new pairing that arrives already marked', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await deleteDoc(doc(ctx.firestore(), WS_PATH));
+    });
+    await assertFails(
+      setDoc(doc(as(LEAD), WS_PATH), {
+        ...workspace(),
+        taskStatus: mark(MENTEE),
+      })
+    );
   });
 });

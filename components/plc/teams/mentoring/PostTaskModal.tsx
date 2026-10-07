@@ -1,9 +1,10 @@
 // Facilitators post a required task (T32); the template doc is copied into each workspace.
 
-import React, { useId, useRef, useState } from 'react';
+import React, { useContext, useId, useRef, useState } from 'react';
 import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
 import { INPUT, META } from '@/components/plc/redesignMockup/ui';
+import { DashboardContext } from '@/context/DashboardContextValue';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { postMentoringTask } from '@/hooks/useMentoring';
@@ -22,6 +23,7 @@ export const PostTaskModal: React.FC<{
 }> = ({ plc, workspaces, onClose, onPosted }) => {
   const { user } = useAuth();
   const { driveService } = useGoogleDrive();
+  const addToast = useContext(DashboardContext)?.addToast;
   const id = useId();
   const [title, setTitle] = useState('');
   const [instructions, setInstructions] = useState('');
@@ -42,7 +44,7 @@ export const PostTaskModal: React.FC<{
     setBusy(true);
     setFailed(false);
     try {
-      const taskId = await postMentoringTask(
+      const { taskId, failedPairs } = await postMentoringTask(
         plc,
         {
           title: title.trim(),
@@ -55,6 +57,12 @@ export const PostTaskModal: React.FC<{
         workspaces,
         driveService
       );
+      if (failedPairs.length) {
+        addToast?.(
+          `Failed to share: ${failedPairs.join(', ')}. Try again.`,
+          'error'
+        );
+      }
       onPosted?.(taskId);
       onClose();
     } catch (err) {
