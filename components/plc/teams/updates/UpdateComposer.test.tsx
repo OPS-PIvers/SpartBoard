@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { UpdateComposer } from './UpdateComposer';
 
 const box = () =>
-  screen.getByRole('textbox', {
+  screen.getByRole<HTMLTextAreaElement>('textbox', {
     name: 'Post an update',
   });
 
@@ -16,7 +16,9 @@ describe('UpdateComposer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Post' }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Post' }).disabled).toBe(false)
+      expect(
+        screen.getByRole<HTMLButtonElement>('button', { name: 'Post' }).disabled
+      ).toBe(false)
     );
     expect(box().value).toBe('Fire drill\nNorth stairs');
   });

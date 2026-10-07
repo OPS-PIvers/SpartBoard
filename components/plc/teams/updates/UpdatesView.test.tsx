@@ -126,7 +126,9 @@ describe('UpdatesView edit failure', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(onEdit).toHaveBeenCalledTimes(1));
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Save' }).disabled).toBe(false)
+      expect(
+        screen.getByRole<HTMLButtonElement>('button', { name: 'Save' }).disabled
+      ).toBe(false)
     );
     expect(screen.getByDisplayValue(/Title a/)).toBeTruthy();
   });
