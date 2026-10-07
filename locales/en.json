@@ -4946,5 +4946,13 @@
         "needsHuman": "Needs a person"
       }
     }
+  },
+  "tourPicker": {
+    "prompt": "Click a control for this step",
+    "chooseFromList": "Choose from list",
+    "cancel": "Cancel",
+    "search": "Search controls",
+    "wholeBoard": "Whole board",
+    "noMatches": "No controls match"
   }
 }

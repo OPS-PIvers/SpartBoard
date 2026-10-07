@@ -3896,5 +3896,13 @@
         "needsHuman": "Necesita una persona"
       }
     }
+  },
+  "tourPicker": {
+    "prompt": "Haz clic en un control para este paso",
+    "chooseFromList": "Elegir de la lista",
+    "cancel": "Cancelar",
+    "search": "Buscar controles",
+    "wholeBoard": "Todo el tablero",
+    "noMatches": "Ningún control coincide"
   }
 }
