@@ -33,7 +33,6 @@ import { useOrgBuildings } from '@/hooks/useOrgBuildings';
 import { useOrgDomains } from '@/hooks/useOrgDomains';
 import { useOrgRoles } from '@/hooks/useOrgRoles';
 import { useOrgMembers, type DeleteUserResponse } from '@/hooks/useOrgMembers';
-import { useOrgStudentPage } from '@/hooks/useOrgStudentPage';
 import { useTestClasses } from '@/hooks/useTestClasses';
 import type {
   ActorRole,
@@ -41,7 +40,6 @@ import type {
   DomainRecord,
   OrgRecord,
   RoleRecord,
-  StudentPageConfig,
   UserRecord,
 } from '@/types/organization';
 import { withDerivedUserCounts } from './lib/buildingUserCounts';
@@ -290,11 +288,6 @@ export const OrganizationPanel: React.FC = () => {
     resetPassword,
   } = useOrgMembers(orgScopedOrgId);
   const {
-    studentPage,
-    loading: studentPageLoadingRaw,
-    updateStudentPage,
-  } = useOrgStudentPage(orgScopedOrgId);
-  const {
     testClasses,
     loading: testClassesLoadingRaw,
     addTestClass,
@@ -306,7 +299,6 @@ export const OrganizationPanel: React.FC = () => {
   const domainsLoading = domainsLoadingRaw || isMembershipHydrating;
   const rolesLoading = rolesLoadingRaw || isMembershipHydrating;
   const usersLoading = usersLoadingRaw || isMembershipHydrating;
-  const studentPageLoading = studentPageLoadingRaw || isMembershipHydrating;
   const testClassesLoading = testClassesLoadingRaw || isMembershipHydrating;
 
   const [toast, setToast] = useState<{
@@ -616,10 +608,6 @@ export const OrganizationPanel: React.FC = () => {
         showToast(`Bulk invite failed: ${msg}`, 'error');
       });
   };
-  const handleUpdateStudentPage = (patch: Partial<StudentPageConfig>) => {
-    if (!writesEnabled) return comingSoon('Student page edits');
-    run('Update student page', () => updateStudentPage(patch));
-  };
   // Test-class writes sit behind the same `org-admin-writes` gate so they
   // match the coming-soon behavior of the other admin CRUD flows.
   const handleAddTestClass = (input: {
@@ -715,7 +703,7 @@ export const OrganizationPanel: React.FC = () => {
     buildings: buildingsLoading,
     roles: rolesLoading,
     users: usersLoading || rolesLoading,
-    student: studentPageLoading,
+    student: isMembershipHydrating,
     testClasses: testClassesLoading,
     // The media console owns its own callable-backed loading state.
     mediaReview: isMembershipHydrating,
@@ -947,16 +935,7 @@ export const OrganizationPanel: React.FC = () => {
                   onResetPassword={handleResetPassword}
                 />
               )}
-              {effectiveSection === 'student' &&
-                (studentPage && activeOrg ? (
-                  <StudentPageView
-                    config={studentPage}
-                    orgName={activeOrg.name}
-                    onUpdate={handleUpdateStudentPage}
-                  />
-                ) : (
-                  <PanelEmpty message="Student page config has not been seeded yet." />
-                ))}
+              {effectiveSection === 'student' && <StudentPageView />}
               {effectiveSection === 'app' && <AppSettingsView />}
               {effectiveSection === 'mediaReview' && (
                 <MediaReviewSection orgId={activeOrgId} />

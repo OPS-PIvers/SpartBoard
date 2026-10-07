@@ -152,12 +152,3 @@ export interface CapabilityGroup {
   label: string;
   capabilities: { id: CapabilityId; label: string }[];
 }
-
-export interface StudentPageConfig {
-  orgId: string;
-  showAnnouncements: boolean;
-  showTeacherDirectory: boolean;
-  showLunchMenu: boolean;
-  accentColor: string; // hex
-  heroText: string;
-}
