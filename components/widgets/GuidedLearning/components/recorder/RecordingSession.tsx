@@ -168,6 +168,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
       const recordedFrames = results.map((r, i) => ({
         url: r.url,
         ...sizes[i],
+        ...(r.storagePath ? { storagePath: r.storagePath } : {}),
       }));
       if (canDraftText) setBusy(t('glRecorder.drafting'));
       const goal = title.trim();

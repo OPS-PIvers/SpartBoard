@@ -28,6 +28,8 @@ export interface RecordedFrame {
   url: string;
   w: number;
   h: number;
+  /** Storage path, listed in imagePaths so deleting the set cleans it up. */
+  storagePath?: string;
 }
 
 /** The binding with the frame it was recorded on as its picture. */
@@ -182,12 +184,16 @@ export async function buildRecordedSet(
     opts.id,
     opts.widgets
   );
+  const paths = opts.frames.flatMap((f) =>
+    f.storagePath ? [f.storagePath] : []
+  );
   const set: GuidedLearningSet = {
     id: opts.id,
     schemaVersion: 3,
     title: opts.title,
     // Tour steps play on the real board; slide fields stay at their defaults.
     imageUrls: [],
+    ...(paths.length > 0 ? { imagePaths: paths } : {}),
     steps: recording.steps.map((s, i) => ({
       id: s.id,
       xPct: 50,

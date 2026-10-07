@@ -207,6 +207,10 @@ describe('RecordingSession', () => {
       'https://storage.example/tour-step-1.png',
       'https://storage.example/tour-step-2.png',
     ]);
+    expect(saved.imagePaths).toEqual([
+      'users/admin-1/hotspot_images/tour-step-1.png',
+      'users/admin-1/hotspot_images/tour-step-2.png',
+    ]);
     expect(saved.steps[0]).toMatchObject({
       label: 'Clock widget',
       text: 'Click the clock to add it.',
