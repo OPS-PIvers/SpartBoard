@@ -599,7 +599,7 @@ export interface MentoringTask {
   /** Local calendar date, 'YYYY-MM-DD'. */
   dueDate: string;
   submitter: MentoringSubmitter;
-  templateDoc?: { title: string; url: string } | null;
+  templateDoc?: { title: string; url: string; fileId?: string } | null;
   createdBy: string;
   createdAt: number;
   updatedAt: number;

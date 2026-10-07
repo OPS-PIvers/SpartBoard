@@ -56,7 +56,14 @@ export function parseMentoringTask(
     : null;
   const template =
     isRecord(data.templateDoc) && tplUrl
-      ? { title: str(data.templateDoc.title), url: tplUrl }
+      ? {
+          title: str(data.templateDoc.title),
+          url: tplUrl,
+          ...(typeof data.templateDoc.fileId === 'string' &&
+          data.templateDoc.fileId
+            ? { fileId: data.templateDoc.fileId }
+            : {}),
+        }
       : null;
   return {
     id,
@@ -292,6 +299,25 @@ export function mentoringRoster(
   out.mentor.sort((a, b) => a.name.localeCompare(b.name));
   out.mentee.sort((a, b) => a.name.localeCompare(b.name));
   return out;
+}
+
+const DRIVE_EDIT_PATH: Record<string, string> = {
+  'application/vnd.google-apps.document': 'document',
+  'application/vnd.google-apps.presentation': 'presentation',
+  'application/vnd.google-apps.spreadsheet': 'spreadsheets',
+};
+
+/** An https link to a picked Drive file. */
+export function driveFileUrl(file: { id: string; mimeType: string }): string {
+  const kind = DRIVE_EDIT_PATH[file.mimeType];
+  return kind
+    ? `https://docs.google.com/${kind}/d/${file.id}/edit`
+    : `https://drive.google.com/file/d/${file.id}/view`;
+}
+
+/** Each partner hands in their own submission doc per task. */
+export function submissionIdFor(taskId: string, uid: string): string {
+  return `${taskId}_${uid}`;
 }
 
 /** Deterministic id so a pair has one workspace. */

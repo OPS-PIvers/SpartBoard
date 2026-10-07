@@ -108,7 +108,7 @@ export const WorkspaceScreen: React.FC<
   };
 
   const viewSubmission = async (taskId: string) => {
-    const sub = await getMentoringSubmission(plc.id, ws.id, taskId).catch(
+    const sub = await getMentoringSubmission(plc.id, ws, taskId).catch(
       () => null
     );
     const url = sub?.docUrl ?? taskDoc(taskId)?.url;
@@ -298,12 +298,11 @@ export const FacilitatorWorkspacesScreen: React.FC<{
     });
 
   const openSubmission = async (workspaceId: string) => {
-    if (!task) return;
-    const sub = await getMentoringSubmission(
-      plc.id,
-      workspaceId,
-      task.id
-    ).catch(() => null);
+    const ws = data.workspaces.find((w) => w.id === workspaceId);
+    if (!task || !ws) return;
+    const sub = await getMentoringSubmission(plc.id, ws, task.id).catch(
+      () => null
+    );
     if (sub?.docUrl) setDoc({ title: task.title, url: sub.docUrl });
     else setOpenId(workspaceId);
   };

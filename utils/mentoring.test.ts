@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { MentoringTask, MentoringWorkspace, Plc } from '@/types';
 import {
   canSubmitTask,
+  driveFileUrl,
   dueDeadline,
   httpsUrl,
   mentoringRoster,
@@ -10,6 +11,7 @@ import {
   parseMentoringSubmission,
   parseMentoringTask,
   parseMentoringWorkspace,
+  submissionIdFor,
   summarizeTask,
   toDateKey,
   workspaceIdFor,
@@ -233,5 +235,20 @@ describe('dates', () => {
     expect(toDateKey(at(10, 7))).toBe('2026-10-07');
     expect(dueDeadline('2026-09-30')).toBe(new Date(2026, 9, 1).getTime());
     expect(workspaceIdFor('m', 'e')).toBe('m_e');
+  });
+});
+
+describe('drive links and submission ids', () => {
+  it('links a picked file by type and keys submissions per submitter', () => {
+    expect(
+      driveFileUrl({
+        id: 'a',
+        mimeType: 'application/vnd.google-apps.document',
+      })
+    ).toBe('https://docs.google.com/document/d/a/edit');
+    expect(driveFileUrl({ id: 'b', mimeType: 'application/pdf' })).toBe(
+      'https://drive.google.com/file/d/b/view'
+    );
+    expect(submissionIdFor('t1', 'u1')).toBe('t1_u1');
   });
 });

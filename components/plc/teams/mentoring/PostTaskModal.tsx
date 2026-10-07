@@ -7,10 +7,11 @@ import { INPUT, META } from '@/components/plc/redesignMockup/ui';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { useGooglePicker, type PickedFile } from '@/hooks/useGooglePicker';
 import { postMentoringTask } from '@/hooks/useMentoring';
 import type { MentoringSubmitter, MentoringWorkspace, Plc } from '@/types';
 import { logError } from '@/utils/logError';
-import { MENTORING_SUBMITTERS } from '@/utils/mentoring';
+import { MENTORING_SUBMITTERS, driveFileUrl } from '@/utils/mentoring';
 import { SUBMITTER_LABEL } from './mentoringFormat';
 
 const LABEL = 'mb-1 block text-xs font-semibold text-slate-600';
@@ -29,14 +30,25 @@ export const PostTaskModal: React.FC<{
   const [instructions, setInstructions] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [submitter, setSubmitter] = useState<MentoringSubmitter>('mentee');
-  const [templateUrl, setTemplateUrl] = useState('');
+  const { openPicker } = useGooglePicker();
+  const [template, setTemplate] = useState<PickedFile | null>(null);
+  const [pickError, setPickError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const busyRef = useRef(false);
 
-  const url = templateUrl.trim();
-  const urlOk = !url || /^https:\/\/docs\.google\.com\//.test(url);
-  const canPost = !!title.trim() && !!dueDate && urlOk && !!user;
+  const canPost = !!title.trim() && !!dueDate && !!user;
+
+  const pickTemplate = async () => {
+    setPickError(null);
+    try {
+      const file = await openPicker({ mode: 'docs' });
+      if (file) setTemplate(file);
+    } catch (err) {
+      logError('PostTaskModal.pick', err, { plcId: plc.id });
+      setPickError(err instanceof Error ? err.message : null);
+    }
+  };
 
   const post = async () => {
     if (!canPost || !user || busyRef.current) return;
@@ -51,7 +63,13 @@ export const PostTaskModal: React.FC<{
           instructions: instructions.trim(),
           dueDate,
           submitter,
-          templateDoc: url ? { title: title.trim(), url } : null,
+          templateDoc: template
+            ? {
+                title: template.name,
+                url: driveFileUrl(template),
+                fileId: template.id,
+              }
+            : null,
         },
         user.uid,
         workspaces,
@@ -156,23 +174,35 @@ export const PostTaskModal: React.FC<{
           </div>
         </div>
         <div>
-          <label htmlFor={`${id}-template`} className={LABEL}>
+          <p id={`${id}-template`} className={LABEL}>
             Template doc
-          </label>
-          <input
-            id={`${id}-template`}
-            type="url"
-            inputMode="url"
-            placeholder="https://docs.google.com/document/d/…"
-            className={`${INPUT} w-full`}
-            value={templateUrl}
-            onChange={(e) => setTemplateUrl(e.target.value)}
-            aria-invalid={!urlOk}
-          />
-          {!urlOk && (
-            <p className={`${META} mt-1`}>
-              Not a Google Doc link. It may not embed.
-            </p>
+          </p>
+          {template ? (
+            <div
+              aria-labelledby={`${id}-template`}
+              className="flex items-center gap-2 text-sm text-slate-700"
+            >
+              <span className="min-w-0 flex-1 truncate">{template.name}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setTemplate(null)}
+              >
+                Remove
+              </Button>
+            </div>
+          ) : (
+            <Button
+              aria-describedby={`${id}-template`}
+              variant="secondary"
+              size="sm"
+              onClick={() => void pickTemplate()}
+            >
+              Choose from Drive
+            </Button>
+          )}
+          {pickError && (
+            <p className={`${META} mt-1 text-brand-red-primary`}>{pickError}</p>
           )}
         </div>
       </div>

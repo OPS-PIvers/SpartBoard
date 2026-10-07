@@ -102,8 +102,10 @@ const checkin = (createdBy: string, extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 
+const subPath = (by: string) => `${WS_PATH}/submissions/t1_${by}`;
+
 const submission = (by: string, extra: Record<string, unknown> = {}) => ({
-  id: 't1',
+  id: `t1_${by}`,
   taskId: 't1',
   submittedBy: by,
   submittedByName: by,
@@ -233,6 +235,19 @@ describe('tasks', () => {
       setDoc(
         doc(as(COLEAD), `${PLC}/tasks/t2`),
         task({ id: 't2', createdBy: COLEAD, templateDoc: null })
+      )
+    );
+    const picked = { title: 'T', url: 'https://docs.google.com/d/x' };
+    await assertSucceeds(
+      setDoc(
+        doc(as(LEAD), `${PLC}/tasks/t3`),
+        task({ id: 't3', templateDoc: { ...picked, fileId: 'abc123' } })
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(as(LEAD), `${PLC}/tasks/t4`),
+        task({ id: 't4', templateDoc: { ...picked, fileId: 7 } })
       )
     );
     await assertSucceeds(deleteDoc(doc(as(COLEAD), TASK_PATH)));
@@ -502,7 +517,7 @@ describe('check-ins', () => {
 });
 
 describe('submissions', () => {
-  const S_PATH = `${WS_PATH}/submissions/t1`;
+  const S_PATH = subPath(MENTEE);
 
   it('lets the named submitter submit, and facilitators and the pair read', async () => {
     await seedProgram();
@@ -517,9 +532,11 @@ describe('submissions', () => {
 
   it('refuses the wrong submitter, other pairs and facilitators', async () => {
     await seedProgram();
-    await assertFails(setDoc(doc(as(MENTOR), S_PATH), submission(MENTOR)));
+    await assertFails(
+      setDoc(doc(as(MENTOR), subPath(MENTOR)), submission(MENTOR))
+    );
     for (const uid of [LEAD, COLEAD, MENTEE_B, MEMBER, VIEWER, OUTSIDER]) {
-      await assertFails(setDoc(doc(as(uid), S_PATH), submission(uid)));
+      await assertFails(setDoc(doc(as(uid), subPath(uid)), submission(uid)));
     }
     await assertFails(setDoc(doc(as(MENTEE), S_PATH), submission(MENTOR)));
     await assertFails(
@@ -530,16 +547,38 @@ describe('submissions', () => {
     );
   });
 
-  it('lets either partner submit a task both submit', async () => {
+  it('lets each partner write only their own submission on a task both submit', async () => {
     await seedProgram();
     await seed(TASK_PATH, task({ submitter: 'both' }));
-    await assertSucceeds(setDoc(doc(as(MENTOR), S_PATH), submission(MENTOR)));
-    await assertSucceeds(setDoc(doc(as(MENTEE), S_PATH), submission(MENTEE)));
+    for (const uid of [MENTOR, MENTEE]) {
+      await assertSucceeds(setDoc(doc(as(uid), subPath(uid)), submission(uid)));
+    }
+    await assertSucceeds(
+      updateDoc(doc(as(MENTOR), subPath(MENTOR)), { submittedAt: 3 })
+    );
+    await assertFails(
+      setDoc(doc(as(MENTOR), subPath(MENTEE)), submission(MENTEE))
+    );
+    await assertFails(
+      setDoc(doc(as(MENTOR), subPath(MENTEE)), {
+        ...submission(MENTOR),
+        id: `t1_${MENTEE}`,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(as(MENTOR), subPath(MENTEE)), { submittedAt: 4 })
+    );
+    await assertFails(
+      setDoc(doc(as(MENTOR), `${WS_PATH}/submissions/t1`), {
+        ...submission(MENTOR),
+        id: 't1',
+      })
+    );
   });
 
   it('lets only facilitators delete a submission', async () => {
     await seedProgram();
-    await seed(S_PATH, submission(MENTEE));
+    await seed(subPath(MENTEE), submission(MENTEE));
     for (const uid of [MENTOR, MENTEE, MENTOR_B, MEMBER, VIEWER, OUTSIDER]) {
       await assertFails(deleteDoc(doc(as(uid), S_PATH)));
     }
@@ -548,14 +587,13 @@ describe('submissions', () => {
 });
 
 describe('task status on the workspace', () => {
-  const S_PATH = `${WS_PATH}/submissions/t1`;
   const mark = (uid: string, at = 2) => ({
     t1: { submittedAt: at, submittedBy: uid },
   });
   const submitWithStatus = (uid: string, status = mark(uid)) => {
     const fs = as(uid);
     const batch = writeBatch(fs);
-    batch.set(doc(fs, S_PATH), submission(uid));
+    batch.set(doc(fs, subPath(uid)), submission(uid));
     batch.update(doc(fs, WS_PATH), { taskStatus: status, updatedAt: 2 });
     return batch.commit();
   };
@@ -568,7 +606,7 @@ describe('task status on the workspace', () => {
   it('refuses a mentor marking a mentee-only task', async () => {
     await seedProgram();
     await assertFails(submitWithStatus(MENTOR));
-    await seed(S_PATH, submission(MENTEE));
+    await seed(subPath(MENTEE), submission(MENTEE));
     await assertFails(
       updateDoc(doc(as(MENTOR), WS_PATH), {
         taskStatus: mark(MENTOR),
@@ -592,7 +630,7 @@ describe('task status on the workspace', () => {
   it('refuses a status that does not match the submission, or clearing one', async () => {
     await seedProgram();
     await assertFails(submitWithStatus(MENTEE, mark(MENTEE, 99)));
-    await seed(S_PATH, submission(MENTEE));
+    await seed(subPath(MENTEE), submission(MENTEE));
     await seed(WS_PATH, { ...workspace(), taskStatus: mark(MENTEE) });
     await assertFails(
       updateDoc(doc(as(MENTEE), WS_PATH), { taskStatus: {}, updatedAt: 3 })

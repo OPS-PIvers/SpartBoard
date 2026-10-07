@@ -3775,8 +3775,9 @@ service cloud.firestore {
           && isStr('dueDate') && d.dueDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
           && d.submitter in ['mentee', 'mentor', 'both']
           && (tpl == null
-            || (tpl is map && tpl.keys().hasOnly(['title', 'url'])
-              && tpl.get('title', '') is string && mentHttps(tpl.get('url', null))))
+            || (tpl is map && tpl.keys().hasOnly(['title', 'url', 'fileId'])
+              && tpl.get('title', '') is string && mentHttps(tpl.get('url', null))
+              && tpl.get('fileId', '') is string))
           && (request.method == 'create'
             ? d.createdBy == authUid()
             : unchanged('createdBy') && unchanged('createdAt'))
@@ -3791,7 +3792,7 @@ service cloud.firestore {
       }
       // A pair member marks one task submitted only alongside their own submission doc.
       function mentStatusEntryOk(id, wsId, k, after) {
-        let sub = getAfter(/databases/$(database)/documents/plcs/$(id)/workspaces/$(wsId)/submissions/$(k)).data;
+        let sub = getAfter(/databases/$(database)/documents/plcs/$(id)/workspaces/$(wsId)/submissions/$(k + '_' + authUid())).data;
         return k in after && after[k] is map
           && after[k].keys().hasOnly(['submittedAt', 'submittedBy'])
           && after[k].submittedBy == authUid()
@@ -3874,25 +3875,26 @@ service cloud.firestore {
             || (mentInPair(plcId, mentWs(plcId, workspaceId)) && plcEditor(plcId));
         }
 
-        // One submission per task, by whoever the task names; facilitators read and clear them with the pair.
-        match /submissions/{subTaskId} {
+        // One submission per task per submitter ({taskId}_{uid}), by whoever the task names; facilitators read and clear them.
+        match /submissions/{subId} {
           function mentMaySubmit(ws) {
-            let who = get(/databases/$(database)/documents/plcs/$(plcId)/tasks/$(subTaskId)).data.submitter;
+            let who = get(/databases/$(database)/documents/plcs/$(plcId)/tasks/$(incoming().taskId)).data.submitter;
             return who == 'both'
               || (who == 'mentor' && authUid() == ws.mentorUid)
               || (who == 'mentee' && authUid() == ws.menteeUid);
           }
           allow read: if mentFacilitator(plcId)
             || mentInPair(plcId, mentWs(plcId, workspaceId));
-          allow create, update: if mentInPair(plcId, mentWs(plcId, workspaceId))
+          allow create, update: if isStr('taskId')
+            && subId == incoming().taskId + '_' + authUid()
+            && incoming().id == subId
+            && incoming().submittedBy == authUid()
+            && mentInPair(plcId, mentWs(plcId, workspaceId))
             && plcEditor(plcId)
             && mentMaySubmit(mentWs(plcId, workspaceId))
             && incoming().keys().hasOnly([
                  'id', 'taskId', 'submittedBy', 'submittedByName', 'submittedAt', 'docUrl'
                ])
-            && incoming().id == subTaskId
-            && incoming().taskId == subTaskId
-            && incoming().submittedBy == authUid()
             && isStr('submittedByName')
             && (!('docUrl' in incoming()) || mentHttps(incoming().docUrl))
             && plcSubTimeFieldOk('submittedAt');

@@ -35,6 +35,7 @@ import { logError } from '@/utils/logError';
 import { sanitizeActionItemsForWrite } from '@/utils/plcActionItems';
 import {
   pairNames,
+  submissionIdFor,
   parseMentoringCheckIn,
   parseMentoringSubmission,
   parseMentoringTask,
@@ -215,7 +216,7 @@ export async function createPairing(
   return id;
 }
 
-const BATCH_LIMIT = 450;
+export const BATCH_LIMIT = 450;
 
 /** Deletes the workspace with its check-ins and submissions, so re-pairing starts clean. */
 export async function removePairing(
@@ -241,10 +242,8 @@ export interface MentoringTaskInput {
   instructions: string;
   dueDate: string;
   submitter: MentoringSubmitter;
-  templateDoc: { title: string; url: string } | null;
+  templateDoc: { title: string; url: string; fileId: string } | null;
 }
-
-const DOC_ID_RE = /\/d\/([\w-]{10,})/;
 
 /** Appends a doc link to a workspace, keeping a teammate's concurrent edits. */
 async function appendWorkspaceDoc(
@@ -286,7 +285,7 @@ async function eachBounded<T>(
 }
 
 /** Gives each workspace its own copy of the template, shared with the pair (T32); returns pairs that failed. */
-async function copyTemplateIntoWorkspaces(
+export async function copyTemplateIntoWorkspaces(
   plc: Plc,
   taskId: string,
   input: MentoringTaskInput,
@@ -296,7 +295,7 @@ async function copyTemplateIntoWorkspaces(
 ): Promise<string[]> {
   const template = input.templateDoc;
   if (!template || workspaces.length === 0) return [];
-  const fileId = DOC_ID_RE.exec(template.url)?.[1] ?? null;
+  const fileId = template.fileId;
   const title = `${template.title || input.title} (template)`;
   const failed: string[] = [];
   await eachBounded(workspaces, COPY_CONCURRENCY, async (ws) => {
@@ -325,6 +324,13 @@ async function copyTemplateIntoWorkspaces(
         addedAt: Date.now(),
       });
     } catch (err) {
+      if (drive && copyId) {
+        await drive
+          .trashFile(copyId)
+          .catch((e: unknown) =>
+            logError('copyTemplateIntoWorkspaces.trash', e, { plcId: plc.id })
+          );
+      }
       logError('copyTemplateIntoWorkspaces', err, {
         plcId: plc.id,
         workspaceId: ws.id,
@@ -380,7 +386,7 @@ export async function deleteMentoringTask(
   await deleteDoc(doc(db, PLCS, plcId, 'tasks', taskId));
 }
 
-/** Hands in a task for the pair: the submission plus its status on the workspace. */
+/** Hands in a task: the submitter's own submission plus, if still open, its status on the workspace. */
 export async function submitMentoringTask(
   plcId: string,
   workspace: MentoringWorkspace,
@@ -388,11 +394,12 @@ export async function submitMentoringTask(
   user: { uid: string; displayName: string | null }
 ): Promise<void> {
   const docUrl = workspace.docs.find((d) => d.taskId === task.id)?.url;
+  const id = submissionIdFor(task.id, user.uid);
   const batch = writeBatch(db);
   batch.set(
-    doc(db, PLCS, plcId, 'workspaces', workspace.id, 'submissions', task.id),
+    doc(db, PLCS, plcId, 'workspaces', workspace.id, 'submissions', id),
     {
-      id: task.id,
+      id,
       taskId: task.id,
       submittedBy: user.uid,
       submittedByName: user.displayName ?? '',
@@ -400,23 +407,36 @@ export async function submitMentoringTask(
       ...(docUrl ? { docUrl } : {}),
     }
   );
-  batch.update(wsRef(plcId, workspace.id), {
-    [`taskStatus.${task.id}`]: {
-      submittedAt: serverTimestamp(),
-      submittedBy: user.uid,
-    },
-    updatedAt: serverTimestamp(),
-  });
+  if (!workspace.taskStatus[task.id]) {
+    batch.update(wsRef(plcId, workspace.id), {
+      [`taskStatus.${task.id}`]: {
+        submittedAt: serverTimestamp(),
+        submittedBy: user.uid,
+      },
+      updatedAt: serverTimestamp(),
+    });
+  }
   await batch.commit();
 }
 
+/** The submission that marked the task done on this workspace. */
 export async function getMentoringSubmission(
   plcId: string,
-  workspaceId: string,
+  workspace: Pick<MentoringWorkspace, 'id' | 'taskStatus'>,
   taskId: string
 ): Promise<MentoringSubmission | null> {
+  const by = workspace.taskStatus[taskId]?.submittedBy;
+  if (!by) return null;
   const snap = await getDoc(
-    doc(db, PLCS, plcId, 'workspaces', workspaceId, 'submissions', taskId)
+    doc(
+      db,
+      PLCS,
+      plcId,
+      'workspaces',
+      workspace.id,
+      'submissions',
+      submissionIdFor(taskId, by)
+    )
   );
   return snap.exists() ? parseMentoringSubmission(snap.id, snap.data()) : null;
 }
