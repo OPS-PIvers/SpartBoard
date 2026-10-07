@@ -8,6 +8,7 @@ import {
 } from './tourEditStore';
 import { useTourEditorSession } from './useTourEditorSession';
 import { TourEditorPanel } from './TourEditorPanel';
+import { TourEditorSettings } from './TourEditorSettings';
 
 /** The open editor: its session, wired to the docked panel. */
 const TourEditorSessionView: React.FC = () => {
@@ -31,6 +32,7 @@ const TourEditorSessionView: React.FC = () => {
         },
       }}
       onClose={close}
+      settings={<TourEditorSettings session={session} />}
     />
   );
 };

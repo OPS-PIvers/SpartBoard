@@ -1,9 +1,4 @@
-import React, {
-  useCallback,
-  useContext,
-  useState,
-  useSyncExternalStore,
-} from 'react';
+import React, { useContext, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
@@ -14,10 +9,8 @@ import {
 import type { GuidedLearningSet } from '@/types';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
-  getToursVersion,
   publishTour,
-  readPublishedTour,
-  watchTours,
+  usePublishedTour,
 } from '@/components/tours/publishedTours';
 import {
   tourPublishStatus,
@@ -38,15 +31,6 @@ const STATUS_STYLE: Record<
     className: 'bg-emerald-50 text-emerald-800',
   },
   changed: { icon: AlertCircle, className: 'bg-amber-50 text-amber-800' },
-};
-
-const usePublishedTour = (setId: string) => {
-  const subscribe = useCallback(
-    (onChange: () => void) => watchTours([setId], onChange),
-    [setId]
-  );
-  useSyncExternalStore(subscribe, getToursVersion, getToursVersion);
-  return readPublishedTour(setId);
 };
 
 /** Publishes the set's tour to teachers and shows whether they run the latest edits. */

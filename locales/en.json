@@ -4603,7 +4603,7 @@
     "reviewBlurFailed": "Couldn't blur that area. Try again.",
     "reviewViewed": "{{viewed}} of {{total}} frames checked",
     "reviewUploadHint": "Check every frame to upload.",
-    "reviewUpload": "Upload and open in Studio",
+    "reviewUpload": "Upload and open",
     "reviewDiscard": "Discard recording",
     "reviewDiscardConfirm": "Discard this recording? Its frames are deleted and can't be recovered.",
     "untaggedTitle": "Not tagged in code yet",
@@ -4702,7 +4702,10 @@
       "unregistered": "No longer in SpartBoard",
       "unbound": "No control picked",
       "wholeBoard": "Whole board",
-      "reorder": "Move step {{n}}"
+      "reorder": "Move step {{n}}",
+      "startOptions": "How the tour starts",
+      "startAutopilot": "Start with Autopilot on",
+      "open": "Edit tour"
     }
   },
   "glPlayer": {
@@ -4941,8 +4944,8 @@
     "notChecked": "Not checked",
     "found": "Found",
     "notFound": "Not found",
-    "openInStudio": "Open in Studio",
-    "openInStudioLabel": "Open in Studio: step {{number}} of {{title}}",
+    "editStep": "Edit",
+    "editStepLabel": "Edit step {{number}} of {{title}}",
     "unmapped": {
       "title": "Unmapped anchors",
       "empty": "No unmapped anchors.",
@@ -4955,8 +4958,8 @@
       "rebind_other": "Rebind {{count}} steps",
       "rebinding": "Rebinding...",
       "rebindFailed": "Couldn't rebind. Try again.",
-      "needsType": "This button differs per widget, so set these steps in Studio.",
-      "openLabel": "Open in Studio: {{title}}",
+      "needsType": "This button differs per widget, so set these steps in the tour editor.",
+      "openLabel": "Edit {{title}}",
       "status": {
         "open": "Open",
         "prOpen": "PR open",

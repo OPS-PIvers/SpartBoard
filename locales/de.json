@@ -3553,7 +3553,7 @@
     "reviewBlurFailed": "Dieser Bereich konnte nicht unscharf gemacht werden. Versuche es erneut.",
     "reviewViewed": "{{viewed}} von {{total}} Bildern geprüft",
     "reviewUploadHint": "Prüfe jedes Bild, um hochzuladen.",
-    "reviewUpload": "Hochladen und im Studio öffnen",
+    "reviewUpload": "Hochladen und öffnen",
     "reviewDiscard": "Aufnahme verwerfen",
     "reviewDiscardConfirm": "Diese Aufnahme verwerfen? Ihre Bilder werden gelöscht und können nicht wiederhergestellt werden.",
     "untaggedTitle": "Noch nicht im Code markiert",
@@ -3652,7 +3652,10 @@
       "unregistered": "Nicht mehr in SpartBoard",
       "unbound": "Kein Element gewählt",
       "wholeBoard": "Ganze Tafel",
-      "reorder": "Schritt {{n}} verschieben"
+      "reorder": "Schritt {{n}} verschieben",
+      "startOptions": "So startet die Tour",
+      "startAutopilot": "Mit eingeschaltetem Autopilot starten",
+      "open": "Tour bearbeiten"
     }
   },
   "glPlayer": {
@@ -3891,8 +3894,8 @@
     "notChecked": "Nicht geprüft",
     "found": "Gefunden",
     "notFound": "Nicht gefunden",
-    "openInStudio": "Im Studio öffnen",
-    "openInStudioLabel": "Im Studio öffnen: Schritt {{number}} von {{title}}",
+    "editStep": "Bearbeiten",
+    "editStepLabel": "Schritt {{number}} von {{title}} bearbeiten",
     "unmapped": {
       "title": "Nicht zugeordnete Anker",
       "empty": "Keine nicht zugeordneten Anker.",
@@ -3905,8 +3908,8 @@
       "rebind_other": "{{count}} Schritte neu verknüpfen",
       "rebinding": "Wird neu verknüpft...",
       "rebindFailed": "Neu verknüpfen fehlgeschlagen. Versuche es erneut.",
-      "needsType": "Diese Schaltfläche gibt es je Widget, also die Schritte im Studio festlegen.",
-      "openLabel": "Im Studio öffnen: {{title}}",
+      "needsType": "Diese Schaltfläche gibt es je Widget, also die Schritte im Tour-Editor festlegen.",
+      "openLabel": "{{title}} bearbeiten",
       "status": {
         "open": "Offen",
         "prOpen": "PR offen",

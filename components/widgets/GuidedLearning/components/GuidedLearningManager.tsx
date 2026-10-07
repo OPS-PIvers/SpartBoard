@@ -903,38 +903,30 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       });
     }
 
+    // A published tour plays live as teachers see it; authors try drafts in the board editor.
     let runLive: LibraryMenuAction | null = null;
-    let runLiveIsDraft = false;
     if (liveTours && entry.buildingEntry?.hasLiveTour) {
-      const runnable = isTourRunnable(rawId);
-      if (runnable === true) {
+      if (isTourRunnable(rawId) === true) {
         runLive = {
           id: 'run-live',
           label: t('glStudio.runLive'),
           icon: Footprints,
           onClick: () => requestStartTour({ setId: rawId }),
         };
-      } else if (runnable === false && canEdit) {
-        // Authors can try an unpublished tour; teachers never see it.
-        runLiveIsDraft = true;
-        runLive = {
-          id: 'run-live',
-          label: t('glStudio.runLiveDraft'),
-          icon: Footprints,
-          onClick: () => requestStartTour({ setId: rawId, draft: true }),
-        };
       }
     }
     const play = () => onPlay(rawId, entry.driveFileId, entry.buildingEntry);
-    // On a board, a runnable tour's Play runs it live; the slides move to the menu.
+    // On a board, a runnable tour's Play runs it live; tour-mode sets have no slides to play.
     const playsLive = runLive !== null && canRunLiveTour;
     if (runLive && playsLive) {
-      secondary.push({
-        id: 'play-slides',
-        label: 'Play as slides',
-        icon: Play,
-        onClick: play,
-      });
+      if (entry.mode !== 'tour') {
+        secondary.push({
+          id: 'play-slides',
+          label: 'Play as slides',
+          icon: Play,
+          onClick: play,
+        });
+      }
     } else if (runLive) {
       secondary.push(runLive);
     }
@@ -1083,7 +1075,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         secondaryPrimaryAction={
           playsLive && runLive
             ? {
-                label: runLiveIsDraft ? 'Play draft live' : 'Play live',
+                label: 'Play live',
                 icon: Footprints,
                 onClick: runLive.onClick,
               }

@@ -50,8 +50,8 @@ export interface TourEditorSession {
   canUndo: boolean;
   canRedo: boolean;
   saveState: TourEditorSaveState;
-  /** Writes any unsaved edits now. */
-  flush: () => Promise<void>;
+  /** Writes any unsaved edits now; false when the draft could not be saved. */
+  flush: () => Promise<boolean>;
 }
 
 /** A new tour step: bound to nothing yet, waiting for its click. */
@@ -145,17 +145,20 @@ export function useTourEditorSession(): TourEditorSession | null {
   // The newest draft, kept after the editor closes so the closing save still has it.
   const lastSet = useRef<GuidedLearningSet | null>(opened);
 
-  const save = useCallback(async (): Promise<void> => {
+  const save = useCallback(async (): Promise<boolean> => {
     while (saving.current) await saving.current;
     const set = getTourEdit()?.set ?? lastSet.current;
-    if (!set || blocked.current || set === saved.current.set) return;
+    if (!set || blocked.current) return false;
+    if (set === saved.current.set) return true;
     const updatedAt = Date.now();
     setSaveState('saving');
+    let ok = false;
     const run = saveBuildingSetDoc(
       { ...set, updatedAt },
       { expectedUpdatedAt: saved.current.updatedAt }
     )
       .then(() => {
+        ok = true;
         saved.current = { set, updatedAt };
         setSaveState(lastSet.current === set ? 'saved' : 'saving');
       })
@@ -174,6 +177,7 @@ export function useTourEditorSession(): TourEditorSession | null {
       });
     saving.current = run;
     await run;
+    return ok;
   }, []);
 
   const draft = target?.set;

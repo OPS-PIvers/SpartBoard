@@ -3553,7 +3553,7 @@
     "reviewBlurFailed": "No se pudo difuminar esa área. Inténtalo de nuevo.",
     "reviewViewed": "{{viewed}} de {{total}} imágenes revisadas",
     "reviewUploadHint": "Revisa cada imagen para poder subirlas.",
-    "reviewUpload": "Subir y abrir en Studio",
+    "reviewUpload": "Subir y abrir",
     "reviewDiscard": "Descartar grabación",
     "reviewDiscardConfirm": "¿Descartar esta grabación? Sus imágenes se eliminan y no se pueden recuperar.",
     "untaggedTitle": "Aún sin etiquetar en el código",
@@ -3652,7 +3652,10 @@
       "unregistered": "Ya no está en SpartBoard",
       "unbound": "Ningún control elegido",
       "wholeBoard": "Tablero completo",
-      "reorder": "Mover el paso {{n}}"
+      "reorder": "Mover el paso {{n}}",
+      "startOptions": "Cómo empieza el recorrido",
+      "startAutopilot": "Empezar con el piloto automático activado",
+      "open": "Editar el recorrido"
     }
   },
   "glPlayer": {
@@ -3891,8 +3894,8 @@
     "notChecked": "Sin comprobar",
     "found": "Encontrado",
     "notFound": "No encontrado",
-    "openInStudio": "Abrir en Studio",
-    "openInStudioLabel": "Abrir en Studio: paso {{number}} de {{title}}",
+    "editStep": "Editar",
+    "editStepLabel": "Editar el paso {{number}} de {{title}}",
     "unmapped": {
       "title": "Anclajes sin asignar",
       "empty": "No hay anclajes sin asignar.",
@@ -3905,8 +3908,8 @@
       "rebind_other": "Reasignar {{count}} pasos",
       "rebinding": "Reasignando...",
       "rebindFailed": "No se pudo reasignar. Inténtalo de nuevo.",
-      "needsType": "Este botón cambia según el widget, así que ajusta estos pasos en Studio.",
-      "openLabel": "Abrir en Studio: {{title}}",
+      "needsType": "Este botón cambia según el widget, así que ajusta estos pasos en el editor del recorrido.",
+      "openLabel": "Editar {{title}}",
       "status": {
         "open": "Abierto",
         "prOpen": "PR abierto",

@@ -85,7 +85,7 @@ const renderSession = () => {
 };
 
 const uploadButton = () =>
-  screen.getByRole('button', { name: 'Upload and open in Studio' });
+  screen.getByRole('button', { name: 'Upload and open' });
 
 beforeEach(() => {
   h.upload.mockReset();

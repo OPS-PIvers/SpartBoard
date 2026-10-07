@@ -3553,7 +3553,7 @@
     "reviewBlurFailed": "Impossible de flouter cette zone. Réessaie.",
     "reviewViewed": "{{viewed}} images vérifiées sur {{total}}",
     "reviewUploadHint": "Vérifie chaque image pour pouvoir envoyer.",
-    "reviewUpload": "Envoyer et ouvrir dans le Studio",
+    "reviewUpload": "Envoyer et ouvrir",
     "reviewDiscard": "Abandonner l'enregistrement",
     "reviewDiscardConfirm": "Abandonner cet enregistrement ? Ses images sont supprimées et ne peuvent pas être récupérées.",
     "untaggedTitle": "Pas encore balisé dans le code",
@@ -3652,7 +3652,10 @@
       "unregistered": "N'existe plus dans SpartBoard",
       "unbound": "Aucune commande choisie",
       "wholeBoard": "Tableau entier",
-      "reorder": "Déplacer l'étape {{n}}"
+      "reorder": "Déplacer l'étape {{n}}",
+      "startOptions": "Démarrage de la visite",
+      "startAutopilot": "Démarrer avec le pilote automatique activé",
+      "open": "Modifier la visite"
     }
   },
   "glPlayer": {
@@ -3891,8 +3894,8 @@
     "notChecked": "Non vérifié",
     "found": "Trouvée",
     "notFound": "Introuvable",
-    "openInStudio": "Ouvrir dans Studio",
-    "openInStudioLabel": "Ouvrir dans Studio : étape {{number}} de {{title}}",
+    "editStep": "Modifier",
+    "editStepLabel": "Modifier l'étape {{number}} de {{title}}",
     "unmapped": {
       "title": "Ancres non associées",
       "empty": "Aucune ancre non associée.",
@@ -3905,8 +3908,8 @@
       "rebind_other": "Réassocier {{count}} étapes",
       "rebinding": "Réassociation...",
       "rebindFailed": "Impossible de réassocier. Réessayez.",
-      "needsType": "Ce bouton change selon le widget, réglez donc ces étapes dans Studio.",
-      "openLabel": "Ouvrir dans Studio : {{title}}",
+      "needsType": "Ce bouton change selon le widget, réglez donc ces étapes dans l'éditeur de visite.",
+      "openLabel": "Modifier {{title}}",
       "status": {
         "open": "Ouverte",
         "prOpen": "PR ouverte",

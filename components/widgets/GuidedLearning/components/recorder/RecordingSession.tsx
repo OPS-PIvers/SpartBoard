@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useContext, useRef, useState } from 'react';
+import React, { useContext, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Circle, EyeOff, ShieldCheck } from 'lucide-react';
@@ -20,12 +20,7 @@ import { uploadFramesOnce, type UploadedFrame } from './recordingHandoff';
 import { boardLayoutOf, type RecordedBoardWidget } from './recordedLayouts';
 import type { UnmappedQueueEntry } from '@/components/tours/anchorQueue';
 import { enqueueUnmappedAnchors } from '@/components/tours/anchorQueueStore';
-
-const GuidedLearningStudio = lazy(() =>
-  import('../studio/GuidedLearningStudio').then((m) => ({
-    default: m.GuidedLearningStudio,
-  }))
-);
+import { requestEditTour } from '@/components/tours/editor/tourEditStore';
 
 type BoardWidget = Pick<WidgetData, 'id' | 'type'>;
 
@@ -39,8 +34,7 @@ interface Boards {
 type Phase =
   | { kind: 'intro' }
   | ({ kind: 'recording'; matcher: NameMatcher | null } & Boards)
-  | ({ kind: 'review'; recording: TourRecording } & Boards)
-  | { kind: 'studio'; set: GuidedLearningSet };
+  | ({ kind: 'review'; recording: TourRecording } & Boards);
 
 const newId = () =>
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -51,7 +45,7 @@ interface RecordingSessionProps {
   onEnd: () => void;
 }
 
-/** Start, record, review, upload and open in the Studio: one real-board tour recording. */
+/** Start, record, review, upload and open in the board editor: one real-board tour recording. */
 export const RecordingSession: React.FC<RecordingSessionProps> = ({
   onEnd,
 }) => {
@@ -97,23 +91,24 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
     });
   };
 
-  // The Studio opens only on a saved set; a failed save keeps the recording for Retry.
+  // The editor opens only on a saved set; a failed save keeps the recording for Retry.
   const openAfterSave = async (
     set: GuidedLearningSet,
     queue: UnmappedQueueEntry[]
   ) => {
     setBusy(t('glRecorder.saving'));
     try {
-      // A guard keeps set.updatedAt, the revision the Studio then saves against.
+      // A guard keeps set.updatedAt, the revision the editor then saves against.
       await saveBuildingSet(set, { expectedUpdatedAt: undefined });
       if (!queued.current && queue.length > 0) {
         queued.current = true;
-        // The tour works without the queue, so a failure here never blocks the Studio.
+        // The tour works without the queue, so a failure here never blocks the editor.
         await enqueueUnmappedAnchors(set.id, queue).catch((err: unknown) =>
           console.error('[TourRecorder] Queueing untagged clicks failed:', err)
         );
       }
-      setPhase({ kind: 'studio', set });
+      onEnd();
+      requestEditTour({ setId: set.id });
     } catch (err) {
       console.error('[TourRecorder] Saving the recorded set failed:', err);
       setError(t('glRecorder.saveFailed'));
@@ -246,19 +241,6 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
           }).then((ok) => ok && onEnd())
         }
       />
-    );
-  }
-
-  if (phase.kind === 'studio') {
-    return (
-      <Suspense fallback={null}>
-        <GuidedLearningStudio
-          set={phase.set}
-          meta={null}
-          onClose={onEnd}
-          onSave={(next, _driveFileId, guard) => saveBuildingSet(next, guard)}
-        />
-      </Suspense>
     );
   }
 
