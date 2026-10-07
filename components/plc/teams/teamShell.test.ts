@@ -96,11 +96,36 @@ describe('hero', () => {
 });
 
 describe('layout draft', () => {
-  it('lists enabled cards first, then the rest of the catalog off', () => {
-    const rows = cardRows('dataOverview', ['hero', 'trend']);
-    expect(rows[0]).toEqual({ id: 'trend', on: true });
-    expect(rows.some((r) => r.id === 'hero')).toBe(false);
+  it('lists enabled rows first and joins next meeting with open items', () => {
+    const rows = cardRows('plc', 'dataOverview', ['hero', 'trend']);
+    expect(rows[0]).toMatchObject({ ids: ['trend'], on: true });
     expect(rows.filter((r) => r.on)).toHaveLength(1);
+    expect(rows.some((r) => r.ids.includes('hero'))).toBe(false);
+    expect(rows.some((r) => r.ids.includes('quickLinks'))).toBe(false);
+    expect(rows.find((r) => r.ids.includes('openItems'))?.ids).toEqual([
+      'nextMeeting',
+      'openItems',
+    ]);
+  });
+
+  it('switches both cards of a combined row and keeps uncovered cards', () => {
+    const draft = draftFromLayout(
+      {
+        ...plcLayout,
+        cards: ['hero', 'nextMeeting', 'openItems', 'quickLinks'],
+      },
+      'plc'
+    );
+    const out = layoutFromDraft(
+      {
+        ...draft,
+        cards: draft.cards.map((c) =>
+          c.ids.includes('nextMeeting') ? { ...c, on: false } : c
+        ),
+      },
+      new Map()
+    );
+    expect(out.cards).toEqual(['hero', 'quickLinks']);
   });
 
   it('round-trips a layout and drops a card blocked by Updates', () => {
@@ -108,7 +133,7 @@ describe('layout draft', () => {
       { ...plcLayout, cards: ['hero', 'latestUpdates', 'goals'] },
       'plc'
     );
-    expect(cardBlocked('latestUpdates', draft.pages)).toBe(true);
+    expect(cardBlocked(['latestUpdates'], draft.pages)).toBe(true);
     const out = layoutFromDraft(draft, new Map());
     expect(out.cards).toEqual(['hero', 'goals']);
     expect(out.hero).toEqual({ mode: 'default' });

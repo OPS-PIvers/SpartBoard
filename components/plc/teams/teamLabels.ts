@@ -126,3 +126,17 @@ const TYPE_LABELS: Record<PlcGroupType, string> = {
 export function teamTypeLabel(t: TFunction, type: PlcGroupType): string {
   return t(`teams.types.${type}`, { defaultValue: TYPE_LABELS[type] });
 }
+
+/** Editor row name; the PLC's next meeting and open items share one row. */
+export function teamCardRowLabel(
+  t: TFunction,
+  ids: readonly TeamCardId[],
+  groupType: PlcGroupType
+): string {
+  if (ids.length > 1 && ids.includes('nextMeeting')) {
+    return t('teams.cards.nextMeetingAndOpenItems', {
+      defaultValue: 'Next meeting and open items',
+    });
+  }
+  return teamCardLabel(t, ids[0], groupType);
+}

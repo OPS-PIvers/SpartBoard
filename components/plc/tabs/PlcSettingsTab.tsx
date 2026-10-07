@@ -81,6 +81,14 @@ const MEETING_ROW: FeatureRow = {
  * these — they're shared configuration, not lead-only. Failures roll the
  * UI back to the previous value and surface a toast.
  */
+const PAGE_FEATURE_KEYS: ReadonlySet<keyof PlcFeatureSettings> = new Set([
+  'quizzes',
+  'videoActivities',
+  'notes',
+  'sharedBoards',
+  'meeting',
+]);
+
 export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
   const { t } = useTranslation();
   const { updatePlcFeatures, updatePlcDigestOptIn } = usePlcs({
@@ -155,31 +163,38 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
     }
   };
 
+  // Teams redesign: pages are set in the layout editor, so only non-page switches stay.
+  const redesign = canAccessFeature('teams-redesign');
+  const rows = redesign
+    ? FEATURE_ROWS.filter((row) => !PAGE_FEATURE_KEYS.has(row.key))
+    : canAccessFeature('my-groups') || features.meeting === false
+      ? [...FEATURE_ROWS, MEETING_ROW]
+      : FEATURE_ROWS;
+
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h3 className="text-sm font-bold text-slate-800">
-          {t('plcDashboard.settings.heading', {
-            defaultValue: 'Dashboard Sections',
-          })}
-        </h3>
-        <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-          {canAccessFeature('my-groups')
-            ? t('plcDashboard.settings.groupDescription', {
-                defaultValue:
-                  "Choose which sections appear on this team's page. Any member can update these.",
-              })
-            : t('plcDashboard.settings.description', {
-                defaultValue:
-                  "Choose which sections appear in this PLC's dashboard. Any PLC member can update these.",
-              })}
-        </p>
-      </div>
+      {!redesign && (
+        <div>
+          <h3 className="text-sm font-bold text-slate-800">
+            {t('plcDashboard.settings.heading', {
+              defaultValue: 'Dashboard Sections',
+            })}
+          </h3>
+          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+            {canAccessFeature('my-groups')
+              ? t('plcDashboard.settings.groupDescription', {
+                  defaultValue:
+                    "Choose which sections appear on this team's page. Any member can update these.",
+                })
+              : t('plcDashboard.settings.description', {
+                  defaultValue:
+                    "Choose which sections appear in this PLC's dashboard. Any PLC member can update these.",
+                })}
+          </p>
+        </div>
+      )}
       <div className="flex flex-col gap-2">
-        {(canAccessFeature('my-groups') || features.meeting === false
-          ? [...FEATURE_ROWS, MEETING_ROW]
-          : FEATURE_ROWS
-        ).map((row) => {
+        {rows.map((row) => {
           const Icon = row.icon;
           const enabled = features[row.key] !== false;
           const isBusy = busyKey === row.key;

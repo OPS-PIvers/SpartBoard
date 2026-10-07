@@ -16,7 +16,7 @@ import { OrderRow } from '@/components/plc/redesignMockup/LayoutEditorModal';
 import { EYEBROW, INPUT, META } from '@/components/plc/redesignMockup/ui';
 import { TEAM_PAGE_REGISTRY } from '@/components/plc/teams/pageRegistry';
 import {
-  teamCardLabel,
+  teamCardRowLabel,
   teamHeroRuleSummary,
   teamPageLabel,
 } from '@/components/plc/teams/teamLabels';
@@ -218,8 +218,8 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
           value={draft.landing}
           onChange={(e) => {
             const landing = e.target.value as LayoutDraft['landing'];
-            const on = draft.cards.filter((c) => c.on).map((c) => c.id);
-            update({ landing, cards: cardRows(landing, on) });
+            const on = draft.cards.filter((c) => c.on).flatMap((c) => c.ids);
+            update({ landing, cards: cardRows(groupType, landing, on) });
           }}
           className={`${INPUT} py-1.5`}
         >
@@ -306,11 +306,11 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
         </h4>
         <ul className="divide-y divide-slate-100">
           {draft.cards.map((c, i) => {
-            const blocked = cardBlocked(c.id, draft.pages);
-            const label = teamCardLabel(t, c.id, groupType);
+            const blocked = cardBlocked(c.ids, draft.pages);
+            const label = teamCardRowLabel(t, c.ids, groupType);
             return (
               <OrderRow
-                key={c.id}
+                key={c.key}
                 label={label}
                 on={c.on}
                 index={i}
@@ -333,7 +333,7 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
                 onToggle={(on) =>
                   update({
                     cards: draft.cards.map((x) =>
-                      x.id === c.id ? { ...x, on } : x
+                      x.key === c.key ? { ...x, on } : x
                     ),
                   })
                 }
