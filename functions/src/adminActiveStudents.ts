@@ -158,6 +158,7 @@ export function buildActiveStudentRows(input: {
 async function collectAssignmentOpens(
   db: admin.firestore.Firestore,
   studentUids: readonly string[],
+  sectionIds: readonly string[],
   sinceMs: number
 ): Promise<AssignmentOpen[]> {
   const wanted = new Set(studentUids);
@@ -189,24 +190,35 @@ async function collectAssignmentOpens(
       );
     }
   }
-  // Flashcard progress is keyed by uid with no uid field, so read the window and match ids.
-  queries.push(
-    db
-      .collectionGroup('progress')
-      .where('lastActiveAt', '>=', sinceMs)
-      .select('lastActiveAt')
-      .get()
-      .then((snap) => {
-        for (const doc of snap.docs) {
-          const sessionRef = doc.ref.parent.parent;
-          if (sessionRef?.parent.id !== 'flashcard_sessions') continue;
-          if (!wanted.has(doc.id)) continue;
-          const at: unknown = doc.get('lastActiveAt');
-          if (typeof at !== 'number') continue;
-          hits.push({ studentUid: doc.id, sessionRef, openedMs: at });
-        }
-      })
+  // Flashcard progress is keyed by uid alone, so find sessions for these students' sections and read their recent progress.
+  const flashcardQueries = chunk([...new Set(sectionIds)], IN_QUERY_MAX).map(
+    async (ids) => {
+      const sessions = await db
+        .collection('flashcard_sessions')
+        .where('classIds', 'array-contains-any', ids)
+        .select()
+        .get();
+      await Promise.all(
+        sessions.docs.map(async (session) => {
+          const progress = await session.ref
+            .collection('progress')
+            .where('lastActiveAt', '>=', sinceMs)
+            .select('lastActiveAt')
+            .get();
+          for (const doc of progress.docs) {
+            const at: unknown = doc.get('lastActiveAt');
+            if (!wanted.has(doc.id) || typeof at !== 'number') continue;
+            hits.push({
+              studentUid: doc.id,
+              sessionRef: session.ref,
+              openedMs: at,
+            });
+          }
+        })
+      );
+    }
   );
+  queries.push(...flashcardQueries);
   await Promise.all(queries);
 
   const sessionRefs = new Map<string, admin.firestore.DocumentReference>();
@@ -339,9 +351,11 @@ export const getActiveStudentsV1 = onCall(
       }
     }
 
+    let partial = false;
     const opens = await collectAssignmentOpens(
       db,
       active.map((s) => s.uid),
+      allSections,
       now - MONTH_MS
     );
     const opensByStudent = latestOpensByStudent(opens);
@@ -352,7 +366,10 @@ export const getActiveStudentsV1 = onCall(
       const result = await admin
         .auth()
         .getUsers(ids.map((uid) => ({ uid })))
-        .catch(() => null);
+        .catch(() => {
+          partial = true;
+          return null;
+        });
       for (const u of result?.users ?? []) {
         teacherNames.set(u.uid, u.displayName || u.email || '');
       }
@@ -364,7 +381,6 @@ export const getActiveStudentsV1 = onCall(
     const clientSecret = CLASSLINK_CLIENT_SECRET.value();
     const tenantUrl = CLASSLINK_TENANT_URL.value().replace(/\/$/, '');
     const namesByUid = new Map<string, string>();
-    let partial = false;
     if (hmacSecret && clientId && clientSecret && tenantUrl) {
       const wanted = new Set(active.map((s) => s.uid));
       const sections = orderSectionsForNameLookup(active, rosteredSections);
