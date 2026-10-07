@@ -391,7 +391,7 @@ const usesSpotlight = (s: Step) =>
   s.interactionType === 'pan-zoom-spotlight';
 
 /** Steps as Claude sees them: the files a step owns stay server-side. */
-function publicStep(step: Step) {
+export function publicStep(step: Step) {
   const out: Record<string, unknown> = { ...step };
   delete out.audioStoragePath;
   delete out.videoStoragePath;
@@ -425,7 +425,7 @@ export async function assertAccess(
   }
 }
 
-interface Loaded {
+export interface Loaded {
   set: GlSet;
   source: Source;
   driveFileId?: string;
@@ -504,7 +504,7 @@ const EDITABLE = [
 const CONFLICT =
   'Someone saved this set in SpartBoard while Claude was editing it. Fetch it again and redo the change.';
 
-async function saveSet(
+export async function saveSet(
   ctx: ToolContext,
   loaded: Loaded,
   next: GlSet,

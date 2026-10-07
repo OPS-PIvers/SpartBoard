@@ -1,9 +1,9 @@
-// Admin-only live tour tools: create_live_tour and list_help_center_categories (CLAUDE_CONNECTOR.md CC-D19).
+// Admin-only live tour tools: create, get and update a live tour, and list Help Center categories (CLAUDE_CONNECTOR.md CC-D19).
 import { randomUUID } from 'node:crypto';
 import type * as admin from 'firebase-admin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { ToolError, type ToolContext } from './activity';
+import { ToolError, reserveWrite, type ToolContext } from './activity';
 import { isStrictSuperAdmin } from '../authz';
 import {
   MAX_NEW_SLIDES,
@@ -11,14 +11,35 @@ import {
   savedSummary,
   type HelpCenterPlacement,
 } from './glCreate';
-import { MAX_STEPS, assertAccess, stepInput } from './glTools';
-import { CREATES, READ_ONLY, run } from './toolKit';
+import {
+  MAX_STEPS,
+  assertAccess,
+  loadSet,
+  mergeSteps,
+  publicStep,
+  requiredSchemaVersion,
+  saveSet,
+  stepInput,
+  type GlSet,
+  type Step,
+  type StepInput,
+} from './glTools';
+import {
+  planAnchorRequests,
+  type AnchorRequest,
+  type MissingAnchorNote,
+} from './glAnchorRequests';
+import { TOUR_ANCHOR_LIST } from './tourAnchorList';
+import { CREATES, OVERWRITES, READ_ONLY, iso, run } from './toolKit';
 
 export const HELP_RESOURCES = 'help_resources';
 export const ADMIN_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'create_live_tour',
+  'get_live_tour',
+  'update_live_tour',
   'list_help_center_categories',
 ]);
+export const GL_TOURS = 'building_guided_learning_tours';
 
 // Mirrors DEFAULT_HELP_CATEGORIES in types/helpCenter.ts, which the app shows until help_center/config is saved.
 const DEFAULT_CATEGORIES = [
@@ -130,6 +151,167 @@ const tourStep = stepInput.extend({
   yPct: stepInput.shape.yPct.optional(),
   imageIndex: stepInput.shape.imageIndex.optional(),
 });
+
+// Slide placement a tour step no longer edits; kept from the stored step until the conversion script drops it.
+const SLIDE_FIELDS = [
+  'xPct',
+  'yPct',
+  'imageIndex',
+  'region',
+  'calloutPin',
+  'calloutWidthPct',
+  'calloutScale',
+  'calloutTone',
+  'calloutBox',
+  'tooltipPosition',
+  'tooltipOffset',
+  'panZoomScale',
+  'spotlightRadius',
+] as const;
+
+const editStep = tourStep
+  .omit({
+    xPct: true,
+    yPct: true,
+    imageIndex: true,
+    region: true,
+    calloutPin: true,
+    calloutWidthPct: true,
+    calloutScale: true,
+    calloutTone: true,
+    calloutBox: true,
+    tooltipPosition: true,
+    tooltipOffset: true,
+    panZoomScale: true,
+    spotlightRadius: true,
+  })
+  .extend({
+    has_thumbnail: z
+      .boolean()
+      .optional()
+      .describe('Read only. The picture is kept and retaken in SpartBoard.'),
+    thumbnail_stale: z.boolean().optional().describe('Read only.'),
+  });
+type EditStep = z.infer<typeof editStep>;
+
+const KNOWN_ANCHORS = new Set(TOUR_ANCHOR_LIST.map((a) => a.id));
+
+interface TourThumbnail {
+  anchor?: unknown;
+}
+const thumbnailOf = (step: Step): TourThumbnail | undefined => {
+  const thumb = (step.tour as { thumbnail?: unknown } | undefined)?.thumbnail;
+  return thumb && typeof thumb === 'object'
+    ? (thumb as TourThumbnail)
+    : undefined;
+};
+
+/** A tour step as Claude sees it: no slide placement, the thumbnail as a flag. */
+export function publicTourStep(step: Step): Record<string, unknown> {
+  const out = publicStep(step);
+  for (const key of SLIDE_FIELDS) delete out[key];
+  const tour = step.tour as Record<string, unknown> | undefined;
+  const thumb = thumbnailOf(step);
+  if (tour) {
+    const binding = { ...tour };
+    delete binding.thumbnail;
+    out.tour = binding;
+  }
+  out.has_thumbnail = !!thumb;
+  if (thumb && tour && thumb.anchor !== tour.anchor) out.thumbnail_stale = true;
+  return out;
+}
+
+export type TourPublishState = 'draft' | 'published' | 'changed';
+
+/** Draft = never published; changed = saved after the snapshot teachers run. */
+export function tourPublishState(
+  updatedAt: unknown,
+  publishedAt: number | null
+): TourPublishState {
+  if (publishedAt === null) return 'draft';
+  return typeof updatedAt === 'number' && updatedAt > publishedAt
+    ? 'changed'
+    : 'published';
+}
+
+export function liveTourView(set: GlSet, publishedAt: number | null) {
+  const state = tourPublishState(set.updatedAt, publishedAt);
+  const unregistered = set.steps.flatMap((s) => {
+    const anchor = (s.tour as { anchor?: unknown } | undefined)?.anchor;
+    const id = typeof anchor === 'string' ? anchor.split(/[:#]/)[0] : '';
+    return id && !KNOWN_ANCHORS.has(id) ? [s.id] : [];
+  });
+  const setup = (set.tourSetup ?? {}) as {
+    widgets?: unknown;
+    autopilot?: unknown;
+  };
+  return {
+    set_id: set.id,
+    title: set.title,
+    description: set.description ?? '',
+    help_center: set.helpCenter === true,
+    welcome_enabled: set.welcomeEnabled === true,
+    welcome_message: set.welcomeMessage ?? '',
+    tour_widgets: Array.isArray(setup.widgets) ? setup.widgets : [],
+    autopilot: setup.autopilot === true,
+    publish_state: state,
+    published_at: publishedAt === null ? null : iso(publishedAt),
+    updated_at: iso(set.updatedAt),
+    ...(unregistered.length > 0
+      ? { steps_with_unregistered_anchor: unregistered }
+      : {}),
+    steps: set.steps.map(publicTourStep),
+  };
+}
+
+/** Validates the full step list like create_live_tour, keeping each stored step's thumbnail and slide placement. */
+export function mergeTourSteps(
+  existing: readonly Step[],
+  input: readonly EditStep[]
+): Step[] {
+  const stripped = input.map((s) => {
+    const out: Record<string, unknown> = { ...s };
+    delete out.has_thumbnail;
+    delete out.thumbnail_stale;
+    return out as unknown as StepInput;
+  });
+  const merged = mergeSteps(existing, stripped, 0);
+  const byId = new Map(existing.map((s) => [s.id, s]));
+  return merged.map((step) => {
+    const prior = byId.get(step.id);
+    if (!prior) return step;
+    const next: Record<string, unknown> = { ...step };
+    for (const key of SLIDE_FIELDS)
+      if (prior[key] !== undefined) next[key] = prior[key];
+    const thumb = thumbnailOf(prior);
+    if (thumb && next.tour)
+      next.tour = {
+        ...(next.tour as Record<string, unknown>),
+        thumbnail: thumb,
+      };
+    return next as Step;
+  });
+}
+
+async function loadTour(ctx: ToolContext, setId: string) {
+  const loaded = await loadSet(ctx, 'building', setId);
+  if (loaded.set.mode !== 'tour')
+    throw new ToolError(
+      'That set is not a live tour. Use get_guided_learning with source "building".'
+    );
+  return loaded;
+}
+
+async function publishedAtOf(
+  ctx: ToolContext,
+  setId: string
+): Promise<number | null> {
+  const snap = await ctx.db.doc(`${GL_TOURS}/${setId}`).get();
+  if (!snap.exists) return null;
+  const at: unknown = snap.get('publishedAt');
+  return typeof at === 'number' ? at : 0;
+}
 
 export function registerLiveTourTools(
   server: McpServer,
@@ -265,6 +447,80 @@ export function registerLiveTourTools(
           note: help
             ? 'Saved as a hidden draft. In Admin Settings > Help Center, open the item and edit its activity to run it live and publish it in the Studio, then make the item visible.'
             : 'Saved as a draft. Try it with Run live on my board (draft) in the library; teachers see it after it is published in the Studio.',
+        };
+      })
+  );
+
+  server.registerTool(
+    'get_live_tour',
+    {
+      title: 'Get a live tour',
+      description:
+        'Admins only. Returns a live tour with every step: its anchor, action, value and text, whether it has a thumbnail, and whether teachers see the latest version (publish_state "draft" never published, "published" up to date, "changed" saved since the last publish).',
+      inputSchema: { set_id: z.string().min(1) },
+      annotations: READ_ONLY,
+    },
+    ({ set_id }) =>
+      run('get_live_tour', ctx, async () => {
+        await assertAccess(ctx, 'building');
+        const [loaded, publishedAt] = await Promise.all([
+          loadTour(ctx, set_id),
+          publishedAtOf(ctx, set_id),
+        ]);
+        return liveTourView(loaded.set, publishedAt);
+      })
+  );
+
+  server.registerTool(
+    'update_live_tour',
+    {
+      title: 'Edit a live tour',
+      description:
+        'Admins only. Edits a live tour; only passed fields change. `steps` replaces the whole list in play order: send every step to keep, with its id, as get_live_tour returned it. Anchors are checked like create_live_tour. Thumbnails and narration are kept. Saves the draft only: teachers keep the published tour until an admin opens the tour in SpartBoard and publishes the changes.',
+      inputSchema: {
+        set_id: z.string().min(1),
+        title: z.string().trim().min(1).max(200).optional(),
+        description: z.string().max(1000).optional(),
+        welcome_enabled: z.boolean().optional(),
+        welcome_message: z.string().max(300).optional(),
+        steps: z.array(editStep).min(1).max(MAX_STEPS).optional(),
+      },
+      annotations: OVERWRITES,
+    },
+    ({ set_id, ...input }) =>
+      run('update_live_tour', ctx, async () => {
+        await assertAccess(ctx, 'building');
+        const loaded = await loadTour(ctx, set_id);
+        const { set } = loaded;
+        const next: GlSet = { ...set, title: input.title ?? set.title };
+        if (input.description !== undefined)
+          next.description = input.description || undefined;
+        if (input.welcome_enabled !== undefined)
+          next.welcomeEnabled = input.welcome_enabled;
+        if (input.welcome_message !== undefined)
+          next.welcomeMessage = input.welcome_message || undefined;
+        let requests: AnchorRequest[] = [];
+        if (input.steps) {
+          const notes = new Map<string, MissingAnchorNote>();
+          for (const s of input.steps)
+            if (s.missing_anchor) notes.set(s.id, s.missing_anchor);
+          const planned = planAnchorRequests(
+            mergeTourSteps(set.steps, input.steps),
+            set.steps,
+            notes
+          );
+          next.steps = planned.steps as GlSet['steps'];
+          next.schemaVersion = Math.max(
+            set.schemaVersion ?? 1,
+            requiredSchemaVersion(next.steps)
+          );
+          requests = planned.requests;
+        }
+        await reserveWrite(ctx);
+        const saved = await saveSet(ctx, loaded, next, 'update', requests);
+        return {
+          ...saved,
+          note: 'Saved as a draft. Teachers keep the published tour until an admin opens it in SpartBoard (Guided Learning library > Edit) and publishes the changes.',
         };
       })
   );
