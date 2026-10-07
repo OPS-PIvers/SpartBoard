@@ -1,4 +1,5 @@
 import {
+  freshTourPictureUrl,
   freshTourThumbnail,
   isLiveTourSet,
 } from '@/components/widgets/GuidedLearning/utils/liveTour';
@@ -201,9 +202,12 @@ export function claimSpawns(
   return { slots: next, bound, watches: waiting };
 }
 
-/** Whether a tour step has a picture of its current control to show when the anchor is missing. */
-export const hasStepSlide = (step: Pick<GuidedLearningStep, 'tour'>): boolean =>
-  !!freshTourThumbnail(step);
+/** Whether a step has a picture of its current control; with `set`, a legacy slide counts too. */
+export const hasStepSlide = (
+  step: Pick<GuidedLearningStep, 'tour' | 'imageIndex'>,
+  set?: Pick<GuidedLearningSet, 'imageUrls' | 'imageKinds'>
+): boolean =>
+  set ? !!freshTourPictureUrl(step, set) : !!freshTourThumbnail(step);
 
 /** Every kind but `observe` is something the teacher does to the anchor. */
 export const isActedStep = (

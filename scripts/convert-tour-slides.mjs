@@ -8,8 +8,8 @@
  * `updatedAt` is left alone and Storage objects are not touched.
  *
  * Usage:
- *   node scripts/convert-tour-slides.mjs --project dev --dry-run   # print only
- *   node scripts/convert-tour-slides.mjs --project dev             # write
+ *   node scripts/convert-tour-slides.mjs --project dev             # print only (default)
+ *   node scripts/convert-tour-slides.mjs --project dev --write     # write
  *   Writing on prod also needs --confirm-prod.
  *
  * Credentials: dev uses `gcloud auth application-default login`; prod uses
@@ -28,11 +28,10 @@ const PROJECTS = { dev: 'spartboard-dev', prod: 'spartboard' };
 const COLLECTION = 'building_guided_learning';
 const TOURS_COLLECTION = 'building_guided_learning_tours';
 const SKIP_TOUR_IDS = new Set(['_meta', '_lock']);
-const BATCH_LIMIT = 200;
 
 function parseArgs(argv) {
   const args = {
-    dryRun: false,
+    dryRun: true,
     project: null,
     confirmProd: false,
     help: false,
@@ -40,6 +39,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--dry-run') args.dryRun = true;
+    else if (a === '--write') args.dryRun = false;
     else if (a === '--project') args.project = argv[++i] ?? null;
     else if (a === '--confirm-prod') args.confirmProd = true;
     else if (a === '--help' || a === '-h') args.help = true;
@@ -63,12 +63,13 @@ function prodCredential(cert) {
 
 /** Pairs each tour set with its snapshot and returns the writes to make. */
 function planConversions(setDocs, snapshotDocs) {
-  const snapshots = new Map(snapshotDocs.map((d) => [d.id, d.data]));
+  const snapshots = new Map(snapshotDocs.map((d) => [d.id, d]));
   const plans = [];
-  for (const { id, data } of setDocs) {
+  for (const { id, data, updateTime } of setDocs) {
     if (!data || data.mode !== 'tour') continue;
     const draft = convertTourSet(data);
-    const snapshot = snapshots.get(id);
+    const snapshotDoc = snapshots.get(id);
+    const snapshot = snapshotDoc?.data;
     const published =
       snapshot && snapshot.set && typeof snapshot.set === 'object'
         ? convertTourSet(snapshot.set, { requireTourMode: false })
@@ -79,6 +80,8 @@ function planConversions(setDocs, snapshotDocs) {
       title: typeof data.title === 'string' ? data.title : '(untitled)',
       draft,
       published,
+      updateTime,
+      snapshotUpdateTime: snapshotDoc?.updateTime,
     });
   }
   return plans;
@@ -88,7 +91,7 @@ async function run() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help || !args.project || args.project === 'invalid') {
     console.log(
-      'Usage: node scripts/convert-tour-slides.mjs --project dev|prod [--dry-run] [--confirm-prod]'
+      'Usage: node scripts/convert-tour-slides.mjs --project dev|prod [--write] [--confirm-prod]'
     );
     process.exit(args.help ? 0 : 1);
   }
@@ -116,19 +119,30 @@ async function run() {
     db.collection(COLLECTION).get(),
     db.collection(TOURS_COLLECTION).get(),
   ]);
-  const setDocs = setSnap.docs.map((d) => ({ id: d.id, data: d.data() }));
+  const setDocs = setSnap.docs.map((d) => ({
+    id: d.id,
+    data: d.data(),
+    updateTime: d.updateTime,
+  }));
   const snapshotDocs = tourSnap.docs
     .filter((d) => !SKIP_TOUR_IDS.has(d.id))
-    .map((d) => ({ id: d.id, data: d.data() }));
+    .map((d) => ({ id: d.id, data: d.data(), updateTime: d.updateTime }));
   const tourCount = setDocs.filter((d) => d.data?.mode === 'tour').length;
   const plans = planConversions(setDocs, snapshotDocs);
 
-  const totals = { sets: 0, snapshots: 0, steps: 0, thumbnails: 0 };
+  const totals = {
+    sets: 0,
+    snapshots: 0,
+    steps: 0,
+    thumbnails: 0,
+    picturesDropped: 0,
+  };
   for (const plan of plans) {
     if (plan.draft.changed) {
       totals.sets++;
       totals.steps += plan.draft.stats.stepsConverted;
       totals.thumbnails += plan.draft.stats.thumbnailsAdded;
+      totals.picturesDropped += plan.draft.stats.picturesDropped;
       console.log(
         formatChange('set     ', plan.id, plan.title, plan.draft.stats)
       );
@@ -137,39 +151,54 @@ async function run() {
       totals.snapshots++;
       totals.steps += plan.published.stats.stepsConverted;
       totals.thumbnails += plan.published.stats.thumbnailsAdded;
+      totals.picturesDropped += plan.published.stats.picturesDropped;
       console.log(
         formatChange('snapshot', plan.id, plan.title, plan.published.stats)
       );
     }
   }
 
-  const summary = `${tourCount} tour sets of ${setSnap.size}; ${totals.sets} sets and ${totals.snapshots} snapshots to convert (${totals.steps} steps, ${totals.thumbnails} thumbnails).`;
+  const summary = `${tourCount} tour sets of ${setSnap.size}; ${totals.sets} sets and ${totals.snapshots} snapshots to convert (${totals.steps} steps, ${totals.thumbnails} thumbnails, ${totals.picturesDropped} pictures dropped on steps with no anchor).`;
   console.log(`\n${summary}`);
   if (args.dryRun) {
-    if (plans.length) console.log('Re-run without --dry-run to write.');
+    if (plans.length) console.log('Re-run with --write to write.');
     return;
   }
 
-  for (let i = 0; i < plans.length; i += BATCH_LIMIT) {
-    const batch = db.batch();
-    for (const plan of plans.slice(i, i + BATCH_LIMIT)) {
-      if (plan.draft.changed) {
-        const update = { steps: plan.draft.set.steps };
-        for (const key of plan.draft.stats.droppedSetFields)
-          update[key] = FieldValue.delete();
-        batch.update(db.collection(COLLECTION).doc(plan.id), update);
-      }
-      if (plan.published?.changed) {
-        batch.update(db.collection(TOURS_COLLECTION).doc(plan.id), {
-          set: plan.published.set,
-        });
-      }
+  // Each doc writes only if nobody saved it since it was read; a skipped doc converts on the next run.
+  const done = { sets: 0, snapshots: 0 };
+  const skipped = [];
+  const write = async (ref, update, lastUpdateTime, label, id) => {
+    try {
+      await ref.update(update, { lastUpdateTime });
+      return true;
+    } catch (err) {
+      skipped.push(`${label} ${id}: ${err?.message ?? err}`);
+      return false;
     }
-    await batch.commit();
+  };
+  for (const plan of plans) {
+    if (plan.draft.changed) {
+      const update = { steps: plan.draft.set.steps };
+      for (const key of plan.draft.stats.droppedSetFields)
+        update[key] = FieldValue.delete();
+      const ref = db.collection(COLLECTION).doc(plan.id);
+      if (await write(ref, update, plan.updateTime, 'set', plan.id))
+        done.sets++;
+    }
+    if (plan.published?.changed) {
+      const ref = db.collection(TOURS_COLLECTION).doc(plan.id);
+      const update = { set: plan.published.set };
+      const at = plan.snapshotUpdateTime;
+      if (await write(ref, update, at, 'snapshot', plan.id)) done.snapshots++;
+    }
   }
-  console.log(
-    `Converted ${totals.sets} sets and ${totals.snapshots} snapshots.`
-  );
+  console.log(`Converted ${done.sets} sets and ${done.snapshots} snapshots.`);
+  if (skipped.length) {
+    console.log(
+      `Skipped ${skipped.length} changed since read; re-run to convert:\n${skipped.join('\n')}`
+    );
+  }
 }
 
 // Guard direct execution so the helpers can be imported and unit-tested.

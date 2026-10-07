@@ -3,6 +3,7 @@ import {
   glSlideStoragePath,
   mergeSteps,
   requiredSchemaVersion,
+  revisionStepsFitSlides,
   stepInput,
   type StepInput,
 } from './glTools';
@@ -327,5 +328,22 @@ describe('Guided Learning step edits', () => {
     expect(() =>
       glSlideStoragePath(at(own, 'other'), 'sb', 'u1', 'mine')
     ).toThrow(/cannot read/);
+  });
+});
+
+describe('revisionStepsFitSlides', () => {
+  it('lets a recorder-made tour with no slides restore', () => {
+    expect(
+      revisionStepsFitSlides({ mode: 'tour', imageUrls: [] }, [
+        { imageIndex: 0 },
+        { imageIndex: 0 },
+      ])
+    ).toBe(true);
+  });
+
+  it('still refuses a standard set whose slides are gone', () => {
+    const set = { mode: 'structured', imageUrls: ['a'] };
+    expect(revisionStepsFitSlides(set, [{ imageIndex: 0 }])).toBe(true);
+    expect(revisionStepsFitSlides(set, [{ imageIndex: 1 }])).toBe(false);
   });
 });

@@ -80,4 +80,22 @@ describe('TourStepList', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(4);
     expect(container.querySelector('img')).toBeNull();
   });
+
+  it('falls back to the legacy slide when a step has no thumbnail', () => {
+    const legacy = {
+      ...set,
+      imageUrls: ['https://img/slide0.png', 'https://img/clip.mp4'],
+      imageKinds: ['image', 'video'],
+      steps: [
+        { id: 'a', text: 'One.', imageIndex: 0, tour: { anchor: 'x' } },
+        { id: 'b', text: 'Two.', imageIndex: 0, tour: { anchor: 'x' } },
+        { id: 'c', text: 'Three.', imageIndex: 1, tour: { anchor: 'x' } },
+      ],
+    } as unknown as GuidedLearningSet;
+    const { container } = render(<TourStepList set={legacy} />);
+    const srcs = [...container.querySelectorAll('img')].map((i) =>
+      i.getAttribute('src')
+    );
+    expect(srcs).toEqual(['https://img/slide0.png']);
+  });
 });

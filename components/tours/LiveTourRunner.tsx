@@ -1712,7 +1712,7 @@ export const LiveTourRunner: React.FC = () => {
             testId: 'tour-static-hint',
           }
         : null);
-    const preview = isMissing && hasStepSlide(step);
+    const preview = isMissing && hasStepSlide(step, tour.set);
     const width = Math.min(
       preview ? PREVIEW_WIDTH : plain ? PLAIN_WIDTH : CALLOUT_WIDTH,
       viewport.w - VIEWPORT_GUTTER * 2
@@ -1796,7 +1796,7 @@ export const LiveTourRunner: React.FC = () => {
         >
           {preview && (
             <Suspense fallback={null}>
-              <TourMiniPlayer step={step} />
+              <TourMiniPlayer set={tour.set} step={step} />
             </Suspense>
           )}
           {isMissing ? (

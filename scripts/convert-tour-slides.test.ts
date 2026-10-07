@@ -103,6 +103,7 @@ describe('convertTourSet', () => {
     expect(stats).toMatchObject({
       stepsConverted: 7,
       thumbnailsAdded: 3,
+      picturesDropped: 1,
       droppedSetFields: [
         'imageUrls',
         'imageKinds',
@@ -204,11 +205,12 @@ describe('planConversions', () => {
 });
 
 describe('parseArgs', () => {
-  it('maps project names and reads --dry-run', () => {
-    expect(parseArgs(['--project', 'dev', '--dry-run'])).toMatchObject({
+  it('maps project names and only writes with --write', () => {
+    expect(parseArgs(['--project', 'dev'])).toMatchObject({
       project: 'spartboard-dev',
       dryRun: true,
     });
+    expect(parseArgs(['--project', 'dev', '--write']).dryRun).toBe(false);
     expect(parseArgs(['--project', 'prod']).project).toBe('spartboard');
     expect(parseArgs(['--project', 'x']).project).toBe('invalid');
   });

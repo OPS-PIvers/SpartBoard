@@ -52,7 +52,7 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/LIVE_TOUR_EDITOR.md`
 
-- [ ] After the `main` release that carries PR 1: `node scripts/convert-tour-slides.mjs --project prod --dry-run`, then without `--dry-run` (plus `--confirm-prod`). Moves each tour step's slide into its thumbnail. (S)
+- [ ] After the `main` release that carries PR 1: `node scripts/convert-tour-slides.mjs --project prod` (dry run), then with `--write --confirm-prod`. Moves each tour step's slide into its thumbnail. (S)
 
 #### `docs/plans/shipped/ACTIVITY_WALL_REDESIGN.md`
 

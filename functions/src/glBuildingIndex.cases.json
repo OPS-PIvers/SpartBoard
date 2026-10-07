@@ -174,5 +174,50 @@
       "folderId": null,
       "order": null
     }
+  },
+  {
+    "name": "a tour with no slides uses its first step thumbnail",
+    "id": "t2",
+    "set": {
+      "title": "Timer tour",
+      "imageUrls": [],
+      "steps": [
+        {
+          "id": "a",
+          "tour": {
+            "anchor": "board.whole"
+          }
+        },
+        {
+          "id": "b",
+          "tour": {
+            "anchor": "dock.timer",
+            "thumbnail": {
+              "url": "https://t/b.png",
+              "anchor": "dock.timer",
+              "w": 640,
+              "h": 360
+            }
+          }
+        }
+      ],
+      "mode": "tour",
+      "createdAt": 1,
+      "updatedAt": 2
+    },
+    "expected": {
+      "id": "t2",
+      "title": "Timer tour",
+      "description": null,
+      "stepCount": 2,
+      "mode": "tour",
+      "thumbnail": "https://t/b.png",
+      "createdAt": 1,
+      "updatedAt": 2,
+      "hasLiveTour": true,
+      "isHelpCenter": false,
+      "folderId": null,
+      "order": null
+    }
   }
 ]
