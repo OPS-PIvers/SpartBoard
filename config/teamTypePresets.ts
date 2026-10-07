@@ -120,17 +120,19 @@ export const TEAM_LANDING_CARD_CATALOG: Partial<
 export const isTeamLandingPage = (id: TeamPageId): boolean =>
   TEAM_LANDING_CARD_CATALOG[id] !== undefined;
 
-const PLC_MEETING_TEMPLATE = `## 1. What do we want students to learn?
+// Block markers follow utils/meetingNoteTemplate.ts.
+const PLC_MEETING_TEMPLATE = `## What do we want students to learn?
 
-## 2. How will we know if they have learned it?
+## How will we know if they learned it?
+<!-- block:data -->
 
-## 3. How will we respond when some students do not learn it?
+## How will we respond when some students do not learn it?
+<!-- block:decision -->
 
-## 4. How will we extend learning for students who already know it?
-
-## Decisions
+## How will we extend learning for students who already know it?
 
 ## Action items
+<!-- block:actionItems -->
 `;
 
 const DEPARTMENT_MEETING_TEMPLATE = `## Agenda
@@ -138,8 +140,10 @@ const DEPARTMENT_MEETING_TEMPLATE = `## Agenda
 ## Curriculum and materials
 
 ## Decisions
+<!-- block:decision -->
 
 ## Action items
+<!-- block:actionItems -->
 `;
 
 const MENTORING_MEETING_TEMPLATE = `## Check-in
@@ -147,6 +151,7 @@ const MENTORING_MEETING_TEMPLATE = `## Check-in
 ## Goal progress
 
 ## Next steps
+<!-- block:actionItems -->
 `;
 
 /** Built-in preset per group type; page order is rail order (Page sets at a glance, T17, T23, T25, T30). */

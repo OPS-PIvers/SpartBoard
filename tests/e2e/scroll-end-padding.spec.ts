@@ -41,6 +41,10 @@ test('every Admin Settings tab keeps padding under its last row', async ({
   await page.getByRole('button', { name: 'Admin Settings' }).click();
   const dialog = page.getByRole('dialog', { name: /admin settings/i });
   await expect(dialog).toBeVisible();
+  // Preview-gated tabs are measured too; admins pass the teams-redesign gate.
+  await expect(
+    dialog.getByRole('tab', { name: 'Team type defaults' })
+  ).toBeVisible();
   await checkEveryTab(page, dialog, 'Admin Settings');
 });
 
