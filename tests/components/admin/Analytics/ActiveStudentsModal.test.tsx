@@ -23,19 +23,30 @@ const HOUR = 60 * 60 * 1000;
 const rows = [
   {
     name: 'Ana Lee',
-    teachers: ['Mr. Adams', 'Ms. Zed'],
+    teachers: [
+      { name: 'Mr. Adams', lastOpenedMs: NOW - 3 * 24 * HOUR },
+      { name: 'Ms. Zed', lastOpenedMs: NOW - HOUR },
+    ],
     lastSignInMs: NOW - HOUR,
   },
   { name: 'Ben Ortiz', teachers: [], lastSignInMs: NOW - 5 * 24 * HOUR },
-  { name: '', teachers: ['Ms. Zed'], lastSignInMs: NOW - 2 * HOUR },
+  {
+    name: '',
+    teachers: [{ name: 'Ms. Zed', lastOpenedMs: NOW - 2 * HOUR }],
+    lastSignInMs: NOW - 2 * HOUR,
+  },
 ];
 
 describe('studentsForCategory', () => {
-  it('narrows the daily list to the last 24 hours', () => {
-    expect(
-      studentsForCategory(rows, 'dailyStudents', NOW).map((r) => r.name)
-    ).toEqual(['Ana Lee', '']);
-    expect(studentsForCategory(rows, 'monthlyStudents', NOW)).toHaveLength(3);
+  it('narrows students and teachers to the last 24 hours for the daily list', () => {
+    const daily = studentsForCategory(rows, 'dailyStudents', NOW);
+    expect(daily.map((r) => [r.name, r.teachers])).toEqual([
+      ['Ana Lee', ['Ms. Zed']],
+      ['', ['Ms. Zed']],
+    ]);
+    const monthly = studentsForCategory(rows, 'monthlyStudents', NOW);
+    expect(monthly[0].teachers).toEqual(['Mr. Adams', 'Ms. Zed']);
+    expect(monthly).toHaveLength(3);
   });
 });
 

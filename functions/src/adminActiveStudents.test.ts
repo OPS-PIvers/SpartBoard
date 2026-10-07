@@ -3,7 +3,9 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('./functionsInit', () => ({}));
 
 import {
+  OPEN_SOURCES,
   buildActiveStudentRows,
+  latestOpensByStudent,
   orderSectionsForNameLookup,
   selectMonthlyActive,
 } from './adminActiveStudents';
@@ -40,26 +42,66 @@ describe('orderSectionsForNameLookup', () => {
   });
 });
 
+describe('latestOpensByStudent', () => {
+  it('keeps the latest open per student and teacher', () => {
+    const map = latestOpensByStudent([
+      { studentUid: 'a', teacherUid: 't1', openedMs: 5 },
+      { studentUid: 'a', teacherUid: 't1', openedMs: 9 },
+      { studentUid: 'a', teacherUid: 't2', openedMs: 3 },
+    ]);
+    expect([...(map.get('a') ?? [])]).toEqual([
+      ['t1', 9],
+      ['t2', 3],
+    ]);
+  });
+});
+
 describe('buildActiveStudentRows', () => {
-  it('lists each teacher once across co-taught and shared sections', () => {
+  it('names each teacher once with their latest open, sorted by name', () => {
     const rows = buildActiveStudentRows({
       students: [
-        { uid: 'a', sectionIds: ['s1', 's2', 'unrostered'], lastSignInMs: 5 },
-        { uid: 'b', sectionIds: ['unrostered'], lastSignInMs: 4 },
+        { uid: 'a', sectionIds: [], lastSignInMs: 50 },
+        { uid: 'b', sectionIds: [], lastSignInMs: 40 },
       ],
-      teacherUidsBySection: new Map([
-        ['s1', ['t1', 't2']],
-        ['s2', ['t1']],
+      opensByStudent: new Map([
+        [
+          'a',
+          new Map([
+            ['t1', 30],
+            ['t2', 20],
+            ['t3', 10],
+          ]),
+        ],
       ]),
       teacherNames: new Map([
         ['t1', 'Ms. Zed'],
         ['t2', 'Mr. Adams'],
+        ['t3', 'Ms. Zed'],
       ]),
       namesByUid: new Map([['a', 'Ana Lee']]),
     });
     expect(rows).toEqual([
-      { name: 'Ana Lee', teachers: ['Mr. Adams', 'Ms. Zed'], lastSignInMs: 5 },
-      { name: '', teachers: [], lastSignInMs: 4 },
+      {
+        name: 'Ana Lee',
+        teachers: [
+          { name: 'Mr. Adams', lastOpenedMs: 20 },
+          { name: 'Ms. Zed', lastOpenedMs: 30 },
+        ],
+        lastSignInMs: 50,
+      },
+      { name: '', teachers: [], lastSignInMs: 40 },
+    ]);
+  });
+});
+
+describe('OPEN_SOURCES', () => {
+  it('covers every assignment kind that stores the student uid', () => {
+    expect(OPEN_SOURCES.map((s) => s.sessions).sort()).toEqual([
+      'activity_wall_sessions',
+      'guided_learning_sessions',
+      'mini_app_sessions',
+      'quiz_sessions',
+      'video_activity_sessions',
     ]);
   });
 });

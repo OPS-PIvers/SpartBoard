@@ -19,10 +19,11 @@ import {
 import { isSuperAdminRoleId } from './authz';
 import { assertViewAsAllowed } from './viewAsGuard';
 
-// Admin-only drill-down behind the Monthly/Daily Active Students KPIs; names come live from ClassLink and are never stored.
+// Admin-only drill-down behind the Active Students KPIs: teachers come from assignments opened; names come live from ClassLink.
 
 const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 const IN_CHUNK = 10;
+const IN_QUERY_MAX = 30;
 const CLASSLINK_CONCURRENCY = 6;
 const PAGE_LIMIT = 200;
 const MAX_PAGES = 10;
@@ -37,7 +38,7 @@ export interface ActiveStudentInput {
 
 export interface ActiveStudentRow {
   name: string;
-  teachers: string[];
+  teachers: { name: string; lastOpenedMs: number }[];
   lastSignInMs: number;
 }
 
@@ -67,28 +68,164 @@ export function orderSectionsForNameLookup(
     .map(([id]) => id);
 }
 
+// Student records that mark opening or submitting an assignment, keyed by the student's auth uid.
+interface OpenSource {
+  group: 'responses' | 'submissions';
+  sessions: string;
+  studentField: string;
+  timeField: string;
+}
+
+export const OPEN_SOURCES: readonly OpenSource[] = [
+  {
+    group: 'responses',
+    sessions: 'quiz_sessions',
+    studentField: 'studentUid',
+    timeField: 'joinedAt',
+  },
+  {
+    group: 'responses',
+    sessions: 'video_activity_sessions',
+    studentField: 'studentUid',
+    timeField: 'joinedAt',
+  },
+  {
+    group: 'responses',
+    sessions: 'guided_learning_sessions',
+    studentField: 'studentAnonymousId',
+    timeField: 'startedAt',
+  },
+  {
+    group: 'submissions',
+    sessions: 'mini_app_sessions',
+    studentField: 'studentUid',
+    timeField: 'submittedAt',
+  },
+  {
+    group: 'submissions',
+    sessions: 'activity_wall_sessions',
+    studentField: 'authorUid',
+    timeField: 'submittedAt',
+  },
+];
+
+export interface AssignmentOpen {
+  studentUid: string;
+  teacherUid: string;
+  openedMs: number;
+}
+
+/** Latest open per (student, teacher). */
+export function latestOpensByStudent(
+  opens: readonly AssignmentOpen[]
+): Map<string, Map<string, number>> {
+  const out = new Map<string, Map<string, number>>();
+  for (const o of opens) {
+    const byTeacher = out.get(o.studentUid) ?? new Map<string, number>();
+    byTeacher.set(
+      o.teacherUid,
+      Math.max(byTeacher.get(o.teacherUid) ?? 0, o.openedMs)
+    );
+    out.set(o.studentUid, byTeacher);
+  }
+  return out;
+}
+
 export function buildActiveStudentRows(input: {
   students: readonly ActiveStudentInput[];
-  teacherUidsBySection: ReadonlyMap<string, readonly string[]>;
+  opensByStudent: ReadonlyMap<string, ReadonlyMap<string, number>>;
   teacherNames: ReadonlyMap<string, string>;
   namesByUid: ReadonlyMap<string, string>;
 }): ActiveStudentRow[] {
   return input.students.map((s) => {
-    const teacherUids = new Set<string>();
-    for (const id of s.sectionIds) {
-      for (const t of input.teacherUidsBySection.get(id) ?? []) {
-        teacherUids.add(t);
-      }
+    const byName = new Map<string, number>();
+    for (const [teacherUid, openedMs] of input.opensByStudent.get(s.uid) ??
+      []) {
+      const name = input.teacherNames.get(teacherUid);
+      if (!name) continue;
+      byName.set(name, Math.max(byName.get(name) ?? 0, openedMs));
     }
-    const teachers = [...teacherUids]
-      .map((t) => input.teacherNames.get(t) ?? '')
-      .filter((n) => n.length > 0)
-      .sort((a, b) => a.localeCompare(b));
     return {
       name: input.namesByUid.get(s.uid) ?? '',
-      teachers: [...new Set(teachers)],
+      teachers: [...byName.entries()]
+        .map(([name, lastOpenedMs]) => ({ name, lastOpenedMs }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
       lastSignInMs: s.lastSignInMs,
     };
+  });
+}
+
+async function collectAssignmentOpens(
+  db: admin.firestore.Firestore,
+  studentUids: readonly string[],
+  sinceMs: number
+): Promise<AssignmentOpen[]> {
+  const wanted = new Set(studentUids);
+  const hits: {
+    studentUid: string;
+    sessionRef: admin.firestore.DocumentReference;
+    openedMs: number;
+  }[] = [];
+  const queries: Promise<void>[] = [];
+  for (const src of OPEN_SOURCES) {
+    for (const ids of chunk(studentUids, IN_QUERY_MAX)) {
+      queries.push(
+        db
+          .collectionGroup(src.group)
+          .where(src.studentField, 'in', ids)
+          .where(src.timeField, '>=', sinceMs)
+          .select(src.studentField, src.timeField)
+          .get()
+          .then((snap) => {
+            for (const doc of snap.docs) {
+              const sessionRef = doc.ref.parent.parent;
+              if (sessionRef?.parent.id !== src.sessions) continue;
+              const uid: unknown = doc.get(src.studentField);
+              const at: unknown = doc.get(src.timeField);
+              if (typeof uid !== 'string' || typeof at !== 'number') continue;
+              hits.push({ studentUid: uid, sessionRef, openedMs: at });
+            }
+          })
+      );
+    }
+  }
+  // Flashcard progress is keyed by uid with no uid field, so read the window and match ids.
+  queries.push(
+    db
+      .collectionGroup('progress')
+      .where('lastActiveAt', '>=', sinceMs)
+      .select('lastActiveAt')
+      .get()
+      .then((snap) => {
+        for (const doc of snap.docs) {
+          const sessionRef = doc.ref.parent.parent;
+          if (sessionRef?.parent.id !== 'flashcard_sessions') continue;
+          if (!wanted.has(doc.id)) continue;
+          const at: unknown = doc.get('lastActiveAt');
+          if (typeof at !== 'number') continue;
+          hits.push({ studentUid: doc.id, sessionRef, openedMs: at });
+        }
+      })
+  );
+  await Promise.all(queries);
+
+  const sessionRefs = new Map<string, admin.firestore.DocumentReference>();
+  for (const h of hits) sessionRefs.set(h.sessionRef.path, h.sessionRef);
+  const teacherBySession = new Map<string, string>();
+  for (const refs of chunk([...sessionRefs.values()], 300)) {
+    const docs = await db.getAll(...refs, { fieldMask: ['teacherUid'] });
+    for (const d of docs) {
+      const teacherUid: unknown = d.get('teacherUid');
+      if (typeof teacherUid === 'string' && teacherUid) {
+        teacherBySession.set(d.ref.path, teacherUid);
+      }
+    }
+  }
+  return hits.flatMap((h) => {
+    const teacherUid = teacherBySession.get(h.sessionRef.path);
+    return teacherUid
+      ? [{ studentUid: h.studentUid, teacherUid, openedMs: h.openedMs }]
+      : [];
   });
 }
 
@@ -183,27 +320,34 @@ export const getActiveStudentsV1 = onCall(
       now
     );
 
-    // Section → teachers who imported it as a roster.
+    // Sections that teachers imported as rosters; only these can be fetched from ClassLink for names.
     const allSections = [...new Set(active.flatMap((s) => s.sectionIds))];
-    const teacherUidsBySection = new Map<string, string[]>();
+    const rosteredSections = new Set<string>();
     const rosterSnaps = await Promise.all(
       chunk(allSections, IN_CHUNK).map((ids) =>
-        db.collectionGroup('rosters').where('classlinkClassId', 'in', ids).get()
+        db
+          .collectionGroup('rosters')
+          .where('classlinkClassId', 'in', ids)
+          .select('classlinkClassId')
+          .get()
       )
     );
     for (const rs of rosterSnaps) {
       for (const doc of rs.docs) {
         const sectionId: unknown = doc.get('classlinkClassId');
-        const teacherUid = doc.ref.parent.parent?.id;
-        if (typeof sectionId !== 'string' || !teacherUid) continue;
-        const list = teacherUidsBySection.get(sectionId) ?? [];
-        if (!list.includes(teacherUid)) list.push(teacherUid);
-        teacherUidsBySection.set(sectionId, list);
+        if (typeof sectionId === 'string') rosteredSections.add(sectionId);
       }
     }
 
+    const opens = await collectAssignmentOpens(
+      db,
+      active.map((s) => s.uid),
+      now - MONTH_MS
+    );
+    const opensByStudent = latestOpensByStudent(opens);
+
     const teacherNames = new Map<string, string>();
-    const teacherUids = [...new Set([...teacherUidsBySection.values()].flat())];
+    const teacherUids = [...new Set(opens.map((o) => o.teacherUid))];
     for (const ids of chunk(teacherUids, 100)) {
       const result = await admin
         .auth()
@@ -223,10 +367,7 @@ export const getActiveStudentsV1 = onCall(
     let partial = false;
     if (hmacSecret && clientId && clientSecret && tenantUrl) {
       const wanted = new Set(active.map((s) => s.uid));
-      const sections = orderSectionsForNameLookup(
-        active,
-        new Set(teacherUidsBySection.keys())
-      );
+      const sections = orderSectionsForNameLookup(active, rosteredSections);
       await mapWithConcurrency(
         sections,
         CLASSLINK_CONCURRENCY,
@@ -284,7 +425,7 @@ export const getActiveStudentsV1 = onCall(
       partial,
       students: buildActiveStudentRows({
         students: active,
-        teacherUidsBySection,
+        opensByStudent,
         teacherNames,
         namesByUid,
       }),
