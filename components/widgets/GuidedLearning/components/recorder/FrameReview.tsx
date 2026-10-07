@@ -118,8 +118,11 @@ const FrameCanvas: React.FC<{
     let made: ImageBitmap | null = null;
     void createImageBitmap(frame)
       .then((plain) => {
+        if (cancelled) {
+          plain.close();
+          return;
+        }
         made = plain;
-        if (cancelled) return;
         const small = document.createElement('canvas');
         small.width = Math.max(1, Math.round(plain.width / PREVIEW_SHRINK));
         small.height = Math.max(1, Math.round(plain.height / PREVIEW_SHRINK));
@@ -139,6 +142,8 @@ const FrameCanvas: React.FC<{
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx || !loaded || loaded.frame !== frame) return;
     const { plain, small } = loaded;
+    // A closed bitmap (frame left and revisited before re-decode) reads 0×0 and would throw.
+    if (plain.width === 0 || plain.height === 0) return;
     canvas.width = plain.width;
     canvas.height = plain.height;
     ctx.drawImage(plain, 0, 0);
