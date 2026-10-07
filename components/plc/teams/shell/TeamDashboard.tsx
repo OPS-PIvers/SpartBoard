@@ -24,6 +24,7 @@ import { resolveTeamLayout } from '@/utils/teamLayout';
 import { getPlcRole } from '@/utils/plc';
 import { isForeignMentionEvent } from '@/utils/plcActivity';
 import { logError } from '@/utils/logError';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import {
   buildPlcDocPath,
   buildPlcPath,
@@ -74,6 +75,15 @@ import {
 
 const OLDER_LIMIT = 10;
 
+const isTextEntry = (target: EventTarget | null): boolean =>
+  target instanceof HTMLElement &&
+  (target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.tagName === 'SELECT' ||
+    target.isContentEditable ||
+    target.closest('[contenteditable]:not([contenteditable="false"])') !==
+      null);
+
 interface TeamDashboardProps {
   plc: Plc;
   activeSection: PlcSectionId;
@@ -123,11 +133,12 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
     requestedSection === 'home'
   );
 
-  // Escape closes the open panel first, then the team page.
+  // Escape closes the open panel first, then the team page; never from a text field or editor.
   useEffect(() => {
     if (editorOpen) return;
     const handler = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      if (isEscapeFromWidgetInput(event) || isTextEntry(event.target)) return;
       if (overlay) setOverlay(null);
       else onClose();
     };

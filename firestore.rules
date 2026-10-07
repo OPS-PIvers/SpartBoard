@@ -2738,6 +2738,8 @@ service cloud.firestore {
         // Teachers pick plc, department or mentoring; building groups and auto-roster are admin-made.
         && incoming().get('groupType', 'plc') in ['plc', 'department', 'mentoring']
         && !('autoRoster' in incoming())
+        // A redesign-created team may start with a frozen layout (TEAMS_REDESIGN T3).
+        && (!('layout' in incoming()) || plcLayoutShapeOk(incoming().layout))
         && (
              !('orgId' in incoming())
              || incoming().orgId == null

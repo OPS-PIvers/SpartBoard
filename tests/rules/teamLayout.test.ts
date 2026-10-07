@@ -192,6 +192,44 @@ describe('plcs/{plcId} layout', () => {
   });
 });
 
+describe('plcs/{plcId} create with a layout', () => {
+  const newTeam = (extra: Record<string, unknown> = {}) => ({
+    name: 'New team',
+    leadUid: OUTSIDER,
+    memberUids: [OUTSIDER],
+    memberEmails: {},
+    members: {
+      [OUTSIDER]: { uid: OUTSIDER, role: 'lead', status: 'active' },
+    },
+    groupType: 'plc',
+    createdAt: 1,
+    updatedAt: 1,
+    ...extra,
+  });
+  const create = (extra: Record<string, unknown> = {}) =>
+    setDoc(doc(as(OUTSIDER), 'plcs/new-team'), newTeam(extra));
+
+  it('a teacher creates a team with or without a valid layout', async () => {
+    await assertSucceeds(create());
+    await testEnv.clearFirestore();
+    await assertSucceeds(create({ layout }));
+  });
+
+  it('rejects a create with a malformed layout', async () => {
+    const bad = [
+      'dataOverview',
+      null,
+      { ...layout, extra: true },
+      { ...layout, cards: {} },
+      { ...layout, hero: { mode: 'sticky' } },
+      { pages: [], landing: 'hub', cards: [] },
+    ];
+    for (const value of bad) {
+      await assertFails(create({ layout: value }));
+    }
+  });
+});
+
 describe('admin_settings/team_type_defaults', () => {
   const defaults = {
     types: { plc: { landing: 'dataOverview', heroRule: 'latestAssessment' } },

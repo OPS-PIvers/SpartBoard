@@ -68,7 +68,16 @@ vi.mock('@/components/plc/teams/pages/ExistingTeamPages', () => ({
 }));
 vi.mock('@/components/plc/teams/pageRegistry', async () => {
   const { FileText } = await import('lucide-react');
-  const Page = () => <div data-testid="team-page" />;
+  const Page = () => (
+    <div data-testid="team-page">
+      <input aria-label="Field" />
+      <div
+        data-testid="editor"
+        contentEditable
+        suppressContentEditableWarning
+      />
+    </div>
+  );
   const entry = { icon: FileText, Component: Page };
   return {
     TEAM_PAGE_REGISTRY: {
@@ -122,6 +131,25 @@ describe('TeamDashboard', () => {
       <TeamDashboard plc={plc()} activeSection="sharedBoards" {...props} />
     );
     expect(mocks.spaReplace).toHaveBeenCalledWith('/plc/p1/resources');
+  });
+
+  it('closes on Escape, but not from a text field or editor', () => {
+    const onClose = vi.fn();
+    render(
+      <TeamDashboard
+        plc={plc()}
+        activeSection="home"
+        {...props}
+        onClose={onClose}
+      />
+    );
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Field' }), {
+      key: 'Escape',
+    });
+    fireEvent.keyDown(screen.getByTestId('editor'), { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('freezes the resolved layout the first time a lead opens the editor', () => {
