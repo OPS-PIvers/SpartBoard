@@ -27,6 +27,7 @@ import { PlcNormingLevelsSection } from '@/components/plc/norming/PlcNormingLeve
 import { PlcGradebookSection } from '@/components/plc/settings/PlcGradebookSection';
 import { MentoringPairingsSettings } from '@/components/plc/teams/mentoring/MentoringPairingsSettings';
 import { isPlcLeadOrCoLead } from '@/utils/plc';
+import { TeamCalendarSettings } from '@/components/plc/teams/building/TeamCalendarSettings';
 
 interface PlcSettingsTabProps {
   plc: Plc;
@@ -252,6 +253,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
         isPlcLeadOrCoLead(plc, user.uid) && (
           <MentoringPairingsSettings plc={plc} />
         )}
+      {canAccessFeature('teams-redesign') && <TeamCalendarSettings plc={plc} />}
 
       {/* Notifications — opt-in weekly email digest (Decision 2.3). Any
           member can flip it; default OFF. */}
