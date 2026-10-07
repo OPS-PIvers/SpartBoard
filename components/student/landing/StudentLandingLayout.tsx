@@ -42,6 +42,8 @@ export interface StudentLandingLayoutProps {
   onOpenGradeOnly: (item: DoneItem) => void;
   /** Shown above the page content, e.g. a partial-load warning. */
   notice?: React.ReactNode;
+  /** Fill the parent box instead of the viewport (admin preview). */
+  embedded?: boolean;
 }
 
 const SignOutButton: React.FC<{
@@ -82,6 +84,7 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
   onLockedClick,
   onOpenGradeOnly,
   notice,
+  embedded = false,
 }) => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const sheetTriggerRef = useRef<HTMLButtonElement>(null);
@@ -143,7 +146,11 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
   );
 
   return (
-    <div className="relative flex h-screen [height:100dvh] w-screen flex-col overflow-hidden bg-slate-50 font-sans">
+    <div
+      className={`relative flex flex-col overflow-hidden bg-slate-50 font-sans ${
+        embedded ? 'h-full w-full' : 'h-screen [height:100dvh] w-screen'
+      }`}
+    >
       <header className="flex h-[60px] shrink-0 items-center gap-3 bg-brand-blue-primary px-4 text-white min-[896px]:h-[68px] min-[896px]:px-6">
         <span
           aria-hidden="true"

@@ -39,7 +39,7 @@ describe('shouldClearOnOrgKeyChange', () => {
    * The bug this module fixes: a super admin switching between two foreign
    * orgs never flips `shouldSubscribe` (both keys are `true:<orgId>`), so a
    * clear condition of `!shouldSubscribe` alone — the code every one of
-   * useOrgDomains/useOrgMembers/useOrgRoles/useOrgStudentPage/useOrganization/
+   * useOrgDomains/useOrgMembers/useOrgRoles/useOrganization/
    * useTestClasses shipped with before this fix — misses org-A -> org-B and
    * leaves org A's data rendered under org B's heading until org B's first
    * snapshot lands.

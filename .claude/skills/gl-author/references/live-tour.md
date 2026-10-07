@@ -16,6 +16,8 @@ another app is an ordinary set.
   it opens to everyone).
 - Marking it for the Help Center is a Studio toggle after import; the file
   cannot set it. The connector's `create_live_tour` can, with `help_center`.
+- Through the connector, `get_live_tour` reads a tour (with its publish
+  state) and `update_live_tour` saves the full step list as the draft.
 
 ## How the runner plays a set
 

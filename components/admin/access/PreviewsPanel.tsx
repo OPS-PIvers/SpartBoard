@@ -42,7 +42,7 @@ const DistrictSwitch: React.FC<{
   </span>
 );
 
-const PreviewRow: React.FC<{
+export const PreviewRow: React.FC<{
   featureId: GlobalFeature;
   editor: ReturnType<typeof useGlobalPermissionsEditor>;
 }> = ({ featureId, editor }) => {
