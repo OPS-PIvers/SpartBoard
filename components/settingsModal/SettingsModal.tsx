@@ -158,7 +158,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const sections = SECTIONS.filter(
     (s) =>
       (s.id !== 'widgetDefaults' || canAccessFeature('settings-drawer')) &&
-      (s.id !== 'connectedApps' || canAccessFeature('claude-connector'))
+      (s.id !== 'connectedApps' ||
+        canAccessFeature('claude-connector') ||
+        canAccessFeature('google-tasks-sync'))
   );
   const [activeSection, setActiveSection] = useState<SectionId>(initialSection);
   // Mobile only: the drill-in list (true) vs. the selected panel (false). The
