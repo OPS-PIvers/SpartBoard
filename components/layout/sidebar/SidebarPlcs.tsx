@@ -15,20 +15,34 @@ import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { usePlcUnread } from '@/hooks/usePlcUnread';
-import { Plc, PlcGroupType, PlcInvitation, getPlcGroupType } from '@/types';
+import {
+  Plc,
+  PlcGroupType,
+  PlcInvitation,
+  PlcTeamLayout,
+  getPlcGroupType,
+} from '@/types';
 import { groupTypeLabel } from '@/components/plc/groupTypes';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { PlcEditModal } from './PlcEditModal';
 import { PlcInvitesModal } from './PlcInvitesModal';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import {
+  fetchTeamTypeDefaults,
+  newTeamLayout,
+} from '@/components/plc/teams/teamRollout';
 
 interface SidebarPlcsProps {
   isVisible: boolean;
   /** PLC list + actions, lifted to `Sidebar` so the listener only mounts once. */
   plcs: Plc[];
   plcsLoading: boolean;
-  createPlc: (name: string, groupType?: PlcGroupType) => Promise<string>;
+  createPlc: (
+    name: string,
+    groupType?: PlcGroupType,
+    layout?: PlcTeamLayout
+  ) => Promise<string>;
   leavePlc: (plcId: string) => Promise<void>;
   deletePlc: (plcId: string) => Promise<void>;
   /** Pending invites, lifted alongside `plcs` for the same reason. */
@@ -285,7 +299,12 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
   };
 
   const handleCreate = async (name: string, groupType: PlcGroupType) => {
-    await createPlc(name, groupType);
+    if (!canAccessFeature('teams-redesign')) {
+      await createPlc(name, groupType);
+      return;
+    }
+    const defaults = await fetchTeamTypeDefaults();
+    await createPlc(name, groupType, newTeamLayout(groupType, defaults));
   };
 
   const handleLeave = async (plc: Plc) => {

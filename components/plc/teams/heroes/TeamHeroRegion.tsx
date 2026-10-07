@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Plc } from '@/types';
+import { getPlcGroupType, type Plc } from '@/types';
 import type { ResolvedTeamLayout } from '@/utils/teamLayout';
 import { TeamCardPlaceholder } from '@/components/plc/teams/TeamPlaceholder';
 import {
@@ -20,7 +20,11 @@ export const TeamHeroRegion: React.FC<{
   const { t } = useTranslation();
   const heroRef =
     layout.hero.mode === 'pinned' ? (layout.hero.ref ?? null) : null;
-  const entry = resolveTeamHeroEntry(heroRef, layout.heroRule);
+  const entry = resolveTeamHeroEntry(
+    heroRef,
+    layout.heroRule,
+    getPlcGroupType(plc)
+  );
   return (
     <div data-team-hero>
       {!entry?.ownsNudge && (

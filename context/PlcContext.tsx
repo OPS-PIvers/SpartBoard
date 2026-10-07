@@ -536,10 +536,13 @@ export function PlcProvider({
 
   // --- Heavy subcollection listeners (gated on the active section) ---
   // Home v2 opens only the slices its tiles need (plan §6).
+  const permissionsReady = globalPermissionsLoaded && isAdmin !== null;
+  // Teams redesign: the header's My items and live meeting banner show on every page.
+  const teamsRedesign = permissionsReady && canAccessFeature('teams-redesign');
   const homeV2 =
+    !teamsRedesign &&
     activeSection === 'home' &&
-    globalPermissionsLoaded &&
-    isAdmin !== null &&
+    permissionsReady &&
     canAccessFeature('plc-home-v2');
   const homeLayout = useHomeLayoutListener(plcId, homeV2);
   // Wait for the layout so a member who removed a tile never pays for its listener.
@@ -549,6 +552,7 @@ export function PlcProvider({
       : null;
   const isSectionActive = (slice: keyof typeof SLICE_SECTIONS): boolean =>
     SLICE_SECTIONS[slice].has(activeSection) ||
+    (teamsRedesign && (slice === 'notes' || slice === 'meetings')) ||
     ((slice === 'notes' || slice === 'docs' || slice === 'meetings') &&
       homeSlices?.has(slice) === true);
 
@@ -611,10 +615,12 @@ export function PlcProvider({
     plcId,
     'meetings',
     isSectionActive('meetings'),
-    homeV2 ? newestHeldMeetings : orderByHeldAtDesc,
+    homeV2 || (teamsRedesign && activeSection !== 'meeting')
+      ? newestHeldMeetings
+      : orderByHeldAtDesc,
     parsePlcMeeting,
     filterLive,
-    homeV2 ? 'home' : ''
+    homeV2 || (teamsRedesign && activeSection !== 'meeting') ? 'home' : ''
   );
 
   // --- Derived root + members (always on; ride the `plc` prop) ---

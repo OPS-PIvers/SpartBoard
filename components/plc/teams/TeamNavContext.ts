@@ -2,6 +2,7 @@
 
 import { createContext, useContext } from 'react';
 import type { PlcSectionId } from '@/components/plc/sections';
+import type { ResolvedTeamLayout } from '@/utils/teamLayout';
 
 export interface TeamNav {
   navigate: (section: PlcSectionId) => void;
@@ -11,6 +12,8 @@ export interface TeamNav {
   openLayoutEditor: () => void;
   assessmentId: string | null;
   docId: string | null;
+  /** The team's resolved layout, e.g. for a hero following the default rule. */
+  layout: ResolvedTeamLayout | null;
 }
 
 const NOOP_NAV: TeamNav = {
@@ -20,6 +23,7 @@ const NOOP_NAV: TeamNav = {
   openLayoutEditor: () => undefined,
   assessmentId: null,
   docId: null,
+  layout: null,
 };
 
 export const TeamNavContext = createContext<TeamNav>(NOOP_NAV);
