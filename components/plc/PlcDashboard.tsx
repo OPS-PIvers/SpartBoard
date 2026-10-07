@@ -113,7 +113,8 @@ const LegacyPlcDashboard: React.FC<PlcDashboardProps> = ({
   // (single source of truth). `assessments` shows when EITHER the quiz or the
   // video-activity feature is on.
   const retireMeetingMode = canAccessFeature('teams-redesign');
-  const { updates, loading: updatesLoading } = usePlcUpdates(plc.id);
+  const updatesApi = usePlcUpdates(plc.id);
+  const { updates, loading: updatesLoading } = updatesApi;
   // Keep an /updates deep link while the first snapshot loads.
   const showUpdates =
     updates.length > 0 || (updatesLoading && requestedSection === 'updates');
@@ -254,6 +255,7 @@ const LegacyPlcDashboard: React.FC<PlcDashboardProps> = ({
           <LegacyUpdatesBody
             plc={plc}
             isManager={role === 'lead' || role === 'coLead'}
+            source={updatesApi}
           />
         );
       // Teams redesign page; never visible here, so it resolves to home above.

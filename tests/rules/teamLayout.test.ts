@@ -167,6 +167,11 @@ describe('plcs/{plcId} layout', () => {
     await assertFails(writeLayout(CO_LEAD, { features: 'off' }));
   });
 
+  it('a co-lead cannot delete the section switches with a layout save', async () => {
+    await assertSucceeds(writeLayout(CO_LEAD, { 'features.notes': false }));
+    await assertFails(writeLayout(CO_LEAD, { features: deleteField() }));
+  });
+
   it('a plain member cannot write switches alongside a layout', async () => {
     await assertFails(writeLayout(MEMBER, { 'features.notes': false }));
   });
@@ -227,6 +232,8 @@ describe('plcs/{plcId} create with a layout', () => {
     await assertSucceeds(create());
     await testEnv.clearFirestore();
     await assertSucceeds(create({ layout }));
+    await testEnv.clearFirestore();
+    await assertSucceeds(create({ layout, features: { notes: false } }));
   });
 
   it('rejects a create with a malformed layout', async () => {

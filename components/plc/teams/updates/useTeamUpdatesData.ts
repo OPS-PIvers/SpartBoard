@@ -10,6 +10,7 @@ import {
   usePlcUpdates,
   useUpdateAcksFor,
   type PlcUpdateDraft,
+  type PlcUpdatesApi,
 } from '@/hooks/usePlcUpdates';
 import type { Plc, PlcUpdate } from '@/types';
 import { logError } from '@/utils/logError';
@@ -25,18 +26,21 @@ export interface TeamUpdatesDataOptions {
   withRosters?: boolean;
   /** How many of the newest updates the view shows; acks are watched only there. */
   visible?: number;
+  /** An Updates subscription the caller already holds, so this hook opens no second listener. */
+  source?: PlcUpdatesApi;
 }
 
 export function useTeamUpdatesData(
   plc: Plc,
   isLead: boolean,
-  { withRosters = true, visible }: TeamUpdatesDataOptions = {}
+  { withRosters = true, visible, source }: TeamUpdatesDataOptions = {}
 ) {
   const { user } = useAuth();
   const { addToast } = useDashboard();
   const { showConfirm } = useDialog();
   const { openPicker } = useGooglePicker();
-  const api = usePlcUpdates(plc.id);
+  const own = usePlcUpdates(plc.id, !source);
+  const api = source ?? own;
   const { updates } = api;
 
   const ackIds = useMemo(
