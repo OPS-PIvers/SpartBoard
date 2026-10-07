@@ -1,0 +1,1101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>My Groups Redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" />
+<style>
+  /* Mockup for docs/plans/TEAMS_REDESIGN.md. Chart kit = barRows, histogram, lineTrend, columns; one token set, light and dark. */
+  :root {
+    color-scheme: light;
+    --brand: #2d3f89; --brand-dark: #1d2a5d; --brand-soft: #eaecf5; --brand-ink: #2d3f89;
+    --page: #f8fafc; --surface: #ffffff; --raised: #ffffff; --sunk: #f1f5f9;
+    --line: #e2e8f0; --line-soft: #f1f5f9;
+    --ink: #1e293b; --ink-2: #475569; --muted: #64748b; --faint: #94a3b8;
+    /* chart roles (validated: dataviz validate_palette, light vs #ffffff) */
+    --s1: #4356a0; --s2: #d4691a; --s-rest: #cbd5e1; --s1-wash: rgba(67, 86, 160, .10);
+    --grid: #eef2f6; --axis: #cbd5e1;
+    --good: #047857; --warn: #b45309; --bad: #ad2122;
+    --tip-bg: #0f172a; --tip-ink: #f8fafc; --tip-2: #cbd5e1;
+    --shadow-pop: 0 10px 15px -3px rgba(29, 42, 93, .12), 0 4px 6px -4px rgba(29, 42, 93, .08);
+    --font: 'Lexend', system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --brand-soft: #1e2a52; --brand-ink: #a9b8f0;
+      --page: #0b1120; --surface: #0f172a; --raised: #162033; --sunk: #131c2e;
+      --line: #243047; --line-soft: #1a2436;
+      --ink: #e2e8f0; --ink-2: #cbd5e1; --muted: #a3b1c6; --faint: #7c8aa3;
+      --s1: #6f86dc; --s2: #d9682a; --s-rest: #3a4760; --s1-wash: rgba(111, 134, 220, .12);
+      --grid: #1c2639; --axis: #334155;
+      --good: #34d399; --warn: #fbbf24; --bad: #f87171;
+      --tip-bg: #e2e8f0; --tip-ink: #0f172a; --tip-2: #334155;
+      --shadow-pop: 0 10px 25px -5px rgba(0, 0, 0, .5);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --brand-soft: #1e2a52; --brand-ink: #a9b8f0;
+    --page: #0b1120; --surface: #0f172a; --raised: #162033; --sunk: #131c2e;
+    --line: #243047; --line-soft: #1a2436;
+    --ink: #e2e8f0; --ink-2: #cbd5e1; --muted: #a3b1c6; --faint: #7c8aa3;
+    --s1: #6f86dc; --s2: #d9682a; --s-rest: #3a4760; --s1-wash: rgba(111, 134, 220, .12);
+    --grid: #1c2639; --axis: #334155;
+    --good: #34d399; --warn: #fbbf24; --bad: #f87171;
+    --tip-bg: #e2e8f0; --tip-ink: #0f172a; --tip-2: #334155;
+    --shadow-pop: 0 10px 25px -5px rgba(0, 0, 0, .5);
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--page); color: var(--ink); font-family: var(--font); font-size: 14px; -webkit-font-smoothing: antialiased; overflow: hidden; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--brand-ink); text-decoration: none; }
+  :focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+  svg { flex: none; }
+  .ic { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .ic.sm { width: 14px; height: 14px; } .ic.lg { width: 20px; height: 20px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* Mockup switcher (not part of the design) */
+  .mockbar { position: fixed; top: 0; left: 0; right: 0; height: 40px; z-index: 50; display: flex; align-items: center; gap: 14px; padding: 0 12px; background: #0f172a; color: #cbd5e1; font-size: 12px; overflow-x: auto; white-space: nowrap; }
+  .mockbar b { color: #fff; font-weight: 600; }
+  .mockbar select { height: 28px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: #fff; padding: 0 8px; }
+  .mockbar label { display: inline-flex; gap: 6px; align-items: center; }
+  .mockbar input { accent-color: #6f86dc; }
+  .mseg { display: inline-flex; border: 1px solid #334155; border-radius: 6px; overflow: hidden; }
+  .mseg button { border: 0; background: transparent; color: #cbd5e1; padding: 4px 10px; font-size: 12px; }
+  .mseg button[aria-pressed="true"] { background: #334155; color: #fff; }
+
+  /* App shell, matching PlcDashboard */
+  .app { position: fixed; inset: 40px 0 0 0; display: flex; flex-direction: column; background: var(--page); }
+  .hdr { flex: none; height: 60px; padding: 0 16px; display: flex; align-items: center; gap: 12px; color: #fff; background: linear-gradient(to right, var(--brand), var(--brand-dark)); }
+  .hdr h1 { margin: 0; font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hdr .type { font-size: 12px; color: rgba(255,255,255,.7); white-space: nowrap; }
+  .hdr .sp { flex: 1; }
+  .hbtn { border: 0; background: transparent; color: rgba(255,255,255,.9); height: 34px; padding: 0 10px; border-radius: 8px; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .hbtn:hover, .hbtn[aria-expanded="true"] { background: rgba(255,255,255,.16); color: #fff; }
+  .hbtn b { font-weight: 700; color: #fff; }
+  .hicon { width: 34px; padding: 0; justify-content: center; }
+  .avs { display: inline-flex; align-items: center; border: 0; background: transparent; padding: 4px 6px; border-radius: 999px; margin-left: 4px; }
+  .avs:hover, .avs[aria-expanded="true"] { background: rgba(255,255,255,.16); }
+  .av { width: 26px; height: 26px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 10px; font-weight: 700; color: #fff; background: #4356a0; border: 2px solid var(--brand-dark); margin-left: -6px; }
+  .av:first-child { margin-left: 0; }
+  .av.more { background: rgba(255,255,255,.2); }
+  .hsep { width: 1px; height: 22px; background: rgba(255,255,255,.2); }
+  .body { flex: 1; min-height: 0; display: flex; }
+  .rail { flex: none; width: 212px; background: var(--sunk); border-right: 1px solid var(--line); padding: 10px 8px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+  .rail button { display: flex; align-items: center; gap: 10px; border: 0; background: transparent; padding: 9px 12px; border-radius: 10px; text-align: left; font-size: 14px; color: var(--ink-2); }
+  .rail button:hover { background: var(--line); color: var(--ink); }
+  .rail button[aria-current="page"] { background: var(--brand-soft); color: var(--brand-ink); font-weight: 600; }
+  .main { flex: 1; min-width: 0; overflow-y: auto; padding: 0 0 48px; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+  @media (max-width: 860px) { .rail { width: 60px; } .rail button span { display: none; } .wrap { padding: 0 16px; } .hide-sm { display: none !important; } }
+
+  /* Type and generic bits */
+  h2.title { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+  h3.sec { margin: 0; font-size: 15px; font-weight: 600; color: var(--ink); }
+  .meta { font-size: 12.5px; color: var(--muted); }
+  .muted { color: var(--muted); }
+  .small { font-size: 12.5px; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .row.wrapr { flex-wrap: wrap; }
+  .grow { flex: 1; min-width: 0; }
+  .ellip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .section { padding: 22px 0; border-top: 1px solid var(--line); }
+  .section.first { border-top: 0; }
+  .sechead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .sechead .sp { flex: 1; }
+  .cols { display: grid; gap: 0; }
+  .cols > * { min-width: 0; padding: 0 24px; border-left: 1px solid var(--line); }
+  .cols > *:first-child { padding-left: 0; border-left: 0; }
+  .cols > *:last-child { padding-right: 0; }
+  .c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .c21 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+  @media (max-width: 1000px) { .cols { grid-template-columns: 1fr; } .cols > * { padding: 18px 0 0; border-left: 0; } .cols > *:first-child { padding-top: 0; } }
+
+  .btn { height: 34px; padding: 0 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+  .btn:hover { background: var(--sunk); }
+  .btn.sm { height: 30px; padding: 0 10px; font-size: 12.5px; }
+  .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .btn.primary:hover { background: var(--brand-dark); }
+  .btn.ghost { border-color: transparent; background: transparent; color: var(--ink-2); }
+  .btn.ghost:hover { background: var(--sunk); }
+  .btn.danger { color: var(--bad); }
+  .link { border: 0; background: transparent; padding: 0; font-size: 13px; font-weight: 600; color: var(--brand-ink); display: inline-flex; align-items: center; gap: 4px; }
+  .link:hover { text-decoration: underline; }
+  .link.quiet { color: var(--muted); font-weight: 500; }
+  .iconbtn { width: 30px; height: 30px; display: inline-grid; place-items: center; border: 0; background: transparent; border-radius: 8px; color: var(--muted); }
+  .iconbtn:hover { background: var(--sunk); color: var(--ink); }
+  .iconbtn:disabled { opacity: .35; pointer-events: none; }
+  select, input[type="text"], input[type="number"], textarea { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); font-size: 13px; }
+  select, input[type="text"], input[type="number"] { height: 32px; padding: 0 10px; }
+  select { appearance: none; padding-right: 28px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; cursor: pointer; }
+  textarea { width: 100%; padding: 8px 10px; resize: vertical; line-height: 1.5; }
+  select:focus, input:focus, textarea:focus { outline: 2px solid var(--s1); outline-offset: 1px; border-color: var(--s1); }
+  .menusel { border: 0; background-color: transparent; height: 28px; padding: 0 24px 0 4px; font-weight: 600; color: var(--ink-2); font-size: 13px; background-position: right 4px center; }
+  .menusel:hover { color: var(--ink); }
+  input[type="checkbox"] { accent-color: var(--brand); width: 16px; height: 16px; margin: 0; }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); cursor: pointer; position: relative; user-select: none; }
+  .toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .toggle .track { width: 32px; height: 18px; border-radius: 999px; background: var(--axis); position: relative; transition: background-color .2s; flex: none; }
+  .toggle .track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .2s; }
+  .toggle input:checked + .track { background: var(--brand); }
+  .toggle input:checked + .track::after { transform: translateX(14px); }
+  .toggle input:focus-visible + .track { outline: 2px solid var(--s1); outline-offset: 2px; }
+  .seg { display: inline-flex; padding: 3px; background: var(--sunk); border-radius: 8px; gap: 2px; }
+  .seg button { height: 28px; padding: 0 12px; border: 0; background: transparent; border-radius: 6px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+
+  /* Lists with hairlines */
+  .list { list-style: none; margin: 0; padding: 0; }
+  .list > li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line-soft); min-width: 0; }
+  .list > li:first-child { border-top: 0; }
+  .list .t { font-weight: 500; color: var(--ink); }
+  .lead-ic { color: var(--muted); display: inline-grid; }
+  table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tbl th { text-align: left; font-weight: 600; font-size: 12px; color: var(--muted); padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .tbl td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+  .tbl td.r, .tbl th.r { text-align: right; font-variant-numeric: tabular-nums; }
+  .tbl tr:hover td { background: var(--sunk); }
+  .st { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; white-space: nowrap; }
+  .st.good { color: var(--good); } .st.warn { color: var(--warn); } .st.bad { color: var(--bad); } .st.none { color: var(--muted); }
+
+  /* Banners and nudges */
+  .live { display: flex; align-items: center; gap: 10px; padding: 8px 28px; background: var(--brand-soft); color: var(--brand-ink); font-size: 13px; border-bottom: 1px solid var(--line); }
+  .live b { font-weight: 600; }
+  .nudge { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); margin-top: 6px; flex-wrap: wrap; }
+
+  /* Hero */
+  .hero { padding: 24px 0 8px; }
+  .herohead { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .figs { display: flex; gap: 36px; align-items: flex-end; margin: 18px 0 20px; flex-wrap: wrap; }
+  .fig .v { font-size: 48px; font-weight: 600; line-height: 1; letter-spacing: -.02em; }
+  .fig .v.md { font-size: 28px; }
+  .fig .l { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .fig .l b { color: var(--ink-2); font-weight: 600; }
+
+  /* Chart kit */
+  .legend { display: inline-flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); align-items: center; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  .br { display: grid; grid-template-columns: minmax(170px, 320px) minmax(120px, 1fr) minmax(150px, 220px); column-gap: 16px; align-items: center; }
+  .br.compact { grid-template-columns: minmax(130px, 220px) minmax(100px, 1fr) minmax(120px, 190px); }
+  .br .lab { font-size: 13px; color: var(--ink); display: flex; gap: 8px; align-items: center; min-width: 0; }
+  .br .lab .q { font-weight: 700; color: var(--ink); min-width: 28px; font-variant-numeric: tabular-nums; }
+  .br .lab .n { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .br .val { font-size: 12.5px; color: var(--muted); display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+  .br .val b { font-size: 14px; color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; min-width: 36px; }
+  .br .bar { height: 34px; position: relative; }
+  .br .bar svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .br .flag { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+  .br .brk { grid-column: 1 / -1; border-top: 1px solid var(--line); margin: 6px 0; }
+  .br .axis { height: 20px; position: relative; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .br .axis span { position: absolute; top: 2px; transform: translateX(-50%); }
+  @media (max-width: 700px) { .br, .br.compact { grid-template-columns: minmax(0, 1fr) auto; } .br .lab { grid-column: 1 / -1; padding-top: 8px; } .br .val span { display: none; } .br .sp0 { display: none; } }
+  .hit { cursor: default; }
+  .hit:hover .m, .hit:focus .m { filter: brightness(1.08); }
+  .hit:focus { outline: none; }
+  .hit:focus .focusring { stroke: var(--s1); }
+  svg text { font-family: var(--font); }
+  .ax { font-size: 11px; fill: var(--faint); font-variant-numeric: tabular-nums; }
+  .dl { font-size: 12px; fill: var(--ink); font-weight: 600; }
+  .tip { position: fixed; z-index: 100; pointer-events: none; background: var(--tip-bg); color: var(--tip-ink); border-radius: 8px; padding: 8px 10px; font-size: 12px; line-height: 1.45; max-width: 280px; box-shadow: var(--shadow-pop); }
+  .tip .h { font-weight: 600; margin-bottom: 2px; }
+  .tip .r { display: flex; gap: 8px; align-items: center; }
+  .tip .r b { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tip .r span { color: var(--tip-2); }
+  .tip .k { width: 10px; height: 2px; border-radius: 1px; flex: none; }
+  .chart { position: relative; }
+  .tablev { margin-top: 4px; }
+
+  /* Popovers, drawer, modal */
+  .pop { position: fixed; z-index: 30; min-width: 220px; background: var(--raised); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-pop); padding: 6px; }
+  .mitem { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: transparent; padding: 9px 10px; border-radius: 8px; text-align: left; font-size: 13.5px; color: var(--ink); }
+  .mitem:hover { background: var(--sunk); }
+  .mitem .lead-ic { color: var(--muted); }
+  .scrim { position: fixed; inset: 40px 0 0 0; background: rgba(15, 23, 42, .35); z-index: 20; }
+  .drawer { position: fixed; top: 40px; right: 0; bottom: 0; width: min(420px, 100vw); background: var(--surface); border-left: 1px solid var(--line); box-shadow: var(--shadow-pop); z-index: 25; display: flex; flex-direction: column; }
+  .drawer .dh { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .drawer .db { flex: 1; overflow-y: auto; padding: 4px 16px 32px; }
+  .tabs2 { display: flex; gap: 18px; }
+  .tabs2 button { border: 0; background: transparent; padding: 8px 0; font-size: 14px; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; }
+  .tabs2 button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+  .modal { position: fixed; z-index: 25; top: calc(40px + 4vh); left: 50%; transform: translateX(-50%); width: min(760px, calc(100vw - 24px)); max-height: calc(100vh - 40px - 8vh); background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-pop); display: flex; flex-direction: column; }
+  .modal .mh { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+  .modal .mh h2 { margin: 0; font-size: 17px; font-weight: 700; flex: 1; }
+  .modal .mb { flex: 1; overflow-y: auto; padding: 0 20px 24px; }
+  .modal .mf { display: flex; align-items: center; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line); }
+  .confirm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); }
+  .group-h { font-size: 12px; font-weight: 600; color: var(--muted); margin: 16px 0 2px; }
+
+  /* Editor rows */
+  .erow { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line-soft); }
+  .erow:first-child { border-top: 0; }
+  .erow .nm { flex: 1; min-width: 0; font-size: 14px; }
+  .erow .tag { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; }
+  .erow.off .nm { color: var(--faint); }
+  .formrow { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 12px; align-items: center; padding: 10px 0; }
+  @media (max-width: 700px) { .formrow { grid-template-columns: 1fr; gap: 6px; } }
+  .formrow > label { font-size: 13px; color: var(--ink-2); font-weight: 500; }
+
+  /* Docs and embeds */
+  .embed { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+  .embed .bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--muted); background: var(--sunk); }
+  .docpage { padding: 18px 22px; font-size: 13px; color: var(--ink-2); }
+  .docpage table { width: 100%; border-collapse: collapse; }
+  .docpage th, .docpage td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; font-size: 12.5px; }
+  .docpage th { color: var(--ink); font-weight: 600; background: var(--sunk); }
+  .cal { font-size: 12.5px; }
+  .cal .d { display: grid; grid-template-columns: 74px 1fr; gap: 8px; padding: 7px 12px; border-top: 1px solid var(--line-soft); }
+  .cal .d:first-child { border-top: 0; }
+  .cal .d .when { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* Notes */
+  .notes { display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: 100%; }
+  .notelist { border-right: 1px solid var(--line); padding: 16px 12px; }
+  .notelist .nl { display: block; width: 100%; text-align: left; border: 0; background: transparent; border-radius: 8px; padding: 8px 10px; }
+  .notelist .nl:hover { background: var(--sunk); }
+  .notelist .nl[aria-current="true"] { background: var(--brand-soft); }
+  .notelist .nl .t { font-size: 13.5px; font-weight: 500; color: var(--ink); display: flex; align-items: center; gap: 6px; }
+  .note { padding: 24px 36px 48px; max-width: 860px; }
+  .note h1 { font-size: 24px; margin: 0; font-weight: 700; }
+  .note h3 { font-size: 16px; margin: 26px 0 8px; font-weight: 600; }
+  .note p, .note li { line-height: 1.6; color: var(--ink-2); }
+  .note ul { padding-left: 20px; margin: 6px 0; }
+  .block { margin: 10px 0; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .block .bh { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); margin-bottom: 8px; flex-wrap: wrap; }
+  .block .bh b { color: var(--ink); font-weight: 600; font-size: 13.5px; }
+  .dec { display: grid; grid-template-columns: 22px 1fr; gap: 4px 10px; }
+  .dec .lead-ic { color: var(--ink-2); padding-top: 2px; }
+  .dec .what { font-size: 14.5px; color: var(--ink); line-height: 1.5; }
+  @media (max-width: 900px) { .notes { grid-template-columns: 1fr; } .notelist { border-right: 0; border-bottom: 1px solid var(--line); } .note { padding: 20px 16px; } }
+
+  /* Admin */
+  .adm-tabs { display: flex; gap: 2px; padding: 3px; border-radius: 12px; background: rgba(255,255,255,.15); overflow-x: auto; }
+  .adm-tabs button { border: 0; background: transparent; padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: rgba(255,255,255,.85); white-space: nowrap; }
+  .adm-tabs button[aria-selected="true"] { background: #fff; color: var(--brand-dark); }
+</style>
+</head>
+<body>
+<div class="mockbar" role="toolbar" aria-label="Mockup controls">
+  <b>Mockup</b>
+  <select id="screen" aria-label="Screen"></select>
+  <span class="mseg" aria-label="View as"><button data-role="lead">Lead</button><button data-role="member">Member</button></span>
+  <label><input type="checkbox" id="tagged" checked /> Questions tagged</label>
+  <label><input type="checkbox" id="livemtg" /> Meeting live</label>
+  <span class="mseg" aria-label="Theme"><button data-theme-set="light">Light</button><button data-theme-set="dark">Dark</button></span>
+</div>
+<div class="app" id="app"></div>
+<div id="tip" class="tip" role="tooltip" hidden></div>
+
+<script>
+(() => {
+  'use strict';
+  // ---------- icons ----------
+  const P = {
+    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    gear: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+    x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    chart: '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+    clip: '<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
+    doc: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
+    folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+    home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+    mega: '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    checkc: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+    alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    circle: '<circle cx="12" cy="12" r="10"/>',
+    pin: '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>',
+    up: '<path d="m18 15-6-6-6 6"/>', down: '<path d="m6 9 6 6 6-6"/>', right: '<path d="m9 18 6-6-6-6"/>', left: '<path d="m15 18-6-6 6-6"/>',
+    redo: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+    target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+    cal: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
+    link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+    mic: '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/>',
+    scale: '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
+    spark: '<path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.13a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.13 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.13a.5.5 0 0 1-.96 0z"/>',
+    plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+    more: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+    layout: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>',
+    grid: '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
+    ext: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+    search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+    eye: '<path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/>',
+    clipat: '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+    thumb: '<path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/>',
+    inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+    pair: '<path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/>',
+    grip: '<circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>',
+    trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+    send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  };
+  const I = (n, c = '') => `<svg class="ic ${c}" viewBox="0 0 24 24" aria-hidden="true">${P[n]}</svg>`;
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // ---------- sample data ----------
+  const PLC = { name: '7th Grade Math PLC', type: 'PLC', new: 4, items: 2,
+    members: [['Priya Shah', 'Lead', true], ['Hannah Olson', 'Co-lead', true], ['Jordan Kim', 'Member', false], ['Elena Ruiz', 'Member', true], ['Marcus Bell', 'Member', false]] };
+  const STUDENTS = 140;
+  // q, skill, % correct, dominant wrong choice, its text, its %, target
+  const QS = [
+    [1, 'Ratio language', 92, 'C', '3 to 5 read as 5 to 3', 5, '7.RP.1'],
+    [2, 'Equivalent ratios table', 88, 'A', 'Added instead of scaled', 7, '7.RP.2a'],
+    [3, 'Unit price', 84, 'B', '$0.48 per can', 9, '7.RP.1'],
+    [4, 'Unit rate with fractions', 46, 'B', 'Inverted the rate: 4/3 mi per hr', 38, '7.RP.1'],
+    [5, 'Complex fraction rate', 39, 'D', 'Multiplied the fractions: 1/8', 41, '7.RP.1'],
+    [6, 'Is the table proportional?', 77, 'A', 'Yes, values increase', 14, '7.RP.2a'],
+    [7, 'Graph through the origin', 58, 'C', 'Any straight line', 27, '7.RP.2a'],
+    [8, 'Constant from a graph', 73, 'B', 'Read the y-intercept', 18, '7.RP.2b'],
+    [9, 'Constant from a table', 81, 'D', 'x divided by y', 11, '7.RP.2b'],
+    [10, 'Write y = kx', 70, 'A', 'y = x + k', 19, '7.RP.2c'],
+    [11, 'Meaning of the point (1, r)', 52, 'A', 'Read the x-value as the rate', 31, '7.RP.2b'],
+    [12, 'Percent increase', 64, 'C', 'Found the new amount, not the change', 22, '7.RP.3'],
+    [13, 'Markup', 69, 'B', 'Subtracted the markup', 17, '7.RP.3'],
+    [14, 'Tax and tip', 79, 'D', 'Applied tip before tax', 12, '7.RP.3'],
+    [15, 'Percent error', 61, 'D', 'Divided by the estimate', 25, '7.RP.3'],
+    [16, 'Simple interest', 74, 'A', 'Used months as years', 15, '7.RP.3'],
+    [17, 'Scale drawing', 83, 'C', 'Scaled area by the factor', 10, '7.RP.2a'],
+    [18, 'Multi-step percent', 66, 'B', 'Stopped after one step', 20, '7.RP.3'],
+  ].map(([q, skill, pct, ch, chText, chPct, tgt]) => ({ q, skill, pct, ch, chText, chPct, tgt }));
+  const RETEACH = new Set(QS.slice().sort((a, b) => a.pct - b.pct).slice(0, 3).filter((x) => x.pct < 60).map((x) => x.q));
+  const ASSESS = [
+    { id: 'diag', short: 'Diagnostic', name: 'Fall Diagnostic', date: 'Sep 5', avg: 52, n: 137, qs: 24 },
+    { id: 'u1', short: 'Unit 1', name: 'Unit 1 Rational Numbers CFA', date: 'Sep 12', avg: 64, n: 135, qs: 20 },
+    { id: 'u2', short: 'Unit 2', name: 'Unit 2 Expressions CFA', date: 'Sep 24', avg: 68, n: 134, qs: 16 },
+    { id: 'u3', short: 'Unit 3', name: 'Unit 3 Ratios CFA', date: 'Oct 3', avg: 71, n: 132, qs: 18 },
+    { id: 'u4', short: 'Unit 4 QC', name: 'Unit 4 Proportions Quick Check', date: 'Oct 6', avg: 74, n: 123, qs: 8 },
+  ];
+  const DIST = [0, 2, 4, 7, 10, 16, 24, 29, 25, 15];
+  const TARGETS = [
+    { code: '7.RP.1', name: 'Unit rates, including with fractions', meet: 41, qs: 4, cut: 75 },
+    { code: '7.RP.2a', name: 'Decide if two quantities are proportional', meet: 72, qs: 4, cut: 75 },
+    { code: '7.RP.2b', name: 'Find the constant of proportionality', meet: 58, qs: 3, cut: 75 },
+    { code: '7.RP.2c', name: 'Write equations for proportions', meet: 66, qs: 1, cut: 80 },
+    { code: '7.RP.3', name: 'Solve multi-step percent problems', meet: 54, qs: 6, cut: 75 },
+  ];
+  const PAIRS = [
+    ['Dana Whitfield', 'Marcus Lee'], ['Karen Ostrowski', 'Tyler Nguyen'], ['Ben Carlson', 'Aisha Mohamed'], ['Ruth Lindqvist', 'Sam Patel'],
+    ['Greg Hanson', 'Emily Tran'], ['Sofia Martinez', 'Noah Fischer'], ['Paula Berg', 'Chris Adeyemi'], ['Mike Sorensen', 'Leah Johansson'],
+    ['Janet Wu', 'Owen Becker'], ['Tom Hedlund', 'Maya Ortiz'], ['Linda Paulsen', 'Jacob Erickson'], ['Steve Norquist', 'Grace Kowalski'],
+    ['Anne Dahl', 'Luis Romero'], ['Kim Arneson', 'Zoe Hartley'],
+  ];
+  const STAFF = ['Erin Walsh', 'Mark Johnson', 'Laura Benson', 'Tom Reyes', 'Priya Shah', 'Hannah Olson', 'Jordan Kim', 'Elena Ruiz', 'Marcus Bell', 'Dana Whitfield', 'Ben Carlson', 'Ruth Lindqvist', 'Greg Hanson', 'Sofia Martinez', 'Paula Berg', 'Mike Sorensen', 'Janet Wu', 'Tom Hedlund', 'Linda Paulsen', 'Steve Norquist', 'Anne Dahl', 'Kim Arneson', 'Karen Ostrowski', 'Rachel Moen', 'David Strand', 'Julie Kraft', 'Nate Lund', 'Carla Vega', 'Pete Olsen', 'Megan Holt'];
+
+  // ---------- state ----------
+  const SCREENS = [
+    ['plc', '1. PLC Data overview'],
+    ['gear', '2a. Team header: gear menu'],
+    ['drawer', '2b. What\'s new drawer'],
+    ['items', '2c. My items drawer'],
+    ['members', '2d. Members from header avatars'],
+    ['layout', '3. Layout editor'],
+    ['targets', '1b. Manage targets'],
+    ['dept', '4. Department Hub'],
+    ['bldg', '5a. Building Hub'],
+    ['updates', '5b. Building Updates'],
+    ['mhub', '6a. Mentoring Program Hub'],
+    ['workspace', '6b. Workspace'],
+    ['tracker', '6c. Task tracker'],
+    ['admin', '7. Admin: Team type defaults'],
+    ['note', '8. PLC meeting note'],
+  ];
+  const S = {
+    screen: 'plc', role: 'lead', tagged: true, live: false, sort: 'low', showAll: false, tables: {},
+    layout: null, heroMode: 'pinned', heroRef: 'a:u3', resetAsk: false, nudgeHidden: false,
+    adminType: 'plc', acked: false, ackOpen: true, task: 'goal', drawerTab: 'new', mounts: [],
+  };
+  const PLC_PAGES = () => [
+    { id: 'data', label: 'Data overview', icon: 'chart', on: true },
+    { id: 'assess', label: 'Assessments', icon: 'clip', on: true },
+    { id: 'notes', label: 'Notes & Docs', icon: 'doc', on: true },
+    { id: 'res', label: 'Resources', icon: 'folder', on: true },
+    { id: 'upd', label: 'Updates', icon: 'mega', on: false },
+  ];
+  const PLC_CARDS = () => [
+    { id: 'dist', label: 'Score distribution', on: true },
+    { id: 'trend', label: 'Team average over time', on: true },
+    { id: 'part', label: 'Participation', on: true },
+    { id: 'mast', label: 'Mastery by learning target', on: true },
+    { id: 'goals', label: 'Goals', on: true },
+    { id: 'recent', label: 'Recent assessments', on: true },
+    { id: 'strip', label: 'Next meeting and open items', on: true },
+    { id: 'upd', label: 'Latest updates', on: false, needs: 'Updates' },
+    { id: 'cal', label: 'Calendar', on: false },
+  ];
+  S.layout = { pages: PLC_PAGES(), landing: 'data', cards: PLC_CARDS() };
+  const lead = () => S.role === 'lead';
+
+  // ---------- chart kit ----------
+  const tip = document.getElementById('tip');
+  function showTip(e, data) {
+    tip.replaceChildren();
+    const h = document.createElement('div'); h.className = 'h'; h.textContent = data.h; tip.append(h);
+    for (const r of data.rows || []) {
+      const d = document.createElement('div'); d.className = 'r';
+      if (r.c) { const k = document.createElement('i'); k.className = 'k'; k.style.background = `var(${r.c})`; d.append(k); }
+      const b = document.createElement('b'); b.textContent = r.v; const s = document.createElement('span'); s.textContent = r.l;
+      d.append(b, s); tip.append(d);
+    }
+    tip.hidden = false;
+    let x, y;
+    if (e && e.clientX != null && e.type !== 'focus') { x = e.clientX; y = e.clientY; }
+    else { const rc = e.target.getBoundingClientRect(); x = rc.left + rc.width / 2; y = rc.top; }
+    const w = tip.offsetWidth, hh = tip.offsetHeight;
+    tip.style.left = Math.min(window.innerWidth - w - 8, Math.max(8, x + 12)) + 'px';
+    tip.style.top = Math.max(48, y - hh - 12) + 'px';
+  }
+  const hideTip = () => { tip.hidden = true; };
+  const TIPS = new Map(); let tipSeq = 0;
+  const tipId = (d) => { const id = 't' + (++tipSeq); TIPS.set(id, d); return id; };
+  document.addEventListener('pointermove', (e) => { const t = e.target.closest && e.target.closest('[data-tip]'); if (t) showTip(e, TIPS.get(t.dataset.tip)); else if (!e.target.closest || !e.target.closest('[data-xhair]')) hideTip(); });
+  document.addEventListener('focusin', (e) => { const t = e.target.closest('[data-tip]'); if (t) showTip({ target: t, type: 'focus' }, TIPS.get(t.dataset.tip)); });
+  document.addEventListener('focusout', hideTip);
+  const NS = 'http://www.w3.org/2000/svg';
+  // Rounded data-end, square baseline: path for a horizontal bar from x0 to x1.
+  const hbarPath = (x0, x1, y, h, r) => { const w = x1 - x0; if (w <= 0) return ''; r = Math.min(r, w, h / 2); return `M${x0},${y}H${x1 - r}A${r},${r} 0 0 1 ${x1},${y + r}V${y + h - r}A${r},${r} 0 0 1 ${x1 - r},${y + h}H${x0}Z`; };
+  const vbarPath = (x, y0, y1, w, r) => { const h = y0 - y1; if (h <= 0) return ''; r = Math.min(r, h, w / 2); return `M${x},${y0}V${y1 + r}A${r},${r} 0 0 1 ${x + r},${y1}H${x + w - r}A${r},${r} 0 0 1 ${x + w},${y1 + r}V${y0}Z`; };
+
+  /* barRows: horizontal stacked bars, one row per item; segs [{v, c, name}], 0 to max. Used for item analysis, mastery, task status. */
+  function barRows(rows, o = {}) {
+    const max = o.max || 100, ticks = o.ticks || [0, 25, 50, 75, 100];
+    const id = 'br' + (++tipSeq);
+    S.mounts.push(() => {
+      const root = document.getElementById(id); if (!root) return;
+      const cells = root.querySelectorAll('.bar'); if (!cells.length) return;
+      const W = cells[0].clientWidth, H = 34, bh = 16, y = (H - bh) / 2;
+      const sx = (v) => (v / max) * W;
+      cells.forEach((cell, i) => {
+        const r = rows[i]; let x = 0; let g = '';
+        for (const t of ticks) g += `<line x1="${sx(t)}" x2="${sx(t)}" y1="0" y2="${H}" stroke="${t === 0 ? 'var(--axis)' : 'var(--grid)'}" stroke-width="1" shape-rendering="crispEdges"/>`;
+        const segs = r.segs.filter((s) => s.v > 0);
+        segs.forEach((s, j) => {
+          const x0 = x + (j ? 2 : 0); const x1 = x + sx(s.v); const last = j === segs.length - 1;
+          g += last ? `<path class="m" d="${hbarPath(x0, x1, y, bh, 4)}" fill="var(${s.c})"/>` : `<rect class="m" x="${x0}" y="${y}" width="${Math.max(0, x1 - x0)}" height="${bh}" fill="var(${s.c})"/>`;
+          x = x1;
+        });
+        cell.innerHTML = `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true"><g>${g}</g></svg>`;
+      });
+      const ax = root.querySelector('.axis');
+      if (ax) ax.innerHTML = ticks.map((t) => `<span style="left:${sx(t)}px">${t}${o.unit ?? '%'}</span>`).join('');
+    });
+    const body = rows.map((r) => {
+      const t = tipId(r.tip);
+      return `${r.brk ? '<div class="brk"></div>' : ''}<div class="lab">${r.label}</div><div class="bar hit" tabindex="0" data-tip="${t}" aria-label="${esc(r.aria || r.tip.h)}"></div><div class="val">${r.value}</div>`;
+    }).join('');
+    return `<div class="br ${o.compact ? 'compact' : ''}" id="${id}">${body}<div class="sp0"></div><div class="axis"></div><div class="sp0"></div></div>`;
+  }
+
+  /* histogram: vertical columns over contiguous bins */
+  function histogram(bins, o) {
+    const id = 'h' + (++tipSeq);
+    S.mounts.push(() => {
+      const el = document.getElementById(id); if (!el) return;
+      const W = el.clientWidth, H = 210, m = { l: 34, r: 14, t: 24, b: 34 };
+      const iw = W - m.l - m.r, ih = H - m.t - m.b, n = bins.length, band = iw / n, bw = Math.min(24, band - 2);
+      const ymax = 30, total = bins.reduce((a, b) => a + b, 0);
+      const sy = (v) => m.t + ih - (v / ymax) * ih;
+      let g = '';
+      for (const t of [0, 10, 20, 30]) g += `<line x1="${m.l}" x2="${W - m.r}" y1="${sy(t)}" y2="${sy(t)}" stroke="${t ? 'var(--grid)' : 'var(--axis)'}" shape-rendering="crispEdges"/><text class="ax" x="${m.l - 8}" y="${sy(t) + 4}" text-anchor="end">${t}</text>`;
+      const peak = bins.indexOf(Math.max(...bins));
+      bins.forEach((v, i) => {
+        const cx = m.l + band * i + band / 2, x = cx - bw / 2;
+        const t = tipId({ h: `${i * 10} to ${i === 9 ? 100 : i * 10 + 9}%`, rows: [{ v: `${v} students`, l: `${Math.round((v / total) * 100)}% of ${total}`, c: '--s1' }] });
+        g += `<g class="hit" tabindex="0" data-tip="${t}" aria-label="${i * 10} to ${i * 10 + 9} percent, ${v} students"><rect x="${m.l + band * i}" y="${m.t}" width="${band}" height="${ih}" fill="transparent"/><path class="m" d="${vbarPath(x, sy(0), sy(v), bw, 4)}" fill="var(--s1)"/></g>`;
+        if (i === peak) g += `<text class="dl" x="${cx}" y="${sy(v) - 6}" text-anchor="middle">${v}</text>`;
+      });
+      for (let i = 0; i <= n; i += 2) g += `<text class="ax" x="${m.l + band * i}" y="${H - m.b + 16}" text-anchor="middle">${i * 10}</text>`;
+      g += `<text class="ax" x="${m.l + iw / 2}" y="${H - 4}" text-anchor="middle">Score (%)</text><text class="ax" x="0" y="10">Students</text>`;
+      el.innerHTML = `<svg width="${W}" height="${H}" role="img" aria-label="${esc(o.aria)}">${g}</svg>`;
+    });
+    return `<div class="chart" id="${id}" style="height:210px"></div>`;
+  }
+
+  /* lineTrend: one series over ordered points, crosshair snaps to nearest point */
+  function lineTrend(pts, o) {
+    const id = 'l' + (++tipSeq);
+    S.mounts.push(() => {
+      const el = document.getElementById(id); if (!el) return;
+      const W = el.clientWidth, H = 210, m = { l: 34, r: 40, t: 16, b: 34 };
+      const iw = W - m.l - m.r, ih = H - m.t - m.b;
+      const sx = (i) => m.l + (pts.length === 1 ? iw / 2 : (i / (pts.length - 1)) * iw);
+      const sy = (v) => m.t + ih - (v / 100) * ih;
+      let g = '';
+      for (const t of [0, 25, 50, 75, 100]) g += `<line x1="${m.l}" x2="${W - m.r}" y1="${sy(t)}" y2="${sy(t)}" stroke="${t ? 'var(--grid)' : 'var(--axis)'}" shape-rendering="crispEdges"/><text class="ax" x="${m.l - 8}" y="${sy(t) + 4}" text-anchor="end">${t}%</text>`;
+      const d = pts.map((p, i) => `${i ? 'L' : 'M'}${sx(i)},${sy(p.v)}`).join('');
+      g += `<path d="${d}L${sx(pts.length - 1)},${sy(0)}L${sx(0)},${sy(0)}Z" fill="var(--s1-wash)"/>`;
+      g += `<path d="${d}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+      pts.forEach((p, i) => {
+        g += `<circle cx="${sx(i)}" cy="${sy(p.v)}" r="4" fill="var(--s1)" stroke="var(--surface)" stroke-width="2"/>`;
+        g += `<text class="ax" x="${sx(i)}" y="${H - m.b + 16}" text-anchor="middle">${esc(p.x)}</text>`;
+      });
+      const L = pts[pts.length - 1];
+      g += `<text class="dl" x="${sx(pts.length - 1) + 8}" y="${sy(L.v) + 4}">${L.v}${o.unit}</text>`;
+      g += `<line class="xh" x1="0" x2="0" y1="${m.t}" y2="${m.t + ih}" stroke="var(--axis)" visibility="hidden"/><circle class="xd" r="5" fill="var(--s1)" stroke="var(--surface)" stroke-width="2" visibility="hidden"/>`;
+      g += `<rect data-xhair x="${m.l - 10}" y="${m.t}" width="${iw + 20}" height="${ih}" fill="transparent" tabindex="0" aria-label="${esc(o.aria)}"/>`;
+      el.innerHTML = `<svg width="${W}" height="${H}" role="img" aria-label="${esc(o.aria)}">${g}</svg>`;
+      const svg = el.firstChild, xh = svg.querySelector('.xh'), xd = svg.querySelector('.xd'), ov = svg.querySelector('[data-xhair]');
+      let cur = pts.length - 1;
+      const at = (i, ev) => {
+        cur = i; const p = pts[i];
+        xh.setAttribute('x1', sx(i)); xh.setAttribute('x2', sx(i)); xh.setAttribute('visibility', 'visible');
+        xd.setAttribute('cx', sx(i)); xd.setAttribute('cy', sy(p.v)); xd.setAttribute('visibility', 'visible');
+        showTip(ev, { h: `${p.name} · ${p.date}`, rows: [{ v: `${p.v}${o.unit}`, l: o.series, c: '--s1' }, ...(p.extra ? [{ v: p.extra, l: '' }] : [])] });
+      };
+      ov.addEventListener('pointermove', (ev) => { const r = svg.getBoundingClientRect(); const x = ev.clientX - r.left; let best = 0; pts.forEach((_, i) => { if (Math.abs(sx(i) - x) < Math.abs(sx(best) - x)) best = i; }); at(best, ev); });
+      ov.addEventListener('pointerleave', () => { xh.setAttribute('visibility', 'hidden'); xd.setAttribute('visibility', 'hidden'); hideTip(); });
+      ov.addEventListener('focus', () => at(cur, { target: ov, type: 'focus' }));
+      ov.addEventListener('keydown', (ev) => { if (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') { ev.preventDefault(); at(Math.max(0, Math.min(pts.length - 1, cur + (ev.key === 'ArrowRight' ? 1 : -1))), { target: ov, type: 'focus' }); } });
+      ov.addEventListener('blur', () => { xh.setAttribute('visibility', 'hidden'); xd.setAttribute('visibility', 'hidden'); });
+    });
+    return `<div class="chart" id="${id}" style="height:210px"></div>`;
+  }
+
+  /* columns: one value per category, 0 to 100 */
+  function columns(pts, o) {
+    const id = 'c' + (++tipSeq);
+    S.mounts.push(() => {
+      const el = document.getElementById(id); if (!el) return;
+      const W = el.clientWidth, H = 210, m = { l: 34, r: 6, t: 16, b: 34 };
+      const iw = W - m.l - m.r, ih = H - m.t - m.b, band = iw / pts.length, bw = Math.min(24, band - 2);
+      const sy = (v) => m.t + ih - (v / 100) * ih;
+      let g = '';
+      for (const t of [0, 25, 50, 75, 100]) g += `<line x1="${m.l}" x2="${W - m.r}" y1="${sy(t)}" y2="${sy(t)}" stroke="${t ? 'var(--grid)' : 'var(--axis)'}" shape-rendering="crispEdges"/><text class="ax" x="${m.l - 8}" y="${sy(t) + 4}" text-anchor="end">${t}%</text>`;
+      pts.forEach((p, i) => {
+        const cx = m.l + band * i + band / 2;
+        const t = tipId({ h: `${p.name} · ${p.date}`, rows: [{ v: `${p.v}%`, l: `${p.n} of ${STUDENTS} students`, c: '--s1' }] });
+        g += `<g class="hit" tabindex="0" data-tip="${t}" aria-label="${esc(p.name)}, ${p.v} percent"><rect x="${m.l + band * i}" y="${m.t}" width="${band}" height="${ih}" fill="transparent"/><path class="m" d="${vbarPath(cx - bw / 2, sy(0), sy(p.v), bw, 4)}" fill="var(--s1)"/></g>`;
+        g += `<text class="ax" x="${cx}" y="${H - m.b + 16}" text-anchor="middle">${esc(p.x)}</text>`;
+        if (i === pts.length - 1 || p.v === Math.min(...pts.map((q) => q.v))) g += `<text class="dl" x="${cx}" y="${sy(p.v) - 6}" text-anchor="middle">${p.v}%</text>`;
+      });
+      el.innerHTML = `<svg width="${W}" height="${H}" role="img" aria-label="${esc(o.aria)}">${g}</svg>`;
+    });
+    return `<div class="chart" id="${id}" style="height:210px"></div>`;
+  }
+
+  /* goalMeter: progress toward a goal, with baseline and goal marks */
+  function goalMeter(o) {
+    const id = 'g' + (++tipSeq);
+    const t = tipId({ h: 'Students at 75% or higher', rows: [{ v: `${o.now}%`, l: o.label, c: '--s1' }, { v: `${o.base}%`, l: 'baseline, Unit 1' }, { v: `${o.goal}%`, l: 'goal by May 2027' }] });
+    S.mounts.push(() => {
+      const el = document.getElementById(id); if (!el) return;
+      const W = el.clientWidth, H = 74, y = 30, bh = 16, sx = (v) => (v / 100) * (W - 2) + 1;
+      let g = `<line x1="${sx(0)}" x2="${sx(0)}" y1="${y - 4}" y2="${y + bh + 4}" stroke="var(--axis)"/>`;
+      g += `<g class="hit" tabindex="0" data-tip="${t}" aria-label="${o.now} percent now, baseline ${o.base}, goal ${o.goal}"><rect x="0" y="${y - 6}" width="${W}" height="${bh + 12}" fill="transparent"/><path class="m" d="${hbarPath(sx(0), sx(o.now), y, bh, 4)}" fill="var(--s1)"/></g>`;
+      for (const [v, l, a] of [[o.base, `Baseline ${o.base}%`, 'end'], [o.goal, `Goal ${o.goal}%`, 'start']]) g += `<line x1="${sx(v)}" x2="${sx(v)}" y1="${y - 8}" y2="${y + bh + 4}" stroke="var(--ink-2)" stroke-width="1.5"/><text class="ax" x="${sx(v) + (a === 'end' ? -4 : 4)}" y="${y - 10}" text-anchor="${a}">${l}</text>`;
+      g += `<text class="dl" x="${sx(0)}" y="${y + bh + 20}">${o.now}% now</text>`;
+      el.innerHTML = `<svg width="${W}" height="${H}" role="img" aria-label="Goal progress">${g}</svg>`;
+    });
+    return `<div class="chart" id="${id}" style="height:74px"></div>`;
+  }
+  const tableToggle = (k) => `<button class="link quiet" data-act="tbl" data-k="${k}" aria-pressed="${!!S.tables[k]}">${S.tables[k] ? 'Chart' : 'Table'}</button>`;
+  const tbl = (head, rows) => `<table class="tbl tablev"><thead><tr>${head.map((h, i) => `<th class="${i ? 'r' : ''}">${h}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c, i) => `<td class="${i ? 'r' : ''}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+
+  // ---------- item analysis (hero, note block) ----------
+  function itemRows(list, { flags = true } = {}) {
+    return list.map((q, i) => {
+      const other = 100 - q.pct - q.chPct;
+      const rt = RETEACH.has(q.q) && flags;
+      return {
+        brk: flags && S.sort === 'low' && i === RETEACH.size && RETEACH.size > 0,
+        label: `<span class="q">Q${q.q}</span><span class="n" title="${esc(q.skill)}">${esc(q.skill)}</span>${rt ? `<span class="flag">${I('redo', 'sm')}Reteach</span>` : ''}`,
+        segs: [{ v: q.pct, c: '--s1' }, { v: q.chPct, c: '--s2' }, { v: other, c: '--s-rest' }],
+        value: `<b>${q.pct}%</b><span class="ellip" title="${esc(q.chText)}">Most chose ${q.ch}, ${q.chPct}%</span>`,
+        aria: `Question ${q.q}, ${q.pct} percent correct, most common wrong answer ${q.ch} at ${q.chPct} percent`,
+        tip: { h: `Q${q.q} · ${q.skill}`, rows: [
+          { v: `${q.pct}%`, l: `correct (${Math.round((q.pct / 100) * 132)} of 132)`, c: '--s1' },
+          { v: `${q.chPct}%`, l: `chose ${q.ch}: ${q.chText}`, c: '--s2' },
+          { v: `${other}%`, l: 'other wrong answers', c: '--s-rest' },
+          ...(S.tagged ? [{ v: q.tgt, l: 'learning target' }] : []),
+        ] },
+      };
+    });
+  }
+  const iaLegend = () => `<span class="legend"><span><i style="background:var(--s1)"></i>Correct</span><span><i style="background:var(--s2)"></i>Most common wrong answer</span><span><i style="background:var(--s-rest)"></i>Other wrong answers</span></span>`;
+  function sortedQs() { const a = QS.slice(); return S.sort === 'low' ? a.sort((x, y) => x.pct - y.pct) : a; }
+
+  // ---------- shell ----------
+  function header(team, opts = {}) {
+    const av = team.members.slice(0, 4).map(([n]) => `<span class="av" title="${esc(n)}">${n.split(' ').map((w) => w[0]).join('')}</span>`).join('') + (team.members.length > 4 ? `<span class="av more">+${team.members.length - 4}</span>` : '');
+    return `<header class="hdr">
+      <span style="color:rgba(255,255,255,.7);display:inline-grid">${I('users', 'lg')}</span>
+      <h1>${esc(team.name)}</h1><span class="type hide-sm">${esc(team.type)}</span>
+      <button class="avs hide-sm" data-act="go" data-s="members" aria-label="Members" aria-expanded="${S.screen === 'members'}">${av}</button>
+      <span class="sp"></span>
+      <button class="hbtn" data-act="go" data-s="drawer" aria-expanded="${S.screen === 'drawer'}">${I('bell')}<span class="hide-sm">What's new</span> · <b>${team.new}</b></button>
+      <button class="hbtn" data-act="go" data-s="items" aria-expanded="${S.screen === 'items'}">${I('inbox')}<span class="hide-sm">My items</span> · <b>${team.items}</b></button>
+      <span class="hsep"></span>
+      <button class="hbtn hicon" title="Search" aria-label="Search">${I('search')}</button>
+      <button class="hbtn hicon" data-act="go" data-s="gear" title="Team menu" aria-label="Team menu" aria-expanded="${S.screen === 'gear'}">${I('gear')}</button>
+      <button class="hbtn hicon" title="Close" aria-label="Close">${I('x')}</button>
+    </header>`;
+  }
+  function rail(pages, active) {
+    return `<nav class="rail" aria-label="Pages">${pages.filter((p) => p.on).map((p) => `<button data-act="${p.go ? 'go' : ''}" data-s="${p.go || ''}" ${p.id === active ? 'aria-current="page"' : ''} title="${esc(p.label)}">${I(p.icon, 'lg')}<span>${esc(p.label)}</span></button>`).join('')}</nav>`;
+  }
+  function shell(team, pages, active, main, overlay = '') {
+    return `${header(team)}<div class="body">${rail(pages, active)}<main class="main">${main}</main></div>${overlay}`;
+  }
+  const plcPages = () => S.layout.pages.map((p) => ({ ...p, go: { data: 'plc', notes: 'note' }[p.id] }));
+
+  // ---------- 1. PLC Data overview ----------
+  function liveBanner() {
+    if (!S.live) return '';
+    return `<div class="live">${I('mic')}<b>Meeting in progress</b><span>PLC meeting Oct 9 · started 3:16 PM · 3 here</span><span class="grow"></span><button class="btn sm primary" data-act="go" data-s="note">Join</button></div>`;
+  }
+  function plcOverview() {
+    const a = ASSESS.find((x) => x.id === 'u3');
+    const on = (id) => (S.layout.cards.find((c) => c.id === id) || {}).on;
+    const qs = sortedQs(); const shown = S.showAll ? qs : qs.slice(0, 8);
+    const pinned = S.heroMode === 'pinned';
+    let h = liveBanner() + '<div class="wrap">';
+    h += `<section class="hero" aria-label="Featured assessment">
+      <div class="herohead"><div class="grow">
+        <h2 class="title">${esc(a.name)}</h2>
+        <div class="meta">Common assessment · closed ${a.date} · ${a.qs} questions${pinned ? ` · ${I('pin', 'sm')} Pinned by Priya Shah` : ''}</div>
+        ${lead() && pinned && !S.nudgeHidden ? `<div class="nudge">${I('clock', 'sm')}<span>Newer results: Unit 4 Proportions Quick Check, Oct 6.</span><button class="link" data-act="hero-latest">Show latest</button><button class="link quiet" data-act="nudge-x">Keep pinned</button></div>` : ''}
+      </div>
+      <div class="row">${lead() ? `<button class="btn sm ghost" data-act="go" data-s="layout" title="Change what the team sees first">${I('pin', 'sm')}Change</button>` : ''}<button class="btn sm">Open results</button></div></div>
+      <div class="figs">
+        <div class="fig"><div class="v">71%</div><div class="l">Team average</div></div>
+        <div class="fig"><div class="v md">132 <span class="muted" style="font-size:18px;font-weight:500">of 140</span></div><div class="l">Participation · <b>94%</b></div></div>
+        <div class="fig"><div class="v md">${RETEACH.size}</div><div class="l">Questions to reteach</div></div>
+      </div>
+      <div class="sechead"><h3 class="sec">Item analysis</h3>
+        <select class="menusel" data-act="sort" aria-label="Sort questions"><option value="low" ${S.sort === 'low' ? 'selected' : ''}>Lowest first</option><option value="order" ${S.sort === 'order' ? 'selected' : ''}>Question order</option></select>
+        <span class="sp"></span>${iaLegend()}${tableToggle('ia')}</div>
+      ${S.tables.ia ? tbl(['Question', 'Correct', 'Most common wrong answer', 'Target'], qs.map((q) => [`Q${q.q} ${esc(q.skill)}`, q.pct + '%', `${q.ch}, ${q.chPct}%`, S.tagged ? q.tgt : ''])) : barRows(itemRows(shown))}
+      ${S.tables.ia ? '' : `<div style="margin-top:8px"><button class="link" data-act="showall">${S.showAll ? 'Show fewer' : `Show all ${QS.length} questions`}</button></div>`}
+    </section>`;
+
+    const charts = [];
+    if (on('dist')) charts.push(`<div><div class="sechead"><h3 class="sec">Score distribution</h3><span class="meta">Unit 3 Ratios CFA</span><span class="sp"></span>${tableToggle('dist')}</div>${S.tables.dist ? tbl(['Score', 'Students'], DIST.map((v, i) => [`${i * 10} to ${i === 9 ? 100 : i * 10 + 9}%`, v])) : histogram(DIST, { aria: 'Score distribution for Unit 3 Ratios CFA' })}</div>`);
+    if (on('trend')) charts.push(`<div><div class="sechead"><h3 class="sec">Team average over time</h3><span class="sp"></span>${tableToggle('trend')}</div>${S.tables.trend ? tbl(['Assessment', 'Average'], ASSESS.map((x) => [esc(x.name), x.avg + '%'])) : lineTrend(ASSESS.map((x) => ({ x: x.short, name: x.name, date: x.date, v: x.avg })), { unit: '%', series: 'team average', aria: 'Team average across common assessments' })}</div>`);
+    if (on('part')) charts.push(`<div><div class="sechead"><h3 class="sec">Participation</h3><span class="sp"></span>${tableToggle('part')}</div>${S.tables.part ? tbl(['Assessment', 'Students', 'Rate'], ASSESS.map((x) => [esc(x.name), `${x.n} of ${STUDENTS}`, Math.round((x.n / STUDENTS) * 100) + '%'])) : columns(ASSESS.map((x) => ({ x: x.short, name: x.name, date: x.date, n: x.n, v: Math.round((x.n / STUDENTS) * 100) })), { aria: 'Participation by assessment' })}</div>`);
+    if (charts.length) h += `<section class="section"><div class="cols c${Math.min(charts.length, 3)}">${charts.join('')}</div></section>`;
+
+    if (on('mast')) {
+      if (S.tagged) {
+        const t = TARGETS.slice().sort((x, y) => x.meet - y.meet);
+        h += `<section class="section"><div class="sechead"><h3 class="sec">Mastery by learning target</h3><span class="meta">Unit 3 Ratios CFA · students at or above each target's cutoff</span><span class="sp"></span>${lead() ? `<button class="link" data-act="go" data-s="targets">${I('target', 'sm')}Manage targets</button>` : ''}${tableToggle('mast')}</div>
+          ${S.tables.mast ? tbl(['Target', 'Students meeting', 'Questions', 'Cutoff'], t.map((x) => [`${x.code} ${esc(x.name)}`, x.meet + '%', x.qs, x.cut + '%'])) : barRows(t.map((x) => ({
+            label: `<span class="q" style="min-width:58px">${x.code}</span><span class="n" title="${esc(x.name)}">${esc(x.name)}</span>`,
+            segs: [{ v: x.meet, c: '--s1' }],
+            value: `<b>${x.meet}%</b><span>${x.qs} question${x.qs > 1 ? 's' : ''} · cutoff ${x.cut}%</span>`,
+            tip: { h: `${x.code} · ${x.name}`, rows: [{ v: `${x.meet}%`, l: `of students scored ${x.cut}% or higher`, c: '--s1' }, { v: `${x.qs}`, l: 'tagged questions' }] },
+          })))}</section>`;
+      } else if (lead()) {
+        h += `<section class="section"><div class="row small muted">${I('target', 'sm')}<span>Tag questions to learning targets to see mastery by target.</span><button class="link" data-act="go" data-s="targets">Tag questions</button></div></section>`;
+      }
+    }
+
+    if (on('goals') || on('recent')) {
+      h += `<section class="section"><div class="cols c21">`;
+      if (on('recent')) h += `<div><div class="sechead"><h3 class="sec">Recent assessments</h3><span class="sp"></span><button class="link">All assessments</button></div>
+        <table class="tbl"><thead><tr><th>Assessment</th><th>Closed</th><th class="r">Average</th><th class="r">Participation</th></tr></thead><tbody>
+        ${ASSESS.slice().reverse().slice(0, 4).map((x) => `<tr><td><a href="#">${esc(x.name)}</a></td><td class="muted">${x.date}</td><td class="r">${x.avg}%</td><td class="r">${x.n} of ${STUDENTS}</td></tr>`).join('')}</tbody></table></div>`;
+      if (on('goals')) h += `<div><div class="sechead"><h3 class="sec">Goal</h3><span class="sp"></span>${lead() ? `<button class="iconbtn" title="Goal options" aria-label="Goal options">${I('more')}</button>` : ''}</div>
+        <p style="margin:0 0 12px;line-height:1.55;color:var(--ink-2)">By May 2027, 80% of students score 75% or higher on unit CFAs, up from 58% on Unit 1, through weekly small-group reteach.</p>
+        ${goalMeter({ now: 64, base: 58, goal: 80, label: 'Unit 3 Ratios CFA' })}
+        <div class="row small" style="margin-top:6px"><span class="muted">Students at 75% or higher</span><span class="grow"></span>${lead() ? `<button class="link quiet">${I('spark', 'sm')}Check this goal</button>` : ''}</div></div>`;
+      h += `</div></section>`;
+    }
+    if (on('strip')) h += `<section class="section"><div class="row wrapr small" style="gap:24px">
+        <span class="row">${I('cal', 'sm')}<span><b style="font-weight:600">Next meeting</b> <span class="muted">Thu, Oct 9 · 3:15 PM</span></span><button class="link" data-act="go" data-s="note">Open note</button></span>
+        <span class="row">${I('check', 'sm')}<span><b style="font-weight:600">Open items</b> <span class="muted">5 · 2 yours</span></span><button class="link" data-act="go" data-s="items">View</button></span>
+        <span class="row">${I('scale', 'sm')}<span><b style="font-weight:600">Decisions to revisit</b> <span class="muted">1 · Oct 16</span></span></span>
+      </div></section>`;
+    return h + '</div>';
+  }
+
+  // ---------- 2. header menus and drawer ----------
+  function gearMenu() {
+    return `<div class="pop" role="menu" style="top:96px;right:56px">
+      <button class="mitem" role="menuitem" data-act="go" data-s="members"><span class="lead-ic">${I('users')}</span>Members</button>
+      <button class="mitem" role="menuitem"><span class="lead-ic">${I('gear')}</span>Settings</button>
+      ${lead() ? `<button class="mitem" role="menuitem" data-act="go" data-s="layout"><span class="lead-ic">${I('layout')}</span>Edit layout</button>` : ''}
+    </div>`;
+  }
+  function membersPop() {
+    return `<div class="pop" style="top:96px;left:${window.innerWidth > 860 ? 340 : 80}px;width:300px;padding:8px 12px">
+      <div class="row" style="padding:4px 0 8px"><b style="font-weight:600">5 members</b><span class="grow"></span>${lead() ? '<button class="link">Manage</button>' : ''}</div>
+      <ul class="list">${PLC.members.map(([n, r, here]) => `<li style="padding:8px 0"><span class="av" style="border:0">${n.split(' ').map((w) => w[0]).join('')}</span><span class="grow"><span class="t">${esc(n)}</span><div class="meta">${r}</div></span>${here ? `<span class="st good">${I('circle', 'sm')}Here now</span>` : ''}</li>`).join('')}</ul></div>`;
+  }
+  function drawer(tab) {
+    const news = [
+      ['chart', 'Results are in for Unit 4 Proportions Quick Check', '123 of 140 submitted', 'Oct 6'],
+      ['doc', 'Jordan Kim added 2 agenda items to PLC meeting Oct 9', '', 'Oct 6'],
+      ['folder', 'Elena Ruiz shared Ratio tables anchor chart', 'Resources', 'Oct 5'],
+      ['clip', 'Marcus Bell shared Unit 4 Proportions CFA', 'Assessments', 'Oct 4'],
+    ];
+    const items = [
+      ['Build a 3-question exit ticket for Q5', 'PLC meeting Oct 2', 'Due Oct 13', false],
+      ['Tag Unit 4 Quick Check questions', 'PLC meeting Oct 2', 'Due Oct 10', false],
+      ['Share the Unit 3 answer key', 'PLC meeting Sep 25', 'Done Sep 29', true],
+    ];
+    const body = tab === 'new'
+      ? `<div class="group-h">Since you were here Oct 2</div><ul class="list">${news.map(([ic, t, m, d]) => `<li><span class="lead-ic">${I(ic)}</span><span class="grow"><span class="t">${esc(t)}</span>${m ? `<div class="meta">${esc(m)}</div>` : ''}</span><span class="meta">${d}</span></li>`).join('')}</ul>
+        <div class="group-h">Earlier</div><ul class="list"><li><span class="lead-ic">${I('doc')}</span><span class="grow"><span class="t">Priya Shah edited Unit 3 reteach plan</span></span><span class="meta">Sep 30</span></li></ul>`
+      : `<ul class="list" style="margin-top:8px">${items.map(([t, from, due, done]) => `<li><input type="checkbox" ${done ? 'checked' : ''} aria-label="${esc(t)}"/><span class="grow"><span class="t" style="${done ? 'text-decoration:line-through;color:var(--faint)' : ''}">${esc(t)}</span><div class="meta">From <a href="#">${from}</a></div></span><span class="meta">${due}</span></li>`).join('')}</ul>`;
+    return `<div class="scrim" data-act="go" data-s="plc"></div><aside class="drawer" aria-label="What's new and my items">
+      <div class="dh"><div class="tabs2" role="tablist"><button role="tab" aria-selected="${tab === 'new'}" data-act="go" data-s="drawer">What's new · 4</button><button role="tab" aria-selected="${tab === 'items'}" data-act="go" data-s="items">My items · 2</button></div><span class="grow"></span>${tab === 'new' ? '<button class="link quiet">Mark all seen</button>' : ''}<button class="iconbtn" data-act="go" data-s="plc" aria-label="Close">${I('x')}</button></div>
+      <div class="db">${body}</div></aside>`;
+  }
+
+  // ---------- 1b. Manage targets ----------
+  function targetsModal() {
+    return `<div class="scrim" data-act="go" data-s="plc"></div><div class="modal" role="dialog" aria-label="Learning targets">
+      <div class="mh"><h2>Learning targets</h2><button class="iconbtn" data-act="go" data-s="plc" aria-label="Close">${I('x')}</button></div>
+      <div class="mb">
+        <div class="sechead" style="margin:16px 0 4px"><h3 class="sec">Targets</h3><span class="sp"></span><button class="btn sm">${I('plus', 'sm')}Add target</button></div>
+        <table class="tbl"><thead><tr><th>Target</th><th class="r">Cutoff</th><th class="r">Questions</th><th></th></tr></thead><tbody>
+        ${TARGETS.map((t) => `<tr><td><b style="font-weight:600">${t.code}</b> <span class="muted">${esc(t.name)}</span></td><td class="r"><input type="number" min="0" max="100" value="${t.cut}" style="width:70px" aria-label="Cutoff for ${t.code}"/> %</td><td class="r">${S.tagged ? t.qs : 0}</td><td class="r"><button class="iconbtn" aria-label="Remove ${t.code}">${I('trash', 'sm')}</button></td></tr>`).join('')}</tbody></table>
+        <div class="sechead" style="margin:22px 0 4px"><h3 class="sec">Tag questions</h3><select class="menusel" aria-label="Assessment"><option>Unit 3 Ratios CFA</option><option>Unit 4 Proportions Quick Check</option><option>Unit 2 Expressions CFA</option></select><span class="sp"></span><span class="meta">${S.tagged ? '18 of 18 tagged' : '0 of 18 tagged'}</span></div>
+        <table class="tbl"><tbody>${QS.slice(0, 7).map((q) => `<tr><td style="width:44px"><b>Q${q.q}</b></td><td>${esc(q.skill)}</td><td class="r"><select aria-label="Target for Q${q.q}"><option>${S.tagged ? q.tgt : 'No target'}</option>${TARGETS.map((t) => `<option>${t.code}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table>
+        <div style="margin-top:8px"><button class="link">Show all 18</button></div>
+      </div>
+      <div class="mf"><span class="grow"></span><button class="btn" data-act="go" data-s="plc">Cancel</button><button class="btn primary" data-act="go" data-s="plc">Save</button></div></div>`;
+  }
+
+  // ---------- 3. Layout editor ----------
+  function layoutModal() {
+    const L = S.layout;
+    const pageRows = L.pages.map((p, i) => `<div class="erow ${p.on ? '' : 'off'}"><span class="lead-ic">${I('grip', 'sm')}</span><span class="lead-ic">${I(p.icon)}</span><span class="nm">${esc(p.label)}</span>${L.landing === p.id ? `<span class="tag">${I('home', 'sm')}Landing page</span>` : ''}
+      <button class="iconbtn" data-act="pg-mv" data-i="${i}" data-d="-1" ${i ? '' : 'disabled'} aria-label="Move ${esc(p.label)} up">${I('up', 'sm')}</button><button class="iconbtn" data-act="pg-mv" data-i="${i}" data-d="1" ${i < L.pages.length - 1 ? '' : 'disabled'} aria-label="Move ${esc(p.label)} down">${I('down', 'sm')}</button>
+      <label class="toggle" title="${L.landing === p.id ? 'The landing page is always on' : ''}"><input type="checkbox" data-act="pg-on" data-i="${i}" ${p.on ? 'checked' : ''} ${L.landing === p.id ? 'disabled' : ''} aria-label="Show ${esc(p.label)}"/><span class="track"></span></label></div>`).join('');
+    const updOn = L.pages.find((p) => p.id === 'upd').on;
+    const cardRows = L.cards.map((c, i) => { const blocked = c.needs && !updOn; return `<div class="erow ${c.on && !blocked ? '' : 'off'}"><span class="nm">${esc(c.label)}</span>${blocked ? `<span class="tag">Turn on ${c.needs} first</span>` : ''}
+      <button class="iconbtn" data-act="cd-mv" data-i="${i}" data-d="-1" ${i ? '' : 'disabled'} aria-label="Move ${esc(c.label)} up">${I('up', 'sm')}</button><button class="iconbtn" data-act="cd-mv" data-i="${i}" data-d="1" ${i < L.cards.length - 1 ? '' : 'disabled'} aria-label="Move ${esc(c.label)} down">${I('down', 'sm')}</button>
+      <label class="toggle"><input type="checkbox" data-act="cd-on" data-i="${i}" ${c.on && !blocked ? 'checked' : ''} ${blocked ? 'disabled' : ''} aria-label="Show ${esc(c.label)}"/><span class="track"></span></label></div>`; }).join('');
+    const pinned = S.heroMode === 'pinned';
+    return `<div class="scrim" data-act="go" data-s="plc"></div><div class="modal" role="dialog" aria-label="Team layout">
+      <div class="mh"><h2>Team layout</h2><span class="meta hide-sm">Everyone on the team sees this layout.</span><button class="iconbtn" data-act="go" data-s="plc" aria-label="Close">${I('x')}</button></div>
+      <div class="mb">
+        <div class="section first" style="padding-bottom:8px"><div class="sechead" style="margin-bottom:4px"><h3 class="sec">Pages</h3></div>${pageRows}
+          <div class="formrow"><label for="landing">Landing page</label><select id="landing" data-act="landing">${L.pages.filter((p) => p.on).map((p) => `<option value="${p.id}" ${L.landing === p.id ? 'selected' : ''}>${esc(p.label)}</option>`).join('')}</select></div></div>
+        <div class="section"><div class="sechead" style="margin-bottom:4px"><h3 class="sec">First thing the team sees</h3></div>
+          <div class="seg" role="group" aria-label="Hero"><button data-act="hero" data-m="default" aria-pressed="${!pinned}">Follow default</button><button data-act="hero" data-m="pinned" aria-pressed="${pinned}">Pin an item</button></div>
+          ${pinned ? `<div class="formrow"><label for="heroRef">Pinned item</label><select id="heroRef">
+              <optgroup label="Assessment results">${ASSESS.slice().reverse().map((a) => `<option ${a.id === 'u3' ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</optgroup>
+              <optgroup label="Learning target trend">${TARGETS.map((t) => `<option>${t.code} ${esc(t.name)}</option>`).join('')}</optgroup>
+              <optgroup label="Goals"><option>80% at 75% or higher by May</option></optgroup>
+              <optgroup label="Notes & Docs"><option>Unit 3 reteach plan</option><option>PLC meeting Oct 9</option></optgroup>
+              <optgroup label="Calendar"><option>Math PLC calendar</option></optgroup></select></div>
+            <div class="nudge" style="margin-top:0">${I('clock', 'sm')}<span>Newer results: Unit 4 Proportions Quick Check, Oct 6.</span><button class="link" data-act="hero" data-m="default">Follow latest</button></div>`
+          : `<div class="meta" style="padding:10px 0">Shows the latest common assessment.</div>`}
+        </div>
+        <div class="section" style="padding-bottom:8px"><div class="sechead" style="margin-bottom:4px"><h3 class="sec">Landing page cards</h3></div>${cardRows}</div>
+      </div>
+      <div class="mf">${S.resetAsk ? `<div class="confirm"><span>Pages, cards and the pinned item go back to the district default. Content stays.</span><button class="btn sm danger" data-act="reset-go">Reset</button><button class="btn sm ghost" data-act="reset-no">Cancel</button></div>` : `<button class="btn ghost" data-act="reset">${I('redo', 'sm')}Reset to district default</button><span class="grow"></span><button class="btn" data-act="go" data-s="plc">Cancel</button><button class="btn primary" data-act="go" data-s="plc">Save</button>`}</div></div>`;
+  }
+
+  // ---------- 4. Department Hub ----------
+  const DEPT = { name: 'Middle School Math', type: 'Department', new: 3, items: 1, members: [['Hannah Olson', 'Lead'], ['Priya Shah', 'Member'], ['Jordan Kim', 'Member'], ['Elena Ruiz', 'Member'], ['Marcus Bell', 'Member'], ['Rachel Moen', 'Member'], ['David Strand', 'Member'], ['Julie Kraft', 'Member']] };
+  function deptHub() {
+    const map = [['Grade 6', 'Ratios and rates', 'Dividing fractions', 'Expressions', 'Equations'], ['Grade 7', 'Ratios and proportions', 'Proportions and percent', 'Rational numbers', 'Expressions'], ['Grade 8', 'Transformations', 'Linear relationships', 'Systems', 'Functions']];
+    return `<div class="wrap">
+      <section class="hero"><div class="herohead"><div class="grow"><h2 class="title">2026-27 Math Curriculum Map</h2><div class="meta">Google Doc · updated Oct 3 by Hannah Olson · ${I('pin', 'sm')} Pinned</div></div>
+        <div class="row">${lead() ? `<button class="btn sm ghost" data-act="go" data-s="layout">${I('pin', 'sm')}Change</button>` : ''}<button class="btn sm">${I('ext', 'sm')}Open in Docs</button></div></div>
+        <div class="embed" style="margin-top:14px"><div class="docpage"><table><thead><tr><th></th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th></tr></thead><tbody>${map.map((r) => `<tr>${r.map((c, i) => (i ? `<td>${c}</td>` : `<th>${c}</th>`)).join('')}</tr>`).join('')}</tbody></table></div></div>
+      </section>
+      <section class="section"><div class="cols c2">
+        <div><div class="sechead"><h3 class="sec">Department meeting · Tue, Oct 14</h3><span class="sp"></span><button class="link">Open note</button></div>
+          <div class="group-h" style="margin-top:4px">Agenda</div>
+          <ul class="list">${[['Unit 3 vocabulary list: one list for 6, 7 and 8?', 'Elena Ruiz'], ['Calculator policy for CFAs', 'Jordan Kim'], ['Winter benchmark window', 'Hannah Olson']].map(([t, w]) => `<li><span class="grow t">${esc(t)}</span><span class="meta">${w}</span></li>`).join('')}</ul>
+          <div class="row" style="margin-top:8px"><input type="text" class="grow" placeholder="Add an agenda item" aria-label="Add an agenda item"/><button class="btn sm">Add</button></div></div>
+        <div><div class="sechead"><h3 class="sec">Open decisions and action items</h3></div>
+          <ul class="list">
+            <li><span class="lead-ic">${I('scale')}</span><span class="grow"><span class="t">Adopt one Unit 3 vocabulary list?</span><div class="meta">Open · discuss Oct 14</div></span></li>
+            <li><span class="lead-ic">${I('scale')}</span><span class="grow"><span class="t">Retire the 2019 Grade 8 textbook</span><div class="meta">Decided Sep 30 · ordering pending</div></span></li>
+            <li><input type="checkbox" aria-label="Draft Grade 7 pacing for Q2"/><span class="grow"><span class="t">Draft Grade 7 pacing for Q2</span><div class="meta">Priya Shah · due Oct 17</div></span></li>
+            <li><input type="checkbox" aria-label="Collect calculator models in use"/><span class="grow"><span class="t">Collect calculator models in use</span><div class="meta">Jordan Kim · due Oct 14</div></span></li>
+          </ul></div>
+      </div></section>
+      <section class="section"><div class="cols c2">
+        <div><div class="sechead"><h3 class="sec">Recently updated docs</h3><span class="sp"></span><button class="link">Notes & Docs</button></div>
+          <ul class="list">${[['2026-27 Math Curriculum Map', 'Hannah Olson', 'Oct 3'], ['Grade 7 pacing guide', 'Priya Shah', 'Oct 1'], ['Department meeting Sep 30', 'Hannah Olson', 'Sep 30'], ['Intervention block schedule', 'David Strand', 'Sep 26']].map(([t, w, d]) => `<li><span class="lead-ic">${I('doc')}</span><span class="grow"><span class="t">${t}</span><div class="meta">${w}</div></span><span class="meta">${d}</span></li>`).join('')}</ul></div>
+        <div><div class="sechead"><h3 class="sec">Newly shared materials</h3><span class="sp"></span><button class="link">Resources</button></div>
+          <ul class="list">${[['clip', 'Unit 3 Ratios CFA', 'Quiz · 18 questions', 'Priya Shah'], ['grid', 'Proportional reasoning rubric', 'Rubric · 4 criteria', 'Elena Ruiz'], ['folder', 'Grade 8 slope bank', 'Question bank · 42 questions', 'Julie Kraft'], ['grid', 'Integer chips board', 'Board', 'Rachel Moen']].map(([ic, t, k, w]) => `<li><span class="lead-ic">${I(ic)}</span><span class="grow"><span class="t">${t}</span><div class="meta">${k} · ${w}</div></span><button class="btn sm ghost">Copy to my library</button></li>`).join('')}</ul></div>
+      </div></section></div>`;
+  }
+
+  // ---------- 5. Building Hub and Updates ----------
+  const BLDG = { name: 'Orono Middle School Staff', type: 'Building', new: 2, items: 1, members: [['Erin Walsh', 'Lead'], ['Mark Johnson', 'Co-lead'], ...STAFF.slice(4).map((n) => [n, 'Member'])] };
+  const UPDATES = [
+    { t: 'Conference week schedule', who: 'Erin Walsh', d: 'Oct 6', body: 'Conferences run Oct 20 to 23. Sign-up opens to families Monday. Block your unavailable times by Friday.', att: 'Conference schedule.pdf', react: 18, pinned: true },
+    { t: 'October supervision schedule', who: 'Mark Johnson', d: 'Oct 3', body: 'Lunch and hallway duty changed for weeks 2 and 3. Check your new times before Monday.', att: 'Supervision Oct.pdf', react: 9, ack: true },
+    { t: 'Fire drill Thursday at 10:15', who: 'Mark Johnson', d: 'Oct 2', body: 'Use the north stairwell route. Sweep cards are in your sub folder.', react: 4 },
+    { t: 'Picture retake day Oct 21', who: 'Erin Walsh', d: 'Sep 29', body: 'Send students with a retake slip to the gym during advisory.', react: 2 },
+  ];
+  function updateBody(u, big) {
+    return `<div class="${big ? '' : 'small'}" style="line-height:1.55;color:var(--ink-2);margin-top:6px">${esc(u.body)}</div>
+      ${u.att ? `<div class="row small" style="margin-top:8px">${I('clipat', 'sm')}<a href="#">${esc(u.att)}</a></div>` : ''}`;
+  }
+  function bldgHub() {
+    const u = UPDATES[0];
+    const links = [['doc', 'Staff handbook'], ['clip', 'Sub request'], ['alert', 'Tech help ticket'], ['clock', 'Bell schedule'], ['folder', 'Copy center request'], ['users', 'Staff directory']];
+    const res = { Schedules: ['Bell schedule 2026-27', 'Advisory calendar', 'Supervision rotation'], Forms: ['Field trip request', 'Purchase request', 'Leave request'], Safety: ['Emergency procedures', 'Reunification map', 'Medical alerts list'] };
+    return `<div class="wrap">
+      <section class="hero"><div class="herohead"><div class="grow"><h2 class="title">${esc(u.t)}</h2><div class="meta">${u.who} · ${u.d} · ${I('pin', 'sm')} Pinned update</div></div>
+        <div class="row">${lead() ? `<button class="btn sm ghost" data-act="go" data-s="layout">${I('pin', 'sm')}Change</button>` : ''}</div></div>
+        <div style="max-width:720px">${updateBody(u, true)}</div>
+        <div class="row small" style="margin-top:12px"><button class="btn sm ghost">${I('thumb', 'sm')}${u.react}</button></div>
+      </section>
+      <section class="section"><div class="row wrapr" style="gap:22px">${links.map(([ic, t]) => `<a href="#" class="row small" style="gap:6px;font-weight:500">${I(ic, 'sm')}${t}</a>`).join('')}${lead() ? '<button class="link quiet">Edit links</button>' : ''}</div></section>
+      <section class="section"><div class="cols c21">
+        <div><div class="sechead"><h3 class="sec">Latest updates</h3><span class="sp"></span><button class="link" data-act="go" data-s="updates">All updates</button></div>
+          <ul class="list">${UPDATES.slice(1).map((x) => `<li style="align-items:flex-start"><span class="lead-ic" style="padding-top:2px">${I('mega')}</span><span class="grow"><span class="t">${esc(x.t)}</span><div class="meta">${x.who} · ${x.d}</div></span>${x.ack ? `<span class="st warn">${I('alert', 'sm')}Needs your acknowledgement</span>` : ''}</li>`).join('')}</ul>
+          <div class="sechead" style="margin-top:24px"><h3 class="sec">Resources</h3><span class="sp"></span><button class="link">All resources</button></div>
+          <div class="cols c3">${Object.entries(res).map(([k, v]) => `<div><div class="group-h" style="margin-top:0">${k}</div><ul class="list">${v.map((x) => `<li style="padding:7px 0"><a href="#">${x}</a></li>`).join('')}</ul></div>`).join('')}</div></div>
+        <div><div class="sechead"><h3 class="sec">Calendar</h3><span class="sp"></span><button class="link">${I('ext', 'sm')}Google Calendar</button></div>
+          <div class="embed cal" aria-label="Embedded Google Calendar"><div class="bar">${I('cal', 'sm')}OMS staff calendar · Agenda</div>
+            ${[['Wed Oct 8', 'Staff meeting, 3:15 PM, media center'], ['Thu Oct 9', 'Fire drill, 10:15 AM'], ['Fri Oct 10', 'Conference availability due'], ['Mon Oct 13', 'PBIS team, 7:30 AM'], ['Mon Oct 20', 'Conferences begin'], ['Tue Oct 21', 'Picture retakes']].map(([w, t]) => `<div class="d"><span class="when">${w}</span><span>${t}</span></div>`).join('')}</div></div>
+      </div></section></div>`;
+  }
+  function bldgUpdates() {
+    const ackN = 41 + (S.acked ? 1 : 0), total = 58;
+    const notYet = STAFF.slice(9, 9 + (total - ackN)); const yes = STAFF.slice(0, 9);
+    let h = '<div class="wrap" style="max-width:860px">';
+    if (lead()) h += `<section class="section first" style="padding-top:24px"><textarea rows="3" placeholder="Post an update" aria-label="Post an update"></textarea>
+      <div class="row wrapr" style="margin-top:8px"><button class="iconbtn" title="Attach a file" aria-label="Attach a file">${I('clipat')}</button><button class="iconbtn" title="Add a link" aria-label="Add a link">${I('link')}</button>
+      <label class="toggle"><input type="checkbox"/><span class="track"></span>Require acknowledgement</label><label class="toggle"><input type="checkbox" checked/><span class="track"></span>Include in weekly email</label><span class="grow"></span><button class="btn primary sm">${I('send', 'sm')}Post</button></div></section>`;
+    h += `<div class="sechead" style="margin-top:${lead() ? 0 : 24}px"><h3 class="sec">Updates</h3><select class="menusel" aria-label="Filter updates"><option>All</option><option>Needs acknowledgement</option><option>Pinned</option></select></div>`;
+    UPDATES.forEach((u) => {
+      h += `<article class="section" style="padding:18px 0">
+        <div class="row"><span class="grow"><b style="font-size:15.5px;font-weight:600">${esc(u.t)}</b><div class="meta">${u.who} · ${u.d}${u.pinned ? ` · ${I('pin', 'sm')} Pinned` : ''}</div></span>${lead() ? `<button class="iconbtn" aria-label="Update options">${I('more')}</button>` : ''}</div>
+        ${updateBody(u, true)}
+        <div class="row wrapr small" style="margin-top:10px"><button class="btn sm ghost">${I('thumb', 'sm')}${u.react}</button>`;
+      if (u.ack && !lead()) h += S.acked ? `<span class="st good">${I('checkc', 'sm')}Acknowledged Oct 7</span>` : `<span class="st warn">${I('alert', 'sm')}Acknowledgement required</span><button class="btn sm primary" data-act="ack">Acknowledge</button>`;
+      if (u.ack && lead()) h += `<span class="st none">${I('checkc', 'sm')}Acknowledged by <b style="color:var(--ink);margin-left:3px">${ackN} of ${total}</b></span><button class="link" data-act="ack-open">${S.ackOpen ? 'Hide' : 'See who'}</button>`;
+      h += '</div>';
+      if (u.ack && lead() && S.ackOpen) h += `<div class="cols c2" style="margin-top:12px">
+        <div><div class="group-h" style="margin-top:0">${I('circle', 'sm')} Not yet · ${total - ackN}</div><ul class="list">${notYet.slice(0, 6).map((n) => `<li style="padding:6px 0">${n}</li>`).join('')}<li style="padding:6px 0"><button class="link">Show all ${total - ackN}</button></li></ul></div>
+        <div><div class="group-h" style="margin-top:0">${I('checkc', 'sm')} Acknowledged · ${ackN}</div><ul class="list">${yes.slice(0, 6).map((n, i) => `<li style="padding:6px 0"><span class="grow">${n}</span><span class="meta">Oct ${3 + (i % 4)}</span></li>`).join('')}<li style="padding:6px 0"><button class="link">Show all ${ackN}</button></li></ul></div></div>`;
+      h += '</article>';
+    });
+    return h + '</div>';
+  }
+
+  // ---------- 6. Mentoring ----------
+  const MENT = { name: 'New Teacher Mentoring 2026-27', type: 'Mentoring program', new: 2, items: 1, members: [['Laura Benson', 'Facilitator'], ['Tom Reyes', 'Facilitator'], ...PAIRS.flat().map((n) => [n, ''])] };
+  const TASKS = [
+    { id: 'goal', t: 'Goal-setting conference', due: 'Sep 30', who: 'Mentor and mentee', sub: 12, late: 2, none: 0 },
+    { id: 'obs', t: 'Classroom observation reflection', due: 'Oct 24', who: 'Mentee', sub: 3, late: 0, none: 11 },
+    { id: 'mid', t: 'Mid-year check-in', due: 'Jan 16', who: 'Mentor and mentee', sub: 0, late: 0, none: 14 },
+  ];
+  const mentPages = () => [
+    { id: 'hub', label: 'Program Hub', icon: 'home', on: true, go: 'mhub' },
+    { id: 'ws', label: lead() ? 'Workspaces' : 'Workspace', icon: 'pair', on: true, go: lead() ? 'tracker' : 'workspace' },
+    { id: 'upd', label: 'Updates', icon: 'mega', on: true },
+    { id: 'res', label: 'Resources', icon: 'folder', on: true },
+  ];
+  const statusSegs = (k) => [{ v: k.sub, c: '--s1', name: 'Submitted' }, { v: k.late, c: '--s2', name: 'Late' }, { v: k.none, c: '--s-rest', name: 'Not started' }];
+  function mentHub() {
+    const k = TASKS[1];
+    let h = `<div class="wrap"><section class="hero"><div class="herohead"><div class="grow">
+        <div class="meta">Next required task · due Fri, ${k.due}</div>
+        <h2 class="title" style="margin-top:4px">${k.t}</h2>
+        <div class="meta">Submits: ${k.who} · template doc in each workspace</div></div>
+        <div class="row">${lead() ? `<button class="btn sm ghost" data-act="go" data-s="layout">${I('pin', 'sm')}Change</button><button class="btn sm" data-act="go" data-s="tracker">Open tracker</button>` : '<button class="btn sm primary" data-act="go" data-s="workspace">Open in workspace</button>'}</div></div>
+        <p style="max-width:720px;line-height:1.6;color:var(--ink-2)">After your mentor observes a lesson, write a one-page reflection: what you planned, what happened, and one change you will try. Share it with your mentor before you submit.</p>
+        ${lead() ? '' : `<div class="row small"><span class="st none">${I('circle', 'sm')}Not started</span><span class="muted">Your workspace with Dana Whitfield</span></div>`}
+      </section>`;
+    h += `<section class="section"><div class="cols c21"><div>`;
+    if (lead()) h += `<div class="sechead"><h3 class="sec">Submission status</h3><span class="sp"></span><span class="legend"><span><i style="background:var(--s1)"></i>Submitted</span><span><i style="background:var(--s2)"></i>Late</span><span><i style="background:var(--s-rest)"></i>Not started</span></span></div>
+      ${barRows(TASKS.map((x) => ({ label: `<span class="n" title="${esc(x.t)}">${esc(x.t)}</span>`, segs: statusSegs(x), value: `<b>${x.sub} of 14</b><span>due ${x.due}${x.late ? ` · ${x.late} late` : ''}</span>`, tip: { h: `${x.t} · due ${x.due}`, rows: statusSegs(x).map((s) => ({ v: `${s.v}`, l: s.name.toLowerCase(), c: s.c })) } })), { max: 14, ticks: [0, 7, 14], unit: '' })}
+      <div class="meta" style="margin-top:6px">Pairs · 14 total</div>`;
+    else h += `<div class="sechead"><h3 class="sec">Your tasks</h3></div><ul class="list">${TASKS.map((x, i) => `<li><span class="grow"><span class="t">${x.t}</span><div class="meta">Due ${x.due} · ${x.who}</div></span>${i === 0 ? `<span class="st good">${I('checkc', 'sm')}Submitted Sep 29</span>` : `<span class="st none">${I('circle', 'sm')}Not started</span>`}</li>`).join('')}</ul>`;
+    h += `<div class="sechead" style="margin-top:24px"><h3 class="sec">Latest updates</h3><span class="sp"></span><button class="link">All updates</button></div>
+      <ul class="list">${[['Observation window opens Oct 13', 'Laura Benson', 'Oct 6'], ['Release-time sub codes for October', 'Tom Reyes', 'Oct 1'], ['Kickoff slides and recording', 'Laura Benson', 'Sep 12']].map(([t, w, d]) => `<li><span class="lead-ic">${I('mega')}</span><span class="grow"><span class="t">${t}</span><div class="meta">${w}</div></span><span class="meta">${d}</span></li>`).join('')}</ul>
+      </div><div><div class="sechead"><h3 class="sec">Program dates</h3></div>
+        <div class="embed cal"><div class="bar">${I('cal', 'sm')}Mentoring program · Agenda</div>${[['Mon Oct 13', 'Observation window opens'], ['Fri Oct 24', 'Observation reflection due'], ['Wed Nov 5', 'Cohort session 2, 4:00 PM'], ['Fri Jan 16', 'Mid-year check-in due']].map(([w, t]) => `<div class="d"><span class="when">${w}</span><span>${t}</span></div>`).join('')}</div>
+        <div class="sechead" style="margin-top:24px"><h3 class="sec">Resources</h3></div>
+        <ul class="list">${['Mentoring handbook', 'Observation protocol', 'Danielson framework summary', 'Sub request for release time'].map((x) => `<li style="padding:7px 0"><a href="#">${x}</a></li>`).join('')}</ul></div>
+      </div></section></div>`;
+    return h;
+  }
+  function workspace() {
+    let h = `<div class="wrap" style="max-width:920px"><section class="hero">
+      ${lead() ? `<button class="link quiet" data-act="go" data-s="tracker" style="margin-bottom:8px">${I('left', 'sm')}Workspaces</button>` : ''}
+      <h2 class="title">Dana Whitfield and Marcus Lee</h2>
+      <div class="meta" style="margin-top:4px">${I('eye', 'sm')} Program facilitators can view this workspace.</div></section>
+      <section class="section"><div class="sechead"><h3 class="sec">Required tasks</h3></div>
+      <table class="tbl"><thead><tr><th>Task</th><th>Due</th><th>Submits</th><th>Status</th><th></th></tr></thead><tbody>
+        <tr><td><b style="font-weight:600">Classroom observation reflection</b></td><td>Oct 24</td><td>Mentee</td><td><span class="st none">${I('circle', 'sm')}Not started</span></td><td class="r"><button class="btn sm">${I('doc', 'sm')}Open doc</button> <button class="btn sm primary">Submit</button></td></tr>
+        <tr><td><b style="font-weight:600">Goal-setting conference</b></td><td>Sep 30</td><td>Both</td><td><span class="st good">${I('checkc', 'sm')}Submitted Sep 29</span></td><td class="r"><button class="btn sm ghost">View</button></td></tr>
+        <tr><td><b style="font-weight:600">Mid-year check-in</b></td><td>Jan 16</td><td>Both</td><td><span class="st none">${I('circle', 'sm')}Not started</span></td><td class="r"><button class="btn sm">${I('doc', 'sm')}Open doc</button></td></tr>
+      </tbody></table></section>
+      <section class="section"><div class="cols c2">
+        <div><div class="sechead"><h3 class="sec">Check-ins</h3><span class="sp"></span><button class="btn sm">${I('plus', 'sm')}New check-in</button></div>
+          <ul class="list">${[['Check-in Oct 6', 'Classroom routines, goal progress'], ['Check-in Sep 29', 'Goal-setting conference'], ['Check-in Sep 15', 'First weeks, parent emails']].map(([t, m]) => `<li><span class="lead-ic">${I('doc')}</span><span class="grow"><span class="t">${t}</span><div class="meta">${m}</div></span></li>`).join('')}</ul></div>
+        <div><div class="sechead"><h3 class="sec">Action items</h3></div>
+          <ul class="list"><li><input type="checkbox" aria-label="Try a 2-minute entry routine"/><span class="grow"><span class="t">Try a 2-minute entry routine</span><div class="meta">Marcus Lee · due Oct 10</div></span></li>
+            <li><input type="checkbox" aria-label="Share seating chart examples"/><span class="grow"><span class="t">Share seating chart examples</span><div class="meta">Dana Whitfield · due Oct 8</div></span></li>
+            <li><input type="checkbox" checked aria-label="Book observation date"/><span class="grow"><span class="t" style="text-decoration:line-through;color:var(--faint)">Book observation date</span><div class="meta">Marcus Lee · done Oct 6</div></span></li></ul>
+          <div class="sechead" style="margin-top:20px"><h3 class="sec">Working docs</h3><span class="sp"></span><button class="link">${I('plus', 'sm')}Add a doc</button></div>
+          <ul class="list">${['Professional goals 2026-27', 'Observation reflection (template)', 'Parent communication log'].map((x) => `<li><span class="lead-ic">${I('doc')}</span><span class="grow t">${x}</span><span class="meta">Google Doc</span></li>`).join('')}</ul></div>
+      </div></section></div>`;
+    return h;
+  }
+  function tracker() {
+    const k = TASKS.find((x) => x.id === S.task);
+    const rows = PAIRS.map(([m, e], i) => {
+      let st;
+      if (k.id === 'goal') st = i < 12 ? (i === 3 ? ['good', 'checkc', 'Submitted Oct 2 · 2 days late'] : ['good', 'checkc', `Submitted Sep ${24 + (i % 6)}`]) : ['warn', 'alert', 'Late'];
+      else if (k.id === 'obs') st = i < 3 ? ['good', 'checkc', `Submitted Oct ${3 + i}`] : ['none', 'circle', 'Not started'];
+      else st = ['none', 'circle', 'Not started'];
+      return `<tr><td><b style="font-weight:600">${m}</b> <span class="muted">and</span> <b style="font-weight:600">${e}</b></td><td><span class="st ${st[0]}">${I(st[1], 'sm')}${st[2]}</span></td><td class="r">${st[0] === 'good' ? '<button class="btn sm ghost">Open submission</button>' : '<button class="btn sm ghost">Open workspace</button>'}</td></tr>`;
+    }).join('');
+    return `<div class="wrap"><section class="hero" style="padding-bottom:0">
+      <div class="herohead"><div class="grow"><h2 class="title">Workspaces</h2></div><button class="btn sm primary">${I('plus', 'sm')}Post a task</button></div>
+      <div class="row wrapr" style="margin-top:16px"><select data-act="task" aria-label="Task">${TASKS.map((x) => `<option value="${x.id}" ${x.id === S.task ? 'selected' : ''}>${x.t}</option>`).join('')}</select><span class="meta">Due ${k.due} · submits: ${k.who}</span><span class="grow"></span><select class="menusel" aria-label="Filter pairs"><option>All pairs</option><option>Late</option><option>Not started</option><option>Submitted</option></select></div>
+      <div class="figs" style="margin:18px 0 8px"><div class="fig"><div class="v md">${k.sub}</div><div class="l">${I('checkc', 'sm')} Submitted</div></div><div class="fig"><div class="v md">${k.late}</div><div class="l">${I('alert', 'sm')} Late</div></div><div class="fig"><div class="v md">${k.none}</div><div class="l">${I('circle', 'sm')} Not started</div></div></div>
+      </section><section class="section"><table class="tbl"><thead><tr><th>Pair</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table></section></div>`;
+  }
+
+  // ---------- 7. Admin: Team type defaults ----------
+  const PRESETS = {
+    plc: { label: 'PLC', pages: [['Data overview', true, true], ['Assessments', true], ['Notes & Docs', true], ['Resources', true], ['Updates', false]], cards: ['Score distribution', 'Team average over time', 'Participation', 'Mastery by learning target', 'Goals', 'Recent assessments', 'Next meeting and open items'], off: ['Latest updates', 'Calendar'], hero: ['Latest common assessment', 'Team goal', 'Lowest learning target'],
+      tpl: [['What do we want students to learn?', 'Text'], ['How will we know if they learned it?', 'Data'], ['How will we respond when some students do not learn it?', 'Decision'], ['How will we extend learning for students who already know it?', 'Text'], ['Action items', 'Action items']] },
+    department: { label: 'Department', pages: [['Hub', true, true], ['Notes & Docs', true], ['Resources', true], ['Updates', false]], cards: ['Next meeting note', 'Open decisions and action items', 'Recently updated docs', 'Newly shared materials'], off: ['Goals', 'Latest updates', 'Calendar'], hero: ['Next meeting note until a doc is pinned', 'Newest doc'],
+      tpl: [['Agenda', 'Text'], ['Curriculum and materials', 'Text'], ['Decisions', 'Decision'], ['Action items', 'Action items']] },
+    building: { label: 'Building', pages: [['Hub', true, true], ['Resources', true], ['Updates', true], ['Notes & Docs', false]], cards: ['Quick links', 'Latest updates', 'Resources by category', 'Calendar'], off: ['Goals'], hero: ['Newest pinned update', 'Calendar'], tpl: [] },
+    mentoring: { label: 'Mentoring', pages: [['Program Hub', true, true], ['Workspace', true], ['Updates', true], ['Resources', true]], cards: ['Your next task', 'Submission status', 'Latest updates', 'Program dates', 'Resources'], off: ['Goals'], hero: ['Next required task', 'Newest pinned update'],
+      tpl: [['Check-in', 'Text'], ['Goal progress', 'Text'], ['Next steps', 'Action items']] },
+  };
+  const RUBRIC = ['Focuses on students, not a teacher task', 'Names the assessment or measure', 'States a baseline and a target', 'Has a time frame', 'Names a practice the team will change'];
+  function admin() {
+    const p = PRESETS[S.adminType];
+    const tabs = ['Access', 'Widgets', 'Buildings', 'Team type defaults', 'Help content'];
+    return `<header class="hdr"><span style="color:rgba(255,255,255,.7);display:inline-grid">${I('gear', 'lg')}</span><h1>Admin Settings</h1>
+      <div class="adm-tabs" role="tablist">${tabs.map((t) => `<button role="tab" aria-selected="${t === 'Team type defaults'}">${t}</button>`).join('')}</div><span class="sp"></span><button class="hbtn hicon" aria-label="Close">${I('x')}</button></header>
+      <div class="body"><main class="main"><div class="wrap" style="max-width:900px">
+      <div class="row wrapr" style="padding:24px 0 8px"><div class="seg" role="group" aria-label="Team type">${Object.entries(PRESETS).map(([k, v]) => `<button data-act="atype" data-k="${k}" aria-pressed="${k === S.adminType}">${v.label}</button>`).join('')}</div><span class="grow"></span><span class="meta">Applies to teams created after you save.</span></div>
+      <section class="section first"><div class="sechead"><h3 class="sec">Pages</h3></div>${p.pages.map(([n, on, land], i) => `<div class="erow ${on ? '' : 'off'}"><span class="lead-ic">${I('grip', 'sm')}</span><span class="nm">${n}</span>${land ? `<span class="tag">${I('home', 'sm')}Landing page</span>` : ''}<button class="iconbtn" ${i ? '' : 'disabled'} aria-label="Move up">${I('up', 'sm')}</button><button class="iconbtn" ${i < p.pages.length - 1 ? '' : 'disabled'} aria-label="Move down">${I('down', 'sm')}</button><label class="toggle"><input type="checkbox" ${on ? 'checked' : ''} ${land ? 'disabled' : ''} aria-label="${n} on by default"/><span class="track"></span></label></div>`).join('')}</section>
+      <section class="section"><div class="sechead"><h3 class="sec">Landing page cards</h3></div>${[...p.cards.map((c) => [c, true]), ...p.off.map((c) => [c, false])].map(([c, on], i, all) => `<div class="erow ${on ? '' : 'off'}"><span class="nm">${c}</span><button class="iconbtn" ${i ? '' : 'disabled'} aria-label="Move ${c} up">${I('up', 'sm')}</button><button class="iconbtn" ${i < all.length - 1 ? '' : 'disabled'} aria-label="Move ${c} down">${I('down', 'sm')}</button><label class="toggle"><input type="checkbox" ${on ? 'checked' : ''} aria-label="${c} on by default"/><span class="track"></span></label></div>`).join('')}</section>
+      <section class="section"><div class="formrow" style="padding:0"><label for="herodef"><b style="font-weight:600;color:var(--ink);font-size:15px">Hero default</b></label><select id="herodef">${p.hero.map((h) => `<option>${h}</option>`).join('')}</select></div></section>
+      <section class="section"><div class="sechead"><h3 class="sec">Meeting-note template</h3><span class="sp"></span>${p.tpl.length ? '' : '<span class="meta">None</span>'}</div>
+        ${p.tpl.map(([t, kind]) => `<div class="erow"><span class="lead-ic">${I('grip', 'sm')}</span><input type="text" class="grow" value="${esc(t)}" aria-label="Section heading"/><select aria-label="Block for ${esc(t)}">${['Text', 'Data', 'Decision', 'Action items'].map((k) => `<option ${k === kind ? 'selected' : ''}>${k}</option>`).join('')}</select><button class="iconbtn" aria-label="Remove section">${I('trash', 'sm')}</button></div>`).join('')}
+        <button class="link" style="margin-top:8px">${I('plus', 'sm')}Add section</button></section>
+      ${S.adminType === 'plc' ? `<section class="section"><div class="sechead"><h3 class="sec">Goal coach rubric</h3><span class="sp"></span><button class="link quiet">Restore default</button></div>
+        ${RUBRIC.map((r, i) => `<div class="erow"><span class="meta num" style="width:16px">${i + 1}</span><input type="text" class="grow" value="${esc(r)}" aria-label="Criterion ${i + 1}"/><button class="iconbtn" aria-label="Remove criterion">${I('trash', 'sm')}</button></div>`).join('')}
+        <button class="link" style="margin-top:8px">${I('plus', 'sm')}Add criterion</button></section>` : ''}
+      <section class="section"><div class="row"><span class="grow"></span><button class="btn">Discard changes</button><button class="btn primary">Save ${p.label} defaults</button></div></section>
+      </div></main></div>`;
+  }
+
+  // ---------- 8. Note with template and blocks ----------
+  function note() {
+    const top = QS.slice().sort((a, b) => a.pct - b.pct).slice(0, 3);
+    const saved = S.sort; S.sort = 'order';
+    const block = barRows(itemRows(top, { flags: false }), { compact: true });
+    S.sort = saved;
+    const list = [['PLC meeting Oct 9', 'Today', true], ['Unit 3 reteach plan', 'Doc · Sep 30'], ['PLC meeting Oct 2', 'Oct 2'], ['PLC meeting Sep 25', 'Sep 25']];
+    const old = [['Meeting record May 14', 'Read-only'], ['Meeting record Apr 30', 'Read-only']];
+    return `${liveBanner()}<div class="notes"><aside class="notelist">
+      <div class="row" style="margin-bottom:10px"><button class="btn sm primary grow">${I('plus', 'sm')}New meeting note</button><button class="btn sm" title="Blank note or Google Doc" aria-label="Other new items">${I('down', 'sm')}</button></div>
+      ${list.map(([t, m, on]) => `<button class="nl" ${on ? 'aria-current="true"' : ''}><span class="t">${t}</span><span class="meta">${m}</span></button>`).join('')}
+      <div class="group-h" style="padding:0 10px">Earlier meetings</div>
+      ${old.map(([t, m]) => `<button class="nl"><span class="t">${I('doc', 'sm')}${t}</span><span class="meta">${m}</span></button>`).join('')}
+    </aside><article class="note">
+      <div class="row wrapr"><h1 class="grow">PLC meeting Oct 9</h1><button class="btn sm">${I('mic', 'sm')}Record</button><button class="iconbtn" aria-label="Note options">${I('more')}</button></div>
+      <div class="meta" style="margin-top:4px">Thu, Oct 9 · 3:15 PM · Priya Shah, Hannah Olson, Jordan Kim, Elena Ruiz, Marcus Bell</div>
+      <h3>1. What do we want students to learn?</h3>
+      <p>Unit rates with fractions (7.RP.1) and the meaning of the constant of proportionality (7.RP.2b).</p>
+      <h3>2. How will we know if they learned it?</h3>
+      <div class="block"><div class="bh">${I('chart', 'sm')}<b>Unit 3 Ratios CFA</b><span>Live · team average 71% · 132 of 140</span><span class="grow"></span><button class="link" data-act="go" data-s="plc">Open in Data overview</button></div>
+        <div style="margin-bottom:6px">${iaLegend()}</div>${block}</div>
+      <h3>3. How will we respond when some students do not learn it?</h3>
+      <div class="block"><div class="dec"><span class="lead-ic">${I('scale')}</span><div>
+        <div class="bh" style="margin-bottom:4px"><b>Decision</b><span>Oct 9</span></div>
+        <div class="what">Reteach Q5 in small groups Monday and Tuesday using a double number line. Re-check with a 3-question exit ticket Wednesday.</div>
+        <div class="row wrapr small" style="margin-top:8px;gap:16px"><span class="row" style="gap:6px">${I('link', 'sm')}<a href="#" data-act="go" data-s="plc">Q5 Complex fraction rate · Unit 3 Ratios CFA</a></span><span class="muted">39% correct · most chose D, 41%</span><span class="muted">Revisit Oct 16</span></div>
+      </div></div></div>
+      <h3>4. How will we extend learning for students who already know it?</h3>
+      <p>Rate problems with three quantities from the Unit 3 extension set. Elena shares her task cards.</p>
+      <h3>Action items</h3>
+      <ul class="list">
+        <li><input type="checkbox" aria-label="Build the exit ticket"/><span class="grow t">Build the 3-question exit ticket for Q5</span><span class="meta">Priya Shah · due Oct 13</span></li>
+        <li><input type="checkbox" aria-label="Share task cards"/><span class="grow t">Share extension task cards in Resources</span><span class="meta">Elena Ruiz · due Oct 10</span></li>
+        <li><input type="checkbox" aria-label="Tag Unit 4 questions"/><span class="grow t">Tag Unit 4 Quick Check questions</span><span class="meta">Jordan Kim · due Oct 10</span></li>
+      </ul>
+      <button class="link quiet" style="margin-top:14px">${I('plus', 'sm')}Add block</button>
+    </article></div>`;
+  }
+
+  // ---------- render ----------
+  const app = document.getElementById('app');
+  function render() {
+    S.mounts = []; TIPS.clear(); hideTip();
+    const sc = S.screen; let h;
+    const plcMain = () => plcOverview();
+    if (['plc', 'gear', 'drawer', 'items', 'members', 'layout', 'targets'].includes(sc)) {
+      const ov = { gear: gearMenu(), drawer: drawer('new'), items: drawer('items'), members: membersPop(), layout: layoutModal(), targets: targetsModal() }[sc] || '';
+      h = shell(PLC, plcPages(), 'data', plcMain(), ov);
+    } else if (sc === 'note') h = shell(PLC, plcPages(), 'notes', note());
+    else if (sc === 'dept') h = shell(DEPT, [{ id: 'hub', label: 'Hub', icon: 'home', on: true }, { id: 'n', label: 'Notes & Docs', icon: 'doc', on: true }, { id: 'r', label: 'Resources', icon: 'folder', on: true }], 'hub', deptHub());
+    else if (sc === 'bldg' || sc === 'updates') h = shell(BLDG, [{ id: 'hub', label: 'Hub', icon: 'home', on: true, go: 'bldg' }, { id: 'r', label: 'Resources', icon: 'folder', on: true }, { id: 'u', label: 'Updates', icon: 'mega', on: true, go: 'updates' }], sc === 'bldg' ? 'hub' : 'u', sc === 'bldg' ? bldgHub() : bldgUpdates());
+    else if (sc === 'mhub') h = shell(MENT, mentPages(), 'hub', mentHub());
+    else if (sc === 'workspace') h = shell(MENT, mentPages(), 'ws', workspace());
+    else if (sc === 'tracker') h = shell(MENT, mentPages(), 'ws', tracker());
+    else if (sc === 'admin') h = admin();
+    app.innerHTML = h;
+    S.mounts.forEach((f) => f());
+    document.getElementById('screen').value = sc;
+    document.querySelectorAll('[data-role]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.role === S.role));
+    const th = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.querySelectorAll('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.themeSet === th));
+  }
+
+  // ---------- events ----------
+  const scr = document.getElementById('screen');
+  scr.innerHTML = SCREENS.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('');
+  scr.addEventListener('change', () => { S.screen = scr.value; S.resetAsk = false; render(); });
+  document.getElementById('tagged').addEventListener('change', (e) => { S.tagged = e.target.checked; render(); });
+  document.getElementById('livemtg').addEventListener('change', (e) => { S.live = e.target.checked; render(); });
+  document.querySelectorAll('[data-role]').forEach((b) => b.addEventListener('click', () => { S.role = b.dataset.role; if (S.role === 'member' && S.screen === 'layout') S.screen = 'plc'; render(); }));
+  document.querySelectorAll('[data-theme-set]').forEach((b) => b.addEventListener('click', () => { document.documentElement.dataset.theme = b.dataset.themeSet; render(); }));
+  const mv = (arr, i, d) => { const j = i + d; if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; };
+  app.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-act]'); if (!t || t.tagName === 'SELECT' || t.tagName === 'INPUT') return;
+    const a = t.dataset.act;
+    if (a === 'go' && t.dataset.s) { S.screen = t.dataset.s; S.resetAsk = false; }
+    else if (a === 'tbl') S.tables[t.dataset.k] = !S.tables[t.dataset.k];
+    else if (a === 'showall') S.showAll = !S.showAll;
+    else if (a === 'hero-latest') { S.heroMode = 'default'; }
+    else if (a === 'nudge-x') S.nudgeHidden = true;
+    else if (a === 'hero') S.heroMode = t.dataset.m;
+    else if (a === 'pg-mv') mv(S.layout.pages, +t.dataset.i, +t.dataset.d);
+    else if (a === 'cd-mv') mv(S.layout.cards, +t.dataset.i, +t.dataset.d);
+    else if (a === 'reset') S.resetAsk = true;
+    else if (a === 'reset-no') S.resetAsk = false;
+    else if (a === 'reset-go') { S.layout = { pages: PLC_PAGES(), landing: 'data', cards: PLC_CARDS() }; S.heroMode = 'default'; S.resetAsk = false; }
+    else if (a === 'ack') S.acked = true;
+    else if (a === 'ack-open') S.ackOpen = !S.ackOpen;
+    else if (a === 'atype') S.adminType = t.dataset.k;
+    else return;
+    render();
+  });
+  app.addEventListener('change', (e) => {
+    const t = e.target; const a = t.dataset.act; if (!a) return;
+    if (a === 'sort') S.sort = t.value;
+    else if (a === 'pg-on') S.layout.pages[+t.dataset.i].on = t.checked;
+    else if (a === 'cd-on') S.layout.cards[+t.dataset.i].on = t.checked;
+    else if (a === 'landing') S.layout.landing = t.value;
+    else if (a === 'task') S.task = t.value;
+    else return;
+    render();
+  });
+  let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(render, 120); });
+  render();
+})();
+</script>
+</body>
+</html>
