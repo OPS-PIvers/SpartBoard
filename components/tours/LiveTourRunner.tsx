@@ -1509,6 +1509,9 @@ export const LiveTourRunner: React.FC = () => {
       !autoBusy &&
       autoStage !== 'blocked' &&
       (!autoOn || autoStage === 'fallback');
+    // Steps the teacher finishes by clicking the target, or that Autopilot moves on, need no Next here.
+    const showTipNext =
+      !autoRunning && !autoBusy && (!acted || action === 'type' || isMissing);
     const status: TourTipStatus | null =
       autoStatus ??
       (staticHintOn
@@ -1583,6 +1586,14 @@ export const LiveTourRunner: React.FC = () => {
           status={status}
           onShowMe={hintOn && !autoBusy ? showMe : undefined}
           autopilotStep={offerAutoStep ? { onRun: runStep } : undefined}
+          next={
+            showTipNext
+              ? {
+                  onNext: () => goTo(tour.index + 1),
+                  last: tour.index + 1 === total,
+                }
+              : undefined
+          }
           confirm={
             autoStage === 'confirm'
               ? {

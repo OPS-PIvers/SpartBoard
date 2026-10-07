@@ -1,5 +1,5 @@
 import React, { useState, useSyncExternalStore } from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import type { GuidedLearningSet, WidgetType } from '@/types';
@@ -271,6 +271,10 @@ const start = async (set: GuidedLearningSet) => {
   await frames();
 };
 
+// The tour bar's button; the step card may show its own copy.
+const barButton = (name: string) =>
+  within(screen.getByTestId('tour-bar')).getByRole('button', { name });
+
 const progress = () =>
   screen
     .getByText(/^Step \d+ of \d+$/)
@@ -336,7 +340,7 @@ describe('LiveTourRunner', () => {
     const ring = screen.getByTestId('tour-spotlight-ring');
     expect(ring).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(barButton('Done'));
     expect(
       screen.getByText(/^Keep the .*from this tour\?$/)
     ).toBeInTheDocument();
@@ -514,7 +518,7 @@ describe('LiveTourRunner', () => {
     );
     await frames();
     const dim = screen.getByTestId('tour-spotlight');
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     expect(progress()).toBe('2 / 2');
     expect(screen.getByText('Finding it on your screen…')).toBeInTheDocument();
     expect(screen.getByTestId('tour-spotlight')).toBe(dim);
@@ -533,11 +537,25 @@ describe('LiveTourRunner', () => {
     fireEvent.click(screen.getByText('Boards'));
     await frames();
     expect(progress()).toBe('1 / 2');
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     expect(progress()).toBe('2 / 2');
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(barButton('Done'));
     expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
+  });
+
+  it('puts Next on the step card for steps the teacher moves on from', async () => {
+    await start(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'observe' },
+        { anchor: 'sidebar.boards', action: 'click' },
+      ])
+    );
+    await frames();
+    fireEvent.click(screen.getByTestId('tour-tip-next'));
+    await frames();
+    expect(progress()).toBe('2 / 2');
+    expect(screen.queryByTestId('tour-tip-next')).toBeNull();
   });
 
   it('says so when the anchor never appears, and logs it', async () => {
@@ -781,7 +799,7 @@ describe('LiveTourRunner polish', () => {
     expect(
       screen.queryByRole('button', { name: 'Show me' })
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames(TRY_HINT_MS + 100);
     expect(progress()).toBe('2 / 2');
     expect(
@@ -820,7 +838,7 @@ describe('LiveTourRunner polish', () => {
         "Couldn't find this on your screen. Here's what it looks like."
       )
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument();
+    expect(barButton('Done')).toBeInTheDocument();
   });
 
   it('reads each step aloud once turned on', async () => {
@@ -847,7 +865,7 @@ describe('LiveTourRunner polish', () => {
     expect(speak).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Read aloud' }));
     expect(speak.mock.calls[0][0].text).toBe('Step 1. Your boards live here.');
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     expect(speak.mock.calls[1][0].text).toBe('Step 2. Add dice.');
   });
@@ -914,7 +932,7 @@ describe('LiveTourRunner modes', () => {
     expect(progress()).toBe('1 / 2');
     expect(status()).not.toBeInTheDocument();
     expect(autopilotSwitch()).toHaveAttribute('aria-checked', 'false');
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     expect(progress()).toBe('2 / 2');
   });
@@ -1234,7 +1252,7 @@ describe('LiveTourRunner modes', () => {
         'guided'
       )
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     await frames();
@@ -1326,7 +1344,7 @@ describe('LiveTourRunner plain steps and welcome', () => {
     expect(screen.queryByTestId('tour-spotlight-ring')).not.toBeInTheDocument();
     expect(screen.queryByText(/Couldn't find/)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     expect(progress()).toBe('2 / 5');
     expect(isPlain()).toBe(false);
@@ -1338,14 +1356,14 @@ describe('LiveTourRunner plain steps and welcome', () => {
     expect(isPlain()).toBe(true);
     expect(screen.getByText('Which board is yours?')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     expect(progress()).toBe('4 / 5');
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     expect(progress()).toBe('5 / 5');
     expect(isPlain()).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(barButton('Done'));
     expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
   });
 
@@ -1362,16 +1380,16 @@ describe('LiveTourRunner plain steps and welcome', () => {
     expect(screen.getByText('This tour shows boards.')).toBeInTheDocument();
     expect(screen.queryByText(/Couldn't find/)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
     fireEvent.click(screen.getByText('Boards'));
     await frames();
     expect(screen.getByText('Which board is yours?')).toBeInTheDocument();
     expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     expect(progress()).toBe('5 / 5');
     expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
@@ -1382,12 +1400,12 @@ describe('LiveTourRunner plain steps and welcome', () => {
     const health = tourHealthOf(set);
     expect(health.map((x) => x.number)).toEqual([2, 4]);
     await start(set);
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     expect(progress()).toBe(`${health[0].number} / ${set.steps.length}`);
     fireEvent.click(screen.getByText('Boards'));
     await frames();
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     expect(progress()).toBe(`${health[1].number} / ${set.steps.length}`);
   });
@@ -1564,7 +1582,7 @@ describe('LiveTourRunner stacking, feedback, reload and access', () => {
     const ring = screen.getByTestId('tour-spotlight-ring').closest('svg');
     expect(ring?.style.zIndex).toBe(String(Z_INDEX.tourCallout));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     expect(progress()).toBe('2 / 2');
     expect(dock.style.zIndex).toBe('');
@@ -1638,7 +1656,7 @@ describe('LiveTourRunner stacking, feedback, reload and access', () => {
     );
     const first = await launch(set);
     expect(saved()).toEqual({ setId: 'set-1', index: 0, addedIds: ['w1'] });
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     expect(saved()).toEqual({ setId: 'set-1', index: 1, addedIds: ['w1'] });
 
@@ -1739,7 +1757,7 @@ describe('LiveTourRunner stacking, feedback, reload and access', () => {
   it('clears the saved run when the tour finishes', async () => {
     await launch(makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]));
     expect(saved()).not.toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(barButton('Done'));
     expect(saved()).toBeNull();
   });
 
@@ -1752,7 +1770,7 @@ describe('LiveTourRunner stacking, feedback, reload and access', () => {
     });
     await launch(makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]));
     expect(progress()).toBe('1 / 1');
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(barButton('Done'));
     expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
   });
 
@@ -1777,7 +1795,7 @@ describe('LiveTourRunner stacking, feedback, reload and access', () => {
     expect(announcer.textContent).toBe(
       'Step 1 of 2. Step 1. Your boards live here.'
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     expect(screen.getByTestId('tour-announcer').textContent).toBe(
       'Step 2 of 2. Step 2'
@@ -1792,7 +1810,7 @@ describe('LiveTourRunner stacking, feedback, reload and access', () => {
       ])
     );
     expect(document.activeElement).toBe(screen.getByTestId('tour-step-title'));
-    const next = screen.getByRole('button', { name: 'Next' });
+    const next = barButton('Next');
     fireEvent.click(next);
     next.blur();
     await frames();
@@ -1823,9 +1841,9 @@ describe('LiveTourRunner run stats', () => {
       v: 42,
       furthest: 0,
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     expect(h.runLog.update).toHaveBeenCalledWith({ furthest: 1 });
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(barButton('Done'));
     expect(h.runLog.end).toHaveBeenCalledWith({ done: true });
     expect(h.runLog.miss).not.toHaveBeenCalled();
   });
@@ -1838,7 +1856,7 @@ describe('LiveTourRunner run stats', () => {
       ])
     );
     await frames(ANCHOR_SEARCH_MS + 100);
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     expect(h.runLog.miss).toHaveBeenCalledWith('s0');
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(h.runLog.end).toHaveBeenCalledWith({ done: false, exit: 1 });
@@ -1852,7 +1870,7 @@ describe('LiveTourRunner run stats', () => {
     late.setAttribute('data-tour', 'sidebar.classes');
     document.body.appendChild(late);
     await frames(500);
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(barButton('Done'));
     expect(h.runLog.miss).not.toHaveBeenCalled();
     late.remove();
   });
@@ -1981,7 +1999,7 @@ describe('LiveTourRunner recorded layouts', () => {
     expect(h.actions.addTourWidget).not.toHaveBeenCalled();
     expect(overrideOf('mine')).toEqual(place(0.4));
     expect(h.board.widgets).toEqual([{ id: 'mine', type: 'clock', z: 1 }]);
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(barButton('Done'));
     await frames();
     expect(screen.queryByText(/^Keep the .*from this tour\?$/)).toBeNull();
     expect(getTourLayoutOverrides().size).toBe(0);
@@ -2026,7 +2044,7 @@ describe('LiveTourRunner recorded layouts', () => {
       )
     );
     expect(overrideOf('mine')?.xProp).toBe(0.4);
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     expect(overrideOf('mine')?.xProp).toBe(0.8);
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
@@ -2177,7 +2195,7 @@ describe('LiveTourRunner robustness', () => {
     await frames(500);
     expect(dockState()).toBe('true');
     expect(found()).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(barButton('Done'));
     await frames();
     expect(dockState()).toBe('false');
   });
@@ -2191,7 +2209,7 @@ describe('LiveTourRunner robustness', () => {
     await frames(500);
     expect(h.actions.setSelectedWidgetId).toHaveBeenCalledWith('mine');
     expect(found()).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(barButton('Done'));
     await frames();
     expect(h.actions.setSelectedWidgetId).toHaveBeenLastCalledWith(null);
   });
@@ -2224,7 +2242,7 @@ describe('LiveTourRunner robustness', () => {
     expect(getTourWidgetPatches().get('mine')?.restored).toBe(true);
     expect(found()).toBe(true);
     expect(h.board.widgets[0].minimized).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(barButton('Done'));
     await frames();
     expect(getTourWidgetPatches().size).toBe(0);
   });
@@ -2303,7 +2321,7 @@ describe('LiveTourRunner robustness', () => {
       'true'
     );
     expect(found()).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(barButton('Done'));
     await frames();
     expect(flips()).toEqual(['mine:true', 'mine:false']);
   });
@@ -2320,11 +2338,11 @@ describe('LiveTourRunner robustness', () => {
     );
     await frames(800);
     expect(found()).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames(800);
     expect(found()).toBe(true);
     expect(flips()).toEqual(['mine:true']);
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames(800);
     expect(flips()).toEqual(['mine:true', 'mine:false']);
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
@@ -2352,7 +2370,7 @@ describe('LiveTourRunner robustness', () => {
     expect(scrollIntoView).not.toHaveBeenCalled();
     expect(screen.getByTestId('tour-spotlight-pulse')).toBeInTheDocument();
     // The teacher's own open drawer stays open after the tour.
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(barButton('Done'));
     await frames();
     expect(flips()).toEqual([]);
   });
@@ -2568,7 +2586,7 @@ describe('LiveTourRunner robustness', () => {
       name: 'Autopilot this step',
     });
     expect(autoStep).not.toHaveAttribute('aria-disabled');
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     expect(screen.getByTestId('tour-callout')).not.toHaveAttribute(
       'data-tether'
@@ -2764,10 +2782,7 @@ describe('LiveTourRunner cleared stage', () => {
   });
 
   it.each([
-    [
-      'Done',
-      () => fireEvent.click(screen.getByRole('button', { name: 'Done' })),
-    ],
+    ['Done', () => fireEvent.click(barButton('Done'))],
     ['Escape', () => fireEvent.keyDown(window, { key: 'Escape' })],
     [
       'a board switch',
@@ -2809,7 +2824,7 @@ describe('LiveTourRunner cleared stage', () => {
       { widgets: ['dice'] }
     );
     const first = await startStage(set);
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     first.unmount();
     expect(hidden()).toEqual([]);
@@ -3070,7 +3085,7 @@ describe('LiveTourRunner Autopilot performer', () => {
       ])
     );
     expect(autoStep()).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(barButton('Next'));
     await frames();
     expect(progress()).toBe('2 / 2');
     expect(autoStep()).not.toBeInTheDocument();
@@ -3116,11 +3131,11 @@ describe('LiveTourRunner with Sparty', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Start tour' }));
     await frames();
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(barButton('Done'));
     const cheer = screen.getByRole('dialog', { name: 'Tour complete' });
     expect(cheer.querySelector('svg.sparty-cheer')).not.toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(within(cheer).getByRole('button', { name: 'Done' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
@@ -3133,7 +3148,7 @@ describe('LiveTourRunner with Sparty', () => {
     expect(screen.getByRole('dialog').querySelector('svg.sparty')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Start tour' }));
     await frames();
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(barButton('Done'));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
