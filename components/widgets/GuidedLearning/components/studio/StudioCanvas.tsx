@@ -221,6 +221,11 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     [steps, updateStep, setEditingStepId, linkPending, calloutEditing]
   );
 
+  const redactPreview = useMemo(
+    () => (blurActive ? { rects: blurRects, mode: blurMode } : undefined),
+    [blurActive, blurRects, blurMode]
+  );
+
   const applyBlur = async () => {
     const done = await redaction.apply(currentImageIndex, blurRects, blurMode);
     if (done) exitBlur();
@@ -302,6 +307,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
               renderEditLayer={renderEditLayer}
               onGeometry={onGeometry}
               showCalloutFit
+              redactPreview={redactPreview}
               onPinClick={setSelectedStepId}
               onAdvance={noop}
               onDismiss={noop}

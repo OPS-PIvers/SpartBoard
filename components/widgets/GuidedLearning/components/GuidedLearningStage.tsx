@@ -56,6 +56,7 @@ import type {
   StageGeometry,
 } from '../types/stage';
 import { SlideBackdrop } from './player/SlideBackdrop';
+import type { RedactMode, RedactRect } from '../utils/redactImage';
 
 /**
  * Clamp a video trim against the player's loaded metadata. The editor already
@@ -135,6 +136,8 @@ export interface GuidedLearningStageRuntimeProps {
   onMediaError?: () => void;
   /** Studio: outline a callout box whose text does not fit at the floor size. */
   showCalloutFit?: boolean;
+  /** Studio Blur tool: the areas it will hide, drawn on the picture under markers and callouts. */
+  redactPreview?: { rects: readonly RedactRect[]; mode: RedactMode };
 }
 
 const StageBody: React.FC<
@@ -170,6 +173,7 @@ const StageBody: React.FC<
   mediaPaused = false,
   onMediaError,
   showCalloutFit = false,
+  redactPreview,
 }) => {
   const { t } = useTranslation();
   // Hotspot pulse style — 'consistent' (default) preserves the legacy ping
@@ -1076,6 +1080,41 @@ const StageBody: React.FC<
             draggable={false}
           />
         )}
+
+        {redactPreview &&
+          imgOffset &&
+          currentImageUrl &&
+          redactPreview.rects.map((r, i) => (
+            <div
+              key={i}
+              aria-hidden="true"
+              data-testid="gl-redact-preview"
+              className={`absolute overflow-hidden pointer-events-none ${
+                redactPreview.mode === 'solid' ? 'bg-slate-800' : ''
+              }`}
+              style={{
+                left: `${imgOffset.left + r.xPct * imgOffset.scaleX}%`,
+                top: `${imgOffset.top + r.yPct * imgOffset.scaleY}%`,
+                width: `${r.wPct * imgOffset.scaleX}%`,
+                height: `${r.hPct * imgOffset.scaleY}%`,
+              }}
+            >
+              {redactPreview.mode === 'blur' && r.wPct > 0 && r.hPct > 0 && (
+                <div
+                  className="absolute"
+                  style={{
+                    left: `${(-r.xPct / r.wPct) * 100}%`,
+                    top: `${(-r.yPct / r.hPct) * 100}%`,
+                    width: `${(100 / r.wPct) * 100}%`,
+                    height: `${(100 / r.hPct) * 100}%`,
+                    backgroundImage: `url("${currentImageUrl}")`,
+                    backgroundSize: '100% 100%',
+                    filter: 'blur(12px)',
+                  }}
+                />
+              )}
+            </div>
+          ))}
 
         {/* Explore click zones for drawn regions, under the pins. Hidden
             hotspots keep their zone so "find it yourself" steps stay clickable. */}
