@@ -282,6 +282,27 @@ describe('push trigger', () => {
     });
   });
 
+  it('a text edit leaves a done state set in Google alone', async () => {
+    await write(undefined, note([item()]));
+    await write(note([item()]), note([item({ text: 'Call parents' })]));
+    expect(calls[1].method).toBe('PATCH');
+    expect('status' in (calls[1].data ?? {})).toBe(false);
+    expect(calls[1].data?.title).toBe('Call parents');
+  });
+
+  it('a delete waits for an in-flight claim instead of orphaning its task', async () => {
+    const ref = 'users/u1/private/googleTasks/map/p1_note_n1_a';
+    store.set(ref, { pending: true, claimedAt: Date.now() });
+    setTimeout(() => {
+      store.set(ref, { taskId: 'late', listId: 'L1', pending: false });
+    }, 50);
+    await write(note([item()]), note([]));
+    expect(calls).toHaveLength(1);
+    expect(calls[0].method).toBe('DELETE');
+    expect(calls[0].url).toContain('/tasks/late');
+    expect(store.has(ref)).toBe(false);
+  });
+
   it('replaces a claim abandoned by a dead instance', async () => {
     store.set('users/u1/private/googleTasks/map/p1_note_n1_a', {
       pending: true,
@@ -361,6 +382,41 @@ describe('setGoogleTasksSyncV1', () => {
 });
 
 describe('pullGoogleTasksStatusV1', () => {
+  const pull = () =>
+    (pullGoogleTasksStatusV1 as unknown as (r: unknown) => Promise<unknown>)({
+      auth: { uid: 'u1', token: {} },
+      data: {},
+    });
+
+  it('holds the cursor at the oldest unapplied change', async () => {
+    await write(undefined, note([item()]));
+    const changedAt = Date.UTC(2026, 9, 7, 0, 0);
+    respond = (c) =>
+      c.method === 'GET'
+        ? {
+            items: [
+              {
+                id: 'id1',
+                status: 'completed',
+                updated: new Date(changedAt).toISOString(),
+              },
+            ],
+          }
+        : {};
+    await pull();
+    expect(store.get('users/u1/private/googleTasks')?.lastPullAt).toBe(
+      changedAt
+    );
+  });
+
+  it('drops changes for teams the user has left', async () => {
+    await write(undefined, note([item()]));
+    store.set('plcs/p1', { name: 'x', members: { u1: { status: 'removed' } } });
+    respond = (c) =>
+      c.method === 'GET' ? { items: [{ id: 'id1', status: 'completed' }] } : {};
+    expect(await pull()).toEqual({ changes: [] });
+  });
+
   it('returns only items whose Google state differs from the last push', async () => {
     await write(undefined, note([item(), item({ id: 'b' })]));
     respond = (c) =>

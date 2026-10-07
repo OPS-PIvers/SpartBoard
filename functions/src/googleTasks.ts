@@ -250,7 +250,8 @@ async function pushUpsert(
   session: Session,
   ctx: ParentContext,
   item: SyncedActionItem,
-  origin: string
+  origin: string,
+  pushStatus = true
 ): Promise<void> {
   const payload = buildTaskPayload({
     item,
@@ -329,7 +330,9 @@ async function pushUpsert(
       session.token,
       'PATCH',
       `/lists/${encodeURIComponent(existing.listId)}/tasks/${encodeURIComponent(existing.taskId)}`,
-      taskBody(payload)
+      pushStatus
+        ? taskBody(payload)
+        : { title: payload.title, notes: payload.notes, due: payload.due }
     );
     await ref.update({ lastPushedHash: hash, lastKnownDone: item.done });
   } catch (err) {
@@ -363,7 +366,10 @@ async function pushDelete(session: Session, mapId: string): Promise<void> {
   const ref = mapCol(session.uid).doc(mapId);
   const snap = await ref.get();
   if (!snap.exists) return;
-  const data = snap.data() as MapDoc;
+  // A pending claim is mid-insert; wait for its task so it isn't orphaned in Google.
+  const data = (snap.data() as MapDoc).taskId
+    ? (snap.data() as MapDoc)
+    : ((await readMapAfterClaim(ref)) ?? {});
   if (data.taskId && data.listId) {
     try {
       await tasksRequest(
@@ -429,7 +435,7 @@ export async function syncParentWrite(args: {
       if (!session) continue;
       for (const op of userOps) {
         if (op.kind === 'upsert') {
-          await pushUpsert(session, ctx, op.item, origin);
+          await pushUpsert(session, ctx, op.item, origin, op.statusChanged);
         } else {
           await pushDelete(
             session,
@@ -644,11 +650,12 @@ export const pullGoogleTasksStatusV1 = onCall(
     }
 
     const statusByTaskId = new Map<string, boolean>();
+    const updatedByTaskId = new Map<string, number>();
     try {
       let pageToken: string | undefined;
       do {
         const page = await tasksRequest<{
-          items?: { id: string; status?: string }[];
+          items?: { id: string; status?: string; updated?: string }[];
           nextPageToken?: string;
         }>(
           session.token,
@@ -659,6 +666,8 @@ export const pullGoogleTasksStatusV1 = onCall(
         );
         for (const task of page.items ?? []) {
           statusByTaskId.set(task.id, task.status === 'completed');
+          const updated = Date.parse(task.updated ?? '');
+          if (Number.isFinite(updated)) updatedByTaskId.set(task.id, updated);
         }
         pageToken = page.nextPageToken;
       } while (pageToken);
@@ -672,7 +681,7 @@ export const pullGoogleTasksStatusV1 = onCall(
       throw new HttpsError('internal', 'Could not reach Google Tasks.');
     }
 
-    const changes: PulledChange[] = [];
+    const changes: (PulledChange & { taskId: string })[] = [];
     const taskIds = [...statusByTaskId.keys()];
     for (let i = 0; i < taskIds.length; i += 30) {
       const chunk = taskIds.slice(i, i + 30);
@@ -682,6 +691,7 @@ export const pullGoogleTasksStatusV1 = onCall(
         const done = statusByTaskId.get(String(d.taskId));
         if (done === undefined || done === (d.lastKnownDone === true)) continue;
         changes.push({
+          taskId: String(d.taskId),
           plcId: String(d.plcId),
           source: d.source === 'doc' ? 'doc' : 'note',
           parentId: String(d.parentId),
@@ -690,7 +700,29 @@ export const pullGoogleTasksStatusV1 = onCall(
         });
       }
     }
-    await stateRef(uid).set({ lastPullAt: startedAt }, { merge: true });
-    return { changes };
+    // D10: items on teams the user has left stop syncing.
+    const plcIds = [...new Set(changes.map((c) => c.plcId))];
+    const plcs = await Promise.all(
+      plcIds.map((id) => db().doc(`plcs/${id}`).get())
+    );
+    const activeIds = new Set(
+      plcs.filter((p) => isActivePlcMember(p.data(), uid)).map((p) => p.id)
+    );
+    const live = changes.filter((c) => activeIds.has(c.plcId));
+    // Hold the cursor at the oldest unapplied change; the client's write clears it via the push.
+    const cursor = live.reduce(
+      (min, c) => Math.min(min, updatedByTaskId.get(c.taskId) ?? min),
+      startedAt
+    );
+    await stateRef(uid).set({ lastPullAt: cursor }, { merge: true });
+    return {
+      changes: live.map(({ plcId, source, parentId, itemId, done }) => ({
+        plcId,
+        source,
+        parentId,
+        itemId,
+        done,
+      })),
+    };
   }
 );

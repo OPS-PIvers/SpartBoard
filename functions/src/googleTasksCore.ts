@@ -24,7 +24,13 @@ export interface TaskPayload {
 }
 
 export type ItemOp =
-  | { kind: 'upsert'; uid: string; item: SyncedActionItem }
+  | {
+      kind: 'upsert';
+      uid: string;
+      item: SyncedActionItem;
+      // False when only text/due changed, so a done state set in Google isn't overwritten.
+      statusChanged: boolean;
+    }
   | { kind: 'delete'; uid: string; itemId: string };
 
 /** Lenient parse of a stored `actionItems` array; malformed entries are dropped. */
@@ -79,7 +85,15 @@ export function diffActionItems(
       ops.push({ kind: 'delete', uid: prev.assigneeUid, itemId: item.id });
     }
     if (item.assigneeUid) {
-      ops.push({ kind: 'upsert', uid: item.assigneeUid, item });
+      ops.push({
+        kind: 'upsert',
+        uid: item.assigneeUid,
+        item,
+        statusChanged:
+          !prev ||
+          prev.done !== item.done ||
+          prev.assigneeUid !== item.assigneeUid,
+      });
     }
   }
   for (const prev of before) {
@@ -169,9 +183,8 @@ export function payloadHash(payload: TaskPayload): string {
 
 /** Whether a Google grant's space-separated scope string includes Tasks. */
 export function scopeIncludesTasks(scope: unknown): boolean {
-  return (
-    typeof scope === 'string' && scope.split(' ').includes(GOOGLE_TASKS_SCOPE)
-  );
+  if (typeof scope !== 'string') return false;
+  return new Set(scope.split(' ')).has(GOOGLE_TASKS_SCOPE);
 }
 
 /** Active member check that tolerates both the `members` map and the legacy `memberUids` index. */

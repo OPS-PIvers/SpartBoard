@@ -25,17 +25,23 @@ describe('diffActionItems', () => {
   it('upserts a new assigned item and ignores unassigned ones', () => {
     expect(
       diffActionItems([], [item(), item({ id: 'b', assigneeUid: null })])
-    ).toEqual([{ kind: 'upsert', uid: 'u1', item: item() }]);
+    ).toEqual([
+      { kind: 'upsert', uid: 'u1', item: item(), statusChanged: true },
+    ]);
   });
 
   it('is a no-op when synced fields are unchanged (CRDT mirror rewrite)', () => {
     expect(diffActionItems([item()], [item()])).toEqual([]);
   });
 
-  it('upserts on text, due date and done changes', () => {
-    for (const over of [{ text: 'x' }, { dueAt: 5 }, { done: true }]) {
+  it('upserts on text, due date and done changes; only done pushes status', () => {
+    for (const [over, statusChanged] of [
+      [{ text: 'x' }, false],
+      [{ dueAt: 5 }, false],
+      [{ done: true }, true],
+    ] as const) {
       expect(diffActionItems([item()], [item(over)])).toEqual([
-        { kind: 'upsert', uid: 'u1', item: item(over) },
+        { kind: 'upsert', uid: 'u1', item: item(over), statusChanged },
       ]);
     }
   });
@@ -43,7 +49,12 @@ describe('diffActionItems', () => {
   it('reassignment deletes from the old assignee and creates for the new', () => {
     expect(diffActionItems([item()], [item({ assigneeUid: 'u2' })])).toEqual([
       { kind: 'delete', uid: 'u1', itemId: 'a' },
-      { kind: 'upsert', uid: 'u2', item: item({ assigneeUid: 'u2' }) },
+      {
+        kind: 'upsert',
+        uid: 'u2',
+        item: item({ assigneeUid: 'u2' }),
+        statusChanged: true,
+      },
     ]);
   });
 
