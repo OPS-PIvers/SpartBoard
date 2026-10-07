@@ -80,6 +80,7 @@ import type { TourEditorSession } from './useTourEditorSession';
 import { TourAnchorPicker } from './TourAnchorPicker';
 import { RecordFromHere } from './RecordFromHere';
 import { TourAnchorList } from './TourAnchorList';
+import { TourWidgetFields } from './TourWidgetFields';
 import { applyAnchorPick, type TourAnchorPick } from './pickAnchor';
 import {
   TOUR_ACTIONS,
@@ -786,6 +787,14 @@ const StepCard: React.FC<{
           </button>
         </div>
       </div>
+      {tour && (
+        <TourWidgetFields
+          tour={tour}
+          onChange={bind}
+          labelClass={labelClass}
+          inputClass={inputClass}
+        />
+      )}
       {tour && (
         <label className={labelClass}>
           {t('glStudio.tourAction')}
