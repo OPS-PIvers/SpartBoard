@@ -458,6 +458,8 @@ export interface Plc {
   normingLevelLabels?: PlcNormingLevelLabels;
   /** Team layout set by the lead and co-leads; absent reads as the type default (TEAMS_REDESIGN T2). */
   layout?: PlcTeamLayout;
+  /** Lead or co-lead override of the type's meeting-note template; absent uses the type default (T12). */
+  meetingNoteTemplate?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -973,6 +975,10 @@ export interface PlcNote {
   meetingId?: string | null;
   /** Action items captured on this note (Decision 3.5/7.4). */
   actionItems?: PlcActionItem[];
+  /** Data, Decision and agenda blocks, each under a body heading (TEAMS_REDESIGN T13, T14). */
+  blocks?: PlcNoteBlock[];
+  /** When the meeting is scheduled (ms); set on meeting notes created ahead of time (T24). */
+  meetingAt?: number | null;
   createdBy: string;
   createdAt: number;
   lastEditedBy: string;
@@ -992,6 +998,46 @@ export interface PlcNote {
    */
   deletedAt?: number | null;
 }
+
+interface PlcNoteBlockBase {
+  id: string;
+  /** Text of the `## ` body heading the block sits under; '' places it before the first heading. */
+  section: string;
+  createdBy: string;
+  createdAt: number;
+}
+
+/** Live team results for one common assessment (T13). */
+export interface PlcNoteDataBlock extends PlcNoteBlockBase {
+  kind: 'data';
+  assessmentId: string | null;
+}
+
+/** What a Decision block responds to (T14). */
+export type PlcNoteDecisionLink =
+  | { kind: 'question'; assessmentId: string; questionId: string }
+  | { kind: 'target'; targetId: string };
+
+/** A structured team decision (T14). */
+export interface PlcNoteDecisionBlock extends PlcNoteBlockBase {
+  kind: 'decision';
+  text: string;
+  status: 'open' | 'decided';
+  decidedAt?: number | null;
+  revisitAt?: number | null;
+  link?: PlcNoteDecisionLink | null;
+}
+
+/** One agenda item added ahead of a meeting (T24). */
+export interface PlcNoteAgendaBlock extends PlcNoteBlockBase {
+  kind: 'agenda';
+  text: string;
+}
+
+export type PlcNoteBlock =
+  | PlcNoteDataBlock
+  | PlcNoteDecisionBlock
+  | PlcNoteAgendaBlock;
 
 /** Lifecycle of a note's meeting recording (docs/plans/shipped/PLC_MEETING_RECORDING.md). */
 export type PlcRecordingStatus =

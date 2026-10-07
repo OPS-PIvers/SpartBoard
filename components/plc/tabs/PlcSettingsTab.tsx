@@ -176,7 +176,8 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
         </p>
       </div>
       <div className="flex flex-col gap-2">
-        {(canAccessFeature('my-groups') || features.meeting === false
+        {(!canAccessFeature('teams-redesign') &&
+        (canAccessFeature('my-groups') || features.meeting === false)
           ? [...FEATURE_ROWS, MEETING_ROW]
           : FEATURE_ROWS
         ).map((row) => {
