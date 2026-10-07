@@ -252,8 +252,8 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
       style={frame}
     >
       <header className="flex flex-col gap-0.5 border-b border-white/10 px-3 pb-2 pt-2.5">
-        <div className="flex items-center gap-1">
-          <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-100">
+        <div className="flex items-start gap-1">
+          <h2 className="min-w-0 flex-1 break-words pt-1 text-sm font-semibold text-slate-100">
             {set.title.trim() || t('tours.welcomeTitle')}
           </h2>
           <button
@@ -588,7 +588,7 @@ const OutlineRow: React.FC<{
           </span>
           <span className="flex min-w-0 flex-1 flex-col">
             <span
-              className={`truncate text-sm ${
+              className={`break-words text-sm ${
                 selected ? 'font-semibold text-white' : 'text-slate-100'
               }`}
             >
@@ -596,7 +596,7 @@ const OutlineRow: React.FC<{
             </span>
             {subtitle && (
               <span
-                className={`flex items-center gap-1 truncate text-xs ${
+                className={`flex items-start gap-1 text-xs ${
                   waiting
                     ? 'font-semibold text-white'
                     : red && !jumping
@@ -606,23 +606,23 @@ const OutlineRow: React.FC<{
               >
                 {waiting && (
                   <MousePointerClick
-                    className="h-3 w-3 shrink-0"
+                    className="mt-0.5 h-3 w-3 shrink-0"
                     aria-hidden="true"
                   />
                 )}
                 {jumping && (
                   <Loader2
-                    className="h-3 w-3 shrink-0 animate-spin motion-reduce:animate-none"
+                    className="mt-0.5 h-3 w-3 shrink-0 animate-spin motion-reduce:animate-none"
                     aria-hidden="true"
                   />
                 )}
                 {red && !jumping && !waiting && (
                   <AlertTriangle
-                    className="h-3 w-3 shrink-0"
+                    className="mt-0.5 h-3 w-3 shrink-0"
                     aria-hidden="true"
                   />
                 )}
-                <span className="truncate">{subtitle}</span>
+                <span className="min-w-0 break-words">{subtitle}</span>
               </span>
             )}
           </span>
@@ -687,10 +687,10 @@ const StepCard: React.FC<{
       </label>
       <div className={labelClass}>
         {t('tourPicker.control')}
-        <div className="flex items-center gap-2">
+        <div className="flex items-start gap-2">
           <span
             data-testid="tour-editor-control"
-            className="min-w-0 flex-1 truncate text-sm font-normal text-slate-100"
+            className="min-w-0 flex-1 break-words pt-1 text-sm font-normal text-slate-100"
           >
             {tour?.anchor === WHOLE_BOARD_ANCHOR || !tour
               ? t('tourPicker.wholeBoard')
