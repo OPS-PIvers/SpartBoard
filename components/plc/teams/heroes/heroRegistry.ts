@@ -6,15 +6,26 @@ import {
   isTeamHeroRule,
 } from '@/config/teamTypePresets';
 import type { TeamHeroEntry } from '@/components/plc/teams/types';
+import {
+  assessmentHero,
+  goalHero,
+  latestAssessmentHero,
+  targetHero,
+} from '@/components/plc/teams/data/heroRegistry';
 
 /** A pinned item renders through its kind. */
 export const TEAM_HERO_BY_KIND: Partial<
   Record<TeamHeroRef['kind'], TeamHeroEntry>
-> = {};
+> = {
+  assessment: { render: assessmentHero, ownsNudge: true },
+  target: { render: targetHero },
+  goal: { render: goalHero },
+};
 
 /** An unpinned hero renders through the type's default rule, with `heroRef: null`. */
-export const TEAM_HERO_BY_RULE: Partial<Record<TeamHeroRule, TeamHeroEntry>> =
-  {};
+export const TEAM_HERO_BY_RULE: Partial<Record<TeamHeroRule, TeamHeroEntry>> = {
+  latestAssessment: { render: latestAssessmentHero, ownsNudge: true },
+};
 
 /** Rules whose hero is a kind's renderer with `heroRef: null`; that renderer picks the item (read the rule from useTeamNav().layout). */
 export function teamHeroRuleKind(

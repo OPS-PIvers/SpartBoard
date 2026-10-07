@@ -101,25 +101,26 @@ describe('hero', () => {
     expect(teamHeroRuleKind('newestDoc')).toBe('doc');
     expect(teamHeroRuleKind('calendar')).toBe('calendar');
     expect(teamHeroRuleKind('latestAssessment')).toBeNull();
-    const goal = { render: () => null };
-    const latest = { render: () => null };
-    TEAM_HERO_BY_KIND.goal = goal;
-    TEAM_HERO_BY_RULE.latestAssessment = latest;
-    try {
-      expect(resolveTeamHeroEntry(null, 'teamGoal', 'plc')).toBe(goal);
-      expect(resolveTeamHeroEntry(null, 'newestDoc', 'plc')).toBeNull();
-      expect(
-        resolveTeamHeroEntry(null, 'somethingNew' as 'latestAssessment', 'plc')
-      ).toBe(latest);
-    } finally {
-      delete TEAM_HERO_BY_KIND.goal;
-      delete TEAM_HERO_BY_RULE.latestAssessment;
-    }
-  });
-
-  it('returns no renderer for an unregistered or unknown rule', () => {
+    expect(resolveTeamHeroEntry(null, 'teamGoal', 'plc')).toBe(
+      TEAM_HERO_BY_KIND.goal
+    );
+    expect(resolveTeamHeroEntry(null, 'lowestTarget', 'plc')).toBe(
+      TEAM_HERO_BY_KIND.target
+    );
+    expect(resolveTeamHeroEntry(null, 'newestDoc', 'department')).toBeNull();
     expect(
       resolveTeamHeroEntry(null, 'somethingNew' as 'latestAssessment', 'plc')
+    ).toBe(TEAM_HERO_BY_RULE.latestAssessment);
+  });
+
+  it('returns no renderer for an unregistered rule or kind', () => {
+    expect(resolveTeamHeroEntry(null, 'calendar', 'building')).toBeNull();
+    expect(
+      resolveTeamHeroEntry(
+        { kind: 'update', updateId: 'x' },
+        'latestAssessment',
+        'plc'
+      )
     ).toBeNull();
   });
 });

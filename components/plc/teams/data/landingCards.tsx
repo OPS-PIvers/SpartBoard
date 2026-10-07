@@ -13,7 +13,7 @@ import {
 } from './DataOverviewSections';
 import { GoalSection } from './heroes';
 import { ManageTargetsForPlc } from './DataOverviewPage';
-import type { TeamCardProps } from './teamContract';
+import type { TeamCardProps } from '@/components/plc/teams/types';
 import { useDataOverviewModel, usePlcNavigation } from './useDataOverview';
 
 const useFlag = () => useAuth().canAccessFeature('teams-redesign');

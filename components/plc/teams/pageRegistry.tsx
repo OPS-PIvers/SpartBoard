@@ -10,6 +10,7 @@ import {
   Users2,
 } from 'lucide-react';
 import { TeamLandingPage } from './landing/TeamLandingPage';
+import DataOverviewPage from './data/DataOverviewPage';
 import {
   TeamAssessmentsPage,
   TeamNotesDocsPage,
@@ -23,7 +24,7 @@ export { TEAM_CARD_REGISTRY } from './cardRegistry';
 /** Rail pages; `Component: null` renders the neutral placeholder. */
 // eslint-disable-next-line react-refresh/only-export-components -- registry module; it defines no components
 export const TEAM_PAGE_REGISTRY: TeamPageRegistry = {
-  dataOverview: { icon: BarChart3, Component: TeamLandingPage },
+  dataOverview: { icon: BarChart3, Component: DataOverviewPage },
   hub: { icon: LayoutDashboard, Component: TeamLandingPage },
   programHub: { icon: LayoutDashboard, Component: TeamLandingPage },
   assessments: { icon: ClipboardList, Component: TeamAssessmentsPage },

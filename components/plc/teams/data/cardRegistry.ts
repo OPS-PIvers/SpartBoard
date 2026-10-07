@@ -10,7 +10,7 @@ import {
   RecentAssessmentsCard,
   TrendCard,
 } from './landingCards';
-import type { TeamCardProps } from './teamContract';
+import type { TeamCardProps } from '@/components/plc/teams/types';
 
 export const DATA_OVERVIEW_CARDS: Partial<
   Record<TeamCardId, ComponentType<TeamCardProps>>

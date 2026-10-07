@@ -3,7 +3,7 @@
 import { createElement } from 'react';
 import type { TeamHeroRef } from '@/types';
 import { AssessmentHero, GoalHero, TargetHero } from './heroes';
-import type { TeamHeroRenderer } from './teamContract';
+import type { TeamHeroRenderer } from '@/components/plc/teams/types';
 
 export const assessmentHero: TeamHeroRenderer = (props) =>
   createElement(AssessmentHero, props);

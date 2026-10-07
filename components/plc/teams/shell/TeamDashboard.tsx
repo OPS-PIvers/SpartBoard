@@ -44,6 +44,7 @@ import {
 } from '@/components/plc/teams/TeamNavContext';
 import { TeamPagePlaceholder } from '@/components/plc/teams/TeamPlaceholder';
 import { TeamNotesDocsPage } from '@/components/plc/teams/pages/ExistingTeamPages';
+import { TeamShellActionsContext } from '@/components/plc/teams/data/teamShellActions';
 import {
   teamPageLabel,
   teamTypeLabel,
@@ -381,106 +382,113 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
     liveMeeting !== null &&
     !(route.kind === 'section' && route.section === 'meeting');
 
+  const shellActions = {
+    openLayoutEditor: isLead ? openLayoutEditor : undefined,
+    openMyItems: () => openOverlay('myitems'),
+  };
+
   return (
     <TeamNavContext.Provider value={nav}>
-      <div
-        className="fixed inset-0 z-modal flex flex-col overscroll-none bg-white"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="plc-dashboard-title"
-      >
-        <TeamShellView
-          name={plc.name}
-          typeLabel={teamTypeLabel(t, groupType)}
-          whatsNew={unreadCount}
-          myItems={myItems.open.length}
-          people={people}
-          memberCount={memberRows.length}
-          roleLabel={isLead && role ? roleLabel(t, role) : null}
-          pages={railPages}
-          activePage={activePage}
-          activeLabel={activeLabel}
-          overlay={overlay}
-          onOverlay={openOverlay}
-          onPage={(id) => navigate(teamPageSection(id as TeamPageId))}
-          onClose={onClose}
-          showMobileMenu={showMobileMenu && route.kind === 'page'}
-          onMobileMenu={() => setShowMobileMenu(true)}
-          panelId={activePage ?? canonical}
-          fullBleed={fullBleed}
-          searchSlot={
-            <div ref={focusSearch}>
-              <PlcSearchBox plcId={plc.id} onNavigate={navigate} />
-            </div>
-          }
-          banner={
-            showBanner && liveMeeting ? (
-              <MeetingBannerView
-                meta={meetingBannerMeta(t, liveMeeting, notes, here)}
-                onJoin={() => navigate('meeting')}
-              />
-            ) : null
-          }
-          headerPopover={
-            overlay === 'gear' ? (
-              <GearMenuView
-                isLead={isLead}
-                onMembers={() => navigate('members')}
-                onSettings={() => navigate('settings')}
-                onLayout={openLayoutEditor}
-              />
-            ) : null
-          }
-          subHeaderPopover={
-            overlay === 'members' ? (
-              <MembersPopoverView
-                members={memberRows}
-                memberCount={memberRows.length}
-                isLead={isLead}
-                onManage={() => navigate('members')}
-              />
-            ) : null
-          }
+      <TeamShellActionsContext.Provider value={shellActions}>
+        <div
+          className="fixed inset-0 z-modal flex flex-col overscroll-none bg-white"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="plc-dashboard-title"
         >
-          <div
-            key={`${canonical}:${activePage ?? ''}`}
-            className={`animate-in fade-in slide-in-from-bottom-2 duration-300 ${fullBleed ? 'h-full' : ''}`}
+          <TeamShellView
+            name={plc.name}
+            typeLabel={teamTypeLabel(t, groupType)}
+            whatsNew={unreadCount}
+            myItems={myItems.open.length}
+            people={people}
+            memberCount={memberRows.length}
+            roleLabel={isLead && role ? roleLabel(t, role) : null}
+            pages={railPages}
+            activePage={activePage}
+            activeLabel={activeLabel}
+            overlay={overlay}
+            onOverlay={openOverlay}
+            onPage={(id) => navigate(teamPageSection(id as TeamPageId))}
+            onClose={onClose}
+            showMobileMenu={showMobileMenu && route.kind === 'page'}
+            onMobileMenu={() => setShowMobileMenu(true)}
+            panelId={activePage ?? canonical}
+            fullBleed={fullBleed}
+            searchSlot={
+              <div ref={focusSearch}>
+                <PlcSearchBox plcId={plc.id} onNavigate={navigate} />
+              </div>
+            }
+            banner={
+              showBanner && liveMeeting ? (
+                <MeetingBannerView
+                  meta={meetingBannerMeta(t, liveMeeting, notes, here)}
+                  onJoin={() => navigate('meeting')}
+                />
+              ) : null
+            }
+            headerPopover={
+              overlay === 'gear' ? (
+                <GearMenuView
+                  isLead={isLead}
+                  onMembers={() => navigate('members')}
+                  onSettings={() => navigate('settings')}
+                  onLayout={openLayoutEditor}
+                />
+              ) : null
+            }
+            subHeaderPopover={
+              overlay === 'members' ? (
+                <MembersPopoverView
+                  members={memberRows}
+                  memberCount={memberRows.length}
+                  isLead={isLead}
+                  onManage={() => navigate('members')}
+                />
+              ) : null
+            }
           >
-            {renderBody()}
-          </div>
-          {drawerTab && (
-            <TeamDrawerView
-              tab={drawerTab}
-              onTab={setOverlay}
-              onClose={() => setOverlay(null)}
-              whatsNew={unreadCount}
-              myItemsCount={myItems.open.length}
-              sinceLabel={sinceLabel}
-              since={since}
-              older={older.slice(0, OLDER_LIMIT)}
-              selfUid={uid}
-              onMarkAllSeen={() => {
-                markSeen().catch((err: unknown) =>
-                  logError('TeamDashboard.markSeen', err, { plcId: plc.id })
-                );
-                setDrawerCursor(Date.now());
-              }}
-              items={itemRows}
-              onToggleItem={completeItem}
+            <div
+              key={`${canonical}:${activePage ?? ''}`}
+              className={`animate-in fade-in slide-in-from-bottom-2 duration-300 ${fullBleed ? 'h-full' : ''}`}
+            >
+              {renderBody()}
+            </div>
+            {drawerTab && (
+              <TeamDrawerView
+                tab={drawerTab}
+                onTab={setOverlay}
+                onClose={() => setOverlay(null)}
+                whatsNew={unreadCount}
+                myItemsCount={myItems.open.length}
+                sinceLabel={sinceLabel}
+                since={since}
+                older={older.slice(0, OLDER_LIMIT)}
+                selfUid={uid}
+                onMarkAllSeen={() => {
+                  markSeen().catch((err: unknown) =>
+                    logError('TeamDashboard.markSeen', err, { plcId: plc.id })
+                  );
+                  setDrawerCursor(Date.now());
+                }}
+                items={itemRows}
+                onToggleItem={completeItem}
+              />
+            )}
+          </TeamShellView>
+          {editorOpen && (
+            <TeamLayoutEditor
+              plc={plc}
+              layout={layout}
+              adminDefaults={adminDefaults}
+              defaultsFailed={defaultsFailed}
+              isLead={isLead}
+              onClose={() => setEditorOpen(false)}
             />
           )}
-        </TeamShellView>
-        {editorOpen && (
-          <TeamLayoutEditor
-            plc={plc}
-            layout={layout}
-            adminDefaults={adminDefaults}
-            defaultsFailed={defaultsFailed}
-            isLead={isLead}
-            onClose={() => setEditorOpen(false)}
-          />
-        )}
-      </div>
+        </div>
+      </TeamShellActionsContext.Provider>
     </TeamNavContext.Provider>
   );
 };
