@@ -31,6 +31,7 @@ import { Z_INDEX } from '@/config/zIndex';
 
 import { applyAutoplay } from './applyAutoplay';
 import { applyStartAt } from './applyStartAt';
+import { applyLinkedSlide } from './applyLinkedSlide';
 
 const NEW_WIDGET_SPACING = 20;
 const TOOLBAR_GAP = 6;
@@ -42,6 +43,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const canGenerateApp =
     canAccessFeature('gemini-functions') && canAccessFeature('embed-mini-app');
   const canReload = canAccessFeature('embed-reload');
+  const keepLinkedSlide = canAccessFeature('embed-slide-link');
   const buildingId = useWidgetBuildingId(widget);
   const { config: globalConfig } = useEmbedConfig(buildingId);
   const { getDriveFileTextContent } = useGoogleDrive();
@@ -217,8 +219,13 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // When autoplay is enabled, append ?autoplay=1 for supported hosts
   // and apply the YouTube start-at offset (no-op for non-YouTube hosts).
   const finalEmbedUrl = React.useMemo(
-    () => applyStartAt(applyAutoplay(embedUrl, autoplay), startAtSeconds),
-    [embedUrl, autoplay, startAtSeconds]
+    () =>
+      applyLinkedSlide(
+        applyStartAt(applyAutoplay(embedUrl, autoplay), startAtSeconds),
+        sanitizedUrl,
+        keepLinkedSlide
+      ),
+    [embedUrl, autoplay, startAtSeconds, sanitizedUrl, keepLinkedSlide]
   );
 
   const [refreshKey, setRefreshKey] = useState(0);
