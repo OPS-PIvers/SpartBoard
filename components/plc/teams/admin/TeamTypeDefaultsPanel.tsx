@@ -4,6 +4,7 @@ import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
 import { useTeamTypeDefaults } from '@/hooks/useTeamLayout';
+import { logError } from '@/utils/logError';
 import type { GoalCoachCriterion, PlcGroupType, TeamTypePreset } from '@/types';
 import { TeamTypeDefaultsView } from './TeamTypeDefaultsView';
 import { saveTeamTypeDefaults } from './saveTeamTypeDefaults';
@@ -20,7 +21,7 @@ export const TeamTypeDefaultsPanel: React.FC = () => {
     try {
       await saveTeamTypeDefaults(type, preset, rubric);
     } catch (err) {
-      console.error('[TeamTypeDefaults] save failed:', err);
+      logError('TeamTypeDefaultsPanel.save', err, { type });
       addToast('That change could not be saved.', 'error');
       throw err;
     }
