@@ -23,7 +23,7 @@ const card = () =>
 describe('TextPopoverInteraction callout style', () => {
   it('keeps the dark card and auto width by default', () => {
     render(<TextPopoverInteraction step={step} onClose={() => undefined} />);
-    expect(card().className).toContain('bg-slate-800/95');
+    expect(card().classList.contains('bg-slate-900')).toBe(true);
     expect(card().style.width).toBe('');
     expect(card().style.getPropertyValue('--gl-callout-scale')).toBe('1');
   });
