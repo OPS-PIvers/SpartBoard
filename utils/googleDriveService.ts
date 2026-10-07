@@ -719,6 +719,22 @@ export class GoogleDriveService {
     }
   }
 
+  /** Copy a file the app can open into the user's Drive under a new name. */
+  async copyFile(fileId: string, name: string): Promise<DriveFile> {
+    const response = await this.fetchWithRetry(
+      `${DRIVE_API_URL}/files/${fileId}/copy?fields=id,name,mimeType,webViewLink`,
+      {
+        method: 'POST',
+        headers: this.headers,
+        body: JSON.stringify({ name }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to copy file: ${response.status}`);
+    }
+    return (await response.json()) as DriveFile;
+  }
+
   async getShareableLink(fileId: string): Promise<string> {
     // First ensure the file is shared (reader/anyone)
     await this.makePublic(fileId);
