@@ -59,17 +59,21 @@ export const BLOCK_KIND_LABELS: Record<MeetingNoteBlockKind, string> = {
 
 export const HERO_RULE_LABELS: Record<TeamHeroRule, string> = {
   latestAssessment: 'Latest common assessment',
+  teamGoal: 'Team goal',
+  lowestTarget: 'Lowest learning target',
   nextMeetingNote: 'Next meeting note until a doc is pinned',
+  newestDoc: 'Newest doc',
   newestPinnedUpdate: 'Newest pinned update',
+  calendar: 'Calendar',
   nextRequiredTask: 'Next required task',
 };
 
-/** Hero rules offered per type; the mock's other rules have no rule id yet. */
+/** Hero rules offered per type, in the mock's order. */
 export const HERO_RULE_OPTIONS: Record<PlcGroupType, readonly TeamHeroRule[]> =
   {
-    plc: ['latestAssessment'],
-    department: ['nextMeetingNote'],
-    building: ['newestPinnedUpdate'],
+    plc: ['latestAssessment', 'teamGoal', 'lowestTarget'],
+    department: ['nextMeetingNote', 'newestDoc'],
+    building: ['newestPinnedUpdate', 'calendar'],
     mentoring: ['nextRequiredTask', 'newestPinnedUpdate'],
   };
 

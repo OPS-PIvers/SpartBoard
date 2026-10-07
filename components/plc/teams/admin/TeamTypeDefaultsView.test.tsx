@@ -6,6 +6,9 @@ import { BUILT_IN_TEAM_TYPE_PRESETS } from '@/config/teamTypePresets';
 
 type OnSave = ComponentProps<typeof TeamTypeDefaultsView>['onSave'];
 
+const optionTexts = (select: HTMLSelectElement): string[] =>
+  Array.from(select.querySelectorAll('option'), (o) => o.textContent ?? '');
+
 const setup = () => {
   const onSave = vi.fn((..._args: Parameters<OnSave>) => Promise.resolve());
   render(<TeamTypeDefaultsView defaults={{ types: {} }} onSave={onSave} />);
@@ -67,6 +70,27 @@ describe('TeamTypeDefaultsView', () => {
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     const rubric = onSave.mock.calls[0][2];
     expect(rubric).toHaveLength(4);
+  });
+
+  it('offers the mock hero rules per type and saves the pick', async () => {
+    const onSave = setup();
+    const hero = screen.getByLabelText('Hero default');
+    expect(optionTexts(hero)).toEqual([
+      'Latest common assessment',
+      'Team goal',
+      'Lowest learning target',
+    ]);
+    fireEvent.change(hero, { target: { value: 'lowestTarget' } });
+    fireEvent.click(screen.getByRole('button', { name: /Save PLC defaults/i }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave.mock.calls[0][1].heroRule).toBe('lowestTarget');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Department' }));
+    const dept = screen.getByLabelText('Hero default');
+    expect(optionTexts(dept)).toEqual([
+      'Next meeting note until a doc is pinned',
+      'Newest doc',
+    ]);
   });
 
   it('writes the chosen block kind into the template', async () => {

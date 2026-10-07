@@ -51,6 +51,10 @@ const HERO_RULE_SET: Record<TeamHeroRule, true> = {
   newestPinnedUpdate: true,
   nextMeetingNote: true,
   nextRequiredTask: true,
+  teamGoal: true,
+  lowestTarget: true,
+  newestDoc: true,
+  calendar: true,
 };
 export const TEAM_HERO_RULES = Object.keys(HERO_RULE_SET) as TeamHeroRule[];
 
@@ -168,11 +172,11 @@ export const BUILT_IN_TEAM_TYPE_PRESETS: Record<PlcGroupType, TeamTypePreset> =
       landing: 'dataOverview',
       cards: [
         'hero',
-        'goals',
         'distribution',
         'trend',
         'participation',
         'masteryByTarget',
+        'goals',
         'recentAssessments',
         'nextMeeting',
         'openItems',
