@@ -84,11 +84,21 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
         <div
           className={`h-full w-full bg-transparent flex flex-col overflow-hidden ${fontClass}`}
         >
+          <h2
+            className="text-center font-bold leading-tight truncate"
+            style={{
+              color: fontColor,
+              fontSize: `clamp(14px, ${(7 * sm).toFixed(1)}cqmin, ${Math.round(44 * sm)}px)`,
+              padding: 'min(10px, 2.2cqmin) 18px 0',
+            }}
+          >
+            Arts &amp; Letters Agenda
+          </h2>
           <div
             role="list"
             className="flex-1 min-h-0 flex flex-col"
             style={{
-              padding: 'min(10px, 2.2cqmin) min(12px, 2.5cqmin)',
+              padding: 'min(10px, 2.2cqmin) max(18px, 2.5cqmin) 0',
               gap: 'min(8px, 2cqmin)',
             }}
           >
@@ -119,7 +129,7 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
             style={{
               display: 'flex',
               justifyContent: 'center',
-              padding: 'min(6px, 1.5cqmin) min(12px, 2.5cqmin)',
+              padding: 'min(6px, 1.5cqmin) min(12px, 2.5cqmin) 18px',
             }}
           >
             <button
