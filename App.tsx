@@ -269,6 +269,13 @@ const GradebookDevHarness = import.meta.env.DEV
       }))
     )
   : null;
+const TeamsRedesignDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/plc/redesignMockup/TeamsRedesignDevHarness').then(
+        (module) => ({ default: module.TeamsRedesignDevHarness })
+      )
+    )
+  : null;
 const SpartyDevGallery = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/SpartyDevGallery').then((module) => ({
@@ -858,6 +865,20 @@ const App: React.FC = () => {
           <GradebookDevHarness />
         </Suspense>
       </AuthProvider>
+    );
+  }
+
+  // DEV-ONLY: Teams redesign screens on fixtures; auth-bypass only, so never on a deployed site.
+  if (
+    import.meta.env.DEV &&
+    TeamsRedesignDevHarness &&
+    isAuthBypass &&
+    pathname === '/teams-redesign-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TeamsRedesignDevHarness />
+      </Suspense>
     );
   }
 
