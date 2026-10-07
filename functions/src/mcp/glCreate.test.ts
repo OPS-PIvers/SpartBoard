@@ -4,6 +4,7 @@ import {
   createSource,
   validateCreate,
   type CreateInput,
+  type CreateStepInput,
 } from './glCreate';
 import type { StepInput } from './glTools';
 
@@ -17,8 +18,13 @@ const step = (over: Partial<StepInput> = {}): StepInput => ({
   ...over,
 });
 
-const tourStep = (over: Partial<StepInput> = {}): StepInput =>
-  step({ tour: { anchor: 'dock.open-tools', action: 'click' }, ...over });
+const tourStep = (over: Partial<CreateStepInput> = {}): CreateStepInput => ({
+  id: 's1',
+  interactionType: 'tooltip',
+  text: 'Click **Share**.',
+  tour: { anchor: 'dock.open-tools', action: 'click' },
+  ...over,
+});
 
 const input = (over: Partial<CreateInput> = {}): CreateInput => ({
   kind: 'live_tour',
@@ -65,7 +71,10 @@ describe('create_guided_learning', () => {
     });
     expect(set).not.toHaveProperty('description');
     expect(set).not.toHaveProperty('imagePaths');
+    expect(set).not.toHaveProperty('imageKinds');
     expect(Object.values(set)).not.toContain(undefined);
+    for (const k of ['imageIndex', 'xPct', 'yPct', 'region', 'calloutPin'])
+      expect(set.steps[0]).not.toHaveProperty(k);
   });
 
   it('starts a tour with Autopilot on only when asked', () => {
@@ -91,16 +100,23 @@ describe('create_guided_learning', () => {
     );
   });
 
-  it('needs a tour binding on every live tour step and imageIndex 0 without slides', () => {
-    expect(() => validateCreate(input({ steps: [step()] }))).toThrow(
+  it('needs a tour binding on every live tour step and no slides', () => {
+    const loose = tourStep({ id: 's2', tour: undefined });
+    expect(() => validateCreate(input({ steps: [loose] }))).toThrow(
       /steps\[0\]: every live tour step needs a tour binding/
     );
+    expect(() => validateCreate(input({ steps: [tourStep(), loose] }))).toThrow(
+      /steps\[1\]: every live tour step/
+    );
     expect(() =>
-      validateCreate(input({ steps: [tourStep(), step({ id: 's2' })] }))
-    ).toThrow(/steps\[1\]: every live tour step/);
+      validateCreate(input({ steps: [tourStep({ imageIndex: 0 })] }))
+    ).toThrow(/steps\[0\]\.imageIndex: live tour steps have no slide/);
     expect(() =>
-      validateCreate(input({ steps: [tourStep({ imageIndex: 1 })] }))
-    ).toThrow(/must be 0 when there are no slides/);
+      validateCreate(input({ steps: [tourStep({ xPct: 50 })] }))
+    ).toThrow(/steps\[0\]\.xPct: live tour steps have no slide/);
+    expect(() =>
+      validateCreate(input({ slide_urls: ['https://example.com/a.png'] }))
+    ).toThrow(/Live tours have no slides/);
   });
 
   it('refuses unknown anchors and widget types', () => {
@@ -180,6 +196,7 @@ describe('create_guided_learning', () => {
       welcomeMessage: 'Hi',
       schemaVersion: 4,
     });
+    expect(set.steps[0]).toMatchObject({ imageIndex: 0, xPct: 50, yPct: 50 });
     expect(set).not.toHaveProperty('isBuilding');
     expect(set).not.toHaveProperty('tourSetup');
     expect(set).not.toHaveProperty('hasLiveTour');

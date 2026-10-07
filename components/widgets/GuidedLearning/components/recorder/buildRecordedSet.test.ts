@@ -28,7 +28,10 @@ describe('buildRecordedSet', () => {
       {
         id: 'set-9',
         title: 'Recorded tour',
-        imageUrls: ['u0', 'u1'],
+        frames: [
+          { url: 'u0', w: 640, h: 360 },
+          { url: 'u1', w: 800, h: 450 },
+        ],
         widgets: [],
         startIds: new Set(),
         now: 5,
@@ -39,17 +42,23 @@ describe('buildRecordedSet', () => {
       schemaVersion: 3,
       isBuilding: true,
       hasLiveTour: true,
-      imageUrls: ['u0', 'u1'],
+      imageUrls: [],
       tourSetup: { widgets: [] },
       createdAt: 5,
     });
+    expect(set.steps[0].tour?.thumbnail).toEqual({
+      url: 'u0',
+      anchor: 'sidebar.boards',
+      w: 640,
+      h: 360,
+    });
     expect(set.steps[1]).toMatchObject({
       id: 'b',
-      imageIndex: 1,
+      imageIndex: 0,
       interactionType: 'tooltip',
-      region: { shape: 'rect', wPct: 5, hPct: 4 },
-      tour: { anchor: '', action: 'click' },
+      tour: { anchor: '', action: 'click', thumbnail: { url: 'u1' } },
     });
+    expect(set.steps[1]).not.toHaveProperty('region');
     // No captured context, so nothing to queue.
     expect(set.steps[1].tour).not.toHaveProperty('unmapped');
     expect(queue).toEqual([]);
@@ -65,13 +74,13 @@ describe('buildRecordedSet', () => {
       {
         id: 'set-9',
         title: 'Recorded tour',
-        imageUrls: ['u0'],
+        frames: [{ url: 'u0', w: 640, h: 360 }],
         widgets: [],
         startIds: new Set(),
         now: 5,
       }
     );
-    expect(set.steps[0].tour).toEqual({
+    expect(set.steps[0].tour).toMatchObject({
       anchor: 'sidebar.boards',
       action: 'type',
       value: 'Warm up',
@@ -106,7 +115,7 @@ describe('buildRecordedSet', () => {
       {
         id: 'set-9',
         title: 'T',
-        imageUrls: ['u0'],
+        frames: [{ url: 'u0', w: 640, h: 360 }],
         widgets: [{ id: 'w-timer', type: 'time-tool' }],
         startIds: new Set(['w-timer']),
       }
@@ -169,7 +178,7 @@ describe('buildRecordedSet', () => {
       {
         id: 'set-12',
         title: 'Timer tour',
-        imageUrls: ['u0'],
+        frames: [{ url: 'u0', w: 640, h: 360 }],
         widgets: board,
         startIds: new Set(board.map((w) => w.id)),
       }

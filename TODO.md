@@ -50,6 +50,10 @@ Prod moved to the OPSTech billing account on 2026-10-01; a $30/mo budget and Big
 
 Each item names the plan it came from; the plan holds the detail.
 
+#### `docs/plans/LIVE_TOUR_EDITOR.md`
+
+- [ ] After the `main` release that carries PR 1: `node scripts/convert-tour-slides.mjs --project prod --dry-run`, then without `--dry-run` (plus `--confirm-prod`). Moves each tour step's slide into its thumbnail. (S)
+
 #### `docs/plans/shipped/ACTIVITY_WALL_REDESIGN.md`
 
 - [ ] P3-3: delete archiveActivityWallPhoto callable, activity_wall_photos Storage rule block, ?data= decoder remnants, and deprecated mode/identificationMode writes (functions/src/driveArchive.ts, functions/src/index.ts, storage.rules, types.ts, components/widgets/ActivityWall/\*). (S)
