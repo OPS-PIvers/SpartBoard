@@ -193,6 +193,11 @@ const JOINABLE_QUIZ_STATUSES = new Set(['waiting', 'active', 'paused']);
  * an illegal combination (e.g. `kind: 'va'` with a `quizCode`) is unrepresentable
  * at the type level — the function's runtime guards then stay as defense-in-depth.
  */
+/** Identifies the session a launch targets: a quiz join code or a VA session id. */
+export type LtiTargetSessionArgs =
+  | { kind: 'quiz'; quizCode: string }
+  | { kind: 'va'; sessionId: string };
+
 export type PersistLtiLaunchContextArgs = {
   /** The Schoology context (course) id from the launch. */
   contextId: string;
@@ -223,6 +228,45 @@ export type PersistLtiLaunchContextArgs = {
     }
 );
 
+/** The session a Schoology launch joins: the VA session by id, or the most recently started joinable quiz session for the code. */
+export async function resolveLtiTargetSession(
+  db: Db,
+  args: LtiTargetSessionArgs
+): Promise<{
+  sessionId: string;
+  sessionData: admin.firestore.DocumentData;
+} | null> {
+  const collectionName = sessionCollectionForKind(args.kind);
+  if (args.kind === 'va') {
+    const sid = args.sessionId.trim();
+    if (!sid) return null;
+    const snap = await db.collection(collectionName).doc(sid).get();
+    if (!snap.exists) return null;
+    return { sessionId: snap.id, sessionData: snap.data() ?? {} };
+  }
+  const normCode = normalizeQuizCode(args.quizCode);
+  if (!normCode) return null;
+  const snap = await db
+    .collection(collectionName)
+    .where('code', '==', normCode)
+    .get();
+  // Filter to joinable docs and prefer the most recently started — identical
+  // to the client's join-target selection, so the context is filed under the
+  // exact session the student joined.
+  const joinable = snap.docs
+    .filter((d) =>
+      JOINABLE_QUIZ_STATUSES.has((d.data().status as string) ?? '')
+    )
+    .sort(
+      (a, b) =>
+        ((b.data().startedAt as number) ?? 0) -
+        ((a.data().startedAt as number) ?? 0)
+    );
+  const sessionDoc = joinable[0];
+  if (!sessionDoc) return null;
+  return { sessionId: sessionDoc.id, sessionData: sessionDoc.data() ?? {} };
+}
+
 /**
  * Resolve the target session for a Schoology launch and persist the PII-free
  * launch context onto it (see the module header for the full field list).
@@ -245,40 +289,9 @@ export async function persistLtiLaunchContext(
 
   const collectionName = sessionCollectionForKind(kind);
 
-  // ── Resolve the target session doc ──────────────────────────────────────────
-  let sessionId: string;
-  let sessionData: admin.firestore.DocumentData;
-  if (kind === 'va') {
-    const sid = args.sessionId.trim();
-    if (!sid) return null;
-    const snap = await db.collection(collectionName).doc(sid).get();
-    if (!snap.exists) return null;
-    sessionId = snap.id;
-    sessionData = snap.data() ?? {};
-  } else {
-    const normCode = normalizeQuizCode(args.quizCode);
-    if (!normCode) return null;
-    const snap = await db
-      .collection(collectionName)
-      .where('code', '==', normCode)
-      .get();
-    // Filter to joinable docs and prefer the most recently started — identical
-    // to the client's join-target selection, so the context is filed under the
-    // exact session the student joined.
-    const joinable = snap.docs
-      .filter((d) =>
-        JOINABLE_QUIZ_STATUSES.has((d.data().status as string) ?? '')
-      )
-      .sort(
-        (a, b) =>
-          ((b.data().startedAt as number) ?? 0) -
-          ((a.data().startedAt as number) ?? 0)
-      );
-    const sessionDoc = joinable[0];
-    if (!sessionDoc) return null;
-    sessionId = sessionDoc.id;
-    sessionData = sessionDoc.data() ?? {};
-  }
+  const target = await resolveLtiTargetSession(db, args);
+  if (!target) return null;
+  const { sessionId, sessionData } = target;
 
   // Everything below is committed atomically (one batch) so the membership URL
   // and the `ltiNrps` flag can't desync into a silent "names never resolve"

@@ -23,6 +23,8 @@ import type { NrpsEndpoint } from './jwt';
 import { ltiStudentUid } from './identity';
 import { resolveClasslinkIdentity } from './classlinkBridge';
 import { persistLtiLaunchContext } from './nrpsStore';
+import type { LtiTargetSessionArgs } from './nrpsStore';
+import { chooseLaunchUid } from './preLinkResponse';
 import {
   putOidcState,
   consumeOidcState,
@@ -225,6 +227,22 @@ export const ltiLaunch = onRequest(
   }
 );
 
+/** The session a student launch targets, from the deep-link's custom claim. */
+function launchTargetSession(
+  custom: Record<string, unknown> | null | undefined
+): LtiTargetSessionArgs | null {
+  if (custom?.['kind'] === 'va') {
+    const sessionId = custom['session_id'];
+    return typeof sessionId === 'string' && sessionId
+      ? { kind: 'va', sessionId }
+      : null;
+  }
+  const quizCode = custom?.['quiz_code'];
+  return typeof quizCode === 'string' && quizCode
+    ? { kind: 'quiz', quizCode }
+    : null;
+}
+
 // ── ltiExchange ───────────────────────────────────────────────────────────────
 export const ltiExchange = onCall(
   {
@@ -314,7 +332,14 @@ export const ltiExchange = onCall(
         clientSecret: CLASSLINK_CLIENT_SECRET.value(),
       },
     });
-    const uid = bridged ? bridged.uid : subUid;
+    // A student who started this session before the section was linked keeps that response.
+    const uid = bridged
+      ? await chooseLaunchUid(db, {
+          subUid,
+          bridgedUid: bridged.uid,
+          target: launchTargetSession(launch.custom),
+        })
+      : subUid;
     // Carry BOTH ids when bridged: the ClassLink class id so /my-assignments
     // class-channel discovery and the rules class-gate see this student as a
     // roster member, and `schoology:<contextId>` so any session targeted only by
