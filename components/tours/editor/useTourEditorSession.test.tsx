@@ -58,6 +58,23 @@ describe('useTourEditorSession', () => {
     expect(getTourEdit()?.set.steps[0].label).toBe('A12');
   });
 
+  it('inserts recorded steps as one edit and selects the last', () => {
+    const { result } = open(0);
+    const steps = ['x', 'y'].map((id) => ({
+      id,
+      xPct: 50,
+      yPct: 50,
+      imageIndex: 0,
+      interactionType: 'text-popover' as const,
+    }));
+    act(() => result.current?.insertStepsAfter('a', steps, ['p/x.png']));
+    expect(ids()).toBe('axybc');
+    expect(getTourEdit()).toMatchObject({ selected: 2, replay: 1 });
+    expect(getTourEdit()?.set.imagePaths).toEqual(['p/x.png']);
+    act(() => result.current?.undo());
+    expect(ids()).toBe('abc');
+  });
+
   it('keeps the selected step selected through a reorder and asks for a replay', () => {
     const { result } = open(1);
     act(() => result.current?.moveStep('b', 2));

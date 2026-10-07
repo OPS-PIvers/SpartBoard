@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   ChevronsLeft,
   ChevronsRight,
+  Circle,
   GripVertical,
   LayoutDashboard,
   Loader2,
@@ -57,7 +58,7 @@ import {
   buildRecordedLayouts,
 } from '@/components/widgets/GuidedLearning/components/recorder/recordedLayouts';
 import { MAX_TYPED_CHARS } from '@/components/widgets/GuidedLearning/components/recorder/useTourCapture';
-import type { TourEditPlayback } from './tourEditStore';
+import { setTourEditRecording, type TourEditPlayback } from './tourEditStore';
 import {
   PANEL_EDGE,
   PANEL_WIDTH,
@@ -71,6 +72,7 @@ import {
 } from './panelPlacement';
 import type { TourEditorSession } from './useTourEditorSession';
 import { TourAnchorPicker } from './TourAnchorPicker';
+import { RecordFromHere } from './RecordFromHere';
 import { TourAnchorList } from './TourAnchorList';
 import { applyAnchorPick, type TourAnchorPick } from './pickAnchor';
 import {
@@ -147,6 +149,19 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
     const created = session.insertStepAfter(set.steps[selected]?.id ?? null);
     setPicking({ stepId: created.id, from: 'board' });
   };
+  // The step new recorded clicks go after; the panel steps aside while recording.
+  const [recording, setRecording] = useState<{ afterId: string | null } | null>(
+    null
+  );
+  const startRecording = () => {
+    setPicking(null);
+    setTourEditRecording(true);
+    setRecording({ afterId: set.steps[selected]?.id ?? null });
+  };
+  const endRecording = () => {
+    setTourEditRecording(false);
+    setRecording(null);
+  };
 
   const toggleCollapsed = () => {
     setCollapsed((was) => {
@@ -177,6 +192,20 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
     current: Math.min(selected + 1, total),
     total,
   });
+
+  if (recording) {
+    return (
+      <RecordFromHere
+        slots={playback.slots}
+        goal={set.title}
+        onDone={(steps, imagePaths) => {
+          endRecording();
+          session.insertStepsAfter(recording.afterId, steps, imagePaths);
+        }}
+        onCancel={endRecording}
+      />
+    );
+  }
 
   if (collapsed) {
     return (
@@ -386,14 +415,27 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
                 playback={playback}
                 onPick={(stepId) => setPicking({ stepId, from: 'board' })}
               />
-              <button
-                type="button"
-                onClick={addStep}
-                className="flex items-center gap-2 border-t border-white/10 px-3 py-2 text-left text-sm font-semibold text-slate-200 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
-              >
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                {t('tourPicker.addStep')}
-              </button>
+              <div className="flex items-center gap-1 border-t border-white/10 px-1.5 py-1">
+                <button
+                  type="button"
+                  onClick={addStep}
+                  className={`${secondaryBtn} flex items-center gap-1.5`}
+                >
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  {t('tourPicker.addStep')}
+                </button>
+                <button
+                  type="button"
+                  onClick={startRecording}
+                  className={`${secondaryBtn} flex items-center gap-1.5`}
+                >
+                  <Circle
+                    className="h-3.5 w-3.5 fill-current"
+                    aria-hidden="true"
+                  />
+                  {t('tourPicker.recordFromHere')}
+                </button>
+              </div>
             </>
           )}
           {pickingStep && picking?.from === 'board' && (

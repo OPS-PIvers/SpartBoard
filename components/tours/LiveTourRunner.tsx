@@ -1027,7 +1027,9 @@ export const LiveTourRunner: React.FC = () => {
     followEdit();
   }, [editSelected, editReplay]);
 
-  const acted = isActedStep(step?.tour);
+  // Record from here captures real clicks; the stage stays but the tour stands aside.
+  const editRecording = !!tour?.edit && !!editTarget?.recording;
+  const acted = isActedStep(step?.tour) && !editRecording;
   const action = step?.tour?.action;
   const stepValue = step?.tour?.value;
   // A click on the anchor advances once the app has handled it; typing and native selects advance on change.
@@ -1860,6 +1862,8 @@ export const LiveTourRunner: React.FC = () => {
       </>
     );
   }
+
+  if (editRecording) content = null;
 
   // No box of its own, so each layer stacks on its own z-index around a lifted dock.
   // Clicks on the tour's own controls must not reach the board, which deselects the widget a step points at.

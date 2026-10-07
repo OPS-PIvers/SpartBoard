@@ -6,6 +6,23 @@ import { TourEditorPanel } from './TourEditorPanel';
 import { IDLE_PLAYBACK } from './tourEditStore';
 import type { TourEditorSession } from './useTourEditorSession';
 
+const recorded = vi.hoisted(() => ({
+  id: 'r1',
+  xPct: 50,
+  yPct: 50,
+  imageIndex: 0,
+  interactionType: 'text-popover' as const,
+}));
+vi.mock('./RecordFromHere', () => ({
+  RecordFromHere: (props: {
+    onDone: (steps: unknown[], paths: string[]) => void;
+  }) => (
+    <button type="button" onClick={() => props.onDone([recorded], ['p.png'])}>
+      Stop recording
+    </button>
+  ),
+}));
+
 const step = (id: string, tour?: GuidedLearningStep['tour']) =>
   ({
     id,
@@ -30,6 +47,7 @@ const makeSession = (steps: GuidedLearningStep[]) => {
       steps.splice(1, 0, created);
       return created;
     }),
+    insertStepsAfter: vi.fn(),
     deleteStep: vi.fn(),
     moveStep: vi.fn(),
     updateSet: vi.fn(),
@@ -110,5 +128,19 @@ describe('TourEditorPanel picking', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add step' }));
     expect(session.insertStepAfter).toHaveBeenCalledWith('a');
     expect(screen.getByTestId('tour-anchor-picker-bar')).toBeInTheDocument();
+  });
+
+  it('steps aside while recording and inserts the recorded steps after the selection', () => {
+    const session = makeSession([step('a'), step('b')]);
+    renderPanel(session);
+    fireEvent.click(screen.getByRole('button', { name: 'Record from here' }));
+    expect(screen.queryByTestId('tour-editor-panel')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }));
+    expect(session.insertStepsAfter).toHaveBeenCalledWith(
+      'a',
+      [recorded],
+      ['p.png']
+    );
+    expect(screen.getByTestId('tour-editor-panel')).toBeInTheDocument();
   });
 });

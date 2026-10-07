@@ -26,6 +26,8 @@ export interface TourEditTarget {
   /** Bumped to rebuild the stage and replay up to `selected`. */
   replay: number;
   readAloud: boolean;
+  /** Record from here is capturing clicks; the runner shows nothing and doesn't advance. */
+  recording?: boolean;
 }
 
 /** What the runner reports back to the panel. */
@@ -92,6 +94,13 @@ export const selectTourEditStep = (index: number): void => {
   const max = Math.max(current.set.steps.length - 1, 0);
   const selected = Math.min(Math.max(index, 0), max);
   if (selected !== current.selected) target.set({ ...current, selected });
+};
+
+/** Hides the runner's tip and spotlight while Record from here captures real clicks. */
+export const setTourEditRecording = (recording: boolean): void => {
+  const current = target.get();
+  if (!current || !!current.recording === recording) return;
+  target.set({ ...current, recording });
 };
 
 export const useTourEditTarget = (): TourEditTarget | null =>

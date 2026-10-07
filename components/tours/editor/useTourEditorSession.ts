@@ -42,6 +42,12 @@ export interface TourEditorSession {
     afterStepId: string | null,
     step?: Partial<GuidedLearningStep>
   ) => GuidedLearningStep;
+  /** Inserts steps after `afterStepId` as one edit, listing their pictures' Storage paths on the set, and selects the last. */
+  insertStepsAfter: (
+    afterStepId: string | null,
+    steps: GuidedLearningStep[],
+    imagePaths?: string[]
+  ) => void;
   deleteStep: (stepId: string) => void;
   moveStep: (stepId: string, toIndex: number) => void;
   updateSet: (patch: Partial<GuidedLearningSet>) => void;
@@ -255,6 +261,26 @@ export function useTourEditorSession(): TourEditorSession | null {
         { selectId: created.id }
       );
       return created;
+    },
+    insertStepsAfter: (afterStepId, added, imagePaths = []) => {
+      const last = added[added.length - 1];
+      if (!last) return;
+      commit(
+        (set) => {
+          const at = afterStepId
+            ? set.steps.findIndex((s) => s.id === afterStepId) + 1
+            : 0;
+          const steps = [...set.steps];
+          steps.splice(at, 0, ...added);
+          const paths = [...(set.imagePaths ?? []), ...imagePaths];
+          return {
+            ...set,
+            steps,
+            ...(paths.length > 0 ? { imagePaths: paths } : {}),
+          };
+        },
+        { selectId: last.id }
+      );
     },
     deleteStep: (stepId) =>
       commit((set) =>

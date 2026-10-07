@@ -4977,6 +4977,7 @@
     "control": "Control",
     "pick": "Pick",
     "addStep": "Add step",
-    "listTitle": "Choose a control"
+    "listTitle": "Choose a control",
+    "recordFromHere": "Record from here"
   }
 }
