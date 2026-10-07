@@ -261,6 +261,12 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     panel: true,
   },
   {
+    id: 'sidebar.plcs',
+    label: 'My Teams item in the menu',
+    scope: 'board',
+    panel: true,
+  },
+  {
     id: 'board-nav.select-board',
     label: 'Board name button that opens boards',
     scope: 'board',
@@ -669,6 +675,30 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
   {
     id: 'plc-edit.save',
     label: 'Save/Create button in the PLC edit modal',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'connected-apps.google-tasks-sync',
+    label: 'Google Tasks sync switch in Connected apps',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'plc-notes.action-text',
+    label: 'New action item text box in PLC notes',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'plc-notes.add-action',
+    label: 'Add action item button in PLC notes',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'plc-notes.show-actions',
+    label: 'Show action items button in PLC notes',
     scope: 'board',
     panel: true,
   },
