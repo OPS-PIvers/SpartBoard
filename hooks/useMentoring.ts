@@ -301,12 +301,14 @@ async function copyTemplateIntoWorkspaces(
   const failed: string[] = [];
   await eachBounded(workspaces, COPY_CONCURRENCY, async (ws) => {
     const names = pairNames(plc, ws);
+    let copyId: string | null = null;
     try {
       if (!drive || !fileId) throw new Error('Template cannot be copied');
       const copy = await drive.copyFile(
         fileId,
         `${input.title} · ${names.mentor} and ${names.mentee}`
       );
+      copyId = copy.id;
       for (const pairUid of [ws.mentorUid, ws.menteeUid]) {
         const email = plc.members?.[pairUid]?.email;
         if (!email) throw new Error('Pair member has no email');
@@ -327,6 +329,14 @@ async function copyTemplateIntoWorkspaces(
         plcId: plc.id,
         workspaceId: ws.id,
       });
+      // Trash a half-shared copy so a failed pair leaves no orphaned Drive file.
+      if (drive && copyId) {
+        await drive.trashFile(copyId).catch((trashErr: unknown) =>
+          logError('copyTemplateIntoWorkspaces.trash', trashErr, {
+            plcId: plc.id,
+          })
+        );
+      }
       failed.push(`${names.mentor} and ${names.mentee}`);
     }
   });
