@@ -1,43 +1,24 @@
 import React from 'react';
-import type {
-  GuidedLearningPublicStep,
-  GuidedLearningSet,
-  GuidedLearningStep,
-} from '@/types';
-import { GuidedLearningStage } from '@/components/widgets/GuidedLearning/components/GuidedLearningStage';
-import { DeviceFrame } from '@/components/widgets/GuidedLearning/components/studio/DeviceFrame';
-import { customPreset } from '@/components/widgets/GuidedLearning/components/studio/devicePresets';
+import type { GuidedLearningStep } from '@/types';
+import { freshTourThumbnail } from '@/components/widgets/GuidedLearning/utils/liveTour';
 
-const PREVIEW = customPreset(480, 270);
-const NO_ANSWERS: ReadonlySet<string> = new Set();
-const noop = () => undefined;
-
-/** The step's recorded slide, shown when its anchor can't be found on screen. */
-const TourMiniPlayer: React.FC<{
-  set: GuidedLearningSet;
-  step: GuidedLearningStep;
-}> = ({ set, step }) => (
-  <div
-    data-testid="tour-mini-player"
-    className="aspect-video w-full overflow-hidden rounded-lg"
-  >
-    <DeviceFrame preset={PREVIEW}>
-      <GuidedLearningStage
-        set={set}
-        steps={[step as unknown as GuidedLearningPublicStep]}
-        imageIndex={step.imageIndex ?? 0}
-        activeStepId={step.id}
-        authorMode="explore"
-        answeredStepIds={NO_ANSWERS}
-        teacherMode
-        zoomScale={1}
-        forceOverlay
-        onPinClick={noop}
-        onAdvance={noop}
-        onDismiss={noop}
+/** The step's picture, shown when its anchor can't be found on screen. */
+const TourMiniPlayer: React.FC<{ step: GuidedLearningStep }> = ({ step }) => {
+  const thumb = freshTourThumbnail(step);
+  if (!thumb) return null;
+  return (
+    <div
+      data-testid="tour-mini-player"
+      className="aspect-video w-full overflow-hidden rounded-lg bg-slate-900"
+    >
+      <img
+        src={thumb.url}
+        alt=""
+        decoding="async"
+        className="h-full w-full object-contain"
       />
-    </DeviceFrame>
-  </div>
-);
+    </div>
+  );
+};
 
 export default TourMiniPlayer;

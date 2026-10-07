@@ -128,7 +128,16 @@ describe('RerecordSession', () => {
         yPct: 20,
         region: { shape: 'rect', wPct: 5, hPct: 4 },
       },
-      tour: { anchor: 'widget.close', action: 'click' },
+      tour: {
+        anchor: 'widget.close',
+        action: 'click',
+        thumbnail: {
+          url: 'https://example.com/new.png',
+          anchor: 'widget.close',
+          w: 0,
+          h: 0,
+        },
+      },
     });
   });
 

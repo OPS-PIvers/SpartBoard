@@ -41,6 +41,22 @@ const EXTENSIONS: Record<string, string> = {
   'image/webp': 'webp',
 };
 
+/** Slide placement fields; live tour steps never store them. */
+export const SLIDE_STEP_FIELDS = [
+  'imageIndex',
+  'xPct',
+  'yPct',
+  'region',
+  'calloutPin',
+  'calloutWidthPct',
+  'calloutScale',
+  'calloutTone',
+  'calloutBox',
+] as const;
+type SlideStepField = (typeof SLIDE_STEP_FIELDS)[number];
+export type CreateStepInput = Omit<StepInput, SlideStepField> &
+  Partial<Pick<StepInput, SlideStepField>>;
+
 export interface CreateInput {
   kind: 'live_tour' | 'standard';
   source?: 'mine' | 'building';
@@ -53,7 +69,7 @@ export interface CreateInput {
   tour_widgets?: string[];
   autopilot?: boolean;
   help_center?: HelpCenterPlacement;
-  steps: StepInput[];
+  steps: CreateStepInput[];
 }
 
 export interface HelpCenterPlacement {
@@ -89,11 +105,19 @@ export function validateCreate(input: CreateInput): Step[] {
         `steps[${bound}]: tour and missing_anchor apply only to live tours.`
       );
   } else {
+    if (slideCount > 0) throw new ToolError('Live tours have no slides.');
     const loose = input.steps.findIndex((s) => !s.tour);
     if (loose >= 0)
       throw new ToolError(
         `steps[${loose}]: every live tour step needs a tour binding. A narration step observes the control it describes; use list_tour_anchors.`
       );
+    input.steps.forEach((s, i) => {
+      const placed = SLIDE_STEP_FIELDS.find((k) => s[k] !== undefined);
+      if (placed)
+        throw new ToolError(
+          `steps[${i}].${placed}: live tour steps have no slide placement.`
+        );
+    });
   }
   for (const [field, list] of [
     ['tour_widgets', input.tour_widgets],
@@ -106,14 +130,13 @@ export function validateCreate(input: CreateInput): Step[] {
       );
   }
   input.steps.forEach((s, i) => {
-    if (s.imageIndex >= Math.max(slideCount, 1))
+    if ((s.imageIndex ?? 0) >= Math.max(slideCount, 1))
       throw new ToolError(
-        slideCount === 0
-          ? `steps[${i}].imageIndex must be 0 when there are no slides.`
-          : `steps[${i}].imageIndex ${s.imageIndex} is past the last slide (${slideCount - 1}).`
+        `steps[${i}].imageIndex ${s.imageIndex} is past the last slide (${slideCount - 1}).`
       );
   });
-  return mergeSteps([], input.steps, Math.max(slideCount, 1));
+  // Tour steps reach mergeSteps without slide fields, which its checks skip.
+  return mergeSteps([], input.steps as StepInput[], Math.max(slideCount, 1));
 }
 
 /** The stored set; undefined fields are left out because Firestore refuses them. */
@@ -285,7 +308,7 @@ export function savedSummary({ set, source, anchorsRequested }: SavedSet) {
     source,
     title: set.title,
     step_count: set.steps.length,
-    slide_count: set.imageUrls.length,
+    ...(set.mode === 'tour' ? {} : { slide_count: set.imageUrls.length }),
     ...(anchorsRequested > 0
       ? {
           anchors_requested: anchorsRequested,

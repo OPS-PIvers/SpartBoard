@@ -110,6 +110,9 @@ export function normalizeGuidedLearningSet(
       Math.max(step.imageIndex ?? 0, 0),
       imageUrls.length > 0 ? lastImageIndex : 0
     ),
+    // Tour steps carry no slide position; GL code that still reads one gets the centre.
+    xPct: step.xPct ?? 50,
+    yPct: step.yPct ?? 50,
     showOverlay: step.showOverlay ?? 'none',
   }));
 

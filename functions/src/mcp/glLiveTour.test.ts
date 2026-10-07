@@ -7,6 +7,7 @@ import {
   mergeTourSteps,
   parseCategories,
   publicTourStep,
+  tourStep,
   tourPublishState,
 } from './glLiveTour';
 import type { Step } from './glTools';
@@ -84,6 +85,26 @@ describe('live tour tools', () => {
       createdAt: 5,
       updatedAt: 5,
     });
+  });
+
+  it('takes tour steps without slide placement and refuses it', () => {
+    const base = {
+      id: 's1',
+      interactionType: 'tooltip',
+      text: 'Open the dock.',
+      tour: { anchor: 'dock.open-tools', action: 'click' },
+    };
+    expect(tourStep.safeParse(base).success).toBe(true);
+    for (const extra of [
+      { imageIndex: 0 },
+      { xPct: 50, yPct: 50 },
+      { region: { shape: 'rect', wPct: 10, hPct: 10 } },
+      { calloutTone: 'light' },
+    ])
+      expect(tourStep.safeParse({ ...base, ...extra }).success).toBe(false);
+    expect(tourStep.safeParse({ ...base, tour: undefined }).success).toBe(
+      false
+    );
   });
 
   it('hides the admin tools from everyone but admins', async () => {
