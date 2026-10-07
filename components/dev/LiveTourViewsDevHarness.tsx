@@ -9,6 +9,8 @@ import {
   placeCallout,
   tetherFor,
 } from '@/components/widgets/GuidedLearning/utils/calloutPlacement';
+import TourMiniPlayer from '@/components/tours/TourMiniPlayer';
+import type { GuidedLearningStep } from '@/types';
 
 // DEV-only: the live-tour tip and bar against fake anchors, one state per ?state=.
 const STATES = [
@@ -78,6 +80,21 @@ const STEP: Record<State, { title: string; text: string; n: number }> = {
 };
 
 const TOTAL = 6;
+
+// The missing step's picture; screenshot runs serve a real board crop at this path.
+const MISSING_STEP = {
+  id: 'missing',
+  tour: {
+    anchor: 'dock.item',
+    action: 'click',
+    thumbnail: {
+      url: '/dev-tour-thumbnail.png',
+      anchor: 'dock.item',
+      w: 640,
+      h: 360,
+    },
+  },
+} as GuidedLearningStep;
 const GUTTER = 16;
 
 const boldText = (text: string) =>
@@ -231,7 +248,7 @@ export const LiveTourViewsDevHarness: React.FC = () => {
           target
         )
       : null;
-  const width = state === 'plain' ? 400 : state === 'missing' ? 360 : 320;
+  const width = state === 'plain' ? 400 : state === 'missing' ? 512 : 320;
   const centred = centreTip({ w: width, h: box.h }, view, obstacles, GUTTER);
 
   const status: TourTipStatus | null =
@@ -310,7 +327,12 @@ export const LiveTourViewsDevHarness: React.FC = () => {
         }
       >
         {state === 'missing' ? (
-          <p className="text-sm text-slate-200">{t('tours.anchorMissing')}</p>
+          <>
+            <TourMiniPlayer step={MISSING_STEP} />
+            <p className="text-sm text-slate-200">
+              {t('tours.anchorMissingPreview')}
+            </p>
+          </>
         ) : (
           step.text && (
             <p className="text-sm text-slate-100">{boldText(step.text)}</p>
