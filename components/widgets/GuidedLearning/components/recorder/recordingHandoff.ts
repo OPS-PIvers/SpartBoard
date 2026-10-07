@@ -67,3 +67,17 @@ export const snapshotRecording = (snapshots: TourSnapshots): TourRecording => ({
     untagged: false,
   })),
 });
+
+/** A picture's pixel size, or 0x0 when the browser can't decode it. */
+export async function frameSize(
+  frame: Blob
+): Promise<{ w: number; h: number }> {
+  try {
+    const bitmap = await createImageBitmap(frame);
+    const size = { w: bitmap.width, h: bitmap.height };
+    bitmap.close();
+    return size;
+  } catch {
+    return { w: 0, h: 0 };
+  }
+}

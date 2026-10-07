@@ -8111,6 +8111,16 @@ export interface GuidedLearningTourBinding {
   layoutKeyframes?: TourLayoutKeyframe[];
   /** Unmapped-anchor queue fingerprint for an untagged recorded click; cleared on rebind. */
   unmapped?: string;
+  /** Optional picture of the control; never decides whether a step shows or can be edited. */
+  thumbnail?: GuidedLearningTourThumbnail;
+}
+
+/** A step's picture; `anchor` differing from the binding's anchor marks it stale. */
+export interface GuidedLearningTourThumbnail {
+  url: string;
+  anchor: string;
+  w: number;
+  h: number;
 }
 
 /** A widget's recorded place on the board; `slot` is its stable index within the tour. */

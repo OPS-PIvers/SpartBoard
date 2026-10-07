@@ -727,6 +727,17 @@ export function useGuidedLearningEditorState({
       const doc = historyRef.current.present;
       const step = doc.steps.find((s) => s.id === capture.stepId);
       if (!step) return false;
+      // Tour steps keep their picture on the binding; no slide is added.
+      if (doc.mode === 'tour') {
+        applyDoc((d) => ({
+          ...d,
+          steps: d.steps.map((s) =>
+            s.id === capture.stepId ? { ...s, tour: capture.tour } : s
+          ),
+        }));
+        setSelectedStepId(capture.stepId);
+        return true;
+      }
       const slide = step.imageIndex;
       const oldUrl = doc.imageUrls[slide];
       const replace =

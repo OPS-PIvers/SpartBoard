@@ -200,22 +200,17 @@ describe('RecordingSession', () => {
       title: 'Add a clock',
       isBuilding: true,
       hasLiveTour: true,
-      imageUrls: [
-        'https://storage.example/tour-step-1.png',
-        'https://storage.example/tour-step-2.png',
-      ],
-      imagePaths: [
-        'users/admin-1/hotspot_images/tour-step-1.png',
-        'users/admin-1/hotspot_images/tour-step-2.png',
-      ],
-      slideThumbnails: {
-        'https://storage.example/tour-step-1.png':
-          'https://storage.example/thumbs/tour-step-1.png',
-        'https://storage.example/tour-step-2.png':
-          'https://storage.example/thumbs/tour-step-2.png',
-      },
+      imageUrls: [],
       tourSetup: { widgets: ['time-tool'] },
     });
+    expect(saved.steps.map((st) => st.tour?.thumbnail?.url)).toEqual([
+      'https://storage.example/tour-step-1.png',
+      'https://storage.example/tour-step-2.png',
+    ]);
+    expect(saved.imagePaths).toEqual([
+      'users/admin-1/hotspot_images/tour-step-1.png',
+      'users/admin-1/hotspot_images/tour-step-2.png',
+    ]);
     expect(saved.steps[0]).toMatchObject({
       label: 'Clock widget',
       text: 'Click the clock to add it.',
@@ -346,7 +341,7 @@ describe('RecordingSession', () => {
       'blurred two'
     );
     const saved = h.save.mock.calls[0][0] as GuidedLearningSet;
-    expect(saved.imageUrls).toEqual([
+    expect(saved.steps.map((st) => st.tour?.thumbnail?.url)).toEqual([
       'https://storage.example/tour-step-1.png',
       'https://storage.example/tour-step-2.png',
     ]);
@@ -395,6 +390,9 @@ describe('RecordingSession', () => {
     );
     const saved = h.save.mock.calls[0][0] as GuidedLearningSet;
     expect(saved.steps).toHaveLength(1);
-    expect(saved.steps[0]).toMatchObject({ id: 'step-1', imageIndex: 0 });
+    expect(saved.steps[0]).toMatchObject({
+      id: 'step-1',
+      tour: { thumbnail: { url: 'https://storage.example/tour-step-1.png' } },
+    });
   });
 });

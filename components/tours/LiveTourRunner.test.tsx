@@ -24,6 +24,8 @@ import {
 } from '@/context/dashboardCanvasStore';
 import { TOUR_DOCK_EVENT, type TourDockRequest } from './tourPrerequisites';
 import { Z_INDEX } from '@/config/zIndex';
+// Loaded up front so the lazy picture renders within a test's fake frames.
+import './TourMiniPlayer';
 
 const h = vi.hoisted(() => {
   type Widget = {
@@ -183,12 +185,6 @@ vi.mock('./settingsTab', () => ({
     key === 'fontFamily' ? 'style' : 'settings',
 }));
 
-vi.mock('./TourMiniPlayer', () => ({
-  default: ({ step }: { step: { id: string } }) => (
-    <div data-testid="tour-mini-player">{step.id}</div>
-  ),
-}));
-
 type Binding = {
   anchor: string;
   action: 'click' | 'observe' | 'toggle' | 'select' | 'type';
@@ -311,19 +307,42 @@ afterEach(() => {
   delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
 });
 
-// Adds step fields (text, cursor, imageIndex) to a set's tour steps, in order.
+// Adds step fields (text, cursor) to a set's tour steps, in order.
 const withSteps = (
   set: GuidedLearningSet,
-  extras: Record<string, unknown>[],
-  imageUrls: string[] = []
+  extras: Record<string, unknown>[]
 ): GuidedLearningSet =>
   ({
     ...set,
-    imageUrls,
     steps: set.steps.map((st) =>
       st.id.startsWith('s') ? { ...st, ...extras[Number(st.id.slice(1))] } : st
     ),
   }) as GuidedLearningSet;
+
+// Gives each anchored step a picture of its own control.
+const withThumbnails = (
+  set: GuidedLearningSet,
+  url = 'https://example.com/slide.png'
+): GuidedLearningSet => ({
+  ...set,
+  steps: set.steps.map((st) =>
+    st.tour
+      ? {
+          ...st,
+          tour: {
+            ...st.tour,
+            thumbnail: { url, anchor: st.tour.anchor, w: 640, h: 360 },
+          },
+        }
+      : st
+  ),
+});
+
+const miniPlayerSrc = () =>
+  screen
+    .getByTestId('tour-mini-player')
+    .querySelector('img')
+    ?.getAttribute('src');
 
 describe('LiveTourRunner', () => {
   it('adds a missing setup widget, anchors to it, and removes it on teardown', async () => {
@@ -381,11 +400,7 @@ describe('LiveTourRunner', () => {
   it('treats a hidden anchor as missing and shows the slide', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     await start(
-      withSteps(
-        makeSet([{ anchor: 'library.search', action: 'click' }]),
-        [{ imageIndex: 0 }],
-        ['https://example.com/slide.png']
-      )
+      withThumbnails(makeSet([{ anchor: 'library.search', action: 'click' }]))
     );
     expect(screen.queryByTestId('tour-spotlight')).not.toBeInTheDocument();
     await frames(ANCHOR_SEARCH_MS + 100);
@@ -434,13 +449,11 @@ describe('LiveTourRunner', () => {
   it('continues without Retry when a missing anchor appears late', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     await start(
-      withSteps(
+      withThumbnails(
         makeSet([
           { anchor: 'sidebar.classes', action: 'click' },
           { anchor: 'sidebar.boards', action: 'observe' },
-        ]),
-        [{ imageIndex: 0 }],
-        ['https://example.com/slide.png']
+        ])
       )
     );
     await frames(ANCHOR_SEARCH_MS + 100);
@@ -824,15 +837,11 @@ describe('LiveTourRunner polish', () => {
   it("shows the step's slide when its anchor is missing", async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     await start(
-      withSteps(
-        makeSet([{ anchor: 'sidebar.classes', action: 'click' }]),
-        [{ imageIndex: 0 }],
-        ['https://example.com/slide.png']
-      )
+      withThumbnails(makeSet([{ anchor: 'sidebar.classes', action: 'click' }]))
     );
     await frames(ANCHOR_SEARCH_MS + 100);
     await frames();
-    expect(screen.getByTestId('tour-mini-player')).toHaveTextContent('s0');
+    expect(miniPlayerSrc()).toBe('https://example.com/slide.png');
     expect(
       screen.getByText(
         "Couldn't find this on your screen. Here's what it looks like."
@@ -1367,31 +1376,30 @@ describe('LiveTourRunner plain steps and welcome', () => {
     expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
   });
 
-  it('shows a plain step its slide, but not a question or media slide', async () => {
-    const set = mixedSet('structured', { imageUrls: ['https://x/0.png'] });
-    set.steps.forEach((s) => {
-      s.imageIndex = 0;
-      s.interactionType = s.id === 'q' ? 'question' : 'tooltip';
-    });
-    set.steps[4].interactionType = 'video';
-    await start(set);
+  it('shows a plain step its text without a picture', async () => {
+    await start(withThumbnails(mixedSet('structured'), 'https://x/0.png'));
     expect(isPlain()).toBe(true);
-    expect(screen.getByTestId('tour-mini-player')).toHaveTextContent('intro');
     expect(screen.getByText('This tour shows boards.')).toBeInTheDocument();
+    expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
     expect(screen.queryByText(/Couldn't find/)).not.toBeInTheDocument();
+  });
 
-    fireEvent.click(barButton('Next'));
+  it('skips a stale picture taken of a different control', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const set = makeSet([{ anchor: 'sidebar.classes', action: 'click' }]);
+    await start(
+      withSteps(set, [
+        {
+          tour: {
+            anchor: 'sidebar.classes',
+            action: 'click',
+            thumbnail: { url: 'u', anchor: 'sidebar.boards', w: 1, h: 1 },
+          },
+        },
+      ])
+    );
+    await frames(ANCHOR_SEARCH_MS + 100);
     await frames();
-    expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText('Boards'));
-    await frames();
-    expect(screen.getByText('Which board is yours?')).toBeInTheDocument();
-    expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
-    fireEvent.click(barButton('Next'));
-    await frames();
-    fireEvent.click(barButton('Next'));
-    await frames();
-    expect(progress()).toBe('5 / 5');
     expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
   });
 
