@@ -81,4 +81,21 @@ describe('TourSpotlight', () => {
 
     expect(scrollBy).not.toHaveBeenCalled();
   });
+  it('breathes a looping ring on click steps, hidden under reduced motion', () => {
+    const rect = { x: 10, y: 10, width: 50, height: 20 };
+    const { rerender } = render(<TourSpotlight rect={rect} pulse breathe />);
+    const ring = screen.getByTestId('tour-spotlight-breathe');
+    expect(ring.getAttribute('class')).toContain(
+      'motion-safe:animate-tour-breathe'
+    );
+    expect(ring.getAttribute('class')).toContain('motion-reduce:hidden');
+    expect(screen.queryByTestId('tour-spotlight-pulse')).toBeNull();
+    expect(
+      screen.getByTestId('tour-spotlight-ring').getAttribute('stroke-width')
+    ).toBe('3');
+
+    rerender(<TourSpotlight rect={rect} pulse />);
+    expect(screen.queryByTestId('tour-spotlight-breathe')).toBeNull();
+    expect(screen.getByTestId('tour-spotlight-pulse')).toBeTruthy();
+  });
 });

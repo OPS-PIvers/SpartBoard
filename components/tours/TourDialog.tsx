@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Z_INDEX } from '@/config/zIndex';
+import { chromeSurface } from '@/components/common/lightChrome';
 import { Sparty } from '@/components/sparty/Sparty';
 import type { SpartyPose } from '@/components/sparty/spartyFrames';
 
@@ -71,23 +72,17 @@ export const TourDialog: React.FC<Props> = ({
       className="fixed inset-0 flex items-center justify-center bg-slate-950/55 p-4"
       style={{ zIndex: Z_INDEX.tourCallout }}
     >
-      <div className="w-full max-w-sm rounded-2xl bg-slate-900/95 p-5 text-white shadow-2xl ring-1 ring-white/15 backdrop-blur-xl">
+      <div className={`w-full max-w-sm rounded-2xl p-5 ${chromeSurface}`}>
         <div className="flex items-start gap-3">
           {sparty && (
-            <Sparty
-              pose={sparty}
-              size={64}
-              decorative
-              onDark
-              className="shrink-0"
-            />
+            <Sparty pose={sparty} size={64} decorative className="shrink-0" />
           )}
           <div className="min-w-0">
             <h2 id="tour-dialog-title" className="text-base font-bold">
               {title}
             </h2>
             {body && (
-              <p className="mt-2 whitespace-pre-line text-sm text-slate-200">
+              <p className="mt-2 whitespace-pre-line text-sm text-slate-600">
                 {body}
               </p>
             )}

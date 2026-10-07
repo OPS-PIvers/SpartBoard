@@ -9,6 +9,8 @@ interface TourSpotlightProps {
   onMisclick?: () => void;
   /** Rings the cutout once, when it mounts. */
   pulse?: boolean;
+  /** Loops a ring off the cutout, for steps finished by clicking the target. */
+  breathe?: boolean;
 }
 
 const round = (n: number) => Math.round(n * 10) / 10;
@@ -68,6 +70,7 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
   radius = 10,
   onMisclick,
   pulse = false,
+  breathe = false,
 }) => {
   // Re-render on resize so the dim keeps covering the whole viewport.
   const [vw, vh] = useSyncExternalStore(onResize, viewportKey, noViewport)
@@ -82,6 +85,13 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
     const r = Math.min(radius, w / 2, h / 2);
     d += ` M${x + r},${y} H${x + w - r} A${r},${r} 0 0,1 ${x + w},${y + r} V${y + h - r} A${r},${r} 0 0,1 ${x + w - r},${y + h} H${x + r} A${r},${r} 0 0,1 ${x},${y + h - r} V${y + r} A${r},${r} 0 0,1 ${x + r},${y} Z`;
   }
+  const ringBox = rect && {
+    x: rect.x - padding,
+    y: rect.y - padding,
+    width: rect.width + padding * 2,
+    height: rect.height + padding * 2,
+    rx: radius,
+  };
   return (
     <>
       <svg
@@ -104,7 +114,7 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
           }
         />
       </svg>
-      {rect && (
+      {ringBox && (
         // The ring sits above a lifted dock so the target stays outlined.
         <svg
           aria-hidden="true"
@@ -115,26 +125,34 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
           height={vh}
         >
           <rect
-            data-testid="tour-spotlight-ring"
-            x={rect.x - padding}
-            y={rect.y - padding}
-            width={rect.width + padding * 2}
-            height={rect.height + padding * 2}
-            rx={radius}
-            className="fill-none stroke-white"
-            strokeWidth={2}
+            data-testid="tour-spotlight-glow"
+            {...ringBox}
+            className="fill-none stroke-white/20"
+            strokeWidth={10}
+            style={{ filter: 'drop-shadow(0 0 12px rgba(255,255,255,.45))' }}
           />
-          {pulse && (
+          <rect
+            data-testid="tour-spotlight-ring"
+            {...ringBox}
+            className="fill-none stroke-white"
+            strokeWidth={3}
+          />
+          {breathe ? (
             <rect
-              data-testid="tour-spotlight-pulse"
-              x={rect.x - padding}
-              y={rect.y - padding}
-              width={rect.width + padding * 2}
-              height={rect.height + padding * 2}
-              rx={radius}
-              className="fill-none stroke-white [transform-box:fill-box] [transform-origin:center] motion-safe:animate-tour-pulse motion-reduce:hidden"
+              data-testid="tour-spotlight-breathe"
+              {...ringBox}
+              className="fill-none stroke-white [transform-box:fill-box] [transform-origin:center] motion-safe:animate-tour-breathe motion-reduce:hidden"
               strokeWidth={3}
             />
+          ) : (
+            pulse && (
+              <rect
+                data-testid="tour-spotlight-pulse"
+                {...ringBox}
+                className="fill-none stroke-white [transform-box:fill-box] [transform-origin:center] motion-safe:animate-tour-pulse motion-reduce:hidden"
+                strokeWidth={3}
+              />
+            )
           )}
         </svg>
       )}

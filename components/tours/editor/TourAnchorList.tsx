@@ -9,6 +9,7 @@ import {
   type TourAnchorDef,
   type TourAnchorId,
 } from '@/config/tourAnchors';
+import { inputLight } from '@/components/common/lightChrome';
 import type { TourAnchorPick } from './pickAnchor';
 
 interface Props {
@@ -90,11 +91,11 @@ export const TourAnchorList: React.FC<Props> = ({ value, onPick }) => {
 
   return (
     <div
-      className="flex h-full min-h-0 flex-col text-white"
+      className="flex h-full min-h-0 flex-col text-slate-900"
       data-testid="tour-anchor-list"
       data-tour-ignore=""
     >
-      <label className="relative block border-b border-white/10 px-3 py-2">
+      <label className="relative block border-b border-slate-200 px-3 py-2">
         <span className="sr-only">{t('tourPicker.search')}</span>
         <Search
           className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
@@ -116,11 +117,11 @@ export const TourAnchorList: React.FC<Props> = ({ value, onPick }) => {
           aria-activedescendant={
             rows.length ? `${listId}-${activeIndex}` : undefined
           }
-          className="w-full rounded-lg bg-white/10 py-1.5 pl-8 pr-2 text-sm text-white placeholder:text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          className={`w-full rounded-lg py-1.5 pl-8 pr-2 text-sm ${inputLight}`}
         />
       </label>
       {rows.length === 0 ? (
-        <p className="px-4 py-6 text-sm text-slate-300">
+        <p className="px-4 py-6 text-sm text-slate-500">
           {t('tourPicker.noMatches')}
         </p>
       ) : (
@@ -140,25 +141,25 @@ export const TourAnchorList: React.FC<Props> = ({ value, onPick }) => {
                 aria-selected={selected}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => choose(row.id)}
-                className={`flex cursor-pointer items-center gap-2 border-b border-white/5 px-4 py-2 ${
-                  i === activeIndex ? 'bg-white/10' : ''
+                className={`flex cursor-pointer items-center gap-2 border-b border-slate-100 px-4 py-2 ${
+                  i === activeIndex ? 'bg-brand-blue-lighter' : ''
                 }`}
               >
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span
-                    className={`text-sm ${selected ? 'font-semibold text-white' : 'text-slate-200'}`}
+                    className={`text-sm ${selected ? 'font-semibold text-slate-900' : 'text-slate-600'}`}
                   >
                     {row.label}
                   </span>
                   {row.id !== WHOLE_BOARD_ANCHOR && (
-                    <span className="truncate font-mono text-xxs text-slate-300">
+                    <span className="truncate font-mono text-xxs text-slate-500">
                       {row.id}
                     </span>
                   )}
                 </span>
                 {selected && (
                   <Check
-                    className="h-4 w-4 shrink-0 text-white"
+                    className="h-4 w-4 shrink-0 text-brand-blue-primary"
                     aria-hidden="true"
                   />
                 )}

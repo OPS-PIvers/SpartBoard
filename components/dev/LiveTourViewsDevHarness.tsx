@@ -167,6 +167,7 @@ const EDIT_STEPS: GuidedLearningStep[] = [
     label: '',
     tour: { anchor: 'widget.toolbar', action: 'click' },
   },
+  { id: 'e7', label: '', tour: { anchor: '', action: 'click' } },
 ].map(
   (st) =>
     ({
@@ -484,7 +485,11 @@ export const LiveTourViewsDevHarness: React.FC = () => {
         </select>
       </label>
       {(!!rect || plainTip) && state !== 'edit-jumping' && (
-        <TourSpotlight rect={rect} pulse={state === 'drawer'} />
+        <TourSpotlight
+          rect={rect}
+          pulse={state === 'drawer'}
+          breathe={state === 'anchored' || state === 'blocked'}
+        />
       )}
       {isEdit && (
         <TourEditorPanel
@@ -543,15 +548,15 @@ export const LiveTourViewsDevHarness: React.FC = () => {
           {state === 'missing' ? (
             <>
               <TourMiniPlayer set={NO_SLIDES} step={MISSING_STEP} />
-              <p className="text-sm text-slate-200">
+              <p className="text-sm text-slate-600">
                 {t('tours.anchorMissingPreview')}
               </p>
             </>
           ) : state === 'edit-missing' ? (
-            <p className="text-sm text-slate-200">{t('tours.anchorMissing')}</p>
+            <p className="text-sm text-slate-600">{t('tours.anchorMissing')}</p>
           ) : (
             step.text && (
-              <p className="text-sm text-slate-100">{boldText(step.text)}</p>
+              <p className="text-sm text-slate-600">{boldText(step.text)}</p>
             )
           )}
         </TourTip>

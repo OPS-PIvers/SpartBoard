@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import type { GuidedLearningStep, WidgetType } from '@/types';
 import { Z_INDEX } from '@/config/zIndex';
+import { chromeSurface } from '@/components/common/lightChrome';
 import { useAuth } from '@/context/useAuth';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { useStorage } from '@/hooks/useStorage';
@@ -136,13 +137,16 @@ export const RecordFromHere: React.FC<Props> = ({
         role="status"
         data-tour-ignore=""
         data-testid="record-from-here-busy"
-        className="fixed left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-2xl bg-slate-900/90 px-4 py-2 text-sm font-semibold text-white shadow-2xl ring-1 ring-white/15 backdrop-blur-xl"
+        className={`fixed left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold ${chromeSurface}`}
         style={{
           zIndex: Z_INDEX.tour,
           top: 'calc(1rem + env(safe-area-inset-top, 0px))',
         }}
       >
-        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+        <Loader2
+          className="h-4 w-4 animate-spin text-brand-blue-primary"
+          aria-hidden="true"
+        />
         {busy}
       </div>,
       document.body

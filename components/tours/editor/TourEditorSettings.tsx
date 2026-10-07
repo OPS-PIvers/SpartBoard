@@ -26,6 +26,7 @@ import {
   primaryBtn,
   secondaryBtn,
 } from '@/components/tours/tourButtons';
+import { inputLight } from '@/components/common/lightChrome';
 import { isHelpCenterSet } from '@/components/widgets/GuidedLearning/utils/helpCenterSets';
 import { getTourEdit } from './tourEditStore';
 import type { TourEditorSession } from './useTourEditorSession';
@@ -44,13 +45,14 @@ const STATUS_ICON: Record<
   TourPublishStatus,
   { icon: typeof CheckCircle2; className: string }
 > = {
-  draft: { icon: PencilLine, className: 'text-slate-300' },
-  published: { icon: CheckCircle2, className: 'text-emerald-300' },
-  changed: { icon: AlertCircle, className: 'text-amber-300' },
+  draft: { icon: PencilLine, className: 'text-slate-500' },
+  published: { icon: CheckCircle2, className: 'text-emerald-600' },
+  changed: { icon: AlertCircle, className: 'text-amber-600' },
 };
 
-const sectionTitle = 'text-xs font-semibold text-slate-200';
-const checkbox = 'mt-0.5 h-4 w-4 shrink-0 rounded border-white/30 accent-white';
+const sectionTitle = 'text-xs font-semibold text-slate-700';
+const checkbox =
+  'mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-brand-blue-primary [color-scheme:light]';
 
 /** The editor's Settings tab: publishing, Help visibility and how the tour starts. */
 export const TourEditorSettings: React.FC<{ session: TourEditorSession }> = ({
@@ -66,7 +68,7 @@ export const TourEditorSettings: React.FC<{ session: TourEditorSession }> = ({
     session.updateSet({ tourSetup: next });
   };
   return (
-    <div className="flex flex-col divide-y divide-white/10">
+    <div className="flex flex-col divide-y divide-slate-200">
       <PublishSection session={session} />
       <SetupWidgets
         widgets={setup?.widgets ?? []}
@@ -124,7 +126,7 @@ const PublishSection: React.FC<{ session: TourEditorSession }> = ({
         <p
           role="status"
           data-status={status}
-          className="flex items-center gap-1.5 text-sm text-white"
+          className="flex items-center gap-1.5 text-sm text-slate-900"
         >
           <StatusIcon
             className={`h-4 w-4 shrink-0 ${iconClass}`}
@@ -134,7 +136,7 @@ const PublishSection: React.FC<{ session: TourEditorSession }> = ({
         </p>
       )}
       {tour && tour.publishedAt > 0 && (
-        <p className="text-xs text-slate-300">
+        <p className="text-xs text-slate-500">
           {t('glStudio.tourPublish.publishedAt', {
             when: new Date(tour.publishedAt).toLocaleString(i18n.language, {
               dateStyle: 'medium',
@@ -144,15 +146,18 @@ const PublishSection: React.FC<{ session: TourEditorSession }> = ({
         </p>
       )}
       {confirming ? (
-        <div role="alert" className="flex flex-col gap-2 text-xs text-white">
+        <div
+          role="alert"
+          className="flex flex-col gap-2 text-xs text-slate-900"
+        >
           <p className="flex items-start gap-1.5 font-semibold">
             <AlertTriangle
-              className="mt-px h-3.5 w-3.5 shrink-0 text-amber-300"
+              className="mt-px h-3.5 w-3.5 shrink-0 text-amber-600"
               aria-hidden="true"
             />
             {t('glStudio.tourPublish.brokenTitle', { count: broken.length })}
           </p>
-          <ul className="flex flex-col gap-0.5 pl-5 text-slate-200">
+          <ul className="flex flex-col gap-0.5 pl-5 text-slate-600">
             {broken.map(({ step, number, problem }) => (
               <li key={step.id} className="list-disc">
                 {t('glStudio.tourPublish.brokenStep', {
@@ -201,7 +206,10 @@ const PublishSection: React.FC<{ session: TourEditorSession }> = ({
         )
       )}
       {failed && (
-        <p role="alert" className="text-xs font-semibold text-red-300">
+        <p
+          role="alert"
+          className="text-xs font-semibold text-brand-red-primary"
+        >
           {t('glStudio.tourPublish.failed')}
         </p>
       )}
@@ -245,7 +253,7 @@ const SetupWidgets: React.FC<{
           {unique.map((type) => (
             <li
               key={type}
-              className="flex items-center justify-between gap-2 rounded-lg py-0.5 pl-1 text-sm text-slate-100 hover:bg-white/5"
+              className="flex items-center justify-between gap-2 rounded-lg py-0.5 pl-1 text-sm text-slate-700 hover:bg-slate-50"
             >
               <span className="truncate">{labelOf(type)}</span>
               <button
@@ -263,7 +271,7 @@ const SetupWidgets: React.FC<{
           ))}
         </ul>
       ) : (
-        <p className="text-xs text-slate-300">{t('glStudio.tourSetupNone')}</p>
+        <p className="text-xs text-slate-500">{t('glStudio.tourSetupNone')}</p>
       )}
       <select
         value=""
@@ -272,7 +280,7 @@ const SetupWidgets: React.FC<{
           const type = WIDGET_TYPES.find((w) => w === e.target.value);
           if (type) onChange([...unique, type]);
         }}
-        className="w-full rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-sm text-white [color-scheme:dark] focus:border-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+        className={`w-full rounded-lg px-2.5 py-1.5 text-sm ${inputLight}`}
       >
         <option value="">{t('glStudio.tourSetupAdd')}</option>
         {addable.map((type) => (
@@ -281,7 +289,7 @@ const SetupWidgets: React.FC<{
           </option>
         ))}
       </select>
-      <p className="text-xs text-slate-300">
+      <p className="text-xs text-slate-500">
         {layoutCount > 0
           ? t('glStudio.tourLayoutCount', { count: layoutCount })
           : t('glStudio.tourLayoutNone')}
@@ -304,7 +312,7 @@ const StartOptions: React.FC<{
       className="flex flex-col gap-3 pt-4"
     >
       <label
-        className="flex items-start gap-2 text-sm text-slate-100"
+        className="flex items-start gap-2 text-sm text-slate-700"
         title={t('glStudio.tourUseTeacherBoardHint')}
       >
         <input
@@ -317,7 +325,7 @@ const StartOptions: React.FC<{
         />
         {t('glStudio.tourUseTeacherBoard')}
       </label>
-      <label className="flex items-start gap-2 text-sm text-slate-100">
+      <label className="flex items-start gap-2 text-sm text-slate-700">
         <input
           type="checkbox"
           data-testid="tour-editor-autopilot"
