@@ -1038,6 +1038,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Team type defaults (TEAMS_REDESIGN T3): staff read them to lay out a team; admins edit.
+    match /admin_settings/team_type_defaults {
+      allow read: if signedIn() && notAnon();
+      allow write: if isAdmin();
+    }
+
     // Rollout switch for the "Review before assigning" mark on Claude-made
     // items — teachers read it to show the mark; admins turn it off.
     match /admin_settings/claude_review_reminders {
@@ -2336,6 +2342,26 @@ service cloud.firestore {
         && plcUpdatedAtOk();
     }
 
+    // Team layout map (TEAMS_REDESIGN T2): exactly pages, landing, cards and hero, with a known hero mode.
+    function plcLayoutShapeOk(l) {
+      return l is map
+        && l.keys().hasAll(['pages', 'landing', 'cards', 'hero'])
+        && l.keys().hasOnly(['pages', 'landing', 'cards', 'hero'])
+        && l.pages is list && l.pages.size() <= 20
+        && l.landing is string
+        && l.cards is list && l.cards.size() <= 30
+        && l.hero is map
+        && l.hero.get('mode', '') in ['default', 'pinned'];
+    }
+
+    // Lead or co-lead setting or clearing the team layout and nothing else.
+    function isUpdatingPlcLayout() {
+      return isPlcMembershipManager(resource.data)
+        && changedOnly(['layout', 'updatedAt'])
+        && (!('layout' in request.resource.data) || plcLayoutShapeOk(request.resource.data.layout))
+        && plcUpdatedAtOk();
+    }
+
     function isUpdatingPlcDigestOptIn() {
       return (request.auth.uid in resource.data.memberUids)
         && changedOnly(['digestOptIn', 'updatedAt'])
@@ -2735,7 +2761,7 @@ service cloud.firestore {
       // (orgId/buildingId) is immutable-after-set. The update branches are MUTUALLY
       // EXCLUSIVE, each a disjoint shape: broad sitting-lead update; isAcceptingPlcInvite;
       // isLeavingPlc; isTransferringPlcLead / isChangingMemberRole; isSettingPlcSharedSheetUrl
-      // / isUpdatingPlcFeatures / isUpdatingPlcDigestOptIn / isUpdatingPlcMeetingCadence;
+      // / isUpdatingPlcFeatures / isUpdatingPlcDigestOptIn / isUpdatingPlcMeetingCadence / isUpdatingPlcLayout;
       // isAdminManagingPlc (the only
       // non-member branch).
       // shorthands: off (PLC update OR chain runs close to the 1,000-expression limit)
@@ -2772,6 +2798,10 @@ service cloud.firestore {
         || isUpdatingPlcDigestOptIn()
         || isUpdatingPlcMeetingCadence()
         || isUpdatingPlcNormingLabels()
+        || (
+          request.resource.data.get('layout', null) != resource.data.get('layout', null)
+          && isUpdatingPlcLayout()
+        )
         || (
           request.resource.data.get('leadUid', '') != resource.data.get('leadUid', '')
           && isAdminManagingPlc()
