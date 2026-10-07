@@ -1,15 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MentoringWorkspace, Plc } from '@/types';
+import type { MentoringTask, MentoringWorkspace, Plc } from '@/types';
 import type { GoogleDriveService } from '@/utils/googleDriveService';
 import {
   BATCH_LIMIT,
   copyTemplateIntoWorkspaces,
   removePairing,
+  submitMentoringTask,
 } from './useMentoring';
 
 const fs = vi.hoisted(() => {
   const txUpdates: { path: string; data: Record<string, unknown> }[] = [];
-  const batches: { deletes: string[]; commit: ReturnType<typeof vi.fn> }[] = [];
+  const batches: {
+    deletes: string[];
+    sets: string[];
+    updates: Record<string, unknown>[];
+    commit: ReturnType<typeof vi.fn>;
+  }[] = [];
   const subcollections: Record<string, number> = {};
   const order: string[] = [];
   return { txUpdates, batches, subcollections, order };
@@ -39,6 +45,11 @@ vi.mock('firebase/firestore', () => {
     writeBatch: vi.fn(() => {
       const batch = {
         deletes: [] as string[],
+        sets: [] as string[],
+        updates: [] as Record<string, unknown>[],
+        set: (r: { path: string }) => batch.sets.push(r.path),
+        update: (_r: unknown, d: Record<string, unknown>) =>
+          batch.updates.push(d),
         commit: vi.fn(() => {
           fs.order.push('commit');
           return Promise.resolve();
@@ -262,5 +273,46 @@ describe('removePairing', () => {
     await removePairing('p', 'm_e');
     expect(fs.batches).toHaveLength(0);
     expect(fs.order).toEqual(['delete:plcs/p/workspaces/m_e']);
+  });
+});
+
+describe('submitMentoringTask', () => {
+  const both: MentoringTask = {
+    id: 't1',
+    title: 'Goals',
+    instructions: '',
+    dueDate: '2026-10-30',
+    submitter: 'both',
+    templateDoc: null,
+    createdBy: 'lead',
+    createdAt: 0,
+    updatedAt: 0,
+  };
+  const ws = (taskStatus: MentoringWorkspace['taskStatus']) => ({
+    ...workspace(0),
+    taskStatus,
+  });
+
+  it('lets the second partner hand in their own submission and mark', async () => {
+    await submitMentoringTask(
+      'p',
+      ws({ t1_e0: { submittedAt: 1, submittedBy: 'e0' } }),
+      both,
+      { uid: 'm0', displayName: 'M' }
+    );
+    const [batch] = fs.batches;
+    expect(batch.sets).toEqual(['plcs/p/workspaces/m0_e0/submissions/t1_m0']);
+    expect(Object.keys(batch.updates[0])).toContain('taskStatus.t1_m0');
+  });
+
+  it('does not re-mark a partner who already handed in', async () => {
+    await submitMentoringTask(
+      'p',
+      ws({ t1_m0: { submittedAt: 1, submittedBy: 'm0' } }),
+      both,
+      { uid: 'm0', displayName: 'M' }
+    );
+    expect(fs.batches[0].sets).toHaveLength(1);
+    expect(fs.batches[0].updates).toHaveLength(0);
   });
 });

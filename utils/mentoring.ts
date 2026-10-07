@@ -184,21 +184,65 @@ export type MentoringPairStatus =
   | { kind: 'late' }
   | { kind: 'notStarted' };
 
-export function pairTaskStatus(
-  task: Pick<MentoringTask, 'id' | 'dueDate'>,
-  workspace: Pick<MentoringWorkspace, 'taskStatus'>,
+type StatusTask = Pick<MentoringTask, 'id' | 'dueDate' | 'submitter'>;
+type StatusWorkspace = Pick<
+  MentoringWorkspace,
+  'taskStatus' | 'mentorUid' | 'menteeUid'
+>;
+
+/** Who must hand in this task for the pair. */
+export function requiredSubmitters(
+  task: Pick<MentoringTask, 'submitter'>,
+  ws: Pick<MentoringWorkspace, 'mentorUid' | 'menteeUid'>
+): string[] {
+  if (task.submitter === 'both') return [ws.mentorUid, ws.menteeUid];
+  return [task.submitter === 'mentor' ? ws.mentorUid : ws.menteeUid];
+}
+
+/** When `uid` handed in this task, or null. */
+export function submittedAtBy(
+  task: Pick<MentoringTask, 'id'>,
+  ws: Pick<MentoringWorkspace, 'taskStatus'>,
+  uid: string
+): number | null {
+  return ws.taskStatus[submissionIdFor(task.id, uid)]?.submittedAt ?? null;
+}
+
+function statusFor(
+  times: (number | null)[],
+  dueDate: string,
   now: number
 ): MentoringPairStatus {
-  const deadline = dueDeadline(task.dueDate);
-  const status = workspace.taskStatus[task.id];
-  if (status) {
-    const daysLate =
-      status.submittedAt > deadline
-        ? Math.ceil((status.submittedAt - deadline) / DAY_MS)
-        : 0;
-    return { kind: 'submitted', at: status.submittedAt, daysLate };
+  const deadline = dueDeadline(dueDate);
+  if (times.length && times.every((t) => t !== null)) {
+    const at = Math.max(...times);
+    const daysLate = at > deadline ? Math.ceil((at - deadline) / DAY_MS) : 0;
+    return { kind: 'submitted', at, daysLate };
   }
   return now >= deadline ? { kind: 'late' } : { kind: 'notStarted' };
+}
+
+/** The pair's status: submitted once everyone required has, late by the last of them. */
+export function pairTaskStatus(
+  task: StatusTask,
+  ws: StatusWorkspace,
+  now: number
+): MentoringPairStatus {
+  return statusFor(
+    requiredSubmitters(task, ws).map((uid) => submittedAtBy(task, ws, uid)),
+    task.dueDate,
+    now
+  );
+}
+
+/** One partner's own status, judged by their own submit time. */
+export function partnerTaskStatus(
+  task: StatusTask,
+  ws: StatusWorkspace,
+  uid: string,
+  now: number
+): MentoringPairStatus {
+  return statusFor([submittedAtBy(task, ws, uid)], task.dueDate, now);
 }
 
 export interface MentoringTaskSummary {
@@ -240,12 +284,25 @@ export function nextRequiredTask(
 ): MentoringTask | null {
   const sorted = sortTasksByDue(tasks);
   if (workspace) {
-    return sorted.find((t) => !workspace.taskStatus[t.id]) ?? null;
+    return (
+      sorted.find(
+        (t) => pairTaskStatus(t, workspace, now).kind !== 'submitted'
+      ) ?? null
+    );
   }
   const today = toDateKey(now);
   return (
     sorted.find((t) => t.dueDate >= today) ?? sorted[sorted.length - 1] ?? null
   );
+}
+
+/** Whether `uid` still owes this task: they hand it in and have not yet. */
+export function owesTask(
+  task: Pick<MentoringTask, 'id' | 'submitter'>,
+  ws: Pick<MentoringWorkspace, 'mentorUid' | 'menteeUid' | 'taskStatus'>,
+  uid: string
+): boolean {
+  return canSubmitTask(task, ws, uid) && submittedAtBy(task, ws, uid) === null;
 }
 
 /** Whether `uid` hands in this task for their pair. */

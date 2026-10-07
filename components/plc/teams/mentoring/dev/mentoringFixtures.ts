@@ -98,18 +98,18 @@ const docLink = (id: string, title: string, taskId?: string) => ({
 export const WORKSPACES: MentoringWorkspace[] = PAIRS.map(
   ([mentor, mentee], i) => {
     const taskStatus: MentoringWorkspace['taskStatus'] = {};
+    const mark = (taskId: string, name: string, submittedAt: number) => {
+      taskStatus[`${taskId}_${uidOf(name)}`] = {
+        submittedAt,
+        submittedBy: uidOf(name),
+      };
+    };
     if (i < 12) {
-      taskStatus.goal = {
-        submittedAt: i === 3 ? at(10, 2) : at(9, 24 + (i % 6)),
-        submittedBy: uidOf(mentee),
-      };
+      const goalAt = i === 3 ? at(10, 2) : at(9, 24 + (i % 6));
+      mark('goal', mentor, goalAt - 3_600_000);
+      mark('goal', mentee, goalAt);
     }
-    if (i < 3) {
-      taskStatus.obs = {
-        submittedAt: at(10, 3 + i),
-        submittedBy: uidOf(mentee),
-      };
-    }
+    if (i < 3) mark('obs', mentee, at(10, 3 + i));
     return {
       id: `${uidOf(mentor)}_${uidOf(mentee)}`,
       mentorUid: uidOf(mentor),
@@ -132,7 +132,10 @@ const MARCUS = uidOf('Marcus Lee');
 /** Dana and Marcus as the workspace and hub screens show them. */
 export const FIRST_PAIR: MentoringWorkspace = {
   ...WORKSPACES[0],
-  taskStatus: { goal: { submittedAt: at(9, 29), submittedBy: MARCUS } },
+  taskStatus: {
+    [`goal_${DANA}`]: { submittedAt: at(9, 29, 10), submittedBy: DANA },
+    [`goal_${MARCUS}`]: { submittedAt: at(9, 29), submittedBy: MARCUS },
+  },
   actionItems: [
     {
       id: 'a1',

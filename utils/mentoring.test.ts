@@ -7,6 +7,8 @@ import {
   httpsUrl,
   mentoringRoster,
   nextRequiredTask,
+  owesTask,
+  partnerTaskStatus,
   pairTaskStatus,
   parseMentoringSubmission,
   parseMentoringTask,
@@ -61,13 +63,15 @@ describe('pairTaskStatus', () => {
   });
 
   it('counts whole days late for a late submission', () => {
-    const late = ws({ goal: { submittedAt: at(10, 2, 15), submittedBy: 'e' } });
+    const late = ws({
+      goal_e: { submittedAt: at(10, 2, 15), submittedBy: 'e' },
+    });
     expect(pairTaskStatus(t, late, at(10, 7))).toEqual({
       kind: 'submitted',
       at: at(10, 2, 15),
       daysLate: 2,
     });
-    const onTime = ws({ goal: { submittedAt: at(9, 29), submittedBy: 'e' } });
+    const onTime = ws({ goal_e: { submittedAt: at(9, 29), submittedBy: 'e' } });
     expect(pairTaskStatus(t, onTime, at(10, 7))).toMatchObject({
       daysLate: 0,
     });
@@ -79,7 +83,11 @@ describe('summarizeTask', () => {
     const t = task('goal', '2026-09-30');
     const s = summarizeTask(
       t,
-      [ws({ goal: { submittedAt: at(9, 29), submittedBy: 'e' } }), ws(), ws()],
+      [
+        ws({ goal_e: { submittedAt: at(9, 29), submittedBy: 'e' } }),
+        ws(),
+        ws(),
+      ],
       at(10, 7)
     );
     expect(s).toMatchObject({ submitted: 1, late: 2, notStarted: 0, total: 3 });
@@ -94,7 +102,7 @@ describe('nextRequiredTask', () => {
   ];
 
   it('gives a pair its earliest unsubmitted task, overdue included', () => {
-    const done = ws({ goal: { submittedAt: at(9, 29), submittedBy: 'e' } });
+    const done = ws({ goal_e: { submittedAt: at(9, 29), submittedBy: 'e' } });
     expect(nextRequiredTask(tasks, at(10, 7), done)?.id).toBe('obs');
     expect(nextRequiredTask(tasks, at(10, 7), ws())?.id).toBe('goal');
   });
@@ -250,5 +258,48 @@ describe('drive links and submission ids', () => {
       'https://drive.google.com/file/d/b/view'
     );
     expect(submissionIdFor('t1', 'u1')).toBe('t1_u1');
+  });
+});
+
+describe('a task both partners submit', () => {
+  const t = task('goal', '2026-09-30', 'both');
+  const one = ws({ goal_e: { submittedAt: at(9, 29), submittedBy: 'e' } });
+  const both = ws({
+    goal_e: { submittedAt: at(9, 29), submittedBy: 'e' },
+    goal_m: { submittedAt: at(10, 3, 9), submittedBy: 'm' },
+  });
+
+  it('counts as submitted only once both have, late by the later one', () => {
+    expect(pairTaskStatus(t, one, at(9, 29, 20)).kind).toBe('notStarted');
+    expect(pairTaskStatus(t, one, at(10, 7)).kind).toBe('late');
+    expect(pairTaskStatus(t, both, at(10, 7))).toEqual({
+      kind: 'submitted',
+      at: at(10, 3, 9),
+      daysLate: 3,
+    });
+    expect(summarizeTask(t, [one, both], at(10, 7))).toMatchObject({
+      submitted: 1,
+      late: 1,
+    });
+  });
+
+  it('judges each partner by their own submit time', () => {
+    expect(partnerTaskStatus(t, both, 'e', at(10, 7))).toMatchObject({
+      kind: 'submitted',
+      daysLate: 0,
+    });
+    expect(partnerTaskStatus(t, both, 'm', at(10, 7))).toMatchObject({
+      kind: 'submitted',
+      daysLate: 3,
+    });
+    expect(partnerTaskStatus(t, one, 'm', at(10, 7)).kind).toBe('late');
+  });
+
+  it('leaves Submit open for the partner who has not handed in', () => {
+    expect(owesTask(t, one, 'e')).toBe(false);
+    expect(owesTask(t, one, 'm')).toBe(true);
+    expect(owesTask(t, both, 'm')).toBe(false);
+    expect(nextRequiredTask([t], at(10, 7), one)?.id).toBe('goal');
+    expect(nextRequiredTask([t], at(10, 7), both)).toBeNull();
   });
 });

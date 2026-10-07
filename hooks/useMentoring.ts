@@ -35,7 +35,9 @@ import { logError } from '@/utils/logError';
 import { sanitizeActionItemsForWrite } from '@/utils/plcActionItems';
 import {
   pairNames,
+  requiredSubmitters,
   submissionIdFor,
+  submittedAtBy,
   parseMentoringCheckIn,
   parseMentoringSubmission,
   parseMentoringTask,
@@ -400,9 +402,9 @@ export async function submitMentoringTask(
       ...(docUrl ? { docUrl } : {}),
     }
   );
-  if (!workspace.taskStatus[task.id]) {
+  if (!workspace.taskStatus[id]) {
     batch.update(wsRef(plcId, workspace.id), {
-      [`taskStatus.${task.id}`]: {
+      [`taskStatus.${id}`]: {
         submittedAt: serverTimestamp(),
         submittedBy: user.uid,
       },
@@ -412,13 +414,23 @@ export async function submitMentoringTask(
   await batch.commit();
 }
 
-/** The submission that marked the task done on this workspace. */
+/** The latest submission handed in for this task on this workspace. */
 export async function getMentoringSubmission(
   plcId: string,
-  workspace: Pick<MentoringWorkspace, 'id' | 'taskStatus'>,
-  taskId: string
+  workspace: Pick<
+    MentoringWorkspace,
+    'id' | 'taskStatus' | 'mentorUid' | 'menteeUid'
+  >,
+  task: Pick<MentoringTask, 'id' | 'submitter'>
 ): Promise<MentoringSubmission | null> {
-  const by = workspace.taskStatus[taskId]?.submittedBy;
+  const taskId = task.id;
+  const by = requiredSubmitters(task, workspace)
+    .filter((u) => submittedAtBy(task, workspace, u) !== null)
+    .sort(
+      (a, b) =>
+        (submittedAtBy(task, workspace, b) ?? 0) -
+        (submittedAtBy(task, workspace, a) ?? 0)
+    )[0];
   if (!by) return null;
   const snap = await getDoc(
     doc(

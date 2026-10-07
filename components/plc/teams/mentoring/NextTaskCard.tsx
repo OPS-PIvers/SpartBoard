@@ -8,7 +8,7 @@ import { useMentoringProgram } from './useMentoringProgram';
 export default function NextTaskCard({ plc, isLead }: TeamCardProps) {
   const data = useMentoringProgram(plc, isLead);
   if (isLead || data.loading || data.tasks.length === 0) return null;
-  const own = data.mine[0] ?? { taskStatus: {} };
+  const own = data.mine[0] ?? { taskStatus: {}, mentorUid: '', menteeUid: '' };
   return (
     <YourTasksView
       rows={data.tasks.map((task) => ({

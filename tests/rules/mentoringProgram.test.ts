@@ -588,7 +588,7 @@ describe('submissions', () => {
 
 describe('task status on the workspace', () => {
   const mark = (uid: string, at = 2) => ({
-    t1: { submittedAt: at, submittedBy: uid },
+    [`t1_${uid}`]: { submittedAt: at, submittedBy: uid },
   });
   const submitWithStatus = (uid: string, status = mark(uid)) => {
     const fs = as(uid);
@@ -611,6 +611,44 @@ describe('task status on the workspace', () => {
       updateDoc(doc(as(MENTOR), WS_PATH), {
         taskStatus: mark(MENTOR),
         updatedAt: 2,
+      })
+    );
+  });
+
+  it('lets the second partner submit and mark a task both submit', async () => {
+    await seedProgram();
+    await seed(TASK_PATH, task({ submitter: 'both' }));
+    await assertSucceeds(submitWithStatus(MENTEE));
+    await assertSucceeds(
+      submitWithStatus(MENTOR, { ...mark(MENTEE), ...mark(MENTOR) })
+    );
+  });
+
+  it('refuses a partner marking the other partner done', async () => {
+    await seedProgram();
+    await seed(TASK_PATH, task({ submitter: 'both' }));
+    await seed(subPath(MENTEE), submission(MENTEE));
+    await assertFails(
+      updateDoc(doc(as(MENTOR), WS_PATH), {
+        taskStatus: {
+          [`t1_${MENTEE}`]: { submittedAt: 2, submittedBy: MENTOR },
+        },
+        updatedAt: 2,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(as(MENTOR), WS_PATH), {
+        taskStatus: {
+          [`t1_${MENTEE}`]: { submittedAt: 2, submittedBy: MENTEE },
+        },
+        updatedAt: 2,
+      })
+    );
+    await seed(WS_PATH, { ...workspace(), taskStatus: mark(MENTEE) });
+    await assertFails(
+      updateDoc(doc(as(MENTOR), WS_PATH), {
+        taskStatus: mark(MENTEE, 5),
+        updatedAt: 3,
       })
     );
   });

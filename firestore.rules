@@ -3790,10 +3790,11 @@ service cloud.firestore {
         return added.size() == 0
           || (added.size() == 1 && added[0] is map && mentHttps(added[0].get('url', null)));
       }
-      // A pair member marks one task submitted only alongside their own submission doc.
+      // Keyed by submission id ({taskId}_{uid}): each partner marks only their own, alongside that submission.
       function mentStatusEntryOk(id, wsId, k, after) {
-        let sub = getAfter(/databases/$(database)/documents/plcs/$(id)/workspaces/$(wsId)/submissions/$(k + '_' + authUid())).data;
-        return k in after && after[k] is map
+        let sub = getAfter(/databases/$(database)/documents/plcs/$(id)/workspaces/$(wsId)/submissions/$(k)).data;
+        return k == sub.taskId + '_' + authUid()
+          && after[k] is map
           && after[k].keys().hasOnly(['submittedAt', 'submittedBy'])
           && after[k].submittedBy == authUid()
           && sub.submittedBy == authUid()

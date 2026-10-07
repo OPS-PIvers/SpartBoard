@@ -17,7 +17,7 @@ import { META, PAGE, Section } from '@/components/plc/redesignMockup/ui';
 import type { MentoringCheckIn, MentoringWorkspace, Plc } from '@/types';
 import { logError } from '@/utils/logError';
 import {
-  canSubmitTask,
+  owesTask,
   pairNames,
   pairTaskStatus,
   summarizeTask,
@@ -87,7 +87,11 @@ export const WorkspaceScreen: React.FC<
       : id === ws.menteeUid
         ? names.mentee
         : '';
-  const nextOpen = data.tasks.find((t) => !ws.taskStatus[t.id])?.id ?? null;
+  const nextOpen =
+    data.tasks.find((t) => canEdit && owesTask(t, ws, uid))?.id ??
+    data.tasks.find((t) => pairTaskStatus(t, ws, data.now).kind !== 'submitted')
+      ?.id ??
+    null;
   const taskDoc = (taskId: string) => ws.docs.find((d) => d.taskId === taskId);
   const ordered = [
     ...data.tasks.filter((t) => t.id === nextOpen),
@@ -108,11 +112,11 @@ export const WorkspaceScreen: React.FC<
   };
 
   const viewSubmission = async (taskId: string) => {
-    const sub = await getMentoringSubmission(plc.id, ws, taskId).catch(
-      () => null
-    );
-    const url = sub?.docUrl ?? taskDoc(taskId)?.url;
     const task = data.tasks.find((t) => t.id === taskId);
+    const sub = task
+      ? await getMentoringSubmission(plc.id, ws, task).catch(() => null)
+      : null;
+    const url = sub?.docUrl ?? taskDoc(taskId)?.url;
     if (url) setDialog({ kind: 'doc', title: task?.title ?? '', url });
   };
 
@@ -139,7 +143,7 @@ export const WorkspaceScreen: React.FC<
             status: label,
             submitted: status.kind === 'submitted',
             hasDoc: !!taskDoc(t.id),
-            canSubmit: t.id === nextOpen && canSubmitTask(t, ws, uid),
+            canSubmit: t.id === nextOpen && owesTask(t, ws, uid),
           };
         })}
         checkIns={checkIns.map((c) => ({
@@ -300,7 +304,7 @@ export const FacilitatorWorkspacesScreen: React.FC<{
   const openSubmission = async (workspaceId: string) => {
     const ws = data.workspaces.find((w) => w.id === workspaceId);
     if (!task || !ws) return;
-    const sub = await getMentoringSubmission(plc.id, ws, task.id).catch(
+    const sub = await getMentoringSubmission(plc.id, ws, task).catch(
       () => null
     );
     if (sub?.docUrl) setDoc({ title: task.title, url: sub.docUrl });

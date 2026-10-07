@@ -134,7 +134,11 @@ const Hub: React.FC<{ lead: boolean; onWorkspace: () => void }> = ({
             key="tasks"
             rows={data.tasks.map((t) => ({
               task: t,
-              status: pairTaskStatus(t, own ?? { taskStatus: {} }, data.now),
+              status: pairTaskStatus(
+                t,
+                own ?? { taskStatus: {}, mentorUid: '', menteeUid: '' },
+                data.now
+              ),
             }))}
           />
         ),
