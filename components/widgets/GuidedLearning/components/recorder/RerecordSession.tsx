@@ -10,7 +10,7 @@ import { TourRecorder } from './TourRecorder';
 import { FrameReview } from './FrameReview';
 import { buildNameMatcher } from './redaction';
 import type { TourRecording } from './useTourCapture';
-import { keepFrames, type StepRecapture } from './recordingHandoff';
+import { frameSize, keepFrames, type StepRecapture } from './recordingHandoff';
 
 interface RerecordSessionProps {
   target: StudioReturn;
@@ -59,7 +59,10 @@ export const RerecordSession: React.FC<RerecordSessionProps> = ({
       const file = new File([frame], 'tour-step.png', {
         type: frame.type || 'image/png',
       });
-      const prepared = await prepareImageForUpload(file);
+      const [prepared, size] = await Promise.all([
+        prepareImageForUpload(file),
+        frameSize(frame),
+      ]);
       // Recordings are district content, so they live on Storage.
       const uploaded = await uploadGuidedLearningImage(
         user.uid,
@@ -74,7 +77,10 @@ export const RerecordSession: React.FC<RerecordSessionProps> = ({
           ? { thumbnailUrl: uploaded.thumbnailUrl }
           : {}),
         placement: { xPct: step.xPct, yPct: step.yPct, region: step.region },
-        tour: step.tour,
+        tour: {
+          ...step.tour,
+          thumbnail: { url: uploaded.url, anchor: step.tour.anchor, ...size },
+        },
       });
     } catch (err) {
       // The reviewed frame stays, so Upload retries without recording again.

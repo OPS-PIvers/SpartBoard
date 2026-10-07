@@ -2,11 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GuidedLearningSet } from '@/types';
 import { renderStepText } from '@/components/widgets/GuidedLearning/utils/richText';
-
-const stepImage = (set: GuidedLearningSet, index: number): string | null => {
-  const url = set.imageUrls[index];
-  return url && set.imageKinds?.[index] !== 'video' ? url : null;
-};
+import { tourThumbnail } from '@/components/widgets/GuidedLearning/utils/liveTour';
 
 /** A tour read as numbered steps, for screens where it can't run live. */
 export const TourStepList: React.FC<{ set: GuidedLearningSet }> = ({ set }) => {
@@ -16,11 +12,12 @@ export const TourStepList: React.FC<{ set: GuidedLearningSet }> = ({ set }) => {
       <p className="text-sm text-slate-600">{t('tours.stepListNote')}</p>
       <ol className="flex flex-col gap-3">
         {set.steps.map((step, i) => {
-          // Consecutive steps on the same slide show it once.
-          const image =
-            i > 0 && set.steps[i - 1].imageIndex === step.imageIndex
-              ? null
-              : stepImage(set, step.imageIndex);
+          // Consecutive steps with the same picture show it once.
+          const image = tourThumbnail(step)?.url ?? null;
+          const shown =
+            image && (i === 0 || tourThumbnail(set.steps[i - 1])?.url !== image)
+              ? image
+              : null;
           return (
             <li
               key={step.id}
@@ -43,9 +40,9 @@ export const TourStepList: React.FC<{ set: GuidedLearningSet }> = ({ set }) => {
                     {renderStepText(step.text)}
                   </p>
                 )}
-                {image && (
+                {shown && (
                   <img
-                    src={image}
+                    src={shown}
                     alt=""
                     loading="lazy"
                     decoding="async"

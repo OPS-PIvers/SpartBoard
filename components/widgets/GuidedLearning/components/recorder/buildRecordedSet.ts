@@ -23,6 +23,32 @@ import {
 
 type BoardWidget = Pick<WidgetData, 'id' | 'type'>;
 
+/** An uploaded recording frame and its pixel size (0 when unknown). */
+export interface RecordedFrame {
+  url: string;
+  w: number;
+  h: number;
+  /** Storage path, listed in imagePaths so deleting the set cleans it up. */
+  storagePath?: string;
+}
+
+/** The binding with the frame it was recorded on as its picture. */
+const withThumbnail = (
+  tour: GuidedLearningTourBinding,
+  frame: RecordedFrame | undefined
+): GuidedLearningTourBinding =>
+  frame?.url && tour.anchor !== 'board.whole'
+    ? {
+        ...tour,
+        thumbnail: {
+          url: frame.url,
+          anchor: tour.anchor,
+          w: frame.w,
+          h: frame.h,
+        },
+      }
+    : tour;
+
 /** Widget type a dock or library tile click adds, if the step is one. */
 const addedTypeOf = (anchor: string): WidgetType | undefined => {
   const { id, widgetType } = parseTourAnchorRef(anchor);
@@ -54,10 +80,8 @@ export function touchedWidgetTypes(
 interface BuildOptions {
   id: string;
   title: string;
-  /** Uploaded slide URLs, one per recorded frame, in order. */
-  imageUrls: string[];
-  imagePaths?: string[];
-  slideThumbnails?: Record<string, string>;
+  /** Uploaded pictures, one per recorded frame, in order; each becomes its steps' thumbnail. */
+  frames: readonly RecordedFrame[];
   /** Every widget seen on the board during the recording. */
   widgets: readonly BoardWidget[];
   /** Ids of the widgets on the board when recording started. */
@@ -130,7 +154,7 @@ async function unmappedEntries(
   return { byStep, queue: [...queue.values()] };
 }
 
-/** A v3 building set from a recording (one slide per frame, one tooltip step per click), plus its unmapped-anchor queue entries. */
+/** A v3 building tour from a recording (one step per click, its frame as the thumbnail), plus its unmapped-anchor queue entries. */
 export async function buildRecordedSet(
   recording: Pick<TourRecording, 'steps'>,
   opts: BuildOptions
@@ -160,35 +184,38 @@ export async function buildRecordedSet(
     opts.id,
     opts.widgets
   );
+  const paths = opts.frames.flatMap((f) =>
+    f.storagePath ? [f.storagePath] : []
+  );
   const set: GuidedLearningSet = {
     id: opts.id,
     schemaVersion: 3,
     title: opts.title,
-    imageUrls: opts.imageUrls,
-    ...(opts.imagePaths?.length ? { imagePaths: opts.imagePaths } : {}),
-    ...(opts.slideThumbnails && Object.keys(opts.slideThumbnails).length > 0
-      ? { slideThumbnails: opts.slideThumbnails }
-      : {}),
+    // Tour steps play on the real board; slide fields stay at their defaults.
+    imageUrls: [],
+    ...(paths.length > 0 ? { imagePaths: paths } : {}),
     steps: recording.steps.map((s, i) => ({
       id: s.id,
-      xPct: s.xPct,
-      yPct: s.yPct,
-      imageIndex: s.frameIndex,
+      xPct: 50,
+      yPct: 50,
+      imageIndex: 0,
       label: '',
       interactionType: 'tooltip',
       showOverlay: 'tooltip',
-      region: s.region,
-      tour: withUnmapped(
-        recorded
-          ? bindWidget(
-              s.tour,
-              s.widgetId,
-              typeOf,
-              recorded.slotOf,
-              recorded.steps[i]
-            )
-          : s.tour,
-        byStep.get(s.id)
+      tour: withThumbnail(
+        withUnmapped(
+          recorded
+            ? bindWidget(
+                s.tour,
+                s.widgetId,
+                typeOf,
+                recorded.slotOf,
+                recorded.steps[i]
+              )
+            : s.tour,
+          byStep.get(s.id)
+        ),
+        opts.frames[s.frameIndex]
       ),
     })),
     mode: 'tour',

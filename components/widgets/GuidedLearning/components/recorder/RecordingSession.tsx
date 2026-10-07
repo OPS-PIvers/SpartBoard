@@ -16,7 +16,11 @@ import { buildNameMatcher, type NameMatcher } from './redaction';
 import { buildRecordedSet } from './buildRecordedSet';
 import { draftRecordedStepText } from './draftStepText';
 import type { TourRecording } from './useTourCapture';
-import { uploadFramesOnce, type UploadedFrame } from './recordingHandoff';
+import {
+  frameSize,
+  uploadFramesOnce,
+  type UploadedFrame,
+} from './recordingHandoff';
 import { boardLayoutOf, type RecordedBoardWidget } from './recordedLayouts';
 import type { UnmappedQueueEntry } from '@/components/tours/anchorQueue';
 import { enqueueUnmappedAnchors } from '@/components/tours/anchorQueueStore';
@@ -160,13 +164,12 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
         (current, total) =>
           setBusy(t('glRecorder.uploading', { current, total }))
       );
-      const imageUrls = results.map((r) => r.url);
-      const imagePaths = results.flatMap((r) =>
-        r.storagePath ? [r.storagePath] : []
-      );
-      const slideThumbnails: Record<string, string> = {};
-      for (const r of results)
-        if (r.thumbnailUrl) slideThumbnails[r.url] = r.thumbnailUrl;
+      const sizes = await Promise.all(frames.map(frameSize));
+      const recordedFrames = results.map((r, i) => ({
+        url: r.url,
+        ...sizes[i],
+        ...(r.storagePath ? { storagePath: r.storagePath } : {}),
+      }));
       if (canDraftText) setBusy(t('glRecorder.drafting'));
       const goal = title.trim();
       const drafted = canDraftText
@@ -178,9 +181,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
       const recorded = await buildRecordedSet(recording, {
         id: setId,
         title: goal || t('glRecorder.untitled'),
-        imageUrls,
-        imagePaths,
-        slideThumbnails,
+        frames: recordedFrames,
         // Widgets opened mid-recording still resolve to a type.
         widgets: [...widgets, ...(dashboard?.activeDashboard?.widgets ?? [])],
         startIds: new Set(widgets.map((w) => w.id)),

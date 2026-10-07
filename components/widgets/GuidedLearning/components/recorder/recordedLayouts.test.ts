@@ -122,7 +122,7 @@ describe('buildRecordedSet layouts', () => {
       {
         id: 'set',
         title: 'T',
-        imageUrls: ['u'],
+        frames: [{ url: 'u', w: 0, h: 0 }],
         widgets: [
           { id: 't1', type: 'time-tool' },
           { id: 't2', type: 'time-tool' },
@@ -146,7 +146,7 @@ describe('buildRecordedSet layouts', () => {
       {
         id: 'set',
         title: 'T',
-        imageUrls: ['u'],
+        frames: [{ url: 'u', w: 0, h: 0 }],
         widgets: [],
         startIds: new Set(),
       }
