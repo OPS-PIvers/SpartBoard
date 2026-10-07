@@ -51,3 +51,50 @@ describe('buildNoteGoogleDocHtml', () => {
     expect(html).not.toContain('<ul>');
   });
 });
+
+describe('buildNoteGoogleDocHtml with note blocks', () => {
+  it('writes each block under its section, and orphans after the last one', () => {
+    const html = buildNoteGoogleDocHtml({
+      title: 'Week 7',
+      subtitle: '',
+      body: 'Intro\n\n## Data\n\n## Decisions\nWe talked.\n',
+      actionItems: [],
+      members,
+      labels: { ...labels, decision: 'Decision' },
+      blocks: [
+        { section: '', kind: 'agenda', text: 'Review <CFA>', who: 'Jess' },
+        { section: 'Data', kind: 'data', title: 'Unit 3 CFA' },
+        {
+          section: 'Decisions',
+          kind: 'decision',
+          text: 'Reteach Friday',
+          meta: ['Open', 'Revisit Oct 9'],
+        },
+        { section: 'Gone', kind: 'data', title: 'Orphan quiz' },
+      ],
+    });
+    const at = (s: string) => html.indexOf(s);
+    expect(html).toContain('<li>Review &lt;CFA&gt; (Jess)</li>');
+    expect(html).toContain('<b>Decision · Open · Revisit Oct 9</b>');
+    expect(at('Intro')).toBeLessThan(at('Review &lt;CFA&gt;'));
+    expect(at('Review &lt;CFA&gt;')).toBeLessThan(at('<h2>Data</h2>'));
+    expect(at('<h2>Data</h2>')).toBeLessThan(at('Unit 3 CFA'));
+    expect(at('Unit 3 CFA')).toBeLessThan(at('<h2>Decisions</h2>'));
+    expect(at('We talked.')).toBeLessThan(at('Reteach Friday'));
+    expect(at('Reteach Friday')).toBeLessThan(at('Orphan quiz'));
+  });
+
+  it('leaves the body untouched when there are no blocks', () => {
+    const input = {
+      title: 'T',
+      subtitle: '',
+      body: '## A\ntext\n',
+      actionItems: [],
+      members,
+      labels,
+    };
+    expect(buildNoteGoogleDocHtml({ ...input, blocks: [] })).toBe(
+      buildNoteGoogleDocHtml(input)
+    );
+  });
+});

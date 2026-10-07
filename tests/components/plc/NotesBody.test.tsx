@@ -1,7 +1,13 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Plc, PlcActionItem, PlcDoc, PlcNote } from '@/types';
+import type {
+  Plc,
+  PlcActionItem,
+  PlcDoc,
+  PlcNote,
+  PlcNoteBlock,
+} from '@/types';
 import { NotesBody } from '@/components/plc/bodies/NotesBody';
 
 vi.mock('react-i18next', () => ({
@@ -85,6 +91,22 @@ vi.mock('@/hooks/usePlcRecordings', () => ({
     loading: false,
     deleteAudio: vi.fn(),
   }),
+}));
+
+const liveHooks = vi.hoisted(() => ({
+  assessments: vi.fn((_id: string | null) => ({
+    assessments: [{ id: 'a1', title: 'Unit 3 CFA' }],
+  })),
+  aggregates: vi.fn((_id: string | null) => ({ aggregates: [] })),
+}));
+vi.mock('@/hooks/usePlcAssessments', () => ({
+  usePlcAssessments: liveHooks.assessments,
+}));
+vi.mock('@/hooks/usePlcAggregate', () => ({
+  usePlcAggregate: liveHooks.aggregates,
+}));
+vi.mock('@/hooks/useLearningTargets', () => ({
+  usePlcLearningTargets: () => ({ list: null }),
 }));
 
 vi.mock('@/context/usePlcContext', () => ({
@@ -593,6 +615,85 @@ describe('NotesBody with notes and docs in one list', () => {
       'https://docs.google.com/document/d/made/edit'
     );
     expect(tab.opener).toBeNull();
+    openSpy.mockRestore();
+  });
+});
+
+describe('NotesBody with blocks from the Teams redesign', () => {
+  const blocks: PlcNoteBlock[] = [
+    {
+      id: 'b1',
+      kind: 'decision',
+      section: 'Decisions',
+      text: 'Reteach fractions Friday',
+      status: 'open',
+      createdBy: 'them',
+      createdAt: 0,
+    },
+    {
+      id: 'b2',
+      kind: 'agenda',
+      section: '',
+      text: 'Review CFA',
+      createdBy: 'them',
+      createdAt: 0,
+    },
+    {
+      id: 'b3',
+      kind: 'data',
+      section: 'Data',
+      assessmentId: 'a1',
+      createdBy: 'them',
+      createdAt: 0,
+    },
+  ];
+
+  it('shows decision, agenda and data blocks read-only under the body', () => {
+    notes = [
+      {
+        ...noteAt('## Data\n\n## Decisions\nnotes', 1000, 1),
+        blocks,
+      },
+    ];
+    render(<NotesBody plc={plc} />);
+    expect(screen.getByText('Reteach fractions Friday')).toBeTruthy();
+    expect(screen.getByText('Review CFA')).toBeTruthy();
+    expect(screen.getByText('Unit 3 CFA')).toBeTruthy();
+    expect(screen.queryByLabelText('Remove block')).toBeNull();
+    expect(liveHooks.assessments).toHaveBeenLastCalledWith('plc1');
+  });
+
+  it('loads no team data for a note without blocks', () => {
+    liveHooks.assessments.mockClear();
+    render(<NotesBody plc={plc} />);
+    expect(screen.queryByTestId('note-blocks')).toBeNull();
+    expect(liveHooks.assessments).toHaveBeenLastCalledWith(null);
+  });
+
+  it('passes the blocks to Open in Docs', async () => {
+    unifiedAccess = true;
+    notes = [{ ...noteAt('## Decisions\n', 1000, 1), blocks }];
+    const tab = { opener: {}, location: { href: '' }, close: vi.fn() };
+    const openSpy = vi
+      .spyOn(window, 'open')
+      .mockReturnValue(tab as unknown as Window);
+    render(<NotesBody plc={plc} />);
+    fireEvent.click(screen.getByText('Open in Docs'));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(getOrCreateDocUrlMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'n1' }),
+      expect.objectContaining({
+        blocks: expect.arrayContaining([
+          expect.objectContaining({
+            kind: 'decision',
+            text: 'Reteach fractions Friday',
+          }),
+          expect.objectContaining({ kind: 'data', title: 'Unit 3 CFA' }),
+        ]),
+      })
+    );
     openSpy.mockRestore();
   });
 });
