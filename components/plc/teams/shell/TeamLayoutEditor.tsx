@@ -24,9 +24,18 @@ export const TeamLayoutEditor: React.FC<{
   plc: Plc;
   layout: ResolvedTeamLayout;
   adminDefaults: TeamTypeDefaults | null;
+  /** The admin defaults read failed, so there is no district default to reset to. */
+  defaultsFailed?: boolean;
   isLead: boolean;
   onClose: () => void;
-}> = ({ plc, layout, adminDefaults, isLead, onClose }) => {
+}> = ({
+  plc,
+  layout,
+  adminDefaults,
+  defaultsFailed = false,
+  isLead,
+  onClose,
+}) => {
   const { t } = useTranslation();
   const { addToast } = useDashboard();
   const { user } = useAuth();
@@ -87,8 +96,8 @@ export const TeamLayoutEditor: React.FC<{
   }, [assessments, targetList, goals, docs, notes, t]);
 
   const districtDefault = useMemo(
-    () => districtDefaultLayout(plc, adminDefaults),
-    [plc, adminDefaults]
+    () => (defaultsFailed ? null : districtDefaultLayout(plc, adminDefaults)),
+    [plc, adminDefaults, defaultsFailed]
   );
 
   const handleSave = (next: PlcTeamLayout) => {

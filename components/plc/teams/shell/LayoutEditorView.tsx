@@ -43,8 +43,8 @@ export interface LayoutEditorViewProps {
   groupType: PlcGroupType;
   layout: PlcTeamLayout;
   heroRule: TeamHeroRule;
-  /** The district default the Reset button restores. */
-  districtDefault: PlcTeamLayout;
+  /** What Reset restores; null when the admin defaults couldn't be read, which hides Reset. */
+  districtDefault: PlcTeamLayout | null;
   pinGroups: HeroPinGroup[];
   /** Newer data than the item being pinned, if any. */
   newerFor?: (ref: TeamHeroRef) => NewerHeroData | null;
@@ -118,7 +118,9 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
       <Button
         variant="danger"
         onClick={() => {
-          setDraft(draftFromLayout(districtDefault, groupType));
+          if (districtDefault) {
+            setDraft(draftFromLayout(districtDefault, groupType));
+          }
           setConfirmReset(false);
         }}
       >
@@ -127,15 +129,17 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
     </div>
   ) : (
     <div className="flex items-center gap-2">
-      <Button
-        variant="ghost"
-        icon={<RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />}
-        onClick={() => setConfirmReset(true)}
-      >
-        {t('teams.layout.resetToDefault', {
-          defaultValue: 'Reset to district default',
-        })}
-      </Button>
+      {districtDefault && (
+        <Button
+          variant="ghost"
+          icon={<RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />}
+          onClick={() => setConfirmReset(true)}
+        >
+          {t('teams.layout.resetToDefault', {
+            defaultValue: 'Reset to district default',
+          })}
+        </Button>
+      )}
       <span className="flex-1" />
       <Button variant="secondary" onClick={onClose}>
         {t('common.cancel', { defaultValue: 'Cancel' })}

@@ -475,6 +475,7 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
             plc={plc}
             layout={layout}
             adminDefaults={adminDefaults}
+            defaultsFailed={defaultsFailed}
             isLead={isLead}
             onClose={() => setEditorOpen(false)}
           />
