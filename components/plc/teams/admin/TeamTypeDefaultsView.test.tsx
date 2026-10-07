@@ -74,7 +74,7 @@ describe('TeamTypeDefaultsView', () => {
 
   it('offers the mock hero rules per type and saves the pick', async () => {
     const onSave = setup();
-    const hero = screen.getByLabelText('Hero default');
+    const hero = screen.getByLabelText<HTMLSelectElement>('Hero default');
     expect(optionTexts(hero)).toEqual([
       'Latest common assessment',
       'Team goal',
@@ -86,7 +86,7 @@ describe('TeamTypeDefaultsView', () => {
     expect(onSave.mock.calls[0][1].heroRule).toBe('lowestTarget');
 
     fireEvent.click(screen.getByRole('tab', { name: 'Department' }));
-    const dept = screen.getByLabelText('Hero default');
+    const dept = screen.getByLabelText<HTMLSelectElement>('Hero default');
     expect(optionTexts(dept)).toEqual([
       'Next meeting note until a doc is pinned',
       'Newest doc',
