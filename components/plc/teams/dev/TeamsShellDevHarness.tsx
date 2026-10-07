@@ -1,6 +1,7 @@
 // Team shell views on the mockup's fixtures at /teams-shell-dev (auth-bypass builds only), for side-by-side screenshots.
 
 import React, { useMemo, useState } from 'react';
+import { Target } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type {
   Plc,
@@ -15,6 +16,7 @@ import {
   type DashboardContextValue,
 } from '@/context/DashboardContextValue';
 import { PlcSettingsTab } from '@/components/plc/tabs/PlcSettingsTab';
+import { PlcLearningTargetsBody } from '@/components/plc/bodies/PlcLearningTargetsBody';
 import { BUILT_IN_TEAM_TYPE_PRESETS } from '@/config/teamTypePresets';
 import { splitSinceYouWereHere } from '@/components/plc/activity/activityDescriptions';
 import { PlcDataOverviewMock } from '@/components/plc/redesignMockup/PlcDataOverviewMock';
@@ -35,6 +37,7 @@ import { selectNewerHeroData } from '@/components/plc/teams/heroes/heroStaleness
 import {
   TeamShellView,
   type TeamOverlay,
+  type TeamRailItem,
 } from '@/components/plc/teams/shell/TeamShellView';
 import {
   GearMenuView,
@@ -59,6 +62,7 @@ const SCREENS = [
   'members',
   'layout',
   'settings',
+  'targets',
 ] as const;
 type Screen = (typeof SCREENS)[number];
 
@@ -207,13 +211,23 @@ export const TeamsShellDevHarness: React.FC = () => {
     screen === 'settings'
       ? BUILT_IN_TEAM_TYPE_PRESETS[settingsType].pages
       : LAYOUT.pages;
-  const pages = pagesSource
+  const pages: TeamRailItem[] = pagesSource
     .filter((p) => p.enabled)
     .map((p) => ({
       id: p.id,
       label: teamPageLabel(t, p.id, lead),
       icon: TEAM_PAGE_REGISTRY[p.id].icon,
     }));
+  if (screen !== 'settings') {
+    const after = pages.findIndex((p) => p.id === 'assessments');
+    pages.splice(after + 1, 0, {
+      id: 'targets',
+      label: t('plcDashboard.tabs.targets', {
+        defaultValue: 'Learning Targets',
+      }),
+      icon: Target,
+    });
+  }
   const newerFor = useMemo(
     () => (ref: TeamHeroRef) =>
       selectNewerHeroData(ref, AGGREGATES, ASSESSMENTS),
@@ -262,13 +276,24 @@ export const TeamsShellDevHarness: React.FC = () => {
           roleLabel={lead ? 'Lead' : null}
           pages={pages}
           activePage={
-            screen === 'settings' ? null : ('dataOverview' satisfies TeamPageId)
+            screen === 'settings'
+              ? null
+              : screen === 'targets'
+                ? 'targets'
+                : ('dataOverview' satisfies TeamPageId)
+          }
+          activeLabel={
+            screen === 'targets'
+              ? t('plcDashboard.tabs.targets', {
+                  defaultValue: 'Learning Targets',
+                })
+              : undefined
           }
           overlay={overlay}
           onOverlay={(next) =>
             setScreen(next && next !== 'search' ? next : 'plc')
           }
-          onPage={() => setScreen('plc')}
+          onPage={(id) => setScreen(id === 'targets' ? 'targets' : 'plc')}
           onClose={() => undefined}
           panelId="dataOverview"
           banner={
@@ -300,11 +325,15 @@ export const TeamsShellDevHarness: React.FC = () => {
             ) : null
           }
         >
-          {screen === 'settings' ? (
+          {screen === 'settings' || screen === 'targets' ? (
             <AuthContext.Provider value={HARNESS_AUTH}>
               <DashboardContext.Provider value={HARNESS_DASHBOARD}>
                 <div className="p-4 pb-8 md:p-6">
-                  <PlcSettingsTab plc={settingsPlc} />
+                  {screen === 'targets' ? (
+                    <PlcLearningTargetsBody plc={settingsPlc} />
+                  ) : (
+                    <PlcSettingsTab plc={settingsPlc} />
+                  )}
                 </div>
               </DashboardContext.Provider>
             </AuthContext.Provider>

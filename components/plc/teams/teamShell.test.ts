@@ -52,6 +52,13 @@ describe('resolveTeamRoute', () => {
     expect(resolveTeamRoute('targets', plcLayout).canonical).toBe('home');
   });
 
+  it('opens Learning Targets outside the layout when the team has assessments', () => {
+    expect(resolveTeamRoute('targets', plcLayout, { targets: true })).toEqual({
+      route: { kind: 'section', section: 'targets' },
+      canonical: 'targets',
+    });
+  });
+
   it('keeps gear-menu sections off the rail', () => {
     expect(resolveTeamRoute('members', plcLayout).route).toEqual({
       kind: 'section',

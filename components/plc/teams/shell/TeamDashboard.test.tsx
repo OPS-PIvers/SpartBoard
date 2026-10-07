@@ -57,6 +57,9 @@ vi.mock('@/components/plc/search/PlcSearchBox', () => ({
 vi.mock('@/components/plc/bodies/MembersBody', () => ({
   MembersBody: () => null,
 }));
+vi.mock('@/components/plc/bodies/PlcLearningTargetsBody', () => ({
+  PlcLearningTargetsBody: () => <div data-testid="targets-body" />,
+}));
 vi.mock('@/components/plc/tabs/PlcSettingsTab', () => ({
   PlcSettingsTab: () => null,
 }));
@@ -136,6 +139,40 @@ beforeEach(() => {
 });
 
 describe('TeamDashboard', () => {
+  it('opens Learning Targets at its deep link', () => {
+    render(<TeamDashboard plc={plc()} activeSection="targets" {...props} />);
+    expect(screen.getByTestId('targets-body')).toBeTruthy();
+    expect(mocks.spaReplace).not.toHaveBeenCalled();
+  });
+
+  it('lists Learning Targets on the rail after Assessments', () => {
+    mocks.spaNavigate.mockClear();
+    render(<TeamDashboard plc={plc()} activeSection="home" {...props} />);
+    const tabs = screen.getAllByRole('tab');
+    const at = tabs.findIndex((tab) =>
+      tab.textContent?.includes('Learning Targets')
+    );
+    expect(tabs[at - 1].textContent).toContain('Assessments');
+    fireEvent.click(tabs[at]);
+    expect(mocks.spaNavigate).toHaveBeenCalledWith('/plc/p1/targets');
+  });
+
+  it('sends targets home on a team without quizzes or videos', () => {
+    render(
+      <TeamDashboard
+        plc={
+          {
+            ...plc(),
+            features: { quizzes: false, videoActivities: false },
+          } as Plc
+        }
+        activeSection="targets"
+        {...props}
+      />
+    );
+    expect(mocks.spaReplace).toHaveBeenCalledWith('/plc/p1');
+  });
+
   it('redirects a folded section to its canonical page', () => {
     render(
       <TeamDashboard plc={plc()} activeSection="sharedBoards" {...props} />

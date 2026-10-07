@@ -27,6 +27,8 @@ export interface DataOverviewViewProps {
   goal: React.ReactNode;
   strip: MeetingStripProps;
   onManageTargets: () => void;
+  /** Opens the question-tag view; defaults to onManageTargets. */
+  onTagQuestions?: () => void;
   onOpenAssessment: (assessmentId: string) => void;
   onAllAssessments: () => void;
 }
@@ -45,6 +47,7 @@ export const DataOverviewView: React.FC<DataOverviewViewProps> = ({
   goal,
   strip,
   onManageTargets,
+  onTagQuestions,
   onOpenAssessment,
   onAllAssessments,
 }) => {
@@ -136,7 +139,7 @@ export const DataOverviewView: React.FC<DataOverviewViewProps> = ({
             defaultValue: 'Learning targets',
           })}
         >
-          <TagPrompt onTag={onManageTargets} />
+          <TagPrompt onTag={onTagQuestions ?? onManageTargets} />
         </Section>
       )}
 
