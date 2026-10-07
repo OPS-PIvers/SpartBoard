@@ -37,7 +37,10 @@ export type PlcSectionId =
   | 'sharedBoards'
   | 'members'
   | 'resources'
-  | 'settings';
+  | 'settings'
+  // Teams redesign pages (TEAMS_REDESIGN T27, T31); never legacy rail items.
+  | 'updates'
+  | 'workspace';
 
 /**
  * Legacy section ids the router still ACCEPTS (so historic deep links don't
@@ -88,6 +91,8 @@ export const PLC_ROUTE_SECTIONS: ReadonlySet<PlcRouteSection> =
     'members',
     'resources',
     'settings',
+    'updates',
+    'workspace',
     // Aliases (router-accepted, rewritten to a canonical id):
     'quizzes',
     'videoActivities',

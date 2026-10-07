@@ -31,6 +31,10 @@ interface PlcResourcesBodyProps {
   plc: Plc;
   /** Navigate the dashboard rail to another section (deep-link "Use" path). */
   onNavigate?: (id: PlcSectionId) => void;
+  /** Team Resources page: only the admin list, no header, links or empty state. */
+  embedded?: boolean;
+  /** Kinds to show; all when absent. */
+  kinds?: readonly PlcResourceKind[];
 }
 
 const KIND_META: Record<
@@ -100,12 +104,23 @@ const DEEP_LINK_TARGET: Partial<Record<PlcResourceKind, PlcSectionId>> = {
 export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
   plc,
   onNavigate,
+  embedded = false,
+  kinds,
 }) => {
   const { t } = useTranslation();
   const { user, canAccessFeature } = useAuth();
   const groupWording = canAccessFeature('my-groups');
   const { addToast } = useDashboard();
-  const { resources, loading, error } = usePlcResources({ plcId: plc.id });
+  const {
+    resources: allResources,
+    loading,
+    error,
+  } = usePlcResources({
+    plcId: plc.id,
+  });
+  const resources = kinds
+    ? allResources.filter((r) => kinds.includes(r.kind))
+    : allResources;
   const { createDoc } = usePlcDocs(plc.id);
 
   // Track per-resource "use" pending / done / error state.
@@ -233,6 +248,8 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
     );
   }
 
+  if (embedded && resources.length === 0) return null;
+
   if (resources.length === 0 && !groupWording) {
     return (
       <ScaledEmptyState
@@ -258,22 +275,24 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-bold text-slate-800">
-          {t('plcDashboard.resources.inboxTitle', {
-            defaultValue: 'Resources',
-          })}
-        </h2>
-        {!groupWording && (
-          <p className="text-sm text-slate-500 mt-0.5">
-            {t('plcDashboard.resources.inboxSubtitle', {
-              defaultValue: 'From your admin.',
+      {!embedded && (
+        <div>
+          <h2 className="text-lg font-bold text-slate-800">
+            {t('plcDashboard.resources.inboxTitle', {
+              defaultValue: 'Resources',
             })}
-          </p>
-        )}
-      </div>
+          </h2>
+          {!groupWording && (
+            <p className="text-sm text-slate-500 mt-0.5">
+              {t('plcDashboard.resources.inboxSubtitle', {
+                defaultValue: 'From your admin.',
+              })}
+            </p>
+          )}
+        </div>
+      )}
 
-      {groupWording && <PlcGroupLinks plc={plc} />}
+      {groupWording && !embedded && <PlcGroupLinks plc={plc} />}
       {groupWording && resources.length > 0 && (
         <h3 className="text-base font-bold text-slate-800 pt-2">
           {t('plcDashboard.resources.groupFromAdmin', {
