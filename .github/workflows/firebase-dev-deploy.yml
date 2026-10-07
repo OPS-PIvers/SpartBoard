@@ -37,18 +37,23 @@ env:
   DEV_DEPLOY_SA: github-deploy@spartboard-dev.iam.gserviceaccount.com
 
 jobs:
-  # The app ESLint pass (type-aware, ~3.5 min), the functions ESLint pass and
-  # Prettier each get their own runner instead of running back to back.
+  # The app ESLint pass (type-aware, ~8 min unsplit) runs as 3 size-balanced shards; the functions
+  # ESLint pass and Prettier each get their own runner too.
   lint:
     runs-on: ubuntu-24.04
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-lint-${{ matrix.check }}
+      group: ${{ github.workflow }}-${{ github.ref }}-lint-${{ matrix.check }}${{ matrix.shard }}
       cancel-in-progress: true
-    name: lint (${{ matrix.check }})
+    name: lint (${{ matrix.check }}${{ matrix.shard && format(' {0}/3', matrix.shard) || '' }})
     strategy:
       fail-fast: false
       matrix:
-        check: [app, functions, format]
+        include:
+          - { check: app, shard: 1 }
+          - { check: app, shard: 2 }
+          - { check: app, shard: 3 }
+          - { check: functions }
+          - { check: format }
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
@@ -58,7 +63,7 @@ jobs:
       # program would hit an unraised limit and get OOM-killed — see
       # tests/ci.eslintConcurrencyMemory.test.ts.
       - if: matrix.check == 'app'
-        run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app
+        run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app --shard=${{ matrix.shard }}/3
       - if: matrix.check == 'functions'
         run: pnpm run lint:functions
       - if: matrix.check == 'format'
