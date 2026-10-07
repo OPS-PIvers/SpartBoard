@@ -1,13 +1,14 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ArtsLettersAgendaWidget } from './Widget';
-import { useDashboard } from '@/context/useDashboard';
-import type { DashboardContextValue } from '@/context/DashboardContextValue';
 import type { ArtsLettersAgendaConfig, WidgetData } from '@/types';
 
-vi.mock('@/context/useDashboard');
-
 const mockUpdateWidget = vi.fn();
+
+vi.mock('@/context/dashboardCanvasStore', () => ({
+  useDashboardActions: () => ({ updateWidget: mockUpdateWidget }),
+  useGlobalStyle: () => ({ fontFamily: 'sans' }),
+}));
 
 const makeWidget = (config: ArtsLettersAgendaConfig = {}): WidgetData => ({
   id: 'agenda-1',
@@ -27,10 +28,6 @@ const renderWidget = (config: ArtsLettersAgendaConfig = {}) =>
 describe('ArtsLettersAgendaWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useDashboard).mockReturnValue({
-      updateWidget: mockUpdateWidget,
-      activeDashboard: null,
-    } as unknown as DashboardContextValue);
   });
 
   it('always shows Launch, Learn and Land in order', () => {
@@ -60,7 +57,7 @@ describe('ArtsLettersAgendaWidget', () => {
 
   it('checks a part off from its name and unchecks it again', () => {
     renderWidget({ completed: { learn: true } });
-    fireEvent.click(screen.getByRole('button', { name: 'Learn' }));
+    fireEvent.click(screen.getByText('Learn'));
     expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
       config: { completed: { learn: false } },
     });
@@ -74,15 +71,9 @@ describe('ArtsLettersAgendaWidget', () => {
     expect(
       screen.getByRole('checkbox', { name: 'Launch done' })
     ).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('button', { name: 'Launch' })).toHaveStyle({
-      textDecoration: 'line-through',
-    });
-    expect(screen.getByLabelText('Launch details')).toHaveStyle({
-      textDecoration: 'line-through',
-    });
-    expect(screen.getByRole('button', { name: 'Land' })).toHaveStyle({
-      textDecoration: 'none',
-    });
+    expect(screen.getByText('Launch')).toHaveClass('line-through');
+    expect(screen.getByLabelText('Launch details')).toHaveClass('line-through');
+    expect(screen.getByText('Land')).not.toHaveClass('line-through');
   });
 
   it('saves a description when the field loses focus and keeps the checks', () => {

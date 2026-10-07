@@ -1,67 +1,64 @@
-import React, { useCallback, useLayoutEffect, useRef } from 'react';
-import { useDashboard } from '@/context/useDashboard';
+import React, { useCallback } from 'react';
+import {
+  useDashboardActions,
+  useGlobalStyle,
+} from '@/context/dashboardCanvasStore';
+import { Button } from '@/components/common/Button';
 import {
   ArtsLettersAgendaConfig,
   ArtsLettersAgendaPartId,
-  DEFAULT_GLOBAL_STYLE,
   WidgetData,
 } from '@/types';
+import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { tourAttr } from '@/config/tourAnchors';
 import { WidgetLayout } from '../WidgetLayout';
 import { AgendaRow } from './components/AgendaRow';
 import { AGENDA_PARTS } from './constants';
 
+const DEFAULTS = WIDGET_DEFAULTS['arts-letters-agenda']
+  .config as Required<ArtsLettersAgendaConfig>;
+
 export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, activeDashboard } = useDashboard();
-  const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+  const { updateWidget } = useDashboardActions();
+  const globalStyle = useGlobalStyle();
   const config = widget.config as ArtsLettersAgendaConfig;
   const {
     descriptions = {},
     completed = {},
-    fontFamily = 'global',
-    fontColor = '#1e293b',
-    cardColor = '#ffffff',
-    cardOpacity = 0.85,
+    fontFamily = DEFAULTS.fontFamily,
+    fontColor = DEFAULTS.fontColor,
+    cardColor = DEFAULTS.cardColor,
+    cardOpacity = DEFAULTS.cardOpacity,
     textSizePreset,
   } = config;
 
-  const latest = useRef(config);
-  useLayoutEffect(() => {
-    latest.current = config;
-  }, [config]);
-
   const toggle = useCallback(
     (id: ArtsLettersAgendaPartId) => {
-      const current = latest.current;
-      const done = current.completed ?? {};
       updateWidget(widget.id, {
-        config: { ...current, completed: { ...done, [id]: !done[id] } },
+        config: {
+          ...config,
+          completed: { ...completed, [id]: !completed[id] },
+        },
       });
     },
-    [updateWidget, widget.id]
+    [updateWidget, widget.id, config, completed]
   );
 
   const commitDescription = useCallback(
     (id: ArtsLettersAgendaPartId, text: string) => {
-      const current = latest.current;
       updateWidget(widget.id, {
-        config: {
-          ...current,
-          descriptions: { ...(current.descriptions ?? {}), [id]: text },
-        },
+        config: { ...config, descriptions: { ...descriptions, [id]: text } },
       });
     },
-    [updateWidget, widget.id]
+    [updateWidget, widget.id, config, descriptions]
   );
 
   const resetChecks = useCallback(() => {
-    updateWidget(widget.id, {
-      config: { ...latest.current, completed: {} },
-    });
-  }, [updateWidget, widget.id]);
+    updateWidget(widget.id, { config: { ...config, completed: {} } });
+  }, [updateWidget, widget.id, config]);
 
   const anyDone = AGENDA_PARTS.some((p) => completed[p.id]);
   const sm = resolveTextPresetMultiplier(textSizePreset, 1);
@@ -73,9 +70,9 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
         : `font-${fontFamily}`;
 
   // Rows are size containers, so heights scale the text relative to row height (cqh).
-  const titleSize = `clamp(14px, min(${(34 * sm).toFixed(1)}cqh, 9cqw), ${Math.round(64 * sm)}px)`;
-  const descSize = `clamp(10px, min(${(18 * sm).toFixed(1)}cqh, 5cqw), ${Math.round(30 * sm)}px)`;
-  const boxSize = `clamp(22px, min(46cqh, 14cqw), 64px)`;
+  const titleSize = `clamp(14px, min(${(34 * sm).toFixed(1)}cqh, 9cqw), ${Math.round(112 * sm)}px)`;
+  const descSize = `clamp(10px, min(${(18 * sm).toFixed(1)}cqh, 5cqw), ${Math.round(52 * sm)}px)`;
+  const boxSize = 'clamp(16px, min(46cqh, 14cqw), 104px)';
 
   return (
     <WidgetLayout
@@ -88,7 +85,7 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
             className="hidden [@container(min-height:220px)]:block text-center font-bold leading-tight truncate"
             style={{
               color: fontColor,
-              fontSize: `clamp(14px, ${(7 * sm).toFixed(1)}cqmin, ${Math.round(44 * sm)}px)`,
+              fontSize: `clamp(14px, ${(7 * sm).toFixed(1)}cqmin, ${Math.round(72 * sm)}px)`,
               padding: 'min(10px, 2.2cqmin) 18px 0',
             }}
           >
@@ -96,7 +93,7 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
           </h2>
           <div
             role="list"
-            className="flex-1 min-h-0 flex flex-col"
+            className="flex-1 min-h-0 flex flex-col [@container(min-aspect-ratio:2.4)]:flex-row"
             style={{
               padding: 'min(10px, 2.2cqmin) max(18px, 2.5cqmin) 0',
               gap: 'min(8px, 2cqmin)',
@@ -106,7 +103,12 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
               <div
                 key={part.id}
                 role="listitem"
-                style={{ flex: 1, minHeight: 0, containerType: 'size' }}
+                style={{
+                  flex: 1,
+                  minHeight: 0,
+                  minWidth: 0,
+                  containerType: 'size',
+                }}
               >
                 <AgendaRow
                   id={part.id}
@@ -126,31 +128,31 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
             ))}
           </div>
           <div
+            className="flex justify-center"
             style={{
-              display: 'flex',
-              justifyContent: 'center',
               padding: 'min(6px, 1.5cqmin) min(12px, 2.5cqmin) 18px',
             }}
           >
-            <button
+            <Button
               {...tourAttr(
                 'arts-letters-agenda.reset-checks',
                 widget.id,
                 widget.type
               )}
-              type="button"
+              variant="secondary"
+              shape="pill"
+              size="sm"
               onClick={resetChecks}
               disabled={!anyDone}
               title="Reset checks"
-              className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-indigo-600 uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 disabled:opacity-40"
+              className="relative touch-target-expand"
               style={{
-                padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
-                fontSize: 'clamp(9px, 2.8cqmin, 11px)',
+                fontSize: 'clamp(9px, 2.8cqmin, 14px)',
                 minHeight: 20,
               }}
             >
               reset checks
-            </button>
+            </Button>
           </div>
         </div>
       }
