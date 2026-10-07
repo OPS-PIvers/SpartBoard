@@ -3783,6 +3783,12 @@ service cloud.firestore {
           && plcSubTimeFieldOk('createdAt')
           && plcSubTimeFieldOk('updatedAt');
       }
+      // One doc link added per write, and only an https link.
+      function mentDocsOk(before) {
+        let added = incoming().get('docs', []).removeAll(before);
+        return added.size() == 0
+          || (added.size() == 1 && added[0] is map && mentHttps(added[0].get('url', null)));
+      }
       function mentWorkspaceContentOk() {
         let d = incoming();
         return d.keys().hasOnly([
@@ -3792,6 +3798,7 @@ service cloud.firestore {
           && optString(d, 'mentorName') && optString(d, 'menteeName')
           && optList(d, 'actionItems') && d.get('actionItems', []).size() <= 200
           && optList(d, 'docs') && d.get('docs', []).size() <= 100
+          && mentDocsOk(request.method == 'create' ? [] : existing().get('docs', []))
           && optMap(d, 'taskStatus')
           && plcSubTimeFieldOk('createdAt')
           && plcSubTimeFieldOk('updatedAt');

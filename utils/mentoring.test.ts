@@ -3,9 +3,11 @@ import type { MentoringTask, MentoringWorkspace, Plc } from '@/types';
 import {
   canSubmitTask,
   dueDeadline,
+  httpsUrl,
   mentoringRoster,
   nextRequiredTask,
   pairTaskStatus,
+  parseMentoringSubmission,
   parseMentoringTask,
   parseMentoringWorkspace,
   summarizeTask,
@@ -146,6 +148,35 @@ describe('parsing', () => {
     });
     expect(w?.memberUids).toEqual(['m', 'e']);
     expect(w?.docs).toHaveLength(1);
+  });
+
+  it('keeps only https links from stored docs, templates and submissions', () => {
+    const w = parseMentoringWorkspace('id', {
+      mentorUid: 'm',
+      menteeUid: 'e',
+      docs: [
+        { id: 'a', url: 'javascript:alert(1)' },
+        { id: 'b', url: 'http://docs.google.com/d/1' },
+        { id: 'c', url: 'data:text/html,x' },
+        { id: 'd', url: 'https://docs.google.com/d/1' },
+      ],
+    });
+    expect(w?.docs.map((d) => d.id)).toEqual(['d']);
+    expect(
+      parseMentoringTask('t', {
+        title: 'x',
+        dueDate: '2026-10-01',
+        submitter: 'both',
+        templateDoc: { title: 'T', url: 'javascript:alert(1)' },
+      })?.templateDoc
+    ).toBeNull();
+    expect(
+      parseMentoringSubmission('t', { submittedBy: 'e', docUrl: 'http://x' })
+    ).not.toHaveProperty('docUrl');
+    expect(httpsUrl(' https://docs.google.com/d ')).toBe(
+      'https://docs.google.com/d'
+    );
+    expect(httpsUrl('https://')).toBeNull();
   });
 });
 

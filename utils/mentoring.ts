@@ -22,6 +22,13 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 
+/** The URL when it is an https link, else null. */
+export function httpsUrl(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  return /^https:\/\/\S+$/i.test(t) ? t : null;
+}
+
 export const MENTORING_SUBMITTERS: readonly MentoringSubmitter[] = [
   'mentee',
   'mentor',
@@ -44,16 +51,20 @@ export function parseMentoringTask(
   ) {
     return null;
   }
-  const template = isRecord(data.templateDoc)
-    ? { title: str(data.templateDoc.title), url: str(data.templateDoc.url) }
+  const tplUrl = isRecord(data.templateDoc)
+    ? httpsUrl(data.templateDoc.url)
     : null;
+  const template =
+    isRecord(data.templateDoc) && tplUrl
+      ? { title: str(data.templateDoc.title), url: tplUrl }
+      : null;
   return {
     id,
     title: data.title,
     instructions: str(data.instructions),
     dueDate: data.dueDate,
     submitter: data.submitter,
-    templateDoc: template?.url ? template : null,
+    templateDoc: template,
     createdBy: str(data.createdBy),
     createdAt: tsToMillis(data.createdAt),
     updatedAt: tsToMillis(data.updatedAt),
@@ -64,11 +75,12 @@ function parseDocLinks(raw: unknown): MentoringDocLink[] {
   if (!Array.isArray(raw)) return [];
   const out: MentoringDocLink[] = [];
   for (const d of raw) {
-    if (!isRecord(d) || typeof d.url !== 'string' || !d.url) continue;
+    const url = isRecord(d) ? httpsUrl(d.url) : null;
+    if (!isRecord(d) || !url) continue;
     out.push({
-      id: str(d.id) || d.url,
-      title: str(d.title) || d.url,
-      url: d.url,
+      id: str(d.id) || url,
+      title: str(d.title) || url,
+      url,
       ...(typeof d.taskId === 'string' && d.taskId ? { taskId: d.taskId } : {}),
       addedBy: str(d.addedBy),
       addedAt: tsToMillis(d.addedAt),
@@ -136,15 +148,14 @@ export function parseMentoringSubmission(
   data: Record<string, unknown>
 ): MentoringSubmission | null {
   if (typeof data.submittedBy !== 'string') return null;
+  const docUrl = httpsUrl(data.docUrl);
   return {
     id,
     taskId: str(data.taskId) || id,
     submittedBy: data.submittedBy,
     submittedByName: str(data.submittedByName),
     submittedAt: tsToMillis(data.submittedAt),
-    ...(typeof data.docUrl === 'string' && data.docUrl
-      ? { docUrl: data.docUrl }
-      : {}),
+    ...(docUrl ? { docUrl } : {}),
   };
 }
 

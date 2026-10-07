@@ -14,6 +14,7 @@ import type {
   MentoringPairStatus,
   MentoringTaskSummary,
 } from '@/utils/mentoring';
+import { ensureProtocol } from '@/utils/urlHelpers';
 import { SUBMITTER_LABEL, pairStatusLabel, shortDate } from './mentoringFormat';
 
 const STATUS_BG = {
@@ -125,7 +126,7 @@ export const ResourcesListView: React.FC<{
       {links.map((r) => (
         <li key={r.id} className="py-2">
           <a
-            href={r.url}
+            href={ensureProtocol(r.url)}
             target="_blank"
             rel="noopener noreferrer"
             className="rounded text-xs font-semibold text-brand-blue-primary transition-colors hover:text-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"

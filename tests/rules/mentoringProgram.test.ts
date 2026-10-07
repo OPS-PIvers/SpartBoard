@@ -396,6 +396,56 @@ describe('workspaces', () => {
     );
   });
 
+  it('accepts only https doc links, from the pair, facilitators or a new pairing', async () => {
+    await seedProgram();
+    const link = (url: string, id = 'd') => ({ id, title: 'Doc', url });
+    const kept = link('https://docs.google.com/kept', 'k');
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await deleteDoc(doc(ctx.firestore(), `${PLC}/workspaces/${WS_B}`));
+    });
+    await assertSucceeds(
+      updateDoc(doc(as(MENTEE), WS_PATH), { docs: [kept], updatedAt: 2 })
+    );
+    for (const url of [
+      'javascript:alert(1)',
+      'http://docs.google.com/d',
+      'data:text/html,x',
+    ]) {
+      for (const uid of [MENTOR, LEAD]) {
+        await assertFails(
+          updateDoc(doc(as(uid), WS_PATH), {
+            docs: [kept, link(url)],
+            updatedAt: 3,
+          })
+        );
+      }
+      await assertFails(
+        setDoc(doc(as(LEAD), `${PLC}/workspaces/${WS_B}`), {
+          ...workspace(MENTOR_B, MENTEE_B),
+          docs: [link(url)],
+        })
+      );
+    }
+    await assertFails(
+      updateDoc(doc(as(MENTOR), WS_PATH), {
+        docs: [kept, { ...kept, id: 'k2', url: 'javascript:alert(1)' }],
+        updatedAt: 3,
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(as(LEAD), WS_PATH), {
+        docs: [kept, link('https://docs.google.com/tpl', 't')],
+        updatedAt: 3,
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(as(LEAD), `${PLC}/workspaces/${WS_B}`), {
+        ...workspace(MENTOR_B, MENTEE_B),
+        docs: [link('https://docs.google.com/b')],
+      })
+    );
+  });
+
   it('locks out a pair member who became a viewer', async () => {
     await seedProgram();
     await testEnv.withSecurityRulesDisabled(async (ctx) => {

@@ -6,6 +6,7 @@ import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
 import { INPUT } from '@/components/plc/redesignMockup/ui';
 import { convertToEmbedUrl, ensureProtocol } from '@/utils/urlHelpers';
+import { httpsUrl } from '@/utils/mentoring';
 
 const LABEL = 'mb-1 block text-xs font-semibold text-slate-600';
 
@@ -15,7 +16,8 @@ export const DocEmbedModal: React.FC<{
   url: string;
   onClose: () => void;
 }> = ({ title, url, onClose }) => {
-  const href = ensureProtocol(url);
+  const href = httpsUrl(ensureProtocol(url));
+  if (!href) return null;
   return (
     <Modal
       isOpen
