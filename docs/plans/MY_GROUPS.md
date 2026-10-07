@@ -2,6 +2,7 @@
 
 Source: Paul and Bailey's work list, section D (project thread "My Groups", 2026-10-01).
 Status: slice 0 merged (#3710); slice 1 in review. Defaults below are the recommendations Paul was asked to confirm on 2026-10-01.
+Page design per group type is redesigned in [TEAMS_REDESIGN.md](TEAMS_REDESIGN.md), which supersedes D3 below.
 
 ## Goal
 
