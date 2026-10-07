@@ -28,6 +28,7 @@ import type { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { usePlcNotes } from '@/hooks/usePlcNotes';
+import { useGoogleTasksPull } from '@/hooks/useGoogleTasksPull';
 import { logError } from '@/utils/logError';
 import type { PlcSectionId } from '@/components/plc/sections';
 import {
@@ -60,6 +61,9 @@ export const YourActionItemsCard: React.FC<YourActionItemsCardProps> = ({
   const { user } = useAuth();
   const { addToast } = useDashboard();
   const { notes, loading, error, updateNote } = usePlcNotes(plc.id);
+  // TODO(google-tasks-sync): gate on canAccessFeature('google-tasks-sync').
+  const googleTasksPullEnabled = false;
+  useGoogleTasksPull(plc.id, googleTasksPullEnabled);
 
   // Capture "now" once at mount via a lazy state initializer (the repo pattern
   // for keeping `Date.now()` out of the render body). The card doesn't need
