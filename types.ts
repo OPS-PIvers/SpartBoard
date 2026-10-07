@@ -538,6 +538,7 @@ export type TeamHeroRule =
 export interface TeamHero {
   mode: 'default' | 'pinned';
   ref?: TeamHeroRef;
+  pinnedBy?: { uid: string; name: string };
 }
 
 export interface TeamPageSetting {
@@ -1485,6 +1486,9 @@ export interface PlcGoal {
   id: string;
   title: string;
   measure?: string;
+  baseline?: number;
+  current?: number;
+  target?: number;
   practices: PlcGoalPractice[];
   order: number;
   createdBy: string;
