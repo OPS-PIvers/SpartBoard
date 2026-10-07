@@ -474,7 +474,10 @@ can file it straight into the Help Center as a hidden draft; follow
 Edit an existing live tour with the admin-only `get_live_tour` and
 `update_live_tour`, not the Guided Learning tools: they show and take steps
 without slide placement, keep each step's thumbnail and narration, and save
-the draft only. Teachers keep the published tour until an admin publishes the
+the draft only. Every tour is a building set; `list_guided_learning` with
+kind `live_tour` finds it. Look at a recorded step with
+`get_live_tour_step_picture` before writing its text, and change wording
+alone with `step_text` rather than resending every step. Teachers keep the published tour until an admin publishes the
 changes in SpartBoard.
 
 ## Round-trip guarantee

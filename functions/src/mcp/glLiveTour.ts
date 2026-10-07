@@ -2,18 +2,22 @@
 import { randomUUID } from 'node:crypto';
 import type * as admin from 'firebase-admin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { ToolError, reserveWrite, type ToolContext } from './activity';
 import { isStrictSuperAdmin } from '../authz';
 import { saveNewSet, savedSummary, type HelpCenterPlacement } from './glCreate';
 import {
+  MAX_SLIDE_BYTES,
   MAX_STEPS,
   assertAccess,
+  assertStepText,
   loadSet,
   mergeSteps,
   publicStep,
   requiredSchemaVersion,
   saveSet,
+  slideBytes,
   stepInput,
   type GlSet,
   type Step,
@@ -25,6 +29,7 @@ import {
   type MissingAnchorNote,
 } from './glAnchorRequests';
 import { TOUR_ANCHOR_LIST } from './tourAnchorList';
+import { TOUR_ANCHOR_QUEUE } from '../tourAnchorQueue';
 import { CREATES, OVERWRITES, READ_ONLY, iso, run } from './toolKit';
 
 export const HELP_RESOURCES = 'help_resources';
@@ -32,6 +37,7 @@ export const ADMIN_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'create_live_tour',
   'get_live_tour',
   'update_live_tour',
+  'get_live_tour_step_picture',
   'list_help_center_categories',
 ]);
 export const GL_TOURS = 'building_guided_learning_tours';
@@ -185,10 +191,94 @@ const editStep = tourStep
       .optional()
       .describe('Read only. The picture is kept and retaken in SpartBoard.'),
     thumbnail_stale: z.boolean().optional().describe('Read only.'),
+    anchor_ready: z
+      .string()
+      .optional()
+      .describe('Read only. Copy it into tour.anchor to bind the step.'),
   });
 type EditStep = z.infer<typeof editStep>;
 
 const KNOWN_ANCHORS = new Set(TOUR_ANCHOR_LIST.map((a) => a.id));
+const SCOPE_OF = new Map(TOUR_ANCHOR_LIST.map((a) => [a.id, a.scope]));
+
+export interface QueueItem {
+  status?: unknown;
+  anchorId?: unknown;
+  widgetType?: unknown;
+}
+
+/** The anchor ref Live tour health's Rebind would write for a queue item; mirrors reboundAnchorRef in components/tours/anchorQueue.ts. */
+export function readyAnchorRef(item: QueueItem): string | null {
+  const ref = item.anchorId;
+  if (typeof ref !== 'string' || !ref) return null;
+  if (['open', 'rebound', 'needs-human'].includes(String(item.status)))
+    return null;
+  const [head, fieldKey] = ref.split('#');
+  const [id, refType] = head.split(':');
+  const scope = SCOPE_OF.get(id);
+  if (!scope) return null;
+  if (scope === 'board') return ref;
+  const type =
+    refType || (typeof item.widgetType === 'string' ? item.widgetType : '');
+  if (!type) return null;
+  if (scope !== 'field') return `${id}:${type}`;
+  return fieldKey ? `${id}:${type}#${fieldKey}` : null;
+}
+
+/** Step id → the anchor its recorded control was tagged with since, from the anchor queue. */
+async function readyAnchors(
+  ctx: ToolContext,
+  steps: readonly Step[]
+): Promise<Map<string, string>> {
+  const pending = steps.flatMap((s) => {
+    const tour = s.tour as { anchor?: unknown; unmapped?: unknown } | undefined;
+    return tour?.anchor === '' && typeof tour.unmapped === 'string'
+      ? [{ stepId: s.id, fingerprint: tour.unmapped }]
+      : [];
+  });
+  if (pending.length === 0) return new Map();
+  const snaps = await ctx.db.getAll(
+    ...pending.map((p) => ctx.db.doc(`${TOUR_ANCHOR_QUEUE}/${p.fingerprint}`))
+  );
+  const ready = new Map<string, string>();
+  pending.forEach((p, i) => {
+    const ref = snaps[i].exists
+      ? readyAnchorRef(snaps[i].data() as QueueItem)
+      : null;
+    if (ref) ready.set(p.stepId, ref);
+  });
+  return ready;
+}
+
+/** update_live_tour's step_text: new label or text on stored steps, everything else untouched. */
+export function applyStepText(
+  steps: readonly Step[],
+  edits: readonly { id: string; label?: string; text?: string }[]
+): Step[] {
+  const byId = new Map(edits.map((e) => [e.id, e]));
+  if (byId.size !== edits.length)
+    throw new ToolError('step_text names a step twice.');
+  const known = new Set(steps.map((s) => s.id));
+  const missing = edits.find((e) => !known.has(e.id));
+  if (missing)
+    throw new ToolError(
+      `step_text: no step has id "${missing.id}". Use the ids get_live_tour returns.`
+    );
+  return steps.map((step) => {
+    const edit = byId.get(step.id);
+    if (!edit) return step;
+    const next: Step = { ...step };
+    for (const key of ['label', 'text'] as const) {
+      const value = edit[key];
+      if (value === undefined) continue;
+      if (key === 'text' && value)
+        assertStepText(`step_text "${step.id}"`, value);
+      if (value) next[key] = value;
+      else delete next[key];
+    }
+    return next;
+  });
+}
 
 interface TourThumbnail {
   anchor?: unknown;
@@ -229,7 +319,11 @@ export function tourPublishState(
     : 'published';
 }
 
-export function liveTourView(set: GlSet, publishedAt: number | null) {
+export function liveTourView(
+  set: GlSet,
+  publishedAt: number | null,
+  ready: ReadonlyMap<string, string> = new Map()
+) {
   const state = tourPublishState(set.updatedAt, publishedAt);
   const unregistered = set.steps.flatMap((s) => {
     const anchor = (s.tour as { anchor?: unknown } | undefined)?.anchor;
@@ -255,7 +349,11 @@ export function liveTourView(set: GlSet, publishedAt: number | null) {
     ...(unregistered.length > 0
       ? { steps_with_unregistered_anchor: unregistered }
       : {}),
-    steps: set.steps.map(publicTourStep),
+    steps: set.steps.map((s) => {
+      const out = publicTourStep(s);
+      const ref = ready.get(s.id);
+      return ref ? { ...out, anchor_ready: ref } : out;
+    }),
   };
 }
 
@@ -268,6 +366,7 @@ export function mergeTourSteps(
     const out: Record<string, unknown> = { ...s };
     delete out.has_thumbnail;
     delete out.thumbnail_stale;
+    delete out.anchor_ready;
     return out as unknown as StepInput;
   });
   const merged = mergeSteps(existing, stripped, 0);
@@ -288,11 +387,18 @@ export function mergeTourSteps(
   });
 }
 
+const FIND_TOURS =
+  'list_guided_learning with source "building" and kind "live_tour" lists every live tour with its set_id.';
+
 async function loadTour(ctx: ToolContext, setId: string) {
-  const loaded = await loadSet(ctx, 'building', setId);
+  const loaded = await loadSet(ctx, 'building', setId).catch((err) => {
+    if (err instanceof ToolError)
+      throw new ToolError(`No live tour has that set_id. ${FIND_TOURS}`);
+    throw err;
+  });
   if (loaded.set.mode !== 'tour')
     throw new ToolError(
-      'That set is not a live tour. Use get_guided_learning with source "building".'
+      `That set is a Guided Learning set, not a live tour; read it with get_guided_learning. ${FIND_TOURS}`
     );
   return loaded;
 }
@@ -437,7 +543,7 @@ export function registerLiveTourTools(
     {
       title: 'Get a live tour',
       description:
-        'Admins only. Returns a live tour with every step: its anchor, action, value and text, whether it has a thumbnail, and whether teachers see the latest version (publish_state "draft" never published, "published" up to date, "changed" saved since the last publish).',
+        'Admins only. Returns a live tour with every step: its anchor, action, value and text, whether it has a thumbnail, and whether teachers see the latest version (publish_state "draft" never published, "published" up to date, "changed" saved since the last publish). Find the set_id with list_guided_learning, source "building", kind "live_tour". A recorded step with anchor "" works from its English fallback only; anchor_ready on such a step is the anchor its control has since been given, which update_live_tour can put in tour.anchor. Use get_live_tour_step_picture to see what was recorded before writing a step\'s text.',
       inputSchema: { set_id: z.string().min(1) },
       annotations: READ_ONLY,
     },
@@ -448,7 +554,8 @@ export function registerLiveTourTools(
           loadTour(ctx, set_id),
           publishedAtOf(ctx, set_id),
         ]);
-        return liveTourView(loaded.set, publishedAt);
+        const ready = await readyAnchors(ctx, loaded.set.steps);
+        return liveTourView(loaded.set, publishedAt, ready);
       })
   );
 
@@ -457,7 +564,7 @@ export function registerLiveTourTools(
     {
       title: 'Edit a live tour',
       description:
-        'Admins only. Edits a live tour; only passed fields change. `steps` replaces the whole list in play order: send every step to keep, with its id, as get_live_tour returned it. Anchors are checked like create_live_tour. Thumbnails and narration are kept. Saves the draft only: teachers keep the published tour until an admin opens the tour in SpartBoard and publishes the changes.',
+        'Admins only. Edits a live tour; only passed fields change. To change only wording, pass step_text, which leaves every other step and field as stored. `steps` replaces the whole list in play order: send every step to keep, with its id, as get_live_tour returned it; use it to add, remove, reorder or rebind steps. Anchors are checked like create_live_tour. Thumbnails and narration are kept. Saves the draft only: teachers keep the published tour until an admin opens the tour in SpartBoard and publishes the changes.',
       inputSchema: {
         set_id: z.string().min(1),
         title: z.string().trim().min(1).max(200).optional(),
@@ -465,6 +572,22 @@ export function registerLiveTourTools(
         welcome_enabled: z.boolean().optional(),
         welcome_message: z.string().max(300).optional(),
         steps: z.array(editStep).min(1).max(MAX_STEPS).optional(),
+        step_text: z
+          .array(
+            z
+              .object({
+                id: z.string().min(1).max(100),
+                label: z.string().max(100).optional(),
+                text: z.string().max(1000).optional(),
+              })
+              .strict()
+          )
+          .min(1)
+          .max(MAX_STEPS)
+          .optional()
+          .describe(
+            'New label or text for the named steps, by id; "" clears it. Not with steps.'
+          ),
       },
       annotations: OVERWRITES,
     },
@@ -481,6 +604,12 @@ export function registerLiveTourTools(
         if (input.welcome_message !== undefined)
           next.welcomeMessage = input.welcome_message || undefined;
         let requests: AnchorRequest[] = [];
+        if (input.steps && input.step_text)
+          throw new ToolError(
+            'Pass steps or step_text, not both. Put the new wording in steps.'
+          );
+        if (input.step_text)
+          next.steps = applyStepText(set.steps, input.step_text);
         if (input.steps) {
           const notes = new Map<string, MissingAnchorNote>();
           for (const s of input.steps)
@@ -504,5 +633,51 @@ export function registerLiveTourTools(
           note: 'Saved as a draft. Teachers keep the published tour until an admin opens it in SpartBoard (Guided Learning library > Edit) and publishes the changes.',
         };
       })
+  );
+
+  server.registerTool(
+    'get_live_tour_step_picture',
+    {
+      title: "View a live tour step's picture",
+      description:
+        'Admins only. Returns the screenshot recorded for a live tour step (has_thumbnail true), so its text can describe what the teacher actually sees. A thumbnail_stale picture shows the control the step pointed at before it was rebound.',
+      inputSchema: {
+        set_id: z.string().min(1),
+        step_id: z.string().min(1).max(100),
+      },
+      annotations: READ_ONLY,
+    },
+    async ({ set_id, step_id }): Promise<CallToolResult> => {
+      let image: { data: Buffer; mimeType: string } | null = null;
+      const result = await run('get_live_tour_step_picture', ctx, async () => {
+        await assertAccess(ctx, 'building');
+        const { set } = await loadTour(ctx, set_id);
+        const index = set.steps.findIndex((s) => s.id === step_id);
+        if (index < 0)
+          throw new ToolError(
+            'No step has that id. Use the ids get_live_tour returns.'
+          );
+        const step = set.steps[index];
+        const url = (thumbnailOf(step) as { url?: unknown } | undefined)?.url;
+        if (typeof url !== 'string' || !url)
+          throw new ToolError('That step has no recorded picture.');
+        image = await slideBytes(ctx, url, 'building');
+        if (image.data.length > MAX_SLIDE_BYTES)
+          throw new ToolError('That picture is too large to show here.');
+        return { number: index + 1, step: publicTourStep(step) };
+      });
+      const shown = image as { data: Buffer; mimeType: string } | null;
+      if (result.isError || !shown) return result;
+      return {
+        content: [
+          {
+            type: 'image',
+            data: shown.data.toString('base64'),
+            mimeType: shown.mimeType,
+          },
+          ...result.content,
+        ],
+      };
+    }
   );
 }

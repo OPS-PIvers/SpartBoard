@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import type { ToolContext } from './activity';
 import {
   ADMIN_ONLY_TOOLS,
+  applyStepText,
   buildHelpItem,
   liveTourView,
   mergeTourSteps,
   parseCategories,
   publicTourStep,
+  readyAnchorRef,
   tourStep,
   tourPublishState,
 } from './glLiveTour';
@@ -223,8 +225,115 @@ describe('get_live_tour and update_live_tour', () => {
     ).toThrow('is not a SpartBoard tour anchor');
   });
 
-  it('keeps get and update admin-only', () => {
+  it('keeps get, update and the step picture admin-only', () => {
     expect(ADMIN_ONLY_TOOLS.has('get_live_tour')).toBe(true);
     expect(ADMIN_ONLY_TOOLS.has('update_live_tour')).toBe(true);
+    expect(ADMIN_ONLY_TOOLS.has('get_live_tour_step_picture')).toBe(true);
+  });
+
+  it("changes only the named steps' wording with step_text", () => {
+    const steps = [stored(), stored({ id: 's2', label: 'Old', text: 'Old.' })];
+    const next = applyStepText(steps, [
+      {
+        id: 's2',
+        label: '',
+        text: 'Turn on the switch.\n\nIt syncs every team.',
+      },
+    ]);
+    expect(next[0]).toBe(steps[0]);
+    expect(next[1]).not.toHaveProperty('label');
+    expect(next[1]).toMatchObject({
+      text: 'Turn on the switch.\n\nIt syncs every team.',
+      narration: { source: 'generated' },
+      tour: { anchor: 'dock.open-tools', action: 'click', thumbnail: thumb },
+    });
+    expect(() => applyStepText(steps, [{ id: 'gone', text: 'x' }])).toThrow(
+      'no step has id "gone"'
+    );
+    expect(() => applyStepText(steps, [{ id: 's1', text: 'a\nb' }])).toThrow(
+      'one paragraph'
+    );
+    expect(() =>
+      applyStepText(steps, [
+        { id: 's1', text: 'a' },
+        { id: 's1', label: 'b' },
+      ])
+    ).toThrow('twice');
+  });
+
+  it('offers the anchor a recorded control was tagged with, as Rebind would write it', () => {
+    expect(
+      readyAnchorRef({
+        status: 'pr-open',
+        anchorId: 'connected-apps.google-tasks-sync',
+      })
+    ).toBe('connected-apps.google-tasks-sync');
+    expect(
+      readyAnchorRef({
+        status: 'mapped',
+        anchorId: 'dock.item',
+        widgetType: 'clock',
+      })
+    ).toBe('dock.item:clock');
+    expect(
+      readyAnchorRef({
+        status: 'mapped',
+        anchorId: 'settings.toggle:clock#format24',
+      })
+    ).toBe('settings.toggle:clock#format24');
+    expect(
+      readyAnchorRef({ status: 'mapped', anchorId: 'settings.toggle:clock' })
+    ).toBeNull();
+    expect(
+      readyAnchorRef({ status: 'mapped', anchorId: 'dock.item' })
+    ).toBeNull();
+    expect(
+      readyAnchorRef({ status: 'open', anchorId: 'dock.open-tools' })
+    ).toBeNull();
+    expect(
+      readyAnchorRef({ status: 'rebound', anchorId: 'dock.open-tools' })
+    ).toBeNull();
+    expect(
+      readyAnchorRef({ status: 'pr-open', anchorId: 'not.shipped' })
+    ).toBeNull();
+  });
+
+  it('shows anchor_ready and drops it again on the way back in', () => {
+    const recorded = stored({
+      tour: {
+        anchor: '',
+        action: 'toggle',
+        value: true,
+        fallback: { role: 'switch', name: 'send to google tasks' },
+        unmapped: 'f'.repeat(40),
+      },
+    });
+    const view = liveTourView(
+      {
+        id: 't',
+        title: 'T',
+        imageUrls: [],
+        mode: 'tour',
+        updatedAt: 1,
+        steps: [recorded],
+      },
+      null,
+      new Map([['s1', 'connected-apps.google-tasks-sync']])
+    );
+    const shown = view.steps[0] as Parameters<typeof mergeTourSteps>[1][number];
+    expect(shown.anchor_ready).toBe('connected-apps.google-tasks-sync');
+    const [kept] = mergeTourSteps(
+      [recorded],
+      [
+        {
+          ...shown,
+          tour: { ...shown.tour, anchor: shown.anchor_ready as string },
+        },
+      ]
+    );
+    expect(kept).not.toHaveProperty('anchor_ready');
+    expect(kept.tour).toMatchObject({
+      anchor: 'connected-apps.google-tasks-sync',
+    });
   });
 });
