@@ -6,6 +6,7 @@ import {
   teamTypeAvailablePages,
 } from '@/config/teamTypePresets';
 import {
+  featuresForTeamLayout,
   normalizeTeamTypeDefaults,
   parseTeamHero,
   parseTeamHeroRef,
@@ -42,17 +43,20 @@ describe('built-in presets', () => {
     expect(enabledIds(BUILT_IN_TEAM_TYPE_PRESETS.department.pages)).toEqual([
       'hub',
       'docs',
+      'assessments',
       'resources',
     ]);
     expect(enabledIds(BUILT_IN_TEAM_TYPE_PRESETS.building.pages)).toEqual([
       'hub',
       'resources',
       'updates',
+      'docs',
     ]);
     expect(enabledIds(BUILT_IN_TEAM_TYPE_PRESETS.mentoring.pages)).toEqual([
       'programHub',
       'workspace',
       'updates',
+      'docs',
       'resources',
     ]);
   });
@@ -64,7 +68,7 @@ describe('built-in presets', () => {
         .map((p) => p.id);
     expect(off('plc')).toEqual(['updates']);
     expect(off('department')).toEqual(['updates']);
-    expect(off('building')).toEqual(['docs']);
+    expect(off('building')).toEqual([]);
     expect(off('mentoring')).toEqual([]);
   });
 
@@ -485,10 +489,23 @@ describe('resolveTeamLayout', () => {
 
   it('T35: leaves a team without a features map on the full preset', () => {
     const out = resolveTeamLayout(makePlc({ groupType: 'department' }));
-    expect(enabledIds(out.pages)).toEqual(['hub', 'docs', 'resources']);
+    expect(enabledIds(out.pages)).toEqual([
+      'hub',
+      'docs',
+      'assessments',
+      'resources',
+    ]);
   });
 
-  it('T35: does not override a layout the lead saved', () => {
+  it('O2: offers the pages each type had before the redesign', () => {
+    const on = (groupType: PlcGroupType) =>
+      enabledIds(resolveTeamLayout(makePlc({ groupType })).pages);
+    expect(on('department')).toContain('assessments');
+    expect(on('mentoring')).toContain('docs');
+    expect(on('building')).toContain('docs');
+  });
+
+  it('O6: section switches decide a saved layout too, so both dashboards agree', () => {
     const layout: PlcTeamLayout = {
       pages: [
         { id: 'dataOverview', enabled: true },
@@ -501,7 +518,61 @@ describe('resolveTeamLayout', () => {
     const out = resolveTeamLayout(
       makePlc({ layout, features: { notes: false } })
     );
+    expect(out.pages.find((p) => p.id === 'docs')?.enabled).toBe(false);
+  });
+
+  it('O6: a saved layout missing a page follows the switch defaults', () => {
+    const layout: PlcTeamLayout = {
+      pages: [{ id: 'programHub', enabled: true }],
+      landing: 'programHub',
+      cards: [],
+      hero: { mode: 'default' },
+    };
+    const out = resolveTeamLayout(makePlc({ groupType: 'mentoring', layout }));
     expect(out.pages.find((p) => p.id === 'docs')?.enabled).toBe(true);
+  });
+
+  it('O6: hides the landing cards of a switched-off page', () => {
+    const out = resolveTeamLayout(
+      makePlc({ groupType: 'department', features: { notes: false } })
+    );
+    expect(out.cards).not.toContain('recentDocs');
+    expect(out.cards).not.toContain('openDecisions');
+    expect(out.cards).toContain('openItems');
+  });
+});
+
+describe('featuresForTeamLayout', () => {
+  const pages = (docs: boolean, assessments: boolean) => [
+    { id: 'docs' as const, enabled: docs },
+    { id: 'assessments' as const, enabled: assessments },
+  ];
+
+  it('writes only the switches that change', () => {
+    expect(
+      featuresForTeamLayout(makePlc(), { pages: pages(true, true) })
+    ).toEqual({});
+    expect(
+      featuresForTeamLayout(makePlc(), { pages: pages(false, false) })
+    ).toEqual({ notes: false, quizzes: false, videoActivities: false });
+  });
+
+  it('turns quizzes and videos back on with the Assessments page', () => {
+    const plc = makePlc({
+      features: { quizzes: false, videoActivities: false },
+    });
+    expect(featuresForTeamLayout(plc, { pages: pages(true, true) })).toEqual({
+      quizzes: true,
+      videoActivities: true,
+    });
+  });
+
+  it('leaves switches alone for pages the type does not have', () => {
+    expect(
+      featuresForTeamLayout(makePlc({ groupType: 'mentoring' }), {
+        pages: [{ id: 'docs', enabled: false }],
+      })
+    ).toEqual({ notes: false });
   });
 
   it('sanitizes a stored team layout against its type', () => {

@@ -4,7 +4,10 @@ import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getPlcGroupType, type Plc, type PlcTeamLayout } from '@/types';
 import type { TeamTypeDefaults } from '@/types';
-import type { ResolvedTeamLayout } from '@/utils/teamLayout';
+import {
+  featuresForTeamLayout,
+  type ResolvedTeamLayout,
+} from '@/utils/teamLayout';
 import { saveTeamLayout } from '@/hooks/useTeamLayout';
 import { usePlcAssessments } from '@/hooks/usePlcAssessments';
 import { usePlcDocs } from '@/hooks/usePlcDocs';
@@ -127,7 +130,7 @@ export const TeamLayoutEditor: React.FC<{
 
   const handleSave = (next: PlcTeamLayout) => {
     setSaving(true);
-    saveTeamLayout(plc.id, next)
+    saveTeamLayout(plc.id, next, featuresForTeamLayout(plc, next))
       .then(onClose)
       .catch((err: unknown) => {
         logError('TeamLayoutEditor.save', err, { plcId: plc.id });

@@ -20,10 +20,7 @@ import {
 } from '@/context/usePlcContext';
 import { useGoogleTasksPull } from '@/hooks/useGoogleTasksPull';
 import { usePlcUnread } from '@/hooks/usePlcUnread';
-import {
-  saveTeamLayout,
-  useTeamTypeDefaultsState,
-} from '@/hooks/useTeamLayout';
+import { useTeamTypeDefaultsState } from '@/hooks/useTeamLayout';
 import { resolveTeamLayout } from '@/utils/teamLayout';
 import { getPlcRole } from '@/utils/plc';
 import { isForeignMentionEvent } from '@/utils/plcActivity';
@@ -219,12 +216,6 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
       return;
     }
     setEditorOpen(true);
-    // T35: the first open freezes the resolved layout onto the team (T3).
-    if (!plc.layout) {
-      saveTeamLayout(plc.id, layout).catch((err: unknown) =>
-        logError('TeamDashboard.freezeLayout', err, { plcId: plc.id })
-      );
-    }
   };
 
   // The Department Hub asks for the layout editor through a window event.
@@ -249,6 +240,7 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
     assessmentId,
     docId,
     meetingId,
+    section: requestedSection,
     layout,
   };
 

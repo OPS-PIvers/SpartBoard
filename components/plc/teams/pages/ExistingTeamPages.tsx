@@ -10,6 +10,7 @@ import { PlcGroupLinks } from '@/components/plc/resources/PlcGroupLinks';
 import { MenuSelect } from '@/components/plc/redesignMockup/ui';
 import { useTeamNav } from '@/components/plc/teams/TeamNavContext';
 import type { TeamPageProps } from '@/components/plc/teams/types';
+import { teamShowsSharedBoards } from '@/utils/teamLayout';
 
 const BODY = 'p-4 md:p-6';
 
@@ -41,7 +42,11 @@ const ADMIN_KINDS: readonly PlcResourceKind[] = [
 export const TeamResourcesPage: React.FC<TeamPageProps> = ({ plc }) => {
   const { t } = useTranslation();
   const nav = useTeamNav();
-  const [filter, setFilter] = useState<ResourceFilter>('all');
+  const boards = teamShowsSharedBoards(plc);
+  // Old Shared Boards links open Resources filtered to boards.
+  const [filter, setFilter] = useState<ResourceFilter>(
+    boards && nav.section === 'sharedBoards' ? 'board' : 'all'
+  );
   const shows = (kind: ResourceFilter) => filter === 'all' || filter === kind;
 
   const options: { value: ResourceFilter; label: string }[] = [
@@ -50,10 +55,16 @@ export const TeamResourcesPage: React.FC<TeamPageProps> = ({ plc }) => {
       value: 'links',
       label: t('plcDashboard.links.title', { defaultValue: 'Links' }),
     },
-    {
-      value: 'board',
-      label: t('plcDashboard.resources.kind.board', { defaultValue: 'Boards' }),
-    },
+    ...(boards
+      ? [
+          {
+            value: 'board' as const,
+            label: t('plcDashboard.resources.kind.board', {
+              defaultValue: 'Boards',
+            }),
+          },
+        ]
+      : []),
     {
       value: 'doc',
       label: t('plcDashboard.resources.kind.doc', {
@@ -97,7 +108,7 @@ export const TeamResourcesPage: React.FC<TeamPageProps> = ({ plc }) => {
         />
       </div>
       {shows('links') && <PlcGroupLinks plc={plc} />}
-      {shows('board') && (
+      {boards && shows('board') && (
         <PlcSharedBoardsBody plc={plc} hideWhenEmpty={filter === 'all'} />
       )}
       {filter !== 'links' && (
@@ -106,7 +117,7 @@ export const TeamResourcesPage: React.FC<TeamPageProps> = ({ plc }) => {
           embedded
           kinds={filter === 'all' ? ADMIN_KINDS : [filter]}
           onNavigate={(id) => {
-            if (id === 'sharedBoards') setFilter('board');
+            if (id === 'sharedBoards') setFilter(boards ? 'board' : 'all');
             else nav.navigate(id);
           }}
         />

@@ -268,6 +268,19 @@ describe('PlcDashboard (Wave 1 — pathname-driven render/smoke)', () => {
     expect(screen.getAllByTestId('section-home-v2').length).toBeGreaterThan(0);
   });
 
+  it('keeps a redesign-only deep link until the flags resolve', () => {
+    mockFlagsLoaded = false;
+    const { rerender } = render(
+      <PlcDashboard plc={fakePlc} activeSection="updates" onClose={vi.fn()} />
+    );
+    expect(mockSpaReplace).not.toHaveBeenCalled();
+    mockFlagsLoaded = true;
+    rerender(
+      <PlcDashboard plc={fakePlc} activeSection="updates" onClose={vi.fn()} />
+    );
+    expect(mockSpaReplace).toHaveBeenCalledWith('/plc/plc-42');
+  });
+
   it('renders the section named by the activeSection prop (deep-link)', () => {
     render(
       <PlcDashboard plc={fakePlc} activeSection="settings" onClose={vi.fn()} />
