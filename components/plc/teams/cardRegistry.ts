@@ -12,6 +12,8 @@ import LatestUpdatesCard from './updates/LatestUpdatesCard';
 import QuickLinksCard from './building/QuickLinksCard';
 import ResourcesByCategoryCard from './building/ResourcesByCategoryCard';
 import CalendarCard from './building/CalendarCard';
+import NextTaskCard from './mentoring/NextTaskCard';
+import SubmissionStatusCard from './mentoring/SubmissionStatusCard';
 import type { TeamCardRegistry } from './types';
 
 /** Landing cards; `Component: null` renders the neutral placeholder. */
@@ -32,8 +34,8 @@ export const TEAM_CARD_REGISTRY: TeamCardRegistry = {
     span: 'twoThirds',
   },
   calendar: { Component: CalendarCard, span: 'third' },
-  nextTask: { Component: null, span: 'full' },
-  submissionStatus: { Component: null, span: 'half' },
+  nextTask: { Component: NextTaskCard, span: 'full' },
+  submissionStatus: { Component: SubmissionStatusCard, span: 'half' },
   recentDocs: { Component: null, span: 'half' },
   newMaterials: { Component: null, span: 'half' },
   openDecisions: { Component: null, span: 'full' },

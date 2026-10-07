@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { getPlcGroupType, type Plc } from '@/types';
+import { getPlcGroupType, type Plc, type TeamPageId } from '@/types';
 import type { ResolvedTeamLayout } from '@/utils/teamLayout';
 import { TeamCardPlaceholder } from '@/components/plc/teams/TeamPlaceholder';
 import {
@@ -17,7 +17,8 @@ export const TeamHeroRegion: React.FC<{
   layout: ResolvedTeamLayout;
   isLead: boolean;
   onChangeHero?: () => void;
-}> = ({ plc, layout, isLead, onChangeHero }) => {
+  onNavigate?: (page: TeamPageId) => void;
+}> = ({ plc, layout, isLead, onChangeHero, onNavigate }) => {
   const { t } = useTranslation();
   const heroRef =
     layout.hero.mode === 'pinned' ? (layout.hero.ref ?? null) : null;
@@ -38,7 +39,14 @@ export const TeamHeroRegion: React.FC<{
         />
       )}
       {entry ? (
-        entry.render({ plc, heroRef, pinnedBy, isLead, onChangeHero })
+        entry.render({
+          plc,
+          heroRef,
+          pinnedBy,
+          isLead,
+          onChangeHero,
+          onNavigate,
+        })
       ) : (
         <TeamCardPlaceholder
           label={

@@ -38,6 +38,7 @@ export interface TeamHeroProps {
   isLead: boolean;
   /** Lead only: opens the layout editor. */
   onChangeHero?: () => void;
+  onNavigate?: (page: TeamPageId) => void;
 }
 
 export type TeamHeroRenderer = (props: TeamHeroProps) => ReactNode;

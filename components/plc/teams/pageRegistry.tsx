@@ -13,6 +13,9 @@ import { TeamLandingPage } from './landing/TeamLandingPage';
 import DataOverviewPage from './data/DataOverviewPage';
 import UpdatesPage from './updates/UpdatesPage';
 import BuildingHubPage from './building/BuildingHubPage';
+import ProgramHubPage from './mentoring/ProgramHubPage';
+import WorkspacePage from './mentoring/WorkspacePage';
+import './mentoringBridge';
 import {
   TeamAssessmentsPage,
   TeamNotesDocsPage,
@@ -32,10 +35,10 @@ export const TEAM_PAGE_REGISTRY: TeamPageRegistry = {
     Component: TeamLandingPage,
     byType: { building: BuildingHubPage },
   },
-  programHub: { icon: LayoutDashboard, Component: TeamLandingPage },
+  programHub: { icon: LayoutDashboard, Component: ProgramHubPage },
   assessments: { icon: ClipboardList, Component: TeamAssessmentsPage },
   docs: { icon: FileText, Component: TeamNotesDocsPage },
   resources: { icon: Sparkles, Component: TeamResourcesPage },
   updates: { icon: Megaphone, Component: UpdatesPage },
-  workspace: { icon: Users2, Component: null },
+  workspace: { icon: Users2, Component: WorkspacePage },
 };

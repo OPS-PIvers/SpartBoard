@@ -16,6 +16,8 @@ import {
   teamHeroRuleKind,
 } from './heroes/heroRegistry';
 import { heroPinner } from './heroes/heroPin';
+import { foreignCard, foreignHero } from './mentoring/teamRegistryBridge';
+import './mentoringBridge';
 import { parseTeamHero, toStoredTeamLayout } from '@/utils/teamLayout';
 import {
   cardBlocked,
@@ -117,6 +119,18 @@ describe('hero', () => {
     expect(
       resolveTeamHeroEntry(null, 'somethingNew' as 'latestAssessment', 'plc')
     ).toBe(TEAM_HERO_BY_RULE.latestAssessment);
+  });
+
+  it('dispatches the mentoring rule and hands the Program Hub the registries', () => {
+    expect(resolveTeamHeroEntry(null, 'nextRequiredTask', 'mentoring')).toBe(
+      TEAM_HERO_BY_RULE.nextRequiredTask
+    );
+    expect(foreignCard('latestUpdates')).toBe(
+      TEAM_CARD_REGISTRY.latestUpdates.Component
+    );
+    expect(foreignHero('update')).not.toBeNull();
+    expect(foreignHero('update')).toBe(foreignHero('update'));
+    expect(foreignHero('note')).toBeNull();
   });
 
   it('returns no renderer for an unregistered rule or kind', () => {

@@ -2,7 +2,7 @@
 
 import { usePlcLinks } from '@/hooks/usePlcLinks';
 import { ResourcesListView } from './ProgramHubCards';
-import type { TeamCardProps } from './teamContract';
+import type { TeamCardProps } from '@/components/plc/teams/types';
 
 export default function ProgramResourcesCard({ plc }: TeamCardProps) {
   const { links } = usePlcLinks(plc.id);

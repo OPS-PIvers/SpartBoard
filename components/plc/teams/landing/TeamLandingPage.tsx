@@ -48,6 +48,7 @@ export const TeamLandingPage: React.FC<
                       layout={layout}
                       isLead={isLead}
                       onChangeHero={onChangeHero}
+                      onNavigate={onNavigate}
                     />
                   </div>
                 );

@@ -18,11 +18,14 @@ import {
 } from '@/components/plc/teams/data/heroRegistry';
 import UpdateHero from '@/components/plc/teams/updates/UpdateHero';
 import { CalendarHero } from '@/components/plc/teams/building/CalendarCard';
+import NextRequiredTaskHero from '@/components/plc/teams/mentoring/NextRequiredTaskHero';
 
 const updateHero: TeamHeroRenderer = (props) =>
   createElement(UpdateHero, props);
 const calendarHero: TeamHeroRenderer = (props) =>
   createElement(CalendarHero, props);
+const nextRequiredTaskHero: TeamHeroRenderer = (props) =>
+  createElement(NextRequiredTaskHero, props);
 
 /** A pinned item renders through its kind. */
 export const TEAM_HERO_BY_KIND: Partial<
@@ -39,6 +42,7 @@ export const TEAM_HERO_BY_KIND: Partial<
 export const TEAM_HERO_BY_RULE: Partial<Record<TeamHeroRule, TeamHeroEntry>> = {
   latestAssessment: { render: latestAssessmentHero, ownsNudge: true },
   newestPinnedUpdate: { render: updateHero },
+  nextRequiredTask: { render: nextRequiredTaskHero },
 };
 
 /** Rules whose hero is a kind's renderer with `heroRef: null`; that renderer picks the item (read the rule from useTeamNav().layout). */
