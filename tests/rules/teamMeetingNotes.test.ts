@@ -236,6 +236,53 @@ describe('plcs/{plcId}/notes blocks and meetingAt', () => {
   });
 });
 
+const seedTrashedNote = () =>
+  testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), NOTE_PATH), {
+      ...note(MEMBER),
+      createdAt: 1,
+      lastEditedAt: 1,
+      version: 2,
+      deletedAt: 99,
+    });
+  });
+
+const restore = (uid: string) =>
+  updateDoc(doc(as(uid), NOTE_PATH), {
+    deletedAt: null,
+    meetingAt: 1_800_000_000_000,
+    lastEditedBy: uid,
+    lastEditedAt: serverTimestamp(),
+    version: 3,
+  });
+
+describe('restoring a trashed planned meeting note', () => {
+  it('the lead, a co-lead and a member can restore it', async () => {
+    for (const uid of [LEAD, CO_LEAD, MEMBER]) {
+      await seedTrashedNote();
+      await assertSucceeds(restore(uid));
+    }
+  });
+
+  it('viewers and non-members cannot restore it', async () => {
+    await seedTrashedNote();
+    for (const uid of [VIEWER, OUTSIDER]) {
+      await assertFails(restore(uid));
+    }
+  });
+
+  it('a restore without the version bump is rejected', async () => {
+    await seedTrashedNote();
+    await assertFails(
+      updateDoc(doc(as(MEMBER), NOTE_PATH), {
+        deletedAt: null,
+        lastEditedBy: MEMBER,
+        lastEditedAt: serverTimestamp(),
+      })
+    );
+  });
+});
+
 const writeTemplate = (uid: string, extra: Record<string, unknown> = {}) =>
   updateDoc(doc(as(uid), PLC_PATH), {
     meetingNoteTemplate: '## Agenda\n\n## Decisions <!-- decision -->\n',

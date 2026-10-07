@@ -45,16 +45,30 @@ export interface PlannedMeetingNote {
   meetingAt: number;
 }
 
-/** Creates the planned note once; a teammate who got there first wins and nothing is overwritten. */
+export type EnsureMeetingNoteResult = 'created' | 'restored' | 'existing';
+
+/** Creates the planned note once, or restores it from Trash; a live note is never overwritten. */
 export async function ensureMeetingNote(
   plcId: string,
   uid: string,
   planned: PlannedMeetingNote
-): Promise<boolean> {
+): Promise<EnsureMeetingNoteResult> {
   return runTransaction(db, async (tx) => {
     const ref = noteRef(plcId, planned.id);
     const snap = await tx.get(ref);
-    if (snap.exists()) return false;
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data.deletedAt == null) return 'existing';
+      const fields: Record<string, unknown> = {
+        deletedAt: null,
+        meetingAt: planned.meetingAt,
+        lastEditedBy: uid,
+        lastEditedAt: serverTimestamp(),
+      };
+      if (typeof data.version === 'number') fields.version = data.version + 1;
+      tx.update(ref, fields);
+      return 'restored';
+    }
     tx.set(ref, {
       id: planned.id,
       title: planned.title,
@@ -69,7 +83,7 @@ export async function ensureMeetingNote(
       lastEditedAt: serverTimestamp(),
       version: 0,
     });
-    return true;
+    return 'created';
   });
 }
 
