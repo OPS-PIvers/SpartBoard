@@ -1458,6 +1458,9 @@ export interface PlcGoal {
   id: string;
   title: string;
   measure?: string;
+  baseline?: number;
+  current?: number;
+  target?: number;
   practices: PlcGoalPractice[];
   order: number;
   createdBy: string;
