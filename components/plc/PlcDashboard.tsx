@@ -88,7 +88,11 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
   // Locked Wave-4 loop order + feature gating live in `getVisiblePlcSections`
   // (single source of truth). `assessments` shows when EITHER the quiz or the
   // video-activity feature is on.
-  const visibleSections = useMemo(() => getVisiblePlcSections(plc), [plc]);
+  const retireMeetingMode = canAccessFeature('teams-redesign');
+  const visibleSections = useMemo(
+    () => getVisiblePlcSections(plc, { retireMeetingMode }),
+    [plc, retireMeetingMode]
+  );
 
   const visibleRailItems: PlcRailItem[] = useMemo(
     () =>
@@ -105,11 +109,15 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
   // off). In that case fall back to `home`. We only REWRITE the URL
   // (replaceState, no history entry) when the requested section is a real
   // section id that resolved away — not for `home` itself.
-  const activeSection: PlcSectionId = visibleSections.find(
-    (s) => s.id === requestedSection
-  )
-    ? requestedSection
-    : 'home';
+  // A saved meeting record still opens read-only after Meeting Mode is retired (T15).
+  const keepsRecord =
+    retireMeetingMode && requestedSection === 'meeting' && !!meetingId;
+  const activeSection: PlcSectionId =
+    keepsRecord || visibleSections.find((s) => s.id === requestedSection)
+      ? requestedSection
+      : retireMeetingMode && requestedSection === 'meeting'
+        ? 'docs'
+        : 'home';
   useEffect(() => {
     if (activeSection !== requestedSection) {
       spaReplace(buildPlcPath(plc.id, activeSection));
@@ -124,8 +132,11 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
   // Mobile-only: drill back out to the section list without leaving the PLC.
   const handleBackToMenu = () => setShowMobileMenu(true);
 
-  const handleNavigateSection = (sectionId: PlcSectionId) => {
+  const handleNavigateSection = (requested: PlcSectionId) => {
     setShowMobileMenu(false);
+    // Old "open meeting" links land on Notes & Docs once Meeting Mode is retired (T11).
+    const sectionId =
+      retireMeetingMode && requested === 'meeting' ? 'docs' : requested;
     if (sectionId !== activeSection) {
       spaNavigate(buildPlcPath(plc.id, sectionId));
     }

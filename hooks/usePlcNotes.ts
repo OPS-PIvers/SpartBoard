@@ -16,6 +16,7 @@ import { logError } from '@/utils/logError';
 import { tsToMillis } from '@/utils/plc';
 import { usePlcSubcollection } from '@/context/usePlcContext';
 import { writePlcActivityEvent } from '@/utils/plcActivity';
+import { parseNoteBlocks, sanitizeBlocksForWrite } from '@/utils/plcNoteBlocks';
 import {
   parseActionItems,
   sanitizeActionItemsForWrite,
@@ -78,6 +79,8 @@ export interface UpdateNotePatch {
   kind?: 'freeform' | 'meeting';
   meetingId?: string | null;
   actionItems?: PlcNote['actionItems'];
+  blocks?: PlcNote['blocks'];
+  meetingAt?: number | null;
   deletedAt?: number | null;
 }
 
@@ -117,6 +120,8 @@ interface UsePlcNotesResult {
     kind?: 'freeform' | 'meeting';
     meetingId?: string | null;
     actionItems?: PlcNote['actionItems'];
+    blocks?: PlcNote['blocks'];
+    meetingAt?: number | null;
   }) => Promise<string>;
   /**
    * Patch an existing note's content. Stamps `lastEditedBy/At` to the current
@@ -196,6 +201,8 @@ export function parseNote(
   if (data.actionItems !== undefined) {
     note.actionItems = parseActionItems(data.actionItems);
   }
+  if (data.blocks !== undefined) note.blocks = parseNoteBlocks(data.blocks);
+  if (typeof data.meetingAt === 'number') note.meetingAt = data.meetingAt;
   if (typeof data.deletedAt === 'number') {
     note.deletedAt = data.deletedAt;
   } else if (data.deletedAt === null) {
@@ -266,6 +273,8 @@ export const usePlcNotes = (plcId: string | null): UsePlcNotesResult => {
       kind?: 'freeform' | 'meeting';
       meetingId?: string | null;
       actionItems?: PlcNote['actionItems'];
+      blocks?: PlcNote['blocks'];
+      meetingAt?: number | null;
     }): Promise<string> => {
       if (!plcId || !user) throw new Error('Not signed in');
       const ref = doc(
@@ -295,6 +304,10 @@ export const usePlcNotes = (plcId: string | null): UsePlcNotesResult => {
       if (input.actionItems !== undefined) {
         payload.actionItems = sanitizeActionItemsForWrite(input.actionItems);
       }
+      if (input.blocks !== undefined) {
+        payload.blocks = sanitizeBlocksForWrite(input.blocks);
+      }
+      if (input.meetingAt != null) payload.meetingAt = input.meetingAt;
       await setDoc(ref, payload);
 
       // Activity log (Decision 2.2, §3.4) — native notes is Wave 2's headline
@@ -355,6 +368,10 @@ export const usePlcNotes = (plcId: string | null): UsePlcNotesResult => {
       if (patch.actionItems !== undefined) {
         fields.actionItems = sanitizeActionItemsForWrite(patch.actionItems);
       }
+      if (patch.blocks !== undefined) {
+        fields.blocks = sanitizeBlocksForWrite(patch.blocks);
+      }
+      if (patch.meetingAt !== undefined) fields.meetingAt = patch.meetingAt;
       if (patch.deletedAt !== undefined) fields.deletedAt = patch.deletedAt;
       // Rollout escape hatch: a legacy note never carried `version`, so the
       // caller omits `expectedVersion` and we must NOT introduce the field (the

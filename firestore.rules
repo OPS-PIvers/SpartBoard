@@ -2364,6 +2364,16 @@ service cloud.firestore {
         && plcUpdatedAtOk();
     }
 
+    // Lead or co-lead setting or clearing the team's meeting-note template (T12) and nothing else.
+    function isUpdatingPlcMeetingNoteTemplate() {
+      return isPlcMembershipManager(resource.data)
+        && changedOnly(['meetingNoteTemplate', 'updatedAt'])
+        && (!('meetingNoteTemplate' in request.resource.data)
+          || (request.resource.data.meetingNoteTemplate is string
+            && request.resource.data.meetingNoteTemplate.size() <= 20000))
+        && plcUpdatedAtOk();
+    }
+
     // Team calendar (TEAMS_REDESIGN T28): absent, or a Google Calendar embed URL.
     function plcCalendarFieldOk() {
       let v = request.resource.data.get('calendarEmbedUrl', null);
@@ -2682,8 +2692,14 @@ service cloud.firestore {
     function plcNoteKeysOk() {
       return incoming().keys().hasOnly([
         'id', 'title', 'body', 'kind', 'meetingId', 'actionItems', 'createdBy',
-        'createdAt', 'lastEditedBy', 'lastEditedAt', 'version', 'deletedAt', 'yState'
+        'createdAt', 'lastEditedBy', 'lastEditedAt', 'version', 'deletedAt', 'yState',
+        'blocks', 'meetingAt'
       ]);
+    }
+    // Note blocks (TEAMS_REDESIGN T13, T14) cap at 100; meetingAt is a scheduled time in ms or null.
+    function plcNoteBlocksOk() {
+      return (!('blocks' in incoming()) || (isList('blocks') && incoming().blocks.size() <= 100))
+        && (!('meetingAt' in incoming()) || incoming().meetingAt == null || isInt('meetingAt'));
     }
     // Live recording fields: at most 200 parts and 61 minutes of recorded time.
     function plcRecordingLiveOk() {
@@ -2779,7 +2795,8 @@ service cloud.firestore {
       // (orgId/buildingId) is immutable-after-set. The update branches are MUTUALLY
       // EXCLUSIVE, each a disjoint shape: broad sitting-lead update; isAcceptingPlcInvite;
       // isLeavingPlc; isTransferringPlcLead / isChangingMemberRole; isSettingPlcSharedSheetUrl
-      // / isUpdatingPlcFeatures / isUpdatingPlcDigestOptIn / isUpdatingPlcMeetingCadence / isUpdatingPlcLayout / isUpdatingPlcCalendar;
+      // / isUpdatingPlcFeatures / isUpdatingPlcDigestOptIn / isUpdatingPlcMeetingCadence / isUpdatingPlcLayout
+      // / isUpdatingPlcMeetingNoteTemplate / isUpdatingPlcCalendar;
       // isAdminManagingPlc (the only
       // non-member branch).
       // shorthands: off (PLC update OR chain runs close to the 1,000-expression limit)
@@ -2820,6 +2837,10 @@ service cloud.firestore {
         || (
           request.resource.data.get('layout', null) != resource.data.get('layout', null)
           && isUpdatingPlcLayout()
+        )
+        || (
+          request.resource.data.get('meetingNoteTemplate', null) != resource.data.get('meetingNoteTemplate', null)
+          && isUpdatingPlcMeetingNoteTemplate()
         )
         || (
           request.resource.data.get('calendarEmbedUrl', null) != resource.data.get('calendarEmbedUrl', null)
@@ -3611,6 +3632,7 @@ service cloud.firestore {
                !('yState' in incoming())
                || isStr('yState')
              )
+          && plcNoteBlocksOk()
           // A fresh note may omit `version` (legacy/no-version) or start it at
           // an int (clients seed 0/1). The update branch enforces the +1 bump.
           && (
@@ -3653,6 +3675,7 @@ service cloud.firestore {
                !('yState' in incoming())
                || isStr('yState')
              )
+          && plcNoteBlocksOk()
           && plcSubDeletedAtOk()
           // Version precondition: new == old + 1, OR both absent (rollout).
           && (

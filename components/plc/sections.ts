@@ -201,7 +201,15 @@ export const PLC_SECTIONS: readonly PlcSectionDef[] = [
  * feature-gating. Centralised here so the dashboard, rail, and tests share one
  * source of truth for visibility + ordering.
  */
-export function getVisiblePlcSections(plc: Plc): readonly PlcSectionDef[] {
+export function getVisiblePlcSections(
+  plc: Plc,
+  options: { retireMeetingMode?: boolean } = {}
+): readonly PlcSectionDef[] {
   const features = getPlcFeatures(plc);
-  return PLC_SECTIONS.filter((s) => !s.isEnabled || s.isEnabled(features));
+  return PLC_SECTIONS.filter(
+    (s) =>
+      (!s.isEnabled || s.isEnabled(features)) &&
+      // Meeting Mode folds into Notes under the Teams redesign (TEAMS_REDESIGN T11).
+      !(options.retireMeetingMode && s.id === 'meeting')
+  );
 }
