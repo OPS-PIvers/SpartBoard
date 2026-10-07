@@ -38,6 +38,7 @@ import { LinkShortenerManager } from './LinkShortenerManager';
 import { PresetSubEmailsManager } from './PresetSubEmailsManager';
 import { PlcResourcesManager } from './PlcResourcesManager/PlcResourcesManager';
 import { BuildingGroupsManager } from './PlcResourcesManager/BuildingGroupsManager';
+import { TeamTypeDefaultsPanel } from '@/components/plc/teams/admin/TeamTypeDefaultsPanel';
 import { HelpCenterManager } from './HelpCenter/HelpCenterManager';
 import { StandardsPanel } from './StandardsPanel';
 import { SubjectsPanel } from './SubjectsPanel';
@@ -190,6 +191,13 @@ const TAB_GROUPS = [
         icon: Building2,
         component: BuildingGroupsManager,
         feature: 'my-groups',
+      },
+      {
+        id: 'team-type-defaults',
+        label: 'Team type defaults',
+        icon: LayoutTemplate,
+        component: TeamTypeDefaultsPanel,
+        feature: 'teams-redesign',
       },
     ],
   },
