@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { usePlcNotes } from '@/hooks/usePlcNotes';
+import { usePlcNotesData } from '@/context/usePlcContext';
 import { HeroHead } from '@/components/plc/redesignMockup/DepartmentHubMock';
 import { TextLink } from '@/components/plc/redesignMockup/ui';
 import { NotesMarkdown } from '@/components/plc/bodies/notesMarkdown';
@@ -21,7 +21,7 @@ export const TeamNoteHero: React.FC<TeamHeroProps> = ({
   onChangeHero,
 }) => {
   const { t } = useTranslation();
-  const { notes } = usePlcNotes(plc.id);
+  const { data: notes } = usePlcNotesData();
   const noteId = heroRef?.kind === 'note' ? heroRef.noteId : null;
   const note = noteId
     ? notes.find((n) => n.id === noteId && n.deletedAt == null)

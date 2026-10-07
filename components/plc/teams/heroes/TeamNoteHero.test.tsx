@@ -5,8 +5,8 @@ import { TEAM_HERO_BY_KIND, resolveTeamHeroEntry } from './heroRegistry';
 import { TeamNoteHero } from './TeamNoteHero';
 
 const notes = vi.hoisted(() => ({ list: [] as unknown[] }));
-vi.mock('@/hooks/usePlcNotes', () => ({
-  usePlcNotes: () => ({ notes: notes.list }),
+vi.mock('@/context/usePlcContext', () => ({
+  usePlcNotesData: () => ({ data: notes.list }),
 }));
 
 const plc = { id: 'p1', name: 'Dept' } as unknown as Plc;
