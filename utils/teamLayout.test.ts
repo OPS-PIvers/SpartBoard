@@ -521,7 +521,21 @@ describe('resolveTeamLayout', () => {
     expect(out.pages.find((p) => p.id === 'docs')?.enabled).toBe(false);
   });
 
-  it('O6: a saved layout missing a page follows the switch defaults', () => {
+  it('keeps a page the lead turned off when the team has no switches yet', () => {
+    const layout: PlcTeamLayout = {
+      pages: [
+        { id: 'dataOverview', enabled: true },
+        { id: 'docs', enabled: false },
+      ],
+      landing: 'dataOverview',
+      cards: [],
+      hero: { mode: 'default' },
+    };
+    const out = resolveTeamLayout(makePlc({ layout }));
+    expect(out.pages.find((p) => p.id === 'docs')?.enabled).toBe(false);
+  });
+
+  it('O2: a saved layout missing a page takes the type default', () => {
     const layout: PlcTeamLayout = {
       pages: [{ id: 'programHub', enabled: true }],
       landing: 'programHub',

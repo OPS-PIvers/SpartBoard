@@ -134,16 +134,20 @@ export function parseTeamLayout(raw: unknown): PlcTeamLayout | undefined {
 export function sanitizeTeamLayout(
   layout: PlcTeamLayout,
   groupType: PlcGroupType,
-  fallback: Pick<TeamTypePreset, 'landing'> = BUILT_IN_TEAM_TYPE_PRESETS[
-    groupType
-  ]
+  fallback: Pick<TeamTypePreset, 'landing'> &
+    Partial<Pick<TeamTypePreset, 'pages'>> = {
+    landing: BUILT_IN_TEAM_TYPE_PRESETS[groupType].landing,
+  }
 ): PlcTeamLayout {
   const available = teamTypeAvailablePages(groupType);
   const pages = parsePages(layout.pages).filter((p) =>
     available.includes(p.id)
   );
+  // A page added to the type after the layout was saved takes the type default.
   for (const id of available) {
-    if (!pages.some((p) => p.id === id)) pages.push({ id, enabled: false });
+    if (pages.some((p) => p.id === id)) continue;
+    const enabled = fallback.pages?.find((p) => p.id === id)?.enabled === true;
+    pages.push({ id, enabled });
   }
 
   const landingOk = (id: TeamPageId) =>
@@ -266,12 +270,12 @@ function legacySwitches(plc: Plc): Record<SwitchedPage, boolean> {
   };
 }
 
-/** T35: once a team has section switches or a saved layout, the switches decide Notes & Docs and Assessments for every member. */
+/** T35: once a team has section switches, they decide Notes & Docs and Assessments for every member. */
 function applyLegacySwitches(
   layout: PlcTeamLayout,
   plc: Plc
 ): Pick<PlcTeamLayout, 'pages' | 'cards'> {
-  if (!plc.features && !plc.layout) return layout;
+  if (!plc.features) return layout;
   const on = legacySwitches(plc);
   const switched = (id: TeamPageId): id is SwitchedPage =>
     Object.hasOwn(on, id) && id !== layout.landing;
