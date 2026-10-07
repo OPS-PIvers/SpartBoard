@@ -188,16 +188,16 @@ export type LtiSessionKind = 'quiz' | 'va';
 // SAME session the student's responses land in.
 const JOINABLE_QUIZ_STATUSES = new Set(['waiting', 'active', 'paused']);
 
-/**
- * Fields common to both launch kinds, plus a discriminated `kind`→id pairing so
- * an illegal combination (e.g. `kind: 'va'` with a `quizCode`) is unrepresentable
- * at the type level — the function's runtime guards then stay as defense-in-depth.
- */
 /** Identifies the session a launch targets: a quiz join code or a VA session id. */
 export type LtiTargetSessionArgs =
   | { kind: 'quiz'; quizCode: string }
   | { kind: 'va'; sessionId: string };
 
+/**
+ * Fields common to both launch kinds, plus a discriminated `kind`→id pairing so
+ * an illegal combination (e.g. `kind: 'va'` with a `quizCode`) is unrepresentable
+ * at the type level — the function's runtime guards then stay as defense-in-depth.
+ */
 export type PersistLtiLaunchContextArgs = {
   /** The Schoology context (course) id from the launch. */
   contextId: string;
