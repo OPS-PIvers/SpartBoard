@@ -8,7 +8,7 @@ import type { BarRow } from '@/components/plc/redesignMockup/charts/BarRows';
 import { ANSWER_BG } from '@/components/plc/redesignMockup/charts/chartTokens';
 
 export const ITEM_COLUMNS =
-  'grid-cols-[minmax(0,17rem)_minmax(0,1fr)_minmax(0,18rem)]';
+  'grid-cols-[minmax(0,17rem)_minmax(0,1fr)_minmax(0,15rem)]';
 
 export function itemLegend(t: TFunction) {
   return [
@@ -58,15 +58,13 @@ export function buildItemRows(
           <span className="w-7 shrink-0 font-bold tabular-nums text-slate-800">
             Q{q.number}
           </span>
-          <span className="min-w-0 break-words">
-            {q.text}
-            {q.reteach && (
-              <span className="ml-2 inline-flex items-center gap-1 whitespace-nowrap align-middle text-xxs font-bold uppercase tracking-wider text-brand-red-primary">
-                <RotateCcw className="h-3 w-3" aria-hidden="true" />
-                {t('plcDataOverview.reteach', { defaultValue: 'Reteach' })}
-              </span>
-            )}
-          </span>
+          <span className="min-w-0 break-words">{q.text}</span>
+          {q.reteach && (
+            <span className="inline-flex shrink-0 items-center gap-1 pt-0.5 text-xxs font-bold uppercase tracking-wider text-brand-red-primary">
+              <RotateCcw className="h-3 w-3" aria-hidden="true" />
+              {t('plcDataOverview.reteach', { defaultValue: 'Reteach' })}
+            </span>
+          )}
         </span>
       ),
       segments: [

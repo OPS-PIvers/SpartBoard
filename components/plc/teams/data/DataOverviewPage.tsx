@@ -68,13 +68,19 @@ export default function DataOverviewPage({
         model={model}
         targetId={heroRef.targetId}
         isLead={isLead}
+        pinnedBy={heroRef ? layout.hero.pinnedBy?.name : undefined}
       />
     ) : heroRef?.kind === 'goal' ? (
       <Section first>
         <GoalSection plc={plc} isLead={isLead} goalId={heroRef.goalId} hero />
       </Section>
     ) : (
-      <AssessmentHeroFromModel plc={plc} model={model} isLead={isLead} />
+      <AssessmentHeroFromModel
+        plc={plc}
+        model={model}
+        isLead={isLead}
+        pinnedBy={heroRef ? layout.hero.pinnedBy?.name : undefined}
+      />
     );
 
   return (

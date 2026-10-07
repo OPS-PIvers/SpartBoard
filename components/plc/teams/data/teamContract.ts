@@ -1,7 +1,7 @@
 // Local copy of the B1 page/card/hero contract; switch to components/plc/teams/pageRegistry exports once B1 merges.
 
 import type { ReactNode } from 'react';
-import type { Plc, TeamHeroRef } from '@/types';
+import type { Plc, TeamHero, TeamHeroRef } from '@/types';
 import type { ResolvedTeamLayout } from '@/utils/teamLayout';
 
 export interface TeamPageProps {
@@ -18,6 +18,8 @@ export interface TeamCardProps {
 export interface TeamHeroProps {
   plc: Plc;
   heroRef: TeamHeroRef | null;
+  /** Set on a pinned hero; renders as "Pinned by {name}". */
+  pinnedBy?: TeamHero['pinnedBy'];
   isLead: boolean;
 }
 

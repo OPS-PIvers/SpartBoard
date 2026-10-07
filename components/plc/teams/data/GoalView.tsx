@@ -14,6 +14,7 @@ import {
   StatusLabel,
   TextLink,
 } from '@/components/plc/redesignMockup/ui';
+import { GoalProgressMeter } from './GoalProgressMeter';
 
 export interface GoalViewProps {
   goal: PlcGoal | null;
@@ -160,6 +161,15 @@ export const GoalView: React.FC<GoalViewProps> = ({
           >
             {goal.title}
           </p>
+          {goal.current !== undefined && goal.target !== undefined && (
+            <GoalProgressMeter
+              current={goal.current}
+              target={goal.target}
+              {...(goal.baseline !== undefined
+                ? { baseline: goal.baseline }
+                : {})}
+            />
+          )}
           {hero && practices.length > 0 && (
             <ul className="mb-3 flex flex-col gap-1">
               {practices.map((p) => (

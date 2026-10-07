@@ -58,6 +58,8 @@ export interface AssessmentHeroViewProps {
   onChange?: () => void;
   onOpenResults: () => void;
   onShowLatest?: () => void;
+  /** Name of whoever pinned this hero. */
+  pinnedBy?: string;
 }
 
 /** T19 item-analysis hero: headline numbers, then percent correct per question with the dominant wrong answer. */
@@ -68,6 +70,7 @@ export const AssessmentHeroView: React.FC<AssessmentHeroViewProps> = ({
   onChange,
   onOpenResults,
   onShowLatest,
+  pinnedBy,
 }) => {
   const { t } = useTranslation();
   const fmt = useDateFormat();
@@ -109,7 +112,12 @@ export const AssessmentHeroView: React.FC<AssessmentHeroViewProps> = ({
               <>
                 {' ·'}
                 <Pin className="h-3 w-3" aria-hidden="true" />
-                {t('plcDataOverview.pinned', { defaultValue: 'Pinned' })}
+                {pinnedBy
+                  ? t('plcDataOverview.pinnedBy', {
+                      name: pinnedBy,
+                      defaultValue: 'Pinned by {{name}}',
+                    })
+                  : t('plcDataOverview.pinned', { defaultValue: 'Pinned' })}
               </>
             )}
           </p>

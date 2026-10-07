@@ -12,6 +12,7 @@ import {
   ASSESSMENTS,
   LEARNING_TARGETS,
 } from '@/components/plc/redesignMockup/fixtures';
+import { AssessmentHeroView } from './DataOverviewSections';
 import { DataOverviewView } from './DataOverviewView';
 import { GoalView } from './GoalView';
 import { ManageTargetsModal } from './ManageTargetsModal';
@@ -128,6 +129,61 @@ describe('GoalView coach', () => {
     expect(
       screen.queryByRole('button', { name: /Check this goal/ })
     ).toBeNull();
+  });
+});
+
+describe('GoalView meter', () => {
+  it('draws the meter only when now and goal numbers are set', () => {
+    const { rerender } = render(
+      <GoalView goal={GOAL} practices={[]} isLead={false} />
+    );
+    expect(screen.queryByTestId('goal-meter')).toBeNull();
+    rerender(
+      <GoalView
+        goal={{ ...GOAL, baseline: 58, current: 64, target: 80 }}
+        practices={[]}
+        isLead={false}
+      />
+    );
+    expect(screen.getByTestId('goal-meter')).toBeTruthy();
+  });
+});
+
+describe('AssessmentHeroView pinned label', () => {
+  const featured = () => {
+    const model = buildDataOverviewModel({
+      aggregates: AGGREGATES,
+      assessments: ASSESSMENTS,
+      targets: LEARNING_TARGETS,
+      teacherUids: ['t1'],
+      heroRef: { kind: 'assessment', assessmentId: 'u3' },
+    });
+    if (!model.featured) throw new Error('no featured assessment');
+    return model.featured;
+  };
+
+  it('names who pinned it, or just says Pinned', () => {
+    const f = featured();
+    const { rerender } = render(
+      <AssessmentHeroView
+        featured={f}
+        newer={null}
+        isLead={false}
+        onOpenResults={vi.fn()}
+        pinnedBy="Priya Shah"
+      />
+    );
+    expect(screen.getByText(/Pinned by Priya Shah/)).toBeTruthy();
+    rerender(
+      <AssessmentHeroView
+        featured={f}
+        newer={null}
+        isLead={false}
+        onOpenResults={vi.fn()}
+      />
+    );
+    expect(screen.queryByText(/Pinned by/)).toBeNull();
+    expect(screen.getByText(/Pinned/)).toBeTruthy();
   });
 });
 

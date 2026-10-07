@@ -25,6 +25,8 @@ export interface TargetHeroViewProps {
   cutoffs: MasteryCutoffs;
   isLead: boolean;
   onChange?: () => void;
+  /** Name of whoever pinned this hero. */
+  pinnedBy?: string;
 }
 
 export const TargetHeroView: React.FC<TargetHeroViewProps> = ({
@@ -34,6 +36,7 @@ export const TargetHeroView: React.FC<TargetHeroViewProps> = ({
   cutoffs,
   isLead,
   onChange,
+  pinnedBy,
 }) => {
   const { t } = useTranslation();
   const fmt = useDateFormat();
@@ -51,7 +54,12 @@ export const TargetHeroView: React.FC<TargetHeroViewProps> = ({
           <p className={`${META} mt-1 flex flex-wrap items-center gap-1`}>
             {heading} ·
             <Pin className="h-3 w-3" aria-hidden="true" />
-            {t('plcDataOverview.pinned', { defaultValue: 'Pinned' })}
+            {pinnedBy
+              ? t('plcDataOverview.pinnedBy', {
+                  name: pinnedBy,
+                  defaultValue: 'Pinned by {{name}}',
+                })
+              : t('plcDataOverview.pinned', { defaultValue: 'Pinned' })}
           </p>
         </div>
         {isLead && onChange && (

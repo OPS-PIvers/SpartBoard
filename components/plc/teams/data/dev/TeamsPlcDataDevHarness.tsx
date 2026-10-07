@@ -42,6 +42,9 @@ const GOAL: PlcGoal = {
   title:
     'By May 2027, 80% of students score 75% or higher on unit CFAs, up from 58% on Unit 1, through weekly small-group reteach.',
   measure: 'Students at 75% or higher',
+  baseline: 58,
+  current: 64,
+  target: 80,
   practices: [{ id: 'p1', text: 'Weekly small-group reteach' }],
   order: 0,
   createdBy: 't1',
@@ -146,6 +149,7 @@ export const TeamsPlcDataDevHarness: React.FC = () => {
         shortTitles={SHORT_TITLES}
         cutoffs={model.cutoffs}
         isLead={lead}
+        pinnedBy="Priya Shah"
         onChange={() => undefined}
       />
     ) : heroKind === 'goal' ? (
@@ -155,6 +159,7 @@ export const TeamsPlcDataDevHarness: React.FC = () => {
         featured={model.featured}
         newer={model.newer}
         isLead={lead}
+        pinnedBy="Priya Shah"
         onChange={() => undefined}
         onOpenResults={() => undefined}
         onShowLatest={() => undefined}

@@ -27,7 +27,8 @@ export const AssessmentHeroFromModel: React.FC<{
   plc: Plc;
   model: DataOverviewModel;
   isLead: boolean;
-}> = ({ plc, model, isLead }) => {
+  pinnedBy?: string;
+}> = ({ plc, model, isLead, pinnedBy }) => {
   const { openLayoutEditor } = useTeamShellActions();
   const nav = usePlcNavigation(plc.id);
   const followLatest = useFollowLatest(plc);
@@ -44,6 +45,7 @@ export const AssessmentHeroFromModel: React.FC<{
       featured={featured}
       newer={model.newer}
       isLead={isLead}
+      pinnedBy={pinnedBy}
       onChange={openLayoutEditor}
       onOpenResults={() => nav.openAssessment(featured.assessmentId)}
       onShowLatest={() =>
@@ -58,11 +60,19 @@ export const AssessmentHeroFromModel: React.FC<{
 export const AssessmentHero: React.FC<TeamHeroProps> = ({
   plc,
   heroRef,
+  pinnedBy,
   isLead,
 }) => {
   const { model } = useDataOverviewModel(plc, heroRef);
   if (!useFlag()) return null;
-  return <AssessmentHeroFromModel plc={plc} model={model} isLead={isLead} />;
+  return (
+    <AssessmentHeroFromModel
+      plc={plc}
+      model={model}
+      isLead={isLead}
+      pinnedBy={pinnedBy?.name}
+    />
+  );
 };
 
 /** Target hero from shared selector input. */
@@ -71,7 +81,8 @@ export const TargetHeroFromInput: React.FC<{
   model: DataOverviewModel;
   targetId: string;
   isLead: boolean;
-}> = ({ input, model, targetId, isLead }) => {
+  pinnedBy?: string;
+}> = ({ input, model, targetId, isLead, pinnedBy }) => {
   const { openLayoutEditor } = useTeamShellActions();
   const titles: Record<string, string> = {};
   for (const a of input.assessments) titles[a.id] = a.title;
@@ -83,6 +94,7 @@ export const TargetHeroFromInput: React.FC<{
       shortTitles={model.shortTitles}
       cutoffs={model.cutoffs}
       isLead={isLead}
+      pinnedBy={pinnedBy}
       onChange={openLayoutEditor}
     />
   );
@@ -91,6 +103,7 @@ export const TargetHeroFromInput: React.FC<{
 export const TargetHero: React.FC<TeamHeroProps> = ({
   plc,
   heroRef,
+  pinnedBy,
   isLead,
 }) => {
   const { input, model } = useDataOverviewModel(plc, null);
@@ -101,6 +114,7 @@ export const TargetHero: React.FC<TeamHeroProps> = ({
       model={model}
       targetId={heroRef.targetId}
       isLead={isLead}
+      pinnedBy={pinnedBy?.name}
     />
   );
 };
@@ -133,6 +147,7 @@ export const GoalSection: React.FC<{
       {editing && (
         <GoalEditorModal
           goal={editing === 'new' ? null : editing}
+          showProgress
           nextOrder={goals.length}
           routines={routines}
           onSave={async (draft) => {
