@@ -61,6 +61,8 @@ export const useGlobalPermissionsEditor = () => {
   );
   // Written with every setStored so a discard from a stale closure sees fresh saves.
   const storedRef = useRef<Map<string, GlobalFeaturePermission>>(new Map());
+  // Bumped per edit so a save can tell whether the user edited the feature while it was in flight.
+  const editVersionsRef = useRef<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [unsavedChanges, setUnsavedChanges] = useState<Set<string>>(new Set());
@@ -138,6 +140,10 @@ export const useGlobalPermissionsEditor = () => {
 
   const updatePermission = useCallback(
     (featureId: GlobalFeature, updates: Partial<GlobalFeaturePermission>) => {
+      editVersionsRef.current.set(
+        featureId,
+        (editVersionsRef.current.get(featureId) ?? 0) + 1
+      );
       // Functional update so several changes in one tick all merge.
       setPermissions((prev) => {
         const current = prev.get(featureId) ?? getPermission(featureId);
@@ -183,6 +189,7 @@ export const useGlobalPermissionsEditor = () => {
   ): Promise<boolean> => {
     try {
       setSaving((prev) => new Set(prev).add(featureId));
+      const versionAtSave = editVersionsRef.current.get(featureId) ?? 0;
       const permission = { ...getPermission(featureId), ...extra };
       // Firestore rejects `undefined`; "no minimum tier" is an absent field.
       const { minTier, ...withoutMinTier } = permission;
@@ -215,14 +222,17 @@ export const useGlobalPermissionsEditor = () => {
         }
       }
 
-      setPermissions((prev) => new Map(prev).set(featureId, permission));
       storedRef.current = new Map(storedRef.current).set(featureId, permission);
       setStored(storedRef.current);
-      setUnsavedChanges((prev) => {
-        const next = new Set(prev);
-        next.delete(featureId);
-        return next;
-      });
+      // An edit made during the save stays in state and stays unsaved.
+      if ((editVersionsRef.current.get(featureId) ?? 0) === versionAtSave) {
+        setPermissions((prev) => new Map(prev).set(featureId, permission));
+        setUnsavedChanges((prev) => {
+          const next = new Set(prev);
+          next.delete(featureId);
+          return next;
+        });
+      }
       if (successText !== '')
         showMessage(
           'success',
