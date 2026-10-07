@@ -15,6 +15,7 @@ import {
 } from './heroes';
 import { buildTagQuestionSets } from './dataOverviewModel';
 import type { TeamPageProps } from '@/components/plc/teams/types';
+import { TeamHeroRegion } from '@/components/plc/teams/heroes/TeamHeroRegion';
 import { useTeamShellActions } from './teamShellActions';
 import {
   useDataOverviewModel,
@@ -49,6 +50,8 @@ export default function DataOverviewPage({
   plc,
   layout,
   isLead,
+  onChangeHero,
+  onNavigate,
 }: TeamPageProps) {
   const { canAccessFeature } = useAuth();
   const heroRef =
@@ -61,34 +64,49 @@ export default function DataOverviewPage({
 
   if (!canAccessFeature('teams-redesign')) return null;
 
-  const hero =
-    heroRef?.kind === 'target' ? (
-      <TargetHeroFromInput
-        input={input}
-        model={model}
-        targetId={heroRef.targetId}
-        isLead={isLead}
-        pinnedBy={heroRef ? layout.hero.pinnedBy?.name : undefined}
-      />
-    ) : heroRef?.kind === 'goal' ? (
-      <Section first>
-        <GoalSection
-          plc={plc}
-          isLead={isLead}
-          goalId={heroRef.goalId}
-          hero
-          pinned
-          pinnedBy={layout.hero.pinnedBy?.name}
-        />
-      </Section>
-    ) : (
-      <AssessmentHeroFromModel
+  // Pins this page doesn't draw itself (docs, notes, updates, calendar) go through the shared hero dispatch.
+  const ownsPin =
+    !heroRef ||
+    heroRef.kind === 'assessment' ||
+    heroRef.kind === 'target' ||
+    heroRef.kind === 'goal';
+  const hero = !ownsPin ? (
+    <Section first>
+      <TeamHeroRegion
         plc={plc}
-        model={model}
+        layout={layout}
         isLead={isLead}
-        pinnedBy={heroRef ? layout.hero.pinnedBy?.name : undefined}
+        onChangeHero={onChangeHero}
+        onNavigate={onNavigate}
       />
-    );
+    </Section>
+  ) : heroRef?.kind === 'target' ? (
+    <TargetHeroFromInput
+      input={input}
+      model={model}
+      targetId={heroRef.targetId}
+      isLead={isLead}
+      pinnedBy={heroRef ? layout.hero.pinnedBy?.name : undefined}
+    />
+  ) : heroRef?.kind === 'goal' ? (
+    <Section first>
+      <GoalSection
+        plc={plc}
+        isLead={isLead}
+        goalId={heroRef.goalId}
+        hero
+        pinned
+        pinnedBy={layout.hero.pinnedBy?.name}
+      />
+    </Section>
+  ) : (
+    <AssessmentHeroFromModel
+      plc={plc}
+      model={model}
+      isLead={isLead}
+      pinnedBy={heroRef ? layout.hero.pinnedBy?.name : undefined}
+    />
+  );
 
   return (
     <>

@@ -133,19 +133,12 @@ describe('hero', () => {
     );
     expect(foreignHero('update')).not.toBeNull();
     expect(foreignHero('update')).toBe(foreignHero('update'));
-    expect(foreignHero('note')).toBeNull();
+    expect(foreignHero('note')).toBe(foreignHero('note'));
   });
 
-  it('returns no renderer for an unregistered rule or kind', () => {
+  it('returns no renderer for an unregistered rule', () => {
     expect(
       resolveTeamHeroEntry(null, 'nextMeetingNote', 'department')
-    ).toBeNull();
-    expect(
-      resolveTeamHeroEntry(
-        { kind: 'note', noteId: 'x' },
-        'latestAssessment',
-        'plc'
-      )
     ).toBeNull();
   });
 });

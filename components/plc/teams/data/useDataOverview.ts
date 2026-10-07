@@ -11,7 +11,7 @@ import { usePlcGoals } from '@/hooks/usePlcGoals';
 import { usePlcNotes } from '@/hooks/usePlcNotes';
 import { selectDecisionsToRevisit } from '@/utils/plcNoteBlocks';
 import { usePlcGoalCoach } from '@/hooks/usePlcGoalCoach';
-import { saveTeamLayout } from '@/hooks/useTeamLayout';
+import { saveTeamLayout, useTeamTypeDefaults } from '@/hooks/useTeamLayout';
 import {
   routineFor,
   useGoalRoutineOptions,
@@ -85,10 +85,11 @@ export function usePlcNavigation(plcId: string) {
 
 /** T6: a lead drops the pin so the hero follows the type's default again. */
 export function useFollowLatest(plc: Plc) {
+  const adminDefaults = useTeamTypeDefaults();
   return useCallback(async () => {
-    const layout = resolveTeamLayout(plc);
+    const layout = resolveTeamLayout(plc, adminDefaults);
     await saveTeamLayout(plc.id, { ...layout, hero: { mode: 'default' } });
-  }, [plc]);
+  }, [plc, adminDefaults]);
 }
 
 /** Goals with routine-backed practices resolved to names, plus the gated coach. */
