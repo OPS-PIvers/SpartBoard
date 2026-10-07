@@ -73,7 +73,7 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
       ariaLabel={
         groupWording
           ? t('plcDashboard.shareTargetModal.groupAriaLabel', {
-              defaultValue: 'Pick a group to share with',
+              defaultValue: 'Pick a team to share with',
             })
           : t('plcDashboard.shareTargetModal.ariaLabel', {
               defaultValue: 'Pick a PLC to share with',
@@ -91,7 +91,7 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
               <h2 className="text-base font-bold text-slate-900">
                 {groupWording
                   ? t('plcDashboard.shareTargetModal.groupTitle', {
-                      defaultValue: 'Share with group',
+                      defaultValue: 'Share with team',
                     })
                   : t('plcDashboard.shareTargetModal.title', {
                       defaultValue: 'Share with PLC',

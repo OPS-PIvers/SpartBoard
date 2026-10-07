@@ -74,7 +74,7 @@ export const PlcInvitesModal: React.FC<PlcInvitesModalProps> = ({
       title={
         groupWording
           ? t('sidebar.plcs.groupInvitesTitle', {
-              defaultValue: 'Pending Group Invitations',
+              defaultValue: 'Pending Team Invitations',
             })
           : t('sidebar.plcs.invitesTitle', {
               defaultValue: 'Pending PLC Invitations',

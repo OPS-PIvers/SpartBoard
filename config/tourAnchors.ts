@@ -489,10 +489,28 @@ export const TOUR_ANCHORS = {
     label: 'Randomize/Pick button in Random Picker',
     perWidget: true,
   },
+  'random.class-context': {
+    label: 'Active class button in the Randomizer header',
+    perWidget: true,
+  },
+  'random.mark-absent': {
+    label: 'Mark absent students item in the Randomizer class menu',
+    panel: true,
+  },
   'random.reset': {
     label: 'Reset student pool button in Random Picker',
     perWidget: true,
     destructive: true,
+  },
+  'random.group-color': {
+    label: 'Color button on a Randomizer group header, by group number',
+    perField: true,
+  },
+  'random.group-color-swatch': {
+    label:
+      'Swatch in the Randomizer group color picker, by color (e.g. indigo-500)',
+    perField: true,
+    panel: true,
   },
   'schedule.start-timer': {
     label:

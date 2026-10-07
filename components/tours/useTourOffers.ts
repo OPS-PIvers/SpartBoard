@@ -70,6 +70,24 @@ export function useFirstRunnableTour(
   return ids.find((id) => isTourRunnable(id) === true) ?? null;
 }
 
+const EMPTY_IDS: ReadonlySet<string> = new Set();
+
+/** The subset of these building sets with a runnable published tour; empty while disabled. */
+export function useRunnableTourIds(
+  ids: readonly string[],
+  enabled: boolean
+): ReadonlySet<string> {
+  const idsKey = enabled ? [...ids].sort().join(',') : '';
+  const subscribe = useCallback(
+    (onChange: () => void) =>
+      idsKey ? watchTours(idsKey.split(','), onChange) : () => undefined,
+    [idsKey]
+  );
+  useSyncExternalStore(subscribe, getToursVersion, getToursVersion);
+  if (!idsKey) return EMPTY_IDS;
+  return new Set(idsKey.split(',').filter((id) => isTourRunnable(id) === true));
+}
+
 function useFirstLiveSet(ids: readonly string[]): string | null {
   return useFirstRunnableTour(ids, useLiveToursEnabled());
 }

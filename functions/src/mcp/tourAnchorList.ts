@@ -731,10 +731,33 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     scope: 'widget',
   },
   {
+    id: 'random.class-context',
+    label: 'Active class button in the Randomizer header',
+    scope: 'widget',
+  },
+  {
+    id: 'random.mark-absent',
+    label: 'Mark absent students item in the Randomizer class menu',
+    scope: 'board',
+    panel: true,
+  },
+  {
     id: 'random.reset',
     label: 'Reset student pool button in Random Picker',
     scope: 'widget',
     destructive: true,
+  },
+  {
+    id: 'random.group-color',
+    label: 'Color button on a Randomizer group header, by group number',
+    scope: 'field',
+  },
+  {
+    id: 'random.group-color-swatch',
+    label:
+      'Swatch in the Randomizer group color picker, by color (e.g. indigo-500)',
+    scope: 'field',
+    panel: true,
   },
   {
     id: 'schedule.start-timer',

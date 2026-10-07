@@ -401,7 +401,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
           ? err.message
           : groupWording
             ? t('plcDashboard.newAssignment.quiz.groupCreateFailed', {
-                defaultValue: 'Failed to create the group assignment.',
+                defaultValue: 'Failed to create the team assignment.',
               })
             : t('plcDashboard.newAssignment.quiz.createFailed', {
                 defaultValue: 'Failed to create the PLC assignment.',
@@ -443,7 +443,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
         title={
           groupWording
             ? t('plcDashboard.newAssignment.quiz.groupPickTitle', {
-                defaultValue: 'New Group Quiz Assignment',
+                defaultValue: 'New Team Quiz Assignment',
               })
             : t('plcDashboard.newAssignment.quiz.pickTitle', {
                 defaultValue: 'New PLC Quiz Assignment',

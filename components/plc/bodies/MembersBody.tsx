@@ -173,7 +173,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
       setInviteError(
         groupWording
           ? t('plcDashboard.members.groupAlreadyMember', {
-              defaultValue: 'That email is already a member of this group.',
+              defaultValue: 'That email is already a member of this team.',
             })
           : t('plcDashboard.members.alreadyMember', {
               defaultValue: 'That email is already a member of this PLC.',
@@ -250,7 +250,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
       groupWording
         ? t('plcDashboard.members.groupConfirmTransfer', {
             defaultValue:
-              'Make {{email}} the lead of this group? You will become a regular member.',
+              'Make {{email}} the lead of this team? You will become a regular member.',
             email: member.email || member.uid,
           })
         : t('plcDashboard.members.confirmTransfer', {
@@ -288,7 +288,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
     const confirmed = await showConfirm(
       groupWording
         ? t('plcDashboard.members.groupConfirmRemove', {
-            defaultValue: 'Remove {{email}} from this group?',
+            defaultValue: 'Remove {{email}} from this team?',
             email: member.email || member.uid,
           })
         : t('plcDashboard.members.confirmRemove', {
@@ -326,7 +326,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
       groupWording
         ? t('plcDashboard.members.groupConfirmLeave', {
             defaultValue:
-              'Leave this group? You will lose access to shared assignment results.',
+              'Leave this team? You will lose access to shared assignment results.',
           })
         : t('plcDashboard.members.confirmLeave', {
             defaultValue:
@@ -335,7 +335,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
       {
         title: groupWording
           ? t('plcDashboard.members.groupConfirmLeaveTitle', {
-              defaultValue: 'Leave group',
+              defaultValue: 'Leave team',
             })
           : t('plcDashboard.members.confirmLeaveTitle', {
               defaultValue: 'Leave PLC',
@@ -719,7 +719,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
             <UserMinus aria-hidden="true" className="w-3.5 h-3.5" />
             {groupWording
               ? t('plcDashboard.members.groupLeavePlc', {
-                  defaultValue: 'Leave this group',
+                  defaultValue: 'Leave this team',
                 })
               : t('plcDashboard.members.leavePlc', {
                   defaultValue: 'Leave this PLC',

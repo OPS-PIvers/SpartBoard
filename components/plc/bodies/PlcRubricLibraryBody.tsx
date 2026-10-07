@@ -159,7 +159,7 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
         addToast(
           groupWording
             ? t('plcDashboard.rubricLibrary.groupShareFailed', {
-                defaultValue: 'Failed to share rubric with this group.',
+                defaultValue: 'Failed to share rubric with this team.',
               })
             : t('plcDashboard.rubricLibrary.shareFailed', {
                 defaultValue: 'Failed to share rubric with this PLC.',
@@ -431,7 +431,7 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
           title={
             groupWording
               ? t('plcDashboard.rubricLibrary.groupSharePickerTitle', {
-                  defaultValue: 'Share a rubric with this group',
+                  defaultValue: 'Share a rubric with this team',
                 })
               : t('plcDashboard.rubricLibrary.sharePickerTitle', {
                   defaultValue: 'Share a rubric with this PLC',

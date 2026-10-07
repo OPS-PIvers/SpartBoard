@@ -185,10 +185,10 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
 
   const title = groups
     ? isCreate
-      ? t('sidebar.groups.newTitle', { defaultValue: 'New group' })
+      ? t('sidebar.groups.newTitle', { defaultValue: 'New team' })
       : isLead
-        ? t('sidebar.groups.editTitle', { defaultValue: 'Edit group' })
-        : t('sidebar.groups.viewTitle', { defaultValue: 'Group details' })
+        ? t('sidebar.groups.editTitle', { defaultValue: 'Edit team' })
+        : t('sidebar.groups.viewTitle', { defaultValue: 'Team details' })
     : isCreate
       ? t('sidebar.plcs.newPlcTitle', { defaultValue: 'New PLC' })
       : isLead
@@ -208,7 +208,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
         <div>
           <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1.5">
             {groups
-              ? t('sidebar.groups.nameLabel', { defaultValue: 'Group name' })
+              ? t('sidebar.groups.nameLabel', { defaultValue: 'Team name' })
               : t('sidebar.plcs.nameLabel', { defaultValue: 'PLC Name' })}
           </label>
           <input
@@ -363,7 +363,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
               {groups
                 ? t('sidebar.groups.inviteHelp', {
                     defaultValue:
-                      "They'll see the invite under My Groups in their sidebar.",
+                      "They'll see the invite under My Teams in their sidebar.",
                   })
                 : t('sidebar.plcs.inviteHelp', {
                     defaultValue:
@@ -435,7 +435,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
               {isCreate
                 ? groups
                   ? t('sidebar.groups.create', {
-                      defaultValue: 'Create group',
+                      defaultValue: 'Create team',
                     })
                   : t('sidebar.plcs.createPlc', {
                       defaultValue: 'Create PLC',

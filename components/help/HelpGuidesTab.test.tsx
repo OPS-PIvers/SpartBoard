@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HelpResourceItem } from '@/types/helpCenter';
+import { TOUR_START_EVENT } from '@/components/tours/tourState';
 import { HelpGuidesTab } from './HelpGuidesTab';
 
 const firestoreMocks = vi.hoisted(() => ({
@@ -22,6 +23,8 @@ const helpState = vi.hoisted(() => ({
 const glMocks = vi.hoisted(() => ({
   liveTours: false,
   tourSetIds: new Set<string>(),
+  published: new Set<string>(),
+  canRunLive: true,
   loadBuildingSet: vi.fn(),
   playerProps: [] as { teacherMode?: boolean; setTitle: string }[],
 }));
@@ -38,6 +41,21 @@ vi.mock('firebase/firestore', () => ({
   setDoc: vi.fn(),
   deleteDoc: vi.fn(),
   getDoc: vi.fn(),
+}));
+
+vi.mock('@/components/tours/publishedTours', () => ({
+  watchTours: () => () => undefined,
+  getToursVersion: () => 0,
+  isTourRunnable: (id: string) => glMocks.published.has(id),
+  loadRunnableTour: vi.fn(),
+}));
+
+vi.mock('@/components/tours/useCanRunLiveTour', () => ({
+  useCanRunLiveTour: () => glMocks.canRunLive,
+}));
+
+vi.mock('@/hooks/useIsMobile', () => ({
+  useIsMobile: () => false,
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -124,6 +142,8 @@ describe('HelpGuidesTab', () => {
     glMocks.playerProps.length = 0;
     glMocks.liveTours = false;
     glMocks.tourSetIds = new Set();
+    glMocks.published = new Set();
+    glMocks.canRunLive = true;
     helpState.items = [
       makeItem({ id: 'v1', title: 'Welcome video' }),
       makeItem({
@@ -177,6 +197,7 @@ describe('HelpGuidesTab', () => {
     const user = userEvent.setup();
     glMocks.liveTours = true;
     glMocks.tourSetIds = new Set(['tour-set']);
+    glMocks.published = new Set(['tour-set']);
     helpState.items.push(
       makeItem({
         id: 'g1',
@@ -193,6 +214,102 @@ describe('HelpGuidesTab', () => {
     await user.click(screen.getByRole('button', { name: 'Live tours' }));
     expect(screen.getByText('Boards walkthrough')).toBeInTheDocument();
     expect(screen.queryByText('Welcome video')).toBeNull();
+  });
+
+  const tourItem = () =>
+    makeItem({
+      id: 'g1',
+      kind: 'guided-learning',
+      title: 'Boards walkthrough',
+      url: null,
+      embedType: null,
+      setId: 'tour-set',
+    });
+
+  it('starts a live tour straight from its row on a board', async () => {
+    const user = userEvent.setup();
+    glMocks.liveTours = true;
+    glMocks.tourSetIds = new Set(['tour-set']);
+    glMocks.published = new Set(['tour-set']);
+    helpState.items.push(tourItem());
+    const started = vi.fn();
+    window.addEventListener(TOUR_START_EVENT, started);
+    render(<HelpGuidesTab query="" />);
+    await user.click(screen.getByText('Boards walkthrough'));
+    window.removeEventListener(TOUR_START_EVENT, started);
+    expect(
+      (started.mock.calls[0][0] as CustomEvent<{ setId: string }>).detail
+    ).toEqual({ setId: 'tour-set' });
+    expect(glMocks.loadBuildingSet).not.toHaveBeenCalled();
+  });
+
+  it('opens the viewer for a tour row where tours cannot run live', async () => {
+    const user = userEvent.setup();
+    glMocks.liveTours = true;
+    glMocks.canRunLive = false;
+    glMocks.tourSetIds = new Set(['tour-set']);
+    glMocks.published = new Set(['tour-set']);
+    glMocks.loadBuildingSet.mockResolvedValue(null);
+    helpState.items.push(tourItem());
+    const started = vi.fn();
+    window.addEventListener(TOUR_START_EVENT, started);
+    render(<HelpGuidesTab query="" />);
+    await user.click(screen.getByText('Boards walkthrough'));
+    window.removeEventListener(TOUR_START_EVENT, started);
+    expect(started).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+  });
+
+  it('starts a live tour from a shared link on a board', () => {
+    glMocks.liveTours = true;
+    glMocks.published = new Set(['tour-set']);
+    helpState.items.push(tourItem());
+    const started = vi.fn();
+    window.addEventListener(TOUR_START_EVENT, started);
+    render(<HelpGuidesTab query="" itemId="g1" />);
+    window.removeEventListener(TOUR_START_EVENT, started);
+    expect(
+      (started.mock.calls[0][0] as CustomEvent<{ setId: string }>).detail
+    ).toEqual({ setId: 'tour-set' });
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
+  });
+
+  it('holds a shared tour link until the board is open', () => {
+    glMocks.liveTours = true;
+    glMocks.canRunLive = false;
+    glMocks.published = new Set(['tour-set']);
+    helpState.items.push(tourItem());
+    const started = vi.fn();
+    window.addEventListener(TOUR_START_EVENT, started);
+    const { rerender } = render(<HelpGuidesTab query="" itemId="g1" />);
+    expect(started).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
+    glMocks.canRunLive = true;
+    rerender(<HelpGuidesTab query="" itemId="g1" />);
+    window.removeEventListener(TOUR_START_EVENT, started);
+    expect(started).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the viewer from a shared link to an unpublished tour', () => {
+    glMocks.liveTours = true;
+    glMocks.loadBuildingSet.mockResolvedValue(null);
+    helpState.items.push(tourItem());
+    const started = vi.fn();
+    window.addEventListener(TOUR_START_EVENT, started);
+    render(<HelpGuidesTab query="" itemId="g1" />);
+    window.removeEventListener(TOUR_START_EVENT, started);
+    expect(started).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+  });
+
+  it('does not badge a tour that was never published', () => {
+    glMocks.liveTours = true;
+    glMocks.tourSetIds = new Set(['tour-set']);
+    helpState.items.push(tourItem());
+    render(<HelpGuidesTab query="" />);
+    expect(screen.getByText('Boards walkthrough')).toBeInTheDocument();
+    expect(screen.queryByText('Live tour')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Live tours' })).toBeNull();
   });
 
   it('shows no tour badge or chip without the flag', () => {

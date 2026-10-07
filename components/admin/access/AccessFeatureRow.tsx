@@ -265,11 +265,8 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
   const Icon = def.icon;
   const panelId = `access-row-${featureId}`;
   return (
-    <div
-      data-testid={`access-row-${featureId}`}
-      className="bg-white border border-slate-200 rounded-xl hover:border-brand-blue-light transition-colors"
-    >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 p-3">
+    <div data-testid={`access-row-${featureId}`} className="bg-white">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 p-3 hover:bg-slate-50 transition-colors">
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
@@ -329,7 +326,7 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
       {expanded && (
         <div
           id={panelId}
-          className="border-t border-slate-100 bg-slate-50 p-4 space-y-4 rounded-b-xl"
+          className="border-t border-slate-100 bg-slate-50 p-4 space-y-4"
         >
           {status && (
             <p className="text-xs text-slate-500">{def.description}</p>

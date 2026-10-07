@@ -4,6 +4,7 @@ import { Target, ChevronDown, UserX, Filter } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { Z_INDEX } from '@/config/zIndex';
+import { tourAttr } from '@/config/tourAnchors';
 import type { ClassRoster } from '@/types';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
@@ -32,6 +33,7 @@ interface RandomClassContextButtonProps {
    * modal. The button does not render the modal itself.
    */
   onOpenAbsentModal: () => void;
+  widgetId?: string;
   /**
    * Pool selection (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D8). Omitted when
    * the rollout switch or the `roster-groups` permission is off, which leaves
@@ -58,6 +60,7 @@ export const RandomClassContextButton: React.FC<
   roster,
   rosterMode,
   onOpenAbsentModal,
+  widgetId,
   poolGroupId = null,
   onSelectPoolGroup,
 }) => {
@@ -321,6 +324,7 @@ export const RandomClassContextButton: React.FC<
     <>
       <button
         ref={anchorRef}
+        {...tourAttr('random.class-context', widgetId)}
         type="button"
         onClick={() => (open ? closeMenu() : openMenu())}
         className={`${buttonClass} hover:bg-slate-50 cursor-pointer focus-visible:outline-2 focus-visible:outline-brand-blue-primary focus-visible:outline-offset-2`}
@@ -430,6 +434,7 @@ export const RandomClassContextButton: React.FC<
               <button
                 type="button"
                 role="menuitem"
+                {...tourAttr('random.mark-absent')}
                 onClick={() => {
                   closeMenu();
                   onOpenAbsentModal();

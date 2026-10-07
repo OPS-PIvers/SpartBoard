@@ -240,7 +240,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
                     'plcDashboard.newAssignment.video.groupSheetAutoCreateFailed',
                     {
                       defaultValue:
-                        'Could not create the shared group sheet. The assignment will be created without one.',
+                        'Could not create the shared team sheet. The assignment will be created without one.',
                     }
                   )
                 : t('plcDashboard.newAssignment.video.sheetAutoCreateFailed', {
@@ -397,7 +397,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
           ? err.message
           : groupWording
             ? t('plcDashboard.newAssignment.video.groupCreateFailed', {
-                defaultValue: 'Failed to create the group assignment.',
+                defaultValue: 'Failed to create the team assignment.',
               })
             : t('plcDashboard.newAssignment.video.createFailed', {
                 defaultValue: 'Failed to create the PLC assignment.',
@@ -433,7 +433,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
         title={
           groupWording
             ? t('plcDashboard.newAssignment.video.groupPickTitle', {
-                defaultValue: 'New Group Video Activity Assignment',
+                defaultValue: 'New Team Video Activity Assignment',
               })
             : t('plcDashboard.newAssignment.video.pickTitle', {
                 defaultValue: 'New PLC Video Activity Assignment',

@@ -76,7 +76,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
           </div>
           <h1 className="text-xl font-bold text-slate-800">
             {groups
-              ? t('plcRoute.groupsHubTitle', { defaultValue: 'My Groups' })
+              ? t('plcRoute.groupsHubTitle', { defaultValue: 'My Teams' })
               : t('plcRoute.hubTitle', { defaultValue: 'My PLCs' })}
           </h1>
         </div>
@@ -94,7 +94,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
             <p className="text-sm font-bold text-slate-600">
               {groups
                 ? t('plcRoute.groupsHubEmptyTitle', {
-                    defaultValue: 'No groups yet',
+                    defaultValue: 'No teams yet',
                   })
                 : t('plcRoute.hubEmptyTitle', { defaultValue: 'No PLCs yet' })}
             </p>
@@ -177,7 +177,7 @@ const PlcBuildingDirectorySection: React.FC<{
         <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">
           {groups
             ? t('plcDirectory.groupHeading', {
-                defaultValue: 'Groups in my building',
+                defaultValue: 'Teams in my building',
               })
             : t('plcDirectory.heading', {
                 defaultValue: 'PLCs in my building',
@@ -203,7 +203,7 @@ const PlcBuildingDirectorySection: React.FC<{
           title={
             groups
               ? t('plcDirectory.groupEmptyTitle', {
-                  defaultValue: 'No other groups to show',
+                  defaultValue: 'No other teams to show',
                 })
               : t('plcDirectory.emptyTitle', {
                   defaultValue: 'No other PLCs to show',

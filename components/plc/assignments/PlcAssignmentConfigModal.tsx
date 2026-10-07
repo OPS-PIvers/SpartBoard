@@ -465,7 +465,7 @@ export const PlcAssignmentConfigModal: React.FC<
           ? err.message
           : groupWording
             ? t('plcDashboard.assignmentConfig.groupCreateFailed', {
-                defaultValue: 'Failed to create the group assignment.',
+                defaultValue: 'Failed to create the team assignment.',
               })
             : t('plcDashboard.assignmentConfig.createFailed', {
                 defaultValue: 'Failed to create the PLC assignment.',

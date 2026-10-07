@@ -78,7 +78,7 @@ export const PlcRouteHost: React.FC<PlcRouteHostProps> = ({ parsed }) => {
           className="w-10 h-10 text-brand-blue-primary animate-spin"
           aria-label={
             groupWording
-              ? t('plcRoute.groupLoading', { defaultValue: 'Loading group…' })
+              ? t('plcRoute.groupLoading', { defaultValue: 'Loading team…' })
               : t('plcRoute.loading', { defaultValue: 'Loading PLC…' })
           }
         />
@@ -97,7 +97,7 @@ export const PlcRouteHost: React.FC<PlcRouteHostProps> = ({ parsed }) => {
           <h1 className="text-lg font-bold text-slate-800">
             {groupWording
               ? t('plcRoute.groupNotFoundTitle', {
-                  defaultValue: 'Group not found',
+                  defaultValue: 'Team not found',
                 })
               : t('plcRoute.notFoundTitle', { defaultValue: 'PLC not found' })}
           </h1>

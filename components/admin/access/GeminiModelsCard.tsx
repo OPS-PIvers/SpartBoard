@@ -189,7 +189,7 @@ export const GeminiModelsCard: React.FC<{
   isSaving: boolean;
   hasUnsaved: boolean;
 }> = ({ permission, onUpdate, onSave, isSaving, hasUnsaved }) => (
-  <div className="bg-white border border-purple-100 rounded-xl overflow-hidden">
+  <div className="bg-white">
     <div className="flex items-center gap-3 px-4 pt-3">
       <Sparkles className="w-4 h-4 text-purple-600" aria-hidden />
       <h4 className="flex-1 text-sm font-bold text-slate-800">Gemini models</h4>
