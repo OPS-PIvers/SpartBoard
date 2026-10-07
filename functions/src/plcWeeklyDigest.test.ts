@@ -298,6 +298,7 @@ interface StubDoc {
   id: string;
   data: Record<string, unknown>;
   activity?: StubDoc[];
+  updates?: StubDoc[];
 }
 
 /**
@@ -344,6 +345,10 @@ function makeStubDb(seed: {
       if (name === 'activity') {
         parent.activity = parent.activity ?? [];
         return makeColRef(parent.activity, { orderField: 'createdAt' });
+      }
+      if (name === 'updates') {
+        parent.updates = parent.updates ?? [];
+        return makeColRef(parent.updates, { orderField: 'createdAt' });
       }
       return makeColRef([], {});
     },
@@ -619,5 +624,103 @@ describe('runPlcWeeklyDigest — switch ON', () => {
     const counts = await runPlcWeeklyDigest(db, NOW);
     expect(counts.mailQueued).toBe(2);
     expect(mail.size).toBe(2);
+  });
+});
+
+describe('runPlcWeeklyDigest — team updates (TEAMS_REDESIGN T27)', () => {
+  const update = (
+    id: string,
+    extra: Record<string, unknown> = {}
+  ): StubDoc => ({
+    id,
+    data: {
+      title: `Update ${id}`,
+      authorName: 'Erin Walsh',
+      inDigest: true,
+      createdAt: NOW - 2 * day,
+      ...extra,
+    },
+  });
+  const team = (updates: StubDoc[], activity: StubDoc[] = []) => ({
+    id: 'bldg-1',
+    data: {
+      name: 'OMS Staff',
+      digestOptIn: true,
+      leadUid: 'lead',
+      members: { lead: { email: 'Lead@school.org' } },
+    },
+    activity,
+    updates,
+  });
+
+  it('adds in-window updates marked for the weekly email when the lead has the flag', async () => {
+    const { db, mail } = makeStubDb({
+      digestEnabled: true,
+      plcs: [
+        team([
+          update('u1'),
+          update('u2', { inDigest: false }),
+          update('u3', { createdAt: NOW - 9 * day }),
+        ]),
+      ],
+    });
+    const granted = vi.fn(() => Promise.resolve(true));
+    const counts = await runPlcWeeklyDigest(db, NOW, {
+      updatesGranted: granted,
+    });
+    expect(granted).toHaveBeenCalledWith('lead@school.org', 'lead');
+    expect(counts.mailQueued).toBe(1);
+    const [[, doc]] = [...mail.entries()];
+    const message = doc.message as { text: string; subject: string };
+    expect(message.text).toContain('Update u1 (Erin Walsh)');
+    expect(message.text).not.toContain('Update u2');
+    expect(message.text).not.toContain('Update u3');
+    expect(message.subject).toBe('1 update this week in "OMS Staff"');
+  });
+
+  it('leaves updates out when the lead does not have the flag', async () => {
+    const { db, mail } = makeStubDb({
+      digestEnabled: true,
+      plcs: [team([update('u1')])],
+    });
+    const counts = await runPlcWeeklyDigest(db, NOW, {
+      updatesGranted: () => Promise.resolve(false),
+    });
+    expect(counts.mailQueued).toBe(0);
+    expect(counts.skippedNoActivity).toBe(1);
+    expect(mail.size).toBe(0);
+  });
+
+  it('leaves updates out with no flag check wired', async () => {
+    const { db, mail } = makeStubDb({
+      digestEnabled: true,
+      plcs: [team([update('u1')], [recentActivity('e1')])],
+    });
+    await runPlcWeeklyDigest(db, NOW);
+    const [[, doc]] = [...mail.entries()];
+    expect((doc.message as { text: string }).text).not.toContain('Update u1');
+  });
+
+  it('does not send updates to a team that has not opted in', async () => {
+    const t = team([update('u1')]);
+    t.data.digestOptIn = false;
+    const { db, mail } = makeStubDb({ digestEnabled: true, plcs: [t] });
+    await runPlcWeeklyDigest(db, NOW, {
+      updatesGranted: () => Promise.resolve(true),
+    });
+    expect(mail.size).toBe(0);
+  });
+});
+
+describe('buildPlcDigestEmail — updates', () => {
+  it('lists updates under their own heading and escapes them', () => {
+    const body = buildPlcDigestEmail({
+      plcName: 'Staff',
+      events: [],
+      updates: [{ title: '<b>Drill</b>', authorName: '', createdAt: NOW }],
+    });
+    expect(body.text).toContain('Updates\n• <b>Drill</b>');
+    expect(body.html).toContain('&lt;b&gt;Drill&lt;/b&gt;');
+    expect(body.html).not.toContain('<b>Drill</b>');
   });
 });
