@@ -5,6 +5,7 @@ import { ArrowLeft, ChevronRight, Loader2, Users2, X } from 'lucide-react';
 import { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleTasksPull } from '@/hooks/useGoogleTasksPull';
+import { usePlcUpdates } from '@/hooks/usePlcUpdates';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
 import {
   buildPlcDocPath,
@@ -27,6 +28,7 @@ import { PlcMeetingMode } from './meeting/PlcMeetingMode';
 import { PlcPresenceStrip } from './presence/PlcPresenceStrip';
 import { PlcSearchBox } from './search/PlcSearchBox';
 import { TeamDashboard } from './teams/shell/TeamDashboard';
+import { LegacyUpdatesBody } from './teams/updates/LegacyUpdatesBody';
 
 interface PlcDashboardProps {
   plc: Plc;
@@ -111,9 +113,13 @@ const LegacyPlcDashboard: React.FC<PlcDashboardProps> = ({
   // (single source of truth). `assessments` shows when EITHER the quiz or the
   // video-activity feature is on.
   const retireMeetingMode = canAccessFeature('teams-redesign');
+  const { updates, loading: updatesLoading } = usePlcUpdates(plc.id);
+  // Keep an /updates deep link while the first snapshot loads.
+  const showUpdates =
+    updates.length > 0 || (updatesLoading && requestedSection === 'updates');
   const visibleSections = useMemo(
-    () => getVisiblePlcSections(plc, { retireMeetingMode }),
-    [plc, retireMeetingMode]
+    () => getVisiblePlcSections(plc, { retireMeetingMode, showUpdates }),
+    [plc, retireMeetingMode, showUpdates]
   );
 
   const visibleRailItems: PlcRailItem[] = useMemo(
@@ -150,7 +156,8 @@ const LegacyPlcDashboard: React.FC<PlcDashboardProps> = ({
 
   // Read membership through the T1 helpers so the lead badge + member count
   // work against the canonical `members` map AND legacy arrays.
-  const isLead = user?.uid ? getPlcRole(plc, user.uid) === 'lead' : false;
+  const role = user?.uid ? getPlcRole(plc, user.uid) : null;
+  const isLead = role === 'lead';
   const memberCount = useMemo(() => getPlcMembers(plc).length, [plc]);
 
   // Mobile-only: drill back out to the section list without leaving the PLC.
@@ -242,8 +249,14 @@ const LegacyPlcDashboard: React.FC<PlcDashboardProps> = ({
             onNavigate={handleNavigateSection}
           />
         );
-      // Teams redesign pages; never visible here, so they resolve to home above.
       case 'updates':
+        return (
+          <LegacyUpdatesBody
+            plc={plc}
+            isManager={role === 'lead' || role === 'coLead'}
+          />
+        );
+      // Teams redesign page; never visible here, so it resolves to home above.
       case 'workspace':
         return null;
     }
