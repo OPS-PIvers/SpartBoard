@@ -116,3 +116,18 @@ describe('UpdatesView', () => {
     expect(screen.getByText('Title b')).toBeTruthy();
   });
 });
+
+describe('UpdatesView edit failure', () => {
+  it('stays in edit mode with the text when saving fails', async () => {
+    const onEdit = vi.fn(() => Promise.reject(new Error('offline')));
+    render(<UpdatesView {...props({ isLead: true, onEdit })} />);
+    fireEvent.click(screen.getAllByLabelText('Update options')[0]);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(onEdit).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save' }).disabled).toBe(false)
+    );
+    expect(screen.getByDisplayValue(/Title a/)).toBeTruthy();
+  });
+});

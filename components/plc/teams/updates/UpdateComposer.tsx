@@ -65,6 +65,8 @@ export const UpdateComposer: React.FC<{
         setLinkOpen(false);
         setAckRequired(false);
       }
+    } catch {
+      // The caller already showed the error; keep the draft for a retry.
     } finally {
       setBusy(false);
     }

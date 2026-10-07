@@ -19,6 +19,7 @@ import { useAuth } from '@/context/useAuth';
 import type { PlcUpdate, PlcUpdateAck } from '@/types';
 import { logError } from '@/utils/logError';
 import {
+  ATTACHMENT_NAME_MAX,
   parsePlcUpdate,
   parsePlcUpdateAck,
   pickWatched,
@@ -43,7 +44,14 @@ function draftFields(draft: PlcUpdateDraft) {
     title: draft.title.trim(),
     body: draft.body.trim(),
     ...(draft.linkUrl ? { linkUrl: draft.linkUrl } : {}),
-    ...(draft.attachment ? { attachment: draft.attachment } : {}),
+    ...(draft.attachment
+      ? {
+          attachment: {
+            name: draft.attachment.name.slice(0, ATTACHMENT_NAME_MAX),
+            url: draft.attachment.url,
+          },
+        }
+      : {}),
     requiresAck: draft.requiresAck,
     inDigest: draft.inDigest,
   };

@@ -14,6 +14,7 @@ import {
 import type { Plc, PlcUpdate } from '@/types';
 import { logError } from '@/utils/logError';
 import {
+  ATTACHMENT_NAME_MAX,
   ackWatchIds,
   buildAckRoster,
   type AckRoster,
@@ -73,6 +74,18 @@ export function useTeamUpdatesData(
       }
     };
 
+  // Post and edit rethrow after the toast so the composer keeps the draft.
+  const runOrThrow =
+    <A extends unknown[]>(where: string, fn: (...a: A) => Promise<void>) =>
+    async (...a: A) => {
+      try {
+        await fn(...a);
+      } catch (err) {
+        fail(where, err);
+        throw err;
+      }
+    };
+
   const onDelete = async (update: PlcUpdate) => {
     const ok = await showConfirm(`Delete "${update.title}"?`, {
       title: 'Delete update',
@@ -87,7 +100,7 @@ export function useTeamUpdatesData(
       const file = await openPicker({ mode: 'documents' });
       return file
         ? {
-            name: file.name,
+            name: file.name.slice(0, ATTACHMENT_NAME_MAX),
             url: `https://drive.google.com/file/d/${file.id}/view`,
           }
         : null;
@@ -103,8 +116,8 @@ export function useTeamUpdatesData(
     myUid: user?.uid ?? '',
     myAcks,
     rosters,
-    onPost: run('post', (d: PlcUpdateDraft) => api.postUpdate(d)),
-    onEdit: run('edit', (id: string, d: PlcUpdateDraft) =>
+    onPost: runOrThrow('post', (d: PlcUpdateDraft) => api.postUpdate(d)),
+    onEdit: runOrThrow('edit', (id: string, d: PlcUpdateDraft) =>
       api.editUpdate(id, d)
     ),
     onDelete: (u: PlcUpdate) => void onDelete(u),

@@ -5,6 +5,8 @@ import { getPlcMembers, tsToMillis } from '@/utils/plc';
 
 export const UPDATE_TITLE_MAX = 200;
 export const UPDATE_BODY_MAX = 5000;
+/** Mirrors the rules' attachment.name limit. */
+export const ATTACHMENT_NAME_MAX = 200;
 export const LATEST_UPDATES_COUNT = 4;
 /** Upper bound on per-update ack listeners one view opens. */
 export const MAX_ACK_LISTENERS = 25;
