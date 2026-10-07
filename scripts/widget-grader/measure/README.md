@@ -29,6 +29,6 @@ Network load failures (`Failed to load resource`) are recorded on G3 as `network
 
 ## CI
 
-- `Widget Grader Gates` in `pr-validation.yml` runs gates only on the widgets a PR touches (folder, registry entry, fixture or stub). Shared code (`DraggableWindow`, `ScaledEmptyState`, `WidgetRenderer`, `config/widget*.ts`, `config/tools.ts`, the harness, this folder, `rubric.json`) runs every widget. It fails only on a gate failure the baseline doesn't list.
+- `Widget Grader Gates` in `pr-validation.yml` runs gates only on the widgets a PR touches (folder, registry entry, fixture or stub). Shared code (`DraggableWindow`, `ScaledEmptyState`, `WidgetRenderer`, `config/widget*.ts`, `config/tools.ts`, the harness, this folder, `rubric.json`) runs every widget. Every-widget runs split across 4 runners with Playwright `--shard`. It fails only on a gate failure the baseline doesn't list.
 - `widget-grader-nightly.yml` sweeps everything on `dev-paul` and opens or comments on the "Widget grader: new gate failures" issue. The judge never runs in CI.
 - When a fix makes a baselined gate pass, the report says so; regenerate the baseline with `--write-baseline` in that PR.

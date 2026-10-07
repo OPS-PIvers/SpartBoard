@@ -232,15 +232,16 @@ jobs:
   # Widget grader gates (docs/plans/WIDGET_RUBRIC.md R23) on the widgets this PR touches;
   # shared window, config or harness changes check every widget. Fails only on gate
   # failures missing from docs/widget-rubric/gate-baseline.json.
-  widget-grader-gates:
+  # Which widgets the diff touches; a change to shared widget code runs every widget across 4 runners.
+  grader-scope:
     needs: changes
     if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.release != 'true'
     runs-on: ubuntu-24.04
-    container:
-      image: mcr.microsoft.com/playwright:v1.58.0-jammy
-      options: --shm-size=1g
-    name: Widget Grader Gates
-    timeout-minutes: 150
+    name: Widget Grader Scope
+    outputs:
+      types: ${{ steps.affected.outputs.types }}
+      shards: ${{ steps.affected.outputs.shards }}
+      shard_count: ${{ steps.affected.outputs.shard_count }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -249,28 +250,46 @@ jobs:
 
       - name: Setup Node.js and pnpm
         uses: ./.github/actions/setup
-        with:
-          cache: ''
 
       - name: Find affected widgets
         id: affected
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          node scripts/widget-grader/affected.ts --base "origin/${{ github.base_ref }}"
+        run: node scripts/widget-grader/affected.ts --base "origin/${{ github.base_ref }}" --shards 4
+
+  widget-grader-gates:
+    needs: grader-scope
+    if: needs.grader-scope.outputs.shard_count > 0
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.0-jammy
+      options: --shm-size=1g
+    name: Widget Grader Gates (${{ matrix.shard }}/${{ needs.grader-scope.outputs.shard_count }})
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.grader-scope.outputs.shards) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup
+        with:
+          cache: ''
 
       - name: Run gate checks
-        if: steps.affected.outputs.mode != 'none'
-        run: node scripts/widget-grader/run.ts --gates-only --check-baseline --run-id ci ${TYPES:+--type "$TYPES"}
+        run: node scripts/widget-grader/run.ts --gates-only --check-baseline --run-id ci ${TYPES:+--type "$TYPES"} --shard "$SHARD"
         env:
-          TYPES: ${{ steps.affected.outputs.types }}
+          TYPES: ${{ needs.grader-scope.outputs.types }}
+          SHARD: ${{ matrix.shard }}/${{ needs.grader-scope.outputs.shard_count }}
           VITE_AUTH_BYPASS: 'true'
           GRADER_WORKERS: '4'
 
       - name: Upload grader report
-        if: always() && steps.affected.outputs.mode != 'none'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: widget-grader-gates
+          name: widget-grader-gates-${{ matrix.shard }}
           path: |
             scripts/widget-grader/out/ci/summary.md
             scripts/widget-grader/out/ci/gate-report.json
@@ -345,6 +364,7 @@ jobs:
         rules,
         build,
         e2e,
+        grader-scope,
         widget-grader-gates,
       ]
     runs-on: ubuntu-24.04

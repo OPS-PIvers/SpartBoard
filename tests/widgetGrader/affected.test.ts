@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   affectedWidgets,
+  gateShards,
   registryTypes,
 } from '@/scripts/widget-grader/affected';
 import type { WidgetFiles } from '@/scripts/widget-grader/widgetFiles';
@@ -111,6 +112,19 @@ describe('registryTypes', () => {
     expect(registryTypes(diff, new Set(Object.keys(FILES)))).toEqual([
       'clock',
       'time-tool',
+    ]);
+  });
+});
+
+describe('gateShards', () => {
+  it('runs no shard, one shard, or every shard by scope', () => {
+    expect(gateShards({ mode: 'none' }, 4)).toEqual([]);
+    expect(gateShards({ mode: 'some', types: ['clock'] }, 4)).toEqual([1]);
+    expect(gateShards({ mode: 'all', reason: 'config/tools.ts' }, 4)).toEqual([
+      1, 2, 3, 4,
+    ]);
+    expect(gateShards({ mode: 'all', reason: 'config/tools.ts' }, 0)).toEqual([
+      1,
     ]);
   });
 });

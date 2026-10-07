@@ -1,4 +1,4 @@
-// pnpm run grader:measure [--type clock,poll] [--fixtures typical] [--run-id name] [--workers 3] [--gates-only] [--check-baseline] [--write-baseline]
+// pnpm run grader:measure [--type clock,poll] [--fixtures typical] [--run-id name] [--workers 3] [--shard 1/4] [--gates-only] [--check-baseline] [--write-baseline]
 
 import { spawnSync } from 'node:child_process';
 import {
@@ -54,6 +54,7 @@ const result = spawnSync(
     '-c',
     'playwright.grader.config.ts',
     'measure.pw.ts',
+    ...option('shard').map((s) => `--shard=${s}`),
   ],
   {
     cwd: root,
