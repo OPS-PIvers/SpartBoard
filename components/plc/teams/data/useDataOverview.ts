@@ -9,6 +9,7 @@ import { usePlcAssessments } from '@/hooks/usePlcAssessments';
 import { usePlcLearningTargets } from '@/hooks/useLearningTargets';
 import { usePlcGoals } from '@/hooks/usePlcGoals';
 import { usePlcNotes } from '@/hooks/usePlcNotes';
+import { selectDecisionsToRevisit } from '@/utils/plcNoteBlocks';
 import { usePlcGoalCoach } from '@/hooks/usePlcGoalCoach';
 import { saveTeamLayout } from '@/hooks/useTeamLayout';
 import {
@@ -132,5 +133,10 @@ export function useMeetingStrip(plc: Plc) {
     const counts = countOpenItems(notes, user?.uid ?? null);
     return counts.total > 0 ? counts : null;
   }, [notes, user?.uid]);
-  return { nextMeeting, openItems };
+  const revisit = useMemo(() => {
+    const due = selectDecisionsToRevisit(notes, now);
+    const next = due[0]?.block.revisitAt;
+    return next != null ? { count: due.length, next } : null;
+  }, [notes, now]);
+  return { nextMeeting, openItems, revisit };
 }

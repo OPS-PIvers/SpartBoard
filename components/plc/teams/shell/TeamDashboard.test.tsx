@@ -63,8 +63,13 @@ vi.mock('@/components/plc/tabs/PlcSettingsTab', () => ({
 vi.mock('@/components/plc/meeting/PlcMeetingMode', () => ({
   PlcMeetingMode: () => null,
 }));
-vi.mock('@/components/plc/teams/pages/ExistingTeamPages', () => ({
-  TeamNotesDocsPage: () => null,
+vi.mock('@/components/plc/teams/notes/useTeamNotes', () => ({
+  useTeamMyItems: () => ({
+    items: [],
+    count: 0,
+    loading: false,
+    setDone: vi.fn(),
+  }),
 }));
 vi.mock('@/components/plc/teams/pageRegistry', async () => {
   const { FileText } = await import('lucide-react');
@@ -150,6 +155,18 @@ describe('TeamDashboard', () => {
     expect(onClose).not.toHaveBeenCalled();
     fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends retired Meeting Mode links to Notes & Docs', () => {
+    render(
+      <TeamDashboard
+        plc={plc()}
+        activeSection="meeting"
+        {...props}
+        meetingId="m1"
+      />
+    );
+    expect(mocks.spaReplace).toHaveBeenCalledWith('/plc/p1/docs');
   });
 
   it('freezes the resolved layout the first time a lead opens the editor', () => {

@@ -12,6 +12,8 @@ export interface TeamNav {
   openLayoutEditor: () => void;
   assessmentId: string | null;
   docId: string | null;
+  /** A saved meeting record from an old `/meeting/:id` link; Notes & Docs opens it. */
+  meetingId: string | null;
   /** The team's resolved layout, e.g. for a hero following the default rule. */
   layout: ResolvedTeamLayout | null;
 }
@@ -23,6 +25,7 @@ const NOOP_NAV: TeamNav = {
   openLayoutEditor: () => undefined,
   assessmentId: null,
   docId: null,
+  meetingId: null,
   layout: null,
 };
 

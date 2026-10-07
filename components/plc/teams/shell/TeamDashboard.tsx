@@ -1,15 +1,19 @@
 // The redesigned team page (T1, T2, T4 to T10, T35), mounted by PlcDashboard when the teams-redesign flag is on.
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useEffectEvent,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import { getPlcGroupType, type Plc, type TeamPageId } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import {
-  usePlcActions,
   usePlcActivity,
-  usePlcMeetingsData,
   usePlcMembers,
   usePlcNotesData,
   usePlcWhoIsHere,
@@ -33,19 +37,18 @@ import {
 } from '@/utils/plcPath';
 import type { PlcSectionId } from '@/components/plc/sections';
 import { splitSinceYouWereHere } from '@/components/plc/activity/activityDescriptions';
-import { pickInProgressMeeting } from '@/components/plc/home/tiles/meetingSelectors';
 import { PlcSearchBox } from '@/components/plc/search/PlcSearchBox';
 import { MembersBody } from '@/components/plc/bodies/MembersBody';
 import { PlcSettingsTab } from '@/components/plc/tabs/PlcSettingsTab';
-import { PlcMeetingMode } from '@/components/plc/meeting/PlcMeetingMode';
 import { TEAM_PAGE_REGISTRY } from '@/components/plc/teams/pageRegistry';
 import {
   TeamNavContext,
   type TeamNav,
 } from '@/components/plc/teams/TeamNavContext';
 import { TeamPagePlaceholder } from '@/components/plc/teams/TeamPlaceholder';
-import { TeamNotesDocsPage } from '@/components/plc/teams/pages/ExistingTeamPages';
 import { TeamShellActionsContext } from '@/components/plc/teams/data/teamShellActions';
+import { useTeamMyItems } from '@/components/plc/teams/notes/useTeamNotes';
+import { OPEN_LAYOUT_EDITOR_EVENT } from '@/components/plc/teams/notes/teamNotesNavigation';
 import {
   teamPageLabel,
   teamTypeLabel,
@@ -57,7 +60,6 @@ import {
 import { TeamShellView, type TeamOverlay } from './TeamShellView';
 import {
   GearMenuView,
-  MeetingBannerView,
   MembersPopoverView,
   TeamDrawerView,
   type TeamDrawerTab,
@@ -67,7 +69,6 @@ import { TeamLayoutEditor } from './TeamLayoutEditor';
 import { selectMyItems } from './myItems';
 import {
   formatShortDate,
-  meetingBannerMeta,
   roleLabel,
   selectAvatarPeople,
   selectMemberRows,
@@ -104,7 +105,6 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
   const { t } = useTranslation();
   const { user, canAccessFeature } = useAuth();
   const { addToast } = useDashboard();
-  const { updateNote } = usePlcActions();
   useGoogleTasksPull(plc.id, canAccessFeature('google-tasks-sync'));
   const uid = user?.uid ?? null;
   const [now] = useState(() => Date.now());
@@ -120,7 +120,10 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
   const role = uid ? getPlcRole(plc, uid) : null;
   const isLead = role === 'lead' || role === 'coLead';
 
-  const { route, canonical } = resolveTeamRoute(requestedSection, layout);
+  // Meeting Mode is retired (T11): meeting links land on Notes & Docs, which opens a saved record.
+  const section: PlcSectionId =
+    requestedSection === 'meeting' ? 'docs' : requestedSection;
+  const { route, canonical } = resolveTeamRoute(section, layout);
   useEffect(() => {
     if (layoutReady && canonical !== requestedSection) {
       spaReplace(buildPlcPath(plc.id, canonical));
@@ -170,8 +173,9 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
   }, []);
   const [drawerCursor, setDrawerCursor] = useState<number | null>(null);
   const { data: notes } = usePlcNotesData();
-  const myItems = useMemo(
-    () => selectMyItems(notes, uid, now),
+  const teamItems = useTeamMyItems(plc);
+  const recentDone = useMemo(
+    () => selectMyItems(notes, uid, now).done,
     [notes, uid, now]
   );
   const members = usePlcMembers();
@@ -184,16 +188,12 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
     () => selectAvatarPeople(t, memberRows),
     [t, memberRows]
   );
-  const { data: meetings } = usePlcMeetingsData();
-  const liveMeeting = useMemo(
-    () => pickInProgressMeeting(meetings),
-    [meetings]
-  );
 
-  const navigate = (section: PlcSectionId) => {
+  const navigate = (requested: PlcSectionId) => {
     setShowMobileMenu(false);
     setOverlay(null);
-    if (section !== canonical) spaNavigate(buildPlcPath(plc.id, section));
+    const next = requested === 'meeting' ? 'docs' : requested;
+    if (next !== canonical) spaNavigate(buildPlcPath(plc.id, next));
   };
 
   const openOverlay = (next: TeamOverlay) => {
@@ -227,6 +227,17 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
     }
   };
 
+  // The Department Hub asks for the layout editor through a window event.
+  const onLayoutEditorRequest = useEffectEvent((event: Event) => {
+    const detail = (event as CustomEvent<{ plcId?: string }>).detail;
+    if (detail?.plcId === plc.id) openLayoutEditor();
+  });
+  useEffect(() => {
+    const handler = (event: Event) => onLayoutEditorRequest(event);
+    window.addEventListener(OPEN_LAYOUT_EDITOR_EVENT, handler);
+    return () => window.removeEventListener(OPEN_LAYOUT_EDITOR_EVENT, handler);
+  }, []);
+
   const nav: TeamNav = {
     navigate,
     openDoc: (id) => {
@@ -237,14 +248,9 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
     openLayoutEditor,
     assessmentId,
     docId,
+    meetingId,
     layout,
   };
-
-  const notesSidePanels =
-    route.kind === 'page' &&
-    route.page === 'docs' &&
-    canAccessFeature('plc-notes-unified') &&
-    canAccessFeature('plc-notes-side-panels');
 
   const railPages = layout.pages
     .filter((p) => p.enabled)
@@ -277,15 +283,6 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
       );
     }
     if (route.kind === 'section') {
-      if (route.section === 'meeting') {
-        return (
-          <PlcMeetingMode
-            plc={plc}
-            meetingId={meetingId}
-            onNavigate={navigate}
-          />
-        );
-      }
       return (
         <div className="p-4 pb-8 md:p-6">
           {route.section === 'members' ? (
@@ -297,16 +294,6 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
       );
     }
     const page: TeamPageId = route.page;
-    if (page === 'docs') {
-      return (
-        <TeamNotesDocsPage
-          plc={plc}
-          layout={layout}
-          isLead={isLead}
-          fullBleed={notesSidePanels}
-        />
-      );
-    }
     const entry = TEAM_PAGE_REGISTRY[page];
     const Component = entry.byType?.[groupType] ?? entry.Component;
     return Component ? (
@@ -323,9 +310,7 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
   };
 
   const fullBleed =
-    (route.kind === 'section' && route.section === 'meeting') ||
-    notesSidePanels ||
-    (route.kind === 'page' && !!TEAM_PAGE_REGISTRY[route.page].fullBleed);
+    route.kind === 'page' && !!TEAM_PAGE_REGISTRY[route.page].fullBleed;
 
   const drawerTab: TeamDrawerTab | null =
     overlay === 'whatsnew' || overlay === 'myitems' ? overlay : null;
@@ -334,10 +319,10 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
     : [];
   const { since, older } = splitSinceYouWereHere(visibleActivity, drawerCursor);
   const itemRows: TeamMyItemRow[] = [
-    ...myItems.open.map((v) => ({
+    ...teamItems.items.map((v) => ({
       id: v.item.id,
       title: v.item.text,
-      from: v.note.title,
+      from: v.source.kind === 'note' ? v.source.note.title : v.source.doc.title,
       when:
         v.item.dueAt != null
           ? t('teams.myItems.due', {
@@ -347,7 +332,7 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
           : null,
       done: false,
     })),
-    ...myItems.done.map((v) => ({
+    ...recentDone.map((v) => ({
       id: v.item.id,
       title: v.item.text,
       from: v.note.title,
@@ -363,27 +348,16 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
   ];
 
   const completeItem = (itemId: string) => {
-    const view = myItems.open.find((v) => v.item.id === itemId);
+    const view = teamItems.items.find((v) => v.item.id === itemId);
     if (!view) return;
-    const next = (view.note.actionItems ?? []).map((ai) =>
-      ai.id === itemId ? { ...ai, done: true, doneAt: Date.now() } : ai
-    );
-    updateNote(
-      view.note.id,
-      { actionItems: next },
-      { expectedVersion: view.note.version }
-    ).catch((err: unknown) => {
-      logError('TeamDashboard.completeItem', err, {
-        plcId: plc.id,
-        noteId: view.note.id,
-      });
+    teamItems.setDone(view, true).catch(() =>
       addToast(
         t('plcDashboard.home.actionItems.toggleFailed', {
           defaultValue: "Couldn't update that action item.",
         }),
         'error'
-      );
-    });
+      )
+    );
   };
 
   const sinceLabel =
@@ -395,10 +369,6 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
       : t('plcDashboard.activity.sinceLastVisit', {
           defaultValue: 'Since you were here',
         });
-
-  const showBanner =
-    liveMeeting !== null &&
-    !(route.kind === 'section' && route.section === 'meeting');
 
   const shellActions = {
     openLayoutEditor: isLead ? openLayoutEditor : undefined,
@@ -418,7 +388,7 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
             name={plc.name}
             typeLabel={teamTypeLabel(t, groupType)}
             whatsNew={unreadCount}
-            myItems={myItems.open.length}
+            myItems={teamItems.count}
             people={people}
             memberCount={memberRows.length}
             roleLabel={isLead && role ? roleLabel(t, role) : null}
@@ -437,14 +407,6 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
               <div ref={focusSearch}>
                 <PlcSearchBox plcId={plc.id} onNavigate={navigate} />
               </div>
-            }
-            banner={
-              showBanner && liveMeeting ? (
-                <MeetingBannerView
-                  meta={meetingBannerMeta(t, liveMeeting, notes, here)}
-                  onJoin={() => navigate('meeting')}
-                />
-              ) : null
             }
             headerPopover={
               overlay === 'gear' ? (
@@ -468,7 +430,7 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
             }
           >
             <div
-              key={`${canonical}:${activePage ?? ''}`}
+              key={`${canonical}:${activePage ?? ''}:${activePage === 'docs' ? (docId ?? '') : ''}`}
               className={`animate-in fade-in slide-in-from-bottom-2 duration-300 ${fullBleed ? 'h-full' : ''}`}
             >
               {renderBody()}
@@ -479,7 +441,7 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
                 onTab={setOverlay}
                 onClose={() => setOverlay(null)}
                 whatsNew={unreadCount}
-                myItemsCount={myItems.open.length}
+                myItemsCount={teamItems.count}
                 sinceLabel={sinceLabel}
                 since={since}
                 older={older.slice(0, OLDER_LIMIT)}

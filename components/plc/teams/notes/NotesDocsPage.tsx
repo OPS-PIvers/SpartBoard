@@ -53,7 +53,8 @@ import { selectNextMeeting } from './nextMeeting';
 import { meetingNoteTitle } from './meetingNoteTitle';
 import { formatShortDate, isSameDay } from './noteFormat';
 import { openTeamPage, takePendingNotesItem } from './teamNotesNavigation';
-import type { TeamPageProps } from './teamPageTypes';
+import { useTeamNav } from '@/components/plc/teams/TeamNavContext';
+import type { TeamPageProps } from '@/components/plc/teams/types';
 
 type Selection =
   | { kind: 'note'; id: string }
@@ -162,8 +163,15 @@ const NotesDocsInner: React.FC<
   );
   const [recorderNoteId, setRecorderNoteId] = useState<string | null>(null);
 
-  const [selection, setSelection] = useState<Selection | null>(() =>
-    takePendingNotesItem(plc.id)
+  const { docId: routeDocId, meetingId: routeMeetingId } = useTeamNav();
+  const [selection, setSelection] = useState<Selection | null>(
+    () =>
+      takePendingNotesItem(plc.id) ??
+      (routeDocId
+        ? { kind: 'doc', id: routeDocId }
+        : routeMeetingId
+          ? { kind: 'record', id: routeMeetingId }
+          : null)
   );
   const [creating, setCreating] = useState(false);
   const [addDocOpen, setAddDocOpen] = useState(false);

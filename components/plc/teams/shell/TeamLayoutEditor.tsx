@@ -14,6 +14,7 @@ import { usePlcAggregatesData, usePlcNotesData } from '@/context/usePlcContext';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { logError } from '@/utils/logError';
+import { isCalendarEmbedUrl } from '@/utils/teamUpdates';
 import { selectNewerHeroData } from '@/components/plc/teams/heroes/heroStaleness';
 import { heroPinner } from '@/components/plc/teams/heroes/heroPin';
 import { teamHeroKindLabel } from '@/components/plc/teams/teamLabels';
@@ -92,8 +93,31 @@ export const TeamLayoutEditor: React.FC<{
             })),
         ],
       },
+      {
+        label: teamHeroKindLabel(t, 'calendar'),
+        options: isCalendarEmbedUrl(plc.calendarEmbedUrl)
+          ? [
+              {
+                ref: { kind: 'calendar' },
+                label: t('teams.layout.teamCalendar', {
+                  name: plc.name,
+                  defaultValue: '{{name}} calendar',
+                }),
+              },
+            ]
+          : [],
+      },
     ];
-  }, [assessments, targetList, goals, docs, notes, t]);
+  }, [
+    assessments,
+    targetList,
+    goals,
+    docs,
+    notes,
+    plc.calendarEmbedUrl,
+    plc.name,
+    t,
+  ]);
 
   const districtDefault = useMemo(
     () => (defaultsFailed ? null : districtDefaultLayout(plc, adminDefaults)),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PlcNote, PlcTeamLayout } from '@/types';
+import type { PlcDoc, PlcNote, PlcTeamLayout } from '@/types';
 import { BUILT_IN_TEAM_TYPE_PRESETS } from '@/config/teamTypePresets';
 import {
   AGGREGATES,
@@ -16,6 +16,7 @@ import {
   teamHeroRuleKind,
 } from './heroes/heroRegistry';
 import { heroPinner } from './heroes/heroPin';
+import { pickHeroDoc } from './heroes/heroDoc';
 import { foreignCard, foreignHero } from './mentoring/teamRegistryBridge';
 import './mentoringBridge';
 import { parseTeamHero, toStoredTeamLayout } from '@/utils/teamLayout';
@@ -109,7 +110,9 @@ describe('hero', () => {
     expect(resolveTeamHeroEntry(null, 'lowestTarget', 'plc')).toBe(
       TEAM_HERO_BY_KIND.target
     );
-    expect(resolveTeamHeroEntry(null, 'newestDoc', 'department')).toBeNull();
+    expect(resolveTeamHeroEntry(null, 'newestDoc', 'department')).toBe(
+      TEAM_HERO_BY_KIND.doc
+    );
     expect(resolveTeamHeroEntry(null, 'calendar', 'building')).toBe(
       TEAM_HERO_BY_KIND.calendar
     );
@@ -144,6 +147,19 @@ describe('hero', () => {
         'plc'
       )
     ).toBeNull();
+  });
+});
+
+describe('pickHeroDoc', () => {
+  const doc = (id: string, updatedAt: number, deletedAt?: number) =>
+    ({ id, title: id, url: '', updatedAt, deletedAt }) as unknown as PlcDoc;
+  const docs = [doc('a', 1), doc('b', 3), doc('c', 5, 9)];
+
+  it('shows the pinned doc, else the newest live one', () => {
+    expect(pickHeroDoc(docs, 'a')?.id).toBe('a');
+    expect(pickHeroDoc(docs, null)?.id).toBe('b');
+    expect(pickHeroDoc(docs, 'c')?.id).toBe('b');
+    expect(pickHeroDoc([], null)).toBeNull();
   });
 });
 

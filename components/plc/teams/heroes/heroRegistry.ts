@@ -19,6 +19,7 @@ import {
 import UpdateHero from '@/components/plc/teams/updates/UpdateHero';
 import { CalendarHero } from '@/components/plc/teams/building/CalendarCard';
 import NextRequiredTaskHero from '@/components/plc/teams/mentoring/NextRequiredTaskHero';
+import { TeamDocHero } from './TeamDocHero';
 
 const updateHero: TeamHeroRenderer = (props) =>
   createElement(UpdateHero, props);
@@ -26,6 +27,7 @@ const calendarHero: TeamHeroRenderer = (props) =>
   createElement(CalendarHero, props);
 const nextRequiredTaskHero: TeamHeroRenderer = (props) =>
   createElement(NextRequiredTaskHero, props);
+const docHero: TeamHeroRenderer = (props) => createElement(TeamDocHero, props);
 
 /** A pinned item renders through its kind. */
 export const TEAM_HERO_BY_KIND: Partial<
@@ -36,6 +38,7 @@ export const TEAM_HERO_BY_KIND: Partial<
   goal: { render: goalHero },
   update: { render: updateHero },
   calendar: { render: calendarHero },
+  doc: { render: docHero },
 };
 
 /** An unpinned hero renders through the type's default rule, with `heroRef: null`. */

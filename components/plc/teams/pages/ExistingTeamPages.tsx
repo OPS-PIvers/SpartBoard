@@ -1,10 +1,9 @@
-// Today's Assessments, Notes & Docs and Resources bodies, wired as team pages.
+// Today's Assessments and Resources bodies, wired as team pages.
 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PlcResourceKind } from '@/types';
 import { PlcAssessmentsBody } from '@/components/plc/bodies/PlcAssessmentsBody';
-import { NotesDocsBody } from '@/components/plc/bodies/NotesDocsBody';
 import { PlcSharedBoardsBody } from '@/components/plc/bodies/PlcSharedBoardsBody';
 import { PlcResourcesBody } from '@/components/plc/resources/PlcResourcesBody';
 import { PlcGroupLinks } from '@/components/plc/resources/PlcGroupLinks';
@@ -28,17 +27,6 @@ export const TeamAssessmentsPage: React.FC<TeamPageProps> = ({ plc }) => {
 };
 
 /** Side panels run edge to edge; the shell drops its padding for them. */
-export const TeamNotesDocsPage: React.FC<
-  TeamPageProps & { fullBleed?: boolean }
-> = ({ plc, fullBleed = false }) => {
-  const nav = useTeamNav();
-  return (
-    <div className={fullBleed ? 'h-full' : BODY}>
-      <NotesDocsBody plc={plc} docId={nav.docId} />
-    </div>
-  );
-};
-
 type ResourceFilter = 'all' | 'links' | PlcResourceKind;
 
 const ADMIN_KINDS: readonly PlcResourceKind[] = [

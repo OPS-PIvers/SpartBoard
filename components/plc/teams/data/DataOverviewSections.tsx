@@ -2,7 +2,14 @@
 
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, CheckSquare, Clock, Pin, Target } from 'lucide-react';
+import {
+  CalendarDays,
+  CheckSquare,
+  Clock,
+  Pin,
+  Scale,
+  Target,
+} from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { SCORE_DISTRIBUTION_BANDS } from '@/utils/scoreColor';
 import { MASTERY_BAR_CLASS } from '@/components/plc/home/tiles/resultsSelectors';
@@ -704,6 +711,8 @@ export interface MeetingStripProps {
   /** Formatted "Thu, Oct 9 · 3:15 PM"; null hides the meeting entry. */
   nextMeeting: string | null;
   openItems: { total: number; mine: number } | null;
+  /** Decided decisions with a revisit date ahead; null hides the entry. */
+  revisit?: { count: number; next: number } | null;
   onOpenNote: () => void;
   onViewItems: () => void;
 }
@@ -711,11 +720,13 @@ export interface MeetingStripProps {
 export const MeetingStripView: React.FC<MeetingStripProps> = ({
   nextMeeting,
   openItems,
+  revisit = null,
   onOpenNote,
   onViewItems,
 }) => {
   const { t } = useTranslation();
-  if (!nextMeeting && !openItems) return null;
+  const fmtDate = useDateFormat();
+  if (!nextMeeting && !openItems && !revisit) return null;
   return (
     <div className="flex flex-wrap items-center gap-x-8 gap-y-2 text-sm">
       {nextMeeting && (
@@ -746,6 +757,23 @@ export const MeetingStripView: React.FC<MeetingStripProps> = ({
           <TextLink onClick={onViewItems}>
             {t('plcDataOverview.view', { defaultValue: 'View' })}
           </TextLink>
+        </span>
+      )}
+      {revisit && (
+        <span className="inline-flex items-center gap-2">
+          <Scale className="h-4 w-4 text-slate-400" aria-hidden="true" />
+          <span className="font-semibold text-slate-800">
+            {t('plcDataOverview.decisionsToRevisit', {
+              defaultValue: 'Decisions to revisit',
+            })}
+          </span>
+          <span className="text-slate-500">
+            {t('plcDataOverview.revisitCount', {
+              count: revisit.count,
+              date: fmtDate(revisit.next),
+              defaultValue: '{{count}} · {{date}}',
+            })}
+          </span>
         </span>
       )}
     </div>

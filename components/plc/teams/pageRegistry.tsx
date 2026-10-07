@@ -15,10 +15,11 @@ import UpdatesPage from './updates/UpdatesPage';
 import BuildingHubPage from './building/BuildingHubPage';
 import ProgramHubPage from './mentoring/ProgramHubPage';
 import WorkspacePage from './mentoring/WorkspacePage';
+import NotesDocsPage from './notes/NotesDocsPage';
+import DepartmentHubPage from './department/DepartmentHubPage';
 import './mentoringBridge';
 import {
   TeamAssessmentsPage,
-  TeamNotesDocsPage,
   TeamResourcesPage,
 } from './pages/ExistingTeamPages';
 import type { TeamPageRegistry } from './types';
@@ -33,11 +34,11 @@ export const TEAM_PAGE_REGISTRY: TeamPageRegistry = {
   hub: {
     icon: LayoutDashboard,
     Component: TeamLandingPage,
-    byType: { building: BuildingHubPage },
+    byType: { building: BuildingHubPage, department: DepartmentHubPage },
   },
   programHub: { icon: LayoutDashboard, Component: ProgramHubPage },
   assessments: { icon: ClipboardList, Component: TeamAssessmentsPage },
-  docs: { icon: FileText, Component: TeamNotesDocsPage },
+  docs: { icon: FileText, Component: NotesDocsPage, fullBleed: true },
   resources: { icon: Sparkles, Component: TeamResourcesPage },
   updates: { icon: Megaphone, Component: UpdatesPage },
   workspace: { icon: Users2, Component: WorkspacePage },

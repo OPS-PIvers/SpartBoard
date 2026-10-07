@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useAuth } from '@/context/useAuth';
-import type { TeamPageProps } from '@/components/plc/teams/notes/teamPageTypes';
+import type { TeamPageProps } from '@/components/plc/teams/types';
 import { DepartmentHubView } from './DepartmentHubView';
 import { useDepartmentHubData } from './useDepartmentHubData';
 
