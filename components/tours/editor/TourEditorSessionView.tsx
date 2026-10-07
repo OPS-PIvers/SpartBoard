@@ -18,10 +18,11 @@ const TourEditorSessionView: React.FC = () => {
   const target = useTourEditTarget();
   useEditorThumbnails(session);
   if (!session || !target) return null;
-  // A failed save keeps the editor open with its alert; a conflict can't be saved, so it closes.
+  // A first failed save keeps the editor open with its alert; Close again while it shows closes anyway.
   const close = async () => {
+    const alerted = session.saveState === 'error';
     const saved = await session.flush();
-    if (saved || session.isConflicted()) clearTourEdit();
+    if (saved || alerted || session.isConflicted()) clearTourEdit();
   };
   return (
     <TourEditorPanel
