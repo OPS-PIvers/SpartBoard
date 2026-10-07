@@ -596,14 +596,25 @@ const StepCard: React.FC<{
       className="flex flex-col gap-3 px-3 pb-3 pl-[42px] pt-1"
     >
       {pictured && thumb && (
-        <img
-          src={thumb.url}
-          alt=""
-          data-testid="tour-editor-thumbnail"
-          className={`max-h-32 w-full rounded-lg border border-white/10 object-contain ${
-            thumb.anchor === tour.anchor ? '' : 'opacity-50'
-          }`}
-        />
+        <div className="relative">
+          <img
+            src={thumb.url}
+            alt=""
+            data-testid="tour-editor-thumbnail"
+            className={`max-h-32 w-full rounded-lg border border-white/10 object-contain ${
+              thumb.anchor === tour.anchor ? '' : 'opacity-50'
+            }`}
+          />
+          <button
+            type="button"
+            onClick={() => retakeTourEditThumbnail(step.id)}
+            aria-label={t('tours.editor.retake')}
+            title={t('tours.editor.retakeHint')}
+            className="absolute right-1.5 top-1.5 rounded-lg bg-slate-900/85 p-1.5 text-white shadow hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          >
+            <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </div>
       )}
       <label className={labelClass}>
         {t('glStudio.stepTitle')}
@@ -683,31 +694,18 @@ const StepCard: React.FC<{
           {t('glStudio.tourTeacherMustClick')}
         </label>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-1 pt-1">
-        <div className="flex flex-wrap items-center gap-1">
-          {pictured && (
-            <button
-              type="button"
-              onClick={() => retakeTourEditThumbnail(step.id)}
-              title={t('tours.editor.retakeHint')}
-              className="-ml-2 flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-            >
-              <Camera className="h-3.5 w-3.5" aria-hidden="true" />
-              {t('tours.editor.retake')}
-            </button>
-          )}
-          <CaptureLayoutButton
-            onCapture={(layouts) =>
-              session.updateSet({
-                tourSetup: {
-                  ...session.set.tourSetup,
-                  widgets: session.set.tourSetup?.widgets ?? [],
-                  layouts,
-                },
-              })
-            }
-          />
-        </div>
+      <div className="flex items-center justify-between gap-1 pt-1">
+        <CaptureLayoutButton
+          onCapture={(layouts) =>
+            session.updateSet({
+              tourSetup: {
+                ...session.set.tourSetup,
+                widgets: session.set.tourSetup?.widgets ?? [],
+                layouts,
+              },
+            })
+          }
+        />
         <button
           type="button"
           onClick={() => session.deleteStep(step.id)}
