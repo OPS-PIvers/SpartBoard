@@ -68,6 +68,7 @@ import { useTranslation } from 'react-i18next';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { normalizeGuidedLearningSet } from './utils/setMigration';
 import { isLiveTourSet } from './utils/liveTour';
+import { requestEditTour } from '@/components/tours/editor/tourEditStore';
 import { useStorage, type GuidedLearningMediaHome } from '@/hooks/useStorage';
 import { ImportWizard } from '@/components/common/library/importer/ImportWizard';
 import { createGuidedLearningImportAdapter } from './adapters/guidedLearningImportAdapter';
@@ -209,6 +210,8 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     ? { default: resolveWorkKind('guided-learning', null) }
     : undefined;
   const studioEditor = canAccessFeature('gl-studio');
+  const canEditToursOnBoard =
+    isAdmin === true && canAccessFeature('gl-live-tours');
   const canUseAi =
     canAccessFeature('gemini-functions') &&
     canAccessFeature('guided-learning-ai');
@@ -530,6 +533,11 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     driveFileId?: string,
     buildingEntry?: GuidedLearningBuildingSetIndex
   ) => {
+    // Building tours are edited on the board, not in the Studio.
+    if (buildingEntry?.mode === 'tour' && canEditToursOnBoard) {
+      requestEditTour({ setId });
+      return;
+    }
     if (buildingEntry) {
       const data = await loadSet(setId, undefined, buildingEntry);
       if (!data) return;

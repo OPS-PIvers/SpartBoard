@@ -215,20 +215,12 @@ describe('GuidedLearningManager live tours', () => {
     await noRunLive();
   });
 
-  it('lets an admin who can edit run an unpublished tour as a draft', async () => {
+  it('offers authors no draft run of an unpublished tour', async () => {
     runnable.set('live-1', false);
-    const start = listen(TOUR_START_EVENT);
     renderManager(true, true);
     await cardMenu('Boards walkthrough');
-    fireEvent.click(
-      await screen.findByRole('menuitem', {
-        name: /Run live on my board \(draft\)/,
-      })
-    );
-    expect((start.mock.calls[0][0] as CustomEvent).detail).toEqual({
-      setId: 'live-1',
-      draft: true,
-    });
+    expect(await screen.findByRole('menuitem', { name: 'Edit' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: /Run live/ })).toBeNull();
   });
 
   it('badges tours and filters the library by type', async () => {
@@ -305,7 +297,7 @@ describe('GuidedLearningManager live tours', () => {
     expect(screen.getByText('Where live tours live')).toBeInTheDocument();
   });
 
-  it('makes Play run a published tour live on a board, with the slides in the menu', async () => {
+  it('makes Play run a published tour live on a board, with no slides to play', async () => {
     board.canRun = true;
     runnable.set('live-1', true);
     const start = listen(TOUR_START_EVENT);
@@ -314,25 +306,21 @@ describe('GuidedLearningManager live tours', () => {
     expect((start.mock.calls[0][0] as CustomEvent).detail).toEqual({
       setId: 'live-1',
     });
-    await cardMenu('Boards walkthrough');
+    screen
+      .queryAllByRole('button', { name: 'More actions' })
+      .forEach((b) => fireEvent.click(b));
     expect(
-      await screen.findByRole('menuitem', { name: 'Play as slides' })
-    ).toBeInTheDocument();
+      screen.queryByRole('menuitem', { name: 'Play as slides' })
+    ).toBeNull();
     expect(screen.queryByRole('menuitem', { name: /Run live/ })).toBeNull();
   });
 
-  it('lets an author play a draft tour live from Play', async () => {
+  it('does not play an unpublished tour live', async () => {
     board.canRun = true;
     runnable.set('live-1', false);
-    const start = listen(TOUR_START_EVENT);
     renderManager(true, true);
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Play draft live' })
-    );
-    expect((start.mock.calls[0][0] as CustomEvent).detail).toEqual({
-      setId: 'live-1',
-      draft: true,
-    });
+    await screen.findByText('Boards walkthrough');
+    expect(screen.queryByRole('button', { name: /live/ })).toBeNull();
   });
 
   it('keeps Play as slides off a board', async () => {

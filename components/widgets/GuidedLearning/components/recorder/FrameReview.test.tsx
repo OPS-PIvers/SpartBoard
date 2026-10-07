@@ -24,8 +24,7 @@ const recording = (): TourRecording => ({
   })),
 });
 
-const upload = () =>
-  screen.getByRole('button', { name: 'Upload and open in Studio' });
+const upload = () => screen.getByRole('button', { name: 'Upload and open' });
 const next = () => screen.getByRole('button', { name: 'Next frame' });
 // Identity, not toEqual: any two Blobs compare equal.
 const expectUploaded = (fn: ReturnType<typeof vi.fn>, expected: Blob[]) => {

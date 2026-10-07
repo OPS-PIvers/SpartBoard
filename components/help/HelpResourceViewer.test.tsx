@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet } from '@/types';
 import type { HelpResourceItem } from '@/types/helpCenter';
+import { TOUR_EDIT_EVENT } from '@/components/tours/editor/tourEditStore';
 import { TOUR_START_EVENT } from '@/components/tours/tourState';
 import { HelpResourceViewer } from './HelpResourceViewer';
 
@@ -97,22 +98,18 @@ describe('HelpResourceViewer live tours', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('lets an admin run a tour that was never published as a draft', async () => {
+  it('lets an admin open a tour that was never published in the editor', async () => {
     h.published = false;
     h.isAdmin = true;
     h.loadBuildingSet.mockResolvedValue(set(true));
-    const started = vi.fn();
-    window.addEventListener(TOUR_START_EVENT, started);
+    const edited = vi.fn();
+    window.addEventListener(TOUR_EDIT_EVENT, edited);
     render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
-    fireEvent.click(
-      await screen.findByRole('button', {
-        name: 'Run live on my board (draft)',
-      })
-    );
-    window.removeEventListener(TOUR_START_EVENT, started);
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit tour' }));
+    window.removeEventListener(TOUR_EDIT_EVENT, edited);
     expect(
-      (started.mock.calls[0][0] as CustomEvent<{ setId: string }>).detail
-    ).toEqual({ setId: 'set-1', draft: true });
+      (edited.mock.calls[0][0] as CustomEvent<{ setId: string }>).detail
+    ).toEqual({ setId: 'set-1' });
   });
 
   it('hides Show me live without the flag', async () => {

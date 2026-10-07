@@ -4,7 +4,6 @@ import {
   CircleDot,
   ClipboardPaste,
   FileJson,
-  Footprints,
   Loader2,
   MonitorUp,
   Sparkles,
@@ -28,8 +27,6 @@ export interface StudioStartHubProps {
   onDraftWithAi?: () => void;
   /** Omitted when importing isn't available here. */
   onImport?: () => void;
-  /** Live tours: runs the tour, picturing each step as it goes. */
-  onRunLive?: () => void;
 }
 
 interface TargetProps {
@@ -102,7 +99,6 @@ export const StudioStartHub: React.FC<StudioStartHubProps> = ({
   onRecordTour,
   onDraftWithAi,
   onImport,
-  onRunLive,
 }) => {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -155,15 +151,6 @@ export const StudioStartHub: React.FC<StudioStartHubProps> = ({
           }}
         />
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {onRunLive && (
-            <Target
-              id="run-live"
-              icon={Footprints}
-              label={t('glStudio.runLive')}
-              description={t('glStudio.hubRunLiveDesc')}
-              onClick={onRunLive}
-            />
-          )}
           <Target
             id="upload"
             icon={Upload}

@@ -535,7 +535,7 @@ describe('HelpCenterManager', () => {
   });
 
   it.each([
-    [false, true, 'Live tour · Draft', /Publish tour in the Studio/],
+    [false, true, 'Live tour · Draft', /Publish tour in Settings/],
     [true, false, 'Live tour · Hidden', /turn on Visible/],
     [true, true, 'Live tour · Live', null],
   ])(

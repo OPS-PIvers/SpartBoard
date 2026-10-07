@@ -38,6 +38,8 @@ import {
   type TourHealthState,
 } from '@/components/tours/tourHealth';
 import { UnmappedAnchorsSection } from './UnmappedAnchorsSection';
+import { requestEditTour } from '@/components/tours/editor/tourEditStore';
+import { isLiveTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
 
 const GuidedLearningStudio = lazy(() =>
   import('@/components/widgets/GuidedLearning/components/studio/GuidedLearningStudio').then(
@@ -172,7 +174,10 @@ const TourHealthPanel: React.FC = () => {
     const set =
       loaded?.tours.find((tour) => tour.draft.id === setId)?.draft ??
       (await loadBuildingSet(setId).catch(() => null));
-    if (set) setStudio({ set: { ...set, isBuilding: true }, stepId });
+    if (!set) return;
+    // Tours open in the board editor; the Studio stays for ordinary sets.
+    if (isLiveTourSet(set)) requestEditTour({ setId, stepId });
+    else setStudio({ set: { ...set, isBuilding: true }, stepId });
   };
 
   const checkLive = () =>
@@ -343,18 +348,18 @@ const TourHealthPanel: React.FC = () => {
                         <button
                           type="button"
                           onClick={() =>
-                            setStudio({
-                              set: { ...draft, isBuilding: true },
+                            requestEditTour({
+                              setId: draft.id,
                               stepId: step.id,
                             })
                           }
-                          aria-label={t('tourHealth.openInStudioLabel', {
+                          aria-label={t('tourHealth.editStepLabel', {
                             number,
                             title,
                           })}
                           className="rounded-md px-2 py-1 font-semibold text-brand-blue-primary hover:bg-slate-100"
                         >
-                          {t('tourHealth.openInStudio')}
+                          {t('tourHealth.editStep')}
                         </button>
                       </td>
                     </tr>

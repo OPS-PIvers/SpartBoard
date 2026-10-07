@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet } from '@/types';
 import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
+import { TOUR_EDIT_EVENT } from '@/components/tours/editor/tourEditStore';
 import { TOUR_RECORD_EVENT } from '@/components/tours/tourState';
 import {
   DashboardContext,
@@ -267,16 +268,20 @@ describe('TourHealthPanel', () => {
     );
   });
 
-  it('opens the set in the Studio at the step', async () => {
+  it('opens the board editor at the step', async () => {
+    const onEdit = vi.fn();
+    window.addEventListener(TOUR_EDIT_EVENT, onEdit);
     render(<TourHealthPanel />);
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'Open in Studio: step 3 of Clock tour',
+        name: 'Edit step 3 of Clock tour',
       })
     );
-    expect(await screen.findByTestId('studio')).toHaveTextContent(
-      'set-1:b:true'
-    );
+    window.removeEventListener(TOUR_EDIT_EVENT, onEdit);
+    expect((onEdit.mock.calls[0][0] as CustomEvent).detail).toEqual({
+      setId: 'set-1',
+      stepId: 'b',
+    });
   });
 
   it('starts a recording from Record a tour, only with live tours on', async () => {
