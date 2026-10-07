@@ -346,7 +346,11 @@ export interface PlcMember {
   status: 'active' | 'removed';
   /** How the member joined; auto-roster removes only its own 'autoRoster' adds. */
   addedBy?: PlcMemberAddedBy;
+  /** Mentoring programs only: set by facilitators on members, never viewers (T29). */
+  mentorRole?: PlcMentorRole;
 }
+
+export type PlcMentorRole = 'mentor' | 'mentee';
 
 export type PlcMemberAddedBy = 'admin' | 'autoRoster' | 'invite';
 
@@ -604,6 +608,77 @@ export interface GoalCoachCriterion {
 export interface TeamTypeDefaults {
   types: Partial<Record<PlcGroupType, TeamTypePreset>>;
   goalCoachRubric?: GoalCoachCriterion[];
+}
+
+/** Who submits a mentoring task (T32). */
+export type MentoringSubmitter = 'mentee' | 'mentor' | 'both';
+
+/** A Google Doc link held by a mentoring workspace or a task. */
+export interface MentoringDocLink {
+  id: string;
+  title: string;
+  url: string;
+  /** Set on a task template's copy. */
+  taskId?: string;
+  addedBy: string;
+  addedAt: number;
+}
+
+/** `plcs/{id}/tasks/{taskId}`: a required task posted by facilitators (T32). */
+export interface MentoringTask {
+  id: string;
+  title: string;
+  instructions: string;
+  /** Local calendar date, 'YYYY-MM-DD'. */
+  dueDate: string;
+  submitter: MentoringSubmitter;
+  templateDoc?: { title: string; url: string; fileId?: string } | null;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** A pair's submission state for one task, mirrored on the workspace. */
+export interface MentoringTaskStatus {
+  submittedAt: number;
+  submittedBy: string;
+}
+
+/** `plcs/{id}/workspaces/{workspaceId}`: one mentor and mentee pair (T31). */
+export interface MentoringWorkspace {
+  id: string;
+  mentorUid: string;
+  menteeUid: string;
+  /** [mentorUid, menteeUid], for the pair's array-contains query. */
+  memberUids: string[];
+  mentorName: string;
+  menteeName: string;
+  actionItems: PlcActionItem[];
+  docs: MentoringDocLink[];
+  taskStatus: Record<string, MentoringTaskStatus>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** `workspaces/{id}/checkins/{checkinId}`: a check-in note from the mentoring template. */
+export interface MentoringCheckIn {
+  id: string;
+  title: string;
+  body: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** `workspaces/{id}/submissions/{taskId}`: what a pair handed in for a task. */
+export interface MentoringSubmission {
+  id: string;
+  taskId: string;
+  submittedBy: string;
+  submittedByName: string;
+  submittedAt: number;
+  docUrl?: string;
 }
 
 /**
