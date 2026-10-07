@@ -2361,6 +2361,7 @@ service cloud.firestore {
       return isPlcMembershipManager(resource.data)
         && changedOnly(['layout', 'features', 'updatedAt'])
         && request.resource.data.get('features', {}) is map
+        && ('features' in request.resource.data || !('features' in resource.data))
         && (!('layout' in request.resource.data) || plcLayoutShapeOk(request.resource.data.layout))
         && plcUpdatedAtOk();
     }

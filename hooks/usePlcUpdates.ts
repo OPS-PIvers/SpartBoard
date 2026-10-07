@@ -187,6 +187,8 @@ export function usePlcUpdates(plcId: string | null, enabled = true) {
   };
 }
 
+export type PlcUpdatesApi = ReturnType<typeof usePlcUpdates>;
+
 /** The signed-in member's own acks for the given updates: updateId → ackedAt. */
 export function useMyUpdateAcks(
   plcId: string | null,
