@@ -5,7 +5,13 @@ import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import type { PlcGoal, PlcGoalPractice, RoutineGuideRoutine } from '@/types';
-import { PLC_GOAL_MAX_PRACTICES, type PlcGoalDraft } from '@/hooks/usePlcGoals';
+import {
+  PLC_GOAL_MAX_PRACTICES,
+  PLC_GOAL_PROGRESS_KEYS,
+  isGoalPercent,
+  type PlcGoalDraft,
+  type PlcGoalProgress,
+} from '@/hooks/usePlcGoals';
 
 const OTHER = '__other__';
 
@@ -30,7 +36,11 @@ interface GoalEditorModalProps {
   onSave: (draft: PlcGoalDraft) => Promise<void>;
   onDelete?: () => Promise<void>;
   onClose: () => void;
+  /** Shows the baseline, now and goal percents (teams redesign). */
+  showProgress?: boolean;
 }
+
+type ProgressKey = (typeof PLC_GOAL_PROGRESS_KEYS)[number];
 
 export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
   goal,
@@ -39,8 +49,28 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
   onSave,
   onDelete,
   onClose,
+  showProgress = false,
 }) => {
   const { t } = useTranslation();
+  const [numbers, setNumbers] = useState<Record<ProgressKey, string>>({
+    baseline: goal?.baseline?.toString() ?? '',
+    current: goal?.current?.toString() ?? '',
+    target: goal?.target?.toString() ?? '',
+  });
+  const progress: PlcGoalProgress = {};
+  let progressValid = true;
+  for (const key of PLC_GOAL_PROGRESS_KEYS) {
+    const raw = numbers[key].trim();
+    if (!raw) continue;
+    const v = Number(raw);
+    if (isGoalPercent(v)) progress[key] = v;
+    else progressValid = false;
+  }
+  const progressLabels: Record<ProgressKey, string> = {
+    baseline: t('plcGoals.baselinePct', { defaultValue: 'Baseline (%)' }),
+    current: t('plcGoals.currentPct', { defaultValue: 'Now (%)' }),
+    target: t('plcGoals.targetPct', { defaultValue: 'Goal (%)' }),
+  };
   const [title, setTitle] = useState(goal?.title ?? '');
   const [measure, setMeasure] = useState(goal?.measure ?? '');
   const [practices, setPractices] = useState<DraftPractice[]>(() =>
@@ -72,6 +102,7 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
         id: goal?.id,
         title,
         measure,
+        ...(showProgress ? { progress } : {}),
         practices: practices.map(({ custom: _custom, ...p }) => p),
         order: goal?.order ?? nextOrder,
       });
@@ -116,7 +147,7 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
       <button
         type="button"
         onClick={() => void save()}
-        disabled={busy || !title.trim()}
+        disabled={busy || !title.trim() || (showProgress && !progressValid)}
         className="rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-bold text-white hover:bg-brand-blue-dark disabled:opacity-50"
       >
         {t('common.save', { defaultValue: 'Save' })}
@@ -160,6 +191,30 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
             className={inputClass}
           />
         </div>
+        {showProgress && (
+          <div className="grid grid-cols-3 gap-3">
+            {PLC_GOAL_PROGRESS_KEYS.map((key) => (
+              <div key={key}>
+                <label htmlFor={`goal-${key}`} className={labelClass}>
+                  {progressLabels[key]}
+                </label>
+                <input
+                  id={`goal-${key}`}
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={numbers[key]}
+                  onChange={(e) =>
+                    setNumbers((n) => ({ ...n, [key]: e.target.value }))
+                  }
+                  className={inputClass}
+                />
+              </div>
+            ))}
+          </div>
+        )}
         <div>
           <p className={labelClass}>
             {t('plcGoals.practices', { defaultValue: 'Practices' })}

@@ -40,6 +40,19 @@ describe('parsePlcGoal', () => {
       parsePlcGoal('x', { title: 'T', createdBy: 'u', measure: ' ' })
     ).not.toHaveProperty('measure');
   });
+
+  it('keeps whole-percent progress numbers and drops bad ones', () => {
+    const g = parsePlcGoal('x', {
+      title: 'T',
+      createdBy: 'u',
+      baseline: 58,
+      current: 64.5,
+      target: 120,
+    });
+    expect(g?.baseline).toBe(58);
+    expect(g).not.toHaveProperty('current');
+    expect(g).not.toHaveProperty('target');
+  });
 });
 
 describe('sortPlcGoals', () => {

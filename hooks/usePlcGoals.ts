@@ -30,6 +30,19 @@ function parsePractice(raw: unknown): PlcGoalPractice | null {
   return routineId ? { id: rec.id, routineId, text } : { id: rec.id, text };
 }
 
+export const PLC_GOAL_PROGRESS_KEYS = [
+  'baseline',
+  'current',
+  'target',
+] as const;
+export type PlcGoalProgress = Partial<
+  Record<(typeof PLC_GOAL_PROGRESS_KEYS)[number], number>
+>;
+
+/** A whole percent, 0 to 100. */
+export const isGoalPercent = (v: unknown): v is number =>
+  typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 100;
+
 export function parsePlcGoal(
   id: string,
   data: Record<string, unknown>
@@ -54,6 +67,10 @@ export function parsePlcGoal(
   if (typeof data.measure === 'string' && data.measure.trim()) {
     goal.measure = data.measure;
   }
+  for (const key of PLC_GOAL_PROGRESS_KEYS) {
+    const v = data[key];
+    if (isGoalPercent(v)) goal[key] = v;
+  }
   return goal;
 }
 
@@ -68,6 +85,8 @@ export interface PlcGoalDraft {
   id?: string;
   title: string;
   measure?: string;
+  /** Absent leaves stored numbers alone; present replaces them, missing keys cleared. */
+  progress?: PlcGoalProgress;
   practices: PlcGoalPractice[];
   order: number;
 }
@@ -120,6 +139,12 @@ export function usePlcGoals(plcId: string | null) {
         )
         .filter((p) => 'routineId' in p || p.text);
       const measure = draft.measure?.trim() ?? '';
+      const progress = draft.progress;
+      const numbers: Record<string, number> = {};
+      for (const key of PLC_GOAL_PROGRESS_KEYS) {
+        const v = progress?.[key];
+        if (isGoalPercent(v)) numbers[key] = v;
+      }
       const fields = {
         title: draft.title.trim(),
         practices,
@@ -131,6 +156,14 @@ export function usePlcGoals(plcId: string | null) {
         await updateDoc(ref, {
           ...fields,
           measure: measure.length > 0 ? measure : deleteField(),
+          ...(progress
+            ? Object.fromEntries(
+                PLC_GOAL_PROGRESS_KEYS.map((k) => [
+                  k,
+                  k in numbers ? numbers[k] : deleteField(),
+                ])
+              )
+            : {}),
         });
         return ref.id;
       }
@@ -139,6 +172,7 @@ export function usePlcGoals(plcId: string | null) {
         id: ref.id,
         ...fields,
         ...(measure.length > 0 ? { measure } : {}),
+        ...numbers,
         createdBy: uid,
         createdAt: serverTimestamp(),
       });

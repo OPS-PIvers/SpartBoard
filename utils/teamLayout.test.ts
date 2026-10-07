@@ -165,6 +165,27 @@ describe('parseTeamHeroRef / parseTeamHero', () => {
       parseTeamHero({ mode: 'pinned', ref: { kind: 'goal', goalId: 'g' } })
     ).toEqual({ mode: 'pinned', ref: { kind: 'goal', goalId: 'g' } });
   });
+
+  it('keeps a well-formed pinnedBy and drops a malformed one', () => {
+    const ref = { kind: 'goal', goalId: 'g' };
+    expect(
+      parseTeamHero({
+        mode: 'pinned',
+        ref,
+        pinnedBy: { uid: 'u1', name: 'Priya Shah', extra: 1 },
+      })
+    ).toEqual({
+      mode: 'pinned',
+      ref,
+      pinnedBy: { uid: 'u1', name: 'Priya Shah' },
+    });
+    expect(
+      parseTeamHero({ mode: 'pinned', ref, pinnedBy: { name: 'Priya Shah' } })
+    ).toEqual({ mode: 'pinned', ref });
+    expect(
+      parseTeamHero({ mode: 'default', pinnedBy: { uid: 'u1', name: 'P' } })
+    ).toEqual({ mode: 'default' });
+  });
 });
 
 describe('parseTeamLayout', () => {
@@ -502,6 +523,19 @@ describe('resolveTeamLayout', () => {
 });
 
 describe('toStoredTeamLayout', () => {
+  it('keeps who pinned the hero', () => {
+    const resolved = resolveTeamLayout(makePlc());
+    const stored = toStoredTeamLayout({
+      ...resolved,
+      hero: {
+        mode: 'pinned',
+        ref: { kind: 'goal', goalId: 'g' },
+        pinnedBy: { uid: 'u1', name: 'Priya Shah' },
+      },
+    });
+    expect(stored.hero.pinnedBy).toEqual({ uid: 'u1', name: 'Priya Shah' });
+  });
+
   it('strips resolver fields and an unpinned ref', () => {
     const resolved = resolveTeamLayout(makePlc());
     const stored = toStoredTeamLayout({
