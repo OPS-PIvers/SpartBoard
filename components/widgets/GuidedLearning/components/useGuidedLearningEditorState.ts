@@ -864,6 +864,7 @@ export function useGuidedLearningEditorState({
         imageIndex: currentImageIndex,
         interactionType: 'text-popover',
         showOverlay: 'none',
+        calloutTone: 'light',
         text: '',
         ...(region ? { region } : {}),
       };

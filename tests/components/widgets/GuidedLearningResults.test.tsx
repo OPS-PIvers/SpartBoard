@@ -248,7 +248,7 @@ describe('GuidedLearningResults front-face scaling', () => {
     });
     // Sanity-check the non-empty branches actually rendered, so this test
     // can't silently degrade back to only covering the empty state.
-    expect(container.querySelector('.font-bold.text-white')).not.toBeNull();
+    expect(container.querySelector('.font-bold.text-slate-900')).not.toBeNull();
     expect(container.textContent?.includes('What is 2+2?')).toBe(true);
 
     const classNames = Array.from(container.querySelectorAll('*'))

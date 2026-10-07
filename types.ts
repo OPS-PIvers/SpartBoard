@@ -67,7 +67,8 @@ export type WidgetType =
   | 'flashcards'
   | 'projects'
   | 'review'
-  | 'routineGuide';
+  | 'routineGuide'
+  | 'arts-letters-agenda';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -2031,6 +2032,18 @@ export interface ChecklistConfig {
   cardColor?: string;
   cardOpacity?: number;
   rowStyle?: 'cards' | 'lines';
+}
+
+export type ArtsLettersAgendaPartId = 'launch' | 'learn' | 'land';
+
+export interface ArtsLettersAgendaConfig {
+  descriptions?: Partial<Record<ArtsLettersAgendaPartId, string>>;
+  completed?: Partial<Record<ArtsLettersAgendaPartId, boolean>>;
+  fontFamily?: string;
+  fontColor?: string;
+  textSizePreset?: TextSizePreset;
+  cardColor?: string;
+  cardOpacity?: number;
 }
 
 export interface RandomGroup {
@@ -9135,7 +9148,8 @@ export type WidgetConfig =
   | First5Config
   | StationsConfig
   | FlashcardsConfig
-  | ProjectsConfig;
+  | ProjectsConfig
+  | ArtsLettersAgendaConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'url'
@@ -9272,7 +9286,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                                     ? ReviewConfig
                                                                                                                                     : T extends 'routineGuide'
                                                                                                                                       ? RoutineGuideConfig
-                                                                                                                                      : never;
+                                                                                                                                      : T extends 'arts-letters-agenda'
+                                                                                                                                        ? ArtsLettersAgendaConfig
+                                                                                                                                        : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -9892,7 +9908,11 @@ export type GlobalFeature =
   /** Purpose-built page set per team type (docs/plans/TEAMS_REDESIGN.md). */
   | 'teams-redesign'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22). */
-  | 'plc-goal-coach';
+  | 'plc-goal-coach'
+  /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
+  | 'embed-reload'
+  /** Embed: a pasted Google Slides link opens on the slide it was copied from. */
+  | 'embed-slide-link';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

@@ -36,20 +36,28 @@ export interface RecordedStep extends RecordedPlacement {
 }
 
 export interface TourRecording {
-  /** Already redacted; the raw frames never leave `capture`. */
+  /** Already redacted. */
   frames: Blob[];
   /** The automatic blur boxes baked into each frame, for review. */
   redactions: RedactRect[][];
+  /** Unblurred frames, kept in memory only so review can edit the blur; never uploaded. */
+  raw?: Blob[];
   steps: RecordedStep[];
 }
 
 const emptyRecording = (): TourRecording => ({
   frames: [],
   redactions: [],
+  raw: [],
   steps: [],
 });
 
-type Captured = { frame: Blob; boxes: RedactRect[]; step: RecordedStep };
+type Captured = {
+  frame: Blob;
+  raw: Blob;
+  boxes: RedactRect[];
+  step: RecordedStep;
+};
 
 export type CaptureStatus = 'idle' | 'starting' | 'recording' | 'paused';
 
@@ -324,6 +332,7 @@ export function useTourCapture({
       if (!entry) continue;
       rec.frames.push(entry.frame);
       rec.redactions.push(entry.boxes);
+      rec.raw?.push(entry.raw);
       rec.steps.push({ ...entry.step, frameIndex: rec.frames.length - 1 });
     }
     setStepCount(rec.steps.length);
@@ -372,6 +381,7 @@ export function useTourCapture({
     const widgetId = widgetIdOf(resolved.element) ?? widgetIdOf(target);
     return {
       frame,
+      raw,
       boxes,
       step: {
         id: newId(),

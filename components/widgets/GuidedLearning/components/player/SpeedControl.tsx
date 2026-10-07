@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { focusRing } from '@/components/common/lightChrome';
 import { LEARNER_SPEEDS, type LearnerSpeed } from '../../utils/motion';
 import { TouchHitBox } from './TouchHitBox';
 
@@ -21,7 +22,7 @@ export const SpeedControl: React.FC<Props> = ({ speed, onChange }) => {
     <div
       role="group"
       aria-label={t('glPlayer.playbackSpeed')}
-      className="flex items-center rounded-full bg-white/10 border border-white/15"
+      className="flex items-center rounded-full bg-slate-100 border border-slate-200"
       style={{ padding: 'min(2px, 0.5cqmin)' }}
     >
       {LEARNER_SPEEDS.map((s) => (
@@ -31,10 +32,10 @@ export const SpeedControl: React.FC<Props> = ({ speed, onChange }) => {
           aria-pressed={s === speed}
           aria-label={t('glPlayer.speedOption', { speed: LABELS[s] })}
           onClick={() => onChange(s)}
-          className={`relative rounded-full font-bold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 ${
+          className={`relative rounded-full font-bold tabular-nums transition-colors ${focusRing} ${
             s === speed
-              ? 'bg-white text-slate-900'
-              : 'text-slate-200 hover:bg-white/15'
+              ? 'bg-brand-blue-primary text-white'
+              : 'text-slate-700 hover:bg-slate-200'
           }`}
           style={{
             padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',

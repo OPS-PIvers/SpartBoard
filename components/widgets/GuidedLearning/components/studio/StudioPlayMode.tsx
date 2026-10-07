@@ -56,7 +56,7 @@ export const StudioPlayMode: React.FC<StudioPlayModeProps> = ({
         <button
           type="button"
           onClick={onExit}
-          className="flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-1.5 text-sm font-bold text-white shadow-lg transition-colors hover:bg-slate-700"
+          className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-bold text-slate-700 shadow-md transition-colors hover:bg-slate-50"
         >
           <Pencil className="h-4 w-4" aria-hidden="true" />
           {t('glStudio.backToEditing')}

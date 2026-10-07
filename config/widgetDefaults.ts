@@ -12,6 +12,7 @@ import {
   NeedDoPutThenConfig,
   FlashcardsConfig,
   ProjectsConfig,
+  ArtsLettersAgendaConfig,
 } from '@/types';
 import { STICKY_NOTE_COLORS } from './colors';
 import {
@@ -739,5 +740,17 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       cardColor: '#ffffff',
       cardOpacity: 0.75,
     } satisfies ProjectsConfig,
+  },
+  'arts-letters-agenda': {
+    w: 420,
+    h: 420,
+    config: {
+      descriptions: {},
+      completed: {},
+      fontFamily: 'global',
+      fontColor: '#1e293b',
+      cardColor: '#ffffff',
+      cardOpacity: 0.85,
+    } satisfies ArtsLettersAgendaConfig,
   },
 };

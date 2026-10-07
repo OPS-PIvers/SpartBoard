@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Z_INDEX } from '@/config/zIndex';
+import { chromeSurface } from '@/components/common/lightChrome';
 import { isScriptedClick } from '@/components/tours/autopilot';
 import type { TourSlots } from '@/components/tours/tourSession';
 import { secondaryBtn } from '@/components/tours/tourButtons';
@@ -166,7 +167,7 @@ export const TourAnchorPicker: React.FC<Props> = ({
           }}
         >
           <span
-            className={`absolute left-0 whitespace-nowrap rounded-md bg-slate-900/90 px-2 py-1 text-xs font-semibold text-white shadow-lg ${
+            className={`absolute left-0 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-semibold text-white shadow-lg ${
               labelAbove ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
             }`}
           >
@@ -180,7 +181,7 @@ export const TourAnchorPicker: React.FC<Props> = ({
         data-tour-ignore=""
         data-tour-obstacle=""
         data-testid="tour-anchor-picker-bar"
-        className="fixed left-1/2 top-4 flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-white/20 bg-slate-900/90 py-1.5 pl-4 pr-1.5 text-white shadow-2xl ring-1 ring-black/40 backdrop-blur-xl"
+        className={`fixed left-1/2 top-4 flex -translate-x-1/2 items-center gap-1 rounded-2xl py-1.5 pl-4 pr-1.5 ${chromeSurface}`}
         style={{ zIndex: Z_INDEX.tourCallout }}
       >
         <span className="mr-2 whitespace-nowrap text-sm font-semibold">

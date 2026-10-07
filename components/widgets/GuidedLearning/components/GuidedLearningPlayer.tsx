@@ -48,6 +48,7 @@ import { speechAvailable, useReadAloud } from './player/useReadAloud';
 import { spokenStepText } from '../utils/stepText';
 import type { PctPoint, PlaybackMode, StepEvent } from '../types/stage';
 import { PlayerShell, PlayerTopBar } from './player/PlayerShell';
+import { focusRing } from '@/components/common/lightChrome';
 import {
   FOOTER_BUTTON_SIZE,
   FOOTER_COMPACT_PX,
@@ -718,10 +719,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         if (readAloud) handleVoiceDone();
         setReadAloud(!readAloud);
       }}
-      className={`relative flex items-center justify-center rounded-full border transition-colors flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 ${
+      className={`relative flex items-center justify-center rounded-full border transition-colors flex-shrink-0 ${focusRing} ${
         readAloud
-          ? 'bg-white text-slate-900 border-white'
-          : 'bg-white/10 text-slate-200 border-white/15 hover:bg-white/20'
+          ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+          : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
       }`}
       style={{ width: 'min(36px, 5.5cqmin)', height: 'min(36px, 5.5cqmin)' }}
     >
@@ -760,7 +761,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       ? 'guided'
       : 'structured';
 
-  const footerButtonClass = `${playerV2 ? 'relative ' : ''}flex items-center justify-center rounded-full bg-white/10 border border-white/15 hover:bg-white/20 text-white transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90`;
+  const footerButtonClass = `${playerV2 ? 'relative ' : ''}flex items-center justify-center rounded-full bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 transition-all duration-200 active:scale-95 ${focusRing}`;
+  const nextButtonClass = `${playerV2 ? 'relative ' : ''}flex items-center justify-center rounded-full bg-brand-blue-primary hover:bg-brand-blue-dark text-white transition-all duration-200 active:scale-95 ${focusRing}`;
 
   // v2 with a finish handler: Next on the last step finishes.
   const nextDisabled =
@@ -855,11 +857,11 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={Math.round(guidedProgress * 100)}
-                  className="flex-1 rounded-full bg-white/10 overflow-hidden"
+                  className="flex-1 rounded-full bg-slate-200 overflow-hidden"
                   style={{ height: 'clamp(6px, 1.5cqmin, 10px)' }}
                 >
                   <div
-                    className="h-full rounded-full bg-indigo-500 transition-all duration-100"
+                    className="h-full rounded-full bg-brand-blue-primary transition-all duration-100"
                     style={{ width: `${guidedProgress * 100}%` }}
                   />
                 </div>
@@ -871,11 +873,11 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 aria-valuemin={1}
                 aria-valuemax={steps.length}
                 aria-valuenow={currentIdx + 1}
-                className="flex-1 rounded-full bg-white/10 overflow-hidden"
+                className="flex-1 rounded-full bg-slate-200 overflow-hidden"
                 style={{ height: 'clamp(6px, 1.5cqmin, 10px)' }}
               >
                 <div
-                  className="h-full rounded-full bg-indigo-500 transition-all duration-200"
+                  className="h-full rounded-full bg-brand-blue-primary transition-all duration-200"
                   style={{
                     width: `${((currentIdx + 1) / steps.length) * 100}%`,
                   }}
@@ -892,10 +894,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                   <button
                     key={s.id}
                     onClick={() => jumpTo(i)}
-                    className={`${playerV2 ? 'relative ' : ''}rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 ${
+                    className={`${playerV2 ? 'relative ' : ''}rounded-full transition-all ${focusRing} ${
                       i === currentIdx
-                        ? 'bg-indigo-500'
-                        : 'bg-slate-600 hover:bg-slate-500'
+                        ? 'bg-brand-blue-primary'
+                        : 'bg-slate-300 hover:bg-slate-400'
                     }`}
                     style={{
                       width:
@@ -936,7 +938,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
               />
             ) : (
               <span
-                className="text-slate-300 font-bold tabular-nums"
+                className="text-slate-700 font-bold tabular-nums"
                 style={{ fontSize: 'min(12px, 3.2cqmin)' }}
               >
                 {currentIdx + 1} / {steps.length}
@@ -946,7 +948,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
               onClick={goNext}
               disabled={nextDisabled}
               aria-label={t('glPlayer.next')}
-              className={`${footerButtonClass} disabled:opacity-40`}
+              className={`${nextButtonClass} disabled:opacity-40`}
               style={FOOTER_BUTTON_SIZE}
             >
               {playerV2 && <TouchHitBox round />}

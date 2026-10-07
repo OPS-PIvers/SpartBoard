@@ -1050,6 +1050,7 @@ export const SETTINGS_FIELD_LIST: Readonly<
       label: 'Color theme',
     },
   ],
+  'arts-letters-agenda': [],
   mathTools: [
     {
       anchor: 'settings.group:mathTools#behavior',

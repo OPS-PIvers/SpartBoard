@@ -76,9 +76,10 @@ The job is one of three:
    unless that covers the target; a banner goes below a target in the top
    40% of the slide and above otherwise. For a lesson, leave callouts on auto
    placement and add a `calloutPin` only when auto placement covers
-   something the learner needs for that step, and leave callout width, scale
-   and tone out unless a callout needs them. A Help Center set uses callout
-   boxes and one tone (see its reference).
+   something the learner needs for that step, and leave callout width and
+   scale out unless a callout needs them. Write `"calloutTone": "light"` on
+   every callout step, as the app does for new steps. A Help Center set uses
+   callout boxes and one tone (see its reference).
 5. **Choose the interaction per step** (see Interaction choice) and write
    the text (see Writing rules).
 6. **Bind live-tour steps** when the request is a tour of the real app:
@@ -222,7 +223,7 @@ Required fields:
   "mode": "structured", // "structured" | "guided" | "explore"
   "createdAt": 0, // ms epoch; regenerated on import
   "updatedAt": 0,
-  "schemaVersion": 3, // 4 for callout size or colour, 5 for a callout box
+  "schemaVersion": 4, // 3 with no callout steps, 4 for callout size or colour, 5 for a callout box
 }
 ```
 
@@ -240,7 +241,9 @@ ring, `"reminder"` a gentle wiggle every few seconds, or `"off"`),
 `schemaVersion` is **required**. Write `3`, or `4` when a step that draws a
 callout (see Callout size and colour) sets `calloutWidthPct`, `calloutScale`
 or a `light`/`accent` `calloutTone`, or `5` when a callout step sets a
-`calloutBox` (with or without a tone). This is the app's own stamping rule,
+`calloutBox` (with or without a tone). Callout steps carry
+`"calloutTone": "light"`, so a file with any callout step is at least `4`.
+This is the app's own stamping rule,
 and the validator rejects a mismatch either way. It version-gates renderer
 behavior: 2 and above use the image-relative coordinate model this doc
 describes (omitting it would make spotlights render with legacy
@@ -338,20 +341,24 @@ Three optional step fields restyle a callout. They apply to `tooltip` and
 `text-popover` steps, and to a `showOverlay` of `popover` or `tooltip` on
 pan-zoom and spotlight steps; the validator rejects them anywhere else.
 
-| Field             | Value                                       | Absent means                    |
-| ----------------- | ------------------------------------------- | ------------------------------- |
-| `calloutWidthPct` | 10–95, % of the **stage** width (not image) | auto width, text sets the width |
-| `calloutScale`    | 0.75–2, multiplies text size and padding    | 1                               |
-| `calloutTone`     | `"light"` or `"accent"`                     | dark (today's card)             |
+| Field             | Value                                                 | Absent means                    |
+| ----------------- | ----------------------------------------------------- | ------------------------------- |
+| `calloutWidthPct` | 10–95, % of the **stage** width (not image)           | auto width, text sets the width |
+| `calloutScale`    | 0.75–2, multiplies text size and padding              | 1                               |
+| `calloutTone`     | `"light"` (write on every callout step) or `"accent"` | dark (the older card)           |
 
-- Leave all three out unless a callout needs one, the same as `calloutPin`.
-  Auto sizing fits most text, and any of them forces `schemaVersion` 4.
+- Write `"calloutTone": "light"` on every new callout step; the Studio, the
+  AI generator and the recorder do the same. Leave width and scale out
+  unless a callout needs one, the same as `calloutPin`. Auto sizing fits most
+  text, and any of the three forces `schemaVersion` 4.
 - Width tracks the screen, not the zoom: on a pan-zoom step a pinned callout
   moves with the image but keeps its width. Height always fits the text.
 - `light` is a white card with dark text, `accent` a brand-blue card with
   white text; both keep AA contrast. A tooltip's leader line takes the
   card's colour. There is no free colour, and dark is written by leaving
-  the field out.
+  the field out. A step with no tone stays dark, so when editing an existing
+  file keep each step's tone as it is and give only new callout steps
+  `light`.
 
 ### Callout box (schemaVersion 5)
 

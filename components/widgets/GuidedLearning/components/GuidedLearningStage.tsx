@@ -57,6 +57,7 @@ import type {
 } from '../types/stage';
 import { SlideBackdrop } from './player/SlideBackdrop';
 import type { RedactMode, RedactRect } from '../utils/redactImage';
+import { focusRing } from '@/components/common/lightChrome';
 
 /**
  * Clamp a video trim against the player's loaded metadata. The editor already
@@ -1332,7 +1333,7 @@ const StageBody: React.FC<
         <button
           onClick={onResetZoom}
           aria-label={t('glPlayer.resetView')}
-          className="absolute left-1/2 -translate-x-1/2 z-40 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+          className={`absolute left-1/2 -translate-x-1/2 z-40 rounded-full bg-white border border-slate-200 shadow-md hover:bg-slate-50 transition-all duration-200 active:scale-95 ${focusRing}`}
           style={{
             top: 'clamp(8px, 2cqmin, 12px)',
             width: 'clamp(36px, 7cqmin, 56px)',
@@ -1340,7 +1341,7 @@ const StageBody: React.FC<
           }}
         >
           <Minimize2
-            className="mx-auto text-white"
+            className="mx-auto text-slate-700"
             style={{
               width: 'clamp(16px, 4cqmin, 28px)',
               height: 'clamp(16px, 4cqmin, 28px)',

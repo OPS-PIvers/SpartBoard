@@ -31,7 +31,9 @@ import {
   Music2,
   PanelLeftClose,
   PanelRight,
+  Presentation,
   Printer,
+  RefreshCw,
   Route,
   Send,
   Share2,
@@ -1239,6 +1241,27 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'embed-reload': {
+    label: 'Embed: Reload button',
+    icon: RefreshCw,
+    description: 'Reloads just the embedded page from its toolbar.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'embed',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'embed-slide-link': {
+    label: 'Embed: Open Slides on linked slide',
+    icon: Presentation,
+    description: 'A copied Slides link opens on the slide it was copied from.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */
@@ -1295,6 +1318,7 @@ export const WIDGET_DEFAULT_ACCESS_LEVEL: Partial<
   projects: 'admin',
   review: 'admin',
   routineGuide: 'admin',
+  'arts-letters-agenda': 'admin',
 };
 
 export const getWidgetDefaultAccessLevel = (

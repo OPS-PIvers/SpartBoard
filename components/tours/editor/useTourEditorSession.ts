@@ -77,6 +77,7 @@ export const newTourStep = (
   yPct: 50,
   imageIndex: 0,
   interactionType: 'text-popover',
+  calloutTone: 'light',
   tour: { anchor: '', action: 'click' },
   ...patch,
 });

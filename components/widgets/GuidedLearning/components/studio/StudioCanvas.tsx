@@ -413,7 +413,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       )}
 
       {addingStep && (
-        <p className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow">
+        <p className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-700 shadow-md">
           {shape === 'polygon'
             ? t('glStudio.polygonHint')
             : t('glStudio.drawHint')}

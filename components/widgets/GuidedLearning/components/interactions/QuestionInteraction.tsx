@@ -3,6 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { CheckCircle2, XCircle, ArrowRight, BookOpen } from 'lucide-react';
 import { GuidedLearningPublicStep } from '@/types';
 import { playableQuestion } from '../../utils/playableQuestion';
+import {
+  chromeSurface,
+  chromeBody,
+  focusRing,
+  inputLight,
+  primaryBtn,
+} from '@/components/common/lightChrome';
 
 /** A question's answer key, shown only after Reveal answer is pressed. */
 export interface QuestionAnswerKey {
@@ -154,14 +161,14 @@ export const QuestionInteraction: React.FC<Props> = ({
       style={{ padding: 'var(--gl-text-body, min(12px, 3cqmin))' }}
     >
       <div
-        className="bg-slate-800/95 backdrop-blur-sm border border-white/20 rounded-2xl w-full shadow-xl max-h-full overflow-y-auto"
+        className={`${chromeSurface} rounded-2xl w-full max-h-full overflow-y-auto`}
         style={{
           maxWidth: 'var(--gl-question-max-w, min(420px, 90cqw))',
           padding: 'min(14px, 3.5cqmin)',
         }}
       >
         <p
-          className="text-white font-bold mb-4 leading-snug"
+          className="text-slate-900 font-bold mb-4 leading-snug"
           style={{ fontSize: 'var(--gl-text-title, min(15px, 4cqmin))' }}
         >
           {q.text}
@@ -178,8 +185,8 @@ export const QuestionInteraction: React.FC<Props> = ({
                     onClick={() => setSelectedMC(choice)}
                     className={`w-full text-left rounded-xl border transition-all active:scale-[0.98] ${
                       selectedMC === choice
-                        ? 'border-indigo-400 bg-indigo-500/20 text-white shadow-lg shadow-indigo-500/10'
-                        : 'border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/10'
+                        ? 'border-brand-blue-primary bg-brand-blue-lighter text-slate-900'
+                        : 'border-slate-300 bg-white text-slate-900 hover:border-slate-400 hover:bg-slate-50'
                     }`}
                     style={{
                       padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
@@ -196,7 +203,7 @@ export const QuestionInteraction: React.FC<Props> = ({
             {q.type === 'matching' && (
               <div className="space-y-2">
                 <p
-                  className="text-slate-300 font-medium mb-2"
+                  className={`${chromeBody} font-medium mb-2`}
                   style={{
                     fontSize: 'var(--gl-text-small, min(11px, 2.8cqmin))',
                   }}
@@ -210,7 +217,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                     style={{ gap: 'min(8px, 2cqmin)' }}
                   >
                     <span
-                      className="text-slate-200 font-bold flex-1 bg-slate-700 rounded-lg truncate"
+                      className="text-slate-900 font-bold flex-1 bg-slate-50 border border-slate-200 rounded-lg truncate"
                       style={{
                         padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
                         fontSize: 'var(--gl-text-body, min(12px, 3cqmin))',
@@ -220,7 +227,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                     </span>
                     <span
                       aria-hidden="true"
-                      className="text-slate-300 font-bold"
+                      className="text-slate-600 font-bold"
                       style={{
                         fontSize: 'var(--gl-text-body, min(12px, 3cqmin))',
                       }}
@@ -235,7 +242,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                           [left]: e.target.value,
                         }))
                       }
-                      className="flex-1 bg-slate-700 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 appearance-none"
+                      className={`flex-1 rounded-lg appearance-none ${inputLight}`}
                       style={{
                         padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
                         fontSize: 'var(--gl-text-body, min(12px, 3cqmin))',
@@ -259,7 +266,7 @@ export const QuestionInteraction: React.FC<Props> = ({
             {q.type === 'sorting' && (
               <div className="space-y-1.5">
                 <p
-                  className="text-slate-300 font-medium mb-2"
+                  className={`${chromeBody} font-medium mb-2`}
                   style={{
                     fontSize: 'var(--gl-text-small, min(11px, 2.8cqmin))',
                   }}
@@ -269,14 +276,14 @@ export const QuestionInteraction: React.FC<Props> = ({
                 {sortingOrder.map((item, idx) => (
                   <div
                     key={item}
-                    className="flex items-center bg-slate-700 rounded-lg"
+                    className="flex items-center bg-slate-50 border border-slate-200 rounded-lg"
                     style={{
                       gap: 'min(8px, 2cqmin)',
                       padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
                     }}
                   >
                     <span
-                      className="text-slate-300 font-mono font-bold text-center"
+                      className="text-slate-600 font-mono font-bold text-center"
                       style={{
                         width: 'min(20px, 5cqmin)',
                         fontSize: 'var(--gl-text-small, min(11px, 2.8cqmin))',
@@ -285,7 +292,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                       {idx + 1}
                     </span>
                     <span
-                      className="flex-1 text-slate-200 font-bold truncate"
+                      className="flex-1 text-slate-900 font-bold truncate"
                       style={{
                         fontSize: 'var(--gl-text-body, min(12px, 3cqmin))',
                       }}
@@ -303,7 +310,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                           [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
                           setSortingOrder(arr);
                         }}
-                        className="text-slate-300 hover:text-white disabled:opacity-30 leading-none transition-colors"
+                        className={`text-slate-500 hover:text-slate-900 disabled:opacity-30 leading-none transition-colors ${focusRing}`}
                         style={{
                           fontSize: 'var(--gl-text-small, min(10px, 2.5cqmin))',
                         }}
@@ -318,7 +325,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                           [arr[idx + 1], arr[idx]] = [arr[idx], arr[idx + 1]];
                           setSortingOrder(arr);
                         }}
-                        className="text-slate-300 hover:text-white disabled:opacity-30 leading-none transition-colors"
+                        className={`text-slate-500 hover:text-slate-900 disabled:opacity-30 leading-none transition-colors ${focusRing}`}
                         style={{
                           fontSize: 'var(--gl-text-small, min(10px, 2.5cqmin))',
                         }}
@@ -335,7 +342,7 @@ export const QuestionInteraction: React.FC<Props> = ({
             <button
               onClick={handleSubmit}
               disabled={!canSubmit}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-300 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-indigo-500/20"
+              className={`${primaryBtn} w-full disabled:bg-slate-200 disabled:text-slate-500 transition-all active:scale-95`}
               style={{
                 marginTop: 'min(16px, 4cqmin)',
                 padding: 'var(--gl-text-small, min(10px, 2.5cqmin))',
@@ -350,14 +357,14 @@ export const QuestionInteraction: React.FC<Props> = ({
             {showRecorded ? (
               <>
                 <BookOpen
-                  className="text-indigo-400 mx-auto mb-2"
+                  className="text-brand-blue-primary mx-auto mb-2"
                   style={{
                     width: 'min(40px, 10cqmin)',
                     height: 'min(40px, 10cqmin)',
                   }}
                 />
                 <p
-                  className="font-bold mb-1 text-indigo-300"
+                  className="font-bold mb-1 text-brand-blue-primary"
                   style={{
                     fontSize: 'var(--gl-text-title, min(16px, 4cqmin))',
                   }}
@@ -366,7 +373,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                 </p>
                 {recorded !== undefined && answerText(recorded) && (
                   <p
-                    className="text-slate-200"
+                    className="text-slate-700"
                     style={{
                       fontSize: 'var(--gl-text-body, min(12px, 3cqmin))',
                     }}
@@ -383,7 +390,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                       setRecorded(undefined);
                       setSubmitted(false);
                     }}
-                    className="rounded-lg border border-white/15 bg-white/5 text-slate-200 font-semibold hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+                    className={`rounded-lg border border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-50 transition-colors ${focusRing}`}
                     style={{
                       marginTop: 'min(8px, 2cqmin)',
                       padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
@@ -397,14 +404,14 @@ export const QuestionInteraction: React.FC<Props> = ({
             ) : isCorrect ? (
               <>
                 <CheckCircle2
-                  className="text-emerald-400 mx-auto mb-2"
+                  className="text-green-600 mx-auto mb-2"
                   style={{
                     width: 'min(40px, 10cqmin)',
                     height: 'min(40px, 10cqmin)',
                   }}
                 />
                 <p
-                  className="font-bold mb-1 text-emerald-400"
+                  className="font-bold mb-1 text-green-800"
                   style={{
                     fontSize: 'var(--gl-text-title, min(16px, 4cqmin))',
                   }}
@@ -415,14 +422,14 @@ export const QuestionInteraction: React.FC<Props> = ({
             ) : (
               <>
                 <XCircle
-                  className="text-red-400 mx-auto mb-2"
+                  className="text-red-600 mx-auto mb-2"
                   style={{
                     width: 'min(40px, 10cqmin)',
                     height: 'min(40px, 10cqmin)',
                   }}
                 />
                 <p
-                  className="font-bold mb-1 text-red-400"
+                  className="font-bold mb-1 text-red-800"
                   style={{
                     fontSize: 'var(--gl-text-title, min(16px, 4cqmin))',
                   }}
@@ -431,20 +438,20 @@ export const QuestionInteraction: React.FC<Props> = ({
                 </p>
                 {correctAnswer && (
                   <p
-                    className="text-slate-300 font-medium mb-3"
+                    className="text-slate-700 font-medium mb-3 rounded-lg border border-red-300 bg-red-50 px-2 py-1"
                     style={{
                       fontSize: 'var(--gl-text-body, min(12px, 3cqmin))',
                     }}
                   >
                     {t('glPlayer.question.correctAnswer')}{' '}
-                    <span className="text-white">{correctAnswer}</span>
+                    <span className="text-slate-900">{correctAnswer}</span>
                   </p>
                 )}
               </>
             )}
             <button
               onClick={onContinue}
-              className="flex items-center mx-auto bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-indigo-500/20"
+              className={`${primaryBtn} flex items-center mx-auto transition-all active:scale-95`}
               style={{
                 marginTop: 'var(--gl-text-body, min(12px, 3cqmin))',
                 padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
@@ -465,7 +472,7 @@ export const QuestionInteraction: React.FC<Props> = ({
         )}
         {revealKey && (
           <div
-            className="border-t border-white/10 text-left"
+            className="border-t border-slate-200 text-left"
             style={{
               marginTop: 'min(14px, 3.5cqmin)',
               paddingTop: 'min(10px, 2.5cqmin)',
@@ -475,7 +482,7 @@ export const QuestionInteraction: React.FC<Props> = ({
               type="button"
               aria-expanded={revealed}
               onClick={() => setRevealedStepId(revealed ? null : step.id)}
-              className="rounded-lg border border-white/15 bg-white/5 text-slate-200 font-semibold hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+              className={`rounded-lg border border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-50 transition-colors ${focusRing}`}
               style={{
                 padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
                 fontSize: 'var(--gl-text-small, min(12px, 3cqmin))',
@@ -488,7 +495,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                 role="region"
                 aria-label={t('glPlayer.reveal.title')}
                 data-testid="gl-answer-key"
-                className="rounded-xl bg-emerald-500/15 border border-emerald-400/40 text-white"
+                className="rounded-xl bg-green-50 border border-green-300 text-green-800"
                 style={{
                   marginTop: 'min(8px, 2cqmin)',
                   padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
@@ -496,7 +503,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                 }}
               >
                 <p
-                  className="font-bold text-emerald-200"
+                  className="font-bold text-green-800"
                   style={{ marginBottom: 'min(4px, 1cqmin)' }}
                 >
                   {t('glPlayer.reveal.title')}

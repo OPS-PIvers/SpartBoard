@@ -1,5 +1,6 @@
 import type { WidgetType } from '@/types';
 import type { WidgetFixtureSet } from './types';
+import { artsLettersAgendaFixtures } from './arts-letters-agenda';
 import { blendingBoardFixtures } from './blending-board';
 import { carRiderProFixtures } from './car-rider-pro';
 import { conceptWebFixtures } from './concept-web';
@@ -150,6 +151,8 @@ export const WIDGET_FIXTURES: Partial<Record<WidgetType, WidgetFixtureSet>> = {
   smartNotebook: smartNotebookFixtures,
   stickers: stickersFixtures,
   'talking-tool': talkingToolFixtures,
+  // New widgets
+  'arts-letters-agenda': artsLettersAgendaFixtures,
 } as Partial<Record<WidgetType, WidgetFixtureSet>>;
 
 // Types the harness can't grade, with the reason.

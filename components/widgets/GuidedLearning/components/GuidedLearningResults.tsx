@@ -65,6 +65,7 @@ import {
   unlockResultsForStudent,
 } from '@/utils/studentResultsPublish';
 import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
+import { focusRing, iconBtn } from '@/components/common/lightChrome';
 
 type PeriodSession = PeriodAccessSessionFields & {
   id: string;
@@ -437,30 +438,26 @@ export const GuidedLearningResults: React.FC<Props> = ({
   const loading = !sessionLoaded || (!viewOnly && responsesLoading);
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-slate-50 text-slate-900">
       {/* Header */}
       <div
-        className="flex items-center border-b border-white/10 flex-shrink-0"
+        className="flex items-center border-b border-slate-200 bg-white flex-shrink-0"
         style={{
           gap: 'min(8px, 2cqmin)',
           padding: 'min(8px, 1.5cqmin) min(12px, 2.5cqmin)',
         }}
       >
-        <button
-          onClick={onClose}
-          className="text-slate-300 hover:text-white transition-colors"
-          aria-label="Back"
-        >
+        <button onClick={onClose} className={iconBtn} aria-label="Back">
           <X
             style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}
           />
         </button>
         <BarChart2
-          className="text-indigo-400 flex-shrink-0"
+          className="text-brand-blue-primary flex-shrink-0"
           style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}
         />
         <span
-          className="text-white font-semibold flex-1 truncate"
+          className="text-slate-900 font-semibold flex-1 truncate"
           style={{ fontSize: 'min(14px, 5.5cqmin)' }}
         >
           Results: {set.title}
@@ -469,7 +466,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
           <button
             onClick={handleExport}
             disabled={responses.length === 0}
-            className="flex items-center bg-slate-700 hover:bg-slate-600 disabled:opacity-40 text-white rounded-lg transition-colors"
+            className={`flex items-center disabled:opacity-40 border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 rounded-lg transition-colors ${focusRing}`}
             style={{
               gap: 'min(6px, 1.5cqmin)',
               padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
@@ -489,7 +486,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
 
       {perPeriod && periodSession?.periodAccess && (
         <div
-          className="flex shrink-0 flex-wrap items-center border-b border-white/10"
+          className="flex shrink-0 flex-wrap items-center border-b border-slate-200 bg-white"
           style={{
             gap: 'min(6px, 1.5cqmin)',
             padding: 'min(6px, 1.4cqmin) min(12px, 2.5cqmin)',
@@ -514,7 +511,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
               key={label}
               type="button"
               onClick={() => void runPeriod(fn)}
-              className="flex items-center bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+              className={`flex items-center border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 rounded-lg transition-colors ${focusRing}`}
               style={{
                 gap: 'min(4px, 1cqmin)',
                 padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
@@ -536,17 +533,17 @@ export const GuidedLearningResults: React.FC<Props> = ({
 
       {launchedBy && (
         <div
-          className="flex shrink-0 items-center border-b border-white/10"
+          className="flex shrink-0 items-center border-b border-slate-200 bg-white"
           style={{ padding: 'min(6px, 1.4cqmin) min(12px, 2.5cqmin)' }}
         >
-          <LaunchedBySubTag launchedBy={launchedBy} at={startedAt} onDark />
+          <LaunchedBySubTag launchedBy={launchedBy} at={startedAt} />
         </div>
       )}
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2
-            className="text-slate-300 animate-spin"
+            className="text-slate-500 animate-spin"
             style={{ width: 'min(24px, 6cqmin)', height: 'min(24px, 6cqmin)' }}
           />
         </div>
@@ -560,17 +557,17 @@ export const GuidedLearningResults: React.FC<Props> = ({
         >
           {viewOnly && (
             <div
-              className="bg-white/5 rounded-xl text-center"
+              className="bg-white border border-slate-200 rounded-xl text-center"
               style={{ padding: 'min(12px, 2.5cqmin)' }}
             >
               <div
-                className="font-bold text-white"
+                className="font-bold text-slate-900"
                 style={{ fontSize: 'min(24px, 12cqmin)' }}
               >
                 {viewCount ?? '—'}
               </div>
               <div
-                className="text-slate-300 flex items-center justify-center"
+                className="text-slate-500 flex items-center justify-center"
                 style={{
                   fontSize: 'min(12px, 4.5cqmin)',
                   marginTop: 'min(2px, 0.5cqmin)',
@@ -599,17 +596,17 @@ export const GuidedLearningResults: React.FC<Props> = ({
                 style={{ gap: 'min(8px, 2cqmin)' }}
               >
                 <div
-                  className="bg-white/5 rounded-xl text-center"
+                  className="bg-white border border-slate-200 rounded-xl text-center"
                   style={{ padding: 'min(12px, 2.5cqmin)' }}
                 >
                   <div
-                    className="font-bold text-white"
+                    className="font-bold text-slate-900"
                     style={{ fontSize: 'min(24px, 12cqmin)' }}
                   >
                     {responses.length}
                   </div>
                   <div
-                    className="text-slate-300 flex items-center justify-center"
+                    className="text-slate-500 flex items-center justify-center"
                     style={{
                       fontSize: 'min(12px, 4.5cqmin)',
                       marginTop: 'min(2px, 0.5cqmin)',
@@ -626,17 +623,17 @@ export const GuidedLearningResults: React.FC<Props> = ({
                   </div>
                 </div>
                 <div
-                  className="bg-white/5 rounded-xl text-center"
+                  className="bg-white border border-slate-200 rounded-xl text-center"
                   style={{ padding: 'min(12px, 2.5cqmin)' }}
                 >
                   <div
-                    className="font-bold text-emerald-400"
+                    className="font-bold text-green-700"
                     style={{ fontSize: 'min(24px, 12cqmin)' }}
                   >
                     {completedResponsesCount}
                   </div>
                   <div
-                    className="text-slate-300 flex items-center justify-center"
+                    className="text-slate-500 flex items-center justify-center"
                     style={{
                       fontSize: 'min(12px, 4.5cqmin)',
                       marginTop: 'min(2px, 0.5cqmin)',
@@ -653,17 +650,17 @@ export const GuidedLearningResults: React.FC<Props> = ({
                   </div>
                 </div>
                 <div
-                  className="bg-white/5 rounded-xl text-center"
+                  className="bg-white border border-slate-200 rounded-xl text-center"
                   style={{ padding: 'min(12px, 2.5cqmin)' }}
                 >
                   <div
-                    className="font-bold text-indigo-400"
+                    className="font-bold text-brand-blue-primary"
                     style={{ fontSize: 'min(24px, 12cqmin)' }}
                   >
                     {avgScore !== null ? `${avgScore}%` : '—'}
                   </div>
                   <div
-                    className="text-slate-300"
+                    className="text-slate-500"
                     style={{
                       fontSize: 'min(12px, 4.5cqmin)',
                       marginTop: 'min(2px, 0.5cqmin)',
@@ -678,7 +675,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
               {questionSteps.length > 0 && (
                 <div>
                   <h3
-                    className="text-slate-300 font-semibold uppercase tracking-wider"
+                    className="text-slate-500 font-semibold uppercase tracking-wider"
                     style={{
                       fontSize: 'min(12px, 4.5cqmin)',
                       marginBottom: 'min(8px, 2cqmin)',
@@ -693,7 +690,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
                     {questionStats.map(({ step, correct, total, pct }, idx) => (
                       <div
                         key={step.id}
-                        className="bg-white/5 rounded-xl"
+                        className="bg-white border border-slate-200 rounded-xl"
                         style={{ padding: 'min(12px, 2.5cqmin)' }}
                       >
                         <div
@@ -704,7 +701,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
                           }}
                         >
                           <p
-                            className="text-white font-medium flex-1"
+                            className="text-slate-900 font-medium flex-1"
                             style={{ fontSize: 'min(12px, 4.5cqmin)' }}
                           >
                             Q{idx + 1}: {step.question?.text}
@@ -712,10 +709,10 @@ export const GuidedLearningResults: React.FC<Props> = ({
                           <span
                             className={`shrink-0 font-bold ${
                               pct === null
-                                ? 'text-slate-300'
+                                ? 'text-slate-500'
                                 : pct >= 70
-                                  ? 'text-emerald-400'
-                                  : 'text-amber-400'
+                                  ? 'text-green-700'
+                                  : 'text-amber-700'
                             }`}
                             style={{ fontSize: 'min(12px, 4.5cqmin)' }}
                           >
@@ -724,17 +721,17 @@ export const GuidedLearningResults: React.FC<Props> = ({
                         </div>
                         {pct !== null && (
                           <div
-                            className="bg-slate-700 rounded-full overflow-hidden"
+                            className="bg-slate-100 rounded-full overflow-hidden"
                             style={{ height: 'min(6px, 1.5cqmin)' }}
                           >
                             <div
-                              className={`h-full rounded-full ${pct >= 70 ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                              className={`h-full rounded-full ${pct >= 70 ? 'bg-green-600' : 'bg-amber-500'}`}
                               style={{ width: `${pct}%` }}
                             />
                           </div>
                         )}
                         <p
-                          className="text-slate-300"
+                          className="text-slate-500"
                           style={{
                             fontSize: 'min(12px, 4.5cqmin)',
                             marginTop: 'min(4px, 1cqmin)',
@@ -756,7 +753,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
               {responses.length > 0 && (
                 <div>
                   <h3
-                    className="text-slate-300 font-semibold uppercase tracking-wider"
+                    className="text-slate-500 font-semibold uppercase tracking-wider"
                     style={{
                       fontSize: 'min(12px, 4.5cqmin)',
                       marginBottom: 'min(8px, 2cqmin)',
@@ -780,20 +777,20 @@ export const GuidedLearningResults: React.FC<Props> = ({
                       return (
                         <div
                           key={r.studentAnonymousId}
-                          className="flex items-center justify-between bg-white/5 rounded-lg"
+                          className="flex items-center justify-between bg-white border border-slate-200 rounded-lg"
                           style={{
                             padding: 'min(8px, 2cqmin) min(12px, 2.5cqmin)',
                           }}
                         >
                           <div>
                             <span
-                              className="text-white font-medium"
+                              className="text-slate-900 font-medium"
                               style={{ fontSize: 'min(12px, 4.5cqmin)' }}
                             >
                               {label}
                             </span>
                             <span
-                              className="text-slate-300"
+                              className="text-slate-500"
                               style={{
                                 fontSize: 'min(12px, 4.5cqmin)',
                                 marginLeft: 'min(8px, 2cqmin)',
@@ -810,7 +807,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
                             )}
                             {resultsActions && r.resultsLockedOut && (
                               <span
-                                className="font-bold text-amber-300"
+                                className="font-bold text-amber-700"
                                 style={{
                                   fontSize: 'min(12px, 4.5cqmin)',
                                   marginLeft: 'min(8px, 2cqmin)',
@@ -828,7 +825,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
                                 stepCount={
                                   sessionSteps?.length ?? set.steps.length
                                 }
-                                className="text-slate-300"
+                                className="text-slate-500"
                                 style={{ fontSize: 'min(12px, 4.5cqmin)' }}
                               />
                             )}
@@ -839,7 +836,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
                           >
                             {questionSteps.length > 0 && (
                               <span
-                                className="text-slate-300"
+                                className="text-slate-500"
                                 style={{ fontSize: 'min(12px, 4.5cqmin)' }}
                               >
                                 {qCorrect}/{questionSteps.length} correct
@@ -847,7 +844,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
                             )}
                             {finalPct !== null && (
                               <span
-                                className="text-white font-semibold tabular-nums"
+                                className="text-slate-900 font-semibold tabular-nums"
                                 style={{ fontSize: 'min(12px, 4.5cqmin)' }}
                               >
                                 {Math.round(finalPct)}%
@@ -857,7 +854,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
                               <FinalScoreNote
                                 final={final}
                                 flagDefs={finalOverlay.flagDefs}
-                                className="text-slate-300"
+                                className="text-slate-500"
                               />
                             )}
                             {resultsActions && (
@@ -879,14 +876,14 @@ export const GuidedLearningResults: React.FC<Props> = ({
                                         )
                                     : undefined
                                 }
-                                triggerClassName="rounded-md text-slate-300 hover:bg-white/10 hover:text-white"
+                                triggerClassName="rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                               />
                             )}
                             <ViewAsStudentButton
                               kind="guided-learning"
                               sessionId={sessionId}
                               studentKey={r.studentAnonymousId}
-                              tone="dark"
+                              tone="light"
                             />
                           </div>
                         </div>
@@ -898,7 +895,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
 
               {responses.length === 0 && (
                 <div
-                  className="text-center text-slate-300"
+                  className="text-center text-slate-500"
                   style={{
                     fontSize: 'min(14px, 5.5cqmin)',
                     padding: 'min(32px, 7cqmin) 0',

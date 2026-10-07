@@ -77,7 +77,7 @@ The ESLint configuration uses:
 
 - `@typescript-eslint` recommended rules for type checking
 - React and React Hooks rules
-- Prettier integration
+- `eslint-config-prettier` (turns off rules that fight Prettier; formatting itself is checked by `format:check`)
 - Custom rules for code quality
 
 Key rules:
@@ -86,7 +86,6 @@ Key rules:
   - `@typescript-eslint/no-unused-vars` - Unused variables must start with `_`
   - `@typescript-eslint/no-floating-promises` - Promises must be handled
   - `no-debugger` - No debugger statements
-  - `prettier/prettier` - Code must be formatted
 
 - **Warnings** (won't block commits):
   - `@typescript-eslint/no-explicit-any` - Avoid using `any` type
@@ -164,10 +163,9 @@ This project has three automated workflows configured:
 
 Runs on all pull requests to `main` and `dev-*` branches:
 
-- ✅ Type checking (`npm run type-check`)
-- ✅ Linting (`npm run lint`)
-- ✅ Code formatting check (`npm run format:check`)
-- ✅ Unit tests (3 Vitest shards, merged for the count guard), Firestore rules tests, E2E
+- ✅ Type checking, functions lint and format check, sharing one runner
+- ✅ App ESLint split into 3 size-balanced shards by `scripts/lintApp.mjs`
+- ✅ Unit tests (4 Vitest shards), Firestore rules tests (2 shards), both merged for the count guard, E2E
 - ✅ Build verification (`npm run build`)
 - ⏩ `preflight` skips everything except E2E when the head SHA already passed a `dev-*` push run
 - 💬 Adds comment to PR with validation results
@@ -189,8 +187,8 @@ Runs on pushes to `main` branch:
 
 Runs on pushes to `dev-*` branches:
 
-- ✅ Type checking, linting (app / functions / format as parallel legs)
-- ✅ Unit tests (3 shards + count guard) and Firestore rules tests
+- ✅ Type checking, linting (3 app shards, plus functions lint and format on one runner)
+- ✅ Unit tests (4 shards) and Firestore rules tests (2 shards), merged for the count guard
 - 🏗️ Preview build (parallel job; uploaded as an artifact the deploy reuses)
 - 🚀 Deploy to the `spartboard-dev` Firebase project (https://spartboard-dev.web.app)
 

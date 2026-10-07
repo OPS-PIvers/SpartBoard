@@ -11,6 +11,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
+import { chromeSurface, focusRing } from '@/components/common/lightChrome';
 import { useDraggablePosition } from '@/components/tours/useDraggablePosition';
 import {
   useTourCapture,
@@ -38,8 +39,7 @@ interface TourRecorderProps {
   snapshot?: () => RecordedBoardWidget[];
 }
 
-const btn =
-  'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-50';
+const btn = `flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 ${focusRing} disabled:opacity-50`;
 
 export const RECORDER_POS_KEY = 'spart_tour_recorder_pos';
 
@@ -83,7 +83,7 @@ export const TourRecorder: React.FC<TourRecorderProps> = ({
       aria-label={t('glRecorder.label')}
       data-tour-ignore=""
       data-testid="tour-recorder"
-      className={`fixed flex flex-col items-center gap-1 rounded-2xl bg-slate-900/90 px-2 py-1.5 text-white shadow-2xl ring-1 ring-white/15 backdrop-blur-xl ${
+      className={`fixed flex flex-col items-center gap-1 rounded-2xl px-2 py-1.5 ${chromeSurface} ${
         pos ? '' : 'left-1/2 -translate-x-1/2'
       }`}
       style={{
@@ -97,7 +97,7 @@ export const TourRecorder: React.FC<TourRecorderProps> = ({
         <button
           type="button"
           data-testid="tour-recorder-grip"
-          className="flex cursor-grab touch-none items-center self-stretch rounded-full px-1 text-slate-300 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 active:cursor-grabbing"
+          className={`flex cursor-grab touch-none items-center self-stretch rounded-full px-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 ${focusRing} active:cursor-grabbing`}
           aria-label={t('glRecorder.move')}
           title={t('glRecorder.moveHint')}
           {...gripProps}
@@ -122,7 +122,10 @@ export const TourRecorder: React.FC<TourRecorderProps> = ({
             disabled={status === 'starting'}
             onClick={() => void capture.start()}
           >
-            <Circle className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+            <Circle
+              className="h-3.5 w-3.5 fill-current text-brand-red-primary"
+              aria-hidden="true"
+            />
             {t('glRecorder.record')}
           </button>
         )}
@@ -173,7 +176,7 @@ export const TourRecorder: React.FC<TourRecorderProps> = ({
         </button>
       </div>
       {message && (
-        <p role="alert" className="px-2 pb-0.5 text-xs text-slate-200">
+        <p role="alert" className="px-2 pb-0.5 text-xs text-slate-600">
           {message}
         </p>
       )}

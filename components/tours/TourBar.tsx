@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronLeft, GripVertical, Volume2, VolumeX, X } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import { useDraggablePosition } from './useDraggablePosition';
+import { chromeSurface, focusRing } from '@/components/common/lightChrome';
 import { iconBtn, primaryBtn, secondaryBtn } from './tourButtons';
 
 export const TOUR_BAR_POS_KEY = 'spart_tour_bar_pos';
@@ -51,7 +52,7 @@ export const TourBar: React.FC<TourBarProps> = ({
       data-tour-obstacle=""
       data-tour-bar=""
       data-testid="tour-bar"
-      className={`fixed flex items-center gap-1 rounded-2xl border border-white/20 bg-slate-900/90 py-1.5 pl-1 pr-1.5 text-white shadow-2xl ring-1 ring-black/40 backdrop-blur-xl ${
+      className={`fixed flex items-center gap-1 rounded-2xl py-1.5 pl-1 pr-1.5 ${chromeSurface} ${
         pos ? '' : 'left-1/2 -translate-x-1/2'
       }`}
       style={{
@@ -64,7 +65,7 @@ export const TourBar: React.FC<TourBarProps> = ({
       <button
         type="button"
         data-testid="tour-bar-grip"
-        className="flex cursor-grab touch-none items-center self-stretch rounded-lg px-1 text-slate-300 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 active:cursor-grabbing"
+        className={`flex cursor-grab touch-none items-center self-stretch rounded-lg px-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 active:cursor-grabbing ${focusRing}`}
         aria-label={t('tours.move')}
         title={t('tours.moveHint')}
         {...gripProps}
@@ -72,16 +73,16 @@ export const TourBar: React.FC<TourBarProps> = ({
         <GripVertical className="h-4 w-4" aria-hidden="true" />
       </button>
       <div className="flex min-w-28 flex-col gap-1 px-1.5">
-        <span className="whitespace-nowrap text-xs font-semibold tabular-nums text-slate-200">
+        <span className="whitespace-nowrap text-xs font-semibold tabular-nums text-slate-600">
           {t('tours.progress', { current, total })}
         </span>
         <span
           aria-hidden="true"
-          className="h-1 overflow-hidden rounded-full bg-white/15"
+          className="h-1 overflow-hidden rounded-full bg-slate-200"
         >
           <span
             data-testid="tour-bar-track"
-            className="block h-full rounded-full bg-white transition-[width] duration-300 motion-reduce:transition-none"
+            className="block h-full rounded-full bg-brand-blue-primary transition-[width] duration-300 motion-reduce:transition-none"
             style={{ width: `${(current / Math.max(total, 1)) * 100}%` }}
           />
         </span>
@@ -109,20 +110,18 @@ export const TourBar: React.FC<TourBarProps> = ({
         role="switch"
         aria-checked={autopilot.on}
         onClick={() => autopilot.onChange(!autopilot.on)}
-        className="ml-2 flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-200 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+        className={`ml-2 flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 ${focusRing}`}
       >
         {t('tours.autopilot')}
         <span
           aria-hidden="true"
           className={`relative h-4 w-7 rounded-full transition-colors motion-reduce:transition-none ${
-            autopilot.on ? 'bg-white' : 'bg-white/25'
+            autopilot.on ? 'bg-brand-blue-primary' : 'bg-slate-300'
           }`}
         >
           <span
-            className={`absolute left-0 top-0.5 h-3 w-3 rounded-full transition-transform motion-reduce:transition-none ${
-              autopilot.on
-                ? 'translate-x-3.5 bg-slate-900'
-                : 'translate-x-0.5 bg-white'
+            className={`absolute left-0 top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform motion-reduce:transition-none ${
+              autopilot.on ? 'translate-x-3.5' : 'translate-x-0.5'
             }`}
           />
         </span>

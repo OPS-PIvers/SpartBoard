@@ -28,7 +28,7 @@ export const StepFunnel: React.FC<Props> = ({ steps, funnel, viewers }) => {
         return (
           <li
             key={row.stepId}
-            className="bg-white/5 rounded-lg"
+            className="bg-white border border-slate-200 rounded-lg"
             style={{ padding: 'min(8px, 2cqmin) min(12px, 2.5cqmin)' }}
           >
             <div
@@ -38,10 +38,10 @@ export const StepFunnel: React.FC<Props> = ({ steps, funnel, viewers }) => {
                 fontSize: 'min(12px, 4.5cqmin)',
               }}
             >
-              <span className="text-white font-medium truncate">
+              <span className="text-slate-900 font-medium truncate">
                 {idx + 1}. {labels.get(row.stepId)}
               </span>
-              <span className="text-slate-300 shrink-0 tabular-nums">
+              <span className="text-slate-500 shrink-0 tabular-nums">
                 {t('glEngagement.reached', {
                   reached: row.reached,
                   total: viewers,
@@ -57,7 +57,7 @@ export const StepFunnel: React.FC<Props> = ({ steps, funnel, viewers }) => {
               </span>
             </div>
             <div
-              className="bg-slate-700 rounded-full overflow-hidden"
+              className="bg-slate-100 rounded-full overflow-hidden"
               style={{
                 height: 'min(6px, 1.5cqmin)',
                 marginTop: 'min(6px, 1.5cqmin)',
@@ -65,7 +65,7 @@ export const StepFunnel: React.FC<Props> = ({ steps, funnel, viewers }) => {
               aria-hidden="true"
             >
               <div
-                className="h-full rounded-full bg-indigo-400"
+                className="h-full rounded-full bg-brand-blue-primary"
                 style={{ width: `${pct}%` }}
                 data-testid="funnel-bar"
               />

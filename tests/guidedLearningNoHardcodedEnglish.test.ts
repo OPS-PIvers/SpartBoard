@@ -22,6 +22,18 @@ const FILES = [
   'components/widgets/GuidedLearning/components/player/WatchScrubber.tsx',
 ];
 
+// Light-chrome cards and bars (TOUR_LIGHT_CHROME.md) are white, where slate-500/600 text passes AA.
+const LIGHT_SURFACE_FILES = new Set([
+  'components/widgets/GuidedLearning/components/interactions/AudioInteraction.tsx',
+  'components/widgets/GuidedLearning/components/interactions/QuestionInteraction.tsx',
+  'components/widgets/GuidedLearning/components/player/FooterOverflow.tsx',
+  'components/widgets/GuidedLearning/components/player/ResumePrompt.tsx',
+  'components/widgets/GuidedLearning/components/player/SpeedControl.tsx',
+  'components/widgets/GuidedLearning/components/player/StepOutline.tsx',
+  'components/widgets/GuidedLearning/components/player/WatchScrubber.tsx',
+]);
+const DARK_SURFACE_FILES = FILES.filter((f) => !LIGHT_SURFACE_FILES.has(f));
+
 /** Source with comments removed (block, JSX and line comments). */
 function stripComments(src: string): string {
   return src
@@ -61,7 +73,7 @@ describe('Guided Learning player and student app strings', () => {
   });
 
   // These surfaces are dark, where slate-400/500 text falls below AA (components/CLAUDE.md).
-  it.each(FILES)(
+  it.each(DARK_SURFACE_FILES)(
     '%s has no slate-400/500 text on its dark surfaces',
     (file) => {
       const src = readFileSync(resolve(__dirname, '..', file), 'utf8');

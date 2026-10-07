@@ -41,6 +41,7 @@ const S5B_WIDGETS = [
   'stickers',
   'talking-tool',
 ];
+const NEW_WIDGETS = ['arts-letters-agenda'];
 const FIXTURES = ['empty', 'typical', 'stress'];
 
 const S5A_WIDGETS = [
@@ -77,7 +78,12 @@ test.describe('widget grader harness', () => {
     }
   }
 
-  for (const type of [...S5A_WIDGETS, ...S5B_WIDGETS, ...BATCH_3_WIDGETS]) {
+  for (const type of [
+    ...S5A_WIDGETS,
+    ...S5B_WIDGETS,
+    ...BATCH_3_WIDGETS,
+    ...NEW_WIDGETS,
+  ]) {
     for (const fixture of FIXTURES) {
       for (const size of ['', BIG]) {
         test(`${type} ${fixture}${size ? ' at 1400x900' : ''} renders with no errors`, async ({

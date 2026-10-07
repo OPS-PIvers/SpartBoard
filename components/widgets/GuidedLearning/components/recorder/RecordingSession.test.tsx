@@ -360,7 +360,7 @@ describe('RecordingSession', () => {
     expect(h.edits).toHaveLength(0);
     expect(
       screen.getByRole('dialog', {
-        name: 'Check every frame before it uploads',
+        name: 'Review your recording',
       })
     ).toBeInTheDocument();
 
