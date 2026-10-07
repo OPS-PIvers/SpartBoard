@@ -85,7 +85,7 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
           className={`h-full w-full bg-transparent flex flex-col overflow-hidden ${fontClass}`}
         >
           <h2
-            className="text-center font-bold leading-tight truncate"
+            className="hidden [@container(min-height:220px)]:block text-center font-bold leading-tight truncate"
             style={{
               color: fontColor,
               fontSize: `clamp(14px, ${(7 * sm).toFixed(1)}cqmin, ${Math.round(44 * sm)}px)`,
@@ -142,10 +142,11 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
               onClick={resetChecks}
               disabled={!anyDone}
               title="Reset checks"
-              className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-indigo-600 uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+              className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-indigo-600 uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 disabled:opacity-40"
               style={{
                 padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
-                fontSize: 'min(10px, 2.8cqmin)',
+                fontSize: 'clamp(9px, 2.8cqmin, 11px)',
+                minHeight: 20,
               }}
             >
               reset checks
