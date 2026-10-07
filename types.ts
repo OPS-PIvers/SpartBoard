@@ -9908,7 +9908,9 @@ export type GlobalFeature =
   /** Purpose-built page set per team type (docs/plans/TEAMS_REDESIGN.md). */
   | 'teams-redesign'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22). */
-  | 'plc-goal-coach';
+  | 'plc-goal-coach'
+  /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
+  | 'embed-reload';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

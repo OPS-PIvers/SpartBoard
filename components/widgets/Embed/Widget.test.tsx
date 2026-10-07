@@ -277,6 +277,21 @@ describe('EmbedWidget', () => {
     expect(iframeAfter).not.toBe(iframeBefore);
   });
 
+  it('reloads only the iframe when the Reload button is clicked', () => {
+    const { container } = renderEmbedWidget(baseWidget);
+    const iframeBefore = container.querySelector('iframe');
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /reload embedded content/i })
+    );
+
+    const iframeAfter = container.querySelector('iframe');
+    expect(iframeAfter).toBeInTheDocument();
+    expect(iframeAfter).not.toBe(iframeBefore);
+    expect(iframeAfter).toHaveAttribute('src', 'https://example.com');
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
   describe('Mini App Generation', () => {
     const validWidget: WidgetData = {
       ...baseWidget,
