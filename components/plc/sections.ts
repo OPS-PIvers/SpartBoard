@@ -1,6 +1,7 @@
 // components/plc/sections.ts
 import {
   LayoutDashboard,
+  Megaphone,
   ClipboardList,
   FileText,
   SquareSquare,
@@ -208,13 +209,24 @@ export const PLC_SECTIONS: readonly PlcSectionDef[] = [
  */
 export function getVisiblePlcSections(
   plc: Plc,
-  options: { retireMeetingMode?: boolean } = {}
+  options: { retireMeetingMode?: boolean; showUpdates?: boolean } = {}
 ): readonly PlcSectionDef[] {
   const features = getPlcFeatures(plc);
-  return PLC_SECTIONS.filter(
+  const visible = PLC_SECTIONS.filter(
     (s) =>
       (!s.isEnabled || s.isEnabled(features)) &&
       // Meeting Mode folds into Notes under the Teams redesign (TEAMS_REDESIGN T11).
       !(options.retireMeetingMode && s.id === 'meeting')
   );
+  // Updates posted from the redesign stay readable for teammates without it.
+  return options.showUpdates
+    ? [visible[0], UPDATES_SECTION, ...visible.slice(1)]
+    : visible;
 }
+
+const UPDATES_SECTION: PlcSectionDef = {
+  id: 'updates',
+  icon: Megaphone,
+  labelKey: 'teams.pages.updates',
+  labelDefault: 'Updates',
+};
