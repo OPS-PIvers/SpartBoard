@@ -16,7 +16,10 @@ import {
 } from '@/context/usePlcContext';
 import { useGoogleTasksPull } from '@/hooks/useGoogleTasksPull';
 import { usePlcUnread } from '@/hooks/usePlcUnread';
-import { saveTeamLayout, useTeamTypeDefaults } from '@/hooks/useTeamLayout';
+import {
+  saveTeamLayout,
+  useTeamTypeDefaultsState,
+} from '@/hooks/useTeamLayout';
 import { resolveTeamLayout } from '@/utils/teamLayout';
 import { getPlcRole } from '@/utils/plc';
 import { isForeignMentionEvent } from '@/utils/plcActivity';
@@ -95,7 +98,8 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
   const uid = user?.uid ?? null;
   const [now] = useState(() => Date.now());
 
-  const adminDefaults = useTeamTypeDefaults();
+  const { defaults: adminDefaults, failed: defaultsFailed } =
+    useTeamTypeDefaultsState();
   const layoutReady = adminDefaults !== null || plc.layout !== undefined;
   const layout = useMemo(
     () => resolveTeamLayout(plc, adminDefaults),
@@ -192,6 +196,16 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
   const openLayoutEditor = () => {
     if (!isLead) return;
     setOverlay(null);
+    // Unreadable admin defaults: freezing or saving now would pin the built-in presets.
+    if (!plc.layout && defaultsFailed) {
+      addToast(
+        t('teams.layout.defaultsFailed', {
+          defaultValue: "Couldn't load the district layout. Try again later.",
+        }),
+        'error'
+      );
+      return;
+    }
     setEditorOpen(true);
     // T35: the first open freezes the resolved layout onto the team (T3).
     if (!plc.layout) {
