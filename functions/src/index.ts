@@ -284,6 +284,9 @@ export {
   runPlcMeetingNotesJob,
 } from './plcMeetingNotes';
 
+// PLC goal coach: checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22).
+export { plcGoalCoachV1 } from './plcGoalCoach';
+
 // ── One-shot PLC migration (arrays→members map, orgId inference, aggregates
 // skeleton). Admin-only callable; see functions/src/migratePlcs.ts. ─────────
 export { migratePlcs } from './migratePlcs';

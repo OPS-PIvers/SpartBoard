@@ -94,6 +94,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   ltiPushGradesForAssignmentV1: 'outward',
   ltiSignDeepLinkResponseV1: 'outward',
   mcpAuthorizeV1: 'outward',
+  plcGoalCoachV1: 'outward',
   prepareQuizReadAloudV1: 'outward',
   publishPaperResultsV1: 'outward',
   pushClassroomFinalGradesForAssignment: 'outward',
