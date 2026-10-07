@@ -33,6 +33,8 @@ interface TourTipProps {
   autopilotStep?: { onRun: () => void };
   /** Asks before Autopilot performs a step that outlives the tour. */
   confirm?: { onYes: () => void; onNo: () => void };
+  /** Shown on steps that don't move on by themselves. */
+  next?: { onNext: () => void; last: boolean };
 }
 
 const ARROW_W = 18;
@@ -76,6 +78,7 @@ export const TourTip: React.FC<TourTipProps> = ({
   onShowMe,
   autopilotStep,
   confirm,
+  next,
 }) => {
   const { t } = useTranslation();
   return (
@@ -167,7 +170,7 @@ export const TourTip: React.FC<TourTipProps> = ({
           </div>
         </div>
       )}
-      {(!!onShowMe || !!autopilotStep) && (
+      {(!!onShowMe || !!autopilotStep || !!next) && (
         <div className="-mx-2 flex flex-wrap items-center gap-1">
           {onShowMe && (
             <button
@@ -187,6 +190,16 @@ export const TourTip: React.FC<TourTipProps> = ({
             >
               <Play className="h-3.5 w-3.5" aria-hidden="true" />
               {t('tours.autopilotStep')}
+            </button>
+          )}
+          {next && (
+            <button
+              type="button"
+              data-testid="tour-tip-next"
+              onClick={next.onNext}
+              className={`${primaryBtn} ml-auto mr-2`}
+            >
+              {next.last ? t('tours.done') : t('tours.next')}
             </button>
           )}
         </div>
