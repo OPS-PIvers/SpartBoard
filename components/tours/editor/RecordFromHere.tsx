@@ -22,6 +22,15 @@ import type { RecordedFrame } from '@/components/widgets/GuidedLearning/componen
 import type { TourRecording } from '@/components/widgets/GuidedLearning/components/recorder/useTourCapture';
 import { recordedTourSteps } from './recordedSteps';
 
+/** Longest wait for the frames before the steps go in without pictures. */
+export const UPLOAD_TIMEOUT_MS = 30_000;
+
+const withTimeout = <T,>(work: Promise<T>, ms: number) =>
+  new Promise<T>((resolve, reject) => {
+    const id = setTimeout(() => reject(new Error('upload timed out')), ms);
+    void work.then(resolve, reject).finally(() => clearTimeout(id));
+  });
+
 interface Props {
   /** Tour slot to widget id on the stage. */
   slots: TourSlots;
@@ -87,12 +96,13 @@ export const RecordFromHere: React.FC<Props> = ({
     }
     setBusy(t('glRecorder.uploading', { current: 1, total: 1 }));
     // Steps still bind without pictures, so a failed upload never loses the recording.
-    const frames = await uploadFrames(recording.frames).catch(
-      (err: unknown) => {
-        logError('RecordFromHere', err);
-        return [] as RecordedFrame[];
-      }
-    );
+    const frames = await withTimeout(
+      uploadFrames(recording.frames),
+      UPLOAD_TIMEOUT_MS
+    ).catch((err: unknown) => {
+      logError('RecordFromHere', err);
+      return [] as RecordedFrame[];
+    });
     const title = goal?.trim() ?? '';
     if (canDraftText) setBusy(t('glRecorder.drafting'));
     const drafted = canDraftText
