@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { TextLink } from '@/components/plc/redesignMockup/ui';
-import type { TeamCardProps } from '../updates/teamContract';
+import type { TeamCardProps } from '@/components/plc/teams/types';
 import { quickLinkIcon, useQuickLinks, type QuickLink } from './quickLinks';
 
 export const QuickLinksView: React.FC<{

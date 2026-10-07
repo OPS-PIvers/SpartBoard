@@ -4,6 +4,7 @@ import {
   resetTeamLayout,
   saveTeamLayout,
   useTeamTypeDefaults,
+  useTeamTypeDefaultsState,
 } from './useTeamLayout';
 
 type SnapshotCb = (snap: {
@@ -81,6 +82,19 @@ describe('useTeamTypeDefaults', () => {
       listeners[0].error(new Error('permission-denied'));
     });
     expect(result.current).toEqual({ types: {} });
+  });
+
+  it('flags a failed read so callers can skip freezing the stand-in', () => {
+    const { result } = renderHook(() => useTeamTypeDefaultsState());
+    expect(result.current).toEqual({ defaults: null, failed: false });
+    act(() => {
+      listeners[0].error(new Error('unavailable'));
+    });
+    expect(result.current).toEqual({ defaults: { types: {} }, failed: true });
+    act(() => {
+      listeners[0].next({ exists: () => false, data: () => undefined });
+    });
+    expect(result.current.failed).toBe(false);
   });
 
   it('unsubscribes on unmount and never subscribes when disabled', () => {

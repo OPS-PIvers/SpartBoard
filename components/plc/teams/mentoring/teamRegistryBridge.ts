@@ -4,10 +4,13 @@ import type { ComponentType } from 'react';
 import type { TeamCardId, TeamHeroRef, TeamPageId } from '@/types';
 import { spaNavigate } from '@/utils/plcPath';
 import type {
-  ForeignCardLookup,
   TeamCardProps,
   TeamHeroProps,
-} from './teamContract';
+} from '@/components/plc/teams/types';
+
+export type ForeignCardLookup = (
+  id: TeamCardId
+) => ComponentType<TeamCardProps> | null;
 
 let cardLookup: ForeignCardLookup = () => null;
 let heroLookup: (

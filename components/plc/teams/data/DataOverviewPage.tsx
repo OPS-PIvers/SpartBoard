@@ -14,7 +14,7 @@ import {
   TargetHeroFromInput,
 } from './heroes';
 import { buildTagQuestionSets } from './dataOverviewModel';
-import type { TeamPageProps } from './teamContract';
+import type { TeamPageProps } from '@/components/plc/teams/types';
 import { useTeamShellActions } from './teamShellActions';
 import {
   useDataOverviewModel,

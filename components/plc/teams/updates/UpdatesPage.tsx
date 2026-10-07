@@ -3,7 +3,7 @@
 import React from 'react';
 import { UpdatesView } from './UpdatesView';
 import { useTeamUpdatesData } from './useTeamUpdatesData';
-import type { TeamPageProps } from './teamContract';
+import type { TeamPageProps } from '@/components/plc/teams/types';
 
 export default function UpdatesPage({ plc, isLead }: TeamPageProps) {
   const data = useTeamUpdatesData(plc, isLead);

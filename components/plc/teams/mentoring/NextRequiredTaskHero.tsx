@@ -5,15 +5,15 @@ import { nextRequiredTask, pairNames, pairTaskStatus } from '@/utils/mentoring';
 import { NextTaskHeroView } from './NextTaskHeroView';
 import { PostTaskModal } from './PostTaskModal';
 import { goToTeamPage } from './teamRegistryBridge';
-import type { TeamHeroProps, TeamNav } from './teamContract';
+import type { TeamHeroProps } from '@/components/plc/teams/types';
 import { useMentoringProgram } from './useMentoringProgram';
 
 export default function NextRequiredTaskHero({
   plc,
   isLead,
   onNavigate,
-  onEditLayout,
-}: TeamHeroProps & TeamNav) {
+  onChangeHero,
+}: TeamHeroProps) {
   const data = useMentoringProgram(plc, isLead);
   const [posting, setPosting] = useState(false);
   const own = isLead ? null : (data.mine[0] ?? null);
@@ -35,7 +35,7 @@ export default function NextRequiredTaskHero({
         task={task}
         isLead={isLead}
         pair={pair}
-        onEditLayout={onEditLayout}
+        onEditLayout={onChangeHero}
         onOpenTracker={goWorkspace}
         onOpenWorkspace={goWorkspace}
         onPostTask={() => setPosting(true)}

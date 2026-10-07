@@ -19,28 +19,45 @@ import {
 const PLCS_COLLECTION = 'plcs';
 const EMPTY_DEFAULTS: TeamTypeDefaults = { types: {} };
 
-/** Live `admin_settings/team_type_defaults`; null while loading, empty when unset or unreadable. */
-export function useTeamTypeDefaults(
+export interface TeamTypeDefaultsState {
+  /** Null while loading; empty when unset or unreadable. */
+  defaults: TeamTypeDefaults | null;
+  /** The read failed, so `defaults` is the built-in stand-in. */
+  failed: boolean;
+}
+
+const LOADING: TeamTypeDefaultsState = { defaults: null, failed: false };
+
+/** Live `admin_settings/team_type_defaults` with whether the read failed. */
+export function useTeamTypeDefaultsState(
   enabled: boolean = true
-): TeamTypeDefaults | null {
-  const [defaults, setDefaults] = useState<TeamTypeDefaults | null>(null);
+): TeamTypeDefaultsState {
+  const [state, setState] = useState<TeamTypeDefaultsState>(LOADING);
 
   useEffect(() => {
     if (!enabled) return;
     return onSnapshot(
       doc(db, 'admin_settings', TEAM_TYPE_DEFAULTS_SETTINGS_DOC),
       (snap) =>
-        setDefaults(
-          snap.exists()
+        setState({
+          defaults: snap.exists()
             ? normalizeTeamTypeDefaults(snap.data())
-            : EMPTY_DEFAULTS
-        ),
+            : EMPTY_DEFAULTS,
+          failed: false,
+        }),
       // Built-in presets stand in when the read fails.
-      () => setDefaults(EMPTY_DEFAULTS)
+      () => setState({ defaults: EMPTY_DEFAULTS, failed: true })
     );
   }, [enabled]);
 
-  return defaults;
+  return state;
+}
+
+/** Live `admin_settings/team_type_defaults`; null while loading, empty when unset or unreadable. */
+export function useTeamTypeDefaults(
+  enabled: boolean = true
+): TeamTypeDefaults | null {
+  return useTeamTypeDefaultsState(enabled).defaults;
 }
 
 /** Lead or co-lead: replace the team layout (rules close the write to layout + updatedAt). */

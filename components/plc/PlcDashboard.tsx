@@ -26,6 +26,7 @@ import { MembersBody } from './bodies/MembersBody';
 import { PlcMeetingMode } from './meeting/PlcMeetingMode';
 import { PlcPresenceStrip } from './presence/PlcPresenceStrip';
 import { PlcSearchBox } from './search/PlcSearchBox';
+import { TeamDashboard } from './teams/shell/TeamDashboard';
 
 interface PlcDashboardProps {
   plc: Plc;
@@ -57,7 +58,28 @@ interface PlcDashboardProps {
  * SettingsModal pattern. `activeSection` is pathname-driven (controlled); the
  * mobile drill-in (`showMobileMenu`) is local view state.
  */
-export const PlcDashboard: React.FC<PlcDashboardProps> = ({
+export const PlcDashboard: React.FC<PlcDashboardProps> = (props) => {
+  const { canAccessFeature, globalPermissionsLoaded, isAdmin } = useAuth();
+  const redesign =
+    globalPermissionsLoaded &&
+    isAdmin !== null &&
+    canAccessFeature('teams-redesign');
+  if (redesign) {
+    return (
+      <TeamDashboard
+        plc={props.plc}
+        activeSection={props.activeSection}
+        meetingId={props.meetingId ?? null}
+        assessmentId={props.assessmentId ?? null}
+        docId={props.docId ?? null}
+        onClose={props.onClose}
+      />
+    );
+  }
+  return <LegacyPlcDashboard {...props} />;
+};
+
+const LegacyPlcDashboard: React.FC<PlcDashboardProps> = ({
   plc,
   activeSection: requestedSection,
   meetingId = null,
@@ -218,6 +240,10 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
             onNavigate={handleNavigateSection}
           />
         );
+      // Teams redesign pages; never visible here, so they resolve to home above.
+      case 'updates':
+      case 'workspace':
+        return null;
     }
   };
 

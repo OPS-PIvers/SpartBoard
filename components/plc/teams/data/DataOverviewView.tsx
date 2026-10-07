@@ -95,7 +95,7 @@ export const DataOverviewView: React.FC<DataOverviewViewProps> = ({
   const lower = [on('recentAssessments'), showGoal].filter(Boolean).length;
   const showStrip =
     (on('nextMeeting') && !!strip.nextMeeting) ||
-    (on('openItems') && !!strip.openItems);
+    (on('openItems') && (!!strip.openItems || !!strip.revisit));
 
   return (
     <div className={PAGE}>
@@ -170,6 +170,7 @@ export const DataOverviewView: React.FC<DataOverviewViewProps> = ({
             {...strip}
             nextMeeting={on('nextMeeting') ? strip.nextMeeting : null}
             openItems={on('openItems') ? strip.openItems : null}
+            revisit={on('openItems') ? strip.revisit : null}
           />
         </Section>
       )}

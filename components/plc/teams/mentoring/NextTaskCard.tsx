@@ -2,7 +2,7 @@
 
 import { pairTaskStatus } from '@/utils/mentoring';
 import { YourTasksView } from './ProgramHubCards';
-import type { TeamCardProps } from './teamContract';
+import type { TeamCardProps } from '@/components/plc/teams/types';
 import { useMentoringProgram } from './useMentoringProgram';
 
 export default function NextTaskCard({ plc, isLead }: TeamCardProps) {

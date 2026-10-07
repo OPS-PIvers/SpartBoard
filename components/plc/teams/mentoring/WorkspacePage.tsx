@@ -35,7 +35,7 @@ import {
 } from './mentoringFormat';
 import { PostTaskModal } from './PostTaskModal';
 import { TaskTrackerView, type TrackerFilter } from './TaskTrackerView';
-import type { TeamNav, TeamPageProps } from './teamContract';
+import type { TeamPageProps } from '@/components/plc/teams/types';
 import {
   useMentoringProgram,
   type MentoringProgramData,
@@ -402,10 +402,7 @@ export const PairWorkspacesScreen: React.FC<{
   );
 };
 
-export default function WorkspacePage({
-  plc,
-  isLead,
-}: TeamPageProps & TeamNav) {
+export default function WorkspacePage({ plc, isLead }: TeamPageProps) {
   const data = useMentoringProgram(plc, isLead);
   if (data.loading) return null;
   const renderWorkspace: RenderWorkspace = (ws, onBack) => (

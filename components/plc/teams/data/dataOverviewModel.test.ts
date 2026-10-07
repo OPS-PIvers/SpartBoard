@@ -10,6 +10,7 @@ import {
   buildTagQuestionSets,
   countOpenItems,
   findTargetMastery,
+  lowestTargetId,
   shortTitleFor,
 } from './dataOverviewModel';
 
@@ -106,6 +107,23 @@ describe('helpers', () => {
       questionId: 'q2',
       targetId: '7.RP.2a',
     });
+  });
+
+  it('picks the lowest target with enough data for the lowestTarget rule', () => {
+    const id = lowestTargetId(base);
+    expect(id).not.toBeNull();
+    const pick = findTargetMastery(base, id ?? '');
+    const others = [...base.targets]
+      .map((tg) => findTargetMastery(base, tg.id))
+      .filter(
+        (r) => r && !r.archived && !r.lowSample && r.correctPercent !== null
+      );
+    for (const r of others) {
+      expect(pick?.correctPercent ?? 0).toBeLessThanOrEqual(
+        r?.correctPercent ?? 0
+      );
+    }
+    expect(lowestTargetId({ ...base, aggregates: [] })).toBeNull();
   });
 
   it('finds a target trend across assessments', () => {

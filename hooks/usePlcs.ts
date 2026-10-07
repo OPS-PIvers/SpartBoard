@@ -22,6 +22,7 @@ import {
   Plc,
   PlcFeatureSettings,
   PlcGroupType,
+  PlcTeamLayout,
   PLC_GROUP_TYPES,
   PLC_MEMBER_ADDED_BY,
   PlcMeetingCadence,
@@ -85,7 +86,11 @@ interface UsePlcsResult {
    */
   error: Error | null;
   /** Create a new PLC with the current user as lead + sole member. Returns the new doc id. */
-  createPlc: (name: string, groupType?: PlcGroupType) => Promise<string>;
+  createPlc: (
+    name: string,
+    groupType?: PlcGroupType,
+    layout?: PlcTeamLayout
+  ) => Promise<string>;
   /** Lead-only: rename the PLC. */
   renamePlc: (
     plcId: string,
@@ -620,7 +625,11 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   }, [user, enabled, asAdmin, isSuperAdmin, orgId]);
 
   const createPlc = useCallback(
-    async (name: string, groupType?: PlcGroupType): Promise<string> => {
+    async (
+      name: string,
+      groupType?: PlcGroupType,
+      layout?: PlcTeamLayout
+    ): Promise<string> => {
       if (!user) throw new Error(i18n.t('plc.errors.notSignedIn'));
       const trimmed = name.trim();
       if (!trimmed) throw new Error(i18n.t('plc.errors.nameRequired'));
@@ -653,6 +662,8 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
         orgId,
         buildingId: creatorBuildingId,
         ...(groupType && groupType !== 'plc' ? { groupType } : {}),
+        // Teams redesign: a new team keeps the district default it was created with (T3).
+        ...(layout ? { layout } : {}),
         // Canonical membership map (Decision 1.2). The creator is the sole
         // member and the lead. `joinedAt` is a serverTimestamp sentinel
         // resolved to millis on read by `parsePlcMembers`.

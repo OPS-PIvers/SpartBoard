@@ -4,7 +4,7 @@ import React from 'react';
 import { LATEST_UPDATES_COUNT, pickHeroUpdate } from '@/utils/teamUpdates';
 import { UpdateHeroView } from '../updates/UpdateHero';
 import { useTeamUpdatesData } from '../updates/useTeamUpdatesData';
-import type { TeamPageProps } from '../updates/teamContract';
+import type { TeamPageProps } from '@/components/plc/teams/types';
 import { BuildingHubView } from './BuildingHubView';
 import { CalendarHeroView } from './CalendarCard';
 import { useQuickLinks } from './quickLinks';

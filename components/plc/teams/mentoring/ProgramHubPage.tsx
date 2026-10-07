@@ -8,7 +8,10 @@ import ProgramResourcesCard from './ProgramResourcesCard';
 import { ProgramHubView } from './ProgramHubView';
 import SubmissionStatusCard from './SubmissionStatusCard';
 import { foreignCard, foreignHero } from './teamRegistryBridge';
-import type { TeamCardProps, TeamNav, TeamPageProps } from './teamContract';
+import type {
+  TeamCardProps,
+  TeamPageProps,
+} from '@/components/plc/teams/types';
 
 const OWN_CARDS: Partial<
   Record<TeamCardId, React.ComponentType<TeamCardProps>>
@@ -30,8 +33,8 @@ export default function ProgramHubPage({
   layout,
   isLead,
   onNavigate,
-  onEditLayout,
-}: TeamPageProps & TeamNav) {
+  onChangeHero,
+}: TeamPageProps) {
   const main: React.ReactNode[] = [];
   const side: React.ReactNode[] = [];
   for (const id of layout.cards) {
@@ -41,7 +44,7 @@ export default function ProgramHubPage({
     if (!Card) continue;
     // Registry components are stable module-level references.
     (SIDE.has(id) ? side : main).push(
-      createElement(Card, { key: id, plc, isLead })
+      createElement(Card, { key: id, plc, isLead, onNavigate })
     );
   }
   let hero: React.ReactNode = null;
@@ -50,14 +53,21 @@ export default function ProgramHubPage({
     const Pinned = pinned ? foreignHero(pinned.kind) : null;
     hero =
       Pinned && pinned ? (
-        createElement(Pinned, { plc, heroRef: pinned, isLead })
+        createElement(Pinned, {
+          plc,
+          heroRef: pinned,
+          pinnedBy: layout.hero.pinnedBy,
+          isLead,
+          onChangeHero,
+          onNavigate,
+        })
       ) : (
         <NextRequiredTaskHero
           plc={plc}
           heroRef={null}
           isLead={isLead}
           onNavigate={onNavigate}
-          onEditLayout={onEditLayout}
+          onChangeHero={onChangeHero}
         />
       );
   }

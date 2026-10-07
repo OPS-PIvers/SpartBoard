@@ -9,8 +9,12 @@ import { logError } from '@/utils/logError';
 import { AssessmentHeroView, NoResults } from './DataOverviewSections';
 import { GoalView } from './GoalView';
 import { TargetHeroView } from './TargetHeroView';
-import { findTargetMastery, type DataOverviewModel } from './dataOverviewModel';
-import type { TeamHeroProps } from './teamContract';
+import {
+  findTargetMastery,
+  lowestTargetId,
+  type DataOverviewModel,
+} from './dataOverviewModel';
+import type { TeamHeroProps } from '@/components/plc/teams/types';
 import { useTeamShellActions } from './teamShellActions';
 import {
   useDataOverviewModel,
@@ -107,12 +111,22 @@ export const TargetHero: React.FC<TeamHeroProps> = ({
   isLead,
 }) => {
   const { input, model } = useDataOverviewModel(plc, null);
-  if (!useFlag() || heroRef?.kind !== 'target') return null;
+  // No ref: the lowestTarget rule picks the weakest target.
+  const targetId =
+    heroRef?.kind === 'target' ? heroRef.targetId : lowestTargetId(input);
+  if (!useFlag() || (heroRef && heroRef.kind !== 'target')) return null;
+  if (!targetId) {
+    return (
+      <Section first>
+        <NoResults />
+      </Section>
+    );
+  }
   return (
     <TargetHeroFromInput
       input={input}
       model={model}
-      targetId={heroRef.targetId}
+      targetId={targetId}
       isLead={isLead}
       pinnedBy={pinnedBy?.name}
     />

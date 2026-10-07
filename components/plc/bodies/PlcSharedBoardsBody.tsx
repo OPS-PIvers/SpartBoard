@@ -45,6 +45,8 @@ import {
 
 interface PlcSharedBoardsBodyProps {
   plc: Plc;
+  /** Inside team Resources: render nothing when there are no boards. */
+  hideWhenEmpty?: boolean;
 }
 
 function formatDate(ms: number): string {
@@ -94,6 +96,7 @@ const ModePill: React.FC<{ mode: PlcSharedBoardEntry['intendedMode'] }> = ({
 
 export const PlcSharedBoardsBody: React.FC<PlcSharedBoardsBodyProps> = ({
   plc,
+  hideWhenEmpty = false,
 }) => {
   const { t } = useTranslation();
   const groupWording = useAuth().canAccessFeature('my-groups');
@@ -108,6 +111,7 @@ export const PlcSharedBoardsBody: React.FC<PlcSharedBoardsBodyProps> = ({
   }
 
   if (boards.length === 0) {
+    if (hideWhenEmpty) return null;
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[300px] px-6 text-center">
         <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">

@@ -2,7 +2,7 @@
 
 import { summarizeTask } from '@/utils/mentoring';
 import { SubmissionStatusView } from './ProgramHubCards';
-import type { TeamCardProps } from './teamContract';
+import type { TeamCardProps } from '@/components/plc/teams/types';
 import { useMentoringProgram } from './useMentoringProgram';
 
 export default function SubmissionStatusCard({ plc, isLead }: TeamCardProps) {

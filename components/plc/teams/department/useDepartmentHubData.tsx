@@ -27,6 +27,7 @@ import {
 import { noteHeadings } from '@/utils/noteSections';
 import { NotesMarkdown } from '@/components/plc/bodies/notesMarkdown';
 import { DocHeroEmbed } from './DocHeroEmbed';
+import { pickHeroDoc } from '@/components/plc/teams/heroes/heroDoc';
 import type { ResolvedTeamLayout } from '@/utils/teamLayout';
 import {
   useNow,
@@ -438,9 +439,11 @@ export function useDepartmentHubData(
 
   const hero: HubHero | null = useMemo(() => {
     const ref = layout.hero.mode === 'pinned' ? layout.hero.ref : undefined;
-    if (ref?.kind === 'doc') {
-      const doc = docs.find((d) => d.id === ref.docId && d.deletedAt == null);
-      if (doc) {
+    const followsNewestDoc = !ref && layout.heroRule === 'newestDoc';
+    const pinnedDocId = ref?.kind === 'doc' ? ref.docId : null;
+    if (pinnedDocId || followsNewestDoc) {
+      const doc = pickHeroDoc(docs, pinnedDocId);
+      if (doc && (followsNewestDoc || doc.id === pinnedDocId)) {
         return {
           title: doc.title,
           meta: t('teams.notes.docMeta', {
@@ -448,7 +451,7 @@ export function useDepartmentHubData(
             date: formatShortDate(doc.updatedAt),
             name: doc.createdByName,
           }),
-          pinned: true,
+          pinned: !followsNewestDoc,
           docUrl: doc.url,
           body: <DocHeroEmbed url={doc.url} title={doc.title} />,
         };
@@ -476,7 +479,7 @@ export function useDepartmentHubData(
         </div>
       ),
     };
-  }, [docs, layout.hero, nextNote, notes, plc.id, t]);
+  }, [docs, layout.hero, layout.heroRule, nextNote, notes, plc.id, t]);
 
   return {
     view: {

@@ -293,6 +293,28 @@ export function findTargetMastery(
   );
 }
 
+/** The `lowestTarget` hero rule: the active target with the lowest percent correct and enough data. */
+export function lowestTargetId(
+  input: Pick<
+    DataOverviewInput,
+    'aggregates' | 'assessments' | 'targets' | 'cutoffs'
+  >
+): string | null {
+  const mastery = buildMasteryByTarget(input.aggregates, input.targets, {
+    assessments: input.assessments,
+    cutoffs: input.cutoffs ?? DEFAULT_MASTERY_CUTOFFS,
+  });
+  if (!mastery.tagged) return null;
+  let lowest: MasteryRow | null = null;
+  for (const row of [...mastery.targets, ...mastery.standards]) {
+    if (row.archived || row.lowSample || row.correctPercent === null) continue;
+    if (!lowest || row.correctPercent < (lowest.correctPercent ?? 101)) {
+      lowest = row;
+    }
+  }
+  return lowest?.targetId ?? null;
+}
+
 /** Each scored assessment's questions with their target tag, newest first, for Manage targets. */
 export function buildTagQuestionSets(
   aggregates: readonly PlcAssessmentAggregate[],

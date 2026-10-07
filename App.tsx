@@ -276,6 +276,13 @@ const TeamsRedesignDevHarness = import.meta.env.DEV
       )
     )
   : null;
+const TeamsShellDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/plc/teams/dev/TeamsShellDevHarness').then(
+        (module) => ({ default: module.TeamsShellDevHarness })
+      )
+    )
+  : null;
 const TeamsNotesDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/plc/teams/notes/TeamsNotesDevHarness').then(
@@ -913,6 +920,20 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <TeamsRedesignDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: the built team shell on the mockup's fixtures; auth-bypass only.
+  if (
+    import.meta.env.DEV &&
+    TeamsShellDevHarness &&
+    isAuthBypass &&
+    pathname === '/teams-shell-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TeamsShellDevHarness />
       </Suspense>
     );
   }
