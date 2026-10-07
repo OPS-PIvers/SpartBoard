@@ -1354,6 +1354,34 @@ describe('LiveTourRunner plain steps and welcome', () => {
     expect(screen.queryByText(/Couldn't find/)).not.toBeInTheDocument();
   });
 
+  it('shows a plain step its legacy slide, but not a question or media slide', async () => {
+    const set = mixedSet('structured', { imageUrls: ['https://x/0.png'] });
+    set.steps.forEach((s) => {
+      s.imageIndex = 0;
+      s.interactionType = s.id === 'q' ? 'question' : 'tooltip';
+    });
+    set.steps[4].interactionType = 'video';
+    await start(set);
+    expect(isPlain()).toBe(true);
+    expect(screen.getByTestId('tour-mini-player')).toBeInTheDocument();
+    expect(screen.getByText('This tour shows boards.')).toBeInTheDocument();
+    expect(screen.queryByText(/Couldn't find/)).not.toBeInTheDocument();
+
+    fireEvent.click(barButton('Next'));
+    await frames();
+    expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Boards'));
+    await frames();
+    expect(screen.getByText('Which board is yours?')).toBeInTheDocument();
+    expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
+    fireEvent.click(barButton('Next'));
+    await frames();
+    fireEvent.click(barButton('Next'));
+    await frames();
+    expect(progress()).toBe('5 / 5');
+    expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
+  });
+
   it('skips a stale picture taken of a different control', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const set = makeSet([{ anchor: 'sidebar.classes', action: 'click' }]);
