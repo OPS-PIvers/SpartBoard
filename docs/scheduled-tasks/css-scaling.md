@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-06_
+_Last audited: 2026-10-07_
 _Last action: 2026-09-24 — MEDIUM `QuizStimulusView.tsx` zero-`cqmin` blocker resolved: added an optional `cqScaled?: boolean` prop (default `false`) threaded through every subcomponent in the file, applying `min(Xpx, Ycqmin)` inline styles only when set, so the two CQ-container consumers (`CurrentQuestionCard.tsx`, `QuizPreview.tsx`) now scale while the two non-CQ consumers (`QuizStudentApp.tsx`, `FreeResponseGrader.tsx`) keep today's fixed styling untouched — the same `cqScaled` pattern proven on `AssignTargetingSection.tsx`. 1250/1250 relevant tests pass. Item moved to Completed. PR opened against dev-paul._
 
 ---
 
 ## Audit guidance — `cqmin` is not always the right answer
+
+_2026-10-07: Daily audit (Wednesday). Widget.tsx files changed since the last audit (Clock, Quiz, RoutineGuide, Random) re-scanned; no `max-[h|w]-[Npx]` caps in any Widget.tsx and RoutineGuide/Random use `min()`/`clamp()` with `cqmin`. Existing Open items unchanged. 0 new issues._
 
 _2026-10-05: Daily audit (Monday). Only 2 commits since the last audit touch `components/widgets` (schedule time-parser fix, registry comment); neither changes markup or sizing. `max-[Npx]`/`max-w-[Npx]` classes in non-test widget files: 10 (all already tracked). No new anti-patterns; 0 new issues._
 
