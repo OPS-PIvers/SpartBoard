@@ -230,9 +230,8 @@ jobs:
           retention-days: 30
 
   # Widget grader gates (docs/plans/WIDGET_RUBRIC.md R23) on the widgets this PR touches;
-  # shared window, config or harness changes check every widget. Fails only on gate
-  # failures missing from docs/widget-rubric/gate-baseline.json.
-  # Which widgets the diff touches; a change to shared widget code runs every widget across 4 runners.
+  # shared window, config or harness changes check every widget, split across 4 runners.
+  # Fails only on gate failures missing from docs/widget-rubric/gate-baseline.json.
   grader-scope:
     needs: changes
     if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.release != 'true'
