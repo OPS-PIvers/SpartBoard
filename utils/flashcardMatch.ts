@@ -73,17 +73,32 @@ const normalizeRelaxed = (value: string, language: string): string =>
     language
   );
 
+const MAX_OPTIONAL_VARIANTS = 64;
+
 const expandOptional = (value: string): string[] => {
-  const match = value.match(/\(([^()]*)\)/u);
-  if (!match || match.index === undefined) return [value.trim()];
-  const before = value.slice(0, match.index);
-  const after = value.slice(match.index + match[0].length);
-  const withOptional = `${before}${match[1] ?? ''}${after}`;
-  const withoutOptional = `${before}${after}`;
-  return [
-    ...expandOptional(withOptional),
-    ...expandOptional(withoutOptional),
-  ].map((variant) => variant.replace(/\s+/gu, ' ').trim());
+  let variants = [value];
+  for (;;) {
+    const next: string[] = [];
+    let expanded = false;
+    for (const variant of variants) {
+      const match = variant.match(/\(([^()]*)\)/u);
+      if (!match || match.index === undefined) {
+        next.push(variant);
+        continue;
+      }
+      expanded = true;
+      const before = variant.slice(0, match.index);
+      const after = variant.slice(match.index + match[0].length);
+      next.push(`${before}${match[1] ?? ''}${after}`);
+      // Past the cap, later optional groups are treated as required.
+      if (variants.length * 2 <= MAX_OPTIONAL_VARIANTS) {
+        next.push(`${before}${after}`);
+      }
+    }
+    variants = next;
+    if (!expanded) break;
+  }
+  return variants.map((variant) => variant.replace(/\s+/gu, ' ').trim());
 };
 
 export const parseFlashcardAnswerVariants = (expected: string): string[] => {
