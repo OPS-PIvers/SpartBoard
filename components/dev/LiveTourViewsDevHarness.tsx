@@ -5,12 +5,18 @@ import { TourSpotlight } from '@/components/tours/TourSpotlight';
 import { TourTip, type TourTipStatus } from '@/components/tours/TourTip';
 import { TourBar } from '@/components/tours/TourBar';
 import { centreTip } from '@/components/tours/tipPlacement';
+import { TourEditorPanel } from '@/components/tours/editor/TourEditorPanel';
+import {
+  IDLE_PLAYBACK,
+  type TourEditPlayback,
+} from '@/components/tours/editor/tourEditStore';
+import type { TourEditorSession } from '@/components/tours/editor/useTourEditorSession';
+import type { GuidedLearningSet, GuidedLearningStep } from '@/types';
 import {
   placeCallout,
   tetherFor,
 } from '@/components/widgets/GuidedLearning/utils/calloutPlacement';
 import TourMiniPlayer from '@/components/tours/TourMiniPlayer';
-import type { GuidedLearningStep } from '@/types';
 
 // DEV-only: the live-tour tip and bar against fake anchors, one state per ?state=.
 const STATES = [
@@ -21,6 +27,12 @@ const STATES = [
   'autopilot',
   'blocked',
   'confirm',
+  'edit-plain',
+  'edit-jumping',
+  'edit-blocked',
+  'edit-missing',
+  'edit-flipped',
+  'edit-collapsed',
 ] as const;
 type State = (typeof STATES)[number];
 
@@ -39,6 +51,12 @@ const TARGET: Record<State, string | null> = {
   autopilot: 'dock-timer',
   blocked: 'widget-start',
   confirm: 'drawer-sound',
+  'edit-plain': null,
+  'edit-jumping': null,
+  'edit-blocked': 'widget-start',
+  'edit-missing': null,
+  'edit-flipped': 'right-start',
+  'edit-collapsed': 'dock-timer',
 };
 
 const STEP: Record<State, { title: string; text: string; n: number }> = {
@@ -77,6 +95,148 @@ const STEP: Record<State, { title: string; text: string; n: number }> = {
     text: 'Switch on **Play a sound** so the class hears when time is up.',
     n: 4,
   },
+  'edit-plain': {
+    title: 'Timers on your board',
+    text: 'In this tour you will add a timer, set it, and start it.',
+    n: 1,
+  },
+  'edit-jumping': {
+    title: 'Turn on the alarm',
+    text: 'Switch on **Play a sound** so the class hears when time is up.',
+    n: 4,
+  },
+  'edit-blocked': {
+    title: 'Start the timer',
+    text: 'Press **Start** when the class is ready.',
+    n: 5,
+  },
+  'edit-missing': {
+    title: 'Pick a preset',
+    text: '',
+    n: 3,
+  },
+  'edit-flipped': {
+    title: 'Start the stopwatch',
+    text: 'Press **Start** on the stopwatch.',
+    n: 6,
+  },
+  'edit-collapsed': {
+    title: 'Open the Timer',
+    text: 'Click **Timer** in the dock to add one to your board.',
+    n: 2,
+  },
+};
+
+// The editor outline's fake tour: one step per harness state above.
+const EDIT_STEPS: GuidedLearningStep[] = [
+  {
+    id: 'e1',
+    label: 'Timers on your board',
+    text: 'In this tour you will add a timer, set it, and start it.',
+    tour: { anchor: 'board.whole', action: 'observe' },
+  },
+  {
+    id: 'e2',
+    label: 'Open the Timer',
+    text: 'Click **Timer** in the dock to add one to your board.',
+    tour: { anchor: 'dock.item:time-tool', action: 'click' },
+  },
+  {
+    id: 'e3',
+    label: 'Pick a preset',
+    tour: { anchor: 'widget.settings-opener', action: 'click' },
+  },
+  {
+    id: 'e4',
+    label: 'Turn on the alarm',
+    text: 'Switch on **Play a sound** so the class hears when time is up.',
+    tour: {
+      anchor: 'settings.field:time-tool#sound',
+      action: 'toggle',
+      value: true,
+    },
+  },
+  {
+    id: 'e5',
+    label: 'Start the timer',
+    text: 'Press **Start** when the class is ready.',
+    tour: { anchor: 'widget.window', action: 'click', teacherMustClick: true },
+  },
+  {
+    id: 'e6',
+    label: '',
+    tour: { anchor: 'widget.toolbar', action: 'click' },
+  },
+].map(
+  (st) =>
+    ({
+      xPct: 50,
+      yPct: 50,
+      imageIndex: 0,
+      interactionType: 'text-popover',
+      ...st,
+    }) as GuidedLearningStep
+);
+
+const EDIT_PLAYBACK: Partial<Record<State, Partial<TourEditPlayback>>> = {
+  'edit-jumping': { jumping: true, anchor: 'searching' },
+  'edit-blocked': { blocked: true, anchor: 'found' },
+  'edit-missing': { anchor: 'missing', missing: ['e3'] },
+  'edit-flipped': { anchor: 'found' },
+};
+
+const useFakeSession = (selected: number): TourEditorSession => {
+  const [set, setSet] = useState<GuidedLearningSet>(
+    () =>
+      ({
+        id: 'harness',
+        title: 'Timer basics',
+        mode: 'tour',
+        imageUrls: [],
+        steps: EDIT_STEPS,
+      }) as unknown as GuidedLearningSet
+  );
+  const [sel, setSel] = useState(selected);
+  const [prevSelected, setPrevSelected] = useState(selected);
+  if (prevSelected !== selected) {
+    setPrevSelected(selected);
+    setSel(selected);
+  }
+  const editStep = (
+    id: string,
+    change: (s: GuidedLearningStep) => GuidedLearningStep
+  ) =>
+    setSet((cur) => ({
+      ...cur,
+      steps: cur.steps.map((st) => (st.id === id ? change(st) : st)),
+    }));
+  return {
+    set,
+    selected: sel,
+    select: setSel,
+    updateStep: (id, patch) => editStep(id, (st) => ({ ...st, ...patch })),
+    setBinding: (id, tour) => editStep(id, (st) => ({ ...st, tour })),
+    insertStepAfter: () => EDIT_STEPS[0],
+    deleteStep: (id) =>
+      setSet((cur) => ({
+        ...cur,
+        steps: cur.steps.filter((st) => st.id !== id),
+      })),
+    moveStep: (id, to) =>
+      setSet((cur) => {
+        const steps = cur.steps.filter((st) => st.id !== id);
+        const moved = cur.steps.find((st) => st.id === id);
+        if (moved) steps.splice(to, 0, moved);
+        return { ...cur, steps };
+      }),
+    updateSet: (patch) => setSet((cur) => ({ ...cur, ...patch })),
+    undo: () => undefined,
+    redo: () => undefined,
+    canUndo: true,
+    canRedo: false,
+    saveState: 'saved',
+    flush: () => Promise.resolve(),
+  };
 };
 
 const TOTAL = 6;
@@ -114,7 +274,10 @@ const obstaclesOnPage = () =>
     .filter((r) => r.width > 0 && r.height > 0)
     .map((r) => ({ x: r.x, y: r.y, w: r.width, h: r.height }));
 
-const FakeBoard: React.FC<{ drawer: boolean }> = ({ drawer }) => (
+const FakeBoard: React.FC<{ drawer: boolean; stopwatch?: boolean }> = ({
+  drawer,
+  stopwatch,
+}) => (
   <div className="absolute inset-0 bg-slate-600">
     <div className="absolute left-[8%] top-[22%] w-72 rounded-2xl border border-white/20 bg-white/10 p-4 text-white shadow-xl backdrop-blur-xl">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
@@ -162,6 +325,18 @@ const FakeBoard: React.FC<{ drawer: boolean }> = ({ drawer }) => (
         </div>
       )}
     </div>
+    {stopwatch && (
+      <div className="absolute right-[3%] top-[14%] flex w-56 flex-col items-center gap-3 rounded-2xl border border-white/20 bg-white/10 p-5 text-white shadow-xl backdrop-blur-xl">
+        <div className="text-4xl font-bold tabular-nums">00:00</div>
+        <button
+          type="button"
+          data-fake-anchor="right-start"
+          className="rounded-lg bg-white/15 px-4 py-1.5 text-sm font-semibold"
+        >
+          Start
+        </button>
+      </div>
+    )}
     <div
       data-tour-obstacle=""
       className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2 rounded-2xl border border-white/20 bg-slate-900/60 p-2 backdrop-blur-xl"
@@ -233,6 +408,8 @@ export const LiveTourViewsDevHarness: React.FC = () => {
   };
 
   const step = STEP[state];
+  const isEdit = state.startsWith('edit-');
+  const session = useFakeSession(step.n - 1);
   const view = { w: window.innerWidth, h: window.innerHeight };
   const obstacles = obstaclesOnPage();
   const target = rect
@@ -248,7 +425,14 @@ export const LiveTourViewsDevHarness: React.FC = () => {
           target
         )
       : null;
-  const width = state === 'plain' ? 400 : state === 'missing' ? 512 : 320;
+  const plainTip = state === 'plain' || state === 'edit-plain';
+  const width = plainTip
+    ? 400
+    : state === 'missing'
+      ? 512
+      : state === 'edit-missing'
+        ? 360
+        : 320;
   const centred = centreTip({ w: width, h: box.h }, view, obstacles, GUTTER);
 
   const status: TourTipStatus | null =
@@ -258,17 +442,29 @@ export const LiveTourViewsDevHarness: React.FC = () => {
           kind: 'playing',
           testId: 'tour-auto-status',
         }
-      : state === 'blocked'
+      : state === 'blocked' || state === 'edit-blocked'
         ? {
-            text: t('tours.autoSkipped'),
+            text: t(isEdit ? 'tours.editor.youClick' : 'tours.autoSkipped'),
             kind: 'turn',
             testId: 'tour-auto-status',
           }
         : null;
+  const playback: TourEditPlayback = {
+    ...IDLE_PLAYBACK,
+    index: step.n - 1,
+    anchor: target ? 'found' : 'idle',
+    rect: target,
+    ...EDIT_PLAYBACK[state],
+  };
 
   return (
     <div className="fixed inset-0 overflow-hidden font-sans">
-      <FakeBoard drawer={state === 'drawer' || state === 'confirm'} />
+      <FakeBoard
+        drawer={
+          state === 'drawer' || state === 'confirm' || state === 'edit-jumping'
+        }
+        stopwatch={state === 'edit-flipped'}
+      />
       <label className="absolute bottom-4 left-4 z-[20000] flex items-center gap-2 rounded-lg bg-white px-2 py-1 text-xs text-slate-700 shadow">
         State
         <select
@@ -283,62 +479,79 @@ export const LiveTourViewsDevHarness: React.FC = () => {
           ))}
         </select>
       </label>
-      {(!!rect || state === 'plain') && (
+      {(!!rect || plainTip) && state !== 'edit-jumping' && (
         <TourSpotlight rect={rect} pulse={state === 'drawer'} />
       )}
-      <TourBar
-        current={step.n}
-        total={TOTAL}
-        onBack={step.n > 1 ? () => undefined : undefined}
-        onNext={() => undefined}
-        onRetry={state === 'missing' ? () => undefined : undefined}
-        autopilot={{ on: autoOn, onChange: setAutoOn }}
-        readAloud={{ on: readAloud, onToggle: () => setReadAloud((v) => !v) }}
-        onExit={() => undefined}
-        onPlace={onPlace}
-      />
-      <TourTip
-        key={state}
-        boxRef={measureTip}
-        headingRef={headingRef}
-        left={placement ? placement.left : centred.left}
-        top={placement ? placement.top : centred.top}
-        width={placement ? placement.width : width}
-        tether={tether}
-        plain={!target}
-        animate
-        title={step.title}
-        looking={false}
-        status={status}
-        onShowMe={
-          state === 'anchored' || state === 'drawer'
-            ? () => undefined
-            : undefined
-        }
-        autopilotStep={
-          state === 'anchored' || state === 'drawer'
-            ? { onRun: () => undefined }
-            : undefined
-        }
-        confirm={
-          state === 'confirm'
-            ? { onYes: () => undefined, onNo: () => undefined }
-            : undefined
-        }
-      >
-        {state === 'missing' ? (
-          <>
-            <TourMiniPlayer step={MISSING_STEP} />
-            <p className="text-sm text-slate-200">
-              {t('tours.anchorMissingPreview')}
-            </p>
-          </>
-        ) : (
-          step.text && (
-            <p className="text-sm text-slate-100">{boldText(step.text)}</p>
-          )
-        )}
-      </TourTip>
+      {isEdit && (
+        <TourEditorPanel
+          key={state}
+          session={session}
+          playback={playback}
+          readAloud={{ on: readAloud, onToggle: () => setReadAloud((v) => !v) }}
+          onClose={() => undefined}
+          initialCollapsed={state === 'edit-collapsed'}
+          initialSide="right"
+        />
+      )}
+      {!isEdit && (
+        <TourBar
+          current={step.n}
+          total={TOTAL}
+          onBack={step.n > 1 ? () => undefined : undefined}
+          onNext={() => undefined}
+          onRetry={state === 'missing' ? () => undefined : undefined}
+          autopilot={{ on: autoOn, onChange: setAutoOn }}
+          readAloud={{ on: readAloud, onToggle: () => setReadAloud((v) => !v) }}
+          onExit={() => undefined}
+          onPlace={onPlace}
+        />
+      )}
+      {state !== 'edit-jumping' && (
+        <TourTip
+          key={state}
+          boxRef={measureTip}
+          headingRef={headingRef}
+          left={placement ? placement.left : centred.left}
+          top={placement ? placement.top : centred.top}
+          width={placement ? placement.width : width}
+          tether={tether}
+          plain={!target}
+          animate
+          title={step.title}
+          looking={false}
+          status={status}
+          onShowMe={
+            state === 'anchored' || state === 'drawer'
+              ? () => undefined
+              : undefined
+          }
+          autopilotStep={
+            state === 'anchored' || state === 'drawer'
+              ? { onRun: () => undefined }
+              : undefined
+          }
+          confirm={
+            state === 'confirm'
+              ? { onYes: () => undefined, onNo: () => undefined }
+              : undefined
+          }
+        >
+          {state === 'missing' ? (
+            <>
+              <TourMiniPlayer step={MISSING_STEP} />
+              <p className="text-sm text-slate-200">
+                {t('tours.anchorMissingPreview')}
+              </p>
+            </>
+          ) : state === 'edit-missing' ? (
+            <p className="text-sm text-slate-200">{t('tours.anchorMissing')}</p>
+          ) : (
+            step.text && (
+              <p className="text-sm text-slate-100">{boldText(step.text)}</p>
+            )
+          )}
+        </TourTip>
+      )}
     </div>
   );
 };
