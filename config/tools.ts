@@ -6,6 +6,7 @@ import {
   TrafficCone,
   Type,
   CheckSquare,
+  ClipboardCheck,
   ListChecks,
   Users,
   Dices,
@@ -622,5 +623,13 @@ export const TOOLS: ToolMetadata[] = [
     color: 'bg-sky-600',
     category: 'instruction',
     keywords: ['group project', 'progress', 'steps', 'checkpoints', 'rubric'],
+  },
+  {
+    type: 'arts-letters-agenda',
+    icon: ClipboardCheck,
+    label: 'Arts & Letters Agenda',
+    color: 'bg-rose-600',
+    category: 'instruction',
+    keywords: ['agenda', 'launch', 'learn', 'land', 'lesson', 'to-do'],
   },
 ];

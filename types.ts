@@ -67,7 +67,8 @@ export type WidgetType =
   | 'flashcards'
   | 'projects'
   | 'review'
-  | 'routineGuide';
+  | 'routineGuide'
+  | 'arts-letters-agenda';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -2031,6 +2032,18 @@ export interface ChecklistConfig {
   cardColor?: string;
   cardOpacity?: number;
   rowStyle?: 'cards' | 'lines';
+}
+
+export type ArtsLettersAgendaPartId = 'launch' | 'learn' | 'land';
+
+export interface ArtsLettersAgendaConfig {
+  descriptions?: Partial<Record<ArtsLettersAgendaPartId, string>>;
+  completed?: Partial<Record<ArtsLettersAgendaPartId, boolean>>;
+  fontFamily?: string;
+  fontColor?: string;
+  textSizePreset?: TextSizePreset;
+  cardColor?: string;
+  cardOpacity?: number;
 }
 
 export interface RandomGroup {
@@ -9135,7 +9148,8 @@ export type WidgetConfig =
   | First5Config
   | StationsConfig
   | FlashcardsConfig
-  | ProjectsConfig;
+  | ProjectsConfig
+  | ArtsLettersAgendaConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'url'
@@ -9272,7 +9286,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                                     ? ReviewConfig
                                                                                                                                     : T extends 'routineGuide'
                                                                                                                                       ? RoutineGuideConfig
-                                                                                                                                      : never;
+                                                                                                                                      : T extends 'arts-letters-agenda'
+                                                                                                                                        ? ArtsLettersAgendaConfig
+                                                                                                                                        : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;

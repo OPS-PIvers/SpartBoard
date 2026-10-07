@@ -1295,6 +1295,7 @@ export const WIDGET_DEFAULT_ACCESS_LEVEL: Partial<
   projects: 'admin',
   review: 'admin',
   routineGuide: 'admin',
+  'arts-letters-agenda': 'admin',
 };
 
 export const getWidgetDefaultAccessLevel = (

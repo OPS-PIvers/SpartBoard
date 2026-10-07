@@ -829,6 +829,12 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     destructive: true,
   },
   {
+    id: 'arts-letters-agenda.reset-checks',
+    label: 'Reset checks button in Arts & Letters Agenda',
+    scope: 'widget',
+    destructive: true,
+  },
+  {
     id: 'checklist.remove-completed',
     label: 'Remove completed items button in Checklist',
     scope: 'widget',
