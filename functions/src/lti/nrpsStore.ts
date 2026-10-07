@@ -97,6 +97,25 @@ export function sectionPairedOnSession(
   );
 }
 
+function periodMap(
+  sessionData: admin.firestore.DocumentData
+): Record<string, string> {
+  return sessionData.classPeriodByClassId &&
+    typeof sessionData.classPeriodByClassId === 'object'
+    ? (sessionData.classPeriodByClassId as Record<string, string>)
+    : {};
+}
+
+/** The paired class's period label on this session, or null when it has none. */
+function pairedPeriodLabel(
+  sessionData: admin.firestore.DocumentData,
+  pairedClassId: unknown
+): string | null {
+  if (typeof pairedClassId !== 'string' || !pairedClassId) return null;
+  const label = periodMap(sessionData)[pairedClassId];
+  return typeof label === 'string' && label ? label : null;
+}
+
 export interface DedupeLinkedSectionPeriodArgs {
   kind: LtiSessionKind;
   sessionId: string;
@@ -138,6 +157,7 @@ export async function dedupeLinkedSectionPeriod(
 export interface DropLinkedSectionPeriodArgs {
   kind: LtiSessionKind;
   sessionId: string;
+  contextId: string;
   contextTitle: string | null;
   classlinkClassId: unknown;
   rosterId: unknown;
@@ -158,24 +178,89 @@ export async function dropLinkedSectionPeriod(
   const snap = await ref.get();
   if (!snap.exists) return false;
   const sessionData = snap.data() ?? {};
-  const next = await dedupeLinkedSectionPeriod(db, { ...args, sessionData });
-  if (!next) return false;
-  const batch = db.batch();
-  batch.set(ref, { periodNames: next }, { merge: true });
   const teacherUid =
     typeof sessionData.teacherUid === 'string' ? sessionData.teacherUid : '';
-  if (kind === 'quiz' && teacherUid) {
+  const archiveRef =
+    kind === 'quiz' && teacherUid
+      ? db
+          .collection(USERS_COLLECTION)
+          .doc(teacherUid)
+          .collection(QUIZ_ASSIGNMENTS_SUBCOLLECTION)
+          .doc(sessionId)
+      : null;
+  const relabeled = await moveSectionIntoPairedPeriod(db, {
+    ...args,
+    sessionData,
+    sessionRef: ref,
+    archiveRef,
+  });
+  const next = await dedupeLinkedSectionPeriod(db, { ...args, sessionData });
+  if (!next) return relabeled;
+  const batch = db.batch();
+  batch.set(ref, { periodNames: next }, { merge: true });
+  if (archiveRef) batch.set(archiveRef, { periodNames: next }, { merge: true });
+  await batch.commit();
+  return true;
+}
+
+/** Firestore caps a batch at 500 writes; stay under it with room for the session docs. */
+const RELABEL_CHUNK = 400;
+
+/**
+ * Students who launched before the link carry the section title as their period.
+ * Move them, and the section's period-map entry, onto the paired class's label so
+ * the class shows as one period. Returns true when anything was written.
+ */
+async function moveSectionIntoPairedPeriod(
+  db: Db,
+  args: DropLinkedSectionPeriodArgs & {
+    sessionData: admin.firestore.DocumentData;
+    sessionRef: admin.firestore.DocumentReference;
+    archiveRef: admin.firestore.DocumentReference | null;
+  }
+): Promise<boolean> {
+  const { sessionData, contextId, contextTitle } = args;
+  if (
+    !sectionPairedOnSession(sessionData, args.classlinkClassId, args.rosterId)
+  )
+    return false;
+  const target = pairedPeriodLabel(sessionData, args.classlinkClassId);
+  if (!target) return false;
+  const sectionClassId = `schoology:${contextId}`;
+  const responses = await args.sessionRef
+    .collection(RESPONSES_SUBCOLLECTION)
+    .where('classId', '==', sectionClassId)
+    .get();
+  const toMove = responses.docs.filter(
+    (d) => !!contextTitle && d.data().classPeriod === contextTitle
+  );
+  const mapChanged = periodMap(sessionData)[sectionClassId] !== target;
+  if (toMove.length === 0 && !mapChanged) return false;
+
+  for (let i = 0; i < toMove.length; i += RELABEL_CHUNK) {
+    const batch = db.batch();
+    for (const d of toMove.slice(i, i + RELABEL_CHUNK)) {
+      batch.update(d.ref, { classPeriod: target });
+    }
+    await batch.commit();
+  }
+  if (mapChanged) {
+    const nextMap = { ...periodMap(sessionData), [sectionClassId]: target };
+    const batch = db.batch();
     batch.set(
-      db
-        .collection(USERS_COLLECTION)
-        .doc(teacherUid)
-        .collection(QUIZ_ASSIGNMENTS_SUBCOLLECTION)
-        .doc(sessionId),
-      { periodNames: next },
+      args.sessionRef,
+      { classPeriodByClassId: nextMap },
       { merge: true }
     );
+    if (args.archiveRef) {
+      batch.set(
+        args.archiveRef,
+        { classPeriodByClassId: nextMap },
+        { merge: true }
+      );
+    }
+    await batch.commit();
   }
-  await batch.commit();
   return true;
 }
 /** `users/{teacherUid}/lti_seen_sections/{contextId}` — linking-UI inventory. */
@@ -187,6 +272,11 @@ export type LtiSessionKind = 'quiz' | 'va';
 // join-target selection in useQuizSession so the membership is filed under the
 // SAME session the student's responses land in.
 const JOINABLE_QUIZ_STATUSES = new Set(['waiting', 'active', 'paused']);
+
+/** Identifies the session a launch targets: a quiz join code or a VA session id. */
+export type LtiTargetSessionArgs =
+  | { kind: 'quiz'; quizCode: string }
+  | { kind: 'va'; sessionId: string };
 
 /**
  * Fields common to both launch kinds, plus a discriminated `kind`→id pairing so
@@ -223,6 +313,45 @@ export type PersistLtiLaunchContextArgs = {
     }
 );
 
+/** The session a Schoology launch joins: the VA session by id, or the most recently started joinable quiz session for the code. */
+export async function resolveLtiTargetSession(
+  db: Db,
+  args: LtiTargetSessionArgs
+): Promise<{
+  sessionId: string;
+  sessionData: admin.firestore.DocumentData;
+} | null> {
+  const collectionName = sessionCollectionForKind(args.kind);
+  if (args.kind === 'va') {
+    const sid = args.sessionId.trim();
+    if (!sid) return null;
+    const snap = await db.collection(collectionName).doc(sid).get();
+    if (!snap.exists) return null;
+    return { sessionId: snap.id, sessionData: snap.data() ?? {} };
+  }
+  const normCode = normalizeQuizCode(args.quizCode);
+  if (!normCode) return null;
+  const snap = await db
+    .collection(collectionName)
+    .where('code', '==', normCode)
+    .get();
+  // Filter to joinable docs and prefer the most recently started — identical
+  // to the client's join-target selection, so the context is filed under the
+  // exact session the student joined.
+  const joinable = snap.docs
+    .filter((d) =>
+      JOINABLE_QUIZ_STATUSES.has((d.data().status as string) ?? '')
+    )
+    .sort(
+      (a, b) =>
+        ((b.data().startedAt as number) ?? 0) -
+        ((a.data().startedAt as number) ?? 0)
+    );
+  const sessionDoc = joinable[0];
+  if (!sessionDoc) return null;
+  return { sessionId: sessionDoc.id, sessionData: sessionDoc.data() ?? {} };
+}
+
 /**
  * Resolve the target session for a Schoology launch and persist the PII-free
  * launch context onto it (see the module header for the full field list).
@@ -245,40 +374,9 @@ export async function persistLtiLaunchContext(
 
   const collectionName = sessionCollectionForKind(kind);
 
-  // ── Resolve the target session doc ──────────────────────────────────────────
-  let sessionId: string;
-  let sessionData: admin.firestore.DocumentData;
-  if (kind === 'va') {
-    const sid = args.sessionId.trim();
-    if (!sid) return null;
-    const snap = await db.collection(collectionName).doc(sid).get();
-    if (!snap.exists) return null;
-    sessionId = snap.id;
-    sessionData = snap.data() ?? {};
-  } else {
-    const normCode = normalizeQuizCode(args.quizCode);
-    if (!normCode) return null;
-    const snap = await db
-      .collection(collectionName)
-      .where('code', '==', normCode)
-      .get();
-    // Filter to joinable docs and prefer the most recently started — identical
-    // to the client's join-target selection, so the context is filed under the
-    // exact session the student joined.
-    const joinable = snap.docs
-      .filter((d) =>
-        JOINABLE_QUIZ_STATUSES.has((d.data().status as string) ?? '')
-      )
-      .sort(
-        (a, b) =>
-          ((b.data().startedAt as number) ?? 0) -
-          ((a.data().startedAt as number) ?? 0)
-      );
-    const sessionDoc = joinable[0];
-    if (!sessionDoc) return null;
-    sessionId = sessionDoc.id;
-    sessionData = sessionDoc.data() ?? {};
-  }
+  const target = await resolveLtiTargetSession(db, args);
+  if (!target) return null;
+  const { sessionId, sessionData } = target;
 
   // Everything below is committed atomically (one batch) so the membership URL
   // and the `ltiNrps` flag can't desync into a silent "names never resolve"
@@ -356,7 +454,12 @@ export async function persistLtiLaunchContext(
     // A test-class link pairs on the roster's testClassId slug (also in classIds).
     const pairedClassId: unknown =
       link.classlinkClassId ?? (link.testClassId as unknown);
-    if (sectionPairedOnSession(sessionData, pairedClassId, link.rosterId)) {
+    const paired = sectionPairedOnSession(
+      sessionData,
+      pairedClassId,
+      link.rosterId
+    );
+    if (paired) {
       nextPeriodNames = await dedupeLinkedSectionPeriod(db, {
         kind,
         sessionId,
@@ -374,15 +477,15 @@ export async function persistLtiLaunchContext(
       }
     }
 
-    const currentMap =
-      sessionData.classPeriodByClassId &&
-      typeof sessionData.classPeriodByClassId === 'object'
-        ? (sessionData.classPeriodByClassId as Record<string, string>)
-        : {};
-    if (currentMap[classId] !== args.contextTitle) {
+    const currentMap = periodMap(sessionData);
+    // A linked section's students land in the paired class's period, so the class shows once.
+    const periodLabel =
+      (paired && pairedPeriodLabel(sessionData, pairedClassId)) ||
+      args.contextTitle;
+    if (currentMap[classId] !== periodLabel) {
       update.classPeriodByClassId = {
         ...currentMap,
-        [classId]: args.contextTitle,
+        [classId]: periodLabel,
       };
     }
   }

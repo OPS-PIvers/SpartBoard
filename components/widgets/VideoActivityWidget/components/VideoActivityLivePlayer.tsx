@@ -26,6 +26,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
+import { ltiSectionsKey } from '@/utils/ltiSectionsKey';
 import { useVideoActivityKeyQuestions } from '@/hooks/useVideoActivityKeyQuestions';
 import { useVideoActivityLiveControls } from '@/hooks/useVideoActivityLiveControls';
 import { VideoPlayer } from '@/components/videoActivity/VideoPlayer';
@@ -128,7 +129,8 @@ export const VideoActivityLivePlayer: React.FC<
   const ltiNames = useLtiSessionNames(
     session.id,
     session.ltiNrps === true,
-    'va'
+    'va',
+    ltiSectionsKey(session)
   );
   const byStudentUid = useMemo(() => {
     if (ltiNames.size === 0) return classLinkNames;

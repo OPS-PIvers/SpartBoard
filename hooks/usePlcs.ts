@@ -37,7 +37,7 @@ import {
 } from '@/utils/plcMeetingCadence';
 import { writePlcActivityEvent } from '@/utils/plcActivity';
 import { parseNormingLevelLabels } from '@/utils/plcNorming';
-import { parseTeamLayout } from '@/utils/teamLayout';
+import { featuresForTeamLayout, parseTeamLayout } from '@/utils/teamLayout';
 import { isSuperAdminActor } from '@/utils/superAdmin';
 import i18n from '@/i18n/index';
 
@@ -656,6 +656,10 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       // no org/building simply creates an untenanted PLC, as before).
       const creatorBuildingId =
         firstSelectedBuilding ?? firstBuildingId ?? null;
+      // The frozen layout's page switches, so old-dashboard teammates see the same pages.
+      const newTeamSwitches = layout
+        ? featuresForTeamLayout({ groupType }, layout)
+        : {};
       const ref = doc(collection(db, PLCS_COLLECTION));
       await setDoc(ref, {
         name: trimmed,
@@ -664,6 +668,9 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
         ...(groupType && groupType !== 'plc' ? { groupType } : {}),
         // Teams redesign: a new team keeps the district default it was created with (T3).
         ...(layout ? { layout } : {}),
+        ...(layout && Object.keys(newTeamSwitches).length
+          ? { features: newTeamSwitches }
+          : {}),
         // Canonical membership map (Decision 1.2). The creator is the sole
         // member and the lead. `joinedAt` is a serverTimestamp sentinel
         // resolved to millis on read by `parsePlcMembers`.

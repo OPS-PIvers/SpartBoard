@@ -119,6 +119,20 @@ vi.mock('@/components/plc/PlcDashboardRail', () => ({
   ),
 }));
 
+let mockUpdates: { id: string }[] = [];
+let mockUpdatesLoading = false;
+vi.mock('@/hooks/usePlcUpdates', () => ({
+  usePlcUpdates: () => ({
+    updates: mockUpdates,
+    loading: mockUpdatesLoading,
+  }),
+}));
+vi.mock('@/components/plc/teams/updates/LegacyUpdatesBody', () => ({
+  LegacyUpdatesBody: ({ isManager }: { isManager: boolean }) => (
+    <div data-testid="section-updates" data-manager={String(isManager)} />
+  ),
+}));
+
 // Section-body sentinels — each renders a uniquely identifiable div so the
 // active section can be asserted without booting any Firestore hooks.
 vi.mock('@/components/plc/home/PlcHome', () => ({
@@ -216,7 +230,44 @@ describe('PlcDashboard (Wave 1 — pathname-driven render/smoke)', () => {
     mockSpaNavigate.mockReset();
     mockSpaReplace.mockReset();
     mockFlagsLoaded = true;
+    mockUpdates = [];
+    mockUpdatesLoading = false;
     setUser('uid-a'); // default: signed-in lead
+  });
+
+  it('shows Updates after Home only when the team has updates', () => {
+    const { unmount } = render(
+      <PlcDashboard plc={fakePlc} activeSection="home" onClose={vi.fn()} />
+    );
+    expect(screen.queryByTestId('rail-updates')).toBeNull();
+    unmount();
+    mockUpdates = [{ id: 'u1' }];
+    render(
+      <PlcDashboard plc={fakePlc} activeSection="updates" onClose={vi.fn()} />
+    );
+    const ids = Array.from(
+      screen.getByTestId('rail').querySelectorAll('button')
+    ).map((b) => b.getAttribute('data-testid'));
+    expect(ids.slice(0, 2)).toEqual(['rail-home', 'rail-updates']);
+    expect(screen.getByTestId('section-updates').dataset.manager).toBe('true');
+    expect(mockSpaReplace).not.toHaveBeenCalled();
+  });
+
+  it('keeps an Updates deep link while updates load', () => {
+    mockUpdatesLoading = true;
+    render(
+      <PlcDashboard plc={fakePlc} activeSection="updates" onClose={vi.fn()} />
+    );
+    expect(mockSpaReplace).not.toHaveBeenCalled();
+  });
+
+  it('shows Updates to a member without management controls', () => {
+    setUser('uid-b');
+    mockUpdates = [{ id: 'u1' }];
+    render(
+      <PlcDashboard plc={fakePlc} activeSection="updates" onClose={vi.fn()} />
+    );
+    expect(screen.getByTestId('section-updates').dataset.manager).toBe('false');
   });
 
   it('renders the dialog shell with the PLC name as the title', () => {
@@ -266,6 +317,19 @@ describe('PlcDashboard (Wave 1 — pathname-driven render/smoke)', () => {
       <PlcDashboard plc={fakePlc} activeSection="home" onClose={vi.fn()} />
     );
     expect(screen.getAllByTestId('section-home-v2').length).toBeGreaterThan(0);
+  });
+
+  it('keeps a redesign-only deep link until the flags resolve', () => {
+    mockFlagsLoaded = false;
+    const { rerender } = render(
+      <PlcDashboard plc={fakePlc} activeSection="updates" onClose={vi.fn()} />
+    );
+    expect(mockSpaReplace).not.toHaveBeenCalled();
+    mockFlagsLoaded = true;
+    rerender(
+      <PlcDashboard plc={fakePlc} activeSection="updates" onClose={vi.fn()} />
+    );
+    expect(mockSpaReplace).toHaveBeenCalledWith('/plc/plc-42');
   });
 
   it('renders the section named by the activeSection prop (deep-link)', () => {

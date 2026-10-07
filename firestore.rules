@@ -2356,10 +2356,12 @@ service cloud.firestore {
         && l.hero.get('mode', '') in ['default', 'pinned'];
     }
 
-    // Lead or co-lead setting or clearing the team layout and nothing else.
+    // Lead or co-lead setting or clearing the team layout, with the section switches kept in step.
     function isUpdatingPlcLayout() {
       return isPlcMembershipManager(resource.data)
-        && changedOnly(['layout', 'updatedAt'])
+        && changedOnly(['layout', 'features', 'updatedAt'])
+        && request.resource.data.get('features', {}) is map
+        && ('features' in request.resource.data || !('features' in resource.data))
         && (!('layout' in request.resource.data) || plcLayoutShapeOk(request.resource.data.layout))
         && plcUpdatedAtOk();
     }

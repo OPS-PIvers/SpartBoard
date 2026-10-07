@@ -5,6 +5,7 @@ import {
   getPlcGroupType,
   type GoalCoachCriterion,
   type Plc,
+  type PlcFeatureSettings,
   type PlcGroupType,
   type PlcTeamLayout,
   type TeamCardId,
@@ -133,16 +134,20 @@ export function parseTeamLayout(raw: unknown): PlcTeamLayout | undefined {
 export function sanitizeTeamLayout(
   layout: PlcTeamLayout,
   groupType: PlcGroupType,
-  fallback: Pick<TeamTypePreset, 'landing'> = BUILT_IN_TEAM_TYPE_PRESETS[
-    groupType
-  ]
+  fallback: Pick<TeamTypePreset, 'landing'> &
+    Partial<Pick<TeamTypePreset, 'pages'>> = {
+    landing: BUILT_IN_TEAM_TYPE_PRESETS[groupType].landing,
+  }
 ): PlcTeamLayout {
   const available = teamTypeAvailablePages(groupType);
   const pages = parsePages(layout.pages).filter((p) =>
     available.includes(p.id)
   );
+  // A page added to the type after the layout was saved takes the type default.
   for (const id of available) {
-    if (!pages.some((p) => p.id === id)) pages.push({ id, enabled: false });
+    if (pages.some((p) => p.id === id)) continue;
+    const enabled = fallback.pages?.find((p) => p.id === id)?.enabled === true;
+    pages.push({ id, enabled });
   }
 
   const landingOk = (id: TeamPageId) =>
@@ -250,19 +255,65 @@ export function normalizeTeamTypeDefaults(raw: unknown): TeamTypeDefaults {
   return out;
 }
 
-/** T35: a page whose legacy section switch is off stays off until the lead saves a layout. */
-function applyLegacySwitches(
-  pages: TeamPageSetting[],
-  plc: Plc,
-  landing: TeamPageId
-): TeamPageSetting[] {
-  if (!plc.features) return pages;
+/** Pages a legacy section switch controls, and the landing cards that show their content. */
+type SwitchedPage = 'docs' | 'assessments';
+const SWITCHED_PAGE_CARDS: Record<SwitchedPage, TeamCardId[]> = {
+  docs: ['recentDocs', 'openDecisions'],
+  assessments: ['recentAssessments'],
+};
+
+function legacySwitches(plc: Plc): Record<SwitchedPage, boolean> {
   const features = getPlcFeatures(plc);
-  const off = new Set<TeamPageId>();
-  if (!features.notes) off.add('docs');
-  if (!features.quizzes && !features.videoActivities) off.add('assessments');
-  off.delete(landing);
-  return pages.map((p) => (off.has(p.id) ? { ...p, enabled: false } : p));
+  return {
+    docs: features.notes,
+    assessments: features.quizzes || features.videoActivities,
+  };
+}
+
+/** T35: once a team has section switches, they decide Notes & Docs and Assessments for every member. */
+function applyLegacySwitches(
+  layout: PlcTeamLayout,
+  plc: Plc
+): Pick<PlcTeamLayout, 'pages' | 'cards'> {
+  if (!plc.features) return layout;
+  const on = legacySwitches(plc);
+  const switched = (id: TeamPageId): id is SwitchedPage =>
+    Object.hasOwn(on, id) && id !== layout.landing;
+  const hiddenCards = new Set(
+    (Object.keys(on) as SwitchedPage[])
+      .filter((id) => !on[id])
+      .flatMap((id) => SWITCHED_PAGE_CARDS[id])
+  );
+  return {
+    pages: layout.pages.map((p) =>
+      switched(p.id) ? { ...p, enabled: on[p.id] } : p
+    ),
+    cards: layout.cards.filter((c) => !hiddenCards.has(c)),
+  };
+}
+
+/** Section switches a layout implies, so teammates on the old dashboard see the same pages. */
+export function featuresForTeamLayout(
+  plc: Pick<Plc, 'groupType' | 'features'>,
+  layout: Pick<PlcTeamLayout, 'pages'>
+): Partial<PlcFeatureSettings> {
+  const features = getPlcFeatures(plc as Plc);
+  const on = (id: TeamPageId) => layout.pages.find((p) => p.id === id)?.enabled;
+  const patch: Partial<PlcFeatureSettings> = {};
+  const docs = on('docs');
+  if (docs !== undefined && docs !== features.notes) patch.notes = docs;
+  const assessments = on('assessments');
+  const assessmentsOn = features.quizzes || features.videoActivities;
+  if (assessments !== undefined && assessments !== assessmentsOn) {
+    patch.quizzes = assessments;
+    patch.videoActivities = assessments;
+  }
+  return patch;
+}
+
+/** Whether Resources lists the team's shared boards (the legacy Shared Boards switch). */
+export function teamShowsSharedBoards(plc: Plc): boolean {
+  return getPlcFeatures(plc).sharedBoards;
 }
 
 /** Effective layout: the team's own, else the admin default for its type, else the built-in preset. */
@@ -277,7 +328,12 @@ export function resolveTeamLayout(
 
   if (plc.layout) {
     const layout = sanitizeTeamLayout(plc.layout, groupType, preset);
-    return { ...layout, heroRule, source: 'team' };
+    return {
+      ...layout,
+      ...applyLegacySwitches(layout, plc),
+      heroRule,
+      source: 'team',
+    };
   }
 
   const base = sanitizeTeamLayout(
@@ -291,7 +347,7 @@ export function resolveTeamLayout(
   );
   return {
     ...base,
-    pages: applyLegacySwitches(base.pages, plc, base.landing),
+    ...applyLegacySwitches(base, plc),
     heroRule,
     source: adminDefaults?.types[groupType] ? 'admin' : 'preset',
   };

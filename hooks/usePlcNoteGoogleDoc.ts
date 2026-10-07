@@ -8,11 +8,13 @@ import type { Plc, PlcActionItem, PlcNote } from '@/types';
 import { getPlcMembers } from '@/utils/plc';
 import { logError } from '@/utils/logError';
 import { buildNoteGoogleDocHtml } from '@/components/plc/notes/noteGoogleDocHtml';
+import type { NoteDocBlock } from '@/components/plc/notes/noteBlocksRead';
 
 export interface PlcNoteGoogleDocContent {
   title: string;
   body: string;
   actionItems: PlcActionItem[];
+  blocks?: NoteDocBlock[];
 }
 
 const DRIVE_FOLDER = 'Group Notes';
@@ -62,6 +64,7 @@ export const usePlcNoteGoogleDoc = (plc: Plc) => {
           .join(' · '),
         body: content.body,
         actionItems: content.actionItems,
+        blocks: content.blocks,
         members,
         labels: {
           actionItems: t('plcDashboard.notes.meeting.actionItems', {
@@ -72,6 +75,9 @@ export const usePlcNoteGoogleDoc = (plc: Plc) => {
               defaultValue: 'due {{date}}',
               date,
             }),
+          decision: t('teams.notes.decision.title', {
+            defaultValue: 'Decision',
+          }),
         },
       });
       const file = await driveService.createGoogleDocFromHtml(

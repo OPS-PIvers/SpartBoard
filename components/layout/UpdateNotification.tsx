@@ -1,9 +1,32 @@
 import { useAppVersion } from '@/hooks/useAppVersion';
 import { RefreshCw, AlertCircle, X } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { WhatsNewModal } from './WhatsNewModal';
 
 declare const __APP_VERSION__: string;
+declare const __APP_BUILD_ID__: string;
+
+const DISMISSED_KEY = 'update-notification-dismissed';
+
+// Dismissal is scoped to the running build: sessionStorage survives a reload, which must not mute the next deploy's prompt.
+const currentBuildId = (): string =>
+  typeof __APP_BUILD_ID__ === 'undefined' ? 'dev' : __APP_BUILD_ID__;
+
+const readDismissedBuild = (): string | null => {
+  try {
+    return sessionStorage.getItem(DISMISSED_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const writeDismissedBuild = (buildId: string): void => {
+  try {
+    sessionStorage.setItem(DISMISSED_KEY, buildId);
+  } catch {
+    // Storage unavailable: dismissal lasts until reload.
+  }
+};
 
 interface UpdateNotificationProps {
   checkInterval?: number;
@@ -13,17 +36,15 @@ export const UpdateNotification = ({
   checkInterval = 60000,
 }: UpdateNotificationProps) => {
   const { updateAvailable, reloadApp } = useAppVersion(checkInterval);
-  const [dismissed, setDismissed] = useState(() => {
-    // Restore dismissed state from sessionStorage
-    const stored = sessionStorage.getItem('update-notification-dismissed');
-    return stored === 'true';
-  });
+  const [dismissed, setDismissed] = useState(
+    () => readDismissedBuild() === currentBuildId()
+  );
   const [showWhatsNew, setShowWhatsNew] = useState(false);
 
-  // Persist dismissed state to sessionStorage
-  useEffect(() => {
-    sessionStorage.setItem('update-notification-dismissed', String(dismissed));
-  }, [dismissed]);
+  const dismiss = () => {
+    writeDismissedBuild(currentBuildId());
+    setDismissed(true);
+  };
 
   if (!updateAvailable || dismissed) {
     return showWhatsNew ? (
@@ -73,7 +94,7 @@ export const UpdateNotification = ({
               Refresh
             </button>
             <button
-              onClick={() => setDismissed(true)}
+              onClick={dismiss}
               className="p-2 hover:bg-slate-700 rounded-md transition-colors text-slate-400 hover:text-white"
               aria-label="Dismiss"
             >

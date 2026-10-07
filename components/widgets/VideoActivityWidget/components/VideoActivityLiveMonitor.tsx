@@ -36,6 +36,7 @@ import {
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
 import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
+import { ltiSectionsKey } from '@/utils/ltiSectionsKey';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import {
   SessionViewHeader,
@@ -465,7 +466,8 @@ export const VideoActivityLiveMonitor: React.FC<
   const ltiNames = useLtiSessionNames(
     session.id,
     session.ltiNrps === true,
-    'va'
+    'va',
+    ltiSectionsKey(session)
   );
   const byStudentUid = useMemo(() => {
     if (ltiNames.size === 0) return classLinkNames;

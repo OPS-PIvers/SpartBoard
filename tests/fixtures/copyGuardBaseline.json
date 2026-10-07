@@ -35,7 +35,6 @@
     "components/admin/LunchCountConfigurationPanel.tsx::Intermediate School — Sheet ID",
     "components/admin/LunchCountConfigurationPanel.tsx::Schumann Elementary — Sheet ID",
     "components/admin/MusicManager.tsx::— No genre —",
-    "components/admin/Organization/views/StudentPageView.tsx::Picture day is Friday — smile big!",
     "components/admin/StarterPackConfigurationModal.tsx::— position selected",
     "components/admin/WidgetBuilder/CellEditor.tsx::Cell Editor —",
     "components/assignmentsHub/AssignmentDetailPane.tsx::PIN/manual — no SSO status",

@@ -7,6 +7,7 @@ import {
   Loader2,
   Maximize2,
   Minimize2,
+  Pencil,
 } from 'lucide-react';
 import type { HelpResourceItem } from '@/types/helpCenter';
 import type { GuidedLearningSet } from '@/types';
@@ -21,6 +22,7 @@ import { loadBuildingSet } from '@/hooks/useGuidedLearning';
 import { logError } from '@/utils/logError';
 import { useAuth } from '@/context/useAuth';
 import { requestStartTour } from '@/components/tours/tourState';
+import { requestEditTour } from '@/components/tours/editor/tourEditStore';
 import { useFirstRunnableTour } from '@/components/tours/useTourOffers';
 import { isTourRunnable } from '@/components/tours/publishedTours';
 import { tourAttr } from '@/config/tourAnchors';
@@ -57,7 +59,7 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
   const canRunLive = useCanRunLiveTour();
   const hasTour =
     useFirstRunnableTour([setId], !fill && canRunLive && liveTours) !== null;
-  // Admins can try a tour that was never published; teachers never see it.
+  // Admins can open a tour that was never published in the editor; teachers never see it.
   const draftOnly =
     !hasTour &&
     !!isAdmin &&
@@ -135,8 +137,8 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
     </div>
   );
 
-  const runDraft = draftOnly && tourStepsOf(state.set).length > 0;
-  if (!hasTour && !runDraft) return player;
+  const editDraft = draftOnly && tourStepsOf(state.set).length > 0;
+  if (!hasTour && !editDraft) return player;
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
@@ -144,13 +146,17 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
         <button
           type="button"
           onClick={() =>
-            requestStartTour(runDraft ? { setId, draft: true } : { setId })
+            editDraft ? requestEditTour({ setId }) : requestStartTour({ setId })
           }
           className="flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-blue-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
           {...tourAttr('help-center.viewer.show-live')}
         >
-          <Footprints className="w-4 h-4" aria-hidden="true" />
-          {runDraft ? t('glStudio.runLiveDraft') : t('tours.showMeLive')}
+          {editDraft ? (
+            <Pencil className="w-4 h-4" aria-hidden="true" />
+          ) : (
+            <Footprints className="w-4 h-4" aria-hidden="true" />
+          )}
+          {editDraft ? t('tours.editor.open') : t('tours.showMeLive')}
         </button>
       </div>
       {player}

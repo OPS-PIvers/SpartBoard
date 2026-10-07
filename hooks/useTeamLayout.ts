@@ -10,7 +10,11 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { TEAM_TYPE_DEFAULTS_SETTINGS_DOC } from '@/config/teamTypePresets';
-import type { PlcTeamLayout, TeamTypeDefaults } from '@/types';
+import type {
+  PlcFeatureSettings,
+  PlcTeamLayout,
+  TeamTypeDefaults,
+} from '@/types';
 import {
   normalizeTeamTypeDefaults,
   toStoredTeamLayout,
@@ -60,13 +64,18 @@ export function useTeamTypeDefaults(
   return useTeamTypeDefaultsState(enabled).defaults;
 }
 
-/** Lead or co-lead: replace the team layout (rules close the write to layout + updatedAt). */
+/** Lead or co-lead: replace the team layout and the section switches it implies (rules close the write to layout, features, updatedAt). */
 export async function saveTeamLayout(
   plcId: string,
-  layout: PlcTeamLayout
+  layout: PlcTeamLayout,
+  features: Partial<PlcFeatureSettings> = {}
 ): Promise<void> {
+  const switches = Object.fromEntries(
+    Object.entries(features).map(([key, on]) => [`features.${key}`, on])
+  );
   await updateDoc(doc(db, PLCS_COLLECTION, plcId), {
     layout: toStoredTeamLayout(layout),
+    ...switches,
     updatedAt: serverTimestamp(),
   });
 }

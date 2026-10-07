@@ -45,12 +45,9 @@ import {
   useReadAloud,
 } from '@/components/widgets/GuidedLearning/components/player/useReadAloud';
 import {
-  clearStudioReturn,
-  handOffSnapshots,
   isTourRunning,
   setTourRunning,
   TOUR_START_EVENT,
-  type TourSnapshots,
   type TourStartRequest,
 } from './tourState';
 import {
@@ -79,7 +76,7 @@ import {
   settingsUndoKey,
 } from './tourPrerequisites';
 import { fieldSettingsTab } from './settingsTab';
-import { anchorPrerequisite } from '@/config/tourAnchors';
+import { anchorPrerequisite, WHOLE_BOARD_ANCHOR } from '@/config/tourAnchors';
 import { markSettingsOpenedLocally } from '@/components/settings/settingsOpenSignal';
 import { TourDialog } from './TourDialog';
 import { useShowSparty } from '@/components/sparty/useShowSparty';
@@ -105,6 +102,14 @@ import {
 } from './tourResume';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 import { startTourRunLog, type TourRunLog } from './tourRuns';
+import {
+  clearTourEdit,
+  getTourEdit,
+  reportTourEditPlayback,
+  reportTourEditShot,
+  selectTourEditStep,
+  useTourEditTarget,
+} from './editor/tourEditStore';
 
 const TourMiniPlayer = lazy(() => import('./TourMiniPlayer'));
 
@@ -114,9 +119,10 @@ interface LaunchOptions {
   /** Widgets a reloaded run had already added, so teardown can still remove them. */
   claimIds?: readonly string[];
   skipWelcome?: boolean;
-  /** Runs the Studio draft instead of the published snapshot. */
+  /** Runs the saved set instead of the published snapshot. */
   draft?: boolean;
-  retake?: TourStartRequest['retake'];
+  /** The board editor's draft, played step by step from the outline. */
+  edit?: boolean;
 }
 
 interface ActiveTour {
@@ -146,8 +152,7 @@ interface ActiveTour {
   /** A cleared stage: widgets the app adds while the tour runs are tour widgets. */
   clearStage?: boolean;
   draft?: boolean;
-  /** Draft runs: whose pictures to retake; steps without one always get one. */
-  retake?: TourStartRequest['retake'];
+  edit?: boolean;
 }
 
 const EMPTY_LAYER = {
@@ -308,6 +313,32 @@ export const LiveTourRunner: React.FC = () => {
     featurePermissions,
   };
 
+  // Edit mode: the board editor's draft, with its selection driving playback.
+  const editTarget = useTourEditTarget();
+  const [ffTarget, setFfTarget] = useState<number | null>(null);
+  const editHandled = useRef<{ selected: number; replay: number } | null>(null);
+  // Unsaved edits play as soon as they are made.
+  if (tour?.edit && editTarget && editTarget.set !== tour.set) {
+    setTour({
+      ...tour,
+      set: editTarget.set,
+      steps: liveTourStepsOf(editTarget.set),
+    });
+  }
+  if (
+    ffTarget !== null &&
+    tour?.phase === 'running' &&
+    (!tour.edit || tour.index >= ffTarget)
+  ) {
+    setFfTarget(null);
+  }
+  // Fast-forward: earlier steps play themselves with no lead time or cursor glide.
+  const jumping =
+    !!tour?.edit &&
+    tour.phase === 'running' &&
+    ffTarget !== null &&
+    tour.index < ffTarget;
+
   const widgets = activeDashboard?.widgets ?? [];
   const onTourBoard = !!tour && activeDashboard?.id === tour.boardId;
   if (tour && onTourBoard) {
@@ -410,7 +441,7 @@ export const LiveTourRunner: React.FC = () => {
 
   // A running tour survives a reload as {setId, index, addedIds}.
   const saved: SavedTour | null =
-    tour?.phase === 'running'
+    tour?.phase === 'running' && !tour.edit
       ? {
           setId: tour.set.id,
           index: tour.index,
@@ -457,19 +488,25 @@ export const LiveTourRunner: React.FC = () => {
 
   const binding = step?.tour ?? null;
 
-  // Draft runs picture each bound step that has no slide yet, or that the Studio asked to retake.
-  const snapshots = useRef(new Map<string, TourSnapshots['shots'][number]>());
+  // The editor pictures the step it stops on when it has no current picture or a Retake was asked.
   const [shotIds, setShotIds] = useState<ReadonlySet<string>>(() => new Set());
+  const editRetake =
+    tour?.edit && step && editTarget?.retake?.stepId === step.id
+      ? editTarget.retake.n
+      : 0;
+  const shotKey =
+    step && binding ? `${step.id}:${binding.anchor}:${editRetake}` : '';
   const snapStepId =
     tour?.phase === 'running' &&
-    tour.draft &&
+    tour.edit &&
+    !editTarget?.recording &&
+    !jumping &&
     step &&
     binding &&
+    binding.anchor !== WHOLE_BOARD_ANCHOR &&
     anchor.status === 'found' &&
-    !shotIds.has(step.id) &&
-    (tour.retake === 'all' ||
-      tour.retake === step.id ||
-      !hasStepSlide(tour.set, step))
+    !shotIds.has(shotKey) &&
+    (editRetake > 0 || !hasStepSlide(step))
       ? step.id
       : null;
   const snapElement = snapStepId ? anchor.element : null;
@@ -484,12 +521,12 @@ export const LiveTourRunner: React.FC = () => {
         .then((m) => m.captureStepSnapshot(snapElement, people))
         .then((shot) => {
           if (!live || !shot) return;
-          snapshots.current.set(snapStepId, {
+          reportTourEditShot({
             stepId: snapStepId,
             tour: binding,
-            ...shot,
+            frame: shot.frame,
           });
-          setShotIds((prev) => new Set(prev).add(snapStepId));
+          setShotIds((prev) => new Set(prev).add(shotKey));
         })
         .catch((err: unknown) =>
           console.warn('Live tour step picture failed', err)
@@ -499,7 +536,7 @@ export const LiveTourRunner: React.FC = () => {
       live = false;
       window.clearTimeout(timer);
     };
-  }, [snapStepId, snapElement, binding]);
+  }, [snapStepId, snapElement, binding, shotKey]);
   const anchorScope = { widgetIds: added, slots: tour?.slots };
   const onStage = hiddenIds.length
     ? widgets.filter((w) => !hiddenIds.includes(w.id))
@@ -657,11 +694,13 @@ export const LiveTourRunner: React.FC = () => {
     // Studio test runs of a draft are not field data.
     const uid = latest.current.uid;
     runLog.current =
-      uid && !opts.draft
+      uid && !opts.draft && !opts.edit
         ? startTourRunLog(set.id, uid, { v: set.updatedAt, furthest: index })
         : null;
     setAttempt(0);
-    setAutoOn(set.mode === 'guided' || set.tourSetup?.autopilot === true);
+    setAutoOn(
+      !opts.edit && (set.mode === 'guided' || set.tourSetup?.autopilot === true)
+    );
     setHandsOn(false);
     setAuto(null);
     setCue(null);
@@ -686,7 +725,7 @@ export const LiveTourRunner: React.FC = () => {
       hidden,
       clearStage,
       draft: opts.draft,
-      retake: opts.retake,
+      edit: opts.edit,
     });
   };
 
@@ -709,7 +748,7 @@ export const LiveTourRunner: React.FC = () => {
       ...EMPTY_LAYER,
       policy: DEFAULT_TOUR_AUTOPILOT_POLICY,
       draft: opts.draft,
-      retake: opts.retake,
+      edit: opts.edit,
     });
     setCheering(false);
     setFinished(false);
@@ -732,9 +771,8 @@ export const LiveTourRunner: React.FC = () => {
       return;
     startingRef.current = true;
     setResumeOffer(null);
-    // A failed launch drops its Studio return and any saved run, so neither comes back later.
+    // A failed launch drops any saved run, so it does not come back later.
     const launchFailed = () => {
-      clearStudioReturn();
       clearSavedTour();
       d.addToast(tr('tours.unavailable'), 'error');
     };
@@ -760,7 +798,6 @@ export const LiveTourRunner: React.FC = () => {
           {
             ...opts,
             draft: req.draft,
-            ...(req.draft && req.retake ? { retake: req.retake } : {}),
           }
         );
       } catch (err) {
@@ -806,15 +843,7 @@ export const LiveTourRunner: React.FC = () => {
 
   // Keep saves the tour's widgets; every other ending discards them.
   const endTour = (keep = false) => {
-    if (tour?.draft && snapshots.current.size > 0) {
-      const shots = [...snapshots.current.values()];
-      handOffSnapshots({
-        setId: tour.set.id,
-        stepId: shots[shots.length - 1].stepId,
-        shots,
-      });
-    }
-    snapshots.current = new Map();
+    if (tour?.edit) clearTourEdit();
     setShotIds(new Set());
     if (tour) {
       const d = latest.current.dashboard;
@@ -833,7 +862,7 @@ export const LiveTourRunner: React.FC = () => {
 
   const startOnPracticeBoard = async () => {
     if (!tour) return;
-    const { set, steps, index, draft, retake } = tour;
+    const { set, steps, index, draft, edit } = tour;
     const id = await latest.current.dashboard.createNewDashboard(
       latest.current.t('tours.practiceBoardName')
     );
@@ -856,7 +885,7 @@ export const LiveTourRunner: React.FC = () => {
       abandon();
       return;
     }
-    runSetup(set, steps, index, { draft, retake });
+    runSetup(set, steps, index, { draft, edit });
   };
 
   // A step left while its anchor was still missing counts as a field miss.
@@ -887,13 +916,21 @@ export const LiveTourRunner: React.FC = () => {
     manualStep.current = null;
     setAuto(null);
     if (index >= tour.steps.length) {
-      finish(true);
+      if (!tour.edit) finish(true);
       return;
     }
     noteMiss();
     runLog.current?.update({ furthest: index });
     setAttempt(0);
     const next = Math.max(index, 0);
+    // The outline follows playback; a fast-forward already shows where it is heading.
+    if (tour.edit && (ffTarget === null || next > ffTarget)) {
+      editHandled.current = {
+        selected: next,
+        replay: editHandled.current?.replay ?? 0,
+      };
+      selectTourEditStep(next);
+    }
     const boardIds = (
       latest.current.dashboard.activeDashboard?.widgets ?? []
     ).map((w) => w.id);
@@ -908,7 +945,86 @@ export const LiveTourRunner: React.FC = () => {
   advanceRef.current = goTo;
   const stepIndex = tour?.index ?? 0;
 
-  const acted = isActedStep(step?.tour);
+  // Edit mode: rebuilds the stage, and the start effect below replays up to the selection.
+  const resetEdit = () => {
+    if (!tour) return;
+    autoWait.current?.abort();
+    autoClicking.current = false;
+    setAuto(null);
+    setCue(null);
+    latest.current.dashboard.discardTourWidgets?.(tour.tourIds);
+    undoPrerequisites();
+    setFfTarget(null);
+    setTour(null);
+  };
+  // Stops a fast-forward where it is; the outline selects that step.
+  const stopJump = () => {
+    if (!tour || !jumping) return;
+    autoWait.current?.abort();
+    autoClicking.current = false;
+    setAuto(null);
+    setFfTarget(null);
+    editHandled.current = {
+      selected: tour.index,
+      replay: editHandled.current?.replay ?? 0,
+    };
+    selectTourEditStep(tour.index);
+  };
+
+  // The editor's draft plays from step 1 on a fresh stage, then fast-forwards to the selection.
+  const editIdle =
+    !!editTarget && editTarget.set.steps.length > 0 && tour === null;
+  const startEdit = useEffectEvent(() => {
+    const req = getTourEdit();
+    if (!req || startingRef.current || !canAccessFeature('gl-live-tours'))
+      return;
+    const steps = liveTourStepsOf(req.set);
+    if (steps.length === 0) return;
+    const selected = Math.min(req.selected, steps.length - 1);
+    editHandled.current = { selected, replay: req.replay };
+    setResumeOffer(null);
+    beginRef.current(req.set, steps, 0, null, { edit: true });
+    setFfTarget(selected > 0 ? selected : null);
+  });
+  useEffect(() => {
+    if (editIdle) startEdit();
+  }, [editIdle]);
+
+  // Leaving the editor tears the stage down.
+  const editEnded = !editTarget && !!tour?.edit;
+  const endEdit = useEffectEvent(() => endTour());
+  useEffect(() => {
+    if (editEnded) endEdit();
+  }, [editEnded]);
+
+  // A later step fast-forwards from here; an earlier one, or a reorder, replays from step 1.
+  const followEdit = useEffectEvent(() => {
+    const req = getTourEdit();
+    const handled = editHandled.current;
+    if (!req || !handled || !tour?.edit || tour.phase !== 'running') return;
+    if (req.selected === handled.selected && req.replay === handled.replay)
+      return;
+    editHandled.current = { selected: req.selected, replay: req.replay };
+    if (req.replay === handled.replay && req.selected >= tour.index) {
+      autoWait.current?.abort();
+      autoClicking.current = false;
+      manualStep.current = null;
+      setAuto(null);
+      setCue(null);
+      setFfTarget(req.selected > tour.index ? req.selected : null);
+      return;
+    }
+    resetEdit();
+  });
+  const editSelected = editTarget?.selected;
+  const editReplay = editTarget?.replay;
+  useEffect(() => {
+    followEdit();
+  }, [editSelected, editReplay]);
+
+  // Record from here captures real clicks; the stage stays but the tour stands aside.
+  const editRecording = !!tour?.edit && !!editTarget?.recording;
+  const acted = isActedStep(step?.tour) && !editRecording;
   const action = step?.tour?.action;
   const stepValue = step?.tour?.value;
   // A click on the anchor advances once the app has handled it; typing and native selects advance on change.
@@ -954,7 +1070,9 @@ export const LiveTourRunner: React.FC = () => {
     resumeOffer !== null &&
     !!activeDashboard &&
     canAccessFeature('gl-live-tours');
-  const escapable = tour !== null || offeringResume;
+  // The editor keeps Escape for its own controls, except to stop a fast-forward.
+  const escapable =
+    (tour !== null && (!tour.edit || jumping)) || offeringResume;
   const active = tour !== null;
   useEffect(() => {
     setTourRunning(active);
@@ -964,11 +1082,13 @@ export const LiveTourRunner: React.FC = () => {
   const finishRef = useRef(finish);
   finishRef.current = !tour
     ? () => dismissResume(false)
-    : tour.phase === 'teardown'
-      ? () => endTour(true)
-      : tour.phase === 'practice-offer'
-        ? abandon
-        : () => finish();
+    : tour.edit
+      ? () => stopJump()
+      : tour.phase === 'teardown'
+        ? () => endTour(true)
+        : tour.phase === 'practice-offer'
+          ? abandon
+          : () => finish();
 
   // Switching boards ends the tour with no prompt; its unsaved widgets go with it.
   const boardSwitched =
@@ -978,6 +1098,11 @@ export const LiveTourRunner: React.FC = () => {
     activeDashboard.id !== tour.boardId;
   const endOnBoardSwitch = useEffectEvent(() => {
     const board = latest.current.dashboard.activeDashboard;
+    // The editor follows the admin to the new board and replays there.
+    if (tour?.edit) {
+      resetEdit();
+      return;
+    }
     // A step that teaches board navigation follows the teacher to the new board.
     if (
       tour?.phase === 'running' &&
@@ -1089,7 +1214,7 @@ export const LiveTourRunner: React.FC = () => {
   const cursorAllowed =
     running && center !== null && isClick && !step?.cursor?.hide;
   // Guided sets start with the Autopilot switch on; the teacher can flip it either way.
-  const autopilot = autoOn;
+  const autopilot = tour?.edit ? jumping : autoOn;
   const stepKey = `${stepIndex}:${attempt}`;
   const autoStage = auto?.key === stepKey ? auto.stage : null;
   const found = running && anchor.status === 'found';
@@ -1178,7 +1303,7 @@ export const LiveTourRunner: React.FC = () => {
     let performed: Promise<void>;
     try {
       performed = performStep(el, binding, {
-        instant: reducedMotion,
+        instant: reducedMotion || jumping,
         signal: ctrl.signal,
       });
     } catch {
@@ -1205,7 +1330,7 @@ export const LiveTourRunner: React.FC = () => {
           ctrl.signal
         ).then((ok) => {
           if (ctrl.signal.aborted) return;
-          if (ok) advanceRef.current(index + 1);
+          if (ok || jumping) advanceRef.current(index + 1);
           else setAuto({ key: stepKey, stage: 'fallback' });
         });
       });
@@ -1215,7 +1340,7 @@ export const LiveTourRunner: React.FC = () => {
 
   const runAuto = () => {
     setAuto({ key: stepKey, stage: 'demo' });
-    if (cursorAllowed && !reducedMotion) playCursor(true);
+    if (cursorAllowed && !reducedMotion && !jumping) playCursor(true);
     else autoClickRef.current();
   };
   const startAutoDemo = useEffectEvent(runAuto);
@@ -1228,14 +1353,26 @@ export const LiveTourRunner: React.FC = () => {
     if (!autoRunning || !isClick || autoStage !== null || !step) return;
     const id = setTimeout(
       () => startAutoDemo(),
-      autoLeadMs(step, tour?.set.watchPace)
+      jumping ? 0 : autoLeadMs(step, tour?.set.watchPace)
     );
     return () => clearTimeout(id);
-  }, [autoRunning, isClick, autoStage, stepKey, step, tour?.set.watchPace]);
+  }, [
+    autoRunning,
+    isClick,
+    autoStage,
+    stepKey,
+    step,
+    tour?.set.watchPace,
+    jumping,
+  ]);
 
   // Observe steps move on at reading pace.
   const observeMs =
-    step && !isClick ? autoObserveMs(step, tour?.set.watchPace) : 0;
+    step && !isClick
+      ? jumping
+        ? 1
+        : autoObserveMs(step, tour?.set.watchPace)
+      : 0;
   useEffect(() => {
     if (!autoRunning || observeMs <= 0) return;
     const index = stepIndex;
@@ -1244,6 +1381,62 @@ export const LiveTourRunner: React.FC = () => {
   }, [autoRunning, observeMs, stepIndex, attempt]);
 
   useEffect(() => () => autoWait.current?.abort(), []);
+
+  // A fast-forward passes over a step whose control isn't on the board.
+  const skipMissing = jumping && anchor.status === 'missing';
+  useEffect(() => {
+    if (skipMissing) advanceRef.current(stepIndex + 1);
+  }, [skipMissing, stepIndex]);
+
+  // The outline marks steps whose control wasn't found when they last played.
+  const [missingIds, setMissingIds] = useState<readonly string[]>([]);
+  if (tour?.edit && step?.tour) {
+    const listed = missingIds.includes(step.id);
+    if (anchor.status === 'missing' && !listed)
+      setMissingIds([...missingIds, step.id]);
+    else if (anchor.status === 'found' && listed)
+      setMissingIds(missingIds.filter((id) => id !== step.id));
+  }
+  const editBlocked =
+    autoStage === 'blocked' ||
+    autoStage === 'confirm' ||
+    autoStage === 'fallback';
+  const editRect =
+    tour?.edit && rect
+      ? { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
+      : null;
+  const playbackKey = tour?.edit
+    ? JSON.stringify([
+        stepIndex,
+        plain ? 'found' : anchor.status,
+        editRect,
+        jumping,
+        editBlocked,
+        missingIds,
+        tour.slots,
+      ])
+    : '';
+  const playbackRef = useRef({
+    index: stepIndex,
+    anchor: anchor.status,
+    rect: editRect,
+    jumping,
+    blocked: editBlocked,
+    missing: missingIds,
+    slots: tour?.slots ?? {},
+  });
+  playbackRef.current = {
+    index: stepIndex,
+    anchor: plain ? 'found' : anchor.status,
+    rect: editRect,
+    jumping,
+    blocked: editBlocked,
+    missing: missingIds,
+    slots: tour?.slots ?? {},
+  };
+  useEffect(() => {
+    if (playbackKey) reportTourEditPlayback(playbackRef.current);
+  }, [playbackKey]);
 
   // Run stats reach Firestore when the page hides or the runner unmounts mid-run.
   useEffect(() => {
@@ -1303,7 +1496,7 @@ export const LiveTourRunner: React.FC = () => {
 
   const canRead = !!step && (!!step.narration?.url || speechAvailable());
   useReadAloud({
-    enabled: readAloud && canRead,
+    enabled: (tour?.edit ? !!editTarget?.readAloud : readAloud) && canRead,
     step: step as unknown as GuidedLearningPublicStep | null,
     stepKey: step && tour ? `${tour.set.id}:${tour.index}:${attempt}` : null,
   });
@@ -1402,7 +1595,7 @@ export const LiveTourRunner: React.FC = () => {
       </>
     );
   } else if (tour.phase === 'welcome') {
-    const { set, steps, index, draft, retake } = tour;
+    const { set, steps, index, draft } = tour;
     content = dialog(
       set.title.trim() || t('tours.welcomeTitle'),
       tourWelcome(set) ?? '',
@@ -1418,7 +1611,7 @@ export const LiveTourRunner: React.FC = () => {
           type="button"
           data-autofocus=""
           className={primaryBtn}
-          onClick={() => begin(set, steps, index, null, { draft, retake })}
+          onClick={() => begin(set, steps, index, null, { draft })}
         >
           {t('tours.startTour')}
         </button>
@@ -1469,7 +1662,7 @@ export const LiveTourRunner: React.FC = () => {
       </>,
       finished ? 'cheer' : undefined
     );
-  } else if (step) {
+  } else if (step && !(jumping && !editBlocked)) {
     const total = tour.steps.length;
     const title = step.label?.trim()
       ? step.label
@@ -1484,7 +1677,7 @@ export const LiveTourRunner: React.FC = () => {
     const isMissing = anchor.status === 'missing';
     const autoText =
       autoStage === 'blocked'
-        ? t('tours.autoSkipped')
+        ? t(tour.edit ? 'tours.editor.youClick' : 'tours.autoSkipped')
         : autoStage === 'fallback'
           ? t('tours.autoFallback')
           : autoOn && autoStage !== 'confirm'
@@ -1509,6 +1702,12 @@ export const LiveTourRunner: React.FC = () => {
       !autoBusy &&
       autoStage !== 'blocked' &&
       (!autoOn || autoStage === 'fallback');
+    // Steps the teacher finishes by clicking the target, or that Autopilot moves on, need no Next here.
+    const showTipNext =
+      !autoRunning &&
+      !autoBusy &&
+      (!acted || action === 'type' || isMissing) &&
+      !(tour.edit && tour.index + 1 === total);
     const status: TourTipStatus | null =
       autoStatus ??
       (staticHintOn
@@ -1518,9 +1717,9 @@ export const LiveTourRunner: React.FC = () => {
             testId: 'tour-static-hint',
           }
         : null);
-    // A step with no anchor shows its slide too, unless the slide would play media or a question.
+    // A step with no anchor keeps its legacy slide, unless the slide would play media or a question.
     const plainSlide = plain && !PLAIN_SLIDE_SKIP.has(step.interactionType);
-    const preview = (isMissing || plainSlide) && hasStepSlide(tour.set, step);
+    const preview = (isMissing || plainSlide) && hasStepSlide(step, tour.set);
     const width = Math.min(
       preview ? PREVIEW_WIDTH : plain ? PLAIN_WIDTH : CALLOUT_WIDTH,
       viewport.w - VIEWPORT_GUTTER * 2
@@ -1545,29 +1744,31 @@ export const LiveTourRunner: React.FC = () => {
             pulse={anchor.centred}
           />
         )}
-        <TourBar
-          current={tour.index + 1}
-          total={total}
-          onBack={
-            tour.index > 0
-              ? () => {
-                  // Autopilot never replays a click the teacher went back to see.
-                  if (autoOn) stopAutopilot();
-                  goTo(tour.index - 1);
-                }
-              : undefined
-          }
-          onNext={() => goTo(tour.index + 1)}
-          onRetry={isMissing ? () => setAttempt((n) => n + 1) : undefined}
-          autopilot={{ on: autoOn, onChange: setAutopilot }}
-          readAloud={
-            canRead
-              ? { on: readAloud, onToggle: () => setReadAloud((on) => !on) }
-              : undefined
-          }
-          onExit={() => finish()}
-          onPlace={onBarPlace}
-        />
+        {!tour.edit && (
+          <TourBar
+            current={tour.index + 1}
+            total={total}
+            onBack={
+              tour.index > 0
+                ? () => {
+                    // Autopilot never replays a click the teacher went back to see.
+                    if (autoOn) stopAutopilot();
+                    goTo(tour.index - 1);
+                  }
+                : undefined
+            }
+            onNext={() => goTo(tour.index + 1)}
+            onRetry={isMissing ? () => setAttempt((n) => n + 1) : undefined}
+            autopilot={{ on: autoOn, onChange: setAutopilot }}
+            readAloud={
+              canRead
+                ? { on: readAloud, onToggle: () => setReadAloud((on) => !on) }
+                : undefined
+            }
+            onExit={() => finish()}
+            onPlace={onBarPlace}
+          />
+        )}
         <TourTip
           key={tour.index}
           boxRef={measureBox}
@@ -1583,6 +1784,14 @@ export const LiveTourRunner: React.FC = () => {
           status={status}
           onShowMe={hintOn && !autoBusy ? showMe : undefined}
           autopilotStep={offerAutoStep ? { onRun: runStep } : undefined}
+          next={
+            showTipNext
+              ? {
+                  onNext: () => goTo(tour.index + 1),
+                  last: tour.index + 1 === total,
+                }
+              : undefined
+          }
           confirm={
             autoStage === 'confirm'
               ? {
@@ -1650,6 +1859,8 @@ export const LiveTourRunner: React.FC = () => {
       </>
     );
   }
+
+  if (editRecording) content = null;
 
   // No box of its own, so each layer stacks on its own z-index around a lifted dock.
   // Clicks on the tour's own controls must not reach the board, which deselects the widget a step points at.

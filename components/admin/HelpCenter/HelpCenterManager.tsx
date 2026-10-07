@@ -262,7 +262,7 @@ export const HelpCenterManager: React.FC = () => {
 
   const TOUR_NEXT_STEP = {
     draft:
-      'Not published yet: press Edit, then Edit activity, then Publish tour in the Studio.',
+      'Not published yet: press Edit, then Edit activity, then Publish tour in Settings.',
     hidden: 'Published: turn on Visible so teachers can find it in Help.',
   } as const;
 

@@ -105,6 +105,8 @@ export interface DigestUpdate {
   title: string;
   authorName: string;
   createdAt: number;
+  /** The lead asked members to acknowledge it in the app. */
+  requiresAck?: boolean;
 }
 
 export interface DigestDeps {
@@ -202,9 +204,12 @@ export function buildPlcDigestEmail(opts: {
   const shown = sorted.slice(0, MAX_DIGEST_LINES);
   const overflow = sorted.length - shown.length;
   const count = sorted.length + updates.length;
-  const updateLines = updates.map((u) =>
-    u.authorName.trim() ? `${u.title} (${u.authorName.trim()})` : u.title
-  );
+  const updateLines = updates.map((u) => {
+    const line = u.authorName.trim()
+      ? `${u.title} (${u.authorName.trim()})`
+      : u.title;
+    return u.requiresAck ? `${line} · Needs acknowledgement` : line;
+  });
 
   const subject =
     count === 1
@@ -425,6 +430,7 @@ async function readWindowedUpdates(
       title: data.title,
       authorName: typeof data.authorName === 'string' ? data.authorName : '',
       createdAt: toMillis(data.createdAt),
+      requiresAck: data.requiresAck === true,
     });
   }
   return out;

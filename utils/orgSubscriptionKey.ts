@@ -1,6 +1,6 @@
 /**
  * Shared key logic for org-scoped Firestore subscription hooks (useOrgBuildings,
- * useOrgDomains, useOrgMembers, useOrgRoles, useOrgStudentPage, useOrganization,
+ * useOrgDomains, useOrgMembers, useOrgRoles, useOrganization,
  * useTestClasses). Each hook subscribes to a doc/collection scoped by `orgId`
  * and gates the subscription behind a `shouldSubscribe` flag (auth-bypass /
  * signed-out / no orgId all disable it).

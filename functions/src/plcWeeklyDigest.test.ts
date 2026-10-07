@@ -678,6 +678,21 @@ describe('runPlcWeeklyDigest — team updates (TEAMS_REDESIGN T27)', () => {
     expect(message.subject).toBe('1 update this week in "OMS Staff"');
   });
 
+  it('marks updates that need acknowledgement', async () => {
+    const { db, mail } = makeStubDb({
+      digestEnabled: true,
+      plcs: [team([update('u1', { requiresAck: true }), update('u2')])],
+    });
+    await runPlcWeeklyDigest(db, NOW, {
+      updatesGranted: () => Promise.resolve(true),
+    });
+    const [[, doc]] = [...mail.entries()];
+    const { text, html } = doc.message as { text: string; html: string };
+    expect(text).toContain('Update u1 (Erin Walsh) · Needs acknowledgement');
+    expect(text).toContain('Update u2 (Erin Walsh)\n');
+    expect(html).toContain('Needs acknowledgement');
+  });
+
   it('leaves updates out when the lead does not have the flag', async () => {
     const { db, mail } = makeStubDb({
       digestEnabled: true,

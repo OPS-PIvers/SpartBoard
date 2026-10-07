@@ -42,6 +42,17 @@ function storedThumbnail(
   return typeof thumb === 'string' ? thumb : null;
 }
 
+// A tour with no slides uses its first step thumbnail as the cover.
+function firstTourThumbnail(data: Record<string, unknown>): string {
+  if (data.mode !== 'tour' || !Array.isArray(data.steps)) return '';
+  for (const step of data.steps as unknown[]) {
+    const url = (step as { tour?: { thumbnail?: { url?: unknown } } } | null)
+      ?.tour?.thumbnail?.url;
+    if (typeof url === 'string' && url) return url;
+  }
+  return '';
+}
+
 // First non-video slide (its stored thumbnail if any), matching the client builder.
 function pickThumbnail(data: Record<string, unknown>): string {
   const urls = Array.isArray(data.imageUrls) ? data.imageUrls : [];
@@ -51,7 +62,7 @@ function pickThumbnail(data: Record<string, unknown>): string {
       return storedThumbnail(data, urls[i] as string) ?? (urls[i] as string);
     }
   }
-  return '';
+  return firstTourThumbnail(data);
 }
 
 export function buildGlBuildingIndexEntry(

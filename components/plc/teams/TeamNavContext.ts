@@ -14,6 +14,8 @@ export interface TeamNav {
   docId: string | null;
   /** A saved meeting record from an old `/meeting/:id` link; Notes & Docs opens it. */
   meetingId: string | null;
+  /** The section the URL asked for, before it was mapped to a team page. */
+  section?: PlcSectionId;
   /** The team's resolved layout, e.g. for a hero following the default rule. */
   layout: ResolvedTeamLayout | null;
 }

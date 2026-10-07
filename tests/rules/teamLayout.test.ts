@@ -157,6 +157,28 @@ describe('plcs/{plcId} layout', () => {
     await assertFails(writeLayout(CO_LEAD, { digestOptIn: true }));
   });
 
+  it('a co-lead keeps the section switches in step with the layout', async () => {
+    await assertSucceeds(
+      writeLayout(CO_LEAD, {
+        'features.notes': false,
+        'features.quizzes': true,
+      })
+    );
+    await assertFails(writeLayout(CO_LEAD, { features: 'off' }));
+  });
+
+  it('a co-lead cannot delete the section switches with a layout save', async () => {
+    await testEnv.withSecurityRulesDisabled((ctx) =>
+      updateDoc(doc(ctx.firestore(), PLC_PATH), { features: { notes: false } })
+    );
+    await assertFails(writeLayout(CO_LEAD, { features: deleteField() }));
+    await assertSucceeds(writeLayout(CO_LEAD, { 'features.notes': true }));
+  });
+
+  it('a plain member cannot write switches alongside a layout', async () => {
+    await assertFails(writeLayout(MEMBER, { 'features.notes': false }));
+  });
+
   it('rejects a malformed layout from a co-lead', async () => {
     const bad = [
       'dataOverview',
@@ -213,6 +235,8 @@ describe('plcs/{plcId} create with a layout', () => {
     await assertSucceeds(create());
     await testEnv.clearFirestore();
     await assertSucceeds(create({ layout }));
+    await testEnv.clearFirestore();
+    await assertSucceeds(create({ layout, features: { notes: false } }));
   });
 
   it('rejects a create with a malformed layout', async () => {

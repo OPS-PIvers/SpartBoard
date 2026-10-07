@@ -236,6 +236,15 @@ const isStorageUrl = (url: string) => {
   }
 };
 
+/** Step text is one paragraph, or two separated by one blank line. */
+export function assertStepText(at: string, text: string): void {
+  const parts = text.split('\n\n');
+  if (parts.length > 2 || parts.some((p) => !p.trim() || p.includes('\n')))
+    throw new ToolError(
+      `${at}.text must be one paragraph, or two separated by one blank line.`
+    );
+}
+
 /** Checks the edited steps against the importer's rules and merges in media the stored steps own. */
 export function mergeSteps(
   existing: readonly Step[],
@@ -258,17 +267,7 @@ export function mergeSteps(
         `${at}.imageIndex ${s.imageIndex} is past the last slide (${slideCount - 1}). Slides can't be added here.`
       );
     }
-    if (s.text !== undefined) {
-      const parts = s.text.split('\n\n');
-      if (
-        parts.length > 2 ||
-        parts.some((p) => !p.trim() || p.includes('\n'))
-      ) {
-        throw new ToolError(
-          `${at}.text must be one paragraph, or two separated by one blank line.`
-        );
-      }
-    }
+    if (s.text !== undefined) assertStepText(at, s.text);
     if (s.region) {
       const halfW = s.region.wPct / 2;
       const halfH = s.region.hPct / 2;
@@ -391,7 +390,7 @@ const usesSpotlight = (s: Step) =>
   s.interactionType === 'pan-zoom-spotlight';
 
 /** Steps as Claude sees them: the files a step owns stay server-side. */
-function publicStep(step: Step) {
+export function publicStep(step: Step) {
   const out: Record<string, unknown> = { ...step };
   delete out.audioStoragePath;
   delete out.videoStoragePath;
@@ -399,6 +398,32 @@ function publicStep(step: Step) {
   delete out.narration;
   if (step.narration) out.has_narration = true;
   return out;
+}
+
+export interface SetRow {
+  id: string;
+  title: string;
+  helpCenter: boolean;
+  liveTour: boolean;
+  updatedAt: unknown;
+}
+
+/** list_guided_learning's filter: every search word in the title, in any order, newest first. */
+export function filterSetRows(
+  rows: readonly SetRow[],
+  opts: {
+    helpCenterOnly: boolean;
+    kind?: 'live_tour' | 'guided_learning';
+    search?: string;
+  }
+): SetRow[] {
+  const words = (opts.search ?? '').toLowerCase().split(/\s+/).filter(Boolean);
+  const ms = (r: SetRow) => (typeof r.updatedAt === 'number' ? r.updatedAt : 0);
+  return rows
+    .filter((r) => !opts.helpCenterOnly || r.helpCenter)
+    .filter((r) => !opts.kind || r.liveTour === (opts.kind === 'live_tour'))
+    .filter((r) => words.every((w) => r.title.toLowerCase().includes(w)))
+    .sort((a, b) => ms(b) - ms(a));
 }
 
 export async function isAdmin(ctx: ToolContext): Promise<boolean> {
@@ -425,7 +450,7 @@ export async function assertAccess(
   }
 }
 
-interface Loaded {
+export interface Loaded {
   set: GlSet;
   source: Source;
   driveFileId?: string;
@@ -504,7 +529,7 @@ const EDITABLE = [
 const CONFLICT =
   'Someone saved this set in SpartBoard while Claude was editing it. Fetch it again and redo the change.';
 
-async function saveSet(
+export async function saveSet(
   ctx: ToolContext,
   loaded: Loaded,
   next: GlSet,
@@ -645,6 +670,14 @@ interface EditInput {
   steps?: StepInput[];
 }
 
+/** Whether a revision's steps still point at slides the set has; tour steps don't use slides. */
+export const revisionStepsFitSlides = (
+  set: Pick<GlSet, 'mode' | 'imageUrls'>,
+  steps: readonly Pick<Step, 'imageIndex'>[]
+): boolean =>
+  set.mode === 'tour' ||
+  steps.every((s) => !(s.imageIndex >= (set.imageUrls?.length ?? 0)));
+
 /** restore_revision for Guided Learning; called from tools.ts. */
 export async function restoreGuidedLearningRevision(
   ctx: ToolContext,
@@ -655,7 +688,7 @@ export async function restoreGuidedLearningRevision(
   await assertAccess(ctx, source);
   const loaded = await loadSet(ctx, source, String(rev.get('itemId')));
   const steps = (data.steps as Step[] | undefined) ?? loaded.set.steps;
-  if (steps.some((s) => s.imageIndex >= loaded.set.imageUrls.length)) {
+  if (!revisionStepsFitSlides(loaded.set, steps)) {
     throw new ToolError(
       "The set's slides changed since that version, so it can't be restored here. Restore it in SpartBoard."
     );
@@ -686,7 +719,7 @@ export function glSlideStoragePath(
   return path;
 }
 
-async function slideBytes(
+export async function slideBytes(
   ctx: ToolContext,
   url: string,
   source: 'mine' | 'building'
@@ -727,15 +760,23 @@ export function registerGuidedLearningTools(
     'list_guided_learning',
     {
       title: 'List Guided Learning sets',
-      description: `Lists Guided Learning sets, newest first, ${PAGE_SIZE} per page. source "help_center" lists the sets the Help Center uses (admins only).`,
+      description: `Lists Guided Learning sets and live tours, newest first, ${PAGE_SIZE} per page. Every live tour, draft or published, is a "building" set (admins only); kind "live_tour" lists only those, and their set_id goes to get_live_tour. source "help_center" lists only sets filed in the Help Center, so a draft tour may be missing there.`,
       inputSchema: {
         source: z.enum(['mine', 'building', 'help_center']).default('mine'),
-        search: z.string().max(100).optional(),
+        kind: z
+          .enum(['live_tour', 'guided_learning'])
+          .optional()
+          .describe('Only live tours, or only Guided Learning sets.'),
+        search: z
+          .string()
+          .max(100)
+          .optional()
+          .describe('Words that must all appear in the title.'),
         cursor: z.string().optional().describe('From next_cursor.'),
       },
       annotations: READ_ONLY,
     },
-    ({ source, search, cursor }) =>
+    ({ source, kind, search, cursor }) =>
       run('list_guided_learning', ctx, async () => {
         await assertAccess(ctx, source);
         const path =
@@ -745,30 +786,25 @@ export function registerGuidedLearningTools(
           .select('title', 'updatedAt', 'helpCenter', 'stepCount', 'mode')
           .limit(MAX_SCAN)
           .get();
-        const needle = search?.trim().toLowerCase();
-        const all = snap.docs
-          .filter(
-            (d) => source !== 'help_center' || d.get('helpCenter') === true
-          )
-          .filter(
-            (d) =>
-              !needle ||
-              String(d.get('title') ?? '')
-                .toLowerCase()
-                .includes(needle)
-          )
-          .sort(
-            (a, b) =>
-              Number(b.get('updatedAt') ?? 0) - Number(a.get('updatedAt') ?? 0)
-          );
+        const all = filterSetRows(
+          snap.docs.map((d) => ({
+            id: d.id,
+            title: String(d.get('title') ?? ''),
+            helpCenter: d.get('helpCenter') === true,
+            liveTour: d.get('mode') === 'tour',
+            updatedAt: d.get('updatedAt') as unknown,
+          })),
+          { helpCenterOnly: source === 'help_center', kind, search }
+        );
         const start = Math.max(0, Number(cursor ?? 0) || 0);
         return {
           sets: all.slice(start, start + PAGE_SIZE).map((d) => ({
             set_id: d.id,
             source: source === 'mine' ? 'mine' : 'building',
-            title: String(d.get('title') ?? ''),
-            help_center: d.get('helpCenter') === true,
-            updated_at: iso(d.get('updatedAt')),
+            title: d.title,
+            live_tour: d.liveTour,
+            help_center: d.helpCenter,
+            updated_at: iso(d.updatedAt),
           })),
           next_cursor:
             start + PAGE_SIZE < all.length ? String(start + PAGE_SIZE) : null,

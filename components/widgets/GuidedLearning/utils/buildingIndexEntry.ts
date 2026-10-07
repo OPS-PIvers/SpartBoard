@@ -26,6 +26,17 @@ function storedThumbnail(
   return typeof thumb === 'string' ? thumb : null;
 }
 
+// A tour with no slides uses its first step thumbnail as the cover.
+function firstTourThumbnail(d: Record<string, unknown>): string {
+  if (d.mode !== 'tour' || !Array.isArray(d.steps)) return '';
+  for (const step of d.steps as unknown[]) {
+    const url = (step as { tour?: { thumbnail?: { url?: unknown } } } | null)
+      ?.tour?.thumbnail?.url;
+    if (typeof url === 'string' && url) return url;
+  }
+  return '';
+}
+
 function pickThumbnail(d: Record<string, unknown>): string {
   const urls = Array.isArray(d.imageUrls) ? (d.imageUrls as unknown[]) : [];
   const kinds = Array.isArray(d.imageKinds) ? (d.imageKinds as unknown[]) : [];
@@ -35,7 +46,7 @@ function pickThumbnail(d: Record<string, unknown>): string {
       return storedThumbnail(d, url) ?? url;
     }
   }
-  return '';
+  return firstTourThumbnail(d);
 }
 
 export function buildBuildingIndexEntry(

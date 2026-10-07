@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  filterSetRows,
   glSlideStoragePath,
   mergeSteps,
   requiredSchemaVersion,
+  revisionStepsFitSlides,
   stepInput,
   type StepInput,
 } from './glTools';
@@ -327,5 +329,75 @@ describe('Guided Learning step edits', () => {
     expect(() =>
       glSlideStoragePath(at(own, 'other'), 'sb', 'u1', 'mine')
     ).toThrow(/cannot read/);
+  });
+});
+
+describe('revisionStepsFitSlides', () => {
+  it('lets a recorder-made tour with no slides restore', () => {
+    expect(
+      revisionStepsFitSlides({ mode: 'tour', imageUrls: [] }, [
+        { imageIndex: 0 },
+        { imageIndex: 0 },
+      ])
+    ).toBe(true);
+  });
+
+  it('still refuses a standard set whose slides are gone', () => {
+    const set = { mode: 'structured', imageUrls: ['a'] };
+    expect(revisionStepsFitSlides(set, [{ imageIndex: 0 }])).toBe(true);
+    expect(revisionStepsFitSlides(set, [{ imageIndex: 1 }])).toBe(false);
+  });
+});
+
+describe('filterSetRows', () => {
+  const rows = [
+    {
+      id: 'a',
+      title: 'Sync My Teams tasks to Google Tasks',
+      helpCenter: false,
+      liveTour: true,
+      updatedAt: 3,
+    },
+    {
+      id: 'b',
+      title: 'Building Our Own OS',
+      helpCenter: true,
+      liveTour: false,
+      updatedAt: 5,
+    },
+    {
+      id: 'c',
+      title: 'Assign a Quiz',
+      helpCenter: true,
+      liveTour: true,
+      updatedAt: undefined,
+    },
+  ];
+
+  it('matches every search word in any order', () => {
+    const hit = (search: string) =>
+      filterSetRows(rows, { helpCenterOnly: false, search }).map((r) => r.id);
+    expect(hit('google tasks')).toEqual(['a']);
+    expect(hit('tasks google tour')).toEqual([]);
+    expect(hit('TASKS sync')).toEqual(['a']);
+  });
+
+  it('filters by kind and Help Center, newest first', () => {
+    expect(
+      filterSetRows(rows, { helpCenterOnly: false, kind: 'live_tour' }).map(
+        (r) => r.id
+      )
+    ).toEqual(['a', 'c']);
+    expect(
+      filterSetRows(rows, { helpCenterOnly: true, kind: 'live_tour' }).map(
+        (r) => r.id
+      )
+    ).toEqual(['c']);
+    expect(
+      filterSetRows(rows, {
+        helpCenterOnly: false,
+        kind: 'guided_learning',
+      }).map((r) => r.id)
+    ).toEqual(['b']);
   });
 });

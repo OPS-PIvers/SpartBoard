@@ -1,3 +1,4 @@
+import { useCallback, useSyncExternalStore } from 'react';
 import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db, isConfigured } from '@/config/firebase';
 import type { GuidedLearningSet } from '@/types';
@@ -163,6 +164,19 @@ export function readPublishedTour(id: string): {
 } {
   const entry = entries.get(id);
   return { loaded: !!entry?.loaded, tour: entry?.tour ?? null };
+}
+
+/** Watches one tour's published snapshot and re-renders when it changes. */
+export function usePublishedTour(setId: string): {
+  loaded: boolean;
+  tour: PublishedTour | null;
+} {
+  const subscribe = useCallback(
+    (onChange: () => void) => watchTours([setId], onChange),
+    [setId]
+  );
+  useSyncExternalStore(subscribe, getToursVersion, getToursVersion);
+  return readPublishedTour(setId);
 }
 
 /** Whether a watched tour can run now; undefined while still loading. */

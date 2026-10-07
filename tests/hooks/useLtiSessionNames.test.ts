@@ -59,6 +59,7 @@ const setHandler = (handler: CallableHandler): void => {
 };
 
 import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
+import { ltiSectionsKey } from '@/utils/ltiSectionsKey';
 
 let uniqueSessionId = 0;
 const nextSessionId = () => `session-${++uniqueSessionId}`;
@@ -114,5 +115,53 @@ describe('useLtiSessionNames', () => {
     await waitFor(() => expect(loggedErrors).toHaveLength(1));
     expect(loggedErrors[0].scope).toBe('useLtiSessionNames.fetch');
     expect(result.current.size).toBe(0);
+  });
+
+  it('refetches when a new Schoology section launches into the same session', async () => {
+    let calls = 0;
+    setHandler(() => {
+      calls++;
+      const names: CallableResult['names'] = {
+        'third-hour': { givenName: 'Ada', familyName: 'L' },
+      };
+      if (calls > 1)
+        names['fifth-hour'] = { givenName: 'Grace', familyName: 'H' };
+      return { data: { names } };
+    });
+    const sid = nextSessionId();
+    const { result, rerender } = renderHook(
+      ({ key }: { key: string }) => useLtiSessionNames(sid, true, 'quiz', key),
+      { initialProps: { key: 'schoology:3' } }
+    );
+    await waitFor(() => expect(result.current.has('third-hour')).toBe(true));
+
+    rerender({ key: 'schoology:3,schoology:5' });
+    await waitFor(() => expect(result.current.has('fifth-hour')).toBe(true));
+    expect(callCount).toBe(2);
+  });
+});
+
+describe('ltiSectionsKey', () => {
+  it('collects Schoology sections from classIds and the period map, sorted', () => {
+    expect(
+      ltiSectionsKey({
+        ltiNrps: true,
+        classIds: ['CL-1', 'schoology:5'],
+        classPeriodByClassId: {
+          'CL-1': 'Period 1',
+          'schoology:3': 'Section 3',
+          'schoology:5': 'Section 5',
+        },
+      })
+    ).toBe('schoology:3,schoology:5');
+    expect(ltiSectionsKey(null)).toBe('');
+  });
+
+  it('is empty for non-LTI sessions and skips non-string class ids', () => {
+    expect(ltiSectionsKey({ classIds: ['schoology:5'] })).toBe('');
+    expect(
+      ltiSectionsKey({ ltiNrps: true, classIds: [null, 7, 'schoology:2'] })
+    ).toBe('schoology:2');
+    expect(ltiSectionsKey({ ltiNrps: true, classIds: 'schoology:2' })).toBe('');
   });
 });

@@ -66,6 +66,7 @@ import {
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
 import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
+import { ltiSectionsKey } from '@/utils/ltiSectionsKey';
 import { logError } from '@/utils/logError';
 import {
   SessionViewHeader,
@@ -170,7 +171,8 @@ export const Results: React.FC<ResultsProps> = ({
   const ltiNames = useLtiSessionNames(
     session.id,
     session.ltiNrps === true,
-    'va'
+    'va',
+    ltiSectionsKey(session)
   );
   const byStudentUid = useMemo(() => {
     if (ltiNames.size === 0) return classLinkNames;

@@ -8,8 +8,13 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2 } from 'lucide-react';
-import { getPlcGroupType, type Plc, type TeamPageId } from '@/types';
+import { Loader2, Target } from 'lucide-react';
+import {
+  getPlcFeatures,
+  getPlcGroupType,
+  type Plc,
+  type TeamPageId,
+} from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import {
@@ -20,10 +25,7 @@ import {
 } from '@/context/usePlcContext';
 import { useGoogleTasksPull } from '@/hooks/useGoogleTasksPull';
 import { usePlcUnread } from '@/hooks/usePlcUnread';
-import {
-  saveTeamLayout,
-  useTeamTypeDefaultsState,
-} from '@/hooks/useTeamLayout';
+import { useTeamTypeDefaultsState } from '@/hooks/useTeamLayout';
 import { resolveTeamLayout } from '@/utils/teamLayout';
 import { getPlcRole } from '@/utils/plc';
 import { isForeignMentionEvent } from '@/utils/plcActivity';
@@ -39,6 +41,8 @@ import type { PlcSectionId } from '@/components/plc/sections';
 import { splitSinceYouWereHere } from '@/components/plc/activity/activityDescriptions';
 import { PlcSearchBox } from '@/components/plc/search/PlcSearchBox';
 import { MembersBody } from '@/components/plc/bodies/MembersBody';
+import { PlcLearningTargetsBody } from '@/components/plc/bodies/PlcLearningTargetsBody';
+import { PlcMeetingRecordView } from '@/components/plc/meeting/PlcMeetingRecordView';
 import { PlcSettingsTab } from '@/components/plc/tabs/PlcSettingsTab';
 import { TEAM_PAGE_REGISTRY } from '@/components/plc/teams/pageRegistry';
 import {
@@ -57,7 +61,11 @@ import {
   resolveTeamRoute,
   teamPageSection,
 } from '@/components/plc/teams/teamSections';
-import { TeamShellView, type TeamOverlay } from './TeamShellView';
+import {
+  TeamShellView,
+  type TeamOverlay,
+  type TeamRailItem,
+} from './TeamShellView';
 import {
   GearMenuView,
   MembersPopoverView,
@@ -120,10 +128,14 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
   const role = uid ? getPlcRole(plc, uid) : null;
   const isLead = role === 'lead' || role === 'coLead';
 
-  // Meeting Mode is retired (T11): meeting links land on Notes & Docs, which opens a saved record.
+  // Meeting Mode is retired (T11): a bare meeting link lands on Notes & Docs; a saved record keeps its URL.
   const section: PlcSectionId =
-    requestedSection === 'meeting' ? 'docs' : requestedSection;
-  const { route, canonical } = resolveTeamRoute(section, layout);
+    requestedSection === 'meeting' && !meetingId ? 'docs' : requestedSection;
+  const features = getPlcFeatures(plc);
+  const hasTargets = features.quizzes || features.videoActivities;
+  const { route, canonical } = resolveTeamRoute(section, layout, {
+    targets: hasTargets,
+  });
   useEffect(() => {
     if (layoutReady && canonical !== requestedSection) {
       spaReplace(buildPlcPath(plc.id, canonical));
@@ -219,12 +231,6 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
       return;
     }
     setEditorOpen(true);
-    // T35: the first open freezes the resolved layout onto the team (T3).
-    if (!plc.layout) {
-      saveTeamLayout(plc.id, layout).catch((err: unknown) =>
-        logError('TeamDashboard.freezeLayout', err, { plcId: plc.id })
-      );
-    }
   };
 
   // The Department Hub asks for the layout editor through a window event.
@@ -249,17 +255,36 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
     assessmentId,
     docId,
     meetingId,
+    section: requestedSection,
     layout,
   };
 
-  const railPages = layout.pages
+  const railPages: TeamRailItem[] = layout.pages
     .filter((p) => p.enabled)
     .map((p) => ({
       id: p.id,
       label: teamPageLabel(t, p.id, isLead),
       icon: TEAM_PAGE_REGISTRY[p.id].icon,
     }));
-  const activePage = route.kind === 'page' ? route.page : null;
+  // Learning Targets sits after Assessments (or the data page), as on the legacy rail.
+  if (hasTargets) {
+    const after = railPages.findIndex((p) => p.id === 'assessments');
+    const anchor =
+      after >= 0 ? after : railPages.findIndex((p) => p.id === 'dataOverview');
+    railPages.splice(anchor >= 0 ? anchor + 1 : railPages.length, 0, {
+      id: 'targets',
+      label: t('plcDashboard.tabs.targets', {
+        defaultValue: 'Learning Targets',
+      }),
+      icon: Target,
+    });
+  }
+  const activePage =
+    route.kind === 'page'
+      ? route.page
+      : route.section === 'targets'
+        ? 'targets'
+        : null;
   const activeLabel =
     route.kind === 'page'
       ? teamPageLabel(t, route.page, isLead)
@@ -267,7 +292,11 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
         ? t('plcDashboard.tabs.members', { defaultValue: 'Members' })
         : route.section === 'settings'
           ? t('plcDashboard.tabs.settings', { defaultValue: 'Settings' })
-          : undefined;
+          : route.section === 'targets'
+            ? t('plcDashboard.tabs.targets', {
+                defaultValue: 'Learning Targets',
+              })
+            : undefined;
 
   const renderBody = (): React.ReactNode => {
     if (!layoutReady) {
@@ -282,11 +311,16 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
         </div>
       );
     }
+    if (route.kind === 'section' && route.section === 'meeting') {
+      return <PlcMeetingRecordView plc={plc} meetingId={meetingId ?? ''} />;
+    }
     if (route.kind === 'section') {
       return (
         <div className="p-4 pb-8 md:p-6">
           {route.section === 'members' ? (
             <MembersBody plc={plc} />
+          ) : route.section === 'targets' ? (
+            <PlcLearningTargetsBody plc={plc} />
           ) : (
             <PlcSettingsTab plc={plc} />
           )}
@@ -397,7 +431,11 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
             activeLabel={activeLabel}
             overlay={overlay}
             onOverlay={openOverlay}
-            onPage={(id) => navigate(teamPageSection(id as TeamPageId))}
+            onPage={(id) =>
+              navigate(
+                id === 'targets' ? 'targets' : teamPageSection(id as TeamPageId)
+              )
+            }
             onClose={onClose}
             showMobileMenu={showMobileMenu && route.kind === 'page'}
             onMobileMenu={() => setShowMobileMenu(true)}

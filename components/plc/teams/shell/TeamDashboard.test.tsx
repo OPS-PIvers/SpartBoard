@@ -57,11 +57,19 @@ vi.mock('@/components/plc/search/PlcSearchBox', () => ({
 vi.mock('@/components/plc/bodies/MembersBody', () => ({
   MembersBody: () => null,
 }));
+vi.mock('@/components/plc/bodies/PlcLearningTargetsBody', () => ({
+  PlcLearningTargetsBody: () => <div data-testid="targets-body" />,
+}));
 vi.mock('@/components/plc/tabs/PlcSettingsTab', () => ({
   PlcSettingsTab: () => null,
 }));
 vi.mock('@/components/plc/meeting/PlcMeetingMode', () => ({
   PlcMeetingMode: () => null,
+}));
+vi.mock('@/components/plc/meeting/PlcMeetingRecordView', () => ({
+  PlcMeetingRecordView: ({ meetingId }: { meetingId: string }) => (
+    <div data-testid="meeting-record">{meetingId}</div>
+  ),
 }));
 vi.mock('@/components/plc/teams/notes/useTeamNotes', () => ({
   useTeamMyItems: () => ({
@@ -131,6 +139,40 @@ beforeEach(() => {
 });
 
 describe('TeamDashboard', () => {
+  it('opens Learning Targets at its deep link', () => {
+    render(<TeamDashboard plc={plc()} activeSection="targets" {...props} />);
+    expect(screen.getByTestId('targets-body')).toBeTruthy();
+    expect(mocks.spaReplace).not.toHaveBeenCalled();
+  });
+
+  it('lists Learning Targets on the rail after Assessments', () => {
+    mocks.spaNavigate.mockClear();
+    render(<TeamDashboard plc={plc()} activeSection="home" {...props} />);
+    const tabs = screen.getAllByRole('tab');
+    const at = tabs.findIndex((tab) =>
+      tab.textContent?.includes('Learning Targets')
+    );
+    expect(tabs[at - 1].textContent).toContain('Assessments');
+    fireEvent.click(tabs[at]);
+    expect(mocks.spaNavigate).toHaveBeenCalledWith('/plc/p1/targets');
+  });
+
+  it('sends targets home on a team without quizzes or videos', () => {
+    render(
+      <TeamDashboard
+        plc={
+          {
+            ...plc(),
+            features: { quizzes: false, videoActivities: false },
+          } as Plc
+        }
+        activeSection="targets"
+        {...props}
+      />
+    );
+    expect(mocks.spaReplace).toHaveBeenCalledWith('/plc/p1');
+  });
+
   it('redirects a folded section to its canonical page', () => {
     render(
       <TeamDashboard plc={plc()} activeSection="sharedBoards" {...props} />
@@ -158,6 +200,11 @@ describe('TeamDashboard', () => {
   });
 
   it('sends retired Meeting Mode links to Notes & Docs', () => {
+    render(<TeamDashboard plc={plc()} activeSection="meeting" {...props} />);
+    expect(mocks.spaReplace).toHaveBeenCalledWith('/plc/p1/docs');
+  });
+
+  it('opens a saved meeting record at its own URL', () => {
     render(
       <TeamDashboard
         plc={plc()}
@@ -166,21 +213,18 @@ describe('TeamDashboard', () => {
         meetingId="m1"
       />
     );
-    expect(mocks.spaReplace).toHaveBeenCalledWith('/plc/p1/docs');
+    expect(screen.getByTestId('meeting-record').textContent).toBe('m1');
+    expect(mocks.spaReplace).not.toHaveBeenCalled();
   });
 
-  it('freezes the resolved layout the first time a lead opens the editor', () => {
+  it('opens the editor without saving, so Cancel leaves the team as it was', () => {
     render(<TeamDashboard plc={plc()} activeSection="home" {...props} />);
     openEditor();
     expect(screen.getByTestId('layout-editor')).toBeTruthy();
-    expect(mocks.saveTeamLayout).toHaveBeenCalledTimes(1);
-    expect(mocks.saveTeamLayout.mock.calls[0]).toEqual([
-      'p1',
-      expect.objectContaining({ landing: 'dataOverview' }),
-    ]);
+    expect(mocks.saveTeamLayout).not.toHaveBeenCalled();
   });
 
-  it('neither freezes nor opens the editor when the defaults read failed', () => {
+  it('does not open the editor when the defaults read failed', () => {
     mocks.defaults = { defaults: { types: {} }, failed: true };
     render(<TeamDashboard plc={plc()} activeSection="home" {...props} />);
     openEditor();

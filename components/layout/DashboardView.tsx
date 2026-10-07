@@ -38,6 +38,8 @@ import { HelpCenterModal } from '@/components/help/HelpCenterModal';
 import { LiveTourRunner } from '@/components/tours/LiveTourRunner';
 import { TourStageTransition } from '@/components/tours/TourStageTransition';
 import { TourRecordingHost } from '@/components/widgets/GuidedLearning/components/recorder/TourRecordingHost';
+import { TourEditorHost } from '@/components/tours/editor/TourEditorHost';
+import { TOUR_EDIT_EVENT } from '@/components/tours/editor/tourEditStore';
 import { TOUR_START_EVENT } from '@/components/tours/tourState';
 import { TourOfferWatcher } from '@/components/tours/useTourOffers';
 import {
@@ -377,14 +379,16 @@ export const DashboardView: React.FC = () => {
         itemId: detail.itemId,
       });
     };
-    // A live tour started from Help needs the board uncovered.
+    // A live tour started or edited from Help needs the board uncovered.
     const handleStartTour = () =>
       setHelpState((prev) => (prev.open ? { ...prev, open: false } : prev));
     window.addEventListener(HELP_OPEN_EVENT, handleOpenHelp);
     window.addEventListener(TOUR_START_EVENT, handleStartTour);
+    window.addEventListener(TOUR_EDIT_EVENT, handleStartTour);
     return () => {
       window.removeEventListener(HELP_OPEN_EVENT, handleOpenHelp);
       window.removeEventListener(TOUR_START_EVENT, handleStartTour);
+      window.removeEventListener(TOUR_EDIT_EVENT, handleStartTour);
     };
   }, []);
   const onboardingShownRef = React.useRef(false);
@@ -1789,6 +1793,7 @@ export const DashboardView: React.FC = () => {
           <TourStageTransition />
           <TourOfferWatcher />
           {isAdmin && <TourRecordingHost />}
+          {isAdmin && <TourEditorHost />}
         </>
       )}
 

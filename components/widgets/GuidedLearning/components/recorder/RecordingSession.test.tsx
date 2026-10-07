@@ -1,5 +1,11 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DashboardContext,
@@ -18,6 +24,7 @@ const h = vi.hoisted(() => ({
   matcher: null as NameMatcher | null,
   recording: null as TourRecording | null,
   enqueue: vi.fn(),
+  edits: [] as string[],
   aiAllowed: true,
 }));
 
@@ -59,13 +66,8 @@ vi.mock('./TourRecorder', () => ({
     );
   },
 }));
-vi.mock('../studio/GuidedLearningStudio', () => ({
-  GuidedLearningStudio: (props: { set: GuidedLearningSet }) => (
-    <div data-testid="studio">
-      {props.set.title} · {props.set.steps.filter((s) => s.aiDraft).length}{' '}
-      drafted
-    </div>
-  ),
+vi.mock('@/components/tours/editor/tourEditStore', () => ({
+  requestEditTour: (req: { setId: string }) => h.edits.push(req.setId),
 }));
 
 const frames = [new Blob(['blurred one']), new Blob(['blurred two'])];
@@ -108,6 +110,15 @@ const readText = (blob: Blob) =>
     reader.readAsText(blob);
   });
 
+// The recording ends and the saved tour opens in the board editor.
+const expectEditorOpened = async (title: string, drafted: number) => {
+  await waitFor(() => expect(h.edits).toHaveLength(1));
+  const saved = h.save.mock.calls[0][0] as GuidedLearningSet;
+  expect(h.edits[0]).toBe(saved.id);
+  expect(saved.title).toBe(title);
+  expect(saved.steps.filter((s) => s.aiDraft)).toHaveLength(drafted);
+};
+
 const renderSession = (onEnd = vi.fn()) => {
   render(
     <DashboardContext.Provider value={dashboard}>
@@ -118,6 +129,7 @@ const renderSession = (onEnd = vi.fn()) => {
 };
 
 beforeEach(() => {
+  h.edits = [];
   h.upload.mockReset();
   h.upload.mockImplementation((_uid: string, file: File) =>
     Promise.resolve({
@@ -168,7 +180,7 @@ describe('RecordingSession', () => {
     ).toBeInTheDocument();
   });
 
-  it('records with the roster names, then uploads only the reviewed frames and opens the Studio', async () => {
+  it('records with the roster names, then uploads only the reviewed frames and opens the editor', async () => {
     renderSession();
     fireEvent.change(screen.getByLabelText('What does this tour show?'), {
       target: { value: 'Add a clock' },
@@ -180,9 +192,7 @@ describe('RecordingSession', () => {
     expect(h.upload).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Next frame' }));
     await act(async () => {
-      fireEvent.click(
-        screen.getByRole('button', { name: 'Upload and open in Studio' })
-      );
+      fireEvent.click(screen.getByRole('button', { name: 'Upload and open' }));
       await Promise.resolve();
     });
 
@@ -200,22 +210,17 @@ describe('RecordingSession', () => {
       title: 'Add a clock',
       isBuilding: true,
       hasLiveTour: true,
-      imageUrls: [
-        'https://storage.example/tour-step-1.png',
-        'https://storage.example/tour-step-2.png',
-      ],
-      imagePaths: [
-        'users/admin-1/hotspot_images/tour-step-1.png',
-        'users/admin-1/hotspot_images/tour-step-2.png',
-      ],
-      slideThumbnails: {
-        'https://storage.example/tour-step-1.png':
-          'https://storage.example/thumbs/tour-step-1.png',
-        'https://storage.example/tour-step-2.png':
-          'https://storage.example/thumbs/tour-step-2.png',
-      },
+      imageUrls: [],
       tourSetup: { widgets: ['time-tool'] },
     });
+    expect(saved.steps.map((st) => st.tour?.thumbnail?.url)).toEqual([
+      'https://storage.example/tour-step-1.png',
+      'https://storage.example/tour-step-2.png',
+    ]);
+    expect(saved.imagePaths).toEqual([
+      'users/admin-1/hotspot_images/tour-step-1.png',
+      'users/admin-1/hotspot_images/tour-step-2.png',
+    ]);
     expect(saved.steps[0]).toMatchObject({
       label: 'Clock widget',
       text: 'Click the clock to add it.',
@@ -223,9 +228,7 @@ describe('RecordingSession', () => {
     });
     expect(saved.steps[1].label).toBe('');
     expect(saved.steps[1].aiDraft).toBeUndefined();
-    expect(await screen.findByTestId('studio')).toHaveTextContent(
-      'Add a clock · 1 drafted'
-    );
+    await expectEditorOpened('Add a clock', 1);
   });
 
   it('queues an untagged click after the set saves, with its fingerprint on the step', async () => {
@@ -250,12 +253,10 @@ describe('RecordingSession', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Stub finish' }));
     fireEvent.click(screen.getByRole('button', { name: 'Next frame' }));
     await act(async () => {
-      fireEvent.click(
-        screen.getByRole('button', { name: 'Upload and open in Studio' })
-      );
+      fireEvent.click(screen.getByRole('button', { name: 'Upload and open' }));
       await Promise.resolve();
     });
-    await screen.findByTestId('studio');
+    await waitFor(() => expect(h.edits).toHaveLength(1));
     const saved = h.save.mock.calls[0][0] as GuidedLearningSet;
     const fingerprint = saved.steps[1].tour?.unmapped;
     expect(fingerprint).toMatch(/^[0-9a-f]{40}$/);
@@ -273,21 +274,17 @@ describe('RecordingSession', () => {
     expect(entries[0].context.widgetType).toBe('time-tool');
   });
 
-  it('still opens the Studio when drafting the text fails', async () => {
+  it('still opens the editor when drafting the text fails', async () => {
     h.draft.mockRejectedValue(new Error('quota'));
     renderSession();
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     fireEvent.click(screen.getByRole('button', { name: 'Stub finish' }));
     fireEvent.click(screen.getByRole('button', { name: 'Next frame' }));
     await act(async () => {
-      fireEvent.click(
-        screen.getByRole('button', { name: 'Upload and open in Studio' })
-      );
+      fireEvent.click(screen.getByRole('button', { name: 'Upload and open' }));
       await Promise.resolve();
     });
-    expect(await screen.findByTestId('studio')).toHaveTextContent(
-      'Untitled tour · 0 drafted'
-    );
+    await expectEditorOpened('Untitled tour', 0);
   });
 
   it('skips drafting the text while the Guided Learning AI switch is off', async () => {
@@ -299,13 +296,11 @@ describe('RecordingSession', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Next frame' }));
       await act(async () => {
         fireEvent.click(
-          screen.getByRole('button', { name: 'Upload and open in Studio' })
+          screen.getByRole('button', { name: 'Upload and open' })
         );
         await Promise.resolve();
       });
-      expect(await screen.findByTestId('studio')).toHaveTextContent(
-        'Untitled tour · 0 drafted'
-      );
+      await expectEditorOpened('Untitled tour', 0);
       expect(h.draft).not.toHaveBeenCalled();
     } finally {
       h.aiAllowed = true;
@@ -332,37 +327,37 @@ describe('RecordingSession', () => {
       .mockImplementationOnce(() => Promise.reject(new Error('network')));
     renderSession();
     reachUpload();
-    await clickAndSettle('Upload and open in Studio');
+    await clickAndSettle('Upload and open');
     expect(
       await screen.findByText("Couldn't upload the frames. Try again.")
     ).toBeInTheDocument();
-    expect(screen.queryByTestId('studio')).toBeNull();
+    expect(h.edits).toHaveLength(0);
     expect(h.upload).toHaveBeenCalledTimes(2);
 
     await clickAndSettle('Retry');
-    expect(await screen.findByTestId('studio')).toBeInTheDocument();
+    await waitFor(() => expect(h.edits).toHaveLength(1));
     expect(h.upload).toHaveBeenCalledTimes(3);
     expect(await readText(h.upload.mock.calls[2][1] as File)).toBe(
       'blurred two'
     );
     const saved = h.save.mock.calls[0][0] as GuidedLearningSet;
-    expect(saved.imageUrls).toEqual([
+    expect(saved.steps.map((st) => st.tour?.thumbnail?.url)).toEqual([
       'https://storage.example/tour-step-1.png',
       'https://storage.example/tour-step-2.png',
     ]);
   });
 
-  it('opens the Studio only after the first save succeeds, and Retry keeps the recording', async () => {
+  it('opens the editor only after the first save succeeds, and Retry keeps the recording', async () => {
     h.save.mockRejectedValueOnce(new Error('offline'));
     renderSession();
     reachUpload();
-    await clickAndSettle('Upload and open in Studio');
+    await clickAndSettle('Upload and open');
     expect(
       await screen.findByText(
         "Couldn't save the tour. Your recording is kept, so you can try again."
       )
     ).toBeInTheDocument();
-    expect(screen.queryByTestId('studio')).toBeNull();
+    expect(h.edits).toHaveLength(0);
     expect(
       screen.getByRole('dialog', {
         name: 'Check every frame before it uploads',
@@ -370,7 +365,7 @@ describe('RecordingSession', () => {
     ).toBeInTheDocument();
 
     await clickAndSettle('Retry');
-    expect(await screen.findByTestId('studio')).toBeInTheDocument();
+    await waitFor(() => expect(h.edits).toHaveLength(1));
     expect(h.save).toHaveBeenCalledTimes(2);
     expect(h.upload).toHaveBeenCalledTimes(2);
     expect(h.draft).toHaveBeenCalledTimes(1);
@@ -386,8 +381,8 @@ describe('RecordingSession', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Stub finish' }));
     fireEvent.click(screen.getByRole('button', { name: 'Remove frame' }));
     expect(screen.getByText('Frame 1 of 1')).toBeInTheDocument();
-    await clickAndSettle('Upload and open in Studio');
-    expect(await screen.findByTestId('studio')).toBeInTheDocument();
+    await clickAndSettle('Upload and open');
+    await waitFor(() => expect(h.edits).toHaveLength(1));
 
     expect(h.upload).toHaveBeenCalledTimes(1);
     expect(await readText(h.upload.mock.calls[0][1] as File)).toBe(
@@ -395,6 +390,9 @@ describe('RecordingSession', () => {
     );
     const saved = h.save.mock.calls[0][0] as GuidedLearningSet;
     expect(saved.steps).toHaveLength(1);
-    expect(saved.steps[0]).toMatchObject({ id: 'step-1', imageIndex: 0 });
+    expect(saved.steps[0]).toMatchObject({
+      id: 'step-1',
+      tour: { thumbnail: { url: 'https://storage.example/tour-step-1.png' } },
+    });
   });
 });

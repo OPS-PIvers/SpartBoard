@@ -17,6 +17,7 @@ import { buildTagQuestionSets } from './dataOverviewModel';
 import type { TeamPageProps } from '@/components/plc/teams/types';
 import { TeamHeroRegion } from '@/components/plc/teams/heroes/TeamHeroRegion';
 import { useTeamShellActions } from './teamShellActions';
+import { useTeamNav } from '@/components/plc/teams/TeamNavContext';
 import {
   useDataOverviewModel,
   useMeetingStrip,
@@ -60,6 +61,7 @@ export default function DataOverviewPage({
   const strip = useMeetingStrip(plc);
   const nav = usePlcNavigation(plc.id);
   const { openMyItems } = useTeamShellActions();
+  const teamNav = useTeamNav();
   const [targetsOpen, setTargetsOpen] = useState(false);
 
   if (!canAccessFeature('teams-redesign')) return null;
@@ -99,14 +101,14 @@ export default function DataOverviewPage({
         pinnedBy={layout.hero.pinnedBy?.name}
       />
     </Section>
-  ) : (
+  ) : model.featured ? (
     <AssessmentHeroFromModel
       plc={plc}
       model={model}
       isLead={isLead}
       pinnedBy={heroRef ? layout.hero.pinnedBy?.name : undefined}
     />
-  );
+  ) : null;
 
   return (
     <>
@@ -125,7 +127,8 @@ export default function DataOverviewPage({
           onOpenNote: nav.openNotes,
           onViewItems: openMyItems ?? nav.openNotes,
         }}
-        onManageTargets={() => setTargetsOpen(true)}
+        onManageTargets={() => teamNav.navigate('targets')}
+        onTagQuestions={() => setTargetsOpen(true)}
         onOpenAssessment={nav.openAssessment}
         onAllAssessments={nav.allAssessments}
       />

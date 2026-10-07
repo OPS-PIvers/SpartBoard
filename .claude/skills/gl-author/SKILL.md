@@ -471,6 +471,14 @@ The server refuses an anchor it doesn't know, unless the stored step already
 had it. A new live tour is made with the admin-only `create_live_tour`, which
 can file it straight into the Help Center as a hidden draft; follow
 `skills/spartboard/references/live-tours.md` in `OPS-PIvers/claude-skills`.
+Edit an existing live tour with the admin-only `get_live_tour` and
+`update_live_tour`, not the Guided Learning tools: they show and take steps
+without slide placement, keep each step's thumbnail and narration, and save
+the draft only. Every tour is a building set; `list_guided_learning` with
+kind `live_tour` finds it. Look at a recorded step with
+`get_live_tour_step_picture` before writing its text, and change wording
+alone with `step_text` rather than resending every step. Teachers keep the published tour until an admin publishes the
+changes in SpartBoard.
 
 ## Round-trip guarantee
 

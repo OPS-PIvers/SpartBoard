@@ -188,6 +188,7 @@ export const BUILT_IN_TEAM_TYPE_PRESETS: Record<PlcGroupType, TeamTypePreset> =
       pages: [
         { id: 'hub', enabled: true },
         { id: 'docs', enabled: true },
+        { id: 'assessments', enabled: true },
         { id: 'resources', enabled: true },
         { id: 'updates', enabled: false },
       ],
@@ -208,7 +209,7 @@ export const BUILT_IN_TEAM_TYPE_PRESETS: Record<PlcGroupType, TeamTypePreset> =
         { id: 'hub', enabled: true },
         { id: 'resources', enabled: true },
         { id: 'updates', enabled: true },
-        { id: 'docs', enabled: false },
+        { id: 'docs', enabled: true },
       ],
       landing: 'hub',
       cards: [
@@ -225,6 +226,7 @@ export const BUILT_IN_TEAM_TYPE_PRESETS: Record<PlcGroupType, TeamTypePreset> =
         { id: 'programHub', enabled: true },
         { id: 'workspace', enabled: true },
         { id: 'updates', enabled: true },
+        { id: 'docs', enabled: true },
         { id: 'resources', enabled: true },
       ],
       landing: 'programHub',

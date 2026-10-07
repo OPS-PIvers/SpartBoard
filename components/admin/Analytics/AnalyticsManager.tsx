@@ -43,9 +43,15 @@ import {
   type Building,
 } from '@/config/buildings';
 import { LinksPanel } from './LinksPanel';
+import { ActiveStudentsModal } from './ActiveStudentsModal';
+import { type StudentKpiCategory } from './activeStudents';
 import { AI_FEATURE_LABELS } from './aiFeatureLabels';
 import { WIDGET_LABELS } from './widgetLabels';
-import { type AnalyticsHistory, lastActiveOf } from './overviewMetrics';
+import {
+  type AnalyticsHistory,
+  formatRelativeTime,
+  lastActiveOf,
+} from './overviewMetrics';
 import {
   ActiveUsersPanel,
   BuildingAdoptionPanel,
@@ -375,6 +381,7 @@ const OverviewPanel: React.FC<{
   users: KpiUser[];
   buildingBuckets: Record<string, EngagementCounts>;
   onKpiClick?: (category: KpiCategory) => void;
+  onStudentKpiClick?: (category: StudentKpiCategory) => void;
 }> = ({
   data,
   users,
@@ -387,6 +394,7 @@ const OverviewPanel: React.FC<{
   usersWithDashboards,
   dashboards,
   onKpiClick,
+  onStudentKpiClick,
 }) => {
   const KNOWN_BUILDINGS = useKnownBuildings();
   const history = data.history;
@@ -462,10 +470,20 @@ const OverviewPanel: React.FC<{
         <KpiCard
           title="Monthly Active Students"
           value={data.students ? formatNumber(data.students.monthly) : '—'}
+          onClick={
+            onStudentKpiClick
+              ? () => onStudentKpiClick('monthlyStudents')
+              : undefined
+          }
         />
         <KpiCard
           title="Daily Active Students"
           value={data.students ? formatNumber(data.students.daily) : '—'}
+          onClick={
+            onStudentKpiClick
+              ? () => onStudentKpiClick('dailyStudents')
+              : undefined
+          }
         />
       </div>
 
@@ -1116,22 +1134,6 @@ const UsersPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
   );
 };
 
-/* ─── relative-time helper ─── */
-const formatRelativeTime = (ms: number): string => {
-  if (ms <= 0) return 'Never';
-  const diff = Date.now() - ms;
-  if (diff < 0) return 'Just now';
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return 'Just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(ms).toLocaleDateString();
-};
-
 type KpiSortKey = 'email' | 'building' | 'lastActive';
 
 const KpiUserModal: React.FC<{
@@ -1465,7 +1467,7 @@ const DataTable: React.FC<{
 
 export const AnalyticsManager: React.FC = () => {
   const KNOWN_BUILDINGS = useKnownBuildings();
-  const { orgId } = useAuth();
+  const { orgId, roleId } = useAuth();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [error, setError] = useState<AnalyticsErrorState | null>(null);
@@ -1473,6 +1475,9 @@ export const AnalyticsManager: React.FC = () => {
   const [selectedDomain, setSelectedDomain] = useState('all');
   const [selectedBuilding, setSelectedBuilding] = useState('all');
   const [kpiModal, setKpiModal] = useState<KpiCategory | null>(null);
+  const [studentModal, setStudentModal] = useState<StudentKpiCategory | null>(
+    null
+  );
 
   const requestSequenceRef = useRef(0);
   const isMountedRef = useRef(true);
@@ -1931,6 +1936,11 @@ export const AnalyticsManager: React.FC = () => {
                 : (data.users.domainBuilding[selectedDomain] ?? {})
             }
             onKpiClick={filteredUserList.length > 0 ? setKpiModal : undefined}
+            onStudentKpiClick={
+              data.students && roleId !== 'building_admin'
+                ? setStudentModal
+                : undefined
+            }
           />
         </div>
       )}
@@ -1956,6 +1966,13 @@ export const AnalyticsManager: React.FC = () => {
           onClose={() => setKpiModal(null)}
           category={kpiModal}
           users={filteredUserList}
+        />
+      )}
+      {studentModal && orgId && (
+        <ActiveStudentsModal
+          orgId={orgId}
+          category={studentModal}
+          onClose={() => setStudentModal(null)}
         />
       )}
     </div>
