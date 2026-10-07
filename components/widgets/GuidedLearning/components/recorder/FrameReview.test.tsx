@@ -8,10 +8,17 @@ const h = vi.hoisted(() => ({ redactImage: vi.fn() }));
 vi.mock('../../utils/redactImage', () => ({ redactImage: h.redactImage }));
 
 const frames = [new Blob(['one']), new Blob(['two']), new Blob(['three'])];
+const raw = [
+  new Blob(['raw one']),
+  new Blob(['raw two']),
+  new Blob(['raw three']),
+];
+const AUTO = { xPct: 10, yPct: 10, wPct: 20, hPct: 5 };
 
 const recording = (): TourRecording => ({
   frames,
-  redactions: [[{ xPct: 10, yPct: 10, wPct: 20, hPct: 5 }], [], []],
+  redactions: [[AUTO], [], []],
+  raw,
   steps: frames.map((_, i) => ({
     id: `s${i}`,
     xPct: 50,
@@ -25,6 +32,30 @@ const recording = (): TourRecording => ({
 });
 
 const upload = () => screen.getByRole('button', { name: 'Upload and open' });
+const clickAsync = async (el: HTMLElement) => {
+  await act(async () => {
+    fireEvent.click(el);
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+};
+const sizeLayer = () => {
+  const layer = screen.getByTestId('gl-frame-review-draw');
+  vi.spyOn(layer, 'getBoundingClientRect').mockReturnValue({
+    left: 0,
+    top: 0,
+    width: 200,
+    height: 100,
+  } as DOMRect);
+  return layer;
+};
+const renderReview = (rec = recording()) => {
+  const onUpload = vi.fn();
+  render(
+    <FrameReview recording={rec} onUpload={onUpload} onDiscard={vi.fn()} />
+  );
+  return onUpload;
+};
 const next = () => screen.getByRole('button', { name: 'Next frame' });
 // Identity, not toEqual: any two Blobs compare equal.
 const expectUploaded = (fn: ReturnType<typeof vi.fn>, expected: Blob[]) => {
@@ -39,24 +70,80 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('FrameReview', () => {
-  it('keeps upload disabled until every frame has been viewed', () => {
-    const onUpload = vi.fn();
-    render(
-      <FrameReview
-        recording={recording()}
-        onUpload={onUpload}
-        onDiscard={vi.fn()}
-      />
-    );
-    expect(screen.getByText('1 of 3 frames checked')).toBeInTheDocument();
+  it('uploads straight away, without viewing every frame', async () => {
+    const onUpload = renderReview();
+    expect(screen.getByText('Blur on 1 of 3 frames')).toBeInTheDocument();
     expect(screen.getAllByTestId('gl-frame-review-blurred')).toHaveLength(1);
-    expect(upload()).toBeDisabled();
-    fireEvent.click(next());
-    expect(upload()).toBeDisabled();
-    fireEvent.click(next());
-    expect(screen.getByText('3 of 3 frames checked')).toBeInTheDocument();
-    fireEvent.click(upload());
+    expect(upload()).toBeEnabled();
+    await clickAsync(upload());
     expectUploaded(onUpload, frames);
+    expect(h.redactImage).not.toHaveBeenCalled();
+    expect(onUpload.mock.calls[0][0]).not.toHaveProperty('raw');
+  });
+
+  it('removing an automatic blur uploads the unblurred frame', async () => {
+    const onUpload = renderReview();
+    fireEvent.focus(screen.getByRole('button', { name: 'Blur area 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove this blur' }));
+    expect(screen.queryAllByTestId('gl-frame-review-blurred')).toHaveLength(0);
+    await clickAsync(upload());
+    expectUploaded(onUpload, [raw[0], frames[1], frames[2]]);
+    expect((onUpload.mock.calls[0][0] as TourRecording).redactions).toEqual([
+      [],
+      [],
+      [],
+    ]);
+  });
+
+  it('Remove all blur clears the frame, and Restore blur puts it back', async () => {
+    const onUpload = renderReview();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all blur' }));
+    expect(screen.queryAllByTestId('gl-frame-review-blurred')).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Restore blur' }));
+    expect(screen.getAllByTestId('gl-frame-review-blurred')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Restore blur' })).toBeNull();
+    await clickAsync(upload());
+    expectUploaded(onUpload, frames);
+  });
+
+  it('moves a blur by dragging and bakes it into the unblurred frame', async () => {
+    const moved = new Blob(['raw one, moved blur']);
+    h.redactImage.mockResolvedValue(moved);
+    const onUpload = renderReview();
+    const layer = sizeLayer();
+    const box = screen.getByRole('button', { name: 'Blur area 1' });
+    fireEvent.pointerDown(box, { button: 0, clientX: 30, clientY: 10 });
+    fireEvent.pointerMove(layer, { clientX: 50, clientY: 30 });
+    fireEvent.pointerUp(layer, { clientX: 50, clientY: 30 });
+    await clickAsync(upload());
+    expect(h.redactImage).toHaveBeenCalledWith(
+      raw[0],
+      [{ xPct: 20, yPct: 30, wPct: 20, hPct: 5 }],
+      { mode: 'blur' }
+    );
+    expectUploaded(onUpload, [moved, frames[1], frames[2]]);
+  });
+
+  it('resizes a blur from a corner handle', () => {
+    renderReview();
+    const layer = sizeLayer();
+    fireEvent.focus(screen.getByRole('button', { name: 'Blur area 1' }));
+    const handle = screen.getByTestId('gl-frame-review-handle-se');
+    fireEvent.pointerDown(handle, { button: 0, clientX: 60, clientY: 15 });
+    fireEvent.pointerMove(layer, { clientX: 100, clientY: 50 });
+    fireEvent.pointerUp(layer, { clientX: 100, clientY: 50 });
+    const box = screen.getByRole('button', { name: 'Blur area 1' });
+    expect(box.style.width).toBe('40%');
+    expect(box.style.height).toBe('40%');
+  });
+
+  it('nudges a selected blur with the arrow keys and deletes it with Delete', () => {
+    renderReview();
+    const box = screen.getByRole('button', { name: 'Blur area 1' });
+    fireEvent.keyDown(box, { key: 'ArrowRight' });
+    expect(box.style.left).toBe('11%');
+    fireEvent.keyDown(box, { key: 'Delete' });
+    expect(screen.queryByRole('button', { name: 'Blur area 1' })).toBeNull();
   });
 
   it('lists an untagged step with its suggested id', () => {
@@ -106,50 +193,56 @@ describe('FrameReview', () => {
     ).toBeInTheDocument();
   });
 
-  it('bakes extra blur into the already-blurred frame and uploads that', async () => {
-    const reblurred = new Blob(['one, blurred again']);
-    h.redactImage.mockResolvedValue(reblurred);
-    const onUpload = vi.fn();
-    render(
-      <FrameReview
-        recording={recording()}
-        onUpload={onUpload}
-        onDiscard={vi.fn()}
-      />
-    );
-    const layer = screen.getByTestId('gl-frame-review-draw');
-    vi.spyOn(layer, 'getBoundingClientRect').mockReturnValue({
-      left: 0,
-      top: 0,
-      width: 200,
-      height: 100,
-    } as DOMRect);
+  it('a drawn blur is baked in at upload, reusing the bake on retry', async () => {
+    const drawn = new Blob(['raw two, drawn blur']);
+    h.redactImage.mockResolvedValue(drawn);
+    const onUpload = renderReview();
     fireEvent.click(next());
-    fireEvent.click(next());
-    fireEvent.click(screen.getByRole('button', { name: 'Previous frame' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Previous frame' }));
-    expect(upload()).toBeEnabled();
+    const layer = sizeLayer();
     fireEvent.pointerDown(layer, { button: 0, clientX: 20, clientY: 10 });
     fireEvent.pointerMove(layer, { clientX: 60, clientY: 40 });
     fireEvent.pointerUp(layer, { clientX: 60, clientY: 40 });
-    // A drawn but unapplied area blocks upload.
-    expect(upload()).toBeDisabled();
+    expect(screen.getAllByTestId('gl-frame-review-blurred')).toHaveLength(1);
+    await clickAsync(upload());
+    await clickAsync(upload());
+    expect(h.redactImage).toHaveBeenCalledTimes(1);
+    expect(h.redactImage).toHaveBeenCalledWith(
+      raw[1],
+      [{ xPct: 10, yPct: 10, wPct: 20, hPct: 30 }],
+      { mode: 'blur' }
+    );
+    expectUploaded(onUpload, [frames[0], drawn, frames[2]]);
+    expect((onUpload.mock.calls[1][0] as TourRecording).frames[1]).toBe(drawn);
+  });
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Blur 1 area' }));
-      await Promise.resolve();
-    });
+  it('without unblurred frames, automatic blur stays and new blur goes on top', async () => {
+    const reblurred = new Blob(['one, blurred again']);
+    h.redactImage.mockResolvedValue(reblurred);
+    const rec = { ...recording(), raw: undefined };
+    const onUpload = renderReview(rec);
+    expect(screen.queryByRole('button', { name: 'Blur area 1' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Remove all blur' })
+    ).toBeNull();
+    const layer = sizeLayer();
+    fireEvent.pointerDown(layer, { button: 0, clientX: 20, clientY: 10 });
+    fireEvent.pointerMove(layer, { clientX: 60, clientY: 40 });
+    fireEvent.pointerUp(layer, { clientX: 60, clientY: 40 });
+    expect(screen.getAllByTestId('gl-frame-review-blurred')).toHaveLength(2);
+    await clickAsync(upload());
     expect(h.redactImage).toHaveBeenCalledWith(
       frames[0],
       [{ xPct: 10, yPct: 10, wPct: 20, hPct: 30 }],
       { mode: 'blur' }
     );
-    expect(screen.getAllByTestId('gl-frame-review-blurred')).toHaveLength(2);
-    fireEvent.click(upload());
     expectUploaded(onUpload, [reblurred, frames[1], frames[2]]);
+    expect((onUpload.mock.calls[0][0] as TourRecording).redactions[0]).toEqual([
+      AUTO,
+      { xPct: 10, yPct: 10, wPct: 20, hPct: 30 },
+    ]);
   });
 
-  it('discards a frame with its steps, and Undo brings it back', () => {
+  it('discards a frame with its steps, and Undo brings it back', async () => {
     const onUpload = vi.fn();
     render(
       <FrameReview
@@ -166,8 +259,8 @@ describe('FrameReview', () => {
     expect(screen.getByText('Frame 2 of 3')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove frame' }));
-    expect(screen.getByText('2 of 2 frames checked')).toBeInTheDocument();
-    fireEvent.click(upload());
+    expect(screen.getByText('Blur on 1 of 2 frames')).toBeInTheDocument();
+    await clickAsync(upload());
     const reviewed = onUpload.mock.calls[0][0] as TourRecording;
     expect(reviewed.frames[0]).toBe(frames[0]);
     expect(reviewed.frames[1]).toBe(frames[2]);
@@ -178,7 +271,7 @@ describe('FrameReview', () => {
     ]);
   });
 
-  it('shows an upload error with Retry, which uploads again', () => {
+  it('shows an upload error with Retry, which uploads again', async () => {
     const onUpload = vi.fn();
     render(
       <FrameReview
@@ -189,7 +282,7 @@ describe('FrameReview', () => {
       />
     );
     expect(screen.getByRole('alert')).toHaveTextContent("Couldn't save.");
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await clickAsync(screen.getByRole('button', { name: 'Retry' }));
     expectUploaded(onUpload, frames);
   });
 });

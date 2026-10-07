@@ -6,12 +6,14 @@ import type { GuidedLearningStep, WidgetType } from '@/types';
 import { Z_INDEX } from '@/config/zIndex';
 import { chromeSurface } from '@/components/common/lightChrome';
 import { useAuth } from '@/context/useAuth';
+import { useDialog } from '@/context/useDialog';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { useStorage } from '@/hooks/useStorage';
 import type { TourSlots } from '@/components/tours/tourSession';
 import { prepareImageForUpload } from '@/utils/guidedLearningMedia';
 import { logError } from '@/utils/logError';
 import { TourRecorder } from '@/components/widgets/GuidedLearning/components/recorder/TourRecorder';
+import { FrameReview } from '@/components/widgets/GuidedLearning/components/recorder/FrameReview';
 import { buildNameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
 import { draftRecordedStepText } from '@/components/widgets/GuidedLearning/components/recorder/draftStepText';
 import {
@@ -59,7 +61,10 @@ export const RecordFromHere: React.FC<Props> = ({
   const [matcher] = useState(() =>
     buildNameMatcher((dashboard?.rosters ?? []).flatMap((r) => r.students))
   );
+  const { showConfirm } = useDialog();
   const [busy, setBusy] = useState<string | null>(null);
+  // Set while the teacher checks frames that picked up automatic blur.
+  const [review, setReview] = useState<TourRecording | null>(null);
   const uploaded = useRef(new Map<Blob, UploadedFrame>());
 
   const uploadFrames = async (frames: Blob[]): Promise<RecordedFrame[]> => {
@@ -131,6 +136,26 @@ export const RecordFromHere: React.FC<Props> = ({
     );
   };
 
+  if (review && !busy) {
+    return (
+      <FrameReview
+        recording={review}
+        uploadLabel={t('glRecorder.reviewAddSteps')}
+        onUpload={(reviewed) => {
+          setReview(null);
+          void finish(reviewed);
+        }}
+        onDiscard={() =>
+          void showConfirm(t('glRecorder.reviewDiscardConfirm'), {
+            title: t('glRecorder.reviewDiscard'),
+            variant: 'danger',
+            confirmLabel: t('glRecorder.reviewDiscard'),
+          }).then((ok) => ok && onCancel())
+        }
+      />
+    );
+  }
+
   if (busy) {
     return createPortal(
       <div
@@ -156,7 +181,12 @@ export const RecordFromHere: React.FC<Props> = ({
   return (
     <TourRecorder
       matcher={matcher}
-      onFinish={(recording) => void finish(recording)}
+      onFinish={(recording) =>
+        // Only a recording that blurred something stops for review.
+        recording.redactions.some((boxes) => boxes.length > 0)
+          ? setReview(recording)
+          : void finish(recording)
+      }
       onDiscard={onCancel}
     />
   );
