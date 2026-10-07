@@ -232,6 +232,13 @@ export const useGlobalPermissionsEditor = () => {
           next.delete(featureId);
           return next;
         });
+      } else if (extra) {
+        setPermissions((prev) => {
+          const cur = prev.get(featureId);
+          return cur
+            ? new Map(prev).set(featureId, { ...cur, ...extra })
+            : prev;
+        });
       }
       if (successText !== '')
         showMessage(

@@ -47,4 +47,51 @@ describe('useGlobalPermissionsEditor', () => {
     expect(result.current.getPermission('smart-poll').enabled).toBe(false);
     expect(result.current.unsavedChanges.has('smart-poll')).toBe(true);
   });
+
+  it('clears the unsaved flag when no edit happens during the save', async () => {
+    setDocMock.mockResolvedValue(undefined);
+    const { result } = renderHook(() => useGlobalPermissionsEditor());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      result.current.updatePermission('smart-poll', { enabled: false });
+    });
+    expect(result.current.unsavedChanges.has('smart-poll')).toBe(true);
+    await act(async () => {
+      await result.current.savePermission('smart-poll', undefined, '');
+    });
+
+    expect(result.current.unsavedChanges.has('smart-poll')).toBe(false);
+  });
+
+  it('keeps saved extra fields in state when an edit lands mid-save', async () => {
+    let finish: () => void = () => undefined;
+    setDocMock.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      })
+    );
+    const { result } = renderHook(() => useGlobalPermissionsEditor());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let saved: Promise<boolean> = Promise.resolve(false);
+    act(() => {
+      saved = result.current.savePermission(
+        'smart-poll',
+        { graduated: true },
+        ''
+      );
+    });
+    act(() => {
+      result.current.updatePermission('smart-poll', { enabled: false });
+    });
+    await act(async () => {
+      finish();
+      await saved;
+    });
+
+    const current = result.current.getPermission('smart-poll');
+    expect(current.graduated).toBe(true);
+    expect(current.enabled).toBe(false);
+  });
 });
