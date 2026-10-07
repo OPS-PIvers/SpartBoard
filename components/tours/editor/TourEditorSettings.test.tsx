@@ -55,6 +55,7 @@ const sessionFor = (
     selected: 0,
     updateSet: vi.fn(),
     flush: vi.fn(() => Promise.resolve(true)),
+    isConflicted: () => false,
     ...over,
   }) as unknown as TourEditorSession;
 

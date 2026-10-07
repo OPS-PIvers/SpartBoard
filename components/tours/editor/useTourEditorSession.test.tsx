@@ -174,6 +174,7 @@ describe('useTourEditorSession', () => {
       await vi.advanceTimersByTimeAsync(AUTOSAVE_MS + 100);
     });
     expect(result.current?.saveState).toBe('conflict');
+    expect(result.current?.isConflicted()).toBe(true);
     act(() => result.current?.updateStep('a', { label: 'A2' }));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(AUTOSAVE_MS + 100);

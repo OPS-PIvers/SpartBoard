@@ -58,11 +58,17 @@ export const TourAnchorList: React.FC<Props> = ({ value, onPick }) => {
       : found;
   }, [query, t]);
 
-  // A per-type anchor keeps the step's widget type when it is re-chosen.
+  // A per-type anchor keeps the step's widget type; the card's Which widget sets it otherwise.
   const choose = (id: TourAnchorId) => {
-    const keep = current?.id === id ? current : undefined;
+    const def: TourAnchorDef = TOUR_ANCHORS[id];
+    const same = current?.id === id;
+    const typed = !!(def.perWidgetType ?? def.perField);
     onPick({
-      anchor: tourAnchorRef(id, keep?.widgetType, keep?.fieldKey),
+      anchor: tourAnchorRef(
+        id,
+        same || typed ? current?.widgetType : undefined,
+        same ? current?.fieldKey : undefined
+      ),
     });
   };
 

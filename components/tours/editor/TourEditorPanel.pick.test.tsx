@@ -58,6 +58,7 @@ const makeSession = (steps: GuidedLearningStep[]) => {
     canRedo: false,
     saveState: 'saved',
     flush: vi.fn(),
+    isConflicted: () => false,
   } satisfies TourEditorSession;
   return session;
 };
@@ -143,5 +144,59 @@ describe('TourEditorPanel picking', () => {
       ['p.png']
     );
     expect(screen.getByTestId('tour-editor-panel')).toBeInTheDocument();
+  });
+
+  it('sets the widget type for a per-widget-type anchor', () => {
+    const session = makeSession([
+      step('a', { anchor: 'dock.item', action: 'click' }),
+    ]);
+    renderPanel(session);
+    fireEvent.change(screen.getByTestId('tour-editor-widget-type'), {
+      target: { value: 'clock' },
+    });
+    expect(session.setBinding).toHaveBeenCalledWith('a', {
+      anchor: 'dock.item:clock',
+      action: 'click',
+    });
+    expect(screen.queryByTestId('tour-editor-field-key')).toBeNull();
+  });
+
+  it('sets the setting for a per-field anchor', () => {
+    const session = makeSession([
+      step('a', { anchor: 'settings.field:not-a-widget', action: 'click' }),
+    ]);
+    renderPanel(session);
+    expect(screen.getByTestId('tour-editor-widget-type')).toHaveValue(
+      'not-a-widget'
+    );
+    fireEvent.change(screen.getByTestId('tour-editor-field-key'), {
+      target: { value: 'showSeconds' },
+    });
+    expect(session.setBinding).toHaveBeenCalledWith('a', {
+      anchor: 'settings.field:not-a-widget#showSeconds',
+      action: 'click',
+    });
+  });
+
+  it('drops the setting when the widget changes', () => {
+    const session = makeSession([
+      step('a', { anchor: 'settings.field:not-a-widget#x', action: 'click' }),
+    ]);
+    renderPanel(session);
+    fireEvent.change(screen.getByTestId('tour-editor-widget-type'), {
+      target: { value: 'clock' },
+    });
+    expect(session.setBinding).toHaveBeenCalledWith('a', {
+      anchor: 'settings.field:clock',
+      action: 'click',
+    });
+  });
+
+  it('hides the widget select for anchors that are not per widget type', () => {
+    const session = makeSession([
+      step('a', { anchor: 'dock.open-tools', action: 'click' }),
+    ]);
+    renderPanel(session);
+    expect(screen.queryByTestId('tour-editor-widget-type')).toBeNull();
   });
 });

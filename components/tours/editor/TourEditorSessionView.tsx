@@ -18,9 +18,11 @@ const TourEditorSessionView: React.FC = () => {
   const target = useTourEditTarget();
   useEditorThumbnails(session);
   if (!session || !target) return null;
-  const close = () => {
-    void session.flush();
-    clearTourEdit();
+  // A first failed save keeps the editor open with its alert; Close again while it shows closes anyway.
+  const close = async () => {
+    const alerted = session.saveState === 'error';
+    const saved = await session.flush();
+    if (saved || alerted || session.isConflicted()) clearTourEdit();
   };
   return (
     <TourEditorPanel
@@ -33,7 +35,7 @@ const TourEditorSessionView: React.FC = () => {
           if (cur) setTourEdit({ ...cur, readAloud: !cur.readAloud });
         },
       }}
-      onClose={close}
+      onClose={() => void close()}
       settings={<TourEditorSettings session={session} />}
     />
   );

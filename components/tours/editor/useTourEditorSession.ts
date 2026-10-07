@@ -64,6 +64,8 @@ export interface TourEditorSession {
   saveState: TourEditorSaveState;
   /** Writes any unsaved edits now; false when the draft could not be saved. */
   flush: () => Promise<boolean>;
+  /** True once another save won; this draft can no longer be saved. */
+  isConflicted: () => boolean;
 }
 
 /** A new tour step: bound to nothing yet, waiting for its click. */
@@ -331,5 +333,6 @@ export function useTourEditorSession(): TourEditorSession | null {
     canRedo: depth.future > 0,
     saveState,
     flush: save,
+    isConflicted: () => blocked.current,
   };
 }
