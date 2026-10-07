@@ -4564,3 +4564,40 @@ rather than "no data") is also still open.
   - #3879's `Unit Tests (shard 2/3)` failed on a `tests/widgetGraderStatic.test.ts` timeout that the diff doesn't touch; the PR author is already re-running it.
   - #3860's CI run was cancelled and needs a re-run.
   - `gh` is unauthenticated, so GitHub access went through MCP.
+
+## 2026-10-07
+
+- PRs reviewed:
+  - #3919: fix(flashcards): cap optional-group expansion in the answer matcher
+  - #3918: fix(admin): permission edit during an in-flight save is no longer overwritten
+  - #3917: fix(registry): projects scaling base matches its 620x560 spawn size
+  - #3916: fix(layout): update prompt dismissal is scoped to the running build
+  - #3915: fix(calculator): chained result no longer strips integer zeros
+  - #3914: Teams redesign B6, notes, templates, Department Hub
+  - #3913: Teams redesign B4, Updates, Building Hub, calendar
+  - #3912: Teams redesign B5, mentoring
+  - #3911: Teams redesign B1, shell and registry
+  - #3910: Teams redesign B2, PLC Data overview
+  - #3909: Teams redesign B3, Team type defaults tab
+  - #3907: docs(unifier): run 109 log
+- Comments processed: 12 in total, 1 fixed and 11 explained.
+  - None of these PRs had open review threads.
+  - The bot issue comments that asked for changes were answered in the review bodies.
+  - #3911's single thread was already resolved.
+- Fixes pushed:
+  - #3912, `claude/project-thread-atac12-mentoring` (7b93a47): `copyTemplateIntoWorkspaces` now trashes the Drive copy when sharing or the workspace append fails.
+- Reviews posted: 12
+- Merge readiness:
+  - Ready: #3917, #3916, #3915, #3907.
+  - Ready with minor notes:
+    - #3919: assert the full answer past the cap, and drop the wall-clock assert.
+    - #3918: in the stale-edit branch, merge `extra` (graduate) into state.
+    - #3914: a trashed planned meeting note is never restored.
+    - #3913: a failed post or edit clears the draft.
+    - #3912: check that template copying works under the `drive.file` scope.
+    - #3911: the layout freeze on editor open has a defaults-read-failure hole.
+    - #3910: the goal hero has no "Pinned by" label.
+    - #3909: no test for `saveTeamTypeDefaults`.
+- Notes:
+  - Merge order: the Teams redesign PRs (#3909 to #3914) overlap in `App.tsx`, `types.ts`, `PlcSettingsTab` and `firestore.rules`.
+  - `gh` is unavailable, so GitHub access went through MCP.

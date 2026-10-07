@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-06_
-_Last action: 2026-09-26 — LOW `WIDGET_DEFAULTS` `as XConfig` trio resolved for `specialist-schedule`/`graphic-organizer`/`reveal-grid`: changed all three from `as` to `satisfies` per the skill's Step 5 guidance, with no field changes needed since every required field was already present. Moved to Completed._
+_Last audited: 2026-10-07_
+_Last action: 2026-10-07 — LOW `projects` scaling base updated to 620×560 to match its spawn size. Prior: 2026-09-26 — LOW `WIDGET_DEFAULTS` `as XConfig` trio resolved for `specialist-schedule`/`graphic-organizer`/`reveal-grid`: changed all three from `as` to `satisfies` per the skill's Step 5 guidance, with no field changes needed since every required field was already present. Moved to Completed._
+
+_2026-10-07: Daily audit (Wednesday). After rebase onto `origin/dev-paul`. Scripted cross-reference: `WidgetType` 67; `WIDGET_COMPONENTS` 66/67 (`sticker`, documented); `WIDGET_SCALING_CONFIG` 67/67; `WIDGET_DEFAULTS` 67/67; `WIDGET_GRADE_LEVELS` 70 (67 + `magic`/`record`/`remote`); `config/tools.ts` 63 types, gaps exactly the 7 documented exclusions, 0 orphans. All 64 `lazyNamed()` calls resolve (`poll` resolves via `PollWidget/index.ts` `export * from './Widget'`). Open items unchanged. 0 new issues._
 
 _2026-10-05: Daily audit (Monday). HEAD `d9ad9283` (rebased on dev-paul). Scripted cross-reference: `WidgetType` 67; `WIDGET_COMPONENTS` 66/67 (`sticker`, documented); `WIDGET_SETTINGS_SCHEMAS` 63/67 (`blooms-detail`/`onboarding`/`sticker` documented, `routineGuide` already tracked below); legacy settings/appearance maps empty; `WIDGET_SCALING_CONFIG`/`WIDGET_DEFAULTS` 67/67; `ConfigForWidget` 67/67; `WIDGET_GRADE_LEVELS` 70 = 67 + `magic`/`record`/`remote`; `config/tools.ts` gaps exactly the 7 documented exclusions; 0 orphans. All 64 `lazyNamed()` calls resolve to real exports (0 mismatches). 0 new issues._
 
@@ -46,12 +48,6 @@ _2026-09-30: Daily audit (Wednesday). HEAD after rebase onto `origin/dev-paul`. 
 
 _2026-09-29: Daily audit (Tuesday). Baseline `a5072c05` → HEAD `9af6386c` (after rebase onto `origin/dev-paul`). `WidgetRegistry.ts`, `config/tools.ts`, `config/widgetDefaults.ts` and `config/widgetGradeLevels.ts` are byte-identical to baseline (`git diff --stat` empty). Fresh scripted cross-reference: `WidgetType` 65; `WIDGET_COMPONENTS`/`WIDGET_DEFAULTS`/`WIDGET_GRADE_LEVELS` have no gaps; `TOOLS` is missing only the 7 documented exclusions (`sticker`, `catalyst-instruction`, `catalyst-visual`, `mathTool`, `onboarding`, `custom-widget`, `blooms-detail`). All 62 `lazyNamed()` calls resolve to a real file and export — 0 mismatches. Both Open LOW items reproduce unchanged. **Net: 0 new issues, 0 resolved.**_
 
-### LOW `projects` `WIDGET_DEFAULTS` w/h now diverges from `WIDGET_SCALING_CONFIG` baseWidth/baseHeight
-
-- **Detected:** 2026-09-20 (scope note added 2026-09-26)
-- **File:** `config/widgetDefaults.ts:701-705` (`w: 620, h: 560`) vs `components/widgets/WidgetRegistry.ts:843-849` (`baseWidth: 540, baseHeight: 360`)
-- **Detail:** Commit `fdd2ec8` (#3170, "library manager, two-pane editor and the quiz grader's chrome") resized `projects`' spawn dimensions to 620×560 but didn't update the matching `WIDGET_SCALING_CONFIG` entry, which is still 540×360. Same class of drift the 2026-09-19 action just finished resolving for `url`/`music`/`graphic-organizer`/`seating-chart` — not a functional break today since `projects` is `skipScaling: true` (the base only affects the initial-spawn scaling reference, not a runtime constraint). 2026-09-26 update: commit `88a00fe` (Projects redesign) added an explanatory comment to the `widgetDefaults.ts` side — "Sized for the library manager, matching quiz: below 560px wide the folder panel collapses to a rail" — which is a UI-layout constraint specific to the manager view, not obviously the same "spawn size" concept `WIDGET_SCALING_CONFIG.baseWidth/baseHeight` represents. Worth confirming intent before applying the same fix as the earlier four widgets: it's possible 620×560 is deliberately the manager-view minimum and 540×360 was never meant to track it 1:1.
-- **Fix:** Either update `WIDGET_SCALING_CONFIG.projects` to `baseWidth: 620, baseHeight: 560` to match the current spawn size (if the two are meant to track each other, per the pattern the 2026-09-19 action fixed elsewhere), or, if the manager-view layout constraint is intentionally decoupled from the scaling baseline, add a one-line comment on the `WIDGET_SCALING_CONFIG.projects` entry saying so and close this item as "won't fix, by design."
 
 _2026-09-24: Daily audit (Thursday), delegated to a sub-agent. Cross-referenced `types.ts`'s `WidgetType`/`WidgetConfig`/`ConfigForWidget` (65 members) against `WIDGET_COMPONENTS`, `WIDGET_DEFAULTS`, `config/tools.ts`, `config/widgetGradeLevels.ts`, and `WIDGET_SETTINGS_COMPONENTS`/`WIDGET_APPEARANCE_COMPONENTS`/`WIDGET_SETTINGS_SCHEMAS` in both directions, plus every `lazyNamed()` call's export-name resolution. Zero discrepancies found — all omissions trace to the documented exclusion lists, no orphans, no export-name mismatches. Did not individually re-verify the 3 existing Open LOW items' exact current line numbers this cycle. 0 new issues, 0 resolved._
 
@@ -412,6 +408,14 @@ _No open items._
 ---
 
 ## Completed
+
+### LOW `projects` `WIDGET_DEFAULTS` w/h now diverges from `WIDGET_SCALING_CONFIG` baseWidth/baseHeight
+
+- **Detected:** 2026-09-20 (scope note added 2026-09-26)
+- **File:** `config/widgetDefaults.ts:701-705` (`w: 620, h: 560`) vs `components/widgets/WidgetRegistry.ts:843-849` (`baseWidth: 540, baseHeight: 360`)
+- **Detail:** Commit `fdd2ec8` (#3170, "library manager, two-pane editor and the quiz grader's chrome") resized `projects`' spawn dimensions to 620×560 but didn't update the matching `WIDGET_SCALING_CONFIG` entry, which is still 540×360. Same class of drift the 2026-09-19 action just finished resolving for `url`/`music`/`graphic-organizer`/`seating-chart` — not a functional break today since `projects` is `skipScaling: true` (the base only affects the initial-spawn scaling reference, not a runtime constraint). 2026-09-26 update: commit `88a00fe` (Projects redesign) added an explanatory comment to the `widgetDefaults.ts` side — "Sized for the library manager, matching quiz: below 560px wide the folder panel collapses to a rail" — which is a UI-layout constraint specific to the manager view, not obviously the same "spawn size" concept `WIDGET_SCALING_CONFIG.baseWidth/baseHeight` represents. Worth confirming intent before applying the same fix as the earlier four widgets: it's possible 620×560 is deliberately the manager-view minimum and 540×360 was never meant to track it 1:1.
+- **Fix:** Either update `WIDGET_SCALING_CONFIG.projects` to `baseWidth: 620, baseHeight: 560` to match the current spawn size (if the two are meant to track each other, per the pattern the 2026-09-19 action fixed elsewhere), or, if the manager-view layout constraint is intentionally decoupled from the scaling baseline, add a one-line comment on the `WIDGET_SCALING_CONFIG.projects` entry saying so and close this item as "won't fix, by design."
+- **Resolved 2026-10-07:** Updated `WIDGET_SCALING_CONFIG.projects` to `baseWidth: 620, baseHeight: 560`, matching the `quiz` entry that tracks the same manager layout. `pnpm exec vitest related` passed.
 
 ### LOW — `WIDGET_APPEARANCE_COMPONENTS` lacks the non-exhaustiveness JSDoc its sibling maps carry, and its inline comment is now stale
 
