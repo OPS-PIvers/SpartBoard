@@ -169,14 +169,19 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
 
   // Teams redesign: pages are set in the layout editor, so only non-page switches stay.
   const redesign = canAccessFeature('teams-redesign');
+  // Assessment settings (printing, meetings, norming, gradebook) apply only to PLC teams.
+  const isPlcTeam = getPlcGroupType(plc) === 'plc';
+  const baseRows = isPlcTeam
+    ? FEATURE_ROWS
+    : FEATURE_ROWS.filter((row) => row.key !== 'printForTeammates');
   const rows = redesign
-    ? FEATURE_ROWS.filter((row) => !PAGE_FEATURE_KEYS.has(row.key))
+    ? baseRows.filter((row) => !PAGE_FEATURE_KEYS.has(row.key))
     : canAccessFeature('my-groups') || features.meeting === false
-      ? [...FEATURE_ROWS, MEETING_ROW]
-      : FEATURE_ROWS;
+      ? [...baseRows, MEETING_ROW]
+      : baseRows;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 [&>*:first-child]:border-t-0 [&>*:first-child]:pt-0">
       {!redesign && (
         <div>
           <h3 className="text-sm font-bold text-slate-800">
@@ -197,70 +202,74 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
           </p>
         </div>
       )}
-      <div className="flex flex-col gap-2">
-        {rows.map((row) => {
-          const Icon = row.icon;
-          const enabled = features[row.key] !== false;
-          const isBusy = busyKey === row.key;
-          // While any toggle is in-flight, lock out every row so the UI
-          // visibly matches the in-handler `if (busyKey) return` guard.
-          // Otherwise an unrelated row would look interactive but silently
-          // ignore clicks.
-          const anyBusy = busyKey !== null;
-          return (
-            <button
-              key={row.key}
-              type="button"
-              role="switch"
-              aria-checked={enabled}
-              onClick={() => void handleToggle(row.key)}
-              disabled={anyBusy}
-              className={`flex items-center gap-3 p-3 bg-white border rounded-xl text-left transition-colors ${
-                enabled
-                  ? 'border-brand-blue-light/60 hover:border-brand-blue-primary'
-                  : 'border-slate-200 hover:border-slate-300'
-              } ${isBusy ? 'opacity-60 cursor-wait' : anyBusy ? 'opacity-70' : ''}`}
-            >
-              <div
-                className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+      {rows.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {rows.map((row) => {
+            const Icon = row.icon;
+            const enabled = features[row.key] !== false;
+            const isBusy = busyKey === row.key;
+            // While any toggle is in-flight, lock out every row so the UI
+            // visibly matches the in-handler `if (busyKey) return` guard.
+            // Otherwise an unrelated row would look interactive but silently
+            // ignore clicks.
+            const anyBusy = busyKey !== null;
+            return (
+              <button
+                key={row.key}
+                type="button"
+                role="switch"
+                aria-checked={enabled}
+                onClick={() => void handleToggle(row.key)}
+                disabled={anyBusy}
+                className={`flex items-center gap-3 p-3 bg-white border rounded-xl text-left transition-colors ${
                   enabled
-                    ? 'bg-brand-blue-lighter text-brand-blue-primary'
-                    : 'bg-slate-100 text-slate-400'
-                }`}
+                    ? 'border-brand-blue-light/60 hover:border-brand-blue-primary'
+                    : 'border-slate-200 hover:border-slate-300'
+                } ${isBusy ? 'opacity-60 cursor-wait' : anyBusy ? 'opacity-70' : ''}`}
               >
-                <Icon className="w-4 h-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold text-slate-800">
-                  {t(row.titleKey, { defaultValue: row.titleDefault })}
-                </div>
-              </div>
-              <div
-                aria-hidden="true"
-                className={`shrink-0 relative w-10 h-5 rounded-full transition-colors ${
-                  enabled ? 'bg-brand-blue-primary' : 'bg-slate-300'
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${
-                    enabled ? 'left-[22px]' : 'left-0.5'
+                <div
+                  className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+                    enabled
+                      ? 'bg-brand-blue-lighter text-brand-blue-primary'
+                      : 'bg-slate-100 text-slate-400'
                   }`}
-                />
-              </div>
-            </button>
-          );
-        })}
-      </div>
+                >
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-slate-800">
+                    {t(row.titleKey, { defaultValue: row.titleDefault })}
+                  </div>
+                </div>
+                <div
+                  aria-hidden="true"
+                  className={`shrink-0 relative w-10 h-5 rounded-full transition-colors ${
+                    enabled ? 'bg-brand-blue-primary' : 'bg-slate-300'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${
+                      enabled ? 'left-[22px]' : 'left-0.5'
+                    }`}
+                  />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-      {canAccessFeature('plc-home-v2') && (
+      {isPlcTeam && canAccessFeature('plc-home-v2') && (
         <PlcMeetingCadenceSection plc={plc} />
       )}
 
-      {canAccessFeature('plc-norming-flags') && (
+      {isPlcTeam && canAccessFeature('plc-norming-flags') && (
         <PlcNormingLevelsSection plc={plc} />
       )}
 
-      {canAccessFeature('gradebook') && <PlcGradebookSection plc={plc} />}
+      {isPlcTeam && canAccessFeature('gradebook') && (
+        <PlcGradebookSection plc={plc} />
+      )}
 
       {canAccessFeature('teams-redesign') &&
         getPlcGroupType(plc) === 'mentoring' &&
