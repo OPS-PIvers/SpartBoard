@@ -2,21 +2,21 @@
 import React from 'react';
 import type { PlcSectionId } from './sections';
 
-export interface PlcRailItem {
-  id: PlcSectionId;
+export interface PlcRailItem<Id extends string = PlcSectionId> {
+  id: Id;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }
-interface PlcDashboardRailProps {
-  activeSection: PlcSectionId;
-  onSelect: (id: PlcSectionId) => void;
-  visibleSections: PlcRailItem[];
+interface PlcDashboardRailProps<Id extends string> {
+  activeSection: Id;
+  onSelect: (id: Id) => void;
+  visibleSections: PlcRailItem<Id>[];
 }
-export const PlcDashboardRail: React.FC<PlcDashboardRailProps> = ({
+export const PlcDashboardRail = <Id extends string = PlcSectionId>({
   activeSection,
   onSelect,
   visibleSections,
-}) => (
+}: PlcDashboardRailProps<Id>): React.ReactElement => (
   <nav
     role="tablist"
     aria-orientation="vertical"
