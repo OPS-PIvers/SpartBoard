@@ -290,4 +290,15 @@ describe('CalculatorTool', () => {
       expect(getExpression(container).textContent).toBe('3 + 0.');
     });
   });
+
+  it('keeps trailing integer zeros when a chained result is rounded to 10 digits', () => {
+    const { container } = render(<CalculatorTool />);
+    '1234567899'.split('').forEach(clickBtn);
+    clickBtn('+');
+    clickBtn('0');
+    clickBtn('.');
+    clickBtn('9');
+    clickBtn('+');
+    expect(getDisplay(container).textContent).toBe('1234567900');
+  });
 });

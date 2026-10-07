@@ -20,6 +20,9 @@ const initState = (): CalcState => ({
   hasError: false,
 });
 
+const formatResult = (n: number): string =>
+  Number.isInteger(n) ? String(n) : parseFloat(n.toPrecision(10)).toString();
+
 export const CalculatorTool: React.FC = () => {
   const [calc, setCalc] = useState<CalcState>(initState());
 
@@ -101,9 +104,7 @@ export const CalculatorTool: React.FC = () => {
           }
           result = prev.operand1 / current;
         }
-        const displayResult = Number.isInteger(result)
-          ? String(result)
-          : result.toPrecision(10).replace(/\.?0+$/, '');
+        const displayResult = formatResult(result);
         return {
           display: displayResult,
           expression: displayResult + ' ' + op + ' ',
@@ -144,9 +145,7 @@ export const CalculatorTool: React.FC = () => {
         }
         result = prev.operand1 / current;
       }
-      const displayResult = Number.isInteger(result)
-        ? String(result)
-        : parseFloat(result.toPrecision(10)).toString();
+      const displayResult = formatResult(result);
       return {
         display: displayResult,
         expression: fullExpr,
