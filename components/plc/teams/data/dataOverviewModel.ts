@@ -348,7 +348,7 @@ export function buildTagQuestionSets(
   });
 }
 
-/** Open action items across live notes, and how many are the viewer's. */
+/** Open action items across live notes and linked docs, and how many are the viewer's. */
 export function countOpenItems(
   notes: readonly {
     deletedAt?: number | null;

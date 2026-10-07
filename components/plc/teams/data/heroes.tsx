@@ -36,13 +36,8 @@ export const AssessmentHeroFromModel: React.FC<{
   const { openLayoutEditor } = useTeamShellActions();
   const nav = usePlcNavigation(plc.id);
   const followLatest = useFollowLatest(plc);
-  if (!model.featured) {
-    return (
-      <Section first>
-        <NoResults />
-      </Section>
-    );
-  }
+  // No scored assessment yet: draw nothing rather than an unlabelled empty row.
+  if (!model.featured) return null;
   const featured = model.featured;
   return (
     <AssessmentHeroView

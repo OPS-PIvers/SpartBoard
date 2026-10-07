@@ -99,14 +99,14 @@ export default function DataOverviewPage({
         pinnedBy={layout.hero.pinnedBy?.name}
       />
     </Section>
-  ) : (
+  ) : model.featured ? (
     <AssessmentHeroFromModel
       plc={plc}
       model={model}
       isLead={isLead}
       pinnedBy={heroRef ? layout.hero.pinnedBy?.name : undefined}
     />
-  );
+  ) : null;
 
   return (
     <>

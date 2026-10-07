@@ -51,6 +51,7 @@ export const DataOverviewView: React.FC<DataOverviewViewProps> = ({
   const { t } = useTranslation();
   const on = (id: TeamCardId) => cards.includes(id);
   const { featured } = model;
+  const showHero = on('hero') && hero != null;
 
   const charts: React.ReactNode[] = [];
   if (on('distribution')) {
@@ -99,11 +100,11 @@ export const DataOverviewView: React.FC<DataOverviewViewProps> = ({
 
   return (
     <div className={PAGE}>
-      {on('hero') && hero}
+      {showHero && hero}
 
       {charts.length > 0 && (
         <Section
-          first={!on('hero')}
+          first={!showHero}
           label={t('plcDataOverview.resultsAcross', {
             defaultValue: 'Results across assessments',
           })}

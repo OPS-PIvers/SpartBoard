@@ -15,8 +15,9 @@ vi.mock('@/hooks/useLearningTargets', () => ({
   usePlcLearningTargets: vi.fn(),
 }));
 vi.mock('./ManageTargetsModal', () => ({ ManageTargetsModal: () => null }));
+const mockModel = vi.hoisted(() => ({ featured: {} as object | null }));
 vi.mock('./useDataOverview', () => ({
-  useDataOverviewModel: () => ({ model: {}, input: {} }),
+  useDataOverviewModel: () => ({ model: mockModel, input: {} }),
   useMeetingStrip: () => ({ nextMeeting: null, openItems: null }),
   usePlcNavigation: () => ({}),
 }));
@@ -93,5 +94,19 @@ describe('DataOverviewPage hero', () => {
     );
     expect(screen.getByTestId('goal-hero')).toBeTruthy();
     expect(screen.queryByTestId('shared-hero')).toBeNull();
+  });
+
+  it('draws no hero when no assessment has results yet', () => {
+    mockModel.featured = null;
+    const { container } = render(
+      <DataOverviewPage
+        plc={plc}
+        layout={layoutWith({ mode: 'default' })}
+        isLead
+      />
+    );
+    expect(screen.queryByTestId('assessment-hero')).toBeNull();
+    expect(container.textContent).toBe('');
+    mockModel.featured = {};
   });
 });
