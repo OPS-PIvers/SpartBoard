@@ -72,17 +72,20 @@ export function teamCardLabel(
   return t(key, { defaultValue: label });
 }
 
-// Partial so rule ids added later still compile; they label as their built-in fallback.
-const HERO_RULE_LABELS: Partial<Record<TeamHeroRule, string>> = {
+const HERO_RULE_LABELS: Record<TeamHeroRule, string> = {
   latestAssessment: 'Latest common assessment',
-  newestPinnedUpdate: 'Newest pinned update',
+  teamGoal: 'Team goal',
+  lowestTarget: 'Lowest learning target',
   nextMeetingNote: 'Next meeting note until a doc is pinned',
+  newestDoc: 'Newest doc',
+  newestPinnedUpdate: 'Newest pinned update',
+  calendar: 'Calendar',
   nextRequiredTask: 'Next required task',
 };
 
 export function teamHeroRuleLabel(t: TFunction, rule: TeamHeroRule): string {
   return t(`teams.heroRules.${rule}`, {
-    defaultValue: HERO_RULE_LABELS[rule] ?? HERO_RULE_LABELS.latestAssessment,
+    defaultValue: HERO_RULE_LABELS[rule],
   });
 }
 

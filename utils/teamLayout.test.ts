@@ -335,6 +335,20 @@ describe('sanitizeTeamTypePreset / normalizeTeamTypeDefaults', () => {
     expect(out.heroRule).toBe('nextMeetingNote');
   });
 
+  it.each(['teamGoal', 'lowestTarget', 'newestDoc', 'calendar'] as const)(
+    'keeps the %s hero rule through save, read and resolve',
+    (heroRule) => {
+      expect(sanitizeTeamTypePreset({ heroRule }, 'plc').heroRule).toBe(
+        heroRule
+      );
+      const defaults = normalizeTeamTypeDefaults({
+        types: { plc: { heroRule } },
+      });
+      expect(defaults.types.plc?.heroRule).toBe(heroRule);
+      expect(resolveTeamLayout(makePlc(), defaults).heroRule).toBe(heroRule);
+    }
+  );
+
   it('keeps an empty card list the admin chose', () => {
     expect(sanitizeTeamTypePreset({ cards: [] }, 'plc').cards).toEqual([]);
   });

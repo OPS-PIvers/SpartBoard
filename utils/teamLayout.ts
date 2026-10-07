@@ -80,12 +80,12 @@ export function parseTeamHeroRef(raw: unknown): TeamHeroRef | undefined {
   }
 }
 
-/** A pinned hero needs a valid ref; anything else follows the type's default rule. */
 function parsePinnedBy(raw: unknown): TeamHero['pinnedBy'] {
   if (!isRecord(raw) || !nonEmptyString(raw.uid)) return undefined;
   return { uid: raw.uid, name: typeof raw.name === 'string' ? raw.name : '' };
 }
 
+/** A pinned hero needs a valid ref; anything else follows the type's default rule. */
 export function parseTeamHero(raw: unknown): TeamHero {
   if (isRecord(raw) && raw.mode === 'pinned') {
     const ref = parseTeamHeroRef(raw.ref);

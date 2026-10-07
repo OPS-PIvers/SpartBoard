@@ -9,7 +9,12 @@ import { resolveTeamRoute, teamPageSection } from './teamSections';
 import { packLandingRows } from './landing/landingRows';
 import { TEAM_CARD_REGISTRY } from './cardRegistry';
 import { selectNewerHeroData } from './heroes/heroStaleness';
-import { resolveTeamHeroEntry } from './heroes/heroRegistry';
+import {
+  TEAM_HERO_BY_KIND,
+  TEAM_HERO_BY_RULE,
+  resolveTeamHeroEntry,
+  teamHeroRuleKind,
+} from './heroes/heroRegistry';
 import { heroPinner } from './heroes/heroPin';
 import { parseTeamHero, toStoredTeamLayout } from '@/utils/teamLayout';
 import {
@@ -88,6 +93,28 @@ describe('hero', () => {
       )
     ).toBeNull();
     expect(selectNewerHeroData(null, AGGREGATES, ASSESSMENTS)).toBeNull();
+  });
+
+  it('gives each new rule its kind and dispatches to that kind', () => {
+    expect(teamHeroRuleKind('teamGoal')).toBe('goal');
+    expect(teamHeroRuleKind('lowestTarget')).toBe('target');
+    expect(teamHeroRuleKind('newestDoc')).toBe('doc');
+    expect(teamHeroRuleKind('calendar')).toBe('calendar');
+    expect(teamHeroRuleKind('latestAssessment')).toBeNull();
+    const goal = { render: () => null };
+    const latest = { render: () => null };
+    TEAM_HERO_BY_KIND.goal = goal;
+    TEAM_HERO_BY_RULE.latestAssessment = latest;
+    try {
+      expect(resolveTeamHeroEntry(null, 'teamGoal', 'plc')).toBe(goal);
+      expect(resolveTeamHeroEntry(null, 'newestDoc', 'plc')).toBeNull();
+      expect(
+        resolveTeamHeroEntry(null, 'somethingNew' as 'latestAssessment', 'plc')
+      ).toBe(latest);
+    } finally {
+      delete TEAM_HERO_BY_KIND.goal;
+      delete TEAM_HERO_BY_RULE.latestAssessment;
+    }
   });
 
   it('returns no renderer for an unregistered or unknown rule', () => {

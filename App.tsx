@@ -283,6 +283,13 @@ const TeamsShellDevHarness = import.meta.env.DEV
       )
     )
   : null;
+const TeamsAdminDefaultsDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/plc/teams/admin/TeamsAdminDefaultsDevHarness').then(
+        (module) => ({ default: module.TeamsAdminDefaultsDevHarness })
+      )
+    )
+  : null;
 const SpartyDevGallery = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/SpartyDevGallery').then((module) => ({
@@ -899,6 +906,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <TeamsShellDevHarness />
+      </Suspense>
+    );
+  }
+
+  if (
+    import.meta.env.DEV &&
+    TeamsAdminDefaultsDevHarness &&
+    isAuthBypass &&
+    pathname === '/teams-admin-defaults-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <TeamsAdminDefaultsDevHarness />
       </Suspense>
     );
   }
