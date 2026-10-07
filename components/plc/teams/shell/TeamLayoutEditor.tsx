@@ -10,7 +10,8 @@ import { usePlcAssessments } from '@/hooks/usePlcAssessments';
 import { usePlcDocs } from '@/hooks/usePlcDocs';
 import { usePlcGoals } from '@/hooks/usePlcGoals';
 import { usePlcLearningTargets } from '@/hooks/useLearningTargets';
-import { usePlcAggregatesData, usePlcNotesData } from '@/context/usePlcContext';
+import { usePlcNotesData } from '@/context/usePlcContext';
+import { usePlcAggregate } from '@/hooks/usePlcAggregate';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { logError } from '@/utils/logError';
@@ -42,7 +43,7 @@ export const TeamLayoutEditor: React.FC<{
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const { assessments } = usePlcAssessments(plc.id);
-  const { data: aggregates } = usePlcAggregatesData();
+  const { aggregates } = usePlcAggregate(plc.id);
   const { docs } = usePlcDocs(plc.id);
   const { data: notes } = usePlcNotesData();
   const { goals } = usePlcGoals(plc.id);
