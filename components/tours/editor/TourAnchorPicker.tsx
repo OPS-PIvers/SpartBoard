@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Z_INDEX } from '@/config/zIndex';
+import { isScriptedClick } from '@/components/tours/autopilot';
 import type { TourSlots } from '@/components/tours/tourSession';
 import { secondaryBtn } from '@/components/tours/tourButtons';
 import {
@@ -39,6 +40,29 @@ const SWALLOW = [
 
 const PAD = 3;
 
+const SEE_THROUGH = '[data-tour-overlay]';
+
+// The tour's dim layer sits over the board, so look through it at what is underneath.
+const pickAt = (e: MouseEvent, slots: TourSlots | undefined) => {
+  const stack =
+    typeof document.elementsFromPoint === 'function'
+      ? document.elementsFromPoint(e.clientX, e.clientY)
+      : [];
+  if (stack.length === 0)
+    return resolvePickTarget(
+      e.target instanceof Element ? e.target : null,
+      slots
+    );
+  for (const el of stack) {
+    // The dim and ring are see-through; real editor UI blocks.
+    if (el.closest(SEE_THROUGH)) continue;
+    if (el.closest('[data-tour-ignore]')) return null;
+    const found = resolvePickTarget(el, slots);
+    if (found) return found;
+  }
+  return null;
+};
+
 /** Outlines registered anchors under the pointer and binds the one clicked. */
 export const TourAnchorPicker: React.FC<Props> = ({
   slots,
@@ -52,16 +76,15 @@ export const TourAnchorPicker: React.FC<Props> = ({
 
   useEffect(() => {
     const ignored = (target: EventTarget | null) =>
-      target instanceof Element && !!target.closest('[data-tour-ignore]');
+      target instanceof Element &&
+      !target.closest(SEE_THROUGH) &&
+      !!target.closest('[data-tour-ignore]');
     const onMove = (e: PointerEvent) => {
       if (ignored(e.target)) {
         setHover(null);
         return;
       }
-      const found = resolvePickTarget(
-        e.target instanceof Element ? e.target : null,
-        slots
-      );
+      const found = pickAt(e, slots);
       setHover((prev) =>
         prev?.element === found?.element &&
         prev?.pick.anchor === found?.pick.anchor
@@ -70,14 +93,12 @@ export const TourAnchorPicker: React.FC<Props> = ({
       );
     };
     const onSwallow = (e: Event) => {
-      if (ignored(e.target)) return;
+      // Fast-forward's own clicks still reach the board.
+      if (isScriptedClick() || ignored(e.target)) return;
       e.preventDefault();
       e.stopPropagation();
       if (e.type !== 'click') return;
-      const found = resolvePickTarget(
-        e.target instanceof Element ? e.target : null,
-        slots
-      );
+      const found = pickAt(e as MouseEvent, slots);
       if (found) onPick(found.pick);
     };
     const onKey = (e: KeyboardEvent) => {

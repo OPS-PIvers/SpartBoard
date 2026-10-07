@@ -3881,6 +3881,11 @@
     "cancel": "Annuler",
     "search": "Rechercher des commandes",
     "wholeBoard": "Tout le tableau",
-    "noMatches": "Aucune commande ne correspond"
+    "noMatches": "Aucune commande ne correspond",
+    "control": "Commande",
+    "pick": "Choisir",
+    "addStep": "Ajouter une étape",
+    "listTitle": "Choisissez une commande",
+    "recordFromHere": "Enregistrer à partir d'ici"
   }
 }

@@ -43,6 +43,12 @@ export interface TourEditorSession {
     afterStepId: string | null,
     step?: Partial<GuidedLearningStep>
   ) => GuidedLearningStep;
+  /** Inserts steps after `afterStepId` as one edit, listing their pictures' Storage paths on the set, and selects the last. */
+  insertStepsAfter: (
+    afterStepId: string | null,
+    steps: GuidedLearningStep[],
+    imagePaths?: string[]
+  ) => void;
   /** Stores a picture on the step if it is still bound to `anchor`; not an undoable edit. */
   setThumbnail: (
     stepId: string,
@@ -269,6 +275,26 @@ export function useTourEditorSession(): TourEditorSession | null {
         { selectId: created.id }
       );
       return created;
+    },
+    insertStepsAfter: (afterStepId, added, imagePaths = []) => {
+      const last = added[added.length - 1];
+      if (!last) return;
+      commit(
+        (set) => {
+          const at = afterStepId
+            ? set.steps.findIndex((s) => s.id === afterStepId) + 1
+            : 0;
+          const steps = [...set.steps];
+          steps.splice(at, 0, ...added);
+          const paths = [...(set.imagePaths ?? []), ...imagePaths];
+          return {
+            ...set,
+            steps,
+            ...(paths.length > 0 ? { imagePaths: paths } : {}),
+          };
+        },
+        { selectId: last.id }
+      );
     },
     setThumbnail: (stepId, thumbnail) =>
       commit(

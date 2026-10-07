@@ -494,6 +494,7 @@ export const LiveTourRunner: React.FC = () => {
   const snapStepId =
     tour?.phase === 'running' &&
     tour.edit &&
+    !editTarget?.recording &&
     !jumping &&
     step &&
     binding &&
@@ -1016,7 +1017,9 @@ export const LiveTourRunner: React.FC = () => {
     followEdit();
   }, [editSelected, editReplay]);
 
-  const acted = isActedStep(step?.tour);
+  // Record from here captures real clicks; the stage stays but the tour stands aside.
+  const editRecording = !!tour?.edit && !!editTarget?.recording;
+  const acted = isActedStep(step?.tour) && !editRecording;
   const action = step?.tour?.action;
   const stepValue = step?.tour?.value;
   // A click on the anchor advances once the app has handled it; typing and native selects advance on change.
@@ -1405,6 +1408,7 @@ export const LiveTourRunner: React.FC = () => {
         jumping,
         editBlocked,
         missingIds,
+        tour.slots,
       ])
     : '';
   const playbackRef = useRef({
@@ -1414,6 +1418,7 @@ export const LiveTourRunner: React.FC = () => {
     jumping,
     blocked: editBlocked,
     missing: missingIds,
+    slots: tour?.slots ?? {},
   });
   playbackRef.current = {
     index: stepIndex,
@@ -1422,6 +1427,7 @@ export const LiveTourRunner: React.FC = () => {
     jumping,
     blocked: editBlocked,
     missing: missingIds,
+    slots: tour?.slots ?? {},
   };
   useEffect(() => {
     if (playbackKey) reportTourEditPlayback(playbackRef.current);
@@ -1846,6 +1852,8 @@ export const LiveTourRunner: React.FC = () => {
       </>
     );
   }
+
+  if (editRecording) content = null;
 
   // No box of its own, so each layer stacks on its own z-index around a lifted dock.
   // Clicks on the tour's own controls must not reach the board, which deselects the widget a step points at.

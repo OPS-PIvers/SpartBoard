@@ -3881,6 +3881,11 @@
     "cancel": "Cancelar",
     "search": "Buscar controles",
     "wholeBoard": "Todo el tablero",
-    "noMatches": "Ningún control coincide"
+    "noMatches": "Ningún control coincide",
+    "control": "Control",
+    "pick": "Elegir",
+    "addStep": "Añadir paso",
+    "listTitle": "Elige un control",
+    "recordFromHere": "Grabar desde aquí"
   }
 }

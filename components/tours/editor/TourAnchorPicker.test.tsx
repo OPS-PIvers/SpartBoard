@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { dispatchAutoClick } from '@/components/tours/autopilot';
 import { TourAnchorPicker } from './TourAnchorPicker';
 
 const board = () => (
@@ -30,6 +31,36 @@ const setup = (
 };
 
 describe('TourAnchorPicker', () => {
+  // jsdom has no hit testing; an empty stack falls back to the event target.
+  beforeEach(() => {
+    document.elementsFromPoint = () => [];
+  });
+
+  it('looks through the tour dim layer at the control under it', () => {
+    const { onPick } = setup();
+    const layer = document.createElement('div');
+    layer.setAttribute('data-tour-ignore', '');
+    const dim = document.createElement('div');
+    dim.setAttribute('data-tour-overlay', '');
+    layer.appendChild(dim);
+    document.body.appendChild(layer);
+    document.elementsFromPoint = () => [dim, screen.getByText('Tools')];
+    fireEvent.click(dim);
+    expect(onPick).toHaveBeenCalledWith(
+      expect.objectContaining({ anchor: 'dock.open-tools' })
+    );
+  });
+
+  it('picks nothing under the editor panel', () => {
+    const { onPick } = setup();
+    const panel = document.createElement('div');
+    panel.setAttribute('data-tour-ignore', '');
+    document.body.appendChild(panel);
+    document.elementsFromPoint = () => [panel, screen.getByText('Tools')];
+    fireEvent.click(screen.getByText('Tools'));
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
   it('outlines a registered anchor on hover and names it', () => {
     setup();
     fireEvent.pointerMove(screen.getByText('Tools'));
@@ -73,6 +104,14 @@ describe('TourAnchorPicker', () => {
     setup({ onChooseFromList });
     fireEvent.click(screen.getByRole('button', { name: 'Choose from list' }));
     expect(onChooseFromList).toHaveBeenCalled();
+  });
+
+  it('lets scripted clicks through to the board', () => {
+    boardClick.mockClear();
+    const { onPick } = setup();
+    dispatchAutoClick(screen.getByText('Tools'));
+    expect(boardClick).toHaveBeenCalled();
+    expect(onPick).not.toHaveBeenCalled();
   });
 
   it('removes its listeners on unmount', () => {

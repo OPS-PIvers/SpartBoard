@@ -13,6 +13,7 @@ import {
   quote,
   type TourAnchorScope,
 } from './resolveTourAnchor';
+import { asScriptedClick } from './autopilot';
 
 /** Window event the dock listens to; `detail.expanded` opens or collapses it. */
 export const TOUR_DOCK_EVENT = 'spart-tour-dock';
@@ -107,7 +108,7 @@ const showFieldTab = (ctx: PrerequisiteContext, widgetId: string) => {
   const tabEl = document.querySelector<HTMLElement>(
     `[data-tour=${quote(`settings.tab-${tab}`)}][data-tour-widget=${quote(widgetId)}]`
   );
-  if (tabEl && !isActiveTab(tabEl)) tabEl.click();
+  if (tabEl && !isActiveTab(tabEl)) asScriptedClick(() => tabEl.click());
 };
 
 /** Undo keys for drawers a tour opened; the runner closes them when a step leaves the drawer. */

@@ -12,6 +12,7 @@ import {
   retakeTourEditThumbnail,
   selectTourEditStep,
   setTourEdit,
+  setTourEditRecording,
   type TourEditShot,
 } from './tourEditStore';
 
@@ -230,6 +231,20 @@ describe('LiveTourRunner edit mode', () => {
     await run(300);
     expect(getTourEdit()?.selected).toBe(1);
     expect(screen.getByText('Step 2')).toBeInTheDocument();
+  });
+
+  it('stands aside while Record from here captures real clicks', async () => {
+    await edit(makeSet(STEPS));
+    await run(300);
+    act(() => setTourEditRecording(true));
+    await run(100);
+    expect(screen.queryByText('Step 1')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Boards'));
+    await run(300);
+    expect(getTourEdit()?.selected).toBe(0);
+    act(() => setTourEditRecording(false));
+    await run(100);
+    expect(screen.getByText('Step 1')).toBeInTheDocument();
   });
 
   it('replays from step 1 when an earlier step is selected', async () => {
