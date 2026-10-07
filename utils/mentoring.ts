@@ -1,0 +1,289 @@
+// Pure helpers for mentoring programs: parsing, task status and summaries (TEAMS_REDESIGN T29 to T34).
+
+import type {
+  MentoringCheckIn,
+  MentoringDocLink,
+  MentoringSubmission,
+  MentoringSubmitter,
+  MentoringTask,
+  MentoringTaskStatus,
+  MentoringWorkspace,
+  Plc,
+  PlcMentorRole,
+} from '@/types';
+import { parseActionItems } from '@/utils/plcActionItems';
+import { tsToMillis } from '@/utils/plc';
+
+const DAY_MS = 86_400_000;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
+const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+
+export const MENTORING_SUBMITTERS: readonly MentoringSubmitter[] = [
+  'mentee',
+  'mentor',
+  'both',
+];
+
+export function isMentoringSubmitter(v: unknown): v is MentoringSubmitter {
+  return MENTORING_SUBMITTERS.includes(v as MentoringSubmitter);
+}
+
+export function parseMentoringTask(
+  id: string,
+  data: Record<string, unknown>
+): MentoringTask | null {
+  if (
+    typeof data.title !== 'string' ||
+    typeof data.dueDate !== 'string' ||
+    !DATE_RE.test(data.dueDate) ||
+    !isMentoringSubmitter(data.submitter)
+  ) {
+    return null;
+  }
+  const template = isRecord(data.templateDoc)
+    ? { title: str(data.templateDoc.title), url: str(data.templateDoc.url) }
+    : null;
+  return {
+    id,
+    title: data.title,
+    instructions: str(data.instructions),
+    dueDate: data.dueDate,
+    submitter: data.submitter,
+    templateDoc: template?.url ? template : null,
+    createdBy: str(data.createdBy),
+    createdAt: tsToMillis(data.createdAt),
+    updatedAt: tsToMillis(data.updatedAt),
+  };
+}
+
+function parseDocLinks(raw: unknown): MentoringDocLink[] {
+  if (!Array.isArray(raw)) return [];
+  const out: MentoringDocLink[] = [];
+  for (const d of raw) {
+    if (!isRecord(d) || typeof d.url !== 'string' || !d.url) continue;
+    out.push({
+      id: str(d.id) || d.url,
+      title: str(d.title) || d.url,
+      url: d.url,
+      ...(typeof d.taskId === 'string' && d.taskId ? { taskId: d.taskId } : {}),
+      addedBy: str(d.addedBy),
+      addedAt: tsToMillis(d.addedAt),
+    });
+  }
+  return out;
+}
+
+function parseTaskStatus(raw: unknown): Record<string, MentoringTaskStatus> {
+  if (!isRecord(raw)) return {};
+  const out: Record<string, MentoringTaskStatus> = {};
+  for (const [taskId, v] of Object.entries(raw)) {
+    if (!isRecord(v)) continue;
+    out[taskId] = {
+      submittedAt: tsToMillis(v.submittedAt),
+      submittedBy: str(v.submittedBy),
+    };
+  }
+  return out;
+}
+
+export function parseMentoringWorkspace(
+  id: string,
+  data: Record<string, unknown>
+): MentoringWorkspace | null {
+  if (
+    typeof data.mentorUid !== 'string' ||
+    typeof data.menteeUid !== 'string'
+  ) {
+    return null;
+  }
+  return {
+    id,
+    mentorUid: data.mentorUid,
+    menteeUid: data.menteeUid,
+    memberUids: [data.mentorUid, data.menteeUid],
+    mentorName: str(data.mentorName),
+    menteeName: str(data.menteeName),
+    actionItems: parseActionItems(data.actionItems),
+    docs: parseDocLinks(data.docs),
+    taskStatus: parseTaskStatus(data.taskStatus),
+    createdAt: tsToMillis(data.createdAt),
+    updatedAt: tsToMillis(data.updatedAt),
+  };
+}
+
+export function parseMentoringCheckIn(
+  id: string,
+  data: Record<string, unknown>
+): MentoringCheckIn | null {
+  if (typeof data.title !== 'string') return null;
+  return {
+    id,
+    title: data.title,
+    body: str(data.body),
+    createdBy: str(data.createdBy),
+    createdByName: str(data.createdByName),
+    createdAt: tsToMillis(data.createdAt),
+    updatedAt: tsToMillis(data.updatedAt),
+  };
+}
+
+export function parseMentoringSubmission(
+  id: string,
+  data: Record<string, unknown>
+): MentoringSubmission | null {
+  if (typeof data.submittedBy !== 'string') return null;
+  return {
+    id,
+    taskId: str(data.taskId) || id,
+    submittedBy: data.submittedBy,
+    submittedByName: str(data.submittedByName),
+    submittedAt: tsToMillis(data.submittedAt),
+    ...(typeof data.docUrl === 'string' && data.docUrl
+      ? { docUrl: data.docUrl }
+      : {}),
+  };
+}
+
+/** Local midnight that ends the due day. */
+export function dueDeadline(dueDate: string): number {
+  const [y, m, d] = dueDate.split('-').map(Number);
+  return new Date(y, (m ?? 1) - 1, (d ?? 1) + 1).getTime();
+}
+
+/** 'YYYY-MM-DD' for a local timestamp. */
+export function toDateKey(ms: number): string {
+  const d = new Date(ms);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+export type MentoringPairStatus =
+  | { kind: 'submitted'; at: number; daysLate: number }
+  | { kind: 'late' }
+  | { kind: 'notStarted' };
+
+export function pairTaskStatus(
+  task: Pick<MentoringTask, 'id' | 'dueDate'>,
+  workspace: Pick<MentoringWorkspace, 'taskStatus'>,
+  now: number
+): MentoringPairStatus {
+  const deadline = dueDeadline(task.dueDate);
+  const status = workspace.taskStatus[task.id];
+  if (status) {
+    const daysLate =
+      status.submittedAt > deadline
+        ? Math.ceil((status.submittedAt - deadline) / DAY_MS)
+        : 0;
+    return { kind: 'submitted', at: status.submittedAt, daysLate };
+  }
+  return now >= deadline ? { kind: 'late' } : { kind: 'notStarted' };
+}
+
+export interface MentoringTaskSummary {
+  task: MentoringTask;
+  submitted: number;
+  late: number;
+  notStarted: number;
+  total: number;
+}
+
+export function summarizeTask(
+  task: MentoringTask,
+  workspaces: readonly MentoringWorkspace[],
+  now: number
+): MentoringTaskSummary {
+  const out = { task, submitted: 0, late: 0, notStarted: 0, total: 0 };
+  for (const ws of workspaces) {
+    const s = pairTaskStatus(task, ws, now);
+    out[s.kind] += 1;
+    out.total += 1;
+  }
+  return out;
+}
+
+export function sortTasksByDue(
+  tasks: readonly MentoringTask[]
+): MentoringTask[] {
+  return [...tasks].sort(
+    (a, b) =>
+      a.dueDate.localeCompare(b.dueDate) || a.title.localeCompare(b.title)
+  );
+}
+
+/** Hero default (T6): a pair's earliest unsubmitted task; facilitators get the next one due. */
+export function nextRequiredTask(
+  tasks: readonly MentoringTask[],
+  now: number,
+  workspace: MentoringWorkspace | null
+): MentoringTask | null {
+  const sorted = sortTasksByDue(tasks);
+  if (workspace) {
+    return sorted.find((t) => !workspace.taskStatus[t.id]) ?? null;
+  }
+  const today = toDateKey(now);
+  return (
+    sorted.find((t) => t.dueDate >= today) ?? sorted[sorted.length - 1] ?? null
+  );
+}
+
+/** Whether `uid` hands in this task for their pair. */
+export function canSubmitTask(
+  task: Pick<MentoringTask, 'submitter'>,
+  workspace: Pick<MentoringWorkspace, 'mentorUid' | 'menteeUid'>,
+  uid: string
+): boolean {
+  if (task.submitter === 'both') {
+    return uid === workspace.mentorUid || uid === workspace.menteeUid;
+  }
+  return task.submitter === 'mentor'
+    ? uid === workspace.mentorUid
+    : uid === workspace.menteeUid;
+}
+
+export function memberName(
+  plc: Plc | null,
+  uid: string,
+  fallback = ''
+): string {
+  const m = plc?.members?.[uid];
+  return [m?.displayName, fallback, m?.email].find((v) => !!v) ?? '';
+}
+
+export function pairNames(
+  plc: Plc | null,
+  ws: Pick<
+    MentoringWorkspace,
+    'mentorUid' | 'menteeUid' | 'mentorName' | 'menteeName'
+  >
+): { mentor: string; mentee: string } {
+  return {
+    mentor: memberName(plc, ws.mentorUid, ws.mentorName),
+    mentee: memberName(plc, ws.menteeUid, ws.menteeName),
+  };
+}
+
+/** Active members tagged with a mentor role, by role. */
+export function mentoringRoster(
+  plc: Plc
+): Record<PlcMentorRole, { uid: string; name: string }[]> {
+  const out: Record<PlcMentorRole, { uid: string; name: string }[]> = {
+    mentor: [],
+    mentee: [],
+  };
+  for (const m of Object.values(plc.members ?? {})) {
+    if (m.status !== 'active' || m.role !== 'member' || !m.mentorRole) continue;
+    out[m.mentorRole].push({ uid: m.uid, name: m.displayName || m.email });
+  }
+  out.mentor.sort((a, b) => a.name.localeCompare(b.name));
+  out.mentee.sort((a, b) => a.name.localeCompare(b.name));
+  return out;
+}
+
+/** Deterministic id so a pair has one workspace. */
+export function workspaceIdFor(mentorUid: string, menteeUid: string): string {
+  return `${mentorUid}_${menteeUid}`;
+}
