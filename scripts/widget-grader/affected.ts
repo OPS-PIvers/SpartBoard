@@ -1,4 +1,4 @@
-// Which widgets a change affects, for the CI gate job (R23): node scripts/widget-grader/affected.ts --base origin/dev-paul
+// Which widgets a change affects, for the CI gate job (R23): node scripts/widget-grader/affected.ts --base origin/dev-paul [--shards 4]
 
 import { execFileSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
@@ -77,6 +77,13 @@ export function affectedWidgets(
     : { mode: 'none' };
 }
 
+/** CI runners for a scope: one for a few widgets, `count` Playwright shards when every widget runs. */
+export function gateShards(scope: Scope, count: number): number[] {
+  if (scope.mode === 'none') return [];
+  const n = scope.mode === 'all' ? Math.max(1, count) : 1;
+  return Array.from({ length: n }, (_, i) => i + 1);
+}
+
 const isMain =
   process.argv[1] &&
   fileURLToPath(import.meta.url) === process.argv[1].replace(/\\/g, '/');
@@ -86,6 +93,8 @@ if (isMain) {
   const args = process.argv.slice(2);
   const at = args.indexOf('--base');
   const base = (at >= 0 && args[at + 1]) || 'origin/dev-paul';
+  const shardsAt = args.indexOf('--shards');
+  const shardCount = shardsAt >= 0 ? Number(args[shardsAt + 1]) || 1 : 1;
   const git = (...a: string[]) =>
     execFileSync('git', a, { cwd: root, encoding: 'utf8' });
   const range = `${base}...HEAD`;
@@ -96,11 +105,12 @@ if (isMain) {
     resolveWidgetFiles(root),
     registryDiff
   );
-  console.log(JSON.stringify(scope));
+  const shards = gateShards(scope, shardCount);
+  console.log(JSON.stringify({ ...scope, shards }));
   if (process.env.GITHUB_OUTPUT) {
     appendFileSync(
       process.env.GITHUB_OUTPUT,
-      `mode=${scope.mode}\ntypes=${scope.mode === 'some' ? scope.types.join(',') : ''}\n`
+      `mode=${scope.mode}\ntypes=${scope.mode === 'some' ? scope.types.join(',') : ''}\nshards=${JSON.stringify(shards)}\nshard_count=${shards.length}\n`
     );
   }
 }
