@@ -3633,7 +3633,27 @@
     "autoConfirmYes": "Vas-y",
     "autoConfirmNo": "Je le fais",
     "moveHint": "Faites glisser pour la déplacer. Double-cliquez pour la remettre en haut.",
-    "stepListNote": "Ouvrez SpartBoard sur un ordinateur pour suivre cette visite sur votre tableau."
+    "stepListNote": "Ouvrez SpartBoard sur un ordinateur pour suivre cette visite sur votre tableau.",
+    "editor": {
+      "panel": "Éditeur de visite",
+      "youClick": "Cette étape, c'est vous qui cliquez",
+      "expand": "Afficher les étapes",
+      "collapse": "Masquer les étapes",
+      "swapSide": "Passer de l'autre côté",
+      "close": "Fermer l'éditeur",
+      "saveFailed": "Échec de l'enregistrement. La prochaine modification réessaiera.",
+      "saveConflict": "Quelqu'un d'autre a modifié cette visite. Fermez-la et rouvrez-la pour continuer.",
+      "tab_steps": "Étapes",
+      "tab_settings": "Paramètres",
+      "empty": "Cette visite n'a pas encore d'étapes.",
+      "untitled": "Étape sans titre",
+      "jumping": "Lecture des étapes précédentes",
+      "missing": "Introuvable sur ce tableau",
+      "unregistered": "N'existe plus dans SpartBoard",
+      "unbound": "Aucune commande choisie",
+      "wholeBoard": "Tableau entier",
+      "reorder": "Déplacer l'étape {{n}}"
+    }
   },
   "glPlayer": {
     "modeChip": {

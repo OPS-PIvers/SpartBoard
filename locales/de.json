@@ -3633,7 +3633,27 @@
     "autoConfirmYes": "Ausführen",
     "autoConfirmNo": "Selbst machen",
     "moveHint": "Zum Verschieben ziehen. Doppelklick setzt sie wieder nach oben.",
-    "stepListNote": "Öffne SpartBoard an einem Computer, um diese Tour auf deiner Tafel zu starten."
+    "stepListNote": "Öffne SpartBoard an einem Computer, um diese Tour auf deiner Tafel zu starten.",
+    "editor": {
+      "panel": "Tour-Editor",
+      "youClick": "Diesen Schritt klicken Sie",
+      "expand": "Schritte anzeigen",
+      "collapse": "Schritte ausblenden",
+      "swapSide": "Auf die andere Seite",
+      "close": "Editor schließen",
+      "saveFailed": "Speichern fehlgeschlagen. Die nächste Änderung versucht es erneut.",
+      "saveConflict": "Jemand anderes hat diese Tour geändert. Schließen und erneut öffnen, um weiterzuarbeiten.",
+      "tab_steps": "Schritte",
+      "tab_settings": "Einstellungen",
+      "empty": "Diese Tour hat noch keine Schritte.",
+      "untitled": "Schritt ohne Titel",
+      "jumping": "Vorherige Schritte werden abgespielt",
+      "missing": "Auf dieser Tafel nicht gefunden",
+      "unregistered": "Nicht mehr in SpartBoard",
+      "unbound": "Kein Element gewählt",
+      "wholeBoard": "Ganze Tafel",
+      "reorder": "Schritt {{n}} verschieben"
+    }
   },
   "glPlayer": {
     "modeChip": {

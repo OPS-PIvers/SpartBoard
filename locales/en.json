@@ -4683,7 +4683,27 @@
     "autoConfirmYes": "Do it",
     "autoConfirmNo": "I'll do it",
     "moveHint": "Drag to move. Double-click to put it back at the top.",
-    "stepListNote": "Open SpartBoard on a computer to run this tour on your board."
+    "stepListNote": "Open SpartBoard on a computer to run this tour on your board.",
+    "editor": {
+      "panel": "Tour editor",
+      "youClick": "You click this one",
+      "expand": "Show steps",
+      "collapse": "Hide steps",
+      "swapSide": "Move to the other side",
+      "close": "Close editor",
+      "saveFailed": "Couldn't save. Your next change will try again.",
+      "saveConflict": "Someone else changed this tour. Close and reopen it to keep editing.",
+      "tab_steps": "Steps",
+      "tab_settings": "Settings",
+      "empty": "This tour has no steps yet.",
+      "untitled": "Untitled step",
+      "jumping": "Playing the steps before this one",
+      "missing": "Not found on this board",
+      "unregistered": "No longer in SpartBoard",
+      "unbound": "No control picked",
+      "wholeBoard": "Whole board",
+      "reorder": "Move step {{n}}"
+    }
   },
   "glPlayer": {
     "modeChip": {

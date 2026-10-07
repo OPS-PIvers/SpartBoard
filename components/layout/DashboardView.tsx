@@ -38,6 +38,7 @@ import { HelpCenterModal } from '@/components/help/HelpCenterModal';
 import { LiveTourRunner } from '@/components/tours/LiveTourRunner';
 import { TourStageTransition } from '@/components/tours/TourStageTransition';
 import { TourRecordingHost } from '@/components/widgets/GuidedLearning/components/recorder/TourRecordingHost';
+import { TourEditorHost } from '@/components/tours/editor/TourEditorHost';
 import { TOUR_START_EVENT } from '@/components/tours/tourState';
 import { TourOfferWatcher } from '@/components/tours/useTourOffers';
 import {
@@ -1789,6 +1790,7 @@ export const DashboardView: React.FC = () => {
           <TourStageTransition />
           <TourOfferWatcher />
           {isAdmin && <TourRecordingHost />}
+          {isAdmin && <TourEditorHost />}
         </>
       )}
 
