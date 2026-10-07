@@ -19,7 +19,6 @@ export type {
   Plan,
   RoleId,
   RoleRecord,
-  StudentPageConfig,
   UserRecord,
   UserStatus,
 } from '@/types/organization';
