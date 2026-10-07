@@ -2,7 +2,19 @@
 
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { PlcTeamLayout, TeamHeroRef, TeamPageId } from '@/types';
+import type {
+  Plc,
+  PlcGroupType,
+  PlcTeamLayout,
+  TeamHeroRef,
+  TeamPageId,
+} from '@/types';
+import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
+import {
+  DashboardContext,
+  type DashboardContextValue,
+} from '@/context/DashboardContextValue';
+import { PlcSettingsTab } from '@/components/plc/tabs/PlcSettingsTab';
 import { BUILT_IN_TEAM_TYPE_PRESETS } from '@/config/teamTypePresets';
 import { splitSinceYouWereHere } from '@/components/plc/activity/activityDescriptions';
 import { PlcDataOverviewMock } from '@/components/plc/redesignMockup/PlcDataOverviewMock';
@@ -15,7 +27,10 @@ import {
   PLC_TEAM,
 } from '@/components/plc/redesignMockup/fixtures';
 import { TEAM_PAGE_REGISTRY } from '@/components/plc/teams/pageRegistry';
-import { teamPageLabel } from '@/components/plc/teams/teamLabels';
+import {
+  teamPageLabel,
+  teamTypeLabel,
+} from '@/components/plc/teams/teamLabels';
 import { selectNewerHeroData } from '@/components/plc/teams/heroes/heroStaleness';
 import {
   TeamShellView,
@@ -43,6 +58,7 @@ const SCREENS = [
   'myitems',
   'members',
   'layout',
+  'settings',
 ] as const;
 type Screen = (typeof SCREENS)[number];
 
@@ -129,6 +145,21 @@ const PIN_GROUPS: HeroPinGroup[] = [
   },
 ];
 
+const HARNESS_AUTH = {
+  user: { uid: 'me' },
+  canAccessFeature: () => true,
+} as unknown as AuthContextType;
+const HARNESS_DASHBOARD = {
+  addToast: () => undefined,
+} as unknown as DashboardContextValue;
+
+const SETTINGS_TEAM_NAMES: Record<PlcGroupType, string> = {
+  plc: PLC_TEAM.name,
+  department: 'Math Department',
+  building: 'Orono Middle School',
+  mentoring: 'New Teacher Mentoring',
+};
+
 function readParams() {
   const params = new URLSearchParams(window.location.search);
   const screen = params.get('screen');
@@ -139,6 +170,7 @@ function readParams() {
     lead: params.get('role') !== 'member',
     live: params.get('live') === '1',
     capture: params.get('capture') === '1',
+    type: (params.get('type') ?? 'plc') as PlcGroupType,
   };
 }
 
@@ -162,7 +194,20 @@ export const TeamsShellDevHarness: React.FC = () => {
     online: m.online,
   }));
   const { since, older } = splitSinceYouWereHere(ACTIVITY, LAST_SEEN);
-  const pages = LAYOUT.pages
+  const settingsType = initial.type;
+  const settingsPlc = {
+    ...PLC_TEAM,
+    id: 'harness',
+    name: SETTINGS_TEAM_NAMES[settingsType],
+    groupType: settingsType,
+    leadUid: 'me',
+    memberUids: ['me'],
+  } as unknown as Plc;
+  const pagesSource =
+    screen === 'settings'
+      ? BUILT_IN_TEAM_TYPE_PRESETS[settingsType].pages
+      : LAYOUT.pages;
+  const pages = pagesSource
     .filter((p) => p.enabled)
     .map((p) => ({
       id: p.id,
@@ -200,15 +245,25 @@ export const TeamsShellDevHarness: React.FC = () => {
         className={initial.capture ? 'flex flex-1 flex-col' : 'min-h-0 flex-1'}
       >
         <TeamShellView
-          name={PLC_TEAM.name}
-          typeLabel={PLC_TEAM.typeLabel}
+          name={
+            screen === 'settings'
+              ? SETTINGS_TEAM_NAMES[settingsType]
+              : PLC_TEAM.name
+          }
+          typeLabel={
+            screen === 'settings'
+              ? teamTypeLabel(t, settingsType)
+              : PLC_TEAM.typeLabel
+          }
           whatsNew={PLC_TEAM.whatsNew}
           myItems={PLC_TEAM.myItems}
           people={selectAvatarPeople(t, members)}
           memberCount={PLC_TEAM.memberCount}
           roleLabel={lead ? 'Lead' : null}
           pages={pages}
-          activePage={'dataOverview' satisfies TeamPageId}
+          activePage={
+            screen === 'settings' ? null : ('dataOverview' satisfies TeamPageId)
+          }
           overlay={overlay}
           onOverlay={(next) =>
             setScreen(next && next !== 'search' ? next : 'plc')
@@ -245,14 +300,24 @@ export const TeamsShellDevHarness: React.FC = () => {
             ) : null
           }
         >
-          <PlcDataOverviewMock
-            isLead={lead}
-            tagged
-            onLayout={() => setScreen('layout')}
-            onTargets={() => undefined}
-            onNote={() => undefined}
-            onItems={() => setScreen('myitems')}
-          />
+          {screen === 'settings' ? (
+            <AuthContext.Provider value={HARNESS_AUTH}>
+              <DashboardContext.Provider value={HARNESS_DASHBOARD}>
+                <div className="p-4 pb-8 md:p-6">
+                  <PlcSettingsTab plc={settingsPlc} />
+                </div>
+              </DashboardContext.Provider>
+            </AuthContext.Provider>
+          ) : (
+            <PlcDataOverviewMock
+              isLead={lead}
+              tagged
+              onLayout={() => setScreen('layout')}
+              onTargets={() => undefined}
+              onNote={() => undefined}
+              onItems={() => setScreen('myitems')}
+            />
+          )}
           {(screen === 'whatsnew' || screen === 'myitems') && (
             <TeamDrawerView
               tab={screen}
