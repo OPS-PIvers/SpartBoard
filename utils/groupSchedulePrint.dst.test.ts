@@ -62,36 +62,30 @@ const localToMs = (
 // A Date that reads and writes wall-clock time in America/Chicago, since worker threads cannot change TZ.
 class ChicagoDate extends RealDate {
   constructor(...args: unknown[]) {
-    if (args.length >= 2) {
-      super(
-        localToMs(
-          ...(args as [
-            number,
-            number,
-            number?,
-            number?,
-            number?,
-            number?,
-            number?,
-          ])
-        )
-      );
-    } else {
-      super(...(args as [number]));
-    }
+    super(
+      args.length >= 2
+        ? localToMs(
+            args[0] as number,
+            args[1] as number,
+            (args[2] as number | undefined) ?? 1
+          )
+        : args.length === 1
+          ? (args[0] as number | Date)
+          : RealDate.now()
+    );
   }
   private p = (): Parts => partsOf(this.getTime());
-  getFullYear = () => this.p().y;
-  getMonth = () => this.p().mo;
-  getDate = () => this.p().d;
-  getHours = () => this.p().h;
-  getDay = () =>
+  override getFullYear = () => this.p().y;
+  override getMonth = () => this.p().mo;
+  override getDate = () => this.p().d;
+  override getHours = () => this.p().h;
+  override getDay = () =>
     new RealDate(RealDate.UTC(this.p().y, this.p().mo, this.p().d)).getUTCDay();
-  setDate = (d: number) => {
+  override setDate = (d: number) => {
     const p = this.p();
     return this.setTime(localToMs(p.y, p.mo, d, p.h, p.mi, p.s, p.ms));
   };
-  setHours = (h: number, mi = 0, s = 0, ms = 0) => {
+  override setHours = (h: number, mi = 0, s = 0, ms = 0) => {
     const p = this.p();
     return this.setTime(localToMs(p.y, p.mo, p.d, h, mi, s, ms));
   };
