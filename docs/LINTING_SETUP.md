@@ -163,9 +163,8 @@ This project has three automated workflows configured:
 
 Runs on all pull requests to `main` and `dev-*` branches:
 
-- ✅ Type checking (`npm run type-check`)
-- ✅ Linting (app ESLint split into 3 size-balanced shards by `scripts/lintApp.mjs`, plus functions)
-- ✅ Code formatting check (`npm run format:check`)
+- ✅ Type checking, functions lint and format check, sharing one runner
+- ✅ App ESLint split into 3 size-balanced shards by `scripts/lintApp.mjs`
 - ✅ Unit tests (4 Vitest shards), Firestore rules tests (2 shards), both merged for the count guard, E2E
 - ✅ Build verification (`npm run build`)
 - ⏩ `preflight` skips everything except E2E when the head SHA already passed a `dev-*` push run
@@ -188,7 +187,7 @@ Runs on pushes to `main` branch:
 
 Runs on pushes to `dev-*` branches:
 
-- ✅ Type checking, linting (3 app shards / functions / format as parallel legs)
+- ✅ Type checking, linting (3 app shards, plus functions lint and format on one runner)
 - ✅ Unit tests (4 shards) and Firestore rules tests (2 shards), merged for the count guard
 - 🏗️ Preview build (parallel job; uploaded as an artifact the deploy reuses)
 - 🚀 Deploy to the `spartboard-dev` Firebase project (https://spartboard-dev.web.app)
