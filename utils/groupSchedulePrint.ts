@@ -32,7 +32,6 @@ export interface GroupScheduleRow {
 }
 
 const WEEKDAYS = [1, 2, 3, 4, 5];
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const fullName = (s: Student) => `${s.firstName} ${s.lastName}`.trim() || s.id;
 
@@ -76,8 +75,8 @@ export function upcomingOnWeeks(
   const firstDay = Math.min(...reminder.days);
   const weeks: Date[] = [];
   for (let w = 0; weeks.length < count && w < count * 2 + 52; w++) {
-    const week = new Date(monday.getTime() + w * WEEK_MS);
-    week.setHours(0, 0, 0, 0);
+    const week = new Date(monday);
+    week.setDate(monday.getDate() + w * 7);
     const day = new Date(week);
     day.setDate(week.getDate() + firstDay - 1);
     if (reminderFallsOn(reminder, day)) weeks.push(week);
