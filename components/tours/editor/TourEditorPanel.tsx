@@ -252,10 +252,10 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
       style={frame}
     >
       <header className="flex flex-col gap-0.5 border-b border-white/10 px-3 pb-2 pt-2.5">
-        <div className="flex items-start gap-1">
-          <h2 className="min-w-0 flex-1 break-words pt-1 text-sm font-semibold text-slate-100">
-            {set.title.trim() || t('tours.welcomeTitle')}
-          </h2>
+        <div className="flex items-center gap-1">
+          <div className="min-w-0 flex-1">
+            <SaveLine state={session.saveState} />
+          </div>
           <button
             type="button"
             onClick={session.undo}
@@ -326,7 +326,10 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
-        <SaveLine state={session.saveState} />
+        <h2 className="mt-1 break-words text-sm font-semibold text-slate-100">
+          {set.title.trim() || t('tours.welcomeTitle')}
+        </h2>
+        <SaveAlert state={session.saveState} />
       </header>
       {settings && (
         <div
@@ -435,27 +438,33 @@ const SaveLine: React.FC<{ state: TourEditorSession['saveState'] }> = ({
   state,
 }) => {
   const { t } = useTranslation();
-  if (state === 'conflict' || state === 'error') {
-    return (
-      <p
-        role="alert"
-        className="flex items-start gap-1 text-xs font-semibold text-red-300"
-      >
-        <AlertTriangle
-          className="mt-px h-3.5 w-3.5 shrink-0"
-          aria-hidden="true"
-        />
-        {t(
-          state === 'conflict'
-            ? 'tours.editor.saveConflict'
-            : 'tours.editor.saveFailed'
-        )}
-      </p>
-    );
-  }
+  if (state === 'conflict' || state === 'error') return null;
   return (
     <p aria-live="polite" className="text-xs text-slate-300">
       {t(state === 'saving' ? 'common.saving' : 'common.saved')}
+    </p>
+  );
+};
+
+const SaveAlert: React.FC<{ state: TourEditorSession['saveState'] }> = ({
+  state,
+}) => {
+  const { t } = useTranslation();
+  if (state !== 'conflict' && state !== 'error') return null;
+  return (
+    <p
+      role="alert"
+      className="flex items-start gap-1 text-xs font-semibold text-red-300"
+    >
+      <AlertTriangle
+        className="mt-px h-3.5 w-3.5 shrink-0"
+        aria-hidden="true"
+      />
+      {t(
+        state === 'conflict'
+          ? 'tours.editor.saveConflict'
+          : 'tours.editor.saveFailed'
+      )}
     </p>
   );
 };
