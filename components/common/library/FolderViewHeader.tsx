@@ -124,11 +124,15 @@ export const FolderRowButton: React.FC<{
             ? `${swatch.row.split(' ')[0]} ${swatch.icon}`
             : 'bg-amber-100 text-amber-700'
         }`}
-        style={{ width: 'min(36px, 10cqmin)', height: 'min(36px, 10cqmin)' }}
+        style={
+          isList
+            ? { width: 'min(48px, 13cqmin)', height: 'min(48px, 13cqmin)' }
+            : { width: 'min(36px, 10cqmin)', height: 'min(36px, 10cqmin)' }
+        }
         aria-hidden
       >
         <Folder
-          style={{ width: 'min(18px, 5cqmin)', height: 'min(18px, 5cqmin)' }}
+          style={{ width: 'min(22px, 6cqmin)', height: 'min(22px, 6cqmin)' }}
         />
       </span>
       <span
