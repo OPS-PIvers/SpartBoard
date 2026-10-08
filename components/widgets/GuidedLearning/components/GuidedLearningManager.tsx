@@ -778,7 +778,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   // item; drops on another card reorder (only honored when manual reorder is
   // active — see `handleReorderDrop` below).
   const enableCardDrag =
-    (Boolean(userId) || reorderDragActive) && !selectionMode;
+    (Boolean(userId) || reorderDragActive) &&
+    (!selectionMode || view.folderView != null);
 
   const handleReorderDrop = useCallback(
     (orderedIds: string[]) => {
@@ -1710,6 +1711,9 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   return userId && tab === 'library' ? (
     <>
       <LibraryDndContext
+        folderView={view.folderView}
+        selectedIds={selection.selectedIds}
+        folderActions={folderState}
         itemIds={orderedIds}
         onDropOnFolder={handleDropOnFolder}
         onReorder={handleReorderDrop}

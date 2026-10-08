@@ -240,6 +240,13 @@ export function useFolderLibraryView<TItem>(
     [index, items, itemFolderId]
   );
 
+  const folderIdById = useMemo(() => {
+    const map = new Map<string, string | null>();
+    if (enabled)
+      for (const item of items) map.set(getId(item), itemFolderId(item));
+    return map;
+  }, [enabled, items, getId, itemFolderId]);
+
   const sort = view.state.sort;
   const folderView = useMemo<LibraryFolderViewModel | null>(() => {
     if (!enabled) return null;
@@ -277,6 +284,7 @@ export function useFolderLibraryView<TItem>(
       searchScope,
       setSearchScope,
       pathByItemId,
+      folderIdOf: (itemId) => folderIdById.get(itemId) ?? null,
       emptyFolder:
         showRows &&
         openFolderId != null &&
@@ -297,6 +305,7 @@ export function useFolderLibraryView<TItem>(
     getId,
     navigate,
     searchScope,
+    folderIdById,
   ]);
 
   const resetToTopLevel = useCallback(() => {

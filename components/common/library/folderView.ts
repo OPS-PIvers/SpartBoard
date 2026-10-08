@@ -16,6 +16,8 @@ export const RECENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 export const RECENT_LIMIT = 25;
 
 /** Breadcrumbs longer than this collapse their middle levels into "…". */
+/** Name given to a folder made by holding one item over another (D14). */
+export const NEW_FOLDER_NAME = 'New folder';
 export const BREADCRUMB_MAX_LEVELS = 3;
 
 export type ItemNoun = readonly [one: string, other: string];

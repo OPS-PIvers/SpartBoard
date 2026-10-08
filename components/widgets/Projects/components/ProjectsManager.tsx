@@ -807,7 +807,9 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
               getId={GET_ID}
               renderCard={renderProjectCard}
               onReorder={handleReorderDrop}
-              dragDisabled={!userId || selectionMode}
+              dragDisabled={
+                !userId || (selectionMode && view.folderView == null)
+              }
               reorderLocked={reorderDragActive ? view.reorderLocked : false}
               reorderLockedReason={
                 reorderDragActive ? view.reorderLockedReason : undefined
@@ -873,6 +875,9 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
     <>
       {userId && tab === 'library' ? (
         <LibraryDndContext
+          folderView={view.folderView}
+          selectedIds={selection.selectedIds}
+          folderActions={folderState}
           itemIds={reorder.orderedItems.map(GET_ID)}
           onReorder={handleReorderDrop}
           onDropOnFolder={handleDropOnFolder}
