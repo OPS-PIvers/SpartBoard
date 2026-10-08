@@ -36,11 +36,14 @@ import { rosterGroupMemberIds } from '@/utils/rosterGroups';
 import { Modal } from '@/components/common/Modal';
 import { RefreshCw, Undo2, CheckCircle2, Box, Users, X } from 'lucide-react';
 import { SubmitReportModal } from './SubmitReportModal';
+import { MissingInfoModal } from './MissingInfoModal';
+import type { LunchInfo } from './MissingInfoModal';
 import { useNutrislice } from './useNutrislice';
 import { DraggableStudent } from './components/DraggableStudent';
 import { DroppableZone } from './components/DroppableZone';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 import { logError } from '@/utils/logError';
+import { toLunchCountSchoolSite } from '@/config/buildings';
 
 import { WidgetLayout } from '../WidgetLayout';
 import { hexToRgba } from '@/utils/styles';
@@ -234,7 +237,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   const { t, i18n } = useTranslation();
   const { updateWidget, addToast, rosters, activeRosterId, activeDashboard } =
     useDashboard();
-  const { user, featurePermissions } = useAuth();
+  const { user, featurePermissions, selectedBuildings } = useAuth();
   // A substitute reports for the teacher whose board this is, not under their own name.
   const subShareHost = useSubShareHost();
   const reportName = subShareHost
@@ -246,12 +249,25 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     assignments = {},
     roster = [],
     rosterMode = 'class',
-    schoolSite = 'schumann-elementary',
-    lunchTimeHour = '',
-    lunchTimeMinute = '',
-    gradeLevel = '',
+    schoolSite: savedSchoolSite = 'schumann-elementary',
+    lunchTimeHour: savedLunchTimeHour = '',
+    lunchTimeMinute: savedLunchTimeMinute = '',
+    gradeLevel: savedGradeLevel = '',
     rosterPoolGroupId = null,
   } = config;
+  // Values picked in the missing-info prompt; a sub's board can't save them back, so the report reads these first.
+  const [pickedInfo, setPickedInfo] = useState<LunchInfo | null>(null);
+  const lunchTimeHour = pickedInfo?.hour ?? savedLunchTimeHour;
+  const lunchTimeMinute = pickedInfo?.minute ?? savedLunchTimeMinute;
+  const gradeLevel = pickedInfo?.grade ?? savedGradeLevel;
+  const schoolSite = pickedInfo?.schoolSite ?? savedSchoolSite;
+  // Without a profile building the widget's school is only the Schumann fallback, so ask (never on a sub's board).
+  const askSchool =
+    !subShareHost &&
+    !selectedBuildings.some((id) => toLunchCountSchoolSite(id) !== null);
+  const [isMissingInfoOpen, setIsMissingInfoOpen] = useState(false);
+  const needsTime = !formatLunchTime(lunchTimeHour, lunchTimeMinute);
+  const needsGrade = !formatGradeLabel(gradeLevel);
   const rosterGroupsEnabled = useRosterGroupsGate();
 
   // Resolve global lunch count settings from feature permissions
@@ -591,6 +607,35 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
+  const handleOpenReport = () => {
+    if (needsTime || needsGrade) {
+      setIsMissingInfoOpen(true);
+      return;
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleSaveMissingInfo = (info: LunchInfo) => {
+    setPickedInfo(info);
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        lunchTimeHour: info.hour,
+        lunchTimeMinute: info.minute,
+        gradeLevel: info.grade,
+        ...(info.schoolSite !== savedSchoolSite
+          ? {
+              schoolSite: info.schoolSite,
+              cachedMenu: null,
+              lastSyncDate: null,
+            }
+          : {}),
+      },
+    });
+    setIsMissingInfoOpen(false);
+    setIsModalOpen(true);
+  };
+
   const dropAnimation = {
     sideEffects: defaultDropAnimationSideEffects({
       styles: {
@@ -761,7 +806,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
             </div>
 
             <Button
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleOpenReport}
               disabled={reportStats.remaining > 0 || reportStats.total === 0}
               variant={
                 reportStats.remaining === 0 && reportStats.total > 0
@@ -1127,6 +1172,20 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       />
 
       {/* Modal */}
+      <MissingInfoModal
+        isOpen={isMissingInfoOpen}
+        needsTime={needsTime}
+        needsGrade={needsGrade}
+        askSchool={askSchool}
+        current={{
+          hour: lunchTimeHour,
+          minute: lunchTimeMinute,
+          grade: gradeLevel,
+          schoolSite,
+        }}
+        onClose={() => setIsMissingInfoOpen(false)}
+        onSave={handleSaveMissingInfo}
+      />
       <SubmitReportModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
