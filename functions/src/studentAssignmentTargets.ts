@@ -141,6 +141,8 @@ export const MAX_TARGET_REFS = 250;
  */
 export const MAX_STORED_TARGET_REFS = 2000;
 export const MAX_OWNED_CLASSES = 20;
+/** Narrowed classes per call; far above any real class list. */
+export const MAX_STUDENT_TARGET_CLASSES = 100;
 const ROSTER_SCAN_LIMIT = 100;
 const BATCH_OP_LIMIT = 400;
 const GET_ALL_CHUNK = 100;
@@ -228,6 +230,8 @@ export interface SetAssignmentTargetsInput {
    * receive a pointer doc and any pointer they already hold is deleted.
    */
   excludedTargets?: StudentTargetRef[];
+  /** Session classes narrowed to picked students (D5b); absent preserves, `[]` clears. */
+  studentTargetClassIds?: string[];
 }
 
 // ── ref parsing / normalization ────────────────────────────────────────────
@@ -583,6 +587,17 @@ export function parseSetAssignmentTargetsInput(raw: unknown): {
     ? parseRefList(data.excludedTargets, skipped)
     : undefined;
 
+  const studentTargetClassIds = parseClassIdList(data.studentTargetClassIds);
+  // A narrowed class only means something next to whole classes on the class channel.
+  if (studentTargetClassIds && studentTargetClassIds.length > 0) {
+    if (targetMode !== 'class') {
+      throw new HttpsError(
+        'invalid-argument',
+        "studentTargetClassIds needs targetMode 'class'."
+      );
+    }
+  }
+
   return {
     input: {
       assignmentId,
@@ -598,9 +613,42 @@ export function parseSetAssignmentTargetsInput(raw: unknown): {
       },
       targetMode,
       ...(excludedTargets ? { excludedTargets } : {}),
+      ...(studentTargetClassIds ? { studentTargetClassIds } : {}),
     },
     skipped,
   };
+}
+
+/** Absent ⇒ `undefined` (preserve); otherwise a deduped list of class ids. */
+function parseClassIdList(raw: unknown): string[] | undefined {
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw)) {
+    throw new HttpsError('invalid-argument', 'Invalid studentTargetClassIds.');
+  }
+  const ids = raw.filter(
+    (id): id is string =>
+      typeof id === 'string' && id.length > 0 && id.length <= 200
+  );
+  return [...new Set(ids)].slice(0, MAX_STUDENT_TARGET_CLASSES);
+}
+
+/** The class ids a session doc targets, legacy single `classId` included. */
+function sessionClassIdsOf(
+  snap: admin.firestore.DocumentSnapshot
+): Set<string> {
+  const out = new Set<string>();
+  const classIds: unknown = snap.get('classIds');
+  if (Array.isArray(classIds)) {
+    for (const id of classIds) if (typeof id === 'string') out.add(id);
+  }
+  const legacy: unknown = snap.get('classId');
+  if (typeof legacy === 'string' && legacy.length > 0) out.add(legacy);
+  return out;
+}
+
+function sameIdSet(a: readonly string[], b: readonly string[]): boolean {
+  const setA = new Set(a);
+  return setA.size === new Set(b).size && b.every((id) => setA.has(id));
 }
 
 // ── handler ────────────────────────────────────────────────────────────────
@@ -713,6 +761,23 @@ export async function handleSetAssignmentTargets(
   if (sessionTeacherUid !== callerUid) {
     throw new HttpsError('permission-denied', 'Not the owner of this session.');
   }
+
+  // D5b: only classes the session actually targets can be narrowed.
+  const storedNarrowed = (() => {
+    const raw: unknown = sessionSnap.get('studentTargetClassIds');
+    return Array.isArray(raw)
+      ? raw.filter((id): id is string => typeof id === 'string')
+      : [];
+  })();
+  const sessionClassIds = sessionClassIdsOf(sessionSnap);
+  const narrowedClassIds = input.studentTargetClassIds?.filter((id) =>
+    sessionClassIds.has(id)
+  );
+  // Narrow before pointers land; un-narrow only after the pointer deletes.
+  const narrowedDuringWrite =
+    narrowedClassIds === undefined
+      ? storedNarrowed
+      : [...new Set([...storedNarrowed, ...narrowedClassIds])];
 
   const ctx = await loadContext();
   // Absent `excludedTargets` ⇒ an empty set ⇒ byte-identical behaviour to a
@@ -928,6 +993,9 @@ export async function handleSetAssignmentTargets(
   // lands before the rules would accept their submission.
   const sessionUpdate: Record<string, unknown> = {};
   if (wantsIndividual) sessionUpdate.individualTargeting = true;
+  if (!sameIdSet(narrowedDuringWrite, storedNarrowed)) {
+    sessionUpdate.studentTargetClassIds = narrowedDuringWrite;
+  }
   if (writesSessionCloseAt) {
     sessionUpdate.closeAt =
       desiredSessionCloseAt === null
@@ -1125,6 +1193,9 @@ export async function handleSetAssignmentTargets(
         ...(input.excludedTargets
           ? { excludedTargets: resolveFinalExcluded(fresh.data()) }
           : {}),
+        ...(narrowedClassIds !== undefined
+          ? { studentTargetClassIds: narrowedClassIds }
+          : {}),
         ...(Object.keys(overridesByStudentUid).length > 0
           ? { overridesByStudentUid }
           : {}),
@@ -1145,8 +1216,19 @@ export async function handleSetAssignmentTargets(
 
   // Teardown flag last: revealing the assignment to the class channel must not
   // precede the pointer deletes.
-  if (clearsIndividual) {
-    await sessionRef.set({ individualTargeting: false }, { merge: true });
+  const teardown: Record<string, unknown> = {};
+  if (clearsIndividual) teardown.individualTargeting = false;
+  if (
+    narrowedClassIds !== undefined &&
+    !sameIdSet(narrowedClassIds, narrowedDuringWrite)
+  ) {
+    teardown.studentTargetClassIds =
+      narrowedClassIds.length > 0
+        ? narrowedClassIds
+        : admin.firestore.FieldValue.delete();
+  }
+  if (Object.keys(teardown).length > 0) {
+    await sessionRef.set(teardown, { merge: true });
   }
 
   const readAloudGained =
