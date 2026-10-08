@@ -261,7 +261,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   const lunchTimeMinute = pickedInfo?.minute ?? savedLunchTimeMinute;
   const gradeLevel = pickedInfo?.grade ?? savedGradeLevel;
   const schoolSite = pickedInfo?.schoolSite ?? savedSchoolSite;
-  // Without a profile building the widget's school is only the Schumann fallback, so ask (never on a sub's board).
+  // With no profile building the school may be the Schumann fallback, so the missing-info prompt also asks for it (never on a sub's board).
   const askSchool =
     !subShareHost &&
     !selectedBuildings.some((id) => toLunchCountSchoolSite(id) !== null);
