@@ -963,9 +963,10 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     />
   );
 
-  const useExternalDnd = Boolean(userId) && !selectionMode;
+  const useExternalDnd =
+    Boolean(userId) && (!selectionMode || libraryView.folderView != null);
   const cardDragEnabled =
-    (useExternalDnd || Boolean(onReorderActivities)) && !selectionMode;
+    useExternalDnd || (Boolean(onReorderActivities) && !selectionMode);
 
   const renderLibraryTab = (): React.ReactElement => (
     <div className="flex" style={{ gap: 'min(12px, 3cqmin)' }}>
@@ -1529,6 +1530,9 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     <>
       {useExternalDnd && tab === 'library' ? (
         <LibraryDndContext
+          folderView={libraryView.folderView}
+          selectedIds={selection.selectedIds}
+          folderActions={folderState}
           itemIds={orderedIds}
           onReorder={handleReorderDrop}
           onDropOnFolder={handleDropOnFolder}

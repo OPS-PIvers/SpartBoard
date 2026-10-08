@@ -25,6 +25,8 @@ export interface LibraryFolderViewModel {
   setSearchScope: (scope: 'folder' | 'all') => void;
   /** Folder path label per item id, for rows shown outside their own folder (D4, D5). */
   pathByItemId: Map<string, string>;
+  /** Effective folder of any item in the library, for drag moves and Undo. */
+  folderIdOf: (itemId: string) => string | null;
   /** True when an open folder has no subfolders and no items. */
   emptyFolder: boolean;
 }

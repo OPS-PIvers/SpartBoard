@@ -26,13 +26,22 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useSortable } from '@dnd-kit/sortable';
+import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { Check, Folder, GripVertical, MoreHorizontal } from 'lucide-react';
+import {
+  Check,
+  Folder,
+  FolderPlus,
+  GripVertical,
+  MoreHorizontal,
+} from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { Z_INDEX } from '@/config/zIndex';
 import { LibraryGridLockContext } from './LibraryGridLockContext';
 import { useLibraryFolderView } from './LibraryFolderViewContext';
+import { useLibraryDrag } from './LibraryDragContext';
+import { itemMergeDroppableId } from './folderDropTargets';
 import { useCloseOnHostResize } from '../useCloseOnHostResize';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import type {
@@ -410,6 +419,8 @@ const FolderPathChip: React.FC<{ label: string }> = ({ label }) => (
 interface CardBodyProps<TMeta> extends LibraryItemCardProps<TMeta> {
   dragHandle?: React.ReactNode;
   isDragging?: boolean;
+  /** Held-over row that will become a new folder on drop. */
+  dropTarget?: boolean;
 }
 
 function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
@@ -428,6 +439,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
     dragHandle,
     isDragOverlay,
     isDragging,
+    dropTarget,
     selectionMode,
     selected,
     onSelectionToggle,
@@ -515,6 +527,8 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
             : 'border-brand-gray-lighter bg-white hover:bg-brand-blue-lighter/10',
         (onClick ?? onDoubleClick ?? selectionMode) && 'cursor-pointer',
         isDragging && 'opacity-50',
+        dropTarget &&
+          'bg-brand-blue-lighter/40 ring-2 ring-inset ring-brand-blue-primary',
         isDragOverlay &&
           'pointer-events-none rounded-lg bg-white shadow-lg ring-2 ring-brand-blue-primary/30',
       ]
@@ -759,8 +773,13 @@ export function LibraryItemCard<TMeta = unknown>(
   // When used inside the floating DragOverlay, or when sorting is disabled
   // at either card or grid level (or the user is in selection mode), render
   // a static card without useSortable.
+  const dragEnabled = useLibraryDrag().enabled;
+  // With the folder view on, Select mode still drags so the selection can move as a group (D13).
   const canSort =
-    sortable && !isDragOverlay && !lockState.dragDisabled && !selectionMode;
+    sortable &&
+    !isDragOverlay &&
+    !lockState.dragDisabled &&
+    (!selectionMode || dragEnabled);
 
   if (!canSort) {
     return <CardBody {...props} />;
@@ -777,6 +796,8 @@ interface SortableCardProps<TMeta> extends LibraryItemCardProps<TMeta> {
 
 function SortableCard<TMeta>(props: SortableCardProps<TMeta>) {
   const { id, lockedReason } = props;
+  const drag = useLibraryDrag();
+  // A locked list still drags into folders; it just stops making room for a reorder.
   const {
     attributes,
     listeners,
@@ -784,7 +805,26 @@ function SortableCard<TMeta>(props: SortableCardProps<TMeta>) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id, disabled: Boolean(lockedReason) });
+  } = useSortable({
+    id,
+    disabled: lockedReason
+      ? drag.enabled
+        ? { draggable: false, droppable: true }
+        : true
+      : false,
+  });
+  const { setNodeRef: setMergeRef } = useDroppable({
+    id: itemMergeDroppableId(id),
+    data: { type: 'item-merge', itemId: id },
+    disabled: !drag.canCreateFolder,
+  });
+  const setRefs = (node: HTMLElement | null) => {
+    setNodeRef(node);
+    setMergeRef(node);
+  };
+  const armed = drag.armedItemId === id;
+  const travelling = drag.draggingIds.size > 1 && drag.draggingIds.has(id);
+  const dragBlocked = Boolean(lockedReason) && !drag.enabled;
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -815,15 +855,42 @@ function SortableCard<TMeta>(props: SortableCardProps<TMeta>) {
   const accessibleName = lockedReason ?? 'Drag to reorder';
   return (
     <div
-      ref={setNodeRef}
+      ref={setRefs}
       style={style}
       {...attributes}
       {...listeners}
       aria-label={accessibleName}
-      aria-disabled={Boolean(lockedReason) || undefined}
-      className={lockedReason ? '' : 'cursor-grab active:cursor-grabbing'}
+      aria-disabled={dragBlocked || undefined}
+      className={[
+        'relative',
+        dragBlocked ? '' : 'cursor-grab active:cursor-grabbing',
+        travelling && !isDragging ? 'opacity-40' : '',
+      ].join(' ')}
     >
-      <CardBody {...props} dragHandle={dragHandle} isDragging={isDragging} />
+      <CardBody
+        {...props}
+        dragHandle={dragHandle}
+        isDragging={isDragging}
+        dropTarget={armed}
+      />
+      {armed && (
+        <span
+          className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center rounded-full bg-brand-blue-primary font-bold text-white shadow-md"
+          style={{
+            gap: 'min(4px, 1.2cqmin)',
+            fontSize: 'min(12px, 3.8cqmin)',
+            paddingInline: 'min(10px, 3cqmin)',
+            paddingBlock: 'min(4px, 1.2cqmin)',
+          }}
+          data-testid="library-create-folder-pill"
+        >
+          <FolderPlus
+            aria-hidden
+            style={{ width: 'min(14px, 4cqmin)', height: 'min(14px, 4cqmin)' }}
+          />
+          Create folder
+        </span>
+      )}
     </div>
   );
 }

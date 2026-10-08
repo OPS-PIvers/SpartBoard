@@ -1,6 +1,10 @@
 // Path bar, search scope and folder rows above the library list (docs/plans/LIBRARY_FOLDERS.md D3, D4, D7).
-import React from 'react';
+import React, { useContext, useRef, useState } from 'react';
 import { ChevronRight, Folder } from 'lucide-react';
+import { useDroppable } from '@dnd-kit/core';
+import { useLibraryDrag } from './LibraryDragContext';
+import { LibraryGridLockContext } from './LibraryGridLockContext';
+import { crumbDroppableId, folderRowDroppableId } from './folderDropTargets';
 import type { LibraryViewMode } from './types';
 import { folderColorSwatch } from './folderColors';
 import {
@@ -21,6 +25,34 @@ const iconStyle: React.CSSProperties = {
   width: 'min(14px, 4cqmin)',
   height: 'min(14px, 4cqmin)',
   flexShrink: 0,
+};
+
+// A parent level in the path bar is also a drop target, to move items up (D12).
+const CrumbButton: React.FC<{
+  folderId: string | null;
+  label: string;
+  onClick: () => void;
+}> = ({ folderId, label, onClick }) => {
+  const { enabled } = useLibraryDrag();
+  const { setNodeRef, isOver } = useDroppable({
+    id: crumbDroppableId(folderId),
+    data: { type: 'folder', folderId },
+    disabled: !enabled,
+  });
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      onClick={onClick}
+      className={`rounded px-0.5 break-words focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+        isOver
+          ? 'bg-brand-blue-lighter text-brand-blue-primary ring-2 ring-brand-blue-primary'
+          : 'hover:text-brand-blue-primary hover:underline'
+      }`}
+    >
+      {label}
+    </button>
+  );
 };
 
 const Breadcrumb: React.FC<{ model: LibraryFolderViewModel }> = ({ model }) => {
@@ -63,13 +95,11 @@ const Breadcrumb: React.FC<{ model: LibraryFolderViewModel }> = ({ model }) => {
                 {label}
               </span>
             ) : (
-              <button
-                type="button"
+              <CrumbButton
+                folderId={target.folderId}
+                label={label}
                 onClick={go(target)}
-                className="rounded px-0.5 break-words hover:text-brand-blue-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
-              >
-                {label}
-              </button>
+              />
             );
           }
           return (
@@ -94,6 +124,42 @@ const Breadcrumb: React.FC<{ model: LibraryFolderViewModel }> = ({ model }) => {
   );
 };
 
+const NameField: React.FC<{
+  folderId: string;
+  initial: string;
+  fontSize: string;
+}> = ({ folderId, initial, fontSize }) => {
+  const { finishRename } = useLibraryDrag();
+  const [value, setValue] = useState(initial);
+  // Enter or Escape settles the name; a blur fired as the field unmounts must not save again.
+  const settled = useRef(false);
+  const settle = (name: string | null) => {
+    if (settled.current) return;
+    settled.current = true;
+    finishRename(folderId, name);
+  };
+  return (
+    <input
+      // Focus and select the new folder's name so typing replaces it (D14).
+      autoFocus
+      onFocus={(e) => e.currentTarget.select()}
+      aria-label="Folder name"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') settle(value);
+        if (e.key === 'Escape') {
+          e.stopPropagation();
+          settle(null);
+        }
+      }}
+      onBlur={() => settle(value)}
+      className="min-w-0 flex-1 rounded-md border border-brand-blue-primary bg-white px-2 py-1 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30"
+      style={{ fontSize }}
+    />
+  );
+};
+
 export const FolderRowButton: React.FC<{
   row: LibraryFolderRow;
   viewMode: LibraryViewMode;
@@ -101,23 +167,28 @@ export const FolderRowButton: React.FC<{
 }> = ({ row, viewMode, onOpen }) => {
   const isList = viewMode === 'list';
   const swatch = folderColorSwatch(row.folder.color);
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      data-testid="library-folder-row"
-      className={`flex w-full items-center text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary/40 ${
-        isList
-          ? 'bg-white hover:bg-amber-50'
-          : `rounded-2xl border hover:brightness-95 ${swatch?.row ?? 'border-amber-200 bg-amber-50'}`
-      }`}
-      style={{
-        gap: 'min(10px, 2.5cqmin)',
-        padding: isList
-          ? 'min(8px, 2cqmin) min(10px, 2.5cqmin)'
-          : 'min(12px, 3cqmin)',
-      }}
-    >
+  const drag = useLibraryDrag();
+  const lock = useContext(LibraryGridLockContext);
+  const { setNodeRef, isOver } = useDroppable({
+    id: folderRowDroppableId(row.folder.id),
+    data: { type: 'folder', folderId: row.folder.id },
+    disabled: !drag.enabled,
+  });
+  const renaming = drag.renamingFolderId === row.folder.id;
+  const nameSize = isList ? 'min(14px, 4.5cqmin)' : 'min(15px, 4.8cqmin)';
+  const className = `flex w-full items-center text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary/40 ${
+    isOver
+      ? 'bg-brand-blue-lighter/40 ring-2 ring-inset ring-brand-blue-primary'
+      : isList
+        ? 'bg-white hover:bg-amber-50'
+        : `rounded-2xl border hover:brightness-95 ${swatch?.row ?? 'border-amber-200 bg-amber-50'}`
+  }`;
+  const content = (
+    <>
+      {/* Lines the folder icon up with item rows, which keep room for a drag grip. */}
+      {isList && !lock.dragDisabled && (
+        <span aria-hidden className="h-8 w-6 shrink-0" />
+      )}
       <span
         className={`flex shrink-0 items-center justify-center rounded-lg ${
           swatch
@@ -135,20 +206,69 @@ export const FolderRowButton: React.FC<{
           style={{ width: 'min(22px, 6cqmin)', height: 'min(22px, 6cqmin)' }}
         />
       </span>
-      <span
-        className="min-w-0 flex-1 break-words font-bold text-slate-800"
-        style={{
-          fontSize: isList ? 'min(14px, 4.5cqmin)' : 'min(15px, 4.8cqmin)',
-        }}
+      {renaming ? (
+        <NameField
+          folderId={row.folder.id}
+          initial={row.folder.name}
+          fontSize={nameSize}
+        />
+      ) : (
+        <span
+          className="min-w-0 flex-1 break-words font-bold text-slate-800"
+          style={{ fontSize: nameSize }}
+        >
+          {row.folder.name}
+        </span>
+      )}
+      {isOver ? (
+        <span
+          className="shrink-0 rounded-full bg-brand-blue-primary font-bold text-white"
+          style={{
+            fontSize: 'min(12px, 3.8cqmin)',
+            paddingInline: 'min(10px, 3cqmin)',
+            paddingBlock: 'min(4px, 1.2cqmin)',
+          }}
+        >
+          Move into {row.folder.name}
+        </span>
+      ) : (
+        <span
+          className="shrink-0 font-medium text-slate-500"
+          style={{ fontSize: 'min(12px, 3.8cqmin)' }}
+        >
+          {row.label}
+        </span>
+      )}
+    </>
+  );
+  const style: React.CSSProperties = {
+    gap: 'min(10px, 2.5cqmin)',
+    padding: isList
+      ? 'min(8px, 2cqmin) min(10px, 2.5cqmin)'
+      : 'min(12px, 3cqmin)',
+  };
+  if (renaming) {
+    return (
+      <div
+        ref={setNodeRef}
+        data-testid="library-folder-row"
+        className={className}
+        style={style}
       >
-        {row.folder.name}
-      </span>
-      <span
-        className="shrink-0 font-medium text-slate-500"
-        style={{ fontSize: 'min(12px, 3.8cqmin)' }}
-      >
-        {row.label}
-      </span>
+        {content}
+      </div>
+    );
+  }
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      onClick={onOpen}
+      data-testid="library-folder-row"
+      className={className}
+      style={style}
+    >
+      {content}
     </button>
   );
 };

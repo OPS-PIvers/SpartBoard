@@ -2350,7 +2350,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           totalCount={quizzes.length}
           reorderLocked={libraryView.reorderLocked}
           reorderLockedReason={libraryView.reorderLockedReason}
-          enableCardDrag={Boolean(userId) && !selectionMode}
+          enableCardDrag={
+            Boolean(userId) &&
+            (!selectionMode || libraryView.folderView != null)
+          }
           viewMode={libraryView.state.viewMode}
           selection={selection}
           selectionMode={selectionMode}
@@ -2419,6 +2422,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     <>
       {userId && managerTab === 'library' ? (
         <LibraryDndContext
+          folderView={libraryView.folderView}
+          selectedIds={selection.selectedIds}
+          folderActions={folderState}
           itemIds={orderedIds}
           onReorder={onReorderQuizzes ? handleReorderDrop : undefined}
           onDropOnFolder={handleDropOnFolder}

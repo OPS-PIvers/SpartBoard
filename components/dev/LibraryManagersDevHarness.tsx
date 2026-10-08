@@ -1,6 +1,12 @@
 // Real library managers on fixture data at /library-managers-dev (dev and auth-bypass builds only), for layout checks.
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import {
+  DashboardContext,
+  type DashboardContextValue,
+} from '@/context/DashboardContextValue';
+import { ToastContainer } from '@/components/common/ToastContainer';
+import type { Toast } from '@/types';
 import { DialogProvider } from '@/context/DialogContext';
 import { DialogContainer } from '@/components/common/DialogContainer';
 import { AuthProvider } from '@/context/AuthContext';
@@ -543,35 +549,68 @@ const readView = (): HarnessView => {
     : 'quiz';
 };
 
+// Just enough dashboard for library toasts (drag Undo) to show in the harness.
+const HarnessToasts: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const value = useMemo(
+    () =>
+      ({
+        toasts,
+        addToast: (
+          message: string,
+          type: Toast['type'] = 'info',
+          action?: Toast['action']
+        ) =>
+          setToasts((prev) => [
+            ...prev,
+            { id: String(prev.length + Date.now()), message, type, action },
+          ]),
+        removeToast: (id: string) =>
+          setToasts((prev) => prev.filter((t) => t.id !== id)),
+      }) as unknown as DashboardContextValue,
+    [toasts]
+  );
+  return (
+    <DashboardContext.Provider value={value}>
+      {children}
+      <ToastContainer />
+    </DashboardContext.Provider>
+  );
+};
+
 export const LibraryManagersDevHarness: React.FC = () => {
   const [view, setView] = useState<HarnessView>(readView);
   const View = VIEW_COMPONENTS[view];
   return (
-    <DialogProvider>
-      <AuthProvider>
-        <div className="flex min-h-screen flex-col items-start gap-4 bg-slate-100 p-6">
-          <select
-            aria-label="Library"
-            value={view}
-            onChange={(e) => setView(e.target.value as HarnessView)}
-            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm"
-          >
-            {LIBRARY_HARNESS_VIEWS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-          <div
-            data-testid="library-harness-widget"
-            className="relative overflow-hidden rounded-2xl bg-white shadow-lg"
-            style={{ width: 960, height: 560, containerType: 'size' }}
-          >
-            <View key={view} />
+    <HarnessToasts>
+      <DialogProvider>
+        <AuthProvider>
+          <div className="flex min-h-screen flex-col items-start gap-4 bg-slate-100 p-6">
+            <select
+              aria-label="Library"
+              value={view}
+              onChange={(e) => setView(e.target.value as HarnessView)}
+              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm"
+            >
+              {LIBRARY_HARNESS_VIEWS.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            <div
+              data-testid="library-harness-widget"
+              className="relative overflow-hidden rounded-2xl bg-white shadow-lg"
+              style={{ width: 960, height: 560, containerType: 'size' }}
+            >
+              <View key={view} />
+            </div>
           </div>
-        </div>
-        <DialogContainer />
-      </AuthProvider>
-    </DialogProvider>
+          <DialogContainer />
+        </AuthProvider>
+      </DialogProvider>
+    </HarnessToasts>
   );
 };
