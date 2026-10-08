@@ -196,7 +196,7 @@ function getRowId(row: UnifiedRow): string {
   return `${row.kind}:${row.item.id}`;
 }
 
-const APP_NOUN = ['app', 'apps'] as const;
+const APP_NOUN = ['Mini app', 'Mini apps'] as const;
 
 // District apps can't be filed yet, so they sit at the top level.
 function rowFolderId(row: UnifiedRow): string | null {

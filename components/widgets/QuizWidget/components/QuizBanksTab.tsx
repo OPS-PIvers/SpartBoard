@@ -89,7 +89,7 @@ const SEARCH_FIELDS = (b: QuestionBankMetadata): string =>
 const INITIAL_SORT = { key: 'updated', dir: 'desc' as const };
 
 const GET_ID = (b: QuestionBankMetadata): string => b.id;
-const BANK_NOUN = ['bank', 'banks'] as const;
+const BANK_NOUN = ['question bank', 'question banks'] as const;
 
 const SORT_COMPARATORS: Record<
   string,
