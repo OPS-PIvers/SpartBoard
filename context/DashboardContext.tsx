@@ -168,6 +168,7 @@ import {
   getAnnotationWorldRect,
 } from '@/utils/annotationSize';
 import { STANDARD_COLORS } from '@/config/colors';
+import { tourDemoConfig } from '@/config/tourDemoContent';
 import {
   createWidgetHistoryStack,
   recordWidgetHistory,
@@ -5836,15 +5837,22 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       layout?: Omit<TourWidgetLayout, 'slot' | 'type'>
     ): string | null => {
       if (!activeId || isActiveBoardReadOnlyRef.current) return null;
-      if (!layout) return insertWidget(type, undefined, { transient: true });
+      const demo = tourDemoConfig(type);
+      if (!layout) {
+        return insertWidget(
+          type,
+          demo ? { config: demo as AddWidgetOverrides['config'] } : undefined,
+          { transient: true }
+        );
+      }
       const { appearance, ...props } = layout;
+      const config =
+        demo || appearance ? { ...demo, ...appearance } : undefined;
       return insertWidget(
         type,
         {
           ...props,
-          ...(appearance
-            ? { config: appearance as AddWidgetOverrides['config'] }
-            : {}),
+          ...(config ? { config: config as AddWidgetOverrides['config'] } : {}),
         },
         { transient: true, exact: true }
       );
