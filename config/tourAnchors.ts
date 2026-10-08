@@ -507,6 +507,14 @@ export const TOUR_ANCHORS = {
     label: 'Randomize/Pick button in Random Picker',
     perWidget: true,
   },
+  'random.mode': {
+    label: 'Mode button in Random Picker (Pick One, Shuffle, Groups, Jigsaw)',
+    perWidget: true,
+  },
+  'random.group-size': {
+    label: 'Group size stepper (minus and plus) in Random Picker Groups mode',
+    perWidget: true,
+  },
   'random.class-context': {
     label: 'Active class button in the Randomizer header',
     perWidget: true,
