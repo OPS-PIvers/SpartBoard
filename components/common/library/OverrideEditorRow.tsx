@@ -14,7 +14,7 @@
 
 import React, { useContext, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronUp, Copy } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, Copy } from 'lucide-react';
 import type { Rubric, StudentOverride } from '@/types';
 import { summarizeOverride } from '@/utils/studentOverrideSummary';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
@@ -68,6 +68,15 @@ export interface OverrideEditorRowProps {
   readAloudAvailable?: boolean;
   /** Set false on standing-default surfaces (e.g. roster accommodations) where openAt/closeAt are absolute timestamps that must never be copied onto future assignments. */
   allowWindowShift?: boolean;
+  /** Controlled open state; uncontrolled when omitted. */
+  expanded?: boolean;
+  onExpandedChange?: (next: boolean) => void;
+  /** Extra read-only chips after the override summary (e.g. "Skipped"). */
+  extraChips?: string[];
+  /** Rendered at the end of the open body. */
+  footer?: React.ReactNode;
+  /** 'card' is the assign stepper's row: rounded-xl, slate chips, "No changes". */
+  appearance?: 'default' | 'card';
 }
 
 /** `labelKey`/`labelDefault` are absent for the bare multiplier units (1.5x, 2x), which read the same in every locale. */
@@ -124,7 +133,13 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   defaultExpanded = false,
   readAloudAvailable = false,
   allowWindowShift = true,
+  expanded: expandedProp,
+  onExpandedChange,
+  extraChips = [],
+  footer,
+  appearance = 'default',
 }) => {
+  const card = appearance === 'card';
   const { t } = useTranslation();
   // Read via context so a provider-less host denies instead of throwing.
   const authContext = useContext(AuthContext);
@@ -140,7 +155,9 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
     if (override.language) codes.add(override.language);
     return QUIZ_TRANSLATION_LANGUAGES.filter((l) => codes.has(l.code));
   }, [enabledLanguages, override.language]);
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const [expandedState, setExpandedState] = useState(defaultExpanded);
+  const expanded = expandedProp ?? expandedState;
+  const setExpanded = onExpandedChange ?? setExpandedState;
   const [copySourceId, setCopySourceId] = useState('');
   const tabWarningInputId = useId();
   const tabAwayInputId = useId();
@@ -148,7 +165,10 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   const rubricSelectIdBase = useId();
 
   const totalQuestions = quizMode ? questions.length : undefined;
-  const chips = summarizeOverride(override, t, { totalQuestions });
+  const chips = [
+    ...summarizeOverride(override, t, { totalQuestions }),
+    ...extraChips,
+  ];
 
   const patch = (next: Partial<StudentOverride>) =>
     onChange({ ...override, ...next });
@@ -211,27 +231,57 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   const mcQuestions = questions.filter((q) => !!q.options);
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white">
+    <div
+      className={
+        card
+          ? 'rounded-xl border border-slate-200 bg-white'
+          : 'rounded-lg border border-slate-200 bg-white'
+      }
+    >
       <button
         type="button"
-        onClick={() => setExpanded((e) => !e)}
+        onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left"
+        className={
+          card
+            ? 'w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left'
+            : 'w-full flex items-center justify-between gap-2 px-3 py-2 text-left'
+        }
       >
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-slate-900 truncate">
+          <span
+            className={
+              card
+                ? 'block text-sm font-bold text-slate-800 truncate'
+                : 'block text-sm font-semibold text-slate-900 truncate'
+            }
+          >
             {studentName}
           </span>
           {chips.length > 0 ? (
-            <span className="flex flex-wrap gap-1 mt-1">
+            <span
+              className={
+                card
+                  ? 'flex flex-wrap gap-1.5 mt-1'
+                  : 'flex flex-wrap gap-1 mt-1'
+              }
+            >
               {chips.map((chip) => (
                 <span
                   key={chip}
-                  className="inline-flex items-center rounded-full bg-brand-blue-lighter/30 px-2 py-0.5 text-xs font-semibold text-brand-blue-dark"
+                  className={
+                    card
+                      ? 'inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700'
+                      : 'inline-flex items-center rounded-full bg-brand-blue-lighter/30 px-2 py-0.5 text-xs font-semibold text-brand-blue-dark'
+                  }
                 >
                   {chip}
                 </span>
               ))}
+            </span>
+          ) : card ? (
+            <span className="block text-xs text-slate-400 mt-1">
+              {t('studentOverride.noChanges', 'No changes')}
             </span>
           ) : (
             <span className="block text-xs text-slate-500 mt-0.5">
@@ -239,7 +289,13 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
             </span>
           )}
         </span>
-        {expanded ? (
+        {card ? (
+          expanded ? (
+            <ChevronDown className="w-4 h-4 shrink-0 text-slate-400" />
+          ) : (
+            <ChevronRight className="w-4 h-4 shrink-0 text-slate-400" />
+          )
+        ) : expanded ? (
           <ChevronUp className="w-4 h-4 shrink-0 text-slate-500" />
         ) : (
           <ChevronDown className="w-4 h-4 shrink-0 text-slate-500" />
@@ -247,7 +303,13 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
       </button>
 
       {expanded && (
-        <div className="px-3 pb-3 pt-1 border-t border-slate-100 flex flex-col gap-3">
+        <div
+          className={
+            card
+              ? 'px-3 py-3 border-t border-slate-100 flex flex-col gap-3'
+              : 'px-3 pb-3 pt-1 border-t border-slate-100 flex flex-col gap-3'
+          }
+        >
           {peers.length > 0 && (
             <div className="flex items-center gap-2">
               <select
@@ -632,6 +694,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
               </div>
             </div>
           )}
+          {footer}
         </div>
       )}
     </div>

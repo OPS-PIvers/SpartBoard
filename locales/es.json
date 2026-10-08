@@ -1966,7 +1966,8 @@
       "readAloud": "Lectura en voz alta",
       "language": "{{language}}"
     },
-    "language": "Idioma"
+    "language": "Idioma",
+    "noChanges": "Sin cambios"
   },
   "assignTargeting": {
     "expandAffordance": "Editar o añadir adaptaciones",
@@ -2022,7 +2023,15 @@
     "periodBell": "Horario del timbre",
     "periodCustom": "Personalizado",
     "periodBellTimes": "{{open}} – {{close}}",
-    "periodNoBell": "Este período no tiene timbre ese día, así que usa el horario de arriba."
+    "periodNoBell": "Este período no tiene timbre ese día, así que usa el horario de arriba.",
+    "back": "Atrás",
+    "modificationsEyebrow": "Asignar · {{title}}",
+    "modificationsLink": "Adaptaciones: {{value}}",
+    "modificationsNone": "Ninguna",
+    "standingHeading": "Permanentes",
+    "skippedChip": "Omitido",
+    "removeModification": "Quitar adaptación",
+    "addStudent": "Agregar un estudiante"
   },
   "assignmentsHub": {
     "title": "Tareas",

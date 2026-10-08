@@ -3085,7 +3085,8 @@
       "readAloud": "Read aloud",
       "language": "{{language}}"
     },
-    "language": "Language"
+    "language": "Language",
+    "noChanges": "No changes"
   },
   "assignTargeting": {
     "expandAffordance": "Edit or add modifications",
@@ -3141,7 +3142,15 @@
     "periodBell": "Bell times",
     "periodCustom": "Custom",
     "periodBellTimes": "{{open}} – {{close}}",
-    "periodNoBell": "This period has no bell that day, so it uses the window above."
+    "periodNoBell": "This period has no bell that day, so it uses the window above.",
+    "back": "Back",
+    "modificationsEyebrow": "Assign · {{title}}",
+    "modificationsLink": "Modifications: {{value}}",
+    "modificationsNone": "None",
+    "standingHeading": "Standing",
+    "skippedChip": "Skipped",
+    "removeModification": "Remove modification",
+    "addStudent": "Add a student"
   },
   "assignmentsHub": {
     "title": "Assignments",

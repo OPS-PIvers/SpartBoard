@@ -1966,7 +1966,8 @@
       "readAloud": "Vorlesen",
       "language": "{{language}}"
     },
-    "language": "Sprache"
+    "language": "Sprache",
+    "noChanges": "Keine Änderungen"
   },
   "assignTargeting": {
     "expandAffordance": "Anpassungen bearbeiten oder hinzufügen",
@@ -2022,7 +2023,15 @@
     "periodBell": "Klingelzeiten",
     "periodCustom": "Benutzerdefiniert",
     "periodBellTimes": "{{open}} – {{close}}",
-    "periodNoBell": "Diese Stunde hat an dem Tag keine Klingelzeit, daher gilt das Zeitfenster oben."
+    "periodNoBell": "Diese Stunde hat an dem Tag keine Klingelzeit, daher gilt das Zeitfenster oben.",
+    "back": "Zurück",
+    "modificationsEyebrow": "Zuweisen · {{title}}",
+    "modificationsLink": "Anpassungen: {{value}}",
+    "modificationsNone": "Keine",
+    "standingHeading": "Dauerhaft",
+    "skippedChip": "Übersprungen",
+    "removeModification": "Anpassung entfernen",
+    "addStudent": "Schüler hinzufügen"
   },
   "assignmentsHub": {
     "title": "Aufgaben",
