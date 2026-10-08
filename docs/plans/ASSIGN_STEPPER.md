@@ -92,7 +92,7 @@ Assigning anything takes a few short, ordered decisions in one narrow dialog ins
 - **D7.** **Available** (study resource) is Opens and Available until with the same per-class link, and no late-work toggle.
 - **D8.** The quiz rules split into three steps:
   - **Attempts and order:** attempts, time limit, shuffle questions, shuffle answer options.
-  - **Quiz integrity:** focus mode with its sub-settings, block copy and paste.
+  - **Quiz integrity:** focus mode with its sub-settings, block copy and paste. When "Auto-submit if away too long" is on, a seconds field (5 to 300, default 30, as `tabAwayLimitSeconds` today) appears to the left of its toggle, replacing today's preset buttons and stepper in `TabAwayLimitRow`.
   - **What students see:** score on submit, right and wrong, correct answer, group by learning target, raise a hand.
 
   Flag-gated rows (time limit, tab-away timer, score on submit, read aloud) stay gated as today.

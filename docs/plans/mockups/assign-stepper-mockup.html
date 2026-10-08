@@ -2698,7 +2698,7 @@ window.ICONS = {"users":[["path",{"d":"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2
   const focusRows = () => {
     const r = S.rules;
     const sub = r.focus
-      ? `<div class="ml-1 space-y-1.5 border-l-2 border-slate-100 pl-3">${U.toggleRow('Auto-submit after repeated tab switches', 'rules.tabAuto', '', { sub: true })}${r.tabAuto ? U.row(U.subLabel('Warnings before auto-submit'), U.numInput('rules.warnings', r.warnings, { min: 1, max: 10, w: 'w-14' })) : ''}${U.toggleRow('Auto-submit if away too long', 'rules.away', '', { sub: true })}</div>`
+      ? `<div class="ml-1 space-y-1.5 border-l-2 border-slate-100 pl-3">${U.toggleRow('Auto-submit after repeated tab switches', 'rules.tabAuto', '', { sub: true })}${r.tabAuto ? U.row(U.subLabel('Warnings before auto-submit'), U.numInput('rules.warnings', r.warnings, { min: 1, max: 10, w: 'w-14' })) : ''}${U.row(U.subLabel('Auto-submit if away too long'), `<span class="flex items-center gap-2">${r.away ? `${U.numInput('rules.awaySec', r.awaySec ?? 30, { min: 5, max: 300 })}<span class="text-xs text-slate-500">sec</span>` : ''}${U.toggle('rules.away', r.away, 'Auto-submit if away too long')}</span>`)}</div>`
       : '';
     return `${U.toggleRow('Focus mode', 'rules.focus')}${sub}${U.toggleRow('Block copy and paste', 'rules.blockCopy')}`;
   };
