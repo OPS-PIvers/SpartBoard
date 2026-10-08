@@ -44,6 +44,7 @@ Assigning anything takes a few short, ordered decisions in one narrow dialog ins
   - Mastery threshold 2/3/4: Flashcards mode only.
   - Score visibility: Hide until I publish / Score only / Score and correct answers.
 - **Quiz has no name field**; only Video Activity and Mini App do.
+- **Individual targeting is built but hidden.** `targetMode: 'students'` with `targetStudents` still delivers through the `/student_assignments` fan-out (`setAssignmentTargetsV1`, `functions/src/studentAssignmentTargets.ts`), and `AssignStudentPicker` (search, saved-group shortcuts, disabled rows for students without a school sign-in) still exists. #3047 retired the hand-pick UI in favour of class targeting plus per-student skip, because individual targeting drops students without a ClassLink/test-class identity and has a 250-ref cap (`docs/plans/shipped/QUIZ_ACCOMMODATIONS_HANDRAISE_TTS.md`). Students without a sign-in can never be targeted or skipped one by one.
 - **Flags.** `assign-availability`, `study-resources`, `per-period-access`, `quiz-per-class-due-dates`, `video-activity-live`, `quiz-review-split`. There are no assign-modal tour anchors (`config/tourAnchors.ts`); Review's mode cards carry `review-start.mode-*`.
 - **Tokens.** Lexend; brand blue `#2d3f89`, dark `#1d2a5d`, lighter `#eaecf5`; slate surfaces. Modal chrome is `bg-white rounded-2xl shadow-2xl`. The `Toggle` is `size="sm"`. `SegmentedControl` is `inline-flex p-1 bg-slate-100 rounded-lg`. Labels are `text-sm font-bold text-brand-blue-dark`.
 
@@ -85,6 +86,12 @@ Assigning anything takes a few short, ordered decisions in one narrow dialog ins
   Study resource removes every step after When.
 
 - **D5.** **Classes** is a compact select-style button ("All 3 classes" / class names) that opens a checklist menu with Select all and Clear, following `components/CLAUDE.md` "Picking from a list". It replaces the bordered `AssignClassPicker` box here. Below it, a **Modifications** link ("Modifications: 1 modified") opens the per-student modifications as their own view inside the dialog (back arrow, Done). That view holds the translation banner and Generate, standing modifications, skip student, read aloud and language.
+- **D5a.** **Individually assign**, in every activity, uses Google Classroom's pattern. Under the class picker, each picked class gets a row: the class name and an **"All students ▾"** select-style button.
+  - Opening it shows a search box, the class's saved groups as one-click picks ("Reading group A", ticks or unticks every member), then the student checklist, with **All students** and **Clear** at the bottom.
+  - Picking anyone turns the button into "3 students", tinted. The Classes step value then reads "Sample 2 (3 students), Sample 3".
+  - Students without a school sign-in are listed greyed out with "No sign-in" and a tooltip ("Individual assignment needs a school sign-in"). They are never silently dropped.
+  - Picked students are the only ones in that class who get the assignment. Classes left on "All students" are targeted as today.
+  - Hidden for Video Activity live (one class, the whole class).
 - **D6.** **When** is Manual / Scheduled, in that order. Quiz defaults to **Manual**; the other activities default to Scheduled. Study resource lives in the top switch, never here.
   - **Manual:** "Starts paused. You start and pause each class." and nothing else. There is **no due date**: the teacher ends it. It writes per-period access in `'assessment'` mode with `dueAt` unset.
   - **Scheduled:** Opens and Closes with bell or set time (today's `PointField`), "Different time for each class" as a link that expands per-class rows, and "Allow submissions after close".
@@ -137,6 +144,7 @@ Assigning anything takes a few short, ordered decisions in one narrow dialog ins
      - `ClassPickerMenu`: select-style checklist with a `singleSelect` mode.
      - `AssignWhenStep`: Manual / Scheduled / Available, reusing `PointField` and `applyAvailability`.
      - `ModificationsView`: the existing modifications code moved into its own view.
+     - `StudentPickMenu`: per-class "All students ▾" menu built from `AssignStudentPicker`'s data and filtering (search, groups, disabled no-sign-in rows) (D5a).
    - Wire Guided Learning first, behind the flag, including the `assignment-modes` rule (D2).
    - Tests for the step list per activity and kind, and for the class picker menu.
 3. **Quiz (D4, D8, D10, D12, D13).**
@@ -154,7 +162,13 @@ Assigning anything takes a few short, ordered decisions in one narrow dialog ins
 
 ## Open questions
 
-Manual is the Quiz default (D6), so the first two must be settled before PR 3.
+- **Mixed targeting (D5a).** `targetMode` is per assignment, but D5a lets one class stay on "All students" while another picks three. Two ways to deliver it:
+  - (a) Extend `setAssignmentTargetsV1` so one assignment carries class targets for whole classes and student targets for partial ones. This is the recommendation: whole classes keep students without a sign-in, and the 250-ref cap only counts picked students.
+  - (b) Use `targetMode: 'students'` for the whole assignment when any class is partial, filling the whole classes with their signed-in students. This drops students without a sign-in in those classes and can hit the cap.
+
+  This must be decided before PR 2.
+
+Manual is the Quiz default (D6), so the two Manual questions must be settled before PR 3.
 
 - **Manual with one class.** `buildPeriodGate` only builds per-period access for two or more classes. Should Manual extend to a single class (one period), or should Manual be hidden when one class is picked?
 - **Manual without bell periods.** If `per-period-access` or the teacher's bell schedule is missing, should Manual still show (closed until started, with no auto-close at the bell) or be hidden?
