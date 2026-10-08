@@ -34,6 +34,7 @@ const model = (
   searchScope: 'folder',
   setSearchScope: vi.fn(),
   pathByItemId: new Map(),
+  folderIdOf: () => null,
   emptyFolder: false,
   ...overrides,
 });

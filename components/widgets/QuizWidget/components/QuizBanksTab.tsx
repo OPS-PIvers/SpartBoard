@@ -482,7 +482,8 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
     />
   );
 
-  const enableCardDrag = Boolean(userId) && !selectionMode;
+  const enableCardDrag =
+    Boolean(userId) && (!selectionMode || libraryView.folderView != null);
   const orderedIds = reorder.orderedItems.map(GET_ID);
 
   // ─── Shell slots ──────────────────────────────────────────────────────────
@@ -682,6 +683,9 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
     <>
       {userId ? (
         <LibraryDndContext
+          folderView={libraryView.folderView}
+          selectedIds={selection.selectedIds}
+          folderActions={folderState}
           itemIds={orderedIds}
           onReorder={onReorderBanks ? handleReorderDrop : undefined}
           onDropOnFolder={handleDropOnFolder}

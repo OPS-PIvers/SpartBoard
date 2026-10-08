@@ -1258,7 +1258,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     // Enable card drag when a teacher is signed in so drag-to-folder works.
     // In the Global view we keep drag disabled — global items are read-only
     // and never move between folders.
-    const enableCardDrag = Boolean(userId) && !isGlobalView && !selectionMode;
+    const enableCardDrag =
+      Boolean(userId) &&
+      !isGlobalView &&
+      (!selectionMode || view.folderView != null);
     // When folder drag is enabled we keep the drag handle active so cards can
     // be dropped on folder tiles — even in filtered/sorted views. The card-to-
     // card reorder commit is gated separately (see the onReorder wiring on
@@ -1287,7 +1290,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             getId={getRowId}
             renderCard={renderCard}
             onReorder={isGlobalView ? undefined : handleLibraryReorderDrop}
-            dragDisabled={isGlobalView || selectionMode}
+            dragDisabled={!enableCardDrag}
             reorderLocked={
               enableCardDrag ? false : !isGlobalView && view.reorderLocked
             }
@@ -1323,7 +1326,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   /* ── Shared DndContext wiring (must wrap full shell so FolderSidebar
    *    droppables live in the same context as sortable cards) ───────────── */
   const libraryDndEnabled =
-    tab === 'library' && Boolean(userId) && !isGlobalView && !selectionMode;
+    tab === 'library' &&
+    Boolean(userId) &&
+    !isGlobalView &&
+    (!selectionMode || view.folderView != null);
   const orderedRowIds = libraryDndEnabled
     ? view.visibleItems.map(getRowId)
     : [];
@@ -1460,6 +1466,9 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   return libraryDndEnabled ? (
     <>
       <LibraryDndContext
+        folderView={isGlobalView ? null : view.folderView}
+        selectedIds={selection.selectedIds}
+        folderActions={folderState}
         itemIds={orderedRowIds}
         onDropOnFolder={handleDropOnFolder}
         onReorder={handleLibraryReorderDrop}

@@ -1248,6 +1248,8 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
       className="flex flex-col md:flex-row gap-6 min-h-full"
     >
       <LibraryDndContext
+        folderView={folderNav.folderView}
+        folderActions={canEdit ? folderState : undefined}
         itemIds={rowIds}
         onReorder={handleReorder}
         onDropOnFolder={handleDropOnFolder}
