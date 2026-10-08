@@ -1796,6 +1796,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   type="button"
                   onClick={cycleMode}
                   disabled={isSpinning}
+                  {...tourAttr('random.mode', widget.id, widget.type)}
                   className="flex items-center bg-transparent border-0 p-0 m-0 hover:opacity-80 transition-opacity cursor-pointer disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-brand-blue-primary focus-visible:outline-offset-2 rounded"
                   style={{ gap: 'clamp(6px, 1.5cqmin, 10px)' }}
                   aria-label={
@@ -2142,6 +2143,11 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                           defaultValue: 'PER GROUP',
                         })
                   }
+                  tourProps={tourAttr(
+                    'random.group-size',
+                    widget.id,
+                    widget.type
+                  )}
                   onLabelClick={toggleGroupingMode}
                   labelTitle={
                     groupCountMode

@@ -761,6 +761,16 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     scope: 'widget',
   },
   {
+    id: 'random.mode',
+    label: 'Mode button in Random Picker (Pick One, Shuffle, Groups, Jigsaw)',
+    scope: 'widget',
+  },
+  {
+    id: 'random.group-size',
+    label: 'Group size stepper (minus and plus) in Random Picker Groups mode',
+    scope: 'widget',
+  },
+  {
     id: 'random.class-context',
     label: 'Active class button in the Randomizer header',
     scope: 'widget',
