@@ -429,6 +429,14 @@ function buildAssignmentSummary(
         ? [legacyClassId]
         : [];
   const intersected = candidates.filter((c) => studentClassIds.has(c));
+  // D5b: a class narrowed to picked students reaches them only by pointer.
+  const narrowed = Array.isArray(record.studentTargetClassIds)
+    ? new Set(record.studentTargetClassIds as unknown[])
+    : null;
+  const narrowedForStudent =
+    narrowed !== null &&
+    intersected.length > 0 &&
+    intersected.every((c) => narrowed.has(c));
 
   return {
     compositeId: `${kind}:${docId}`,
@@ -441,7 +449,10 @@ function buildAssignmentSummary(
     createdAt: typeof createdAtRaw === 'number' ? createdAtRaw : undefined,
     endedAt: typeof endedAtRaw === 'number' ? endedAtRaw : undefined,
     gradingState: config.gradingStateFrom(data),
-    individualTargeting: record.individualTargeting === true ? true : undefined,
+    individualTargeting:
+      record.individualTargeting === true || narrowedForStudent
+        ? true
+        : undefined,
     openAt: typeof record.openAt === 'number' ? record.openAt : undefined,
     closeAt: typeof record.closeAt === 'number' ? record.closeAt : undefined,
     dueAt: resolveStudentDueAt(

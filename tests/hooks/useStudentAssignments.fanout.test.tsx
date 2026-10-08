@@ -358,6 +358,64 @@ describe('useStudentAssignments — fan-out channel (M17 C1)', () => {
     ).toHaveLength(0);
   });
 
+  describe('mixed class and student targets (D5b)', () => {
+    const mixedSession = {
+      id: 'q-mixed',
+      data: {
+        quizTitle: 'Mixed Quiz',
+        classIds: ['c1', 'c2'],
+        studentTargetClassIds: ['c2'],
+        status: 'active',
+        createdAt: 100,
+      },
+    };
+    const pointerDoc = {
+      id: 'q-mixed',
+      data: {
+        kind: 'quiz',
+        sessionId: 'q-mixed',
+        teacherUid: 't1',
+        classId: 'c2',
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    };
+    const mixedRowsFor = async (classIds: string[], withPointer: boolean) => {
+      const rig = makeSnapshotRig();
+      makeGetDocRig();
+      rig.setDocs('quiz_sessions', [mixedSession]);
+      rig.setDocs(
+        'student_assignments/student-a/items',
+        withPointer ? [pointerDoc] : []
+      );
+      const { result } = renderHook(() =>
+        useStudentAssignments({ classIds, studentUid: 'student-a' })
+      );
+      await waitFor(() => {
+        expect(result.current.loadState).toBe('ready');
+      });
+      return result.current.assignments.filter(
+        (a) => a.sessionId === 'q-mixed'
+      );
+    };
+
+    it('reaches a student in a whole class through the class channel', async () => {
+      expect(await mixedRowsFor(['c1'], false)).toHaveLength(1);
+    });
+
+    it('hides it from an unpicked student in the narrowed class', async () => {
+      expect(await mixedRowsFor(['c2'], false)).toHaveLength(0);
+    });
+
+    it('reaches a picked student in the narrowed class through the pointer', async () => {
+      expect(await mixedRowsFor(['c2'], true)).toHaveLength(1);
+    });
+
+    it('still reaches a student also enrolled in a whole class', async () => {
+      expect(await mixedRowsFor(['c1', 'c2'], false)).toHaveLength(1);
+    });
+  });
+
   it('removes an already-rendered class-channel row when individualTargeting arrives late (no pointer for this student)', async () => {
     const rig = makeSnapshotRig();
     makeGetDocRig();
