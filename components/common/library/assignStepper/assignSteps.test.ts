@@ -55,6 +55,20 @@ describe('getAssignSteps (D4)', () => {
       getAssignSteps('flashcards', { kind: 'resource', inPlc: true })
     ).toEqual(['classes', 'when']);
   });
+
+  it('gives Mini App Classes and When for either kind (D20)', () => {
+    expect(getAssignSteps('miniapp', { kind: 'work', inPlc: true })).toEqual([
+      'classes',
+      'when',
+    ]);
+    expect(getAssignSteps('miniapp', { kind: 'resource' })).toEqual([
+      'classes',
+      'when',
+    ]);
+    expect(getAssignStepTitle('when', 'miniapp', { kind: 'resource' })).toBe(
+      'Available'
+    );
+  });
 });
 
 describe('getAssignStepTitle', () => {
