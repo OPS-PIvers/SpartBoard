@@ -6204,6 +6204,21 @@ service cloud.firestore {
     match /users/{userId}/projects_folders/{folderId} {
       allow read, write: if ownsUserTeacher(userId);
     }
+    // A teacher's private filing of items they don't own (LIBRARY_FOLDERS D22-D23),
+    // keyed by source key ("building:<id>", "global:<id>", "plcbank:<plcId>:<id>").
+    // Filing back to the source folder deletes the doc, so folderId is never null.
+    match /users/{userId}/{placements}/{sourceKey} {
+      allow read, delete: if ownsUserTeacher(userId) && placements in [
+        'guided_learning_placements', 'miniapp_placements', 'question_bank_placements'
+      ];
+      allow create, update: if ownsUserTeacher(userId) && placements in [
+          'guided_learning_placements', 'miniapp_placements', 'question_bank_placements'
+        ]
+        && incoming().keys().hasOnly(['folderId', 'order', 'updatedAt'])
+        && isStr('folderId') && incoming().folderId.size() > 0
+        && optInt(incoming(), 'order')
+        && isInt('updatedAt');
+    }
 
     // === Claude connector (docs/plans/CLAUDE_CONNECTOR.md): server-written, owner-readable ===
     match /users/{userId}/mcp_grants/{grantId} {
