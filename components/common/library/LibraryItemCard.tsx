@@ -816,7 +816,7 @@ function SortableCard<TMeta>(props: SortableCardProps<TMeta>) {
   const { setNodeRef: setMergeRef } = useDroppable({
     id: itemMergeDroppableId(id),
     data: { type: 'item-merge', itemId: id },
-    disabled: !drag.enabled,
+    disabled: !drag.canCreateFolder,
   });
   const setRefs = (node: HTMLElement | null) => {
     setNodeRef(node);

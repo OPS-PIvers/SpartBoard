@@ -281,23 +281,30 @@ export const LibraryDndContext: React.FC<LibraryDndContextProps> = ({
         | FolderDropData
         | ItemMergeDropData
         | undefined;
+      const fail = (err: unknown): void => {
+        logError('LibraryDndContext.drop', err);
+        addToast?.('Could not move. Try again.', 'error');
+      };
       if (overData?.type === 'folder') {
-        void moveToFolder(
+        moveToFolder(
           group.length > 0 ? group : [String(active.id)],
           overData.folderId
-        );
+        ).catch(fail);
         return;
       }
-      if (overData?.type === 'item-merge') {
-        if (armed === overData.itemId) void createFolderWith(armed, group);
+      if (overData?.type === 'item-merge' && armed === overData.itemId) {
+        createFolderWith(armed, group).catch(fail);
         return;
       }
+      // A quick drop on the middle of a row still reorders onto that row.
+      const overId =
+        overData?.type === 'item-merge' ? overData.itemId : String(over.id);
 
-      if (active.id === over.id) return;
+      if (String(active.id) === overId) return;
       if (!onReorder || group.length > 1) return;
 
       const oldIndex = itemIds.indexOf(String(active.id));
-      const newIndex = itemIds.indexOf(String(over.id));
+      const newIndex = itemIds.indexOf(overId);
       if (oldIndex === -1 || newIndex === -1) return;
 
       const next = [...itemIds];
@@ -315,6 +322,7 @@ export const LibraryDndContext: React.FC<LibraryDndContextProps> = ({
       createFolderWith,
       itemIds,
       onReorder,
+      addToast,
     ]
   );
 
@@ -341,12 +349,20 @@ export const LibraryDndContext: React.FC<LibraryDndContextProps> = ({
   const dragState = useMemo<LibraryDragState>(
     () => ({
       enabled,
+      canCreateFolder: enabled && folderActions != null,
       draggingIds: new Set(draggingIds),
       armedItemId,
       renamingFolderId,
       finishRename,
     }),
-    [enabled, draggingIds, armedItemId, renamingFolderId, finishRename]
+    [
+      enabled,
+      folderActions,
+      draggingIds,
+      armedItemId,
+      renamingFolderId,
+      finishRename,
+    ]
   );
 
   const overlayLockState = useMemo(
