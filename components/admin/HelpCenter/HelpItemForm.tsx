@@ -173,7 +173,10 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
               <Btn
                 size="lg"
                 onClick={() => {
-                  patch({ kind: 'embed', url: '' });
+                  patch({
+                    kind: 'embed',
+                    url: draft.kind === 'embed' ? url : '',
+                  });
                   setLinkOpen(true);
                   setChanging(false);
                 }}
