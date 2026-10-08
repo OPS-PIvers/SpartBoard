@@ -15,6 +15,7 @@ interface GroupSizeStepperProps {
   onLabelClick?: () => void;
   /** Tooltip + accessible name for the label button. */
   labelTitle?: string;
+  tourProps?: Record<string, string>;
 }
 
 export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
@@ -26,6 +27,7 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
   title,
   onLabelClick,
   labelTitle,
+  tourProps,
 }) => {
   const { t } = useTranslation();
   const decrement = () => onChange(Math.max(min, value - 1));
@@ -38,6 +40,7 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
       role="group"
       aria-label={title}
       title={title}
+      {...tourProps}
       className="flex items-stretch bg-white/80 border border-slate-200 rounded-full overflow-hidden shadow-sm flex-shrink-0"
       style={{ height: 'clamp(40px, 10cqmin, 72px)' }}
     >
