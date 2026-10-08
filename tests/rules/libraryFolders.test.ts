@@ -103,3 +103,58 @@ describe.each(FOLDER_COLLECTIONS)('users/{uid}/%s colour', (collection) => {
     await assertFails(deleteDoc(doc(db, path)));
   });
 });
+
+describe.each([
+  'guided_learning_placements',
+  'miniapp_placements',
+  'question_bank_placements',
+])('users/{uid}/%s (filing items the teacher does not own)', (collection) => {
+  const path = `users/${OWNER_UID}/${collection}/building:set-1`;
+  const placement = (overrides: Record<string, unknown> = {}) => ({
+    folderId: 'f1',
+    order: 0,
+    updatedAt: 1000,
+    ...overrides,
+  });
+
+  it('the owner can file, read, move and unfile an item', async () => {
+    const db = asTeacher(OWNER_UID);
+    await assertSucceeds(setDoc(doc(db, path), placement()));
+    const snap = await assertSucceeds(getDoc(doc(db, path)));
+    expect(snap.data()?.folderId).toBe('f1');
+    await assertSucceeds(
+      updateDoc(doc(db, path), { folderId: 'f2', updatedAt: 2000 })
+    );
+    await assertSucceeds(deleteDoc(doc(db, path)));
+  });
+
+  it('rejects a null or empty folder, a bad order, and extra fields', async () => {
+    const db = asTeacher(OWNER_UID);
+    await assertFails(setDoc(doc(db, path), placement({ folderId: null })));
+    await assertFails(setDoc(doc(db, path), placement({ folderId: '' })));
+    await assertFails(setDoc(doc(db, path), placement({ order: 'first' })));
+    await assertFails(setDoc(doc(db, path), placement({ title: 'Copied' })));
+    await assertFails(setDoc(doc(db, path), { folderId: 'f1', order: 0 }));
+  });
+
+  it('another teacher can neither read nor write the placement', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), path), placement());
+    });
+    const db = asTeacher(OTHER_UID);
+    await assertFails(getDoc(doc(db, path)));
+    await assertFails(setDoc(doc(db, path), placement({ folderId: 'f9' })));
+    await assertFails(deleteDoc(doc(db, path)));
+  });
+});
+
+describe('placements outside the three source-backed libraries', () => {
+  it('denies an unlisted *_placements collection even to the owner', async () => {
+    const db = asTeacher(OWNER_UID);
+    const path = `users/${OWNER_UID}/quiz_placements/building:set-1`;
+    await assertFails(
+      setDoc(doc(db, path), { folderId: 'f1', order: 0, updatedAt: 1 })
+    );
+    await assertFails(getDoc(doc(db, path)));
+  });
+});

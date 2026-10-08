@@ -44,9 +44,8 @@ import {
   buildDuplicateAction,
   buildMoveToFolderAction,
   countItemsByFolder,
-  filterByFolder,
   useLibrarySelection,
-  useLibraryView,
+  useFolderLibraryView,
   useSortableReorder,
   LIBRARY_ITEM_NOUNS,
   useLibraryDeleteConfirm,
@@ -120,6 +119,7 @@ const LIBRARY_SORT_COMPARATORS = {
 };
 
 const GET_ID = (p: ProjectDefinition): string => p.id;
+const PROJECT_NOUN = ['project', 'projects'] as const;
 
 /** A run plus its library project; either side can be absent in the archive. */
 interface RunEntry {
@@ -171,7 +171,6 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
     update({ managerTab: next as ProjectsConfig['managerTab'] });
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [folderPickerTarget, setFolderPickerTarget] =
     useState<ProjectDefinition | null>(null);
   const [selectionMode, setSelectionMode] = useState(false);
@@ -186,19 +185,6 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
       setSelectionMode(false);
       selection.clear();
     }
-  }
-
-  const [prevUserId, setPrevUserId] = useState(userId);
-  if (prevUserId !== userId) {
-    setPrevUserId(userId);
-    setSelectedFolderId(null);
-  }
-  if (
-    !folderState.loading &&
-    selectedFolderId !== null &&
-    !folderState.folders.some((f) => f.id === selectedFolderId)
-  ) {
-    setSelectedFolderId(null);
   }
 
   const runByProjectId = useMemo(() => {
@@ -258,13 +244,26 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
     },
   });
 
-  const foldered = useMemo(
-    () => filterByFolder(libraryProjects, selectedFolderId),
-    [libraryProjects, selectedFolderId]
+  const projectRecentAt = useCallback(
+    (p: ProjectDefinition) =>
+      Math.max(
+        p.updatedAt ?? p.createdAt ?? 0,
+        runByProjectId.get(p.id)?.updatedAt ?? 0
+      ),
+    [runByProjectId]
   );
 
-  const view = useLibraryView<ProjectDefinition>({
-    items: foldered,
+  const view = useFolderLibraryView<ProjectDefinition>({
+    items: libraryProjects,
+    folderView: {
+      library: 'projects',
+      userId,
+      folders: folderState.folders,
+      foldersLoading: folderState.loading,
+      getId: GET_ID,
+      getRecentAt: projectRecentAt,
+      itemNoun: PROJECT_NOUN,
+    },
     initialSort: LIBRARY_INITIAL_SORT,
     initialViewMode: config.libraryViewMode ?? 'list',
     searchFields: LIBRARY_SEARCH_FIELDS,
@@ -309,7 +308,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
       id: crypto.randomUUID(),
       title: 'New project',
       steps: [],
-      folderId: selectedFolderId,
+      folderId: view.selectedFolderId,
       createdAt: now,
       updatedAt: now,
     };
@@ -663,8 +662,9 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
         folders={folderState.folders}
         loading={folderState.loading}
         error={folderState.error}
-        selectedFolderId={selectedFolderId}
-        onSelectFolder={setSelectedFolderId}
+        selectedFolderId={view.selectedFolderId}
+        onSelectFolder={view.onSelectFolder}
+        folderView={view.folderView}
         itemCounts={folderItemCounts}
         onCreateFolder={folderState.createFolder}
         onRenameFolder={folderState.renameFolder}
@@ -699,6 +699,8 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
       folderPanelMode={config.folderPanelMode}
       onFolderPanelModeChange={(folderPanelMode) => update({ folderPanelMode })}
       filterSidebarSlot={folderSidebarSlot}
+      folderView={view.folderView}
+      folderViewMode={view.state.viewMode}
       toolbarSlot={
         tab === 'library' ? (
           <LibraryToolbar

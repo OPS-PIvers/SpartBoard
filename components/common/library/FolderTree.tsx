@@ -28,6 +28,7 @@ import { folderDroppableId, type FolderDropData } from './folderDropTargets';
 import { useFolderPanelMode } from './LibraryFolderPanelContext';
 import { folderColorSwatch } from './folderColors';
 import { FolderColorPicker } from './FolderColorPicker';
+import { isSourceFolderId } from './sourceFolders';
 
 export interface FolderTreeProps {
   /** Flat folder list — the tree shape is derived from `parentId`. */
@@ -189,6 +190,8 @@ const FolderRow: React.FC<FolderRowProps> = ({
   const panelMode = useFolderPanelMode();
   const isRail = panelMode === 'rail';
   const iconTint = folderColorSwatch(folder.color)?.icon;
+  // Source folders can't be renamed, recoloured, nested into or deleted (D21).
+  const locked = isSourceFolderId(folder.id);
   const dropData = useMemo<FolderDropData>(
     () => ({ type: 'folder', folderId: folder.id }),
     [folder.id]
@@ -335,7 +338,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
             } else if (e.key === 'ArrowLeft' && hasChildren && isExpanded) {
               e.preventDefault();
               onToggleExpanded(folder.id);
-            } else if (e.key === 'F2') {
+            } else if (e.key === 'F2' && !locked) {
               e.preventDefault();
               onStartRename(folder.id);
             }
@@ -353,7 +356,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
               <Folder size={14} />
             )}
           </span>
-          <span className="flex-1 min-w-0 truncate">{folder.name}</span>
+          <span className="flex-1 min-w-0 break-words">{folder.name}</span>
         </button>
       )}
 
@@ -379,9 +382,11 @@ const FolderRow: React.FC<FolderRowProps> = ({
                   ? 'bg-brand-blue-primary/20 text-brand-blue-dark'
                   : 'bg-slate-200 text-slate-600'
               } ${
-                isMenuOpen
-                  ? 'opacity-0'
-                  : 'group-hover:opacity-0 group-focus-within:opacity-0'
+                locked
+                  ? ''
+                  : isMenuOpen
+                    ? 'opacity-0'
+                    : 'group-hover:opacity-0 group-focus-within:opacity-0'
               }`}
               style={{
                 paddingInline: 'min(6px, 1.5cqmin)',
@@ -391,30 +396,32 @@ const FolderRow: React.FC<FolderRowProps> = ({
               {count}
             </span>
           )}
-          <button
-            ref={kebabRef}
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenMenu(isMenuOpen ? null : folder.id);
-            }}
-            aria-label={`Actions for ${folder.name}`}
-            aria-haspopup="menu"
-            aria-expanded={isMenuOpen}
-            className={`absolute inset-0 flex items-center justify-center rounded-md text-slate-400 hover:text-brand-blue-dark hover:bg-white/60 transition-opacity ${
-              isMenuOpen
-                ? 'opacity-100'
-                : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
-            }`}
-            tabIndex={-1}
-          >
-            <MoreHorizontal size={14} />
-          </button>
+          {!locked && (
+            <button
+              ref={kebabRef}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenMenu(isMenuOpen ? null : folder.id);
+              }}
+              aria-label={`Actions for ${folder.name}`}
+              aria-haspopup="menu"
+              aria-expanded={isMenuOpen}
+              className={`absolute inset-0 flex items-center justify-center rounded-md text-slate-400 hover:text-brand-blue-dark hover:bg-white/60 transition-opacity ${
+                isMenuOpen
+                  ? 'opacity-100'
+                  : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+              }`}
+              tabIndex={-1}
+            >
+              <MoreHorizontal size={14} />
+            </button>
+          )}
         </span>
       )}
 
       {/* Overflow menu popover. */}
-      {isMenuOpen && (
+      {isMenuOpen && !locked && (
         <div
           ref={menuRef}
           role="menu"

@@ -605,6 +605,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
               />
             ) : (
               <FlashcardLibrary
+                userId={inShare ? undefined : user?.uid}
                 sets={flashcardSets.sets}
                 loading={flashcardSets.loading}
                 error={flashcardSets.error}
