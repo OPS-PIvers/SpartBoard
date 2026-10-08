@@ -103,6 +103,7 @@ export function buildPeriodGate({
   rosters,
   sharedWindow,
   bellWindow,
+  manualStart = false,
 }: {
   plan: PeriodPlan | undefined;
   rosters: readonly PeriodRoster[];
@@ -110,11 +111,16 @@ export function buildPeriodGate({
   bellWindow:
     | ((roster: PeriodRoster, date: Date) => EpochWindow | null)
     | undefined;
+  /** The stepper's Manual start: one class also gets a closed assessment gate. */
+  manualStart?: boolean;
 }):
   | { accessMode: AccessMode; periodAccess: Record<string, PeriodAccess> }
   | undefined {
-  if (!bellWindow || rosters.length < 2) return undefined;
-  const resolved = plan ?? DEFAULT_PERIOD_PLAN;
+  const minPeriods = manualStart ? 1 : 2;
+  if (!bellWindow || rosters.length < minPeriods) return undefined;
+  const resolved: PeriodPlan = manualStart
+    ? { mode: 'assessment' }
+    : (plan ?? DEFAULT_PERIOD_PLAN);
   const periodAccess = buildPeriodAccess({
     plan: resolved,
     rosters,
@@ -123,7 +129,7 @@ export function buildPeriodGate({
       bellWindow(roster, new Date(sharedWindow.openAt ?? Date.now())),
   });
   // Two rosters on one class id share a gate, so they are one period.
-  return Object.keys(periodAccess).length > 1
+  return Object.keys(periodAccess).length >= minPeriods
     ? { accessMode: resolved.mode, periodAccess }
     : undefined;
 }

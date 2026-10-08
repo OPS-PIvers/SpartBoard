@@ -19,7 +19,7 @@ import { scaledFont } from './assignWindowUtils';
 
 type Side = 'opens' | 'closes';
 
-const PointField: React.FC<{
+export const PointField: React.FC<{
   label: string;
   side: Side;
   point: AvailabilityPoint;
@@ -134,7 +134,7 @@ const PointField: React.FC<{
   );
 };
 
-const SpecRows: React.FC<{
+export const SpecRows: React.FC<{
   spec: AvailabilitySpec;
   bellAvailable: boolean;
   backwards: boolean;

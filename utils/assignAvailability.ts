@@ -375,3 +375,64 @@ export function applyWindowEdit(
     ...(withDue && 'dueAt' in edit ? { dueAt: edit.dueAt ?? undefined } : {}),
   };
 }
+
+/** The assign stepper's When choice: Manual starts paused, Scheduled follows the dates. */
+export type AssignWhenMode = 'manual' | 'scheduled';
+
+/** Manual needs bell periods: without them there is no class to start or pause. */
+export function manualStartAvailable(
+  bellWindow: BellWindowFn | undefined
+): boolean {
+  return !!bellWindow;
+}
+
+/** The stepper's saved targeting: Manual closes every class with no window or due date, Scheduled resolves the dates. */
+export function applyWhen(
+  value: AssignTargetingValue,
+  {
+    mode,
+    rosters,
+    bellWindow,
+    workKind: workKindSetting,
+    now = new Date(),
+  }: {
+    mode: AssignWhenMode;
+    rosters: readonly PeriodRoster[];
+    bellWindow: BellWindowFn | undefined;
+    workKind?: WorkKindSetting;
+    now?: Date;
+  }
+): {
+  targeting: AssignTargetingValue;
+  dueAtByRosterId?: Record<string, number>;
+} {
+  const workKind = chosenWorkKind(value, workKindSetting);
+  const manual =
+    mode === 'manual' &&
+    workKind !== 'resource' &&
+    manualStartAvailable(bellWindow);
+  if (manual) {
+    const {
+      availability: _availability,
+      workKind: _chosen,
+      openAt: _openAt,
+      closeAt: _closeAt,
+      dueAt: _dueAt,
+      ...rest
+    } = value;
+    return {
+      targeting: {
+        ...rest,
+        ...(workKind ? { workKind } : {}),
+        periodPlan: { mode: 'assessment' },
+      },
+    };
+  }
+  return applyAvailability(value, {
+    enabled: true,
+    rosters,
+    bellWindow,
+    workKind: workKindSetting,
+    now,
+  });
+}
