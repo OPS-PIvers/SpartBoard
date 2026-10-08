@@ -144,7 +144,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   onError,
 }) => {
   const { showConfirm } = useDialog();
-  const confirmDelete = useLibraryDeleteConfirm();
+  const { confirmDelete, deleteConfirmDialog } = useLibraryDeleteConfirm();
   const plcNameById = useMemo(
     () => new Map(plcs.map((p) => [p.id, p.name])),
     [plcs]
@@ -581,6 +581,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       ) : (
         shellEl
       )}
+      {deleteConfirmDialog}
       {folderPickerTarget && (
         <FolderPickerPopover
           variant="dialog"

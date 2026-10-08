@@ -205,7 +205,8 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const { t } = useTranslation();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { showConfirm } = useDialog();
-  const confirmLibraryDelete = useLibraryDeleteConfirm();
+  const { confirmDelete: confirmLibraryDelete, deleteConfirmDialog } =
+    useLibraryDeleteConfirm();
   const { user, isAdmin, getAssignmentMode, canAccessFeature, appSettings } =
     useAuth();
   const gradebookOn = canAccessFeature('gradebook');
@@ -1808,6 +1809,8 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           confirmLabel="Assign"
         />
       )}
+
+      {deleteConfirmDialog}
 
       <ImportWizard<GuidedLearningSet>
         isOpen={showImportWizard}

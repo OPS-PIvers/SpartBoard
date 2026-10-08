@@ -532,7 +532,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     [moveAppToFolder]
   );
 
-  const confirmDelete = useLibraryDeleteConfirm();
+  const { confirmDelete, deleteConfirmDialog } = useLibraryDeleteConfirm();
   const confirmAndDelete = async (app: MiniAppItem): Promise<void> => {
     const ok = await confirmDelete({
       titles: [app.title],
@@ -1385,11 +1385,13 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         {shell}
       </LibraryDndContext>
       {folderPickerDialog}
+      {deleteConfirmDialog}
     </>
   ) : (
     <>
       {shell}
       {folderPickerDialog}
+      {deleteConfirmDialog}
     </>
   );
 };

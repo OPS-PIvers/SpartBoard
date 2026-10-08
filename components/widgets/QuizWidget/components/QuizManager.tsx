@@ -756,7 +756,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
-  const confirmDelete = useLibraryDeleteConfirm();
+  const { confirmDelete, deleteConfirmDialog } = useLibraryDeleteConfirm();
   const claudeReview = useClaudeReview('quizzes');
 
   // ─── Assign modal state (2-stage: mode → settings) ────────────────────────
@@ -2431,6 +2431,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         shell
       )}
 
+      {deleteConfirmDialog}
       {folderPickerTarget && (
         <FolderPickerPopover
           variant="dialog"
