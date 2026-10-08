@@ -137,13 +137,13 @@ const DialogShell: React.FC<DialogShellProps> = ({
         <div className="min-w-0">
           <h3
             id={titleId}
-            className="min-h-10 flex items-center font-bold text-base text-white leading-snug"
+            className="min-h-10 flex items-center justify-center text-center font-bold text-base text-white leading-snug"
           >
             {title}
           </h3>
           <p
             id={descriptionId}
-            className="text-sm text-slate-300 leading-relaxed"
+            className="text-sm text-slate-300 leading-relaxed text-center"
           >
             {message}
           </p>
