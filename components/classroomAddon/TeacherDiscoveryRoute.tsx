@@ -72,6 +72,11 @@ import {
 } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
 import { QuizAssignSettingsInline } from '@/components/common/library/QuizAssignSettingsInline';
+import { InlineAssignStepBodies } from '@/components/common/library/assignStepper/InlineAssignStepBodies';
+import {
+  defaultWhenValue,
+  type AssignWhenValue,
+} from '@/components/common/library/assignStepper/assignWhenValue';
 import {
   getVideoActivityBehavior,
   formatVideoActivityBehaviorSummary,
@@ -187,9 +192,18 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // D12: with the split on, settings come from the teacher's last-used, editable inline.
   const reviewSplit = canAccessFeature('quiz-review-split');
   const availabilityOn = canAccessFeature('assign-availability');
-  const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
-    user?.uid,
-    reviewSplit
+  // D22: with the stepper on, the When and Quiz rule step bodies replace the inline settings.
+  const stepperOn = canAccessFeature('assign-stepper');
+  const lastUsedRules = reviewSplit || stepperOn;
+  const windowOn = availabilityOn || stepperOn;
+  const { lastUsed: lastAssignSettings, save: saveLastAssignSettings } =
+    useLastQuizAssignSettings(user?.uid, lastUsedRules);
+  const [assignWhen, setAssignWhen] = useState<AssignWhenValue>(() =>
+    defaultWhenValue({
+      activity: 'quiz',
+      bellAvailable: false,
+      manualAvailable: false,
+    })
   );
   const [editedAssignSettings, setEditedAssignSettings] =
     useState<QuizBehaviorSettings | null>(null);
@@ -296,19 +310,31 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     () => ({ rosters, selectedRosterIds: addonSelectedRosterIds }),
     [rosters, addonSelectedRosterIds]
   );
-  // Availability on: the section's resolved window and due date; off leaves the Schedule value as is.
+  // Availability or the When step: the resolved window and due date; off leaves the Schedule value as is.
   const resolveWindow = useCallback(
     (): AssignTargetingValue =>
-      availabilityOn
-        ? applyAvailability(assignTargeting, {
-            enabled: true,
-            rosters: rosters.filter((r) =>
-              addonSelectedRosterIds.includes(r.id)
-            ),
-            bellWindow: undefined,
-          }).targeting
+      windowOn
+        ? applyAvailability(
+            stepperOn
+              ? { ...assignTargeting, availability: assignWhen.availability }
+              : assignTargeting,
+            {
+              enabled: true,
+              rosters: rosters.filter((r) =>
+                addonSelectedRosterIds.includes(r.id)
+              ),
+              bellWindow: undefined,
+            }
+          ).targeting
         : assignTargeting,
-    [availabilityOn, assignTargeting, rosters, addonSelectedRosterIds]
+    [
+      windowOn,
+      stepperOn,
+      assignWhen,
+      assignTargeting,
+      rosters,
+      addonSelectedRosterIds,
+    ]
   );
   // Full quiz content backing the per-student override editor (question
   // subset / MC-option hider). Loaded lazily on first expand, cached per quiz.
@@ -376,7 +402,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // teacher can see what students will get before attaching.
   const behaviorSummary = useMemo(() => {
     if (kind === 'quiz') {
-      if (reviewSplit) return null;
+      if (lastUsedRules) return null;
       return selectedQuiz
         ? formatBehaviorSummary(getAssignBehaviorSeed(selectedQuiz))
         : null;
@@ -386,7 +412,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
           getVideoActivityBehavior(selectedActivity)
         )
       : null;
-  }, [kind, selectedQuiz, selectedActivity, reviewSplit]);
+  }, [kind, selectedQuiz, selectedActivity, lastUsedRules]);
 
   const signIn = useCallback(async () => {
     setBusy(true);
@@ -567,7 +593,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     // student-readable pointer doc. Resolve them to option TEXT here, where the
     // full quiz body is in hand; the student side matches on text.
     const windowTargeting = resolveWindow();
-    const dueAt = availabilityOn ? (windowTargeting.dueAt ?? null) : null;
+    const dueAt = windowOn ? (windowTargeting.dueAt ?? null) : null;
     const hiddenOptions = translateHiddenOptionIdsToText(
       Array.isArray(quizData?.questions) ? quizData.questions : [],
       windowTargeting.overridesByKey
@@ -594,7 +620,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     const targeting = await resolveClassTargeting();
 
     // Assessment Mode always; options and attempt limit come from the quiz.
-    const { sessionMode, sessionOptions, attemptLimit } = reviewSplit
+    const { sessionMode, sessionOptions, attemptLimit } = lastUsedRules
       ? splitAssignSettings
       : getAssignBehaviorSeed(selectedQuiz);
 
@@ -667,6 +693,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       }
     );
     append(`Assignment created (join code ${code}).`);
+    if (stepperOn) saveLastAssignSettings(splitAssignSettings);
 
     // Individual targeting only (§3a-G): a class-wide attach never depends on
     // the callable, so a Cloud Functions hiccup can't regress today's flow.
@@ -787,11 +814,13 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     kind,
     teacherName,
     defaultTeacherName,
-    availabilityOn,
+    windowOn,
     resolveWindow,
     setAssignmentTargets,
     setAssignmentTargetSkippedCount,
-    reviewSplit,
+    lastUsedRules,
+    stepperOn,
+    saveLastAssignSettings,
     splitAssignSettings,
   ]);
 
@@ -824,7 +853,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     const behavior = getVideoActivityBehavior(selectedActivity);
     const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
     const windowTargeting = resolveWindow();
-    const dueAt = availabilityOn ? (windowTargeting.dueAt ?? null) : null;
+    const dueAt = windowOn ? (windowTargeting.dueAt ?? null) : null;
     const sessionOptions: VideoActivitySessionOptions = {
       ...behavior.sessionOptions,
       attemptLimit: behavior.attemptLimit,
@@ -1048,7 +1077,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     kind,
     teacherName,
     defaultTeacherName,
-    availabilityOn,
+    windowOn,
     resolveWindow,
     setAssignmentTargets,
   ]);
@@ -1229,7 +1258,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   </span>
                 </p>
               )}
-              {kind === 'quiz' && reviewSplit && (
+              {kind === 'quiz' && reviewSplit && !stepperOn && (
                 <QuizAssignSettingsInline
                   value={splitAssignSettings}
                   onChange={setEditedAssignSettings}
@@ -1257,7 +1286,20 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
 
               {/* M17 schedule window + individual-student targeting. No due
                   picker here — Classroom's own composer owns the due date. */}
-              <div className="border-t border-slate-200 pt-4">
+              <div className="space-y-3 border-t border-slate-200 pt-4">
+                {stepperOn && (
+                  <InlineAssignStepBodies
+                    activity={kind === 'quiz' ? 'quiz' : 'video'}
+                    when={assignWhen}
+                    onWhenChange={setAssignWhen}
+                    rosters={rosters.filter((r) =>
+                      addonSelectedRosterIds.includes(r.id)
+                    )}
+                    behavior={splitAssignSettings}
+                    onBehaviorChange={setEditedAssignSettings}
+                    disabled={busy}
+                  />
+                )}
                 <AssignTargetingSection
                   rosters={rosters}
                   selectedRosterIds={addonSelectedRosterIds}
@@ -1265,6 +1307,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   value={assignTargeting}
                   onChange={setAssignTargeting}
                   availabilityEnabled={availabilityOn}
+                  scheduleHidden={stepperOn}
                   kind={kind === 'quiz' ? 'quiz' : 'video-activity'}
                   {...(kind === 'quiz'
                     ? {
