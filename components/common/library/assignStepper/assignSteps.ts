@@ -10,7 +10,7 @@ export type AssignStepId =
   | 'check'
   | 'sharing';
 
-export type AssignActivity = 'quiz' | 'video' | 'gl' | 'flashcards';
+export type AssignActivity = 'quiz' | 'video' | 'gl' | 'flashcards' | 'miniapp';
 
 export type AssignKind = 'work' | 'resource';
 

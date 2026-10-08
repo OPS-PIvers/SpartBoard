@@ -135,6 +135,16 @@ Assigning anything takes a few short, ordered decisions in one narrow dialog ins
 - **D17.** With `assign-stepper` on, the stepper uses the availability, period-access and work-kind building blocks whether or not `assign-availability` and `study-resources` are on for that user. The stepper flag is the single switch for the new flow.
 - **D18.** Removing Study resource from Quiz and Video Activity (D3) and dropping the unused Video name input (D11) ship first with no flag. Both are behind `study-resources` or unused today, so this restores intended behaviour.
 
+### Remaining dialogs
+
+Settled 2026-10-08 with the recommended defaults after Paul handed off oversight.
+
+- **D19.** **Review stays its own dialog.** `StartReviewModal` is a live start (pacing, game length, leaderboard), not an assignment. It keeps its short dialog and only swaps in the stepper's `ClassPickerMenu` (single select) behind `assign-stepper`.
+- **D20.** **Mini App moves to the stepper.** Top switch Students submit work / Study resource (D2, default Study resource), then Classes and When/Available. Its required name stays as a field at the top of the dialog (D11). The link view that follows a successful assign is unchanged. When the admin sets Mini App to view-only, the share dialog stays as it is: it makes a link with no classes, so there is nothing to step through.
+- **D21.** **PLC quiz moves to the stepper.** `PlcNewQuizAssignmentModal` uses the Quiz steps (Classes, When, Attempts and order, Quiz integrity, What students see) with Sharing fixed on for its PLC.
+- **D22.** **LTI, Classroom add-on and the Google Classroom destination reuse the step bodies only.** They keep their own pages and swap their inline quiz settings for the three Quiz step bodies and the When body, behind `assign-stepper`. No stepper shell there.
+- `AssignModal` is retired only after the flag retires; not in this plan's PRs.
+
 ## PRs
 
 1. **Quiz/Video never study resources; drop unused Video name (D3, D11, D18).**
@@ -165,14 +175,8 @@ Assigning anything takes a few short, ordered decisions in one narrow dialog ins
    - Video: pacing top switch; live gives a single Class pick, manual-only When and "Start live".
    - Flashcards: top switch replaces "Collect a submission"; How students are checked step; last-used fields for both.
    - `PlcNewVideoActivityAssignmentModal` follows Video.
-5. **Mini App, PLC quiz, Review (open, see below).** Bring the remaining dialogs onto the stepper or record why they stay. Retire `AssignModal` once every caller has moved and the flag is retired.
+5. **Mini App, PLC quiz, Review, LTI (D19-D22).** Mini App and PLC quiz move to the stepper, Review swaps in the class menu, LTI and Classroom reuse the step bodies. Retire `AssignModal` once every caller has moved and the flag is retired.
 
 ## Open questions
 
-Manual is the Quiz default (D6), so the two Manual questions must be settled before PR 3.
-
-- **Manual with one class.** `buildPeriodGate` only builds per-period access for two or more classes. Should Manual extend to a single class (one period), or should Manual be hidden when one class is picked?
-- **Manual without bell periods.** If `per-period-access` or the teacher's bell schedule is missing, should Manual still show (closed until started, with no auto-close at the bell) or be hidden?
-- **Review (`StartReviewModal`)** is a live start, not an assignment (Teacher-paced / Self-paced game, game length, leaderboard). Should it move to the stepper or keep its own short dialog?
-- **Mini App and PLC quiz** use their own dialogs today. Are they in scope for PR 5, or a later plan?
-- **LTI, Classroom add-on and Google Classroom destination** (`LtiDeepLinkPicker`, `TeacherDiscoveryRoute`, "Continue to Google Classroom") embed quiz settings inline. Should they reuse the step bodies only?
+None. Manual with one class and Manual without bell periods were settled in the When step (Manual builds a one-class gate, and is hidden without bell periods so Quiz falls back to Scheduled); the rest are D19-D22.
