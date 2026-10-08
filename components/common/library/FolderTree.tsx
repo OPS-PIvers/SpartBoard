@@ -353,7 +353,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
               <Folder size={14} />
             )}
           </span>
-          <span className="flex-1 min-w-0 truncate">{folder.name}</span>
+          <span className="flex-1 min-w-0 break-words">{folder.name}</span>
         </button>
       )}
 

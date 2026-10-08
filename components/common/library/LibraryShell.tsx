@@ -510,6 +510,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                   <FolderViewHeader
                     model={activeFolderView}
                     viewMode={folderViewMode}
+                    includeRows={false}
                   />
                 )}
                 {children}

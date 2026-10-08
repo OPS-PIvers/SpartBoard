@@ -504,18 +504,19 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
         // Monitor row idiom: both surfaces are opaque white with a hairline
         // border — list rows are slim bordered rows, grid keeps the card box.
         '@container group relative flex text-slate-700',
+        // List rows sit between hairline dividers drawn by LibraryGrid; grid keeps the card box.
         isList
-          ? 'flex-row items-center rounded-lg border transition-colors'
+          ? 'flex-row items-center transition-colors'
           : 'flex-col rounded-2xl border shadow-sm transition-shadow hover:shadow-md',
         selectionMode && selected
-          ? 'border-brand-blue-primary/60 bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/40 ring-2 ring-inset ring-brand-blue-primary/30'
+          ? `${isList ? '' : 'border-brand-blue-primary/60 '}bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/40 ring-2 ring-inset ring-brand-blue-primary/30`
           : isList
-            ? 'border-brand-gray-lightest bg-white hover:border-brand-blue-primary/30 hover:bg-brand-blue-lighter/20'
+            ? 'bg-white hover:bg-slate-50'
             : 'border-brand-gray-lighter bg-white hover:bg-brand-blue-lighter/10',
         (onClick ?? onDoubleClick ?? selectionMode) && 'cursor-pointer',
         isDragging && 'opacity-50',
         isDragOverlay &&
-          'pointer-events-none bg-white shadow-lg ring-2 ring-brand-blue-primary/30',
+          'pointer-events-none rounded-lg bg-white shadow-lg ring-2 ring-brand-blue-primary/30',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -597,7 +598,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
             fontSize: isList ? 'min(14px, 4.5cqmin)' : 'min(15px, 4.8cqmin)',
           }}
         >
-          {title}
+          {title.trim() || 'Untitled'}
         </h3>
         {subtitle && (
           <div

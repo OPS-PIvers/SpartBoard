@@ -104,8 +104,10 @@ export const FolderRowButton: React.FC<{
       type="button"
       onClick={onOpen}
       data-testid="library-folder-row"
-      className={`flex w-full items-center border border-amber-200 bg-amber-50 text-left transition-colors hover:border-amber-300 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
-        isList ? 'rounded-lg' : 'rounded-2xl'
+      className={`flex w-full items-center text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary/40 ${
+        isList
+          ? 'bg-white hover:bg-amber-50'
+          : 'rounded-2xl border border-amber-200 bg-amber-50 hover:border-amber-300 hover:bg-amber-100'
       }`}
       style={{
         gap: 'min(10px, 2.5cqmin)',
@@ -144,8 +146,11 @@ export const FolderRowButton: React.FC<{
 export const FolderViewHeader: React.FC<{
   model: LibraryFolderViewModel;
   viewMode: LibraryViewMode;
-}> = ({ model, viewMode }) => {
-  const { location, folderRows, searchActive, searchScope, index } = model;
+  /** False when `LibraryGrid` draws the folder rows inside its own list. */
+  includeRows?: boolean;
+}> = ({ model, viewMode, includeRows = true }) => {
+  const { location, searchActive, searchScope, index } = model;
+  const folderRows = includeRows ? model.folderRows : [];
   const openFolder =
     location.kind === 'folder' && location.folderId != null
       ? index.byId.get(location.folderId)
@@ -194,7 +199,11 @@ export const FolderViewHeader: React.FC<{
       )}
       {folderRows.length > 0 && (
         <div
-          className={isList ? 'flex flex-col gap-2' : 'grid gap-3'}
+          className={
+            isList
+              ? 'flex flex-col divide-y divide-slate-200 border-y border-slate-200'
+              : 'grid gap-3'
+          }
           style={
             isList
               ? undefined

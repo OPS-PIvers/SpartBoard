@@ -597,7 +597,7 @@ const SidebarNavButton: React.FC<{
         flexShrink: 0,
       }}
     />
-    {!isRail && <span className="flex-1 truncate">{label}</span>}
+    {!isRail && <span className="flex-1 break-words">{label}</span>}
     {!isRail && count != null && count > 0 && (
       <span
         className={`inline-flex items-center justify-center rounded-full font-bold leading-none ${

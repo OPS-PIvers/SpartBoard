@@ -19,6 +19,8 @@
  * grid and the `FolderSidebar` so that cards can be dropped on folders.
  */
 
+import { createPortal } from 'react-dom';
+import { Z_INDEX } from '@/config/zIndex';
 import React, { useMemo, useState } from 'react';
 import {
   DndContext,
@@ -42,6 +44,7 @@ import { LibraryGridLockContext } from './LibraryGridLockContext';
 import { useLibraryFolderView } from './LibraryFolderViewContext';
 import { Folder } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { FolderRowButton } from './FolderViewHeader';
 
 interface LibraryGridExtraProps {
   /**
@@ -102,7 +105,10 @@ export function LibraryGrid<TItem>(
     [reorderLocked, reorderLockedReason, dragDisabled]
   );
 
-  if (items.length === 0) {
+  if (
+    items.length === 0 &&
+    (!folderView || folderView.folderRows.length === 0)
+  ) {
     if (folderView?.emptyFolder) {
       return (
         <ScaledEmptyState
@@ -114,8 +120,6 @@ export function LibraryGrid<TItem>(
         />
       );
     }
-    // Folder rows above the list already fill the view.
-    if (folderView && folderView.folderRows.length > 0) return null;
     return <>{emptyState ?? null}</>;
   }
 
@@ -148,13 +152,24 @@ export function LibraryGrid<TItem>(
   };
 
   const isListLayout = layout === 'list';
+  const folderRows = folderView?.folderRows.map((row) => (
+    <FolderRowButton
+      key={`folder:${row.folder.id}`}
+      row={row}
+      viewMode={layout}
+      onOpen={() =>
+        folderView.navigate({ kind: 'folder', folderId: row.folder.id })
+      }
+    />
+  ));
   const strategy = isListLayout
     ? verticalListSortingStrategy
     : rectSortingStrategy;
 
-  // List rows are bordered white cards (monitor idiom) — a small gap keeps
-  // adjacent borders from reading as a double rule.
-  const containerClass = isListLayout ? 'flex flex-col gap-2' : 'gap-3';
+  // List rows share hairline dividers, matching Admin Settings lists.
+  const containerClass = isListLayout
+    ? 'flex flex-col divide-y divide-slate-200 border-y border-slate-200'
+    : 'gap-3';
   const containerStyle: React.CSSProperties | undefined = isListLayout
     ? undefined
     : {
@@ -172,6 +187,7 @@ export function LibraryGrid<TItem>(
             style={containerStyle}
             data-testid="library-grid"
           >
+            {folderRows}
             {items.map((item, index) => renderCard(item, index))}
           </div>
         </SortableContext>
@@ -194,18 +210,23 @@ export function LibraryGrid<TItem>(
             style={containerStyle}
             data-testid="library-grid"
           >
+            {folderRows}
             {items.map((item, index) => renderCard(item, index))}
           </div>
         </SortableContext>
-        <DragOverlay>
-          {activeItem != null ? (
-            <LibraryGridLockContext.Provider
-              value={{ locked: false, reason: undefined, dragDisabled: true }}
-            >
-              {renderCard(activeItem, activeIndex)}
-            </LibraryGridLockContext.Provider>
-          ) : null}
-        </DragOverlay>
+        {/* Portaled: the widget's container-type makes it the containing block for fixed elements, which offset the overlay from the cursor. */}
+        {createPortal(
+          <DragOverlay zIndex={Z_INDEX.modalDeep}>
+            {activeItem != null ? (
+              <LibraryGridLockContext.Provider
+                value={{ locked: false, reason: undefined, dragDisabled: true }}
+              >
+                {renderCard(activeItem, activeIndex)}
+              </LibraryGridLockContext.Provider>
+            ) : null}
+          </DragOverlay>,
+          document.body
+        )}
       </DndContext>
     </LibraryGridLockContext.Provider>
   );
