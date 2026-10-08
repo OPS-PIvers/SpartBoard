@@ -2,6 +2,7 @@
 import React from 'react';
 import { ChevronRight, Folder } from 'lucide-react';
 import type { LibraryViewMode } from './types';
+import { folderColorSwatch } from './folderColors';
 import {
   breadcrumbEntries,
   folderPath,
@@ -99,6 +100,7 @@ export const FolderRowButton: React.FC<{
   onOpen: () => void;
 }> = ({ row, viewMode, onOpen }) => {
   const isList = viewMode === 'list';
+  const swatch = folderColorSwatch(row.folder.color);
   return (
     <button
       type="button"
@@ -107,7 +109,7 @@ export const FolderRowButton: React.FC<{
       className={`flex w-full items-center text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary/40 ${
         isList
           ? 'bg-white hover:bg-amber-50'
-          : 'rounded-2xl border border-amber-200 bg-amber-50 hover:border-amber-300 hover:bg-amber-100'
+          : `rounded-2xl border hover:brightness-95 ${swatch?.row ?? 'border-amber-200 bg-amber-50'}`
       }`}
       style={{
         gap: 'min(10px, 2.5cqmin)',
@@ -117,7 +119,11 @@ export const FolderRowButton: React.FC<{
       }}
     >
       <span
-        className="flex shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700"
+        className={`flex shrink-0 items-center justify-center rounded-lg ${
+          swatch
+            ? `${swatch.row.split(' ')[0]} ${swatch.icon}`
+            : 'bg-amber-100 text-amber-700'
+        }`}
         style={{ width: 'min(36px, 10cqmin)', height: 'min(36px, 10cqmin)' }}
         aria-hidden
       >

@@ -441,6 +441,14 @@ const useFixtureFolders = (
     },
     deleteFolder: (folderId) => {
       setFolders((prev) => prev.filter((f) => f.id !== folderId));
+      return Promise.resolve(undefined);
+    },
+    setFolderColor: (folderId, color) => {
+      setFolders((prev) =>
+        prev.map((f) =>
+          f.id === folderId ? { ...f, color: color ?? undefined } : f
+        )
+      );
       return Promise.resolve();
     },
     reorderSiblings: () => Promise.resolve(),

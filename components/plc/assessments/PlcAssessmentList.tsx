@@ -681,7 +681,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   }, [rows]);
   const visibleRows = folderNav.visibleItems;
   const folderItemCounts = useMemo(() => countRowsByFolder(rows), [rows]);
-  const folderView = useFolderViewSidebar({
+  const folderSidebarExtras = useFolderViewSidebar({
     setFolderColor: folderState.setFolderColor,
     noun: { one: 'assessment', many: 'assessments' },
     items: rows,
@@ -1212,7 +1212,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
         onRenameFolder={canEdit ? folderState.renameFolder : undefined}
         onMoveFolder={canEdit ? folderState.moveFolder : undefined}
         onDeleteFolder={canEdit ? folderState.deleteFolder : undefined}
-        {...(canEdit ? folderView : {})}
+        {...(canEdit ? folderSidebarExtras : {})}
         enableDrop={canEdit}
       />
       {showSuggestions && (
