@@ -9960,7 +9960,9 @@ export type GlobalFeature =
   /** Embed: a pasted Google Slides link opens on the slide it was copied from. */
   | 'embed-slide-link'
   /** Widget libraries open on folders with a path bar, Recent view and drag filing (docs/plans/LIBRARY_FOLDERS.md D26). */
-  | 'library-folder-view';
+  | 'library-folder-view'
+  /** Assign as an accordion stepper (docs/plans/ASSIGN_STEPPER.md D16). */
+  | 'assign-stepper';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
