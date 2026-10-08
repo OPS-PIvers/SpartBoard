@@ -2594,15 +2594,18 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             onWhenChange={setAssignWhen}
             behavior={assignBehavior}
             onBehaviorChange={setAssignBehavior}
-            targeting={assignTargeting}
-            onTargetingChange={setAssignTargeting}
-            sharing={assignOptions}
-            onSharingChange={({ plcMode, plcId }) =>
-              setAssignOptions({ ...assignOptions, plcMode, plcId })
-            }
-            plcs={plcs}
+            modifications={{
+              targeting: assignTargeting,
+              onTargetingChange: setAssignTargeting,
+              quizContext: assignQuizContext,
+            }}
+            sharing={{
+              value: assignOptions,
+              onChange: ({ plcMode, plcId }) =>
+                setAssignOptions({ ...assignOptions, plcMode, plcId }),
+              plcs,
+            }}
             periodAccess={periodAccess}
-            quizContext={assignQuizContext}
             hasManualGrading={quizNeedsManualGrading(
               assignQuizData?.questions ?? []
             )}
