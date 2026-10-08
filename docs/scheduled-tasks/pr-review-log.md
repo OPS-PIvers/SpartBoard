@@ -4601,3 +4601,15 @@ rather than "no data") is also still open.
 - Notes:
   - Merge order: the Teams redesign PRs (#3909 to #3914) overlap in `App.tsx`, `types.ts`, `PlcSettingsTab` and `firestore.rules`.
   - `gh` is unavailable, so GitHub access went through MCP.
+
+## 2026-10-08
+
+- PRs reviewed: #3966 docs(unifier): run 110 log — aligned, two backlog items
+- Comments processed: 0 total (0 fixed, 0 explained). #3966 had no review threads, reviews or issue comments.
+- Fixes pushed: none
+- Reviews posted: 1
+- Merge readiness:
+  - Ready with minor notes:
+    - #3966: the log cites `components/common/lightChrome.ts` as using `var(--spart-primary,#2d3f89)`, but it only uses static `brand-blue-*` Tailwind classes. The real precedent is `GuidedLearning/utils/calloutStyle.ts:227`. Every other file and line reference checked out on `dev-paul` @ `5b543ff2`.
+- Notes:
+  - `gh` is unavailable, so GitHub access went through MCP.
