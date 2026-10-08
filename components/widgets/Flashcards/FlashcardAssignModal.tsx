@@ -1,11 +1,8 @@
 import React, { useContext, useState } from 'react';
 import type {
   ClassRoster,
-  FlashcardMasteryThreshold,
-  FlashcardMode,
   FlashcardScoreVisibility,
   FlashcardSet,
-  FlashcardSide,
   FlashcardTestType,
 } from '@/types';
 import { AssignModal } from '@/components/common/library/AssignModal';
@@ -33,6 +30,13 @@ import {
   type FlashcardAssignForm,
   type FlashcardAssignSubmission,
 } from './utils/flashcardAssign';
+import {
+  FLASHCARD_MODE_OPTIONS as MODE_OPTIONS,
+  FLASHCARD_SCORE_VISIBILITY_OPTIONS as SCORE_VISIBILITY_OPTIONS,
+  FLASHCARD_SIDE_OPTIONS as SIDE_OPTIONS,
+  FLASHCARD_TEST_TYPE_OPTIONS as TEST_TYPE_OPTIONS,
+  FLASHCARD_THRESHOLD_OPTIONS as THRESHOLD_OPTIONS,
+} from './utils/flashcardAssignOptions';
 
 export interface FlashcardAssignModalProps {
   isOpen: boolean;
@@ -44,40 +48,6 @@ export interface FlashcardAssignModalProps {
   /** Per-period mode and windows; undefined while the flag is off. */
   periodAccess?: AssignPeriodAccessContext;
 }
-
-const MODE_OPTIONS: Array<{ value: FlashcardMode; label: string }> = [
-  { value: 'flashcards', label: 'Flashcards' },
-  { value: 'write', label: 'Write' },
-  { value: 'test', label: 'Test' },
-];
-
-const SIDE_OPTIONS: Array<{ value: FlashcardSide; label: string }> = [
-  { value: 'term', label: 'Term' },
-  { value: 'definition', label: 'Definition' },
-];
-
-const THRESHOLD_OPTIONS: Array<{
-  value: FlashcardMasteryThreshold;
-  label: string;
-}> = [
-  { value: 2, label: '2' },
-  { value: 3, label: '3' },
-  { value: 4, label: '4' },
-];
-
-const SCORE_VISIBILITY_OPTIONS: Array<{
-  value: FlashcardScoreVisibility;
-  label: string;
-}> = [
-  { value: 'none', label: 'Hide until I publish' },
-  { value: 'score', label: 'Score only' },
-  { value: 'score-and-answers', label: 'Score and correct answers' },
-];
-
-const TEST_TYPE_OPTIONS: Array<{ value: FlashcardTestType; label: string }> = [
-  { value: 'mc', label: 'Multiple choice' },
-  { value: 'fib', label: 'Fill in the blank' },
-];
 
 const LABEL_CLASS =
   'block text-xxs font-bold text-slate-500 uppercase tracking-widest mb-1.5';
