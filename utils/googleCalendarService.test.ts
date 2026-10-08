@@ -99,4 +99,35 @@ describe('GoogleCalendarService', () => {
       )
     ).rejects.toThrow('Calendar API Error: Not Found');
   });
+
+  it('follows nextPageToken so events past the first page are returned', async () => {
+    (global.fetch as Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            items: [{ id: '1', summary: 'A', start: { date: '2026-03-01' } }],
+            nextPageToken: 'p2',
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            items: [{ id: '2', summary: 'B', start: { date: '2026-03-20' } }],
+          }),
+      });
+
+    const events = await service.getEvents(
+      'test-cal',
+      '2026-03-01T00:00:00Z',
+      '2026-03-31T00:00:00Z'
+    );
+
+    expect(events.map((e) => e.title)).toEqual(['A', 'B']);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(String((global.fetch as Mock).mock.calls[1][0])).toContain(
+      'pageToken=p2'
+    );
+  });
 });
