@@ -75,26 +75,20 @@ import {
   type OverrideEditorPeer,
   type OverrideEditorQuestion,
 } from './OverrideEditorRow';
-import type {
-  ClassRoster,
-  Rubric,
-  StudentOverride,
-  StudentTargetRef,
-} from '@/types';
+import { ModificationsList } from './assignStepper/ModificationsView';
 import {
-  classStudentRows,
-  effectiveClassOverride,
+  clearedModifications,
+  countModifications,
+  effectiveRosterIdsFor,
+  modificationRows,
+} from './assignStepper/ModificationsView.helpers';
+import type { ClassRoster, Rubric, StudentOverride } from '@/types';
+import {
   resolveStudentTargetRef,
   studentTargetRefKey,
   EMPTY_ASSIGN_TARGETING_VALUE,
   type AssignTargetingValue,
-  type ClassStudentRow,
 } from '@/utils/studentTargetRef';
-import {
-  isNonEnglishQuizSource,
-  uncoveredLocalesForTargets,
-} from '@/utils/quizTranslationAdvisory';
-import { languageNativeLabel } from '@/utils/languageNativeLabel';
 
 export type { AssignTargetingValue } from '@/utils/studentTargetRef';
 export { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
@@ -230,85 +224,6 @@ function formatScheduleSummary(
   });
 }
 
-/** One class-mode student row: skip toggle + the shared override editor. */
-const ClassStudentOverrideRow: React.FC<{
-  row: ClassStudentRow;
-  override: StudentOverride;
-  hasStanding: boolean;
-  skipped: boolean;
-  onOverrideChange: (next: StudentOverride) => void;
-  onSkipChange: (skipped: boolean) => void;
-  quizMode: boolean;
-  readAloudAvailable: boolean;
-  questions: OverrideEditorQuestion[];
-  rubrics: Rubric[];
-  peers: OverrideEditorPeer[];
-  cqScaled?: boolean;
-}> = ({
-  row,
-  override,
-  hasStanding,
-  skipped,
-  onOverrideChange,
-  onSkipChange,
-  quizMode,
-  readAloudAvailable,
-  questions,
-  rubrics,
-  peers,
-  cqScaled,
-}) => {
-  const { t } = useTranslation();
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between gap-2">
-        {hasStanding && (
-          <span
-            className={
-              cqScaled
-                ? 'rounded-full bg-brand-blue-lighter px-2 py-0.5 font-bold uppercase tracking-wider text-brand-blue-dark'
-                : 'rounded-full bg-brand-blue-lighter px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-blue-dark'
-            }
-            style={scaledFont(cqScaled, 10, 4)}
-          >
-            {t('assignTargeting.standingBadge', 'Standing')}
-          </span>
-        )}
-        <label
-          className={
-            cqScaled
-              ? 'ml-auto flex items-center gap-1.5 font-medium text-slate-600'
-              : 'ml-auto flex items-center gap-1.5 text-xs font-medium text-slate-600'
-          }
-          style={scaledFont(cqScaled, 12, 4.5)}
-        >
-          <input
-            type="checkbox"
-            checked={skipped}
-            aria-label={t('assignTargeting.skipStudentNamed', 'Skip {{name}}', {
-              name: row.name,
-            })}
-            onChange={(e) => onSkipChange(e.target.checked)}
-          />
-          {t('assignTargeting.skipStudent', 'Skip this student')}
-        </label>
-      </div>
-      <div className={skipped ? 'opacity-50 pointer-events-none' : undefined}>
-        <OverrideEditorRow
-          studentName={row.name}
-          override={override}
-          onChange={onOverrideChange}
-          quizMode={quizMode}
-          readAloudAvailable={readAloudAvailable}
-          questions={questions}
-          rubrics={rubrics}
-          peers={peers}
-        />
-      </div>
-    </div>
-  );
-};
-
 export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   rosters,
   selectedRosterIds,
@@ -359,115 +274,24 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   );
 
   const effectiveRosterIds = useMemo(
-    () => selectedRosterIds ?? rosters.map((r) => r.id),
+    () => effectiveRosterIdsFor({ rosters, selectedRosterIds }),
     [selectedRosterIds, rosters]
   );
 
-  const classRows = useMemo(() => {
-    const rows = classStudentRows({
-      rosters,
-      selectedRosterIds: effectiveRosterIds,
-    });
-    if (useRosterDefaults) return rows;
-    // Re-edit: the stored snapshot is frozen, so standing defaults are inert.
-    return rows.map(
-      ({ defaultOverride: _ignored, ...rest }): ClassStudentRow => rest
-    );
-  }, [rosters, effectiveRosterIds, useRosterDefaults]);
-
-  const anyClassChecked = effectiveRosterIds.length > 0;
-
-  // Students in the checked classes with no school sign-in: the class channel
-  // still delivers to them, but they can never carry a pointer doc.
-  const unresolvableCount = useMemo(() => {
-    const selected = new Set(effectiveRosterIds);
-    let count = 0;
-    for (const roster of rosters) {
-      if (!selected.has(roster.id)) continue;
-      for (const student of roster.students) {
-        if (!resolveStudentTargetRef(student, roster)) count += 1;
-      }
-    }
-    return count;
-  }, [rosters, effectiveRosterIds]);
-
-  // Pruned to the checked classes — an unchecked class must not keep a skip.
-  const excludedInScope = useMemo(() => {
-    const rowKeys = new Set(classRows.map((row) => row.key));
-    return (value.excludedStudents ?? []).filter((ref) =>
-      rowKeys.has(studentTargetRefKey(ref))
-    );
-  }, [value.excludedStudents, classRows]);
-
-  const excludedKeys = useMemo(
-    () => new Set(excludedInScope.map(studentTargetRefKey)),
-    [excludedInScope]
-  );
-
-  const modifiedCount = useMemo(
+  const modificationCounts = useMemo(
     () =>
-      classRows.filter(
-        (row) =>
-          !excludedKeys.has(row.key) &&
-          !!effectiveClassOverride(row, value.overridesByKey)
-      ).length,
-    [classRows, excludedKeys, value.overridesByKey]
-  );
-
-  // Rows the teacher has a reason to see first: a standing roster
-  // accommodation, an edit made here, or a skip. Everything else collapses.
-  const isPromoted = (row: ClassStudentRow) =>
-    !!row.defaultOverride ||
-    !!value.overridesByKey[row.key] ||
-    excludedKeys.has(row.key);
-  const promotedRows = classRows.filter(isPromoted);
-  const remainingRows = classRows.filter((row) => !isPromoted(row));
-  const visibleRows = showAll
-    ? [...promotedRows, ...remainingRows]
-    : promotedRows;
-
-  // Grouped by class so a multi-class assign never mixes two sections into one
-  // undifferentiated list; last name orders each section.
-  const groupedRows = new Map<string, ClassStudentRow[]>();
-  for (const row of visibleRows) {
-    const existing = groupedRows.get(row.rosterName);
-    if (existing) existing.push(row);
-    else groupedRows.set(row.rosterName, [row]);
-  }
-  const visibleGroups = [...groupedRows.entries()].map(
-    ([rosterName, groupRows]) => ({
-      rosterName,
-      rows: [...groupRows].sort(
-        (a, b) =>
-          a.lastName.localeCompare(b.lastName) || a.name.localeCompare(b.name)
+      countModifications(
+        modificationRows({ rosters, selectedRosterIds, useRosterDefaults }),
+        value
       ),
-    })
+    [rosters, selectedRosterIds, useRosterDefaults, value]
   );
+  const modifiedCount = modificationCounts.modified;
+  const skippedCount = modificationCounts.skipped;
 
-  const multiClass = visibleGroups.length > 1;
-
-  // Drops every edit and skip this dialog made — the control the pacing error
+  // Drops every edit and skip this dialog made, the control the pacing error
   // tells the teacher to reach for.
-  const clearModifications = () =>
-    patch({
-      targetStudents: [],
-      overridesByKey: {},
-      excludedStudents: [],
-    });
-
-  const translationAdvisory = useMemo(() => {
-    const translation = quizContext?.translation;
-    if (!translation) return [];
-    return uncoveredLocalesForTargets(
-      classRows
-        .filter((row) => !excludedKeys.has(row.key))
-        .map((row) => ({
-          name: row.name,
-          language: effectiveClassOverride(row, value.overridesByKey)?.language,
-        })),
-      translation
-    );
-  }, [classRows, excludedKeys, quizContext?.translation, value.overridesByKey]);
+  const clearModifications = () => onChange(clearedModifications(value));
 
   const patch = (next: Partial<AssignTargetingValue>) =>
     onChange({ ...value, ...next });
@@ -476,17 +300,6 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
 
   const setOverrideForKey = (key: string, override: StudentOverride) =>
     patch({ overridesByKey: { ...value.overridesByKey, [key]: override } });
-
-  const setSkipped = (ref: StudentTargetRef, skipped: boolean) => {
-    const key = studentTargetRefKey(ref);
-    patch({
-      excludedStudents: skipped
-        ? [...(value.excludedStudents ?? []), ref]
-        : (value.excludedStudents ?? []).filter(
-            (r) => studentTargetRefKey(r) !== key
-          ),
-    });
-  };
 
   const removeStudent = (key: string) => {
     const nextStudents = value.targetStudents.filter(
@@ -501,15 +314,6 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
     setExpanded(true);
     onExpand?.();
   };
-
-  const nonEnglishSource = isNonEnglishQuizSource(
-    quizContext?.translation?.sourceLanguage
-  );
-  const translationGenerateDisabled =
-    nonEnglishSource ||
-    quizContext?.translation?.hasBankSlots === true ||
-    (quizContext?.translation?.cap?.remaining ?? 1) <= 0 ||
-    !!quizContext?.translation?.generating;
 
   // Reverting to class-wide clears targeting/overrides ONLY — the Schedule
   // affordance is fully independent of targetMode (F1 fix), so a window the
@@ -588,11 +392,11 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   // "+ Individual…" / "Assign to whole class" pair below), never wrapped in a
   // second `CollapsibleSection` toggle (F3 fix).
   const modificationsSummary =
-    excludedInScope.length > 0 || modifiedCount > 0
+    skippedCount > 0 || modifiedCount > 0
       ? [
-          excludedInScope.length > 0
+          skippedCount > 0
             ? t('assignTargeting.summarySkipped', '{{count}} skipped', {
-                count: excludedInScope.length,
+                count: skippedCount,
               })
             : null,
           modifiedCount > 0
@@ -658,7 +462,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
           {t('assignTargeting.modificationsLabel', 'Modifications')}
         </span>
         <div className="flex items-center gap-3">
-          {(modifiedCount > 0 || excludedInScope.length > 0) && (
+          {(modifiedCount > 0 || skippedCount > 0) && (
             <button
               type="button"
               onClick={clearModifications}
@@ -690,163 +494,20 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
         </div>
       </div>
 
-      {translationAdvisory.length > 0 && (
-        <div className="space-y-1.5">
-          {translationAdvisory.map((entry) => (
-            <div
-              key={entry.locale}
-              role="status"
-              className={
-                cqScaled
-                  ? 'flex items-center gap-2 text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5'
-                  : 'flex items-center gap-2 text-xxs text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5'
-              }
-              style={scaledFont(cqScaled, 10, 4)}
-            >
-              <span className="flex-1">
-                {t('quizTranslation.assign.advisory.missing', {
-                  count: entry.names.length,
-                  others: entry.names.length - 1,
-                  name: entry.names[0],
-                  language: languageNativeLabel(entry.locale),
-                })}
-              </span>
-              {quizContext?.translation?.onGenerate && (
-                <button
-                  type="button"
-                  disabled={translationGenerateDisabled}
-                  onClick={() =>
-                    quizContext.translation?.onGenerate?.([entry.locale])
-                  }
-                  className="shrink-0 rounded-md border border-amber-500/50 px-2 py-0.5 font-bold text-amber-700 hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                >
-                  {t('quizTranslation.assign.generate')}
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {unresolvableCount > 0 && (
-        <p
-          className={cqScaled ? 'text-slate-500' : 'text-xs text-slate-500'}
-          style={scaledFont(cqScaled, 12, 4.5)}
-        >
-          {t(
-            'assignTargeting.noSignInCount',
-            '{{count}} students have no school sign-in and can’t be changed individually.',
-            { count: unresolvableCount }
-          )}
-        </p>
-      )}
-
-      {classRows.length === 0 ? (
-        <p
-          className={cqScaled ? 'text-slate-500' : 'text-xs text-slate-500'}
-          style={scaledFont(cqScaled, 12, 4.5)}
-        >
-          {anyClassChecked
-            ? t(
-                'assignTargeting.noSignInStudents',
-                'No one in the checked classes has a school sign-in, so there is nobody to modify individually.'
-              )
-            : canPickClasses
-              ? t(
-                  'assignTargeting.noClassStudents',
-                  'Check a class above to modify individual students.'
-                )
-              : t(
-                  'assignTargeting.noLinkedClass',
-                  'This assignment is not linked to a class you can modify here.'
-                )}
-        </p>
-      ) : (
-        <>
-          {excludedInScope.length > 0 && (
-            <p
-              role="status"
-              className={
-                cqScaled
-                  ? 'rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-amber-700'
-                  : 'rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xxs text-amber-700'
-              }
-              style={scaledFont(cqScaled, 10, 4)}
-            >
-              {t(
-                'assignTargeting.skipNotice',
-                'Skipped students won’t see this assignment.'
-              )}
-            </p>
-          )}
-          <div className="space-y-3">
-            {visibleGroups.map((group) => (
-              <div key={group.rosterName} className="space-y-2">
-                {multiClass && (
-                  <p
-                    className={
-                      cqScaled
-                        ? 'font-bold uppercase tracking-wider text-slate-500'
-                        : 'text-xxs font-bold uppercase tracking-wider text-slate-500'
-                    }
-                    style={scaledFont(cqScaled, 10, 4)}
-                  >
-                    {group.rosterName}
-                  </p>
-                )}
-                {group.rows.map((row) => (
-                  <ClassStudentOverrideRow
-                    key={row.key}
-                    row={row}
-                    override={
-                      value.overridesByKey[row.key] ?? row.defaultOverride ?? {}
-                    }
-                    hasStanding={!!row.defaultOverride}
-                    skipped={excludedKeys.has(row.key)}
-                    onOverrideChange={(next) =>
-                      setOverrideForKey(row.key, next)
-                    }
-                    onSkipChange={(skipped) => setSkipped(row.ref, skipped)}
-                    quizMode={kind === 'quiz'}
-                    readAloudAvailable={readAloudAvailable}
-                    questions={quizContext?.questions ?? []}
-                    rubrics={quizContext?.rubrics ?? []}
-                    peers={visibleRows
-                      .filter((peer) => peer.key !== row.key)
-                      .map((peer) => ({
-                        id: peer.key,
-                        name: peer.name,
-                        override:
-                          value.overridesByKey[peer.key] ??
-                          peer.defaultOverride ??
-                          {},
-                      }))}
-                    cqScaled={cqScaled}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
-          {remainingRows.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowAll(!showAll)}
-              className={
-                cqScaled
-                  ? 'font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors'
-                  : 'text-xs font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors'
-              }
-              style={scaledFont(cqScaled, 12, 4.5)}
-            >
-              {showAll
-                ? t('assignTargeting.showFewer', 'Show fewer')
-                : t('assignTargeting.showMore', 'Show {{count}} more', {
-                    count: remainingRows.length,
-                  })}
-            </button>
-          )}
-        </>
-      )}
+      <ModificationsList
+        rosters={rosters}
+        selectedRosterIds={selectedRosterIds}
+        useRosterDefaults={useRosterDefaults}
+        value={value}
+        onChange={onChange}
+        quizMode={kind === 'quiz'}
+        quizContext={quizContext}
+        readAloudAvailable={readAloudAvailable}
+        canPickClasses={canPickClasses}
+        cqScaled={cqScaled}
+        showAll={showAll}
+        onShowAllChange={setShowAll}
+      />
     </div>
   );
 

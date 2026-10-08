@@ -3141,7 +3141,11 @@
     "periodBell": "Bell times",
     "periodCustom": "Custom",
     "periodBellTimes": "{{open}} – {{close}}",
-    "periodNoBell": "This period has no bell that day, so it uses the window above."
+    "periodNoBell": "This period has no bell that day, so it uses the window above.",
+    "back": "Back",
+    "modificationsEyebrow": "Assign · {{title}}",
+    "modificationsLink": "Modifications: {{value}}",
+    "modificationsNone": "None"
   },
   "assignmentsHub": {
     "title": "Assignments",

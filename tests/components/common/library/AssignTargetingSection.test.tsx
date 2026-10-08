@@ -274,4 +274,13 @@ describe('AssignTargetingSection', () => {
       );
     });
   });
+
+  it('keeps Show more open across Done and reopen', () => {
+    renderSection();
+    openModifications();
+    fireEvent.click(screen.getByText('Show 1 more'));
+    fireEvent.click(screen.getByText('Done'));
+    openModifications();
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+  });
 });

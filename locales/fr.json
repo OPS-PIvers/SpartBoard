@@ -2022,7 +2022,11 @@
     "periodBell": "Horaires de la sonnerie",
     "periodCustom": "Personnalisé",
     "periodBellTimes": "{{open}} – {{close}}",
-    "periodNoBell": "Cette période n’a pas de sonnerie ce jour-là, elle utilise donc le créneau ci-dessus."
+    "periodNoBell": "Cette période n’a pas de sonnerie ce jour-là, elle utilise donc le créneau ci-dessus.",
+    "back": "Retour",
+    "modificationsEyebrow": "Attribuer · {{title}}",
+    "modificationsLink": "Aménagements : {{value}}",
+    "modificationsNone": "Aucun"
   },
   "assignmentsHub": {
     "title": "Devoirs",

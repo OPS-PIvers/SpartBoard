@@ -2022,7 +2022,11 @@
     "periodBell": "Horario del timbre",
     "periodCustom": "Personalizado",
     "periodBellTimes": "{{open}} – {{close}}",
-    "periodNoBell": "Este período no tiene timbre ese día, así que usa el horario de arriba."
+    "periodNoBell": "Este período no tiene timbre ese día, así que usa el horario de arriba.",
+    "back": "Atrás",
+    "modificationsEyebrow": "Asignar · {{title}}",
+    "modificationsLink": "Adaptaciones: {{value}}",
+    "modificationsNone": "Ninguna"
   },
   "assignmentsHub": {
     "title": "Tareas",

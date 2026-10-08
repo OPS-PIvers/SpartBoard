@@ -2022,7 +2022,11 @@
     "periodBell": "Klingelzeiten",
     "periodCustom": "Benutzerdefiniert",
     "periodBellTimes": "{{open}} – {{close}}",
-    "periodNoBell": "Diese Stunde hat an dem Tag keine Klingelzeit, daher gilt das Zeitfenster oben."
+    "periodNoBell": "Diese Stunde hat an dem Tag keine Klingelzeit, daher gilt das Zeitfenster oben.",
+    "back": "Zurück",
+    "modificationsEyebrow": "Zuweisen · {{title}}",
+    "modificationsLink": "Anpassungen: {{value}}",
+    "modificationsNone": "Keine"
   },
   "assignmentsHub": {
     "title": "Aufgaben",
