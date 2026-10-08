@@ -34,7 +34,9 @@ export const AssignWhenStep: React.FC<{
   rosters: ClassRoster[];
   /** Bell periods; absent hides the class bell times and Manual. */
   periodAccess?: AssignPeriodAccessContext;
-}> = ({ value, onChange, variant, rosters, periodAccess }) => {
+  /** Each class keeps one Opens for all classes, where only one open time can be saved. */
+  sharedOpens?: boolean;
+}> = ({ value, onChange, variant, rosters, periodAccess, sharedOpens }) => {
   const { t } = useTranslation();
 
   if (variant === 'live')
@@ -105,6 +107,27 @@ export const AssignWhenStep: React.FC<{
         </StateLine>
       ) : (
         <>
+          {eachClass && sharedOpens && (
+            <SpecRows
+              spec={availability.all}
+              bellAvailable={bellAvailable}
+              backwards={false}
+              onChange={({ opens }) =>
+                setAvailability({
+                  ...availability,
+                  all: { ...availability.all, opens },
+                  byRoster: Object.fromEntries(
+                    rosters.map((r) => [
+                      r.id,
+                      { ...specForRoster(availability, r.id), opens },
+                    ])
+                  ),
+                })
+              }
+              resource={available}
+              noEnd
+            />
+          )}
           {eachClass ? (
             rosters.map((roster) => (
               <div key={roster.id} className="space-y-2">
@@ -126,6 +149,7 @@ export const AssignWhenStep: React.FC<{
                     })
                   }
                   resource={available}
+                  hideOpens={sharedOpens}
                 />
               </div>
             ))

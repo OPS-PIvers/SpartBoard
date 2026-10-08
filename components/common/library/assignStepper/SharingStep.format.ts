@@ -31,3 +31,11 @@ export const formatSharingValue = (
   const plc = value.plcMode ? resolveSharingPlc(value, plcs) : null;
   return plc ? `Shared with ${plc.name}` : 'Not shared';
 };
+
+/** Sharing is on with several PLCs and none picked yet, so the results would go nowhere. */
+export const sharingNeedsPlc = (
+  value: SharingStepValue,
+  plcs: readonly Plc[]
+): boolean => value.plcMode && !resolveSharingPlc(value, plcs);
+
+export const PICK_A_PLC = 'Select a PLC…';

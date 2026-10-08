@@ -178,9 +178,14 @@ import {
   payloadRequiresCall,
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
+import {
+  buildMixedTargetsPayload,
+  expandMixedTargeting,
+} from '@/utils/assignTargets';
+import type { QuizStepperAssign } from './components/QuizManager';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import type { StudentTargetRef } from '@/types';
-import { buildPeriodAccess, DEFAULT_PERIOD_PLAN } from '@/utils/periodPlan';
+import { buildPeriodGate } from '@/utils/periodPlan';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
 import { revealValueFor } from '@/utils/quizFibAlternates';
@@ -280,11 +285,14 @@ const TeacherQuizWidget: React.FC<{
   const config = widget.config as QuizConfig;
   const reviewSplit = canAccessFeature('quiz-review-split');
   const isReview = variant === 'review';
+  // The assign stepper is Assessment Mode only and saves last-used rules (plan D12).
+  const assessmentAssign =
+    !isReview && (reviewSplit || canAccessFeature('assign-stepper'));
   // Only tag new docs while the split is on, so flag-off data is unchanged (D2).
   const kindTag = reviewSplit ? { widgetKind: variant } : {};
   const { save: saveLastAssignSettings } = useLastQuizAssignSettings(
     user?.uid,
-    reviewSplit && !isReview
+    assessmentAssign
   );
 
   // Opens the Google Picker so the teacher selects a Sheet to import. Picking
@@ -2170,7 +2178,8 @@ const TeacherQuizWidget: React.FC<{
           targeting: AssignTargetingValue,
           destination?: AssignDestination,
           preloadedQuizData?: QuizData | null,
-          dueAtByRosterId?: Record<string, number>
+          dueAtByRosterId?: Record<string, number>,
+          stepper?: QuizStepperAssign
         ) => {
           // F1 fix — reuse the content QuizManager already fetched for the
           // B2 override editor (when the teacher expanded individual
@@ -2192,9 +2201,7 @@ const TeacherQuizWidget: React.FC<{
             sessionMode: mode,
             sessionOptions,
             attemptLimit,
-          } = reviewSplit && !isReview
-            ? toAssessmentBehavior(behavior)
-            : behavior;
+          } = assessmentAssign ? toAssessmentBehavior(behavior) : behavior;
 
           // Bank slots freeze into a Drive snapshot so grading sees the pool.
           let assignQuestions = data.questions;
@@ -2268,13 +2275,24 @@ const TeacherQuizWidget: React.FC<{
           );
           // Snapshot the checked classes now: the hub must render what was
           // assigned, not whatever the roster defaults say later.
-          const resolvedTargeting: AssignTargetingValue = expandClassTargeting(
-            {
-              ...targeting,
-              overridesByKey: hiddenOptions.overridesByKey,
-            },
-            { rosters, selectedRosterIds: rosterIds }
-          );
+          const targetingWithOptions: AssignTargetingValue = {
+            ...targeting,
+            overridesByKey: hiddenOptions.overridesByKey,
+          };
+          // Stepper: whole classes as today, narrowed classes to their picked students (D5b).
+          const mixedTargeting = stepper
+            ? expandMixedTargeting(
+                targetingWithOptions,
+                stepper.classes,
+                rosters
+              )
+            : undefined;
+          const resolvedTargeting: AssignTargetingValue =
+            mixedTargeting?.targeting ??
+            expandClassTargeting(targetingWithOptions, {
+              rosters,
+              selectedRosterIds: rosterIds,
+            });
           for (const warning of hiddenOptions.warnings) {
             addToast(warning, 'warning');
           }
@@ -2286,25 +2304,17 @@ const TeacherQuizWidget: React.FC<{
             rosterIds.includes(r.id)
           );
           const derived = deriveSessionTargetsFromRosters(selectedRosters);
-          const periodPlan = targeting.periodPlan ?? DEFAULT_PERIOD_PLAN;
-          const builtPeriodAccess =
-            assignPeriodCtx && mode === 'student' && selectedRosters.length > 1
-              ? buildPeriodAccess({
-                  plan: periodPlan,
+          const periodGate =
+            mode === 'student'
+              ? buildPeriodGate({
+                  plan: targeting.periodPlan,
                   rosters: selectedRosters,
                   sharedWindow: resolvedTargeting,
-                  bellWindow: (roster) =>
-                    assignPeriodCtx.bellWindow(
-                      roster,
-                      new Date(resolvedTargeting.openAt ?? Date.now())
-                    ),
+                  bellWindow: assignPeriodCtx?.bellWindow,
+                  manualStart: stepper?.manualStart,
                 })
-              : null;
-          // Two rosters on one class id share a gate, so they are one period.
-          const sessionPeriodAccess =
-            builtPeriodAccess && Object.keys(builtPeriodAccess).length > 1
-              ? builtPeriodAccess
-              : null;
+              : undefined;
+          const sessionPeriodAccess = periodGate?.periodAccess ?? null;
 
           // PLC link only (D2): results pool server-side, no sheet is
           // created here. Sheet export stays opt-in on the Results screen.
@@ -2443,7 +2453,7 @@ const TeacherQuizWidget: React.FC<{
                 initialStatus: sessionPeriodAccess ? 'active' : 'paused',
                 ...(sessionPeriodAccess
                   ? {
-                      accessMode: periodPlan.mode,
+                      accessMode: periodGate?.accessMode,
                       periodAccess: sessionPeriodAccess,
                     }
                   : {}),
@@ -2480,7 +2490,7 @@ const TeacherQuizWidget: React.FC<{
                   : {}),
               }
             );
-            if (reviewSplit && !isReview) {
+            if (assessmentAssign) {
               saveLastAssignSettings({
                 sessionMode: mode,
                 sessionOptions,
@@ -2493,10 +2503,9 @@ const TeacherQuizWidget: React.FC<{
             // today. Individual targeting fans the pick-list out to
             // `/student_assignments` pointer docs; skipped refs are surfaced,
             // never silently dropped.
-            const payload = buildSetAssignmentTargetsPayload(
-              undefined,
-              resolvedTargeting
-            );
+            const payload = mixedTargeting
+              ? buildMixedTargetsPayload(undefined, mixedTargeting)
+              : buildSetAssignmentTargetsPayload(undefined, resolvedTargeting);
             if (payloadRequiresCall(payload)) {
               try {
                 const result = await setAssignmentTargets({
@@ -2509,6 +2518,9 @@ const TeacherQuizWidget: React.FC<{
                   overridesBySourcedId: payload.overridesBySourcedId,
                   ...(payload.excludedTargets
                     ? { excludedTargets: payload.excludedTargets }
+                    : {}),
+                  ...(payload.studentTargetClassIds
+                    ? { studentTargetClassIds: payload.studentTargetClassIds }
                     : {}),
                   window: payload.window,
                 });
