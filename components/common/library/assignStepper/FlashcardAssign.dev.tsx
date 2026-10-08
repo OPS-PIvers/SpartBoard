@@ -11,6 +11,8 @@ import type { AssignPeriodAccessContext } from '../AssignPeriodAccessSection';
 const SET: FlashcardSet = {
   id: 'dev-set',
   title: 'Unit 3 Vocabulary',
+  termLanguage: 'en-US',
+  definitionLanguage: 'en-US',
   cards: Array.from({ length: 24 }, (_, i) => ({
     id: `c${i}`,
     term: `term ${i}`,

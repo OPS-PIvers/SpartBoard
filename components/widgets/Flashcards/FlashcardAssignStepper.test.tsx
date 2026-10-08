@@ -76,7 +76,7 @@ const ROSTERS = [
 
 const PERIOD_CTX: AssignPeriodAccessContext = {
   bellOptions: [],
-  bellWindow: () => ({ start: 1_000, end: 2_000 }),
+  bellWindow: () => ({ openAt: 1_000, closeAt: 2_000 }),
   onTagRoster: () => undefined,
 };
 
@@ -232,6 +232,9 @@ describe('FlashcardAssignStepper', () => {
         />
       </AuthContext.Provider>
     );
-    expect(screen.getByRole('button', { name: 'Assign' }).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Assign' })).toHaveProperty(
+      'disabled',
+      true
+    );
   });
 });
