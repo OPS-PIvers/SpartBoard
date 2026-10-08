@@ -1,7 +1,15 @@
-import React, { useId, useState } from 'react';
-import { Link2, GraduationCap, Search } from 'lucide-react';
+import React, { useState } from 'react';
 import { Modal } from '@/components/common/Modal';
 import { Toggle } from '@/components/common/Toggle';
+import { Link2 } from 'lucide-react';
+import { ChecklistSelect } from '@/components/gradebook/settings/ChecklistSelect';
+import {
+  Btn,
+  Field,
+  Input,
+  Select,
+  Textarea,
+} from '@/components/admin/Organization/components/primitives';
 import { TOOLS } from '@/config/tools';
 import {
   inferHelpEmbedType,
@@ -62,12 +70,17 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
   const [draft, setDraft] = useState<HelpItemDraft>(() =>
     editing ? toDraft(editing) : emptyDraft(categories[0]?.id ?? '')
   );
-  const [widgetSearch, setWidgetSearch] = useState('');
-  const relatedWidgetsLabelId = useId();
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // While the activity editor is open, Escape and backdrop clicks belong to it.
   const [editorOpen, setEditorOpen] = useState(false);
+  const [pickedTitle, setPickedTitle] = useState('');
+  const [linkOpen, setLinkOpen] = useState(
+    () => editing?.kind === 'embed' && Boolean(editing.url)
+  );
+  const [changing, setChanging] = useState(false);
+  const hasContent = draft.kind === 'embed' ? linkOpen : Boolean(draft.setId);
+  const showChoices = changing || !hasContent;
 
   const url = draft.url ?? '';
   const urlValid = url.length > 0 && isAllowedHelpUrl(url);
@@ -110,243 +123,198 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
   ): tool is (typeof TOOLS)[number] & { type: WidgetType } =>
     !INTERNAL_TOOL_TYPES.has(tool.type as InternalToolType);
 
-  const visibleTools = TOOLS.filter(isWidgetTool).filter((tool) =>
-    tool.label.toLowerCase().includes(widgetSearch.toLowerCase().trim())
-  );
+  const widgetOptions = TOOLS.filter(isWidgetTool).map((tool) => ({
+    id: tool.type,
+    label: tool.label,
+  }));
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={editorOpen ? () => undefined : onClose}
       title={editing ? 'Edit help item' : 'Add help item'}
-      maxWidth="max-w-3xl"
+      maxWidth="max-w-2xl"
       className="max-h-[88vh]"
+      contentClassName="px-6"
+      footerClassName="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 px-6 py-4"
       footer={
-        <div className="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!canSave || saving}
-            className="px-4 py-2 text-sm rounded-lg bg-brand-blue-primary text-white disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : 'Save'}
-          </button>
-        </div>
+        <>
+          <div className="flex items-center gap-3">
+            <Toggle
+              checked={draft.visible}
+              onChange={(visible) => patch({ visible })}
+              label="Visible to teachers"
+              size="sm"
+            />
+            <span className="text-sm text-slate-700">Visible to teachers</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Btn variant="ghost" onClick={onClose}>
+              Cancel
+            </Btn>
+            <Btn
+              variant="primary"
+              onClick={handleSave}
+              disabled={!canSave || saving}
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </Btn>
+          </div>
+        </>
       }
     >
-      <div className="space-y-4 py-2">
-        <div
-          className="inline-flex rounded-lg border border-slate-300 overflow-hidden"
-          role="group"
-          aria-label="Item kind"
-        >
-          {(
-            [
-              { kind: 'embed' as const, label: 'Embed', icon: Link2 },
-              {
-                kind: 'guided-learning' as const,
-                label: 'Guided Learning activity',
-                icon: GraduationCap,
-              },
-            ] satisfies {
-              kind: HelpResourceItem['kind'];
-              label: string;
-              icon: typeof Link2;
-            }[]
-          ).map(({ kind, label, icon: Icon }) => (
-            <button
-              key={kind}
-              type="button"
-              aria-pressed={draft.kind === kind}
-              onClick={() => patch({ kind })}
-              className={`flex items-center gap-2 px-3 py-2 text-sm ${
-                draft.kind === kind
-                  ? 'bg-brand-blue-primary text-white'
-                  : 'bg-white text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {draft.kind === 'embed' ? (
-          <div className="space-y-2">
-            <label
-              className="block text-sm font-medium text-slate-700"
-              htmlFor="help-item-url"
-            >
-              Link
-            </label>
-            <input
-              id="help-item-url"
-              type="url"
-              value={url}
-              onChange={(e) => patch({ url: e.target.value })}
-              onBlur={() => {
-                if (url.length > 0 && !isAllowedHelpUrl(url))
-                  setError('Links must start with https://');
-                else setError(null);
+      <div className="space-y-5 pb-6">
+        <div className="space-y-1.5">
+          <span className="block text-xs font-semibold uppercase tracking-wide text-slate-700">
+            Content
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {showChoices && (
+              <Btn
+                size="lg"
+                onClick={() => {
+                  patch({ kind: 'embed', url: '' });
+                  setLinkOpen(true);
+                  setChanging(false);
+                }}
+                icon={<Link2 className="w-4 h-4" aria-hidden="true" />}
+              >
+                Add a link
+              </Btn>
+            )}
+            <GuidedLearningPicker
+              mode={
+                showChoices
+                  ? 'choose'
+                  : draft.kind === 'guided-learning'
+                    ? 'chosen'
+                    : 'hidden'
+              }
+              onChange={() => setChanging(true)}
+              selectedSetId={
+                draft.kind === 'guided-learning' ? draft.setId : null
+              }
+              newTitle={draft.title}
+              onSelect={(setId, title) => {
+                setPickedTitle(title);
+                setChanging(false);
+                setLinkOpen(false);
+                setDraft((prev) => ({
+                  ...prev,
+                  kind: 'guided-learning',
+                  setId,
+                  // Follow the activity's title until the admin types their own.
+                  title:
+                    !prev.title.trim() || prev.title === pickedTitle
+                      ? title
+                      : prev.title,
+                }));
               }}
-              placeholder="https://docs.google.com/document/d/..."
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              onError={setError}
+              onEditingChange={setEditorOpen}
             />
-            <div className="flex items-center gap-2">
-              {embedType && (
-                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs">
-                  {embedType}
-                </span>
-              )}
+            {showChoices && changing && (
+              <button
+                type="button"
+                onClick={() => setChanging(false)}
+                className="px-2 text-sm font-semibold text-slate-600 hover:underline"
+              >
+                Keep current
+              </button>
+            )}
+          </div>
+          {!showChoices && draft.kind === 'embed' && (
+            <>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="help-item-url"
+                  aria-label="Link"
+                  type="url"
+                  autoFocus={!url}
+                  value={url}
+                  onChange={(e) => patch({ url: e.target.value })}
+                  onBlur={() => {
+                    if (url.length > 0 && !isAllowedHelpUrl(url))
+                      setError('Links must start with https://');
+                    else setError(null);
+                  }}
+                  placeholder="https://docs.google.com/document/d/..."
+                />
+                <button
+                  type="button"
+                  onClick={() => setChanging(true)}
+                  className="shrink-0 text-sm font-semibold text-slate-600 hover:underline"
+                >
+                  Change
+                </button>
+              </div>
               <p className="text-xs text-slate-500">
                 Google files must be shared with anyone with the link.
               </p>
-            </div>
-            {urlValid && (
-              <iframe
-                title="Help item preview"
-                src={previewSrc}
-                sandbox={helpIframeSandbox(embedType)}
-                referrerPolicy="strict-origin-when-cross-origin"
-                className="w-full h-56 rounded-lg border border-slate-200 bg-slate-50"
-              />
-            )}
-          </div>
-        ) : (
-          <GuidedLearningPicker
-            selectedSetId={draft.setId}
-            newTitle={draft.title}
-            onSelect={(setId, title) =>
-              setDraft((prev) => ({
-                ...prev,
-                setId,
-                title: prev.title.trim() ? prev.title : title,
-              }))
-            }
-            onError={setError}
-            onEditingChange={setEditorOpen}
-          />
-        )}
+              {urlValid && (
+                <iframe
+                  title="Help item preview"
+                  src={previewSrc}
+                  sandbox={helpIframeSandbox(embedType)}
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  className="w-full h-56 rounded-lg border border-slate-200 bg-slate-50"
+                />
+              )}
+            </>
+          )}
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label
-              className="block text-sm font-medium text-slate-700 mb-1"
-              htmlFor="help-item-title"
-            >
-              Title
-            </label>
-            <input
+        <div className="space-y-5 border-t border-slate-200 pt-5">
+          <Field label="Title" htmlFor="help-item-title">
+            <Input
               id="help-item-title"
               type="text"
               value={draft.title}
               onChange={(e) => patch({ title: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
             />
-          </div>
-          <div>
-            <label
-              className="block text-sm font-medium text-slate-700 mb-1"
-              htmlFor="help-item-category"
-            >
-              Category
-            </label>
-            {categories.length === 0 && (
-              <p className="text-sm text-amber-700 mb-1">
-                No categories yet. A super admin needs to open this tab first.
-              </p>
-            )}
-            <select
-              id="help-item-category"
-              value={draft.categoryId}
-              onChange={(e) => patch({ categoryId: e.target.value })}
-              disabled={categories.length === 0}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white disabled:opacity-50"
-            >
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+          </Field>
 
-        <div>
-          <label
-            className="block text-sm font-medium text-slate-700 mb-1"
-            htmlFor="help-item-description"
-          >
-            Description
-          </label>
-          <textarea
-            id="help-item-description"
-            value={draft.description}
-            onChange={(e) => patch({ description: e.target.value })}
-            rows={2}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          />
-        </div>
-
-        <div>
-          <span
-            id={relatedWidgetsLabelId}
-            className="block text-sm font-medium text-slate-700 mb-1"
-          >
-            Related widgets
-          </span>
-          <div className="relative mb-2">
-            <Search
-              aria-hidden="true"
-              className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"
-            />
-            <input
-              type="text"
-              value={widgetSearch}
-              onChange={(e) => setWidgetSearch(e.target.value)}
-              placeholder="Search widgets..."
-              aria-label="Search widgets"
-              className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm"
-            />
-          </div>
-          <div
-            role="group"
-            aria-labelledby={relatedWidgetsLabelId}
-            className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2 grid grid-cols-2 gap-1"
-          >
-            {visibleTools.map((tool) => (
-              <label
-                key={tool.type}
-                className="flex items-center gap-2 text-sm text-slate-700 px-1 py-0.5"
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Category" htmlFor="help-item-category">
+              {categories.length === 0 && (
+                <p className="text-sm text-amber-700">
+                  No categories yet. A super admin needs to open this tab first.
+                </p>
+              )}
+              <Select
+                id="help-item-category"
+                value={draft.categoryId}
+                onChange={(e) => patch({ categoryId: e.target.value })}
+                disabled={categories.length === 0}
               >
-                <input
-                  type="checkbox"
-                  checked={draft.widgetTypes.includes(tool.type)}
-                  onChange={() => toggleWidgetType(tool.type)}
-                />
-                {tool.label}
-              </label>
-            ))}
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Related widgets">
+              <ChecklistSelect
+                label="Related widgets"
+                options={widgetOptions}
+                selected={draft.widgetTypes}
+                onToggle={(id) => toggleWidgetType(id as WidgetType)}
+                emptyText="None"
+                className="w-full !h-10"
+              />
+            </Field>
           </div>
-        </div>
 
-        <div className="flex items-center gap-3">
-          <Toggle
-            checked={draft.visible}
-            onChange={(visible) => patch({ visible })}
-            label="Visible to teachers"
-            size="sm"
-          />
-          <span className="text-sm text-slate-700">Visible to teachers</span>
+          <Field label="Description" htmlFor="help-item-description">
+            <Textarea
+              id="help-item-description"
+              value={draft.description}
+              onChange={(e) => patch({ description: e.target.value })}
+              rows={2}
+            />
+          </Field>
         </div>
-
         {error && (
           <p role="alert" className="text-sm text-red-600">
             {error}
