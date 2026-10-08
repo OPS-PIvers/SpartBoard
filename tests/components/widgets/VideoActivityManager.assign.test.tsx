@@ -25,7 +25,7 @@
  */
 
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   render,
   screen,
@@ -79,6 +79,7 @@ vi.mock('@/hooks/useClaudeReview', () => ({
   }),
 }));
 const liveFlag = { enabled: false };
+const availabilityFlag = { enabled: false };
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1', displayName: 'Test Teacher' },
@@ -87,7 +88,9 @@ vi.mock('@/context/useAuth', () => ({
     canAccessFeature: (id: string) =>
       id === 'video-activity-live'
         ? liveFlag.enabled
-        : id !== 'assign-availability',
+        : id === 'assign-availability'
+          ? availabilityFlag.enabled
+          : true,
   }),
 }));
 
@@ -644,6 +647,37 @@ describe('VideoActivityManager assign modal — live pacing', () => {
     expect(dueAt).toBeNull();
     expect(targeting).toEqual(EMPTY_ASSIGN_TARGETING_VALUE);
     expect(mode).toBe('teacher');
+  });
+});
+
+describe('VideoActivityManager assign — never a study resource (D3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    availabilityFlag.enabled = true;
+  });
+  afterEach(() => {
+    availabilityFlag.enabled = false;
+  });
+
+  it('offers no Study Resource choice and assigns without a work kind', async () => {
+    const onAssign = vi.fn().mockResolvedValue('s-1');
+    renderManager(makeVaMeta(), onAssign);
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    const dialog = await screen.findByRole('dialog', {
+      name: /cell division/i,
+    });
+    fireEvent.click(within(dialog).getByTestId('roster-r1'));
+    expect(
+      within(dialog).queryByRole('radio', { name: /study resource/i })
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('textbox', { name: /assignment name/i })
+    ).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    expect(
+      (onAssign.mock.calls[0][3] as AssignTargetingValue).workKind
+    ).toBeUndefined();
   });
 });
 
