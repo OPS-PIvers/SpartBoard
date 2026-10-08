@@ -140,7 +140,6 @@ import {
 } from '@/components/common/library';
 import { earliestDueAt } from '@/utils/perClassDueDates';
 import { applyAvailability } from '@/utils/assignAvailability';
-import { resolveWorkKind } from '@/utils/gradebook/gradebookCore';
 import { useRubrics } from '@/hooks/useRubrics';
 import {
   AssignDestinationModal,
@@ -729,10 +728,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const { canAccessFeature } = useAuth();
   // D8/D9: with the split on, Quiz assigns are assessment only.
   const assessmentOnly = !isReview && canAccessFeature('quiz-review-split');
-  const assignWorkKindSetting =
-    !isReview && canAccessFeature('study-resources')
-      ? { default: resolveWorkKind('quiz', null) }
-      : undefined;
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     userId,
     assessmentOnly
@@ -1881,7 +1876,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       enabled: availabilityOn,
       rosters: rosters.filter((r) => validRosterIds.includes(r.id)),
       bellWindow: assignPeriodAccess?.bellWindow,
-      workKind: assignWorkKindSetting,
     });
     const perClassDue = availabilityOn
       ? applied.dueAtByRosterId
@@ -2526,7 +2520,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                 selectedRosterIds={assignOptions.picker.rosterIds}
                 periodAccess={assignPeriodAccess}
                 availabilityEnabled={canAccessFeature('assign-availability')}
-                workKind={assignWorkKindSetting}
                 value={assignTargeting}
                 onChange={(next) => {
                   setTargetingPacingError(null);

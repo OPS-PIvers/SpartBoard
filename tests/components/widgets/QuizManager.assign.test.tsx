@@ -78,13 +78,14 @@ vi.mock('@/hooks/useSessionViewCount', () => ({
 }));
 
 let mockReviewSplit = false;
+const mockFeatures = new Set<string>();
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1', displayName: 'Test Teacher' },
     canSeeShareTracking: vi.fn(() => false),
     canAccessQuizMediaResponse: vi.fn(() => false),
     canAccessFeature: vi.fn((id: string) =>
-      id === 'quiz-review-split' ? mockReviewSplit : false
+      id === 'quiz-review-split' ? mockReviewSplit : mockFeatures.has(id)
     ),
   }),
 }));
@@ -1052,5 +1053,34 @@ describe('QuizManager assign with quiz-review-split on (D11)', () => {
     expect(behavior.attemptLimit).toBe(5);
     expect(behavior.sessionOptions.blockCopyPaste).toBe(true);
     expect(behavior.sessionOptions.streakBonusEnabled).toBe(false);
+  });
+});
+
+describe('QuizManager assign — never a study resource (D3)', () => {
+  beforeEach(() => {
+    mockFeatures.add('assign-availability').add('study-resources');
+  });
+  afterEach(() => {
+    mockFeatures.clear();
+  });
+
+  it('offers no Study Resource choice and assigns without a work kind', async () => {
+    const onAssign = vi.fn();
+    renderManager(makeQuizMeta(), onAssign);
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: /chapter 5 review/i,
+    });
+    expect(
+      within(dialog).queryByRole('radio', { name: /study resource/i })
+    ).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    expect(
+      (onAssign.mock.calls[0][5] as AssignTargetingValue).workKind
+    ).toBeUndefined();
   });
 });
