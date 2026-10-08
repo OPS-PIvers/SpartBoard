@@ -525,7 +525,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onPendingAssignDone,
 }) => {
   const { showConfirm } = useDialog();
-  const { confirmDelete, deleteConfirmDialog } = useLibraryDeleteConfirm();
+  const confirmDelete = useLibraryDeleteConfirm();
   const { canAccessFeature } = useAuth();
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   const canAssignLive = canAccessFeature('video-activity-live');
@@ -1540,7 +1540,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         shell
       )}
 
-      {deleteConfirmDialog}
       {folderPickerTarget && (
         <FolderPickerPopover
           variant="dialog"

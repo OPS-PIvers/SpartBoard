@@ -144,7 +144,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
   const config = widget.config as ProjectsConfig;
   const { updateWidget, addToast, rosters } = useDashboard();
   const { user } = useAuth();
-  const { confirmDelete, deleteConfirmDialog } = useLibraryDeleteConfirm();
+  const confirmDelete = useLibraryDeleteConfirm();
   const userId = user?.uid;
 
   const {
@@ -887,7 +887,6 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
         shell
       )}
 
-      {deleteConfirmDialog}
       {folderPickerTarget && (
         <FolderPickerPopover
           variant="dialog"

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   LIBRARY_ITEM_NOUNS,
   libraryDeleteConfirmCopy,
-} from './libraryDeleteConfirmCopy';
+} from './useLibraryDeleteConfirm';
 
 describe('libraryDeleteConfirmCopy', () => {
   it('names a single item in the title', () => {

@@ -117,7 +117,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const { addToast, updateWidget, rosters, updateRoster } = useDashboard();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { showConfirm } = useDialog();
-  const { confirmDelete, deleteConfirmDialog } = useLibraryDeleteConfirm();
+  const confirmDelete = useLibraryDeleteConfirm();
   const { openPicker } = useGooglePicker();
   // A substitute can read neither the teacher's sets nor their assignments, so
   // in a share the presented set comes from the bundle and no listener opens.
@@ -670,8 +670,6 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
           </div>
         }
       />
-
-      {deleteConfirmDialog}
 
       <ImportWizard
         isOpen={importOpen}
