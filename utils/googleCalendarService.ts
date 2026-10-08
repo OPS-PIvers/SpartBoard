@@ -2,6 +2,7 @@ import { CalendarEvent } from '@/types';
 
 const CALENDAR_API_URL = 'https://www.googleapis.com/calendar/v3';
 const DEFAULT_TIMEOUT = 10000;
+const MAX_PAGES = 10;
 
 export interface GoogleCalendarEvent {
   id: string;
@@ -81,35 +82,47 @@ export class GoogleCalendarService {
     timeMax: string,
     { details = false }: { details?: boolean } = {}
   ): Promise<CalendarEvent[]> {
-    const url = new URL(
-      `${CALENDAR_API_URL}/calendars/${encodeURIComponent(calendarId)}/events`
-    );
-    url.searchParams.append('timeMin', timeMin);
-    url.searchParams.append('timeMax', timeMax);
-    url.searchParams.append('singleEvents', 'true');
-    url.searchParams.append('orderBy', 'startTime');
-
-    const response = await this.fetchWithTimeout(url.toString(), {
-      headers: this.headers,
-    });
-
-    if (!response.ok) {
-      console.error(
-        `Failed to fetch calendar ${calendarId}:`,
-        response.statusText
+    const items: GoogleCalendarEvent[] = [];
+    let calendarName: string | undefined;
+    let pageToken: string | undefined;
+    let pages = 0;
+    do {
+      const url = new URL(
+        `${CALENDAR_API_URL}/calendars/${encodeURIComponent(calendarId)}/events`
       );
-      const error = new Error(
-        `Calendar API Error: ${response.statusText}`
-      ) as CalendarApiError;
-      error.status = response.status;
-      throw error;
-    }
+      url.searchParams.append('timeMin', timeMin);
+      url.searchParams.append('timeMax', timeMax);
+      url.searchParams.append('singleEvents', 'true');
+      url.searchParams.append('orderBy', 'startTime');
+      url.searchParams.append('maxResults', '250');
+      if (pageToken) url.searchParams.append('pageToken', pageToken);
 
-    const data = (await response.json()) as {
-      summary?: string;
-      items?: GoogleCalendarEvent[];
-    };
-    const items = data.items ?? [];
+      const response = await this.fetchWithTimeout(url.toString(), {
+        headers: this.headers,
+      });
+
+      if (!response.ok) {
+        console.error(
+          `Failed to fetch calendar ${calendarId}:`,
+          response.statusText
+        );
+        const error = new Error(
+          `Calendar API Error: ${response.statusText}`
+        ) as CalendarApiError;
+        error.status = response.status;
+        throw error;
+      }
+
+      const data = (await response.json()) as {
+        summary?: string;
+        items?: GoogleCalendarEvent[];
+        nextPageToken?: string;
+      };
+      calendarName ??= data.summary;
+      items.push(...(data.items ?? []));
+      pageToken = data.nextPageToken;
+      pages += 1;
+    } while (pageToken && pages < MAX_PAGES);
 
     return items.map((item) => {
       // Use date for all-day events, otherwise use dateTime
@@ -136,7 +149,7 @@ export class GoogleCalendarService {
         ...(endTime ? { endTime } : {}),
         ...(item.location ? { location: item.location } : {}),
         ...(description ? { description } : {}),
-        ...(data.summary ? { calendarName: data.summary } : {}),
+        ...(calendarName ? { calendarName } : {}),
       };
     });
   }
