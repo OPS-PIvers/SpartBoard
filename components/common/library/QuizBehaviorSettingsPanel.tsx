@@ -12,14 +12,17 @@
  * mounted inside the quiz editor (Task 7+).
  */
 
-import React, { useContext } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { QuizBehaviorSettings, QuizSessionMode } from '@/types';
+import type {
+  QuizBehaviorSettings,
+  QuizSessionMode,
+  QuizSessionOptions,
+} from '@/types';
 import {
   DEFAULT_QUIZ_HAND_RAISE_MODE,
   type QuizHandRaiseMode,
 } from '@/utils/quizHandRaise';
-import { AuthContext } from '@/context/AuthContextValue';
 import { TabAwayLimitRow, TabWarningThresholdRow } from './TabWarningRows';
 import { AssignmentSettingsToggleGroup } from './AssignmentSettingsToggleGroup';
 import { CollapsibleSection } from './CollapsibleSection';
@@ -27,8 +30,9 @@ import { ToggleRow } from './AssignmentSettingsToggleGroup';
 import type { AssignModeOption } from './types';
 import { SESSION_MODES } from './sessionModes';
 import { QUIZ_STUDENT_MODE_LABEL } from '@/utils/quizBehavior';
-import { QUIZ_TIME_LIMIT_FEATURE } from '@/utils/quizTimeLimit';
 import { QuizTimeLimitRow } from './QuizTimeLimitRow';
+import { useQuizRuleGates } from './assignStepper/QuizRuleStepGates';
+import { patchQuizSessionOptions } from './assignStepper/QuizRuleStepValues';
 
 /**
  * Which options the panel shows:
@@ -71,15 +75,12 @@ export const QuizBehaviorSettingsPanel: React.FC<
   const { t } = useTranslation();
   const assessmentOnly = variant === 'quiz';
   const hideModeSelector = variant !== 'full';
-  // Read via context so a provider-less host hides the row instead of throwing.
-  const authContext = useContext(AuthContext);
-  const tabAwayTimerOn =
-    authContext?.canAccessFeature?.('tab-away-timer') === true;
-  const scoreOnSubmitOn =
-    authContext?.canAccessFeature?.('quiz-score-on-submit') === true;
+  const gates = useQuizRuleGates();
+  const { tabAwayTimerOn, scoreOnSubmitOn } = gates;
   const timeLimitOn =
-    authContext?.canAccessFeature?.(QUIZ_TIME_LIMIT_FEATURE) === true &&
-    (assessmentOnly || value.sessionMode === 'student');
+    gates.timeLimitOn && (assessmentOnly || value.sessionMode === 'student');
+  const patch = (next: Partial<QuizSessionOptions>) =>
+    onChange(patchQuizSessionOptions(value, next));
   const scoreOnSubmit =
     !hasManualGrading && value.sessionOptions.showScoreOnSubmit === true;
   const modes: AssignModeOption[] = SESSION_MODES.map((m) => ({
@@ -159,15 +160,7 @@ export const QuizBehaviorSettingsPanel: React.FC<
               label={t('quizScoreOnSubmit.label', 'Show score on submit')}
               checked={scoreOnSubmit}
               disabled={hasManualGrading}
-              onChange={(v) =>
-                onChange({
-                  ...value,
-                  sessionOptions: {
-                    ...value.sessionOptions,
-                    showScoreOnSubmit: v,
-                  },
-                })
-              }
+              onChange={(v) => patch({ showScoreOnSubmit: v })}
               hint={
                 hasManualGrading
                   ? t(
@@ -198,27 +191,14 @@ export const QuizBehaviorSettingsPanel: React.FC<
           shuffleQuestions: value.sessionOptions.shuffleQuestions,
           shuffleAnswerOptions: value.sessionOptions.shuffleAnswerOptions,
         }}
-        onOptionsChange={(next) =>
-          onChange({
-            ...value,
-            sessionOptions: { ...value.sessionOptions, ...next },
-          })
-        }
+        onOptionsChange={(next) => patch(next)}
         attemptLimit={value.attemptLimit}
         onAttemptLimitChange={(v) => onChange({ ...value, attemptLimit: v })}
         afterAttemptLimitSlot={
           timeLimitOn && (
             <QuizTimeLimitRow
               minutes={value.sessionOptions.timeLimitMinutes}
-              onChange={(next) =>
-                onChange({
-                  ...value,
-                  sessionOptions: {
-                    ...value.sessionOptions,
-                    timeLimitMinutes: next,
-                  },
-                })
-              }
+              onChange={(next) => patch({ timeLimitMinutes: next })}
             />
           )
         }
@@ -231,26 +211,13 @@ export const QuizBehaviorSettingsPanel: React.FC<
             <>
               <TabWarningThresholdRow
                 value={value.sessionOptions.tabWarningThreshold}
-                onChange={(next) =>
-                  onChange({
-                    ...value,
-                    sessionOptions: {
-                      ...value.sessionOptions,
-                      tabWarningThreshold: next,
-                    },
-                  })
-                }
+                onChange={(next) => patch({ tabWarningThreshold: next })}
               />
               {tabAwayTimerOn && (
                 <TabAwayLimitRow
                   autoSubmit={value.sessionOptions.tabAwayAutoSubmit}
                   seconds={value.sessionOptions.tabAwayLimitSeconds}
-                  onChange={(next) =>
-                    onChange({
-                      ...value,
-                      sessionOptions: { ...value.sessionOptions, ...next },
-                    })
-                  }
+                  onChange={(next) => patch(next)}
                 />
               )}
             </>
@@ -265,30 +232,14 @@ export const QuizBehaviorSettingsPanel: React.FC<
                   'Allow students to raise a hand'
                 )}
                 checked={value.sessionOptions.handRaiseEnabled ?? false}
-                onChange={(v) =>
-                  onChange({
-                    ...value,
-                    sessionOptions: {
-                      ...value.sessionOptions,
-                      handRaiseEnabled: v,
-                    },
-                  })
-                }
+                onChange={(v) => patch({ handRaiseEnabled: v })}
               />
             )}
             {readAloudAvailable && (
               <ToggleRow
                 label={t('quizReadAloud.label', 'Read aloud')}
                 checked={value.sessionOptions.readAloudAll ?? false}
-                onChange={(v) =>
-                  onChange({
-                    ...value,
-                    sessionOptions: {
-                      ...value.sessionOptions,
-                      readAloudAll: v,
-                    },
-                  })
-                }
+                onChange={(v) => patch({ readAloudAll: v })}
                 hint={t('quizReadAloud.help', 'Signed-in students only.')}
               />
             )}
@@ -298,30 +249,14 @@ export const QuizBehaviorSettingsPanel: React.FC<
                   compact
                   label="Speed Bonus Points"
                   checked={value.sessionOptions.speedBonusEnabled ?? false}
-                  onChange={(v) =>
-                    onChange({
-                      ...value,
-                      sessionOptions: {
-                        ...value.sessionOptions,
-                        speedBonusEnabled: v,
-                      },
-                    })
-                  }
+                  onChange={(v) => patch({ speedBonusEnabled: v })}
                   hint="Up to 50% bonus for fast answers"
                 />
                 <ToggleRow
                   compact
                   label="Streak Bonuses"
                   checked={value.sessionOptions.streakBonusEnabled ?? false}
-                  onChange={(v) =>
-                    onChange({
-                      ...value,
-                      sessionOptions: {
-                        ...value.sessionOptions,
-                        streakBonusEnabled: v,
-                      },
-                    })
-                  }
+                  onChange={(v) => patch({ streakBonusEnabled: v })}
                 />
                 <ToggleRow
                   compact
@@ -329,29 +264,13 @@ export const QuizBehaviorSettingsPanel: React.FC<
                   checked={
                     value.sessionOptions.showPodiumBetweenQuestions ?? false
                   }
-                  onChange={(v) =>
-                    onChange({
-                      ...value,
-                      sessionOptions: {
-                        ...value.sessionOptions,
-                        showPodiumBetweenQuestions: v,
-                      },
-                    })
-                  }
+                  onChange={(v) => patch({ showPodiumBetweenQuestions: v })}
                 />
                 <ToggleRow
                   compact
                   label="Sound Effects"
                   checked={value.sessionOptions.soundEffectsEnabled ?? false}
-                  onChange={(v) =>
-                    onChange({
-                      ...value,
-                      sessionOptions: {
-                        ...value.sessionOptions,
-                        soundEffectsEnabled: v,
-                      },
-                    })
-                  }
+                  onChange={(v) => patch({ soundEffectsEnabled: v })}
                 />
               </CollapsibleSection>
             )}
