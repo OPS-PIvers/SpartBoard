@@ -7,7 +7,16 @@
     "claude-md-management@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
     "chrome-devtools-mcp@claude-plugins-official": true,
-    "code-simplifier@claude-plugins-official": true
+    "code-simplifier@claude-plugins-official": true,
+    "pauls-skills@pauls-skills": true
+  },
+  "extraKnownMarketplaces": {
+    "pauls-skills": {
+      "source": {
+        "source": "github",
+        "repo": "OPS-PIvers/claude-skills"
+      }
+    }
   },
   "hooks": {
     "SessionStart": [
