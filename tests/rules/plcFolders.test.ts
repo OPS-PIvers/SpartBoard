@@ -8,14 +8,21 @@
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   initializeTestEnvironment,
   assertSucceeds,
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, getDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import {
+  setDoc,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  deleteField,
+  doc,
+} from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-plc-folders';
 const PLC_ID = 'plc-folders-rules-test';
@@ -236,5 +243,64 @@ describe('plcs/{plcId}/folders — delete', () => {
     await assertFails(
       deleteDoc(doc(asNonMember(), `plcs/${PLC_ID}/folders/${FOLDER_ID}`))
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// colour (LIBRARY_FOLDERS D11)
+// ---------------------------------------------------------------------------
+
+describe('plcs/{plcId}/folders — colour', () => {
+  const path = `plcs/${PLC_ID}/folders/${FOLDER_ID}`;
+
+  it('a member can create a folder with a palette colour', async () => {
+    await assertSucceeds(
+      setDoc(doc(asMember(), path), validFolder({ color: 'teal' }))
+    );
+  });
+
+  it('rejects a colour outside the palette', async () => {
+    await assertFails(
+      setDoc(doc(asMember(), path), validFolder({ color: 'purple' }))
+    );
+    await assertFails(setDoc(doc(asMember(), path), validFolder({ color: 3 })));
+  });
+
+  describe('on an existing folder', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), path), validFolder({ color: 'red' }));
+      });
+    });
+
+    it('members, viewers included, can read the colour; non-members cannot', async () => {
+      const snap = await assertSucceeds(getDoc(doc(asViewer(), path)));
+      expect(snap.data()?.color).toBe('red');
+      await assertFails(getDoc(doc(asNonMember(), path)));
+    });
+
+    it('a member can change and clear the colour', async () => {
+      await assertSucceeds(
+        updateDoc(doc(asOtherMember(), path), {
+          color: 'blue',
+          updatedAt: 2000,
+        })
+      );
+      await assertSucceeds(
+        updateDoc(doc(asOtherMember(), path), {
+          color: deleteField(),
+          updatedAt: 3000,
+        })
+      );
+    });
+
+    it('rejects a bad colour on update, and a viewer cannot recolour', async () => {
+      await assertFails(
+        updateDoc(doc(asMember(), path), { color: 'violet', updatedAt: 2000 })
+      );
+      await assertFails(
+        updateDoc(doc(asViewer(), path), { color: 'blue', updatedAt: 2000 })
+      );
+    });
   });
 });

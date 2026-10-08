@@ -114,6 +114,8 @@ import {
   dueInputsToEpoch,
   DEFAULT_DUE_TIME,
 } from '@/utils/localDate';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
+import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
 
@@ -138,6 +140,8 @@ export interface VideoActivityManagerProps {
   onImport: () => void;
   onEdit: (activity: VideoActivityMetadata) => void;
   onDelete: (activity: VideoActivityMetadata) => void | Promise<void>;
+  /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
+  folderDeleteActions?: FolderDeleteActions;
   /**
    * Phase 5 — duplicate kebab item. Owns the actual `duplicateActivity`
    * call. When omitted, the entry is hidden (view-only / test
@@ -485,6 +489,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onImport,
   onEdit,
   onDelete,
+  folderDeleteActions,
   onDuplicate,
   onShareWithPlc,
   isDuplicating,
@@ -681,6 +686,12 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     () => countItemsByFolder(activities),
     [activities]
   );
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folderState.setFolderColor,
+    noun: { one: 'video activity', many: 'video activities' },
+    items: activities,
+    ...folderDeleteActions,
+  });
 
   const folderFilteredActivities = useMemo(
     () => filterByFolder(activities, selectedFolderId),
@@ -1446,6 +1457,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         onRenameFolder={folderState.renameFolder}
         onMoveFolder={folderState.moveFolder}
         onDeleteFolder={folderState.deleteFolder}
+        {...folderView}
         enableDrop
       />
     ) : undefined;

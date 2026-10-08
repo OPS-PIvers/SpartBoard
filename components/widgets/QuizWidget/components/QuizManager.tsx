@@ -171,6 +171,8 @@ import {
   dueInputsToEpoch,
   DEFAULT_DUE_TIME,
 } from '@/utils/localDate';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
+import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 
 export interface PlcOptions {
   plcMode: boolean;
@@ -397,6 +399,9 @@ interface QuizManagerProps {
    * the user cancelled (selection will be preserved so they can retry).
    */
   onBulkDelete?: (quizzes: QuizMetadata[]) => Promise<boolean>;
+  /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
+  folderDeleteActions?: FolderDeleteActions;
+  bankFolderDeleteActions?: FolderDeleteActions;
   onShare: (quiz: QuizMetadata) => void;
   /**
    * Phase 2 — "Share with PLC". Invoked when the teacher picks the new
@@ -664,6 +669,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onDuplicate,
   isDuplicating,
   onBulkDelete,
+  folderDeleteActions,
+  bankFolderDeleteActions,
   onShare,
   onShareWithPlc,
   onBulkShareWithPlc,
@@ -1045,6 +1052,12 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     () => countItemsByFolder(quizzes),
     [quizzes]
   );
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folderState.setFolderColor,
+    noun: { one: 'quiz', many: 'quizzes' },
+    items: quizzes,
+    ...folderDeleteActions,
+  });
 
   // Filter BEFORE useLibraryView so search/sort only operate on the
   // currently-selected folder's quizzes.
@@ -2107,6 +2120,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onRenameFolder={folderState.renameFolder}
         onMoveFolder={folderState.moveFolder}
         onDeleteFolder={folderState.deleteFolder}
+        {...folderView}
         enableDrop
       />
     ) : undefined;
@@ -2241,6 +2255,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onEditBank={onEditBank}
         onDuplicateBank={onDuplicateBank ?? noop}
         onDeleteBank={onDeleteBank ?? noop}
+        folderDeleteActions={bankFolderDeleteActions}
         onReorderBanks={onReorderBanks}
         onShareBankWithPlc={onShareBankWithPlc}
         onUnshareBankFromPlc={onUnshareBankFromPlc}

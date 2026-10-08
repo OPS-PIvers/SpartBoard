@@ -3373,10 +3373,14 @@ service cloud.firestore {
         allow read: if plcReader(plcId);
         allow create, update: if plcEditor(plcId)
           && incoming().keys().hasOnly([
-               'name', 'parentId', 'order', 'createdAt', 'updatedAt'
+               'name', 'parentId', 'order', 'createdAt', 'updatedAt', 'color'
              ])
           && isStr('name')
           && incoming().name.size() > 0
+          // Folder colour (LIBRARY_FOLDERS D11): one of the picker's ids.
+          && (!('color' in incoming()) || incoming().color in [
+               'red', 'orange', 'amber', 'green', 'teal', 'blue', 'pink', 'gray'
+             ])
           && (
                incoming().parentId == null
                || isStr('parentId')

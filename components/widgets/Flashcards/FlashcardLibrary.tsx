@@ -35,6 +35,8 @@ import {
   useLibraryView,
 } from '@/components/common/library';
 import type { LibraryBadge, LibraryTab } from '@/components/common/library';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
+import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 
 interface FlashcardLibraryProps {
   sets: FlashcardSet[];
@@ -52,6 +54,8 @@ interface FlashcardLibraryProps {
   onShare: (set: FlashcardSet) => void;
   onAssign: (set: FlashcardSet) => void;
   onDelete: (set: FlashcardSet) => void;
+  /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
+  folderDeleteActions?: FolderDeleteActions;
   /** Status chips for a set's card, e.g. the Claude review mark. */
   badgesFor?: (set: FlashcardSet) => LibraryBadge[];
   onAssignmentResults: (assignment: FlashcardAssignment) => void;
@@ -118,6 +122,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onShare,
   onAssign,
   onDelete,
+  folderDeleteActions,
   badgesFor,
   onAssignmentResults,
   onAssignmentPublishScores,
@@ -164,6 +169,12 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
     [moveItem, onError]
   );
   const folderCounts = useMemo(() => countItemsByFolder(sets), [sets]);
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folders.setFolderColor,
+    noun: { one: 'flashcard set', many: 'flashcard sets' },
+    items: sets,
+    ...folderDeleteActions,
+  });
   const activeAssignments = useMemo(
     () => assignments.filter((a) => a.status === 'active'),
     [assignments]
@@ -306,6 +317,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
       onRenameFolder={folders.renameFolder}
       onMoveFolder={folders.moveFolder}
       onDeleteFolder={folders.deleteFolder}
+      {...folderView}
       loading={folders.loading}
       error={folders.error}
     />

@@ -39,6 +39,8 @@ import {
 import { useFolders } from '@/hooks/useFolders';
 import { useDialog } from '@/context/useDialog';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
+import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 
 export interface QuizBanksTabProps {
   userId?: string;
@@ -62,6 +64,8 @@ export interface QuizBanksTabProps {
   onEditBank: (meta: QuestionBankMetadata) => void;
   onDuplicateBank: (meta: QuestionBankMetadata) => void | Promise<void>;
   onDeleteBank: (meta: QuestionBankMetadata) => void | Promise<void>;
+  /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
+  folderDeleteActions?: FolderDeleteActions;
   onReorderBanks?: (orderedIds: string[]) => Promise<void> | void;
   /** Opens the widget's PLC picker for this bank. */
   onShareBankWithPlc?: (meta: QuestionBankMetadata) => void;
@@ -130,6 +134,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   onEditBank,
   onDuplicateBank,
   onDeleteBank,
+  folderDeleteActions,
   onReorderBanks,
   onShareBankWithPlc,
   onUnshareBankFromPlc,
@@ -160,6 +165,12 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
     setSelectedFolderId(null);
   }
   const folderItemCounts = useMemo(() => countItemsByFolder(banks), [banks]);
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folderState.setFolderColor,
+    noun: { one: 'question bank', many: 'question banks' },
+    items: banks,
+    ...folderDeleteActions,
+  });
   const folderFiltered = useMemo(
     () => filterByFolder(banks, selectedFolderId),
     [banks, selectedFolderId]
@@ -382,6 +393,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       onRenameFolder={folderState.renameFolder}
       onMoveFolder={folderState.moveFolder}
       onDeleteFolder={folderState.deleteFolder}
+      {...folderView}
       enableDrop
     />
   ) : undefined;

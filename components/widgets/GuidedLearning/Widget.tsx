@@ -1392,6 +1392,22 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   onAssign={(setId, driveFileId, buildingEntry) => {
                     void handleAssign(setId, driveFileId, buildingEntry);
                   }}
+                  folderDeleteActions={{
+                    // Sets with open assignments delete like a single delete: files stay for students.
+                    deleteItems: async (ids) => {
+                      const byId = new Map(sets.map((x) => [x.id, x]));
+                      for (const id of ids) {
+                        const meta = byId.get(id);
+                        if (!meta) continue;
+                        prefetchCacheRef.current.invalidate(id);
+                        await deleteSet(
+                          id,
+                          meta.driveFileId,
+                          openAssignmentIdsFor(id)
+                        );
+                      }
+                    },
+                  }}
                   onDeletePersonal={(setId, driveFileId) => {
                     void handleDelete(setId, driveFileId);
                   }}

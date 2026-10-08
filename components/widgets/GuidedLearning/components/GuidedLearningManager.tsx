@@ -105,6 +105,8 @@ import {
   isTourRunnable,
   watchTours,
 } from '@/components/tours/publishedTours';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
+import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 
 // Lazy so the preview player chunk loads only when a teacher hits Play preview.
 const LazyGuidedLearningPlayer = lazy(() =>
@@ -222,6 +224,8 @@ export interface GuidedLearningManagerProps {
   /** Busy-state probe for the building-set Duplicate kebab. */
   isDuplicatingBuilding?: (setId: string) => boolean;
   onDeleteBuilding: (setId: string) => void | Promise<void>;
+  /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
+  folderDeleteActions?: FolderDeleteActions;
   /** Admin-only: copies a personal live tour into the building library, where tours run. */
   onCopyTourToBuilding?: (
     setId: string,
@@ -457,6 +461,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onDuplicateBuilding,
   isDuplicatingBuilding,
   onDeleteBuilding,
+  folderDeleteActions,
   onCopyTourToBuilding,
   isCopyingTourToBuilding,
   onSetBuildingHelpCenter,
@@ -570,6 +575,12 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     }
     return counts;
   }, [sets, libraryBuildingCount]);
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folderState.setFolderColor,
+    noun: { one: 'set', many: 'sets' },
+    items: sets,
+    ...folderDeleteActions,
+  });
 
   const allEntries = useMemo(
     () =>
@@ -1531,6 +1542,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         onRenameFolder={folderState.renameFolder}
         onMoveFolder={folderState.moveFolder}
         onDeleteFolder={folderState.deleteFolder}
+        {...folderView}
         enableDrop
       />
     ) : undefined;
