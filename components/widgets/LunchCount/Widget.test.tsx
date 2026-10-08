@@ -47,6 +47,7 @@ const mockDashboardContext = {
 const mockAuthContext = {
   user: { displayName: 'Teacher' },
   featurePermissions: [],
+  selectedBuildings: ['schumann'],
 };
 
 const mockNutrisliceData = {
@@ -285,6 +286,9 @@ describe('LunchCountWidget — class group pool', () => {
       rosterMode: 'class',
       assignments,
       rosterPoolGroupId,
+      gradeLevel: '1',
+      lunchTimeHour: '11',
+      lunchTimeMinute: '30',
       cachedMenu: {
         hotLunch: { name: 'Pizza' },
         hotLunchSides: [],
@@ -360,6 +364,7 @@ describe('LunchCountWidget — class group pool', () => {
     const submitWith = async (ui: ReactElement) => {
       (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         user: { displayName: 'Sam Substitute' },
+        selectedBuildings: ['schumann'],
         featurePermissions: [
           {
             widgetType: 'lunchCount',
@@ -421,5 +426,182 @@ describe('LunchCountWidget — class group pool', () => {
       const payload = await submitWith(<LunchCountWidget widget={assigned} />);
       expect(payload.label).toBe('11:30 - GR1 - S. Substitute');
     });
+  });
+});
+
+describe('LunchCountWidget — missing lunch time or grade', () => {
+  const allAssigned = (config: Partial<LunchCountConfig>): WidgetData =>
+    ({
+      id: 'lunch-1',
+      type: 'lunchCount',
+      x: 0,
+      y: 0,
+      w: 400,
+      h: 300,
+      z: 1,
+      config: {
+        schoolSite: 'schumann-elementary',
+        rosterMode: 'class',
+        assignments: { s1: 'hot', s2: 'bento' },
+        cachedMenu: {
+          hotLunch: { name: 'Pizza' },
+          hotLunchSides: [],
+          bentoBox: { name: 'Bento' },
+          date: new Date().toISOString(),
+        },
+        lastSyncDate: new Date().toISOString(),
+        ...config,
+      },
+    }) as WidgetData;
+
+  const auth = { buildings: ['schumann'] };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    auth.buildings = ['schumann'];
+    Element.prototype.scrollTo = vi.fn();
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockDashboardContext
+    );
+    (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { displayName: 'Kristan Nalezny' },
+      selectedBuildings: auth.buildings,
+      featurePermissions: [
+        {
+          widgetType: 'lunchCount',
+          config: {
+            submissionUrl: 'https://script.example/exec',
+            schumannSheetId: 'sheet-1',
+          },
+        },
+      ],
+    });
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve('Success'),
+    });
+  });
+
+  it('asks for both before the report, then saves them to the widget', () => {
+    render(<LunchCountWidget widget={allAssigned({})} />);
+    fireEvent.click(screen.getByRole('button', { name: /Submit Report/i }));
+
+    expect(screen.queryByText('Submit Lunch Report')).toBeNull();
+    expect(
+      screen.getByText('Set your lunch time and grade')
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual([
+      'K',
+      '1',
+      '2',
+      'MAC',
+    ]);
+
+    fireEvent.keyDown(screen.getByRole('spinbutton', { name: 'Minute' }), {
+      key: 'ArrowDown',
+    });
+    fireEvent.click(screen.getByRole('radio', { name: '2' }));
+    fireEvent.click(screen.getByRole('button', { name: /Save and continue/i }));
+
+    expect(mockDashboardContext.updateWidget).toHaveBeenCalledWith('lunch-1', {
+      config: expect.objectContaining({
+        lunchTimeHour: '11',
+        lunchTimeMinute: '05',
+        gradeLevel: '2',
+      }) as LunchCountConfig,
+    });
+    expect(screen.getByText('Submit Lunch Report')).toBeInTheDocument();
+  });
+
+  it('will not continue without a grade', () => {
+    render(<LunchCountWidget widget={allAssigned({ lunchTimeHour: '12' })} />);
+    fireEvent.click(screen.getByRole('button', { name: /Submit Report/i }));
+
+    expect(screen.getByText('Set your grade')).toBeInTheDocument();
+    expect(screen.queryByRole('spinbutton')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Save and continue/i }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Pick a grade');
+    expect(mockDashboardContext.updateWidget).not.toHaveBeenCalled();
+    expect(screen.queryByText('Submit Lunch Report')).toBeNull();
+  });
+
+  it('sends the picked time even when the widget cannot save it', async () => {
+    render(
+      <SubShareHostContext.Provider value={{ teacherName: 'Paige Awes' }}>
+        <LunchCountWidget widget={allAssigned({ gradeLevel: 'K' })} />
+      </SubShareHostContext.Provider>
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Submit Report/i }));
+    expect(screen.queryByRole('radio')).toBeNull();
+    fireEvent.keyDown(screen.getByRole('spinbutton', { name: 'Hour' }), {
+      key: 'ArrowUp',
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Save and continue/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Confirm & Submit/i }));
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+    const body = JSON.parse(
+      (
+        (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as {
+          body: string;
+        }
+      ).body
+    ) as { label: string };
+    expect(body.label).toBe('10:00 - K - P. Awes');
+  });
+
+  it('asks for the school when the profile has no building', () => {
+    auth.buildings.splice(0);
+    render(<LunchCountWidget widget={allAssigned({ gradeLevel: '1' })} />);
+    fireEvent.click(screen.getByRole('button', { name: /Submit Report/i }));
+
+    expect(
+      screen.getByText('Set your school, lunch time and grade')
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: 'Intermediate' }));
+    expect(
+      screen
+        .getAllByRole('radio')
+        .filter((r) => r.textContent?.length === 1)
+        .map((r) => r.textContent)
+    ).toEqual(['3', '4', '5']);
+    fireEvent.click(screen.getByRole('button', { name: /Save and continue/i }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Pick a grade');
+
+    fireEvent.click(screen.getByRole('radio', { name: '4' }));
+    fireEvent.click(screen.getByRole('button', { name: /Save and continue/i }));
+    expect(mockDashboardContext.updateWidget).toHaveBeenCalledWith('lunch-1', {
+      config: expect.objectContaining({
+        schoolSite: 'orono-intermediate-school',
+        gradeLevel: '4',
+        cachedMenu: null,
+      }) as LunchCountConfig,
+    });
+  });
+
+  it('never asks a substitute for the school', () => {
+    auth.buildings.splice(0);
+    render(
+      <SubShareHostContext.Provider value={{ teacherName: 'Paige Awes' }}>
+        <LunchCountWidget widget={allAssigned({})} />
+      </SubShareHostContext.Provider>
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Submit Report/i }));
+    expect(screen.queryByRole('radio', { name: 'Intermediate' })).toBeNull();
+  });
+
+  it('goes straight to the report when both are set', () => {
+    render(
+      <LunchCountWidget
+        widget={allAssigned({
+          lunchTimeHour: '11',
+          lunchTimeMinute: '30',
+          gradeLevel: '1',
+        })}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Submit Report/i }));
+    expect(screen.getByText('Submit Lunch Report')).toBeInTheDocument();
   });
 });
