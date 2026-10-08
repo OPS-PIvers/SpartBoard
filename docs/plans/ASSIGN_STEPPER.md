@@ -85,9 +85,9 @@ Assigning anything takes a few short, ordered decisions in one narrow dialog ins
   Study resource removes every step after When.
 
 - **D5.** **Classes** is a compact select-style button ("All 3 classes" / class names) that opens a checklist menu with Select all and Clear, following `components/CLAUDE.md` "Picking from a list". It replaces the bordered `AssignClassPicker` box here. Below it, a **Modifications** link ("Modifications: 1 modified") opens the per-student modifications as their own view inside the dialog (back arrow, Done). That view holds the translation banner and Generate, standing modifications, skip student, read aloud and language.
-- **D6.** **When** is Scheduled / Manual. Study resource lives in the top switch, never here.
+- **D6.** **When** is Manual / Scheduled, in that order. Quiz defaults to **Manual**; the other activities default to Scheduled. Study resource lives in the top switch, never here.
+  - **Manual:** "Starts paused. You start and pause each class." and nothing else. There is **no due date**: the teacher ends it. It writes per-period access in `'assessment'` mode with `dueAt` unset.
   - **Scheduled:** Opens and Closes with bell or set time (today's `PointField`), "Different time for each class" as a link that expands per-class rows, and "Allow submissions after close".
-  - **Manual:** "Starts paused. You start and pause each class." plus an optional Due date. It writes per-period access in `'assessment'` mode.
   - **Video live:** When shows only "Starts paused. You start it from the board." with no dates, as today.
 - **D7.** **Available** (study resource) is Opens and Available until with the same per-class link, and no late-work toggle.
 - **D8.** The quiz rules split into three steps:
@@ -135,7 +135,7 @@ Assigning anything takes a few short, ordered decisions in one narrow dialog ins
      - `AssignStep`: header, value, body, Continue.
      - `AssignTopSwitch`.
      - `ClassPickerMenu`: select-style checklist with a `singleSelect` mode.
-     - `AssignWhenStep`: Scheduled / Manual / Available, reusing `PointField` and `applyAvailability`.
+     - `AssignWhenStep`: Manual / Scheduled / Available, reusing `PointField` and `applyAvailability`.
      - `ModificationsView`: the existing modifications code moved into its own view.
    - Wire Guided Learning first, behind the flag, including the `assignment-modes` rule (D2).
    - Tests for the step list per activity and kind, and for the class picker menu.
@@ -153,6 +153,8 @@ Assigning anything takes a few short, ordered decisions in one narrow dialog ins
 5. **Mini App, PLC quiz, Review (open, see below).** Bring the remaining dialogs onto the stepper or record why they stay. Retire `AssignModal` once every caller has moved and the flag is retired.
 
 ## Open questions
+
+Manual is the Quiz default (D6), so the first two must be settled before PR 3.
 
 - **Manual with one class.** `buildPeriodGate` only builds per-period access for two or more classes. Should Manual extend to a single class (one period), or should Manual be hidden when one class is picked?
 - **Manual without bell periods.** If `per-period-access` or the teacher's bell schedule is missing, should Manual still show (closed until started, with no auto-close at the bell) or be hidden?

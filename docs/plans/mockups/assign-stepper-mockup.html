@@ -2679,13 +2679,13 @@ window.ICONS = {"users":[["path",{"d":"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2
       ? `<button type="button" data-act="set" data-path="each" data-val="${!S.each}" data-type="bool" class="text-xs font-bold text-brand-blue-primary hover:underline">${S.each ? 'Same time for all classes' : 'Different time for each class'}</button>`
       : '';
   const manualFields = () =>
-    `<p class="flex items-center gap-2 text-sm font-medium text-slate-700">${ic('pause', 'w-4 h-4 text-brand-blue-primary')}Starts paused. You start and pause each class.</p>${U.labeled('Due', U.dueInput('due.all'))}`;
+    `<p class="flex items-center gap-2 text-sm font-medium text-slate-700">${ic('pause', 'w-4 h-4 text-brand-blue-primary')}Starts paused. You start and pause each class.</p>`;
   const afterClose = () =>
     S.when === 'scheduled' ? U.row(U.subLabel('Allow submissions after close'), U.toggle('allowAfter', S.allowAfter, 'Allow submissions after close')) : '';
   const canStudy = () => S.activity !== 'quiz' && S.activity !== 'va';
   const live = () => S.activity === 'va' && S.pacing === 'teacher';
   const compactWhen = () =>
-    `<div class="space-y-3">${U.seg('when', [{ v: 'scheduled', t: 'Scheduled' }, { v: 'manual', t: 'Manual' }, ...(canStudy() ? [{ v: 'study', t: 'Study resource' }] : [])], S.when, 'w-full [&>button]:flex-1')}${
+    `<div class="space-y-3">${U.seg('when', [{ v: 'manual', t: 'Manual' }, { v: 'scheduled', t: 'Scheduled' }, ...(canStudy() ? [{ v: 'study', t: 'Study resource' }] : [])], S.when, 'w-full [&>button]:flex-1')}${
       S.when === 'manual' ? manualFields() : `${dateRows()}${perClassLink()}${afterClose()}`
     }</div>`;
 
@@ -2791,7 +2791,7 @@ window.ICONS = {"users":[["path",{"d":"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2
       {
         id: 'when', short: 'When', q: 'When can students open it?',
         body: () =>
-          `<div role="radiogroup" class="space-y-2">${radio('whenChoice', 'today', 'Today, during class', 'Opens at the start of class and closes at the end.')}${radio('whenChoice', 'schedule', 'On a schedule', '', `${dateRows()}${perClassLink()}${afterClose()}`)}${radio('whenChoice', 'manual', 'When I start it', 'Starts paused. You start and pause each class.', U.labeled('Due', U.dueInput('due.all')))}${canStudy() ? radio('whenChoice', 'study', 'Any time, as a study resource', 'Nothing is submitted.', dateRows()) : ''}</div>`,
+          `<div role="radiogroup" class="space-y-2">${radio('whenChoice', 'today', 'Today, during class', 'Opens at the start of class and closes at the end.')}${radio('whenChoice', 'schedule', 'On a schedule', '', `${dateRows()}${perClassLink()}${afterClose()}`)}${radio('whenChoice', 'manual', 'When I start it', 'Starts paused. You start and pause each class.')}${canStudy() ? radio('whenChoice', 'study', 'Any time, as a study resource', 'Nothing is submitted.', dateRows()) : ''}</div>`,
       },
     ];
     if (isQuizRules()) {
@@ -2814,7 +2814,7 @@ window.ICONS = {"users":[["path",{"d":"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2
   const whenC = () => {
     if (live()) return `<p class="flex items-center gap-2 text-sm font-medium text-slate-700">${ic('pause', 'w-4 h-4 text-brand-blue-primary')}Starts paused. You start it from the board.</p>`;
     if (S.when === 'study') return `<div class="space-y-3">${dateRows()}${perClassLink()}</div>`;
-    return `<div class="space-y-3">${U.seg('when', [{ v: 'scheduled', t: 'Scheduled' }, { v: 'manual', t: 'Manual' }], S.when, 'w-full [&>button]:flex-1')}${S.when === 'manual' ? manualFields() : `${dateRows()}${perClassLink()}${afterClose()}`}</div>`;
+    return `<div class="space-y-3">${U.seg('when', [{ v: 'manual', t: 'Manual' }, { v: 'scheduled', t: 'Scheduled' }], S.when, 'w-full [&>button]:flex-1')}${S.when === 'manual' ? manualFields() : `${dateRows()}${perClassLink()}${afterClose()}`}</div>`;
   };
   const kindSwitch = () =>
     `<div role="radiogroup" aria-label="Student work" class="grid grid-cols-2 rounded-lg bg-slate-100 p-1">${[['work', 'Students submit work', 'pen-line'], ['study', 'Study resource', 'book-open']]
@@ -2939,7 +2939,7 @@ window.ICONS = {"users":[["path",{"d":"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2
   const actions = {
     kind: (d) => { if (d.val === 'study') { if (S.when !== 'study') T.lastWhen = S.when; S.when = 'study'; } else S.when = T.lastWhen || 'scheduled'; T.step = Math.min(T.step, 2); syncChoices(); },
     variant: (d) => { T.v = d.val; T.step = 1; S.view = 'main'; T.menu = null; },
-    activity: (d) => { S.activity = d.val; S.name = ACT[d.val].title; T.step = 1; S.view = 'main'; S.when = 'scheduled'; S.flash = clone(P.DEFAULT_FLASH); S.fc = { ...FC_DEFAULT }; S.pacing = 'student'; T.whenChoice = 'today'; S.classes.forEach((c) => (c.on = true)); if (d.val === 'gl' && !T.glSubmit) S.when = 'study'; },
+    activity: (d) => { S.activity = d.val; S.name = ACT[d.val].title; T.step = 1; S.view = 'main'; S.when = d.val === 'quiz' ? 'manual' : 'scheduled'; S.flash = clone(P.DEFAULT_FLASH); S.fc = { ...FC_DEFAULT }; S.pacing = 'student'; T.whenChoice = 'today'; S.classes.forEach((c) => (c.on = true)); if (d.val === 'gl' && !T.glSubmit) S.when = 'study'; },
     glSubmit: (d) => { T.glSubmit = d.val === 'on'; if (S.activity === 'gl') { S.when = T.glSubmit ? 'scheduled' : 'study'; T.step = 1; } },
     menu: (d) => { T.menu = T.menu === d.id ? null : d.id; },
     cls: (d) => { const c = S.classes.find((x) => x.id === d.id); if (live()) { S.classes.forEach((x) => (x.on = x === c)); T.menu = null; } else c.on = !c.on; },
@@ -2994,6 +2994,7 @@ window.ICONS = {"users":[["path",{"d":"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2
   });
 
   S.mem = 'A';
+  S.when = 'manual';
   S.fc = { ...FC_DEFAULT };
   P.resetForMem();
   syncChoices();
