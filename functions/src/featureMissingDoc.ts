@@ -67,6 +67,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'plc-goal-coach',
   'embed-reload',
   'embed-slide-link',
+  'library-folder-view',
 ];
 
 /** Plan D7: admins pass a default-off flag (preview, or admin-default like `guided-learning-ai`) that has no saved doc yet. */
