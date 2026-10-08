@@ -384,6 +384,14 @@ const LiveTourViewsDevHarness = import.meta.env.DEV
     )
   : null;
 
+const AssignStepperDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/AssignStepperDevHarness').then((module) => ({
+        default: module.AssignStepperDevHarness,
+      }))
+    )
+  : null;
+
 const GlViewsDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/GlViewsDevHarness').then((module) => ({
@@ -1120,6 +1128,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <LiveTourViewsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: assign stepper pieces on fixtures, for mockups.
+  if (
+    import.meta.env.DEV &&
+    AssignStepperDevHarness &&
+    pathname === '/assign-stepper-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <AssignStepperDevHarness />
       </Suspense>
     );
   }
