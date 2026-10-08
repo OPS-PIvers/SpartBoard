@@ -46,6 +46,12 @@ export interface FolderDeleteConfig {
   onDeleted?: (message: string, undo?: FolderDeleteUndo) => void;
 }
 
+/** A widget's own delete path for "Delete the folder and everything in it", passed down from its Widget. */
+export type FolderDeleteActions = Pick<
+  FolderDeleteConfig,
+  'deleteItems' | 'isBlocked' | 'blockedReason'
+>;
+
 export interface FolderSidebarProps {
   /** Which widget's folder tree to render. Reserved for future use. */
   widget: LibraryFolderWidget;

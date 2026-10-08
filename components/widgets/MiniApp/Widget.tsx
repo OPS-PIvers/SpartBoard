@@ -1881,6 +1881,18 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               onCreate={handleCreate}
               onEdit={handleEdit}
               onDelete={(app) => void handleDelete(app.id)}
+              folderDeleteActions={{
+                deleteItems: async (ids) => {
+                  if (!user) throw new Error('Not signed in');
+                  for (const id of ids) {
+                    const app = library.find((a) => a.id === id);
+                    if (!app || !sandboxMiniAppWrite(app, realLibrary, true))
+                      await deleteDoc(
+                        doc(db, 'users', user.uid, 'miniapps', id)
+                      );
+                  }
+                },
+              }}
               onDuplicate={(app) => void handleDuplicate(app)}
               isDuplicating={duplicateBusy.isBusy}
               onRun={handleRun}

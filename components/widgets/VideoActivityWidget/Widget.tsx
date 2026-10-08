@@ -933,6 +933,15 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         lastRosterIdsByActivityId={config.lastRosterIdsByActivityId}
         lastClassIdsByActivityId={config.lastClassIdsByActivityId}
         lastClassIdByActivityId={config.lastClassIdByActivityId}
+        folderDeleteActions={{
+          deleteItems: async (ids) => {
+            const byId = new Map(activities.map((a) => [a.id, a]));
+            for (const id of ids) {
+              const meta = byId.get(id);
+              if (meta) await deleteActivity(meta.id, meta.driveFileId);
+            }
+          },
+        }}
         onDelete={async (meta) => {
           try {
             await deleteActivity(meta.id, meta.driveFileId);

@@ -621,6 +621,11 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onShare={setSharingSet}
                 onAssign={handleAssign}
                 onDelete={(set) => void handleDelete(set)}
+                folderDeleteActions={{
+                  deleteItems: async (ids) => {
+                    for (const id of ids) await flashcardSets.deleteSet(id);
+                  },
+                }}
                 assignments={assignments}
                 assignmentsLoading={assignmentsLoading}
                 tab={config.libraryTab ?? 'library'}

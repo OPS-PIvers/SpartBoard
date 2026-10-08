@@ -86,6 +86,7 @@ import type {
 } from '@/components/common/library/types';
 import { buildDuplicateAction } from '@/components/common/library/libraryDuplicate';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
+import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -113,6 +114,8 @@ export interface MiniAppManagerProps {
   /** Status chips for a personal app's card, e.g. the Claude review mark. */
   badgesFor?: (app: MiniAppItem) => LibraryBadge[];
   onDelete: (app: MiniAppItem) => void | Promise<void>;
+  /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
+  folderDeleteActions?: FolderDeleteActions;
   /**
    * Phase 5 — duplicate kebab item. Owns the actual write (the widget
    * already has Firestore access). Optional so test harnesses can omit.
@@ -317,6 +320,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   onEdit,
   badgesFor,
   onDelete,
+  folderDeleteActions,
   onDuplicate,
   isDuplicating,
   onRun,
@@ -404,6 +408,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     setFolderColor: folderState.setFolderColor,
     noun: { one: 'Mini app', many: 'Mini apps' },
     items: personalLibrary,
+    ...folderDeleteActions,
   });
 
   // Filter BEFORE building rows so search/sort only operate on the currently

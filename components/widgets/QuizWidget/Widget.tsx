@@ -2020,6 +2020,44 @@ const TeacherQuizWidget: React.FC<{
         defaultTeacherName={user?.displayName ?? undefined}
         assignmentMode={quizAssignmentMode}
         quizzes={quizzes}
+        folderDeleteActions={{
+          isBlocked: (id) =>
+            assignments.some((a) => a.quizId === id && a.status !== 'inactive'),
+          blockedReason: (n) =>
+            n === 1
+              ? '1 quiz has a live assignment'
+              : `${n} quizzes have live assignments`,
+          deleteItems: async (ids) => {
+            // The live-assignment check above is only trustworthy once assignments have loaded.
+            if (assignmentsLoading || assignmentsError) {
+              throw new Error(
+                "Couldn't check assignments. Try again in a moment."
+              );
+            }
+            const byId = new Map(quizzes.map((q) => [q.id, q]));
+            for (const id of ids) {
+              const meta = byId.get(id);
+              if (!meta) continue;
+              await deleteQuiz(meta.id, meta.driveFileId);
+              if (user?.uid) {
+                await deletePaperBatchesForQuiz(user.uid, meta.id).catch(
+                  (batchErr: unknown) => {
+                    console.warn('[QuizWidget] paper batch cleanup:', batchErr);
+                  }
+                );
+              }
+            }
+          },
+        }}
+        bankFolderDeleteActions={{
+          deleteItems: async (ids) => {
+            const byId = new Map(banks.map((b) => [b.id, b]));
+            for (const id of ids) {
+              const meta = byId.get(id);
+              if (meta) await deleteBank(meta);
+            }
+          },
+        }}
         loading={quizzesLoading}
         error={quizzesError ?? dataError}
         onReorderQuizzes={user?.uid ? handleReorderQuizzes : undefined}

@@ -249,6 +249,12 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
     setFolderColor: folderState.setFolderColor,
     noun: { one: 'project', many: 'projects' },
     items: libraryProjects,
+    deleteItems: async (ids) => {
+      for (const id of ids) {
+        await deleteProject(id);
+        if (config.projectId === id) update({ projectId: undefined });
+      }
+    },
   });
 
   const foldered = useMemo(
