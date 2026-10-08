@@ -672,6 +672,10 @@ describe('PlcNewQuizAssignmentModal with assign-stepper on (D21)', () => {
     );
     // Whole classes need no per-student fan-out.
     expect(mockSetAssignmentTargets).not.toHaveBeenCalled();
+    expect(mockAddToast).toHaveBeenCalledWith(
+      '"{{title}}" created and shared with this PLC.',
+      'success'
+    );
   });
 
   it('fans out picked students through setAssignmentTargets', async () => {
