@@ -5,6 +5,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import type { FolderDeleteConfig } from '@/components/common/library/FolderSidebar';
 import type { LibraryFolder } from '@/types';
+import { sourceFolder } from '@/components/common/library/sourceFolders';
 
 vi.mock('@dnd-kit/core', () => ({
   useDroppable: () => ({ setNodeRef: vi.fn(), isOver: false }),
@@ -144,5 +145,59 @@ describe('FolderSidebar folder-view delete dialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Actions for Empty' }));
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'No color' }));
     expect(onSetFolderColor).toHaveBeenCalledWith('empty', null);
+  });
+
+  it('says filed shared items go back to their source folder', () => {
+    setup({
+      noun: { one: 'set', many: 'sets' },
+      placed: [
+        { folderId: 'unit', source: 'building' },
+        { folderId: 'wk2', source: 'building' },
+        { folderId: 'empty', source: 'building' },
+      ],
+    });
+    openDelete('Unit 3');
+    // Keep leaves Week 1 and Week 2 in place, so only Unit 3's own set goes back.
+    expect(
+      screen.getByText(
+        (_, el) =>
+          el?.tagName === 'SPAN' &&
+          el.textContent === '1 set will go back to From your building.'
+      )
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole('radio', {
+        name: /Delete the folder and everything in it/,
+      })
+    );
+    expect(
+      screen.getByText(
+        (_, el) =>
+          el?.tagName === 'SPAN' &&
+          el.textContent === '2 sets will go back to From your building.'
+      )
+    ).toBeTruthy();
+  });
+
+  it('offers no actions on a source folder', () => {
+    render(
+      <FolderSidebar
+        widget="guided_learning"
+        folders={[sourceFolder('building'), ...FOLDERS]}
+        selectedFolderId={null}
+        onSelectFolder={vi.fn()}
+        onDeleteFolder={vi.fn()}
+        onRenameFolder={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByRole('button', { name: /From your building/ })
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole('button', { name: 'Actions for From your building' })
+    ).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Actions for Unit 3' })
+    ).toBeTruthy();
   });
 });

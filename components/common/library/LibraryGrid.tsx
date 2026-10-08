@@ -53,6 +53,8 @@ interface LibraryGridExtraProps {
    * mode `onReorder` is ignored — the parent owns drag-end routing.
    */
   useExternalDndContext?: boolean;
+  /** Static rows drawn after the items, e.g. teammates' banks filed in this folder. */
+  trailingRows?: React.ReactNode[];
 }
 
 export function LibraryGrid<TItem>(
@@ -69,6 +71,7 @@ export function LibraryGrid<TItem>(
     layout = 'grid',
     emptyState,
     useExternalDndContext = false,
+    trailingRows = [],
   } = props;
 
   const sensors = useSensors(
@@ -107,6 +110,7 @@ export function LibraryGrid<TItem>(
 
   if (
     items.length === 0 &&
+    trailingRows.length === 0 &&
     (!folderView || folderView.folderRows.length === 0)
   ) {
     if (folderView?.emptyFolder) {
@@ -189,6 +193,7 @@ export function LibraryGrid<TItem>(
           >
             {folderRows}
             {items.map((item, index) => renderCard(item, index))}
+            {trailingRows}
           </div>
         </SortableContext>
       </LibraryGridLockContext.Provider>
@@ -212,6 +217,7 @@ export function LibraryGrid<TItem>(
           >
             {folderRows}
             {items.map((item, index) => renderCard(item, index))}
+            {trailingRows}
           </div>
         </SortableContext>
         {/* Portaled: the widget's container-type makes it the containing block for fixed elements, which offset the overlay from the cursor. */}

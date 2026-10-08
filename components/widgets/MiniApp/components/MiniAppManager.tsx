@@ -44,6 +44,7 @@ import {
   Copy,
   CheckSquare,
   RotateCcw,
+  FolderMinus,
 } from 'lucide-react';
 import type {
   AssignmentMode,
@@ -64,7 +65,12 @@ import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
-import { useFolderLibraryView } from '@/components/common/library/useFolderLibraryView';
+import {
+  useFolderLibraryView,
+  useLibraryFolderViewEnabled,
+} from '@/components/common/library/useFolderLibraryView';
+import { useSourceFolders } from '@/components/common/library/useSourceFolders';
+import { isSourceFolderId } from '@/components/common/library/sourceFolders';
 import { latestAssignedAt } from '@/components/common/library/folderView';
 import { useLibrarySelection } from '@/components/common/library/useLibrarySelection';
 import { useSortableReorder } from '@/components/common/library/useSortableReorder';
@@ -263,6 +269,12 @@ const LIBRARY_FILTER_PREDICATES = {
   source: (row: UnifiedRow, value: string): boolean => row.kind === value,
 };
 
+// In the folder view, district apps sit in "My apps" under their source folder (D21).
+const FOLDER_VIEW_FILTER_PREDICATES = {
+  source: (row: UnifiedRow, value: string): boolean =>
+    value === 'personal' || row.kind === value,
+};
+
 /* ─── View-only row wrapper (per-row hook host for view-count fetch) ──────── */
 
 const MiniAppArchiveRow: React.FC<{
@@ -394,7 +406,39 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     id: string;
     title: string;
     folderId: string | null;
+    /** Set for a district app, which is filed by placement instead of moved. */
+    sourceKey?: string;
   } | null>(null);
+  const folderViewEnabled = useLibraryFolderViewEnabled();
+  const globalSourceKeys = useMemo(
+    () => globalLibrary.map((app) => `global:${app.id}`),
+    [globalLibrary]
+  );
+  // Global row ids double as their placement source keys.
+  const sourceFolders = useSourceFolders({
+    userId,
+    widget: 'miniapp',
+    enabled: folderViewEnabled,
+    sourceKeys: globalSourceKeys,
+    ownFolders: folderState.folders,
+    ready: !folderState.loading,
+  });
+  const { folderIdOf, move: moveSource } = sourceFolders;
+  const getFolderIdOfRow = useCallback(
+    (row: UnifiedRow) =>
+      row.kind === 'global' ? folderIdOf(getRowId(row)) : rowFolderId(row),
+    [folderIdOf]
+  );
+  const fileGlobalApp = useCallback(
+    async (sourceKey: string, folderId: string | null): Promise<void> => {
+      try {
+        await moveSource(sourceKey, folderId);
+      } catch (err) {
+        console.error('[MiniAppManager] filing a district app failed:', err);
+      }
+    },
+    [moveSource]
+  );
 
   // Count personal apps per folder id (+ `root` for unfoldered items) for the
   // sidebar badges. Global apps never live in a teacher's folder.
@@ -406,6 +450,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     setFolderColor: folderState.setFolderColor,
     noun: { one: 'Mini app', many: 'Mini apps' },
     items: personalLibrary,
+    placed: sourceFolders.placed,
     ...folderDeleteActions,
   });
 
@@ -458,10 +503,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     folderView: {
       library: 'miniapp',
       userId,
-      folders: folderState.folders,
+      folders: sourceFolders.folders,
       foldersLoading: folderState.loading,
       getId: getRowId,
-      getFolderId: rowFolderId,
+      getFolderId: getFolderIdOfRow,
       getRecentAt: rowRecentAt,
       itemNoun: APP_NOUN,
       legacyFilter: filterRowsByFolder,
@@ -470,7 +515,9 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     initialFilterValues: LIBRARY_INITIAL_FILTER_VALUES,
     searchFields: LIBRARY_SEARCH_FIELDS,
     sortComparators: LIBRARY_SORT_COMPARATORS,
-    filterPredicates: LIBRARY_FILTER_PREDICATES,
+    filterPredicates: folderViewEnabled
+      ? FOLDER_VIEW_FILTER_PREDICATES
+      : LIBRARY_FILTER_PREDICATES,
     // Phase 2 redesign: the library is list-only (monitor row idiom).
     initialViewMode: 'list',
   });
@@ -535,13 +582,15 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   );
   const handleDropOnFolder = useCallback(
     async (itemId: string, folderId: string | null): Promise<void> => {
-      // Row ids are prefixed `personal:` or `global:`. Only personal rows
-      // participate in folders; global cards are `sortable={false}` so drops
-      // from them shouldn't fire, but guard defensively.
-      if (!itemId.startsWith('personal:')) return;
+      // District apps are filed privately (D22); own apps never go into a source folder.
+      if (itemId.startsWith('global:')) {
+        await fileGlobalApp(itemId, folderId);
+        return;
+      }
+      if (!itemId.startsWith('personal:') || isSourceFolderId(folderId)) return;
       await moveAppToFolder(itemId.slice('personal:'.length), folderId);
     },
-    [moveAppToFolder]
+    [moveAppToFolder, fileGlobalApp]
   );
 
   /* ── Bulk handlers (Step 8) ──────────────────────────────────────────── */
@@ -614,7 +663,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     tab === 'library' && userId && !isGlobalView ? (
       <FolderSidebar
         widget="miniapp"
-        folders={folderState.folders}
+        folders={sourceFolders.folders}
         loading={folderState.loading}
         error={folderState.error}
         selectedFolderId={view.selectedFolderId}
@@ -839,6 +888,30 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
           },
         ];
 
+    const sourceKey = getRowId(row);
+    const placedChip = sourceFolders.placedChip(sourceKey);
+    if (folderViewEnabled && !isViewOnly) {
+      secondary.push(
+        buildMoveToFolderAction({
+          onOpenPicker: () =>
+            setFolderPickerTarget({
+              id: app.id,
+              title: app.title,
+              folderId: placedChip ? folderIdOf(sourceKey) : null,
+              sourceKey,
+            }),
+          disabled: !userId,
+        })
+      );
+      if (placedChip) {
+        secondary.push({
+          id: 'remove-from-folder',
+          label: 'Remove from folder',
+          icon: FolderMinus,
+          onClick: () => void fileGlobalApp(sourceKey, null),
+        });
+      }
+    }
     // Same READ_ONLY allowlist as personal cards. Global apps' "Save to
     // my library" is authoring (it writes a copy into the teacher's
     // personal library), so it disappears in read-only mode too.
@@ -904,7 +977,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         // editor because there is no editor for global apps from this
         // surface.
         onClick={() => setPreviewRowId(getRowId(row))}
-        sortable={false}
+        badges={
+          placedChip ? [{ label: placedChip, tone: 'neutral' }] : undefined
+        }
+        sortable={folderViewEnabled && !readOnly && !selectionMode}
         viewMode={view.state.viewMode}
         tourIndex={index}
         tourWidgetType="miniApp"
@@ -1253,7 +1329,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     : [];
   const renderLibraryDragOverlay = (activeId: string): React.ReactNode => {
     const row = view.visibleItems.find((r) => getRowId(r) === activeId);
-    if (!row || row.kind !== 'personal') return null;
+    if (!row) return null;
     const app = row.item;
     return (
       <LibraryItemCard<MiniAppItem>
@@ -1370,7 +1446,11 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       folders={folderState.folders}
       selectedFolderId={folderPickerTarget.folderId}
       onSelect={(folderId) => {
-        void moveAppToFolder(folderPickerTarget.id, folderId);
+        if (folderPickerTarget.sourceKey) {
+          void fileGlobalApp(folderPickerTarget.sourceKey, folderId);
+        } else {
+          void moveAppToFolder(folderPickerTarget.id, folderId);
+        }
       }}
       onClose={() => setFolderPickerTarget(null)}
       title={`Move "${folderPickerTarget.title}" to…`}

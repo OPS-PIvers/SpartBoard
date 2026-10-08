@@ -1,6 +1,7 @@
 // Pure helpers for the folder view (docs/plans/LIBRARY_FOLDERS.md D1-D10).
 import type { LibraryFolder } from '@/types';
 import type { LibrarySortDir } from './types';
+import { isSourceFolderId } from './sourceFolders';
 
 export type LibraryLocation =
   | { kind: 'folder'; folderId: string | null }
@@ -156,17 +157,22 @@ export function sortFolders(
   sort: { key: string; dir: LibrarySortDir }
 ): LibraryFolder[] {
   const sign = sort.dir === 'desc' ? -1 : 1;
-  const copy = [...folders];
+  // Source folders stay pinned on top in their fixed order (D21).
+  const pinned = folders
+    .filter((f) => isSourceFolderId(f.id))
+    .sort((a, b) => a.order - b.order);
+  const copy = folders.filter((f) => !isSourceFolderId(f.id));
   if (NAME_SORT_KEYS.has(sort.key)) {
-    return copy.sort((a, b) => sign * nameCollator.compare(a.name, b.name));
-  }
-  if (DATE_SORT_KEYS.has(sort.key)) {
-    return copy.sort(
+    copy.sort((a, b) => sign * nameCollator.compare(a.name, b.name));
+  } else if (DATE_SORT_KEYS.has(sort.key)) {
+    copy.sort(
       (a, b) =>
         sign * ((a.updatedAt ?? a.createdAt) - (b.updatedAt ?? b.createdAt))
     );
+  } else {
+    copy.sort((a, b) => a.order - b.order);
   }
-  return copy.sort((a, b) => a.order - b.order);
+  return [...pinned, ...copy];
 }
 
 export type BreadcrumbEntry =
