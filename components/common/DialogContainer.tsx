@@ -125,7 +125,7 @@ const DialogShell: React.FC<DialogShellProps> = ({
       aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
-      className={`bg-slate-800 border ${cfg.borderAccent} rounded-2xl shadow-2xl w-fit min-w-[20rem] max-w-sm p-5 animate-in zoom-in-95 duration-200`}
+      className={`bg-slate-800 border ${cfg.borderAccent} rounded-2xl shadow-2xl w-fit max-w-sm p-5 animate-in zoom-in-95 duration-200`}
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex gap-3">
@@ -134,7 +134,7 @@ const DialogShell: React.FC<DialogShellProps> = ({
         >
           {cfg.icon}
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0">
           <h3
             id={titleId}
             className="min-h-10 flex items-center font-bold text-base text-white leading-snug"
