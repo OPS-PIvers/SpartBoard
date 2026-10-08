@@ -52,6 +52,12 @@ import {
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 import { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
 import { ViewOnlyShareModal } from '@/components/common/library/ViewOnlyShareModal';
+import {
+  VideoAssignStepper,
+  type VideoAssignStepperResult,
+} from '@/components/common/library/assignStepper/VideoAssignStepper';
+import type { AssignClassesValue } from '@/components/common/library/assignStepper/assignClassesValue';
+import { useLastVideoAssignPacing } from '@/hooks/useLastVideoAssignPacing';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
@@ -87,6 +93,7 @@ import {
 import type {
   AssignmentMode,
   ClassRoster,
+  Plc,
   StudentTargetRef,
   VideoActivityAssignment,
   VideoActivityAssignmentStatus,
@@ -116,6 +123,16 @@ import { useFolderViewSidebar } from '@/components/common/library/useFolderViewS
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
+
+/** What only the assign stepper sends (docs/plans/ASSIGN_STEPPER.md). */
+export interface VideoActivityAssignExtras {
+  /** Picked classes with per-class student picks (D5b). */
+  classes: AssignClassesValue;
+  /** Manual: every class starts closed until the teacher starts it. */
+  manualStart: boolean;
+  /** Share results with this PLC (D10). */
+  plc: Plc | null;
+}
 
 /** A self-paced assign to open pre-filled, e.g. a live session's make-up (D18). */
 export interface VideoActivityPendingAssign {
@@ -183,8 +200,12 @@ export interface VideoActivityManagerProps {
     /** M17 B3 — individual targeting/overrides/window (spec §5 B3). */
     targeting: AssignTargetingValue,
     /** 'teacher' opens a live, board-paced session (one class, no schedule). */
-    sessionMode: VideoActivitySessionMode
+    sessionMode: VideoActivitySessionMode,
+    /** Set only by the assign stepper. */
+    extras?: VideoActivityAssignExtras
   ) => Promise<string>;
+  /** The teacher's PLCs, for the stepper's Sharing step. */
+  plcs?: readonly Plc[];
   /** Rosters to populate the picker. */
   rosters: ClassRoster[];
   /** Per-period access choices in the assign modal; undefined while the flag is off. */
@@ -327,6 +348,7 @@ const LIBRARY_SORT_COMPARATORS = {
 const LIBRARY_INITIAL_SORT = { key: 'updated', dir: 'desc' as LibrarySortDir };
 
 const ACTIVITY_GET_ID = (a: VideoActivityMetadata): string => a.id;
+const NO_PLCS: readonly Plc[] = [];
 const ACTIVITY_NOUN = ['activity', 'activities'] as const;
 
 /* ─── Assignment status → badge mapping ───────────────────────────────────── */
@@ -511,6 +533,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchiveUnpublishScores,
   rosters,
   periodAccess,
+  plcs = NO_PLCS,
   lastRosterIdsByActivityId,
   lastClassIdsByActivityId,
   lastClassIdByActivityId,
@@ -525,6 +548,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   const canAssignLive = canAccessFeature('video-activity-live');
   const availabilityOn = canAccessFeature('assign-availability');
+  const stepperOn = canAccessFeature('assign-stepper');
+  const lastPacing = useLastVideoAssignPacing(
+    userId,
+    stepperOn && canAssignLive
+  );
   const claudeReview = useClaudeReview('video_activities');
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
@@ -856,6 +884,34 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         err instanceof Error ? err.message : 'Failed to create assignment'
       );
       throw err; // let the modal re-enable its button
+    }
+  };
+
+  const handleStepperSubmit = async (
+    result: VideoAssignStepperResult
+  ): Promise<void> => {
+    if (!assignTarget) return;
+    setAssignError(null);
+    const live = result.pacing === 'teacher';
+    try {
+      await onAssign(
+        assignTarget,
+        result.classes.classIds,
+        live ? null : (result.targeting.dueAt ?? null),
+        result.targeting,
+        result.pacing,
+        {
+          classes: result.classes,
+          manualStart: result.manualStart,
+          plc: result.plc,
+        }
+      );
+      if (canAssignLive) lastPacing.save(result.pacing);
+      closeAssign();
+    } catch (err) {
+      setAssignError(
+        err instanceof Error ? err.message : 'Failed to create assignment'
+      );
     }
   };
 
@@ -1545,7 +1601,24 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         />
       )}
 
-      {assignTarget && !isViewOnly && (
+      {assignTarget && !isViewOnly && stepperOn && (
+        <VideoAssignStepper
+          key={`${assignTarget.id}:${activePending?.key ?? ''}`}
+          onClose={closeAssign}
+          title={assignTarget.title}
+          rosters={rosters}
+          periodAccess={periodAccess}
+          plcs={plcs}
+          canAssignLive={canAssignLive}
+          lastPacing={activePending ? 'student' : lastPacing.lastUsed}
+          initialClassIds={pickerValue.rosterIds}
+          initialStudents={activePending?.targetStudents}
+          error={assignError}
+          onSubmit={handleStepperSubmit}
+        />
+      )}
+
+      {assignTarget && !isViewOnly && !stepperOn && (
         <AssignModal<VideoActivitySessionSettings>
           isOpen={true}
           onClose={closeAssign}
