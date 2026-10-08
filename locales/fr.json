@@ -3848,10 +3848,8 @@
   },
   "glData": {
     "setTooLarge": "Cet ensemble est trop volumineux pour être enregistré. Divisez-le ou retirez des diapositives.",
-    "deleteSetTitle": "Supprimer « {{title}} » ?",
     "deleteWithOpenAssignments_one": "Les élèves de {{count}} devoir ouvert le perdront.",
-    "deleteWithOpenAssignments_other": "Les élèves de {{count}} devoirs ouverts le perdront.",
-    "deleteConfirm": "Supprimer"
+    "deleteWithOpenAssignments_other": "Les élèves de {{count}} devoirs ouverts le perdront."
   },
   "glAssignments": {
     "showOlder": "Afficher les plus anciennes"

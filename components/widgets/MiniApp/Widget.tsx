@@ -1123,21 +1123,14 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 
   const handleDelete = async (id: string) => {
     if (!user) return;
-    const confirmed = await showConfirm('Delete this app from your library?', {
-      title: 'Delete App',
-      variant: 'danger',
-      confirmLabel: 'Delete',
-    });
-    if (confirmed) {
-      try {
-        const app = library.find((a) => a.id === id);
-        if (!app || !sandboxMiniAppWrite(app, realLibrary, true))
-          await deleteDoc(doc(db, 'users', user.uid, 'miniapps', id));
-        addToast('App deleted', 'info');
-      } catch (err) {
-        console.error(err);
-        addToast('Delete failed', 'error');
-      }
+    try {
+      const app = library.find((a) => a.id === id);
+      if (!app || !sandboxMiniAppWrite(app, realLibrary, true))
+        await deleteDoc(doc(db, 'users', user.uid, 'miniapps', id));
+      addToast('App deleted', 'info');
+    } catch (err) {
+      console.error(err);
+      addToast('Delete failed', 'error');
     }
   };
 
@@ -1880,7 +1873,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               assignmentsLoading={assignmentsLoading}
               onCreate={handleCreate}
               onEdit={handleEdit}
-              onDelete={(app) => void handleDelete(app.id)}
+              onDelete={(app) => handleDelete(app.id)}
               folderDeleteActions={{
                 deleteItems: async (ids) => {
                   if (!user) throw new Error('Not signed in');

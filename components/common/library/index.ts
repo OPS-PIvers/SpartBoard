@@ -134,3 +134,12 @@ export type {
   ImportAdapter,
   ImportWizardProps,
 } from './types';
+export {
+  useLibraryDeleteConfirm,
+  libraryDeleteConfirmCopy,
+  LIBRARY_ITEM_NOUNS,
+} from './useLibraryDeleteConfirm';
+export type {
+  LibraryDeleteConfirmRequest,
+  LibraryItemNoun,
+} from './useLibraryDeleteConfirm';

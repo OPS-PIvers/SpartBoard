@@ -87,6 +87,10 @@ import type {
 import { buildDuplicateAction } from '@/components/common/library/libraryDuplicate';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
+import {
+  LIBRARY_ITEM_NOUNS,
+  useLibraryDeleteConfirm,
+} from '@/components/common/library/useLibraryDeleteConfirm';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -528,31 +532,43 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     [moveAppToFolder]
   );
 
+  const confirmDelete = useLibraryDeleteConfirm();
+  const confirmAndDelete = async (app: MiniAppItem): Promise<void> => {
+    const ok = await confirmDelete({
+      titles: [app.title],
+      noun: LIBRARY_ITEM_NOUNS.miniApp,
+    });
+    if (ok) await onDelete(app);
+  };
+
   /* ── Bulk handlers (Step 8) ──────────────────────────────────────────── */
   const handleBulkDelete = useCallback(async (): Promise<void> => {
     if (selection.count === 0) return;
     const personalIds = Array.from(selection.selectedIds).filter((id) =>
       id.startsWith('personal:')
     );
-    if (personalIds.length === 0) return;
-    const ok = window.confirm(
-      `Delete ${personalIds.length} app${personalIds.length === 1 ? '' : 's'}? This cannot be undone.`
-    );
+    const targets = personalIds.flatMap((id) => {
+      const app = personalLibrary.find(
+        (a) => a.id === id.slice('personal:'.length)
+      );
+      return app ? [app] : [];
+    });
+    if (targets.length === 0) return;
+    const ok = await confirmDelete({
+      titles: targets.map((a) => a.title),
+      noun: LIBRARY_ITEM_NOUNS.miniApp,
+    });
     if (!ok) return;
     setBulkBusy(true);
     try {
       const results = await Promise.allSettled(
-        personalIds.map(async (id) => {
-          const rawId = id.slice('personal:'.length);
-          const app = personalLibrary.find((a) => a.id === rawId);
-          if (app) await onDelete(app);
-        })
+        targets.map(async (app) => onDelete(app))
       );
       results.forEach((result, idx) => {
         if (result.status === 'rejected') {
           console.error(
             '[MiniAppManager] bulk delete failed for',
-            personalIds[idx],
+            targets[idx]?.id,
             result.reason
           );
         }
@@ -562,7 +578,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     } finally {
       setBulkBusy(false);
     }
-  }, [selection, personalLibrary, onDelete]);
+  }, [selection, personalLibrary, onDelete, confirmDelete]);
 
   const handleBulkMove = useCallback(
     async (folderId: string | null): Promise<void> => {
@@ -658,7 +674,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             id: 'delete',
             label: 'Delete',
             icon: Trash2,
-            onClick: () => void onDelete(app),
+            onClick: () => void confirmAndDelete(app),
             destructive: true,
           },
         ]
@@ -702,7 +718,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             id: 'delete',
             label: 'Delete',
             icon: Trash2,
-            onClick: () => void onDelete(app),
+            onClick: () => void confirmAndDelete(app),
             destructive: true,
           },
         ];

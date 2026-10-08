@@ -41,6 +41,10 @@ import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { ImportWizard } from '@/components/common/library/importer';
+import {
+  LIBRARY_ITEM_NOUNS,
+  useLibraryDeleteConfirm,
+} from '@/components/common/library/useLibraryDeleteConfirm';
 import { FlashcardEditor } from './FlashcardEditor';
 import {
   clearPastedFlashcards,
@@ -113,6 +117,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const { addToast, updateWidget, rosters, updateRoster } = useDashboard();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { showConfirm } = useDialog();
+  const confirmDelete = useLibraryDeleteConfirm();
   const { openPicker } = useGooglePicker();
   // A substitute can read neither the teacher's sets nor their assignments, so
   // in a share the presented set comes from the bundle and no listener opens.
@@ -271,14 +276,10 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   };
 
   const handleDelete = async (set: FlashcardSet): Promise<void> => {
-    const confirmed = await showConfirm(
-      `Delete “${set.title}”? This cannot be undone.`,
-      {
-        title: 'Delete flashcard set',
-        variant: 'danger',
-        confirmLabel: 'Delete',
-      }
-    );
+    const confirmed = await confirmDelete({
+      titles: [set.title],
+      noun: LIBRARY_ITEM_NOUNS.flashcards,
+    });
     if (!confirmed) return;
     try {
       await flashcardSets.deleteSet(set.id);

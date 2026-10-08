@@ -31,6 +31,8 @@ import {
   type LibraryMenuAction,
   type LibrarySortOption,
   type LibraryShellProps,
+  LIBRARY_ITEM_NOUNS,
+  useLibraryDeleteConfirm,
 } from '@/components/common/library';
 import {
   countItemsByFolder,
@@ -142,6 +144,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   onError,
 }) => {
   const { showConfirm } = useDialog();
+  const confirmDelete = useLibraryDeleteConfirm();
   const plcNameById = useMemo(
     () => new Map(plcs.map((p) => [p.id, p.name])),
     [plcs]
@@ -244,10 +247,14 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   const handleBulkDelete = useCallback(async (): Promise<void> => {
     const targets = banks.filter((b) => selection.selectedIds.has(b.id));
     if (targets.length === 0) return;
-    const ok = await showConfirm(
-      `Delete ${plural(targets.length, 'bank')}? Quizzes that draw from them will stop resolving. This cannot be undone.`,
-      { title: 'Delete Banks', variant: 'danger', confirmLabel: 'Delete' }
-    );
+    const ok = await confirmDelete({
+      titles: targets.map((b) => b.title),
+      noun: LIBRARY_ITEM_NOUNS.bank,
+      detail:
+        targets.length === 1
+          ? 'Quizzes that draw from it will stop resolving.'
+          : 'Quizzes that draw from them will stop resolving.',
+    });
     if (!ok) return;
     setBulkBusy(true);
     try {
@@ -267,7 +274,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
     } finally {
       setBulkBusy(false);
     }
-  }, [banks, selection, showConfirm, onDeleteBank]);
+  }, [banks, selection, confirmDelete, onDeleteBank]);
 
   // ─── Card content ─────────────────────────────────────────────────────────
   const renderSubtitle = (bank: QuestionBankMetadata): React.ReactNode => (
@@ -336,10 +343,11 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       icon: Trash2,
       destructive: true,
       onClick: async () => {
-        const ok = await showConfirm(
-          `Delete "${bank.title}"? Quizzes that draw from it will stop resolving. This cannot be undone.`,
-          { title: 'Delete Bank', variant: 'danger', confirmLabel: 'Delete' }
-        );
+        const ok = await confirmDelete({
+          titles: [bank.title],
+          noun: LIBRARY_ITEM_NOUNS.bank,
+          detail: 'Quizzes that draw from it will stop resolving.',
+        });
         if (ok) await onDeleteBank(bank);
       },
     });

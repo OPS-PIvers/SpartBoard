@@ -44,6 +44,8 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import {
   AssignModal,
   AssignTargetingSection,
+  LIBRARY_ITEM_NOUNS,
+  useLibraryDeleteConfirm,
   ViewOnlyShareModal,
   type AssignTargetingValue,
 } from '@/components/common/library';
@@ -203,6 +205,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const { t } = useTranslation();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { showConfirm } = useDialog();
+  const confirmLibraryDelete = useLibraryDeleteConfirm();
   const { user, isAdmin, getAssignmentMode, canAccessFeature, appSettings } =
     useAuth();
   const gradebookOn = canAccessFeature('gradebook');
@@ -620,21 +623,31 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     assignments
       .filter((a) => a.setId === setId && a.status === 'active')
       .map((a) => a.id);
-  const confirmDeleteWithOpen = async (title: string, count: number) =>
-    count === 0 ||
-    showConfirm(t('glData.deleteWithOpenAssignments', { count }), {
-      title: t('glData.deleteSetTitle', { title }),
-      variant: 'danger',
-      confirmLabel: t('glData.deleteConfirm'),
+  const confirmSetDelete = (titles: string[], openCount: number) =>
+    confirmLibraryDelete({
+      titles,
+      noun: LIBRARY_ITEM_NOUNS.guidedLearning,
+      detail:
+        openCount > 0
+          ? t('glData.deleteWithOpenAssignments', { count: openCount })
+          : undefined,
     });
+
+  const deletePersonalSet = async (
+    setId: string,
+    driveFileId: string,
+    openIds: string[]
+  ) => {
+    prefetchCacheRef.current.invalidate(setId);
+    await deleteSet(setId, driveFileId, openIds);
+  };
 
   const handleDelete = async (setId: string, driveFileId: string) => {
     const openIds = openAssignmentIdsFor(setId);
     const title = sets.find((s) => s.id === setId)?.title ?? '';
-    if (!(await confirmDeleteWithOpen(title, openIds.length))) return;
-    prefetchCacheRef.current.invalidate(setId);
+    if (!(await confirmSetDelete([title], openIds.length))) return;
     try {
-      await deleteSet(setId, driveFileId, openIds);
+      await deletePersonalSet(setId, driveFileId, openIds);
       addToast('Set deleted.', 'success');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to delete';
@@ -642,10 +655,48 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
+  const handleBulkDeletePersonal = async (
+    targets: { setId: string; driveFileId: string }[]
+  ): Promise<boolean> => {
+    const openIdsBySet = new Map(
+      targets.map(({ setId }) => [setId, openAssignmentIdsFor(setId)])
+    );
+    const openCount = [...openIdsBySet.values()].reduce(
+      (sum, ids) => sum + ids.length,
+      0
+    );
+    const titles = targets.map(
+      ({ setId }) => sets.find((s) => s.id === setId)?.title ?? ''
+    );
+    if (!(await confirmSetDelete(titles, openCount))) return false;
+    const results = await Promise.allSettled(
+      targets.map(({ setId, driveFileId }) =>
+        deletePersonalSet(setId, driveFileId, openIdsBySet.get(setId) ?? [])
+      )
+    );
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    const deleted = targets.length - failed;
+    if (deleted > 0) {
+      addToast(
+        deleted === 1 ? 'Set deleted.' : `Deleted ${deleted} sets.`,
+        'success'
+      );
+    }
+    if (failed > 0) {
+      addToast(
+        failed === 1
+          ? '1 set failed to delete.'
+          : `${failed} sets failed to delete.`,
+        'error'
+      );
+    }
+    return true;
+  };
+
   const handleDeleteBuilding = async (setId: string) => {
     const title = buildingSets.find((s) => s.id === setId)?.title ?? '';
     const openCount = openAssignmentIdsFor(setId).length;
-    if (!(await confirmDeleteWithOpen(title, openCount))) return;
+    if (!(await confirmSetDelete([title], openCount))) return;
     prefetchCacheRef.current.invalidate(setId);
     try {
       await deleteBuildingSet(setId);
@@ -1411,6 +1462,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   onDeletePersonal={(setId, driveFileId) => {
                     void handleDelete(setId, driveFileId);
                   }}
+                  onBulkDeletePersonal={handleBulkDeletePersonal}
                   onDuplicatePersonal={(setId, _driveFileId) => {
                     // `_driveFileId` is part of the manager's signature
                     // (mirrors onDeletePersonal) but we don't need it —

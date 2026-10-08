@@ -134,6 +134,8 @@ import {
   type AssignmentStatusBadge,
   type LibraryBadgeTone,
   type LibrarySelectionApi,
+  LIBRARY_ITEM_NOUNS,
+  useLibraryDeleteConfirm,
 } from '@/components/common/library';
 import { earliestDueAt } from '@/utils/perClassDueDates';
 import { applyAvailability } from '@/utils/assignAvailability';
@@ -754,6 +756,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
+  const confirmDelete = useLibraryDeleteConfirm();
   const claudeReview = useClaudeReview('quizzes');
 
   // ─── Assign modal state (2-stage: mode → settings) ────────────────────────
@@ -1261,14 +1264,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       icon: Trash2,
       destructive: true,
       onClick: async () => {
-        const ok = await showConfirm(
-          `Delete "${quiz.title}"? This cannot be undone.`,
-          {
-            title: 'Delete Quiz',
-            variant: 'danger',
-            confirmLabel: 'Delete',
-          }
-        );
+        const ok = await confirmDelete({
+          titles: [quiz.title],
+          noun: LIBRARY_ITEM_NOUNS.quiz,
+        });
         if (ok) await onDelete(quiz);
       },
     });
@@ -1983,14 +1982,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         // Widget-level handler owns confirmation + summary toasts.
         didAttempt = await onBulkDelete(targets);
       } else {
-        const ok = await showConfirm(
-          `Delete ${targets.length} quiz${targets.length === 1 ? '' : 'zes'}? This cannot be undone.`,
-          {
-            title: 'Delete Quizzes',
-            variant: 'danger',
-            confirmLabel: 'Delete',
-          }
-        );
+        const ok = await confirmDelete({
+          titles: targets.map((q) => q.title),
+          noun: LIBRARY_ITEM_NOUNS.quiz,
+        });
         if (ok) {
           const results = await Promise.allSettled(
             targets.map(async (quiz) => onDelete(quiz))
@@ -2014,7 +2009,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     } finally {
       setBulkBusy(false);
     }
-  }, [selection, quizzes, onDelete, onBulkDelete, showConfirm]);
+  }, [selection, quizzes, onDelete, onBulkDelete, confirmDelete]);
 
   // Selected metas in selection order (Set preserves insertion order) —
   // merge assembles the new quiz's questions in this order.

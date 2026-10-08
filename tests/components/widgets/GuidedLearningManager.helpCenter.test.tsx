@@ -93,6 +93,7 @@ const renderManager = (
         onEdit={vi.fn()}
         onAssign={vi.fn()}
         onDeletePersonal={vi.fn()}
+        onBulkDeletePersonal={vi.fn()}
         onDeleteBuilding={vi.fn()}
         onSetBuildingHelpCenter={onSetBuildingHelpCenter}
         onCreateNewPersonal={vi.fn()}

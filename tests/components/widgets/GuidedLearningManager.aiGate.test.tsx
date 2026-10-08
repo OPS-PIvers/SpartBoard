@@ -46,6 +46,7 @@ const renderManager = (features: string[], isAdmin = true) => {
         onEdit={vi.fn()}
         onAssign={vi.fn()}
         onDeletePersonal={vi.fn()}
+        onBulkDeletePersonal={vi.fn()}
         onDeleteBuilding={vi.fn()}
         onCreateNewPersonal={vi.fn()}
         onCreateNewBuilding={vi.fn()}
