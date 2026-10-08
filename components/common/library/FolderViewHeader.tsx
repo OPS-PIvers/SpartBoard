@@ -1,5 +1,5 @@
 // Path bar, search scope and folder rows above the library list (docs/plans/LIBRARY_FOLDERS.md D3, D4, D7).
-import React, { useContext, useState } from 'react';
+import React, { useContext, useRef, useState } from 'react';
 import { ChevronRight, Folder } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
 import { useLibraryDrag } from './LibraryDragContext';
@@ -131,6 +131,13 @@ const NameField: React.FC<{
 }> = ({ folderId, initial, fontSize }) => {
   const { finishRename } = useLibraryDrag();
   const [value, setValue] = useState(initial);
+  // Enter or Escape settles the name; a blur fired as the field unmounts must not save again.
+  const settled = useRef(false);
+  const settle = (name: string | null) => {
+    if (settled.current) return;
+    settled.current = true;
+    finishRename(folderId, name);
+  };
   return (
     <input
       // Focus and select the new folder's name so typing replaces it (D14).
@@ -140,13 +147,13 @@ const NameField: React.FC<{
       value={value}
       onChange={(e) => setValue(e.target.value)}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') finishRename(folderId, value);
+        if (e.key === 'Enter') settle(value);
         if (e.key === 'Escape') {
           e.stopPropagation();
-          finishRename(folderId, null);
+          settle(null);
         }
       }}
-      onBlur={() => finishRename(folderId, value)}
+      onBlur={() => settle(value)}
       className="min-w-0 flex-1 rounded-md border border-brand-blue-primary bg-white px-2 py-1 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30"
       style={{ fontSize }}
     />
