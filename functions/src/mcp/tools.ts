@@ -273,9 +273,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         const byId = new Map(rows.map((r) => [r.id, r]));
         const start = parent_folder_id || null;
         if (start && !byId.has(start))
-          throw new ToolError(
-            `Folder ${start} was not found. Use list_folders to find a folder id.`
-          );
+          await assertFolder(ctx, content_type, start);
         const { parentId: deepest, missing } = resolveFolderPath(
           rows,
           start,
