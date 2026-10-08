@@ -58,7 +58,7 @@ describe('checkUrlCompatibility DNS SSRF guard', () => {
     await call({ auth: { uid: 'u' }, data: { url: 'https://example.com/' } });
     expect(axiosHead).toHaveBeenCalledWith(
       'https://example.com/',
-      expect.objectContaining({ httpsAgent: expect.anything() })
+      expect.objectContaining({ httpsAgent: expect.any(Object) as unknown })
     );
   });
 });
