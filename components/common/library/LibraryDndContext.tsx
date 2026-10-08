@@ -55,6 +55,7 @@ import {
 } from './LibraryDragContext';
 import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
 import { NEW_FOLDER_NAME } from './folderView';
+import { acceptsItem, ownParentId } from './sourceFolders';
 import { LIBRARY_ROOT_LABEL } from './FolderViewHeader';
 import {
   folderAwareCollisionDetection,
@@ -209,7 +210,11 @@ export const LibraryDndContext: React.FC<LibraryDndContextProps> = ({
         for (const id of ids) await onDropOnFolder(id, folderId);
         return;
       }
-      const moving = ids.filter((id) => folderView.folderIdOf(id) !== folderId);
+      // A source folder takes back only its own shared items (D21).
+      const moving = ids.filter(
+        (id) =>
+          folderView.folderIdOf(id) !== folderId && acceptsItem(folderId, id)
+      );
       if (moving.length === 0) return;
       const previous = new Map(
         moving.map((id) => [id, folderView.folderIdOf(id)])
@@ -244,7 +249,7 @@ export const LibraryDndContext: React.FC<LibraryDndContextProps> = ({
       try {
         folderId = await folderActions.createFolder(
           NEW_FOLDER_NAME,
-          folderView.folderIdOf(targetId)
+          ownParentId(folderView.folderIdOf(targetId))
         );
       } catch (err) {
         logError('LibraryDndContext.createFolder', err);
