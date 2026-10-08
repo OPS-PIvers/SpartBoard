@@ -23,7 +23,7 @@ import {
   LibraryDndContext,
   buildMoveToFolderAction,
   buildDuplicateAction,
-  useLibraryView,
+  useFolderLibraryView,
   useLibrarySelection,
   useSortableReorder,
   BulkActionBar,
@@ -32,10 +32,7 @@ import {
   type LibrarySortOption,
   type LibraryShellProps,
 } from '@/components/common/library';
-import {
-  countItemsByFolder,
-  filterByFolder,
-} from '@/components/common/library/folderFilters';
+import { countItemsByFolder } from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
 import { useDialog } from '@/context/useDialog';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -92,6 +89,7 @@ const SEARCH_FIELDS = (b: QuestionBankMetadata): string =>
 const INITIAL_SORT = { key: 'updated', dir: 'desc' as const };
 
 const GET_ID = (b: QuestionBankMetadata): string => b.id;
+const BANK_NOUN = ['bank', 'banks'] as const;
 
 const SORT_COMPARATORS: Record<
   string,
@@ -149,21 +147,8 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
 
   // ─── Folders ─────────────────────────────────────────────────────────────
   const folderState = useFolders(userId, 'question_bank');
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [folderPickerTarget, setFolderPickerTarget] =
     useState<QuestionBankMetadata | null>(null);
-  const [prevUserId, setPrevUserId] = useState(userId);
-  if (prevUserId !== userId) {
-    setPrevUserId(userId);
-    setSelectedFolderId(null);
-  }
-  if (
-    !folderState.loading &&
-    selectedFolderId !== null &&
-    !folderState.folders.some((f) => f.id === selectedFolderId)
-  ) {
-    setSelectedFolderId(null);
-  }
   const folderItemCounts = useMemo(() => countItemsByFolder(banks), [banks]);
   const folderView = useFolderViewSidebar({
     setFolderColor: folderState.setFolderColor,
@@ -171,17 +156,21 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
     items: banks,
     ...folderDeleteActions,
   });
-  const folderFiltered = useMemo(
-    () => filterByFolder(banks, selectedFolderId),
-    [banks, selectedFolderId]
-  );
 
   // ─── Selection / view / reorder ───────────────────────────────────────────
   const selection = useLibrarySelection();
   const [selectionMode, setSelectionMode] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
-  const libraryView = useLibraryView<QuestionBankMetadata>({
-    items: folderFiltered,
+  const libraryView = useFolderLibraryView<QuestionBankMetadata>({
+    items: banks,
+    folderView: {
+      library: 'question_bank',
+      userId,
+      folders: folderState.folders,
+      foldersLoading: folderState.loading,
+      getId: GET_ID,
+      itemNoun: BANK_NOUN,
+    },
     initialSort: INITIAL_SORT,
     initialViewMode: 'list',
     searchFields: SEARCH_FIELDS,
@@ -386,8 +375,9 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       folders={folderState.folders}
       loading={folderState.loading}
       error={folderState.error}
-      selectedFolderId={selectedFolderId}
-      onSelectFolder={setSelectedFolderId}
+      selectedFolderId={libraryView.selectedFolderId}
+      onSelectFolder={libraryView.onSelectFolder}
+      folderView={libraryView.folderView}
       itemCounts={folderItemCounts}
       onCreateFolder={folderState.createFolder}
       onRenameFolder={folderState.renameFolder}
@@ -460,6 +450,12 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       </div>
     );
 
+  // Teammates' banks can't be filed yet, so the folder view lists them at the top level only.
+  const showSharedBanks =
+    !libraryView.folderView ||
+    (libraryView.folderView.location.kind === 'folder' &&
+      libraryView.folderView.location.folderId === null);
+
   const body = loading ? (
     <div className="flex flex-col items-center justify-center h-full text-brand-blue-primary gap-3 py-10">
       <Loader2 className="w-8 h-8 animate-spin" />
@@ -491,7 +487,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
         useExternalDndContext={enableCardDrag}
         renderCard={(bank, index) => renderCard(bank, false, index)}
       />
-      {sharedBankSources.length > 0 && (
+      {sharedBankSources.length > 0 && showSharedBanks && (
         <section
           aria-label="Banks shared with me"
           className="flex flex-col gap-2"
@@ -551,6 +547,8 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       }
       toolbarSlot={toolbar}
       filterSidebarSlot={folderSidebarSlot}
+      folderView={libraryView.folderView}
+      folderViewMode="list"
     >
       {body}
     </LibraryShell>

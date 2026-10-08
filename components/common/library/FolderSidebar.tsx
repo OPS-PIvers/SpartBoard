@@ -11,7 +11,16 @@
  */
 
 import React, { useMemo, useRef, useState } from 'react';
-import { FolderPlus, Inbox, X, AlertTriangle } from 'lucide-react';
+import {
+  FolderPlus,
+  Inbox,
+  X,
+  AlertTriangle,
+  Home,
+  List,
+  Clock,
+  type LucideIcon,
+} from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
 import type {
   LibraryFolder,
@@ -28,6 +37,9 @@ import {
   type DeleteFolderChoice,
   type LibraryItemNoun,
 } from './DeleteFolderDialog';
+import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
+import { LIBRARY_ROOT_LABEL } from './FolderViewHeader';
+import { folderPath, sameLocation, type LibraryLocation } from './folderView';
 
 export type FolderDeleteMode = 'move-to-parent' | 'delete-all';
 
@@ -95,7 +107,13 @@ export interface FolderSidebarProps {
    * context is responsible for routing drops to `useFolders.moveItem(...)`.
    */
   enableDrop?: boolean;
+
+  /** Folder view model; when set the panel navigates places instead of filtering. */
+  folderView?: LibraryFolderViewModel | null;
 }
+
+// Matches no folder, so the tree highlights nothing while All items or Recent is open.
+const NO_FOLDER_SELECTED = '\u0000none';
 
 export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   folders,
@@ -111,6 +129,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   loading = false,
   error = null,
   enableDrop = false,
+  folderView = null,
 }) => {
   const rootDropData = useMemo<FolderDropData>(
     () => ({ type: 'folder', folderId: null }),
@@ -133,6 +152,24 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
     null
   );
   const [commitError, setCommitError] = useState<string | null>(null);
+
+  // Opening a folder from the main list reveals it in the tree.
+  const openFolderId =
+    folderView?.location.kind === 'folder'
+      ? folderView.location.folderId
+      : null;
+  const [revealedFolderId, setRevealedFolderId] = useState<string | null>(null);
+  if (folderView && openFolderId !== revealedFolderId) {
+    setRevealedFolderId(openFolderId);
+    const ancestors = folderPath(openFolderId, folderView.index).slice(0, -1);
+    if (ancestors.some((f) => !expanded[f.id])) {
+      setExpanded((prev) => {
+        const next = { ...prev };
+        for (const f of ancestors) next[f.id] = true;
+        return next;
+      });
+    }
+  }
 
   // "All items" bypasses folder filtering entirely (selectedFolderId === null
   // means "show everything the caller passed in" — see filterByFolder's
@@ -292,6 +329,24 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   const panelMode = useFolderPanelMode();
   const isRail = panelMode === 'rail';
 
+  const treeCounts = useMemo(() => {
+    if (!folderView) return itemCounts;
+    const out: Record<string, number> = {};
+    for (const [id, t] of folderView.totals) out[id] = t.items;
+    return out;
+  }, [folderView, itemCounts]);
+  const isAt = (target: LibraryLocation): boolean =>
+    folderView != null && sameLocation(folderView.location, target);
+  const treeSelectedId = folderView
+    ? folderView.location.kind === 'folder'
+      ? folderView.location.folderId
+      : NO_FOLDER_SELECTED
+    : selectedFolderId;
+  const selectFolder = (folderId: string | null): void => {
+    if (folderView) folderView.navigate({ kind: 'folder', folderId });
+    else onSelectFolder(folderId);
+  };
+
   return (
     <div
       className="flex flex-col gap-1 w-full"
@@ -334,58 +389,21 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         </header>
       )}
 
-      {/* Root / "All items" entry */}
-      <button
-        ref={enableDrop ? rootDroppable.setNodeRef : undefined}
-        type="button"
-        onClick={() => onSelectFolder(null)}
-        title={isRail ? 'All items' : undefined}
-        aria-label={isRail ? 'All items' : undefined}
-        className={`flex items-center rounded-lg font-semibold text-left transition-colors ${
-          isRail ? 'justify-center' : ''
-        } ${
-          // Same subtle selected tint as folder rows (FolderTree) — the old
-          // solid-blue treatment made the root look like a different control
-          // one pixel away from its siblings.
-          selectedFolderId === null
-            ? 'bg-brand-blue-primary/10 text-brand-blue-dark'
-            : 'text-slate-700 hover:bg-slate-100'
-        } ${
-          isRootOver
-            ? 'ring-2 ring-brand-blue-primary/60 bg-brand-blue-lighter/40'
-            : ''
-        }`}
-        style={{
-          gap: isRail ? '0' : 'min(8px, 2cqmin)',
-          paddingInline: isRail ? '0' : 'min(8px, 2cqmin)',
-          paddingBlock: 'min(6px, 1.5cqmin)',
-          fontSize: 'min(13px, 4cqmin)',
-        }}
-      >
-        <Inbox
-          style={{
-            width: 'min(16px, 4.5cqmin)',
-            height: 'min(16px, 4.5cqmin)',
-            flexShrink: 0,
-          }}
-        />
-        {!isRail && <span className="flex-1 truncate">All items</span>}
-        {!isRail && totalItemCount > 0 && (
-          <span
-            className={`inline-flex items-center justify-center rounded-full font-bold leading-none ${
-              selectedFolderId === null
-                ? 'bg-brand-blue-primary/20 text-brand-blue-dark'
-                : 'bg-slate-200 text-slate-600'
-            }`}
-            style={{
-              paddingInline: 'min(6px, 1.5cqmin)',
-              fontSize: 'min(10px, 3cqmin)',
-            }}
-          >
-            {totalItemCount}
-          </span>
-        )}
-      </button>
+      {/* Root entry: "Library" in the folder view, "All items" otherwise */}
+      <SidebarNavButton
+        dropRef={enableDrop ? rootDroppable.setNodeRef : undefined}
+        isOver={isRootOver}
+        isRail={isRail}
+        icon={folderView ? Home : Inbox}
+        label={folderView ? LIBRARY_ROOT_LABEL : 'All items'}
+        selected={
+          folderView
+            ? isAt({ kind: 'folder', folderId: null })
+            : selectedFolderId === null
+        }
+        count={folderView ? undefined : totalItemCount}
+        onClick={() => selectFolder(null)}
+      />
 
       {/* Inline new-folder at root */}
       {!isRail && creatingUnder === null && (
@@ -419,13 +437,13 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         parentId={null}
         depth={0}
         enableDrop={enableDrop}
-        selectedFolderId={selectedFolderId}
-        onSelectFolder={onSelectFolder}
+        selectedFolderId={treeSelectedId}
+        onSelectFolder={selectFolder}
         expanded={expanded}
         onToggleExpanded={(id) =>
           setExpanded((prev) => ({ ...prev, [id]: !prev[id] }))
         }
-        itemCounts={itemCounts}
+        itemCounts={treeCounts}
         openMenuId={openMenuId}
         onOpenMenu={setOpenMenuId}
         renamingId={renamingId}
@@ -476,6 +494,31 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         </div>
       )}
 
+      {folderView && (
+        <>
+          <div
+            className="border-t border-brand-gray-lightest"
+            style={{ marginBlock: 'min(6px, 1.5cqmin)' }}
+            role="separator"
+          />
+          <SidebarNavButton
+            isRail={isRail}
+            icon={List}
+            label="All items"
+            selected={isAt({ kind: 'all' })}
+            count={totalItemCount}
+            onClick={() => folderView.navigate({ kind: 'all' })}
+          />
+          <SidebarNavButton
+            isRail={isRail}
+            icon={Clock}
+            label="Recent"
+            selected={isAt({ kind: 'recent' })}
+            onClick={() => folderView.navigate({ kind: 'recent' })}
+          />
+        </>
+      )}
+
       {confirmDelete && folderDelete && subtree && (
         <DeleteFolderDialog
           folder={confirmDelete}
@@ -506,6 +549,72 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
     </div>
   );
 };
+
+const SidebarNavButton: React.FC<{
+  icon: LucideIcon;
+  label: string;
+  selected: boolean;
+  isRail: boolean;
+  count?: number;
+  isOver?: boolean;
+  dropRef?: (node: HTMLElement | null) => void;
+  onClick: () => void;
+}> = ({
+  icon: Icon,
+  label,
+  selected,
+  isRail,
+  count,
+  isOver,
+  dropRef,
+  onClick,
+}) => (
+  <button
+    ref={dropRef}
+    type="button"
+    onClick={onClick}
+    title={isRail ? label : undefined}
+    aria-label={isRail ? label : undefined}
+    aria-current={selected ? 'location' : undefined}
+    className={`flex items-center rounded-lg font-semibold text-left transition-colors ${
+      isRail ? 'justify-center' : ''
+    } ${
+      selected
+        ? 'bg-brand-blue-primary/10 text-brand-blue-dark'
+        : 'text-slate-700 hover:bg-slate-100'
+    } ${isOver ? 'ring-2 ring-brand-blue-primary/60 bg-brand-blue-lighter/40' : ''}`}
+    style={{
+      gap: isRail ? '0' : 'min(8px, 2cqmin)',
+      paddingInline: isRail ? '0' : 'min(8px, 2cqmin)',
+      paddingBlock: 'min(6px, 1.5cqmin)',
+      fontSize: 'min(13px, 4cqmin)',
+    }}
+  >
+    <Icon
+      style={{
+        width: 'min(16px, 4.5cqmin)',
+        height: 'min(16px, 4.5cqmin)',
+        flexShrink: 0,
+      }}
+    />
+    {!isRail && <span className="flex-1 truncate">{label}</span>}
+    {!isRail && count != null && count > 0 && (
+      <span
+        className={`inline-flex items-center justify-center rounded-full font-bold leading-none ${
+          selected
+            ? 'bg-brand-blue-primary/20 text-brand-blue-dark'
+            : 'bg-slate-200 text-slate-600'
+        }`}
+        style={{
+          paddingInline: 'min(6px, 1.5cqmin)',
+          fontSize: 'min(10px, 3cqmin)',
+        }}
+      >
+        {count}
+      </span>
+    )}
+  </button>
+);
 
 const NewFolderInput: React.FC<{
   value: string;

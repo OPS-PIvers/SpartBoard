@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { DialogProvider } from '@/context/DialogContext';
 import { AuthProvider } from '@/context/AuthContext';
-import { useFolders } from '@/hooks/useFolders';
+import type { UseFoldersResult } from '@/hooks/useFolders';
 import { QuizManager } from '@/components/widgets/QuizWidget/components/QuizManager';
 import type { QuizManagerTab } from '@/components/widgets/QuizWidget/components/QuizManager';
 import { VideoActivityManager } from '@/components/widgets/VideoActivityWidget/components/VideoActivityManager';
@@ -18,6 +18,7 @@ import type {
   ClassRoster,
   FlashcardAssignment,
   FlashcardSet,
+  LibraryFolder,
   GuidedLearningAssignment,
   GuidedLearningSetMetadata,
   MiniAppAssignment,
@@ -346,12 +347,127 @@ const MiniAppView: React.FC = () => {
   );
 };
 
+const FIXTURE_FOLDERS: LibraryFolder[] = [
+  {
+    id: 'unit-1',
+    name: 'Unit 1: Greetings',
+    parentId: null,
+    order: 0,
+    createdAt: NOW,
+  },
+  {
+    id: 'unit-2',
+    name: 'Unit 2: School life',
+    parentId: null,
+    order: 1,
+    createdAt: NOW,
+  },
+  {
+    id: 'unit-2-wk1',
+    name: 'Week 1',
+    parentId: 'unit-2',
+    order: 0,
+    createdAt: NOW,
+  },
+  {
+    id: 'unit-2-wk2',
+    name: 'Week 2',
+    parentId: 'unit-2',
+    order: 1,
+    createdAt: NOW,
+  },
+  {
+    id: 'unit-2-wk2-quiz',
+    name: 'Quiz prep',
+    parentId: 'unit-2-wk2',
+    order: 0,
+    createdAt: NOW,
+  },
+  {
+    id: 'review',
+    name: 'Review games',
+    parentId: null,
+    order: 2,
+    createdAt: NOW,
+  },
+];
+
+const FIXTURE_FOLDER_IDS = [
+  'unit-1',
+  'unit-1',
+  'unit-1',
+  'unit-2-wk1',
+  'unit-2-wk1',
+  'unit-2-wk2',
+  'unit-2-wk2-quiz',
+  'unit-2-wk2-quiz',
+  'review',
+  null,
+  null,
+  null,
+];
+
+/** In-memory folders so the folder view can be exercised without Firestore. */
+const useFixtureFolders = (
+  onMoveItem: (itemId: string, folderId: string | null) => void
+): UseFoldersResult => {
+  const [folders, setFolders] = useState(FIXTURE_FOLDERS);
+  const createFolder = (name: string, parentId: string | null) => {
+    const id = `folder-${Date.now()}`;
+    setFolders((prev) => [
+      ...prev,
+      { id, name, parentId, order: prev.length, createdAt: Date.now() },
+    ]);
+    return Promise.resolve(id);
+  };
+  return {
+    folders,
+    loading: false,
+    error: null,
+    createFolder,
+    renameFolder: (folderId, nextName) => {
+      setFolders((prev) =>
+        prev.map((f) => (f.id === folderId ? { ...f, name: nextName } : f))
+      );
+      return Promise.resolve();
+    },
+    moveFolder: (folderId, nextParentId) => {
+      setFolders((prev) =>
+        prev.map((f) =>
+          f.id === folderId ? { ...f, parentId: nextParentId } : f
+        )
+      );
+      return Promise.resolve();
+    },
+    deleteFolder: (folderId) => {
+      setFolders((prev) => prev.filter((f) => f.id !== folderId));
+      return Promise.resolve();
+    },
+    reorderSiblings: () => Promise.resolve(),
+    moveItem: (itemId, folderId) => {
+      onMoveItem(itemId, folderId);
+      return Promise.resolve();
+    },
+  };
+};
+
 const FlashcardsView: React.FC = () => {
   const [tab, setTab] = useState<LibraryTab>('library');
-  const folders = useFolders(undefined, 'flashcards');
+  const [sets, setSets] = useState(() =>
+    FLASHCARD_SETS.map((set, i) => ({
+      ...set,
+      folderId: FIXTURE_FOLDER_IDS[i] ?? null,
+    }))
+  );
+  const folders = useFixtureFolders((itemId, folderId) =>
+    setSets((prev) =>
+      prev.map((set) => (set.id === itemId ? { ...set, folderId } : set))
+    )
+  );
   return (
     <FlashcardLibrary
-      sets={FLASHCARD_SETS}
+      userId="mock-user-id"
+      sets={sets}
       loading={false}
       error={null}
       folders={folders}

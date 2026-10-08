@@ -51,6 +51,8 @@ import { logError } from '@/utils/logError';
 import { buildPlcAssessmentPath, spaNavigate } from '@/utils/plcPath';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
+import { useFolderLibraryView } from '@/components/common/library/useFolderLibraryView';
+import { FolderViewHeader } from '@/components/common/library/FolderViewHeader';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { PlcTeammatePrintModal } from '@/components/plc/PlcTeammatePrintModal';
 import { PlcNewQuizAssignmentModal } from '@/components/plc/PlcNewQuizAssignmentModal';
@@ -75,6 +77,13 @@ interface PlcAssessmentListProps {
   /** Rendered above the folder tree in the left rail (the section type nav). */
   rail?: React.ReactNode;
 }
+
+const ROW_ID = (row: AssessmentListRow): string => row.id;
+const ROW_SEARCH_FIELDS = (row: AssessmentListRow): string => row.title;
+const ASSESSMENT_NOUN = ['assessment', 'assessments'] as const;
+// Rows arrive in their saved order; a no-op comparator keeps it.
+const KEEP_ORDER_SORT = { key: 'manual', dir: 'asc' } as const;
+const KEEP_ORDER_COMPARATORS = { manual: () => 0 };
 
 const FILTERS: readonly {
   id: AssessmentListFilter;
@@ -621,9 +630,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   const [libraryAssignOpen, setLibraryAssignOpen] = useState(false);
 
   const [filter, setFilter] = useState<AssessmentListFilter>('all');
-  const [search, setSearch] = useState('');
   const [targetFilter, setTargetFilter] = useState<string | null>(null);
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
 
   const memberUids = useMemo(() => members.map((m) => m.uid), [members]);
   const rows = useMemo(
@@ -636,10 +643,29 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
       }),
     [assessments, aggregates, libraryEntries, memberUids]
   );
-  const folderFilteredRows = useMemo(
-    () => filterRowsByFolder(rows, selectedFolderId),
-    [rows, selectedFolderId]
+  const statusFilteredRows = useMemo(
+    () => filterAssessmentRows(rows, filter, '', targetFilter),
+    [rows, filter, targetFilter]
   );
+  const folderNav = useFolderLibraryView<AssessmentListRow>({
+    items: statusFilteredRows,
+    initialSort: KEEP_ORDER_SORT,
+    searchFields: ROW_SEARCH_FIELDS,
+    sortComparators: KEEP_ORDER_COMPARATORS,
+    folderView: {
+      library: `plc:${plc.id}`,
+      userId: user?.uid,
+      folders: folderState.folders,
+      foldersLoading: folderState.loading,
+      getId: ROW_ID,
+      itemNoun: ASSESSMENT_NOUN,
+      legacyFilter: filterRowsByFolder,
+    },
+  });
+  const selectedFolderId = folderNav.selectedFolderId;
+  const search = folderNav.state.search;
+  const setSearch = folderNav.toolbarProps.onSearchChange;
+  const folderView = folderNav.folderView;
   const targetOptions = useMemo(() => {
     const byId = new Map<string, AssessmentListRow['targets'][number]>();
     for (const row of rows) {
@@ -653,11 +679,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
       )
     );
   }, [rows]);
-  const visibleRows = useMemo(
-    () =>
-      filterAssessmentRows(folderFilteredRows, filter, search, targetFilter),
-    [folderFilteredRows, filter, search, targetFilter]
-  );
+  const visibleRows = folderNav.visibleItems;
   const folderItemCounts = useMemo(() => countRowsByFolder(rows), [rows]);
   const folderView = useFolderViewSidebar({
     setFolderColor: folderState.setFolderColor,
@@ -847,6 +869,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   const { reorderEntries } = folderState;
   const handleReorder = useCallback(
     async (nextVisibleIds: string[]) => {
+      if (folderView && folderView.location.kind !== 'folder') return;
       const changes = reorderRows(rows, nextVisibleIds);
       if (changes.length === 0) return;
       try {
@@ -867,7 +890,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
         );
       }
     },
-    [rows, reorderEntries, addToast, plc.id, t]
+    [rows, reorderEntries, addToast, plc.id, t, folderView]
   );
 
   const handleDropOnFolder = useCallback(
@@ -935,8 +958,11 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   );
 
   const isEmpty = !loading && !error && rows.length === 0;
-  const isFolderEmpty =
-    !isEmpty && selectedFolderId !== null && folderFilteredRows.length === 0;
+  const isFolderEmpty = folderView
+    ? folderView.emptyFolder
+    : !isEmpty &&
+      selectedFolderId !== null &&
+      filterRowsByFolder(rows, selectedFolderId).length === 0;
 
   const shareButton = canEdit ? (
     <button
@@ -1104,6 +1130,10 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
             </p>
             <div className="mt-4 flex justify-center">{shareButton}</div>
           </div>
+        ) : visibleRows.length === 0 &&
+          folderView &&
+          folderView.folderRows.length > 0 ? (
+          <FolderViewHeader model={folderView} viewMode="list" />
         ) : visibleRows.length === 0 ? (
           <p className="text-sm text-slate-500 text-center py-8">
             {isFolderEmpty
@@ -1123,6 +1153,9 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
             items={rowIds}
             strategy={verticalListSortingStrategy}
           >
+            {folderView && (
+              <FolderViewHeader model={folderView} viewMode="list" />
+            )}
             <ul className="space-y-2">
               {visibleRows.map((row) => (
                 <AssessmentRow
@@ -1172,7 +1205,8 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
         loading={folderState.loading}
         error={folderState.error}
         selectedFolderId={selectedFolderId}
-        onSelectFolder={setSelectedFolderId}
+        onSelectFolder={folderNav.onSelectFolder}
+        folderView={folderView}
         itemCounts={folderItemCounts}
         onCreateFolder={canEdit ? folderState.createFolder : undefined}
         onRenameFolder={canEdit ? folderState.renameFolder : undefined}

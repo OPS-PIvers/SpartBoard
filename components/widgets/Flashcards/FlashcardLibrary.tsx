@@ -31,14 +31,16 @@ import {
   LibraryToolbar,
   buildMoveToFolderAction,
   countItemsByFolder,
-  filterByFolder,
-  useLibraryView,
+  latestAssignedAt,
+  useFolderLibraryView,
 } from '@/components/common/library';
 import type { LibraryBadge, LibraryTab } from '@/components/common/library';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 
 interface FlashcardLibraryProps {
+  /** Signed-in teacher, for the folder view's last-folder preference. */
+  userId?: string;
   sets: FlashcardSet[];
   loading: boolean;
   error: string | null;
@@ -106,7 +108,11 @@ const updatedComparator = (
   return direction === 'asc' ? result : -result;
 };
 
+const SET_NOUN = ['set', 'sets'] as const;
+const getSetId = (set: FlashcardSet): string => set.id;
+
 export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
+  userId,
   sets,
   loading,
   error,
@@ -136,15 +142,19 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onAssignmentShareWithPlc,
   onAssignmentStopSharingWithPlc,
 }) => {
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [folderTarget, setFolderTarget] = useState<FlashcardSet | null>(null);
-
-  const folderFilteredSets = useMemo(
-    () => filterByFolder(sets, selectedFolderId),
-    [selectedFolderId, sets]
+  const lastAssigned = useMemo(
+    () => latestAssignedAt(assignments, (a) => a.setId),
+    [assignments]
   );
-  const view = useLibraryView({
-    items: folderFilteredSets,
+  const recentAt = useCallback(
+    (set: FlashcardSet) =>
+      Math.max(set.updatedAt, lastAssigned.get(set.id) ?? 0),
+    [lastAssigned]
+  );
+
+  const view = useFolderLibraryView({
+    items: sets,
     initialSort: { key: 'updated', dir: 'desc' },
     initialViewMode: 'list',
     searchFields: (set) => [
@@ -155,6 +165,15 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
     sortComparators: {
       updated: updatedComparator,
       title: titleComparator,
+    },
+    folderView: {
+      library: 'flashcards',
+      userId,
+      folders: folders.folders,
+      foldersLoading: folders.loading,
+      getId: getSetId,
+      getRecentAt: recentAt,
+      itemNoun: SET_NOUN,
     },
   });
   const { moveItem } = folders;
@@ -310,9 +329,10 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
     <FolderSidebar
       widget="flashcards"
       folders={folders.folders}
-      selectedFolderId={selectedFolderId}
-      onSelectFolder={setSelectedFolderId}
+      selectedFolderId={view.selectedFolderId}
+      onSelectFolder={view.onSelectFolder}
       itemCounts={folderCounts}
+      folderView={view.folderView}
       onCreateFolder={folders.createFolder}
       onRenameFolder={folders.renameFolder}
       onMoveFolder={folders.moveFolder}
@@ -362,6 +382,8 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
           )
         }
         filterSidebarSlot={tab === 'library' ? folderSidebar : undefined}
+        folderView={view.folderView}
+        folderViewMode={view.state.viewMode}
       >
         {tab !== 'library' ? (
           assignmentsContent

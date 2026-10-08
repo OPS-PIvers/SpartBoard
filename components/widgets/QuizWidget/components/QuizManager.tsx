@@ -113,7 +113,8 @@ import {
   FolderPickerPopover,
   LibraryDndContext,
   buildMoveToFolderAction,
-  useLibraryView,
+  useFolderLibraryView,
+  latestAssignedAt,
   useLibrarySelection,
   useSortableReorder,
   BulkActionBar,
@@ -145,10 +146,7 @@ import {
 } from './AssignDestinationModal';
 import { SchoologyAssignInstructions } from './SchoologyAssignInstructions';
 import { PersonalLearningTargetsModal } from './PersonalLearningTargetsModal';
-import {
-  countItemsByFolder,
-  filterByFolder,
-} from '@/components/common/library/folderFilters';
+import { countItemsByFolder } from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -599,6 +597,7 @@ const LIBRARY_SEARCH_FIELDS = (q: QuizMetadata): string =>
 const LIBRARY_INITIAL_SORT = { key: 'updated', dir: 'desc' as const };
 
 const QUIZ_GET_ID = (q: QuizMetadata): string => q.id;
+const QUIZ_NOUN = ['quiz', 'quizzes'] as const;
 
 // Exported so tests exercise the real comparator rather than a re-declared
 // lambda. Constant export on a component file is intentional here.
@@ -1003,7 +1002,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
   // ─── Folder navigation (Wave 3-B-3) ───────────────────────────────────────
   const folderState = useFolders(userId, 'quiz');
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   // Quiz whose "Move to folder…" picker is open (null = picker closed).
   const [folderPickerTarget, setFolderPickerTarget] =
     useState<QuizMetadata | null>(null);
@@ -1029,23 +1027,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     }
   }
 
-  // Reset folder selection when the signed-in user changes or the selected
-  // folder no longer exists (e.g. after delete, sign-out, or account switch).
-  // Done in render via React's "adjust state during render" pattern so the
-  // stale selection never participates in filtering.
-  const [prevFolderUserId, setPrevFolderUserId] = useState(userId);
-  if (prevFolderUserId !== userId) {
-    setPrevFolderUserId(userId);
-    setSelectedFolderId(null);
-  }
-  if (
-    !folderState.loading &&
-    selectedFolderId !== null &&
-    !folderState.folders.some((f) => f.id === selectedFolderId)
-  ) {
-    setSelectedFolderId(null);
-  }
-
   // Count quizzes per folder id (+ `root` for unfoldered items) for sidebar
   // badges.
   const folderItemCounts = useMemo(
@@ -1059,16 +1040,28 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     ...folderDeleteActions,
   });
 
-  // Filter BEFORE useLibraryView so search/sort only operate on the
-  // currently-selected folder's quizzes.
-  const folderFilteredQuizzes = useMemo(
-    () => filterByFolder(quizzes, selectedFolderId),
-    [quizzes, selectedFolderId]
+  const lastAssignedAt = useMemo(
+    () => latestAssignedAt(assignments, (a) => a.quizId),
+    [assignments]
+  );
+  const quizRecentAt = useCallback(
+    (q: QuizMetadata) =>
+      Math.max(q.updatedAt ?? q.createdAt ?? 0, lastAssignedAt.get(q.id) ?? 0),
+    [lastAssignedAt]
   );
 
   // ─── Library tab toolbar state ────────────────────────────────────────────
-  const libraryView = useLibraryView<QuizMetadata>({
-    items: folderFilteredQuizzes,
+  const libraryView = useFolderLibraryView<QuizMetadata>({
+    items: quizzes,
+    folderView: {
+      library: 'quiz',
+      userId,
+      folders: folderState.folders,
+      foldersLoading: folderState.loading,
+      getId: QUIZ_GET_ID,
+      getRecentAt: quizRecentAt,
+      itemNoun: QUIZ_NOUN,
+    },
     initialSort: LIBRARY_INITIAL_SORT,
     // Phase 2 redesign: the library is list-only (monitor row idiom).
     initialViewMode: 'list',
@@ -2113,9 +2106,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         folders={folderState.folders}
         loading={folderState.loading}
         error={folderState.error}
-        selectedFolderId={selectedFolderId}
-        onSelectFolder={setSelectedFolderId}
+        selectedFolderId={libraryView.selectedFolderId}
+        onSelectFolder={libraryView.onSelectFolder}
         itemCounts={folderItemCounts}
+        folderView={libraryView.folderView}
         onCreateFolder={folderState.createFolder}
         onRenameFolder={folderState.renameFolder}
         onMoveFolder={folderState.moveFolder}
@@ -2340,6 +2334,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       primaryAction={primaryAction}
       toolbarSlot={toolbar}
       filterSidebarSlot={folderSidebarSlot}
+      folderView={libraryView.folderView}
+      folderViewMode={libraryView.state.viewMode}
     >
       {managerTab === 'library' && (
         <LibraryTabContent

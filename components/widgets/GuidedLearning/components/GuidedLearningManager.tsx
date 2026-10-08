@@ -73,7 +73,8 @@ import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
-import { useLibraryView } from '@/components/common/library/useLibraryView';
+import { useFolderLibraryView } from '@/components/common/library/useFolderLibraryView';
+import { latestAssignedAt } from '@/components/common/library/folderView';
 import { useLibrarySelection } from '@/components/common/library/useLibrarySelection';
 import { useSortableReorder } from '@/components/common/library/useSortableReorder';
 import { BulkActionBar } from '@/components/common/library/BulkActionBar';
@@ -362,6 +363,7 @@ const LIBRARY_FILTER_PREDICATES = {
 };
 
 const LIBRARY_GET_ID = (e: LibraryEntry): string => e.id;
+const SET_NOUN = ['set', 'sets'] as const;
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 
@@ -535,9 +537,6 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   // ─── Folder navigation (Wave 3-B-3) ─────────────────────────────────────
   const folderState = useFolders(userId, 'guided_learning');
-  const [selectedFolderId, setSelectedFolderId] = React.useState<string | null>(
-    null
-  );
   // When set, a `FolderPickerPopover` dialog is shown for this personal entry.
   // Only 'personal' sets participate in folders (building sets have no
   // folderId). Carry the rawId + display title so the dialog can label itself
@@ -547,21 +546,6 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     title: string;
     folderId: string | null;
   } | null>(null);
-
-  // Reset folder selection when the signed-in user changes or the selected
-  // folder no longer exists (adjust-state-during-render pattern).
-  const [prevFolderUserId, setPrevFolderUserId] = React.useState(userId);
-  if (prevFolderUserId !== userId) {
-    setPrevFolderUserId(userId);
-    setSelectedFolderId(null);
-  }
-  if (
-    !folderState.loading &&
-    selectedFolderId !== null &&
-    !folderState.folders.some((f) => f.id === selectedFolderId)
-  ) {
-    setSelectedFolderId(null);
-  }
 
   // Building sets have no folderId; fold them into the root bucket so "All items" counts them.
   const libraryBuildingCount = buildingSets.filter(
@@ -583,12 +567,17 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   });
 
   const allEntries = useMemo(
-    () =>
-      filterSourcedEntriesByFolder(
-        buildLibraryEntries(sets, buildingSets),
-        selectedFolderId
-      ),
-    [sets, buildingSets, selectedFolderId]
+    () => buildLibraryEntries(sets, buildingSets),
+    [sets, buildingSets]
+  );
+  const lastAssignedAt = useMemo(
+    () => latestAssignedAt(assignments, (a) => `personal:${a.setId}`),
+    [assignments]
+  );
+  const entryRecentAt = useCallback(
+    (e: LibraryEntry) =>
+      Math.max(e.updatedAt ?? e.createdAt ?? 0, lastAssignedAt.get(e.id) ?? 0),
+    [lastAssignedAt]
   );
 
   // ─── Toolbar state (search/sort/filter) via useLibraryView ────────────────
@@ -612,8 +601,18 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         (e) => e.hasLiveTour && (isAdmin || !isHelpCenterSet(e))
       ));
 
-  const view = useLibraryView<LibraryEntry>({
+  const view = useFolderLibraryView<LibraryEntry>({
     items: allEntries,
+    folderView: {
+      library: 'guided_learning',
+      userId,
+      folders: folderState.folders,
+      foldersLoading: folderState.loading,
+      getId: LIBRARY_GET_ID,
+      getRecentAt: entryRecentAt,
+      itemNoun: SET_NOUN,
+      legacyFilter: filterSourcedEntriesByFolder,
+    },
     initialSort: LIBRARY_INITIAL_SORT,
     // Phase 2 redesign: the library is list-only (monitor row idiom).
     initialViewMode: 'list',
@@ -1535,8 +1534,9 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         folders={folderState.folders}
         loading={folderState.loading}
         error={folderState.error}
-        selectedFolderId={selectedFolderId}
-        onSelectFolder={setSelectedFolderId}
+        selectedFolderId={view.selectedFolderId}
+        onSelectFolder={view.onSelectFolder}
+        folderView={view.folderView}
         itemCounts={folderItemCounts}
         onCreateFolder={folderState.createFolder}
         onRenameFolder={folderState.renameFolder}
@@ -1601,6 +1601,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     <LibraryShell
       widgetLabel="Guided Learning"
       widgetType="guided-learning"
+      folderView={view.folderView}
+      folderViewMode={view.state.viewMode}
       tab={tab}
       onTabChange={setTab}
       counts={{

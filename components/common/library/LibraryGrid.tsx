@@ -39,6 +39,9 @@ import {
 } from '@dnd-kit/sortable';
 import type { LibraryGridProps } from './types';
 import { LibraryGridLockContext } from './LibraryGridLockContext';
+import { useLibraryFolderView } from './LibraryFolderViewContext';
+import { Folder } from 'lucide-react';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 
 interface LibraryGridExtraProps {
   /**
@@ -75,6 +78,7 @@ export function LibraryGrid<TItem>(
   );
 
   const [activeId, setActiveId] = useState<string | null>(null);
+  const folderView = useLibraryFolderView();
 
   const ids = useMemo(() => items.map(getId), [items, getId]);
   const activeItem = useMemo(
@@ -99,6 +103,19 @@ export function LibraryGrid<TItem>(
   );
 
   if (items.length === 0) {
+    if (folderView?.emptyFolder) {
+      return (
+        <ScaledEmptyState
+          icon={Folder}
+          iconClassName="text-amber-300"
+          iconSize="min(52px, 14cqmin)"
+          titleClassName="text-slate-800"
+          title="This folder is empty"
+        />
+      );
+    }
+    // Folder rows above the list already fill the view.
+    if (folderView && folderView.folderRows.length > 0) return null;
     return <>{emptyState ?? null}</>;
   }
 

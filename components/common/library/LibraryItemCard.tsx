@@ -27,11 +27,12 @@ import React, {
 import { createPortal } from 'react-dom';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Check, GripVertical, MoreHorizontal } from 'lucide-react';
+import { Check, Folder, GripVertical, MoreHorizontal } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { Z_INDEX } from '@/config/zIndex';
 import { LibraryGridLockContext } from './LibraryGridLockContext';
+import { useLibraryFolderView } from './LibraryFolderViewContext';
 import { useCloseOnHostResize } from '../useCloseOnHostResize';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import type {
@@ -384,6 +385,26 @@ const BadgeChip: React.FC<{ badge: LibraryBadge }> = ({ badge }) => {
   );
 };
 
+/** Where an item lives, shown when it appears outside its own folder. */
+const FolderPathChip: React.FC<{ label: string }> = ({ label }) => (
+  <span
+    className="inline-flex items-center rounded-full bg-slate-100 font-semibold text-slate-600 break-words"
+    style={{
+      fontSize: 'min(11px, 4cqmin)',
+      paddingInline: 'min(8px, 2.5cqmin)',
+      paddingBlock: 'min(2px, 0.6cqmin)',
+      gap: 'min(4px, 1.2cqmin)',
+    }}
+  >
+    <Folder
+      aria-hidden
+      className="shrink-0"
+      style={{ width: 'min(12px, 4cqmin)', height: 'min(12px, 4cqmin)' }}
+    />
+    {label}
+  </span>
+);
+
 /* ─── Inner card body (presentation only — no dnd-kit coupling) ───────────── */
 
 interface CardBodyProps<TMeta> extends LibraryItemCardProps<TMeta> {
@@ -414,6 +435,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
     tourWidgetType,
   } = props;
 
+  const folderPathLabel = useLibraryFolderView()?.pathByItemId.get(props.id);
   const PrimaryIcon = primaryAction?.icon;
   const SecondaryPrimaryIcon = secondaryPrimaryAction?.icon;
   const isList = viewMode === 'list';
@@ -585,12 +607,13 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
             {subtitle}
           </div>
         )}
-        {badges && badges.length > 0 && (
+        {((badges?.length ?? 0) > 0 || folderPathLabel != null) && (
           <div
             className="mt-1 flex flex-wrap items-center"
             style={{ gap: 'min(6px, 1.5cqmin)' }}
           >
-            {badges.map((b, i) => (
+            {folderPathLabel && <FolderPathChip label={folderPathLabel} />}
+            {badges?.map((b, i) => (
               <BadgeChip key={`${b.label}-${i}`} badge={b} />
             ))}
           </div>
