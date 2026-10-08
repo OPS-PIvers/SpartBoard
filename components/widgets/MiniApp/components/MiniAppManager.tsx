@@ -85,6 +85,7 @@ import type {
   AssignmentStatusBadge,
 } from '@/components/common/library/types';
 import { buildDuplicateAction } from '@/components/common/library/libraryDuplicate';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -399,6 +400,11 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     () => countItemsByFolder(personalLibrary),
     [personalLibrary]
   );
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folderState.setFolderColor,
+    noun: { one: 'Mini app', many: 'Mini apps' },
+    items: personalLibrary,
+  });
 
   // Filter BEFORE building rows so search/sort only operate on the currently
   // selected folder's apps.
@@ -597,6 +603,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         onRenameFolder={folderState.renameFolder}
         onMoveFolder={folderState.moveFolder}
         onDeleteFolder={folderState.deleteFolder}
+        {...folderView}
         enableDrop
       />
     ) : undefined;

@@ -171,6 +171,7 @@ import {
   dueInputsToEpoch,
   DEFAULT_DUE_TIME,
 } from '@/utils/localDate';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 
 export interface PlcOptions {
   plcMode: boolean;
@@ -1045,6 +1046,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     () => countItemsByFolder(quizzes),
     [quizzes]
   );
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folderState.setFolderColor,
+    noun: { one: 'quiz', many: 'quizzes' },
+    items: quizzes,
+  });
 
   // Filter BEFORE useLibraryView so search/sort only operate on the
   // currently-selected folder's quizzes.
@@ -2107,6 +2113,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onRenameFolder={folderState.renameFolder}
         onMoveFolder={folderState.moveFolder}
         onDeleteFolder={folderState.deleteFolder}
+        {...folderView}
         enableDrop
       />
     ) : undefined;

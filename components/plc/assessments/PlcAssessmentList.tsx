@@ -66,6 +66,7 @@ import {
   type AssessmentListRow,
   type AssessmentRowStatus,
 } from './assessmentListSelectors';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 
 interface PlcAssessmentListProps {
   plc: Plc;
@@ -658,6 +659,11 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
     [folderFilteredRows, filter, search, targetFilter]
   );
   const folderItemCounts = useMemo(() => countRowsByFolder(rows), [rows]);
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folderState.setFolderColor,
+    noun: { one: 'assessment', many: 'assessments' },
+    items: rows,
+  });
   const rowIds = useMemo(() => visibleRows.map((r) => r.id), [visibleRows]);
   const suggestions = useMemo(
     () => suggestedFolderNames(assessments),
@@ -1172,6 +1178,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
         onRenameFolder={canEdit ? folderState.renameFolder : undefined}
         onMoveFolder={canEdit ? folderState.moveFolder : undefined}
         onDeleteFolder={canEdit ? folderState.deleteFolder : undefined}
+        {...(canEdit ? folderView : {})}
         enableDrop={canEdit}
       />
       {showSuggestions && (

@@ -35,6 +35,7 @@ import {
   useLibraryView,
 } from '@/components/common/library';
 import type { LibraryBadge, LibraryTab } from '@/components/common/library';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 
 interface FlashcardLibraryProps {
   sets: FlashcardSet[];
@@ -164,6 +165,11 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
     [moveItem, onError]
   );
   const folderCounts = useMemo(() => countItemsByFolder(sets), [sets]);
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folders.setFolderColor,
+    noun: { one: 'flashcard set', many: 'flashcard sets' },
+    items: sets,
+  });
   const activeAssignments = useMemo(
     () => assignments.filter((a) => a.status === 'active'),
     [assignments]
@@ -306,6 +312,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
       onRenameFolder={folders.renameFolder}
       onMoveFolder={folders.moveFolder}
       onDeleteFolder={folders.deleteFolder}
+      {...folderView}
       loading={folders.loading}
       error={folders.error}
     />

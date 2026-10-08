@@ -39,6 +39,7 @@ import {
 import { useFolders } from '@/hooks/useFolders';
 import { useDialog } from '@/context/useDialog';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 
 export interface QuizBanksTabProps {
   userId?: string;
@@ -160,6 +161,11 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
     setSelectedFolderId(null);
   }
   const folderItemCounts = useMemo(() => countItemsByFolder(banks), [banks]);
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folderState.setFolderColor,
+    noun: { one: 'question bank', many: 'question banks' },
+    items: banks,
+  });
   const folderFiltered = useMemo(
     () => filterByFolder(banks, selectedFolderId),
     [banks, selectedFolderId]
@@ -382,6 +388,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       onRenameFolder={folderState.renameFolder}
       onMoveFolder={folderState.moveFolder}
       onDeleteFolder={folderState.deleteFolder}
+      {...folderView}
       enableDrop
     />
   ) : undefined;

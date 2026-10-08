@@ -63,6 +63,7 @@ import {
   setRunAcceptingUpdates,
   syncRunFromProject,
 } from '@/utils/projectRunWrites';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 
 const formatDate = (ms: number): string =>
   new Date(ms).toLocaleDateString(undefined, {
@@ -244,6 +245,11 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
     () => countItemsByFolder(libraryProjects),
     [libraryProjects]
   );
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folderState.setFolderColor,
+    noun: { one: 'project', many: 'projects' },
+    items: libraryProjects,
+  });
 
   const foldered = useMemo(
     () => filterByFolder(libraryProjects, selectedFolderId),
@@ -656,6 +662,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
         onRenameFolder={folderState.renameFolder}
         onMoveFolder={folderState.moveFolder}
         onDeleteFolder={folderState.deleteFolder}
+        {...folderView}
         enableDrop
       />
     ) : undefined;

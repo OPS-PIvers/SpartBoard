@@ -105,6 +105,7 @@ import {
   isTourRunnable,
   watchTours,
 } from '@/components/tours/publishedTours';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 
 // Lazy so the preview player chunk loads only when a teacher hits Play preview.
 const LazyGuidedLearningPlayer = lazy(() =>
@@ -570,6 +571,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     }
     return counts;
   }, [sets, libraryBuildingCount]);
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folderState.setFolderColor,
+    noun: { one: 'set', many: 'sets' },
+    items: sets,
+  });
 
   const allEntries = useMemo(
     () =>
@@ -1531,6 +1537,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         onRenameFolder={folderState.renameFolder}
         onMoveFolder={folderState.moveFolder}
         onDeleteFolder={folderState.deleteFolder}
+        {...folderView}
         enableDrop
       />
     ) : undefined;

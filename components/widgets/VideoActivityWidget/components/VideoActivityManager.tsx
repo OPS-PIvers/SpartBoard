@@ -114,6 +114,7 @@ import {
   dueInputsToEpoch,
   DEFAULT_DUE_TIME,
 } from '@/utils/localDate';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
 
@@ -681,6 +682,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     () => countItemsByFolder(activities),
     [activities]
   );
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folderState.setFolderColor,
+    noun: { one: 'video activity', many: 'video activities' },
+    items: activities,
+  });
 
   const folderFilteredActivities = useMemo(
     () => filterByFolder(activities, selectedFolderId),
@@ -1446,6 +1452,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         onRenameFolder={folderState.renameFolder}
         onMoveFolder={folderState.moveFolder}
         onDeleteFolder={folderState.deleteFolder}
+        {...folderView}
         enableDrop
       />
     ) : undefined;
