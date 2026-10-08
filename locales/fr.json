@@ -1966,7 +1966,8 @@
       "readAloud": "Lecture à voix haute",
       "language": "{{language}}"
     },
-    "language": "Langue"
+    "language": "Langue",
+    "noChanges": "Aucun changement"
   },
   "assignTargeting": {
     "expandAffordance": "Modifier ou ajouter des aménagements",
@@ -2026,7 +2027,11 @@
     "back": "Retour",
     "modificationsEyebrow": "Attribuer · {{title}}",
     "modificationsLink": "Aménagements : {{value}}",
-    "modificationsNone": "Aucun"
+    "modificationsNone": "Aucun",
+    "standingHeading": "Permanents",
+    "skippedChip": "Ignoré",
+    "removeModification": "Retirer l’aménagement",
+    "addStudent": "Ajouter un élève"
   },
   "assignmentsHub": {
     "title": "Devoirs",

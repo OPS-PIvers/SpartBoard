@@ -3085,7 +3085,8 @@
       "readAloud": "Read aloud",
       "language": "{{language}}"
     },
-    "language": "Language"
+    "language": "Language",
+    "noChanges": "No changes"
   },
   "assignTargeting": {
     "expandAffordance": "Edit or add modifications",
@@ -3145,7 +3146,11 @@
     "back": "Back",
     "modificationsEyebrow": "Assign · {{title}}",
     "modificationsLink": "Modifications: {{value}}",
-    "modificationsNone": "None"
+    "modificationsNone": "None",
+    "standingHeading": "Standing",
+    "skippedChip": "Skipped",
+    "removeModification": "Remove modification",
+    "addStudent": "Add a student"
   },
   "assignmentsHub": {
     "title": "Assignments",

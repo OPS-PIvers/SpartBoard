@@ -181,7 +181,9 @@ describe('ModificationsView', () => {
       screen.getByText(/1 students have no school sign-in/)
     ).toBeInTheDocument();
     expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
-    expect(screen.queryByText('Ada Lovelace')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Ada Lovelace/ })
+    ).not.toBeInTheDocument();
   });
 
   it('back arrow and Done both return', () => {
@@ -191,12 +193,43 @@ describe('ModificationsView', () => {
     expect(onBack).toHaveBeenCalledTimes(2);
   });
 
-  it('skipping a student adds them to excludedStudents', () => {
+  it('adding a student opens their row, and skip lives inside it', () => {
     const { onChange } = renderView();
-    fireEvent.click(screen.getByText('Show 1 more'));
-    fireEvent.click(screen.getByLabelText('Skip Ada Lovelace'));
+    expect(
+      screen.queryByRole('button', { name: /Ada Lovelace/ })
+    ).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Add a student'), {
+      target: { value: 'classlink:SID-1' },
+    });
+    expect(
+      screen.getByRole('button', { name: /Ada Lovelace/ })
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('switch', { name: 'Skip Ada Lovelace' }));
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ excludedStudents: [adaRef] })
+    );
+  });
+
+  it('shows a Skipped chip, and Remove modification unskips', () => {
+    const value: AssignTargetingValue = {
+      ...EMPTY_ASSIGN_TARGETING_VALUE,
+      excludedStudents: [adaRef],
+    };
+    const { onChange } = renderView(value);
+    expect(screen.getByText('Skipped')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Ada Lovelace'));
+    fireEvent.click(screen.getByText('Remove modification'));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ excludedStudents: [] })
+    );
+  });
+
+  it('Remove modification on a standing student clears it for this assignment only', () => {
+    const { onChange } = renderView();
+    fireEvent.click(screen.getByText('Grace Hopper'));
+    fireEvent.click(screen.getByText('Remove modification'));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ overridesByKey: { 'classlink:SID-2': {} } })
     );
   });
 

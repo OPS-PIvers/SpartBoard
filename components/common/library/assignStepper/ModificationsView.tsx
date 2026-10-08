@@ -14,6 +14,7 @@ import {
 } from '@/utils/quizTranslationAdvisory';
 import { languageNativeLabel } from '@/utils/languageNativeLabel';
 import { scaledFont } from '../assignWindowUtils';
+import { Toggle } from '@/components/common/Toggle';
 import {
   OverrideEditorRow,
   type OverrideEditorPeer,
@@ -207,6 +208,30 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
   );
   const multiClass = visibleGroups.length > 1;
 
+  // The view lists promoted rows plus any the teacher added, by last name;
+  // everyone else is in "Add a student".
+  const [addedKeys, setAddedKeys] = useState<string[]>([]);
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const byLastName = (a: ClassStudentRow, b: ClassStudentRow) =>
+    a.lastName.localeCompare(b.lastName) || a.name.localeCompare(b.name);
+  const viewRows = classRows
+    .filter((row) => isPromoted(row) || addedKeys.includes(row.key))
+    .sort(byLastName);
+  const addableRows = classRows
+    .filter((row) => !isPromoted(row) && !addedKeys.includes(row.key))
+    .sort(byLastName);
+  const addableGroups = [
+    ...addableRows
+      .reduce((groups, row) => {
+        groups.set(row.rosterName, [
+          ...(groups.get(row.rosterName) ?? []),
+          row,
+        ]);
+        return groups;
+      }, new Map<string, ClassStudentRow[]>())
+      .entries(),
+  ].map(([rosterName, rows]) => ({ rosterName, rows }));
+
   const translationAdvisory = useMemo(() => {
     const translation = quizContext?.translation;
     if (!translation) return [];
@@ -236,6 +261,28 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
             (r) => studentTargetRefKey(r) !== key
           ),
     });
+  };
+
+  const addStudent = (key: string) => {
+    if (!key) return;
+    setAddedKeys([...addedKeys, key]);
+    setOpenKey(key);
+  };
+
+  // An explicit empty override hides a standing accommodation for this assignment only.
+  const removeModification = (row: ClassStudentRow) => {
+    const overridesByKey = { ...value.overridesByKey };
+    if (row.defaultOverride) overridesByKey[row.key] = {};
+    else delete overridesByKey[row.key];
+    onChange({
+      ...value,
+      overridesByKey,
+      excludedStudents: (value.excludedStudents ?? []).filter(
+        (ref) => studentTargetRefKey(ref) !== row.key
+      ),
+    });
+    setAddedKeys(addedKeys.filter((key) => key !== row.key));
+    setOpenKey(null);
   };
 
   const nonEnglishSource = isNonEnglishQuizSource(
@@ -338,6 +385,106 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
                   'This assignment is not linked to a class you can modify here.'
                 )}
         </p>
+      ) : roomy ? (
+        <>
+          {viewRows.length > 0 && (
+            <div className="text-xxs font-bold uppercase tracking-widest text-brand-blue-primary/60">
+              {t('assignTargeting.standingHeading', 'Standing')}
+            </div>
+          )}
+          <div className="space-y-2">
+            {viewRows.map((row) => (
+              <OverrideEditorRow
+                key={row.key}
+                appearance="card"
+                studentName={row.name}
+                override={
+                  value.overridesByKey[row.key] ?? row.defaultOverride ?? {}
+                }
+                onChange={(next) => setOverrideForKey(row.key, next)}
+                extraChips={
+                  excludedKeys.has(row.key)
+                    ? [t('assignTargeting.skippedChip', 'Skipped')]
+                    : []
+                }
+                expanded={openKey === row.key}
+                onExpandedChange={(next) => setOpenKey(next ? row.key : null)}
+                quizMode={quizMode}
+                readAloudAvailable={readAloudAvailable}
+                questions={quizContext?.questions ?? []}
+                rubrics={quizContext?.rubrics ?? []}
+                peers={viewRows
+                  .filter((peer) => peer.key !== row.key)
+                  .map((peer) => ({
+                    id: peer.key,
+                    name: peer.name,
+                    override:
+                      value.overridesByKey[peer.key] ??
+                      peer.defaultOverride ??
+                      {},
+                  }))}
+                footer={
+                  <>
+                    <div className="flex min-h-[2rem] items-center justify-between gap-3">
+                      <span className="text-sm font-medium text-slate-700">
+                        {t('assignTargeting.skipStudent', 'Skip this student')}
+                      </span>
+                      <Toggle
+                        size="sm"
+                        checked={excludedKeys.has(row.key)}
+                        onChange={(checked) => setSkipped(row.ref, checked)}
+                        label={t(
+                          'assignTargeting.skipStudentNamed',
+                          'Skip {{name}}',
+                          { name: row.name }
+                        )}
+                      />
+                    </div>
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={() => removeModification(row)}
+                        className="text-xs font-bold text-brand-red-primary hover:underline"
+                      >
+                        {t(
+                          'assignTargeting.removeModification',
+                          'Remove modification'
+                        )}
+                      </button>
+                    </div>
+                  </>
+                }
+              />
+            ))}
+          </div>
+          {addableRows.length > 0 && (
+            <select
+              value=""
+              onChange={(e) => addStudent(e.target.value)}
+              aria-label={t('assignTargeting.addStudent', 'Add a student')}
+              className="h-9 w-48 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none"
+            >
+              <option value="">
+                {t('assignTargeting.addStudent', 'Add a student')}
+              </option>
+              {addableGroups.length > 1
+                ? addableGroups.map((group) => (
+                    <optgroup key={group.rosterName} label={group.rosterName}>
+                      {group.rows.map((row) => (
+                        <option key={row.key} value={row.key}>
+                          {row.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))
+                : addableRows.map((row) => (
+                    <option key={row.key} value={row.key}>
+                      {row.name}
+                    </option>
+                  ))}
+            </select>
+          )}
+        </>
       ) : (
         <>
           {excludedInScope.length > 0 && (
@@ -449,17 +596,7 @@ export const ModificationsView: React.FC<ModificationsViewProps> = ({
   ...listProps
 }) => {
   const { t } = useTranslation();
-  const { value, onChange, rosters, selectedRosterIds, useRosterDefaults } =
-    listProps;
-  const counts = useMemo(
-    () =>
-      countModifications(
-        modificationRows({ rosters, selectedRosterIds, useRosterDefaults }),
-        value
-      ),
-    [rosters, selectedRosterIds, useRosterDefaults, value]
-  );
-  const hasModifications = counts.modified > 0 || counts.skipped > 0;
+  const { value, onChange } = listProps;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -484,15 +621,13 @@ export const ModificationsView: React.FC<ModificationsViewProps> = ({
             </h2>
           </div>
         </div>
-        {hasModifications && (
-          <button
-            type="button"
-            onClick={() => onChange(clearedModifications(value))}
-            className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-500 transition-colors hover:text-slate-700"
-          >
-            {t('assignTargeting.clearModifications', 'Clear all modifications')}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => onChange(clearedModifications(value))}
+          className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-500 transition-colors hover:text-slate-700"
+        >
+          {t('assignTargeting.clearModifications', 'Clear all modifications')}
+        </button>
       </div>
       <div className="custom-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
         <ModificationsList {...listProps} variant="view" />
