@@ -34,6 +34,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { PlcNewVideoActivityAssignmentModal } from '@/components/plc/PlcNewVideoActivityAssignmentModal';
 import type { Plc, ClassRoster, VideoActivityMetadata } from '@/types';
+import { useAuth } from '@/context/useAuth';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -90,6 +91,20 @@ vi.mock('@/hooks/useVideoActivityAssignments', () => ({
   useVideoActivityAssignments: vi.fn(() => ({
     createAssignment: mockCreateAssignment,
   })),
+}));
+
+vi.mock('@/config/firebase', () => ({ db: { __mock: 'db' } }));
+const mockUpdateDoc = vi.fn();
+const mockCommit = vi.fn(() => Promise.resolve());
+vi.mock('firebase/firestore', () => ({
+  doc: vi.fn((..._args: unknown[]) => ({ path: _args.slice(1).join('/') })),
+  writeBatch: () => ({ update: mockUpdateDoc, commit: mockCommit }),
+}));
+const mockMirror = vi.fn((..._args: unknown[]): void => undefined);
+vi.mock('@/hooks/usePlcAssignmentIndex', () => ({
+  mirrorPlcAssignmentStatus: (...args: unknown[]): void => {
+    mockMirror(...args);
+  },
 }));
 
 vi.mock('@/context/useAuth', () => ({
@@ -411,5 +426,72 @@ describe('PlcNewVideoActivityAssignmentModal (VA Task 10 — slimmed configure s
     await waitFor(() => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('PlcNewVideoActivityAssignmentModal — assign stepper', () => {
+  beforeEach(() => {
+    mockCreateAssignment.mockReset();
+    mockCreateAssignment.mockResolvedValue({ id: 'asg-1' });
+    mockLoadActivityData.mockResolvedValue({
+      id: 'va-1',
+      title: 'Cell Division',
+      youtubeUrl: 'https://youtube.com/watch?v=abc',
+      questions: [],
+    });
+    mockUpdateDoc.mockClear();
+    mockCommit.mockClear();
+    mockMirror.mockClear();
+    vi.mocked(useAuth).mockReturnValue({
+      user: {
+        uid: 'uid-teacher',
+        displayName: 'Ms. Smith',
+        email: 'smith@school.edu',
+      },
+      googleAccessToken: null,
+      ensureGoogleScope: vi.fn().mockResolvedValue(null),
+      canAccessFeature: (id: string) => id === 'assign-stepper',
+    } as unknown as ReturnType<typeof useAuth>);
+  });
+
+  it('shows Classes, When and a fixed Sharing step with no name field', async () => {
+    await renderAndPickActivity();
+    expect(screen.getByRole('button', { name: /^1Classes/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^2When/ })).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: /^3SharingShared with Grade 6/ })
+    ).toBeTruthy();
+    expect(screen.queryByPlaceholderText(/assignment name/i)).toBeNull();
+  });
+
+  it('creates it paused, then opens it with its window in one batch', async () => {
+    await renderAndPickActivity();
+    fireEvent.click(screen.getByRole('button', { name: /^Assign$/ }));
+    await waitFor(() => expect(mockCreateAssignment).toHaveBeenCalled());
+    const [, settings, status] = mockCreateAssignment.mock.calls[0] as [
+      unknown,
+      { className: string; plc: { id: string } },
+      string,
+    ];
+    expect(status).toBe('paused');
+    expect(settings.className).toBe('Cell Division');
+    expect(settings.plc).toMatchObject({ id: 'plc-42' });
+    await waitFor(() => expect(mockCommit).toHaveBeenCalledOnce());
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(2);
+    const fields = mockUpdateDoc.mock.calls[0][1] as Record<string, unknown>;
+    expect(fields.status).toBe('active');
+    expect(typeof fields.openAt).toBe('number');
+    expect(typeof fields.closeAt).toBe('number');
+    expect(mockMirror).toHaveBeenCalledWith('plc-42', 'asg-1', 'active');
+  });
+
+  it('stays paused and reports the error when opening fails', async () => {
+    mockCommit.mockRejectedValueOnce(new Error('offline'));
+    await renderAndPickActivity();
+    fireEvent.click(screen.getByRole('button', { name: /^Assign$/ }));
+    await waitFor(() =>
+      expect(mockAddToast).toHaveBeenCalledWith('offline', 'error')
+    );
+    expect(mockMirror).not.toHaveBeenCalled();
   });
 });
