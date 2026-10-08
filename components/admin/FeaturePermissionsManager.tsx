@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
 import { collection, doc, setDoc, getDocs, getDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import {
@@ -95,6 +101,10 @@ export const FeaturePermissionsManager: React.FC = () => {
   const [unsavedChanges, setUnsavedChanges] = useState<
     Set<WidgetType | InternalToolType>
   >(new Set());
+  // Bumped per edit so a save can tell whether the widget was edited while it was in flight.
+  const editVersionsRef = useRef<Map<WidgetType | InternalToolType, number>>(
+    new Map()
+  );
   const [activeModalTool, setActiveModalTool] = useState<ToolMetadata | null>(
     null
   );
@@ -227,6 +237,10 @@ export const FeaturePermissionsManager: React.FC = () => {
     widgetType: WidgetType | InternalToolType,
     updates: Partial<FeaturePermission>
   ) => {
+    editVersionsRef.current.set(
+      widgetType,
+      (editVersionsRef.current.get(widgetType) ?? 0) + 1
+    );
     setPermissions((prev) => {
       const current = prev.get(widgetType) ?? {
         widgetType,
@@ -247,6 +261,7 @@ export const FeaturePermissionsManager: React.FC = () => {
   ): Promise<boolean> => {
     try {
       setSaving((prev) => new Set(prev).add(widgetType));
+      const versionAtSave = editVersionsRef.current.get(widgetType) ?? 0;
       const permission = { ...getPermission(widgetType), ...(updates ?? {}) };
       if (updates) {
         setPermissions((prev) => new Map(prev).set(widgetType, permission));
@@ -260,12 +275,14 @@ export const FeaturePermissionsManager: React.FC = () => {
         minTier === undefined ? withoutMinTier : permission
       );
 
-      // Clear unsaved changes flag for this widget
-      setUnsavedChanges((prev) => {
-        const next = new Set(prev);
-        next.delete(widgetType);
-        return next;
-      });
+      // An edit made during the save stays unsaved.
+      if ((editVersionsRef.current.get(widgetType) ?? 0) === versionAtSave) {
+        setUnsavedChanges((prev) => {
+          const next = new Set(prev);
+          next.delete(widgetType);
+          return next;
+        });
+      }
 
       showMessage('success', `Saved ${widgetType} permissions`);
       return true;
