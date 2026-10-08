@@ -15,6 +15,7 @@ import {
   sortFolders,
   subtreeFolderIds,
 } from './folderView';
+import { sourceFolder } from './sourceFolders';
 
 const folder = (
   id: string,
@@ -96,6 +97,26 @@ describe('folderView helpers', () => {
     expect(ids('updated', 'desc')).toEqual(['Unit 2', 'Unit 10', 'unit 3']);
     expect(ids('manual', 'asc')).toEqual(['Unit 10', 'unit 3', 'Unit 2']);
     expect(ids('questions', 'desc')).toEqual(['Unit 10', 'unit 3', 'Unit 2']);
+  });
+
+  it('keeps source folders pinned on top under every sort', () => {
+    const list = [
+      folder('Alpha', null, { order: 0, createdAt: 9 }),
+      sourceFolder('global'),
+      sourceFolder('building'),
+    ];
+    for (const [key, dir] of [
+      ['title', 'asc'],
+      ['title', 'desc'],
+      ['updated', 'desc'],
+      ['manual', 'asc'],
+    ] as const) {
+      expect(sortFolders(list, { key, dir }).map((f) => f.id)).toEqual([
+        'source:building',
+        'source:global',
+        'Alpha',
+      ]);
+    }
   });
 
   it('collapses the middle of a deep breadcrumb', () => {

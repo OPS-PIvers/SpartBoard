@@ -24,8 +24,8 @@ export interface DeleteFolderDialogProps {
   blockedCount?: number;
   /** Sentence naming why blocked items are kept, e.g. "2 quizzes have live assignments". */
   blockedReason?: string;
-  /** Lines about items that go elsewhere either way (PR 5: items from a source folder). */
-  notes?: React.ReactNode[];
+  /** Lines about items that go elsewhere, e.g. filed shared items going back to their source folder. */
+  notes?: (choice: DeleteFolderChoice) => React.ReactNode[];
   /** Omit to offer only "Keep everything" (the widget has no delete path wired). */
   canDeleteItems?: boolean;
   onCancel: () => void;
@@ -49,7 +49,7 @@ export const DeleteFolderDialog: React.FC<DeleteFolderDialogProps> = ({
   noun,
   blockedCount = 0,
   blockedReason,
-  notes = [],
+  notes,
   canDeleteItems = true,
   onCancel,
   onConfirm,
@@ -217,7 +217,7 @@ export const DeleteFolderDialog: React.FC<DeleteFolderDialogProps> = ({
           </span>
         </p>
       )}
-      {notes.map((note, i) => (
+      {(notes?.(choice) ?? []).map((note, i) => (
         <p
           key={i}
           className="flex gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600"

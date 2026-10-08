@@ -423,6 +423,7 @@ const TeacherQuizWidget: React.FC<{
   } = useQuiz(user?.uid);
   const {
     sources: bankSources,
+    loading: bankSourcesLoading,
     loadBankContent,
     loadBankContentsForQuiz,
   } = useBankSources(user?.uid);
@@ -2889,6 +2890,7 @@ const TeacherQuizWidget: React.FC<{
         banks={banks}
         banksLoading={banksLoading}
         sharedBankSources={sharedBankSources}
+        sharedBanksLoading={bankSourcesLoading}
         onImportBank={() => setBankImportOpen(true)}
         onNewBank={() => {
           const now = Date.now();

@@ -28,6 +28,14 @@ import { useLibraryView } from './useLibraryView';
 
 export const LIBRARY_FOLDER_VIEW_FEATURE = 'library-folder-view';
 
+/** The `library-folder-view` preview flag, read without requiring an AuthProvider. */
+export function useLibraryFolderViewEnabled(override?: boolean): boolean {
+  const auth = useContext(AuthContext);
+  return (
+    override ?? auth?.canAccessFeature(LIBRARY_FOLDER_VIEW_FEATURE) ?? false
+  );
+}
+
 const OUTSIDE_FOLDER_REASON = 'Open a folder to reorder.';
 
 export interface FolderViewOptions<TItem> {
@@ -44,6 +52,8 @@ export interface FolderViewOptions<TItem> {
   itemNoun: ItemNoun;
   /** Legacy (flag off) folder filter; defaults to `filterByFolder`. */
   legacyFilter?: (items: TItem[], selectedFolderId: string | null) => TItem[];
+  /** Folders of items listed outside `items` (e.g. teammates' banks), counted in folder totals. */
+  extraItemFolderIds?: readonly (string | null)[];
   /** Overrides the feature flag (tests and fixtures). */
   enabled?: boolean;
 }
@@ -86,14 +96,13 @@ export function useFolderLibraryView<TItem>(
     itemNoun,
     getFolderId = defaultFolderId,
     getRecentAt = defaultRecentAt,
+    extraItemFolderIds,
     legacyFilter = filterByFolder as (
       list: TItem[],
       selected: string | null
     ) => TItem[],
   } = fv;
-  const auth = useContext(AuthContext);
-  const enabled =
-    fv.enabled ?? auth?.canAccessFeature(LIBRARY_FOLDER_VIEW_FEATURE) ?? false;
+  const enabled = useLibraryFolderViewEnabled(fv.enabled);
 
   const [legacySelected, setLegacySelected] = useState<string | null>(null);
   const [location, setLocation] = useState<LibraryLocation>(ROOT_LOCATION);
@@ -236,8 +245,12 @@ export function useFolderLibraryView<TItem>(
   ]);
 
   const totals = useMemo(
-    () => folderTotals(index, items.map(itemFolderId)),
-    [index, items, itemFolderId]
+    () =>
+      folderTotals(index, [
+        ...items.map(itemFolderId),
+        ...(extraItemFolderIds ?? []).map((id) => effectiveFolderId(id, index)),
+      ]),
+    [index, items, itemFolderId, extraItemFolderIds]
   );
 
   const sort = view.state.sort;
@@ -281,7 +294,8 @@ export function useFolderLibraryView<TItem>(
         showRows &&
         openFolderId != null &&
         folderRows.length === 0 &&
-        visibleItems.length === 0,
+        visibleItems.length === 0 &&
+        (totals.get(openFolderId)?.items ?? 0) === 0,
     };
   }, [
     enabled,

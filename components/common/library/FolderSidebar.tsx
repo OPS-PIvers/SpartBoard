@@ -40,6 +40,8 @@ import {
 import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
 import { LIBRARY_ROOT_LABEL } from './FolderViewHeader';
 import { folderPath, sameLocation, type LibraryLocation } from './folderView';
+import { SOURCE_LABELS, SOURCE_ORDER } from './sourceFolders';
+import type { PlacedItem } from './useSourceFolders';
 
 export type FolderDeleteMode = 'move-to-parent' | 'delete-all';
 
@@ -54,6 +56,8 @@ export interface FolderDeleteConfig {
   blockedReason?: (count: number) => string;
   /** The widget's own delete path, run without its per-item confirm; omit to offer only "Keep everything". */
   deleteItems?: (ids: string[]) => Promise<void>;
+  /** Items the teacher doesn't own, filed in their folders; they go back to their source folder (D19). */
+  placed?: PlacedItem[];
   /** Reports a finished delete, with an undo when the folder's contents were kept. */
   onDeleted?: (message: string, undo?: FolderDeleteUndo) => void;
 }
@@ -263,7 +267,27 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
     const blocked = folderDelete.isBlocked
       ? itemIds.filter((id) => folderDelete.isBlocked?.(id))
       : [];
-    return { subfolderCount: subfolderIds.length, itemIds, blocked };
+    // Keep leaves subfolders in place, so only the folder's own filed items go back.
+    const placedCounts = (choice: DeleteFolderChoice) =>
+      SOURCE_ORDER.map(
+        (source) =>
+          [
+            source,
+            (folderDelete.placed ?? []).filter(
+              (p) =>
+                p.source === source &&
+                (choice === 'keep'
+                  ? p.folderId === confirmDelete.id
+                  : inTree.has(p.folderId))
+            ).length,
+          ] as const
+      ).filter(([, count]) => count > 0);
+    return {
+      subfolderCount: subfolderIds.length,
+      itemIds,
+      blocked,
+      placedCounts,
+    };
   }, [confirmDelete, folderDelete, folders]);
 
   const parentNameOf = (folder: LibraryFolder): string =>
@@ -531,6 +555,16 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
             subtree.blocked.length > 0
               ? folderDelete.blockedReason?.(subtree.blocked.length)
               : undefined
+          }
+          notes={(choice) =>
+            subtree.placedCounts(choice).map(([source, count]) => (
+              <span key={source}>
+                {count}{' '}
+                {count === 1 ? folderDelete.noun.one : folderDelete.noun.many}{' '}
+                will go back to{' '}
+                <b className="font-semibold">{SOURCE_LABELS[source].folder}</b>.
+              </span>
+            ))
           }
           canDeleteItems={!!folderDelete.deleteItems}
           onCancel={() => setConfirmDelete(null)}
