@@ -37,6 +37,7 @@ import {
   FLASHCARD_TEST_TYPE_OPTIONS as TEST_TYPE_OPTIONS,
   FLASHCARD_THRESHOLD_OPTIONS as THRESHOLD_OPTIONS,
 } from './utils/flashcardAssignOptions';
+import { FlashcardAssignStepper } from './FlashcardAssignStepper';
 
 export interface FlashcardAssignModalProps {
   isOpen: boolean;
@@ -44,7 +45,8 @@ export interface FlashcardAssignModalProps {
   rosters: ClassRoster[];
   initialRosterIds?: string[];
   onClose: () => void;
-  onAssign: (submission: FlashcardAssignSubmission) => Promise<void>;
+  /** Resolves false when the assign failed. */
+  onAssign: (submission: FlashcardAssignSubmission) => Promise<boolean | void>;
   /** Per-period mode and windows; undefined while the flag is off. */
   periodAccess?: AssignPeriodAccessContext;
 }
@@ -98,7 +100,21 @@ function Segmented<T extends string | number>({
   );
 }
 
-export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = ({
+/** The accordion stepper behind `assign-stepper`, otherwise today's dialog (D16). */
+export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = (
+  props
+) => {
+  const auth = useContext(AuthContext);
+  return auth?.canAccessFeature('assign-stepper') === true ? (
+    <FlashcardAssignStepper {...props} />
+  ) : (
+    <LegacyFlashcardAssignModal {...props} />
+  );
+};
+
+export const LegacyFlashcardAssignModal: React.FC<
+  FlashcardAssignModalProps
+> = ({
   isOpen,
   set,
   rosters,
@@ -365,8 +381,8 @@ export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = ({
       // so the modal renders invisibly behind it. Same fix as
       // SpotifyPremiumDialog.tsx.
       zIndex="z-dialog"
-      onAssign={() =>
-        onAssign(
+      onAssign={async () => {
+        await onAssign(
           buildFlashcardAssignSubmission({
             set,
             form,
@@ -382,8 +398,8 @@ export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = ({
             }).targeting,
             bellWindow: periodAccess?.bellWindow,
           })
-        )
-      }
+        );
+      }}
       confirmLabel="Assign"
       confirmDisabled={disabledReason !== undefined}
       confirmDisabledReason={disabledReason}

@@ -29,6 +29,7 @@ import {
   buildSetAssignmentTargetsPayload,
   payloadRequiresCall,
 } from '@/utils/studentTargetRef';
+import { buildMixedTargetsPayload } from '@/utils/assignTargets';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import { FlashcardAssignModal } from './FlashcardAssignModal';
 import { useFlashcardPlcSharing } from './useFlashcardPlcSharing';
@@ -95,6 +96,7 @@ interface SetAssignmentTargetsCallableInput {
     dueAt?: number | null;
   };
   targetMode?: 'class' | 'students';
+  studentTargetClassIds?: string[];
 }
 interface SetAssignmentTargetsCallableResult {
   written: number;
@@ -313,14 +315,17 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     input,
     rosterIds,
     expandedTargeting,
-  }: FlashcardAssignSubmission): Promise<void> => {
+    studentTargetClassIds,
+  }: FlashcardAssignSubmission): Promise<boolean> => {
     const { set } = input;
     try {
       const sessionId = await createAssignment(input);
-      const payload = buildSetAssignmentTargetsPayload(
-        undefined,
-        expandedTargeting
-      );
+      const payload = studentTargetClassIds
+        ? buildMixedTargetsPayload(undefined, {
+            targeting: expandedTargeting,
+            studentTargetClassIds,
+          })
+        : buildSetAssignmentTargetsPayload(undefined, expandedTargeting);
       if (payloadRequiresCall(payload)) {
         try {
           const callable = httpsCallable<
@@ -380,6 +385,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       } catch {
         addToast(`“${set.title}” assigned.`, 'success');
       }
+      return true;
     } catch (error) {
       addToast(
         error instanceof Error
@@ -387,6 +393,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
           : 'Flashcard set could not be assigned.',
         'error'
       );
+      return false;
     }
   };
 
