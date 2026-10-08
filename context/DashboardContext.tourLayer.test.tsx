@@ -258,6 +258,25 @@ describe('DashboardContext tour layer', () => {
     expect(savedWidgetIds().flat()).not.toContain(id);
   });
 
+  it('seeds a fresh tour Schedule with timed periods, in either placement', async () => {
+    const stateRef = setup();
+    await settle(stateRef, [makeDashboard([makeWidget('w1')])]);
+    let placed: string | null = null;
+    let plain: string | null = null;
+    act(() => {
+      placed = stateRef.current?.addTourWidget?.('schedule', LAYOUT) ?? null;
+      plain = stateRef.current?.addTourWidget?.('schedule') ?? null;
+    });
+    for (const id of [placed, plain]) {
+      const w = stateRef.current?.activeDashboard?.widgets.find(
+        (x) => x.id === id
+      );
+      const items = (w?.config as { items?: { endTime?: string }[] }).items;
+      expect(items?.length).toBe(3);
+      expect(items?.every((i) => !!i.endTime)).toBe(true);
+    }
+  });
+
   it('keeps a tour widget out of history, so undo leaves it in place', async () => {
     const stateRef = setup();
     await settle(stateRef, [makeDashboard([makeWidget('w1')])]);
